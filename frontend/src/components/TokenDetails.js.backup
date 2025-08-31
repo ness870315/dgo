@@ -1,0 +1,954 @@
+import React, { useState, useEffect } from 'react';
+import { X, Twitter, MessageCircle, ExternalLink, Star } from 'lucide-react';
+
+const TokenDetails = ({ token, onClose }) => {
+  const [isInWatchlist, setIsInWatchlist] = useState(false);
+  
+  // DEBUG: Log the token data to see what we're actually receiving
+  console.log('🔍 TokenDetails DEBUG - Received token:', token);
+  console.log('🔍 Token symbol:', token?.symbol);
+  console.log('🔍 Token name:', token?.name);
+  console.log('🔍 Token contractAddress:', token?.contractAddress);
+  console.log('🔍 Token mentions:', token?.mentions);
+  console.log('🔍 Token communityScore:', token?.communityScore);
+  console.log('🔍 Token twitterData:', token?.twitterData);
+  console.log('🔍 Token jupiterData:', token?.jupiterData);
+
+  // DEBUG: Check specific Jupiter fields
+  if (token?.jupiterData) {
+    console.log('🔍 Jupiter circSupply:', token.jupiterData.circSupply);
+    console.log('🔍 Jupiter totalSupply:', token.jupiterData.totalSupply);
+    console.log('🔍 Jupiter firstPool:', token.jupiterData.firstPool);
+    console.log('🔍 Jupiter launchpad:', token.jupiterData.launchpad);
+    console.log('🔍 Jupiter holderCount:', token.jupiterData.holderCount);
+  }
+  
+  // DEBUG: Log specific Jupiter fields that should be showing
+  if (token?.jupiterData) {
+    console.log('🔍 Jupiter totalSupply:', token.jupiterData.totalSupply);
+    console.log('🔍 Jupiter usdPrice:', token.jupiterData.usdPrice);
+    console.log('🔍 Jupiter mcap:', token.jupiterData.mcap);
+    console.log('🔍 Jupiter fdv:', token.jupiterData.fdv);
+    console.log('🔍 Jupiter liquidity:', token.jupiterData.liquidity);
+    console.log('🔍 Jupiter holderCount:', token.jupiterData.holderCount);
+    console.log('🔍 Jupiter organicScore:', token.jupiterData.organicScore);
+    console.log('🔍 Jupiter stats1h:', token.jupiterData.stats1h);
+    console.log('🔍 Jupiter audit:', token.jupiterData.audit);
+  }
+
+  useEffect(() => {
+    // Check if token is in watchlist on component mount
+    const checkWatchlistStatus = () => {
+      const watchlist = JSON.parse(localStorage.getItem('watchlist') || '[]');
+      setIsInWatchlist(watchlist.some(item => item.symbol === token?.symbol));
+    };
+
+    checkWatchlistStatus();
+  }, [token]);
+
+  const toggleWatchlist = () => {
+    const watchlist = JSON.parse(localStorage.getItem('watchlist') || '[]');
+    
+      if (isInWatchlist) {
+      // Remove from watchlist
+      const updatedWatchlist = watchlist.filter(item => item.symbol !== token.symbol);
+      localStorage.setItem('watchlist', JSON.stringify(updatedWatchlist));
+        setIsInWatchlist(false);
+      } else {
+      // Add to watchlist
+      const watchlistItem = {
+          symbol: token.symbol,
+          name: token.name,
+        score: token.score || token.overallScore || 0,
+        marketCap: token.marketCap || token.jupiterData?.mcap || 0,
+        price: token.price || token.jupiterData?.usdPrice || 0,
+        addedAt: new Date().toISOString()
+      };
+      watchlist.push(watchlistItem);
+      localStorage.setItem('watchlist', JSON.stringify(watchlist));
+        setIsInWatchlist(true);
+    }
+  };
+
+  if (!token) return null;
+
+  const formatNumber = (num) => {
+    if (!num || isNaN(num)) return 'N/A';
+    if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+    if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+    if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
+    return num.toFixed(2);
+  };
+
+  const formatPercentage = (num) => {
+    if (!num || isNaN(num)) return 'N/A';
+    return (num >= 0 ? '+' : '') + num.toFixed(2) + '%';
+  };
+
+  const formatPrice = (price) => {
+    if (!price || isNaN(price)) return 'N/A';
+    if (price < 0.000001) return price.toExponential(4);
+    if (price < 0.01) return price.toFixed(8);
+    if (price < 1) return price.toFixed(6);
+    if (price < 100) return price.toFixed(4);
+    return price.toFixed(2);
+  };
+
+  const getScoreColor = (score) => {
+    if (score >= 7) return 'text-green-400';
+    if (score >= 4) return 'text-yellow-400';
+    return 'text-red-400';
+  };
+
+  const getScoreLabel = (score) => {
+    if (score >= 7) return 'Good';
+    if (score >= 4) return 'Average';
+    return 'Poor';
+  };
+
+  const getCommunityLabel = (score) => {
+    if (score >= 7) return 'Strong';
+    if (score >= 4) return 'Medium';
+    return 'Weak';
+  };
+
+  const getLiquidityStatus = (liquidity, marketCap) => {
+    if (!liquidity || !marketCap) return { icon: '❓', color: 'text-gray-400' };
+    const ratio = (liquidity / marketCap) * 100;
+    if (ratio > 20) return { icon: '🟢', color: 'text-green-400' };
+    if (ratio < 10) return { icon: '🔴', color: 'text-red-400' };
+    return { icon: '🟡', color: 'text-yellow-400' };
+  };
+
+  const getOrganicLabel = (score) => {
+    if (score >= 70) return 'High';
+    if (score >= 40) return 'Medium';
+    return 'Low';
+  };
+
+  const getCommunityHealthLabel = (score) => {
+    if (score >= 7) return 'High';
+    if (score >= 4) return 'Medium';
+    return 'Low';
+  };
+
+  const getRiskLevel = (score) => {
+    if (score >= 7) return { level: 'Low', icon: '🟢', color: 'text-green-400' };
+    if (score >= 4) return { level: 'Medium', icon: '🟡', color: 'text-yellow-400' };
+    return { level: 'High', icon: '🔴', color: 'text-red-400' };
+  };
+
+  const getSentimentEmoji = (score) => {
+    if (score >= 7) return '😃';
+    if (score >= 4) return '😐';
+    return '😡';
+  };
+
+  const liquidityStatus = getLiquidityStatus(token.jupiterData?.liquidity, token.jupiterData?.marketCap);
+  const riskLevel = getRiskLevel(token.score || token.overallScore || 0);
+  const sentimentEmoji = getSentimentEmoji(token.sentimentScore || 5);
+
+  return (
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2">
+      <div className="bg-dark-bg border border-gray-700 rounded-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto">
+          {/* Header */}
+        <div className="sticky top-0 bg-dark-bg border-b border-gray-700 p-3 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+              {token.image && (
+              <img src={token.image} alt={token.name} className="w-16 h-16 rounded-full border-2 border-blue-500" />
+              )}
+              <div>
+              <h2 className="text-xl font-bold text-white">{token.jupiterData?.symbol || token.symbol || 'UNKNOWN'} – {token.jupiterData?.name || token.name || 'Unknown Token'}</h2>
+              {/* Contract Address */}
+              {token.contractAddress && (
+                  <div className="flex items-center space-x-2 mt-2">
+                  <span className="text-gray-400 text-xs">CA:</span>
+                  <code className="text-xs bg-dark-bg px-2 py-1 rounded border border-gray-700 text-gray-300 font-mono">
+                      {token.contractAddress.length > 20 
+                        ? `${token.contractAddress.slice(0, 6)}...${token.contractAddress.slice(-6)}`
+                        : token.contractAddress
+                      }
+                    </code>
+                    <button
+                    onClick={(event) => {
+                      navigator.clipboard.writeText(token.contractAddress);
+                      // Optional: Add a visual feedback
+                      const button = event.target;
+                      const originalText = button.innerHTML;
+                      button.innerHTML = '✅';
+                      button.className = 'text-green-400 hover:text-green-300 transition-colors';
+                      setTimeout(() => {
+                        button.innerHTML = originalText;
+                        button.className = 'text-gray-400 hover:text-white transition-colors';
+                      }, 2000);
+                    }}
+                      className="text-gray-400 hover:text-white transition-colors"
+                      title="Copy contract address"
+                    >
+                    📋
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+            {/* Watchlist Star */}
+              <button
+                onClick={toggleWatchlist}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  isInWatchlist 
+                    ? 'text-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20' 
+                    : 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/10'
+              }`}
+                title={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
+              >
+                  <Star 
+                    size={20} 
+                    fill={isInWatchlist ? 'currentColor' : 'none'} 
+                  />
+              </button>
+              {/* Close Button */}
+              <button
+                onClick={onClose}
+              className="text-gray-400 hover:text-white transition-colors"
+              >
+              <X size={20} />
+              </button>
+            </div>
+          </div>
+
+        <div className="p-3 space-y-4">
+          {/* ⭐ Section 1 – Overall Score, Mentions, Community */}
+          <div className="bg-gray-800 rounded-lg p-3 border border-gray-600">
+            <h3 className="text-lg font-bold mb-3 text-white flex items-center">
+              ⭐ Performance Overview
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* 📊 Overall Score */}
+              <div className="text-center bg-black p-3 rounded border border-gray-700">
+                <div className={`text-3xl font-bold mb-2 ${getScoreColor(token.score || token.overallScore || 0)}`}>
+                  {(token.score || token.overallScore || 0).toFixed(1)}
+              </div>
+                <div className="text-gray-400 text-sm mb-1">📊 Overall Score</div>
+                <div className={`text-sm font-semibold ${getScoreColor(token.score || token.overallScore || 0)}`}>
+                  {getScoreLabel(token.score || token.overallScore || 0)}
+              </div>
+                <div className="text-xs text-gray-500">0-10 scale</div>
+              </div>
+              
+              {/* 💬 Mentions (24h) */}
+              <div className="text-center bg-black p-3 rounded border border-gray-700">
+                <div className="text-3xl font-bold mb-2 text-blue-400">
+                  {(() => {
+                    // Get mentions from various possible sources
+                    const mentions24h = token.twitterData?.mentions24h ||
+                                       token.twitterData?.mentions ||
+                                       token.mentions24h ||
+                                       token.mentions ||
+                                       token.recentMentions?.length ||
+                                       0;
+
+                    // Format the number properly
+                    return mentions24h > 0 ? mentions24h.toLocaleString() : 'N/A';
+                  })()}
+            </div>
+                <div className="text-gray-400 text-sm mb-1">💬 Mentions (24h)</div>
+                <div className="flex items-center justify-center space-x-1">
+                  <span className="text-lg">
+                    {(() => {
+                      const mentions24h = token.twitterData?.mentions24h ||
+                                         token.twitterData?.mentions ||
+                                         token.mentions24h ||
+                                         token.mentions || 0;
+
+                      const totalMentions = token.twitterData?.mentions ||
+                                          token.mentions || 0;
+
+                      // Calculate trend based on available data
+                      if (totalMentions > 0 && mentions24h >= 0) {
+                        return mentions24h > totalMentions * 0.7 ? '📈' : mentions24h < totalMentions * 0.3 ? '📉' : '➡️';
+                      }
+                      return '➡️';
+                    })()}
+                  </span>
+                  <span className="text-sm font-semibold text-gray-400">
+                    {(() => {
+                      const mentions24h = token.twitterData?.mentions24h ||
+                                         token.twitterData?.mentions ||
+                                         token.mentions24h ||
+                                         token.mentions || 0;
+
+                      // Show relative activity level
+                      if (mentions24h >= 100) return 'High Activity';
+                      if (mentions24h >= 50) return 'Medium Activity';
+                      if (mentions24h >= 10) return 'Low Activity';
+                      return mentions24h > 0 ? 'Minimal Activity' : 'No Activity';
+                    })()}
+                  </span>
+              </div>
+              </div>
+              
+              {/* 👥 Community Score */}
+              <div className="text-center bg-black p-3 rounded border border-gray-700">
+                <div className="text-3xl font-bold mb-2 text-green-400">
+                  {token.communityScore || token.communityHealth || token.communityHealthScore || token.twitterData?.communityHealth || 'N/A'}
+                </div>
+                <div className="text-gray-400 text-sm mb-1">👥 Community Score</div>
+                <div className="text-sm font-semibold text-green-400">
+                  {getCommunityLabel(token.communityScore || token.communityHealth || token.communityHealthScore || token.twitterData?.communityHealth || 0)}
+                </div>
+                <div className="text-xs text-gray-500">0-10 rating</div>
+              </div>
+            </div>
+          </div>
+
+          {/* 🔍 Section 2 – Insights (Market Data) */}
+          {/* Show for all tokens - use fallback data when jupiterData is missing */}
+          {(token.jupiterData || true) && (
+            <div className="bg-gray-800 rounded-lg p-3 border border-gray-600">
+            <h3 className="text-lg font-bold mb-3 text-white flex items-center">
+              🔍 Insights
+            </h3>
+              
+              {/* Market Data - Now First */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+                <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                  <div className="text-gray-400 text-xs mb-1">💰 Market Cap</div>
+                  <div className="text-white font-semibold text-sm">
+                    {token.jupiterData?.mcap ? `$${formatNumber(token.jupiterData.mcap)}` :
+                     token.marketCap ? `$${formatNumber(token.marketCap)}` : 'N/A'}
+              </div>
+              </div>
+                <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                  <div className="text-gray-400 text-xs mb-1">💎 FDV</div>
+                  <div className="text-white font-semibold text-sm">
+                    {(token.jupiterData?.fdv || token.jupiterData?.mcap || token.marketCap) ? `$${formatNumber(token.jupiterData?.fdv || token.jupiterData?.mcap || token.marketCap || 0)}` : 'N/A'}
+              </div>
+            </div>
+                <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                  <div className="text-gray-400 text-xs mb-1">💲 Price (USD)</div>
+                  <div className="text-white font-semibold text-sm">
+                    {token.jupiterData?.usdPrice ? `$${formatPrice(token.jupiterData.usdPrice)}` :
+                     token.currentPrice ? `$${formatPrice(token.currentPrice)}` :
+                     token.price ? `$${formatPrice(token.price)}` : 'N/A'}
+                  </div>
+              </div>
+                <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                  <div className="text-gray-400 text-xs mb-1">💧 Liquidity</div>
+                  <div className="text-white font-semibold text-sm">
+                    {token.jupiterData?.liquidity ? `$${formatNumber(token.jupiterData.liquidity)}` :
+                     token.liquidity ? `$${formatNumber(token.liquidity)}` : 'N/A'}
+              </div>
+                  <div className={`text-xs mt-1 ${liquidityStatus.color}`}>
+                    {liquidityStatus.icon} {(token.jupiterData?.liquidity || token.liquidity) && (token.jupiterData?.mcap || token.marketCap) ?
+                      (((token.jupiterData?.liquidity || token.liquidity) / (token.jupiterData?.mcap || token.marketCap)) * 100).toFixed(1) + '% of MC' : 'N/A'}
+              </div>
+            </div>
+          </div>
+
+              {/* Basic Info Grid - Now Second */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+                <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                  <div className="text-gray-400 text-xs mb-1">🪙 Circulating Supply</div>
+                  <div className="text-white font-semibold text-sm">
+                    {token.jupiterData?.circSupply ? formatNumber(Number(token.jupiterData.circSupply)) :
+                     token.jupiterData?.totalSupply ? formatNumber(Number(token.jupiterData.totalSupply)) :
+                     token.totalSupply ? formatNumber(Number(token.totalSupply)) :
+                     token.jupiterData ? 'No supply data' : 'No Jupiter data'}
+                  </div>
+              </div>
+                <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                  <div className="text-gray-400 text-xs mb-1">👛 Holder Count</div>
+                  <div className="text-white font-semibold text-sm">
+                    {token.jupiterData?.holderCount ? formatNumber(token.jupiterData.holderCount) :
+                     token.holderCount ? formatNumber(token.holderCount) : 'N/A'}
+              </div>
+                  <div className="text-xs text-gray-500">
+                    {(token.jupiterData?.stats24h?.holderChange || token.holderChange24h || 0) > 0 ? '📈' : (token.jupiterData?.stats24h?.holderChange || token.holderChange24h || 0) < 0 ? '📉' : '➡️'} 24h
+              </div>
+            </div>
+                <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                  <div className="text-gray-400 text-xs mb-1">📅 Creation Date</div>
+                  <div className="text-white font-semibold text-xs">
+                    {token.jupiterData?.firstPool?.createdAt ? new Date(token.jupiterData.firstPool.createdAt).toLocaleDateString() :
+                     token.createdAt ? new Date(token.createdAt).toLocaleDateString() :
+                     token.creationTime ? new Date(token.creationTime).toLocaleDateString() :
+                     token.jupiterData?.creationTime ? new Date(token.jupiterData.creationTime).toLocaleDateString() :
+                     token.jupiterData ? 'No creation date' : 'No Jupiter data'}
+              </div>
+              </div>
+                <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                  <div className="text-gray-400 text-xs mb-1">🚀 Launchpad</div>
+                  <div className="text-white font-semibold text-xs">
+                    {token.jupiterData?.launchpad ? token.jupiterData.launchpad :
+                     token.launchpad ? token.launchpad :
+                     token.source ? token.source :
+                     token.jupiterData ? 'No launchpad data' : 'No Jupiter data'}
+              </div>
+            </div>
+              </div>
+
+              {/* Organic Metrics - Always show with fallback values */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                  <div className="text-gray-400 text-xs mb-1">🧭 Organic Score</div>
+                  <div className="text-white font-semibold text-lg">
+                    {token.jupiterData?.organicScore ? `${token.jupiterData.organicScore.toFixed(1)}/100` :
+                     token.organicScore ? `${token.organicScore.toFixed(1)}/100` :
+                     token.socialScore ? `${token.socialScore.toFixed(1)}/100` : '50.0/100'}
+              </div>
+                  <div className="text-xs text-gray-400">
+                    {getOrganicLabel(token.jupiterData?.organicScore || token.organicScore || token.socialScore || 50)}
+              </div>
+            </div>
+                <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                  <div className="text-gray-400 text-xs mb-1">🌱 Community Health</div>
+                  <div className="text-white font-semibold text-lg">
+                    {(token.communityScore || token.communityHealth || token.jupiterData?.organicMetrics?.communityHealth || 5)?.toFixed(1) || 'N/A'}/10
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    {getCommunityHealthLabel(token.communityScore || token.communityHealth || token.jupiterData?.organicMetrics?.communityHealth || 5)}
+          </div>
+                </div>
+              </div>
+          </div>
+          )}
+
+          {/* 🛡️ Section 3 – Audit Information */}
+          {/* Always show audit info with fallback values */}
+          {(token.jupiterData?.audit || true) && (
+            <div className="bg-gray-800 rounded-lg p-3 border border-gray-600">
+              <h3 className="text-lg font-bold mb-3 text-white flex items-center">
+                🛡️ Audit Information
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                  <div className="text-gray-400 text-xs mb-1">🔒 Mint Authority</div>
+                  <div className={`font-semibold text-sm ${token.jupiterData?.audit?.mintAuthorityDisabled ? 'text-green-400' : 'text-red-400'}`}>
+                    {token.jupiterData?.audit?.mintAuthorityDisabled ? '🟢 Disabled' : '🔴 Enabled'}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {token.jupiterData?.audit?.mintAuthorityDisabled ? 'Safe' : 'Unsafe'}
+                  </div>
+                </div>
+                <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                  <div className="text-gray-400 text-xs mb-1">🔑 Freeze Authority</div>
+                  <div className={`font-semibold text-sm ${token.jupiterData?.audit?.freezeAuthorityDisabled ? 'text-green-400' : 'text-red-400'}`}>
+                    {token.jupiterData?.audit?.freezeAuthorityDisabled ? '🟢 Disabled' : '🔴 Enabled'}
+                  </div>
+                </div>
+                <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                  <div className="text-gray-400 text-xs mb-1">🐋 Top Holders %</div>
+                  <div className="text-white font-semibold text-sm">
+                    {token.jupiterData?.audit?.topHoldersPercentage !== undefined ?
+                      `${token.jupiterData.audit.topHoldersPercentage.toFixed(1)}%` :
+                     token.topHoldersPercentage !== undefined ?
+                      `${token.topHoldersPercentage.toFixed(1)}%` :
+                      'N/A'}
+                  </div>
+                  {(token.topHoldersPercentage || token.jupiterData?.audit?.topHoldersPercentage || 0) > 30 && (
+                    <div className="text-yellow-400 text-xs">⚠️ High concentration</div>
+                  )}
+                </div>
+                <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                  <div className="text-gray-400 text-xs mb-1">🧊 Dev Balance %</div>
+                  <div className={`font-semibold text-sm ${(token.devBalancePercentage || token.jupiterData?.audit?.devBalancePercentage || 0) <= 0.0001 ? 'text-green-400' : 'text-red-400'}`}>
+                    {token.jupiterData?.audit?.devBalancePercentage !== undefined ?
+                      `${(token.jupiterData.audit.devBalancePercentage * 100).toFixed(8)}%` :
+                     token.devBalancePercentage !== undefined ?
+                      `${(token.devBalancePercentage * 100).toFixed(8)}%` :
+                      'N/A'}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {(token.devBalancePercentage || token.jupiterData?.audit?.devBalancePercentage || 0) <= 0.0001 ? '🟢 Safe (Rug-proof)' : '🔴 Risk (Dev control)'}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* 📈 Section 4 – Detailed Stats Timeline */}
+          {/* Always show timeline with fallback values */}
+          {(token.jupiterData?.stats1h || token.jupiterData?.stats6h || token.jupiterData?.stats24h || true) && (
+            <div className="bg-gray-800 rounded-lg p-3 border border-gray-600">
+              <h3 className="text-lg font-bold mb-3 text-white flex items-center">
+                📈 Detailed Stats Timeline
+              </h3>
+
+              {/* 1 Hour Stats */}
+              {/* Always show 1h stats with fallback values */}
+                <div className="mb-4">
+                  <h4 className="text-md font-semibold mb-2 text-white">⏰ 1 Hour Stats</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                    <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                      <div className="text-gray-400 text-xs mb-1">📈 Price Change %</div>
+                      <div className={`font-semibold text-sm ${(token.jupiterData?.stats1h?.priceChange || token.priceChange1h || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {formatPercentage(token.jupiterData?.stats1h?.priceChange || token.priceChange1h || 0)}
+                      </div>
+                    </div>
+                    <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                      <div className="text-gray-400 text-xs mb-1">👛 Holder Change %</div>
+                      <div className={`font-semibold text-sm ${(token.jupiterData?.stats1h?.holderChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {formatPercentage(token.jupiterData?.stats1h?.holderChange || 0)}
+                      </div>
+                    </div>
+                    <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                      <div className="text-gray-400 text-xs mb-1">💧 Liquidity Change %</div>
+                      <div className={`font-semibold text-sm ${(token.jupiterData?.stats1h?.liquidityChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {formatPercentage(token.jupiterData?.stats1h?.liquidityChange || 0)}
+                      </div>
+                    </div>
+                    <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                      <div className="text-gray-400 text-xs mb-1">🔄 Buy/Sell Volumes</div>
+                      <div className="text-white font-semibold text-xs">
+                        B: {formatNumber(token.jupiterData?.stats1h?.buyVolume || 0)}
+                      </div>
+                      <div className="text-white font-semibold text-xs">
+                        S: {formatNumber(token.jupiterData?.stats1h?.sellVolume || token.jupiterData?.stats1h?.sellVolume || 0)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                      <div className="text-gray-400 text-xs mb-1">🧑‍🤝‍🧑 Unique Traders</div>
+                      <div className="text-white font-semibold text-sm">
+                        {token.jupiterData?.stats1h?.numTraders ? formatNumber(token.jupiterData.stats1h.numTraders) : 'N/A'}
+                      </div>
+                    </div>
+                    <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                      <div className="text-gray-400 text-xs mb-1">📉 Net Buyers</div>
+                      <div className="text-white font-semibold text-sm">
+                        {token.jupiterData?.stats1h?.numNetBuyers ? formatNumber(token.jupiterData.stats1h.numNetBuyers) : 'N/A'}
+          </div>
+                    </div>
+                    <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                      <div className="text-gray-400 text-xs mb-1">🌱 Organic Volume</div>
+                      <div className="text-white font-semibold text-xs">
+                        B: {formatNumber(token.jupiterData?.stats1h?.buyOrganicVolume || 0)}
+                      </div>
+                      <div className="text-white font-semibold text-xs">
+                        S: {formatNumber(token.jupiterData?.stats1h?.sellOrganicVolume || 0)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              {/* 6 Hour Stats */}
+              {(token.jupiterData?.stats6h || true) && (
+                <div className="mb-4">
+                  <h4 className="text-md font-semibold mb-2 text-white">⏰ 6 Hour Stats</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                    <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                      <div className="text-gray-400 text-xs mb-1">📈 Price Change %</div>
+                      <div className={`font-semibold text-sm ${(token.jupiterData?.stats6h?.priceChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {formatPercentage(token.jupiterData?.stats6h?.priceChange || 0)}
+                      </div>
+                    </div>
+                    <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                      <div className="text-gray-400 text-xs mb-1">👛 Holder Change %</div>
+                      <div className={`font-semibold text-sm ${(token.jupiterData?.stats6h?.holderChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {formatPercentage(token.jupiterData?.stats6h?.holderChange || 0)}
+                      </div>
+                    </div>
+                    <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                      <div className="text-gray-400 text-xs mb-1">💧 Liquidity Change %</div>
+                      <div className={`font-semibold text-sm ${(token.jupiterData?.stats6h?.liquidityChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {formatPercentage(token.jupiterData?.stats6h?.liquidityChange || 0)}
+                      </div>
+                    </div>
+                    <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                      <div className="text-gray-400 text-xs mb-1">🔄 Buy/Sell Volumes</div>
+                      <div className="text-white font-semibold text-xs">
+                        B: {formatNumber(token.jupiterData?.stats6h?.buyVolume || 0)}
+                      </div>
+                      <div className="text-white font-semibold text-xs">
+                        S: {formatNumber(token.jupiterData?.stats6h?.sellVolume || token.jupiterData?.stats6h?.sellVolume || 0)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                      <div className="text-gray-400 text-xs mb-1">🧑‍🤝‍🧑 Unique Traders</div>
+                      <div className="text-white font-semibold text-sm">
+                        {token.jupiterData?.stats6h?.numTraders ? formatNumber(token.jupiterData.stats6h.numTraders) : 'N/A'}
+                      </div>
+                    </div>
+                    <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                      <div className="text-gray-400 text-xs mb-1">📉 Net Buyers</div>
+                      <div className="text-white font-semibold text-sm">
+                        {token.jupiterData?.stats6h?.numNetBuyers ? formatNumber(token.jupiterData.stats6h.numNetBuyers) : 'N/A'}
+                      </div>
+                    </div>
+                    <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                      <div className="text-gray-400 text-xs mb-1">🌱 Organic Volume</div>
+                      <div className="text-white font-semibold text-xs">
+                        B: {formatNumber(token.jupiterData?.stats6h?.buyOrganicVolume || 0)}
+                      </div>
+                      <div className="text-white font-semibold text-xs">
+                        S: {formatNumber(token.jupiterData?.stats6h?.sellOrganicVolume || 0)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 24 Hour Stats */}
+              {(token.jupiterData?.stats24h || true) && (
+                <div className="mb-2">
+                  <h4 className="text-md font-semibold mb-2 text-white">⏰ 24 Hour Stats</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                    <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                      <div className="text-gray-400 text-xs mb-1">📈 Price Change %</div>
+                      <div className={`font-semibold text-sm ${(token.jupiterData?.stats24h?.priceChange || token.priceChange24h || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {formatPercentage(token.jupiterData?.stats24h?.priceChange || token.priceChange24h || 0)}
+                      </div>
+                    </div>
+                    <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                      <div className="text-gray-400 text-xs mb-1">👛 Holder Change %</div>
+                      <div className={`font-semibold text-sm ${(token.jupiterData?.stats24h?.holderChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {formatPercentage(token.jupiterData?.stats24h?.holderChange || 0)}
+                      </div>
+                    </div>
+                    <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                      <div className="text-gray-400 text-xs mb-1">💧 Liquidity Change %</div>
+                      <div className={`font-semibold text-sm ${(token.jupiterData?.stats24h?.liquidityChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {formatPercentage(token.jupiterData?.stats24h?.liquidityChange || 0)}
+                      </div>
+                    </div>
+                    <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                      <div className="text-gray-400 text-xs mb-1">🔄 Buy/Sell Volumes</div>
+                      <div className="text-white font-semibold text-xs">
+                        B: {formatNumber(token.jupiterData?.stats24h?.buyVolume || 0)}
+                      </div>
+                      <div className="text-white font-semibold text-xs">
+                        S: {formatNumber(token.jupiterData?.stats24h?.sellVolume || token.jupiterData?.stats24h?.sellVolume || 0)}
+            </div>
+          </div>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                      <div className="text-gray-400 text-xs mb-1">🧑‍🤝‍🧑 Unique Traders</div>
+                      <div className="text-white font-semibold text-sm">
+                        {token.jupiterData?.stats24h?.numTraders ? formatNumber(token.jupiterData.stats24h.numTraders) : 'N/A'}
+                      </div>
+                    </div>
+                    <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                      <div className="text-gray-400 text-xs mb-1">📉 Net Buyers</div>
+                      <div className="text-white font-semibold text-sm">
+                        {token.jupiterData?.stats24h?.numNetBuyers ? formatNumber(token.jupiterData.stats24h.numNetBuyers) : 'N/A'}
+                      </div>
+                    </div>
+                    <div className="bg-dark-bg p-2 rounded border border-gray-700">
+                      <div className="text-gray-400 text-xs mb-1">🌱 Organic Volume</div>
+                      <div className="text-white font-semibold text-xs">
+                        B: {formatNumber(token.jupiterData?.stats24h?.buyOrganicVolume || 0)}
+                      </div>
+                      <div className="text-white font-semibold text-xs">
+                        S: {formatNumber(token.jupiterData?.stats24h?.sellOrganicVolume || 0)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 🪪 Section 5 – Profile Information */}
+          <div className="bg-gray-800 rounded-lg p-3 border border-gray-600">
+            <h3 className="text-lg font-bold mb-3 text-white flex items-center">
+              🪪 Profile Information
+            </h3>
+            {/* Centered 4-box layout */}
+            <div className="grid grid-cols-2 gap-4 max-w-2xl mx-auto">
+              {/* Official Profile */}
+              <div className="flex items-center justify-between p-3 bg-dark-bg rounded border border-gray-700">
+                <span className="text-gray-400 text-sm">🏷️ Official Profile:</span>
+                <span className={`px-2 py-1 rounded-full text-sm font-medium ${
+                  (token.socials?.twitter || token.jupiterData?.twitter || token.twitterHandle) ? 'bg-green-400/10 text-green-400' : 'bg-red-400/10 text-red-400'
+                }`}>
+                  {(token.socials?.twitter || token.jupiterData?.twitter || token.twitterHandle) ? '✅ Found' : '❌ Not Found'}
+                </span>
+              </div>
+              
+              {/* Community Type */}
+              <div className="flex items-center justify-between p-3 bg-dark-bg rounded border border-gray-700">
+                <span className="text-gray-400 text-sm">🌍 Community Type:</span>
+                <span className={`px-2 py-1 rounded-full text-sm font-medium ${
+                  (token.jupiterData?.audit?.devBalancePercentage || 0) <= 0.0001 ? 'bg-green-400/10 text-green-400' : 'bg-blue-400/10 text-blue-400'
+                }`}>
+                  {(token.jupiterData?.audit?.devBalancePercentage || 0) <= 0.0001 ? '🟢 Community Takeover' : '🔵 Official'}
+                </span>
+              </div>
+              
+              {/* Twitter Link */}
+              {(token.socials?.twitter || token.jupiterData?.twitter || token.twitterHandle) && (
+                <div className="p-3 bg-dark-bg rounded border border-gray-700">
+                  <a
+                    href={
+                      token.socials?.twitter || 
+                      token.jupiterData?.twitter || 
+                      `https://twitter.com/${token.twitterHandle}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition-colors w-full"
+                  >
+                    <Twitter className="w-4 h-4" />
+                    <span className="text-sm font-medium">Twitter</span>
+                  </a>
+                </div>
+              )}
+              
+              {/* Website Link */}
+              {(token.socials?.website || token.jupiterData?.website) && (
+                <div className="p-3 bg-dark-bg rounded border border-gray-700">
+                  <a
+                    href={token.socials?.website || token.jupiterData?.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center space-x-2 bg-gray-600 hover:bg-gray-700 text-white p-2 rounded transition-colors w-full"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    <span className="text-sm font-medium">Website</span>
+                  </a>
+                </div>
+              )}
+            </div>
+              
+              {/* Additional Social Links */}
+              {(token.socials?.discord || token.socials?.instagram || token.socials?.tiktok || token.jupiterData?.socials?.telegram) && (
+                <div className="space-y-2 mt-4">
+                  <h4 className="text-md font-semibold text-white mb-2">🔗 Additional Social Links</h4>
+                  <div className="space-y-2">
+                    {/* Discord */}
+                    {token.socials?.discord && (
+                      <a
+                        href={token.socials.discord}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded transition-colors"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        <span className="text-sm">Discord</span>
+                      </a>
+                    )}
+                    
+                    {/* Instagram */}
+                    {token.socials?.instagram && (
+                      <a
+                        href={token.socials.instagram}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center space-x-2 bg-pink-600 hover:bg-pink-700 text-white p-2 rounded transition-colors"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        <span className="text-sm">Instagram</span>
+                      </a>
+                    )}
+                    
+                    {/* TikTok */}
+                    {token.socials?.tiktok && (
+                      <a
+                        href={token.socials.tiktok}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center space-x-2 bg-black hover:bg-gray-800 text-white p-2 rounded transition-colors"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        <span className="text-sm">TikTok</span>
+                      </a>
+                    )}
+                    
+                    {/* Telegram */}
+                    {token.jupiterData?.socials?.telegram && (
+                      <a
+                        href={token.jupiterData.socials.telegram}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white p-2 rounded transition-colors"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        <span className="text-sm">Telegram</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* CEX Listings */}
+              {token.jupiterData?.cexes && token.jupiterData.cexes.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-md font-semibold text-white mb-2">🏦 CEX Listings ({token.jupiterData.cexes.length})</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {token.jupiterData.cexes.map((cex, index) => (
+                      <span key={index} className="bg-green-600/20 text-green-400 px-2 py-1 rounded text-xs font-medium border border-green-600/30">
+                        {cex}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+          {/* 🐦 Section 6 – Social Activity */}
+          {/* Always show social activity with real tweets sorted by likes */}
+          <div className="bg-gray-800 rounded-lg p-3 border border-gray-600">
+            <h3 className="text-lg font-bold mb-3 text-white flex items-center">
+              🐦 Social Activity
+            </h3>
+            {(() => {
+              // Get tweets from Twitter API data collected by our backend
+              let tweets = [];
+
+              // Try different possible sources for tweet data
+              if (token.twitterData?.tweets) {
+                tweets = token.twitterData.tweets;
+              } else if (token.jupiterData?.twitterData?.tweets) {
+                tweets = token.jupiterData.twitterData.tweets;
+              } else if (token.recentPosts) {
+                tweets = token.recentPosts;
+              } else if (token.tweets) {
+                tweets = token.tweets;
+              }
+
+              // Sort by likes (highest first) - convert to numbers for proper sorting
+              const sortedTweets = [...tweets].sort((a, b) => {
+                const likesA = typeof a.likes === 'number' ? a.likes : parseInt(a.likes) || 0;
+                const likesB = typeof b.likes === 'number' ? b.likes : parseInt(b.likes) || 0;
+                return likesB - likesA;
+              });
+              
+              if (sortedTweets.length === 0) {
+                return (
+                  <div className="bg-dark-bg p-3 rounded border border-gray-700 text-center">
+                    <div className="text-gray-400 text-sm">
+                      <Twitter className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      No recent social activity found
+                    </div>
+                  </div>
+                );
+              }
+              
+              return (
+                <div className="space-y-2">
+                  {sortedTweets.slice(0, 5).map((post, index) => (
+                    <div key={index} className="bg-dark-bg p-3 rounded border border-gray-700">
+                      <div className="flex items-start space-x-3">
+                        <div className="flex-shrink-0">
+                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                            <Twitter className="w-4 h-4 text-white" />
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <span className="text-white font-medium text-sm">
+                              @{post.tweetBy || post.author || post.username || token.twitterHandle || 'User'}
+                            </span>
+                            <span className="text-gray-400 text-xs">
+                              {post.createdAt || post.timestamp || post.date ?
+                                new Date(post.createdAt || post.timestamp || post.date).toLocaleDateString() : 'Recent'}
+                            </span>
+                            {/* Show ranking badge for top tweets */}
+                            {index === 0 && (post.likeCount || post.likes || 0) > 0 && (
+                              <span className="bg-yellow-500 text-black text-xs px-2 py-1 rounded-full font-bold">
+                                🔥 Most Liked
+                              </span>
+                            )}
+                            {/* Show ranking for top 3 */}
+                            {index > 0 && index < 3 && (post.likeCount || post.likes || 0) > 0 && (
+                              <span className="bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
+                                #{index + 1} Popular
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-gray-300 text-sm leading-relaxed mb-2">
+                            {post.fullText || post.content || post.text || post.tweet || 'Tweet content not available'}
+                          </p>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4 text-xs">
+                              <div className="flex items-center space-x-1 text-red-400">
+                                <span>❤️</span>
+                                <span className="font-semibold">{(post.likeCount || post.likes || 0).toLocaleString()}</span>
+                              </div>
+                              <div className="flex items-center space-x-1 text-green-400">
+                                <span>🔁</span>
+                                <span className="font-semibold">{(post.retweetCount || post.retweets || 0).toLocaleString()}</span>
+                              </div>
+                              <div className="flex items-center space-x-1 text-blue-400">
+                                <span>💬</span>
+                                <span className="font-semibold">{(post.replyCount || post.replies || 0).toLocaleString()}</span>
+                              </div>
+                            </div>
+                            {post.url && (
+                              <a
+                                href={post.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-block text-blue-400 hover:text-blue-300 text-xs"
+                              >
+                                View Tweet →
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* 📊 Section 7 – Metrics Breakdown */}
+          <div className="bg-gray-800 rounded-lg p-3 border border-gray-600">
+            <h3 className="text-lg font-bold mb-3 text-white flex items-center">
+              📊 Metrics Breakdown
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
+                  <span className="text-gray-400 text-sm">😊 Sentiment Score:</span>
+                  <span className="text-white font-semibold text-sm">
+                    {sentimentEmoji} {(token.sentimentScore || 5).toFixed(1)}/10
+                </span>
+              </div>
+                <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
+                  <span className="text-gray-400 text-sm">📣 Engagement Rate:</span>
+                  <span className="text-white font-semibold text-sm">
+                  {((token.engagementRate || 0.05) * 100).toFixed(1)}%
+                </span>
+              </div>
+                <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
+                  <span className="text-gray-400 text-sm">🧑‍🤝‍🧑 Unique Mentions:</span>
+                  <span className="text-white font-semibold text-sm">
+                  {(token.uniqueMentions || Math.floor((token.mentions || 0) * 0.7)).toLocaleString()}
+                </span>
+              </div>
+                <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
+                  <span className="text-gray-400 text-sm">⚠️ Risk Level:</span>
+                  <span className={`px-2 py-1 rounded-full text-sm font-medium ${riskLevel.color}`}>
+                    {riskLevel.icon} {riskLevel.level}
+                </span>
+                </div>
+              </div>
+            </div>
+            
+            {token.enhancedScore?.calculationTime && (
+              <div className="mt-3 pt-2 border-t border-gray-600">
+                <div className="text-center text-gray-400 text-xs">
+                  Last calculated: {new Date(token.enhancedScore.calculationTime).toLocaleString()}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TokenDetails;

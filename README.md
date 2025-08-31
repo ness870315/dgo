@@ -1,70 +1,138 @@
-# Getting Started with Create React App
+# DeGen Oracle - Solana Meme Coin Discovery Platform
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A comprehensive platform for discovering and analyzing Solana meme coins with real-time data, scoring, and watchlist functionality.
 
-## Available Scripts
+## 🏗️ Project Structure (Production-Ready)
 
-In the project directory, you can run:
+```
+xtrend/
+├── frontend/           # React.js frontend application
+│   ├── src/           # React components and logic
+│   ├── public/        # Static assets
+│   └── package.json   # Frontend dependencies
+├── backend/           # Node.js/Express API server
+│   ├── *.js          # Backend services and API
+│   └── package.json  # Backend dependencies
+├── shared/            # Shared resources
+│   ├── cache/        # Token cache and metadata
+│   └── .env          # Environment variables
+├── package.json       # Root package.json (monorepo)
+└── README.md         # This file
+```
 
-### `npm start`
+## 🚀 Quick Start
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### Option 1: Start Everything Together
+```bash
+# Install all dependencies
+npm run install:all
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+# Start both frontend and backend
+npm run start:all
+```
 
-### `npm test`
+### Option 2: Start Services Separately
+```bash
+# Terminal 1 - Backend
+npm run start:backend
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+# Terminal 2 - Frontend  
+npm run start:frontend
+```
 
-### `npm run build`
+## 🔧 Development
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### Frontend Development
+```bash
+cd frontend
+npm start          # Start React dev server
+npm run build      # Build for production
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### Backend Development
+```bash
+cd backend
+npm run dev        # Start with auto-reload
+npm start          # Start production server
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## 📊 Features
 
-### `npm run eject`
+- **Token Discovery**: Real-time Solana meme coin data
+- **Scoring System**: AI-powered token analysis and scoring
+- **Watchlist**: Personal token tracking
+- **Authentication**: Twitter OAuth + Demo login system
+- **Token Listing**: Submit new tokens for discovery
+- **Real-time Updates**: Live market data and social metrics
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## 🌐 API Endpoints
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+- `GET /api/tokens` - Get all tokens
+- `GET /api/tokens/:id` - Get specific token
+- `POST /api/tokens/add-paid-token` - Add new token
+- `GET /api/watchlist` - Get user watchlist
+- `POST /api/watchlist/:tokenId` - Add to watchlist
+- `DELETE /api/watchlist/:tokenId` - Remove from watchlist
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## 🔐 Authentication
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+- **Twitter OAuth**: Full social login
+- **Demo Mode**: Quick login for testing
+- **Session Management**: Secure user sessions
 
-## Learn More
+## 💾 Data Sources
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+- **Bitquery**: Solana blockchain data
+- **CoinGecko**: Market data (planned)
+- **DexScreener**: DEX analytics (planned)
+- **Social APIs**: Reddit, Twitter, Telegram sentiment
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## 🚀 Production Deployment
 
-### Code Splitting
+### Docker (Recommended)
+```bash
+# Build and run with Docker Compose
+docker-compose up --build
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### Manual Deployment
+```bash
+# Backend
+cd backend
+npm install --production
+npm start
 
-### Analyzing the Bundle Size
+# Frontend
+cd frontend
+npm install --production
+npm run build
+# Serve build/ directory with nginx/apache
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## 📁 File Organization Benefits
 
-### Making a Progressive Web App
+✅ **Clear Separation**: Frontend and backend are completely separate
+✅ **Independent Dependencies**: No more dependency conflicts
+✅ **Easy Scaling**: Can deploy frontend and backend separately
+✅ **Team Development**: Different teams can work on different services
+✅ **Production Ready**: Proper structure for deployment
+✅ **Easy Testing**: Test services independently
+✅ **Clear API Boundaries**: Well-defined service interfaces
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+## 🔄 Migration from Old Structure
 
-### Advanced Configuration
+The old structure had everything mixed together, causing:
+- ❌ Dependency conflicts
+- ❌ Confusing startup process
+- ❌ Hard to maintain
+- ❌ Not production-ready
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+The new structure provides:
+- ✅ Clean separation of concerns
+- ✅ Independent service management
+- ✅ Easy deployment and scaling
+- ✅ Professional development workflow
 
-### Deployment
+## 📞 Support
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+For issues or questions, check the logs in each service directory or refer to the individual package.json files for specific service information.

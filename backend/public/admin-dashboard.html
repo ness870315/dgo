@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🛠️ XTrend Admin Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #2d3748;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #718096;
+            font-size: 1.1rem;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .card h2 {
+            color: #2d3748;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #4a5568;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #fc8181 0%, #f56565 100%);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #68d391 0%, #48bb78 100%);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #fbd38d 0%, #f6ad55 100%);
+            color: #2d3748;
+        }
+
+        .status-display {
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-label {
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .status-value {
+            color: #2d3748;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+
+        .results-container {
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .token-item {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .token-info h4 {
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+
+        .token-info p {
+            color: #718096;
+            font-size: 14px;
+        }
+
+        .token-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 14px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #f0fff4;
+            border: 1px solid #9ae6b4;
+            color: #22543d;
+        }
+
+        .alert-error {
+            background: #fed7d7;
+            border: 1px solid #fc8181;
+            color: #742a2a;
+        }
+
+        .alert-warning {
+            background: #fefcbf;
+            border: 1px solid #f6e05e;
+            color: #744210;
+        }
+
+        .twitter-status {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .twitter-metric {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .twitter-metric h4 {
+            color: #4a5568;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .twitter-metric .value {
+            color: #2d3748;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .emergency-section {
+            background: linear-gradient(135deg, #fc8181 0%, #f56565 100%);
+            color: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-top: 30px;
+        }
+
+        .emergency-section h2 {
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .emergency-buttons {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn-emergency {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            font-weight: bold;
+        }
+
+        .btn-emergency:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🛠️ XTrend Admin Dashboard</h1>
+            <p>Complete administrative control panel for token management, Twitter API, and system operations</p>
+        </div>
+
+        <!-- System Status -->
+        <div class="card">
+            <h2>📊 System Status</h2>
+            <button class="btn" onclick="loadSystemStatus()">🔄 Refresh Status</button>
+            <div id="systemStatus" class="status-display">
+                <div class="loading"></div> Loading system status...
+            </div>
+        </div>
+
+        <!-- Main Dashboard Grid -->
+        <div class="dashboard-grid">
+            <!-- Add Free Token -->
+            <div class="card">
+                <h2>🆓 Add Free Token</h2>
+                <div class="form-group">
+                    <label>Token Symbol</label>
+                    <input type="text" id="freeTokenSymbol" placeholder="e.g., BTC" style="text-transform: uppercase;">
+                </div>
+                <div class="form-group">
+                    <label>Token Name</label>
+                    <input type="text" id="freeTokenName" placeholder="e.g., Bitcoin">
+                </div>
+                <div class="form-group">
+                    <label>Contract Address (Optional)</label>
+                    <input type="text" id="freeTokenContract" placeholder="Contract address">
+                </div>
+                <div class="form-group">
+                    <label>Social Links (Optional)</label>
+                    <input type="text" id="freeTokenTwitter" placeholder="Twitter handle (without @)">
+                    <input type="text" id="freeTokenWebsite" placeholder="Website URL" style="margin-top: 10px;">
+                </div>
+                <button class="btn btn-success" onclick="addFreeToken()">🆓 Add Token for FREE</button>
+                <div id="addTokenResult"></div>
+            </div>
+
+            <!-- Search & Delete Tokens -->
+            <div class="card">
+                <h2>🔍 Search & Manage Tokens</h2>
+                <div class="form-group">
+                    <label>Search Query</label>
+                    <input type="text" id="searchQuery" placeholder="Symbol, name, or contract address">
+                </div>
+                <div class="form-group">
+                    <label>Limit Results</label>
+                    <select id="searchLimit">
+                        <option value="10">10 results</option>
+                        <option value="25">25 results</option>
+                        <option value="50" selected>50 results</option>
+                        <option value="100">100 results</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="searchTokens()">🔍 Search Tokens</button>
+                <button class="btn btn-warning" onclick="searchTokens('')">📋 List All</button>
+                <div id="searchResults" class="results-container" style="display: none;"></div>
+            </div>
+
+            <!-- Delete Token -->
+            <div class="card">
+                <h2>🗑️ Delete Token</h2>
+                <div class="form-group">
+                    <label>Token Symbol to Delete</label>
+                    <input type="text" id="deleteTokenSymbol" placeholder="e.g., BTC" style="text-transform: uppercase;">
+                </div>
+                <button class="btn btn-danger" onclick="deleteTokenDirect()">🗑️ Delete Token</button>
+                <div id="deleteTokenResult"></div>
+                <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 5px; border-left: 4px solid #ffc107;">
+                    <strong>⚠️ Warning:</strong> This will permanently delete the token from all caches (main tokens, Twitter data, social links). This action cannot be undone.
+                </div>
+            </div>
+
+            <!-- Fuel Tokens -->
+            <div class="card">
+                <h2>⛽ Fuel Tokens</h2>
+                <div class="form-group">
+                    <label>Token Symbols (comma-separated)</label>
+                    <input type="text" id="fuelTokens" placeholder="e.g., BTC, ETH, SOL">
+                </div>
+                <button class="btn btn-warning" onclick="fuelTokens()">⛽ Boost Processing</button>
+                <div id="fuelResults"></div>
+            </div>
+
+            <!-- Manual Twitter Refresh -->
+            <div class="card">
+                <h2>🐦 Twitter API Control</h2>
+                <div class="form-group">
+                    <label>Token Symbol</label>
+                    <input type="text" id="twitterRefreshSymbol" placeholder="e.g., BTC" style="text-transform: uppercase;">
+                </div>
+                <button class="btn" onclick="refreshTwitterData()">🐦 Refresh Twitter Data</button>
+                <button class="btn btn-warning" onclick="getTwitterStatus()">📊 Check API Status</button>
+                <div id="twitterResults"></div>
+                <div id="twitterStatusDisplay" class="twitter-status" style="display: none;"></div>
+            </div>
+
+            <!-- Processing Control -->
+            <div class="card">
+                <h2>⚙️ Processing Control</h2>
+                <button class="btn btn-success" onclick="startProcessing()">▶️ Start Processing</button>
+                <button class="btn btn-danger" onclick="stopProcessing()">⏹️ Stop Processing</button>
+                <button class="btn btn-warning" onclick="refreshAllTokens()">🔄 Refresh All Tokens</button>
+                <div id="processingResults"></div>
+            </div>
+
+            <!-- Health Check -->
+            <div class="card">
+                <h2>🏥 Health Check</h2>
+                <button class="btn" onclick="checkHealth()">🏥 Check Backend Health</button>
+                <button class="btn" onclick="getApiStatus()">📡 Get API Status</button>
+                <div id="healthResults"></div>
+            </div>
+        </div>
+
+        <!-- Emergency Controls -->
+        <div class="emergency-section">
+            <h2>🚨 Emergency Controls</h2>
+            <p style="margin-bottom: 20px;">Use these controls only in emergency situations. Backend restart will disconnect all users temporarily.</p>
+            <div class="emergency-buttons">
+                <button class="btn btn-emergency" onclick="restartBackend()">🔄 Restart Backend</button>
+                <button class="btn btn-emergency" onclick="restartFrontend()">🖥️ Restart Frontend</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:4000';
+
+        // Utility functions
+        function showAlert(message, type = 'success') {
+            const alertClass = type === 'error' ? 'alert-error' : type === 'warning' ? 'alert-warning' : 'alert-success';
+            return `<div class="alert ${alertClass}">${message}</div>`;
+        }
+
+        function showLoading() {
+            return '<div class="loading"></div> Processing...';
+        }
+
+        // System Status
+        async function loadSystemStatus() {
+            const statusDiv = document.getElementById('systemStatus');
+            statusDiv.innerHTML = showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/system/status`);
+                const data = await response.json();
+
+                if (data.success) {
+                    statusDiv.innerHTML = `
+                        <div class="status-item">
+                            <span class="status-label">Backend Version:</span>
+                            <span class="status-value">${data.system.backend}</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Uptime:</span>
+                            <span class="status-value">${Math.floor(data.system.uptime / 60)} minutes</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Total Tokens:</span>
+                            <span class="status-value">${data.tokens.total}</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Completed Tokens:</span>
+                            <span class="status-value">${data.tokens.completed}</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">With Twitter Data:</span>
+                            <span class="status-value">${data.tokens.withTwitterData}</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Processing Status:</span>
+                            <span class="status-value">${data.processing.isProcessing ? 'Running' : 'Stopped'}</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Twitter Rate Limited:</span>
+                            <span class="status-value">${data.twitter.isRateLimited ? 'Yes' : 'No'}</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Twitter Requests (Hourly):</span>
+                            <span class="status-value">${data.twitter.hourlyRequests}</span>
+                        </div>
+                    `;
+                } else {
+                    statusDiv.innerHTML = showAlert('Failed to load system status', 'error');
+                }
+            } catch (error) {
+                statusDiv.innerHTML = showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Add Free Token
+        async function addFreeToken() {
+            const symbol = document.getElementById('freeTokenSymbol').value.trim().toUpperCase();
+            const name = document.getElementById('freeTokenName').value.trim();
+            const contractAddress = document.getElementById('freeTokenContract').value.trim();
+            const twitter = document.getElementById('freeTokenTwitter').value.trim();
+            const website = document.getElementById('freeTokenWebsite').value.trim();
+            const resultDiv = document.getElementById('addTokenResult');
+
+            if (!symbol || !name) {
+                resultDiv.innerHTML = showAlert('Symbol and name are required', 'error');
+                return;
+            }
+
+            resultDiv.innerHTML = showLoading();
+
+            const payload = { symbol, name };
+            if (contractAddress) payload.contractAddress = contractAddress;
+            
+            const socialLinks = {};
+            if (twitter) socialLinks.twitter = twitter;
+            if (website) socialLinks.website = website;
+            if (Object.keys(socialLinks).length > 0) payload.socialLinks = socialLinks;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/tokens/add-free`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = showAlert(`✅ ${data.message}`, 'success');
+                    // Clear form
+                    document.getElementById('freeTokenSymbol').value = '';
+                    document.getElementById('freeTokenName').value = '';
+                    document.getElementById('freeTokenContract').value = '';
+                    document.getElementById('freeTokenTwitter').value = '';
+                    document.getElementById('freeTokenWebsite').value = '';
+                } else {
+                    resultDiv.innerHTML = showAlert(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Search Tokens
+        async function searchTokens(query = null) {
+            const searchQuery = query !== null ? query : document.getElementById('searchQuery').value.trim();
+            const limit = document.getElementById('searchLimit').value;
+            const resultsDiv = document.getElementById('searchResults');
+
+            resultsDiv.style.display = 'block';
+            resultsDiv.innerHTML = showLoading();
+
+            try {
+                const url = `${API_BASE}/api/admin/tokens/search?q=${encodeURIComponent(searchQuery)}&limit=${limit}`;
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.success) {
+                    if (data.tokens.length === 0) {
+                        resultsDiv.innerHTML = showAlert('No tokens found', 'warning');
+                        return;
+                    }
+
+                    let html = `<h4>Found ${data.totalFound} tokens (showing ${data.tokens.length})</h4>`;
+                    
+                    data.tokens.forEach(token => {
+                        html += `
+                            <div class="token-item">
+                                <div class="token-info">
+                                    <h4>${token.symbol} - ${token.name}</h4>
+                                    <p>Mentions: ${token.mentions} | Score: ${token.communityScore} | Stage: ${token.stage}</p>
+                                    <p>Twitter: ${token.hasTwitterData ? '✅' : '❌'} | Socials: ${token.hasSocials ? '✅' : '❌'}</p>
+                                </div>
+                                <div class="token-actions">
+                                    <button class="btn btn-small" onclick="refreshTwitterData('${token.symbol}')">🐦</button>
+                                    <button class="btn btn-small btn-danger" onclick="deleteToken('${token.symbol}')">🗑️</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    resultsDiv.innerHTML = html;
+                } else {
+                    resultsDiv.innerHTML = showAlert(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Delete Token (from search results)
+        async function deleteToken(symbol) {
+            if (!confirm(`Are you sure you want to delete ${symbol}? This action cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/tokens/${symbol}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`✅ ${data.message}`);
+                    searchTokens(); // Refresh search results
+                } else {
+                    alert(`❌ ${data.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        // Delete Token (direct input)
+        async function deleteTokenDirect() {
+            const symbol = document.getElementById('deleteTokenSymbol').value.trim().toUpperCase();
+            const resultDiv = document.getElementById('deleteTokenResult');
+
+            if (!symbol) {
+                resultDiv.innerHTML = showAlert('Please enter a token symbol', 'error');
+                return;
+            }
+
+            if (!confirm(`⚠️ Are you sure you want to PERMANENTLY DELETE ${symbol}?\n\nThis will remove:\n• Token from main database\n• All Twitter data\n• All social links\n• All cached information\n\nThis action CANNOT be undone!`)) {
+                return;
+            }
+
+            resultDiv.innerHTML = showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/tokens/${symbol}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = showAlert(`✅ ${data.message}`, 'success');
+                    // Clear the input
+                    document.getElementById('deleteTokenSymbol').value = '';
+                    // Refresh system status to show updated counts
+                    loadSystemStatus();
+                } else {
+                    resultDiv.innerHTML = showAlert(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Fuel Tokens
+        async function fuelTokens() {
+            const tokensInput = document.getElementById('fuelTokens').value.trim();
+            const resultDiv = document.getElementById('fuelResults');
+
+            if (!tokensInput) {
+                resultDiv.innerHTML = showAlert('Please enter token symbols', 'error');
+                return;
+            }
+
+            const symbols = tokensInput.split(',').map(s => s.trim().toUpperCase()).filter(s => s);
+            resultDiv.innerHTML = showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/tokens/fuel`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbols })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    let html = showAlert(`✅ ${data.message}`, 'success');
+                    
+                    data.results.forEach(result => {
+                        const status = result.success ? '✅' : '❌';
+                        const details = result.success ? 
+                            `Mentions: ${result.mentions}, Engagement: ${result.engagement}` : 
+                            `Error: ${result.error}`;
+                        html += `<p>${status} ${result.symbol}: ${details}</p>`;
+                    });
+
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.innerHTML = showAlert(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Twitter Functions
+        async function refreshTwitterData(symbol = null) {
+            const tokenSymbol = symbol || document.getElementById('twitterRefreshSymbol').value.trim().toUpperCase();
+            const resultDiv = document.getElementById('twitterResults');
+
+            if (!tokenSymbol) {
+                resultDiv.innerHTML = showAlert('Please enter a token symbol', 'error');
+                return;
+            }
+
+            resultDiv.innerHTML = showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/tokens/${tokenSymbol}/refresh-twitter`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    const twitter = data.token.twitterData;
+                    resultDiv.innerHTML = showAlert(`✅ ${data.message}`, 'success') + `
+                        <div class="status-display">
+                            <div class="status-item">
+                                <span class="status-label">Mentions:</span>
+                                <span class="status-value">${twitter.mentions}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">24h Mentions:</span>
+                                <span class="status-value">${twitter.mentions24h}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Followers:</span>
+                                <span class="status-value">${twitter.followers}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Official Handle:</span>
+                                <span class="status-value">${twitter.officialHandle}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Recent Mentions:</span>
+                                <span class="status-value">${twitter.recentMentions}</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = showAlert(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function getTwitterStatus() {
+            const statusDiv = document.getElementById('twitterStatusDisplay');
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/twitter/status`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const twitter = data.twitter;
+                    statusDiv.innerHTML = `
+                        <div class="twitter-metric">
+                            <h4>Rate Limited</h4>
+                            <div class="value" style="color: ${twitter.isRateLimited ? '#f56565' : '#48bb78'}">${twitter.isRateLimited ? 'YES' : 'NO'}</div>
+                        </div>
+                        <div class="twitter-metric">
+                            <h4>Hourly Requests</h4>
+                            <div class="value">${twitter.requests.hourly}</div>
+                        </div>
+                        <div class="twitter-metric">
+                            <h4>Daily Requests</h4>
+                            <div class="value">${twitter.requests.daily}</div>
+                        </div>
+                        <div class="twitter-metric">
+                            <h4>Last Hour Reset</h4>
+                            <div class="value" style="font-size: 12px;">${twitter.lastReset.hour}</div>
+                        </div>
+                    `;
+                } else {
+                    statusDiv.innerHTML = showAlert(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                statusDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Processing Control
+        async function startProcessing() {
+            const resultDiv = document.getElementById('processingResults');
+            resultDiv.innerHTML = showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/processing/start`, { method: 'POST' });
+                const data = await response.json();
+                
+                resultDiv.innerHTML = showAlert(data.success ? `✅ ${data.message}` : `❌ ${data.error}`, data.success ? 'success' : 'error');
+            } catch (error) {
+                resultDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function stopProcessing() {
+            const resultDiv = document.getElementById('processingResults');
+            resultDiv.innerHTML = showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/processing/stop`, { method: 'POST' });
+                const data = await response.json();
+                
+                resultDiv.innerHTML = showAlert(data.success ? `✅ ${data.message}` : `❌ ${data.error}`, data.success ? 'success' : 'error');
+            } catch (error) {
+                resultDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function refreshAllTokens() {
+            const resultDiv = document.getElementById('processingResults');
+            resultDiv.innerHTML = showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/tokens/refresh-all`, { method: 'POST' });
+                const data = await response.json();
+                
+                resultDiv.innerHTML = showAlert(data.success ? `✅ ${data.message}` : `❌ ${data.error}`, data.success ? 'success' : 'error');
+            } catch (error) {
+                resultDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Health Check
+        async function checkHealth() {
+            const resultDiv = document.getElementById('healthResults');
+            resultDiv.innerHTML = showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                resultDiv.innerHTML = showAlert(`✅ Backend is healthy - ${data.status}`, 'success') + `
+                    <div class="status-display">
+                        <div class="status-item">
+                            <span class="status-label">Timestamp:</span>
+                            <span class="status-value">${new Date(data.timestamp).toLocaleString()}</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Services:</span>
+                            <span class="status-value">${Object.keys(data.services).join(', ')}</span>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = showAlert(`❌ Backend is down: ${error.message}`, 'error');
+            }
+        }
+
+        async function getApiStatus() {
+            const resultDiv = document.getElementById('healthResults');
+            resultDiv.innerHTML = showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/status`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = showAlert(`✅ API is operational`, 'success') + `
+                        <div class="status-display">
+                            <div class="status-item">
+                                <span class="status-label">Backend:</span>
+                                <span class="status-value">${data.backend}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Total Tokens:</span>
+                                <span class="status-value">${data.cache.totalTokens}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Queue Length:</span>
+                                <span class="status-value">${data.cache.queueLength}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Processing:</span>
+                                <span class="status-value">${data.processing.isProcessing ? 'Active' : 'Stopped'}</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = showAlert(`❌ API Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = showAlert(`❌ API is down: ${error.message}`, 'error');
+            }
+        }
+
+        // Emergency Controls
+        async function restartBackend() {
+            if (!confirm('⚠️ This will restart the backend server and disconnect all users temporarily. Continue?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/restart/backend`, { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`✅ ${data.message}`);
+                    // Reload page after 5 seconds
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 5000);
+                } else {
+                    alert(`❌ ${data.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        async function restartFrontend() {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/restart/frontend`, { method: 'POST' });
+                const data = await response.json();
+                
+                alert(`ℹ️ ${data.message}\n\nInstructions:\n${data.instructions.join('\n')}`);
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        // Auto-load system status on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSystemStatus();
+            
+            // Auto-refresh system status every 30 seconds
+            setInterval(loadSystemStatus, 30000);
+        });
+
+        // Auto-uppercase token symbols
+        document.getElementById('freeTokenSymbol').addEventListener('input', function(e) {
+            e.target.value = e.target.value.toUpperCase();
+        });
+        
+        document.getElementById('twitterRefreshSymbol').addEventListener('input', function(e) {
+            e.target.value = e.target.value.toUpperCase();
+        });
+        
+        document.getElementById('deleteTokenSymbol').addEventListener('input', function(e) {
+            e.target.value = e.target.value.toUpperCase();
+        });
+    </script>
+</body>
+</html>

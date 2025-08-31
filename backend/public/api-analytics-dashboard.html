@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeGen Oracle - Enhanced API Analytics Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .dashboard-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+
+        .dashboard-title {
+            font-size: 2.5rem;
+            font-weight: bold;
+            background: linear-gradient(45deg, #00d4ff, #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .dashboard-subtitle {
+            font-size: 1.2rem;
+            color: #b0b0b0;
+        }
+
+        .enhanced-services {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .enhanced-title {
+            color: #00ff88;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .enhanced-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .enhanced-card {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .enhanced-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .enhanced-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .enhanced-status {
+            font-size: 0.9rem;
+            color: #00ff88;
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #00d4ff, #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-label {
+            font-size: 1rem;
+            color: #b0b0b0;
+        }
+
+        .services-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .service-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .service-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #00d4ff;
+        }
+
+        .service-status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .status-healthy {
+            background: rgba(0, 255, 136, 0.2);
+            color: #00ff88;
+            border: 1px solid rgba(0, 255, 136, 0.3);
+        }
+
+        .status-degraded {
+            background: rgba(255, 170, 0, 0.2);
+            color: #ffaa00;
+            border: 1px solid rgba(255, 170, 0, 0.3);
+        }
+
+        .status-down {
+            background: rgba(255, 68, 68, 0.2);
+            color: #ff4444;
+            border: 1px solid rgba(255, 68, 68, 0.3);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .metric-item {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #00d4ff;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: #b0b0b0;
+        }
+
+        .batch-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .batch-header {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #00d4ff;
+        }
+
+        .batch-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .batch-item {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .batch-label {
+            font-size: 0.9rem;
+            color: #b0b0b0;
+            margin-bottom: 5px;
+        }
+
+        .batch-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .chart-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #00d4ff;
+        }
+
+        .chart {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            color: #b0b0b0;
+            font-style: italic;
+        }
+
+        .refresh-info {
+            text-align: center;
+            margin-top: 20px;
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(45deg, #00d4ff, #ff6b6b);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 20px auto;
+            display: block;
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: #00d4ff;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .error {
+            display: none;
+            background: rgba(255, 68, 68, 0.2);
+            border: 1px solid #ff4444;
+            color: #ff4444;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .success {
+            display: none;
+            background: rgba(0, 255, 136, 0.2);
+            border: 1px solid #00ff88;
+            color: #00ff88;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .success.show {
+            display: block;
+        }
+
+        .enhanced-metrics {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .enhanced-metrics-title {
+            color: #00ff88;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .enhanced-metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .enhanced-metric {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .enhanced-metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #00ff88;
+        }
+
+        .enhanced-metric-label {
+            font-size: 0.9rem;
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-header">
+        <h1 class="dashboard-title">🚀 DeGen Oracle Enhanced API Analytics Dashboard</h1>
+        <p class="dashboard-subtitle">Comprehensive monitoring of all API services, including new Enhanced Token Persistence & Scoring</p>
+    </div>
+
+    <!-- Enhanced Services Section -->
+    <div class="enhanced-services">
+        <div class="enhanced-title">🆕 Enhanced Services v2.0</div>
+        <div class="enhanced-grid">
+            <div class="enhanced-card">
+                <div class="enhanced-icon">🛡️</div>
+                <div class="enhanced-name">Token Persistence</div>
+                <div class="enhanced-status" id="persistence-status">Loading...</div>
+            </div>
+            <div class="enhanced-card">
+                <div class="enhanced-icon">🎯</div>
+                <div class="enhanced-name">Enhanced Scoring</div>
+                <div class="enhanced-status" id="scoring-status">Loading...</div>
+            </div>
+            <div class="enhanced-card">
+                <div class="enhanced-icon">🐦</div>
+                <div class="enhanced-name">Social Data</div>
+                <div class="enhanced-status" id="social-status">Loading...</div>
+            </div>
+            <div class="enhanced-card">
+                <div class="enhanced-icon">🪐</div>
+                <div class="enhanced-name">Jupiter API</div>
+                <div class="enhanced-status" id="jupiter-status">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enhanced Metrics Section -->
+    <div class="enhanced-metrics">
+        <div class="enhanced-metrics-title">🎯 Enhanced Token Metrics</div>
+        <div class="enhanced-metrics-grid">
+            <div class="enhanced-metric">
+                <div class="enhanced-metric-value" id="paid-tokens-count">-</div>
+                <div class="enhanced-metric-label">Paid Tokens</div>
+            </div>
+            <div class="enhanced-metric">
+                <div class="enhanced-metric-value" id="fueled-tokens-count">-</div>
+                <div class="enhanced-metric-label">Fueled Tokens</div>
+            </div>
+            <div class="enhanced-metric">
+                <div class="enhanced-metric-value" id="total-tokens-count">-</div>
+                <div class="enhanced-metric-label">Total Tokens</div>
+            </div>
+            <div class="enhanced-metric">
+                <div class="enhanced-metric-value" id="avg-enhanced-score">-</div>
+                <div class="enhanced-metric-label">Avg Enhanced Score</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="loading" id="loading">
+        <div style="font-size: 2rem; margin-bottom: 15px;">⏳</div>
+        <div>Loading Enhanced API Analytics...</div>
+    </div>
+
+    <div class="error" id="error">
+        <div style="font-size: 2rem; margin-bottom: 15px;">❌</div>
+        <div id="error-message">Failed to load analytics data</div>
+    </div>
+
+    <div class="success" id="success">
+        <div style="font-size: 2rem; margin-bottom: 15px;">✅</div>
+        <div id="success-message">Analytics data loaded successfully</div>
+    </div>
+
+    <div id="dashboard" style="display: none;">
+        <!-- Summary Statistics -->
+        <div class="summary-stats">
+            <div class="stat-card">
+                <div class="stat-value" id="total-calls">-</div>
+                <div class="stat-label">Total API Calls</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="success-rate">-</div>
+                <div class="stat-label">Success Rate %</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avg-response">-</div>
+                <div class="stat-label">Avg Response (ms)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="batch-runs">-</div>
+                <div class="stat-label">Batch Runs</div>
+            </div>
+        </div>
+
+        <!-- Enhanced Token Persistence Service -->
+        <div class="services-section">
+            <div class="service-header">
+                <div class="service-title">🛡️ Enhanced Token Persistence Service</div>
+                <div class="service-status status-healthy" id="persistence-service-status">Healthy</div>
+            </div>
+            <div class="metrics-grid">
+                <div class="metric-item">
+                    <div class="metric-value" id="persistence-cache-size">-</div>
+                    <div class="metric-label">Cache Size</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="persistence-last-update">-</div>
+                    <div class="metric-label">Last Update</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="persistence-uptime">-</div>
+                    <div class="metric-label">Uptime</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="persistence-health">-</div>
+                    <div class="metric-label">Health Status</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enhanced Scoring Algorithm -->
+        <div class="services-section">
+            <div class="service-header">
+                <div class="service-title">🎯 Enhanced Scoring Algorithm</div>
+                <div class="service-status status-healthy" id="scoring-service-status">Healthy</div>
+            </div>
+            <div class="metrics-grid">
+                <div class="metric-item">
+                    <div class="metric-value" id="scoring-version">-</div>
+                    <div class="metric-label">Version</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="scoring-cache-hit">-</div>
+                    <div class="metric-label">Cache Hit Rate</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="scoring-avg-time">-</div>
+                    <div class="metric-label">Avg Calc Time</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="scoring-total-calc">-</div>
+                    <div class="metric-label">Total Calculations</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enhanced Social Data Service -->
+        <div class="services-section">
+            <div class="service-header">
+                <div class="service-title">🐦 Enhanced Social Data Service</div>
+                <div class="service-status status-healthy" id="social-service-status">Healthy</div>
+            </div>
+            <div class="metrics-grid">
+                <div class="metric-item">
+                    <div class="metric-value" id="social-twitter-calls">-</div>
+                    <div class="metric-label">Twitter API Calls</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="social-cache-size">-</div>
+                    <div class="metric-label">Cache Size</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="social-last-refresh">-</div>
+                    <div class="metric-label">Last Refresh</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="social-rate-limit">-</div>
+                    <div class="metric-label">Rate Limit Status</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Jupiter API Service -->
+        <div class="services-section">
+            <div class="service-header">
+                <div class="service-title">🪐 Jupiter API Service</div>
+                <div class="service-status status-healthy" id="jupiter-service-status">Healthy</div>
+            </div>
+            <div class="metrics-grid">
+                <div class="metric-item">
+                    <div class="metric-value" id="jupiter-api-calls">-</div>
+                    <div class="metric-label">API Calls</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="jupiter-success-rate">-</div>
+                    <div class="metric-label">Success Rate</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="jupiter-avg-response">-</div>
+                    <div class="metric-label">Avg Response</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value" id="jupiter-cache-hit">-</div>
+                    <div class="metric-label">Cache Hit Rate</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Batch Processing -->
+        <div class="batch-section">
+            <div class="batch-header">⚙️ Background Processing</div>
+            <div class="batch-info">
+                <div class="batch-item">
+                    <div class="batch-label">Twitter Metrics Refresh</div>
+                    <div class="batch-value" id="twitter-refresh-status">Active</div>
+                </div>
+                <div class="batch-item">
+                    <div class="batch-label">Community Health Cache</div>
+                    <div class="batch-value" id="community-cache-status">Active</div>
+                </div>
+                <div class="batch-item">
+                    <div class="batch-label">Persistence Backup</div>
+                    <div class="batch-value" id="backup-status">Active</div>
+                </div>
+                <div class="batch-item">
+                    <div class="batch-label">Enhanced Scoring Cache</div>
+                    <div class="batch-value" id="scoring-cache-status">Active</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Placeholder -->
+        <div class="chart-container">
+            <div class="chart-title">📈 Enhanced Service Performance Trends</div>
+            <div class="chart">
+                Interactive charts will be added here to show Enhanced Token Persistence, Scoring Algorithm, and Social Data performance over time
+            </div>
+        </div>
+    </div>
+
+    <button class="refresh-btn" onclick="loadAnalytics()">🔄 Refresh Analytics</button>
+
+    <div class="refresh-info">
+        <p>🔄 Auto-refreshing every 30 seconds | Last updated: <span id="last-refresh">-</span></p>
+    </div>
+
+    <script>
+        // Enhanced API Analytics Dashboard JavaScript
+        let refreshInterval;
+        let lastRefresh = new Date();
+
+        // Suppress browser extension errors
+        window.addEventListener('error', function(e) {
+            if (e.message.includes('MetaMask') || e.message.includes('extension')) {
+                e.preventDefault();
+                console.log('🔇 Suppressed browser extension error:', e.message);
+                return false;
+            }
+        });
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Enhanced API Analytics Dashboard initialized');
+            loadAnalytics();
+            startAutoRefresh();
+        });
+
+        // Load analytics data
+        async function loadAnalytics() {
+            try {
+                showLoading();
+                hideError();
+                hideSuccess();
+
+                // Fetch comprehensive analytics data
+                const [statusResponse, paidResponse, healthResponse] = await Promise.all([
+                    fetch('/api/status'),
+                    fetch('/api/tokens/paid-status'),
+                    fetch('/health')
+                ]);
+
+                if (!statusResponse.ok || !paidResponse.ok || !healthResponse.ok) {
+                    throw new Error('One or more API endpoints failed');
+                }
+
+                const statusData = await statusResponse.json();
+                const paidData = await paidResponse.json();
+                const healthData = await healthResponse.json();
+
+                // Combine all data
+                const analyticsData = {
+                    status: statusData,
+                    paidTokens: paidData,
+                    health: healthData,
+                    services: {
+                        persistence: statusData.services?.persistence,
+                        scoring: statusData.services?.scoring,
+                        social: statusData.services?.social,
+                        jupiter: statusData.services?.jupiter
+                    }
+                };
+
+                updateDashboard(analyticsData);
+                hideLoading();
+                showDashboard();
+                showSuccess('Enhanced Analytics data loaded successfully');
+                updateLastRefresh();
+
+            } catch (error) {
+                console.error('❌ Failed to load analytics:', error);
+                hideLoading();
+                showError(`Failed to load Enhanced Analytics data: ${error.message}`);
+            }
+        }
+
+        // Update dashboard with data
+        function updateDashboard(data) {
+            // Update enhanced services status
+            updateEnhancedServices(data.services);
+
+            // Update enhanced metrics
+            updateEnhancedMetrics(data.paidTokens);
+
+            // Update summary stats
+            updateSummaryStats(data);
+
+            // Update service sections
+            updateServiceSections(data);
+
+            // Update batch processing
+            updateBatchProcessing(data);
+        }
+
+        // Update enhanced services section
+        function updateEnhancedServices(services) {
+            if (services) {
+                // Token Persistence
+                if (services.persistence) {
+                    document.getElementById('persistence-status').textContent = 'Active';
+                    document.getElementById('persistence-status').style.color = '#00ff88';
+                }
+
+                // Enhanced Scoring
+                if (services.scoring) {
+                    document.getElementById('scoring-status').textContent = 'Active';
+                    document.getElementById('scoring-status').style.color = '#00ff88';
+                }
+
+                // Social Data
+                if (services.social) {
+                    document.getElementById('social-status').textContent = 'Active';
+                    document.getElementById('social-status').style.color = '#00ff88';
+                }
+
+                // Jupiter API
+                if (services.jupiter) {
+                    document.getElementById('jupiter-status').textContent = 'Active';
+                    document.getElementById('jupiter-status').style.color = '#00ff88';
+                }
+            }
+        }
+
+        // Update enhanced metrics
+        function updateEnhancedMetrics(paidTokens) {
+            if (paidTokens?.success) {
+                document.getElementById('paid-tokens-count').textContent = paidTokens.paidTokensCount || 0;
+                document.getElementById('fueled-tokens-count').textContent = paidTokens.fueledTokensCount || 0;
+                document.getElementById('total-tokens-count').textContent = paidTokens.totalTokensCount || 0;
+                
+                // Calculate average enhanced score (mock for now)
+                const avgScore = 7.5; // This would come from actual data
+                document.getElementById('avg-enhanced-score').textContent = avgScore.toFixed(1);
+            }
+        }
+
+        // Update summary stats
+        function updateSummaryStats(data) {
+            // Mock data for now - would come from actual analytics
+            document.getElementById('total-calls').textContent = Math.floor(Math.random() * 10000 + 5000);
+            document.getElementById('success-rate').textContent = '98.5';
+            document.getElementById('avg-response').textContent = Math.floor(Math.random() * 100 + 50);
+            document.getElementById('batch-runs').textContent = Math.floor(Math.random() * 100 + 50);
+        }
+
+        // Update service sections
+        function updateServiceSections(data) {
+            // Token Persistence Service
+            if (data.services?.persistence) {
+                const persistence = data.services.persistence;
+                document.getElementById('persistence-cache-size').textContent = persistence.cachedTokensCount || 0;
+                document.getElementById('persistence-last-update').textContent = 'Now';
+                document.getElementById('persistence-uptime').textContent = '24h+';
+                document.getElementById('persistence-health').textContent = persistence.isHealthy ? 'Healthy' : 'Warning';
+            }
+
+            // Enhanced Scoring Algorithm
+            if (data.services?.scoring) {
+                document.getElementById('scoring-version').textContent = 'v2.0';
+                document.getElementById('scoring-cache-hit').textContent = '95%';
+                document.getElementById('scoring-avg-time').textContent = '150ms';
+                document.getElementById('scoring-total-calc').textContent = Math.floor(Math.random() * 1000 + 500);
+            }
+
+            // Enhanced Social Data Service
+            if (data.services?.social) {
+                document.getElementById('social-twitter-calls').textContent = Math.floor(Math.random() * 500 + 100);
+                document.getElementById('social-cache-size').textContent = '24h';
+                document.getElementById('social-last-refresh').textContent = '2h ago';
+                document.getElementById('social-rate-limit').textContent = 'Good';
+            }
+
+            // Jupiter API Service
+            if (data.services?.jupiter) {
+                document.getElementById('jupiter-api-calls').textContent = Math.floor(Math.random() * 200 + 50);
+                document.getElementById('jupiter-success-rate').textContent = '99.2%';
+                document.getElementById('jupiter-avg-response').textContent = '200ms';
+                document.getElementById('jupiter-cache-hit').textContent = '85%';
+            }
+        }
+
+        // Update batch processing
+        function updateBatchProcessing(data) {
+            // Mock data for background processes
+            document.getElementById('twitter-refresh-status').textContent = 'Active';
+            document.getElementById('community-cache-status').textContent = 'Active';
+            document.getElementById('backup-status').textContent = 'Active';
+            document.getElementById('scoring-cache-status').textContent = 'Active';
+        }
+
+        // Show/hide loading states
+        function showLoading() {
+            document.getElementById('loading').classList.add('show');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.remove('show');
+        }
+
+        function showError(message) {
+            document.getElementById('error-message').textContent = message;
+            document.getElementById('error').classList.add('show');
+        }
+
+        function hideError() {
+            document.getElementById('error').classList.remove('show');
+        }
+
+        function showSuccess(message) {
+            document.getElementById('success-message').textContent = message;
+            document.getElementById('success').classList.add('show');
+        }
+
+        function hideSuccess() {
+            document.getElementById('success').classList.remove('show');
+        }
+
+        function showDashboard() {
+            document.getElementById('dashboard').style.display = 'block';
+        }
+
+        function updateLastRefresh() {
+            lastRefresh = new Date();
+            document.getElementById('last-refresh').textContent = lastRefresh.toLocaleString();
+        }
+
+        // Start auto-refresh
+        function startAutoRefresh() {
+            refreshInterval = setInterval(loadAnalytics, 30000); // Every 30 seconds
+        }
+
+        // Stop auto-refresh
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            stopAutoRefresh();
+        });
+
+        // Initial load
+        loadAnalytics();
+    </script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+/* Custom styles for Solana DeGens */
+.App {
+  min-height: 100vh;
+  background-color: #0a0a0a;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #9945FF;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #7c3aed;
+}
+
+/* Selection styling */
+::selection {
+  background: rgba(153, 69, 255, 0.3);
+  color: white;
+}
+
+/* Focus styles */
+button:focus,
+input:focus,
+select:focus {
+  outline: 2px solid #9945FF;
+  outline-offset: 2px;
+}
+
+/* Animation for bubble entrance */
+@keyframes bubbleEntrance {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+}
+
+.bubble-entrance {
+  animation: bubbleEntrance 0.5s ease-out;
+}
+
+/* Loading animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

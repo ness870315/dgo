@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Payment Success Flow</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            margin: 0;
+            padding: 40px;
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .test-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .test-button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .test-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .success {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #22c55e;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+        
+        .info {
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #3b82f6;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Payment Success Flow</h1>
+    
+    <div class="test-section">
+        <h2>📋 Step 1: Setup Test Data</h2>
+        <p>This simulates a user adding MEMEPUTER token and going to payment:</p>
+        <button class="test-button" onclick="setupTestData()">
+            📊 Setup MEMEPUTER Test Data
+        </button>
+        <div id="setupResult"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>💳 Step 2: Simulate Payment Success</h2>
+        <p>This simulates what happens when user returns from Helio Pay with success:</p>
+        <button class="test-button" onclick="simulatePaymentReturn()">
+            🎉 Simulate Payment Success Return
+        </button>
+        <div id="paymentResult"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>🔗 Step 3: Test Direct URL</h2>
+        <p>Test the actual URL that Helio Pay would redirect to:</p>
+        <button class="test-button" onclick="testDirectURL()">
+            🌐 Open Success URL
+        </button>
+        <div class="info">
+            <strong>URL:</strong> <span id="successURL">Loading...</span>
+        </div>
+    </div>
+
+    <script>
+        // Update success URL display
+        document.getElementById('successURL').textContent = `${window.location.origin}/?payment=success`;
+        
+        function setupTestData() {
+            const testTokenData = {
+                symbol: 'MEMEPUTER',
+                name: 'MEMEPUTER',
+                contractAddress: '5EpbKX221NYVidK6A2nJGhtuLPvrPiQ6shknLbtjBAGS',
+                paymentInitiated: new Date().toISOString()
+            };
+            
+            // Store in localStorage (simulating what happens before payment)
+            localStorage.setItem('pendingTokenListing', JSON.stringify(testTokenData));
+            
+            document.getElementById('setupResult').innerHTML = `
+                <div class="success">
+                    ✅ Test data stored in localStorage:<br>
+                    <strong>Symbol:</strong> ${testTokenData.symbol}<br>
+                    <strong>Name:</strong> ${testTokenData.name}<br>
+                    <strong>Contract:</strong> ${testTokenData.contractAddress}
+                </div>
+            `;
+            
+            console.log('📊 Test data setup:', testTokenData);
+        }
+        
+        function simulatePaymentReturn() {
+            // Check if test data exists
+            const pendingToken = localStorage.getItem('pendingTokenListing');
+            if (!pendingToken) {
+                document.getElementById('paymentResult').innerHTML = `
+                    <div style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; padding: 15px; border-radius: 10px;">
+                        ❌ No test data found! Please run Step 1 first.
+                    </div>
+                `;
+                return;
+            }
+            
+            try {
+                const tokenData = JSON.parse(pendingToken);
+                
+                // Show what would happen
+                document.getElementById('paymentResult').innerHTML = `
+                    <div class="success">
+                        🎉 Payment success detected!<br>
+                        <strong>Token:</strong> ${tokenData.name} (${tokenData.symbol})<br>
+                        <strong>Next:</strong> Professional modal should appear<br>
+                        <strong>Then:</strong> Token submitted to backend
+                    </div>
+                `;
+                
+                // Simulate the modal (you can uncomment this to test the actual modal)
+                // showProfessionalSuccessModal(tokenData);
+                
+                console.log('🎉 Payment success simulation for:', tokenData);
+                
+            } catch (error) {
+                document.getElementById('paymentResult').innerHTML = `
+                    <div style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; padding: 15px; border-radius: 10px;">
+                        ❌ Error parsing test data: ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        function testDirectURL() {
+            const successUrl = `${window.location.origin}/?payment=success`;
+            
+            // Open in new tab to test the actual flow
+            window.open(successUrl, '_blank');
+            
+            console.log('🌐 Opening success URL:', successUrl);
+        }
+        
+        // Log current localStorage state
+        console.log('💾 Current localStorage:', {
+            pendingTokenListing: localStorage.getItem('pendingTokenListing')
+        });
+    </script>
+</body>
+</html>

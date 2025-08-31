@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Payment Flow</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            margin: 0;
+            padding: 40px;
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .debug-section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .test-button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .test-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug Payment Flow</h1>
+    
+    <div class="debug-section">
+        <h2>📋 Current localStorage Data</h2>
+        <pre id="localStorageData">Loading...</pre>
+        <button class="test-button" onclick="refreshLocalStorage()">🔄 Refresh</button>
+    </div>
+    
+    <div class="debug-section">
+        <h2>🧪 Test Payment Success Modal</h2>
+        <p>This simulates what should happen when payment succeeds:</p>
+        <button class="test-button" onclick="simulatePaymentSuccess()">
+            🎉 Simulate Payment Success
+        </button>
+        <button class="test-button" onclick="simulatePaymentSuccessWithData()">
+            🎉 Simulate with MEMEPUTER Data
+        </button>
+    </div>
+    
+    <div class="debug-section">
+        <h2>📝 Console Logs</h2>
+        <pre id="consoleLogs">Console logs will appear here...</pre>
+        <button class="test-button" onclick="clearLogs()">🧹 Clear Logs</button>
+    </div>
+
+    <script>
+        // Capture console logs
+        const originalLog = console.log;
+        const originalError = console.error;
+        let logs = [];
+        
+        function addLog(type, message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logs.push(`[${timestamp}] ${type}: ${message}`);
+            updateLogsDisplay();
+        }
+        
+        console.log = function(...args) {
+            addLog('LOG', args.join(' '));
+            originalLog.apply(console, args);
+        };
+        
+        console.error = function(...args) {
+            addLog('ERROR', args.join(' '));
+            originalError.apply(console, args);
+        };
+        
+        function updateLogsDisplay() {
+            document.getElementById('consoleLogs').textContent = logs.slice(-20).join('\n');
+        }
+        
+        function clearLogs() {
+            logs = [];
+            updateLogsDisplay();
+        }
+        
+        function refreshLocalStorage() {
+            const data = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                try {
+                    const value = localStorage.getItem(key);
+                    data[key] = JSON.parse(value);
+                } catch (e) {
+                    data[key] = value;
+                }
+            }
+            
+            document.getElementById('localStorageData').textContent = JSON.stringify(data, null, 2);
+        }
+        
+        // Professional Success Modal Function (copied from ListTokenPage.js)
+        const showProfessionalSuccessModal = (tokenData) => {
+            console.log('🎉 Showing professional success modal for:', tokenData);
+            
+            // Create modal overlay
+            const overlay = document.createElement('div');
+            overlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.8);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 10000;
+                backdrop-filter: blur(4px);
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            `;
+
+            // Create modal content
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                border-radius: 20px;
+                padding: 40px;
+                max-width: 500px;
+                width: 90%;
+                text-align: center;
+                color: white;
+                box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+                position: relative;
+                animation: modalSlideIn 0.3s ease-out;
+            `;
+
+            // Add CSS animation
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes modalSlideIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(-50px) scale(0.9);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0) scale(1);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+
+            modal.innerHTML = `
+                <div style="margin-bottom: 30px;">
+                    <div style="font-size: 60px; margin-bottom: 20px;">🎉</div>
+                    <h2 style="margin: 0; font-size: 28px; font-weight: 700; margin-bottom: 10px;">
+                        Payment Successful!
+                    </h2>
+                    <p style="margin: 0; font-size: 18px; opacity: 0.9;">
+                        ${tokenData.name} (${tokenData.symbol}) is being processed by DeGen Oracle.
+                    </p>
+                </div>
+
+                <div style="background: rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 25px; margin-bottom: 30px;">
+                    <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+                        <div style="font-size: 24px; margin-right: 10px;">⏱️</div>
+                        <span style="font-size: 16px; font-weight: 600;">Processing Time: Approximately 2-3 minutes</span>
+                    </div>
+                    
+                    <div style="text-align: left; margin-bottom: 20px;">
+                        <div style="font-size: 18px; font-weight: 600; margin-bottom: 15px; text-align: center;">
+                            📊 DeGen Oracle is calculating:
+                        </div>
+                        <div style="display: grid; gap: 8px; font-size: 14px;">
+                            <div style="display: flex; align-items: center;">
+                                <span style="margin-right: 8px;">•</span>
+                                <span>Market metrics and price data</span>
+                            </div>
+                            <div style="display: flex; align-items: center;">
+                                <span style="margin-right: 8px;">•</span>
+                                <span>Community sentiment scores</span>
+                            </div>
+                            <div style="display: flex; align-items: center;">
+                                <span style="margin-right: 8px;">•</span>
+                                <span>Social media presence</span>
+                            </div>
+                            <div style="display: flex; align-items: center;">
+                                <span style="margin-right: 8px;">•</span>
+                                <span>Overall ranking position</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="successModalOK" style="
+                    background: rgba(255, 255, 255, 0.2);
+                    border: 2px solid rgba(255, 255, 255, 0.3);
+                    color: white;
+                    padding: 12px 30px;
+                    border-radius: 25px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    backdrop-filter: blur(10px);
+                " onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'" 
+                   onmouseout="this.style.background='rgba(255, 255, 255, 0.2)'">
+                    OK
+                </button>
+            `;
+
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+
+            // Handle OK button click
+            document.getElementById('successModalOK').onclick = () => {
+                document.body.removeChild(overlay);
+                document.head.removeChild(style);
+            };
+
+            // Handle overlay click to close
+            overlay.onclick = (e) => {
+                if (e.target === overlay) {
+                    document.body.removeChild(overlay);
+                    document.head.removeChild(style);
+                }
+            };
+        };
+        
+        function simulatePaymentSuccess() {
+            console.log('🧪 Simulating payment success without token data...');
+            
+            // Check if there's pending token data
+            const pendingToken = localStorage.getItem('pendingTokenListing');
+            if (pendingToken) {
+                const tokenData = JSON.parse(pendingToken);
+                console.log('📊 Found pending token data:', tokenData);
+                showProfessionalSuccessModal(tokenData);
+            } else {
+                console.log('⚠️ No pending token data found in localStorage');
+                alert('No pending token data found. Please add a token first.');
+            }
+        }
+        
+        function simulatePaymentSuccessWithData() {
+            console.log('🧪 Simulating payment success with MEMEPUTER data...');
+            
+            const testTokenData = {
+                symbol: 'MEMEPUTER',
+                name: 'MEMEPUTER',
+                contractAddress: '5EpbKX221NYVidK6A2nJGhtuLPvrPiQ6shknLbtjBAGS'
+            };
+            
+            // Store test data in localStorage
+            localStorage.setItem('pendingTokenListing', JSON.stringify(testTokenData));
+            console.log('📊 Stored test token data in localStorage');
+            
+            // Show the modal
+            showProfessionalSuccessModal(testTokenData);
+            
+            // Refresh the localStorage display
+            refreshLocalStorage();
+        }
+        
+        // Initialize
+        refreshLocalStorage();
+        
+        console.log('🔍 Debug page loaded - ready to test payment flow');
+    </script>
+</body>
+</html>

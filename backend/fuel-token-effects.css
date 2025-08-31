@@ -1,0 +1,186 @@
+/* 🔥 FUEL TOKEN VISUAL EFFECTS */
+
+/* Fire emoji indicator for fueled tokens */
+.token-bubble.fueled::before {
+    content: '🔥';
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    font-size: 20px;
+    z-index: 10;
+    animation: fuelPulse 2s ease-in-out infinite;
+    filter: drop-shadow(0 0 10px rgba(255, 107, 107, 0.8));
+}
+
+/* Pulsing animation for fire emoji */
+@keyframes fuelPulse {
+    0%, 100% {
+        transform: scale(1) rotate(0deg);
+        filter: drop-shadow(0 0 10px rgba(255, 107, 107, 0.8));
+    }
+    50% {
+        transform: scale(1.2) rotate(5deg);
+        filter: drop-shadow(0 0 20px rgba(255, 107, 107, 1));
+    }
+}
+
+/* Flashing effect for fueled token bubbles */
+.token-bubble.fueled {
+    animation: fuelFlash 3s ease-in-out infinite;
+    border: 2px solid transparent;
+    background: linear-gradient(45deg, 
+        rgba(255, 107, 107, 0.1), 
+        rgba(255, 165, 0, 0.1), 
+        rgba(255, 215, 0, 0.1)
+    );
+}
+
+@keyframes fuelFlash {
+    0%, 100% {
+        border-color: rgba(255, 107, 107, 0.3);
+        box-shadow: 0 0 20px rgba(255, 107, 107, 0.2);
+    }
+    25% {
+        border-color: rgba(255, 165, 0, 0.5);
+        box-shadow: 0 0 25px rgba(255, 165, 0, 0.3);
+    }
+    50% {
+        border-color: rgba(255, 215, 0, 0.7);
+        box-shadow: 0 0 30px rgba(255, 215, 0, 0.4);
+    }
+    75% {
+        border-color: rgba(255, 107, 107, 0.5);
+        box-shadow: 0 0 25px rgba(255, 107, 107, 0.3);
+    }
+}
+
+/* Enhanced glow effect for fueled tokens */
+.token-bubble.fueled .token-score {
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+    animation: scoreGlow 2s ease-in-out infinite;
+}
+
+@keyframes scoreGlow {
+    0%, 100% {
+        text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+    }
+    50% {
+        text-shadow: 0 0 20px rgba(255, 215, 0, 1), 0 0 30px rgba(255, 107, 107, 0.6);
+    }
+}
+
+/* Fuel type indicator on token */
+.token-bubble.fueled .fuel-indicator {
+    position: absolute;
+    bottom: -15px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(45deg, #ff6b6b, #ffa500);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: bold;
+    white-space: nowrap;
+    z-index: 5;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Time remaining indicator */
+.token-bubble.fueled .time-remaining {
+    position: absolute;
+    top: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: #ffd700;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-size: 9px;
+    white-space: nowrap;
+    z-index: 5;
+}
+
+/* Enhanced hover effects for fueled tokens */
+.token-bubble.fueled:hover {
+    transform: scale(1.1) translateY(-5px);
+    box-shadow: 0 15px 40px rgba(255, 107, 107, 0.4);
+}
+
+/* Fuel expiration warning */
+.token-bubble.fueled.expiring-soon::before {
+    content: '⚠️';
+    animation: warningBlink 1s ease-in-out infinite;
+}
+
+@keyframes warningBlink {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.3;
+    }
+}
+
+/* Fuel expired state */
+.token-bubble.fueled.expired {
+    animation: none;
+    border-color: rgba(128, 128, 128, 0.5);
+    opacity: 0.7;
+}
+
+.token-bubble.fueled.expired::before {
+    content: '💀';
+    animation: none;
+    opacity: 0.5;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .token-bubble.fueled::before {
+        font-size: 16px;
+        top: -8px;
+        right: -8px;
+    }
+    
+    .token-bubble.fueled .fuel-indicator {
+        font-size: 8px;
+        padding: 1px 6px;
+        bottom: -12px;
+    }
+    
+    .token-bubble.fueled .time-remaining {
+        font-size: 8px;
+        padding: 1px 4px;
+        top: -20px;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .token-bubble.fueled {
+        border-width: 3px;
+    }
+    
+    .token-bubble.fueled::before {
+        filter: none;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .token-bubble.fueled,
+    .token-bubble.fueled::before,
+    .token-bubble.fueled .token-score {
+        animation: none;
+    }
+    
+    .token-bubble.fueled {
+        border: 2px solid #ff6b6b;
+        background: rgba(255, 107, 107, 0.1);
+    }
+}
+
+
+
+

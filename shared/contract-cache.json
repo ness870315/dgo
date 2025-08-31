@@ -1,0 +1,4533 @@
+{
+  "contracts": [
+    [
+      "$MYRO",
+      {
+        "contractAddress": "HhJpBhRRn4g56VsyLuT8DL5Bv31HkXqsrahTTUCZeZg4",
+        "hasRealContract": true,
+        "cachedAt": 1756238651548,
+        "symbol": "$MYRO"
+      }
+    ],
+    [
+      "WEN",
+      {
+        "contractAddress": "WENWENvqqNya429ubCdR81ZmD69brwQaaBYY6p3LCpk",
+        "hasRealContract": true,
+        "cachedAt": 1756238651753,
+        "symbol": "WEN"
+      }
+    ],
+    [
+      "NEET",
+      {
+        "contractAddress": "Ce2gx9KGXJ6C9Mp5b5x1sn9Mg87JwEbrQby4Zqo3pump",
+        "hasRealContract": true,
+        "cachedAt": 1756238653672,
+        "symbol": "NEET"
+      }
+    ],
+    [
+      "PIPPIN",
+      {
+        "contractAddress": "Dfh5DzRgSvvCFDoYc2ciTkMrbDfRKybA4SoFbPmApump",
+        "hasRealContract": true,
+        "cachedAt": 1756238653882,
+        "symbol": "PIPPIN"
+      }
+    ],
+    [
+      "MASK",
+      {
+        "contractAddress": "6MQpbiTC2YcogidTmKqMLK82qvE9z5QEm7EP3AEDpump",
+        "hasRealContract": true,
+        "cachedAt": 1756238654370,
+        "symbol": "MASK"
+      }
+    ],
+    [
+      "NEIRO",
+      {
+        "contractAddress": "CTg3ZgYx79zrE1MteDVkmkcGniiFrK1hJ6yiabropump",
+        "hasRealContract": true,
+        "cachedAt": 1756238808497,
+        "symbol": "NEIRO"
+      }
+    ],
+    [
+      "$HAMI",
+      {
+        "contractAddress": "4sp2EUDrQf46rZun6sYAWzjrXwUpx2T3njuoKmV766RJ",
+        "hasRealContract": true,
+        "cachedAt": 1756238812994,
+        "symbol": "$HAMI"
+      }
+    ],
+    [
+      "PEANIE",
+      {
+        "contractAddress": "dekNoN3D8mXa4JHLwTbVXz8aPAyJUkk443UjcSpJKi4",
+        "hasRealContract": true,
+        "cachedAt": 1756238964831,
+        "symbol": "PEANIE"
+      }
+    ],
+    [
+      "SCAM",
+      {
+        "contractAddress": "9mNjA6BizTwpvd4DS3o7BjwZ6aPM9DC2jLHS7JFGbonk",
+        "hasRealContract": true,
+        "cachedAt": 1756238964947,
+        "symbol": "SCAM"
+      }
+    ],
+    [
+      "THUMB",
+      {
+        "contractAddress": "BdNKUUo8vnvdhwi1Ejn4PXNfeeQF2374hCK3m91ppump",
+        "hasRealContract": true,
+        "cachedAt": 1756238965001,
+        "symbol": "THUMB"
+      }
+    ],
+    [
+      "CRCL",
+      {
+        "contractAddress": "HyU6PuA4oDPxnEpP7E3MGc4u6MQ4m31LZihTF7RPbonk",
+        "hasRealContract": true,
+        "cachedAt": 1756238965029,
+        "symbol": "CRCL"
+      }
+    ],
+    [
+      "AP",
+      {
+        "contractAddress": "39zSVsSHFqNhARbVh6n8ZF78nCmhV3gSg8D39xhBNe73",
+        "hasRealContract": true,
+        "cachedAt": 1756238965031,
+        "symbol": "AP"
+      }
+    ],
+    [
+      "KFR",
+      {
+        "contractAddress": "5Gb67sU9UgZsrbhrbKs5yYtWLFPwPLYKzRQuUEZfmoon",
+        "hasRealContract": true,
+        "cachedAt": 1756239002714,
+        "symbol": "KFR"
+      }
+    ],
+    [
+      "STOIC",
+      {
+        "contractAddress": "8TzfHZa6ZnvvGsQfnFC5wGrCiqbN9nD2KMjyabfrpump",
+        "hasRealContract": true,
+        "cachedAt": 1756239003114,
+        "symbol": "STOIC"
+      }
+    ],
+    [
+      "ADASOL",
+      {
+        "contractAddress": "E4Q5pLaEiejwEQHcM9GeYSQfMyGy8DJ4bPWgeYthn24v",
+        "hasRealContract": true,
+        "cachedAt": 1756239003352,
+        "symbol": "ADASOL"
+      }
+    ],
+    [
+      "STICK",
+      {
+        "contractAddress": "3fAddCWnFZnVfHRaDf86sVDAD7jHXq97NULrpo4GGkth",
+        "hasRealContract": true,
+        "cachedAt": 1756239003625,
+        "symbol": "STICK"
+      }
+    ],
+    [
+      "SAVIOUR",
+      {
+        "contractAddress": "5Htub56zFC6gyp4UKKjEb21JTSrWheHbNwbxmXedbonk",
+        "hasRealContract": true,
+        "cachedAt": 1756239003630,
+        "symbol": "SAVIOUR"
+      }
+    ],
+    [
+      "SUWI",
+      {
+        "contractAddress": "ABDoiSudvFjjJ25rtXn8V2b6QGrH59KN6thAbsPvpump",
+        "hasRealContract": true,
+        "cachedAt": 1756239003886,
+        "symbol": "SUWI"
+      }
+    ],
+    [
+      "IMAGINE",
+      {
+        "contractAddress": "EuU9Vh37eKDdUnZkUfMZLGCcBqwFYpr1E6X3ZwUxhvgm",
+        "hasRealContract": true,
+        "cachedAt": 1756239003893,
+        "symbol": "IMAGINE"
+      }
+    ],
+    [
+      "BLACKCOIN",
+      {
+        "contractAddress": "J3rYdme789g1zAysfbH9oP4zjagvfVM2PX7KJgFDpump",
+        "hasRealContract": true,
+        "cachedAt": 1756239006456,
+        "symbol": "BLACKCOIN"
+      }
+    ],
+    [
+      "CHAN",
+      {
+        "contractAddress": "ChanGGuDHboPswpTmKDfsTVGQL96VHhmvpwrE4UjWssd",
+        "hasRealContract": true,
+        "cachedAt": 1756239006504,
+        "symbol": "CHAN"
+      }
+    ],
+    [
+      "CATBAT",
+      {
+        "contractAddress": "mo7mapMrCsyci5w1td1wgrKPtNeCfjfkKi96DknWi5N",
+        "hasRealContract": true,
+        "cachedAt": 1756239006633,
+        "symbol": "CATBAT"
+      }
+    ],
+    [
+      "GIKO",
+      {
+        "contractAddress": "3WPep4ufaToK1aS5s8BL9inzeUrt4DYaQCiic6ZkkC1U",
+        "hasRealContract": true,
+        "cachedAt": 1756239237220,
+        "symbol": "GIKO"
+      }
+    ],
+    [
+      "SLOTH",
+      {
+        "contractAddress": "HQ7DaoiUxzC2K1Dr7KXRHccNtXvEYgNvoUextXe8dmBh",
+        "hasRealContract": true,
+        "cachedAt": 1756239237376,
+        "symbol": "SLOTH"
+      }
+    ],
+    [
+      "PEPO",
+      {
+        "contractAddress": "pepo1CFNU2RXf7yXX7HNXazXwxsq8WrPvDHpHriwoLY",
+        "hasRealContract": true,
+        "cachedAt": 1756239239394,
+        "symbol": "PEPO"
+      }
+    ],
+    [
+      "RIZO",
+      {
+        "contractAddress": "rizo34MUwbCBqpSTSfnEktdWB4CTByqqYh8zBxL3WAR",
+        "hasRealContract": true,
+        "cachedAt": 1756239239707,
+        "symbol": "RIZO"
+      }
+    ],
+    [
+      "RUDI",
+      {
+        "contractAddress": "2rVgh6tcU1Hhk58XwD631E2D6iqLV28prSdpBXaLbonk",
+        "hasRealContract": true,
+        "cachedAt": 1756239394958,
+        "symbol": "RUDI"
+      }
+    ],
+    [
+      "LONG",
+      {
+        "contractAddress": "AYABiqKuTh9Va5Aqc6AujFevHwDGmECGQiFmKW5g3K4Z",
+        "hasRealContract": true,
+        "cachedAt": 1756239395638,
+        "symbol": "LONG"
+      }
+    ],
+    [
+      "CAPRICORN",
+      {
+        "contractAddress": "3C2SN1FjzE9MiLFFVRp7Jhkp8Gjwpk29S2TCSJ2jkHn2",
+        "hasRealContract": true,
+        "cachedAt": 1756239396894,
+        "symbol": "CAPRICORN"
+      }
+    ],
+    [
+      "FLSH",
+      {
+        "contractAddress": "FLASHTrGnUXkWtgF5EWQrcHkyiRQdDhEFMJg7qhHkxRb",
+        "hasRealContract": true,
+        "cachedAt": 1756239476247,
+        "symbol": "FLSH"
+      }
+    ],
+    [
+      "SWARM",
+      {
+        "contractAddress": "JBSVUpKgYNHt4GLtNebQxTJmZgftTMWENQrziHtGpump",
+        "hasRealContract": true,
+        "cachedAt": 1756239476468,
+        "symbol": "SWARM"
+      }
+    ],
+    [
+      "$RICH",
+      {
+        "contractAddress": "GRFK7sv4KhkMzJ7BXDUBy4PLyZVBeXuW1FeaT6Mnpump",
+        "hasRealContract": true,
+        "cachedAt": 1756239477298,
+        "symbol": "$RICH"
+      }
+    ],
+    [
+      "GOONC",
+      {
+        "contractAddress": "ENfpbQUM5xAnNP8ecyEQGFJ6KwbuPjMwv7ZjR29cDuAb",
+        "hasRealContract": true,
+        "cachedAt": 1756239477793,
+        "symbol": "GOONC"
+      }
+    ],
+    [
+      "TUFF",
+      {
+        "contractAddress": "L2aKgxwNSGn6i5njrDqtFxan82uidsfjXHrYNSspump",
+        "hasRealContract": true,
+        "cachedAt": 1756239477963,
+        "symbol": "TUFF"
+      }
+    ],
+    [
+      "XING",
+      {
+        "contractAddress": "5JcdnWEwuHh1v3SAARq8zH9tEwDQGpaHzBrZ81m4pump",
+        "hasRealContract": true,
+        "cachedAt": 1756239552849,
+        "symbol": "XING"
+      }
+    ],
+    [
+      "LOA",
+      {
+        "contractAddress": "9RAghejZNirG4skdqUXxVVSnKGmYSjjjgnPMPjyJmoon",
+        "hasRealContract": true,
+        "cachedAt": 1756239553284,
+        "symbol": "LOA"
+      }
+    ],
+    [
+      "DJI",
+      {
+        "contractAddress": "BjotV424H4UBvrAiGFGjQGztLxoafxM4HSdCXZR6pump",
+        "hasRealContract": true,
+        "cachedAt": 1756239554812,
+        "symbol": "DJI"
+      }
+    ],
+    [
+      "ILY",
+      {
+        "contractAddress": "GJLiErro8cbWeDngDMWJug9dkwwckYZg4Lvb79F3pump",
+        "hasRealContract": true,
+        "cachedAt": 1756239555033,
+        "symbol": "ILY"
+      }
+    ],
+    [
+      "FEETCOIN",
+      {
+        "contractAddress": "7CPBU6CL7GpjzM2DRr7HVoy7TGJxvHkPHWxfvEZypump",
+        "hasRealContract": true,
+        "cachedAt": 1756239595002,
+        "symbol": "FEETCOIN"
+      }
+    ],
+    [
+      "USA",
+      {
+        "contractAddress": "69kdRLyP5DTRkpHraaSZAQbWmAwzF9guKjZfzMXzcbAs",
+        "hasRealContract": true,
+        "cachedAt": 1756239735672,
+        "symbol": "USA"
+      }
+    ],
+    [
+      "BUCKY",
+      {
+        "contractAddress": "7hZmPPkBDYbFpvzQW54sX3DQHQjEVsVcCFRWsvCdbonk",
+        "hasRealContract": true,
+        "cachedAt": 1756239737093,
+        "symbol": "BUCKY"
+      }
+    ],
+    [
+      "SPARK",
+      {
+        "contractAddress": "5zCETicUCJqJ5Z3wbfFPZqtSpHPYqnggs1wX7ZRpump",
+        "hasRealContract": true,
+        "cachedAt": 1756239737791,
+        "symbol": "SPARK"
+      }
+    ],
+    [
+      "RETIRE",
+      {
+        "contractAddress": "zGh48JtNHVBb5evgoZLXwgPD2Qu4MhkWdJLGDAupump",
+        "hasRealContract": true,
+        "cachedAt": 1756239780702,
+        "symbol": "RETIRE"
+      }
+    ],
+    [
+      "STONKS",
+      {
+        "contractAddress": "8P6WDZ59qwMrTgXWaxFN5J19dGwvY2XEavCyRdA25PNm",
+        "hasRealContract": true,
+        "cachedAt": 1756239780888,
+        "symbol": "STONKS"
+      }
+    ],
+    [
+      "SON",
+      {
+        "contractAddress": "AdxNrCntq6YkYC2qVffF2Fw7WC1UatKhV8J6G4ekgNx3",
+        "hasRealContract": true,
+        "cachedAt": 1756239781265,
+        "symbol": "SON"
+      }
+    ],
+    [
+      "AKIO",
+      {
+        "contractAddress": "Akiox1GAxohWdggSLaFpChxLyS54vz7P7YaF1tckWEQu",
+        "hasRealContract": true,
+        "cachedAt": 1756239783068,
+        "symbol": "AKIO"
+      }
+    ],
+    [
+      "FRIC",
+      {
+        "contractAddress": "EsP4kJfKUDLfX274WoBSiiEy74Sh4tZKUCDjfULHpump",
+        "hasRealContract": true,
+        "cachedAt": 1756239783251,
+        "symbol": "FRIC"
+      }
+    ],
+    [
+      "SCF",
+      {
+        "contractAddress": "GiG7Hr61RVm4CSUxJmgiCoySFQtdiwxtqf64MsRppump",
+        "hasRealContract": true,
+        "cachedAt": 1756239783619,
+        "symbol": "SCF"
+      }
+    ],
+    [
+      "LOU",
+      {
+        "contractAddress": "5DQSDg6SGkbsbykq4mQstpcL4d5raEHc6rY7LgBwpump",
+        "hasRealContract": true,
+        "cachedAt": 1756240033765,
+        "symbol": "LOU"
+      }
+    ],
+    [
+      "BB",
+      {
+        "contractAddress": "E7MYzWD8GtLYNsgRyECSts2p1s2mu5JLb6wR9CiCBAGS",
+        "hasRealContract": true,
+        "cachedAt": 1756240110955,
+        "symbol": "BB"
+      }
+    ],
+    [
+      "MAJOR",
+      {
+        "contractAddress": "CNyMaRR4krm1yAxfCvPXevNMArZZZk7sRqKwX68uCeJk",
+        "hasRealContract": true,
+        "cachedAt": 1756240111364,
+        "symbol": "MAJOR"
+      }
+    ],
+    [
+      "COK",
+      {
+        "contractAddress": "Dnb9dLSXxAarXVexehzeH8W8nFmLMNJSuGoaddZSwtog",
+        "hasRealContract": true,
+        "cachedAt": 1756240113102,
+        "symbol": "COK"
+      }
+    ],
+    [
+      "CATVAX",
+      {
+        "contractAddress": "EVDoPXkWNRMc7fQirg7emNdc17KNqsCyzVi4mWPmDvni",
+        "hasRealContract": true,
+        "cachedAt": 1756240113244,
+        "symbol": "CATVAX"
+      }
+    ],
+    [
+      "SOH",
+      {
+        "contractAddress": "3c3SsHJnfqCs3WnbM2dBJeNFowcVJDWBfpJExumbmoon",
+        "hasRealContract": true,
+        "cachedAt": 1756240536429,
+        "symbol": "SOH"
+      }
+    ],
+    [
+      "NOOOO",
+      {
+        "contractAddress": "4E3CrfKrPWmnE2kFrdeRKyiovpUWpUXHtqXpXzZZsxZ2",
+        "hasRealContract": true,
+        "cachedAt": 1756240536600,
+        "symbol": "NOOOO"
+      }
+    ],
+    [
+      "FAPGUY",
+      {
+        "contractAddress": "C2i8WUjvkpZPXEBumF6dwFJakaDA3hTYCcBpfLMgpump",
+        "hasRealContract": true,
+        "cachedAt": 1756240536773,
+        "symbol": "FAPGUY"
+      }
+    ],
+    [
+      "WOOF",
+      {
+        "contractAddress": "9nEqaUcb16sQ3Tn1psbkWqyhPdLmfHWjKGymREjsAgTE",
+        "hasRealContract": true,
+        "cachedAt": 1756240617948,
+        "symbol": "WOOF"
+      }
+    ],
+    [
+      "RAT",
+      {
+        "contractAddress": "3vJenGaGsuKG5shPhi7rjnuy3MV6xjmBTGjYqYzXpump",
+        "hasRealContract": true,
+        "cachedAt": 1756240618139,
+        "symbol": "RAT"
+      }
+    ],
+    [
+      "ELIZA",
+      {
+        "contractAddress": "wUtwjNmjCP9TTTtoc5Xn5h5sZ2cYJm5w2w44b79yr2o",
+        "hasRealContract": true,
+        "cachedAt": 1756240618360,
+        "symbol": "ELIZA"
+      }
+    ],
+    [
+      "GM",
+      {
+        "contractAddress": "4aL5GLRuzsnJjJWNdXK7TPTVpGhP6PyV4ZhyQiyxpump",
+        "hasRealContract": true,
+        "cachedAt": 1756240619969,
+        "symbol": "GM"
+      }
+    ],
+    [
+      "MCDULL",
+      {
+        "contractAddress": "Buoj8HCZMnLRwzDmjzaswhkVhLZD58PG4pZ7rnYp6pCr",
+        "hasRealContract": true,
+        "cachedAt": 1756241018211,
+        "symbol": "MCDULL"
+      }
+    ],
+    [
+      "DAKU",
+      {
+        "contractAddress": "7mwikw88GRsAHbFpbpyuM3QMq1hXH87d4rYNuM8Earay",
+        "hasRealContract": true,
+        "cachedAt": 1756241019619,
+        "symbol": "DAKU"
+      }
+    ],
+    [
+      "NUB",
+      {
+        "contractAddress": "GtDZKAqvMZMnti46ZewMiXCa4oXF4bZxwQPoKzXPFxZn",
+        "hasRealContract": true,
+        "cachedAt": 1756241019878,
+        "symbol": "NUB"
+      }
+    ],
+    [
+      "HOSICO",
+      {
+        "contractAddress": "9wK8yN6iz1ie5kEJkvZCTxyN1x5sTdNfx8yeMY8Ebonk",
+        "hasRealContract": true,
+        "cachedAt": 1756241058317,
+        "symbol": "HOSICO"
+      }
+    ],
+    [
+      "LOCKIN",
+      {
+        "contractAddress": "8Ki8DpuWNxu9VsS3kQbarsCWMcFGWkzzA8pUPto9zBd5",
+        "hasRealContract": true,
+        "cachedAt": 1756241058537,
+        "symbol": "LOCKIN"
+      }
+    ],
+    [
+      "AU79",
+      {
+        "contractAddress": "AT13ipG8K4HDyEJm3H1ZVQV2Bw8sihewoLQReSMsYo3o",
+        "hasRealContract": true,
+        "cachedAt": 1756241058820,
+        "symbol": "AU79"
+      }
+    ],
+    [
+      "AWR",
+      {
+        "contractAddress": "Ai4CL1SAxVRigxQFwBH8S2JkuL7EqrdiGwTC7JpCpump",
+        "hasRealContract": true,
+        "cachedAt": 1756242185653,
+        "symbol": "AWR"
+      }
+    ],
+    [
+      "DOLAN",
+      {
+        "contractAddress": "4YK1njyeCkBuXG6phNtidJWKCbBhB659iwGkUJx98P5Z",
+        "hasRealContract": true,
+        "cachedAt": 1756242185734,
+        "symbol": "DOLAN"
+      }
+    ],
+    [
+      "BOZO",
+      {
+        "contractAddress": "EJPtJEDogxzDbvM8qvAsqYbLmPj5n1vQeqoAzj9Yfv3q",
+        "hasRealContract": true,
+        "cachedAt": 1756242185767,
+        "symbol": "BOZO"
+      }
+    ],
+    [
+      "MLG",
+      {
+        "contractAddress": "7XJiwLDrjzxDYdZipnJXzpr1iDTmK55XixSFAa7JgNEL",
+        "hasRealContract": true,
+        "cachedAt": 1756242185791,
+        "symbol": "MLG"
+      }
+    ],
+    [
+      "POX",
+      {
+        "contractAddress": "mpoxP5wyoR3eRW8L9bZjGPFtCsmX8WcqU5BHxFW1xkn",
+        "hasRealContract": true,
+        "cachedAt": 1756242185811,
+        "symbol": "POX"
+      }
+    ],
+    [
+      "HYPERSKIDS",
+      {
+        "contractAddress": "GwkEDwePTa6aFosh9xzAniGK1zvLrQ5yPJfLnqwmuyhG",
+        "hasRealContract": true,
+        "cachedAt": 1756242600944,
+        "symbol": "HYPERSKIDS"
+      }
+    ],
+    [
+      "BOBAOPPA",
+      {
+        "contractAddress": "bobaM3u8QmqZhY1HwAtnvze9DLXvkgKYk3td3t8MLva",
+        "hasRealContract": true,
+        "cachedAt": 1756242603393,
+        "symbol": "BOBAOPPA"
+      }
+    ],
+    [
+      "AINTI",
+      {
+        "contractAddress": "BAezfVmia8UYLt4rst6PCU4dvL2i2qHzqn4wGhytpNJW",
+        "hasRealContract": true,
+        "cachedAt": 1756242603709,
+        "symbol": "AINTI"
+      }
+    ],
+    [
+      "STUPID",
+      {
+        "contractAddress": "9RjwNo6hBPkxayWHCqQD1VjaH8igSizEseNZNbddpump",
+        "hasRealContract": true,
+        "cachedAt": 1756242603938,
+        "symbol": "STUPID"
+      }
+    ],
+    [
+      "IQ50",
+      {
+        "contractAddress": "21rweMLGYeMNonHW7H3xa5py17X6ZFRcHirCp9inRBQA",
+        "hasRealContract": true,
+        "cachedAt": 1756242755312,
+        "symbol": "IQ50"
+      }
+    ],
+    [
+      "ETF500",
+      {
+        "contractAddress": "CWX6t6pGJ1zsnuywnyd2ZMZJ7inB2sWuPdsteoT6pump",
+        "hasRealContract": true,
+        "cachedAt": 1756242755513,
+        "symbol": "ETF500"
+      }
+    ],
+    [
+      "BEST",
+      {
+        "contractAddress": "8f1zccZPpbjz17Ay9wZKT5Mx2oPtUyxAVz5p5yzEbonk",
+        "hasRealContract": true,
+        "cachedAt": 1756242755900,
+        "symbol": "BEST"
+      }
+    ],
+    [
+      "MONK",
+      {
+        "contractAddress": "FYa25XnBsXQXAdTnsyKBKd5gZ1VZhChBRF57CqfRxJZX",
+        "hasRealContract": true,
+        "cachedAt": 1756242757422,
+        "symbol": "MONK"
+      }
+    ],
+    [
+      "EXPERT",
+      {
+        "contractAddress": "H7VfCzzPJvnqfs1b8uA9uUuVjXiYfzAUDw5gmyV9pump",
+        "hasRealContract": true,
+        "cachedAt": 1756242757601,
+        "symbol": "EXPERT"
+      }
+    ],
+    [
+      "E",
+      {
+        "contractAddress": "4Jsv4fnNp4gwtZ6omrDhEKbmFtpmLAt6nqTqt44wpump",
+        "hasRealContract": true,
+        "cachedAt": 1756244647661,
+        "symbol": "E"
+      }
+    ],
+    [
+      "ALPACA",
+      {
+        "contractAddress": "FfgtU4bMte3JRZGX7kcNVywxiGoSqUTga8eZxTSFpump",
+        "hasRealContract": true,
+        "cachedAt": 1756244647677,
+        "symbol": "ALPACA"
+      }
+    ],
+    [
+      "RODAI",
+      {
+        "contractAddress": "GdbyLsNKHKLXTZVEo8QrGKVmrexEeZUYvhpSfuZ9TdkC",
+        "hasRealContract": true,
+        "cachedAt": 1756244647686,
+        "symbol": "RODAI"
+      }
+    ],
+    [
+      "KEYCAT",
+      {
+        "contractAddress": "9pPE1q9EW1bMQWbHmffrzUCfRr7S82UoxNUFfA6mAZC6",
+        "hasRealContract": true,
+        "cachedAt": 1756244647731,
+        "symbol": "KEYCAT"
+      }
+    ],
+    [
+      "$PLATH",
+      {
+        "contractAddress": "7wMutxpCdP3GbKaoMWoPVf2sFLCeV7a9ox25v1h2QsTp",
+        "hasRealContract": true,
+        "cachedAt": 1756244647758,
+        "symbol": "$PLATH"
+      }
+    ],
+    [
+      "NOT",
+      {
+        "contractAddress": null,
+        "hasRealContract": false,
+        "cachedAt": 1756244962054,
+        "symbol": "NOT"
+      }
+    ],
+    [
+      "CRO",
+      {
+        "contractAddress": null,
+        "hasRealContract": false,
+        "cachedAt": 1756244976229,
+        "symbol": "CRO"
+      }
+    ],
+    [
+      "BLACK",
+      {
+        "contractAddress": null,
+        "hasRealContract": false,
+        "cachedAt": 1756245056313,
+        "symbol": "BLACK"
+      }
+    ],
+    [
+      "AERO",
+      {
+        "contractAddress": null,
+        "hasRealContract": false,
+        "cachedAt": 1756245069390,
+        "symbol": "AERO"
+      }
+    ],
+    [
+      "PENGU",
+      {
+        "contractAddress": "2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv",
+        "hasRealContract": true,
+        "cachedAt": 1756246070312,
+        "symbol": "PENGU"
+      }
+    ],
+    [
+      "BOME",
+      {
+        "contractAddress": "ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82",
+        "hasRealContract": true,
+        "cachedAt": 1756246073498,
+        "symbol": "BOME"
+      }
+    ],
+    [
+      "VINE",
+      {
+        "contractAddress": "6AJcP7wuLwmRYLBNbi825wgguaPsWzPBEHcHndpRpump",
+        "hasRealContract": true,
+        "cachedAt": 1756246076660,
+        "symbol": "VINE"
+      }
+    ],
+    [
+      "MOODENG",
+      {
+        "contractAddress": "ED5nyyWEzpPPiWimP8vYm7sD7TD3LAt3Q3gRTWHzPJBY",
+        "hasRealContract": true,
+        "cachedAt": 1756246079837,
+        "symbol": "MOODENG"
+      }
+    ],
+    [
+      "GOAT",
+      {
+        "contractAddress": "CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump",
+        "hasRealContract": true,
+        "cachedAt": 1756246083140,
+        "symbol": "GOAT"
+      }
+    ],
+    [
+      "BTH",
+      {
+        "contractAddress": "ESBCnCXtEZDmX8QnHU6qMZXd9mvjSAZVoYaLKKADBAGS",
+        "hasRealContract": true,
+        "cachedAt": 1756246086313,
+        "symbol": "BTH"
+      }
+    ],
+    [
+      "WIF",
+      {
+        "contractAddress": "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm",
+        "hasRealContract": true,
+        "cachedAt": 1756246156735,
+        "symbol": "WIF"
+      }
+    ],
+    [
+      "LOLCOIN",
+      {
+        "contractAddress": "HtrmuNs4nESVg5i8gHyufDpGN5HHKqPmFfbQV9yupump",
+        "hasRealContract": true,
+        "cachedAt": 1756246171965,
+        "symbol": "LOLCOIN"
+      }
+    ],
+    [
+      "DEGENAI",
+      {
+        "contractAddress": "Gu3LDkn7Vx3bmCzLafYNKcDxv2mH7YN44NJZFXnypump",
+        "hasRealContract": true,
+        "cachedAt": 1756246187222,
+        "symbol": "DEGENAI"
+      }
+    ],
+    [
+      "IKUN",
+      {
+        "contractAddress": "AtortPA9SVbkKmdzu5zg4jxgkR4howvPshorA9jYbonk",
+        "hasRealContract": true,
+        "cachedAt": 1756246202630,
+        "symbol": "IKUN"
+      }
+    ],
+    [
+      "BAN",
+      {
+        "contractAddress": "9PR7nCP9DpcUotnDPVLUBUZKu5WAYkwrCUx9wDnSpump",
+        "hasRealContract": true,
+        "cachedAt": 1756246217963,
+        "symbol": "BAN"
+      }
+    ],
+    [
+      "JAIL",
+      {
+        "contractAddress": "yFtG6tU4mZqiUnrBC4gF9eXTdWyzj7ZSKb92wv3bonk",
+        "hasRealContract": true,
+        "cachedAt": 1756246233176,
+        "symbol": "JAIL"
+      }
+    ],
+    [
+      "GHIBLI",
+      {
+        "contractAddress": "4TBi66vi32S7J8X1A6eWfaLHYmUXu7CStcEmsJQdpump",
+        "hasRealContract": true,
+        "cachedAt": 1756246248368,
+        "symbol": "GHIBLI"
+      }
+    ],
+    [
+      "LIZARD",
+      {
+        "contractAddress": "347k5f1WLRYe81roRcLBWDR6k3eCRunaqetQPW6pbonk",
+        "hasRealContract": true,
+        "cachedAt": 1756246263633,
+        "symbol": "LIZARD"
+      }
+    ],
+    [
+      "PONKE",
+      {
+        "contractAddress": "5z3EqYQo9HiCEs3R84RCDMu2n7anpDMxRhdK8PSWmrRC",
+        "hasRealContract": true,
+        "cachedAt": 1756246279013,
+        "symbol": "PONKE"
+      }
+    ],
+    [
+      "MEW",
+      {
+        "contractAddress": "MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5",
+        "hasRealContract": true,
+        "cachedAt": 1756246294433,
+        "symbol": "MEW"
+      }
+    ],
+    [
+      "PENG",
+      {
+        "contractAddress": "A3eME5CetyZPBoWbRUwY3tSe25S6tb18ba9ZPbWk9eFJ",
+        "hasRealContract": true,
+        "cachedAt": 1756246309734,
+        "symbol": "PENG"
+      }
+    ],
+    [
+      "ROCKY",
+      {
+        "contractAddress": "BVG3BJH4ghUPJT9mCi7JbziNwx3dqRTzgo9x5poGpump",
+        "hasRealContract": true,
+        "cachedAt": 1756246324958,
+        "symbol": "ROCKY"
+      }
+    ],
+    [
+      "SAINT",
+      {
+        "contractAddress": "EQs4DEeaSyrhRPM6JPsf2ptLf4EHkcGXB7ybeufxpump",
+        "hasRealContract": true,
+        "cachedAt": 1756246340147,
+        "symbol": "SAINT"
+      }
+    ],
+    [
+      "BONK",
+      {
+        "contractAddress": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+        "hasRealContract": true,
+        "cachedAt": 1756246355370,
+        "symbol": "BONK"
+      }
+    ],
+    [
+      "PNUT",
+      {
+        "contractAddress": "2qEHjDLDLbuBgRYvsxhc5D6uDWAivNFZGan56P1tpump",
+        "hasRealContract": true,
+        "cachedAt": 1756246370671,
+        "symbol": "PNUT"
+      }
+    ],
+    [
+      "LAUNCHCOIN",
+      {
+        "contractAddress": "Ey59PH7Z4BFU4HjyKnyMdWt5GGN76KazTAwQihoUXRnk",
+        "hasRealContract": true,
+        "cachedAt": 1756246385943,
+        "symbol": "LAUNCHCOIN"
+      }
+    ],
+    [
+      "SC",
+      {
+        "contractAddress": "6D7NaB2xsLd7cauWu1wKk6KBsJohJmP2qZH9GEfVi5Ui",
+        "hasRealContract": true,
+        "cachedAt": 1756246401181,
+        "symbol": "SC"
+      }
+    ],
+    [
+      "LORE",
+      {
+        "contractAddress": "DHAajf71VVT9s98hmyFyr3JDnr9KfotFbM5gQJV5bonk",
+        "hasRealContract": true,
+        "cachedAt": 1756246416398,
+        "symbol": "LORE"
+      }
+    ],
+    [
+      "MINDSHARE",
+      {
+        "contractAddress": "2eTJqpK4QqWofGLSoirWNdC3Goyxp81KC3JDMqcupump",
+        "hasRealContract": true,
+        "cachedAt": 1756246431644,
+        "symbol": "MINDSHARE"
+      }
+    ],
+    [
+      "URANUS",
+      {
+        "contractAddress": "BFgdzMkTPdKKJeTipv2njtDEwhKxkgFueJQfJGt1jups",
+        "hasRealContract": true,
+        "cachedAt": 1756246446856,
+        "symbol": "URANUS"
+      }
+    ],
+    [
+      "UFD",
+      {
+        "contractAddress": "eL5fUxj2J4CiQsmW85k5FG9DvuQjjUoBHoQBi2Kpump",
+        "hasRealContract": true,
+        "cachedAt": 1756246462094,
+        "symbol": "UFD"
+      }
+    ],
+    [
+      "TREEINCAT",
+      {
+        "contractAddress": "5AzTQ5zUuWUNGetxaRpo9DK9w8FQXoPjn5a4ZXMMmoon",
+        "hasRealContract": true,
+        "cachedAt": 1756246477317,
+        "symbol": "TREEINCAT"
+      }
+    ],
+    [
+      "CRUMB",
+      {
+        "contractAddress": "Hz7MeU72BNF9rCWyUFAwKTyCcjr6qsJm1jwYehnqjups",
+        "hasRealContract": true,
+        "cachedAt": 1756246492515,
+        "symbol": "CRUMB"
+      }
+    ],
+    [
+      "WDOG",
+      {
+        "contractAddress": "GYKmdfcUmZVrqfcH1g579BGjuzSRijj3LBuwv79rpump",
+        "hasRealContract": true,
+        "cachedAt": 1756246507778,
+        "symbol": "WDOG"
+      }
+    ],
+    [
+      "TITCOIN",
+      {
+        "contractAddress": "FtUEW73K6vEYHfbkfpdBZfWpxgQar2HipGdbutEhpump",
+        "hasRealContract": true,
+        "cachedAt": 1756246522957,
+        "symbol": "TITCOIN"
+      }
+    ],
+    [
+      "REAL",
+      {
+        "contractAddress": "Cy4DSbZW4CE6cG6HDqQFhXxpHTdm41SY9hBB1JG6pump",
+        "hasRealContract": true,
+        "cachedAt": 1756246538156,
+        "symbol": "REAL"
+      }
+    ],
+    [
+      "GIGGLES",
+      {
+        "contractAddress": "Bsow2wFkVzy1itJnhLke6VRTqoEkYQZp7kbwPtS87FyN",
+        "hasRealContract": true,
+        "cachedAt": 1756246553365,
+        "symbol": "GIGGLES"
+      }
+    ],
+    [
+      "POOP",
+      {
+        "contractAddress": "7uwNJaMRj9FZuubmzguU8A4cR15ykpBymhAiVJEFTjZ5",
+        "hasRealContract": true,
+        "cachedAt": 1756246568630,
+        "symbol": "POOP"
+      }
+    ],
+    [
+      "SILLY",
+      {
+        "contractAddress": "7EYnhQoR9YM3N7UoaKRoA44Uy8JeaZV3qyouov87awMs",
+        "hasRealContract": true,
+        "cachedAt": 1756246583868,
+        "symbol": "SILLY"
+      }
+    ],
+    [
+      "SLERF",
+      {
+        "contractAddress": "7BgBvyjrZX1YKz4oh9mjb8ZScatkkwb8DzFx7LoiVkM3",
+        "hasRealContract": true,
+        "cachedAt": 1756246599146,
+        "symbol": "SLERF"
+      }
+    ],
+    [
+      "POPCAT",
+      {
+        "contractAddress": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr",
+        "hasRealContract": true,
+        "cachedAt": 1756246614336,
+        "symbol": "POPCAT"
+      }
+    ],
+    [
+      "AURA",
+      {
+        "contractAddress": "DtR4D9FtVoTX2569gaL837ZgrB6wNjj6tkmnX9Rdk9B2",
+        "hasRealContract": true,
+        "cachedAt": 1756246629514,
+        "symbol": "AURA"
+      }
+    ],
+    [
+      "PWEASE",
+      {
+        "contractAddress": "CniPCE4b3s8gSUPhUiyMjXnytrEqUrMfSsnbBjLCpump",
+        "hasRealContract": true,
+        "cachedAt": 1756246644705,
+        "symbol": "PWEASE"
+      }
+    ],
+    [
+      "MONKE",
+      {
+        "contractAddress": "9EQSeWY7pDB7MYoSFr8QJ19onGS1ehDmLbSGT2b3pump",
+        "hasRealContract": true,
+        "cachedAt": 1756246659945,
+        "symbol": "MONKE"
+      }
+    ],
+    [
+      "TITS",
+      {
+        "contractAddress": "23CTZMjEYNNZUE4itfn3iv6kgM4xn7X7dx1kVX1Gr8Xi",
+        "hasRealContract": true,
+        "cachedAt": 1756246675148,
+        "symbol": "TITS"
+      }
+    ],
+    [
+      "MEMECOIN",
+      {
+        "contractAddress": "5HV956n7UQT1XdJzv43fHPocest5YAmi9ipsuiJx7zt7",
+        "hasRealContract": true,
+        "cachedAt": 1756246690369,
+        "symbol": "MEMECOIN"
+      }
+    ],
+    [
+      "FARTLESS",
+      {
+        "contractAddress": "FyrBf5xKg5EwKZ9pHvSpJeLLuCWBicTpm3VvZcsibonk",
+        "hasRealContract": true,
+        "cachedAt": 1756246705584,
+        "symbol": "FARTLESS"
+      }
+    ],
+    [
+      "NOBODY",
+      {
+        "contractAddress": "C29ebrgYjYoJPMGPnPSGY1q3mMGk4iDSqnQeQQA7moon",
+        "hasRealContract": true,
+        "cachedAt": 1756246720789,
+        "symbol": "NOBODY"
+      }
+    ],
+    [
+      "JOBCOIN",
+      {
+        "contractAddress": "AyrQpt5xsVYiN4BqgZdd2tZJAWswT9yLUZmP1jKqpump",
+        "hasRealContract": true,
+        "cachedAt": 1756246735970,
+        "symbol": "JOBCOIN"
+      }
+    ],
+    [
+      "KM",
+      {
+        "contractAddress": "FThrNpdic79XRV6i9aCWQ2UTp7oRQuCXAgUWtZR2cs42",
+        "hasRealContract": true,
+        "cachedAt": 1756246751195,
+        "symbol": "KM"
+      }
+    ],
+    [
+      "ITALIANROT",
+      {
+        "contractAddress": "BQX1cjcRHXmrqNtoFWwmE5bZj7RPneTmqXB979b2pump",
+        "hasRealContract": true,
+        "cachedAt": 1756246766401,
+        "symbol": "ITALIANROT"
+      }
+    ],
+    [
+      "SOLAMI",
+      {
+        "contractAddress": "5c74v6Px9RKwdGWCfqLGfEk7UZfE3Y4qJbuYrLbVG63V",
+        "hasRealContract": true,
+        "cachedAt": 1756246781594,
+        "symbol": "SOLAMI"
+      }
+    ],
+    [
+      "$RIF",
+      {
+        "contractAddress": "GJtJuWD9qYcCkrwMBmtY1tpapV1sKfB2zUv9Q4aqpump",
+        "hasRealContract": true,
+        "cachedAt": 1756246796897,
+        "symbol": "$RIF"
+      }
+    ],
+    [
+      "HEGE",
+      {
+        "contractAddress": "ULwSJmmpxmnRfpu6BjnK6rprKXqD5jXUmPpS1FxHXFy",
+        "hasRealContract": true,
+        "cachedAt": 1756246812094,
+        "symbol": "HEGE"
+      }
+    ],
+    [
+      "ALT",
+      {
+        "contractAddress": "Cdq1WR1d4i2hMrqKUWgZeUbRpkhamGHSvm1f6ATpuray",
+        "hasRealContract": true,
+        "cachedAt": 1756246827289,
+        "symbol": "ALT"
+      }
+    ],
+    [
+      "NPCS",
+      {
+        "contractAddress": "5ToDNkiBAK6k697RRyngTburU7yZNFZFx7jzsD1Uc7pK",
+        "hasRealContract": true,
+        "cachedAt": 1756246842510,
+        "symbol": "NPCS"
+      }
+    ],
+    [
+      "BUMPER",
+      {
+        "contractAddress": "5bp5PwTyu4i1hGyQsRwRYqiR2CmxyHt2cPJGEbXEbonk",
+        "hasRealContract": true,
+        "cachedAt": 1756246857697,
+        "symbol": "BUMPER"
+      }
+    ],
+    [
+      "PEPE",
+      {
+        "contractAddress": "F9CpWoyeBJfoRB8f2pBe2ZNPbPsEE76mWZWme3StsvHK",
+        "hasRealContract": true,
+        "cachedAt": 1756246872943,
+        "symbol": "PEPE"
+      }
+    ],
+    [
+      "USELESS",
+      {
+        "contractAddress": "Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk",
+        "hasRealContract": true,
+        "cachedAt": 1756246888401,
+        "symbol": "USELESS"
+      }
+    ],
+    [
+      "GTG",
+      {
+        "contractAddress": "4nm1ksSbynirCJoZcisGTzQ7c3XBEdxQUpN9EPpemoon",
+        "hasRealContract": true,
+        "cachedAt": 1756246903679,
+        "symbol": "GTG"
+      }
+    ],
+    [
+      "BGG1",
+      {
+        "contractAddress": "62CsquahdQ3J286G9UTqV6whxryfihdV4yg7kSJnpump",
+        "hasRealContract": true,
+        "cachedAt": 1756246918905,
+        "symbol": "BGG1"
+      }
+    ],
+    [
+      "TROLL",
+      {
+        "contractAddress": "5UUH9RTDiSpq6HKS6bp4NdU9PNJpXRXuiw6ShBTBhgH2",
+        "hasRealContract": true,
+        "cachedAt": 1756246934061,
+        "symbol": "TROLL"
+      }
+    ],
+    [
+      "DEBT",
+      {
+        "contractAddress": "vLieQF5eDqUuuk8RzRaqgAHkXr7bSEBZaWk9Zfibonk",
+        "hasRealContract": true,
+        "cachedAt": 1756246949271,
+        "symbol": "DEBT"
+      }
+    ],
+    [
+      "BON",
+      {
+        "contractAddress": "2g1Dh2j9AsdpnR5Js24cdtuUEE3KQD1YpHG8NgQ2pump",
+        "hasRealContract": true,
+        "cachedAt": 1756246964479,
+        "symbol": "BON"
+      }
+    ],
+    [
+      "ZEREBRO",
+      {
+        "contractAddress": "8x5VqbHA8D7NkD52uNuS5nnt3PwA8pLD34ymskeSo2Wn",
+        "hasRealContract": true,
+        "cachedAt": 1756246979692,
+        "symbol": "ZEREBRO"
+      }
+    ],
+    [
+      "$1",
+      {
+        "contractAddress": "GHichsGq8aPnqJyz6Jp1ASTK4PNLpB5KrD6XrfDjpump",
+        "hasRealContract": true,
+        "cachedAt": 1756246994969,
+        "symbol": "$1"
+      }
+    ],
+    [
+      "ANI",
+      {
+        "contractAddress": "9tqjeRS1swj36Ee5C1iGiwAxjQJNGAVCzaTLwFY8bonk",
+        "hasRealContract": true,
+        "cachedAt": 1756247010156,
+        "symbol": "ANI"
+      }
+    ],
+    [
+      "USDUC",
+      {
+        "contractAddress": "CB9dDufT3ZuQXqqSfa1c5kY935TEreyBw9XJXxHKpump",
+        "hasRealContract": true,
+        "cachedAt": 1756247025652,
+        "symbol": "USDUC"
+      }
+    ],
+    [
+      "LP",
+      {
+        "contractAddress": "3RFoRwDZQQuErzUogDCfH3NbmAsdyuBy87qjGmVnpump",
+        "hasRealContract": true,
+        "cachedAt": 1756247040899,
+        "symbol": "LP"
+      }
+    ],
+    [
+      "LOLA",
+      {
+        "contractAddress": "4MeqZ8v3XbNVVX6B69XxXaymoTX6DbK8iZgaGngCbonk",
+        "hasRealContract": true,
+        "cachedAt": 1756247056205,
+        "symbol": "LOLA"
+      }
+    ],
+    [
+      "GUMMY",
+      {
+        "contractAddress": "H7bTHGb5Cvo5fGe5jBDNDPUv8KykQnzyZA3qZ8sH7yxw",
+        "hasRealContract": true,
+        "cachedAt": 1756247071440,
+        "symbol": "GUMMY"
+      }
+    ],
+    [
+      "JOBLESS",
+      {
+        "contractAddress": "CXbypcjnbV7A5b6XqfkUCUkLiD3czHXoxAsWBYa4pump",
+        "hasRealContract": true,
+        "cachedAt": 1756247086636,
+        "symbol": "JOBLESS"
+      }
+    ],
+    [
+      "AVB",
+      {
+        "contractAddress": "6d5zHW5B8RkGKd51Lpb9RqFQSqDudr9GJgZ1SgQZpump",
+        "hasRealContract": true,
+        "cachedAt": 1756247101949,
+        "symbol": "AVB"
+      }
+    ],
+    [
+      "$URO",
+      {
+        "contractAddress": "FvgqHMfL9yn39V79huDPy3YUNDoYJpuLWng2JfmQpump",
+        "hasRealContract": true,
+        "cachedAt": 1756247117130,
+        "symbol": "$URO"
+      }
+    ],
+    [
+      "BET",
+      {
+        "contractAddress": "5CLSw4viyMLfnRHHxZpDF8CuZt5e1ceq1AJqd4GjAJNX",
+        "hasRealContract": true,
+        "cachedAt": 1756247132316,
+        "symbol": "BET"
+      }
+    ],
+    [
+      "BITTY",
+      {
+        "contractAddress": "dTzEP9JU2NRDPuWtM32gaVKip2fTHBqjheU1APBpump",
+        "hasRealContract": true,
+        "cachedAt": 1756247147496,
+        "symbol": "BITTY"
+      }
+    ],
+    [
+      "LUCE",
+      {
+        "contractAddress": "CBdCxKo9QavR9hfShgpEBG3zekorAeD7W1jfq2o3pump",
+        "hasRealContract": true,
+        "cachedAt": 1756247162702,
+        "symbol": "LUCE"
+      }
+    ],
+    [
+      "$MICHI",
+      {
+        "contractAddress": "5mbK36SZ7J19An8jFochhQS4of8g6BwUjbeCSxBSoWdp",
+        "hasRealContract": true,
+        "cachedAt": 1756247177905,
+        "symbol": "$MICHI"
+      }
+    ],
+    [
+      "VIBE",
+      {
+        "contractAddress": "DFVeSFxNohR5CVuReaXSz6rGuJ62LsKhxFpWsDbbjups",
+        "hasRealContract": true,
+        "cachedAt": 1756247193150,
+        "symbol": "VIBE"
+      }
+    ],
+    [
+      "SAGE",
+      {
+        "contractAddress": "CMe1QWsoDWFUi95GMkk7mCTnnjxBxtnJ3jbrEhQTVWL5",
+        "hasRealContract": true,
+        "cachedAt": 1756247208380,
+        "symbol": "SAGE"
+      }
+    ],
+    [
+      "URMOM",
+      {
+        "contractAddress": "9j6twpYWrV1ueJok76D9YK8wJTVoG9Zy8spC7wnTpump",
+        "hasRealContract": true,
+        "cachedAt": 1756247223642,
+        "symbol": "URMOM"
+      }
+    ],
+    [
+      "MOMO",
+      {
+        "contractAddress": "G4zwEA9NSd3nMBbEj31MMPq2853Brx2oGsKzex3ebonk",
+        "hasRealContract": true,
+        "cachedAt": 1756247238879,
+        "symbol": "MOMO"
+      }
+    ],
+    [
+      "ROT",
+      {
+        "contractAddress": "APoM2sXUzdRHTkUjXSsdUheX1wPPdP4HFLotmtRNMU8P",
+        "hasRealContract": true,
+        "cachedAt": 1756247254097,
+        "symbol": "ROT"
+      }
+    ],
+    [
+      "GME",
+      {
+        "contractAddress": "8wXtPeU6557ETkp9WHFY1n1EcU6NxDvbAggHGsMYiHsB",
+        "hasRealContract": true,
+        "cachedAt": 1756247269375,
+        "symbol": "GME"
+      }
+    ],
+    [
+      "BABYDOGE",
+      {
+        "contractAddress": "7dUKUopcNWW6CcU4eRxCHh1uiMh32zDrmGf6ufqhxann",
+        "hasRealContract": true,
+        "cachedAt": 1756247284624,
+        "symbol": "BABYDOGE"
+      }
+    ],
+    [
+      "DETECTIVE",
+      {
+        "contractAddress": "9X45NjtGbGo9zdCFmMyqZyNzC6Wa67KFbfvGc8nubonk",
+        "hasRealContract": true,
+        "cachedAt": 1756247299799,
+        "symbol": "DETECTIVE"
+      }
+    ],
+    [
+      "LENNY",
+      {
+        "contractAddress": "Gc5hxBYZjxWNpt3B8XYbp4YoGCHSMfrJK7ex4GUTpump",
+        "hasRealContract": true,
+        "cachedAt": 1756247315003,
+        "symbol": "LENNY"
+      }
+    ],
+    [
+      "GIGA",
+      {
+        "contractAddress": "63LfDmNb3MQ8mw9MtZ2To9bEA2M71kZUUGq5tiJxcqj9",
+        "hasRealContract": true,
+        "cachedAt": 1756247330179,
+        "symbol": "GIGA"
+      }
+    ],
+    [
+      "ENT",
+      {
+        "contractAddress": "ENTxR2RP8NtvhXzMNFCxE1HazzdV9x7SuZqGyAb4jdED",
+        "hasRealContract": true,
+        "cachedAt": 1756247345365,
+        "symbol": "ENT"
+      }
+    ],
+    [
+      "CAT",
+      {
+        "contractAddress": null,
+        "hasRealContract": false,
+        "cachedAt": 1756247360533,
+        "symbol": "CAT"
+      }
+    ],
+    [
+      "TREMP",
+      {
+        "contractAddress": "FU1q8vJpZNUrmqsciSjp8bAKKidGsLmouB8CBdf8TKQv",
+        "hasRealContract": true,
+        "cachedAt": 1756247375743,
+        "symbol": "TREMP"
+      }
+    ],
+    [
+      "SUPERCYCLE",
+      {
+        "contractAddress": "2G8LH53fcr3aCrEsmAo73eunbZRbyjKrGH5qmur6pump",
+        "hasRealContract": true,
+        "cachedAt": 1756247390926,
+        "symbol": "SUPERCYCLE"
+      }
+    ],
+    [
+      "BERT",
+      {
+        "contractAddress": "HgBRWfYxEfvPhtqkaeymCQtHCrKE46qQ43pKe8HCpump",
+        "hasRealContract": true,
+        "cachedAt": 1756247406112,
+        "symbol": "BERT"
+      }
+    ],
+    [
+      "OMNI",
+      {
+        "contractAddress": "A8vJzs6ygbZQyYLf9FKund8j3pDfUzxBeje8rJiypump",
+        "hasRealContract": true,
+        "cachedAt": 1756247421353,
+        "symbol": "OMNI"
+      }
+    ],
+    [
+      "SALARY",
+      {
+        "contractAddress": "D7Z2fUrxECBh91chmnou8u7E9Yaq7inzzcjg9G1Apump",
+        "hasRealContract": true,
+        "cachedAt": 1756247436558,
+        "symbol": "SALARY"
+      }
+    ],
+    [
+      "RBT",
+      {
+        "contractAddress": "65nTNuJGHme4PQvKQyJykKp1bJAkK4A8Q66sd2yBWugf",
+        "hasRealContract": true,
+        "cachedAt": 1756247451749,
+        "symbol": "RBT"
+      }
+    ],
+    [
+      "LETSBONK",
+      {
+        "contractAddress": "CDBdbNqmrLu1PcgjrFG52yxg71QnFhBZcUE6PSFdbonk",
+        "hasRealContract": true,
+        "cachedAt": 1756247466926,
+        "symbol": "LETSBONK"
+      }
+    ],
+    [
+      "MEMESAI",
+      {
+        "contractAddress": "39qibQxVzemuZTEvjSB7NePhw9WyyHdQCqP8xmBMpump",
+        "hasRealContract": true,
+        "cachedAt": 1756247482333,
+        "symbol": "MEMESAI"
+      }
+    ],
+    [
+      "WTFO",
+      {
+        "contractAddress": "8C4RygkxmePm9ys1qCcAB46dUCXNQYTaqfxS5mBrpump",
+        "hasRealContract": true,
+        "cachedAt": 1756247497530,
+        "symbol": "WTFO"
+      }
+    ],
+    [
+      "MAX",
+      {
+        "contractAddress": "oraim8c9d1nkfuQk9EzGYEUGxqL3MHQYndRw1huVo5h",
+        "hasRealContract": true,
+        "cachedAt": 1756247512860,
+        "symbol": "MAX"
+      }
+    ],
+    [
+      "TOKABU",
+      {
+        "contractAddress": "H8xQ6poBjB9DTPMDTKWzWPrnxu4bDEhybxiouF8Ppump",
+        "hasRealContract": true,
+        "cachedAt": 1756247528041,
+        "symbol": "TOKABU"
+      }
+    ],
+    [
+      "LOL",
+      {
+        "contractAddress": "LoL1RDQiUfifC2BX28xaef6r2G8ES8SEzgrzThJemMv",
+        "hasRealContract": true,
+        "cachedAt": 1756247543237,
+        "symbol": "LOL"
+      }
+    ],
+    [
+      "DOG",
+      {
+        "contractAddress": "dog1viwbb2vWDpER5FrJ4YFG6gq6XuyFohUe9TXN65u",
+        "hasRealContract": true,
+        "cachedAt": 1756247558432,
+        "symbol": "DOG"
+      }
+    ],
+    [
+      "LC",
+      {
+        "contractAddress": "43YakhC3TcSuTgSXnxFgw8uKL8VkuLuFa4M6Bninpump",
+        "hasRealContract": true,
+        "cachedAt": 1756247573816,
+        "symbol": "LC"
+      }
+    ],
+    [
+      "ASSDAQ",
+      {
+        "contractAddress": "7Tx8qTXSakpfaSFjdztPGQ9n2uyT1eUkYz7gYxxopump",
+        "hasRealContract": true,
+        "cachedAt": 1756247589051,
+        "symbol": "ASSDAQ"
+      }
+    ],
+    [
+      "SHOGGOTH",
+      {
+        "contractAddress": "H2c31USxu35MDkBrGph8pUDUnmzo2e4Rf4hnvL2Upump",
+        "hasRealContract": true,
+        "cachedAt": 1756247604281,
+        "symbol": "SHOGGOTH"
+      }
+    ],
+    [
+      "WEALTH",
+      {
+        "contractAddress": "GFRxeCdpomjJaYQEuwPDAPghyBD3H9zqnWY2HJPjpump",
+        "hasRealContract": true,
+        "cachedAt": 1756247619466,
+        "symbol": "WEALTH"
+      }
+    ],
+    [
+      "SWIF",
+      {
+        "contractAddress": "9hdynudAhhWzuNFAnpz7NjvdKMfh9z8mcZKNYHuAUgJQ",
+        "hasRealContract": true,
+        "cachedAt": 1756247634654,
+        "symbol": "SWIF"
+      }
+    ],
+    [
+      "HEHE",
+      {
+        "contractAddress": "BreuhVohXX5fv6q41uyb3sojtAuGoGaiAhKBMtcrpump",
+        "hasRealContract": true,
+        "cachedAt": 1756247649853,
+        "symbol": "HEHE"
+      }
+    ],
+    [
+      "EPIK",
+      {
+        "contractAddress": "3BgwJ8b7b9hHX4sgfZ2KJhv9496CoVfsMK2YePevsBRw",
+        "hasRealContract": true,
+        "cachedAt": 1756247665038,
+        "symbol": "EPIK"
+      }
+    ],
+    [
+      "CAW",
+      {
+        "contractAddress": "CAW777xcHVTQZ4CRwVQGB8CV1BVKPm5bNVxFJHWFKiH8",
+        "hasRealContract": true,
+        "cachedAt": 1756247680221,
+        "symbol": "CAW"
+      }
+    ],
+    [
+      "QKITTY",
+      {
+        "contractAddress": "BeqAgjEajRgfh1FXggjX3p9iWhNsnrhKR5VjLj1Zmoon",
+        "hasRealContract": true,
+        "cachedAt": 1756247695454,
+        "symbol": "QKITTY"
+      }
+    ],
+    [
+      "OSTRICH",
+      {
+        "contractAddress": "2qyWmbrnmGff9u87Gg1aiCod9PRtY2N9hbfnzTiGpump",
+        "hasRealContract": true,
+        "cachedAt": 1756247710648,
+        "symbol": "OSTRICH"
+      }
+    ],
+    [
+      "PAIN",
+      {
+        "contractAddress": "1Qf8gESP4i6CFNWerUSDdLKJ9U1LpqTYvjJ2MM4pain",
+        "hasRealContract": true,
+        "cachedAt": 1756247725827,
+        "symbol": "PAIN"
+      }
+    ],
+    [
+      "NUMMUS",
+      {
+        "contractAddress": "9JK2U7aEkp3tWaFNuaJowWRgNys5DVaKGxWk73VT5ray",
+        "hasRealContract": true,
+        "cachedAt": 1756247741020,
+        "symbol": "NUMMUS"
+      }
+    ],
+    [
+      "BABYSHARK",
+      {
+        "contractAddress": "8nKP8Vc72pRZB6bhCy8D1UYf6ZjwYT859i6awyinpump",
+        "hasRealContract": true,
+        "cachedAt": 1756247756210,
+        "symbol": "BABYSHARK"
+      }
+    ],
+    [
+      "LIBRA",
+      {
+        "contractAddress": "7Zt2KUh5mkpEpPGcNcFy51aGkh9Ycb5ELcqRH1n2GmAe",
+        "hasRealContract": true,
+        "cachedAt": 1756247771520,
+        "symbol": "LIBRA"
+      }
+    ],
+    [
+      "CHEESE",
+      {
+        "contractAddress": "B1KrhWbacPi3tpjWqnsbjKQJEkp3RvWppGxNzUYBpump",
+        "hasRealContract": true,
+        "cachedAt": 1756247786720,
+        "symbol": "CHEESE"
+      }
+    ],
+    [
+      "CANDLE",
+      {
+        "contractAddress": "A8bcY1eSenMiMy75vgSnp6ShMfWHRHjeM6JxfM1CNDL",
+        "hasRealContract": true,
+        "cachedAt": 1756247801910,
+        "symbol": "CANDLE"
+      }
+    ],
+    [
+      "AUTISM",
+      {
+        "contractAddress": "BkVeSP2GsXV3AYoRJBSZTpFE8sXmcuGnRQcFgoWspump",
+        "hasRealContract": true,
+        "cachedAt": 1756247817091,
+        "symbol": "AUTISM"
+      }
+    ],
+    [
+      "SOLAMA",
+      {
+        "contractAddress": "AVLhahDcDQ4m4vHM4ug63oh7xc8Jtk49Dm5hoe9Sazqr",
+        "hasRealContract": true,
+        "cachedAt": 1756247832433,
+        "symbol": "SOLAMA"
+      }
+    ],
+    [
+      "DUKO",
+      {
+        "contractAddress": "HLptm5e6rTgh4EKgDpYFrnRHbjpkMyVdEeREEa2G7rf9",
+        "hasRealContract": true,
+        "cachedAt": 1756247847641,
+        "symbol": "DUKO"
+      }
+    ],
+    [
+      "GEMINI",
+      {
+        "contractAddress": "ARiZfq6dK19uNqxWyRudhbM2MswLyYhVUHdndGkffdGc",
+        "hasRealContract": true,
+        "cachedAt": 1756247862875,
+        "symbol": "GEMINI"
+      }
+    ],
+    [
+      "NAILONG",
+      {
+        "contractAddress": "mkvXiNBpa8uiSApe5BrhWVJaT87pJFTZxRy7zFapump",
+        "hasRealContract": true,
+        "cachedAt": 1756247878089,
+        "symbol": "NAILONG"
+      }
+    ],
+    [
+      "NOODLE",
+      {
+        "contractAddress": "7cEgQdp8JTXvBrpjSzji7bLEeCHWENRwX62B2Ep97k5H",
+        "hasRealContract": true,
+        "cachedAt": 1756247893303,
+        "symbol": "NOODLE"
+      }
+    ],
+    [
+      "CENTS",
+      {
+        "contractAddress": "C9FVTtx4WxgHmz55FEvQgykq8rqiLS8xRBVgqQVtpump",
+        "hasRealContract": true,
+        "cachedAt": 1756247908566,
+        "symbol": "CENTS"
+      }
+    ],
+    [
+      "FWOG",
+      {
+        "contractAddress": "A8C3xuqscfmyLrte3VmTqrAq8kgMASius9AFNANwpump",
+        "hasRealContract": true,
+        "cachedAt": 1756247923763,
+        "symbol": "FWOG"
+      }
+    ],
+    [
+      "LADYF",
+      {
+        "contractAddress": "3X8GcLiH2HttjyqePg7MazpMbwbgq5URUMTyDz5tkmdE",
+        "hasRealContract": true,
+        "cachedAt": 1756247938935,
+        "symbol": "LADYF"
+      }
+    ],
+    [
+      "MEMDEX",
+      {
+        "contractAddress": "83iBDw3ZpxqJ3pEzrbttr9fGA57tttehDAxoFyR1moon",
+        "hasRealContract": true,
+        "cachedAt": 1756247954174,
+        "symbol": "MEMDEX"
+      }
+    ],
+    [
+      "KAKA",
+      {
+        "contractAddress": "FH6jc68WzeAUXKp6uDg9QPciTeU75o32xFDzKLzmbonk",
+        "hasRealContract": true,
+        "cachedAt": 1756247984399,
+        "symbol": "KAKA"
+      }
+    ],
+    [
+      "KOKO",
+      {
+        "contractAddress": "FsA54yL49WKs7rWoGv9sUcbSGWCWV756jTD349e6H2yW",
+        "hasRealContract": true,
+        "cachedAt": 1756247999661,
+        "symbol": "KOKO"
+      }
+    ],
+    [
+      "CATDOG",
+      {
+        "contractAddress": "CATTzAwLyADd2ekzVjTjX8tVUBYfrozdkJBkutJggdB7",
+        "hasRealContract": true,
+        "cachedAt": 1756248014899,
+        "symbol": "CATDOG"
+      }
+    ],
+    [
+      "BEER",
+      {
+        "contractAddress": "AujTJJ7aMS8LDo3bFzoyXDwT3jBALUbu4VZhzZdTZLmG",
+        "hasRealContract": true,
+        "cachedAt": 1756248030517,
+        "symbol": "BEER"
+      }
+    ],
+    [
+      "POPDOG",
+      {
+        "contractAddress": "EATGZHJViJsk7nEKkrdJicwNbfpkJfAtmrEmrjXR8NBj",
+        "hasRealContract": true,
+        "cachedAt": 1756248045841,
+        "symbol": "POPDOG"
+      }
+    ],
+    [
+      "LOOK",
+      {
+        "contractAddress": "BSqMUYb6ePwKsby85zrXaDa4SNf6AgZ9YfA2c4mZpump",
+        "hasRealContract": true,
+        "cachedAt": 1756248061132,
+        "symbol": "LOOK"
+      }
+    ],
+    [
+      "MANEKI",
+      {
+        "contractAddress": "25hAyBQfoDhfWx9ay6rarbgvWGwDdNqcHsXS3jQ3mTDJ",
+        "hasRealContract": true,
+        "cachedAt": 1756248076341,
+        "symbol": "MANEKI"
+      }
+    ],
+    [
+      "PEP",
+      {
+        "contractAddress": "Zc4uJVrHC2APe9qKwBD11Gg4BbvQr3naM8f7Wiopump",
+        "hasRealContract": true,
+        "cachedAt": 1756248091617,
+        "symbol": "PEP"
+      }
+    ],
+    [
+      "JAM",
+      {
+        "contractAddress": "51zudBR4NmATG35goida4dLQH5YPn9k8hVkLcizNpump",
+        "hasRealContract": true,
+        "cachedAt": 1756248106835,
+        "symbol": "JAM"
+      }
+    ],
+    [
+      "MORI",
+      {
+        "contractAddress": "8ZHE4ow1a2jjxuoMfyExuNamQNALv5ekZhsBn5nMDf5e",
+        "hasRealContract": true,
+        "cachedAt": 1756248122035,
+        "symbol": "MORI"
+      }
+    ],
+    [
+      "KOLIN",
+      {
+        "contractAddress": "4q3Z58YxrZEAVMLtMwnm7eHtodSD3LSpSNt3pDnqpump",
+        "hasRealContract": true,
+        "cachedAt": 1756248137228,
+        "symbol": "KOLIN"
+      }
+    ],
+    [
+      "TRASH",
+      {
+        "contractAddress": "5ypxFmuJUTsSkAeKRuRs4xSxkb4vWbjMLT3GY7ckpump",
+        "hasRealContract": true,
+        "cachedAt": 1756248152454,
+        "symbol": "TRASH"
+      }
+    ],
+    [
+      "HAROLD",
+      {
+        "contractAddress": "3vgopg7xm3EWkXfxmWPUpcf7g939hecfqg18sLuXDzVt",
+        "hasRealContract": true,
+        "cachedAt": 1756248167657,
+        "symbol": "HAROLD"
+      }
+    ],
+    [
+      "CRASHOUT",
+      {
+        "contractAddress": "6JGSHS9GrE9uG8ix63w3DPMYHrgrJ6J4QyHbBhAepump",
+        "hasRealContract": true,
+        "cachedAt": 1756248182871,
+        "symbol": "CRASHOUT"
+      }
+    ],
+    [
+      "FARTGIRL",
+      {
+        "contractAddress": "Cjrrc595e9R47EZ3gkbUmL6ZZpLSxiXg16v2Y3Aapump",
+        "hasRealContract": true,
+        "cachedAt": 1756248198107,
+        "symbol": "FARTGIRL"
+      }
+    ],
+    [
+      "DBC",
+      {
+        "contractAddress": "B4G5shxukCDRMLsZue6NDAVMbSzViPn9SFieZG1Ucook",
+        "hasRealContract": true,
+        "cachedAt": 1756248213287,
+        "symbol": "DBC"
+      }
+    ],
+    [
+      "BELIEVE",
+      {
+        "contractAddress": "HoQYRCnUeyZZyFiPtYDw48kHyGwjsaUXJxDVtxcK4yPg",
+        "hasRealContract": true,
+        "cachedAt": 1756248228526,
+        "symbol": "BELIEVE"
+      }
+    ],
+    [
+      "$CWIF",
+      {
+        "contractAddress": "7atgF8KQo4wJrD5ATGX7t1V2zVvykPJbFfNeVf1icFv1",
+        "hasRealContract": true,
+        "cachedAt": 1756248243739,
+        "symbol": "$CWIF"
+      }
+    ],
+    [
+      "DP",
+      {
+        "contractAddress": "GcWVDkoaBWZYW7bBgqCHDiqAmfnwwPxvbusA3s77pump",
+        "hasRealContract": true,
+        "cachedAt": 1756248258921,
+        "symbol": "DP"
+      }
+    ],
+    [
+      "SKID",
+      {
+        "contractAddress": "9X2RHtKrBzw3SLYe9E88cBd1kz5RfU1f4JTSn4aRH43d",
+        "hasRealContract": true,
+        "cachedAt": 1756248274115,
+        "symbol": "SKID"
+      }
+    ],
+    [
+      "BENDOG",
+      {
+        "contractAddress": "AHW5N8iqZobTcBepkSJzZ61XtAuSzBDcpxtrLG6KUKPk",
+        "hasRealContract": true,
+        "cachedAt": 1756248289354,
+        "symbol": "BENDOG"
+      }
+    ],
+    [
+      "ROBOT",
+      {
+        "contractAddress": "pZHpptKLqcx2ykZu4pbNx4kQHafD3hv7EB3K2wgpump",
+        "hasRealContract": true,
+        "cachedAt": 1756248304556,
+        "symbol": "ROBOT"
+      }
+    ],
+    [
+      "LOAFCAT",
+      {
+        "contractAddress": "LoafdJ3WSAvsrx3zppSGKA6sRvL9GrRrU1iRV7HkLkm",
+        "hasRealContract": true,
+        "cachedAt": 1756248319756,
+        "symbol": "LOAFCAT"
+      }
+    ],
+    [
+      "V2EX",
+      {
+        "contractAddress": "9raUVuzeWUk53co63M4WXLWPWE4Xc6Lpn7RS9dnkpump",
+        "hasRealContract": true,
+        "cachedAt": 1756248334951,
+        "symbol": "V2EX"
+      }
+    ],
+    [
+      "BINGUS",
+      {
+        "contractAddress": "AQuuQ4xktyzGBFnbKHnYsXHxsKVQetAoiPeCEG97NUJw",
+        "hasRealContract": true,
+        "cachedAt": 1756248350126,
+        "symbol": "BINGUS"
+      }
+    ],
+    [
+      "\"　\"",
+      {
+        "contractAddress": "9qriMjPPAJTMCtfQnz7Mo9BsV2jAWTr2ff7yc3JWpump",
+        "hasRealContract": true,
+        "cachedAt": 1756248365384,
+        "symbol": "\"　\""
+      }
+    ],
+    [
+      "LOOBY",
+      {
+        "contractAddress": "CyRbC97yrkUB31sv9PLw5Hw8276zXH4sRoTE1KcDpump",
+        "hasRealContract": true,
+        "cachedAt": 1756248380588,
+        "symbol": "LOOBY"
+      }
+    ],
+    [
+      "$FATCAT",
+      {
+        "contractAddress": "AHdVQs56QpEEkRx6m8yiYYEiqM2sKjQxVd6mGH12pump",
+        "hasRealContract": true,
+        "cachedAt": 1756248395790,
+        "symbol": "$FATCAT"
+      }
+    ],
+    [
+      "UGLYDOG",
+      {
+        "contractAddress": "74Rq6Bmckiq8qvARhdqxPfQtkQsxsqVKCbDQL5PKpump",
+        "hasRealContract": true,
+        "cachedAt": 1756248411011,
+        "symbol": "UGLYDOG"
+      }
+    ],
+    [
+      "CHOMP",
+      {
+        "contractAddress": "F67smWaqebM2zbk1eofh9ihF1vNaDPD1FTA6EGVDLwWN",
+        "hasRealContract": true,
+        "cachedAt": 1756248426263,
+        "symbol": "CHOMP"
+      }
+    ],
+    [
+      "LAIKA",
+      {
+        "contractAddress": "Euoq6CyQFCjCVSLR9wFaUPDW19Y6ZHwEcJoZsEi643i1",
+        "hasRealContract": true,
+        "cachedAt": 1756248441474,
+        "symbol": "LAIKA"
+      }
+    ],
+    [
+      "OPUS",
+      {
+        "contractAddress": "9JhFqCA21MoAXs2PTaeqNQp2XngPn1PgYr2rsEVCpump",
+        "hasRealContract": true,
+        "cachedAt": 1756248456667,
+        "symbol": "OPUS"
+      }
+    ],
+    [
+      "FIGHT",
+      {
+        "contractAddress": "KMnDBXcPXoz6oMJW5XG4tXdwSWpmWEP2RQM1Uujpump",
+        "hasRealContract": true,
+        "cachedAt": 1756248486888,
+        "symbol": "FIGHT"
+      }
+    ],
+    [
+      "GARY",
+      {
+        "contractAddress": "5SRer48NRfmhsut1n4ZwSAVUJAErNjdKcXTMVaxdpump",
+        "hasRealContract": true,
+        "cachedAt": 1756248502154,
+        "symbol": "GARY"
+      }
+    ],
+    [
+      "TATE",
+      {
+        "contractAddress": "LX2mJPsutHkUc6iXNFgumSC6LVKyc66xpy2zDTZpump",
+        "hasRealContract": true,
+        "cachedAt": 1756248517380,
+        "symbol": "TATE"
+      }
+    ],
+    [
+      "WIZARD",
+      {
+        "contractAddress": "8oosbx7jJrZxm5m4ThKhBpvwwG4QpoAe6i4GiG19pump",
+        "hasRealContract": true,
+        "cachedAt": 1756248532603,
+        "symbol": "WIZARD"
+      }
+    ],
+    [
+      "TEMA",
+      {
+        "contractAddress": "CnfshwmvDqLrB1jSLF7bLJ3iZF5u354WRFGPBmGz4uyf",
+        "hasRealContract": true,
+        "cachedAt": 1756248547813,
+        "symbol": "TEMA"
+      }
+    ],
+    [
+      "DADDY",
+      {
+        "contractAddress": "4Cnk9EPnW5ixfLZatCPJjDB1PUtcRpVVgTQukm9epump",
+        "hasRealContract": true,
+        "cachedAt": 1756248563256,
+        "symbol": "DADDY"
+      }
+    ],
+    [
+      "TAURUS",
+      {
+        "contractAddress": "EjkkxYpfSwS6TAtKKuiJuNMMngYvumc1t1v9ZX1WJKMp",
+        "hasRealContract": true,
+        "cachedAt": 1756248578482,
+        "symbol": "TAURUS"
+      }
+    ],
+    [
+      "🟥🟩",
+      {
+        "contractAddress": "HwPtbFpd3VTe3tfyosoVtPf9WPuSk5gAKkN5xp6Npump",
+        "hasRealContract": true,
+        "cachedAt": 1756248593704,
+        "symbol": "🟥🟩"
+      }
+    ],
+    [
+      "STATE",
+      {
+        "contractAddress": "Gcc7QfMgy9rKVdp8wdKqgUvzPWubHzDDfugiTgEvirt",
+        "hasRealContract": true,
+        "cachedAt": 1756248608954,
+        "symbol": "STATE"
+      }
+    ],
+    [
+      "WAGMI",
+      {
+        "contractAddress": "GnM6XZ7DN9KSPW2ZVMNqCggsxjnxHMGb2t4kiWrUpump",
+        "hasRealContract": true,
+        "cachedAt": 1756248624198,
+        "symbol": "WAGMI"
+      }
+    ],
+    [
+      "QSHX",
+      {
+        "contractAddress": "FWaRpuDUhNbDxKgacKBht4mP85LVaohty6V2WD1XShrX",
+        "hasRealContract": true,
+        "cachedAt": 1756248639408,
+        "symbol": "QSHX"
+      }
+    ],
+    [
+      "GUAC",
+      {
+        "contractAddress": "AZsHEMXd36Bj1EMNXhowJajpUXzrKcK57wW4ZGXVa7yR",
+        "hasRealContract": true,
+        "cachedAt": 1756248654636,
+        "symbol": "GUAC"
+      }
+    ],
+    [
+      "$FRANK",
+      {
+        "contractAddress": "AYhFJk9ZyKN5aCRwrG78iTvuxnrrLp5q4fGfyBM7pump",
+        "hasRealContract": true,
+        "cachedAt": 1756248669886,
+        "symbol": "$FRANK"
+      }
+    ],
+    [
+      "JOHN",
+      {
+        "contractAddress": "BuxH23osRyFFLbWG3czrTsfBQYbxzVZ8f7QV4cjTHN5x",
+        "hasRealContract": true,
+        "cachedAt": 1756248685104,
+        "symbol": "JOHN"
+      }
+    ],
+    [
+      "CATTY",
+      {
+        "contractAddress": "Ag9TVNiyh2dDbVAzf1fZj6rjPLRTCLGXQzEDwWuZjupx",
+        "hasRealContract": true,
+        "cachedAt": 1756248700338,
+        "symbol": "CATTY"
+      }
+    ],
+    [
+      "OIIAOIIA",
+      {
+        "contractAddress": "VaxZxmFXV8tmsd72hUn22ex6GFzZ5uq9DVJ5wA5pump",
+        "hasRealContract": true,
+        "cachedAt": 1756248715547,
+        "symbol": "OIIAOIIA"
+      }
+    ],
+    [
+      "SHY",
+      {
+        "contractAddress": "7d1vpt5eri79nETcL74Punhp3mGkeBgUkMdPWep6pump",
+        "hasRealContract": true,
+        "cachedAt": 1756248745786,
+        "symbol": "SHY"
+      }
+    ],
+    [
+      "YZY",
+      {
+        "contractAddress": "9gyfbPVwwZx4y1hotNSLcqXCQNpNqqz6ZRvo8yTLpump",
+        "hasRealContract": true,
+        "cachedAt": 1756248761035,
+        "symbol": "YZY"
+      }
+    ],
+    [
+      "PEPECOIN",
+      {
+        "contractAddress": "EXJvx3KksbWP9QmPmtRr8mkQXD2kZrFRENCJitMs1eZ6",
+        "hasRealContract": true,
+        "cachedAt": 1756248776284,
+        "symbol": "PEPECOIN"
+      }
+    ],
+    [
+      "WINTER",
+      {
+        "contractAddress": "4j2gUEmfbSAacvSSd6yXo8yEzXCAUVeoXrqLVV3apump",
+        "hasRealContract": true,
+        "cachedAt": 1756248791495,
+        "symbol": "WINTER"
+      }
+    ],
+    [
+      "MURAD",
+      {
+        "contractAddress": "FtPqJ2YTKmPyBxp3Npg18RE9Z77SQu9jrkRVYLzpump",
+        "hasRealContract": true,
+        "cachedAt": 1756248806732,
+        "symbol": "MURAD"
+      }
+    ],
+    [
+      "$FARTBOY",
+      {
+        "contractAddress": "y1AZt42vceCmStjW4zetK3VoNarC1VxJ5iDjpiupump",
+        "hasRealContract": true,
+        "cachedAt": 1756248821939,
+        "symbol": "$FARTBOY"
+      }
+    ],
+    [
+      "KHAI",
+      {
+        "contractAddress": "3TWgDvYBL2YPET2LxnWAwsMeoA8aL4DutNuwat2pKCjC",
+        "hasRealContract": true,
+        "cachedAt": 1756248837126,
+        "symbol": "KHAI"
+      }
+    ],
+    [
+      "BITCAT",
+      {
+        "contractAddress": "4j9bDg7iWNah1Qa61rrqwWZMtEdqV3fV56SzyhfNpump",
+        "hasRealContract": true,
+        "cachedAt": 1756248852304,
+        "symbol": "BITCAT"
+      }
+    ],
+    [
+      "COST",
+      {
+        "contractAddress": "Av6qVigkb7USQyPXJkUvAEm4f599WTRvd75PUWBA9eNm",
+        "hasRealContract": true,
+        "cachedAt": 1756248867491,
+        "symbol": "COST"
+      }
+    ],
+    [
+      "C:\\MEMES",
+      {
+        "contractAddress": "GtfNTYbt41BzVvNLj9ijeYsWsAAVEGidoDoERwg8bonk",
+        "hasRealContract": true,
+        "cachedAt": 1756248882683,
+        "symbol": "C:\\MEMES"
+      }
+    ],
+    [
+      "SOURCE",
+      {
+        "contractAddress": "aPig1huDbdDTR9HmJBSHK5jiHrG3o2ZThdG4xPDpump",
+        "hasRealContract": true,
+        "cachedAt": 1756248897877,
+        "symbol": "SOURCE"
+      }
+    ],
+    [
+      "FAFO",
+      {
+        "contractAddress": "BP8RUdhLKBL2vgVXc3n7oTSZKWaQVbD8S6QcPaMVBAPo",
+        "hasRealContract": true,
+        "cachedAt": 1756248913135,
+        "symbol": "FAFO"
+      }
+    ],
+    [
+      "CATGPT",
+      {
+        "contractAddress": "FGf1Us3kqu9AXu2x1yWKfiKE8uSx42ACvRiUrbuAodzq",
+        "hasRealContract": true,
+        "cachedAt": 1756248928342,
+        "symbol": "CATGPT"
+      }
+    ],
+    [
+      "GIB",
+      {
+        "contractAddress": "6FtbGaqgZzti1TxJksBV4PSya5of9VqA9vJNDxPwbonk",
+        "hasRealContract": true,
+        "cachedAt": 1756248943549,
+        "symbol": "GIB"
+      }
+    ],
+    [
+      "HUND",
+      {
+        "contractAddress": "2XPqoKfJitk8YcMDGBKy7CMzRRyF2X9PniZeCykDUZev",
+        "hasRealContract": true,
+        "cachedAt": 1756248958762,
+        "symbol": "HUND"
+      }
+    ],
+    [
+      "🐕",
+      {
+        "contractAddress": "DLScRnWofxiYGqnvZWGy9Gt98MPqKdznaK4TRukxpump",
+        "hasRealContract": true,
+        "cachedAt": 1756248973982,
+        "symbol": "🐕"
+      }
+    ],
+    [
+      "XAVIER",
+      {
+        "contractAddress": "69G8CpUVZAxbPMiEBrfCCCH445NwFxH6PzVL693Xpump",
+        "hasRealContract": true,
+        "cachedAt": 1756248989192,
+        "symbol": "XAVIER"
+      }
+    ],
+    [
+      "MASHA",
+      {
+        "contractAddress": "mae8vJGf8Wju8Ron1oDTQVaTGGBpcpWDwoRQJALMMf2",
+        "hasRealContract": true,
+        "cachedAt": 1756249004396,
+        "symbol": "MASHA"
+      }
+    ],
+    [
+      "WIFE",
+      {
+        "contractAddress": "4y3oUrsJfSp431R3wJrWiaLxRPsnYtpkVJmoV2bYpBiy",
+        "hasRealContract": true,
+        "cachedAt": 1756249019598,
+        "symbol": "WIFE"
+      }
+    ],
+    [
+      "WHISKEY",
+      {
+        "contractAddress": "9UNqoPEXXxEnEphmyYsZYdL5dnmAUtdiKRUchpnUF5Ph",
+        "hasRealContract": true,
+        "cachedAt": 1756249034835,
+        "symbol": "WHISKEY"
+      }
+    ],
+    [
+      "BUTTHOLE",
+      {
+        "contractAddress": "CboMcTUYUcy9E6B3yGdFn6aEsGUnYV6yWeoeukw6pump",
+        "hasRealContract": true,
+        "cachedAt": 1756249050053,
+        "symbol": "BUTTHOLE"
+      }
+    ],
+    [
+      "SELFIE",
+      {
+        "contractAddress": "9WPTUkh8fKuCnepRWoPYLH3aK9gSjPHFDenBq2X1Czdp",
+        "hasRealContract": true,
+        "cachedAt": 1756249065265,
+        "symbol": "SELFIE"
+      }
+    ],
+    [
+      "TOPLESS",
+      {
+        "contractAddress": "4mWTS6KztDEoMu2uqsnbgbeGRh6chjq7Fbpmbr1Ypump",
+        "hasRealContract": true,
+        "cachedAt": 1756249080467,
+        "symbol": "TOPLESS"
+      }
+    ],
+    [
+      "FIRST",
+      {
+        "contractAddress": "Bg4M3QWtpi416fb1njZrXBmusBNav1XsDRc6izxXpump",
+        "hasRealContract": true,
+        "cachedAt": 1756249095641,
+        "symbol": "FIRST"
+      }
+    ],
+    [
+      "AI4",
+      {
+        "contractAddress": "CZkxnM5PNPak31JSFNzJ76CWcYRu4mgxvBwcHaBJpump",
+        "hasRealContract": true,
+        "cachedAt": 1756249110970,
+        "symbol": "AI4"
+      }
+    ],
+    [
+      "TRENCHES",
+      {
+        "contractAddress": "4z7secBe41i5Svtotp4k2FsjMVV6xykEVnrD4kdFpump",
+        "hasRealContract": true,
+        "cachedAt": 1756249126151,
+        "symbol": "TRENCHES"
+      }
+    ],
+    [
+      "PUNDU",
+      {
+        "contractAddress": "WskzsKqEW3ZsmrhPAevfVZb6PuuLzWov9mJWZsfDePC",
+        "hasRealContract": true,
+        "cachedAt": 1756249141382,
+        "symbol": "PUNDU"
+      }
+    ],
+    [
+      "CHILLHOUSE",
+      {
+        "contractAddress": "GkyPYa7NnCFbduLknCfBfP7p8564X1VZhwZYJ6CZpump",
+        "hasRealContract": true,
+        "cachedAt": 1756249156595,
+        "symbol": "CHILLHOUSE"
+      }
+    ],
+    [
+      "BULLIEVE",
+      {
+        "contractAddress": "HdzMjvQvFP9nxp1X2NbHFptZK1G6ASsyRcxNdn65ABxi",
+        "hasRealContract": true,
+        "cachedAt": 1756249171817,
+        "symbol": "BULLIEVE"
+      }
+    ],
+    [
+      "E/ACC",
+      {
+        "contractAddress": "GqmEdRD3zGUZdYPeuDeXxCc8Cj1DBmGSYK97TCwSpump",
+        "hasRealContract": true,
+        "cachedAt": 1756249187039,
+        "symbol": "E/ACC"
+      }
+    ],
+    [
+      "UWU",
+      {
+        "contractAddress": "UwU8RVXB69Y6Dcju6cN2Qef6fykkq6UUNpB15rZku6Z",
+        "hasRealContract": true,
+        "cachedAt": 1756249202232,
+        "symbol": "UWU"
+      }
+    ],
+    [
+      "$NAP",
+      {
+        "contractAddress": "4G86CMxGsMdLETrYnavMFKPhQzKTvDBYGMRAdVtr72nu",
+        "hasRealContract": true,
+        "cachedAt": 1756249217444,
+        "symbol": "$NAP"
+      }
+    ],
+    [
+      "ALPHA",
+      {
+        "contractAddress": "2zrH2jE542mzB4HABgBjdWMQPtNC5H12pwo1iLpfpump",
+        "hasRealContract": true,
+        "cachedAt": 1756249232760,
+        "symbol": "ALPHA"
+      }
+    ],
+    [
+      "CHELON",
+      {
+        "contractAddress": "h415SDExtTrKXwmxYn7SyAV8QTpiVJojz9T3G7kpump",
+        "hasRealContract": true,
+        "cachedAt": 1756249248077,
+        "symbol": "CHELON"
+      }
+    ],
+    [
+      "CDOGE",
+      {
+        "contractAddress": "FXJAdx38aXJdQd3ABAVu7fQ7Bjh9oMN92eTxszFNpump",
+        "hasRealContract": true,
+        "cachedAt": 1756249263288,
+        "symbol": "CDOGE"
+      }
+    ],
+    [
+      "ARIES",
+      {
+        "contractAddress": "GhFiFrExPY3proVF96oth1gESWA5QPQzdtb8cy8b1YZv",
+        "hasRealContract": true,
+        "cachedAt": 1756249278495,
+        "symbol": "ARIES"
+      }
+    ],
+    [
+      "HARAMBE",
+      {
+        "contractAddress": "Fch1oixTPri8zxBnmdCEADoJW2toyFHxqDZacQkwdvSP",
+        "hasRealContract": true,
+        "cachedAt": 1756249293679,
+        "symbol": "HARAMBE"
+      }
+    ],
+    [
+      "MELON",
+      {
+        "contractAddress": "7DGJnYfJrYiP5CKBx6wpbu8F5Ya1swdFoesuCrAKCzZc",
+        "hasRealContract": true,
+        "cachedAt": 1756249308854,
+        "symbol": "MELON"
+      }
+    ],
+    [
+      "ELLA",
+      {
+        "contractAddress": "CF5VehjuZvxZZQFP5tybGra6ts574FAwt6Z7GuX9pump",
+        "hasRealContract": true,
+        "cachedAt": 1756249324063,
+        "symbol": "ELLA"
+      }
+    ],
+    [
+      "GINNAN",
+      {
+        "contractAddress": "GinNabffZL4fUj9Vactxha74GDAW8kDPGaHqMtMzps2f",
+        "hasRealContract": true,
+        "cachedAt": 1756249339261,
+        "symbol": "GINNAN"
+      }
+    ],
+    [
+      "TADC",
+      {
+        "contractAddress": "HuSyZB3ChbYngnQPSBWtmqceqKDUzghHCqppVf1Mpump",
+        "hasRealContract": true,
+        "cachedAt": 1756249354480,
+        "symbol": "TADC"
+      }
+    ],
+    [
+      "MANYU",
+      {
+        "contractAddress": "CS7LmjtuugEUWtFgfyto79nrksKigv7Fdcp9qPuigdLs",
+        "hasRealContract": true,
+        "cachedAt": 1756249369691,
+        "symbol": "MANYU"
+      }
+    ],
+    [
+      "MD",
+      {
+        "contractAddress": "C4j7kPx9PqDnfvxe2uycJQRTAeyGwmU4DyGf21Xgpump",
+        "hasRealContract": true,
+        "cachedAt": 1756249384909,
+        "symbol": "MD"
+      }
+    ],
+    [
+      "PJN",
+      {
+        "contractAddress": "AyCao1LJJKrabYw4ZRLtXTtUiWxE2M34Eqi4Xkx3pump",
+        "hasRealContract": true,
+        "cachedAt": 1756249400124,
+        "symbol": "PJN"
+      }
+    ],
+    [
+      "SSR",
+      {
+        "contractAddress": "7d5uLATMiAoRC1n9yNc7VCrhx44H6bjEzDx7Gxuhpump",
+        "hasRealContract": true,
+        "cachedAt": 1756249415346,
+        "symbol": "SSR"
+      }
+    ],
+    [
+      "CANCER",
+      {
+        "contractAddress": "CmomKM8iPKRSMN7y1jqyW1QKj5bGoZmbvNZXWBJSUdnZ",
+        "hasRealContract": true,
+        "cachedAt": 1756249430574,
+        "symbol": "CANCER"
+      }
+    ],
+    [
+      "ASSCOIN",
+      {
+        "contractAddress": "G3EDZoS49NRVKP8X1HggHZJueJeR8d2izUHeXdV3pump",
+        "hasRealContract": true,
+        "cachedAt": 1756249445791,
+        "symbol": "ASSCOIN"
+      }
+    ],
+    [
+      "BORK",
+      {
+        "contractAddress": "4jZXkSNgTQKCDb36ECZ6a2aNzcUniGcDeXgTdtM2HxAX",
+        "hasRealContract": true,
+        "cachedAt": 1756249461018,
+        "symbol": "BORK"
+      }
+    ],
+    [
+      "TDCCP",
+      {
+        "contractAddress": "Hg8bKz4mvs8KNj9zew1cEF9tDw1x2GViB4RFZjVEmfrD",
+        "hasRealContract": true,
+        "cachedAt": 1756249476291,
+        "symbol": "TDCCP"
+      }
+    ],
+    [
+      "R/SNOOFI",
+      {
+        "contractAddress": "7M9KJcPNC65ShLDmJmTNhVFcuY95Y1VMeYngKgt67D1t",
+        "hasRealContract": true,
+        "cachedAt": 1756249491486,
+        "symbol": "R/SNOOFI"
+      }
+    ],
+    [
+      "SOS",
+      {
+        "contractAddress": "FNj16zAMFERd4w2nKfjfVn51aW38m56jcfNHzpVQmoon",
+        "hasRealContract": true,
+        "cachedAt": 1756249506723,
+        "symbol": "SOS"
+      }
+    ],
+    [
+      "MAD",
+      {
+        "contractAddress": "madHpjRn6bd8t78Rsy7NuSuNwWa2HU8ByPobZprHbHv",
+        "hasRealContract": true,
+        "cachedAt": 1756249521922,
+        "symbol": "MAD"
+      }
+    ],
+    [
+      "SIGMA",
+      {
+        "contractAddress": "5SVG3T9CNQsm2kEwzbRq6hASqh1oGfjqTtLXYUibpump",
+        "hasRealContract": true,
+        "cachedAt": 1756249537101,
+        "symbol": "SIGMA"
+      }
+    ],
+    [
+      "ORC",
+      {
+        "contractAddress": "CzywqyWnzACqc7nphTAPHC8cb2h7ou6U9TehBrVnzJKx",
+        "hasRealContract": true,
+        "cachedAt": 1756249552303,
+        "symbol": "ORC"
+      }
+    ],
+    [
+      "SAMO",
+      {
+        "contractAddress": "7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU",
+        "hasRealContract": true,
+        "cachedAt": 1756249567515,
+        "symbol": "SAMO"
+      }
+    ],
+    [
+      "BOOPA",
+      {
+        "contractAddress": "JmMRbLcKgNCu17yHZDAn4strE5NjmWJ4pCeJ7s7boop",
+        "hasRealContract": true,
+        "cachedAt": 1756249582695,
+        "symbol": "BOOPA"
+      }
+    ],
+    [
+      "HAMMY",
+      {
+        "contractAddress": "26KMQVgDUoB6rEfnJ51yAABWWJND8uMtpnQgsHQ64Udr",
+        "hasRealContract": true,
+        "cachedAt": 1756249597902,
+        "symbol": "HAMMY"
+      }
+    ],
+    [
+      "VOID",
+      {
+        "contractAddress": "6gh8b2mqUrVb6Ew8Mwt89tNyN9keCDNstzT5cdp5pump",
+        "hasRealContract": true,
+        "cachedAt": 1756249613110,
+        "symbol": "VOID"
+      }
+    ],
+    [
+      "GREG",
+      {
+        "contractAddress": "zZRRHGndBuUsbn4VM47RuagdYt57hBbskQ2Ba6K5775",
+        "hasRealContract": true,
+        "cachedAt": 1756249628355,
+        "symbol": "GREG"
+      }
+    ],
+    [
+      "MINI",
+      {
+        "contractAddress": "2JcXacFwt9mVAwBQ5nZkYwCyXQkRcdsYrDXn6hj22SbP",
+        "hasRealContract": true,
+        "cachedAt": 1756249643579,
+        "symbol": "MINI"
+      }
+    ],
+    [
+      "SKBDI",
+      {
+        "contractAddress": "DPaQfq5sFnoqw2Sh9WMmmASFL9LNu6RdtDqwE1tab2tB",
+        "hasRealContract": true,
+        "cachedAt": 1756249658778,
+        "symbol": "SKBDI"
+      }
+    ],
+    [
+      "PP",
+      {
+        "contractAddress": "ch7rTovcUK7C1zNFM7F93kXU2CByYUsJT4pwYx7pump",
+        "hasRealContract": true,
+        "cachedAt": 1756249673999,
+        "symbol": "PP"
+      }
+    ],
+    [
+      "SAGIT",
+      {
+        "contractAddress": "8x17zMmVjJxqswjX4hNpxVPc7Tr5UabVJF3kv8TKq8Y3",
+        "hasRealContract": true,
+        "cachedAt": 1756249689228,
+        "symbol": "SAGIT"
+      }
+    ],
+    [
+      "LEGIT",
+      {
+        "contractAddress": "5rSP1W2Jkir4Qy1M6rEYXFFi5HgbhrkVTajimrVgpump",
+        "hasRealContract": true,
+        "cachedAt": 1756249704454,
+        "symbol": "LEGIT"
+      }
+    ],
+    [
+      "REX",
+      {
+        "contractAddress": "CNKEXXypBC66cZ111Mg3JUxyczXS1E9T6MWEufzQZVMo",
+        "hasRealContract": true,
+        "cachedAt": 1756249719675,
+        "symbol": "REX"
+      }
+    ],
+    [
+      "WEEDCOIN",
+      {
+        "contractAddress": "21nnfR4TkbZNLwvRrqEseAbz7P3kxKjaV7KuboLJpump",
+        "hasRealContract": true,
+        "cachedAt": 1756249734952,
+        "symbol": "WEEDCOIN"
+      }
+    ],
+    [
+      "BTC",
+      {
+        "contractAddress": null,
+        "hasRealContract": false,
+        "cachedAt": 1756249750195,
+        "symbol": "BTC"
+      }
+    ],
+    [
+      "CLOSED",
+      {
+        "contractAddress": "9BfyNWNyatdXLQ7f3ydX8azXQSnbvqGcmMEwWCLoSED",
+        "hasRealContract": true,
+        "cachedAt": 1756249765433,
+        "symbol": "CLOSED"
+      }
+    ],
+    [
+      "SPX6969",
+      {
+        "contractAddress": "23k6Jiahmd11DWBzE7jpprsYzgs3m3LfNtw2XkwBVfmG",
+        "hasRealContract": true,
+        "cachedAt": 1756249780663,
+        "symbol": "SPX6969"
+      }
+    ],
+    [
+      "$JIM",
+      {
+        "contractAddress": "jimBqijNp9yZwgMmxFaLECr5rFypPGZQNEqL9YU4UjT",
+        "hasRealContract": true,
+        "cachedAt": 1756249795950,
+        "symbol": "$JIM"
+      }
+    ],
+    [
+      "GOO",
+      {
+        "contractAddress": "GRFKaABC518SqXMvBpAVYUZtVT3Nj4mYk7E7xU4gA5Rg",
+        "hasRealContract": true,
+        "cachedAt": 1756249811248,
+        "symbol": "GOO"
+      }
+    ],
+    [
+      "PRINT",
+      {
+        "contractAddress": "8stssUiCFbcB2LqCS62EuU2x1K2NWbJJo1YPgskpftWK",
+        "hasRealContract": true,
+        "cachedAt": 1756249826497,
+        "symbol": "PRINT"
+      }
+    ],
+    [
+      "PYRATE",
+      {
+        "contractAddress": "5odbSFH3kKHFNcy6Kai7ykm7Da9B55Kk9wgy4Fh8GSfh",
+        "hasRealContract": true,
+        "cachedAt": 1756249841674,
+        "symbol": "PYRATE"
+      }
+    ],
+    [
+      "SCHIZO",
+      {
+        "contractAddress": null,
+        "hasRealContract": false,
+        "cachedAt": 1756249866769,
+        "symbol": "SCHIZO"
+      }
+    ],
+    [
+      "CRYPSI",
+      {
+        "contractAddress": null,
+        "hasRealContract": false,
+        "cachedAt": 1756249891804,
+        "symbol": "CRYPSI"
+      }
+    ],
+    [
+      "POCHITA",
+      {
+        "contractAddress": null,
+        "hasRealContract": false,
+        "cachedAt": 1756249916878,
+        "symbol": "POCHITA"
+      }
+    ],
+    [
+      "PTRUMP",
+      {
+        "contractAddress": null,
+        "hasRealContract": false,
+        "cachedAt": 1756249941903,
+        "symbol": "PTRUMP"
+      }
+    ],
+    [
+      "GROF",
+      {
+        "contractAddress": "3XFXWiPcVee69nFCRs7G3eZn67TrXuuLmCYCo8d7bonk",
+        "hasRealContract": true,
+        "cachedAt": 1756249957485,
+        "symbol": "GROF"
+      }
+    ],
+    [
+      "RETARD",
+      {
+        "contractAddress": "FtTSDNLD5mMLn3anqEQpy44cRdrtAJRrLX2MKXxfpump",
+        "hasRealContract": true,
+        "cachedAt": 1756249972736,
+        "symbol": "RETARD"
+      }
+    ],
+    [
+      "RETARDIO",
+      {
+        "contractAddress": "6ogzHhzdrQr9Pgv6hZ2MNze7UrzBMAFyBBWUYp1Fhitx",
+        "hasRealContract": true,
+        "cachedAt": 1756249988031,
+        "symbol": "RETARDIO"
+      }
+    ],
+    [
+      "HEEHEE",
+      {
+        "contractAddress": "9dLuVbJMd4ZpTpFgmaFHAGSsFwVjtcnzFWaLAA1expHg",
+        "hasRealContract": true,
+        "cachedAt": 1756250003265,
+        "symbol": "HEEHEE"
+      }
+    ],
+    [
+      "BABY DOWGE",
+      {
+        "contractAddress": "AnUmd399EDCEmoXjSpUAVWE4TcyT1xFMJcPgAZ2VgChn",
+        "hasRealContract": true,
+        "cachedAt": 1756250018493,
+        "symbol": "BABY DOWGE"
+      }
+    ],
+    [
+      "STARTUP",
+      {
+        "contractAddress": "97PVGU2DzFqsAWaYU17ZBqGvQFmkqtdMywYBNPAfy8vy",
+        "hasRealContract": true,
+        "cachedAt": 1756250033733,
+        "symbol": "STARTUP"
+      }
+    ],
+    [
+      "SANTAHAT",
+      {
+        "contractAddress": "7S37Wv8v9BLQ7bCBTSmCgpCHEb7ae9ZVV7YGwDSepump",
+        "hasRealContract": true,
+        "cachedAt": 1756250063972,
+        "symbol": "SANTAHAT"
+      }
+    ],
+    [
+      "BEER2",
+      {
+        "contractAddress": "GCKTFLxkMeUTUbuQM1k6f1cy4o4tC2V13ye2ebL3p52r",
+        "hasRealContract": true,
+        "cachedAt": 1756250079186,
+        "symbol": "BEER2"
+      }
+    ],
+    [
+      "BEEM",
+      {
+        "contractAddress": "BeemGmKYvz52af2myrx7xE82rE8ZvW9MgpvX8ikJQZNe",
+        "hasRealContract": true,
+        "cachedAt": 1756250094378,
+        "symbol": "BEEM"
+      }
+    ],
+    [
+      "MUSKIT",
+      {
+        "contractAddress": "9So52ugZh2BLBT3f7p61947q91uQh2DyvbfyMDeRpump",
+        "hasRealContract": true,
+        "cachedAt": 1756250109596,
+        "symbol": "MUSKIT"
+      }
+    ],
+    [
+      "BODEN",
+      {
+        "contractAddress": "3psH1Mj1f7yUfaD5gh6Zj7epE8hhrMkMETgv5TshQA4o",
+        "hasRealContract": true,
+        "cachedAt": 1756250124823,
+        "symbol": "BODEN"
+      }
+    ],
+    [
+      "WATER",
+      {
+        "contractAddress": "B6h248NJkAcBAkaCnji889a26tCiGXGN8cxhEJ4dX391",
+        "hasRealContract": true,
+        "cachedAt": 1756250140106,
+        "symbol": "WATER"
+      }
+    ],
+    [
+      "RIZZMAS",
+      {
+        "contractAddress": "85cQsFgbi8mBZxiPppbpPXuV7j1hA8tBwhjF4gKW6mHg",
+        "hasRealContract": true,
+        "cachedAt": 1756250155369,
+        "symbol": "RIZZMAS"
+      }
+    ],
+    [
+      "CSR",
+      {
+        "contractAddress": "EqQFU4AoRVKJjQrpshmp89YxHAgNecCpJdMS8PJLpump",
+        "hasRealContract": true,
+        "cachedAt": 1756250170634,
+        "symbol": "CSR"
+      }
+    ],
+    [
+      "WALTER",
+      {
+        "contractAddress": "FV56CmR7fhEyPkymKfmviKV48uPo51ti9kAxssQqTDLu",
+        "hasRealContract": true,
+        "cachedAt": 1756250185913,
+        "symbol": "WALTER"
+      }
+    ],
+    [
+      "CRYPTO",
+      {
+        "contractAddress": "4ikwYoNvoGEwtMbziUyYBTz1zRM6nmxspsfw9G7Bpump",
+        "hasRealContract": true,
+        "cachedAt": 1756250201174,
+        "symbol": "CRYPTO"
+      }
+    ],
+    [
+      "DOGAI",
+      {
+        "contractAddress": "Dogg6xWSgkF8KbsHkTWD3Et4J9a8VBLZjrASURXGiLe1",
+        "hasRealContract": true,
+        "cachedAt": 1756250216422,
+        "symbol": "DOGAI"
+      }
+    ],
+    [
+      "BURN",
+      {
+        "contractAddress": "GQe8DCQTBkuX5E2sjvwuKDZsjGYhU8k3DN5dkSbQLfqJ",
+        "hasRealContract": true,
+        "cachedAt": 1756250231738,
+        "symbol": "BURN"
+      }
+    ],
+    [
+      "RNT",
+      {
+        "contractAddress": "2fUFhZyd47Mapv9wcfXh5gnQwFXtqcYu9xAN4THBpump",
+        "hasRealContract": true,
+        "cachedAt": 1756250246952,
+        "symbol": "RNT"
+      }
+    ],
+    [
+      "SPHYNX",
+      {
+        "contractAddress": "5t4EVfkb5QU8NZXmTzcSK2bQsNWUr2HL64rRb8i6wpat",
+        "hasRealContract": true,
+        "cachedAt": 1756250262286,
+        "symbol": "SPHYNX"
+      }
+    ],
+    [
+      "SOY",
+      {
+        "contractAddress": "4G3kNxwaA2UQHDpaQtJWQm1SReXcUD7LkT14v2oEs7rV",
+        "hasRealContract": true,
+        "cachedAt": 1756250277485,
+        "symbol": "SOY"
+      }
+    ],
+    [
+      "SBR",
+      {
+        "contractAddress": "2HHgCLfKA5Rd1Fn9xAxfYzS3XoR5NnuxKDYz2EmWpump",
+        "hasRealContract": true,
+        "cachedAt": 1756250292724,
+        "symbol": "SBR"
+      }
+    ],
+    [
+      "DMAGA",
+      {
+        "contractAddress": "7D7BRcBYepfi77vxySapmeqRNN1wsBBxnFPJGbH5pump",
+        "hasRealContract": true,
+        "cachedAt": 1756250307944,
+        "symbol": "DMAGA"
+      }
+    ],
+    [
+      "CRODIE",
+      {
+        "contractAddress": "GvcNXdSehfNSNyhDVDj27kc459LzFqWozt9CSJywMy6r",
+        "hasRealContract": true,
+        "cachedAt": 1756250323222,
+        "symbol": "CRODIE"
+      }
+    ],
+    [
+      "$TOAD",
+      {
+        "contractAddress": "FViMp5phQH2bX81S7Yyn1yXjj3BRddFBNcMCbTH8FCze",
+        "hasRealContract": true,
+        "cachedAt": 1756250353682,
+        "symbol": "$TOAD"
+      }
+    ],
+    [
+      "SCORPIO",
+      {
+        "contractAddress": "J4fQTRN13MKpXhVE74t99msKJLbrjegjEgLBnzEv2YH1",
+        "hasRealContract": true,
+        "cachedAt": 1756250368912,
+        "symbol": "SCORPIO"
+      }
+    ],
+    [
+      "CALVIN",
+      {
+        "contractAddress": "229vWzBTiUNdraYpVtSH9usTwwVxcyPDbBWf1zEPpump",
+        "hasRealContract": true,
+        "cachedAt": 1756250384153,
+        "symbol": "CALVIN"
+      }
+    ],
+    [
+      "DANK",
+      {
+        "contractAddress": "GPwwihLa1w9Qsz27SmNrj7aLVnE7pr2cAvHe6aVVpump",
+        "hasRealContract": true,
+        "cachedAt": 1756250399395,
+        "symbol": "DANK"
+      }
+    ],
+    [
+      "BINK",
+      {
+        "contractAddress": "CeK6k4BMmiqkxkzYAbQuUp3hrVFSHxuQ1LJXmNybc3vz",
+        "hasRealContract": true,
+        "cachedAt": 1756250414609,
+        "symbol": "BINK"
+      }
+    ],
+    [
+      "ETH",
+      {
+        "contractAddress": null,
+        "hasRealContract": false,
+        "cachedAt": 1756250429919,
+        "symbol": "ETH"
+      }
+    ],
+    [
+      "ANALOS",
+      {
+        "contractAddress": "7iT1GRYYhEop2nV1dyCwK2MGyLmPHq47WhPGSwiqcUg5",
+        "hasRealContract": true,
+        "cachedAt": 1756250445134,
+        "symbol": "ANALOS"
+      }
+    ],
+    [
+      "BASED",
+      {
+        "contractAddress": "Em4rcuhX6STfB7mxb66dUXDmZPYCjDiQFthvzSzpump",
+        "hasRealContract": true,
+        "cachedAt": 1756250460404,
+        "symbol": "BASED"
+      }
+    ],
+    [
+      "GOTTI",
+      {
+        "contractAddress": "FoAnSCG6CcqTq2rsTi58yyYBNk1HgsbLzS6b1kTP2ACL",
+        "hasRealContract": true,
+        "cachedAt": 1756250475656,
+        "symbol": "GOTTI"
+      }
+    ],
+    [
+      "SHROOM",
+      {
+        "contractAddress": "xyzR4s6H724bUq6q7MTqWxUnhi8LM5fiKKUq38h8M1P",
+        "hasRealContract": true,
+        "cachedAt": 1756250490951,
+        "symbol": "SHROOM"
+      }
+    ],
+    [
+      "GRUMPY",
+      {
+        "contractAddress": "GRUmPYbiTpq9ZPy5LAqBMMze7kErf5dEX2i9qYfwoSmR",
+        "hasRealContract": true,
+        "cachedAt": 1756250506131,
+        "symbol": "GRUMPY"
+      }
+    ],
+    [
+      "NOMNOM",
+      {
+        "contractAddress": "6ZrYhkwvoYE4QqzpdzJ7htEHwT2u2546EkTNJ7qepump",
+        "hasRealContract": true,
+        "cachedAt": 1756250521338,
+        "symbol": "NOMNOM"
+      }
+    ],
+    [
+      "NOM",
+      {
+        "contractAddress": "2MDr15dTn6km3NWusFcnZyhq3vWpYDg7vWprghpzbonk",
+        "hasRealContract": true,
+        "cachedAt": 1756250536555,
+        "symbol": "NOM"
+      }
+    ],
+    [
+      "MOTHER",
+      {
+        "contractAddress": "3S8qX1MsMqRbiwKg2cQyx7nis1oHMgaCuc9c4VfvVdPN",
+        "hasRealContract": true,
+        "cachedAt": 1756250551755,
+        "symbol": "MOTHER"
+      }
+    ],
+    [
+      "PURPE",
+      {
+        "contractAddress": "HBoNJ5v8g71s2boRivrHnfSB5MVPLDHHyVjruPfhGkvL",
+        "hasRealContract": true,
+        "cachedAt": 1756250566938,
+        "symbol": "PURPE"
+      }
+    ],
+    [
+      "MIND",
+      {
+        "contractAddress": "AXyd5cZqJDYRoN16xcv8s6k41M2kJMfKJnQiXeMd1rCg",
+        "hasRealContract": true,
+        "cachedAt": 1756250582129,
+        "symbol": "MIND"
+      }
+    ],
+    [
+      "HONK",
+      {
+        "contractAddress": "3ag1Mj9AKz9FAkCQ6gAEhpLSX8B2pUbPdkb9iBsDLZNB",
+        "hasRealContract": true,
+        "cachedAt": 1756250597347,
+        "symbol": "HONK"
+      }
+    ],
+    [
+      "LEO",
+      {
+        "contractAddress": "8Cd7wXoPb5Yt9cUGtmHNqAEmpMDrhfcVqnGbLC48b8Qm",
+        "hasRealContract": true,
+        "cachedAt": 1756250612569,
+        "symbol": "LEO"
+      }
+    ],
+    [
+      "PARAX",
+      {
+        "contractAddress": "9UFoZBPswibT1fWHJBNdBJ4wyKVVpJXNxfdHZnJmoon",
+        "hasRealContract": true,
+        "cachedAt": 1756250627777,
+        "symbol": "PARAX"
+      }
+    ],
+    [
+      "ARK",
+      {
+        "contractAddress": "ArkmLDH65ao6NWbQdP58CiE7zzrCyp5DzDpTkZ3aDPdS",
+        "hasRealContract": true,
+        "cachedAt": 1756250643021,
+        "symbol": "ARK"
+      }
+    ],
+    [
+      "FRED",
+      {
+        "contractAddress": "CNvitvFnSM5ed6K28RUNSaAjqqz5tX1rA5HgaBN9pump",
+        "hasRealContract": true,
+        "cachedAt": 1756250658271,
+        "symbol": "FRED"
+      }
+    ],
+    [
+      "FATGF",
+      {
+        "contractAddress": "4y9E3tJpGNzRr1592oWTPECgyp2VDSc1Bf3DqAm5FZsK",
+        "hasRealContract": true,
+        "cachedAt": 1756250673521,
+        "symbol": "FATGF"
+      }
+    ],
+    [
+      "RICH",
+      {
+        "contractAddress": "GRQfnwWyhd4qeJqUVCZo9ku61p3YN7MWCCk8vBXnpump",
+        "hasRealContract": true,
+        "cachedAt": 1756250688734,
+        "symbol": "RICH"
+      }
+    ],
+    [
+      "CHUD",
+      {
+        "contractAddress": "6yjNqPzTSanBWSa6dxVEgTjePXBrZ2FoHLDQwYwEsyM6",
+        "hasRealContract": true,
+        "cachedAt": 1756250703984,
+        "symbol": "CHUD"
+      }
+    ],
+    [
+      "ORCASM",
+      {
+        "contractAddress": "CEB5aF8w5hf3W2QVXpFVG3GEdvhLYyHVpiVAuFSYwave",
+        "hasRealContract": true,
+        "cachedAt": 1756250719215,
+        "symbol": "ORCASM"
+      }
+    ],
+    [
+      "AQUARIUS",
+      {
+        "contractAddress": "C49Ut3om3QFTDrMZ5Cr8VcTKPpHDcQ2Fv8mmuJHHigDt",
+        "hasRealContract": true,
+        "cachedAt": 1756250734447,
+        "symbol": "AQUARIUS"
+      }
+    ],
+    [
+      "LEA",
+      {
+        "contractAddress": "8SpPaFLycx897D6sowPZkEkcNdDahzRZb5itr6D8pump",
+        "hasRealContract": true,
+        "cachedAt": 1756250749665,
+        "symbol": "LEA"
+      }
+    ],
+    [
+      "PPPP",
+      {
+        "contractAddress": "CmXr8rZyqxbFKv44kk1u8ixQM9mZnUf625k56p27pump",
+        "hasRealContract": true,
+        "cachedAt": 1756250764852,
+        "symbol": "PPPP"
+      }
+    ],
+    [
+      "BIS",
+      {
+        "contractAddress": "2GPJhV9jNrj7TaLYMRgWkcy6sTKLcwntv7nZ7qDyMRGM",
+        "hasRealContract": true,
+        "cachedAt": 1756250780075,
+        "symbol": "BIS"
+      }
+    ],
+    [
+      "WAFFLES",
+      {
+        "contractAddress": "8doS8nzmgVZEaACxALkbK5fZtw4UuoRp4Yt8NEaXfDMb",
+        "hasRealContract": true,
+        "cachedAt": 1756250795274,
+        "symbol": "WAFFLES"
+      }
+    ],
+    [
+      "FATHA",
+      {
+        "contractAddress": "EWWDzCwq4UYW3ERTXbdgd6X6sdkKHFMJqRz1ZiFcpump",
+        "hasRealContract": true,
+        "cachedAt": 1756250810523,
+        "symbol": "FATHA"
+      }
+    ],
+    [
+      "KARMA",
+      {
+        "contractAddress": "EdN7mEndu6esJox7WxDdPhGZhmhYkFN9bTgsAxnNpump",
+        "hasRealContract": true,
+        "cachedAt": 1756250825736,
+        "symbol": "KARMA"
+      }
+    ],
+    [
+      "ELONRWA",
+      {
+        "contractAddress": "GKpETcy8wYHPCB228rvNrqdDR23yyn7Yux6B2rdQRYKw",
+        "hasRealContract": true,
+        "cachedAt": 1756250840969,
+        "symbol": "ELONRWA"
+      }
+    ],
+    [
+      "X",
+      {
+        "contractAddress": "EhkDgP8e5sz16AFCWUCYJzVug1zvpDLTEHxH4WAFpBFA",
+        "hasRealContract": true,
+        "cachedAt": 1756250856216,
+        "symbol": "X"
+      }
+    ],
+    [
+      "GNON",
+      {
+        "contractAddress": "HeJUFDxfJSzYFUuHLxkMqCgytU31G6mjP4wKviwqpump",
+        "hasRealContract": true,
+        "cachedAt": 1756250871392,
+        "symbol": "GNON"
+      }
+    ],
+    [
+      "QUANT",
+      {
+        "contractAddress": "3an8rhdepsLCya22af7qDBKPbdomw8K4iCHXaA2Gpump",
+        "hasRealContract": true,
+        "cachedAt": 1756250886580,
+        "symbol": "QUANT"
+      }
+    ],
+    [
+      "HOBBES",
+      {
+        "contractAddress": "6n7Janary9fqzxKaJVrhL9TG2F61VbAtwUMu1YZscaQS",
+        "hasRealContract": true,
+        "cachedAt": 1756250901825,
+        "symbol": "HOBBES"
+      }
+    ],
+    [
+      "COMFY",
+      {
+        "contractAddress": "FbJpd8yhrGGkWVL1Ujf7qFvTw4uD4675k8CYk82LEKvZ",
+        "hasRealContract": true,
+        "cachedAt": 1756250917007,
+        "symbol": "COMFY"
+      }
+    ],
+    [
+      "M3M3",
+      {
+        "contractAddress": "M3M3pSFptfpZYnWNUgAbyWzKKgPo5d1eWmX6tbiSF2K",
+        "hasRealContract": true,
+        "cachedAt": 1756250932239,
+        "symbol": "M3M3"
+      }
+    ],
+    [
+      "HABIBI",
+      {
+        "contractAddress": "864YJRb3JAVARC4FNuDtPKFxdEsYRbB39Nwxkzudxy46",
+        "hasRealContract": true,
+        "cachedAt": 1756250947524,
+        "symbol": "HABIBI"
+      }
+    ],
+    [
+      "CHEEMS",
+      {
+        "contractAddress": "3FoUAsGDbvTD6YZ4wVKJgTB76onJUKz7GPEBNiR5b8wc",
+        "hasRealContract": true,
+        "cachedAt": 1756250962803,
+        "symbol": "CHEEMS"
+      }
+    ],
+    [
+      "BLIFFY",
+      {
+        "contractAddress": "BLiFF7FoZrs9AMnZnn8dXn89wybGiFgQtpRDqMsdLQF",
+        "hasRealContract": true,
+        "cachedAt": 1756250978050,
+        "symbol": "BLIFFY"
+      }
+    ],
+    [
+      "LOWCAP",
+      {
+        "contractAddress": "4EzbvuUVUFBf3gvtPu5js7sfMaDW7WQVTXdYXoM7pump",
+        "hasRealContract": true,
+        "cachedAt": 1756250993262,
+        "symbol": "LOWCAP"
+      }
+    ],
+    [
+      "PISCES",
+      {
+        "contractAddress": "3JsSsmGzjWDNe9XCw2L9vznC5JU9wSqQeB6ns5pAkPeE",
+        "hasRealContract": true,
+        "cachedAt": 1756251008510,
+        "symbol": "PISCES"
+      }
+    ],
+    [
+      "DOGE",
+      {
+        "contractAddress": "9TY6DUg1VSssYH5tFE95qoq5hnAGFak4w3cn72sJNCoV",
+        "hasRealContract": true,
+        "cachedAt": 1756251023735,
+        "symbol": "DOGE"
+      }
+    ],
+    [
+      "SCIHUB",
+      {
+        "contractAddress": "GxdTh6udNstGmLLk9ztBb6bkrms7oLbrJp5yzUaVpump",
+        "hasRealContract": true,
+        "cachedAt": 1756251038987,
+        "symbol": "SCIHUB"
+      }
+    ],
+    [
+      "PIN",
+      {
+        "contractAddress": null,
+        "hasRealContract": false,
+        "cachedAt": 1756251054169,
+        "symbol": "PIN"
+      }
+    ],
+    [
+      "MANIFEST",
+      {
+        "contractAddress": "6cvrZWgEUkr82yKAmxp5cQu7wgYYBPULf16EUBp4pump",
+        "hasRealContract": true,
+        "cachedAt": 1756251069413,
+        "symbol": "MANIFEST"
+      }
+    ],
+    [
+      "YOUSIM",
+      {
+        "contractAddress": "66gsTs88mXJ5L4AtJnWqFW6H2L5YQDRy4W41y6zbpump",
+        "hasRealContract": true,
+        "cachedAt": 1756251084602,
+        "symbol": "YOUSIM"
+      }
+    ],
+    [
+      "PESTO",
+      {
+        "contractAddress": "34a8ALsPmbWxp7D3bQ6erERrCLz1ahr6u6o66Udmpump",
+        "hasRealContract": true,
+        "cachedAt": 1756251099839,
+        "symbol": "PESTO"
+      }
+    ],
+    [
+      "MAG",
+      {
+        "contractAddress": "HPm64oG8eoCKuPj2MaHc1ruqdZ4Pe71UEGiUET1MtJAu",
+        "hasRealContract": true,
+        "cachedAt": 1756251130171,
+        "symbol": "MAG"
+      }
+    ],
+    [
+      "EGG",
+      {
+        "contractAddress": "wo1zgt8rfrYpvdVi4nidoj1SYfcR4pQx69bmNv2JLhQ",
+        "hasRealContract": true,
+        "cachedAt": 1756251145379,
+        "symbol": "EGG"
+      }
+    ],
+    [
+      "XD",
+      {
+        "contractAddress": "DEJiPKx5GActUtB6qUssreUxkhXtL4hTQAAJZ7Ccw8se",
+        "hasRealContract": true,
+        "cachedAt": 1756251160597,
+        "symbol": "XD"
+      }
+    ],
+    [
+      "MUMU",
+      {
+        "contractAddress": "5LafQUrVco6o7KMz42eqVEJ9LW31StPyGjeeu5sKoMtA",
+        "hasRealContract": true,
+        "cachedAt": 1756251175789,
+        "symbol": "MUMU"
+      }
+    ],
+    [
+      "MADE",
+      {
+        "contractAddress": "3mqNfN16CDAuq184HndFtp1CbTyYFWZtrtrHndCaNEUj",
+        "hasRealContract": true,
+        "cachedAt": 1756251191024,
+        "symbol": "MADE"
+      }
+    ],
+    [
+      "KACY",
+      {
+        "contractAddress": "6QSVGUEyBZWRshnXKhS96NQ97vGWiTu61SyHLAbYpump",
+        "hasRealContract": true,
+        "cachedAt": 1756251206243,
+        "symbol": "KACY"
+      }
+    ],
+    [
+      "ARIA",
+      {
+        "contractAddress": "GhBPHgnNF99EThYxt4bxUfPX1hCPyAS72RCBgLjLpump",
+        "hasRealContract": true,
+        "cachedAt": 1756251221681,
+        "symbol": "ARIA"
+      }
+    ],
+    [
+      "MIMANY",
+      {
+        "contractAddress": "3Rcc6tMyS7ZEa29dxV4g3J5StorS9J1dn98gd42pZTk1",
+        "hasRealContract": true,
+        "cachedAt": 1756251236976,
+        "symbol": "MIMANY"
+      }
+    ],
+    [
+      "CHEXBACCA",
+      {
+        "contractAddress": "8J5e2FPmBJ1subEUeVkELpeBZv9aYUrMmfHys7sREeXr",
+        "hasRealContract": true,
+        "cachedAt": 1756251252210,
+        "symbol": "CHEXBACCA"
+      }
+    ],
+    [
+      "CBC",
+      {
+        "contractAddress": "BNeaFbk7DRjMr1UhGuchRGMKvk2Z5bU9W8sNpn7Wvr9Y",
+        "hasRealContract": true,
+        "cachedAt": 1756251267437,
+        "symbol": "CBC"
+      }
+    ],
+    [
+      "COLDPL",
+      {
+        "contractAddress": "74eSRkPotxr8VjiZYKFnoYr9JDVEycWkrzHhFpuKmoon",
+        "hasRealContract": true,
+        "cachedAt": 1756251282636,
+        "symbol": "COLDPL"
+      }
+    ],
+    [
+      "SWOGE",
+      {
+        "contractAddress": "7R88oQWwoFwMqb2ryrozDMvN3jNnWqrMB3ytKxNybonk",
+        "hasRealContract": true,
+        "cachedAt": 1756251297869,
+        "symbol": "SWOGE"
+      }
+    ],
+    [
+      "YETI",
+      {
+        "contractAddress": "FuyeX8cpctBwQVDFYgKxYh1JgiXCkK9g4RBVCXm4pump",
+        "hasRealContract": true,
+        "cachedAt": 1756251313110,
+        "symbol": "YETI"
+      }
+    ],
+    [
+      "NIKY",
+      {
+        "contractAddress": "d8ed1gwSmD45qwEK5wZGMb1Kh1MQ9PXipKsHevtpump",
+        "hasRealContract": true,
+        "cachedAt": 1756251328305,
+        "symbol": "NIKY"
+      }
+    ],
+    [
+      "NMR",
+      {
+        "contractAddress": null,
+        "hasRealContract": false,
+        "cachedAt": 1756251343523,
+        "symbol": "NMR"
+      }
+    ],
+    [
+      "WOLF",
+      {
+        "contractAddress": "Faf89929Ni9fbg4gmVZTca7eW6NFg877Jqn6MizT3Gvw",
+        "hasRealContract": true,
+        "cachedAt": 1756251358745,
+        "symbol": "WOLF"
+      }
+    ],
+    [
+      "QUACK",
+      {
+        "contractAddress": "9HGziACBczM3VorD3B6ZYtj6BA595jq8erzsSVtUNo6N",
+        "hasRealContract": true,
+        "cachedAt": 1756251373954,
+        "symbol": "QUACK"
+      }
+    ],
+    [
+      "GOVAI",
+      {
+        "contractAddress": "4kHu4VktgzpZW9i8LEsHZrNLJcTV98nGhyZE5JSEpump",
+        "hasRealContract": true,
+        "cachedAt": 1756251389133,
+        "symbol": "GOVAI"
+      }
+    ],
+    [
+      "$HORNY",
+      {
+        "contractAddress": "8AS9yeGsAwvTs9gCDKMmB2MgX8NiSvv4uppH61yqpump",
+        "hasRealContract": true,
+        "cachedAt": 1756251404328,
+        "symbol": "$HORNY"
+      }
+    ],
+    [
+      "DABOO",
+      {
+        "contractAddress": "9DNYFn5fMTkFq9Tr92ByvF9vEC49X2cB4Z1PabDnfEYi",
+        "hasRealContract": true,
+        "cachedAt": 1756251419524,
+        "symbol": "DABOO"
+      }
+    ],
+    [
+      "BTW",
+      {
+        "contractAddress": "4ytpZgVoNB66bFs6NRCUaAVsLdtYk2fHq4U92Jnjpump",
+        "hasRealContract": true,
+        "cachedAt": 1756251434728,
+        "symbol": "BTW"
+      }
+    ],
+    [
+      "ROGEN",
+      {
+        "contractAddress": "DtgDZb83TqywcuBuWE89jx4k5Y7b6nQ4GYJq3Wd61JQQ",
+        "hasRealContract": true,
+        "cachedAt": 1756251449964,
+        "symbol": "ROGEN"
+      }
+    ],
+    [
+      "BIGFACTS",
+      {
+        "contractAddress": "8U5SJfExR7QMhPWWKLFV5F9L8mX3vioEP29GxocBpump",
+        "hasRealContract": true,
+        "cachedAt": 1756251465164,
+        "symbol": "BIGFACTS"
+      }
+    ],
+    [
+      "LUCI",
+      {
+        "contractAddress": "5Ke381D44MEQg3BQarWhAwhj1xbdNvXe2KHkTiZzw7r5",
+        "hasRealContract": true,
+        "cachedAt": 1756251480442,
+        "symbol": "LUCI"
+      }
+    ],
+    [
+      "PAJAMAS",
+      {
+        "contractAddress": "FvER7SsvY5GqAMawf7Qfb5MnUUmDdbPNPg4nCa4zHoLw",
+        "hasRealContract": true,
+        "cachedAt": 1756251495664,
+        "symbol": "PAJAMAS"
+      }
+    ],
+    [
+      "TOBI",
+      {
+        "contractAddress": "HPueqQjSgaSatMBKrvBvAnRmc6jnr51cPM1EjUJVpump",
+        "hasRealContract": true,
+        "cachedAt": 1756251510876,
+        "symbol": "TOBI"
+      }
+    ],
+    [
+      "WGC",
+      {
+        "contractAddress": "8aB8hdzyqjCJdtP1rfdLNX8bGDjjM8S42BZ3j4zNVtRN",
+        "hasRealContract": true,
+        "cachedAt": 1756251526117,
+        "symbol": "WGC"
+      }
+    ],
+    [
+      "COLLIES",
+      {
+        "contractAddress": "A15y4AUrNwxZu9qSiXuZjVsMDLUGEEGaAc6mEAfSpump",
+        "hasRealContract": true,
+        "cachedAt": 1756251541373,
+        "symbol": "COLLIES"
+      }
+    ],
+    [
+      "$SHRUB",
+      {
+        "contractAddress": "GN78Djb7J2xc2ZLZaJLoGoF8FU6x7DnK3kUJFsnDpump",
+        "hasRealContract": true,
+        "cachedAt": 1756251556553,
+        "symbol": "$SHRUB"
+      }
+    ],
+    [
+      "GAK",
+      {
+        "contractAddress": "96ugdN1zEe1RShH1xWsMLBbopDvS96WXfvxwRELqUwqk",
+        "hasRealContract": true,
+        "cachedAt": 1756251571783,
+        "symbol": "GAK"
+      }
+    ],
+    [
+      "TORSY",
+      {
+        "contractAddress": "5YqckGEkWHJmp9LW5aUF2uJrdUbMJaHcYnGjA8M7Ebw8",
+        "hasRealContract": true,
+        "cachedAt": 1756251587026,
+        "symbol": "TORSY"
+      }
+    ],
+    [
+      "SRY",
+      {
+        "contractAddress": "3gh9ofmjD7acmNpMo41UvyRqoQvaH7N3mypHScziUSRY",
+        "hasRealContract": true,
+        "cachedAt": 1756251602298,
+        "symbol": "SRY"
+      }
+    ],
+    [
+      "INBRED",
+      {
+        "contractAddress": "EjzzyCSiLqjFDprpZj8e1zjXmcTG5HPGFRSEoWcJWHh9",
+        "hasRealContract": true,
+        "cachedAt": 1756251617532,
+        "symbol": "INBRED"
+      }
+    ],
+    [
+      "BRAINLET",
+      {
+        "contractAddress": "8NNXWrWVctNw1UFeaBypffimTdcLCcD8XJzHvYsmgwpF",
+        "hasRealContract": true,
+        "cachedAt": 1756251632708,
+        "symbol": "BRAINLET"
+      }
+    ],
+    [
+      "GLORP",
+      {
+        "contractAddress": "FkBF9u1upwEMUPxnXjcydxxVSxgr8f3k1YXbz7G7bmtA",
+        "hasRealContract": true,
+        "cachedAt": 1756251647910,
+        "symbol": "GLORP"
+      }
+    ],
+    [
+      "BAG",
+      {
+        "contractAddress": "D8r8XTuCrUhLheWeGXSwC3G92RhASficV3YA7B2XWcLv",
+        "hasRealContract": true,
+        "cachedAt": 1756251663175,
+        "symbol": "BAG"
+      }
+    ],
+    [
+      "FUJI",
+      {
+        "contractAddress": "4M79Qjv2Jfjmcq19M41V8QFYohBv2KrgEn9dJhVtpump",
+        "hasRealContract": true,
+        "cachedAt": 1756251678391,
+        "symbol": "FUJI"
+      }
+    ],
+    [
+      "SEAMANIA",
+      {
+        "contractAddress": "9n7PCZLVMG9sEViRwz2cmaR4eM72R3ekWuBdEzZppump",
+        "hasRealContract": true,
+        "cachedAt": 1756251694127,
+        "symbol": "SEAMANIA"
+      }
+    ],
+    [
+      "PINO",
+      {
+        "contractAddress": "7b36cKRYFZsMp3vLByVwfVQxW2ndcYth5rhPnyypump",
+        "hasRealContract": true,
+        "cachedAt": 1756251709309,
+        "symbol": "PINO"
+      }
+    ],
+    [
+      "CRYING",
+      {
+        "contractAddress": "Ep5tnKTSkLDeQ12ctS3RhQNcbcApkcyJcGPgHh4dpump",
+        "hasRealContract": true,
+        "cachedAt": 1756251724543,
+        "symbol": "CRYING"
+      }
+    ],
+    [
+      "CHEYENNE",
+      {
+        "contractAddress": "UrAE9vVdrWxncikcCRp7TgNqEsArFtP22iXzH7gpump",
+        "hasRealContract": true,
+        "cachedAt": 1756251739771,
+        "symbol": "CHEYENNE"
+      }
+    ],
+    [
+      "TOPG",
+      {
+        "contractAddress": "8NH3AfwkizHmbVd83SSxc2YbsFmFL4m2BeepvL6upump",
+        "hasRealContract": true,
+        "cachedAt": 1756251754959,
+        "symbol": "TOPG"
+      }
+    ],
+    [
+      "CHITAN",
+      {
+        "contractAddress": "J95PxHUEytzTGbf9DpLpyPHXnUTWN4FbRk2Jnc5nYKa3",
+        "hasRealContract": true,
+        "cachedAt": 1756251770294,
+        "symbol": "CHITAN"
+      }
+    ],
+    [
+      "KWEEN",
+      {
+        "contractAddress": "DEf93bSt8dx58gDFCcz4CwbjYZzjwaRBYAciJYLfdCA9",
+        "hasRealContract": true,
+        "cachedAt": 1756251785482,
+        "symbol": "KWEEN"
+      }
+    ],
+    [
+      "WYNN",
+      {
+        "contractAddress": "4vqYQTjmKjxrWGtbL2tVkbAU1EVAz9JwcYtd2VE3PbVU",
+        "hasRealContract": true,
+        "cachedAt": 1756251800714,
+        "symbol": "WYNN"
+      }
+    ],
+    [
+      "STNK",
+      {
+        "contractAddress": "43VWkd99HjqkhFTZbWBpMpRhjG469nWa7x7uEsgSH7We",
+        "hasRealContract": true,
+        "cachedAt": 1756251815915,
+        "symbol": "STNK"
+      }
+    ],
+    [
+      "888",
+      {
+        "contractAddress": "888R77WmcLJKyGeJjk1WktFAB5u5fkvmokHYsAu6Spyd",
+        "hasRealContract": true,
+        "cachedAt": 1756251831141,
+        "symbol": "888"
+      }
+    ],
+    [
+      "DTF6900",
+      {
+        "contractAddress": "DTFc41ZXq8Mr84pLD6J68YgyhxNmvJ9qnvZQKCotPZPg",
+        "hasRealContract": true,
+        "cachedAt": 1756251846337,
+        "symbol": "DTF6900"
+      }
+    ],
+    [
+      "COBY",
+      {
+        "contractAddress": "8WnQQRbuEZ3CCDbH5MCVioBbw6o75NKANq9WdPhBDsWo",
+        "hasRealContract": true,
+        "cachedAt": 1756251861542,
+        "symbol": "COBY"
+      }
+    ],
+    [
+      "PEANUT",
+      {
+        "contractAddress": "bGxHNbsacaVL35pkYWae5PYQDZXSpuQb3QDyW31pump",
+        "hasRealContract": true,
+        "cachedAt": 1756251876767,
+        "symbol": "PEANUT"
+      }
+    ],
+    [
+      "$COOK",
+      {
+        "contractAddress": "G8Vy25NzjRmuQtnN35xF7j3X2Z1TrV39XijZu8Mg4w8n",
+        "hasRealContract": true,
+        "cachedAt": 1756251891993,
+        "symbol": "$COOK"
+      }
+    ],
+    [
+      "$UNFK",
+      {
+        "contractAddress": "8MgghUHzWyCXSQb4ReqrYQZ9rL8cQNaZ84GsqWhTB4Uu",
+        "hasRealContract": true,
+        "cachedAt": 1756251907268,
+        "symbol": "$UNFK"
+      }
+    ],
+    [
+      "VIRGO",
+      {
+        "contractAddress": "Ez4bst5qu5uqX3AntYWUdafw9XvtFeJ3gugytKKbSJso",
+        "hasRealContract": true,
+        "cachedAt": 1756251922493,
+        "symbol": "VIRGO"
+      }
+    ],
+    [
+      "TOOKER",
+      {
+        "contractAddress": "9EYScpiysGnEimnQPzazr7Jn9GVfxFYzgTEj85hV9L6U",
+        "hasRealContract": true,
+        "cachedAt": 1756251937693,
+        "symbol": "TOOKER"
+      }
+    ],
+    [
+      "RFLIP",
+      {
+        "contractAddress": "FAMfdnr3daYqxP7g9iaSa65RNXnzLWDD8c2uPENKpump",
+        "hasRealContract": true,
+        "cachedAt": 1756251952891,
+        "symbol": "RFLIP"
+      }
+    ],
+    [
+      "LOS",
+      {
+        "contractAddress": "44bzge9EZJGPJRYNmsA64mdKZ1eeLdDcDiczRmoyAtez",
+        "hasRealContract": true,
+        "cachedAt": 1756251968137,
+        "symbol": "LOS"
+      }
+    ],
+    [
+      "DPINO",
+      {
+        "contractAddress": "4fwCUiZ8qaddK3WFLXazXRtpYpHc39iYLnEfF7KjmoEy",
+        "hasRealContract": true,
+        "cachedAt": 1756251983350,
+        "symbol": "DPINO"
+      }
+    ],
+    [
+      "$HYPER",
+      {
+        "contractAddress": "Aq8Gocyvyyi8xk5EYxd6viUfVmVvs9T9R6mZFzZFpump",
+        "hasRealContract": true,
+        "cachedAt": 1756251998547,
+        "symbol": "$HYPER"
+      }
+    ],
+    [
+      "42069K",
+      {
+        "contractAddress": "Be78Ld3SpYMif5YgxM4ipJx2eGSDcAaaCkHUzcV5pump",
+        "hasRealContract": true,
+        "cachedAt": 1756252013761,
+        "symbol": "42069K"
+      }
+    ],
+    [
+      "COAL",
+      {
+        "contractAddress": "E3yUqBNTZxV8ELvW99oRLC7z4ddbJqqR4NphwrMug9zu",
+        "hasRealContract": true,
+        "cachedAt": 1756252028978,
+        "symbol": "COAL"
+      }
+    ],
+    [
+      "TRADIECOIN",
+      {
+        "contractAddress": "87Uv6dwnyBSVbtHLa6HY9N8DziVN1mYJ59CsuaWH9QJM",
+        "hasRealContract": true,
+        "cachedAt": 1756252044169,
+        "symbol": "TRADIECOIN"
+      }
+    ],
+    [
+      "MIXIE",
+      {
+        "contractAddress": null,
+        "hasRealContract": false,
+        "cachedAt": 1756252059430,
+        "symbol": "MIXIE"
+      }
+    ],
+    [
+      "DMOON",
+      {
+        "contractAddress": "9fWeqjzb7xG93T9FPaWggTecvyZZDTXc7VgzNWkisqm4",
+        "hasRealContract": true,
+        "cachedAt": 1756252074672,
+        "symbol": "DMOON"
+      }
+    ],
+    [
+      "ELGATO",
+      {
+        "contractAddress": "F47vvwFYuLioQsqEVAjqdY6Yihc8wVRiUcfHGcBR9XUs",
+        "hasRealContract": true,
+        "cachedAt": 1756252089902,
+        "symbol": "ELGATO"
+      }
+    ],
+    [
+      "DIDID",
+      {
+        "contractAddress": "8E5pw1g1nQpmgVyeS1vZx8LokAZvuZgL6G1Uhr4iVbAB",
+        "hasRealContract": true,
+        "cachedAt": 1756252105098,
+        "symbol": "DIDID"
+      }
+    ],
+    [
+      "$UPDOG",
+      {
+        "contractAddress": "HJ39rRZ6ys22KdB3USxDgNsL7RKiQmsC3yL8AS3Suuku",
+        "hasRealContract": true,
+        "cachedAt": 1756252120328,
+        "symbol": "$UPDOG"
+      }
+    ],
+    [
+      "GOOBY",
+      {
+        "contractAddress": "G9b9Lt78x5JXhFLeDY4ZAfMkWWugnbsfKBR2qipJWXaT",
+        "hasRealContract": true,
+        "cachedAt": 1756252135539,
+        "symbol": "GOOBY"
+      }
+    ],
+    [
+      "$BROKE",
+      {
+        "contractAddress": "Fgx5MamDtg4x9vC76N1wYep3xUo71vMB5PrvVCjK7629",
+        "hasRealContract": true,
+        "cachedAt": 1756252150768,
+        "symbol": "$BROKE"
+      }
+    ],
+    [
+      "OGME",
+      {
+        "contractAddress": "jE7q5qieKaUXmyhuWTXmGVtpeBoKtgbMbtks7LKogme",
+        "hasRealContract": true,
+        "cachedAt": 1756252165958,
+        "symbol": "OGME"
+      }
+    ],
+    [
+      "FELY",
+      {
+        "contractAddress": "6NKqYaVGC7H5cyKekgPMeHrb1REEXGEeBcpxqWc2g8nc",
+        "hasRealContract": true,
+        "cachedAt": 1756252181180,
+        "symbol": "FELY"
+      }
+    ],
+    [
+      "CHATTY",
+      {
+        "contractAddress": "9EwutmiMiLHoH5hj5aCLMDJUdsLZVg926ZmDdr8Ppump",
+        "hasRealContract": true,
+        "cachedAt": 1756252196415,
+        "symbol": "CHATTY"
+      }
+    ],
+    [
+      "TIME",
+      {
+        "contractAddress": "ED5wbeyAYtLM4WRGnohPxJEwniaikEFioVmJyZH6K31m",
+        "hasRealContract": true,
+        "cachedAt": 1756252211591,
+        "symbol": "TIME"
+      }
+    ],
+    [
+      "ACHI",
+      {
+        "contractAddress": "4rUfhWTRpjD1ECGjw1UReVhA8G63CrATuoFLRVRkkqhs",
+        "hasRealContract": true,
+        "cachedAt": 1756252226808,
+        "symbol": "ACHI"
+      }
+    ],
+    [
+      "MUSTARD",
+      {
+        "contractAddress": "22Xeo6diWfJrScaoVFzgkwzrCByPukK45fdwkJyrpump",
+        "hasRealContract": true,
+        "cachedAt": 1756252242002,
+        "symbol": "MUSTARD"
+      }
+    ],
+    [
+      "HYPE",
+      {
+        "contractAddress": null,
+        "hasRealContract": false,
+        "cachedAt": 1756252257323,
+        "symbol": "HYPE"
+      }
+    ],
+    [
+      "VIRGIN",
+      {
+        "contractAddress": "7kB8ZkSBJr2uiBWfveqkVBN7EpZMFom5PqeWUB62DCRD",
+        "hasRealContract": true,
+        "cachedAt": 1756252272507,
+        "symbol": "VIRGIN"
+      }
+    ],
+    [
+      "STOG",
+      {
+        "contractAddress": "AHnZ7VyyQ5jHXbitQL8tuN7ciGG66EvCnU7eKoKX99fz",
+        "hasRealContract": true,
+        "cachedAt": 1756252287703,
+        "symbol": "STOG"
+      }
+    ],
+    [
+      "LOLCAT",
+      {
+        "contractAddress": "Dt6vESocrRixuFz2taZunygpKcNQwxAjUMgYUxvNpump",
+        "hasRealContract": true,
+        "cachedAt": 1756252302917,
+        "symbol": "LOLCAT"
+      }
+    ],
+    [
+      "PINGU",
+      {
+        "contractAddress": "2idBzH45gfXFEhivcQVTXVgQGUDhX8scXoZwAiTQUT6L",
+        "hasRealContract": true,
+        "cachedAt": 1756252318112,
+        "symbol": "PINGU"
+      }
+    ],
+    [
+      "DCHEFSOL",
+      {
+        "contractAddress": "Eoo3LNvzyMm5K1jfwY7PkSdxBSBgXYJJ7DERTdFBpump",
+        "hasRealContract": true,
+        "cachedAt": 1756252333332,
+        "symbol": "DCHEFSOL"
+      }
+    ],
+    [
+      "CHONE",
+      {
+        "contractAddress": "47TSGRuTiSsDpifLUu8WYc3xveFP7SwAvbi9K6brpump",
+        "hasRealContract": true,
+        "cachedAt": 1756252348542,
+        "symbol": "CHONE"
+      }
+    ],
+    [
+      "MELANIA",
+      {
+        "contractAddress": "FUAfBo2jgks6gB4Z4LfZkqSZgzNucisEHqnNebaRxM1P",
+        "hasRealContract": true,
+        "cachedAt": 1756252670028,
+        "symbol": "MELANIA"
+      }
+    ],
+    [
+      "FARTCOIN",
+      {
+        "contractAddress": "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump",
+        "hasRealContract": true,
+        "cachedAt": 1756252685216,
+        "symbol": "FARTCOIN"
+      }
+    ],
+    [
+      "BILLY",
+      {
+        "contractAddress": "3B5wuUrMEi5yATD7on46hKfej3pfmd7t1RKgrsN3pump",
+        "hasRealContract": true,
+        "cachedAt": 1756252700423,
+        "symbol": "BILLY"
+      }
+    ],
+    [
+      "ACT",
+      {
+        "contractAddress": "GJAFwWjJ3vnTsrQVabjBVK2TYB1YtRCQXRDfDgUnpump",
+        "hasRealContract": true,
+        "cachedAt": 1756252715618,
+        "symbol": "ACT"
+      }
+    ],
+    [
+      "TRUMP",
+      {
+        "contractAddress": "6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN",
+        "hasRealContract": true,
+        "cachedAt": 1756252730812,
+        "symbol": "TRUMP"
+      }
+    ],
+    [
+      "CHILLGUY",
+      {
+        "contractAddress": "Df6yfrKC8kZE3KNkrHERKzAetSxbrWeniQfyJY4Jpump",
+        "hasRealContract": true,
+        "cachedAt": 1756252745990,
+        "symbol": "CHILLGUY"
+      }
+    ],
+    [
+      "OIL",
+      {
+        "contractAddress": "5LS3ips7jWxfuVHzoMzKzp3cCwjH9zmrtYXmYBVGpump",
+        "hasRealContract": true,
+        "cachedAt": 1756261626078,
+        "symbol": "OIL"
+      }
+    ],
+    [
+      "CB",
+      {
+        "contractAddress": "3BeJ9zCgQhaqKMu2HgKJ79yQBChD1Pf3hPwRX44fpump",
+        "hasRealContract": true,
+        "cachedAt": 1756261630760,
+        "symbol": "CB"
+      }
+    ],
+    [
+      "MIHARU",
+      {
+        "contractAddress": "6tVZVjcppH2BZ9Xj5yFU1Zt34m2rYcyDqqpSeMDZpump",
+        "hasRealContract": true,
+        "cachedAt": 1756261635435,
+        "symbol": "MIHARU"
+      }
+    ]
+  ],
+  "lastUpdate": "2025-08-27T02:27:15.435Z",
+  "totalContracts": 503
+}

@@ -1,0 +1,26 @@
+{
+  "_metadata": {
+    "lastUpdated": "2025-08-30T22:22:24.123Z",
+    "totalUpdates": 15,
+    "version": "1.0.0"
+  },
+  "MEMEPUTER": {
+    "symbol": "MEMEPUTER",
+    "socials": {
+      "website": "https://memeputer.com"
+    },
+    "socialSources": {
+      "website": "user"
+    },
+    "updatedBy": "system_list_token",
+    "updatedAt": "2025-08-30T22:22:24.123Z",
+    "paymentData": {
+      "id": "TEST_1756592538676",
+      "type": "test_mode",
+      "amount": 0,
+      "currency": "TEST",
+      "status": "completed_test_mode"
+    },
+    "status": "active"
+  }
+}
