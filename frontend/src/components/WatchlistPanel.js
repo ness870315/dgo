@@ -132,9 +132,9 @@ const WatchlistPanel = ({ isOpen, onClose, onTokenSelect, allTokensData = [] }) 
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-3">
                       {/* Token Image or Fallback */}
-                      {token.image ? (
+                      {(token.image || token.jupiterData?.icon) ? (
                         <img 
-                          src={token.image} 
+                          src={token.jupiterData?.icon || token.image} 
                           alt={token.name}
                           className="w-10 h-10 rounded-full"
                           onError={(e) => {
@@ -143,7 +143,7 @@ const WatchlistPanel = ({ isOpen, onClose, onTokenSelect, allTokensData = [] }) 
                           }}
                         />
                       ) : null}
-                      <div className={`w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center ${token.image ? 'hidden' : ''}`}>
+                      <div className={`w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center ${(token.image || token.jupiterData?.icon) ? 'hidden' : ''}`}>
                         <span className="text-white font-bold text-sm">
                           {token.symbol.charAt(0)}
                         </span>

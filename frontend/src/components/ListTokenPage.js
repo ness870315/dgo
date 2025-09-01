@@ -1318,9 +1318,9 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                 <div className="space-y-4">
                   {/* Token Basic Info */}
                   <div className="flex items-center space-x-3">
-                    {tokenData.image ? (
+                    {(tokenData.image || tokenData.jupiterData?.icon) ? (
                       <img 
-                        src={tokenData.image} 
+                        src={tokenData.jupiterData?.icon || tokenData.image} 
                         alt={tokenData.name}
                         className="w-12 h-12 rounded-full"
                       />

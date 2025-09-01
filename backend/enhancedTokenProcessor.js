@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
 import EnhancedJupiterService from './enhancedJupiterService.js';
+import DexscreenerApiService from './dexscreenerApiService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,6 +16,7 @@ class EnhancedTokenProcessor {
     this.processedTokens = [];
     this.stageProgress = {
       coingecko: { total: 0, processed: 0, status: 'pending' },
+      dexscreener: { total: 0, processed: 0, status: 'pending' },
       jupiter: { total: 0, processed: 0, status: 'pending' },
       twitter: { total: 0, processed: 0, status: 'pending' },
       scoring: { total: 0, processed: 0, status: 'pending' }
@@ -22,16 +24,18 @@ class EnhancedTokenProcessor {
     
     // Initialize API services
     this.jupiterService = new EnhancedJupiterService();
+    this.dexscreenerService = new DexscreenerApiService();
     
     // CONSERVATIVE Rate limiting configuration to avoid 429 errors
     this.rateLimits = {
       coingecko: { batchSize: 100, delayMs: 30000, maxTokens: 500 }, // Conservative: 100 per batch, 30s delay
+      dexscreener: { batchSize: 50, delayMs: 5000, maxTokens: 70 }, // Conservative: 50 per batch, 5s delay, 70 tokens max
       jupiter: { batchSize: 100, delayMs: 30000, maxTokens: 600 }, // 30 second delay to avoid rate limits
       twitter: { batchSize: 10, delayMs: 15000, maxTokens: 1000 } // Reduced batch size, increased delay to avoid 429 errors
     };
     
     // Processing stages
-    this.stages = ['coingecko', 'jupiter', 'twitter', 'scoring', 'saving'];
+    this.stages = ['coingecko', 'dexscreener', 'jupiter', 'twitter', 'scoring', 'saving'];
     
     // API endpoints
     this.apis = {
@@ -101,6 +105,9 @@ class EnhancedTokenProcessor {
         switch (stage) {
           case 'coingecko':
             await this.processCoinGeckoStage();
+            break;
+          case 'dexscreener':
+            await this.processDexscreenerStage();
             break;
           case 'jupiter':
             await this.processJupiterStage();
@@ -197,6 +204,79 @@ class EnhancedTokenProcessor {
     
     console.log(`🎯 CoinGecko Stage Complete: ${mergedTokens.length} unique tokens (${deduplicatedTokens.length} new + ${existingTokens.length} existing)`);
     this.processingQueue = mergedTokens;
+  }
+
+  async processDexscreenerStage() {
+    console.log('🔍 Stage 1.5: Fetching Trending Tokens from Dexscreener...');
+
+    try {
+      // Get trending tokens from Dexscreener
+      const targetTokens = this.rateLimits.dexscreener.maxTokens;
+      console.log(`🔄 Fetching ${targetTokens} trending tokens from Dexscreener...`);
+
+      const dexscreenerTokens = await this.dexscreenerService.getTrendingPairs(targetTokens);
+
+      if (!dexscreenerTokens || dexscreenerTokens.length === 0) {
+        console.log('⚠️ No tokens retrieved from Dexscreener');
+        this.stageProgress.dexscreener = {
+          total: 0,
+          processed: 0,
+          status: 'completed'
+        };
+        return;
+      }
+
+      console.log(`✅ Retrieved ${dexscreenerTokens.length} tokens from Dexscreener`);
+
+      // Convert Dexscreener tokens to our standard format
+      const processedDexscreenerTokens = dexscreenerTokens.map(token => ({
+        symbol: token.symbol || 'UNKNOWN',
+        name: token.name || 'Unknown Token',
+        contractAddress: token.contractAddress,
+        price: token.price || 0,
+        volume24h: token.volume24h || 0,
+        marketCap: token.marketCap || 0,
+        priceChange24h: token.priceChange24h || 0,
+        image: token.image,
+        source: 'dexscreener',
+        stage: 'dexscreener',
+        pairAddress: token.pairAddress,
+        chainId: token.chainId,
+        dexId: token.dex,
+        liquidity: token.liquidity || 0,
+        fdv: token.fdv || 0
+      }));
+
+      // Filter out tokens that don't have contract addresses
+      const validDexscreenerTokens = processedDexscreenerTokens.filter(token =>
+        token.contractAddress &&
+        token.contractAddress !== 'UNKNOWN' &&
+        token.contractAddress.length > 10 // Basic validation
+      );
+
+      console.log(`🎯 ${validDexscreenerTokens.length} valid Dexscreener tokens with contract addresses`);
+
+      // Merge with existing tokens from processing queue (from Coingecko)
+      const existingTokens = this.processingQueue;
+      const mergedTokens = this.mergeWithExistingTokens(validDexscreenerTokens, existingTokens);
+
+      this.stageProgress.dexscreener = {
+        total: mergedTokens.length,
+        processed: mergedTokens.length,
+        status: 'completed'
+      };
+
+      console.log(`🎯 Dexscreener Stage Complete: ${mergedTokens.length} total tokens (${validDexscreenerTokens.length} new + ${existingTokens.length} existing)`);
+      this.processingQueue = mergedTokens;
+
+    } catch (error) {
+      console.error('❌ Dexscreener stage failed:', error);
+      this.stageProgress.dexscreener = {
+        total: 0,
+        processed: 0,
+        status: 'failed'
+      };
+    }
   }
 
   async processJupiterStage() {
@@ -324,7 +404,7 @@ class EnhancedTokenProcessor {
             } else {
               // Set default values if no existing data
               token.twitterData = { mentions: 0, mentions24h: 0, likes: 0, retweets: 0, replies: 0, followers: 0 };
-              token.communityHealthScore = 5.0;
+              token.communityHealthScore = 2.0; // Lowered from 5.0 to prevent massive jumps when adding social data
               token.stage = 'twitter';
               token.twitterTimestamp = new Date().toISOString();
               console.log(`⚠️ No cached Twitter data for ${symbol}, using defaults`);
@@ -339,7 +419,8 @@ class EnhancedTokenProcessor {
             const officialHandle = token.jupiterData?.twitter || null;
             const twitterData = await this.fetchTwitterData(symbol, token.name, officialHandle);
             token.twitterData = twitterData;
-            token.communityHealthScore = this.calculateCommunityHealthScore(twitterData);
+            await this.ensureSocialDataService();
+            token.communityHealthScore = this.socialDataService.calculateCommunityHealthScore(twitterData);
             token.stage = 'twitter';
             token.twitterTimestamp = new Date().toISOString();
             
@@ -355,7 +436,7 @@ class EnhancedTokenProcessor {
             console.error(`❌ Twitter data failed for ${symbol}:`, error.message);
             // Set default values
             token.twitterData = { mentions: 0, mentions24h: 0, likes: 0, retweets: 0, replies: 0, followers: 0 };
-            token.communityHealthScore = 5.0;
+            token.communityHealthScore = 2.0; // Lowered from 5.0 to prevent massive jumps when adding social data
             // Still mark as completed Twitter stage
             token.stage = 'twitter';
             token.twitterTimestamp = new Date().toISOString();
@@ -382,7 +463,7 @@ class EnhancedTokenProcessor {
           t.twitterTimestamp = new Date().toISOString();
           if (!t.twitterData) {
             t.twitterData = { mentions: 0, mentions24h: 0, likes: 0, retweets: 0, replies: 0, followers: 0 };
-            t.communityHealthScore = 5.0;
+            t.communityHealthScore = 2.0; // Lowered from 5.0 to prevent massive jumps when adding social data
           }
         });
         totalProcessed += tokens.length;
@@ -914,14 +995,18 @@ class EnhancedTokenProcessor {
     }
   }
 
+  async ensureSocialDataService() {
+    if (!this.socialDataService) {
+      // Import and initialize the social data service
+      const { default: EnhancedSocialDataService } = await import('./enhancedSocialDataService.js');
+      this.socialDataService = new EnhancedSocialDataService();
+    }
+  }
+
   async fetchTwitterData(symbol, name, officialHandle = null) {
     try {
       // Use the real EnhancedSocialDataService
-      if (!this.socialDataService) {
-        // Import and initialize the social data service
-        const { default: EnhancedSocialDataService } = await import('./enhancedSocialDataService.js');
-        this.socialDataService = new EnhancedSocialDataService();
-      }
+      await this.ensureSocialDataService();
       
       // Load social links for this token
       let socialLinks = null;
@@ -985,41 +1070,7 @@ class EnhancedTokenProcessor {
     }
   }
 
-  calculateCommunityHealthScore(twitterData) {
-    let score = 0;
-    
-    // Mentions (25% weight)
-    if (twitterData.mentions >= 100) score += 2.5;
-    else if (twitterData.mentions >= 50) score += 2.0;
-    else if (twitterData.mentions >= 20) score += 1.5;
-    else if (twitterData.mentions >= 10) score += 1.0;
-    else if (twitterData.mentions >= 5) score += 0.5;
-    
-    // Engagement Rate (25% weight)
-    if (twitterData.engagement >= 10) score += 2.5;
-    else if (twitterData.engagement >= 5) score += 2.0;
-    else if (twitterData.engagement >= 2) score += 1.5;
-    else if (twitterData.engagement >= 1) score += 1.0;
-    else if (twitterData.engagement >= 0.5) score += 0.5;
-    
-    // Follower Base (20% weight)
-    if (twitterData.followers >= 10000) score += 2.0;
-    else if (twitterData.followers >= 5000) score += 1.5;
-    else if (twitterData.followers >= 1000) score += 1.0;
-    else if (twitterData.followers >= 500) score += 0.5;
-    
-    // Recent Activity (20% weight)
-    if (twitterData.mentions24h >= 20) score += 2.0;
-    else if (twitterData.mentions24h >= 10) score += 1.5;
-    else if (twitterData.mentions24h >= 5) score += 1.0;
-    else if (twitterData.mentions24h >= 2) score += 0.5;
-    
-    // Quality Indicators (10% weight)
-    if (twitterData.mentions > 0) score += 0.5;
-    if (twitterData.mentions24h > 0) score += 0.5;
-    
-    return Math.min(score, 10);
-  }
+
 
   calculateEnhancedOverallScore(token) {
     let score = 1.5; // Base score - ensures minimum viable score
@@ -1028,12 +1079,12 @@ class EnhancedTokenProcessor {
     const marketTier = this.calculateMarketTier(token.jupiterData?.mcap || token.jupiterData?.marketCap);
     score += marketTier * 0.05;
     
-    // Volume 1hr (10%) - Calculate from Jupiter stats1h data
+    // Volume 1hr (20%) - Calculate from Jupiter stats1h data
     const buyVolume1h = token.jupiterData?.stats1h?.buyVolume || 0;
     const sellVolume1h = token.jupiterData?.stats1h?.sellVolume || 0;
     const totalVolume1h = buyVolume1h + sellVolume1h;
     const volume1h = this.calculateVolumeScore(totalVolume1h);
-    score += volume1h * 0.10;
+    score += volume1h * 0.20;
     
     // Volume 24hr (15%) - Calculate from Jupiter stats24h data
     const buyVolume24h = token.jupiterData?.stats24h?.buyVolume || 0;
@@ -1050,9 +1101,9 @@ class EnhancedTokenProcessor {
     const organicRatio = this.calculateOrganicVolumeRatio(token);
     score += organicRatio * 0.10;
     
-    // Community Health (45%)
-    const communityHealth = token.communityHealthScore || 5.0;
-    score += communityHealth * 0.45;
+    // Community Health (35%) - Reduced from 45% to balance with increased Volume 1hr weight
+    const communityHealth = token.communityHealthScore || 2.0; // Lowered default from 5.0 to 2.0
+    score += communityHealth * 0.35;
     
     // Uniqueness Factor (5%)
     const uniqueness = this.calculateUniquenessFactor(token);
@@ -1194,10 +1245,15 @@ class EnhancedTokenProcessor {
 
   mergeWithExistingTokens(newTokens, existingTokens) {
     const merged = [...newTokens];
-    
+
     for (const existing of existingTokens) {
-      const existingIndex = merged.findIndex(t => t.symbol === existing.symbol);
-      
+      // Enhanced deduplication: check both symbol and contract address
+      const existingIndex = merged.findIndex(t =>
+        t.symbol === existing.symbol ||
+        (t.contractAddress && existing.contractAddress &&
+         t.contractAddress.toLowerCase() === existing.contractAddress.toLowerCase())
+      );
+
       if (existingIndex >= 0) {
         // Update existing token with new CoinGecko data but preserve Twitter data if recent
         const mergedToken = {
@@ -1300,7 +1356,8 @@ class EnhancedTokenProcessor {
       let finalScore = 5.0; // Default score
       
       if (token.twitterData) {
-        finalScore = this.calculateCommunityHealthScore(token.twitterData);
+        await this.ensureSocialDataService();
+        finalScore = this.socialDataService.calculateCommunityHealthScore(token.twitterData);
         console.log(`✅ Community score calculated for ${token.symbol}: ${finalScore.toFixed(2)}/10`);
       } else {
         console.log(`⚠️ No Twitter data for ${token.symbol}, using default score: ${finalScore}/10`);
@@ -1320,7 +1377,8 @@ class EnhancedTokenProcessor {
       
       // Calculate community health score (if not already done)
       if (token.twitterData && !token.communityScore) {
-        token.communityScore = this.calculateCommunityHealthScore(token.twitterData);
+        await this.ensureSocialDataService();
+        token.communityScore = this.socialDataService.calculateCommunityHealthScore(token.twitterData);
       }
 
       // Save to cache immediately
@@ -1375,7 +1433,13 @@ class EnhancedTokenProcessor {
       currentStage: this.currentStage,
       stageProgress: this.stageProgress,
       queueLength: this.processingQueue.length,
-      processedCount: this.processedTokens.length
+      processedCount: this.processedTokens.length,
+      sources: {
+        coingecko: this.processingQueue.filter(t => t.source === 'coingecko').length,
+        dexscreener: this.processingQueue.filter(t => t.source === 'dexscreener').length,
+        total: this.processingQueue.length
+      },
+      lastUpdated: new Date().toISOString()
     };
   }
 

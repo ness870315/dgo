@@ -119,7 +119,6 @@ const FuelTokenPage = ({ onBack }) => {
             >
               <div className="text-4xl mb-3">{fuel.icon}</div>
               <div className="text-xl font-bold text-white mb-2">Fuel {fuel.type}</div>
-              <div className="text-orange-400 font-semibold mb-2">{fuel.boost} Score Boost</div>
               <div className="text-gray-400 text-sm">Duration: 12 hours</div>
             </div>
           ))}

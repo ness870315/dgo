@@ -169,8 +169,8 @@ class TokenService {
           hasOfficialProfile: (token.socialScore || 0) > 5,
           twitterHandle: (token.socialScore || 0) > 5 ? `${token.symbol.toLowerCase()}_official` : null,
           communityType: this.determineCommunityTypeFromScore(token.socialScore || 0),
-          sentimentScore: token.mediasentiment || 5,
-          engagementRate: Math.min((token.developmentActivity || 0) / 100, 0.1),
+          sentimentScore: token.twitterData?.sentimentScore || token.mediasentiment || 5,
+          engagementRate: token.twitterData?.engagement?.total ? (token.twitterData.engagement.total / Math.max(token.twitterData.mentions, 1)) : Math.min((token.developmentActivity || 0) / 100, 0.1),
           uniqueMentions: Math.floor((token.socialScore || 0) * 50),
           riskLevel: this.assessRiskLevelFromScore(token.overallScore || token.enhancedScore?.overallScore || token.score || 0),
           recentPosts: recentPosts,
@@ -408,7 +408,7 @@ class TokenService {
     // Twitter metrics (40% weight)
     if (twitterData) {
       score += (twitterData.mentions / 1000) * 2; // Max 2 points for mentions
-      score += twitterData.sentiment * 0.8; // Max 8 points for sentiment
+      score += (twitterData.sentimentScore || 5) * 0.8; // Max 8 points for sentiment
       score += (twitterData.engagement * 100) * 0.5; // Max 5 points for engagement
     }
 

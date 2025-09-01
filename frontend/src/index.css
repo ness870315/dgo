@@ -20,14 +20,16 @@ code {
 
 .bubble-tooltip {
   position: absolute;
-  padding: 8px 12px;
+  padding: 4px 8px;
   background: rgba(0, 0, 0, 0.9);
   border: 1px solid #9945FF;
-  border-radius: 8px;
+  border-radius: 6px;
   color: white;
-  font-size: 12px;
+  font-size: 11px;
   pointer-events: none;
   z-index: 1000;
+  white-space: nowrap;
+  display: inline-block;
 }
 
 .bubble-map-container {

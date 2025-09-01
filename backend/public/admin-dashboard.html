@@ -423,7 +423,9 @@
                 <button class="btn btn-success" onclick="startProcessing()">▶️ Start Processing</button>
                 <button class="btn btn-danger" onclick="stopProcessing()">⏹️ Stop Processing</button>
                 <button class="btn btn-warning" onclick="refreshAllTokens()">🔄 Refresh All Tokens</button>
+                <button class="btn" onclick="recalculateAllScores()">🧮 Recalculate All Scores</button>
                 <div id="processingResults"></div>
+                <div id="recalculateResults"></div>
             </div>
 
             <!-- Health Check -->
@@ -824,9 +826,24 @@
                 return;
             }
             
-            // Note: This would require a DELETE endpoint which we haven't implemented yet
-            // For now, just show a message
-            alert('⚠️ Remove fuel functionality not yet implemented. Fuel will expire automatically after 12 hours.');
+            try {
+                const response = await fetch(`${API_BASE}/api/tokens/fuel/${contractAddress}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    alert(`✅ ${data.message}`);
+                    // Refresh the fueled tokens list
+                    loadFueledTokens();
+                } else {
+                    alert(`❌ ${data.error || 'Failed to remove fuel'}`);
+                }
+            } catch (error) {
+                console.error('Error removing fuel:', error);
+                alert(`❌ Error: ${error.message}`);
+            }
         }
 
         // Twitter Functions
@@ -1022,6 +1039,69 @@
                 }
             } catch (error) {
                 resultDiv.innerHTML = showAlert(`❌ API is down: ${error.message}`, 'error');
+            }
+        }
+
+        // Recalculate All Scores
+        async function recalculateAllScores() {
+            if (!confirm('🧮 This will recalculate scores for ALL tokens using existing data (no API calls). This may take a few minutes. Continue?')) {
+                return;
+            }
+
+            const resultDiv = document.getElementById('recalculateResults');
+            resultDiv.innerHTML = showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/recalculate-all-scores`, { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    let html = showAlert(`✅ ${data.message}`, 'success');
+                    
+                    html += `
+                        <div class="status-display" style="margin-top: 15px;">
+                            <div class="status-item">
+                                <span class="status-label">Total Tokens:</span>
+                                <span class="status-value">${data.stats.totalTokens}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Successfully Recalculated:</span>
+                                <span class="status-value">${data.stats.successfulRecalculations}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Errors:</span>
+                                <span class="status-value">${data.stats.errors}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Skipped:</span>
+                                <span class="status-value">${data.stats.skipped}</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    if (data.errors && data.errors.length > 0) {
+                        html += `
+                            <div style="margin-top: 15px;">
+                                <h4>⚠️ Errors (first 10):</h4>
+                                <ul style="margin: 10px 0; padding-left: 20px;">
+                                    ${data.errors.map(error => `<li style="color: #e53e3e; font-size: 12px;">${error}</li>`).join('')}
+                                </ul>
+                            </div>
+                        `;
+                    }
+                    
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.innerHTML = showAlert(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
             }
         }
 

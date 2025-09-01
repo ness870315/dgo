@@ -61,21 +61,76 @@ class EnhancedBackend {
     this.app.get('/api/tokens', async (req, res) => {
       try {
         console.log('[🛡️ Enhanced Backend] 📊 API request for tokens received...');
-        
+
         const tokens = await this.getTokensFromCache();
-        
+
         if (tokens.length === 0) {
           console.log('[🛡️ Enhanced Backend] ⚠️ No tokens found in cache');
           res.json([]);
           return;
         }
-        
+
         console.log(`[🛡️ Enhanced Backend] ✅ Returning ${tokens.length} tokens`);
         res.json(tokens);
-        
+
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Error fetching tokens:', error);
         res.status(500).json({ error: 'Failed to fetch tokens' });
+      }
+    });
+
+    // Get Dexscreener trending tokens
+    this.app.get('/api/tokens/dexscreener', async (req, res) => {
+      try {
+        console.log('[🛡️ Enhanced Backend] 🔍 API request for Dexscreener tokens received...');
+
+        // Initialize Dexscreener service if not already done
+        if (!this.tokenProcessor.dexscreenerService) {
+          const { default: DexscreenerApiService } = await import('./dexscreenerApiService.js');
+          this.tokenProcessor.dexscreenerService = new DexscreenerApiService();
+        }
+
+        const limit = parseInt(req.query.limit) || 70;
+        const dexscreenerTokens = await this.tokenProcessor.dexscreenerService.getTrendingPairs(limit);
+
+        if (!dexscreenerTokens || dexscreenerTokens.length === 0) {
+          console.log('[🛡️ Enhanced Backend] ⚠️ No Dexscreener tokens found');
+          res.json([]);
+          return;
+        }
+
+        // Convert to our standard format for frontend
+        const processedTokens = dexscreenerTokens.map(token => ({
+          symbol: token.symbol || 'UNKNOWN',
+          name: token.name || 'Unknown Token',
+          contractAddress: token.contractAddress,
+          price: token.price || 0,
+          volume24h: token.volume24h || 0,
+          marketCap: token.marketCap || 0,
+          priceChange24h: token.priceChange24h || 0,
+          image: token.image,
+          source: 'dexscreener',
+          stage: 'dexscreener',
+          pairAddress: token.pairAddress,
+          chainId: token.chainId,
+          dexId: token.dex,
+          liquidity: token.liquidity || 0,
+          fdv: token.fdv || 0,
+          // Add frontend-friendly fields
+          lastUpdated: new Date().toISOString(),
+          hasTwitterData: false,
+          hasJupiterData: false,
+          mentions: 0,
+          communityScore: 0,
+          overallScore: 0
+        }));
+
+        console.log(`[🛡️ Enhanced Backend] ✅ Returning ${processedTokens.length} Dexscreener tokens`);
+        res.json(processedTokens);
+
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Error fetching Dexscreener tokens:', error);
+        res.status(500).json({ error: 'Failed to fetch Dexscreener tokens' });
       }
     });
 
@@ -413,6 +468,40 @@ class EnhancedBackend {
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Error applying fuel:', error);
         res.status(500).json({ error: 'Failed to apply fuel to token' });
+      }
+    });
+
+    // Remove fuel from token
+    this.app.delete('/api/tokens/fuel/:contractAddress', async (req, res) => {
+      try {
+        const { contractAddress } = req.params;
+        
+        console.log(`[🛡️ Enhanced Backend] 🗑️ Removing fuel from token: ${contractAddress}`);
+        
+        if (!contractAddress) {
+          return res.status(400).json({ 
+            error: 'Contract address is required' 
+          });
+        }
+
+        const result = await this.removeFuelFromToken(contractAddress);
+        
+        if (result.success) {
+          console.log(`[🛡️ Enhanced Backend] ✅ Fuel removed successfully: ${result.message}`);
+          res.json({ 
+            success: true, 
+            message: result.message
+          });
+        } else {
+          console.log(`[🛡️ Enhanced Backend] ❌ Failed to remove fuel: ${result.error}`);
+          res.status(400).json({ 
+            error: result.error 
+          });
+        }
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Error removing fuel:', error);
+        res.status(500).json({ error: 'Failed to remove fuel from token' });
       }
     });
 
@@ -782,6 +871,97 @@ class EnhancedBackend {
       } catch (error) {
         console.error('[🛡️ Admin] ❌ Error getting Twitter status:', error);
         res.status(500).json({ error: 'Failed to get Twitter status' });
+      }
+    });
+
+    // Admin: Recalculate all token scores (no API calls)
+    this.app.post('/api/admin/recalculate-all-scores', async (req, res) => {
+      try {
+        console.log('[🛡️ Admin] 🧮 RECALCULATING ALL TOKEN SCORES...');
+        
+        // Load tokens from cache
+        const tokensPath = path.join(process.cwd(), 'cache', 'tokens-cache.json');
+        let rawTokens;
+        
+        try {
+          const tokensData = await fs.readFile(tokensPath, 'utf8');
+          rawTokens = JSON.parse(tokensData);
+        } catch (error) {
+          return res.status(404).json({ error: 'Token cache not found' });
+        }
+        
+        if (!Array.isArray(rawTokens) || rawTokens.length === 0) {
+          return res.status(404).json({ error: 'No tokens found in cache' });
+        }
+        
+        console.log(`[🛡️ Admin] 📊 Found ${rawTokens.length} tokens to recalculate`);
+        
+        let successCount = 0;
+        let errorCount = 0;
+        const errors = [];
+        
+        // Process each token
+        for (let i = 0; i < rawTokens.length; i++) {
+          const token = rawTokens[i];
+          
+          try {
+            // Only recalculate if token has the necessary data
+            if (token.jupiterData) {
+              // Recalculate overall score using existing data (no API calls)
+              const newOverallScore = await this.tokenProcessor.calculateEnhancedOverallScore(token);
+              
+              // Update scores
+              token.overallScore = newOverallScore;
+              token.enhancedScore = newOverallScore;
+              token.score = newOverallScore; // Legacy field
+              token.lastCalculated = new Date().toISOString();
+              
+              successCount++;
+              
+              // Log progress every 50 tokens
+              if ((i + 1) % 50 === 0) {
+                console.log(`[🛡️ Admin] 📈 Progress: ${i + 1}/${rawTokens.length} tokens processed`);
+              }
+            } else {
+              console.log(`[🛡️ Admin] ⚠️ Skipping ${token.symbol} - missing Jupiter data`);
+            }
+            
+          } catch (error) {
+            errorCount++;
+            const errorMsg = `${token.symbol}: ${error.message}`;
+            errors.push(errorMsg);
+            console.error(`[🛡️ Admin] ❌ Error recalculating ${token.symbol}:`, error.message);
+          }
+        }
+        
+        // Save updated tokens back to cache
+        try {
+          await fs.writeFile(tokensPath, JSON.stringify(rawTokens, null, 2));
+          console.log('[🛡️ Admin] 💾 Updated token cache saved successfully');
+        } catch (saveError) {
+          console.error('[🛡️ Admin] ❌ Error saving updated cache:', saveError);
+          return res.status(500).json({ error: 'Failed to save updated scores' });
+        }
+        
+        const summary = {
+          success: true,
+          message: 'Score recalculation completed',
+          stats: {
+            totalTokens: rawTokens.length,
+            successfulRecalculations: successCount,
+            errors: errorCount,
+            skipped: rawTokens.length - successCount - errorCount
+          },
+          errors: errors.slice(0, 10) // Show first 10 errors if any
+        };
+        
+        console.log(`[🛡️ Admin] ✅ RECALCULATION COMPLETE: ${successCount}/${rawTokens.length} successful`);
+        
+        res.json(summary);
+        
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Error during score recalculation:', error);
+        res.status(500).json({ error: 'Failed to recalculate scores' });
       }
     });
 
@@ -1252,23 +1432,100 @@ class EnhancedBackend {
       const data = await fs.readFile(fueledTokensPath, 'utf8');
       const fueledTokens = JSON.parse(data);
 
-      // Filter out expired tokens
+      // Filter out expired tokens and handle stacked fuel applications
       const now = Date.now();
-      const activeFueledTokens = fueledTokens.filter(token => {
-        const expiryTime = new Date(token.fuelExpiry).getTime();
-        return expiryTime > now;
-      });
+      const activeFueledTokens = [];
+      const expiredTokens = []; // Track tokens that need recalculation
+      let hasChanges = false;
 
-      // Update the file if we removed expired tokens
-      if (activeFueledTokens.length !== fueledTokens.length) {
+      for (const token of fueledTokens) {
+        if (token.fuelApplications && Array.isArray(token.fuelApplications)) {
+          // Handle stacked fuel - remove expired individual applications
+          const activeApplications = token.fuelApplications.filter(app => {
+            const expiryTime = new Date(app.expiresAt).getTime();
+            return expiryTime > now;
+          });
+
+          if (activeApplications.length > 0) {
+            // Recalculate stacked values with remaining active applications
+            const totalFuelValue = activeApplications.reduce((total, app) => {
+              const fuelValue = parseInt(app.fuelType.replace('x', ''));
+              return total + fuelValue;
+            }, 0);
+
+            const totalBoostMultiplier = activeApplications.reduce((total, app) => {
+              return total + (app.boostMultiplier - 1);
+            }, 1);
+
+            // Find the latest expiry time among active applications
+            const latestExpiry = Math.max(...activeApplications.map(app => new Date(app.expiresAt).getTime()));
+
+            // Update token with recalculated stacked values
+            const updatedToken = {
+              ...token,
+              fuelType: `${totalFuelValue}x`,
+              boostMultiplier: totalBoostMultiplier,
+              fuelExpiry: new Date(latestExpiry).toISOString(),
+              fuelApplications: activeApplications,
+              remainingTime: latestExpiry - now
+            };
+
+            activeFueledTokens.push(updatedToken);
+
+            // Mark as changed if we removed expired applications
+            if (activeApplications.length !== token.fuelApplications.length) {
+              hasChanges = true;
+              // If some applications expired but token still has fuel, trigger recalculation
+              expiredTokens.push({
+                contractAddress: token.contractAddress,
+                symbol: token.symbol,
+                reason: 'partial_fuel_expiry'
+              });
+            }
+          } else {
+            // All applications expired, remove token entirely
+            hasChanges = true;
+            expiredTokens.push({
+              contractAddress: token.contractAddress,
+              symbol: token.symbol,
+              reason: 'complete_fuel_expiry'
+            });
+          }
+        } else {
+          // Handle legacy format (single fuel application)
+          const expiryTime = new Date(token.fuelExpiry).getTime();
+          if (expiryTime > now) {
+            activeFueledTokens.push({
+              ...token,
+              remainingTime: expiryTime - now
+            });
+          } else {
+            hasChanges = true;
+            expiredTokens.push({
+              contractAddress: token.contractAddress,
+              symbol: token.symbol,
+              reason: 'legacy_fuel_expiry'
+            });
+          }
+        }
+      }
+
+      // Update the file if we removed expired tokens or applications
+      if (hasChanges) {
         await fs.writeFile(fueledTokensPath, JSON.stringify(activeFueledTokens, null, 2));
       }
 
-      // Calculate remaining time for each token
-      return activeFueledTokens.map(token => ({
-        ...token,
-        remainingTime: new Date(token.fuelExpiry).getTime() - now
-      }));
+      // Recalculate scores for tokens with expired fuel (background process)
+      if (expiredTokens.length > 0) {
+        console.log(`[🛡️ Enhanced Backend] 🔄 Triggering recalculation for ${expiredTokens.length} tokens with expired fuel...`);
+        
+        // Process recalculations in the background to avoid blocking the response
+        setImmediate(async () => {
+          await this.recalculateExpiredFuelTokens(expiredTokens);
+        });
+      }
+
+      return activeFueledTokens;
 
     } catch (error) {
       console.error('[🛡️ Enhanced Backend] ❌ Error getting fueled tokens:', error);
@@ -1299,12 +1556,12 @@ class EnhancedBackend {
         ft.contractAddress && ft.contractAddress.toLowerCase() === contractAddress.toLowerCase()
       );
 
-      // Fuel configuration
+      // Fuel configuration (very subtle multipliers for balanced scoring)
       const fuelConfig = {
-        '10x': { boost: 0.15, duration: 12 * 60 * 60 * 1000 }, // 12 hours
-        '50x': { boost: 0.25, duration: 12 * 60 * 60 * 1000 },
-        '500x': { boost: 0.35, duration: 12 * 60 * 60 * 1000 },
-        '1000x': { boost: 0.45, duration: 12 * 60 * 60 * 1000 }
+        '10x': { boost: 0.02, duration: 12 * 60 * 60 * 1000 }, // 12 hours, 1.02x multiplier (2% boost)
+        '50x': { boost: 0.04, duration: 12 * 60 * 60 * 1000 }, // 1.04x multiplier (4% boost)
+        '500x': { boost: 0.06, duration: 12 * 60 * 60 * 1000 }, // 1.06x multiplier (6% boost)
+        '1000x': { boost: 0.08, duration: 12 * 60 * 60 * 1000 } // 1.08x multiplier (8% boost)
       };
 
       const config = fuelConfig[fuelType];
@@ -1312,14 +1569,46 @@ class EnhancedBackend {
       const expiryTime = new Date(now.getTime() + config.duration);
 
       if (existingFueledToken) {
-        // Update existing fueled token
-        existingFueledToken.fuelType = fuelType;
-        existingFueledToken.boostMultiplier = 1 + config.boost;
-        existingFueledToken.fuelApplied = now.toISOString();
-        existingFueledToken.fuelExpiry = expiryTime.toISOString();
+        // Stack fuel on existing fueled token
+        if (!existingFueledToken.fuelApplications) {
+          // Convert old format to new stacking format
+          existingFueledToken.fuelApplications = [{
+            fuelType: existingFueledToken.fuelType,
+            boostMultiplier: existingFueledToken.boostMultiplier,
+            appliedAt: existingFueledToken.fuelApplied,
+            expiresAt: existingFueledToken.fuelExpiry
+          }];
+        }
+        
+        // Add new fuel application to the stack
+        existingFueledToken.fuelApplications.push({
+          fuelType: fuelType,
+          boostMultiplier: 1 + config.boost,
+          appliedAt: now.toISOString(),
+          expiresAt: expiryTime.toISOString()
+        });
+        
+        // Calculate total stacked fuel
+        const totalFuelValue = existingFueledToken.fuelApplications.reduce((total, app) => {
+          const fuelValue = parseInt(app.fuelType.replace('x', ''));
+          return total + fuelValue;
+        }, 0);
+        
+        // Calculate total boost multiplier (additive)
+        const totalBoostMultiplier = existingFueledToken.fuelApplications.reduce((total, app) => {
+          return total + (app.boostMultiplier - 1); // Subtract 1 to get just the boost part
+        }, 1); // Start with 1 (no boost)
+        
+        // Update main fields with stacked values
+        existingFueledToken.fuelType = `${totalFuelValue}x`;
+        existingFueledToken.boostMultiplier = totalBoostMultiplier;
+        existingFueledToken.fuelApplied = now.toISOString(); // Latest application time
+        existingFueledToken.fuelExpiry = expiryTime.toISOString(); // Latest expiry time
         existingFueledToken.originalScore = existingToken.overallScore || existingToken.score || 0;
+        
+        console.log(`[🛡️ Enhanced Backend] 🔥 Stacked fuel: ${fuelType} + existing = ${totalFuelValue}x (${totalBoostMultiplier.toFixed(2)}x multiplier)`);
       } else {
-        // Add new fueled token
+        // Add new fueled token with stacking structure
         const newFueledToken = {
           contractAddress: contractAddress,
           symbol: existingToken.symbol,
@@ -1328,9 +1617,17 @@ class EnhancedBackend {
           boostMultiplier: 1 + config.boost,
           originalScore: existingToken.overallScore || existingToken.score || 0,
           fuelApplied: now.toISOString(),
-          fuelExpiry: expiryTime.toISOString()
+          fuelExpiry: expiryTime.toISOString(),
+          fuelApplications: [{
+            fuelType: fuelType,
+            boostMultiplier: 1 + config.boost,
+            appliedAt: now.toISOString(),
+            expiresAt: expiryTime.toISOString()
+          }]
         };
         fueledTokens.push(newFueledToken);
+        
+        console.log(`[🛡️ Enhanced Backend] 🔥 New fuel applied: ${fuelType} (${(1 + config.boost).toFixed(2)}x multiplier)`);
       }
 
       // Save fueled tokens
@@ -1348,10 +1645,46 @@ class EnhancedBackend {
 
       console.log(`[🛡️ Enhanced Backend] 🔥 Fuel ${fuelType} applied to ${existingToken.symbol} (${contractAddress})`);
 
+      // Immediately recalculate token with fresh Jupiter data (but keep existing Twitter data)
+      console.log(`[🛡️ Enhanced Backend] 🔄 Triggering immediate recalculation for fueled token ${existingToken.symbol}...`);
+      
+      try {
+        // Refresh Jupiter data for this specific token
+        const freshJupiterData = await this.tokenProcessor.jupiterService.getTokenData(contractAddress);
+        
+        if (freshJupiterData) {
+          // Update the token with fresh Jupiter data
+          existingToken.jupiterData = freshJupiterData;
+          existingToken.jupiterTimestamp = new Date().toISOString();
+          
+          // Recalculate overall score using existing Twitter data (respecting 24hr rule)
+          const newOverallScore = await this.tokenProcessor.calculateEnhancedOverallScore(existingToken);
+          
+          // Update the token's score
+          existingToken.overallScore = newOverallScore;
+          existingToken.score = newOverallScore; // Keep both for compatibility
+          existingToken.lastCalculated = new Date().toISOString();
+          
+          // Save updated tokens to cache
+          await this.saveTokensToCache(tokens);
+          
+          console.log(`[🛡️ Enhanced Backend] ✅ Token ${existingToken.symbol} recalculated: ${newOverallScore.toFixed(2)} (fresh Jupiter data, existing Twitter data)`);
+        } else {
+          console.log(`[🛡️ Enhanced Backend] ⚠️ Could not fetch fresh Jupiter data for ${existingToken.symbol}, using existing data`);
+        }
+      } catch (recalcError) {
+        console.error(`[🛡️ Enhanced Backend] ❌ Error recalculating fueled token ${existingToken.symbol}:`, recalcError);
+        // Don't fail the fuel application if recalculation fails
+      }
+
+      // Get the updated fueled token to show current stacked values
+      const updatedFueledToken = existingFueledToken || fueledTokens[fueledTokens.length - 1];
+      const currentFuelDisplay = updatedFueledToken.fuelType;
+      
       return {
         success: true,
-        message: `Fuel ${fuelType} applied successfully to ${existingToken.symbol}! Boost will last 12 hours.`,
-        token: existingFueledToken || fueledTokens[fueledTokens.length - 1]
+        message: `Fuel ${fuelType} applied successfully to ${existingToken.symbol}! Total fuel: ${currentFuelDisplay}. Boost will last 12 hours.`,
+        token: updatedFueledToken
       };
 
     } catch (error) {
@@ -1360,6 +1693,150 @@ class EnhancedBackend {
         success: false,
         error: 'Internal server error while applying fuel'
       };
+    }
+  }
+
+  async removeFuelFromToken(contractAddress) {
+    try {
+      // Load current fueled tokens
+      const fueledTokens = await this.getFueledTokens();
+      
+      // Find the fueled token to remove
+      const fueledTokenIndex = fueledTokens.findIndex(ft => 
+        ft.contractAddress && ft.contractAddress.toLowerCase() === contractAddress.toLowerCase()
+      );
+
+      if (fueledTokenIndex === -1) {
+        return {
+          success: false,
+          error: 'Token is not currently fueled or fuel has already expired.'
+        };
+      }
+
+      const fueledToken = fueledTokens[fueledTokenIndex];
+      
+      // Remove the fueled token from the array
+      fueledTokens.splice(fueledTokenIndex, 1);
+
+      // Save updated fueled tokens
+      const fueledTokensPath = path.join(__dirname, 'cache', 'fueled-tokens.json');
+      
+      // Ensure cache directory exists
+      const cacheDir = path.dirname(fueledTokensPath);
+      try {
+        await fs.access(cacheDir);
+      } catch {
+        await fs.mkdir(cacheDir, { recursive: true });
+      }
+
+      await fs.writeFile(fueledTokensPath, JSON.stringify(fueledTokens, null, 2));
+
+      console.log(`[🛡️ Enhanced Backend] 🗑️ Fuel removed from ${fueledToken.symbol} (${contractAddress})`);
+
+      // Optionally recalculate the token's score without fuel boost
+      try {
+        const tokens = await this.getTokensFromCache();
+        const existingToken = tokens.find(t => 
+          t.contractAddress && t.contractAddress.toLowerCase() === contractAddress.toLowerCase()
+        );
+
+        if (existingToken) {
+          console.log(`[🛡️ Enhanced Backend] 🔄 Recalculating ${existingToken.symbol} without fuel boost...`);
+          
+          // Refresh Jupiter data and recalculate score
+          const freshJupiterData = await this.tokenProcessor.jupiterService.getTokenData(contractAddress);
+          
+          if (freshJupiterData) {
+            existingToken.jupiterData = freshJupiterData;
+            existingToken.jupiterTimestamp = new Date().toISOString();
+          }
+          
+          // Recalculate overall score without fuel boost
+          const newOverallScore = await this.tokenProcessor.calculateEnhancedOverallScore(existingToken);
+          
+          existingToken.overallScore = newOverallScore;
+          existingToken.score = newOverallScore;
+          existingToken.lastCalculated = new Date().toISOString();
+          
+          // Save updated tokens to cache
+          await this.saveTokensToCache(tokens);
+          
+          console.log(`[🛡️ Enhanced Backend] ✅ Token ${existingToken.symbol} recalculated without fuel: ${newOverallScore.toFixed(2)}`);
+        }
+      } catch (recalcError) {
+        console.error(`[🛡️ Enhanced Backend] ❌ Error recalculating token after fuel removal:`, recalcError);
+        // Don't fail the fuel removal if recalculation fails
+      }
+
+      return {
+        success: true,
+        message: `Fuel removed successfully from ${fueledToken.symbol}! Token score has been recalculated without fuel boost.`
+      };
+
+    } catch (error) {
+      console.error('[🛡️ Enhanced Backend] ❌ Error removing fuel:', error);
+      return {
+        success: false,
+        error: 'Internal server error while removing fuel'
+      };
+    }
+  }
+
+  async recalculateExpiredFuelTokens(expiredTokens) {
+    try {
+      console.log(`[🛡️ Enhanced Backend] 🔄 Recalculating ${expiredTokens.length} tokens with expired fuel...`);
+      
+      // Load current tokens from cache
+      const tokens = await this.getTokensFromCache();
+      let updatedCount = 0;
+      
+      for (const expiredToken of expiredTokens) {
+        try {
+          // Find the token in the main cache
+          const existingToken = tokens.find(t => 
+            t.contractAddress && t.contractAddress.toLowerCase() === expiredToken.contractAddress.toLowerCase()
+          );
+
+          if (existingToken) {
+            console.log(`[🛡️ Enhanced Backend] 🔄 Recalculating ${expiredToken.symbol} (${expiredToken.reason})...`);
+            
+            // Refresh Jupiter data
+            const freshJupiterData = await this.tokenProcessor.jupiterService.getTokenData(expiredToken.contractAddress);
+            
+            if (freshJupiterData) {
+              existingToken.jupiterData = freshJupiterData;
+              existingToken.jupiterTimestamp = new Date().toISOString();
+            }
+            
+            // Recalculate overall score without fuel boost
+            const newOverallScore = await this.tokenProcessor.calculateEnhancedOverallScore(existingToken);
+            
+            existingToken.overallScore = newOverallScore;
+            existingToken.score = newOverallScore;
+            existingToken.lastCalculated = new Date().toISOString();
+            
+            console.log(`[🛡️ Enhanced Backend] ✅ ${expiredToken.symbol} recalculated: ${newOverallScore.toFixed(2)} (fuel expired)`);
+            updatedCount++;
+            
+            // Small delay to avoid overwhelming the system
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+          } else {
+            console.log(`[🛡️ Enhanced Backend] ⚠️ Token ${expiredToken.symbol} not found in main cache`);
+          }
+        } catch (tokenError) {
+          console.error(`[🛡️ Enhanced Backend] ❌ Error recalculating ${expiredToken.symbol}:`, tokenError);
+        }
+      }
+      
+      // Save updated tokens to cache if any were updated
+      if (updatedCount > 0) {
+        await this.saveTokensToCache(tokens);
+        console.log(`[🛡️ Enhanced Backend] ✅ Successfully recalculated ${updatedCount}/${expiredTokens.length} tokens with expired fuel`);
+      }
+      
+    } catch (error) {
+      console.error('[🛡️ Enhanced Backend] ❌ Error in bulk fuel expiry recalculation:', error);
     }
   }
 

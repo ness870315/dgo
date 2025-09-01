@@ -108,16 +108,8 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
           .attr('stroke-width', 4)
           .style('filter', 'drop-shadow(0 0 15px rgba(255, 69, 0, 0.8))');
         
-        // Add fire icon right after the token name
-        bubble.append('text')
-          .attr('class', 'fire-icon')
-          .attr('x', radiusScale(d.score || d.overallScore || 5) * 0.4)
-          .attr('y', 0)
-          .attr('text-anchor', 'start')
-          .style('font-size', '14px')
-          .style('pointer-events', 'none')
-          .style('fill', '#FF4500')
-          .text('🔥');
+        // Mark this token as fueled so we can add the fire icon after text is rendered
+        d.isFueled = true;
       }
     });
     
@@ -173,17 +165,15 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
           return `$${numPrice.toExponential(2)}`;
         };
         
-        // Get risk level and color based on score
-        const getRiskLevel = (score) => {
-          if (score >= 8) return { level: 'Strong', color: '#22c55e' };
-          if (score >= 6) return { level: 'Good', color: '#84cc16' };
-          if (score >= 4) return { level: 'Moderate', color: '#eab308' };
-          if (score >= 2) return { level: 'Weak', color: '#f97316' };
-          if (score >= 1) return { level: 'Poor', color: '#ef4444' };
-          return { level: 'Risky', color: '#9333ea' };
+        // Get hype level and color based on score
+        const getHypeLevel = (score) => {
+          if (!score || score >= 8) return { level: 'VIRAL', color: '#a855f7', icon: '🚀' };
+          if (score >= 6) return { level: 'TRENDING', color: '#f97316', icon: '🔥' };
+          if (score >= 4) return { level: 'BUILDING', color: '#3b82f6', icon: '📈' };
+          return { level: 'SLEEPING', color: '#6b7280', icon: '😴' };
         };
-        
-        const riskData = getRiskLevel(d.score || d.overallScore || 0);
+
+        const hypeData = getHypeLevel(d.score || d.overallScore || 0);
         
         // Position tooltip closer to the bubble using SVG coordinates
         const svgRect = svg.node().getBoundingClientRect();
@@ -221,12 +211,12 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
             <div class="text-xs text-gray-300">${d.name || d.symbol}</div>
             <div class="text-sm mt-1 flex items-center">
               <span>Score: ${(d.score || d.overallScore) ? (d.score || d.overallScore).toFixed(2) : 'N/A'}</span>
-              <span class="ml-2 px-2 py-0.5 rounded text-xs font-medium" style="background-color: ${riskData.color}20; color: ${riskData.color}; border: 1px solid ${riskData.color}40;">
-                ${riskData.level}
+              <span class="ml-2 px-2 py-0.5 rounded text-xs font-medium" style="background-color: ${hypeData.color}20; color: ${hypeData.color}; border: 1px solid ${hypeData.color}40;">
+                ${hypeData.icon} ${hypeData.level}
               </span>
             </div>
-            <div class="text-sm">Market Cap: ${formatMarketCap(d.marketCap || 0)}</div>
-            <div class="text-sm">Price: ${formatPrice(d.currentPrice || 0)}</div>
+            <div class="text-sm">Market Cap: ${formatMarketCap(d.jupiterData?.mcap || d.marketCap || 0)}</div>
+            <div class="text-sm">Price: ${formatPrice(d.currentPrice || d.price || 0)}</div>
             <div class="text-sm">Mentions: ${d.mentions}</div>
             <div class="text-sm">Community: ${d.communityScore ? d.communityScore.toFixed(1) : 'N/A'}/10</div>
           `);
@@ -324,7 +314,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
       );
 
     // Add text labels
-    bubbles.append('text')
+    const textLabels = bubbles.append('text')
       .attr('text-anchor', 'middle')
       .attr('dy', '.3em')
       .style('fill', 'white')
@@ -332,6 +322,58 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
       .style('font-weight', 'bold')
       .style('pointer-events', 'none')
       .text(d => d.symbol);
+
+    // Add fire icons for fueled tokens after text is rendered
+    bubbles.each(function(d) {
+      if (d.isFueled) {
+        const bubble = d3.select(this);
+        const textElement = bubble.select('text');
+        
+        // Get the actual text dimensions and bubble radius
+        const textBBox = textElement.node().getBBox();
+        const bubbleRadius = radiusScale(d.score || d.overallScore || 5);
+        const fontSize = Math.min(bubbleRadius / 3, 14);
+        const fireIconSize = Math.max(fontSize * 0.8, 10);
+        
+        // Calculate if fire icon would fit next to the text within bubble bounds
+        const textRightEdge = textBBox.width / 2 + 3; // Text right edge + gap
+        const fireIconWidth = fireIconSize * 0.6; // Approximate fire emoji width
+        const totalWidthNeeded = textRightEdge + fireIconWidth;
+        
+        // Check if the fire icon would exceed bubble bounds (with some padding)
+        const bubblePadding = 5; // Safety margin
+        const fitsHorizontally = totalWidthNeeded <= (bubbleRadius - bubblePadding);
+        
+        let fireX, fireY, fireDy, fireAnchor;
+        
+        if (fitsHorizontally) {
+          // Position fire icon to the right of token name (original behavior)
+          fireX = textBBox.width / 2 + 3;
+          fireY = 0;
+          fireDy = '.3em'; // Match token name vertical alignment
+          fireAnchor = 'start';
+        } else {
+          // Position fire icon below token name (new behavior for small bubbles)
+          fireX = 0; // Center horizontally
+          fireY = textBBox.height / 2 + 2; // Position below text with small gap
+          fireDy = '.3em';
+          fireAnchor = 'middle';
+        }
+        
+        // Add fire icon with dynamic positioning
+        bubble.append('text')
+          .attr('class', 'fire-icon')
+          .attr('x', fireX)
+          .attr('y', fireY)
+          .attr('dy', fireDy)
+          .attr('text-anchor', fireAnchor)
+          .style('font-size', fireIconSize + 'px')
+          .style('pointer-events', 'none')
+          .style('fill', '#FF4500')
+          .style('filter', 'drop-shadow(0 0 3px rgba(255, 69, 0, 0.8))')
+          .text('🔥');
+      }
+    });
     
     // Add subtle pulse animation for high-score tokens (score >= 6)
     bubbles.selectAll('circle')

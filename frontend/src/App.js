@@ -207,6 +207,11 @@ function App() {
     enableRiskDetection: true,
     refreshInterval: 5
   });
+
+  // Helper function to get market cap from the correct source (Jupiter first, fallback to legacy)
+  const getMarketCap = (token) => {
+    return token?.jupiterData?.mcap || token?.marketCap || 0;
+  };
   const [filters, setFilters] = useState({
     minScore: 0,
     maxScore: 10,
@@ -215,7 +220,8 @@ function App() {
     sortBy: 'score'
   });
   const [categoryFilters, setCategoryFilters] = useState({
-    trending: true, // Default to trending (top 50) - FIRST
+    trending: true, // Default to new trending (score >7 + volume) - FIRST
+    cults: false, // Renamed from old trending (established coins)
     highCap: false,
     midCap: false,
     smallCap: false,
@@ -230,51 +236,87 @@ function App() {
     
     // Since filters are mutually exclusive, find which one is active
     if (categories.trending) {
-      // Create a Set of fueled token symbols for efficient lookup
+      // NEW TRENDING: Score >=6 with 60% score + 40% volume weighting + hidden market cap ≤$10M
       const fueledSymbols = new Set(fueledTokens?.map(fuel => fuel.symbol) || []);
-      console.log('🔥 Fuel Token Debug: fueledSymbols Set:', Array.from(fueledSymbols));
       
-      // First, separate fueled tokens from regular tokens
-      const fueledTokensList = tokenData.filter(token => 
-        (token.marketCap || 0) >= 10000 && // ≥$10K market cap (minimum for trending)
-        (token.score || token.overallScore || 0) >= 3.0 && // ≥3.0 score (balanced threshold)
-        fueledSymbols.has(token.symbol) // Is fueled
+      // Filter tokens with score >=6 AND market cap ≤$10M (hidden filter)
+      const highScoreTokens = tokenData.filter(token =>
+        (token.score || token.overallScore || 0) >= 6.0 && // Score >=6
+        getMarketCap(token) <= 10000000 // Market cap ≤$10M (hidden filter)
       );
       
-      const regularTokens = tokenData.filter(token => 
-        (token.marketCap || 0) >= 10000 && // ≥$10K market cap (minimum for trending)
-        (token.score || token.overallScore || 0) >= 3.0 && // ≥3.0 score (balanced threshold)
-        !fueledSymbols.has(token.symbol) // Not fueled
-      );
+      // Separate fueled and regular tokens
+      const fueledTokensList = highScoreTokens.filter(token => fueledSymbols.has(token.symbol));
+      const regularTokens = highScoreTokens.filter(token => !fueledSymbols.has(token.symbol));
       
-      console.log('🔥 Fuel Token Debug: fueledTokensList count:', fueledTokensList.length);
-      console.log('🔥 Fuel Token Debug: regularTokens count:', regularTokens.length);
-      
-      // Sort fueled tokens by combined score (they get priority)
+      // Sort by NEW formula: 60% score + 40% volume
       const sortedFueledTokens = fueledTokensList.sort((a, b) => {
-        const scoreA = (a.score || a.overallScore || 0) * 0.6 + Math.log10((a.marketCap || 1) + 1) * 0.3 + Math.log10((a.volume24h || 1) + 1) * 0.1;
-        const scoreB = (b.score || b.overallScore || 0) * 0.6 + Math.log10((b.marketCap || 1) + 1) * 0.3 + Math.log10((b.volume24h || 1) + 1) * 0.1;
+        const volume24hA = ((a.jupiterData?.stats24h?.buyVolume || 0) + (a.jupiterData?.stats24h?.sellVolume || 0)) || a.volume24h || 1;
+        const volume24hB = ((b.jupiterData?.stats24h?.buyVolume || 0) + (b.jupiterData?.stats24h?.sellVolume || 0)) || b.volume24h || 1;
+        const scoreA = (a.score || a.overallScore || 0) * 0.6 + Math.log10(volume24hA + 1) * 0.4;
+        const scoreB = (b.score || b.overallScore || 0) * 0.6 + Math.log10(volume24hB + 1) * 0.4;
         return scoreB - scoreA;
       });
       
-      // Sort regular tokens by combined score
       const sortedRegularTokens = regularTokens.sort((a, b) => {
-        const scoreA = (a.score || a.overallScore || 0) * 0.6 + Math.log10((a.marketCap || 1) + 1) * 0.3 + Math.log10((a.volume24h || 1) + 1) * 0.1;
-        const scoreB = (b.score || b.overallScore || 0) * 0.6 + Math.log10((b.marketCap || 1) + 1) * 0.3 + Math.log10((b.volume24h || 1) + 1) * 0.1;
+        const volume24hA = ((a.jupiterData?.stats24h?.buyVolume || 0) + (a.jupiterData?.stats24h?.sellVolume || 0)) || a.volume24h || 1;
+        const volume24hB = ((b.jupiterData?.stats24h?.buyVolume || 0) + (b.jupiterData?.stats24h?.sellVolume || 0)) || b.volume24h || 1;
+        const scoreA = (a.score || a.overallScore || 0) * 0.6 + Math.log10(volume24hA + 1) * 0.4;
+        const scoreB = (b.score || b.overallScore || 0) * 0.6 + Math.log10(volume24hB + 1) * 0.4;
         return scoreB - scoreA;
       });
       
       // Combine: fueled tokens first, then regular tokens, total 50
       const trendingTokens = [...sortedFueledTokens, ...sortedRegularTokens].slice(0, 50);
       
-      console.log(`🔥 Trending filter: Showing top 50 tokens (${sortedFueledTokens.length} fueled + ${Math.min(sortedRegularTokens.length, 50 - sortedFueledTokens.length)} regular) with score ≥3.0 and market cap ≥$10K (balanced approach)`);
+      console.log(`🚀 NEW Trending filter: Showing top 50 tokens with score >=6.0 + market cap ≤$10M (60% score + 40% volume weighting)`);
+      console.log(`   Found ${highScoreTokens.length} tokens with score >=6 and market cap ≤$10M (${sortedFueledTokens.length} fueled + ${Math.min(sortedRegularTokens.length, 50 - sortedFueledTokens.length)} regular), showing top 50`);
       console.log('Category filtering result:', trendingTokens.length, 'tokens out of', tokenData.length);
       return trendingTokens;
     }
     
+    if (categories.cults) {
+      // CULTS (formerly trending): Established coins with high market cap + score ≥3.0
+      const fueledSymbols = new Set(fueledTokens?.map(fuel => fuel.symbol) || []);
+      
+      // First, separate fueled tokens from regular tokens
+      const fueledTokensList = tokenData.filter(token => 
+        getMarketCap(token) >= 1000000 && // ≥$1M market cap (minimum for cults)
+        (token.score || token.overallScore || 0) >= 3.0 && // ≥3.0 score (balanced threshold)
+        fueledSymbols.has(token.symbol) // Is fueled
+      );
+      
+      const regularTokens = tokenData.filter(token => 
+        getMarketCap(token) >= 1000000 && // ≥$1M market cap (minimum for cults)
+        (token.score || token.overallScore || 0) >= 3.0 && // ≥3.0 score (balanced threshold)
+        !fueledSymbols.has(token.symbol) // Not fueled
+      );
+      
+      // Sort fueled tokens by combined score (they get priority)
+      const sortedFueledTokens = fueledTokensList.sort((a, b) => {
+        const scoreA = (a.score || a.overallScore || 0) * 0.6 + Math.log10(getMarketCap(a) + 1) * 0.3 + Math.log10((a.volume24h || 1) + 1) * 0.1;
+        const scoreB = (b.score || b.overallScore || 0) * 0.6 + Math.log10(getMarketCap(b) + 1) * 0.3 + Math.log10((b.volume24h || 1) + 1) * 0.1;
+        return scoreB - scoreA;
+      });
+      
+      // Sort regular tokens by combined score
+      const sortedRegularTokens = regularTokens.sort((a, b) => {
+        const scoreA = (a.score || a.overallScore || 0) * 0.6 + Math.log10(getMarketCap(a) + 1) * 0.3 + Math.log10((a.volume24h || 1) + 1) * 0.1;
+        const scoreB = (b.score || b.overallScore || 0) * 0.6 + Math.log10(getMarketCap(b) + 1) * 0.3 + Math.log10((b.volume24h || 1) + 1) * 0.1;
+        return scoreB - scoreA;
+      });
+      
+      // Combine: fueled tokens first, then regular tokens, total 50
+      const cultsTokens = [...sortedFueledTokens, ...sortedRegularTokens].slice(0, 50);
+      
+      console.log(`🏛️ Cults filter: Showing top 50 established tokens (${sortedFueledTokens.length} fueled + ${Math.min(sortedRegularTokens.length, 50 - sortedFueledTokens.length)} regular) with score ≥3.0 and market cap ≥$1M`);
+      console.log('Category filtering result:', cultsTokens.length, 'tokens out of', tokenData.length);
+      return cultsTokens;
+    }
+    
     if (categories.highCap) {
       const highCapTokens = tokenData.filter(token => {
-        const marketCap = token.marketCap || 0;
+        const marketCap = getMarketCap(token);
         return marketCap >= 100000000; // ≥$100M
       });
       console.log('High Cap filter: Showing tokens ≥$100M market cap');
@@ -284,7 +326,7 @@ function App() {
     
     if (categories.midCap) {
       const midCapTokens = tokenData.filter(token => {
-        const marketCap = token.marketCap || 0;
+        const marketCap = getMarketCap(token);
         return marketCap >= 5000000 && marketCap <= 10000000; // ≥$5M to ≤$10M
       });
       console.log('Mid Cap filter: Showing tokens ≥$5M to ≤$10M market cap');
@@ -294,7 +336,7 @@ function App() {
     
     if (categories.smallCap) {
       const smallCapTokens = tokenData.filter(token => {
-        const marketCap = token.marketCap || 0;
+        const marketCap = getMarketCap(token);
         return marketCap > 500000 && marketCap < 5000000; // >$500K to <$5M
       });
       console.log('Small Cap filter: Showing tokens >$500K to <$5M market cap');
@@ -304,7 +346,7 @@ function App() {
     
     if (categories.microCap) {
       const microCapTokens = tokenData.filter(token => {
-        const marketCap = token.marketCap || 0;
+        const marketCap = getMarketCap(token);
         return marketCap >= 30000 && marketCap <= 500000; // $30K to $500K
       });
       console.log('Micro Cap filter: Showing tokens $30K to $500K market cap');
@@ -329,7 +371,7 @@ function App() {
     // Fallback to trending if no filter is active (should not happen)
     console.log('No filter active, defaulting to trending');
     return tokenData
-              .filter(token => (token.marketCap || 0) >= 10000 && (token.score || token.overallScore || 0) >= 3.0)
+              .filter(token => getMarketCap(token) >= 10000 && (token.score || token.overallScore || 0) >= 3.0)
       .sort((a, b) => (b.score || b.overallScore || 0) - (a.score || a.overallScore || 0))
       .slice(0, 50);
   }, []);
@@ -527,7 +569,7 @@ function App() {
             const oldToken = tokens[index];
             return oldToken && (
               (newToken.score || newToken.overallScore) !== (oldToken.score || oldToken.overallScore) ||
-              newToken.currentPrice !== oldToken.currentPrice ||
+              (newToken.currentPrice || newToken.price || 0) !== (oldToken.currentPrice || oldToken.price || 0) ||
               newToken.volume24h !== oldToken.volume24h ||
               newToken.lastProcessed !== oldToken.lastProcessed
             );
@@ -840,7 +882,10 @@ function App() {
                 {/* Category Filters and Temperature Legend */}
                 <div className="flex items-center justify-between">
                   {/* Category Filters */}
-                  <CategoryFilters onFiltersChange={handleCategoryFiltersChange} />
+                  <CategoryFilters 
+                    onFiltersChange={handleCategoryFiltersChange} 
+                    currentFilters={categoryFilters} 
+                  />
                   
                   {/* Temperature Legend */}
                   <TemperatureLegend />

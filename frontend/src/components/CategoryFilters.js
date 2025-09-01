@@ -1,21 +1,26 @@
 import React, { useState } from 'react';
 
-const CategoryFilters = ({ onFiltersChange }) => {
-  const [categories, setCategories] = useState({
-    trending: true,   // Top 50 hype tokens (score ≥6.5, market cap ≥$50K) + fueled priority (DEFAULT) - FIRST
+const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
+  const [hoveredFilter, setHoveredFilter] = useState(null);
+
+  // Use the filters passed from parent (controlled component)
+  const categories = currentFilters || {
+    trending: true,   // NEW: Score >7 with 60% score + 40% volume (DEFAULT) - FIRST
+    cults: false,     // RENAMED: Established coins (score ≥3.0, market cap ≥$1M) - formerly trending
     highCap: false,   // ≥$100M market cap
     midCap: false,    // ≥$5M to ≤$10M market cap
     smallCap: false,  // >$500K to <$5M market cap
     microCap: false,  // $30K to $500K market cap
     volatile: false,  // High price changes
     stable: false     // Low price changes
-  });
+  };
 
   const handleCategoryToggle = (category) => {
     // Always switch to the clicked filter (even if it's already active)
     // This ensures the UI and data stay in sync
     const newCategories = {
       trending: false,
+      cults: false,
       highCap: false,
       midCap: false,
       smallCap: false,
@@ -25,40 +30,96 @@ const CategoryFilters = ({ onFiltersChange }) => {
       [category]: true // Enable only the clicked filter
     };
     
-    setCategories(newCategories);
     console.log('Category switched to:', category, newCategories);
     onFiltersChange(newCategories);
   };
 
+  const getTooltipContent = (key) => {
+    switch (key) {
+      case 'trending':
+        return {
+          title: '🔥 Trending',
+          description: 'Score ≥6 + Volume • Top 50 emerging ≤$10M'
+        };
+      case 'cults':
+        return {
+          title: '🏛️ Cults',
+          description: '≥$1M + Score ≥3 • Top 50 proven tokens'
+        };
+      case 'highCap':
+        return {
+          title: '🏦 High Cap',
+          description: 'MCap ≥$100M • Large tokens'
+        };
+      case 'midCap':
+        return {
+          title: '🏢 Mid Cap',
+          description: 'MCap $5M-$10M • Medium tokens'
+        };
+      case 'smallCap':
+        return {
+          title: '💎 Small Cap',
+          description: 'MCap $500K-$5M • Small tokens'
+        };
+      case 'microCap':
+        return {
+          title: '🔍 Micro Cap',
+          description: 'MCap $30K-$500K • Micro tokens'
+        };
+      case 'volatile':
+        return {
+          title: '⚡ Volatile',
+          description: 'Price >5% change • High volatility'
+        };
+      case 'stable':
+        return {
+          title: '📈 Stable',
+          description: 'Price ≤5% change • Low volatility'
+        };
+      default:
+        return { title: key, description: '' };
+    }
+  };
+
   return (
-    <div className="flex items-center space-x-2">
+    <div className="flex items-center space-x-2 relative">
       <span className="text-sm text-gray-400 mr-2">Categories:</span>
-      {Object.entries(categories).map(([key, value]) => (
-        <button
-          key={key}
-          onClick={() => handleCategoryToggle(key)}
-          className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-            value
-              ? 'bg-solana-purple text-white'
-              : 'bg-dark-bg text-gray-400 hover:text-white border border-gray-600'
-          }`}
-          title={`Show ${key === 'trending' ? 'Trending (Score ≥6.0) - Top 50' :
-                        key === 'highCap' ? 'High Cap (≥$100M)' : 
-                        key === 'midCap' ? 'Mid Cap (≥$5M to ≤$10M)' : 
-                        key === 'smallCap' ? 'Small Cap (>$500K to <$5M)' : 
-                        key === 'microCap' ? 'Micro Cap ($30K to $500K)' : 
-                        key === 'volatile' ? 'Volatile (>5% change)' : 
-                        'Stable (≤5% change)'} tokens`}
-        >
-          {key === 'trending' && '🔥 Trending'}
-          {key === 'highCap' && '🏦 High Cap'}
-          {key === 'midCap' && '🏢 Mid Cap'}
-          {key === 'smallCap' && '💎 Small Cap'}
-          {key === 'microCap' && '🔍 Micro Cap'}
-          {key === 'volatile' && '⚡ Volatile'}
-          {key === 'stable' && '📈 Stable'}
-        </button>
-      ))}
+      {Object.entries(categories).map(([key, value]) => {
+        const tooltipContent = getTooltipContent(key);
+        return (
+          <div key={key} className="relative">
+            <button
+              onClick={() => handleCategoryToggle(key)}
+              onMouseEnter={() => setHoveredFilter(key)}
+              onMouseLeave={() => setHoveredFilter(null)}
+              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                value
+                  ? 'bg-solana-purple text-white'
+                  : 'bg-dark-bg text-gray-400 hover:text-white border border-gray-600'
+              }`}
+            >
+              {key === 'trending' && '🔥 Trending'}
+              {key === 'cults' && '🏛️ Cults'}
+              {key === 'highCap' && '🏦 High Cap'}
+              {key === 'midCap' && '🏢 Mid Cap'}
+              {key === 'smallCap' && '💎 Small Cap'}
+              {key === 'microCap' && '🔍 Micro Cap'}
+              {key === 'volatile' && '⚡ Volatile'}
+              {key === 'stable' && '📈 Stable'}
+            </button>
+
+            {/* Tooltip Modal (matching BubbleMap design) */}
+            {hoveredFilter === key && (
+              <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-50">
+                <div className="text-xs leading-tight">
+                  <span className="font-semibold text-white">{tooltipContent.title}:</span>
+                  <span className="text-gray-300 ml-1">{tooltipContent.description}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };

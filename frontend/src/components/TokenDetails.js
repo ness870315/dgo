@@ -1,8 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { X, Twitter, MessageCircle, ExternalLink, Star } from 'lucide-react';
+import { X, Twitter, MessageCircle, ExternalLink, Star, Flame } from 'lucide-react';
 
-const TokenDetails = ({ token, onClose }) => {
+const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
   const [isInWatchlist, setIsInWatchlist] = useState(false);
+  const [showFuelModal, setShowFuelModal] = useState(false);
+  const [selectedFuel, setSelectedFuel] = useState(null);
+  const [fuelLoading, setFuelLoading] = useState(false);
+  const [fuelMessage, setFuelMessage] = useState({ text: '', type: '' });
+
+  // Check if token is fueled and get fuel multiplier
+  const getFuelMultiplier = () => {
+    if (!token?.symbol || !fueledTokens?.length) return null;
+    
+    // Handle both array and wrapped object structure
+    const fueledArray = Array.isArray(fueledTokens) ? fueledTokens : (fueledTokens.value || []);
+    
+    const fueledToken = fueledArray.find(fuel => 
+      fuel.symbol?.toLowerCase() === token.symbol?.toLowerCase()
+    );
+    
+    if (fueledToken) {
+      // Extract multiplier from fuel type (e.g., "10x" -> "10x")
+      return fueledToken.fuelType || null;
+    }
+    
+    return null;
+  };
+
+  const fuelMultiplier = getFuelMultiplier();
 
   useEffect(() => {
     // Check if token is in watchlist on component mount
@@ -24,13 +49,73 @@ const TokenDetails = ({ token, onClose }) => {
       newWatchlist = [...watchlist, {
         symbol: token?.symbol,
         name: token?.name,
-        image: token?.image,
+        image: token?.jupiterData?.icon || token?.image,
+        jupiterData: token?.jupiterData, // Include full Jupiter data for future use
         contractAddress: token?.contractAddress
       }];
     }
 
     localStorage.setItem('watchlist', JSON.stringify(newWatchlist));
     setIsInWatchlist(!isInWatchlist);
+  };
+
+  // Fuel Token functionality
+  const fuelOptions = [
+    { type: '10x', icon: '🚀', boost: '15%', multiplier: 1.15 },
+    { type: '50x', icon: '🔥', boost: '25%', multiplier: 1.25 },
+    { type: '500x', icon: '⚡', boost: '35%', multiplier: 1.35 },
+    { type: '1000x', icon: '💎', boost: '50%', multiplier: 1.50 }
+  ];
+
+  const handleFuelClick = () => {
+    if (!token?.contractAddress) {
+      setFuelMessage({ text: 'No contract address available for this token', type: 'error' });
+      return;
+    }
+    setShowFuelModal(true);
+    setFuelMessage({ text: '', type: '' });
+  };
+
+  const handleApplyFuel = async () => {
+    if (!selectedFuel) {
+      setFuelMessage({ text: 'Please select a fuel type', type: 'error' });
+      return;
+    }
+
+    setFuelLoading(true);
+    setFuelMessage({ text: '', type: '' });
+
+    try {
+      const response = await fetch('http://localhost:4000/api/tokens/fuel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contractAddress: token.contractAddress,
+          fuelType: selectedFuel
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setFuelMessage({ text: `✅ ${result.message}`, type: 'success' });
+        setSelectedFuel(null);
+        // Close modal after 2 seconds
+        setTimeout(() => {
+          setShowFuelModal(false);
+          setFuelMessage({ text: '', type: '' });
+        }, 2000);
+      } else {
+        setFuelMessage({ text: `❌ ${result.error}`, type: 'error' });
+      }
+    } catch (error) {
+      console.error('Error applying fuel:', error);
+      setFuelMessage({ text: '❌ Failed to apply fuel. Please try again.', type: 'error' });
+    } finally {
+      setFuelLoading(false);
+    }
   };
 
   const formatNumber = (num) => {
@@ -56,15 +141,15 @@ const TokenDetails = ({ token, onClose }) => {
 
 
 
-  const getRiskLevel = (score) => {
-    if (!score || score >= 8) return { level: 'Low Risk', icon: '🟢', color: 'text-green-400' };
-    if (score >= 6) return { level: 'Medium Risk', icon: '🟡', color: 'text-yellow-400' };
-    if (score >= 4) return { level: 'High Risk', icon: '🟠', color: 'text-orange-400' };
-    return { level: 'Very High Risk', icon: '🔴', color: 'text-red-400' };
+  const getHypeLevel = (score) => {
+    if (!score || score >= 8) return { level: 'VIRAL', icon: '🚀', color: 'text-purple-400' };
+    if (score >= 6) return { level: 'TRENDING', icon: '🔥', color: 'text-orange-400' };
+    if (score >= 4) return { level: 'BUILDING', icon: '📈', color: 'text-blue-400' };
+    return { level: 'SLEEPING', icon: '😴', color: 'text-gray-400' };
   };
 
   const sentimentEmoji = getSentimentEmoji(token?.sentimentScore || 5);
-  const riskLevel = getRiskLevel(token?.score || token?.overallScore || 0);
+  const hypeLevel = getHypeLevel(token?.score || token?.overallScore || 0);
 
   function getSentimentEmoji(score) {
     if (score >= 8) return '😊';
@@ -76,24 +161,32 @@ const TokenDetails = ({ token, onClose }) => {
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2">
       <div className="bg-dark-bg border border-gray-700 rounded-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto">
-        {/* Header */}
+          {/* Header */}
         <div className="sticky top-0 bg-dark-bg border-b border-gray-700 p-3 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            {token?.image && (
-              <img src={token.image} alt={token.name} className="w-16 h-16 rounded-full border-2 border-blue-500" />
-            )}
-            <div>
-              <h2 className="text-xl font-bold text-white">{token?.name || 'Unknown Token'}</h2>
+            {(token?.image || token?.jupiterData?.icon) && (
+              <img src={token?.jupiterData?.icon || token?.image} alt={token.name} className="w-16 h-16 rounded-full border-2 border-blue-500" />
+              )}
+              <div>
+              <div className="flex items-center space-x-2">
+                <h2 className="text-xl font-bold text-white">{token?.name || 'Unknown Token'}</h2>
+                {fuelMultiplier && (
+                  <span className="px-1.5 py-0.5 bg-black border border-orange-500 text-orange-400 text-xs font-bold rounded flex items-center space-x-1">
+                    <span className="text-xs">🔥</span>
+                    <span>{fuelMultiplier}</span>
+                  </span>
+                )}
+              </div>
               <p className="text-gray-400">${token?.symbol || 'UNKNOWN'}</p>
               <div className="flex items-center space-x-2 mt-1">
                 <code className="text-xs text-gray-500 font-mono">
                   {token?.contractAddress ? 
                     `${token.contractAddress.slice(0, 8)}...${token.contractAddress.slice(-6)}` : 
                     'No Contract Address'
-                  }
-                </code>
+                      }
+                    </code>
                 {token?.contractAddress && (
-                  <button
+                    <button
                     onClick={(event) => {
                       navigator.clipboard.writeText(token.contractAddress);
                       const button = event.target;
@@ -104,42 +197,51 @@ const TokenDetails = ({ token, onClose }) => {
                       }, 2000);
                     }}
                     className="text-gray-500 hover:text-gray-300 transition-colors text-xs"
-                    title="Copy contract address"
-                  >
+                      title="Copy contract address"
+                    >
                     📋
-                  </button>
+                    </button>
                 )}
               </div>
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
-            {/* Watchlist Star */}
+            <div className="flex items-center space-x-2">
+            {/* Fuel Token Button */}
             <button
-              onClick={toggleWatchlist}
-              className={`p-2 rounded-lg transition-all duration-200 ${
-                isInWatchlist
-                  ? 'text-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20'
-                  : 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/10'
-              }`}
-              title={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
+              onClick={handleFuelClick}
+              className="p-2 rounded-lg transition-all duration-200 text-orange-400 hover:text-orange-300 hover:bg-orange-400/10"
+              title="Apply Fuel to Token"
             >
-              <Star
-                size={20}
-                fill={isInWatchlist ? 'currentColor' : 'none'}
-              />
+              <Flame size={20} />
             </button>
 
-            {/* Close Button */}
-            <button
-              onClick={onClose}
+            {/* Watchlist Star */}
+              <button
+                onClick={toggleWatchlist}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  isInWatchlist 
+                    ? 'text-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20' 
+                    : 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/10'
+              }`}
+                title={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
+              >
+                  <Star 
+                    size={20} 
+                    fill={isInWatchlist ? 'currentColor' : 'none'} 
+                  />
+              </button>
+
+              {/* Close Button */}
+              <button
+                onClick={onClose}
               className="p-2 text-gray-400 hover:text-white transition-colors"
               title="Close"
-            >
+              >
               <X size={20} />
-            </button>
+              </button>
+            </div>
           </div>
-        </div>
 
         {/* Content */}
         <div className="p-3 space-y-4">
@@ -182,8 +284,8 @@ const TokenDetails = ({ token, onClose }) => {
                       {(token?.jupiterData?.stats24h?.priceChangePercentage || 0) >= 0 ? '↗' : '↘'} 
                       {formatPercentage(token?.jupiterData?.stats24h?.priceChangePercentage || 0)}
                     </span>
-                  </div>
-                </div>
+              </div>
+              </div>
 
                 {/* Liquidity - Purple Gradient */}
                 <div className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-purple-600/20 to-violet-600/20 rounded border border-purple-500/30 aspect-square relative overflow-hidden">
@@ -199,8 +301,8 @@ const TokenDetails = ({ token, onClose }) => {
                       {(token?.jupiterData?.stats24h?.liquidityChange || 0) >= 0 ? '↗' : '↘'} 
                       {formatPercentage(token?.jupiterData?.stats24h?.liquidityChange || 0)}
                     </span>
-                  </div>
-                </div>
+              </div>
+            </div>
 
                 {/* Holders - Orange Gradient */}
                 <div className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-orange-600/20 to-amber-600/20 rounded border border-orange-500/30 aspect-square relative overflow-hidden">
@@ -235,7 +337,7 @@ const TokenDetails = ({ token, onClose }) => {
                       <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
                     </svg>
                     <span className="text-gray-400 text-xs">Mentions</span>
-                  </div>
+              </div>
                   <div className="text-center">
                     <span className="text-white font-semibold text-sm block">
                       {formatNumber(token?.twitterData?.mentions || 0)}
@@ -253,9 +355,9 @@ const TokenDetails = ({ token, onClose }) => {
                     {(token?.communityHealthScore || token?.communityScore || 0).toFixed(1)}/10
                   </span>
                 </div>
+                </div>
               </div>
             </div>
-          </div>
 
           {/* 🔍 Section 2 – Insights (Market Data) */}
           <div className="bg-gray-800 rounded-lg p-3 border border-gray-600">
@@ -275,7 +377,7 @@ const TokenDetails = ({ token, onClose }) => {
                   <span className="text-white font-semibold text-sm">
                     ${formatNumber((token?.jupiterData?.stats24h?.buyVolume || 0) + (token?.jupiterData?.stats24h?.sellVolume || 0))}
                   </span>
-                </div>
+              </div>
                 <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
                   <span className="text-gray-400 text-sm">📈 Price Change (24h):</span>
                   <span className={`font-semibold text-sm ${
@@ -283,7 +385,7 @@ const TokenDetails = ({ token, onClose }) => {
                   }`}>
                     {formatPercentage(token?.jupiterData?.stats24h?.priceChange)}
                   </span>
-                </div>
+              </div>
               </div>
 
               <div className="space-y-2">
@@ -292,19 +394,19 @@ const TokenDetails = ({ token, onClose }) => {
                   <span className="text-white font-semibold text-sm">
                     {((token?.jupiterData?.organicScore || 0) / 10).toFixed(1)}/10
                   </span>
-                </div>
+            </div>
                 <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
                   <span className="text-gray-400 text-sm">💰 Total Supply:</span>
                   <span className="text-white font-semibold text-sm">
                     {formatNumber(token?.jupiterData?.totalSupply)}
                   </span>
-                </div>
+              </div>
                 <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
                   <span className="text-gray-400 text-sm">🔄 Circulating Supply:</span>
                   <span className="text-white font-semibold text-sm">
                     {formatNumber(token?.jupiterData?.circSupply)}
                   </span>
-                </div>
+              </div>
               </div>
             </div>
           </div>
@@ -353,8 +455,8 @@ const TokenDetails = ({ token, onClose }) => {
                     <span className="text-white font-semibold text-sm">
                       {token.jupiterData.launchpad || token.jupiterData.audit?.launchpad || 'N/A'}
                     </span>
-                  </div>
-                </div>
+              </div>
+              </div>
               </div>
             </div>
           )}
@@ -431,27 +533,27 @@ const TokenDetails = ({ token, onClose }) => {
                       <div className="text-gray-400 text-xs mb-1">🔢 Buys</div>
                       <div className="text-white font-semibold text-xs">
                         {formatNumber(token.jupiterData.stats1h.numBuys || 0)}
-                      </div>
-                    </div>
+              </div>
+              </div>
                     <div className="bg-dark-bg p-2 rounded border border-gray-700">
                       <div className="text-gray-400 text-xs mb-1">🔢 Sells</div>
                       <div className="text-white font-semibold text-xs">
                         {formatNumber(token.jupiterData.stats1h.numSells || 0)}
-                      </div>
-                    </div>
+              </div>
+            </div>
                     <div className="bg-dark-bg p-2 rounded border border-gray-700">
                       <div className="text-gray-400 text-xs mb-1">👤 Traders</div>
                       <div className="text-white font-semibold text-xs">
                         {formatNumber(token.jupiterData.stats1h.numTraders || 0)}
-                      </div>
-                    </div>
+              </div>
+              </div>
                     <div className="bg-dark-bg p-2 rounded border border-gray-700">
                       <div className="text-gray-400 text-xs mb-1">🌱 Organic Buyers</div>
                       <div className="text-white font-semibold text-xs">
                         {formatNumber(token.jupiterData.stats1h.numOrganicBuyers || 0)}
-                      </div>
-                    </div>
-                  </div>
+              </div>
+            </div>
+          </div>
                 </div>
               )}
 
@@ -539,7 +641,7 @@ const TokenDetails = ({ token, onClose }) => {
                       <div className="text-white font-semibold text-xs">
                         {formatNumber(token.jupiterData.stats6h.numOrganicBuyers || 0)}
                       </div>
-                    </div>
+              </div>
                   </div>
                 </div>
               )}
@@ -691,7 +793,7 @@ const TokenDetails = ({ token, onClose }) => {
                       <Twitter className="w-4 h-4" />
                       <span className="text-sm font-medium">Twitter</span>
                     </a>
-                  </div>
+          </div>
                 )}
 
                 {/* Website Link */}
@@ -721,7 +823,7 @@ const TokenDetails = ({ token, onClose }) => {
                       <MessageCircle className="w-4 h-4" />
                       <span className="text-sm font-medium">Telegram</span>
                     </a>
-                  </div>
+                    </div>
                 )}
 
                 {/* Discord Link */}
@@ -729,8 +831,8 @@ const TokenDetails = ({ token, onClose }) => {
                   <div className="p-2 bg-dark-bg rounded border border-gray-700">
                     <a
                       href={token?.socials?.discord || token?.jupiterData?.discord}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                          target="_blank"
+                          rel="noopener noreferrer"
                       className="flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white p-2 rounded transition-colors w-full"
                     >
                       <MessageCircle className="w-4 h-4" />
@@ -751,7 +853,7 @@ const TokenDetails = ({ token, onClose }) => {
                       <ExternalLink className="w-4 h-4" />
                       <span className="text-sm font-medium">CoinGecko</span>
                     </a>
-                  </div>
+                    </div>
                 )}
 
                 {/* CoinMarketCap Link */}
@@ -769,7 +871,7 @@ const TokenDetails = ({ token, onClose }) => {
                   </div>
                 )}
 
-              </div>
+                </div>
 
               {/* No Social Links Message */}
               {!(token?.socials?.twitter || token?.jupiterData?.twitter || token?.twitterHandle) &&
@@ -840,17 +942,34 @@ const TokenDetails = ({ token, onClose }) => {
 
                               return (
                 <div className="space-y-2">
-                  {sortedTweets.slice(0, 5).map((post, index) => (
-                    <div key={`tweet-${index}-${post.author || 'unknown'}`} className="bg-dark-bg p-3 rounded border border-gray-700">
+                  {sortedTweets.slice(0, 5).map((post, index) => {
+                    // Primary: Use direct tweet link if we have tweetId
+                    let tweetUrl = null;
+                    if (post.tweetId && post.author) {
+                      tweetUrl = `https://twitter.com/${post.author}/status/${post.tweetId}`;
+                    } 
+                    // Fallback: Use Twitter search for the tweet content if we have author
+                    else if (post.author && post.text) {
+                      // Create a more targeted search query using the first few words
+                      const firstWords = post.text.split(' ').slice(0, 8).join(' ').replace(/[^\w\s$#@]/g, '');
+                      const searchQuery = encodeURIComponent(`from:${post.author} ${firstWords}`);
+                      tweetUrl = `https://twitter.com/search?q=${searchQuery}&f=live`;
+                    }
+                    // Last resort: Just go to the author's profile
+                    else if (post.author) {
+                      tweetUrl = `https://twitter.com/${post.author}`;
+                    }
+
+                    const tweetContent = (
                       <div className="flex items-start space-x-3">
                         <div className="flex-shrink-0">
-                          <Twitter className="w-5 h-5 text-blue-400 mt-1" />
+                          <Twitter className="w-5 h-5 text-blue-400 mt-1 group-hover:text-blue-300 transition-colors" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          {/* Author info */}
+                          {/* Author info with hover indicator */}
                           {(post.author || post.authorName) && (
                             <div className="flex items-center space-x-2 mb-2">
-                              <span className="text-blue-400 text-xs font-medium">
+                              <span className="text-blue-400 text-xs font-medium group-hover:text-blue-300 transition-colors">
                                 @{post.author || 'unknown'}
                               </span>
                               {post.authorName && post.authorName !== post.author && (
@@ -858,11 +977,16 @@ const TokenDetails = ({ token, onClose }) => {
                                   ({post.authorName})
                                 </span>
                               )}
+                              {tweetUrl && (
+                                <span className="text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity text-xs ml-2">
+                                  {post.tweetId ? '🔗 Click to view tweet' : post.text ? '🔍 Click to search tweet' : '👤 Click to view profile'}
+                                </span>
+                              )}
                             </div>
                           )}
                           
                           {/* Tweet content */}
-                          <p className="text-white text-sm leading-relaxed mb-2">
+                          <p className="text-white text-sm leading-relaxed mb-2 group-hover:text-gray-100 transition-colors">
                             {post.text || post.content || 'No content available'}
                           </p>
                           
@@ -885,20 +1009,34 @@ const TokenDetails = ({ token, onClose }) => {
                                 {new Date(post.date || post.createdAt).toLocaleDateString()}
                               </span>
                             )}
-                            {post.searchType && (
-                              <span className="text-xs bg-gray-700 px-2 py-1 rounded">
-                                {post.searchType}
-                              </span>
-                            )}
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+
+                    return tweetUrl ? (
+                      <a
+                        key={`tweet-${index}-${post.author || 'unknown'}`}
+                        href={tweetUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block bg-dark-bg p-3 rounded border border-gray-700 hover:border-blue-500 hover:bg-gray-600 transition-all duration-200 cursor-pointer group no-underline"
+                      >
+                        {tweetContent}
+                      </a>
+                    ) : (
+                      <div
+                        key={`tweet-${index}-${post.author || 'unknown'}`}
+                        className="bg-dark-bg p-3 rounded border border-gray-700"
+                      >
+                        {tweetContent}
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })()}
-          </div>
+                  </div>
 
           {/* 📊 Section 7 – Metrics Breakdown */}
           <div className="bg-gray-800 rounded-lg p-3 border border-gray-600">
@@ -918,7 +1056,7 @@ const TokenDetails = ({ token, onClose }) => {
                   <span className="text-white font-semibold text-sm">
                     {((token?.engagementRate || 0.05) * 100).toFixed(1)}%
                   </span>
-                </div>
+                  </div>
                 <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
                   <span className="text-gray-400 text-sm">🧑‍🤝‍🧑 Unique Mentions:</span>
                   <span className="text-white font-semibold text-sm">
@@ -926,32 +1064,14 @@ const TokenDetails = ({ token, onClose }) => {
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
-                  <span className="text-gray-400 text-sm">⚠️ Risk Level:</span>
-                  <span className={`px-2 py-1 rounded-full text-sm font-medium ${riskLevel.color}`}>
-                    {riskLevel.icon} {riskLevel.level}
+                  <span className="text-gray-400 text-sm">🚀 Hype Level:</span>
+                  <span className={`px-2 py-1 rounded-full text-sm font-medium ${hypeLevel.color}`}>
+                    {hypeLevel.icon} {hypeLevel.level}
                   </span>
                 </div>
               </div>
-
+              
               <div className="space-y-2">
-                <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
-                  <span className="text-gray-400 text-sm">🔥 Trending Score:</span>
-                  <span className="text-white font-semibold text-sm">
-                    {(token?.trendingScore || 5).toFixed(1)}/10
-                  </span>
-                </div>
-                <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
-                  <span className="text-gray-400 text-sm">📊 Volume Score:</span>
-                  <span className="text-white font-semibold text-sm">
-                    {(token?.volumeScore || 5).toFixed(1)}/10
-                  </span>
-                </div>
-                <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
-                  <span className="text-gray-400 text-sm">🎯 Technical Score:</span>
-                  <span className="text-white font-semibold text-sm">
-                    {(token?.technicalScore || 5).toFixed(1)}/10
-                  </span>
-                </div>
                 <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
                   <span className="text-gray-400 text-sm">⏰ Last Updated:</span>
                   <span className="text-white font-semibold text-sm">
@@ -966,10 +1086,85 @@ const TokenDetails = ({ token, onClose }) => {
                 <div className="text-center text-gray-400 text-xs">
                   Last calculated: {new Date(token.enhancedScore.calculationTime).toLocaleString()}
                 </div>
-              </div>
-            )}
+            </div>
+          )}
           </div>
         </div>
+
+        {/* Fuel Token Modal */}
+        {showFuelModal && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div className="bg-dark-bg border border-gray-700 rounded-xl max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Flame className="text-orange-400" size={24} />
+                  Fuel Token
+                </h3>
+                <button
+                  onClick={() => setShowFuelModal(false)}
+                  className="p-1 text-gray-400 hover:text-white transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="mb-4">
+                <p className="text-gray-300 text-sm mb-2">
+                  Apply fuel to boost <strong>{token?.symbol}</strong>'s score for 12 hours
+                </p>
+                <div className="text-xs text-gray-500 font-mono bg-gray-800 p-2 rounded">
+                  {token?.contractAddress}
+                </div>
+              </div>
+
+              {/* Fuel Options */}
+              <div className="grid grid-cols-2 gap-3 mb-6">
+                {fuelOptions.map((fuel) => (
+                  <button
+                    key={fuel.type}
+                    onClick={() => setSelectedFuel(fuel.type)}
+                    className={`p-3 rounded-lg border-2 transition-all duration-200 ${
+                      selectedFuel === fuel.type
+                        ? 'border-orange-500 bg-orange-900/20'
+                        : 'border-gray-700 hover:border-orange-400 bg-gray-800'
+                    }`}
+                  >
+                    <div className="text-2xl mb-1">{fuel.icon}</div>
+                    <div className="text-white font-bold text-sm">Fuel {fuel.type}</div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Message Display */}
+              {fuelMessage.text && (
+                <div className={`mb-4 p-3 rounded-lg text-sm ${
+                  fuelMessage.type === 'success' 
+                    ? 'bg-green-900/20 border border-green-500 text-green-400'
+                    : 'bg-red-900/20 border border-red-500 text-red-400'
+                }`}>
+                  {fuelMessage.text}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowFuelModal(false)}
+                  className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleApplyFuel}
+                  disabled={!selectedFuel || fuelLoading}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {fuelLoading ? 'Applying...' : 'Apply Fuel'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -437,6 +437,9 @@ class EnhancedSocialDataService {
               
               console.log(`   📊 MENTION COUNT: Added ${weight} mentions (total now: ${totalMentions})`);
               
+              // Analyze sentiment of the tweet
+              const sentimentScore = this.analyzeTweetSentiment(tweetText);
+
               // Collect recent mentions for social activity feed
               const mentionData = {
                 author: tweetData.tweetBy?.userName || 'Unknown',
@@ -446,6 +449,8 @@ class EnhancedSocialDataService {
                 retweets: retweets,
                 replies: replies,
                 createdAt: tweetData.createdAt || 'Unknown',
+                tweetId: tweetData.id || null, // Store tweet ID for creating links
+                sentiment: sentimentScore, // Add sentiment analysis
                 // Removed searchType to clean up tweet display
                 isRelevant: isRelevant,
                 priority: 1 // Equal priority for all search types
@@ -538,6 +543,9 @@ class EnhancedSocialDataService {
       recentMentions: recentMentions,
       tweets: recentMentions, // Alias for frontend compatibility
       
+      // Sentiment Analysis
+      sentimentScore: this.calculateOverallSentiment(recentMentions),
+
       // Status and Metadata
       status: totalMentions > 0 ? 'active' : 'limited_activity',
       communityHealth: this.calculateCommunityHealthFromMetrics(totalMentions, totalLikes, totalRetweets, followers),
@@ -617,18 +625,18 @@ class EnhancedSocialDataService {
       'retweet for retweet', 'rt for rt', 'mutual follow', 'follow train'
     ];
     
-    // Count crypto vs non-crypto indicators
+    // WEIGHTED SCORING SYSTEM - More flexible than strict rejection
     let cryptoScore = 0;
     let nonCryptoScore = 0;
-    
-    // Check for crypto keywords
+
+    // Check for crypto keywords (strong positive indicators)
     for (const keyword of cryptoKeywords) {
       if (text.includes(keyword)) {
-        cryptoScore += 1;
+        cryptoScore += 2; // Each crypto keyword = +2 points
       }
     }
-    
-    // Check for non-crypto keywords (but exclude if they're part of the token name)
+
+    // Check for non-crypto keywords (negative indicators, but not automatic rejection)
     for (const keyword of nonCryptoKeywords) {
       if (text.includes(keyword)) {
         // Special case: Don't penalize animal keywords if they're part of the token name
@@ -640,7 +648,7 @@ class EnhancedSocialDataService {
           // Skip this non-crypto keyword as it's part of the token identity
           continue;
         }
-        nonCryptoScore += 1;
+        nonCryptoScore += 1; // Each non-crypto keyword = -1 point
       }
     }
     
@@ -667,42 +675,62 @@ class EnhancedSocialDataService {
       cryptoScore += 1;
     }
     
-    // STRICT DECISION LOGIC - Prioritize accuracy over coverage
-    
-    // IMMEDIATE REJECTION: Any non-crypto indicators = reject
-    if (nonCryptoScore >= 1) {
-      console.log(`   🚫 REJECTED: ${nonCryptoScore} non-crypto indicators found`);
-      return false; // ANY non-crypto indicator = reject (especially for ambiguous tokens like SCF)
-    }
-    
-    // REQUIREMENT: Must have cashtag ($SYMBOL) for high confidence
-    if (text.includes(`$${symbolLower}`)) {
-      console.log(`   💰 APPROVED: Cashtag $${symbolLower} found`);
-      return true; // Cashtags are almost always crypto
-    }
-    
-    // REQUIREMENT: Must have explicit crypto keywords for hashtag-only tweets
-    if (cryptoScore >= 2) {
-      console.log(`   🪙 APPROVED: Strong crypto indicators (score: ${cryptoScore})`);
+    // WEIGHTED DECISION LOGIC - Balance accuracy with coverage
+
+    // Calculate net score (crypto points minus non-crypto penalties)
+    const netScore = cryptoScore - nonCryptoScore;
+
+    // IMMEDIATE APPROVAL: Strong crypto signals (even with some non-crypto elements)
+    if (cryptoScore >= 6) {
+      console.log(`   🪙 APPROVED: Very strong crypto indicators (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
       return true; // Multiple crypto keywords = definitely crypto
     }
-    
-    // REQUIREMENT: Single crypto keyword + price/percentage indicators
-    if (cryptoScore >= 1 && (text.match(/\$[\d,]+\.?\d*/) || text.match(/[+-]?\d+\.?\d*%/))) {
-      console.log(`   📈 APPROVED: Crypto keyword + price indicators`);
+
+    // IMMEDIATE APPROVAL: Cashtag ($SYMBOL) = very high confidence
+    if (text.includes(`$${symbolLower}`)) {
+      console.log(`   💰 APPROVED: Cashtag $${symbolLower} found (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
+      return true; // Cashtags are almost always crypto
+    }
+
+    // APPROVAL: Strong net positive score
+    if (netScore >= 3) {
+      console.log(`   ✅ APPROVED: Strong net crypto score (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
+      return true; // Net positive = likely crypto-related
+    }
+
+    // APPROVAL: Moderate crypto score with price/volume indicators
+    if (cryptoScore >= 2 && (text.match(/\$[\d,]+\.?\d*/) || text.match(/[+-]?\d+\.?\d*%/))) {
+      console.log(`   📈 APPROVED: Crypto keywords + price indicators (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
       return true;
     }
-    
-    // REQUIREMENT: Solana ecosystem mentions (common for meme coins)
+
+    // APPROVAL: Solana ecosystem mentions (very common for meme coins)
     if (text.includes('solana') || text.includes('spl token') || text.includes('sol blockchain')) {
-      console.log(`   ⛓️ APPROVED: Solana ecosystem mention`);
+      console.log(`   ⛓️ APPROVED: Solana ecosystem mention (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
       return true;
     }
-    
-    // DEFAULT: Reject everything else (including pure hashtag matches without crypto context)
-    // This is especially important for ambiguous tokens like SCF
-    console.log(`   ❌ REJECTED: No strong crypto indicators (crypto score: ${cryptoScore}, non-crypto score: ${nonCryptoScore})`);
-    return false;
+
+    // APPROVAL: Token hashtag + some crypto context
+    if (text.includes(`#${symbolLower}`) && cryptoScore >= 1) {
+      console.log(`   🏷️ APPROVED: Token hashtag + crypto context (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
+      return true;
+    }
+
+    // REJECTION: Net negative score or no crypto indicators
+    if (netScore <= 0 || cryptoScore === 0) {
+      console.log(`   ❌ REJECTED: Insufficient crypto indicators (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
+      return false;
+    }
+
+    // REJECTION: Too many non-crypto indicators relative to crypto ones
+    if (nonCryptoScore > cryptoScore * 2) {
+      console.log(`   🚫 REJECTED: Too many non-crypto indicators (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
+      return false;
+    }
+
+    // DEFAULT APPROVAL: If we get here, it has some crypto relevance
+    console.log(`   🤔 APPROVED: Marginal crypto relevance (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
+    return true;
   }
 
   /**
@@ -1199,6 +1227,166 @@ class EnhancedSocialDataService {
     }
     
     return tokensNeedingRefresh;
+  }
+
+  /**
+   * Analyze sentiment of tweet text using NLP techniques
+   * Returns a score from 0-10 (0=very negative, 5=neutral, 10=very positive)
+   */
+  analyzeTweetSentiment(tweetText) {
+    if (!tweetText || typeof tweetText !== 'string') {
+      return 5.0; // Neutral default
+    }
+
+    const text = tweetText.toLowerCase().trim();
+    let score = 5.0; // Start at neutral
+
+    // POSITIVE KEYWORDS (increase score)
+    const positiveKeywords = [
+      // Strong positive
+      'moon', 'to the moon', '🚀', 'bullish', 'bull', 'long', 'buy', 'bought',
+      'invested', 'hodl', 'diamond hands', 'diamond', 'gem', 'undervalued',
+      'sleeping giant', 'breakout', 'exploding', 'massive', 'huge', 'epic',
+      'legendary', 'god tier', 'perfect', 'amazing', 'fantastic', 'brilliant',
+      'excellent', 'outstanding', 'phenomenal', 'incredible', 'unbelievable',
+
+      // Moderate positive
+      'good', 'great', 'nice', 'solid', 'strong', 'powerful', 'growing',
+      'rising', 'up', 'higher', 'increase', 'gain', 'profit', 'winning',
+      'success', 'victory', 'champion', 'winner', 'top', 'best', 'elite',
+      'premium', 'quality', 'valuable', 'worth it', 'recommend',
+
+      // Mild positive
+      'like', 'love', 'awesome', 'cool', 'sweet', 'nice', 'decent', 'okay',
+      'alright', 'fine', 'positive', 'optimistic', 'hopeful', 'promising',
+      'potential', 'opportunity', 'chance', 'possibility'
+    ];
+
+    // NEGATIVE KEYWORDS (decrease score)
+    const negativeKeywords = [
+      // Strong negative
+      'dump', 'sell', 'short', 'bearish', 'bear', 'crash', 'drop', 'fall',
+      'decline', 'decrease', 'loss', 'lose', 'losing', 'failed', 'failure',
+      'terrible', 'awful', 'horrible', 'disaster', 'catastrophic', 'doomed',
+      'dead', 'dying', 'killed', 'murdered', 'scam', 'rug pull', 'rugpull',
+      'exit scam', 'honeypot', 'trap', 'fake', 'fraud', 'scammer',
+
+      // Moderate negative
+      'bad', 'poor', 'weak', 'low', 'down', 'lower', 'decrease', 'loss',
+      'problem', 'issue', 'concern', 'worry', 'fear', 'scared', 'nervous',
+      'anxious', 'doubt', 'skeptical', 'questionable', 'risky', 'dangerous',
+      'volatile', 'unstable', 'uncertain',
+
+      // Mild negative
+      'meh', 'boring', 'slow', 'stagnant', 'flat', 'neutral', 'average',
+      'mediocre', 'ordinary', 'normal', 'standard', 'typical', 'usual'
+    ];
+
+    // EMOJI SENTIMENT ANALYSIS
+    const positiveEmojis = ['🚀', '💎', '💰', '🤑', '💪', '🔥', '⭐', '🌟', '✨', '💯', '👍', '❤️', '💚', '💙', '💜', '🧡', '🤩', '😍', '🥳', '🎉', '🎊'];
+    const negativeEmojis = ['😢', '😭', '😞', '😟', '😤', '😠', '😡', '🤬', '💩', '👎', '👻', '☠️', '⚰️', '😱', '😨', '😰'];
+
+    // Count positive and negative indicators
+    let positiveCount = 0;
+    let negativeCount = 0;
+
+    // Check for positive keywords
+    for (const keyword of positiveKeywords) {
+      if (text.includes(keyword)) {
+        positiveCount += keyword.length > 3 ? 1.5 : 1; // Longer words = stronger signal
+      }
+    }
+
+    // Check for negative keywords
+    for (const keyword of negativeKeywords) {
+      if (text.includes(keyword)) {
+        negativeCount += keyword.length > 3 ? 1.5 : 1; // Longer words = stronger signal
+      }
+    }
+
+    // Check for positive emojis
+    for (const emoji of positiveEmojis) {
+      const emojiCount = (text.match(new RegExp(emoji, 'g')) || []).length;
+      positiveCount += emojiCount * 0.5; // Emojis are moderate signals
+    }
+
+    // Check for negative emojis
+    for (const emoji of negativeEmojis) {
+      const emojiCount = (text.match(new RegExp(emoji, 'g')) || []).length;
+      negativeCount += emojiCount * 0.5; // Emojis are moderate signals
+    }
+
+    // PUNCTUATION ANALYSIS
+    // Multiple exclamation marks = excitement/emphasis
+    const exclamationCount = (text.match(/!/g) || []).length;
+    if (exclamationCount > 2) positiveCount += 0.5;
+
+    // Question marks might indicate uncertainty
+    const questionCount = (text.match(/\?/g) || []).length;
+    if (questionCount > 1) negativeCount += 0.3;
+
+    // CAPITALIZATION ANALYSIS (ALL CAPS = strong emotion)
+    const capsRatio = text.replace(/[^A-Z]/g, '').length / text.replace(/[^a-zA-Z]/g, '').length;
+    if (capsRatio > 0.5) {
+      // High caps ratio - could be excitement OR anger
+      if (positiveCount > negativeCount) {
+        positiveCount += 0.5; // Excitement
+      } else {
+        negativeCount += 0.5; // Anger
+      }
+    }
+
+    // Calculate final sentiment score
+    const totalSignals = positiveCount + negativeCount;
+
+    if (totalSignals === 0) {
+      // No clear sentiment indicators - return neutral
+      return 5.0;
+    }
+
+    // Calculate weighted score
+    const sentimentRatio = (positiveCount - negativeCount) / totalSignals;
+
+    // Convert to 0-10 scale
+    // sentimentRatio ranges from -1 (all negative) to +1 (all positive)
+    // Convert to 0-10 scale: -1 → 0, 0 → 5, +1 → 10
+    score = 5 + (sentimentRatio * 5);
+
+    // Ensure score stays within 0-10 bounds
+    score = Math.max(0, Math.min(10, score));
+
+    // Round to 1 decimal place
+    return Math.round(score * 10) / 10;
+  }
+
+  /**
+   * Calculate overall sentiment score from multiple tweets
+   */
+  calculateOverallSentiment(tweets) {
+    if (!tweets || !Array.isArray(tweets) || tweets.length === 0) {
+      return 5.0; // Neutral default
+    }
+
+    let totalSentiment = 0;
+    let validTweets = 0;
+
+    for (const tweet of tweets) {
+      const tweetText = tweet?.text || tweet?.content || tweet?.full_text || '';
+      if (tweetText.trim()) {
+        const sentimentScore = this.analyzeTweetSentiment(tweetText);
+        totalSentiment += sentimentScore;
+        validTweets++;
+      }
+    }
+
+    if (validTweets === 0) {
+      return 5.0; // Neutral default
+    }
+
+    const averageSentiment = totalSentiment / validTweets;
+
+    // Round to 1 decimal place
+    return Math.round(averageSentiment * 10) / 10;
   }
 }
 

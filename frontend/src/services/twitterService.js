@@ -186,11 +186,11 @@ class TwitterService {
 
   calculateOverallSentiment(tweets) {
     if (!tweets.length) return 5;
-    
+
     const totalSentiment = tweets.reduce((sum, tweet) => {
-      return sum + (tweet.sentiment?.score || 5);
+      return sum + (tweet.sentiment || tweet.sentiment?.score || 5);
     }, 0);
-    
+
     return totalSentiment / tweets.length;
   }
 
