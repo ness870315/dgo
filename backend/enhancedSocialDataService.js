@@ -1,6 +1,6 @@
 import axios from 'axios';
 import pkg from 'rettiwt-api';
-const { Rettiwt, TweetSearchOptions } = pkg;
+const { Rettiwt } = pkg;
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -11,12 +11,13 @@ class EnhancedSocialDataService {
     
     // Twitter metrics persistent storage
     this.twitterMetricsFile = './cache/twitter_metrics.json';
+    this.historicalMetricsFile = './cache/twitter_history.json';
     this.twitterMetricsCache = new Map();
     this.lastRefreshTime = 0;
     this.refreshInterval = 24 * 60 * 60 * 1000; // 24 hours
     
     // Initialize Rettiwt API with your API key for full functionality
-    const apiKey = 'a2R0PWdpdWEyc2FyU0hPdjZIRVBnUXFoRnBvNnFlV2RYR09HdW5ia09vSk07YXV0aF90b2tlbj0wMmYyMmEwMzM0YzVlNzMxNWRhOGViYmRlMGMzZGQwNDFhZTBjOGFjO3R3aWQ9dSUzRDE5MjQ5NTU1NjA5OTE5Nzc0NzI7Y3QwPWMwODZkZWNlY2Y1ZDIwNzYyNDNjZDkxOWQ2OTVmNzA3MDQyOGI5MTQwYjI3MTcwYTlmN2NmOGZkZTJlNDYyMGQ3NzY4YzVmZjBhMTNhNjk1NzQ1MzAzOGJhMjRlNzZiNDY1ZmZhM2VhZTdkNmU1NjMzYWE0NTQ0ZGFmYjczNGU2ZTE3MzZlMmZjZDQ4OTFkZDU4NjljM2Q1ODJjYzM1Mzk7';
+    const apiKey = 'a2R0PWdpdWEyc2FyU0hPdjZIRVBnUXFoRnBvNnFlV2RYR09HdW5ia09vSk07YXV0aF90b2tlbj1iZTUxNzc1N2U1NTQ4YjcxMmRlY2ExYjVjZDdlMWEzNTUyYjc4ODNmO2N0MD1iMmI2ZGUwMGRmMjFkZDQ1ZTQwNmVlZTM3NWYxZDc2ZjM5NDNjMThkMWE2OGE4ZjgwZWFkMGIyYTBhZTJiMTFmMmFmYTFmMDc3MjE2MTI5OWVkNzgyNzA5MzEzNzMyZmYwM2UyYjQ5MThmMDMzNmExN2YyYjA4YTI2ZmYwMTdkZDgyY2E0ODM2YTc0NmIyMWM1YjVmMjU5OGY0YWE1NWMxO3R3aWQ9dSUzRDE5MjQ5NTU1NjA5OTE5Nzc0NzI7';
     this.twitterApi = new Rettiwt({ 
       apiKey: apiKey,
       delay: 2000, // Increased from 1000ms to 2000ms for safety
@@ -59,7 +60,7 @@ class EnhancedSocialDataService {
     
     console.log('🔑 Twitter API initialized with authentication - RATE LIMITING ENABLED!');
     console.log('🚨 SAFETY MODE: Max 2 searches per token, 5-second delays, hourly/daily limits');
-    console.log('💰 CASHTAG SEARCH: Using $wizi format for accurate crypto mentions');
+    console.log('🏷️ OPTIMIZED SEARCH: Using primary hashtags (#TOKEN) and cashtags ($TOKEN) only');
     console.log('⏰ BACKGROUND REFRESH: 24-hour Twitter metrics refresh system');
     console.log('💾 PERSISTENT STORAGE: Twitter metrics saved across restarts');
     
@@ -75,7 +76,7 @@ class EnhancedSocialDataService {
     
     try {
       await this.initializePersistentStorage();
-      // this.startBackgroundRefresh(); // Disabled for testing
+      this.startBackgroundRefresh(); // Enabled for automatic Twitter data refresh
       this.initialized = true;
       console.log('✅ EnhancedSocialDataService initialized successfully');
     } catch (error) {
@@ -213,14 +214,30 @@ class EnhancedSocialDataService {
       // Search for Twitter mentions using multiple strategies
       const twitterData = await this.searchTwitterMentions(symbol, name, officialHandle, socialLinks);
       
-      // Cache the result
+      // Get historical data for 24-hour comparison
+      const historicalData = await this.getHistoricalTwitterData(symbol, name);
+      
+      // Calculate 24-hour changes
+      const mentions24hChange = historicalData.yesterdayMentions ? 
+        twitterData.mentions - historicalData.yesterdayMentions : 0;
+      
+      // Add historical context to Twitter data
+      twitterData.mentions24h = mentions24hChange;
+      twitterData.mentionsYesterday = historicalData.yesterdayMentions || 0;
+      twitterData.mentionsTrend = mentions24hChange > 0 ? 'increasing' : 
+                                  mentions24hChange < 0 ? 'decreasing' : 'stable';
+      
+      console.log(`📊 Historical Context for ${symbol}: Today=${twitterData.mentions}, Yesterday=${twitterData.mentionsYesterday}, Change=${mentions24hChange}`);
+      
+      // Cache the result with historical context
       this.twitterMetricsCache.set(cacheKey, {
         data: twitterData,
         timestamp: Date.now()
       });
       
-      // Save to persistent storage
+      // Save to persistent storage with historical tracking
       await this.saveTwitterMetricsToFile();
+      await this.saveHistoricalSnapshot(symbol, name, twitterData);
       
       console.log(`✅ Twitter data collected for ${symbol}: ${twitterData.mentions} mentions`);
       return twitterData;
@@ -242,7 +259,11 @@ class EnhancedSocialDataService {
     // Convert symbol to lowercase for proper cashtag/hashtag search
     const symbolLower = symbol.toLowerCase();
     
-    const searchTerms = [];
+    // Ensure name is defined and handle undefined/null cases
+    const safeName = name || symbol; // Fallback to symbol if name is undefined
+    const nameLower = safeName.toLowerCase();
+    
+    let searchTerms = [];
     
     // STEP 1: User-added Twitter handle (highest priority)
     if (socialLinks?.twitter && socialLinks.twitter !== 'not_found') {
@@ -267,15 +288,34 @@ class EnhancedSocialDataService {
       console.log(`⚠️ No official Twitter handle found for ${symbol} - will be stored as 'not found'`);
     }
     
-    // STEP 2: ALWAYS do hashtag/cashtag searches for community activity metrics
-    // Use more specific crypto-related search terms to avoid irrelevant tweets
+    // STEP 2: OPTIMIZED HASHTAG + CASHTAG STRATEGY
+    // Based on test results: Only primary hashtag and cashtag searches work effectively
     searchTerms.push(
-      { type: 'cashtag', value: `$${symbolLower}`, filter: { hashtags: [symbolLower] } },  // $trump
-      { type: 'hashtag_crypto', value: `#${symbolLower}`, filter: { hashtags: [symbolLower] } },   // #trump (will be filtered)
-      { type: 'combined_crypto', value: `${symbolLower} crypto`, filter: { query: `${symbolLower} crypto OR ${symbolLower} token OR ${symbolLower} coin` } }, // "trump crypto"
-      { type: 'combined_solana', value: `${symbolLower} solana`, filter: { query: `${symbolLower} solana OR ${symbolLower} SOL` } } // "trump solana"
+      // PRIMARY SEARCHES - These are the only ones that consistently work
+      { type: 'hashtag_primary', value: `#${symbolLower}`, filter: { hashtags: [symbolLower] } },   // #fwog
+      { type: 'cashtag_primary', value: `$${symbolLower}`, filter: { hashtags: [`$${symbolLower}`] } }, // $fwog
+      
+      // Name-based searches (only if different from symbol and name exists)
+      ...(nameLower !== symbolLower ? [
+        { type: 'hashtag_name', value: `#${nameLower}`, filter: { hashtags: [nameLower] } }, // #dogecoin (if name differs)
+        { type: 'cashtag_name', value: `$${nameLower}`, filter: { hashtags: [`$${nameLower}`] } } // $dogecoin (if name differs)
+      ] : [])
     );
-    console.log(`📊 Will search for crypto-relevant activity: $${symbolLower}, #${symbolLower} (filtered), "${symbolLower} crypto", "${symbolLower} solana"`);
+    
+    // Remove duplicate searches (if name and symbol are the same)
+    const uniqueSearchTerms = [];
+    const seenFilters = new Set();
+    
+    for (const term of searchTerms) {
+      const filterKey = JSON.stringify(term.filter);
+      if (!seenFilters.has(filterKey)) {
+        seenFilters.add(filterKey);
+        uniqueSearchTerms.push(term);
+      }
+    }
+    
+    searchTerms = uniqueSearchTerms;
+    console.log(`📊 Will search using OPTIMIZED HASHTAG + CASHTAG strategy: ${searchTerms.map(t => t.value).join(', ')}`);
     
     let totalMentions = 0;
     let totalLikes = 0;
@@ -285,9 +325,12 @@ class EnhancedSocialDataService {
     let username = null;
     let followers = 0;
     
+    console.log(`🔢 INITIALIZED: totalMentions = ${totalMentions}`);
+    
     for (const searchTerm of searchTerms) {
       try {
         console.log(`🔍 Searching Twitter for: "${searchTerm.value}" (${searchTerm.type})`);
+        console.log(`   🔧 Search filter:`, JSON.stringify(searchTerm.filter));
         
         // Use the correct filter for this search type with exact 48-hour range
         const now = new Date();
@@ -332,8 +375,19 @@ class EnhancedSocialDataService {
           searchResults = await this.twitterApi.tweet.search(filter, 50); // More tweets for mentions
         }
         
+        // Debug: Log search results for all searches
+        console.log(`🔍 SEARCH DEBUG (${searchTerm.type}): searchResults =`, searchResults ? 'exists' : 'null');
+        if (searchResults?.list) {
+          console.log(`🔍 SEARCH DEBUG (${searchTerm.type}): Found ${searchResults.list.length} tweets`);
+        } else {
+          console.log(`🔍 SEARCH DEBUG (${searchTerm.type}): No results list`);
+        }
+        if (searchResults?.error) {
+          console.log(`🔍 SEARCH DEBUG (${searchTerm.type}): API Error =`, searchResults.error);
+        }
+        
         if (searchResults && searchResults.list && searchResults.list.length > 0) {
-          console.log(`✅ Found ${searchResults.list.length} tweets for "${searchTerm.value}"`);
+          console.log(`✅ Found ${searchResults.list.length} tweets for "${searchTerm.value}" (${searchTerm.type})`);
           
           // Process tweets with relevance filtering
           let relevantTweets = 0;
@@ -344,9 +398,9 @@ class EnhancedSocialDataService {
               const tweetData = tweet.toJSON();
               const tweetText = tweetData.fullText || tweetData.text || '';
               
-              // Apply relevance filter for hashtag searches (but not for official handles or cashtags)
+              // Apply crypto relevance filter to hashtag and words searches (but not phrase searches)
               let isRelevant = true;
-              if (searchTerm.type === 'hashtag_crypto') {
+              if (searchTerm.type.startsWith('hashtag_') || searchTerm.type.startsWith('words_')) {
                 isRelevant = this.isCryptoRelevantTweet(tweetText, symbol, name);
                 if (!isRelevant) {
                   filteredTweets++;
@@ -354,6 +408,7 @@ class EnhancedSocialDataService {
                   return; // Skip this tweet
                 }
               }
+              // Phrase searches are inherently crypto-focused, so no filtering needed
               
               relevantTweets++;
               
@@ -367,25 +422,38 @@ class EnhancedSocialDataService {
               console.log(`   Created: ${tweetData.createdAt || 'Unknown'}`);
               console.log(`   ✅ Crypto Relevant: ${isRelevant}`);
               
-              // Aggregate engagement metrics (only for relevant tweets)
-              totalLikes += tweetData.likeCount || 0;
-              totalRetweets += tweetData.retweetCount || 0;
-              totalReplies += tweetData.replyCount || 0;
-              totalMentions++;
+              // Aggregate engagement metrics with cashtag priority weighting
+              const likes = tweetData.likeCount || 0;
+              const retweets = tweetData.retweetCount || 0;
+              const replies = tweetData.replyCount || 0;
+              
+              // CRYPTO RELEVANCE: All crypto-related searches have equal weight
+              const weight = 1.0; // Equal weighting for all search types
+              
+              totalLikes += Math.round(likes * weight);
+              totalRetweets += Math.round(retweets * weight);
+              totalReplies += Math.round(replies * weight);
+              totalMentions += weight; // Each relevant tweet counts as 1 mention
+              
+              console.log(`   📊 MENTION COUNT: Added ${weight} mentions (total now: ${totalMentions})`);
               
               // Collect recent mentions for social activity feed
+              const mentionData = {
+                author: tweetData.tweetBy?.userName || 'Unknown',
+                authorName: tweetData.tweetBy?.fullName || 'Unknown',
+                text: tweetText,
+                likes: likes,
+                retweets: retweets,
+                replies: replies,
+                createdAt: tweetData.createdAt || 'Unknown',
+                // Removed searchType to clean up tweet display
+                isRelevant: isRelevant,
+                priority: 1 // Equal priority for all search types
+              };
+              
+              // Add tweets to recent mentions (up to 10)
               if (recentMentions.length < 10) {
-                recentMentions.push({
-                  author: tweetData.tweetBy?.userName || 'Unknown',
-                  authorName: tweetData.tweetBy?.fullName || 'Unknown',
-                  text: tweetText,
-                  likes: tweetData.likeCount || 0,
-                  retweets: tweetData.retweetCount || 0,
-                  replies: tweetData.replyCount || 0,
-                  createdAt: tweetData.createdAt || 'Unknown',
-                  searchType: searchTerm.type,
-                  isRelevant: isRelevant
-                });
+                recentMentions.push(mentionData);
               }
             } catch (tweetError) {
               console.log(`⚠️ Error processing tweet ${index + 1}:`, tweetError.message);
@@ -394,11 +462,18 @@ class EnhancedSocialDataService {
             }
           });
           
-          console.log(`📊 Search "${searchTerm.value}": ${relevantTweets} relevant tweets, ${filteredTweets} filtered out`);
+          console.log(`📊 Search "${searchTerm.value}" (${searchTerm.type}): ${relevantTweets} relevant tweets, ${filteredTweets} filtered out`);
           
           // Continue searching both cashtag and hashtag to get complete data
           // Don't stop early - let's get all available mentions
           console.log(`📊 Accumulated: ${totalMentions} mentions, ${totalLikes} likes, ${totalRetweets} retweets, ${totalReplies} replies`);
+        } else {
+          // Log when no results are found
+          console.log(`❌ No tweets found for "${searchTerm.value}" (${searchTerm.type})`);
+          console.log(`🔍 DEBUG: No results could indicate:`);
+          console.log(`   - No tweets matching "${searchTerm.value}" in the 48-hour window`);
+          console.log(`   - Twitter API rate limiting or restrictions`);
+          console.log(`   - Search filter: ${JSON.stringify(searchTerm.filter)}`);
         }
         
         // Add delay between searches
@@ -406,6 +481,15 @@ class EnhancedSocialDataService {
         
       } catch (error) {
         console.log(`⚠️ Search failed for "${searchTerm.value}" (${searchTerm.type}): ${error.message}`);
+        
+        // Debug search failures
+        console.log(`🔍 SEARCH ERROR DEBUG (${searchTerm.type}):`);
+        console.log(`   Error type: ${error.constructor.name}`);
+        console.log(`   Error code: ${error.code || 'N/A'}`);
+        console.log(`   Search filter used: ${JSON.stringify(searchTerm.filter)}`);
+        if (error.message.includes('429') || error.message.includes('rate limit')) {
+          console.log(`   🚨 Rate limit detected for search type: ${searchTerm.type}`);
+        }
         
         // If we hit a rate limit (429), wait longer before continuing
         if (error.message.includes('429') || error.message.includes('rate limit')) {
@@ -422,8 +506,10 @@ class EnhancedSocialDataService {
     console.log(`📊 Twitter Search Summary for ${symbol}:`);
     console.log(`   🎯 Official Handle: ${officialHandle || 'not found'}`);
     console.log(`   👥 Followers: ${followers}`);
-    console.log(`   📊 Community Mentions: ${totalMentions}`);
+    console.log(`   📊 Community Mentions: ${totalMentions} (from crypto-relevant searches)`);
     console.log(`   💖 Total Engagement: ${totalLikes + totalRetweets + totalReplies}`);
+    
+    console.log(`🔢 FINAL VALUES BEFORE RETURN: mentions=${totalMentions}, likes=${totalLikes}, retweets=${totalRetweets}, replies=${totalReplies}`);
     
     return {
       symbol: symbol,
@@ -466,7 +552,8 @@ class EnhancedSocialDataService {
   isCryptoRelevantTweet(tweetText, symbol, name) {
     const text = tweetText.toLowerCase();
     const symbolLower = symbol.toLowerCase();
-    const nameLower = name.toLowerCase();
+    const safeName = name || symbol; // Fallback to symbol if name is undefined
+    const nameLower = safeName.toLowerCase();
     
     // CRYPTO KEYWORDS - Strong indicators this is about cryptocurrency
     const cryptoKeywords = [
@@ -484,6 +571,18 @@ class EnhancedSocialDataService {
     
     // NON-CRYPTO KEYWORDS - Strong indicators this is NOT about cryptocurrency
     const nonCryptoKeywords = [
+      // Sports (MAJOR issue for SCF = SC Freiburg football team)
+      'football', 'soccer', 'fußball', 'bundesliga', 'europa league', 'uefa', 'uel',
+      'match', 'game', 'goal', 'player', 'team', 'coach', 'stadium', 'league',
+      'freiburg', 'sc freiburg', 'scfreiburg', 'kickbase', 'sport', 'sports',
+      'vs ', ' vs', 'gegen', 'spiel', 'mannschaft', 'trainer', 'saison',
+      
+      // Finance/Banking (SCF = Supply Chain Finance)
+      'supply chain finance', 'supply chain financing', 'invoice', 'factoring',
+      'accounts receivable', 'working capital', 'trade finance', 'financing',
+      'bank', 'banking', 'financial services', 'corporate finance', 'finance',
+      'بانک', 'مالی', 'تامین مالی', // Persian banking terms
+      
       // Political (for Trump example)
       'president', 'election', 'vote', 'campaign', 'politics', 'political',
       'white house', 'congress', 'senate', 'democrat', 'republican', 'maga',
@@ -510,8 +609,7 @@ class EnhancedSocialDataService {
       
       // General non-crypto topics
       'movie', 'film', 'actor', 'actress', 'celebrity', 'music', 'song',
-      'sports', 'football', 'basketball', 'soccer', 'game', 'match',
-      'weather', 'news', 'breaking news', 'just in', 'developing',
+      'basketball', 'weather', 'news', 'breaking news', 'just in', 'developing',
       'health', 'medical', 'doctor', 'hospital', 'covid', 'vaccine',
       
       // Social media engagement (non-crypto)
@@ -546,9 +644,17 @@ class EnhancedSocialDataService {
       }
     }
     
-    // Special checks for cashtag format ($SYMBOL)
+    // Special checks for cashtag format ($SYMBOL) and hashtag context
     if (text.includes(`$${symbolLower}`)) {
       cryptoScore += 2; // Cashtags are usually crypto-related
+    }
+    
+    // NOTE: Removed automatic crypto points for hashtags - too many false positives
+    // Hashtags alone are not sufficient evidence of crypto relevance (e.g., #SCF = football team)
+    
+    // Solana ecosystem indicators (common for meme coins)
+    if (text.includes('solana') || text.includes('sol') || text.includes('meme coin') || text.includes('memecoin')) {
+      cryptoScore += 1;
     }
     
     // Check for price-related content
@@ -561,37 +667,41 @@ class EnhancedSocialDataService {
       cryptoScore += 1;
     }
     
-    // Decision logic - STRICT filtering to avoid false positives
+    // STRICT DECISION LOGIC - Prioritize accuracy over coverage
     
-    // Strong non-crypto indicators - reject immediately
+    // IMMEDIATE REJECTION: Any non-crypto indicators = reject
     if (nonCryptoScore >= 1) {
-      return false; // Any non-crypto indicator = reject (art, politics, etc.)
+      console.log(`   🚫 REJECTED: ${nonCryptoScore} non-crypto indicators found`);
+      return false; // ANY non-crypto indicator = reject (especially for ambiguous tokens like SCF)
     }
     
-    // Require at least one crypto indicator to be considered relevant
-    if (cryptoScore >= 1) {
-      return true; // Has crypto indicators
+    // REQUIREMENT: Must have cashtag ($SYMBOL) for high confidence
+    if (text.includes(`$${symbolLower}`)) {
+      console.log(`   💰 APPROVED: Cashtag $${symbolLower} found`);
+      return true; // Cashtags are almost always crypto
     }
     
-    // Check for crypto-specific patterns even without keywords
+    // REQUIREMENT: Must have explicit crypto keywords for hashtag-only tweets
+    if (cryptoScore >= 2) {
+      console.log(`   🪙 APPROVED: Strong crypto indicators (score: ${cryptoScore})`);
+      return true; // Multiple crypto keywords = definitely crypto
+    }
     
-    // Cashtag with crypto context (mentions other crypto terms)
-    if (text.includes(`$${symbolLower}`) && (
-      text.includes('solana') || text.includes('crypto') || text.includes('token') ||
-      text.includes('trading') || text.includes('buy') || text.includes('sell') ||
-      text.includes('hodl') || text.includes('moon') || text.includes('pump')
-    )) {
+    // REQUIREMENT: Single crypto keyword + price/percentage indicators
+    if (cryptoScore >= 1 && (text.match(/\$[\d,]+\.?\d*/) || text.match(/[+-]?\d+\.?\d*%/))) {
+      console.log(`   📈 APPROVED: Crypto keyword + price indicators`);
       return true;
     }
     
-    // Price or percentage mentions with token symbol
-    if ((text.match(/\$[\d,]+\.?\d*/) || text.match(/[+-]?\d+\.?\d*%/)) && 
-        (text.includes(symbolLower) || text.includes(`$${symbolLower}`))) {
+    // REQUIREMENT: Solana ecosystem mentions (common for meme coins)
+    if (text.includes('solana') || text.includes('spl token') || text.includes('sol blockchain')) {
+      console.log(`   ⛓️ APPROVED: Solana ecosystem mention`);
       return true;
     }
     
-    // No crypto indicators found - reject to avoid false positives
-    // Better to miss some crypto tweets than include non-crypto content
+    // DEFAULT: Reject everything else (including pure hashtag matches without crypto context)
+    // This is especially important for ambiguous tokens like SCF
+    console.log(`   ❌ REJECTED: No strong crypto indicators (crypto score: ${cryptoScore}, non-crypto score: ${nonCryptoScore})`);
     return false;
   }
 
@@ -698,6 +808,7 @@ class EnhancedSocialDataService {
       
       // Calculate enhanced community health score using Twitter metrics
       const communityHealthScore = this.calculateCommunityHealthScore(twitterData);
+      console.log(`🏆 Community Health Score calculated for ${symbol}: ${communityHealthScore.toFixed(2)}/10`);
       
       // For now, return basic structure - can be expanded with other social platforms
       return {
@@ -756,63 +867,82 @@ class EnhancedSocialDataService {
    * Calculate comprehensive community health score using Twitter metrics
    * This is the enhanced scoring algorithm that uses ALL collected data
    * 
-   * NEW WEIGHTS: Mentions 5%, Engagement 30%, Followers 5%, Recent Activity 50%, Quality 10%
+   * FINAL WEIGHTS: Mentions 55%, Engagement 35%, Followers 5%, Quality 5%
+   * (Removed redundant Recent Activity scoring - prioritizes mention volume and engagement quality)
    */
   calculateCommunityHealthScore(twitterData) {
-    let score = 5.0; // Base score
+    let score = 2.0; // Base score - lowered to make scoring more dynamic
+    
+    console.log(`\n🧮 CALCULATING COMMUNITY HEALTH SCORE:`);
+    console.log(`   📊 Input Data: mentions=${twitterData.mentions}, likes=${twitterData.likes}, retweets=${twitterData.retweets}, replies=${twitterData.replies}`);
     
     try {
-      // 1. MENTIONS SCORING (5% weight) - Reduced from 25%
+      // 1. MENTIONS SCORING (55% weight) - PRIMARY importance for community buzz
       const mentions = twitterData.mentions || 0;
-      if (mentions > 100) score += 0.5;
-      else if (mentions > 50) score += 0.4;
-      else if (mentions > 20) score += 0.3;
-      else if (mentions > 10) score += 0.2;
-      else if (mentions > 5) score += 0.1;
+      let mentionsScore = 0;
+      if (mentions >= 50) mentionsScore = 3.5;        // 50+ mentions = excellent buzz
+      else if (mentions >= 25) mentionsScore = 3.0;   // 25+ mentions = very good
+      else if (mentions >= 15) mentionsScore = 2.5;   // 15+ mentions = good
+      else if (mentions >= 8) mentionsScore = 2.0;    // 8+ mentions = decent
+      else if (mentions >= 3) mentionsScore = 1.5;    // 3+ mentions = some activity
+      else if (mentions >= 1) mentionsScore = 1.0;    // 1+ mentions = minimal activity
       
-      // 2. ENGAGEMENT SCORING (30% weight) - Increased from 25%
+      score += mentionsScore;
+      console.log(`   🐦 Mentions (${mentions}): +${mentionsScore.toFixed(2)} points (55% weight)`);
+      
+      // 2. ENGAGEMENT SCORING (35% weight) - Quality of community interaction
       const totalEngagement = (twitterData.likes || 0) + (twitterData.retweets || 0) + (twitterData.replies || 0);
       const engagementRate = mentions > 0 ? totalEngagement / mentions : 0;
       
-      if (engagementRate > 10) score += 3.0;
-      else if (engagementRate > 5) score += 2.4;
-      else if (engagementRate > 2) score += 1.8;
-      else if (engagementRate > 1) score += 1.2;
-      else if (engagementRate > 0.5) score += 0.6;
+      let engagementScore = 0;
+      if (engagementRate >= 8) engagementScore = 2.5;      // 8+ engagement = excellent
+      else if (engagementRate >= 5) engagementScore = 2.0; // 5+ engagement = very good  
+      else if (engagementRate >= 3) engagementScore = 1.5; // 3+ engagement = good
+      else if (engagementRate >= 2) engagementScore = 1.2; // 2+ engagement = decent
+      else if (engagementRate >= 1) engagementScore = 0.8; // 1+ engagement = some
+      else if (engagementRate >= 0.5) engagementScore = 0.5; // 0.5+ engagement = minimal
       
-      // 3. FOLLOWER BASE SCORING (5% weight) - Reduced from 20%
+      score += engagementScore;
+      console.log(`   💬 Engagement Rate (${engagementRate.toFixed(2)}): +${engagementScore.toFixed(2)} points (35% weight)`);
+      
+      // 3. FOLLOWER BASE SCORING (5% weight) - Minor importance
       const followers = twitterData.followers || 0;
-      if (followers > 10000) score += 0.5;
-      else if (followers > 5000) score += 0.375;
-      else if (followers > 1000) score += 0.25;
-      else if (followers > 500) score += 0.125;
+      let followersScore = 0;
+      if (followers >= 5000) followersScore = 0.5;     // 5K+ followers = excellent reach
+      else if (followers >= 1000) followersScore = 0.4; // 1K+ followers = good reach
+      else if (followers >= 500) followersScore = 0.3;  // 500+ followers = decent reach
+      else if (followers >= 100) followersScore = 0.2;  // 100+ followers = some reach
+      else if (followers >= 10) followersScore = 0.1;   // 10+ followers = minimal reach
       
-      // 4. RECENT ACTIVITY SCORING (50% weight) - Increased from 20%
-      const recentMentions = twitterData.recentMentions?.length || 0;
-      if (recentMentions > 20) score += 5.0;
-      else if (recentMentions > 10) score += 3.75;
-      else if (recentMentions > 5) score += 2.5;
-      else if (recentMentions > 2) score += 1.25;
+      score += followersScore;
+      console.log(`   👥 Followers (${followers}): +${followersScore.toFixed(4)} points (5% weight)`);
       
-      // 5. QUALITY INDICATORS (10% weight) - Same as before
+      // 4. RECENT ACTIVITY SCORING - REMOVED (redundant with mentions)
+      // This was counting the same tweets already weighted in mentions scoring
+      
+      // 4. QUALITY INDICATORS (5% weight) - Basic legitimacy checks
       const hasOfficialAccount = twitterData.username ? 1.0 : 0;
       const hasRecentActivity = mentions > 0 ? 1.0 : 0;
-      score += (hasOfficialAccount + hasRecentActivity) * 0.5;
+      const qualityScore = (hasOfficialAccount + hasRecentActivity) * 0.5; // Increased from 0.25 to 0.5
+      score += qualityScore;
+      console.log(`   ✅ Quality (Official=${!!twitterData.username}, Active=${mentions > 0}): +${qualityScore.toFixed(2)} points (5% weight)`);
       
       // Ensure score is within 0-10 range
       score = Math.min(9.9, Math.max(0, score));
       
-      console.log(`📊 Community Health Score for ${twitterData.symbol}: ${score.toFixed(2)} [NEW WEIGHTS]`);
-      console.log(`   📝 Mentions (5%): ${mentions} (+${Math.min(0.5, mentions > 100 ? 0.5 : mentions > 50 ? 0.4 : mentions > 20 ? 0.3 : mentions > 10 ? 0.2 : mentions > 5 ? 0.1 : 0)})`);
-      console.log(`   💬 Engagement Rate (30%): ${engagementRate.toFixed(2)} (+${Math.min(3.0, engagementRate > 10 ? 3.0 : engagementRate > 5 ? 2.4 : engagementRate > 2 ? 1.8 : engagementRate > 1 ? 1.2 : engagementRate > 0.5 ? 0.6 : 0)})`);
-      console.log(`   👥 Followers (5%): ${followers} (+${Math.min(0.5, followers > 10000 ? 0.5 : followers > 5000 ? 0.375 : followers > 1000 ? 0.25 : followers > 500 ? 0.125 : 0)})`);
-      console.log(`   🆕 Recent Activity (50%): ${recentMentions} mentions (+${Math.min(5.0, recentMentions > 20 ? 5.0 : recentMentions > 10 ? 3.75 : recentMentions > 5 ? 2.5 : recentMentions > 2 ? 1.25 : 0)})`);
+      console.log(`\n🏆 FINAL COMMUNITY HEALTH SCORE: ${score.toFixed(2)}/10`);
+      console.log(`   📊 Base Score: 2.0`);
+      console.log(`   🐦 Mentions Bonus: +${mentionsScore.toFixed(2)}`);
+      console.log(`   💬 Engagement Bonus: +${engagementScore.toFixed(2)}`);
+      console.log(`   👥 Followers Bonus: +${followersScore.toFixed(4)}`);
+      console.log(`   ✅ Quality Bonus: +${qualityScore.toFixed(2)}`);
+      console.log(`   🎯 Total: ${score.toFixed(2)}/10\n`);
       
       return score;
       
     } catch (error) {
       console.error('❌ Error calculating community health score:', error.message);
-      return 5.0; // Return base score on error
+      return 2.0; // Return base score on error
     }
   }
 
@@ -952,6 +1082,97 @@ class EnhancedSocialDataService {
     } catch (error) {
       console.error(`❌ Immediate refresh failed for ${symbol}:`, error.message);
       throw error;
+    }
+  }
+
+  /**
+   * Get historical Twitter data for 24-hour comparisons
+   */
+  async getHistoricalTwitterData(symbol, name) {
+    try {
+      const historyData = await fs.readFile(this.historicalMetricsFile, 'utf8');
+      const history = JSON.parse(historyData);
+      
+      const tokenKey = `${symbol}_${name}`;
+      const tokenHistory = history[tokenKey] || {};
+      
+      // Get yesterday's date (24 hours ago)
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayKey = yesterday.toISOString().split('T')[0]; // YYYY-MM-DD format
+      
+      const yesterdayData = tokenHistory[yesterdayKey];
+      
+      return {
+        yesterdayMentions: yesterdayData?.mentions || 0,
+        yesterdayLikes: yesterdayData?.likes || 0,
+        yesterdayEngagement: yesterdayData?.engagement || 0,
+        hasHistoricalData: !!yesterdayData
+      };
+      
+    } catch (error) {
+      console.log(`📊 No historical data found for ${symbol}, starting fresh tracking`);
+      return {
+        yesterdayMentions: 0,
+        yesterdayLikes: 0,
+        yesterdayEngagement: 0,
+        hasHistoricalData: false
+      };
+    }
+  }
+
+  /**
+   * Save daily snapshot for historical tracking
+   */
+  async saveHistoricalSnapshot(symbol, name, twitterData) {
+    try {
+      // Ensure cache directory exists
+      const cacheDir = path.dirname(this.historicalMetricsFile);
+      await fs.mkdir(cacheDir, { recursive: true });
+      
+      // Load existing history
+      let history = {};
+      try {
+        const historyData = await fs.readFile(this.historicalMetricsFile, 'utf8');
+        history = JSON.parse(historyData);
+      } catch (error) {
+        console.log('📊 Creating new historical metrics file');
+      }
+      
+      const tokenKey = `${symbol}_${name}`;
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+      
+      // Initialize token history if it doesn't exist
+      if (!history[tokenKey]) {
+        history[tokenKey] = {};
+      }
+      
+      // Save today's snapshot
+      history[tokenKey][today] = {
+        mentions: twitterData.mentions,
+        likes: twitterData.likes,
+        retweets: twitterData.retweets,
+        replies: twitterData.replies,
+        engagement: twitterData.engagement?.total || 0,
+        followers: twitterData.followers,
+        timestamp: new Date().toISOString()
+      };
+      
+      // Keep only last 30 days of history per token
+      const tokenHistory = history[tokenKey];
+      const dates = Object.keys(tokenHistory).sort();
+      if (dates.length > 30) {
+        const datesToRemove = dates.slice(0, dates.length - 30);
+        datesToRemove.forEach(date => delete tokenHistory[date]);
+      }
+      
+      // Save updated history
+      await fs.writeFile(this.historicalMetricsFile, JSON.stringify(history, null, 2), 'utf8');
+      
+      console.log(`📊 Historical snapshot saved for ${symbol} on ${today}`);
+      
+    } catch (error) {
+      console.error(`❌ Error saving historical snapshot for ${symbol}:`, error.message);
     }
   }
 

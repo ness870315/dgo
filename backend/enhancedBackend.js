@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import axios from 'axios';
 import EnhancedTokenProcessor from './enhancedTokenProcessor.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -353,6 +354,69 @@ class EnhancedBackend {
     });
 
     // ========================================
+    // 🔥 FUEL TOKEN ENDPOINTS
+    // ========================================
+
+    // Get fueled tokens
+    this.app.get('/api/tokens/fuel', async (req, res) => {
+      try {
+        console.log('[🛡️ Enhanced Backend] 🔥 Getting fueled tokens...');
+        
+        const fueledTokens = await this.getFueledTokens();
+        
+        console.log(`[🛡️ Enhanced Backend] ✅ Returning ${fueledTokens.length} fueled tokens`);
+        res.json(fueledTokens);
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Error getting fueled tokens:', error);
+        res.status(500).json({ error: 'Failed to get fueled tokens' });
+      }
+    });
+
+    // Apply fuel to token
+    this.app.post('/api/tokens/fuel', async (req, res) => {
+      try {
+        const { contractAddress, fuelType } = req.body;
+        
+        console.log(`[🛡️ Enhanced Backend] 🔥 Applying ${fuelType} fuel to token: ${contractAddress}`);
+        
+        if (!contractAddress || !fuelType) {
+          return res.status(400).json({ 
+            error: 'Contract address and fuel type are required' 
+          });
+        }
+
+        // Validate fuel type
+        const validFuelTypes = ['10x', '50x', '500x', '1000x'];
+        if (!validFuelTypes.includes(fuelType)) {
+          return res.status(400).json({ 
+            error: 'Invalid fuel type. Must be one of: ' + validFuelTypes.join(', ') 
+          });
+        }
+
+        const result = await this.applyFuelToToken(contractAddress, fuelType);
+        
+        if (result.success) {
+          console.log(`[🛡️ Enhanced Backend] ✅ Fuel applied successfully: ${result.message}`);
+          res.json({ 
+            success: true, 
+            message: result.message,
+            token: result.token
+          });
+        } else {
+          console.log(`[🛡️ Enhanced Backend] ❌ Failed to apply fuel: ${result.error}`);
+          res.status(400).json({ 
+            error: result.error 
+          });
+        }
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Error applying fuel:', error);
+        res.status(500).json({ error: 'Failed to apply fuel to token' });
+      }
+    });
+
+    // ========================================
     // 🛠️ ADMIN API DASHBOARD ENDPOINTS
     // ========================================
 
@@ -559,7 +623,7 @@ class EnhancedBackend {
             }
             
             // Force refresh Twitter data
-            const twitterData = await socialService.forceRefreshToken(symbol, token.name);
+            const twitterData = await socialService.forceImmediateRefresh(symbol, token.name);
             
             results.push({ 
               symbol, 
@@ -592,9 +656,18 @@ class EnhancedBackend {
         
         console.log(`[🛡️ Admin] 🐦 Manual Twitter refresh for: ${symbol}`);
         
-        // Find token data
-        const tokens = await this.getTokensFromCache();
-        const token = tokens.find(t => t.symbol === symbol.toUpperCase());
+        // Load raw tokens from cache (not the filtered/merged ones)
+        const cachePath = path.join(__dirname, 'cache', 'tokens-cache.json');
+        let rawTokens = [];
+        try {
+          const data = await fs.readFile(cachePath, 'utf8');
+          rawTokens = JSON.parse(data);
+        } catch (error) {
+          return res.status(404).json({ error: 'Token cache not found' });
+        }
+        
+        // Find token in raw cache
+        const token = rawTokens.find(t => t.symbol === symbol.toUpperCase());
         
         if (!token) {
           return res.status(404).json({ error: `Token ${symbol} not found` });
@@ -611,7 +684,25 @@ class EnhancedBackend {
         const socialService = this.tokenProcessor.socialDataService;
         
         // Force refresh Twitter data
-        const twitterData = await socialService.forceRefreshToken(symbol, token.name);
+        const twitterData = await socialService.forceImmediateRefresh(symbol, token.name);
+        
+        // Update token with new Twitter data
+        token.twitterData = twitterData;
+        token.twitterTimestamp = new Date().toISOString();
+        
+        // Recalculate community health score with new Twitter data using ENHANCED method
+        token.communityHealthScore = socialService.calculateCommunityHealthScore(twitterData);
+        token.communityScore = token.communityHealthScore; // Ensure both fields are set
+        
+        // Recalculate overall score
+        token.overallScore = this.tokenProcessor.calculateEnhancedOverallScore(token);
+        token.score = token.overallScore; // Ensure both fields are set
+        
+        // Save updated tokens back to raw cache
+        const updatedTokens = rawTokens.map(t => t.symbol === symbol.toUpperCase() ? token : t);
+        await this.saveTokensToCache(updatedTokens);
+        
+        console.log(`[🛡️ Admin] ✅ Twitter data updated for ${symbol}: ${twitterData.mentions} mentions, Community Score: ${token.communityHealthScore.toFixed(2)}, Overall Score: ${token.overallScore.toFixed(2)}`);
         
         res.json({
           success: true,
@@ -626,7 +717,9 @@ class EnhancedBackend {
               engagement: twitterData.engagement,
               officialHandle: twitterData.officialHandle,
               recentMentions: twitterData.recentMentions?.length || 0
-            }
+            },
+            communityScore: token.communityHealthScore,
+            overallScore: token.overallScore
           }
         });
         
@@ -889,6 +982,24 @@ class EnhancedBackend {
     }
   }
 
+  async saveTokensToCache(tokens) {
+    try {
+      const cachePath = path.join(__dirname, 'cache', 'tokens-cache.json');
+      
+      // Ensure cache directory exists
+      const cacheDir = path.dirname(cachePath);
+      await fs.mkdir(cacheDir, { recursive: true });
+      
+      // Save tokens to cache file
+      await fs.writeFile(cachePath, JSON.stringify(tokens, null, 2), 'utf8');
+      console.log(`[🛡️ Enhanced Backend] ✅ Saved ${tokens.length} tokens to cache`);
+      
+    } catch (error) {
+      console.error('[🛡️ Enhanced Backend] ❌ Error saving tokens to cache:', error);
+      throw error;
+    }
+  }
+
   async mergeTwitterData(tokens) {
     try {
       const twitterCachePath = path.join(__dirname, 'cache', 'twitter_metrics.json');
@@ -954,43 +1065,40 @@ class EnhancedBackend {
     let score = 5.0; // Base score to match Enhanced Social Data Service
     const maxScore = 10;
 
-    // NEW WEIGHTS: Mentions 5%, Engagement 30%, Followers 5%, Recent Activity 50%, Quality 10%
+    // FINAL WEIGHTS: Mentions 55%, Engagement 35%, Followers 5%, Quality 5%
+    // (Removed redundant Recent Activity scoring - prioritizes mention volume and engagement quality)
 
-    // 1. Mentions score (5% weight) - Reduced importance
+    // 1. Mentions score (55% weight) - PRIMARY importance for community buzz
     const mentions = twitterData.mentions || 0;
-    if (mentions > 100) score += 0.5;
-    else if (mentions > 50) score += 0.4;
-    else if (mentions > 20) score += 0.3;
-    else if (mentions > 10) score += 0.2;
-    else if (mentions > 5) score += 0.1;
+    if (mentions > 100) score += 2.75;
+    else if (mentions > 50) score += 2.2;
+    else if (mentions > 20) score += 1.65;
+    else if (mentions > 10) score += 1.1;
+    else if (mentions > 5) score += 0.55;
 
-    // 2. Engagement score (30% weight) - Increased importance
+    // 2. Engagement score (35% weight) - Quality of community interaction
     const totalEngagement = (twitterData.likes || 0) + (twitterData.retweets || 0) + (twitterData.replies || 0);
     const engagementRate = mentions > 0 ? totalEngagement / mentions : 0;
-    if (engagementRate > 10) score += 3.0;
-    else if (engagementRate > 5) score += 2.4;
-    else if (engagementRate > 2) score += 1.8;
-    else if (engagementRate > 1) score += 1.2;
-    else if (engagementRate > 0.5) score += 0.6;
+    if (engagementRate > 10) score += 1.75;
+    else if (engagementRate > 5) score += 1.4;
+    else if (engagementRate > 2) score += 1.05;
+    else if (engagementRate > 1) score += 0.7;
+    else if (engagementRate > 0.5) score += 0.35;
 
-    // 3. Follower score (5% weight) - Reduced importance
+    // 3. Follower score (5% weight) - Minor importance
     const followers = twitterData.followers || 0;
-    if (followers > 10000) score += 0.5;
-    else if (followers > 5000) score += 0.375;
-    else if (followers > 1000) score += 0.25;
-    else if (followers > 500) score += 0.125;
+    if (followers > 10000) score += 0.25;
+    else if (followers > 5000) score += 0.1875;
+    else if (followers > 1000) score += 0.125;
+    else if (followers > 500) score += 0.0625;
 
-    // 4. Recent activity score (50% weight) - MAJOR increase in importance
-    const recentMentions = twitterData.recentMentions?.length || 0;
-    if (recentMentions > 20) score += 5.0;
-    else if (recentMentions > 10) score += 3.75;
-    else if (recentMentions > 5) score += 2.5;
-    else if (recentMentions > 2) score += 1.25;
+    // 4. Recent activity score - REMOVED (redundant with mentions)
+    // This was counting the same tweets already weighted in mentions scoring
 
-    // 5. Quality indicators (10% weight) - Same as before
+    // 4. Quality indicators (5% weight) - Basic legitimacy checks
     const hasOfficialAccount = twitterData.username ? 1.0 : 0;
     const hasRecentActivity = mentions > 0 ? 1.0 : 0;
-    score += (hasOfficialAccount + hasRecentActivity) * 0.5;
+    score += (hasOfficialAccount + hasRecentActivity) * 0.25;
 
     // 6. Social links bonus (BONUS points) - NEW!
     if (socialLinks) {
@@ -1019,9 +1127,91 @@ class EnhancedBackend {
 
   async updateJupiterData() {
     try {
-      // This would update Jupiter data for existing tokens
-      // For now, just log the action
-      console.log('[🛡️ Enhanced Backend] 🚀 Jupiter data update cycle');
+      console.log('[🛡️ Enhanced Backend] 🚀 Starting Jupiter data update cycle...');
+      
+      // Load current tokens
+      const tokens = await this.getTokensFromCache();
+      if (!tokens || tokens.length === 0) {
+        console.log('[🛡️ Enhanced Backend] ⚠️ No tokens found for Jupiter update');
+        return;
+      }
+      
+      // Filter tokens that need Jupiter data refresh (older than 1 hour)
+      const now = new Date();
+      const tokensToUpdate = tokens.filter(token => {
+        if (!token.jupiterData || !token.contractAddress) return false;
+        
+        if (!token.jupiterTimestamp) return true; // No timestamp = needs update
+        
+        const timestamp = new Date(token.jupiterTimestamp);
+        const ageHours = (now - timestamp) / (1000 * 60 * 60);
+        return ageHours > 1; // Update if older than 1 hour
+      });
+      
+      if (tokensToUpdate.length === 0) {
+        console.log('[🛡️ Enhanced Backend] ✅ All Jupiter data is current (< 1 hour old)');
+        return;
+      }
+      
+      console.log(`[🛡️ Enhanced Backend] 🔄 Updating Jupiter data for ${tokensToUpdate.length} tokens...`);
+      
+      // Sort by market cap and update top 20 tokens per cycle
+      const topTokens = tokensToUpdate
+        .sort((a, b) => (b.jupiterData?.mcap || 0) - (a.jupiterData?.mcap || 0))
+        .slice(0, 20);
+      
+      let updated = 0;
+      let errors = 0;
+      
+      for (const token of topTokens) {
+        try {
+          const response = await axios.get(`https://lite-api.jup.ag/tokens/v2/search?query=${token.contractAddress}`, {
+            timeout: 8000,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              'Accept': 'application/json'
+            }
+          });
+          
+          if (response.data && response.data.length > 0) {
+            const freshData = response.data[0];
+            
+            // Update token in cache
+            const tokenIndex = tokens.findIndex(t => t.contractAddress === token.contractAddress);
+            if (tokenIndex !== -1) {
+              tokens[tokenIndex].jupiterData = freshData;
+              tokens[tokenIndex].jupiterTimestamp = new Date().toISOString();
+              updated++;
+              
+              // Log significant changes
+              const oldMcap = token.jupiterData?.mcap || 0;
+              const newMcap = freshData.mcap || 0;
+              if (oldMcap > 0 && Math.abs((newMcap - oldMcap) / oldMcap) > 0.05) {
+                const change = ((newMcap - oldMcap) / oldMcap * 100).toFixed(1);
+                console.log(`[🛡️ Enhanced Backend] 📊 ${token.symbol}: ${(oldMcap/1e6).toFixed(1)}M → ${(newMcap/1e6).toFixed(1)}M (${change}%)`);
+              }
+            }
+          } else {
+            errors++;
+          }
+          
+          // Rate limiting
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+        } catch (error) {
+          console.log(`[🛡️ Enhanced Backend] ❌ Failed to update ${token.symbol}: ${error.message}`);
+          errors++;
+        }
+      }
+      
+      // Save updated cache
+      if (updated > 0) {
+        const cachePath = path.join(__dirname, 'cache', 'tokens-cache.json');
+        await fs.writeFile(cachePath, JSON.stringify(tokens, null, 2));
+        console.log(`[🛡️ Enhanced Backend] ✅ Jupiter update complete: ${updated} tokens updated, ${errors} errors`);
+      } else {
+        console.log(`[🛡️ Enhanced Backend] ⚠️ No tokens updated: ${errors} errors`);
+      }
       
     } catch (error) {
       console.error('[🛡️ Enhanced Backend] ❌ Jupiter update failed:', error);
@@ -1040,6 +1230,136 @@ class EnhancedBackend {
       
     } catch (error) {
       console.error('[🛡️ Enhanced Backend] ❌ Failed to clear cache:', error);
+    }
+  }
+
+  // ========================================
+  // 🔥 FUEL TOKEN HELPER METHODS
+  // ========================================
+
+  async getFueledTokens() {
+    try {
+      const fueledTokensPath = path.join(__dirname, 'cache', 'fueled-tokens.json');
+      
+      // Check if file exists
+      try {
+        await fs.access(fueledTokensPath);
+      } catch {
+        // File doesn't exist, return empty array
+        return [];
+      }
+
+      const data = await fs.readFile(fueledTokensPath, 'utf8');
+      const fueledTokens = JSON.parse(data);
+
+      // Filter out expired tokens
+      const now = Date.now();
+      const activeFueledTokens = fueledTokens.filter(token => {
+        const expiryTime = new Date(token.fuelExpiry).getTime();
+        return expiryTime > now;
+      });
+
+      // Update the file if we removed expired tokens
+      if (activeFueledTokens.length !== fueledTokens.length) {
+        await fs.writeFile(fueledTokensPath, JSON.stringify(activeFueledTokens, null, 2));
+      }
+
+      // Calculate remaining time for each token
+      return activeFueledTokens.map(token => ({
+        ...token,
+        remainingTime: new Date(token.fuelExpiry).getTime() - now
+      }));
+
+    } catch (error) {
+      console.error('[🛡️ Enhanced Backend] ❌ Error getting fueled tokens:', error);
+      return [];
+    }
+  }
+
+  async applyFuelToToken(contractAddress, fuelType) {
+    try {
+      // Load current tokens to check if token exists
+      const tokens = await this.getTokensFromCache();
+      const existingToken = tokens.find(t => 
+        t.contractAddress && t.contractAddress.toLowerCase() === contractAddress.toLowerCase()
+      );
+
+      if (!existingToken) {
+        return {
+          success: false,
+          error: 'Token not found in database. Please ensure the token has been listed first.'
+        };
+      }
+
+      // Load current fueled tokens
+      const fueledTokens = await this.getFueledTokens();
+      
+      // Check if token is already fueled
+      const existingFueledToken = fueledTokens.find(ft => 
+        ft.contractAddress && ft.contractAddress.toLowerCase() === contractAddress.toLowerCase()
+      );
+
+      // Fuel configuration
+      const fuelConfig = {
+        '10x': { boost: 0.15, duration: 12 * 60 * 60 * 1000 }, // 12 hours
+        '50x': { boost: 0.25, duration: 12 * 60 * 60 * 1000 },
+        '500x': { boost: 0.35, duration: 12 * 60 * 60 * 1000 },
+        '1000x': { boost: 0.45, duration: 12 * 60 * 60 * 1000 }
+      };
+
+      const config = fuelConfig[fuelType];
+      const now = new Date();
+      const expiryTime = new Date(now.getTime() + config.duration);
+
+      if (existingFueledToken) {
+        // Update existing fueled token
+        existingFueledToken.fuelType = fuelType;
+        existingFueledToken.boostMultiplier = 1 + config.boost;
+        existingFueledToken.fuelApplied = now.toISOString();
+        existingFueledToken.fuelExpiry = expiryTime.toISOString();
+        existingFueledToken.originalScore = existingToken.overallScore || existingToken.score || 0;
+      } else {
+        // Add new fueled token
+        const newFueledToken = {
+          contractAddress: contractAddress,
+          symbol: existingToken.symbol,
+          name: existingToken.name,
+          fuelType: fuelType,
+          boostMultiplier: 1 + config.boost,
+          originalScore: existingToken.overallScore || existingToken.score || 0,
+          fuelApplied: now.toISOString(),
+          fuelExpiry: expiryTime.toISOString()
+        };
+        fueledTokens.push(newFueledToken);
+      }
+
+      // Save fueled tokens
+      const fueledTokensPath = path.join(__dirname, 'cache', 'fueled-tokens.json');
+      
+      // Ensure cache directory exists
+      const cacheDir = path.dirname(fueledTokensPath);
+      try {
+        await fs.access(cacheDir);
+      } catch {
+        await fs.mkdir(cacheDir, { recursive: true });
+      }
+
+      await fs.writeFile(fueledTokensPath, JSON.stringify(fueledTokens, null, 2));
+
+      console.log(`[🛡️ Enhanced Backend] 🔥 Fuel ${fuelType} applied to ${existingToken.symbol} (${contractAddress})`);
+
+      return {
+        success: true,
+        message: `Fuel ${fuelType} applied successfully to ${existingToken.symbol}! Boost will last 12 hours.`,
+        token: existingFueledToken || fueledTokens[fueledTokens.length - 1]
+      };
+
+    } catch (error) {
+      console.error('[🛡️ Enhanced Backend] ❌ Error applying fuel:', error);
+      return {
+        success: false,
+        error: 'Internal server error while applying fuel'
+      };
     }
   }
 

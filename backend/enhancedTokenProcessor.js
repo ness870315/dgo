@@ -1022,22 +1022,28 @@ class EnhancedTokenProcessor {
   }
 
   calculateEnhancedOverallScore(token) {
-    let score = 0;
+    let score = 1.5; // Base score - ensures minimum viable score
     
-    // Market Tier (5%)
-    const marketTier = this.calculateMarketTier(token.coingeckoData?.marketCap);
+    // Market Tier (5%) - Use Jupiter market cap data
+    const marketTier = this.calculateMarketTier(token.jupiterData?.mcap || token.jupiterData?.marketCap);
     score += marketTier * 0.05;
     
-    // Volume 1hr (10%)
-    const volume1h = this.calculateVolumeScore(token.jupiterData?.volume1h || 0);
+    // Volume 1hr (10%) - Calculate from Jupiter stats1h data
+    const buyVolume1h = token.jupiterData?.stats1h?.buyVolume || 0;
+    const sellVolume1h = token.jupiterData?.stats1h?.sellVolume || 0;
+    const totalVolume1h = buyVolume1h + sellVolume1h;
+    const volume1h = this.calculateVolumeScore(totalVolume1h);
     score += volume1h * 0.10;
     
-    // Volume 24hr (15%)
-    const volume24h = this.calculateVolumeScore(token.coingeckoData?.volume24h || 0);
+    // Volume 24hr (15%) - Calculate from Jupiter stats24h data
+    const buyVolume24h = token.jupiterData?.stats24h?.buyVolume || 0;
+    const sellVolume24h = token.jupiterData?.stats24h?.sellVolume || 0;
+    const totalVolume24h = buyVolume24h + sellVolume24h;
+    const volume24h = this.calculateVolumeScore(totalVolume24h);
     score += volume24h * 0.15;
     
-    // Price Change 6hrs (10%)
-    const priceChange = this.calculatePriceChangeScore(token.coingeckoData?.priceChange24h || 0);
+    // Price Change 24hrs (10%) - Use Jupiter stats24h data
+    const priceChange = this.calculatePriceChangeScore(token.jupiterData?.stats24h?.priceChange || 0);
     score += priceChange * 0.10;
     
     // Organic Volume Ratio (10%)
@@ -1094,9 +1100,28 @@ class EnhancedTokenProcessor {
   }
 
   calculateOrganicVolumeRatio(token) {
-    // This would calculate buy vs sell volume ratio
-    // For now, returning neutral score
-    return 5.0;
+    // Calculate organic volume ratio from Jupiter stats24h data
+    const organicBuyVolume = token.jupiterData?.stats24h?.buyOrganicVolume || 0;
+    const organicSellVolume = token.jupiterData?.stats24h?.sellOrganicVolume || 0;
+    const totalBuyVolume = token.jupiterData?.stats24h?.buyVolume || 0;
+    const totalSellVolume = token.jupiterData?.stats24h?.sellVolume || 0;
+    
+    const totalOrganicVolume = organicBuyVolume + organicSellVolume;
+    const totalVolume = totalBuyVolume + totalSellVolume;
+    
+    // If no volume data, return neutral score
+    if (totalVolume === 0) return 5.0;
+    
+    // Calculate organic ratio (0-1)
+    const organicRatio = totalOrganicVolume / totalVolume;
+    
+    // Score based on organic ratio percentage
+    if (organicRatio >= 0.8) return 10.0;      // 80%+ organic = excellent
+    if (organicRatio >= 0.6) return 8.0;       // 60%+ organic = very good
+    if (organicRatio >= 0.4) return 6.0;       // 40%+ organic = good
+    if (organicRatio >= 0.2) return 4.0;       // 20%+ organic = decent
+    if (organicRatio >= 0.1) return 2.0;       // 10%+ organic = low
+    return 1.0;                                 // <10% organic = very low
   }
 
   calculateUniquenessFactor(token) {

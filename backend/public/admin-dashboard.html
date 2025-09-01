@@ -371,15 +371,37 @@
                 </div>
             </div>
 
-            <!-- Fuel Tokens -->
+            <!-- Fuel Tokens (Processing Priority) -->
             <div class="card">
-                <h2>⛽ Fuel Tokens</h2>
+                <h2>⛽ Boost Processing Priority</h2>
                 <div class="form-group">
                     <label>Token Symbols (comma-separated)</label>
                     <input type="text" id="fuelTokens" placeholder="e.g., BTC, ETH, SOL">
                 </div>
                 <button class="btn btn-warning" onclick="fuelTokens()">⛽ Boost Processing</button>
                 <div id="fuelResults"></div>
+            </div>
+
+            <!-- Apply Score Fuel -->
+            <div class="card">
+                <h2>🔥 Apply Score Fuel</h2>
+                <div class="form-group">
+                    <label>Contract Address</label>
+                    <input type="text" id="scoreFuelContract" placeholder="Enter contract address">
+                </div>
+                <div class="form-group">
+                    <label>Fuel Type</label>
+                    <select id="scoreFuelType">
+                        <option value="10x">10x Fuel (15% boost, 12h)</option>
+                        <option value="50x">50x Fuel (25% boost, 12h)</option>
+                        <option value="500x">500x Fuel (35% boost, 12h)</option>
+                        <option value="1000x">1000x Fuel (45% boost, 12h)</option>
+                    </select>
+                </div>
+                <button class="btn btn-warning" onclick="applyScoreFuel()">🔥 Apply Score Fuel</button>
+                <button class="btn" onclick="loadFueledTokens()">📋 View Fueled Tokens</button>
+                <div id="scoreFuelResults"></div>
+                <div id="fueledTokensList" class="results-container" style="display: none;"></div>
             </div>
 
             <!-- Manual Twitter Refresh -->
@@ -686,6 +708,125 @@
             } catch (error) {
                 resultDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
             }
+        }
+
+        // Score Fuel Functions
+        async function applyScoreFuel() {
+            const contractAddress = document.getElementById('scoreFuelContract').value.trim();
+            const fuelType = document.getElementById('scoreFuelType').value;
+            const resultDiv = document.getElementById('scoreFuelResults');
+
+            if (!contractAddress) {
+                resultDiv.innerHTML = showAlert('Please enter a contract address', 'error');
+                return;
+            }
+
+            resultDiv.innerHTML = showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/tokens/fuel`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contractAddress, fuelType })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = showAlert(`✅ ${data.message}`, 'success');
+                    // Clear form
+                    document.getElementById('scoreFuelContract').value = '';
+                    // Auto-refresh fueled tokens list if it's visible
+                    const fueledList = document.getElementById('fueledTokensList');
+                    if (fueledList.style.display !== 'none') {
+                        loadFueledTokens();
+                    }
+                } else {
+                    resultDiv.innerHTML = showAlert(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function loadFueledTokens() {
+            const listDiv = document.getElementById('fueledTokensList');
+            listDiv.style.display = 'block';
+            listDiv.innerHTML = showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/tokens/fuel`);
+                const data = await response.json();
+
+                if (Array.isArray(data)) {
+                    if (data.length === 0) {
+                        listDiv.innerHTML = showAlert('No tokens are currently fueled', 'warning');
+                        return;
+                    }
+
+                    let html = `<h4>Currently Fueled Tokens (${data.length})</h4>`;
+                    
+                    data.forEach(token => {
+                        const remainingHours = Math.floor(token.remainingTime / (1000 * 60 * 60));
+                        const remainingMinutes = Math.floor((token.remainingTime % (1000 * 60 * 60)) / (1000 * 60));
+                        
+                        html += `
+                            <div class="token-item">
+                                <div class="token-info">
+                                    <h4>${token.symbol} - ${token.name || 'Unknown'}</h4>
+                                    <p>Fuel Type: ${token.fuelType} | Boost: ${((token.boostMultiplier - 1) * 100).toFixed(0)}%</p>
+                                    <p>Original Score: ${token.originalScore} | Time Left: ${remainingHours}h ${remainingMinutes}m</p>
+                                    <p style="font-size: 12px; color: #666;">CA: ${token.contractAddress}</p>
+                                </div>
+                                <div class="token-actions">
+                                    <button class="btn btn-small btn-warning" onclick="extendFuel('${token.contractAddress}')">⏰ Extend</button>
+                                    <button class="btn btn-small btn-danger" onclick="removeFuel('${token.contractAddress}')">❌ Remove</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    listDiv.innerHTML = html;
+                } else {
+                    listDiv.innerHTML = showAlert('Invalid response format', 'error');
+                }
+            } catch (error) {
+                listDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function extendFuel(contractAddress) {
+            // Re-apply the same fuel type to extend duration
+            const fuelType = document.getElementById('scoreFuelType').value;
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/tokens/fuel`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contractAddress, fuelType })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`✅ Fuel extended for ${contractAddress}`);
+                    loadFueledTokens(); // Refresh list
+                } else {
+                    alert(`❌ ${data.error}`);
+                }
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        async function removeFuel(contractAddress) {
+            if (!confirm(`Remove fuel from token ${contractAddress}?`)) {
+                return;
+            }
+            
+            // Note: This would require a DELETE endpoint which we haven't implemented yet
+            // For now, just show a message
+            alert('⚠️ Remove fuel functionality not yet implemented. Fuel will expire automatically after 12 hours.');
         }
 
         // Twitter Functions
