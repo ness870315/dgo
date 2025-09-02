@@ -26,15 +26,29 @@ class EnhancedBackend {
   setupMiddleware() {
     // CORS configuration for production
     const corsOptions = {
-      origin: [
-        'https://dgo-20l.pages.dev',
-        'https://f1041bbe.dgo-20l.pages.dev',
-        'https://degen-oracle.com',
-        'https://www.degen-oracle.com',
-        'https://api.degen-oracle.com',
-        'http://localhost:3000', // for development
-        'http://localhost:4000'  // for development
-      ],
+      origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        const allowedOrigins = [
+          'https://dgo-20l.pages.dev',
+          'https://degen-oracle.com',
+          'https://www.degen-oracle.com',
+          'https://api.degen-oracle.com',
+          'http://localhost:3000', // for development
+          'http://localhost:4000'  // for development
+        ];
+        
+        // Allow any Cloudflare Pages subdomain for dgo-20l.pages.dev
+        const cloudflarePattern = /^https:\/\/[a-f0-9]+\.dgo-20l\.pages\.dev$/;
+        
+        if (allowedOrigins.includes(origin) || cloudflarePattern.test(origin)) {
+          callback(null, true);
+        } else {
+          console.log('🚫 CORS blocked origin:', origin);
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
