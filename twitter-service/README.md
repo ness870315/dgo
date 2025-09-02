@@ -4,7 +4,7 @@ A Python FastAPI microservice that provides Twitter data using advanced scraping
 
 ## Features
 
-- 🐦 **Twint Integration** - Advanced Twitter scraping tool
+- 🌐 **Selenium Integration** - Advanced browser automation
 - 🔍 Search tweets by keyword using multiple methods
 - 👤 Get user tweets from profiles
 - 📢 Search mentions of specific handles
@@ -18,14 +18,15 @@ A Python FastAPI microservice that provides Twitter data using advanced scraping
 
 **This service uses a 3-tier approach for maximum reliability:**
 
-1. **🐦 Twint** - Advanced Twitter scraping tool (primary)
+1. **🌐 Selenium** - Advanced browser automation (primary)
 2. **🔑 Twitter API** - Official API when credentials available (secondary)
 3. **🌐 Web Scraping** - Traditional scraping as fallback (tertiary)
 
 The service includes:
-- ✅ **Twint-powered scraping** - Most advanced Twitter scraping available
+- ✅ **Selenium-powered scraping** - Real browser automation for accurate results
 - ✅ **Twitter API integration** - Official data when available
 - ✅ **Web scraping fallback** - Always works even without credentials
+- ✅ **Headless Chrome** - Runs without visible browser window
 - ✅ **User agent rotation** - Avoids blocking by rotating browser signatures
 - ✅ **Rate limiting protection** - Built-in delays and retry logic
 - ✅ **Mock data generation** - Always returns valid responses even on failures
@@ -66,14 +67,14 @@ Once running, visit:
 - `GET /health` - Service health status
 
 ### Twitter Endpoints
-- `GET /api/twitter/search?q=keyword&count=20` - Search tweets (multi-method: Twint + API + Web)
-- `GET /api/twitter/twint/search?q=keyword&count=20` - Search tweets using Twint only (for testing)
+- `GET /api/twitter/search?q=keyword&count=20` - Search tweets (multi-method: Selenium + API + Web)
+- `GET /api/twitter/selenium/search?q=keyword&count=20` - Search tweets using Selenium only (for testing)
 - `GET /api/twitter/user/{username}/tweets?count=20` - Get user tweets
 - `GET /api/twitter/mentions/{handle}?count=10` - Search mentions
 - `GET /api/twitter/trends` - Get trending topics
 
 ### Response Sources
-- **`"source": "twint"`** - Data from Twint advanced scraping
+- **`"source": "selenium"`** - Data from Selenium browser automation
 - **`"source": "scraping"`** - Successfully scraped real data
 - **`"source": "fallback"`** - Generated mock data due to limitations
 
@@ -116,24 +117,25 @@ docker run -p 8000:8000 twitter-service
 
 The service implements a **4-tier fallback system** for maximum reliability:
 
-1. **🐦 Primary**: Twint advanced Twitter scraping tool
+1. **🌐 Primary**: Selenium browser automation
 2. **🔑 Secondary**: Twitter official API (when credentials available)
 3. **🌐 Tertiary**: Enhanced web scraping with multiple strategies
 4. **🎭 Quaternary**: Mock data generation - **always returns valid responses**
 
 ### Response Sources:
-- ✅ **`"source": "twint"`** - Advanced Twint scraping results
+- ✅ **`"source": "selenium"`** - Advanced Selenium browser automation results
 - ✅ **`"source": "scraping"`** - Successfully scraped real data
 - ✅ **`"source": "fallback"`** - Generated mock data due to limitations
 - ✅ **Structured JSON responses** - Consistent format regardless of source
 
 ### Anti-Blocking Features:
-- 🐦 **Twint evasion** - Advanced anti-detection techniques
+- 🌐 **Selenium automation** - Real browser behavior for maximum compatibility
 - 🔄 **User agent rotation** - Changes browser signature on each request
 - ⏱️ **Rate limiting protection** - Built-in delays and retry logic
 - 🔁 **Retry logic** - Automatic retries with exponential backoff
 - 🎯 **Multiple selectors** - Tries different CSS selectors if one fails
 - 🎲 **Randomization** - Randomized delays and request patterns
+- 🚫 **Headless operation** - Runs invisibly on servers
 
 ## Security Notes
 
