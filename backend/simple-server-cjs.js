@@ -10,6 +10,9 @@ const PORT = process.env.PORT || 4000;
 app.use(cors());
 app.use(express.json());
 
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, 'public')));
+
 // Simple health check
 app.get('/health', (req, res) => {
   res.json({
