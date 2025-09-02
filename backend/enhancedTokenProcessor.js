@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
-import JupiterApiService from './jupiterApiService.js';
+import jupiterApiService from './jupiterApiService.js';
 import DexscreenerApiService from './dexscreenerApiService.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -23,7 +23,7 @@ class EnhancedTokenProcessor {
     };
     
     // Initialize API services
-    this.jupiterService = new JupiterApiService();
+    this.jupiterService = jupiterApiService;
     this.dexscreenerService = new DexscreenerApiService();
     
     // CONSERVATIVE Rate limiting configuration to avoid 429 errors
