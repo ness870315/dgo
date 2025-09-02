@@ -310,6 +310,44 @@
             </div>
         </div>
 
+        <!-- Jupiter API Management -->
+        <div class="card">
+            <h2>🪐 Jupiter API Management</h2>
+            <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                <button class="btn" onclick="checkJupiterHealth()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">🏥 Check Jupiter Health</button>
+                <button class="btn" onclick="getJupiterInfo()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">ℹ️ Jupiter Info</button>
+                <button class="btn btn-success" onclick="refreshAllJupiterTokens()" style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);">🔄 Refresh All Paid Tokens</button>
+            </div>
+
+            <!-- Jupiter Test Section -->
+            <div style="margin-bottom: 20px; padding: 15px; background: rgba(102, 126, 234, 0.1); border-radius: 8px;">
+                <h3 style="margin-bottom: 10px; color: #667eea;">🧪 Test Jupiter API</h3>
+                <div class="form-group">
+                    <label>Contract Address</label>
+                    <input type="text" id="jupiterTestContract" placeholder="e.g., HwC99nBLV8mwQS2rQGWzQqgm5N1WKC4CQQrRkaBabonk">
+                </div>
+                <button class="btn" onclick="testJupiterContract()" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">🧪 Test Contract</button>
+                <div id="jupiterTestResult" style="margin-top: 10px;"></div>
+            </div>
+
+            <!-- Jupiter Refresh Single Token -->
+            <div style="margin-bottom: 20px; padding: 15px; background: rgba(34, 197, 94, 0.1); border-radius: 8px;">
+                <h3 style="margin-bottom: 10px; color: #22c55e;">🔄 Refresh Single Token</h3>
+                <div class="form-group">
+                    <label>Contract Address</label>
+                    <input type="text" id="jupiterRefreshContract" placeholder="e.g., HwC99nBLV8mwQS2rQGWzQqgm5N1WKC4CQQrRkaBabonk">
+                </div>
+                <button class="btn btn-success" onclick="refreshSingleJupiterToken()" style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);">🔄 Refresh Token</button>
+                <div id="jupiterRefreshResult" style="margin-top: 10px;"></div>
+            </div>
+
+            <!-- Jupiter Results Display -->
+            <div id="jupiterResults" class="results-container" style="display: none;">
+                <h3>🪐 Jupiter API Results</h3>
+                <pre id="jupiterResultsContent" style="background: #f8f9fa; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 12px;"></pre>
+            </div>
+        </div>
+
         <!-- Main Dashboard Grid -->
         <div class="dashboard-grid">
             <!-- Add Free Token -->
@@ -1199,11 +1237,231 @@
         document.getElementById('freeTokenSymbol').addEventListener('input', function(e) {
             e.target.value = e.target.value.toUpperCase();
         });
-        
+
+        // Jupiter API Functions
+        async function checkJupiterHealth() {
+            const resultDiv = document.getElementById('jupiterResults');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<h3>🪐 Jupiter API Results</h3>' + showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/jupiter/health`);
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('jupiterResultsContent').textContent = JSON.stringify(data, null, 2);
+                    showAlert(`✅ Jupiter API is ${data.healthy ? 'healthy' : 'unhealthy'}`, 'success');
+                } else {
+                    document.getElementById('jupiterResultsContent').textContent = JSON.stringify(data, null, 2);
+                    showAlert(`❌ Jupiter API Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                document.getElementById('jupiterResultsContent').textContent = `Error: ${error.message}`;
+                showAlert(`❌ Jupiter API is down: ${error.message}`, 'error');
+            }
+        }
+
+        async function getJupiterInfo() {
+            const resultDiv = document.getElementById('jupiterResults');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<h3>🪐 Jupiter API Results</h3>' + showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/jupiter/info`);
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('jupiterResultsContent').textContent = JSON.stringify(data, null, 2);
+                    showAlert(`✅ Jupiter API Info Retrieved`, 'success');
+                } else {
+                    document.getElementById('jupiterResultsContent').textContent = JSON.stringify(data, null, 2);
+                    showAlert(`❌ Jupiter API Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                document.getElementById('jupiterResultsContent').textContent = `Error: ${error.message}`;
+                showAlert(`❌ Jupiter API is down: ${error.message}`, 'error');
+            }
+        }
+
+        async function testJupiterContract() {
+            const contractAddress = document.getElementById('jupiterTestContract').value.trim();
+
+            if (!contractAddress) {
+                document.getElementById('jupiterTestResult').innerHTML = showAlert('❌ Please enter a contract address', 'error');
+                return;
+            }
+
+            document.getElementById('jupiterTestResult').innerHTML = showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/jupiter/test/${contractAddress}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('jupiterTestResult').innerHTML = showAlert(
+                        `✅ Jupiter API found token: ${data.tokenData.symbol || 'Unknown'} (${data.tokenData.name || 'Unknown'})`,
+                        'success'
+                    );
+
+                    const resultDiv = document.getElementById('jupiterResults');
+                    resultDiv.style.display = 'block';
+                    document.getElementById('jupiterResultsContent').textContent = JSON.stringify(data, null, 2);
+                } else {
+                    document.getElementById('jupiterTestResult').innerHTML = showAlert(
+                        `❌ Token not found: ${data.error}`,
+                        'error'
+                    );
+                }
+            } catch (error) {
+                document.getElementById('jupiterTestResult').innerHTML = showAlert(
+                    `❌ Error: ${error.message}`,
+                    'error'
+                );
+            }
+        }
+
+        async function refreshSingleJupiterToken() {
+            const contractAddress = document.getElementById('jupiterRefreshContract').value.trim();
+
+            if (!contractAddress) {
+                document.getElementById('jupiterRefreshResult').innerHTML = showAlert('❌ Please enter a contract address', 'error');
+                return;
+            }
+
+            if (!confirm(`🔄 This will refresh Jupiter data for contract ${contractAddress.substring(0, 8)}... Continue?`)) {
+                return;
+            }
+
+            document.getElementById('jupiterRefreshResult').innerHTML = showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/jupiter/refresh/${contractAddress}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('jupiterRefreshResult').innerHTML = showAlert(
+                        `✅ ${data.message}`,
+                        'success'
+                    );
+
+                    const resultDiv = document.getElementById('jupiterResults');
+                    resultDiv.style.display = 'block';
+                    document.getElementById('jupiterResultsContent').textContent = JSON.stringify(data, null, 2);
+                } else {
+                    document.getElementById('jupiterRefreshResult').innerHTML = showAlert(
+                        `❌ Error: ${data.error}`,
+                        'error'
+                    );
+                }
+            } catch (error) {
+                document.getElementById('jupiterRefreshResult').innerHTML = showAlert(
+                    `❌ Error: ${error.message}`,
+                    'error'
+                );
+            }
+        }
+
+        async function refreshAllJupiterTokens() {
+            if (!confirm('🪐 This will refresh Jupiter data for ALL paid tokens. This may take several minutes. Continue?')) {
+                return;
+            }
+
+            const resultDiv = document.getElementById('jupiterResults');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<h3>🪐 Jupiter API Results</h3>' + showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/jupiter/refresh-all`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    let html = showAlert(`✅ ${data.message}`, 'success');
+
+                    html += `
+                        <div class="status-display" style="margin-top: 15px;">
+                            <div class="status-item">
+                                <span class="status-label">Total Tokens:</span>
+                                <span class="status-value">${data.totalTokens}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Paid Tokens:</span>
+                                <span class="status-value">${data.paidTokens}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Success:</span>
+                                <span class="status-value">${data.successCount}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Errors:</span>
+                                <span class="status-value">${data.errorCount}</span>
+                            </div>
+                        </div>
+                    `;
+
+                    if (data.results && data.results.length > 0) {
+                        html += `
+                            <div style="margin-top: 15px;">
+                                <h4>📋 Results Summary:</h4>
+                                <div style="max-height: 200px; overflow-y: auto; background: #f8f9fa; padding: 10px; border-radius: 5px; margin-top: 10px;">
+                                    ${data.results.map(result =>
+                                        `<div style="margin: 5px 0; padding: 5px; border-radius: 3px; background: ${result.success ? '#d4edda' : '#f8d7da'};">
+                                            <strong>${result.symbol}</strong>: ${result.success ? '✅ Success' : `❌ ${result.error}`}
+                                        </div>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    document.getElementById('jupiterResultsContent').innerHTML = html;
+                    showAlert(`✅ Jupiter refresh completed: ${data.successCount}/${data.paidTokens} successful`, 'success');
+                } else {
+                    document.getElementById('jupiterResultsContent').textContent = JSON.stringify(data, null, 2);
+                    showAlert(`❌ Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                document.getElementById('jupiterResultsContent').textContent = `Error: ${error.message}`;
+                showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Input validation
+        document.getElementById('jupiterTestContract').addEventListener('input', function(e) {
+            // Basic contract address validation (should be base58)
+            const value = e.target.value.trim();
+            if (value && value.length !== 44) {
+                e.target.style.borderColor = '#ffc107';
+            } else {
+                e.target.style.borderColor = '#e2e8f0';
+            }
+        });
+
+        document.getElementById('jupiterRefreshContract').addEventListener('input', function(e) {
+            // Basic contract address validation (should be base58)
+            const value = e.target.value.trim();
+            if (value && value.length !== 44) {
+                e.target.style.borderColor = '#ffc107';
+            } else {
+                e.target.style.borderColor = '#e2e8f0';
+            }
+        });
+
         document.getElementById('twitterRefreshSymbol').addEventListener('input', function(e) {
             e.target.value = e.target.value.toUpperCase();
         });
-        
+
         document.getElementById('deleteTokenSymbol').addEventListener('input', function(e) {
             e.target.value = e.target.value.toUpperCase();
         });

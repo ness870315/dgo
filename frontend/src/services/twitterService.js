@@ -35,46 +35,127 @@ class TwitterService {
   }
 
   async searchTweets(query, options = {}) {
-    // Browser build fallback: return mock data or call your backend here
-    return this.getMockTwitterData(query);
+    const count = options.count || 20;
+
+    try {
+      // Call the new Twitter microservice
+      const twitterServiceUrl = process.env.REACT_APP_TWITTER_SERVICE_URL || 'https://your-twitter-service.onrender.com';
+      const url = `${twitterServiceUrl}/api/twitter/search?q=${encodeURIComponent(query)}&count=${count}`;
+
+      console.log('🔍 Searching Twitter for:', query);
+      console.log('📡 API URL:', url);
+
+      const resp = await fetch(url);
+      if (resp.ok) {
+        const json = await resp.json();
+        console.log('✅ Twitter API Response:', json);
+
+        // Process the response from our new service
+        const tweets = (json.tweets || []).map(tweet => ({
+          id: tweet.id,
+          text: tweet.text,
+          created_at: tweet.created_at,
+          author_id: tweet.user?.screen_name || tweet.user?.name || 'unknown',
+          public_metrics: {
+            like_count: tweet.favorite_count || 0,
+            retweet_count: tweet.retweet_count || 0,
+            reply_count: tweet.reply_count || 0,
+            quote_count: 0
+          },
+          sentiment: this.analyzeSentiment(tweet.text),
+          engagement_rate: this.calculateEngagementRate({
+            like_count: tweet.favorite_count || 0,
+            retweet_count: tweet.retweet_count || 0,
+            reply_count: tweet.reply_count || 0,
+            quote_count: 0
+          }),
+          influence_score: 5
+        }));
+
+        return {
+          tweets,
+          meta: {
+            count: tweets.length,
+            total: tweets.length,
+            source: json.source || 'selenium'
+          }
+        };
+      }
+
+      console.warn('❌ Twitter service returned error:', resp.status, resp.statusText);
+      return this.getMockTwitterData(query);
+    } catch (error) {
+      console.error(`❌ Error searching Twitter for ${query}:`, error);
+      return this.getMockTwitterData(query);
+    }
   }
 
   async getTokenMentions(symbol, timeframe = '24h') {
     const cacheKey = `mentions_${symbol}_${timeframe}`;
     const cached = this.cache.get(cacheKey);
-    
+
     if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
       return cached.data;
     }
 
     try {
-      // Call backend proxy for real data
-      const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-      const url = `${apiBase}/api/twitter/mentions/${encodeURIComponent(symbol)}?timeframe=${encodeURIComponent(timeframe)}`;
+      // Call the new Twitter microservice
+      const twitterServiceUrl = process.env.REACT_APP_TWITTER_SERVICE_URL || 'https://your-twitter-service.onrender.com';
+      const query = `${symbol} crypto token`;
+      const url = `${twitterServiceUrl}/api/twitter/search?q=${encodeURIComponent(query)}&count=20`;
+
+      console.log('🔍 Searching Twitter for:', query);
+      console.log('📡 API URL:', url);
+
       const resp = await fetch(url);
       if (resp.ok) {
         const json = await resp.json();
-        const uniqueTweets = this.removeDuplicateTweets(json.tweets || []);
+        console.log('✅ Twitter API Response:', json);
+
+        // Process the response from our new service
+        const tweets = (json.tweets || []).map(tweet => ({
+          id: tweet.id,
+          text: tweet.text,
+          created_at: tweet.created_at,
+          author_id: tweet.user?.screen_name || tweet.user?.name || 'unknown',
+          public_metrics: {
+            like_count: tweet.favorite_count || 0,
+            retweet_count: tweet.retweet_count || 0,
+            reply_count: tweet.reply_count || 0,
+            quote_count: 0
+          },
+          sentiment: this.analyzeSentiment(tweet.text),
+          engagement_rate: this.calculateEngagementRate({
+            like_count: tweet.favorite_count || 0,
+            retweet_count: tweet.retweet_count || 0,
+            reply_count: tweet.reply_count || 0,
+            quote_count: 0
+          }),
+          influence_score: 5 // Default score since we don't have user data
+        }));
+
         const processedData = {
-          tweets: uniqueTweets,
-          totalMentions: uniqueTweets.length,
+          tweets: this.removeDuplicateTweets(tweets),
+          totalMentions: tweets.length,
           timeframe,
-          lastUpdated: new Date().toISOString()
+          lastUpdated: new Date().toISOString(),
+          source: json.source || 'selenium'
         };
 
-      // Cache the results
-      this.cache.set(cacheKey, {
-        data: processedData,
-        timestamp: Date.now()
-      });
+        // Cache the results
+        this.cache.set(cacheKey, {
+          data: processedData,
+          timestamp: Date.now()
+        });
 
-      return processedData;
+        return processedData;
       }
 
+      console.warn('❌ Twitter service returned error:', resp.status, resp.statusText);
       // Fallback to mock if backend not available
       return this.getMockTokenMentions(symbol);
     } catch (error) {
-      console.error(`Error fetching mentions for ${symbol}:`, error);
+      console.error(`❌ Error fetching mentions for ${symbol}:`, error);
       return this.getMockTokenMentions(symbol);
     }
   }

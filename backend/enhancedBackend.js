@@ -1258,6 +1258,233 @@ class EnhancedBackend {
     });
 
     // Admin: Get comprehensive system status
+    // Jupiter API Endpoints
+    this.app.get('/api/jupiter/health', async (req, res) => {
+      try {
+        const { default: jupiterApiService } = await import('./jupiterApiService.js');
+        const isHealthy = await jupiterApiService.healthCheck();
+
+        res.json({
+          success: true,
+          service: 'Jupiter API',
+          healthy: isHealthy,
+          timestamp: new Date().toISOString(),
+          baseURL: jupiterApiService.baseURL,
+          cacheSize: jupiterApiService.cache.size
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    this.app.get('/api/jupiter/info', async (req, res) => {
+      try {
+        const { default: jupiterApiService } = await import('./jupiterApiService.js');
+        const info = jupiterApiService.getServiceInfo();
+
+        res.json({
+          success: true,
+          ...info,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    this.app.get('/api/jupiter/test/:contractAddress', async (req, res) => {
+      try {
+        const { contractAddress } = req.params;
+        const { default: jupiterApiService } = await import('./jupiterApiService.js');
+
+        console.log(`🧪 Testing Jupiter API with contract: ${contractAddress}`);
+        const tokenData = await jupiterApiService.getTokenDetails(contractAddress);
+
+        if (tokenData) {
+          res.json({
+            success: true,
+            contractAddress,
+            tokenData,
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          res.status(404).json({
+            success: false,
+            contractAddress,
+            error: 'Token not found in Jupiter API',
+            timestamp: new Date().toISOString()
+          });
+        }
+      } catch (error) {
+        console.error('❌ Jupiter API test error:', error);
+        res.status(500).json({
+          success: false,
+          contractAddress: req.params.contractAddress,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    this.app.post('/api/admin/jupiter/refresh-all', async (req, res) => {
+      try {
+        console.log('🔄 Starting Jupiter refresh for all tokens...');
+
+        const tokens = await this.getTokensFromCache();
+        const paidTokens = tokens.filter(token => token.isPaid);
+
+        if (paidTokens.length === 0) {
+          return res.json({
+            success: true,
+            message: 'No paid tokens found to refresh',
+            totalTokens: tokens.length,
+            paidTokens: 0
+          });
+        }
+
+        const results = [];
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const token of paidTokens) {
+          try {
+            console.log(`🔄 Refreshing ${token.symbol} (${token.contractAddress.substring(0, 8)})...`);
+
+            const updatedToken = await this.tokenProcessor.processTokenWithRealData({
+              ...token,
+              contractAddress: token.contractAddress
+            });
+
+            if (updatedToken) {
+              results.push({
+                symbol: token.symbol,
+                contractAddress: token.contractAddress,
+                success: true,
+                hasJupiterData: !!updatedToken.jupiterData
+              });
+              successCount++;
+            } else {
+              results.push({
+                symbol: token.symbol,
+                contractAddress: token.contractAddress,
+                success: false,
+                error: 'Failed to process token'
+              });
+              errorCount++;
+            }
+
+            // Small delay to avoid overwhelming the API
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+          } catch (error) {
+            console.error(`❌ Error refreshing ${token.symbol}:`, error.message);
+            results.push({
+              symbol: token.symbol,
+              contractAddress: token.contractAddress,
+              success: false,
+              error: error.message
+            });
+            errorCount++;
+          }
+        }
+
+        // Save updated tokens to cache
+        await this.saveTokensToCache(tokens);
+
+        res.json({
+          success: true,
+          message: `Jupiter refresh completed for ${paidTokens.length} paid tokens`,
+          totalTokens: tokens.length,
+          paidTokens: paidTokens.length,
+          successCount,
+          errorCount,
+          results,
+          timestamp: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error('❌ Jupiter refresh all error:', error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    this.app.post('/api/admin/jupiter/refresh/:contractAddress', async (req, res) => {
+      try {
+        const { contractAddress } = req.params;
+
+        console.log(`🔄 Refreshing Jupiter data for contract: ${contractAddress}`);
+
+        // Find the token in cache
+        const tokens = await this.getTokensFromCache();
+        const token = tokens.find(t => t.contractAddress?.toLowerCase() === contractAddress.toLowerCase());
+
+        if (!token) {
+          return res.status(404).json({
+            success: false,
+            error: 'Token not found',
+            contractAddress
+          });
+        }
+
+        // Process token with Jupiter data
+        const updatedToken = await this.tokenProcessor.processTokenWithRealData({
+          ...token,
+          contractAddress: token.contractAddress
+        });
+
+        if (updatedToken) {
+          // Update token in cache
+          const tokenIndex = tokens.findIndex(t => t.contractAddress?.toLowerCase() === contractAddress.toLowerCase());
+          if (tokenIndex !== -1) {
+            tokens[tokenIndex] = updatedToken;
+            await this.saveTokensToCache(tokens);
+          }
+
+          res.json({
+            success: true,
+            message: `Successfully refreshed Jupiter data for ${updatedToken.symbol}`,
+            token: {
+              symbol: updatedToken.symbol,
+              name: updatedToken.name,
+              contractAddress: updatedToken.contractAddress,
+              hasJupiterData: !!updatedToken.jupiterData,
+              price: updatedToken.price,
+              marketCap: updatedToken.marketCap,
+              organicScore: updatedToken.jupiterData?.organicScore
+            },
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          res.status(500).json({
+            success: false,
+            error: 'Failed to refresh Jupiter data',
+            contractAddress
+          });
+        }
+
+      } catch (error) {
+        console.error('❌ Jupiter refresh single error:', error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          contractAddress: req.params.contractAddress,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
     this.app.get('/api/admin/system/status', async (req, res) => {
       try {
         const processingStatus = this.tokenProcessor.getProcessingStatus();
