@@ -1485,6 +1485,50 @@ class EnhancedBackend {
       }
     });
 
+    // Jupiter API Testing Endpoints
+    this.app.get('/api/jupiter/test-known', async (req, res) => {
+      try {
+        const { default: jupiterApiService } = await import('./jupiterApiService.js');
+        const isWorking = await jupiterApiService.testKnownToken();
+
+        res.json({
+          success: isWorking,
+          message: isWorking ? 'Jupiter API is working correctly' : 'Jupiter API test failed',
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    this.app.get('/api/jupiter/raw/:contractAddress', async (req, res) => {
+      try {
+        const { contractAddress } = req.params;
+        const { default: jupiterApiService } = await import('./jupiterApiService.js');
+
+        console.log(`🔍 Getting raw Jupiter API data for ${contractAddress}`);
+        const rawData = await jupiterApiService.getRawJupiterData(contractAddress);
+
+        res.json({
+          success: true,
+          contractAddress,
+          ...rawData,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          contractAddress: req.params.contractAddress,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
     this.app.get('/api/admin/system/status', async (req, res) => {
       try {
         const processingStatus = this.tokenProcessor.getProcessingStatus();

@@ -23,40 +23,47 @@ class JupiterApiService {
     try {
       const cacheKey = `jupiter_${contractAddress}`;
       const cached = this.cache.get(cacheKey);
-      
+
       if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
         console.log('🟢 Using cached Jupiter API data for', contractAddress.substring(0, 8));
         return cached.data;
       }
 
       console.log(`🔍 Fetching comprehensive token data from Jupiter API for ${contractAddress.substring(0, 8)}...`);
-      
+      console.log(`🌐 API URL: ${this.baseURL}/search?query=${contractAddress}`);
+
       const config = {
         method: 'get',
         maxBodyLength: Infinity,
         url: `${this.baseURL}/search?query=${contractAddress}`,
-        headers: { 
-          'Accept': 'application/json'
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (compatible; JupiterAPI/1.0)'
         },
         timeout: 15000
       };
 
+      console.log('📡 Making request to Jupiter API...');
       const response = await axios.request(config);
-      
-      if (response.data && response.data.length > 0) {
+      console.log(`📊 Jupiter API Response Status: ${response.status}`);
+
+      console.log('🔍 Raw Jupiter API Response:', JSON.stringify(response.data, null, 2));
+
+      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
         const tokenData = response.data[0]; // Get the first (most relevant) result
-        
+
+        console.log(`✅ Found token data for ${tokenData.symbol || 'Unknown'} (${tokenData.name || 'Unknown'})`);
         console.log('🔍 Jupiter API Response Data:', JSON.stringify(tokenData, null, 2));
-        
+
         // Extract comprehensive token information
         const enhancedTokenData = this.extractTokenInformation(tokenData, contractAddress);
-        
+
         // Cache the result
         this.cache.set(cacheKey, {
           data: enhancedTokenData,
           timestamp: Date.now()
         });
-        
+
         console.log(`✅ Jupiter API data extracted for ${enhancedTokenData.symbol}:`, {
           name: enhancedTokenData.name,
           marketCap: enhancedTokenData.marketData.marketCap,
@@ -64,12 +71,15 @@ class JupiterApiService {
           liquidity: enhancedTokenData.marketData.liquidity,
           holderCount: enhancedTokenData.metadata.holderCount
         });
-        
-        return enhancedTokenData;
-      }
 
-      console.log(`⚠️ No Jupiter API data found for contract ${contractAddress.substring(0, 8)}`);
-      return null;
+        return enhancedTokenData;
+      } else if (response.data && Array.isArray(response.data) && response.data.length === 0) {
+        console.log(`⚠️ Jupiter API returned empty array for contract ${contractAddress.substring(0, 8)}`);
+        return null;
+      } else {
+        console.log(`⚠️ Unexpected Jupiter API response format for contract ${contractAddress.substring(0, 8)}:`, typeof response.data);
+        return null;
+      }
       
     } catch (error) {
       console.error(`❌ Error fetching Jupiter API data for ${contractAddress.substring(0, 8)}:`, error.message);
@@ -418,14 +428,75 @@ class JupiterApiService {
    */
   async healthCheck() {
     try {
+      console.log('🏥 Testing Jupiter API health...');
       const response = await axios.get(`${this.baseURL}/search?query=test`, {
         timeout: 10000,
-        headers: { 'Accept': 'application/json' }
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (compatible; JupiterAPI/1.0)'
+        }
       });
+      console.log(`✅ Jupiter API health check: ${response.status}`);
       return response.status === 200;
     } catch (error) {
       console.error('❌ Jupiter API health check failed:', error.message);
       return false;
+    }
+  }
+
+  /**
+   * Test Jupiter API with a known token to verify it's working
+   */
+  async testKnownToken() {
+    try {
+      console.log('🧪 Testing Jupiter API with known token...');
+      // Test with a popular token that's definitely on Jupiter
+      const testAddress = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'; // USDC
+      const result = await this.getTokenDetails(testAddress);
+
+      if (result) {
+        console.log('✅ Jupiter API test successful - found USDC data');
+        return true;
+      } else {
+        console.log('❌ Jupiter API test failed - USDC not found');
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Jupiter API test error:', error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Get raw Jupiter API response for debugging
+   */
+  async getRawJupiterData(contractAddress) {
+    try {
+      console.log(`🔍 Getting raw Jupiter API data for ${contractAddress.substring(0, 8)}...`);
+
+      const config = {
+        method: 'get',
+        maxBodyLength: Infinity,
+        url: `${this.baseURL}/search?query=${contractAddress}`,
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (compatible; JupiterAPI/1.0)'
+        },
+        timeout: 15000
+      };
+
+      const response = await axios.request(config);
+      return {
+        status: response.status,
+        data: response.data,
+        url: config.url
+      };
+    } catch (error) {
+      return {
+        status: error.response?.status || 'ERROR',
+        error: error.message,
+        url: `${this.baseURL}/search?query=${contractAddress}`
+      };
     }
   }
 
