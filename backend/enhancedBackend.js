@@ -1358,7 +1358,7 @@ class EnhancedBackend {
           try {
             console.log(`🔄 Refreshing ${token.symbol} (${token.contractAddress.substring(0, 8)})...`);
 
-            const updatedToken = await this.tokenProcessor.processTokenWithRealData({
+            const updatedToken = await this.tokenProcessor.processPaidTokenImmediately({
               ...token,
               contractAddress: token.contractAddress
             });
@@ -1439,7 +1439,7 @@ class EnhancedBackend {
         }
 
         // Process token with Jupiter data
-        const updatedToken = await this.tokenProcessor.processTokenWithRealData({
+        const updatedToken = await this.tokenProcessor.processPaidTokenImmediately({
           ...token,
           contractAddress: token.contractAddress
         });
