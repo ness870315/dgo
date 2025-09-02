@@ -6,9 +6,26 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// CORS configuration for production
+const corsOptions = {
+  origin: [
+    'https://dgo-20l.pages.dev',
+    'https://degen-oracle.com',
+    'https://www.degen-oracle.com',
+    'http://localhost:3000', // for development
+    'http://localhost:4000'  // for development
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+};
+
 // Middleware
-app.use(cors());
+app.use(require('cors')(corsOptions));
 app.use(express.json());
+
+// Handle preflight requests
+app.options('*', require('cors')(corsOptions));
 
 // Serve static files from public directory
 app.use(express.static(path.join(__dirname, 'public')));

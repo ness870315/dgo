@@ -146,7 +146,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
         console.log('Found pending fuel payment:', pending);
       }
 
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000'}/api/tokens/fuel`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/tokens/fuel`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -1205,7 +1205,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
 
                         try {
                           // Check if token exists in our database
-                          const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000'}/api/tokens?contract=${token.contractAddress}`);
+                          const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/tokens?contract=${token.contractAddress}`);
                           const tokens = await response.json();
 
                           if (tokens && tokens.length > 0) {

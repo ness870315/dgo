@@ -12,7 +12,7 @@ const SimpleLogin = ({ onClose }) => {
 
   const handleUserSelect = async (user) => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000'}/auth/demo-login`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/auth/demo-login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

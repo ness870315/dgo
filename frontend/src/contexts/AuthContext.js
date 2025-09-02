@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem('authToken'));
 
-  const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000';
+  const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
 
   // Check for auth token in URL params (from Twitter OAuth callback)
   useEffect(() => {

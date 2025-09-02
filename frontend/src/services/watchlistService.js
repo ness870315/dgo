@@ -1,6 +1,6 @@
 class WatchlistService {
   constructor() {
-    this.API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000';
+    this.API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
   }
 
   // Get auth headers

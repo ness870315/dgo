@@ -133,10 +133,12 @@ class TokenService {
   async fetchTokensWithRealData() {
     console.log('🚀 fetchTokensWithRealData called!');
     try {
-      const apiBase = process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000';
+      const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
       console.log('🚀 API Base URL:', apiBase);
       console.log('🚀 Fetching from:', `${apiBase}/api/tokens`);
-      const response = await fetch(`${apiBase}/api/tokens`);
+      const response = await fetch(`${apiBase}/api/tokens`, {
+        credentials: 'include'
+      });
       console.log('🚀 Response status:', response.status, response.statusText);
       
       if (!response.ok) {
@@ -506,7 +508,7 @@ class TokenService {
 
   async fetchRealRecentPosts(symbol) {
     try {
-      const apiBase = process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000';
+      const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
       const response = await fetch(`${apiBase}/api/twitter/mentions/${symbol}`);
       
       if (!response.ok) {

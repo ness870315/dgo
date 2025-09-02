@@ -105,3 +105,7 @@ async function testContractOptimization() {
 
 // Run the test
 testContractOptimization();
+
+
+
+

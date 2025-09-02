@@ -22,3 +22,4 @@ if exist ".eslintrc.json.bak" (
 
 echo Build completed!
 pause
+

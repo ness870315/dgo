@@ -236,7 +236,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       console.log('🔥 Submitting paid token to database:', tokenData);
 
       // First validate the payment with backend
-      const apiBase = process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000';
+      const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
       const paymentValidation = await fetch(`${apiBase}/api/payments/validate`, {
         method: 'POST',
         headers: {
@@ -279,7 +279,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         console.log('📱 Including social links:', socials);
       }
 
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000'}/api/tokens/add-paid-token`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/tokens/add-paid-token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -624,7 +624,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       console.log('🔍 Checking if token already exists:', { ca, symbol, name });
       
       // Check by contract address first (most reliable)
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000'}/api/tokens`);
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/tokens`);
       const tokens = await response.json();
       
       // Convert to array if it's an object with tokens property
@@ -1381,7 +1381,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                                 <p className="text-purple-200 text-xs">
                                   💡 <strong>Community Score Bonus:</strong> +1 for 2+ socials, +2 for 3+ socials, +3 for all 5 socials
                                 </p>
-                              </div>
+                        </div>
                             </div>
                           )}
                         </div>
@@ -1554,12 +1554,12 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                           <p className="text-xs text-gray-400 mb-4">
                             Secure payment powered by Helio Pay. Pay with USDC on Solana.
                           </p>
-                          <button
+                      <button
                             onClick={async () => {
                               try {
                                 console.log('💳 Creating payment for token:', tokenData?.symbol);
 
-                                const apiBase = process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000';
+                                const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
                                 const successUrl = `${window.location.origin}/?payment=success`;
                                 const cancelUrl = `${window.location.origin}/?payment=cancelled`;
 
@@ -1603,7 +1603,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                             className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105"
                           >
                             💳 Proceed to Payment ($95)
-                          </button>
+                      </button>
                           <div className="flex items-center justify-center mt-3 space-x-4 text-xs text-gray-400">
                             <span className="flex items-center">
                               <span className="w-2 h-2 bg-green-400 rounded-full mr-1"></span>

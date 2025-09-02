@@ -49,3 +49,7 @@ async function testFuelEndpoints() {
 }
 
 testFuelEndpoints();
+
+
+
+

@@ -49,7 +49,7 @@ class TwitterService {
 
     try {
       // Call backend proxy for real data
-      const apiBase = process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000';
+      const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
       const url = `${apiBase}/api/twitter/mentions/${encodeURIComponent(symbol)}?timeframe=${encodeURIComponent(timeframe)}`;
       const resp = await fetch(url);
       if (resp.ok) {

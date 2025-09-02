@@ -153,7 +153,8 @@ const submitTokenToDatabase = async (tokenData) => {
   try {
     console.log('🔥 Submitting paid token to database:', tokenData);
     
-    const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000'}/api/tokens/add-paid-token`, {
+    const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+    const response = await fetch(`${apiBase}/api/tokens/add-paid-token`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -407,9 +408,10 @@ function App() {
     try {
       setIsLoading(true);
       setError(null);
+              const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
               const [tokenData, fueledData] = await Promise.all([
           tokenService.fetchTokens(settings.useRealTwitterData),
-          fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000'}/api/tokens/fuel`).then(res => res.ok ? res.json() : { value: [] })
+          fetch(`${apiBase}/api/tokens/fuel`).then(res => res.ok ? res.json() : { value: [] })
         ]);
         
         console.log('App.js Debug - Loaded tokenData:', tokenData.length, 'tokens');
@@ -479,7 +481,7 @@ function App() {
         // Check if the new token is now visible
         const [currentTokens, fueledData] = await Promise.all([
           tokenService.fetchTokens(settings.useRealTwitterData),
-          fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000'}/api/tokens/fuel`).then(res => res.ok ? res.json() : { value: [] })
+          fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/tokens/fuel`).then(res => res.ok ? res.json() : { value: [] })
         ]);
         setFueledTokens(fueledData.value || fueledData);
         
@@ -529,7 +531,7 @@ function App() {
       await loadTokens();
       
       // Refresh fueled tokens data
-      const fueledData = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000'}/api/tokens/fuel`).then(res => res.ok ? res.json() : { value: [] });
+      const fueledData = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/tokens/fuel`).then(res => res.ok ? res.json() : { value: [] });
       setFueledTokens(fueledData.value || fueledData);
       
       console.log('✅ Token data refreshed after socials update!');

@@ -90,3 +90,7 @@ async function investigateJupiterMarketCap() {
 }
 
 investigateJupiterMarketCap();
+
+
+
+

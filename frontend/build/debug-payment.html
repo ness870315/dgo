@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Debug Tool</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #1a1a1a; color: white; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .section { background: #2a2a2a; padding: 20px; margin: 10px 0; border-radius: 8px; }
+        .button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        .button:hover { background: #0056b3; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #17a2b8; }
+        pre { background: #333; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Payment Debug Tool</h1>
+        <p class="info">This tool helps debug payment processing issues.</p>
+
+        <div class="section">
+            <h2>1. Check URL Parameters</h2>
+            <p>Current URL: <span id="currentUrl"></span></p>
+            <p>Payment Status: <span id="paymentStatus"></span></p>
+            <button class="button" onclick="checkUrlParams()">Refresh URL Check</button>
+        </div>
+
+        <div class="section">
+            <h2>2. Check localStorage</h2>
+            <p>Pending Payment Data: <span id="localStorageStatus"></span></p>
+            <pre id="localStorageData"></pre>
+            <button class="button" onclick="checkLocalStorage()">Refresh localStorage Check</button>
+        </div>
+
+        <div class="section">
+            <h2>3. Manual Payment Processing</h2>
+            <p>Status: <span id="processingStatus"></span></p>
+            <button class="button" onclick="processPayment()">Process Pending Payment</button>
+            <button class="button" onclick="clearLocalStorage()">Clear localStorage</button>
+        </div>
+
+        <div class="section">
+            <h2>4. API Tests</h2>
+            <button class="button" onclick="testHealth()">Test Backend Health</button>
+            <button class="button" onclick="testTokens()">Check Token Count</button>
+            <pre id="apiResults"></pre>
+        </div>
+
+        <div class="section">
+            <h2>5. Logs</h2>
+            <pre id="logs"></pre>
+            <button class="button" onclick="clearLogs()">Clear Logs</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:4000';
+        let logs = [];
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            logs.unshift(`[${timestamp}] ${message}`);
+            if (logs.length > 20) logs = logs.slice(0, 20);
+            document.getElementById('logs').textContent = logs.join('\n');
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        function checkUrlParams() {
+            const url = window.location.href;
+            const urlParams = new URLSearchParams(window.location.search);
+            const paymentStatus = urlParams.get('payment');
+
+            document.getElementById('currentUrl').textContent = url;
+            document.getElementById('paymentStatus').textContent = paymentStatus || 'No payment parameter found';
+
+            log(`URL: ${url}`);
+            log(`Payment Status: ${paymentStatus || 'none'}`);
+
+            if (paymentStatus === 'success') {
+                document.getElementById('paymentStatus').className = 'success';
+                log('✅ Payment success detected!', 'success');
+            } else if (paymentStatus === 'cancelled') {
+                document.getElementById('paymentStatus').className = 'error';
+                log('❌ Payment was cancelled', 'error');
+            } else {
+                document.getElementById('paymentStatus').className = 'info';
+            }
+        }
+
+        function checkLocalStorage() {
+            const pendingData = localStorage.getItem('pendingTokenListing');
+
+            if (pendingData) {
+                document.getElementById('localStorageStatus').textContent = '✅ Found pending payment data';
+                document.getElementById('localStorageStatus').className = 'success';
+
+                try {
+                    const parsed = JSON.parse(pendingData);
+                    document.getElementById('localStorageData').textContent = JSON.stringify(parsed, null, 2);
+                    log(`Found pending token: ${parsed.symbol} (${parsed.contractAddress})`);
+                } catch (e) {
+                    document.getElementById('localStorageData').textContent = 'Error parsing data: ' + e.message;
+                    log('Error parsing localStorage data: ' + e.message, 'error');
+                }
+            } else {
+                document.getElementById('localStorageStatus').textContent = '❌ No pending payment data found';
+                document.getElementById('localStorageStatus').className = 'error';
+                document.getElementById('localStorageData').textContent = '';
+                log('No pending payment data in localStorage', 'error');
+            }
+        }
+
+        async function processPayment() {
+            const statusEl = document.getElementById('processingStatus');
+            statusEl.textContent = '⏳ Processing...';
+            statusEl.className = 'info';
+
+            try {
+                const pendingData = localStorage.getItem('pendingTokenListing');
+                if (!pendingData) {
+                    throw new Error('No pending payment data found');
+                }
+
+                const { paymentId, paymentUrl, paymentInitiated, ...tokenData } = JSON.parse(pendingData);
+                log(`Processing token: ${tokenData.symbol} (${tokenData.contractAddress})`);
+
+                // First validate payment
+                const validateResponse = await fetch(`${API_BASE}/api/payments/validate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        paymentId: paymentId,
+                        paymentData: { status: 'completed' }
+                    })
+                });
+
+                const validateResult = await validateResponse.json();
+                log(`Payment validation result: ${JSON.stringify(validateResult)}`);
+
+                if (!validateResult.success || !validateResult.validation?.isValid) {
+                    throw new Error('Payment validation failed');
+                }
+
+                // Add token to database
+                const addResponse = await fetch(`${API_BASE}/api/tokens/add-paid-token`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        tokenData: tokenData,
+                        paymentData: {
+                            ...validateResult.validation,
+                            validated: true
+                        }
+                    })
+                });
+
+                const addResult = await addResponse.json();
+
+                if (addResponse.ok && addResult.success) {
+                    localStorage.removeItem('pendingTokenListing');
+                    statusEl.textContent = '✅ Payment processed successfully!';
+                    statusEl.className = 'success';
+                    log('✅ Token added successfully!', 'success');
+                    checkLocalStorage(); // Refresh localStorage display
+                } else {
+                    throw new Error(addResult.error || 'Failed to add token');
+                }
+
+            } catch (error) {
+                statusEl.textContent = '❌ Processing failed: ' + error.message;
+                statusEl.className = 'error';
+                log('❌ Processing failed: ' + error.message, 'error');
+            }
+        }
+
+        function clearLocalStorage() {
+            localStorage.removeItem('pendingTokenListing');
+            document.getElementById('localStorageStatus').textContent = '🧹 localStorage cleared';
+            document.getElementById('localStorageStatus').className = 'info';
+            document.getElementById('localStorageData').textContent = '';
+            log('localStorage cleared');
+        }
+
+        async function testHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const result = await response.text();
+                document.getElementById('apiResults').textContent = `Health Check: ${response.status}\n${result}`;
+                log(`Health check: ${response.status}`);
+            } catch (error) {
+                document.getElementById('apiResults').textContent = `Health check failed: ${error.message}`;
+                log(`Health check failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function testTokens() {
+            try {
+                const response = await fetch(`${API_BASE}/api/tokens`);
+                const tokens = await response.json();
+                document.getElementById('apiResults').textContent = `Token Count: ${Array.isArray(tokens) ? tokens.length : 'N/A'}\nFirst token: ${Array.isArray(tokens) && tokens[0] ? tokens[0].symbol : 'N/A'}`;
+                log(`Token count: ${Array.isArray(tokens) ? tokens.length : 'N/A'}`);
+            } catch (error) {
+                document.getElementById('apiResults').textContent = `Token check failed: ${error.message}`;
+                log(`Token check failed: ${error.message}`, 'error');
+            }
+        }
+
+        function clearLogs() {
+            logs = [];
+            document.getElementById('logs').textContent = '';
+        }
+
+        // Initialize
+        window.onload = function() {
+            checkUrlParams();
+            checkLocalStorage();
+            log('Payment Debug Tool loaded');
+        };
+    </script>
+</body>
+</html>
+
+
+

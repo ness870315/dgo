@@ -53,7 +53,8 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
     window.debugContractValidation = async () => {
       console.log('🔧 DEBUG: Testing contract validation...');
       try {
-        const response = await fetch(`http://localhost:4000/api/tokens`);
+        const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+        const response = await fetch(`${apiBase}/api/tokens`);
         const tokens = await response.json();
         console.log('📊 API returned', tokens.length, 'tokens');
 
@@ -108,7 +109,7 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
     }
 
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000'}/api/tokens`);
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/tokens`);
       const tokens = await response.json();
       const tokenArray = Array.isArray(tokens) ? tokens : (tokens.tokens || []);
       
@@ -135,7 +136,7 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
   // Load current social links for a token
   const loadCurrentSocials = async (symbol) => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000'}/api/tokens/${symbol}/socials`);
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/tokens/${symbol}/socials`);
       const data = await response.json();
       
       if (data.success && data.socials) {
@@ -381,7 +382,7 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
         user: user
       });
       
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000'}/api/tokens/update-socials`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/tokens/update-socials`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -605,7 +606,7 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
                               console.log('🔗 Contract address to validate:', selectedToken?.contractAddress);
 
                               // Check if token exists in our database by fetching all tokens and filtering
-                              const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000'}/api/tokens`);
+                              const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/tokens`);
                               const tokens = await response.json();
                               console.log('📊 Fetched tokens from API:', tokens.length);
 
