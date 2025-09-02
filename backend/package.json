@@ -2,13 +2,13 @@
   "name": "xtrend-backend",
   "version": "1.0.0",
   "description": "DeGen Oracle Backend API",
-  "main": "simple-server-cjs.js",
+  "main": "enhancedBackend.js",
   "engines": {
     "node": "18.x",
     "npm": "9.x"
   },
   "scripts": {
-    "start": "node simple-server.js",
+    "start": "node enhancedBackend.js",
     "dev": "node --watch simple-server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

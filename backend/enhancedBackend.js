@@ -24,9 +24,28 @@ class EnhancedBackend {
   }
 
   setupMiddleware() {
-    this.app.use(cors());
+    // CORS configuration for production
+    const corsOptions = {
+      origin: [
+        'https://dgo-20l.pages.dev',
+        'https://degen-oracle.com',
+        'https://www.degen-oracle.com',
+        'http://localhost:3000', // for development
+        'http://localhost:4000'  // for development
+      ],
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+    };
+
+    this.app.use(cors(corsOptions));
     this.app.use(express.json());
-    this.app.use(express.static('public'));
+
+    // Handle preflight requests
+    this.app.options('*', cors(corsOptions));
+
+    // Serve static files from public directory (for admin dashboard)
+    this.app.use(express.static(path.join(__dirname, 'public')));
   }
 
   setupRoutes() {
