@@ -93,7 +93,7 @@ class JupiterApiService {
   }
 
   /**
-   * Get comprehensive token information from Jupiter API
+   * Get comprehensive token information from Jupiter API (single token)
    * This replaces the DexScreener update API for paid tokens
    */
   async getTokenDetails(contractAddress) {
@@ -400,6 +400,70 @@ class JupiterApiService {
       
     } catch (error) {
       return 5.0;
+    }
+  }
+
+  /**
+   * Batch fetch Jupiter data for multiple tokens (up to 100)
+   * Jupiter API supports comma-separated contract addresses in query parameter
+   */
+  async getBatchTokenDetails(contractAddresses) {
+    try {
+      if (!Array.isArray(contractAddresses) || contractAddresses.length === 0) {
+        console.log('⚠️ No contract addresses provided for batch Jupiter fetch');
+        return [];
+      }
+
+      // Jupiter can handle up to 100 mint addresses in comma-separated query
+      const batchAddresses = contractAddresses.slice(0, 100);
+      const mintQuery = batchAddresses.join(',');
+
+      console.log(`🚀 Batch fetching Jupiter data for ${batchAddresses.length} contracts...`);
+
+      const config = {
+        method: 'get',
+        maxBodyLength: Infinity,
+        url: `${this.baseURL}/search?query=${mintQuery}`,
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (compatible; JupiterAPI/1.0)'
+        },
+        timeout: 15000
+      };
+
+      const response = await this.makeRequestWithRetry(config);
+      console.log(`📊 Jupiter batch API Response Status: ${response.status}`);
+
+      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+        console.log(`✅ Jupiter returned batch data for ${response.data.length} tokens`);
+
+        // Create a map of contract address to Jupiter data
+        const jupiterMap = new Map();
+        response.data.forEach(jupiterToken => {
+          if (jupiterToken.id) {
+            jupiterMap.set(jupiterToken.id, jupiterToken);
+          }
+        });
+
+        // Return enhanced data for each requested contract address
+        return batchAddresses.map(contractAddress => {
+          if (jupiterMap.has(contractAddress)) {
+            const jupiterData = jupiterMap.get(contractAddress);
+            console.log(`✅ Found Jupiter data for ${contractAddress.substring(0, 8)}: ${jupiterData.symbol || 'Unknown'}`);
+            return this.extractTokenInformation(jupiterData, contractAddress);
+          } else {
+            console.log(`⚠️ No Jupiter data found for ${contractAddress.substring(0, 8)}`);
+            return null;
+          }
+        });
+      } else {
+        console.log(`⚠️ Jupiter batch API returned empty array for ${batchAddresses.length} contracts`);
+        return batchAddresses.map(() => null);
+      }
+
+    } catch (error) {
+      console.error(`❌ Error in Jupiter batch fetch for ${contractAddresses.length} contracts:`, error.message);
+      return contractAddresses.map(() => null);
     }
   }
 

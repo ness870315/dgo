@@ -1336,7 +1336,7 @@ class EnhancedBackend {
 
     this.app.post('/api/admin/jupiter/refresh-all', async (req, res) => {
       try {
-        console.log('🔄 Starting Jupiter refresh for all tokens...');
+        console.log('🔄 Starting Jupiter refresh for all tokens (with batch processing)...');
 
         const tokens = await this.getTokensFromCache();
         const paidTokens = tokens.filter(token => token.isPaid);
@@ -1350,49 +1350,106 @@ class EnhancedBackend {
           });
         }
 
+        console.log(`🚀 Processing ${paidTokens.length} paid tokens in batches of up to 100...`);
+
+        // Process tokens in batches of 100 (Jupiter's limit)
+        const batchSize = 100;
         const results = [];
         let successCount = 0;
         let errorCount = 0;
+        let batchCount = 0;
 
-        for (const token of paidTokens) {
+        for (let i = 0; i < paidTokens.length; i += batchSize) {
+          const batchTokens = paidTokens.slice(i, i + batchSize);
+          const contractAddresses = batchTokens.map(t => t.contractAddress).filter(addr => addr);
+          batchCount++;
+
+          console.log(`🔄 Processing batch ${batchCount}/${Math.ceil(paidTokens.length/batchSize)}: ${contractAddresses.length} contracts`);
+
           try {
-            console.log(`🔄 Refreshing ${token.symbol} (${token.contractAddress.substring(0, 8)})...`);
+            // Use batch Jupiter API call
+            const { default: jupiterApiService } = await import('./jupiterApiService.js');
+            const batchJupiterData = await jupiterApiService.getBatchTokenDetails(contractAddresses);
 
-            const updatedToken = await this.tokenProcessor.processPaidTokenImmediately({
-              ...token,
-              contractAddress: token.contractAddress
-            });
+            // Process each token in the batch
+            for (let j = 0; j < batchTokens.length; j++) {
+              const token = batchTokens[j];
+              const jupiterData = batchJupiterData[j];
 
-            if (updatedToken) {
-              results.push({
-                symbol: token.symbol,
-                contractAddress: token.contractAddress,
-                success: true,
-                hasJupiterData: !!updatedToken.jupiterData
-              });
-              successCount++;
-            } else {
+              try {
+                let updatedToken;
+
+                if (jupiterData) {
+                  console.log(`✅ Jupiter data found for ${token.symbol}`);
+                  // Update token with Jupiter data
+                  updatedToken = await this.tokenProcessor.processPaidTokenImmediately({
+                    ...token,
+                    contractAddress: token.contractAddress
+                  });
+
+                  if (updatedToken) {
+                    // Merge Jupiter data into the token
+                    updatedToken.jupiterData = jupiterData;
+                    updatedToken.hasJupiterData = true;
+                  }
+                } else {
+                  console.log(`⚠️ No Jupiter data for ${token.symbol}`);
+                  // Still process token but mark as no Jupiter data
+                  updatedToken = await this.tokenProcessor.processPaidTokenImmediately({
+                    ...token,
+                    contractAddress: token.contractAddress
+                  });
+                }
+
+                if (updatedToken) {
+                  results.push({
+                    symbol: token.symbol,
+                    contractAddress: token.contractAddress,
+                    success: true,
+                    hasJupiterData: !!jupiterData
+                  });
+                  successCount++;
+                } else {
+                  results.push({
+                    symbol: token.symbol,
+                    contractAddress: token.contractAddress,
+                    success: false,
+                    error: 'Failed to process token'
+                  });
+                  errorCount++;
+                }
+
+              } catch (tokenError) {
+                console.error(`❌ Error processing ${token.symbol}:`, tokenError.message);
+                results.push({
+                  symbol: token.symbol,
+                  contractAddress: token.contractAddress,
+                  success: false,
+                  error: tokenError.message
+                });
+                errorCount++;
+              }
+            }
+
+            // Rate limiting delay between batches (3 seconds)
+            if (i + batchSize < paidTokens.length) {
+              console.log(`⏱️ Waiting 3 seconds before next batch...`);
+              await new Promise(resolve => setTimeout(resolve, 3000));
+            }
+
+          } catch (batchError) {
+            console.error(`❌ Error processing batch ${batchCount}:`, batchError.message);
+
+            // Mark all tokens in this batch as failed
+            for (const token of batchTokens) {
               results.push({
                 symbol: token.symbol,
                 contractAddress: token.contractAddress,
                 success: false,
-                error: 'Failed to process token'
+                error: `Batch error: ${batchError.message}`
               });
               errorCount++;
             }
-
-            // Small delay to avoid overwhelming the API
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-          } catch (error) {
-            console.error(`❌ Error refreshing ${token.symbol}:`, error.message);
-            results.push({
-              symbol: token.symbol,
-              contractAddress: token.contractAddress,
-              success: false,
-              error: error.message
-            });
-            errorCount++;
           }
         }
 
@@ -1401,9 +1458,10 @@ class EnhancedBackend {
 
         res.json({
           success: true,
-          message: `Jupiter refresh completed for ${paidTokens.length} paid tokens`,
+          message: `Jupiter batch refresh completed for ${paidTokens.length} paid tokens (${batchCount} batches)`,
           totalTokens: tokens.length,
           paidTokens: paidTokens.length,
+          batchCount,
           successCount,
           errorCount,
           results,
@@ -1547,6 +1605,94 @@ class EnhancedBackend {
           timestamp: new Date().toISOString()
         });
       } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    // Jupiter API Batch Refresh for specific contracts
+    this.app.post('/api/admin/jupiter/refresh-batch', async (req, res) => {
+      try {
+        const { contractAddresses } = req.body;
+
+        if (!contractAddresses || !Array.isArray(contractAddresses) || contractAddresses.length === 0) {
+          return res.status(400).json({
+            success: false,
+            error: 'contractAddresses must be a non-empty array',
+            timestamp: new Date().toISOString()
+          });
+        }
+
+        if (contractAddresses.length > 100) {
+          return res.status(400).json({
+            success: false,
+            error: 'Maximum 100 contract addresses allowed per batch',
+            timestamp: new Date().toISOString()
+          });
+        }
+
+        console.log(`🚀 Batch refreshing Jupiter data for ${contractAddresses.length} specific contracts...`);
+
+        const { default: jupiterApiService } = await import('./jupiterApiService.js');
+        const batchJupiterData = await jupiterApiService.getBatchTokenDetails(contractAddresses);
+
+        const results = [];
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (let i = 0; i < contractAddresses.length; i++) {
+          const contractAddress = contractAddresses[i];
+          const jupiterData = batchJupiterData[i];
+
+          try {
+            if (jupiterData) {
+              console.log(`✅ Jupiter data found for ${contractAddress.substring(0, 8)}: ${jupiterData.symbol}`);
+              results.push({
+                contractAddress,
+                success: true,
+                symbol: jupiterData.symbol,
+                name: jupiterData.name,
+                price: jupiterData.usdPrice,
+                marketCap: jupiterData.mcap,
+                hasJupiterData: true
+              });
+              successCount++;
+            } else {
+              console.log(`⚠️ No Jupiter data for ${contractAddress.substring(0, 8)}`);
+              results.push({
+                contractAddress,
+                success: true,
+                hasJupiterData: false,
+                message: 'Token not found in Jupiter API'
+              });
+              successCount++; // Still successful, just no data
+            }
+          } catch (error) {
+            console.error(`❌ Error processing ${contractAddress.substring(0, 8)}:`, error.message);
+            results.push({
+              contractAddress,
+              success: false,
+              error: error.message
+            });
+            errorCount++;
+          }
+        }
+
+        res.json({
+          success: true,
+          message: `Batch Jupiter refresh completed for ${contractAddresses.length} contracts`,
+          totalContracts: contractAddresses.length,
+          successCount,
+          errorCount,
+          results,
+          timestamp: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error('❌ Jupiter batch refresh error:', error);
         res.status(500).json({
           success: false,
           error: error.message,

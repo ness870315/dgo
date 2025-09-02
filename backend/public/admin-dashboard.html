@@ -330,6 +330,18 @@
                 <div id="jupiterTestResult" style="margin-top: 10px;"></div>
             </div>
 
+            <!-- Jupiter Batch Refresh -->
+            <div style="margin-bottom: 20px; padding: 15px; background: rgba(139, 92, 246, 0.1); border-radius: 8px;">
+                <h3 style="margin-bottom: 10px; color: #8b5cf6;">🔄 Batch Refresh Multiple Tokens (Up to 100)</h3>
+                <div class="form-group">
+                    <label>Contract Addresses (one per line)</label>
+                    <textarea id="jupiterBatchContracts" rows="5" placeholder="HwC99nBLV8mwQS2rQGWzQqgm5N1WKC4CQQrRkaBabonk&#10;EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v&#10;So11111111111111111111111111111111111111112" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;"></textarea>
+                    <small style="color: #666; font-size: 12px;">Enter up to 100 contract addresses, one per line. Jupiter API can process up to 100 at once!</small>
+                </div>
+                <button class="btn" onclick="refreshBatchJupiterTokens()" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);">🚀 Batch Refresh (100 max)</button>
+                <div id="jupiterBatchResult" style="margin-top: 10px;"></div>
+            </div>
+
             <!-- Jupiter Refresh Single Token -->
             <div style="margin-bottom: 20px; padding: 15px; background: rgba(34, 197, 94, 0.1); border-radius: 8px;">
                 <h3 style="margin-bottom: 10px; color: #22c55e;">🔄 Refresh Single Token</h3>
@@ -1353,6 +1365,96 @@
             } catch (error) {
                 resultDiv.innerHTML = showAlert(
                     `❌ Error: ${error.message}`,
+                    'error'
+                );
+            }
+        }
+
+        async function refreshBatchJupiterTokens() {
+            const contractsText = document.getElementById('jupiterBatchContracts').value.trim();
+            const resultDiv = document.getElementById('jupiterBatchResult');
+
+            if (!resultDiv) {
+                showAlert('❌ Jupiter batch result div not found', 'error');
+                return;
+            }
+
+            if (!contractsText) {
+                resultDiv.innerHTML = showAlert('❌ Please enter at least one contract address', 'error');
+                return;
+            }
+
+            // Parse contract addresses from textarea
+            const contractAddresses = contractsText
+                .split('\n')
+                .map(addr => addr.trim())
+                .filter(addr => addr.length > 0);
+
+            if (contractAddresses.length === 0) {
+                resultDiv.innerHTML = showAlert('❌ No valid contract addresses found', 'error');
+                return;
+            }
+
+            if (contractAddresses.length > 100) {
+                resultDiv.innerHTML = showAlert('❌ Maximum 100 contract addresses allowed', 'error');
+                return;
+            }
+
+            if (!confirm(`🚀 This will batch refresh ${contractAddresses.length} tokens using Jupiter API. Continue?`)) {
+                return;
+            }
+
+            resultDiv.innerHTML = showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/jupiter/refresh-batch`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contractAddresses: contractAddresses
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    let resultsHtml = `<div class="alert alert-success">✅ ${data.message}</div>`;
+                    resultsHtml += `<div style="margin-top: 10px;"><strong>Summary:</strong> ${data.successCount}/${data.totalContracts} successful</div>`;
+
+                    if (data.results && data.results.length > 0) {
+                        resultsHtml += '<div style="margin-top: 15px; max-height: 300px; overflow-y: auto;"><table style="width: 100%; border-collapse: collapse;">';
+                        resultsHtml += '<thead><tr style="background: #f8f9fa;"><th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Contract</th><th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Symbol</th><th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Price</th><th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Status</th></tr></thead><tbody>';
+
+                        data.results.forEach(result => {
+                            const shortAddr = result.contractAddress.substring(0, 8);
+                            const symbol = result.symbol || 'Unknown';
+                            const price = result.price ? `$${result.price.toFixed(6)}` : 'N/A';
+                            const status = result.success ? (result.hasJupiterData ? '✅ Found' : '⚠️ Not Found') : '❌ Error';
+
+                            resultsHtml += `<tr>
+                                <td style="border: 1px solid #ddd; padding: 8px;">${shortAddr}...</td>
+                                <td style="border: 1px solid #ddd; padding: 8px;">${symbol}</td>
+                                <td style="border: 1px solid #ddd; padding: 8px;">${price}</td>
+                                <td style="border: 1px solid #ddd; padding: 8px;">${status}</td>
+                            </tr>`;
+                        });
+
+                        resultsHtml += '</tbody></table></div>';
+                    }
+
+                    resultDiv.innerHTML = resultsHtml;
+                } else {
+                    resultDiv.innerHTML = showAlert(
+                        `❌ Error: ${data.error}`,
+                        'error'
+                    );
+                }
+            } catch (error) {
+                console.error('❌ Batch Jupiter refresh error:', error);
+                resultDiv.innerHTML = showAlert(
+                    `❌ Network error: ${error.message}`,
                     'error'
                 );
             }
