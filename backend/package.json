@@ -2,11 +2,14 @@
   "name": "xtrend-backend",
   "version": "1.0.0",
   "description": "DeGen Oracle Backend API",
-  "main": "index.js",
-  "type": "module",
+  "main": "enhancedBackend.js",
+  "engines": {
+    "node": "18.x",
+    "npm": "9.x"
+  },
   "scripts": {
-    "start": "node index.js",
-    "dev": "node --watch index.js",
+    "start": "node simple-server.js",
+    "dev": "node --watch simple-server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -18,23 +21,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "axios": "^1.11.0",
-    "bcryptjs": "^3.0.2",
-    "cheerio": "^1.1.2",
-    "connect-mongo": "^5.1.0",
+    "axios": "^1.6.0",
+    "cheerio": "^1.0.0",
     "cors": "^2.8.5",
-    "dotenv": "^17.2.1",
-    "express": "^5.1.0",
-    "express-session": "^1.18.0",
-    "jsdom": "^24.0.0",
-    "jsonwebtoken": "^9.0.2",
-    "mongodb": "^6.3.0",
-    "mongoose": "^8.0.0",
-    "node-fetch": "^3.3.2",
-    "passport": "^0.7.0",
-    "passport-twitter": "^1.0.4",
-    "rettiwt-api": "github:Rishikant181/Rettiwt-API#dev",
-    "sentiment": "^5.0.2",
-    "twitter-api-v2": "^1.25.0"
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "jsdom": "^22.1.0",
+    "sentiment": "^5.0.2"
   }
 }
