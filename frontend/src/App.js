@@ -201,7 +201,7 @@ function App() {
   const [fueledTokens, setFueledTokens] = useState([]);
   const [viewMode, setViewMode] = useState('bubbles'); // 'bubbles' or 'cards'
   const [settings, setSettings] = useState({
-    useRealTwitterData: true, // Changed to true by default since we have alternative data working
+    useRealTwitterData: false, // Using mock data for production testing (backend not deployed yet)
     enableRealTimeUpdates: true,
     enableSentimentAnalysis: true,
     enableRiskDetection: true,

@@ -3,9 +3,12 @@
 // Mock data for development - replace with real API calls
 const generateMockTokens = () => {
   const symbols = [
-    'BONK', 'WIF', 'PEPE', 'SHIB', 'DOGE', 'FLOKI', 'MEME', 'WOJAK', 
+    'BONK', 'WIF', 'PEPE', 'SHIB', 'DOGE', 'FLOKI', 'MEME', 'WOJAK',
     'CHAD', 'COPE', 'HOPIUM', 'WAGMI', 'NGMI', 'FOMO', 'HODL', 'REKT',
-    'MOON', 'LAMBO', 'DIAMOND', 'PAPER', 'APES', 'BULLS', 'BEARS', 'PUMP'
+    'MOON', 'LAMBO', 'DIAMOND', 'PAPER', 'APES', 'BULLS', 'BEARS', 'PUMP',
+    'SOL', 'ETH', 'BTC', 'ADA', 'DOT', 'LINK', 'UNI', 'AAVE', 'COMP', 'MKR',
+    'SUSHI', 'YFI', 'BAL', 'CRV', 'REN', 'BAT', 'OMG', 'LRC', 'STORJ', 'ANT',
+    'GRT', 'LPT', 'NMR', 'FIL', 'ICP', 'HBAR', 'NEAR', 'FLOW', 'MANA', 'SAND'
   ];
 
   const names = [
@@ -13,7 +16,13 @@ const generateMockTokens = () => {
     'Meme Coin', 'Wojak Finance', 'Chad Token', 'Cope Coin', 'Hopium Protocol',
     'We Are Gonna Make It', 'Not Gonna Make It', 'Fear Of Missing Out', 'Hold On for Dear Life',
     'Rekt Protocol', 'Moon Mission', 'Lambo Dreams', 'Diamond Hands', 'Paper Hands',
-    'Ape Together Strong', 'Bull Market', 'Bear Market', 'Pump It Up'
+    'Ape Together Strong', 'Bull Market', 'Bear Market', 'Pump It Up',
+    'Solana', 'Ethereum', 'Bitcoin', 'Cardano', 'Polkadot', 'Chainlink', 'Uniswap',
+    'Aave', 'Compound', 'MakerDAO', 'SushiSwap', 'Yearn Finance', 'Balancer',
+    'Curve Finance', 'Ren Protocol', 'Basic Attention Token', 'OMG Network',
+    'Loopring', 'Storj', 'Aragon', 'The Graph', 'Livepeer', 'Numeraire',
+    'Filecoin', 'Internet Computer', 'Hedera', 'Near Protocol', 'Flow',
+    'Decentraland', 'The Sandbox'
   ];
 
   const communityTypes = ['Official', 'CTO', 'Community', 'Unofficial'];
