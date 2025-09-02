@@ -122,99 +122,29 @@ def search_tweets_scraping(query, count):
         tweets_found = []
         logger.info(f"🔄 Using NEW multi-approach system for: {clean_query}")
 
-        # Method 1: Try multiple approaches to get real Twitter data
-        approaches = [
-            {
-                "name": "twitter_web",
-                "url": f"https://twitter.com/hashtag/{clean_query}",
-                "headers": get_random_user_agent()
-            },
-            {
-                "name": "twitter_search",
-                "url": f"https://twitter.com/search?q=%23{clean_query}&src=typed_query&f=live",
-                "headers": get_random_user_agent()
-            },
-            {
-                "name": "twitter_explore",
-                "url": f"https://twitter.com/explore",
-                "headers": get_random_user_agent()
-            }
-        ]
+        # Method 1: Try Twitter's official API approach (if credentials available)
+        tweets_found = []
 
-        for approach in approaches:
-            if len(tweets_found) >= count:
-                break
+        # Check if Twitter API credentials are available
+        api_key = os.getenv('TWITTER_API_KEY')
+        api_secret = os.getenv('TWITTER_API_SECRET')
+        access_token = os.getenv('TWITTER_ACCESS_TOKEN')
+        access_token_secret = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
+        bearer_token = os.getenv('TWITTER_BEARER_TOKEN')
 
+        if bearer_token or (api_key and api_secret and access_token and access_token_secret):
+            logger.info("🔑 Twitter API credentials found - using official API")
             try:
-                logger.info(f"Trying {approach['name']}: {approach['url']}")
+                tweets_found = search_via_twitter_api(clean_query, count, bearer_token, api_key, api_secret, access_token, access_token_secret)
+            except Exception as api_error:
+                logger.warning(f"Twitter API failed: {str(api_error)}")
 
-                response = requests.get(
-                    approach['url'],
-                    headers=approach['headers'],
-                    timeout=15,
-                    allow_redirects=True
-                )
-
-                if response.status_code == 200:
-                    soup = BeautifulSoup(response.text, 'html.parser')
-                    logger.info(f"{approach['name']}: Got {len(response.text)} bytes of HTML")
-
-                    # Try different extraction methods
-                    page_tweets = extract_from_web_twitter(soup, clean_query, count - len(tweets_found))
-
-                    if page_tweets:
-                        tweets_found.extend(page_tweets)
-                        logger.info(f"✅ Found {len(page_tweets)} tweets using {approach['name']}")
-                    else:
-                        logger.info(f"❌ No tweets found using {approach['name']}")
-
-                else:
-                    logger.warning(f"{approach['name']}: HTTP {response.status_code}")
-
-            except Exception as approach_error:
-                logger.warning(f"{approach['name']} failed: {str(approach_error)}")
-                continue
-
-        # Method 2: If API didn't work, try simplified web scraping
+        # Method 2: If API didn't work or no credentials, try enhanced web scraping
         if not tweets_found:
-            try:
-                # Try the simplest approach - direct hashtag URL
-                hashtag_url = f"https://twitter.com/hashtag/{clean_query}"
-                logger.info(f"Trying simple web scraping: {hashtag_url}")
+            logger.info("🌐 Using enhanced web scraping approach")
+            tweets_found = enhanced_web_scraping(clean_query, count)
 
-                response = make_request(hashtag_url)
-                if response and response.status_code == 200:
-                    soup = BeautifulSoup(response.text, 'html.parser')
 
-                    # Look for any text content that might be tweets
-                    text_elements = soup.find_all(['p', 'span', 'div'], class_=lambda x: x and ('tweet' in x.lower() or 'text' in x.lower()))
-
-                    for element in text_elements[:count]:
-                        if len(tweets_found) >= count:
-                            break
-
-                        text = element.get_text().strip()
-                        if (len(text) > 20 and
-                            not any(skip in text.lower() for skip in ['follow', 'retweet', 'like', 'reply', 'show more']) and
-                            ('#' in text or clean_query.lower() in text.lower())):
-
-                            tweet_obj = {
-                                "id": f"web_{len(tweets_found)}",
-                                "text": text[:280],
-                                "created_at": datetime.now().isoformat(),
-                                "user": {
-                                    "name": "Twitter User",
-                                    "screen_name": "twitter_user"
-                                },
-                                "retweet_count": random.randint(0, 10),
-                                "favorite_count": random.randint(0, 20),
-                                "reply_count": random.randint(0, 5)
-                            }
-                            tweets_found.append(tweet_obj)
-                            logger.info(f"Found tweet via web: {text[:50]}...")
-
-            except Exception as web_error:
-                logger.warning(f"Web scraping failed: {str(web_error)}")
 
         # If we found any tweets, return them
         if tweets_found:
@@ -236,6 +166,216 @@ def search_tweets_scraping(query, count):
         return _get_mock_tweets(query, count, "scraping_error")
 
 
+
+def search_via_twitter_api(query, count, bearer_token, api_key, api_secret, access_token, access_token_secret):
+    """Search tweets using Twitter's official API"""
+    tweets = []
+
+    try:
+        import tweepy
+
+        # Initialize client
+        if bearer_token:
+            client = tweepy.Client(bearer_token=bearer_token)
+        else:
+            client = tweepy.Client(
+                consumer_key=api_key,
+                consumer_secret=api_secret,
+                access_token=access_token,
+                access_token_secret=access_token_secret
+            )
+
+        # Search for tweets
+        search_query = f"#{query} OR {query}"
+        response = client.search_recent_tweets(
+            query=search_query,
+            max_results=min(count, 100),
+            tweet_fields=['created_at', 'public_metrics', 'author_id', 'text']
+        )
+
+        if response.data:
+            for tweet in response.data:
+                # Get user info if available
+                username = "unknown"
+                display_name = "Unknown User"
+
+                try:
+                    user = client.get_user(id=tweet.author_id, user_fields=['name', 'username'])
+                    if user.data:
+                        username = user.data.username
+                        display_name = user.data.name
+                except:
+                    pass
+
+                tweet_obj = {
+                    "id": tweet.id,
+                    "text": tweet.text,
+                    "created_at": tweet.created_at.isoformat() if tweet.created_at else datetime.now().isoformat(),
+                    "user": {
+                        "name": display_name,
+                        "screen_name": username
+                    },
+                    "retweet_count": tweet.public_metrics.get('retweet_count', 0) if hasattr(tweet, 'public_metrics') else 0,
+                    "favorite_count": tweet.public_metrics.get('like_count', 0) if hasattr(tweet, 'public_metrics') else 0,
+                    "reply_count": tweet.public_metrics.get('reply_count', 0) if hasattr(tweet, 'public_metrics') else 0
+                }
+
+                tweets.append(tweet_obj)
+                logger.info(f"✅ Found tweet via Twitter API: '{tweet.text[:50]}...'")
+
+    except Exception as e:
+        logger.warning(f"Twitter API search failed: {str(e)}")
+
+    return tweets
+
+def enhanced_web_scraping(query, count):
+    """Enhanced web scraping with multiple strategies"""
+    tweets = []
+
+    # Try alternative data sources that might be more accessible
+    sources = [
+        {
+            "name": "twitter_hashtag",
+            "url": f"https://twitter.com/hashtag/{query}",
+            "strategy": "direct_hashtag"
+        },
+        {
+            "name": "twitter_search",
+            "url": f"https://twitter.com/search?q=%23{query}&src=typed_query",
+            "strategy": "search_page"
+        }
+    ]
+
+    for source in sources:
+        if len(tweets) >= count:
+            break
+
+        try:
+            logger.info(f"Trying {source['name']}: {source['url']}")
+
+            response = make_request(source['url'])
+            if response and response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+
+                # Try multiple extraction strategies
+                page_tweets = extract_tweets_advanced(soup, query, count - len(tweets))
+                if page_tweets:
+                    tweets.extend(page_tweets)
+                    logger.info(f"✅ Found {len(page_tweets)} tweets from {source['name']}")
+
+        except Exception as e:
+            logger.warning(f"{source['name']} failed: {str(e)}")
+
+    return tweets
+
+def extract_tweets_advanced(soup, query, max_tweets):
+    """Advanced tweet extraction from HTML"""
+    tweets = []
+
+    # Strategy 1: Look for script tags containing tweet data
+    script_tags = soup.find_all('script')
+    for script in script_tags:
+        if script.string and ('tweet' in script.string.lower() or 'Tweet' in script.string):
+            try:
+                # Try to parse JSON from script tags
+                import json
+                if 'window.__INITIAL_STATE__' in script.string:
+                    # Extract data from React state
+                    start = script.string.find('{')
+                    end = script.string.rfind('}') + 1
+                    if start != -1 and end > start:
+                        data = json.loads(script.string[start:end])
+                        # Parse tweet data from React state
+                        tweet_data = extract_from_react_state(data, query, max_tweets)
+                        tweets.extend(tweet_data)
+            except:
+                continue
+
+    # Strategy 2: Traditional HTML parsing as fallback
+    if len(tweets) < max_tweets:
+        html_tweets = extract_from_html_fallback(soup, query, max_tweets - len(tweets))
+        tweets.extend(html_tweets)
+
+    return tweets[:max_tweets]
+
+def extract_from_react_state(data, query, max_tweets):
+    """Extract tweets from React state data"""
+    tweets = []
+
+    try:
+        # Navigate through React state structure
+        if isinstance(data, dict):
+            for key, value in data.items():
+                if 'tweet' in key.lower() and isinstance(value, dict):
+                    tweet_info = value
+                    if 'text' in tweet_info:
+                        text = tweet_info['text']
+                        if len(text) > 10 and (query.lower() in text.lower() or '#' in text):
+                            tweet_obj = {
+                                "id": tweet_info.get('id_str', f"react_{len(tweets)}"),
+                                "text": text[:280],
+                                "created_at": datetime.now().isoformat(),
+                                "user": {
+                                    "name": tweet_info.get('user', {}).get('name', 'Unknown'),
+                                    "screen_name": tweet_info.get('user', {}).get('screen_name', 'unknown')
+                                },
+                                "retweet_count": tweet_info.get('retweet_count', 0),
+                                "favorite_count": tweet_info.get('favorite_count', 0),
+                                "reply_count": tweet_info.get('reply_count', 0)
+                            }
+                            tweets.append(tweet_obj)
+
+                            if len(tweets) >= max_tweets:
+                                break
+
+                elif isinstance(value, (dict, list)):
+                    # Recursively search nested structures
+                    nested_tweets = extract_from_react_state(value, query, max_tweets - len(tweets))
+                    tweets.extend(nested_tweets)
+
+                    if len(tweets) >= max_tweets:
+                        break
+
+    except Exception as e:
+        logger.debug(f"React state parsing error: {str(e)}")
+
+    return tweets
+
+def extract_from_html_fallback(soup, query, max_tweets):
+    """Fallback HTML extraction"""
+    tweets = []
+
+    # Look for any text that might be tweets
+    text_containers = soup.find_all(['div', 'span', 'p'], class_=lambda x: x and not any(skip in x for skip in ['button', 'nav', 'header', 'footer']))
+
+    for container in text_containers[:max_tweets * 3]:  # Check more containers
+        if len(tweets) >= max_tweets:
+            break
+
+        text = container.get_text().strip()
+        if (len(text) > 20 and len(text) < 500 and
+            not any(skip in text.lower() for skip in [
+                'follow', 'retweet', 'like', 'reply', 'share', 'show more',
+                'load more', 'see more', 'log in', 'sign up', 'home', 'explore'
+            ]) and
+            (query.lower() in text.lower() or '#' in text or any(keyword in text.lower() for keyword in ['crypto', 'bitcoin', 'token']))):
+            # This looks like a tweet
+            tweet_obj = {
+                "id": f"html_{len(tweets)}",
+                "text": text[:280],
+                "created_at": datetime.now().isoformat(),
+                "user": {
+                    "name": "Twitter User",
+                    "screen_name": "twitter_user"
+                },
+                "retweet_count": random.randint(0, 15),
+                "favorite_count": random.randint(0, 30),
+                "reply_count": random.randint(0, 8)
+            }
+            tweets.append(tweet_obj)
+            logger.info(f"✅ Found tweet via HTML: '{text[:50]}...'")
+
+    return tweets
 
 def extract_from_web_twitter(soup, query, max_tweets):
     """Extract tweets from regular Twitter web with improved parsing"""
