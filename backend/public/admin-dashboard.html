@@ -459,7 +459,28 @@
     </div>
 
     <script>
-        const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:4000' : 'https://api.degen-oracle.com';
+        // Detect environment and set API base URL
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const isRender = window.location.hostname.includes('onrender.com');
+        
+        let API_BASE;
+        if (isLocal) {
+            API_BASE = 'http://localhost:4000';
+        } else if (isRender) {
+            // Use the same domain for Render deployment
+            API_BASE = window.location.origin;
+        } else {
+            // Default to production API
+            API_BASE = 'https://api.degen-oracle.com';
+        }
+        
+        // Debug: Log the detected environment
+        console.log('🔍 Admin Dashboard Environment Detection:');
+        console.log('   Current hostname:', window.location.hostname);
+        console.log('   Current origin:', window.location.origin);
+        console.log('   Is local:', isLocal);
+        console.log('   Is Render:', isRender);
+        console.log('   API_BASE:', API_BASE);
 
         // Utility functions
         function showAlert(message, type = 'success') {
