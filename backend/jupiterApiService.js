@@ -4,7 +4,18 @@ class JupiterApiService {
   constructor() {
     this.baseURL = 'https://lite-api.jup.ag/tokens/v2';
     this.cache = new Map();
-    this.cacheTimeout = 10 * 60 * 1000; // 10 minutes cache
+    this.cacheTimeout = 30 * 60 * 1000; // 30 minutes cache (increased to reduce API calls)
+
+    // Rate limiting configuration
+    this.rateLimitDelay = 3000; // 3 seconds between requests (increased)
+    this.maxRetries = 3;
+    this.lastRequestTime = 0;
+    this.retryDelays = [2000, 5000, 10000]; // Progressive retry delays (increased)
+
+    // Rate limiting stats
+    this.requestCount = 0;
+    this.errorCount = 0;
+    this.lastErrorTime = null;
   }
 
   /**
@@ -13,6 +24,72 @@ class JupiterApiService {
   clearCache() {
     this.cache.clear();
     console.log('🧹 Jupiter API cache cleared');
+  }
+
+  /**
+   * Wait for rate limit delay
+   */
+  async waitForRateLimit() {
+    const now = Date.now();
+    const timeSinceLastRequest = now - this.lastRequestTime;
+
+    if (timeSinceLastRequest < this.rateLimitDelay) {
+      const waitTime = this.rateLimitDelay - timeSinceLastRequest;
+      console.log(`⏱️ Rate limiting: waiting ${waitTime}ms before next Jupiter API request`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+
+    this.lastRequestTime = Date.now();
+  }
+
+  /**
+   * Make API request with retry logic for rate limiting
+   */
+  async makeRequestWithRetry(config, retryCount = 0) {
+    try {
+      // Wait for rate limit delay
+      await this.waitForRateLimit();
+
+      this.requestCount++;
+      console.log(`📡 Jupiter API request attempt ${retryCount + 1}/${this.maxRetries + 1} (total: ${this.requestCount})`);
+      const response = await axios.request(config);
+
+      // Reset rate limit delay on successful request
+      this.rateLimitDelay = Math.max(2000, this.rateLimitDelay * 0.9); // Gradually reduce delay
+
+      return response;
+    } catch (error) {
+      this.errorCount++;
+      this.lastErrorTime = new Date().toISOString();
+      const statusCode = error.response?.status;
+
+      if (statusCode === 429 && retryCount < this.maxRetries) {
+        // Rate limited - implement exponential backoff
+        const delay = this.retryDelays[retryCount] || 5000;
+        console.log(`🚦 Rate limited (429). Retrying in ${delay}ms... (attempt ${retryCount + 1}/${this.maxRetries})`);
+
+        // Increase rate limit delay for future requests
+        this.rateLimitDelay = Math.min(10000, this.rateLimitDelay * 1.5);
+
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.makeRequestWithRetry(config, retryCount + 1);
+      } else if (statusCode === 404) {
+        // Token not found - don't retry
+        console.log('🔍 Token not found in Jupiter API (404)');
+        throw error;
+      } else if (statusCode >= 500) {
+        // Server error - retry with shorter delay
+        if (retryCount < this.maxRetries) {
+          const delay = 1000 * (retryCount + 1); // 1s, 2s, 3s
+          console.log(`🔧 Server error (${statusCode}). Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return this.makeRequestWithRetry(config, retryCount + 1);
+        }
+      }
+
+      // For other errors or max retries reached, throw the error
+      throw error;
+    }
   }
 
   /**
@@ -44,7 +121,7 @@ class JupiterApiService {
       };
 
       console.log('📡 Making request to Jupiter API...');
-      const response = await axios.request(config);
+      const response = await this.makeRequestWithRetry(config);
       console.log(`📊 Jupiter API Response Status: ${response.status}`);
 
       console.log('🔍 Raw Jupiter API Response:', JSON.stringify(response.data, null, 2));
@@ -429,13 +506,17 @@ class JupiterApiService {
   async healthCheck() {
     try {
       console.log('🏥 Testing Jupiter API health...');
-      const response = await axios.get(`${this.baseURL}/search?query=test`, {
-        timeout: 10000,
+      const config = {
+        method: 'get',
+        url: `${this.baseURL}/search?query=test`,
         headers: {
           'Accept': 'application/json',
           'User-Agent': 'Mozilla/5.0 (compatible; JupiterAPI/1.0)'
-        }
-      });
+        },
+        timeout: 10000
+      };
+
+      const response = await this.makeRequestWithRetry(config);
       console.log(`✅ Jupiter API health check: ${response.status}`);
       return response.status === 200;
     } catch (error) {
@@ -485,7 +566,7 @@ class JupiterApiService {
         timeout: 15000
       };
 
-      const response = await axios.request(config);
+      const response = await this.makeRequestWithRetry(config);
       return {
         status: response.status,
         data: response.data,
@@ -506,11 +587,16 @@ class JupiterApiService {
   getServiceInfo() {
     return {
       name: 'Jupiter API Service',
-      version: '2.0.0',
+      version: '2.1.0',
       baseURL: this.baseURL,
       cacheSize: this.cache.size,
       cacheTimeout: this.cacheTimeout,
-      description: 'Comprehensive token data service replacing DexScreener for paid tokens'
+      rateLimitDelay: this.rateLimitDelay,
+      requestCount: this.requestCount,
+      errorCount: this.errorCount,
+      lastErrorTime: this.lastErrorTime,
+      successRate: this.requestCount > 0 ? ((this.requestCount - this.errorCount) / this.requestCount * 100).toFixed(1) + '%' : 'N/A',
+      description: 'Comprehensive token data service with rate limiting and retry logic'
     };
   }
 }

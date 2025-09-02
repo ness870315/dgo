@@ -1529,6 +1529,32 @@ class EnhancedBackend {
       }
     });
 
+    // Jupiter API Management
+    this.app.post('/api/admin/jupiter/clear-cache', async (req, res) => {
+      try {
+        const { default: jupiterApiService } = await import('./jupiterApiService.js');
+        jupiterApiService.clearCache();
+
+        // Also reset rate limiting stats
+        jupiterApiService.requestCount = 0;
+        jupiterApiService.errorCount = 0;
+        jupiterApiService.lastErrorTime = null;
+        jupiterApiService.rateLimitDelay = 3000; // Reset to default
+
+        res.json({
+          success: true,
+          message: 'Jupiter API cache and rate limiting stats cleared',
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
     this.app.get('/api/admin/system/status', async (req, res) => {
       try {
         const processingStatus = this.tokenProcessor.getProcessingStatus();
