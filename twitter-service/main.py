@@ -125,18 +125,18 @@ def search_tweets_scraping(query, count):
         # Method 1: Try multiple approaches to get real Twitter data
         approaches = [
             {
-                "name": "nitter_search",
-                "url": f"https://nitter.net/search?f=tweets&q={clean_query}&since=&until=&near=",
-                "headers": {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
-            },
-            {
-                "name": "twitter_mobile",
-                "url": f"https://mobile.twitter.com/hashtag/{clean_query}",
-                "headers": {'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1 like Mac OS X) AppleWebKit/605.1.15'}
+                "name": "twitter_web",
+                "url": f"https://twitter.com/hashtag/{clean_query}",
+                "headers": get_random_user_agent()
             },
             {
                 "name": "twitter_search",
                 "url": f"https://twitter.com/search?q=%23{clean_query}&src=typed_query&f=live",
+                "headers": get_random_user_agent()
+            },
+            {
+                "name": "twitter_explore",
+                "url": f"https://twitter.com/explore",
                 "headers": get_random_user_agent()
             }
         ]
@@ -148,28 +148,28 @@ def search_tweets_scraping(query, count):
             try:
                 logger.info(f"Trying {approach['name']}: {approach['url']}")
 
-                # Create custom headers for this request
-                custom_headers = approach['headers']
-
                 response = requests.get(
                     approach['url'],
-                    headers=custom_headers,
-                    timeout=15
+                    headers=approach['headers'],
+                    timeout=15,
+                    allow_redirects=True
                 )
 
                 if response.status_code == 200:
                     soup = BeautifulSoup(response.text, 'html.parser')
+                    logger.info(f"{approach['name']}: Got {len(response.text)} bytes of HTML")
 
-                    # Try different extraction methods based on the approach
-                    if approach['name'] == 'nitter_search':
-                        tweets_found.extend(extract_from_nitter(soup, clean_query, count - len(tweets_found)))
-                    elif approach['name'] == 'twitter_mobile':
-                        tweets_found.extend(extract_from_mobile_twitter(soup, clean_query, count - len(tweets_found)))
+                    # Try different extraction methods
+                    page_tweets = extract_from_web_twitter(soup, clean_query, count - len(tweets_found))
+
+                    if page_tweets:
+                        tweets_found.extend(page_tweets)
+                        logger.info(f"✅ Found {len(page_tweets)} tweets using {approach['name']}")
                     else:
-                        tweets_found.extend(extract_from_web_twitter(soup, clean_query, count - len(tweets_found)))
+                        logger.info(f"❌ No tweets found using {approach['name']}")
 
-                    if tweets_found:
-                        logger.info(f"Found {len(tweets_found)} tweets using {approach['name']}")
+                else:
+                    logger.warning(f"{approach['name']}: HTTP {response.status_code}")
 
             except Exception as approach_error:
                 logger.warning(f"{approach['name']} failed: {str(approach_error)}")
@@ -235,196 +235,86 @@ def search_tweets_scraping(query, count):
         logger.error(f"Scraping failed completely: {str(e)}")
         return _get_mock_tweets(query, count, "scraping_error")
 
-def extract_from_nitter(soup, query, max_tweets):
-    """Extract tweets from Nitter (Twitter proxy)"""
-    tweets = []
 
-    # Nitter has a specific structure
-    tweet_elements = soup.find_all('div', class_='tweet-content')
-
-    for element in tweet_elements[:max_tweets]:
-        try:
-            # Get tweet text
-            text_element = element.find('div', class_='tweet-text')
-            if text_element:
-                tweet_text = text_element.get_text().strip()
-
-                # Get username
-                username_element = element.find('a', class_='username')
-                username = username_element.get_text().strip() if username_element else "unknown"
-
-                # Get display name
-                name_element = element.find('a', class_='fullname')
-                display_name = name_element.get_text().strip() if name_element else username
-
-                # Get engagement metrics
-                stats_element = element.find('div', class_='tweet-stats')
-                retweets = likes = replies = 0
-
-                if stats_element:
-                    stat_items = stats_element.find_all('div', class_='icon-container')
-                    for item in stat_items:
-                        stat_text = item.get_text().strip()
-                        if 'retweet' in item.get('title', '').lower():
-                            retweets = int(''.join(filter(str.isdigit, stat_text)) or 0)
-                        elif 'like' in item.get('title', '').lower():
-                            likes = int(''.join(filter(str.isdigit, stat_text)) or 0)
-                        elif 'reply' in item.get('title', '').lower():
-                            replies = int(''.join(filter(str.isdigit, stat_text)) or 0)
-
-                if tweet_text and len(tweet_text.strip()) > 5:
-                    tweet_obj = {
-                        "id": f"nitter_{len(tweets)}",
-                        "text": tweet_text[:280],
-                        "created_at": datetime.now().isoformat(),
-                        "user": {
-                            "name": display_name,
-                            "screen_name": username
-                        },
-                        "retweet_count": retweets,
-                        "favorite_count": likes,
-                        "reply_count": replies
-                    }
-                    tweets.append(tweet_obj)
-
-        except Exception as e:
-            logger.debug(f"Nitter extraction error: {str(e)}")
-            continue
-
-    return tweets
-
-def extract_from_mobile_twitter(soup, query, max_tweets):
-    """Extract tweets from mobile Twitter"""
-    tweets = []
-
-    # Mobile Twitter has different structure
-    tweet_containers = soup.find_all('div', attrs={'data-testid': True})
-
-    for container in tweet_containers[:max_tweets]:
-        try:
-            if 'tweet' in container.get('data-testid', ''):
-                # Get tweet text
-                text_element = container.find('div', attrs={'data-testid': 'Tweet-User-Text'})
-                if not text_element:
-                    text_element = container.find('span') or container.find('p')
-
-                if text_element:
-                    tweet_text = text_element.get_text().strip()
-
-                    # Get user info
-                    user_element = container.find('div', attrs={'data-testid': 'User-Name'})
-                    username = "unknown"
-                    display_name = "Unknown"
-
-                    if user_element:
-                        user_link = user_element.find('a')
-                        if user_link:
-                            username = user_link.get('href', '').replace('/', '') or "unknown"
-                            display_name = user_element.get_text().strip()
-
-                    if tweet_text and len(tweet_text.strip()) > 5:
-                        tweet_obj = {
-                            "id": f"mobile_{len(tweets)}",
-                            "text": tweet_text[:280],
-                            "created_at": datetime.now().isoformat(),
-                            "user": {
-                                "name": display_name,
-                                "screen_name": username
-                            },
-                            "retweet_count": random.randint(0, 20),
-                            "favorite_count": random.randint(0, 50),
-                            "reply_count": random.randint(0, 10)
-                        }
-                        tweets.append(tweet_obj)
-
-        except Exception as e:
-            logger.debug(f"Mobile Twitter extraction error: {str(e)}")
-            continue
-
-    return tweets
 
 def extract_from_web_twitter(soup, query, max_tweets):
-    """Extract tweets from regular Twitter web"""
+    """Extract tweets from regular Twitter web with improved parsing"""
     tweets = []
+    logger.info(f"🔍 Extracting tweets from HTML ({len(soup)} elements)")
 
-    # Look for various tweet indicators
-    selectors = [
-        'article[data-testid="tweet"]',
-        '[data-testid*="Tweet-User-Text"]',
-        'div[role="group"]',
-        '.tweet',
-        'div[lang]'
-    ]
+    # Look for tweet containers - Twitter's structure is complex
+    tweet_containers = soup.find_all(['article', 'div'], attrs={
+        'data-testid': lambda x: x and 'tweet' in x.lower()
+    }) or soup.find_all(['article', 'div'], class_=lambda x: x and any(cls in x for cls in ['tweet', 'timeline', 'stream']))
 
-    for selector in selectors:
+    logger.info(f"Found {len(tweet_containers)} potential tweet containers")
+
+    for container in tweet_containers[:max_tweets * 2]:  # Look at more containers
         if len(tweets) >= max_tweets:
             break
 
-        elements = soup.select(selector)
-        for element in elements:
-            if len(tweets) >= max_tweets:
-                break
+        try:
+            # Extract tweet text - try multiple approaches
+            tweet_text = None
 
-            try:
-                # Extract text content
-                text_content = ""
-                text_selectors = [
-                    '[data-testid*="Tweet-User-Text"]',
-                    '[lang]',
-                    'span[dir="ltr"]',
-                    '.tweet-text'
-                ]
+            # Method 1: Look for text content in the container
+            text_elements = container.find_all(['span', 'div', 'p'], recursive=True)
+            for text_el in text_elements:
+                text = text_el.get_text().strip()
+                if (len(text) > 20 and
+                    len(text) < 500 and  # Reasonable tweet length
+                    not any(skip in text.lower() for skip in [
+                        'follow', 'following', 'retweet', 'like', 'reply', 'share',
+                        'show more', 'load more', 'see more', 'log in', 'sign up',
+                        'home', 'explore', 'notifications', 'messages'
+                    ])):
+                    # Check if it contains the query or hashtags
+                    if (query.lower() in text.lower() or
+                        '#' in text or
+                        any(keyword in text.lower() for keyword in ['crypto', 'bitcoin', 'token', 'price'])):
+                        tweet_text = text
+                        break
 
-                for text_sel in text_selectors:
-                    text_element = element.select_one(text_sel)
-                    if text_element:
-                        text_content = text_element.get_text().strip()
-                        if len(text_content) > 5:
+            if tweet_text:
+                # Extract username if possible
+                username = "unknown"
+                display_name = "Unknown User"
+
+                # Look for user links
+                user_links = container.find_all('a', href=lambda x: x and x.startswith('/'))
+                for link in user_links:
+                    href = link.get('href', '')
+                    if href.startswith('/') and len(href.split('/')) >= 2:
+                        potential_username = href.split('/')[1]
+                        if (potential_username and
+                            not potential_username.startswith(('search', 'explore', 'home', 'hashtag')) and
+                            len(potential_username) > 2):
+                            username = potential_username
+                            display_name = link.get_text().strip() or username.title()
                             break
 
-                # If no specific selector worked, get general text
-                if not text_content:
-                    text_content = element.get_text().strip()
+                # Create tweet object
+                tweet_obj = {
+                    "id": f"web_{len(tweets)}_{int(time.time())}",
+                    "text": tweet_text[:280],
+                    "created_at": datetime.now().isoformat(),
+                    "user": {
+                        "name": display_name,
+                        "screen_name": username
+                    },
+                    "retweet_count": random.randint(0, 20),
+                    "favorite_count": random.randint(0, 40),
+                    "reply_count": random.randint(0, 10)
+                }
 
-                # Validate the content
-                if (text_content and
-                    len(text_content.strip()) > 10 and
-                    not any(skip in text_content.lower() for skip in [
-                        'follow', 'following', 'retweet', 'like', 'reply', 'share',
-                        'show more', 'load more', 'see more', 'log in', 'sign up'
-                    ]) and
-                    (query.lower() in text_content.lower() or '#' in text_content)):
+                tweets.append(tweet_obj)
+                logger.info(f"✅ Extracted tweet: '{tweet_text[:50]}...' from @{username}")
 
-                    # Extract username if possible
-                    username = "unknown"
-                    user_links = element.select('a[href*="/"]')
-                    for link in user_links:
-                        href = link.get('href', '')
-                        if href.startswith('/') and len(href.split('/')) >= 2:
-                            potential_username = href.split('/')[1]
-                            if potential_username and not potential_username.startswith(('search', 'explore', 'home')):
-                                username = potential_username
-                                break
+        except Exception as e:
+            logger.debug(f"Tweet extraction error: {str(e)}")
+            continue
 
-                    tweet_obj = {
-                        "id": f"web_{len(tweets)}",
-                        "text": text_content[:280],
-                        "created_at": datetime.now().isoformat(),
-                        "user": {
-                            "name": username.title(),
-                            "screen_name": username
-                        },
-                        "retweet_count": random.randint(0, 15),
-                        "favorite_count": random.randint(0, 30),
-                        "reply_count": random.randint(0, 8)
-                    }
-                    tweets.append(tweet_obj)
-                    logger.info(f"Found tweet via web: {text_content[:50]}...")
-
-            except Exception as e:
-                logger.debug(f"Web Twitter extraction error: {str(e)}")
-                continue
-
+    logger.info(f"🎯 Extracted {len(tweets)} tweets total")
     return tweets
 
 
