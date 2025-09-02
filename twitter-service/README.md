@@ -1,35 +1,27 @@
 # Twitter Microservice
 
-A Python FastAPI microservice that provides Twitter data using Tweepy with fallback web scraping.
+A Python FastAPI microservice that provides Twitter data using web scraping with robust fallback mechanisms.
 
 ## Features
 
-- 🔍 Search tweets by keyword (API or scraping fallback)
-- 👤 Get user tweets
+- 🔍 Search tweets by keyword using web scraping
+- 👤 Get user tweets from profiles
 - 📢 Search mentions of specific handles
 - 📈 Get trending topics
 - 🚀 FastAPI with automatic documentation
-- 🔄 Automatic fallback from API to web scraping
-- 🔒 Environment-based configuration
+- 🔄 Robust error handling with multiple fallback levels
+- 🔒 No API keys required - works with web scraping only
+- ⚡ User agent rotation and retry logic for reliability
 
-## API Credentials (Optional but Recommended)
+## No API Keys Required!
 
-### Free Tier (Bearer Token Only)
-1. Go to [Twitter Developer Portal](https://developer.twitter.com/en/portal/dashboard)
-2. Create a new app or use existing
-3. Get your **Bearer Token** from the app settings
-4. Set environment variable: `TWITTER_BEARER_TOKEN=your_token_here`
+**This service works entirely through web scraping - no Twitter API credentials needed!**
 
-### Paid Tier (Full OAuth - Optional)
-If you want higher rate limits, also set:
-```
-TWITTER_API_KEY=your_api_key
-TWITTER_API_SECRET=your_api_secret
-TWITTER_ACCESS_TOKEN=your_access_token
-TWITTER_ACCESS_TOKEN_SECRET=your_access_token_secret
-```
-
-**Note:** Without API credentials, the service will use web scraping as fallback mode.
+The service includes:
+- ✅ **Multiple fallback strategies** - if one method fails, others take over
+- ✅ **User agent rotation** - avoids blocking by rotating browser signatures
+- ✅ **Rate limiting protection** - built-in delays and retry logic
+- ✅ **Mock data generation** - always returns valid responses even on failures
 
 ## Setup
 
@@ -105,19 +97,26 @@ docker run -p 8000:8000 twitter-service
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `TWITTER_BEARER_TOKEN` | Optional | Bearer token for free API access |
-| `TWITTER_API_KEY` | Optional | API key for OAuth (paid tier) |
-| `TWITTER_API_SECRET` | Optional | API secret for OAuth (paid tier) |
-| `TWITTER_ACCESS_TOKEN` | Optional | Access token for OAuth (paid tier) |
-| `TWITTER_ACCESS_TOKEN_SECRET` | Optional | Access token secret for OAuth (paid tier) |
 | `PORT` | Optional | Server port (default: 8000) |
 
-## Fallback Behavior
+## Fallback Strategy
 
-- **With API credentials**: Uses Twitter API v2 (fast, reliable, rate-limited)
-- **Without API credentials**: Uses web scraping (slower, less reliable, but works)
-- **API fails**: Automatically falls back to scraping
-- **Both fail**: Returns structured error responses
+The service implements a **3-tier fallback system**:
+
+1. **Primary**: Web scraping with multiple selectors and URLs
+2. **Secondary**: Enhanced scraping with retry logic and user agent rotation
+3. **Tertiary**: Mock data generation - **always returns valid responses**
+
+### Response Sources:
+- ✅ **`"source": "scraping"`** - Successfully scraped real data
+- ✅ **`"source": "fallback"`** - Generated mock data due to scraping limitations
+- ✅ **Structured JSON responses** - Consistent format regardless of source
+
+### Anti-Blocking Features:
+- 🔄 **User agent rotation** - Changes browser signature on each request
+- ⏱️ **Rate limiting protection** - Built-in delays between requests
+- 🔁 **Retry logic** - Automatic retries with exponential backoff
+- 🎯 **Multiple selectors** - Tries different CSS selectors if one fails
 
 ## Security Notes
 
