@@ -314,25 +314,35 @@
         <div class="dashboard-grid">
             <!-- Add Free Token -->
             <div class="card">
-                <h2>🆓 Add Free Token</h2>
-                <div class="form-group">
-                    <label>Token Symbol</label>
-                    <input type="text" id="freeTokenSymbol" placeholder="e.g., BTC" style="text-transform: uppercase;">
+                <h2>🆓 Add Free Token (Contract Address Only)</h2>
+                <div class="alert alert-info" style="margin-bottom: 20px; padding: 15px; background: rgba(0,123,255,0.1); border: 1px solid rgba(0,123,255,0.3); border-radius: 8px;">
+                    <strong>💡 How it works:</strong><br>
+                    • Enter contract address (required)<br>
+                    • Symbol & name are optional (auto-filled from Jupiter API)<br>
+                    • Token will be processed immediately: Jupiter API → Twitter API → Calculations<br>
+                    • Bypasses payment system completely
                 </div>
                 <div class="form-group">
-                    <label>Token Name</label>
-                    <input type="text" id="freeTokenName" placeholder="e.g., Bitcoin">
+                    <label>Contract Address <span style="color: #e74c3c;">*</span></label>
+                    <input type="text" id="freeTokenContract" placeholder="e.g., 11111111111111111111111111111112" required>
+                    <small style="color: #666; font-size: 12px;">Required - Token data will be fetched automatically</small>
                 </div>
                 <div class="form-group">
-                    <label>Contract Address (Optional)</label>
-                    <input type="text" id="freeTokenContract" placeholder="Contract address">
+                    <label>Token Symbol (Optional)</label>
+                    <input type="text" id="freeTokenSymbol" placeholder="e.g., BTC (leave empty to auto-detect)" style="text-transform: uppercase;">
+                    <small style="color: #666; font-size: 12px;">Optional - Will be auto-filled from Jupiter API if empty</small>
+                </div>
+                <div class="form-group">
+                    <label>Token Name (Optional)</label>
+                    <input type="text" id="freeTokenName" placeholder="e.g., Bitcoin (leave empty to auto-detect)">
+                    <small style="color: #666; font-size: 12px;">Optional - Will be auto-filled from Jupiter API if empty</small>
                 </div>
                 <div class="form-group">
                     <label>Social Links (Optional)</label>
                     <input type="text" id="freeTokenTwitter" placeholder="Twitter handle (without @)">
                     <input type="text" id="freeTokenWebsite" placeholder="Website URL" style="margin-top: 10px;">
                 </div>
-                <button class="btn btn-success" onclick="addFreeToken()">🆓 Add Token for FREE</button>
+                <button class="btn btn-success" onclick="addFreeToken()">🚀 Add Token by Contract Address</button>
                 <div id="addTokenResult"></div>
             </div>
 
@@ -522,20 +532,36 @@
             const website = document.getElementById('freeTokenWebsite').value.trim();
             const resultDiv = document.getElementById('addTokenResult');
 
-            if (!symbol || !name) {
-                resultDiv.innerHTML = showAlert('Symbol and name are required', 'error');
+            // CONTRACT ADDRESS IS NOW REQUIRED
+            if (!contractAddress) {
+                resultDiv.innerHTML = showAlert('❌ Contract address is required', 'error');
+                return;
+            }
+
+            // Validate Solana contract address format
+            if (contractAddress.length !== 44 && contractAddress.length !== 32) {
+                resultDiv.innerHTML = showAlert('❌ Invalid contract address format (must be 32 or 44 characters)', 'error');
                 return;
             }
 
             resultDiv.innerHTML = showLoading();
 
-            const payload = { symbol, name };
-            if (contractAddress) payload.contractAddress = contractAddress;
-            
+            // CONTRACT ADDRESS IS REQUIRED, symbol and name are optional
+            const payload = {
+                contractAddress: contractAddress
+            };
+
+            // Add optional fields if provided
+            if (symbol) payload.symbol = symbol;
+            if (name) payload.name = name;
+
+            // Add social links if provided
             const socialLinks = {};
             if (twitter) socialLinks.twitter = twitter;
             if (website) socialLinks.website = website;
             if (Object.keys(socialLinks).length > 0) payload.socialLinks = socialLinks;
+
+            console.log('📤 Sending payload:', payload);
 
             try {
                 const response = await fetch(`${API_BASE}/api/admin/tokens/add-free`, {
@@ -548,12 +574,12 @@
                 
                 if (data.success) {
                     resultDiv.innerHTML = showAlert(`✅ ${data.message}`, 'success');
-                    // Clear form
-                    document.getElementById('freeTokenSymbol').value = '';
-                    document.getElementById('freeTokenName').value = '';
+                    // Clear form (keep optional fields, only clear contract address)
                     document.getElementById('freeTokenContract').value = '';
+                    // Optionally clear social links too
                     document.getElementById('freeTokenTwitter').value = '';
                     document.getElementById('freeTokenWebsite').value = '';
+                    // Keep symbol and name for convenience
                 } else {
                     resultDiv.innerHTML = showAlert(`❌ ${data.error}`, 'error');
                 }

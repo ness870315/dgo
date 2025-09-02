@@ -948,6 +948,9 @@ class EnhancedTokenProcessor {
           if (token.contractAddress && jupiterMap.has(token.contractAddress)) {
             const jupiterData = jupiterMap.get(token.contractAddress);
             return {
+              // CRITICAL FIX: Extract price to top-level fields for frontend tooltip
+              currentPrice: jupiterData.usdPrice || 0,
+              price: jupiterData.usdPrice || 0, // Also set as 'price' for compatibility
               id: jupiterData.id,
               name: jupiterData.name,
               symbol: jupiterData.symbol,
@@ -1322,6 +1325,16 @@ class EnhancedTokenProcessor {
             // Update name and symbol from Jupiter if available
             if (jupiterData.name) token.name = jupiterData.name;
             if (jupiterData.symbol) token.symbol = jupiterData.symbol.toUpperCase();
+
+            // CRITICAL FIX: Extract price from Jupiter data to top-level fields for frontend
+            if (jupiterData.usdPrice && jupiterData.usdPrice > 0) {
+              token.currentPrice = jupiterData.usdPrice;
+              token.price = jupiterData.usdPrice; // Also set as 'price' for compatibility
+              console.log(`💰 Price extracted: $${jupiterData.usdPrice} for ${token.symbol}`);
+            } else {
+              console.log(`⚠️ No valid price in Jupiter data for ${token.symbol}`);
+            }
+
             console.log(`✅ Jupiter data found for ${token.symbol}`);
           } else {
             console.log(`⚠️ No Jupiter data for ${token.symbol}, using fallback`);

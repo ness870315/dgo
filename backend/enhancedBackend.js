@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import axios from 'axios';
 import EnhancedTokenProcessor from './enhancedTokenProcessor.js';
+import HelioPaymentService from './helioPaymentService.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -14,6 +15,7 @@ class EnhancedBackend {
     this.app = express();
     this.port = process.env.PORT || 4000;
     this.tokenProcessor = new EnhancedTokenProcessor();
+    this.helioService = new HelioPaymentService();
     this.isRunning = false;
     
     this.setupMiddleware();
@@ -131,6 +133,190 @@ class EnhancedBackend {
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Error fetching Dexscreener tokens:', error);
         res.status(500).json({ error: 'Failed to fetch Dexscreener tokens' });
+      }
+    });
+
+    // ========================================
+    // 💳 HELIO PAYMENT ENDPOINTS
+    // ========================================
+
+    // Create payment for token listing
+    this.app.post('/api/payments/create-token-listing', async (req, res) => {
+      try {
+        const { tokenData, userId, successUrl, cancelUrl } = req.body;
+
+        if (!tokenData || !tokenData.symbol || !tokenData.name) {
+          return res.status(400).json({
+            success: false,
+            error: 'Token data with symbol and name are required'
+          });
+        }
+
+        console.log('💳 Creating token listing payment:', tokenData.symbol);
+
+        const paymentResult = await this.helioService.createTokenListingPayment(tokenData, {
+          userId: userId,
+          successUrl: successUrl,
+          cancelUrl: cancelUrl
+        });
+
+        res.json({
+          success: true,
+          payment: paymentResult
+        });
+
+      } catch (error) {
+        console.error('❌ Error creating token listing payment:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to create payment'
+        });
+      }
+    });
+
+    // Create payment for social links update
+    this.app.post('/api/payments/create-social-update', async (req, res) => {
+      try {
+        const { symbol, socialData, userId } = req.body;
+
+        if (!symbol || !socialData) {
+          return res.status(400).json({
+            success: false,
+            error: 'Symbol and social data are required'
+          });
+        }
+
+        console.log('💳 Creating social update payment for:', symbol);
+
+        const paymentResult = await this.helioService.createSocialUpdatePayment(symbol, socialData, userId);
+
+        res.json({
+          success: true,
+          payment: paymentResult
+        });
+
+      } catch (error) {
+        console.error('❌ Error creating social update payment:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to create social payment'
+        });
+      }
+    });
+
+    // Validate payment completion
+    this.app.post('/api/payments/validate', async (req, res) => {
+      try {
+        const { paymentId, paymentData } = req.body;
+
+        if (!paymentId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Payment ID is required'
+          });
+        }
+
+        console.log('✅ Validating payment:', paymentId);
+
+        const validationResult = await this.helioService.validatePayment(paymentId, paymentData || {});
+
+        res.json({
+          success: validationResult.isValid,
+          validation: validationResult
+        });
+
+      } catch (error) {
+        console.error('❌ Error validating payment:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Payment validation failed'
+        });
+      }
+    });
+
+    // Helio webhook endpoint
+    this.app.post('/api/payments/webhook', async (req, res) => {
+      try {
+        const webhookData = req.body;
+        const signature = req.headers['x-helio-signature'];
+
+        console.log('🔔 Received Helio webhook');
+
+        const webhookResult = await this.helioService.processWebhook(webhookData, signature);
+
+        // Process the webhook based on payment type
+        if (webhookResult.metadata?.type === 'token_listing') {
+          console.log('📝 Processing token listing webhook');
+
+          // Here you could automatically process the token listing
+          // For now, just log the successful payment
+
+        } else if (webhookResult.metadata?.type === 'social_update') {
+          console.log('📱 Processing social update webhook');
+
+          // Here you could automatically update social links
+          // For now, just log the successful payment
+        }
+
+        res.json({
+          success: true,
+          message: 'Webhook processed successfully',
+          paymentId: webhookResult.paymentId
+        });
+
+      } catch (error) {
+        console.error('❌ Webhook processing error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Webhook processing failed'
+        });
+      }
+    });
+
+    // Get payment status
+    this.app.get('/api/payments/:paymentId/status', async (req, res) => {
+      try {
+        const { paymentId } = req.params;
+
+        console.log('📊 Getting payment status:', paymentId);
+
+        const paymentStatus = await this.helioService.getPaymentStatus(paymentId);
+
+        res.json({
+          success: true,
+          payment: paymentStatus
+        });
+
+      } catch (error) {
+        console.error('❌ Error getting payment status:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get payment status'
+        });
+      }
+    });
+
+    // Get payment history for user
+    this.app.get('/api/payments/history/:userId', async (req, res) => {
+      try {
+        const { userId } = req.params;
+        const { limit } = req.query;
+
+        console.log('📜 Getting payment history for:', userId);
+
+        const paymentHistory = await this.helioService.getPaymentHistory(userId, parseInt(limit) || 10);
+
+        res.json({
+          success: true,
+          history: paymentHistory
+        });
+
+      } catch (error) {
+        console.error('❌ Error getting payment history:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get payment history'
+        });
       }
     });
 
@@ -287,9 +473,29 @@ class EnhancedBackend {
     this.app.post('/api/tokens/add-paid-token', async (req, res) => {
       try {
         const { tokenData, paymentData, socialLinks } = req.body;
-        
+
         if (!tokenData || !tokenData.symbol || !tokenData.name) {
           return res.status(400).json({ error: 'Token data with symbol and name are required' });
+        }
+
+        // Validate payment if payment data is provided
+        if (paymentData && !paymentData.validated) {
+          console.log('🔐 Validating payment data...');
+
+          const validationResult = await this.helioService.validatePayment(
+            paymentData.paymentId,
+            paymentData
+          );
+
+          if (!validationResult.isValid) {
+            return res.status(400).json({
+              error: 'Payment validation failed. Please ensure payment was completed successfully.'
+            });
+          }
+
+          console.log('✅ Payment validation successful');
+        } else if (!paymentData) {
+          console.log('⚠️ No payment data provided - this may be a test or admin operation');
         }
         
         console.log(`[🛡️ Enhanced Backend] 💰 Adding paid token with socials: ${tokenData.symbol} (${tokenData.name})`);
@@ -509,35 +715,41 @@ class EnhancedBackend {
     // 🛠️ ADMIN API DASHBOARD ENDPOINTS
     // ========================================
 
-    // Admin: Add token for FREE (bypass payment)
+    // Admin: Add token for FREE (bypass payment) - CONTRACT ADDRESS ONLY
     this.app.post('/api/admin/tokens/add-free', async (req, res) => {
       try {
         const { symbol, name, contractAddress, socialLinks } = req.body;
-        
-        if (!symbol || !name) {
-          return res.status(400).json({ error: 'Symbol and name are required' });
+
+        // CONTRACT ADDRESS IS NOW REQUIRED, symbol and name are optional
+        if (!contractAddress) {
+          return res.status(400).json({ error: 'Contract address is required' });
         }
-        
-        console.log(`[🛡️ Admin] 🆓 Adding FREE token: ${symbol} (${name})`);
-        
-        // Process admin token IMMEDIATELY (same as paid)
-        const processedToken = await this.tokenProcessor.addPaidToken({
-          symbol: symbol.toUpperCase(),
-          name,
-          contractAddress: contractAddress || null,
+
+        console.log(`[🛡️ Admin] 🆓 Adding FREE token by CA: ${contractAddress}`);
+
+        // Use provided symbol/name or let Jupiter API fill them in
+        const tokenData = {
+          symbol: symbol ? symbol.toUpperCase() : 'UNKNOWN',
+          name: name || 'Unknown Token',
+          contractAddress: contractAddress.trim(),
           isPaid: false,
           isAdmin: true
-        });
+        };
+
+        console.log(`[🛡️ Admin] 📝 Using data: ${tokenData.symbol} (${tokenData.name}) - CA: ${tokenData.contractAddress}`);
+
+        // Process admin token IMMEDIATELY (same as paid) - will fetch from Jupiter
+        const processedToken = await this.tokenProcessor.addPaidToken(tokenData);
         
-        // Add social links if provided
+        // Add social links if provided (use processed token's symbol)
         if (socialLinks && Object.keys(socialLinks).length > 0) {
           const updateService = (await import('./updateTokenService.js')).default;
-          await updateService.updateTokenSocials(symbol, socialLinks, 'admin_free_add', {
+          await updateService.updateTokenSocials(processedToken.symbol, socialLinks, 'admin_free_add', {
             type: 'free_admin_add',
             amount: 0,
             currency: 'FREE'
           });
-          console.log(`[🛡️ Admin] 📱 Added social links for ${symbol}`);
+          console.log(`[🛡️ Admin] 📱 Added social links for ${processedToken.symbol}`);
         }
         
         res.json({ 

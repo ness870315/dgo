@@ -22,6 +22,8 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
   
   const [validationComplete, setValidationComplete] = useState(false);
   const [currentSocials, setCurrentSocials] = useState(null);
+  const [contractValidated, setContractValidated] = useState(false);
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
 
   // Load current socials if token is pre-selected
   useEffect(() => {
@@ -39,8 +41,66 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
     });
   }, [user, isAuthenticated]);
 
+  // Debug component mount
+  useEffect(() => {
+    console.log('🚀 UpdateTokenPage COMPONENT MOUNTED!');
+    console.log('📍 Current URL:', window.location.href);
+    console.log('👤 Auth state:', { user, isAuthenticated });
+  }, []);
+
+  // Expose debug function globally for testing
+  useEffect(() => {
+    window.debugContractValidation = async () => {
+      console.log('🔧 DEBUG: Testing contract validation...');
+      try {
+        const response = await fetch(`http://localhost:4000/api/tokens`);
+        const tokens = await response.json();
+        console.log('📊 API returned', tokens.length, 'tokens');
+
+        const targetContract = '5EpbKX221NYVidK6A2nJGhtuLPvrPiQ6shknLbtjBAGS';
+        const foundToken = tokens.find(token =>
+          token.contractAddress &&
+          token.contractAddress.toLowerCase() === targetContract.toLowerCase()
+        );
+
+        if (foundToken) {
+          console.log('✅ FOUND MEMEPUTER:', foundToken.symbol, '-', foundToken.contractAddress);
+          return { success: true, token: foundToken };
+        } else {
+          console.log('❌ MEMEPUTER NOT FOUND in API response');
+          console.log('🔍 First 5 tokens:');
+          tokens.slice(0, 5).forEach((token, index) => {
+            console.log(`${index + 1}. ${token.symbol} - ${token.contractAddress}`);
+          });
+          return { success: false };
+        }
+      } catch (error) {
+        console.log('❌ Debug error:', error);
+        return { success: false, error: error.message };
+      }
+    };
+  }, []);
+
+  // Check for pending update payment on component mount
+  useEffect(() => {
+    const pendingData = localStorage.getItem('pendingUpdatePayment');
+    if (pendingData) {
+      try {
+        const pending = JSON.parse(pendingData);
+        setSelectedToken(pending.tokenData);
+        setSocials(pending.socials || {});
+        setPaymentCompleted(true);
+        console.log('Found pending update payment:', pending);
+      } catch (error) {
+        console.error('Error parsing pending update payment:', error);
+        localStorage.removeItem('pendingUpdatePayment');
+      }
+    }
+  }, []);
+
   // Search for tokens
   const searchTokens = async (symbol) => {
+    console.log('🔍 searchTokens called with:', symbol);
     if (!symbol || symbol.length < 2) {
       setSearchResults([]);
       setShowResults(false);
@@ -52,12 +112,18 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
       const tokens = await response.json();
       const tokenArray = Array.isArray(tokens) ? tokens : (tokens.tokens || []);
       
-      // Filter tokens by symbol or name
-      const filtered = tokenArray.filter(token => 
+      // Filter tokens by symbol, name, or contract address
+      const filtered = tokenArray.filter(token =>
         token.symbol?.toLowerCase().includes(symbol.toLowerCase()) ||
-        token.name?.toLowerCase().includes(symbol.toLowerCase())
+        token.name?.toLowerCase().includes(symbol.toLowerCase()) ||
+        token.contractAddress?.toLowerCase().includes(symbol.toLowerCase())
       ).slice(0, 10); // Limit to 10 results
-      
+
+      console.log('🔍 Search results for "' + symbol + '":', filtered.length + ' tokens found');
+      filtered.forEach((token, index) => {
+        console.log(`${index + 1}. ${token.symbol} (${token.contractAddress})`);
+      });
+
       setSearchResults(filtered);
       setShowResults(true);
     } catch (error) {
@@ -101,6 +167,10 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
 
   // Handle token selection
   const handleTokenSelect = (token) => {
+    console.log('🎯 TOKEN SELECTED:', token);
+    console.log('🔗 CONTRACT ADDRESS:', token.contractAddress);
+    console.log('📋 FULL TOKEN OBJECT:', token);
+
     setSelectedToken(token);
     setSearchSymbol(token.symbol);
     setShowResults(false);
@@ -139,6 +209,95 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
   };
 
   // Test Mode: Update token without payment (for testing)
+  const handleApplyUpdate = async () => {
+    if (!selectedToken) {
+      setError('No token selected');
+      return;
+    }
+
+    if (!user) {
+      setError('Please login to update token socials');
+      return;
+    }
+
+    const validationErrors = validateSocials();
+    if (validationErrors.length > 0) {
+      setError('Validation errors:\n' + validationErrors.join('\n'));
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      // Check if there's pending payment data
+      const pendingData = localStorage.getItem('pendingUpdatePayment');
+      let paymentEvent = null;
+
+      if (pendingData) {
+        const pending = JSON.parse(pendingData);
+        paymentEvent = {
+          id: pending.paymentId,
+          type: 'social_update',
+          amount: 35,
+          currency: 'USD',
+          status: 'completed',
+          validatedAt: new Date().toISOString()
+        };
+        console.log('Found pending update payment:', pending);
+      }
+
+      const result = await submitSocialsUpdate(socials, paymentEvent);
+
+      if (result.success) {
+        const successMessage = `🎉 SOCIAL LINKS UPDATED!\n\n` +
+          `Token Updated: ${selectedToken.name} (${selectedToken.symbol})\n\n` +
+          `📱 UPDATED SOCIAL LINKS:\n` +
+          `• Twitter: ${socials.twitter ? '@' + socials.twitter : 'Not set'}\n` +
+          `• Discord: ${socials.discord || 'Not set'}\n` +
+          `• Instagram: ${socials.instagram ? '@' + socials.instagram : 'Not set'}\n` +
+          `• TikTok: ${socials.tiktok ? '@' + socials.tiktok : 'Not set'}\n` +
+          `• Website: ${socials.website || 'Not set'}\n\n` +
+          `📊 COMMUNITY SCORE IMPACT:\n` +
+          `${result.communityScoreImpact?.description || 'No bonus calculated'}\n\n` +
+          `✅ Social links updated successfully!`;
+
+        alert(successMessage);
+
+        console.log('🎉 DETAILED UPDATE RESULTS:', result);
+
+        // Notify parent component that token was updated
+        if (onTokenUpdated && selectedToken) {
+          onTokenUpdated(selectedToken);
+        }
+
+        // Reset form
+        setSearchSymbol('');
+        setSelectedToken(null);
+        setSocials({
+          twitter: '',
+          discord: '',
+          instagram: '',
+          tiktok: '',
+          website: ''
+        });
+        setCurrentSocials(null);
+        setValidationComplete(false);
+        setContractValidated(false);
+        setPaymentCompleted(false);
+        localStorage.removeItem('pendingUpdatePayment');
+        setError('');
+      } else {
+        setError(`Update failed: ${result.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('❌ Update error:', error);
+      setError(`Update error: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleTestModeUpdate = async () => {
     if (!selectedToken) {
       alert('No token selected');
@@ -295,6 +454,15 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
         </div>
       </div>
 
+      {/* Pricing Display */}
+      <div className="max-w-4xl mx-auto px-4 py-6">
+        <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-xl p-6 text-center mb-8">
+          <h2 className="text-2xl font-bold text-white mb-2">Update Token Socials</h2>
+          <div className="text-3xl font-bold text-white">$35</div>
+          <p className="text-green-100 mt-2">One-time social update fee</p>
+        </div>
+      </div>
+
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -423,26 +591,137 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
                   </div>
                 )}
 
-                {/* Test Mode Button */}
-                {user && (
+                {/* Proceed to Payment */}
+                {user && selectedToken && (
                   <div className="mt-6">
-                    <button
-                      onClick={handleTestModeUpdate}
-                      className="w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium"
-                      disabled={loading}
-                    >
-                      {loading ? (
-                        <div className="flex items-center justify-center space-x-2">
-                          <Loader size={16} className="animate-spin" />
-                          <span>Updating...</span>
+                    {!contractValidated ? (
+                      <div className="mb-4">
+                        <button
+                          onClick={async () => {
+                            setLoading(true);
+                            try {
+                              console.log('🔍 Starting contract validation...');
+                              console.log('📋 Selected token:', selectedToken);
+                              console.log('🔗 Contract address to validate:', selectedToken?.contractAddress);
+
+                              // Check if token exists in our database by fetching all tokens and filtering
+                              const response = await fetch(`http://localhost:4000/api/tokens`);
+                              const tokens = await response.json();
+                              console.log('📊 Fetched tokens from API:', tokens.length);
+
+                              // Find the token by contract address (case insensitive)
+                              const contractAddress = selectedToken.contractAddress;
+                              console.log('🔍 Searching for contract:', contractAddress);
+
+                              const foundToken = tokens.find(token => {
+                                const tokenContract = token.contractAddress;
+                                const match = tokenContract &&
+                                  tokenContract.toLowerCase() === contractAddress.toLowerCase();
+                                if (match) {
+                                  console.log('✅ Found matching token:', token.symbol, '-', tokenContract);
+                                }
+                                return match;
+                              });
+
+                              if (foundToken) {
+                                setContractValidated(true);
+                                setError('');
+                                console.log('✅ Contract validation successful:', foundToken.symbol);
+                              } else {
+                                console.log('❌ Token not found. Available tokens:', tokens.map(t => ({ symbol: t.symbol, contract: t.contractAddress })));
+                                const availableTokens = tokens.filter(t => t.symbol).map(t => t.symbol).join(', ');
+                                setError(`Token not found in database. Available tokens: ${availableTokens}. This token may need to be listed first.`);
+                              }
+                            } catch (error) {
+                              console.error('Error validating contract:', error);
+                              setError('Failed to validate contract address. Please try again.');
+                            } finally {
+                              setLoading(false);
+                            }
+                          }}
+                          disabled={loading}
+                          className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+                        >
+                          {loading ? (
+                            <div className="flex items-center justify-center space-x-2">
+                              <Loader size={16} className="animate-spin" />
+                              <span>Validating...</span>
+                            </div>
+                          ) : (
+                            '🔍 Validate Contract Address (Check Available Tokens)'
+                          )}
+                        </button>
+                      </div>
+                    ) : !paymentCompleted ? (
+                      <div className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 rounded-lg p-6 border border-blue-500/30">
+                        <h4 className="text-white font-semibold text-lg mb-4 flex items-center">
+                          <span className="mr-2">💳</span>
+                          Payment Details
+                        </h4>
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-300">Service:</span>
+                            <span className="text-white font-semibold">Social Links Update</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-300">Token:</span>
+                            <span className="text-white font-semibold">{selectedToken.symbol}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-300">Price:</span>
+                            <span className="text-white font-semibold">$35</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-300">Payment Method:</span>
+                            <span className="text-green-400 font-medium">USDC</span>
+                          </div>
+                          <div className="pt-2 border-t border-gray-600">
+                            <p className="text-xs text-gray-400 mb-4">
+                              Secure payment powered by Helio Pay. Pay with USDC on Solana.
+                            </p>
+                            <button
+                              onClick={() => {
+                                // Store payment info in localStorage for post-payment processing
+                                localStorage.setItem('pendingUpdatePayment', JSON.stringify({
+                                  tokenData: selectedToken,
+                                  socials: socials,
+                                  paymentId: `update_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                                  paymentInitiated: new Date().toISOString()
+                                }));
+
+                                // Open Helio payment link
+                                window.open('https://app.hel.io/pay/68b51815c743122a7be18721', '_blank');
+                                alert('💳 Payment page opened! Complete your payment and return here to apply the social updates.');
+                              }}
+                              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105"
+                            >
+                              💳 Proceed to Payment ($35)
+                            </button>
+                          </div>
                         </div>
-                      ) : (
-                        '🧪 Test Mode - Update Socials (Skip Payment)'
-                      )}
-                    </button>
-                    <p className="text-yellow-200 text-xs mt-2 text-center">
-                      For testing purposes only - bypasses payment
-                    </p>
+                      </div>
+                    ) : (
+                      <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4">
+                        <h4 className="text-green-300 font-medium mb-2">✅ Payment Completed!</h4>
+                        <p className="text-green-200 text-sm mb-4">
+                          Your payment has been processed successfully. Click below to apply the social updates to {selectedToken.symbol}.
+                        </p>
+                        <button
+                          onClick={handleApplyUpdate}
+                          disabled={loading}
+                          className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 disabled:opacity-50"
+                        >
+                          {loading ? (
+                            <div className="flex items-center justify-center space-x-2">
+                              <Loader size={16} className="animate-spin" />
+                              <span>Applying Updates...</span>
+                            </div>
+                          ) : (
+                            '📱 Apply Social Updates'
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

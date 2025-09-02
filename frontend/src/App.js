@@ -659,6 +659,7 @@ function App() {
   }, []);
 
   const handleUpdateTokenClick = useCallback(() => {
+    console.log('🎯 Navigating to Update Token page');
     setShowUpdateToken(true);
   }, []);
 
