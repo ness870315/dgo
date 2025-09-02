@@ -30,6 +30,7 @@ class EnhancedBackend {
         'https://dgo-20l.pages.dev',
         'https://degen-oracle.com',
         'https://www.degen-oracle.com',
+        'https://api.degen-oracle.com',
         'http://localhost:3000', // for development
         'http://localhost:4000'  // for development
       ],

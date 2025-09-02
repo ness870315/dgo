@@ -1,7 +1,7 @@
 {
   "name": "xtrend-frontend",
   "version": "0.1.0",
-  "homepage": "https://dgo-20l.pages.dev",
+  "homepage": "https://degen-oracle.com",
   "private": true,
   "dependencies": {
     "@heliofi/checkout-react": "^2.3.4",
