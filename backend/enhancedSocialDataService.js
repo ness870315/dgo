@@ -1,6 +1,6 @@
 import axios from 'axios';
-import pkg from 'rettiwt-api';
-const { Rettiwt } = pkg;
+// import pkg from 'rettiwt-api';
+// const { Rettiwt } = pkg;
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -18,11 +18,12 @@ class EnhancedSocialDataService {
     
     // Initialize Rettiwt API with your API key for full functionality
     const apiKey = 'a2R0PWdpdWEyc2FyU0hPdjZIRVBnUXFoRnBvNnFlV2RYR09HdW5ia09vSk07YXV0aF90b2tlbj1iZTUxNzc1N2U1NTQ4YjcxMmRlY2ExYjVjZDdlMWEzNTUyYjc4ODNmO2N0MD1iMmI2ZGUwMGRmMjFkZDQ1ZTQwNmVlZTM3NWYxZDc2ZjM5NDNjMThkMWE2OGE4ZjgwZWFkMGIyYTBhZTJiMTFmMmFmYTFmMDc3MjE2MTI5OWVkNzgyNzA5MzEzNzMyZmYwM2UyYjQ5MThmMDMzNmExN2YyYjA4YTI2ZmYwMTdkZDgyY2E0ODM2YTc0NmIyMWM1YjVmMjU5OGY0YWE1NWMxO3R3aWQ9dSUzRDE5MjQ5NTU1NjA5OTE5Nzc0NzI7';
-    this.twitterApi = new Rettiwt({ 
-      apiKey: apiKey,
-      delay: 2000, // Increased from 1000ms to 2000ms for safety
-      maxRetries: 2
-    });
+    // this.twitterApi = new Rettiwt({ 
+    //   apiKey: apiKey,
+    //   delay: 2000, // Increased from 1000ms to 2000ms for safety
+    //   maxRetries: 2
+    // });
+    this.twitterApi = null; // Temporarily disabled
     
     // 🚨 RATE LIMITING CONFIGURATION - CRITICAL FOR PREVENTING BANS
     this.rateLimits = {
