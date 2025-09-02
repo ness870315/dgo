@@ -40,8 +40,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "CI=false npm run build:safe",
-    "build:safe": "SKIP_PREFLIGHT_CHECK=true react-scripts build",
+    "build": "react-scripts build -- --no-eslint",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -49,11 +48,7 @@
     "extends": [
       "react-app",
       "react-app/jest"
-    ],
-    "rules": {
-      "no-unused-vars": "warn",
-      "react-hooks/exhaustive-deps": "warn"
-    }
+    ]
   },
   "browserslist": {
     "production": [
