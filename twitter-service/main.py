@@ -111,15 +111,16 @@ def search_tweets(
 def search_tweets_scraping(query, count):
     """Simplified but effective Twitter scraping"""
     try:
-        logger.info(f"Starting Twitter scraping for query: {query}")
+        logger.info(f"🆕 NEW SCRAPING SYSTEM: Starting Twitter scraping for query: {query}")
 
         # Clean the query
         clean_query = query.replace('#', '').strip()
         if not clean_query:
             return _get_mock_tweets(query, count, "empty_query")
 
-        # Try the most direct approach first - Twitter's mobile API
+        # Try the most direct approach first - NEW MULTI-APPROACH SYSTEM
         tweets_found = []
+        logger.info(f"🔄 Using NEW multi-approach system for: {clean_query}")
 
         # Method 1: Try multiple approaches to get real Twitter data
         approaches = [
