@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 import logging
 import time
 import random
+import twint
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -91,8 +92,9 @@ def health_check():
     """Health check endpoint"""
     return {
         "status": "healthy",
-        "service": "Twitter Web Scraping Service",
-        "version": "3.0.0",
+        "service": "Twitter Advanced Scraping Service (Twint + API + Web)",
+        "version": "4.0.0",
+        "methods": ["Twint", "Twitter API", "Web Scraping"],
         "timestamp": datetime.now().isoformat()
     }
 
@@ -101,12 +103,46 @@ def search_tweets(
     q: str = Query(..., description="Search query"),
     count: int = Query(20, description="Number of tweets to return")
 ):
-    """Search for tweets using web scraping"""
+    """Search for tweets using advanced multi-method approach (Twint + API + Web Scraping)"""
     try:
         return search_tweets_scraping(q, count)
     except Exception as e:
         logger.error(f"Error searching tweets: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+
+@app.get("/api/twitter/twint/search")
+def search_tweets_twint_only(
+    q: str = Query(..., description="Search query"),
+    count: int = Query(20, description="Number of tweets to return")
+):
+    """Search for tweets using Twint only (for testing Twint functionality)"""
+    try:
+        logger.info(f"🧪 Testing Twint-only search for: {q}")
+        tweets = search_via_twint(q, count)
+
+        if tweets:
+            return {
+                "success": True,
+                "query": q,
+                "count": len(tweets),
+                "tweets": tweets,
+                "source": "twint_only",
+                "method": "Twint Advanced Scraping"
+            }
+        else:
+            return {
+                "success": False,
+                "query": q,
+                "count": 0,
+                "tweets": [],
+                "source": "twint_only",
+                "error": "No tweets found via Twint",
+                "method": "Twint Advanced Scraping"
+            }
+
+    except Exception as e:
+        logger.error(f"Twint-only search failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Twint search failed: {str(e)}")
 
 def search_tweets_scraping(query, count):
     """Simplified but effective Twitter scraping"""
@@ -122,26 +158,32 @@ def search_tweets_scraping(query, count):
         tweets_found = []
         logger.info(f"🔄 Using NEW multi-approach system for: {clean_query}")
 
-        # Method 1: Try Twitter's official API approach (if credentials available)
+        # Method 1: Try Twint first - most reliable and advanced scraping
         tweets_found = []
+        logger.info("🐦 Using Twint - advanced Twitter scraping tool")
+        try:
+            tweets_found = search_via_twint(clean_query, count)
+        except Exception as twint_error:
+            logger.warning(f"Twint failed: {str(twint_error)}")
 
-        # Check if Twitter API credentials are available
-        api_key = os.getenv('TWITTER_API_KEY')
-        api_secret = os.getenv('TWITTER_API_SECRET')
-        access_token = os.getenv('TWITTER_ACCESS_TOKEN')
-        access_token_secret = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
-        bearer_token = os.getenv('TWITTER_BEARER_TOKEN')
-
-        if bearer_token or (api_key and api_secret and access_token and access_token_secret):
-            logger.info("🔑 Twitter API credentials found - using official API")
-            try:
-                tweets_found = search_via_twitter_api(clean_query, count, bearer_token, api_key, api_secret, access_token, access_token_secret)
-            except Exception as api_error:
-                logger.warning(f"Twitter API failed: {str(api_error)}")
-
-        # Method 2: If API didn't work or no credentials, try enhanced web scraping
+        # Method 2: If Twint didn't work, try Twitter's official API (if credentials available)
         if not tweets_found:
-            logger.info("🌐 Using enhanced web scraping approach")
+            api_key = os.getenv('TWITTER_API_KEY')
+            api_secret = os.getenv('TWITTER_API_SECRET')
+            access_token = os.getenv('TWITTER_ACCESS_TOKEN')
+            access_token_secret = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
+            bearer_token = os.getenv('TWITTER_BEARER_TOKEN')
+
+            if bearer_token or (api_key and api_secret and access_token and access_token_secret):
+                logger.info("🔑 Twitter API credentials found - using official API as fallback")
+                try:
+                    tweets_found = search_via_twitter_api(clean_query, count, bearer_token, api_key, api_secret, access_token, access_token_secret)
+                except Exception as api_error:
+                    logger.warning(f"Twitter API failed: {str(api_error)}")
+
+        # Method 3: If all else failed, try enhanced web scraping as final fallback
+        if not tweets_found:
+            logger.info("🌐 Using enhanced web scraping as final fallback")
             tweets_found = enhanced_web_scraping(clean_query, count)
 
 
@@ -166,6 +208,70 @@ def search_tweets_scraping(query, count):
         return _get_mock_tweets(query, count, "scraping_error")
 
 
+
+def search_via_twint(query, count):
+    """Search tweets using Twint - advanced Twitter scraping tool"""
+    tweets = []
+
+    try:
+        logger.info(f"🎯 Starting Twint search for query: {query}")
+
+        # Clear previous results
+        twint.output.tweets_list = []
+
+        # Configure Twint
+        c = twint.Config()
+
+        # Set search parameters
+        c.Search = f"#{query.replace('#', '')} OR {query}"
+        c.Limit = min(count, 100)  # Twint works best with reasonable limits
+        c.Store_object = True
+        c.Hide_output = True
+
+        # Disable unnecessary features for better performance
+        c.Pandas = False
+        c.Pandas_clean = False
+        c.Stats = False
+
+        # Set language to English
+        c.Lang = "en"
+
+        # Add some randomization to avoid detection
+        c.User_agent = get_random_user_agent()
+
+        # Run the search
+        twint.run.Search(c)
+
+        # Process results - use twint.output.tweets_list
+        for tweet in twint.output.tweets_list[:count]:
+            try:
+                # Handle missing attributes gracefully
+                tweet_obj = {
+                    "id": str(tweet.id) if hasattr(tweet, 'id') else f"twint_{len(tweets)}",
+                    "text": tweet.tweet if hasattr(tweet, 'tweet') else "",
+                    "created_at": tweet.datetime if hasattr(tweet, 'datetime') else datetime.now().isoformat(),
+                    "user": {
+                        "name": tweet.name if hasattr(tweet, 'name') and tweet.name else (tweet.username if hasattr(tweet, 'username') else "Unknown"),
+                        "screen_name": tweet.username if hasattr(tweet, 'username') else "unknown"
+                    },
+                    "retweet_count": tweet.retweets_count if hasattr(tweet, 'retweets_count') else 0,
+                    "favorite_count": tweet.likes_count if hasattr(tweet, 'likes_count') else 0,
+                    "reply_count": tweet.replies_count if hasattr(tweet, 'replies_count') else 0
+                }
+
+                tweets.append(tweet_obj)
+                logger.info(f"✅ Twint found tweet: '{tweet_obj['text'][:50]}...' from @{tweet_obj['user']['screen_name']}")
+
+            except Exception as e:
+                logger.warning(f"Error processing Twint tweet: {str(e)}")
+                continue
+
+        logger.info(f"🎯 Twint successfully found {len(tweets)} tweets for '{query}'")
+
+    except Exception as e:
+        logger.warning(f"Twint search failed for '{query}': {str(e)}")
+
+    return tweets
 
 def search_via_twitter_api(query, count, bearer_token, api_key, api_secret, access_token, access_token_secret):
     """Search tweets using Twitter's official API"""

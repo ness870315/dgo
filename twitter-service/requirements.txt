@@ -5,3 +5,4 @@ requests==2.32.3
 beautifulsoup4==4.12.3
 pydantic==2.8.2
 python-multipart==0.0.9
+twint==2.1.20

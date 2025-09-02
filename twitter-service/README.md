@@ -1,27 +1,34 @@
 # Twitter Microservice
 
-A Python FastAPI microservice that provides Twitter data using web scraping with robust fallback mechanisms.
+A Python FastAPI microservice that provides Twitter data using advanced scraping techniques with robust fallback mechanisms.
 
 ## Features
 
-- 🔍 Search tweets by keyword using web scraping
+- 🐦 **Twint Integration** - Advanced Twitter scraping tool
+- 🔍 Search tweets by keyword using multiple methods
 - 👤 Get user tweets from profiles
 - 📢 Search mentions of specific handles
 - 📈 Get trending topics
 - 🚀 FastAPI with automatic documentation
 - 🔄 Robust error handling with multiple fallback levels
-- 🔒 No API keys required - works with web scraping only
+- 🔒 Works with or without Twitter API credentials
 - ⚡ User agent rotation and retry logic for reliability
 
-## No API Keys Required!
+## Advanced Multi-Method Approach
 
-**This service works entirely through web scraping - no Twitter API credentials needed!**
+**This service uses a 3-tier approach for maximum reliability:**
+
+1. **🐦 Twint** - Advanced Twitter scraping tool (primary)
+2. **🔑 Twitter API** - Official API when credentials available (secondary)
+3. **🌐 Web Scraping** - Traditional scraping as fallback (tertiary)
 
 The service includes:
-- ✅ **Multiple fallback strategies** - if one method fails, others take over
-- ✅ **User agent rotation** - avoids blocking by rotating browser signatures
-- ✅ **Rate limiting protection** - built-in delays and retry logic
-- ✅ **Mock data generation** - always returns valid responses even on failures
+- ✅ **Twint-powered scraping** - Most advanced Twitter scraping available
+- ✅ **Twitter API integration** - Official data when available
+- ✅ **Web scraping fallback** - Always works even without credentials
+- ✅ **User agent rotation** - Avoids blocking by rotating browser signatures
+- ✅ **Rate limiting protection** - Built-in delays and retry logic
+- ✅ **Mock data generation** - Always returns valid responses even on failures
 
 ## Setup
 
@@ -59,10 +66,16 @@ Once running, visit:
 - `GET /health` - Service health status
 
 ### Twitter Endpoints
-- `GET /api/twitter/search?q=keyword&count=20` - Search tweets
+- `GET /api/twitter/search?q=keyword&count=20` - Search tweets (multi-method: Twint + API + Web)
+- `GET /api/twitter/twint/search?q=keyword&count=20` - Search tweets using Twint only (for testing)
 - `GET /api/twitter/user/{username}/tweets?count=20` - Get user tweets
 - `GET /api/twitter/mentions/{handle}?count=10` - Search mentions
 - `GET /api/twitter/trends` - Get trending topics
+
+### Response Sources
+- **`"source": "twint"`** - Data from Twint advanced scraping
+- **`"source": "scraping"`** - Successfully scraped real data
+- **`"source": "fallback"`** - Generated mock data due to limitations
 
 ## Deployment
 
@@ -99,24 +112,28 @@ docker run -p 8000:8000 twitter-service
 |----------|----------|-------------|
 | `PORT` | Optional | Server port (default: 8000) |
 
-## Fallback Strategy
+## Advanced Fallback Strategy
 
-The service implements a **3-tier fallback system**:
+The service implements a **4-tier fallback system** for maximum reliability:
 
-1. **Primary**: Web scraping with multiple selectors and URLs
-2. **Secondary**: Enhanced scraping with retry logic and user agent rotation
-3. **Tertiary**: Mock data generation - **always returns valid responses**
+1. **🐦 Primary**: Twint advanced Twitter scraping tool
+2. **🔑 Secondary**: Twitter official API (when credentials available)
+3. **🌐 Tertiary**: Enhanced web scraping with multiple strategies
+4. **🎭 Quaternary**: Mock data generation - **always returns valid responses**
 
 ### Response Sources:
+- ✅ **`"source": "twint"`** - Advanced Twint scraping results
 - ✅ **`"source": "scraping"`** - Successfully scraped real data
-- ✅ **`"source": "fallback"`** - Generated mock data due to scraping limitations
+- ✅ **`"source": "fallback"`** - Generated mock data due to limitations
 - ✅ **Structured JSON responses** - Consistent format regardless of source
 
 ### Anti-Blocking Features:
+- 🐦 **Twint evasion** - Advanced anti-detection techniques
 - 🔄 **User agent rotation** - Changes browser signature on each request
-- ⏱️ **Rate limiting protection** - Built-in delays between requests
+- ⏱️ **Rate limiting protection** - Built-in delays and retry logic
 - 🔁 **Retry logic** - Automatic retries with exponential backoff
 - 🎯 **Multiple selectors** - Tries different CSS selectors if one fails
+- 🎲 **Randomization** - Randomized delays and request patterns
 
 ## Security Notes
 
