@@ -28,6 +28,7 @@ class EnhancedBackend {
     const corsOptions = {
       origin: [
         'https://dgo-20l.pages.dev',
+        'https://f1041bbe.dgo-20l.pages.dev',
         'https://degen-oracle.com',
         'https://www.degen-oracle.com',
         'https://api.degen-oracle.com',
