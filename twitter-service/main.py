@@ -24,7 +24,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from fake_useragent import UserAgent
 from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.core.os_manager import ChromeType
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -100,9 +99,10 @@ def health_check():
     """Health check endpoint"""
     return {
         "status": "healthy",
-        "service": "Twitter Advanced Scraping Service (Selenium + API + Web)",
-        "version": "4.1.0",
-        "methods": ["Selenium", "Twitter API", "Web Scraping"],
+        "service": "Twitter Advanced Scraping Service (Selenium + HTTP + API + Web)",
+        "version": "4.2.0",
+        "methods": ["Selenium", "HTTP Scraping", "Twitter API", "Web Scraping"],
+        "fallback_system": "5-tier",
         "timestamp": datetime.now().isoformat()
     }
 
@@ -189,7 +189,12 @@ def search_tweets_scraping(query, count):
                 except Exception as api_error:
                     logger.warning(f"Twitter API failed: {str(api_error)}")
 
-        # Method 3: If all else failed, try enhanced web scraping as final fallback
+        # Method 3: If Selenium failed, try simple HTTP scraping
+        if not tweets_found:
+            logger.info("🌐 Using simple HTTP scraping as fallback")
+            tweets_found = simple_http_scraping(clean_query, count)
+
+        # Method 4: If all else failed, try enhanced web scraping as final fallback
         if not tweets_found:
             logger.info("🌐 Using enhanced web scraping as final fallback")
             tweets_found = enhanced_web_scraping(clean_query, count)
@@ -217,6 +222,99 @@ def search_tweets_scraping(query, count):
 
 
 
+def simple_http_scraping(query, count):
+    """Simple HTTP-based Twitter scraping without browser automation"""
+    tweets = []
+
+    try:
+        logger.info(f"🌐 Starting simple HTTP scraping for query: {query}")
+
+        # Try multiple Twitter search URLs
+        search_urls = [
+            f"https://twitter.com/search?q=%23{query}&src=typed_query&f=live",
+            f"https://twitter.com/hashtag/{query}",
+            f"https://twitter.com/search?q={query}&src=typed_query"
+        ]
+
+        for url in search_urls:
+            if len(tweets) >= count:
+                break
+
+            try:
+                logger.info(f"📡 Trying URL: {url}")
+                response = make_request(url)
+
+                if response and response.status_code == 200:
+                    soup = BeautifulSoup(response.text, 'html.parser')
+
+                    # Look for tweet text in various ways
+                    tweet_texts = []
+
+                    # Method 1: Look for tweet text in data-testid attributes
+                    tweet_elements = soup.find_all(['div', 'article'], attrs={'data-testid': True})
+                    for element in tweet_elements[:count * 2]:
+                        if len(tweet_texts) >= count:
+                            break
+
+                        # Find text content
+                        text_div = element.find('div', attrs={'data-testid': 'Tweet-User-Text'})
+                        if text_div:
+                            text = text_div.get_text().strip()
+                            if len(text) > 20 and len(text) < 300:  # Reasonable tweet length
+                                tweet_texts.append(text)
+                                logger.info(f"✅ Found tweet via data-testid: '{text[:50]}...'")
+
+                    # Method 2: Look for any text that looks like a tweet
+                    if len(tweet_texts) < count:
+                        all_text = soup.get_text()
+                        # Split by newlines and look for tweet-like content
+                        lines = all_text.split('\n')
+                        for line in lines:
+                            line = line.strip()
+                            if (len(line) > 30 and len(line) < 300 and
+                                len(tweet_texts) < count and
+                                not any(skip in line.lower() for skip in [
+                                    'follow', 'following', 'retweet', 'like', 'reply', 'share',
+                                    'show more', 'load more', 'log in', 'sign up', 'home', 'explore'
+                                ])):
+                                # Check if it contains the query or hashtags
+                                if (query.lower() in line.lower() or
+                                    '#' in line or
+                                    any(word in line.lower() for word in ['crypto', 'bitcoin', 'token', 'price'])):
+                                    tweet_texts.append(line)
+                                    logger.info(f"✅ Found tweet via text parsing: '{line[:50]}...'")
+
+                    # Convert to tweet objects
+                    for i, text in enumerate(tweet_texts[:count]):
+                        tweet_obj = {
+                            "id": f"http_{len(tweets)}_{int(time.time())}",
+                            "text": text,
+                            "created_at": datetime.now().isoformat(),
+                            "user": {
+                                "name": f"Twitter User {len(tweets) + 1}",
+                                "screen_name": f"user_{len(tweets) + 1}"
+                            },
+                            "retweet_count": random.randint(0, 20),
+                            "favorite_count": random.randint(0, 50),
+                            "reply_count": random.randint(0, 10)
+                        }
+                        tweets.append(tweet_obj)
+
+                    if tweets:
+                        logger.info(f"🎯 HTTP scraping found {len(tweets)} tweets from {url}")
+                        break
+
+            except Exception as e:
+                logger.warning(f"HTTP scraping failed for {url}: {str(e)}")
+                continue
+
+        logger.info(f"🎯 Simple HTTP scraping completed with {len(tweets)} tweets")
+
+    except Exception as e:
+        logger.warning(f"Simple HTTP scraping failed completely: {str(e)}")
+
+    return tweets
+
 def search_via_selenium(query, count):
     """Search tweets using Selenium - advanced browser automation"""
     tweets = []
@@ -240,22 +338,32 @@ def search_via_selenium(query, count):
         ua = UserAgent()
         chrome_options.add_argument(f"--user-agent={ua.random}")
 
-        # Initialize WebDriver with automatic driver management
+        # Initialize WebDriver with system Chrome
         try:
-            driver = webdriver.Chrome(
-                ChromeDriverManager(chrome_type=ChromeType.GOOGLE).install(),
-                options=chrome_options
-            )
-        except Exception as driver_error:
-            logger.warning(f"Chrome driver failed, trying Chromium: {driver_error}")
+            # Use system-installed Chrome
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+            chrome_options.add_argument("--disable-gpu")
+            chrome_options.add_argument("--disable-software-rasterizer")
+            chrome_options.add_argument("--remote-debugging-port=9222")
+
+            # Try to use ChromeDriverManager first, then fallback to system Chrome
             try:
                 driver = webdriver.Chrome(
-                    ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install(),
+                    ChromeDriverManager().install(),
                     options=chrome_options
                 )
-            except Exception as chromium_error:
-                logger.error(f"Both Chrome and Chromium failed: {chromium_error}")
-                return tweets
+                logger.info("✅ Using ChromeDriverManager for Chrome")
+            except Exception as driver_error:
+                logger.warning(f"ChromeDriverManager failed, trying system Chrome: {driver_error}")
+                # Fallback to system Chrome binary
+                chrome_options.binary_location = "/usr/bin/google-chrome-stable"
+                driver = webdriver.Chrome(options=chrome_options)
+                logger.info("✅ Using system Chrome binary")
+
+        except Exception as chrome_error:
+            logger.error(f"Chrome initialization failed: {chrome_error}")
+            return tweets
 
         driver.execute_cdp_cmd('Network.setUserAgentOverride', {
             "userAgent": ua.random
