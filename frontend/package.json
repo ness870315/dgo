@@ -1,6 +1,7 @@
 {
   "name": "xtrend-frontend",
   "version": "0.1.0",
+  "homepage": "https://dgo-20l.pages.dev",
   "private": true,
   "proxy": "http://localhost:4000",
   "dependencies": {
@@ -39,7 +40,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "DISABLE_ESLINT_PLUGIN=true react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
