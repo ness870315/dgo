@@ -2077,7 +2077,15 @@ class EnhancedBackend {
       await this.tokenProcessor.initialize();
 
       this.app.listen(this.port, () => {
-        console.log(`🚀 Enhanced Backend running on http://localhost:${this.port}`);
+        const isProduction = process.env.NODE_ENV === 'production';
+        const baseUrl = isProduction ? 'https://api.degen-oracle.com' : `http://localhost:${this.port}`;
+
+        console.log(`🚀 Enhanced Backend running on ${baseUrl}`);
+        console.log(`📊 Health check: ${baseUrl}/health`);
+        console.log(`🔍 API Status: ${baseUrl}/api/status`);
+        console.log(`🔗 API Tokens: ${baseUrl}/api/tokens`);
+        console.log(`📱 Admin Dashboard: ${baseUrl}/admin-dashboard.html`);
+
         this.isRunning = true;
 
         // Check if we need to start processing
