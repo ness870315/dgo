@@ -1,6 +1,4 @@
 import axios from 'axios';
-// import pkg from 'rettiwt-api';
-// const { Rettiwt } = pkg;
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -16,14 +14,11 @@ class EnhancedSocialDataService {
     this.lastRefreshTime = 0;
     this.refreshInterval = 24 * 60 * 60 * 1000; // 24 hours
     
-    // Initialize Rettiwt API with your API key for full functionality
-    const apiKey = 'a2R0PWdpdWEyc2FyU0hPdjZIRVBnUXFoRnBvNnFlV2RYR09HdW5ia09vSk07YXV0aF90b2tlbj1iZTUxNzc1N2U1NTQ4YjcxMmRlY2ExYjVjZDdlMWEzNTUyYjc4ODNmO2N0MD1iMmI2ZGUwMGRmMjFkZDQ1ZTQwNmVlZTM3NWYxZDc2ZjM5NDNjMThkMWE2OGE4ZjgwZWFkMGIyYTBhZTJiMTFmMmFmYTFmMDc3MjE2MTI5OWVkNzgyNzA5MzEzNzMyZmYwM2UyYjQ5MThmMDMzNmExN2YyYjA4YTI2ZmYwMTdkZDgyY2E0ODM2YTc0NmIyMWM1YjVmMjU5OGY0YWE1NWMxO3R3aWQ9dSUzRDE5MjQ5NTU1NjA5OTE5Nzc0NzI7';
-    // this.twitterApi = new Rettiwt({ 
-    //   apiKey: apiKey,
-    //   delay: 2000, // Increased from 1000ms to 2000ms for safety
-    //   maxRetries: 2
-    // });
-    this.twitterApi = null; // Temporarily disabled
+    // Twitter microservice configuration
+    this.twitterServiceUrl = process.env.TWITTER_SERVICE_URL || 'http://localhost:8000';
+    this.twitterApi = null; // Will be replaced by microservice calls
+    
+    console.log(`🐦 Twitter microservice configured: ${this.twitterServiceUrl}`);
     
     // 🚨 RATE LIMITING CONFIGURATION - CRITICAL FOR PREVENTING BANS
     this.rateLimits = {
@@ -253,305 +248,211 @@ class EnhancedSocialDataService {
   }
 
   /**
-   * Search Twitter for token mentions using multiple strategies
-   * PRIORITY: Official handle first, then hashtags/cashtags as fallback
+   * Search Twitter for token mentions using Python microservice
+   * Uses Twikit via Python FastAPI service
    */
   async searchTwitterMentions(symbol, name, officialHandle = null, socialLinks = null) {
-    // Convert symbol to lowercase for proper cashtag/hashtag search
-    const symbolLower = symbol.toLowerCase();
+    console.log(`🐦 Searching Twitter via microservice for ${symbol} (${name})`);
     
-    // Ensure name is defined and handle undefined/null cases
-    const safeName = name || symbol; // Fallback to symbol if name is undefined
-    const nameLower = safeName.toLowerCase();
-    
-    let searchTerms = [];
-    
-    // STEP 1: User-added Twitter handle (highest priority)
-    if (socialLinks?.twitter && socialLinks.twitter !== 'not_found') {
-      const cleanHandle = socialLinks.twitter.replace('@', '');
-      searchTerms.push({ 
-        type: 'user_added_handle', 
-        value: `@${cleanHandle}`, 
-        filter: { from: [cleanHandle] } 
-      });
-      console.log(`🎯 Using user-added Twitter handle: @${cleanHandle}`);
-    }
-    // STEP 2: Jupiter-fetched official handle (if no user handle)
-    else if (officialHandle && officialHandle !== 'not found') {
-      const cleanHandle = officialHandle.replace('@', '');
-      searchTerms.push({ 
-        type: 'jupiter_handle', 
-        value: `@${cleanHandle}`, 
-        filter: { from: [cleanHandle] } 
-      });
-      console.log(`🎯 Using Jupiter-fetched Twitter handle: @${cleanHandle}`);
-    } else {
-      console.log(`⚠️ No official Twitter handle found for ${symbol} - will be stored as 'not found'`);
-    }
-    
-    // STEP 2: OPTIMIZED HASHTAG + CASHTAG STRATEGY
-    // Based on test results: Only primary hashtag and cashtag searches work effectively
-    searchTerms.push(
-      // PRIMARY SEARCHES - These are the only ones that consistently work
-      { type: 'hashtag_primary', value: `#${symbolLower}`, filter: { hashtags: [symbolLower] } },   // #fwog
-      { type: 'cashtag_primary', value: `$${symbolLower}`, filter: { hashtags: [`$${symbolLower}`] } }, // $fwog
-      
-      // Name-based searches (only if different from symbol and name exists)
-      ...(nameLower !== symbolLower ? [
-        { type: 'hashtag_name', value: `#${nameLower}`, filter: { hashtags: [nameLower] } }, // #dogecoin (if name differs)
-        { type: 'cashtag_name', value: `$${nameLower}`, filter: { hashtags: [`$${nameLower}`] } } // $dogecoin (if name differs)
-      ] : [])
-    );
-    
-    // Remove duplicate searches (if name and symbol are the same)
-    const uniqueSearchTerms = [];
-    const seenFilters = new Set();
-    
-    for (const term of searchTerms) {
-      const filterKey = JSON.stringify(term.filter);
-      if (!seenFilters.has(filterKey)) {
-        seenFilters.add(filterKey);
-        uniqueSearchTerms.push(term);
+    try {
+      // Check if Twitter microservice is available
+      const healthResponse = await axios.get(`${this.twitterServiceUrl}/health`, { timeout: 5000 });
+      if (!healthResponse.data.twitter_available) {
+        console.log(`⚠️ Twitter API not available for ${symbol}, returning fallback data`);
+        return this.getDefaultTwitterData(symbol, name);
       }
-    }
-    
-    searchTerms = uniqueSearchTerms;
-    console.log(`📊 Will search using OPTIMIZED HASHTAG + CASHTAG strategy: ${searchTerms.map(t => t.value).join(', ')}`);
-    
-    let totalMentions = 0;
-    let totalLikes = 0;
-    let totalRetweets = 0;
-    let totalReplies = 0;
-    let recentMentions = [];
-    let username = null;
-    let followers = 0;
-    
-    console.log(`🔢 INITIALIZED: totalMentions = ${totalMentions}`);
-    
-    for (const searchTerm of searchTerms) {
-      try {
-        console.log(`🔍 Searching Twitter for: "${searchTerm.value}" (${searchTerm.type})`);
-        console.log(`   🔧 Search filter:`, JSON.stringify(searchTerm.filter));
-        
-        // Use the correct filter for this search type with exact 48-hour range
-        const now = new Date();
-        const fortyEightHoursAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000);
-        
-        let searchResults;
-        
-        if (searchTerm.type === 'official_handle') {
-          // For official handles, get tweets FROM the account (not mentions)
-          const cleanHandle = searchTerm.value.replace('@', '');
-          console.log(`   📅 Fetching tweets from official account: @${cleanHandle}`);
-          
-          try {
-            // Get user profile first to get follower count
-            const userProfile = await this.twitterApi.user.details(cleanHandle);
-            if (userProfile) {
-              followers = userProfile.followersCount || 0;
-              username = cleanHandle;
-              console.log(`   👥 Official account followers: ${followers}`);
-            }
-            
-            // Get recent tweets from the official account
-            const filter = { 
-              from: [cleanHandle],
-              startDate: fortyEightHoursAgo,
-              endDate: now
-            };
-            searchResults = await this.twitterApi.tweet.search(filter, 20); // Fewer tweets from official account
-          } catch (error) {
-            console.log(`   ⚠️ Could not fetch from official handle @${cleanHandle}: ${error.message}`);
-            searchResults = null;
+      
+      let totalMentions = 0;
+      let totalLikes = 0;
+      let totalRetweets = 0;
+      let totalReplies = 0;
+      let recentMentions = [];
+      let username = null;
+      let followers = 0;
+      
+      // Search strategies in priority order
+      const searchStrategies = [];
+      
+      // 1. Official handle (highest priority)
+      if (officialHandle && officialHandle !== 'not found') {
+        const cleanHandle = officialHandle.replace('@', '');
+        searchStrategies.push({
+          type: 'official_handle',
+          endpoint: `/api/twitter/user/${cleanHandle}/tweets`,
+          params: { count: 20 }
+        });
+        username = cleanHandle;
+      }
+      
+      // 2. User-added Twitter handle
+      if (socialLinks?.twitter && socialLinks.twitter !== 'not_found') {
+        const cleanHandle = socialLinks.twitter.replace('@', '');
+        searchStrategies.push({
+          type: 'user_handle',
+          endpoint: `/api/twitter/user/${cleanHandle}/tweets`,
+          params: { count: 20 }
+        });
+        if (!username) username = cleanHandle;
+      }
+      
+      // 3. Hashtag and cashtag searches
+      const symbolLower = symbol.toLowerCase();
+      const safeName = name || symbol;
+      const nameLower = safeName.toLowerCase();
+      
+      searchStrategies.push(
+        {
+          type: 'hashtag_symbol',
+          endpoint: '/api/twitter/search',
+          params: { q: `#${symbolLower}`, count: 30 }
+        },
+        {
+          type: 'cashtag_symbol', 
+          endpoint: '/api/twitter/search',
+          params: { q: `$${symbolLower}`, count: 30 }
+        }
+      );
+      
+      // Add name-based searches if different from symbol
+      if (nameLower !== symbolLower) {
+        searchStrategies.push(
+          {
+            type: 'hashtag_name',
+            endpoint: '/api/twitter/search',
+            params: { q: `#${nameLower}`, count: 20 }
+          },
+          {
+            type: 'cashtag_name',
+            endpoint: '/api/twitter/search', 
+            params: { q: `$${nameLower}`, count: 20 }
           }
-        } else {
-          // For hashtags/cashtags, search for mentions
-          const filter = { 
-            ...searchTerm.filter,
-            startDate: fortyEightHoursAgo,
-            endDate: now
-          };
+        );
+      }
+      
+      // Execute searches
+      for (const strategy of searchStrategies) {
+        try {
+          console.log(`🔍 Executing ${strategy.type} search via microservice...`);
           
-          console.log(`   📅 Search window: ${fortyEightHoursAgo.toISOString()} to ${now.toISOString()}`);
-          searchResults = await this.twitterApi.tweet.search(filter, 50); // More tweets for mentions
-        }
-        
-        // Debug: Log search results for all searches
-        console.log(`🔍 SEARCH DEBUG (${searchTerm.type}): searchResults =`, searchResults ? 'exists' : 'null');
-        if (searchResults?.list) {
-          console.log(`🔍 SEARCH DEBUG (${searchTerm.type}): Found ${searchResults.list.length} tweets`);
-        } else {
-          console.log(`🔍 SEARCH DEBUG (${searchTerm.type}): No results list`);
-        }
-        if (searchResults?.error) {
-          console.log(`🔍 SEARCH DEBUG (${searchTerm.type}): API Error =`, searchResults.error);
-        }
-        
-        if (searchResults && searchResults.list && searchResults.list.length > 0) {
-          console.log(`✅ Found ${searchResults.list.length} tweets for "${searchTerm.value}" (${searchTerm.type})`);
-          
-          // Process tweets with relevance filtering
-          let relevantTweets = 0;
-          let filteredTweets = 0;
-          
-          searchResults.list.forEach((tweet, index) => {
-            try {
-              const tweetData = tweet.toJSON();
-              const tweetText = tweetData.fullText || tweetData.text || '';
-              
-              // Apply crypto relevance filter to hashtag and words searches (but not phrase searches)
-              let isRelevant = true;
-              if (searchTerm.type.startsWith('hashtag_') || searchTerm.type.startsWith('words_')) {
-                isRelevant = this.isCryptoRelevantTweet(tweetText, symbol, name);
-                if (!isRelevant) {
-                  filteredTweets++;
-                  console.log(`🚫 Filtered out non-crypto tweet: "${tweetText.substring(0, 100)}..."`);
-                  return; // Skip this tweet
-                }
-              }
-              // Phrase searches are inherently crypto-focused, so no filtering needed
-              
-              relevantTweets++;
-              
-              // Show tweet details in console
-              console.log(`\n📝 Tweet ${index + 1} (${searchTerm.type}):`);
-              console.log(`   Author: @${tweetData.tweetBy?.userName || 'Unknown'}`);
-              console.log(`   Text: ${tweetText}`);
-              console.log(`   Likes: ${tweetData.likeCount || 0}`);
-              console.log(`   Retweets: ${tweetData.retweetCount || 0}`);
-              console.log(`   Replies: ${tweetData.replyCount || 0}`);
-              console.log(`   Created: ${tweetData.createdAt || 'Unknown'}`);
-              console.log(`   ✅ Crypto Relevant: ${isRelevant}`);
-              
-              // Aggregate engagement metrics with cashtag priority weighting
-              const likes = tweetData.likeCount || 0;
-              const retweets = tweetData.retweetCount || 0;
-              const replies = tweetData.replyCount || 0;
-              
-              // CRYPTO RELEVANCE: All crypto-related searches have equal weight
-              const weight = 1.0; // Equal weighting for all search types
-              
-              totalLikes += Math.round(likes * weight);
-              totalRetweets += Math.round(retweets * weight);
-              totalReplies += Math.round(replies * weight);
-              totalMentions += weight; // Each relevant tweet counts as 1 mention
-              
-              console.log(`   📊 MENTION COUNT: Added ${weight} mentions (total now: ${totalMentions})`);
-              
-              // Analyze sentiment of the tweet
-              const sentimentScore = this.analyzeTweetSentiment(tweetText);
-
-              // Collect recent mentions for social activity feed
-              const mentionData = {
-                author: tweetData.tweetBy?.userName || 'Unknown',
-                authorName: tweetData.tweetBy?.fullName || 'Unknown',
-                text: tweetText,
-                likes: likes,
-                retweets: retweets,
-                replies: replies,
-                createdAt: tweetData.createdAt || 'Unknown',
-                tweetId: tweetData.id || null, // Store tweet ID for creating links
-                sentiment: sentimentScore, // Add sentiment analysis
-                // Removed searchType to clean up tweet display
-                isRelevant: isRelevant,
-                priority: 1 // Equal priority for all search types
-              };
-              
-              // Add tweets to recent mentions (up to 10)
-              if (recentMentions.length < 10) {
-                recentMentions.push(mentionData);
-              }
-            } catch (tweetError) {
-              console.log(`⚠️ Error processing tweet ${index + 1}:`, tweetError.message);
-              // Still count it as a mention even if we can't process it
-              totalMentions++;
-            }
+          const response = await axios.get(`${this.twitterServiceUrl}${strategy.endpoint}`, {
+            params: strategy.params,
+            timeout: 30000
           });
           
-          console.log(`📊 Search "${searchTerm.value}" (${searchTerm.type}): ${relevantTweets} relevant tweets, ${filteredTweets} filtered out`);
+          if (response.data.success) {
+            const tweets = response.data.tweets || response.data.mentions || [];
+            console.log(`✅ Found ${tweets.length} tweets for ${strategy.type}`);
+            
+            // Process tweets
+            for (const tweet of tweets) {
+              // Apply crypto relevance filter for hashtag searches
+              let isRelevant = true;
+              if (strategy.type.includes('hashtag') || strategy.type.includes('cashtag')) {
+                isRelevant = this.isCryptoRelevantTweet(tweet.text, symbol, name);
+                if (!isRelevant) {
+                  console.log(`🚫 Filtered out non-crypto tweet: "${tweet.text.substring(0, 100)}..."`);
+                  continue;
+                }
+              }
+              
+              // Aggregate metrics
+              const likes = tweet.favorite_count || 0;
+              const retweets = tweet.retweet_count || 0; 
+              const replies = tweet.reply_count || 0;
+              
+              totalLikes += likes;
+              totalRetweets += retweets;
+              totalReplies += replies;
+              totalMentions += 1;
+              
+              // Analyze sentiment
+              const sentimentScore = this.analyzeTweetSentiment(tweet.text);
+              
+              // Add to recent mentions (limit to 10)
+              if (recentMentions.length < 10) {
+                recentMentions.push({
+                  author: tweet.user?.screen_name || 'Unknown',
+                  authorName: tweet.user?.name || 'Unknown',
+                  text: tweet.text,
+                  likes: likes,
+                  retweets: retweets,
+                  replies: replies,
+                  createdAt: tweet.created_at,
+                  tweetId: tweet.id,
+                  sentiment: sentimentScore,
+                  isRelevant: isRelevant,
+                  priority: strategy.type === 'official_handle' ? 3 : 1
+                });
+              }
+              
+              // Get follower count from official handle
+              if (strategy.type === 'official_handle' && tweet.user?.followers_count) {
+                followers = tweet.user.followers_count;
+              }
+            }
+            
+            console.log(`📊 ${strategy.type}: +${tweets.length} tweets processed`);
+            
+          } else {
+            console.log(`❌ ${strategy.type} search failed: ${response.data.detail || 'Unknown error'}`);
+          }
           
-          // Continue searching both cashtag and hashtag to get complete data
-          // Don't stop early - let's get all available mentions
-          console.log(`📊 Accumulated: ${totalMentions} mentions, ${totalLikes} likes, ${totalRetweets} retweets, ${totalReplies} replies`);
-        } else {
-          // Log when no results are found
-          console.log(`❌ No tweets found for "${searchTerm.value}" (${searchTerm.type})`);
-          console.log(`🔍 DEBUG: No results could indicate:`);
-          console.log(`   - No tweets matching "${searchTerm.value}" in the 48-hour window`);
-          console.log(`   - Twitter API rate limiting or restrictions`);
-          console.log(`   - Search filter: ${JSON.stringify(searchTerm.filter)}`);
+          // Small delay between searches
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+        } catch (error) {
+          console.log(`⚠️ ${strategy.type} search error: ${error.message}`);
+          // Continue with other searches
         }
-        
-        // Add delay between searches
-        await new Promise(resolve => setTimeout(resolve, this.rateLimits.delayBetweenSearches));
-        
-      } catch (error) {
-        console.log(`⚠️ Search failed for "${searchTerm.value}" (${searchTerm.type}): ${error.message}`);
-        
-        // Debug search failures
-        console.log(`🔍 SEARCH ERROR DEBUG (${searchTerm.type}):`);
-        console.log(`   Error type: ${error.constructor.name}`);
-        console.log(`   Error code: ${error.code || 'N/A'}`);
-        console.log(`   Search filter used: ${JSON.stringify(searchTerm.filter)}`);
-        if (error.message.includes('429') || error.message.includes('rate limit')) {
-          console.log(`   🚨 Rate limit detected for search type: ${searchTerm.type}`);
-        }
-        
-        // If we hit a rate limit (429), wait longer before continuing
-        if (error.message.includes('429') || error.message.includes('rate limit')) {
-          console.log('🚨 Rate limit detected - waiting 60 seconds before continuing...');
-          await new Promise(resolve => setTimeout(resolve, 60000)); // Wait 1 minute
-          this.rateLimitUntil = Date.now() + 300000; // Set 5-minute cooldown
-        }
-        
-        // Continue with next search term
       }
-    }
-    
-    // Summary of search results
-    console.log(`📊 Twitter Search Summary for ${symbol}:`);
-    console.log(`   🎯 Official Handle: ${officialHandle || 'not found'}`);
-    console.log(`   👥 Followers: ${followers}`);
-    console.log(`   📊 Community Mentions: ${totalMentions} (from crypto-relevant searches)`);
-    console.log(`   💖 Total Engagement: ${totalLikes + totalRetweets + totalReplies}`);
-    
-    console.log(`🔢 FINAL VALUES BEFORE RETURN: mentions=${totalMentions}, likes=${totalLikes}, retweets=${totalRetweets}, replies=${totalReplies}`);
-    
-    return {
-      symbol: symbol,
-      name: name,
       
-      // Official Twitter Account Info (from Jupiter API)
-      officialHandle: officialHandle || 'not found',
-      username: username,
-      followers: followers,
-      hasOfficialAccount: !!officialHandle,
+      // Summary
+      console.log(`📊 Twitter Search Summary for ${symbol}:`);
+      console.log(`   🎯 Official Handle: ${officialHandle || 'not found'}`);
+      console.log(`   👥 Followers: ${followers}`);
+      console.log(`   📊 Community Mentions: ${totalMentions}`);
+      console.log(`   💖 Total Engagement: ${totalLikes + totalRetweets + totalReplies}`);
       
-      // Community Activity Metrics (from hashtag/cashtag searches)
-      mentions: totalMentions,
-      mentions24h: totalMentions, // Same as mentions for now
-      likes: totalLikes,
-      retweets: totalRetweets,
-      replies: totalReplies,
-      engagement: {
+      return {
+        symbol: symbol,
+        name: name,
+        
+        // Official Twitter Account Info
+        officialHandle: officialHandle || 'not found',
+        username: username,
+        followers: followers,
+        hasOfficialAccount: !!officialHandle,
+        
+        // Community Activity Metrics
+        mentions: totalMentions,
+        mentions24h: totalMentions,
         likes: totalLikes,
         retweets: totalRetweets,
         replies: totalReplies,
-        total: totalLikes + totalRetweets + totalReplies
-      },
-      
-      // Social Activity Feed
-      recentMentions: recentMentions,
-      tweets: recentMentions, // Alias for frontend compatibility
-      
-      // Sentiment Analysis
-      sentimentScore: this.calculateOverallSentiment(recentMentions),
+        engagement: {
+          likes: totalLikes,
+          retweets: totalRetweets,
+          replies: totalReplies,
+          total: totalLikes + totalRetweets + totalReplies
+        },
+        
+        // Social Activity Feed
+        recentMentions: recentMentions,
+        tweets: recentMentions,
+        
+        // Sentiment Analysis
+        sentimentScore: this.calculateOverallSentiment(recentMentions),
 
-      // Status and Metadata
-      status: totalMentions > 0 ? 'active' : 'limited_activity',
-      communityHealth: this.calculateCommunityHealthFromMetrics(totalMentions, totalLikes, totalRetweets, followers),
-      lastUpdated: new Date().toISOString()
-    };
+        // Status and Metadata
+        status: totalMentions > 0 ? 'active' : 'limited_activity',
+        communityHealth: this.calculateCommunityHealthFromMetrics(totalMentions, totalLikes, totalRetweets, followers),
+        lastUpdated: new Date().toISOString()
+      };
+      
+    } catch (error) {
+      console.error(`❌ Twitter microservice error for ${symbol}: ${error.message}`);
+      return this.getDefaultTwitterData(symbol, name);
+    }
   }
 
   /**
