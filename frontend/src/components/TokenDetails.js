@@ -7,6 +7,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
   const [selectedFuel, setSelectedFuel] = useState(null);
   const [fuelLoading, setFuelLoading] = useState(false);
   const [fuelMessage, setFuelMessage] = useState({ text: '', type: '' });
+  const [contractValidated, setContractValidated] = useState(false);
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
 
   // Check if token is fueled and get fuel multiplier
   const getFuelMultiplier = () => {
@@ -39,6 +41,27 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
     checkWatchlistStatus();
   }, [token]);
 
+  // Check for pending fuel payment on modal open
+  useEffect(() => {
+    if (showFuelModal) {
+      const pendingData = localStorage.getItem('pendingFuelPayment');
+      if (pendingData) {
+        try {
+          const pending = JSON.parse(pendingData);
+          if (pending.contractAddress === token?.contractAddress) {
+            setSelectedFuel(pending.fuelType);
+            setPaymentCompleted(true);
+            setContractValidated(true);
+            setFuelMessage({ text: '💳 Payment completed! Ready to apply fuel boost.', type: 'success' });
+            console.log('Found pending fuel payment for this token:', pending);
+          }
+        } catch (error) {
+          console.error('Error parsing pending fuel payment:', error);
+        }
+      }
+    }
+  }, [showFuelModal, token?.contractAddress]);
+
   const toggleWatchlist = () => {
     const watchlist = JSON.parse(localStorage.getItem('watchlist') || '[]');
     let newWatchlist;
@@ -61,10 +84,42 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
 
   // Fuel Token functionality
   const fuelOptions = [
-    { type: '10x', icon: '🚀', boost: '15%', multiplier: 1.15 },
-    { type: '50x', icon: '🔥', boost: '25%', multiplier: 1.25 },
-    { type: '500x', icon: '⚡', boost: '35%', multiplier: 1.35 },
-    { type: '1000x', icon: '💎', boost: '50%', multiplier: 1.50 }
+    {
+      type: '10x',
+      icon: '🚀',
+      boost: '15%',
+      multiplier: 1.15,
+      price: '$45',
+      helioLink: 'https://app.hel.io/pay/68b50d01c743122a7be16ce9',
+      description: 'Basic fuel boost'
+    },
+    {
+      type: '50x',
+      icon: '🔥',
+      boost: '25%',
+      multiplier: 1.25,
+      price: '$195',
+      helioLink: 'https://app.hel.io/pay/68b50dd130074e35926e3c8d',
+      description: 'Popular choice'
+    },
+    {
+      type: '500x',
+      icon: '⚡',
+      boost: '35%',
+      multiplier: 1.35,
+      price: '$695',
+      helioLink: 'https://app.hel.io/pay/68b50cef3d14a3c150c1f6cb',
+      description: 'High performance'
+    },
+    {
+      type: '1000x',
+      icon: '💎',
+      boost: '45%',
+      multiplier: 1.45,
+      price: '$995',
+      helioLink: 'https://app.hel.io/pay/68b50ded2b102da2c16c2359',
+      description: 'Maximum boost'
+    }
   ];
 
   const handleFuelClick = () => {
@@ -77,23 +132,28 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
   };
 
   const handleApplyFuel = async () => {
-    if (!selectedFuel) {
-      setFuelMessage({ text: 'Please select a fuel type', type: 'error' });
-      return;
-    }
-
     setFuelLoading(true);
     setFuelMessage({ text: '', type: '' });
 
     try {
-      const response = await fetch('http://localhost:4000/api/tokens/fuel', {
+      // Check if there's pending payment data
+      const pendingData = localStorage.getItem('pendingFuelPayment');
+      let fuelType = selectedFuel;
+
+      if (pendingData) {
+        const pending = JSON.parse(pendingData);
+        fuelType = pending.fuelType;
+        console.log('Found pending fuel payment:', pending);
+      }
+
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000'}/api/tokens/fuel`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           contractAddress: token.contractAddress,
-          fuelType: selectedFuel
+          fuelType: fuelType
         })
       });
 
@@ -102,6 +162,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
       if (response.ok) {
         setFuelMessage({ text: `✅ ${result.message}`, type: 'success' });
         setSelectedFuel(null);
+        setContractValidated(false);
+        setPaymentCompleted(false);
+        localStorage.removeItem('pendingFuelPayment');
         // Close modal after 2 seconds
         setTimeout(() => {
           setShowFuelModal(false);
@@ -1094,11 +1157,11 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
         {/* Fuel Token Modal */}
         {showFuelModal && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-            <div className="bg-dark-bg border border-gray-700 rounded-xl max-w-md w-full p-6">
-              <div className="flex items-center justify-between mb-6">
+            <div className="bg-dark-bg border border-gray-700 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6 p-6 pb-0">
                 <h3 className="text-xl font-bold text-white flex items-center gap-2">
                   <Flame className="text-orange-400" size={24} />
-                  Fuel Token
+                  Fuel Token - {token?.symbol}
                 </h3>
                 <button
                   onClick={() => setShowFuelModal(false)}
@@ -1108,59 +1171,195 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                 </button>
               </div>
 
-              <div className="mb-4">
-                <p className="text-gray-300 text-sm mb-2">
-                  Apply fuel to boost <strong>{token?.symbol}</strong>'s score for 12 hours
-                </p>
-                <div className="text-xs text-gray-500 font-mono bg-gray-800 p-2 rounded">
-                  {token?.contractAddress}
+              <div className="px-6 pb-6">
+                {/* Token Info */}
+                <div className="bg-dark-card border border-gray-600 rounded-lg p-4 mb-6">
+                  <div className="flex items-center gap-4 mb-3">
+                    <div className="text-2xl">{fuelMultiplier ? '🔥' : '🪙'}</div>
+                    <div>
+                      <div className="text-lg font-bold text-white">{token?.symbol}</div>
+                      <div className="text-sm text-gray-400">{token?.name}</div>
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500 font-mono bg-gray-800 p-2 rounded">
+                    {token?.contractAddress}
+                  </div>
+                  {fuelMultiplier && (
+                    <div className="mt-2 text-sm text-orange-400">
+                      🔥 Currently fueled: {fuelMultiplier}
+                    </div>
+                  )}
                 </div>
-              </div>
 
-              {/* Fuel Options */}
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                {fuelOptions.map((fuel) => (
+                {/* Contract Validation */}
+                {!contractValidated && !paymentCompleted && (
+                  <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 mb-6">
+                    <h4 className="text-blue-300 font-medium mb-2">🔍 Contract Validation Required</h4>
+                    <p className="text-blue-200 text-sm mb-4">
+                      We need to verify this token exists in our database before proceeding with fuel.
+                    </p>
+                    <button
+                      onClick={async () => {
+                        setFuelLoading(true);
+                        setFuelMessage({ text: '', type: '' });
+
+                        try {
+                          // Check if token exists in our database
+                          const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000'}/api/tokens?contract=${token.contractAddress}`);
+                          const tokens = await response.json();
+
+                          if (tokens && tokens.length > 0) {
+                            setFuelMessage({ text: '✅ Contract address validated! Token found in database.', type: 'success' });
+                            setContractValidated(true);
+                          } else {
+                            setFuelMessage({ text: '⚠️ Contract address not found in database. This token may need to be listed first.', type: 'error' });
+                          }
+                        } catch (error) {
+                          console.error('Error validating contract:', error);
+                          setFuelMessage({ text: '❌ Failed to validate contract address. Please try again.', type: 'error' });
+                        } finally {
+                          setFuelLoading(false);
+                        }
+                      }}
+                      disabled={fuelLoading}
+                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 disabled:opacity-50"
+                    >
+                      {fuelLoading ? '🔍 Validating...' : '🔍 Validate Contract Address'}
+                    </button>
+                  </div>
+                )}
+
+                {/* Fuel Selection */}
+                {contractValidated && !paymentCompleted && (
+                  <div className="mb-6">
+                    <h4 className="text-white font-medium mb-4">Choose Fuel Boost</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                      {fuelOptions.map((fuel) => (
+                        <button
+                          key={fuel.type}
+                          onClick={() => setSelectedFuel(fuel.type)}
+                          className={`p-4 rounded-lg border-2 transition-all duration-200 ${
+                            selectedFuel === fuel.type
+                              ? 'border-orange-500 bg-orange-900/20'
+                              : 'border-gray-600 hover:border-orange-400 bg-gray-800'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="text-2xl">{fuel.icon}</div>
+                            <div className="text-left">
+                              <div className="text-white font-bold">Fuel {fuel.type}</div>
+                              <div className="text-sm text-gray-400">{fuel.description}</div>
+                            </div>
+                          </div>
+                          <div className="text-xl font-bold text-green-400">{fuel.price}</div>
+                          <div className="text-xs text-gray-500">Duration: 12 hours</div>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Proceed to Payment */}
+                    {selectedFuel && (
+                      <div className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 rounded-lg p-6 border border-blue-500/30">
+                        <h4 className="text-white font-semibold text-lg mb-4 flex items-center">
+                          <span className="mr-2">💳</span>
+                          Payment Details
+                        </h4>
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-300">Selected Fuel:</span>
+                            <span className="text-white font-semibold">{selectedFuel}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-300">Duration:</span>
+                            <span className="text-white font-semibold">12 hours</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-300">Price:</span>
+                            <span className="text-white font-semibold">{fuelOptions.find(f => f.type === selectedFuel)?.price}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-300">Payment Method:</span>
+                            <span className="text-green-400 font-medium">USDC</span>
+                          </div>
+                          <div className="pt-2 border-t border-gray-600">
+                            <p className="text-xs text-gray-400 mb-4">
+                              Secure payment powered by Helio Pay. Pay with USDC on Solana.
+                            </p>
+                            <button
+                              onClick={() => {
+                                const selectedFuelOption = fuelOptions.find(f => f.type === selectedFuel);
+                                if (selectedFuelOption && selectedFuelOption.helioLink) {
+                                  // Store payment info in localStorage for post-payment processing
+                                  localStorage.setItem('pendingFuelPayment', JSON.stringify({
+                                    contractAddress: token.contractAddress,
+                                    fuelType: selectedFuel,
+                                    paymentId: `fuel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                                    paymentInitiated: new Date().toISOString()
+                                  }));
+
+                                  // Open Helio payment link
+                                  window.open(selectedFuelOption.helioLink, '_blank');
+                                  setFuelMessage({ text: '💳 Payment page opened! Complete your payment and return to apply the fuel boost.', type: 'info' });
+                                } else {
+                                  setFuelMessage({ text: '❌ Payment link not available for selected fuel type.', type: 'error' });
+                                }
+                              }}
+                              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105"
+                            >
+                              💳 Proceed to Payment {fuelOptions.find(f => f.type === selectedFuel)?.price}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Apply Fuel (after payment) */}
+                {paymentCompleted && (
+                  <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4 mb-6">
+                    <h4 className="text-green-300 font-medium mb-2">✅ Payment Completed!</h4>
+                    <p className="text-green-200 text-sm mb-4">
+                      Your payment has been processed successfully. Click below to apply the fuel boost to {token?.symbol}.
+                    </p>
+                    <button
+                      onClick={handleApplyFuel}
+                      disabled={fuelLoading}
+                      className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 disabled:opacity-50"
+                    >
+                      {fuelLoading ? '🔥 Applying Fuel...' : '🔥 Apply Fuel Boost'}
+                    </button>
+                  </div>
+                )}
+
+                {/* Message Display */}
+                {fuelMessage.text && (
+                  <div className={`mb-4 p-3 rounded-lg text-sm ${
+                    fuelMessage.type === 'success'
+                      ? 'bg-green-900/20 border border-green-500 text-green-400'
+                      : fuelMessage.type === 'error'
+                      ? 'bg-red-900/20 border border-red-500 text-red-400'
+                      : 'bg-blue-900/20 border border-blue-500 text-blue-400'
+                  }`}>
+                    {fuelMessage.text}
+                  </div>
+                )}
+
+                {/* Close Button */}
+                <div className="flex justify-end">
                   <button
-                    key={fuel.type}
-                    onClick={() => setSelectedFuel(fuel.type)}
-                    className={`p-3 rounded-lg border-2 transition-all duration-200 ${
-                      selectedFuel === fuel.type
-                        ? 'border-orange-500 bg-orange-900/20'
-                        : 'border-gray-700 hover:border-orange-400 bg-gray-800'
-                    }`}
+                    onClick={() => {
+                      setShowFuelModal(false);
+                      setSelectedFuel(null);
+                      setContractValidated(false);
+                      setPaymentCompleted(false);
+                      setFuelMessage({ text: '', type: '' });
+                    }}
+                    className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
                   >
-                    <div className="text-2xl mb-1">{fuel.icon}</div>
-                    <div className="text-white font-bold text-sm">Fuel {fuel.type}</div>
+                    Close
                   </button>
-                ))}
-              </div>
-
-              {/* Message Display */}
-              {fuelMessage.text && (
-                <div className={`mb-4 p-3 rounded-lg text-sm ${
-                  fuelMessage.type === 'success' 
-                    ? 'bg-green-900/20 border border-green-500 text-green-400'
-                    : 'bg-red-900/20 border border-red-500 text-red-400'
-                }`}>
-                  {fuelMessage.text}
                 </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowFuelModal(false)}
-                  className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleApplyFuel}
-                  disabled={!selectedFuel || fuelLoading}
-                  className="flex-1 px-4 py-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {fuelLoading ? 'Applying...' : 'Apply Fuel'}
-                </button>
               </div>
             </div>
           </div>

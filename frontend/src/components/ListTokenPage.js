@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Search, CheckCircle, AlertCircle, Loader, ArrowLeft, Twitter, Globe, MessageCircle, Music, Instagram, ChevronDown, ChevronUp } from 'lucide-react';
 
 // Professional Success Modal Function
@@ -229,6 +229,185 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     tiktok: '',
     website: ''
   });
+
+  // Submit token to database after successful payment (moved up for useEffect)
+  const submitTokenToDatabase = useCallback(async (tokenData, paymentEvent) => {
+    try {
+      console.log('🔥 Submitting paid token to database:', tokenData);
+
+      // First validate the payment with backend
+      const apiBase = process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000';
+      const paymentValidation = await fetch(`${apiBase}/api/payments/validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          paymentId: paymentEvent?.paymentId || tokenData?.paymentId,
+          paymentData: paymentEvent
+        })
+      });
+
+      const validationResult = await paymentValidation.json();
+
+      if (!validationResult.success || !validationResult.validation?.isValid) {
+        throw new Error('Payment validation failed. Please contact support.');
+      }
+
+      console.log('✅ Payment validated successfully');
+
+      // Validate social links if provided
+      const socialValidationErrors = validateSocials();
+      if (socialValidationErrors.length > 0) {
+        console.warn('⚠️ Social validation errors (will skip socials):', socialValidationErrors);
+      }
+
+      // Prepare payload with validated payment data and optional social links
+      const payload = {
+        tokenData: tokenData,
+        paymentData: {
+          ...paymentEvent,
+          validated: true,
+          validationResult: validationResult.validation
+        }
+      };
+
+      // Add social links if any are provided and valid
+      const hasSocials = Object.values(socials).some(value => value && value.trim());
+      if (hasSocials && socialValidationErrors.length === 0) {
+        payload.socialLinks = socials;
+        console.log('📱 Including social links:', socials);
+      }
+
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000'}/api/tokens/add-paid-token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to add token to database');
+      }
+
+      console.log('🎉 Token added to database successfully:', result.token);
+      return result;
+
+    } catch (error) {
+      console.error('❌ Error submitting token to database:', error);
+      throw error;
+    }
+  }, [socials]);
+
+  // Manual payment completion helper for debugging
+  const processPendingPayment = useCallback(async () => {
+    console.log('🔧 Manual payment processing triggered...');
+
+    const pendingData = localStorage.getItem('pendingTokenListing');
+    if (!pendingData) {
+      console.warn('⚠️ No pending payment data found in localStorage');
+      return false;
+    }
+
+    try {
+      const { paymentId, paymentUrl, paymentInitiated, ...tokenData } = JSON.parse(pendingData);
+      console.log('📦 Processing pending token:', tokenData);
+
+      await submitTokenToDatabase(tokenData, {
+        paymentId,
+        status: 'completed',
+        timestamp: new Date().toISOString()
+      });
+
+      localStorage.removeItem('pendingTokenListing');
+      console.log('✅ Manual payment processing completed!');
+      return true;
+    } catch (error) {
+      console.error('❌ Manual payment processing failed:', error);
+      return false;
+    }
+  }, [submitTokenToDatabase]);
+
+  // Handle payment completion on page load
+  useEffect(() => {
+    const handlePaymentCompletion = async () => {
+      console.log('🔍 Checking for payment completion...');
+
+      // Check URL parameters for payment success
+      const urlParams = new URLSearchParams(window.location.search);
+      const paymentStatus = urlParams.get('payment');
+      const currentUrl = window.location.href;
+
+      console.log('📍 Current URL:', currentUrl);
+      console.log('💳 Payment status parameter:', paymentStatus);
+
+      if (paymentStatus === 'success') {
+        console.log('🎉 Payment success detected! Processing pending token...');
+
+        // Check for pending payment data in localStorage
+        const pendingData = localStorage.getItem('pendingTokenListing');
+        console.log('💾 localStorage pending data exists:', !!pendingData);
+
+        if (pendingData) {
+          try {
+            const { paymentId, paymentUrl, paymentInitiated, ...tokenData } = JSON.parse(pendingData);
+            console.log('📦 Found pending token data:', {
+              symbol: tokenData.symbol,
+              name: tokenData.name,
+              contractAddress: tokenData.contractAddress?.substring(0, 10) + '...'
+            });
+
+            // Process the payment and add token
+            console.log('🚀 Starting token submission to database...');
+            await submitTokenToDatabase(tokenData, {
+              paymentId,
+              status: 'completed',
+              timestamp: new Date().toISOString()
+            });
+            console.log('✅ Token submission completed successfully!');
+
+            // Clear the pending data
+            localStorage.removeItem('pendingTokenListing');
+            console.log('🧹 Cleared pending data from localStorage');
+
+            // Clear URL parameters
+            window.history.replaceState({}, document.title, window.location.pathname);
+            console.log('🔄 Cleared URL parameters');
+
+            // Show success message
+            console.log('🎊 Showing success modal...');
+            showProfessionalSuccessModal(tokenData);
+
+          } catch (error) {
+            console.error('❌ Failed to process pending payment:', error);
+            console.error('❌ Error details:', error.message);
+            showErrorModal('Failed to complete token listing. Please contact support with your payment confirmation.');
+          }
+        } else {
+          console.warn('⚠️ Payment success detected but no pending token data found in localStorage');
+          console.log('💡 This might happen if the page was refreshed before processing or data was cleared');
+        }
+      } else {
+        console.log('ℹ️ No payment success detected in URL parameters');
+      }
+    };
+
+    // Run immediately
+    handlePaymentCompletion();
+
+    // Also run after a short delay to catch any timing issues
+    const timeoutId = setTimeout(() => {
+      console.log('⏰ Running delayed payment completion check...');
+      handlePaymentCompletion();
+    }, 2000);
+
+    // Cleanup timeout
+    return () => clearTimeout(timeoutId);
+  }, [submitTokenToDatabase]); // Include submitTokenToDatabase as dependency
+
 
   // Validate Solana contract address format
   const isValidSolanaAddress = (address) => {
@@ -855,108 +1034,8 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     return errors;
   };
 
-  // Test Mode: Add token without payment (for testing)
-  const handleTestModeAddToken = async () => {
-    if (!tokenData) {
-      showErrorModal('No token data available for testing');
-      return;
-    }
 
-    console.log('🧪 TEST MODE: Adding token without payment');
-    console.log('📊 Token data being sent:', tokenData);
-    
-    try {
-      const testPaymentEvent = {
-        id: 'TEST_' + Date.now(),
-        type: 'test_mode',
-        amount: 0,
-        currency: 'TEST',
-        status: 'completed_test_mode'
-      };
 
-      const result = await submitTokenToDatabase(tokenData, testPaymentEvent);
-      
-      if (result.success) {
-        // Show detailed success information
-        const scores = result.scores || {};
-        const social = result.socialData || {};
-        
-        // Show immediate professional success message
-        showProfessionalSuccessModal(result.token);
-        
-        console.log('🎉 DETAILED TEST RESULTS:', result);
-        
-        // Notify parent component that token was added
-        if (onTokenAdded && result.token) {
-          onTokenAdded(result.token);
-        }
-        
-        // Reset form
-        setContractAddress('');
-        setTokenData(null);
-        setDuplicateCheck(null);
-        setValidationComplete(false);
-        setError('');
-      } else {
-        showErrorModal(`Test failed: ${result.error || 'Unknown error'}`);
-      }
-    } catch (error) {
-      console.error('❌ Test mode error:', error);
-      showErrorModal(`Test mode error: ${error.message}`);
-    }
-  };
-
-  // Submit token to database after successful payment
-  const submitTokenToDatabase = async (tokenData, paymentEvent) => {
-    try {
-      console.log('🔥 Submitting paid token to database:', tokenData);
-      
-      // Validate social links if provided
-      const socialValidationErrors = validateSocials();
-      if (socialValidationErrors.length > 0) {
-        console.warn('⚠️ Social validation errors (will skip socials):', socialValidationErrors);
-      }
-      
-      // Prepare payload with optional social links
-      const payload = {
-        tokenData: tokenData,
-        paymentData: paymentEvent
-      };
-      
-      // Add social links if any are provided and valid
-      const hasSocials = Object.values(socials).some(value => value && value.trim());
-      if (hasSocials && socialValidationErrors.length === 0) {
-        payload.socialLinks = socials;
-        console.log('📱 Including social links:', socials);
-      }
-      
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000'}/api/tokens/add-paid-token`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await response.json();
-      
-      if (response.ok) {
-        console.log('✅ Token successfully added to database:', result);
-        
-        // Notify parent component that token was added
-        if (onTokenAdded && result.token) {
-          onTokenAdded(result.token);
-        }
-      } else {
-        console.error('❌ Failed to add token to database:', result);
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('❌ Error submitting token to database:', error);
-      return { error: error.message };
-    }
-  };
 
   // Helio Pay Configuration with enhanced callbacks
   const helioConfig = {
@@ -1135,6 +1214,45 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Price Display */}
+          <div className="lg:col-span-2 mb-6">
+            <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-xl p-6 text-center">
+              <h2 className="text-2xl font-bold text-white mb-2">List Your Token</h2>
+              <div className="text-3xl font-bold text-white">$95 USDC</div>
+              <p className="text-green-100 mt-2">One-time listing fee</p>
+            </div>
+          </div>
+
+          {/* Steps */}
+          <div className="lg:col-span-2 mb-6">
+            <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-white mb-4">How to List Your Token</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-start space-x-3">
+                  <div className="bg-blue-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">1</div>
+                  <div>
+                    <h4 className="text-white font-medium">Paste Contract Address</h4>
+                    <p className="text-gray-400 text-sm">Validate your coin</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="bg-purple-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">2</div>
+                  <div>
+                    <h4 className="text-white font-medium">Add Socials</h4>
+                    <p className="text-gray-400 text-sm">Optional</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="bg-green-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">3</div>
+                  <div>
+                    <h4 className="text-white font-medium">Proceed to Payment</h4>
+                    <p className="text-gray-400 text-sm">Redirect to Helio</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Left Column - Form */}
           <div className="space-y-6">
             <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
@@ -1268,18 +1386,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                           )}
                         </div>
 
-                        {/* Test Mode Button - Bypass Payment */}
-                        <div className="mt-3 pt-3 border-t border-green-600">
-                          <button
-                            onClick={handleTestModeAddToken}
-                            className="w-full px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors text-sm font-medium"
-                          >
-                            🧪 Test Mode - Add Token (Skip Payment)
-                          </button>
-                          <p className="text-yellow-200 text-xs mt-1 text-center">
-                            For testing purposes only - bypasses payment
-                          </p>
-                        </div>
+
                       </div>
                     )}
                   </div>
@@ -1428,16 +1535,91 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                     <p className="text-gray-300 mb-6">
                       Your token is ready to be listed on DeGen Oracle. Please proceed to payment.
                     </p>
-                    {/* Helio Pay Integration - Temporarily disabled to fix MetaMask error */}
-                    <div className="bg-gray-800 rounded-lg p-6 border border-gray-600">
-                      <h4 className="text-white font-semibold text-lg mb-2">Payment</h4>
-                      <p className="text-gray-300 mb-4">Payment integration temporarily disabled</p>
-                      <button
-                        onClick={handleTestModeAddToken}
-                        className="w-full bg-purple-600 text-white py-3 px-4 rounded-lg hover:bg-purple-700 transition-colors"
-                      >
-                        🧪 Test Mode - Add Token (Skip Payment)
-                      </button>
+                    {/* Helio Pay Integration - Real Implementation */}
+                    <div className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 rounded-lg p-6 border border-blue-500/30">
+                      <h4 className="text-white font-semibold text-lg mb-4 flex items-center">
+                        <span className="mr-2">💳</span>
+                        Secure Payment
+                      </h4>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-300">Token Listing Fee:</span>
+                          <span className="text-white font-semibold">$95</span>
+                        </div>
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-gray-300">Payment Method:</span>
+                          <span className="text-green-400 font-medium">USDC</span>
+                        </div>
+                        <div className="pt-2 border-t border-gray-600">
+                          <p className="text-xs text-gray-400 mb-4">
+                            Secure payment powered by Helio Pay. Pay with USDC on Solana.
+                          </p>
+                          <button
+                            onClick={async () => {
+                              try {
+                                console.log('💳 Creating payment for token:', tokenData?.symbol);
+
+                                const apiBase = process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000';
+                                const successUrl = `${window.location.origin}/?payment=success`;
+                                const cancelUrl = `${window.location.origin}/?payment=cancelled`;
+
+                                const response = await fetch(`${apiBase}/api/payments/create-token-listing`, {
+                                  method: 'POST',
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                  },
+                                  body: JSON.stringify({
+                                    tokenData: tokenData,
+                                    userId: 'user_' + Date.now(), // Generate temporary user ID
+                                    successUrl: successUrl,
+                                    cancelUrl: cancelUrl
+                                  })
+                                });
+
+                                const result = await response.json();
+
+                                if (result.success && result.payment) {
+                                  console.log('✅ Payment created:', result.payment);
+
+                                  // Store payment info in localStorage for post-payment processing
+                                  localStorage.setItem('pendingTokenListing', JSON.stringify({
+                                    ...tokenData,
+                                    paymentId: result.payment.paymentId,
+                                    paymentUrl: result.payment.paymentUrl,
+                                    paymentInitiated: new Date().toISOString()
+                                  }));
+
+                                  // Navigate to Helio payment
+                                  window.location.href = result.payment.paymentUrl;
+                                } else {
+                                  throw new Error(result.error || 'Payment creation failed');
+                                }
+
+                              } catch (error) {
+                                console.error('❌ Payment creation error:', error);
+                                showErrorModal('Failed to create payment. Please try again.');
+                              }
+                            }}
+                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105"
+                          >
+                            💳 Proceed to Payment ($95)
+                          </button>
+                          <div className="flex items-center justify-center mt-3 space-x-4 text-xs text-gray-400">
+                            <span className="flex items-center">
+                              <span className="w-2 h-2 bg-green-400 rounded-full mr-1"></span>
+                              Secure
+                            </span>
+                            <span className="flex items-center">
+                              <span className="w-2 h-2 bg-blue-400 rounded-full mr-1"></span>
+                              Instant
+                            </span>
+                            <span className="flex items-center">
+                              <span className="w-2 h-2 bg-purple-400 rounded-full mr-1"></span>
+                              Crypto
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </>
                 ) : duplicateCheck?.exists ? (

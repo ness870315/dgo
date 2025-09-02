@@ -605,7 +605,7 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
                               console.log('🔗 Contract address to validate:', selectedToken?.contractAddress);
 
                               // Check if token exists in our database by fetching all tokens and filtering
-                              const response = await fetch(`http://localhost:4000/api/tokens`);
+                              const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:4000'}/api/tokens`);
                               const tokens = await response.json();
                               console.log('📊 Fetched tokens from API:', tokens.length);
 
