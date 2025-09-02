@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "DeGen Oracle Backend API",
   "main": "enhancedBackend.js",
+  "type": "module",
   "engines": {
     "node": "18.x",
     "npm": "9.x"
