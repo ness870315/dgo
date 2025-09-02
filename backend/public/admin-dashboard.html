@@ -1241,6 +1241,11 @@
         // Jupiter API Functions
         async function checkJupiterHealth() {
             const resultDiv = document.getElementById('jupiterResults');
+            if (!resultDiv) {
+                showAlert('❌ Jupiter results container not found', 'error');
+                return;
+            }
+
             resultDiv.style.display = 'block';
             resultDiv.innerHTML = '<h3>🪐 Jupiter API Results</h3>' + showLoading();
 
@@ -1248,21 +1253,35 @@
                 const response = await fetch(`${API_BASE}/api/jupiter/health`);
                 const data = await response.json();
 
+                const contentDiv = document.getElementById('jupiterResultsContent');
+                if (!contentDiv) {
+                    showAlert('❌ Jupiter results content div not found', 'error');
+                    return;
+                }
+
                 if (data.success) {
-                    document.getElementById('jupiterResultsContent').textContent = JSON.stringify(data, null, 2);
+                    contentDiv.textContent = JSON.stringify(data, null, 2);
                     showAlert(`✅ Jupiter API is ${data.healthy ? 'healthy' : 'unhealthy'}`, 'success');
                 } else {
-                    document.getElementById('jupiterResultsContent').textContent = JSON.stringify(data, null, 2);
+                    contentDiv.textContent = JSON.stringify(data, null, 2);
                     showAlert(`❌ Jupiter API Error: ${data.error}`, 'error');
                 }
             } catch (error) {
-                document.getElementById('jupiterResultsContent').textContent = `Error: ${error.message}`;
+                const contentDiv = document.getElementById('jupiterResultsContent');
+                if (contentDiv) {
+                    contentDiv.textContent = `Error: ${error.message}`;
+                }
                 showAlert(`❌ Jupiter API is down: ${error.message}`, 'error');
             }
         }
 
         async function getJupiterInfo() {
             const resultDiv = document.getElementById('jupiterResults');
+            if (!resultDiv) {
+                showAlert('❌ Jupiter results container not found', 'error');
+                return;
+            }
+
             resultDiv.style.display = 'block';
             resultDiv.innerHTML = '<h3>🪐 Jupiter API Results</h3>' + showLoading();
 
@@ -1270,50 +1289,69 @@
                 const response = await fetch(`${API_BASE}/api/jupiter/info`);
                 const data = await response.json();
 
+                const contentDiv = document.getElementById('jupiterResultsContent');
+                if (!contentDiv) {
+                    showAlert('❌ Jupiter results content div not found', 'error');
+                    return;
+                }
+
                 if (data.success) {
-                    document.getElementById('jupiterResultsContent').textContent = JSON.stringify(data, null, 2);
+                    contentDiv.textContent = JSON.stringify(data, null, 2);
                     showAlert(`✅ Jupiter API Info Retrieved`, 'success');
                 } else {
-                    document.getElementById('jupiterResultsContent').textContent = JSON.stringify(data, null, 2);
+                    contentDiv.textContent = JSON.stringify(data, null, 2);
                     showAlert(`❌ Jupiter API Error: ${data.error}`, 'error');
                 }
             } catch (error) {
-                document.getElementById('jupiterResultsContent').textContent = `Error: ${error.message}`;
+                const contentDiv = document.getElementById('jupiterResultsContent');
+                if (contentDiv) {
+                    contentDiv.textContent = `Error: ${error.message}`;
+                }
                 showAlert(`❌ Jupiter API is down: ${error.message}`, 'error');
             }
         }
 
         async function testJupiterContract() {
             const contractAddress = document.getElementById('jupiterTestContract').value.trim();
+            const resultDiv = document.getElementById('jupiterTestResult');
 
-            if (!contractAddress) {
-                document.getElementById('jupiterTestResult').innerHTML = showAlert('❌ Please enter a contract address', 'error');
+            if (!resultDiv) {
+                showAlert('❌ Jupiter test result div not found', 'error');
                 return;
             }
 
-            document.getElementById('jupiterTestResult').innerHTML = showLoading();
+            if (!contractAddress) {
+                resultDiv.innerHTML = showAlert('❌ Please enter a contract address', 'error');
+                return;
+            }
+
+            resultDiv.innerHTML = showLoading();
 
             try {
                 const response = await fetch(`${API_BASE}/api/jupiter/test/${contractAddress}`);
                 const data = await response.json();
 
                 if (data.success) {
-                    document.getElementById('jupiterTestResult').innerHTML = showAlert(
+                    resultDiv.innerHTML = showAlert(
                         `✅ Jupiter API found token: ${data.tokenData.symbol || 'Unknown'} (${data.tokenData.name || 'Unknown'})`,
                         'success'
                     );
 
-                    const resultDiv = document.getElementById('jupiterResults');
-                    resultDiv.style.display = 'block';
-                    document.getElementById('jupiterResultsContent').textContent = JSON.stringify(data, null, 2);
+                    const resultsContainer = document.getElementById('jupiterResults');
+                    const contentDiv = document.getElementById('jupiterResultsContent');
+
+                    if (resultsContainer && contentDiv) {
+                        resultsContainer.style.display = 'block';
+                        contentDiv.textContent = JSON.stringify(data, null, 2);
+                    }
                 } else {
-                    document.getElementById('jupiterTestResult').innerHTML = showAlert(
+                    resultDiv.innerHTML = showAlert(
                         `❌ Token not found: ${data.error}`,
                         'error'
                     );
                 }
             } catch (error) {
-                document.getElementById('jupiterTestResult').innerHTML = showAlert(
+                resultDiv.innerHTML = showAlert(
                     `❌ Error: ${error.message}`,
                     'error'
                 );
@@ -1322,9 +1360,15 @@
 
         async function refreshSingleJupiterToken() {
             const contractAddress = document.getElementById('jupiterRefreshContract').value.trim();
+            const resultDiv = document.getElementById('jupiterRefreshResult');
+
+            if (!resultDiv) {
+                showAlert('❌ Jupiter refresh result div not found', 'error');
+                return;
+            }
 
             if (!contractAddress) {
-                document.getElementById('jupiterRefreshResult').innerHTML = showAlert('❌ Please enter a contract address', 'error');
+                resultDiv.innerHTML = showAlert('❌ Please enter a contract address', 'error');
                 return;
             }
 
@@ -1332,7 +1376,7 @@
                 return;
             }
 
-            document.getElementById('jupiterRefreshResult').innerHTML = showLoading();
+            resultDiv.innerHTML = showLoading();
 
             try {
                 const response = await fetch(`${API_BASE}/api/admin/jupiter/refresh/${contractAddress}`, {
@@ -1345,22 +1389,26 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    document.getElementById('jupiterRefreshResult').innerHTML = showAlert(
+                    resultDiv.innerHTML = showAlert(
                         `✅ ${data.message}`,
                         'success'
                     );
 
-                    const resultDiv = document.getElementById('jupiterResults');
-                    resultDiv.style.display = 'block';
-                    document.getElementById('jupiterResultsContent').textContent = JSON.stringify(data, null, 2);
+                    const resultsContainer = document.getElementById('jupiterResults');
+                    const contentDiv = document.getElementById('jupiterResultsContent');
+
+                    if (resultsContainer && contentDiv) {
+                        resultsContainer.style.display = 'block';
+                        contentDiv.textContent = JSON.stringify(data, null, 2);
+                    }
                 } else {
-                    document.getElementById('jupiterRefreshResult').innerHTML = showAlert(
+                    resultDiv.innerHTML = showAlert(
                         `❌ Error: ${data.error}`,
                         'error'
                     );
                 }
             } catch (error) {
-                document.getElementById('jupiterRefreshResult').innerHTML = showAlert(
+                resultDiv.innerHTML = showAlert(
                     `❌ Error: ${error.message}`,
                     'error'
                 );
@@ -1373,6 +1421,13 @@
             }
 
             const resultDiv = document.getElementById('jupiterResults');
+            const contentDiv = document.getElementById('jupiterResultsContent');
+
+            if (!resultDiv || !contentDiv) {
+                showAlert('❌ Jupiter results container not found', 'error');
+                return;
+            }
+
             resultDiv.style.display = 'block';
             resultDiv.innerHTML = '<h3>🪐 Jupiter API Results</h3>' + showLoading();
 
@@ -1425,14 +1480,14 @@
                         `;
                     }
 
-                    document.getElementById('jupiterResultsContent').innerHTML = html;
+                    contentDiv.innerHTML = html;
                     showAlert(`✅ Jupiter refresh completed: ${data.successCount}/${data.paidTokens} successful`, 'success');
                 } else {
-                    document.getElementById('jupiterResultsContent').textContent = JSON.stringify(data, null, 2);
+                    contentDiv.textContent = JSON.stringify(data, null, 2);
                     showAlert(`❌ Error: ${data.error}`, 'error');
                 }
             } catch (error) {
-                document.getElementById('jupiterResultsContent').textContent = `Error: ${error.message}`;
+                contentDiv.textContent = `Error: ${error.message}`;
                 showAlert(`❌ Error: ${error.message}`, 'error');
             }
         }
