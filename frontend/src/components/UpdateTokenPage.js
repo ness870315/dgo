@@ -427,22 +427,9 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
           onTokenUpdated(selectedToken);
         }
 
-        // Trigger score recalculation
-        try {
-          console.log('🔄 Triggering score recalculation for updated token...');
-          const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-          await fetch(`${apiBase}/api/admin/recalculate-scores`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              contractAddress: selectedToken.contractAddress,
-              reason: 'social_links_updated'
-            })
-          });
-          console.log('✅ Score recalculation triggered successfully');
-        } catch (error) {
-          console.error('❌ Error triggering score recalculation:', error);
-        }
+        // Note: Score recalculation is handled automatically by the backend
+        // when social links are updated via updateMainTokensCache()
+        console.log('✅ Social links updated - backend handles score recalculation automatically');
 
         // Reset form after a delay to allow user to see success modal
         setTimeout(() => {
@@ -1031,7 +1018,7 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
                   <p className="text-green-300 text-sm">
                     ✅ Payment processed successfully<br/>
                     ✅ Social links applied<br/>
-                    ✅ Community score recalculation triggered
+                    ✅ Community score updated automatically
                   </p>
                 </div>
               </div>
