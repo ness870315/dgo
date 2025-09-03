@@ -28,7 +28,7 @@ class EnhancedTokenProcessor {
     
     // CONSERVATIVE Rate limiting configuration to avoid 429 errors
     this.rateLimits = {
-      coingecko: { batchSize: 100, delayMs: 30000, maxTokens: 500 }, // Conservative: 100 per batch, 30s delay
+      coingecko: { batchSize: 40, delayMs: 30000, maxTokens: 500 }, // 40 tokens per batch to avoid rate limits
       dexscreener: { batchSize: 50, delayMs: 5000, maxTokens: 70 }, // Conservative: 50 per batch, 5s delay, 70 tokens max
       jupiter: { batchSize: 100, delayMs: 30000, maxTokens: 600 }, // 30 second delay to avoid rate limits
       twitter: { batchSize: 10, delayMs: 15000, maxTokens: 1000 } // Reduced batch size, increased delay to avoid 429 errors
@@ -639,8 +639,8 @@ class EnhancedTokenProcessor {
   // FAST API INTEGRATION METHODS (Based on trendingTokenService.js)
   async fetchCoinGeckoBatch(page, batchSize) {
     try {
-      // Use much larger batch size for efficiency (250 tokens per page like trendingTokenService)
-      const effectiveBatchSize = Math.min(batchSize * 6, 250); // 6x faster batching
+      // Use the configured batch size to respect rate limits
+      const effectiveBatchSize = batchSize; // Use exact batch size from configuration
       
       const url = `${this.apis.coingecko}/coins/markets`;
       const params = {

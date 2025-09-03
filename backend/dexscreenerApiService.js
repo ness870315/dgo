@@ -71,7 +71,7 @@ class DexscreenerApiService {
           }
 
           // Increased delay to prevent 403 rate limit errors
-          await new Promise(resolve => setTimeout(resolve, 2000)); // 2 seconds between searches
+          await new Promise(resolve => setTimeout(resolve, 20000)); // 20 seconds between searches
 
         } catch (error) {
           console.log(`⚠️ Search failed for "${searchTerm}":`, error.message);
