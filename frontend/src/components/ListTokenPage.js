@@ -538,21 +538,21 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     if (!address || address.length < 32 || address.length > 44) {
       return 'Solana addresses must be 32-44 characters long';
     }
-
+    
     const invalidChars = [];
     const validBase58Chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-
+    
     for (let i = 0; i < address.length; i++) {
       const char = address[i];
       if (!validBase58Chars.includes(char)) {
         invalidChars.push(`'${char}' at position ${i + 1}`);
       }
     }
-
+    
     if (invalidChars.length > 0) {
       return `Invalid characters found: ${invalidChars.join(', ')}. Base58 excludes: 0, O, I, l`;
     }
-
+    
     return 'Invalid Solana contract address format';
   };
 
@@ -560,7 +560,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   const fetchTokenMetadata = async (ca) => {
     try {
       console.log('🔍 Attempting to fetch token metadata from Bitquery for:', ca);
-
+      
       const query = `
         query MyQuery {
           Solana(dataset: archive) {
@@ -584,7 +584,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       `;
 
       console.log('🔍 Trying Bitquery API...');
-
+      
       const response = await fetch('https://streaming.bitquery.io/eap', {
         method: 'POST',
         headers: {
@@ -610,14 +610,14 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }
 
       const tokenData = data.data?.Solana?.DEXTradeByTokens?.[0]?.Trade?.Currency;
-
+      
       if (!tokenData) {
         console.log('⚠️ No token data found in DEX trades for this address');
         throw new Error('Token not found in DEX trading data. This token may not have been traded yet.');
       }
 
       console.log('✅ Successfully retrieved token metadata:', tokenData);
-
+      
       return {
         name: tokenData.Name || 'Unknown Token',
         symbol: tokenData.Symbol || 'UNKNOWN', // Use actual symbol from Bitquery
@@ -641,7 +641,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   const fetchPriceData = async (ca) => {
     try {
       console.log('🔍 Fetching price data from Bitquery for:', ca);
-
+      
       const priceQuery = `{
         Solana {
           DEXTradeByTokens(
@@ -672,7 +672,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }`;
 
       console.log('🔍 Price query:', priceQuery);
-
+      
       const response = await fetch('https://streaming.bitquery.io/eap', {
         method: 'POST',
         headers: {
@@ -695,7 +695,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }
 
       const priceData = data.data?.Solana?.DEXTradeByTokens?.[0];
-
+      
       if (!priceData) {
         console.log('⚠️ No price data found');
         return {
@@ -709,7 +709,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }
 
       console.log('✅ Successfully retrieved price data:', priceData);
-
+      
       return {
         price: priceData.Trade.PriceInUSD || 0,
         priceInSol: priceData.Trade.PriceInSol || 0,
@@ -736,20 +736,20 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   const checkTokenExists = async (ca, symbol, name) => {
     try {
       console.log('🔍 Checking if token already exists:', { ca, symbol, name });
-
+      
       // Check by contract address first (most reliable)
       const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/tokens`);
       const tokens = await response.json();
-
+      
       // Convert to array if it's an object with tokens property
       const tokenArray = Array.isArray(tokens) ? tokens : (tokens.tokens || []);
-
+      
       console.log('🔍 DEBUGGING CONTRACT CHECK:');
       console.log('   Input CA:', ca);
       console.log('   Total tokens:', tokenArray.length);
-
+      
       // Debug: Look for memeputer tokens specifically
-      const memeputerTokens = tokenArray.filter(token =>
+      const memeputerTokens = tokenArray.filter(token => 
         token.name && token.name.toLowerCase().includes('memeputer')
       );
       console.log('   Memeputer tokens found:', memeputerTokens.map(t => ({
@@ -757,14 +757,14 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         symbol: t.symbol,
         contractAddress: t.contractAddress
       })));
-
+      
       // Check for duplicates by contract address (primary)
-      const existingByContract = tokenArray.find(token =>
+      const existingByContract = tokenArray.find(token => 
         token.contractAddress && token.contractAddress.toLowerCase() === ca.toLowerCase()
       );
-
+      
       console.log('   Contract match result:', existingByContract ? 'FOUND' : 'NOT FOUND');
-
+      
       if (existingByContract) {
         console.log('⚠️ Token found by contract address:', existingByContract);
         return {
@@ -774,16 +774,16 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
           message: `This token is already listed in our database with the contract address ${ca}`
         };
       }
-
+      
       // REMOVED: Symbol/name checking to avoid false positives
       // Only contract address checking is reliable for Solana tokens
-
+      
       console.log('✅ Token is not in database - safe to list');
       return {
         exists: false,
         message: 'Token is not in our database. Safe to proceed with listing.'
       };
-
+      
     } catch (error) {
       console.error('❌ Error checking token existence:', error);
       return {
@@ -798,7 +798,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   const fetchMarketCapData = async (ca) => {
     try {
       console.log('🔍 Fetching market cap data from Bitquery for:', ca);
-
+      
       // First try simple supply query
       const simpleSupplyQuery = `{
         Solana {
@@ -824,7 +824,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }`;
 
       console.log('🔍 Trying simple supply query first:', simpleSupplyQuery);
-
+      
       let response = await fetch('https://streaming.bitquery.io/eap', {
         method: 'POST',
         headers: {
@@ -837,7 +837,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       if (response.ok) {
         const simpleData = await response.json();
         console.log('✅ Simple supply query response:', simpleData);
-
+        
         if (!simpleData.errors && simpleData.data?.Solana?.TokenSupplyUpdates?.[0]) {
           const supplyData = simpleData.data.Solana.TokenSupplyUpdates[0].TokenSupplyUpdate;
           console.log('✅ Found supply data with simple query:', supplyData);
@@ -847,7 +847,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
           console.log('   hasMarketCap:', !!supplyData.PostBalanceInUSD);
           console.log('   marketCapValue:', supplyData.PostBalanceInUSD);
           console.log('   typeof PostBalanceInUSD:', typeof supplyData.PostBalanceInUSD);
-
+          
           return {
             marketCap: supplyData.PostBalanceInUSD || 0,
             totalSupply: supplyData.PostBalance || 0,
@@ -858,10 +858,10 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }
 
       console.log('⚠️ Simple query failed, trying complex join query...');
-
+      
       // Get time 15 seconds ago for recent data
       const time15sAgo = new Date(Date.now() - 15000).toISOString();
-
+      
       const marketCapQuery = `query MyQuery($time_15s: DateTime) {
         Solana {
           DEXTradeByTokens(
@@ -894,14 +894,14 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }`;
 
       console.log('🔍 Market cap query:', marketCapQuery);
-
+      
       response = await fetch('https://streaming.bitquery.io/eap', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ory_at_gdYmaq9AHhGAwTIFSGzIsS6kas1bFJfJXuBthqzFDx4.StK99y_pGpRxVe91TPwftlfOi-PNOIu05KhQK-WAQiI'
         },
-        body: JSON.stringify({
+        body: JSON.stringify({ 
           query: marketCapQuery,
           variables: {
             time_15s: time15sAgo
@@ -922,14 +922,14 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }
 
       const marketCapData = data.data?.Solana?.DEXTradeByTokens?.[0];
-
+      
       console.log('🔍 Detailed market cap response analysis:', {
         hasData: !!marketCapData,
         tradeData: marketCapData?.Trade,
         joinData: marketCapData?.joinTokenSupplyUpdates,
         rawResponse: data.data?.Solana
       });
-
+      
       if (!marketCapData) {
         console.log('⚠️ No market cap data found - no DEXTradeByTokens results');
         return {
@@ -938,7 +938,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
           marketCapSource: 'no_trades'
         };
       }
-
+      
       if (!marketCapData.joinTokenSupplyUpdates || marketCapData.joinTokenSupplyUpdates.length === 0) {
         console.log('⚠️ No supply updates found in join - trying alternative calculation');
         // Alternative: Calculate market cap from price and a common supply estimate
@@ -954,7 +954,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
             priceForCalculation: priceInUSD
           };
         }
-
+        
         return {
           marketCap: 0,
           totalSupply: 0,
@@ -963,12 +963,12 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }
 
       const supplyUpdate = marketCapData.joinTokenSupplyUpdates?.[0]?.TokenSupplyUpdate;
-
+      
       console.log('✅ Successfully retrieved market cap data:', {
         marketCap: supplyUpdate?.PostBalanceInUSD,
         totalSupply: supplyUpdate?.PostBalance
       });
-
+      
       return {
         marketCap: supplyUpdate?.PostBalanceInUSD || 0,
         totalSupply: supplyUpdate?.PostBalance || 0,
@@ -987,7 +987,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    
     const trimmedAddress = contractAddress.trim();
     console.log('🧪 Validation Debug:', {
       address: trimmedAddress,
@@ -995,7 +995,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       isValid: isValidSolanaAddress(trimmedAddress),
       regex: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(trimmedAddress)
     });
-
+    
     if (!trimmedAddress) {
       setError('Please enter a contract address');
       return;
@@ -1016,13 +1016,13 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
 
     try {
       console.log('🔍 Fetching token metadata for:', contractAddress);
-
+      
       // Step 1: Get basic metadata from Bitquery
       const metadata = await fetchTokenMetadata(contractAddress);
-
+      
       // Step 2: Get real price data from Bitquery
       const priceData = await fetchPriceData(contractAddress);
-
+      
       // Step 3: Get market cap data from Bitquery
       const marketCapData = await fetchMarketCapData(contractAddress);
 
@@ -1032,17 +1032,17 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         metadata.symbol || priceData?.symbol || 'UNKNOWN',
         metadata.name || 'Unknown Token'
       );
-
+      
       setDuplicateCheck(duplicateCheckResult);
 
           // Calculate market cap manually if not available from Bitquery
     let finalMarketCap = marketCapData?.marketCap || 0;
-
+    
     console.log('🔍 Market cap calculation check:');
     console.log('   finalMarketCap:', finalMarketCap);
     console.log('   priceData?.price:', priceData?.price);
     console.log('   marketCapData?.totalSupply:', marketCapData?.totalSupply);
-
+    
     if (!finalMarketCap && priceData?.price && marketCapData?.totalSupply) {
       finalMarketCap = priceData.price * marketCapData.totalSupply;
       console.log('💡 Calculated market cap manually:');
@@ -1071,10 +1071,10 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         marketCapCheck: combinedData.marketCap && combinedData.marketCap > 0,
         fullCombinedData: combinedData
       });
-
+      
       setTokenData(combinedData);
       setValidationComplete(true);
-
+      
     } catch (err) {
       setError(err.message || 'Failed to fetch token data');
     } finally {
@@ -1084,13 +1084,13 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
 
   const calculateTokenScore = (metadata, coinGecko, dexScreener) => {
     let score = 5; // Base score
-
+    
     // Add points for available data
     if (metadata?.name && metadata?.symbol) score += 1;
     if (coinGecko?.marketCap > 100000) score += 1;
     if (dexScreener?.liquidity > 50000) score += 1;
     if (coinGecko?.volume24h > 10000) score += 1;
-
+    
     return Math.min(score, 10);
   };
 
@@ -1158,7 +1158,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     display: "inline",
     onSuccess: event => {
       console.log('✅ Payment successful:', event);
-
+      
       // Get pending token data
       const pendingToken = localStorage.getItem('pendingTokenListing');
       if (pendingToken) {
@@ -1167,17 +1167,17 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
 
         // Show immediate professional success message
         showProfessionalSuccessModal(tokenData);
-
+        
         // Mark as payment completed
         localStorage.setItem('completedTokenListing', JSON.stringify({
           ...tokenData,
           paymentCompleted: new Date().toISOString(),
           paymentEvent: event
         }));
-
+        
         // Remove pending status
         localStorage.removeItem('pendingTokenListing');
-
+        
         // Send to backend API to add token to database (async, don't wait)
         submitTokenToDatabase(tokenData, event).catch(error => {
           console.error('❌ Background token submission error:', error);
@@ -1194,13 +1194,13 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     },
     onError: event => {
       console.log('❌ Payment error:', event);
-
+      
       // Redirect back with error message
       window.location.href = `${window.location.origin}/?payment=error&reason=${event?.error || 'unknown'}`;
     },
     onPending: event => {
       console.log('🕐 Payment pending:', event);
-
+      
       // Store pending status
       const pendingToken = localStorage.getItem('pendingTokenListing');
       if (pendingToken) {
@@ -1214,7 +1214,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     },
     onCancel: () => {
       console.log("❌ Payment cancelled");
-
+      
       // Redirect back with cancellation message
       window.location.href = `${window.location.origin}/?payment=cancelled`;
     },
@@ -1222,12 +1222,12 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       console.log("🚀 Starting payment");
 
       // Store token data for post-payment handling
-      if (tokenData) {
-        localStorage.setItem('pendingTokenListing', JSON.stringify({
-          contractAddress: tokenData.contractAddress,
-          name: tokenData.name,
-          symbol: tokenData.symbol,
-          paymentInitiated: new Date().toISOString(),
+              if (tokenData) {
+                localStorage.setItem('pendingTokenListing', JSON.stringify({
+                  contractAddress: tokenData.contractAddress,
+                  name: tokenData.name,
+                  symbol: tokenData.symbol,
+                  paymentInitiated: new Date().toISOString(),
           socialLinks: socials // Include social links if provided
         }));
         console.log('💾 Token data stored for post-payment processing');
@@ -1302,7 +1302,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
           <div className="space-y-6">
             <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
               <h2 className="text-xl font-semibold text-white mb-4">Token Information</h2>
-
+              
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -1343,7 +1343,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                           <p className="text-red-300 font-medium">Token Already Listed!</p>
                         </div>
                         <p className="text-red-200 text-sm mb-3">{duplicateCheck.message}</p>
-
+                        
                         {duplicateCheck.existingToken && (
                           <div className="bg-red-800 bg-opacity-40 p-3 rounded-lg">
                             <p className="text-red-200 text-xs font-medium mb-2">Existing Token Details:</p>
@@ -1355,7 +1355,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                             </div>
                           </div>
                         )}
-
+                        
                         <div className="mt-3">
                           <button
                             onClick={() => {
@@ -1380,7 +1380,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                         <p className="text-green-200 text-sm mb-3">
                           Token validated and ready for listing. Proceed with payment to add it to DeGen Oracle.
                         </p>
-
+                        
                         {/* Optional Social Links Section */}
                         <div className="mt-4 pt-4 border-t border-green-600">
                           <button
@@ -1471,7 +1471,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                   {/* Token Basic Info */}
                   <div className="flex items-center space-x-3">
                     {(tokenData.image || tokenData.jupiterData?.icon) ? (
-                      <img
+                      <img 
                         src={tokenData.jupiterData?.icon || tokenData.image}
                         alt={tokenData.name}
                         className="w-12 h-12 rounded-full"
@@ -1516,14 +1516,14 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                                 totalSupply: tokenData.totalSupply,
                                 manualCalc: tokenData.price * tokenData.totalSupply
                               });
-
+                              
                               // If marketCap is 0 but we have price and supply, calculate it here
                               let finalMarketCap = marketCap;
                               if (finalMarketCap === 0 && tokenData.price && tokenData.totalSupply) {
                                 finalMarketCap = tokenData.price * tokenData.totalSupply;
                                 console.log('💡 UI Fallback calculation:', finalMarketCap);
                               }
-
+                              
                               return finalMarketCap >= 1000000
                                 ? `$${(finalMarketCap / 1000000).toFixed(2)}M`
                                 : finalMarketCap >= 1000
@@ -1563,17 +1563,17 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                   <CheckCircle size={20} className="text-green-400" />
                   <h2 className="text-xl font-semibold text-white">Token Address Validated!</h2>
                 </div>
-
+                
                 <p className="text-gray-300 mb-4">
                   ✅ <strong>Solana contract address verified</strong> - Your token address passed Base58 validation and is confirmed as a valid Solana token address.
                 </p>
-
+                
                 {tokenData.source === 'bitquery' && (
                   <p className="text-green-300 mb-4">
                     ✅ <strong>Token metadata found</strong> - Successfully retrieved token information from Bitquery.
                   </p>
                 )}
-
+                
                 {/* Only show payment if duplicate check passed */}
                 {duplicateCheck && !duplicateCheck.exists ? (
                   <>
