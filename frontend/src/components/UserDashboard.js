@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { BarChart3, Star, TrendingUp, Activity, Wallet, Users, Calendar, Award, Target, DollarSign } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -18,13 +18,9 @@ const UserDashboard = () => {
 
   const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
 
-  useEffect(() => {
-    if (user && sessionId) {
-      fetchDashboardData();
-    }
-  }, [user, sessionId]);
-
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
+    if (loading) return; // Prevent multiple simultaneous calls
+    
     try {
       setLoading(true);
       
@@ -54,7 +50,13 @@ const UserDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionId, API_BASE]);
+
+  useEffect(() => {
+    if (user && sessionId) {
+      fetchDashboardData();
+    }
+  }, [user, sessionId]);
 
   if (loading) {
     return (
