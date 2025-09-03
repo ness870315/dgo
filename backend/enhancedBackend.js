@@ -2606,5 +2606,14 @@ process.on('SIGTERM', async () => {
   process.exit(0);
 });
 
+// Start the backend server
+const backend = new EnhancedBackend();
+global.enhancedBackend = backend;
+
+backend.start().catch(error => {
+  console.error('❌ Failed to start Enhanced Backend:', error);
+  process.exit(1);
+});
+
 export default EnhancedBackend;
 
