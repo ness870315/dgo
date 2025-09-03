@@ -1614,101 +1614,72 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                             </div>
                           )}
                           
-                          {/* Payment Section with Modals Around Helio Widget */}
-                          <div className="space-y-4">
-                            {/* Token Address Validated Modal */}
-                            <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700 shadow-2xl overflow-hidden">
-                              <div className="p-6">
-                                <div className="flex items-center space-x-3 mb-4">
-                                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                                    <span className="text-white text-lg">✓</span>
-                                  </div>
-                                  <h2 className="text-xl font-semibold text-white">Token Address Validated!</h2>
+                          {/* Secure Payment Modal Around Helio Widget */}
+                          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700 shadow-2xl overflow-hidden">
+                            <div className="p-6">
+                              <div className="flex items-center space-x-3 mb-4">
+                                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
+                                  <span className="text-white text-sm font-bold">$</span>
                                 </div>
-                                
-                                <p className="text-gray-300 mb-4">
-                                  ✅ <strong>Solana contract address verified</strong> - Your token address passed Base58 validation and is confirmed as a valid Solana token address.
-                                </p>
-                                
-                                {tokenData.source === 'bitquery' && (
-                                  <p className="text-green-300 mb-4">
-                                    ✅ <strong>Token metadata found</strong> - Successfully retrieved token information from Bitquery.
-                                  </p>
-                                )}
-                                
-                                <p className="text-gray-300">
-                                  Your token is ready to be listed on DeGen Oracle. Please proceed to payment.
-                                </p>
+                                <h3 className="text-lg font-semibold text-white">Secure Payment</h3>
                               </div>
-                            </div>
-
-                            {/* Secure Payment Modal */}
-                            <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700 shadow-2xl overflow-hidden">
-                              <div className="p-6">
-                                <div className="flex items-center space-x-3 mb-4">
-                                  <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                                    <span className="text-white text-sm font-bold">$</span>
-                                  </div>
-                                  <h3 className="text-lg font-semibold text-white">Secure Payment</h3>
+                              
+                              <div className="space-y-3 mb-6">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-gray-300">Token Listing Fee:</span>
+                                  <span className="text-white font-semibold">$95</span>
                                 </div>
-                                
-                                <div className="space-y-3 mb-6">
-                                  <div className="flex justify-between items-center">
-                                    <span className="text-gray-300">Token Listing Fee:</span>
-                                    <span className="text-white font-semibold">$95</span>
-                                  </div>
-                                  <div className="flex justify-between items-center">
-                                    <span className="text-gray-300">Payment Method:</span>
-                                    <span className="text-green-400 font-semibold">USDC</span>
-                                  </div>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-gray-300">Payment Method:</span>
+                                  <span className="text-green-400 font-semibold">USDC</span>
                                 </div>
-                                
-                                <div className="border-t border-gray-600 pt-4 mb-6">
-                                  <p className="text-gray-300 text-sm mb-2">Complete your payment to list your token</p>
-                                  <p className="text-gray-400 text-xs">Secure payment powered by Helio Pay • USDC on Solana</p>
-                                </div>
-                                
-                                {/* Helio Widget Container - Natural Size */}
-                                <div className="relative">
-                                  <div id="helioCheckoutContainer" className="w-full">
-                                    {!helioLoaded ? (
-                                      <div className="min-h-[200px] flex flex-col items-center justify-center space-y-4 text-gray-400">
-                                        <div className="flex items-center space-x-3">
-                                          <Loader className="w-5 h-5 animate-spin text-purple-400" />
-                                          <span className="text-base font-medium">Loading payment widget...</span>
-                                        </div>
-                                        <div className="w-6 h-1 bg-gray-700 rounded-full overflow-hidden">
-                                          <div className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full animate-pulse"></div>
-                                        </div>
+                              </div>
+                              
+                              <div className="border-t border-gray-600 pt-4 mb-6">
+                                <p className="text-gray-300 text-sm mb-2">Complete your payment to list your token</p>
+                                <p className="text-gray-400 text-xs">Secure payment powered by Helio Pay • USDC on Solana</p>
+                              </div>
+                              
+                              {/* Helio Widget Container - Original Size */}
+                              <div className="relative">
+                                <div id="helioCheckoutContainer" className="w-full">
+                                  {!helioLoaded ? (
+                                    <div className="min-h-[300px] flex flex-col items-center justify-center space-y-4 text-gray-400">
+                                      <div className="flex items-center space-x-3">
+                                        <Loader className="w-5 h-5 animate-spin text-purple-400" />
+                                        <span className="text-base font-medium">Loading payment widget...</span>
                                       </div>
-                                    ) : (
-                                      <div className="min-h-[200px] flex flex-col items-center justify-center space-y-3 text-gray-400">
-                                        <div className="flex items-center space-x-2">
-                                          <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                                            <span className="text-white text-xs">✓</span>
-                                          </div>
-                                          <span className="text-base font-medium">Payment form ready</span>
-                                        </div>
+                                      <div className="w-6 h-1 bg-gray-700 rounded-full overflow-hidden">
+                                        <div className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full animate-pulse"></div>
                                       </div>
-                                    )}
-                                  </div>
+                                    </div>
+                                  ) : (
+                                    <div className="min-h-[300px] flex flex-col items-center justify-center space-y-3 text-gray-400">
+                                      <div className="flex items-center space-x-2">
+                                        <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                                          <span className="text-white text-xs">✓</span>
+                                        </div>
+                                        <span className="text-base font-medium">Payment form ready</span>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
-                                
-                                {/* Security Footer */}
-                                <div className="mt-6 pt-4 border-t border-gray-600">
-                                  <div className="flex items-center justify-center space-x-6 text-xs text-gray-400">
-                                    <div className="flex items-center space-x-2">
-                                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                                      <span className="font-medium">SSL Encrypted</span>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                                      <span className="font-medium">PCI Compliant</span>
-                                    </div>
-                                    <div className="flex items-center space-x-2">
-                                      <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
-                                      <span className="font-medium">Instant Processing</span>
-                                    </div>
+                              </div>
+                              
+                              {/* Security Footer */}
+                              <div className="mt-6 pt-4 border-t border-gray-600">
+                                <div className="flex items-center justify-center space-x-6 text-xs text-gray-400">
+                                  <div className="flex items-center space-x-2">
+                                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                    <span className="font-medium">SSL Encrypted</span>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                                    <span className="font-medium">PCI Compliant</span>
+                                  </div>
+                                  <div className="flex items-center space-x-2">
+                                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+                                    <span className="font-medium">Instant Processing</span>
                                   </div>
                                 </div>
                               </div>
