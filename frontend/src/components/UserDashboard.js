@@ -23,6 +23,7 @@ const UserDashboard = () => {
     
     try {
       setLoading(true);
+      console.log('🔄 Fetching dashboard data for session:', sessionId);
       
       // Fetch user profile and watchlist
       const [profileResponse, watchlistResponse] = await Promise.all([
@@ -30,9 +31,14 @@ const UserDashboard = () => {
         fetch(`${API_BASE}/api/user/watchlist?sessionId=${sessionId}`)
       ]);
 
+      console.log('📊 Profile response status:', profileResponse.status);
+      console.log('📊 Watchlist response status:', watchlistResponse.status);
+
       if (profileResponse.ok && watchlistResponse.ok) {
         const profileData = await profileResponse.json();
         const watchlistData = await watchlistResponse.json();
+        
+        console.log('✅ Dashboard data received:', { profileData, watchlistData });
         
         setDashboardData({
           watchlistCount: watchlistData.watchlist?.length || 0,
@@ -44,9 +50,28 @@ const UserDashboard = () => {
           portfolioValue: 0, // TODO: Calculate portfolio value
           topPerformers: [] // TODO: Get top performing tokens
         });
+      } else {
+        console.error('❌ API calls failed:', {
+          profileStatus: profileResponse.status,
+          watchlistStatus: watchlistResponse.status,
+          profileText: await profileResponse.text(),
+          watchlistText: await watchlistResponse.text()
+        });
+        
+        // Set default data even if API fails
+        setDashboardData({
+          watchlistCount: 0,
+          tokensListed: 0,
+          tokensFueled: 0,
+          tokensUpdated: 0,
+          totalSpent: 0,
+          recentActivity: [],
+          portfolioValue: 0,
+          topPerformers: []
+        });
       }
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      console.error('❌ Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
     }
