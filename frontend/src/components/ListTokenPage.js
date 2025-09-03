@@ -477,7 +477,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
             neutralColor: "#5A6578",
             display: "inline",
             width: "100%",
-            height: "350px",
+            height: "300px",
             onSuccess: (event) => {
               console.log('🎉 Payment successful!', event);
               setPaymentProcessing(true);
@@ -1616,34 +1616,32 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                           )}
                           
                           <div className="relative">
-                            <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700 shadow-2xl overflow-hidden">
-                              <div className="p-1 bg-gradient-to-r from-purple-500/20 to-blue-500/20">
-                                <div className="bg-gray-800 rounded-lg">
-                                  <div id="helioCheckoutContainer" className="min-h-[350px] w-full">
-                                    {!helioLoaded ? (
-                                      <div className="min-h-[350px] flex flex-col items-center justify-center space-y-4 text-gray-400">
-                                        <div className="flex items-center space-x-3">
-                                          <Loader className="w-6 h-6 animate-spin text-purple-400" />
-                                          <span className="text-lg font-medium">Loading payment widget...</span>
-                                        </div>
-                                        <div className="w-8 h-1 bg-gray-700 rounded-full overflow-hidden">
-                                          <div className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full animate-pulse"></div>
-                                        </div>
+                            <div className="bg-gray-800 rounded-lg border border-gray-600 overflow-hidden">
+                              <div className="p-4">
+                                <div id="helioCheckoutContainer" className="w-full">
+                                  {!helioLoaded ? (
+                                    <div className="min-h-[300px] flex flex-col items-center justify-center space-y-4 text-gray-400">
+                                      <div className="flex items-center space-x-3">
+                                        <Loader className="w-5 h-5 animate-spin text-purple-400" />
+                                        <span className="text-base font-medium">Loading payment widget...</span>
                                       </div>
-                                    ) : (
-                                      <div className="min-h-[350px] flex flex-col items-center justify-center space-y-4 text-gray-400">
-                                        <div className="flex items-center space-x-3">
-                                          <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                                            <span className="text-white text-sm">✓</span>
-                                          </div>
-                                          <span className="text-lg font-medium">Initializing secure payment...</span>
-                                        </div>
-                                        <div className="text-sm text-gray-500">
-                                          Please wait while we prepare your payment form
-                                        </div>
+                                      <div className="w-6 h-1 bg-gray-700 rounded-full overflow-hidden">
+                                        <div className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full animate-pulse"></div>
                                       </div>
-                                    )}
-                                  </div>
+                                    </div>
+                                  ) : (
+                                    <div className="min-h-[300px] flex flex-col items-center justify-center space-y-3 text-gray-400">
+                                      <div className="flex items-center space-x-2">
+                                        <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                                          <span className="text-white text-xs">✓</span>
+                                        </div>
+                                        <span className="text-base font-medium">Initializing secure payment...</span>
+                                      </div>
+                                      <div className="text-sm text-gray-500">
+                                        Please wait while we prepare your payment form
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
