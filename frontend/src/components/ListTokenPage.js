@@ -237,6 +237,14 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     try {
       console.log('🔥 Submitting paid token to database:', tokenData);
       console.log('💳 Payment event data:', paymentEvent);
+      console.log('🔍 Token data structure check:', {
+        hasSymbol: !!tokenData?.symbol,
+        hasName: !!tokenData?.name,
+        hasContractAddress: !!tokenData?.contractAddress,
+        symbol: tokenData?.symbol,
+        name: tokenData?.name,
+        contractAddress: tokenData?.contractAddress
+      });
 
       // Generate a payment ID if not provided by Helio
       const paymentId = paymentEvent?.paymentId || `helio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -306,8 +314,10 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       });
 
       const result = await response.json();
+      console.log('🔍 Backend response:', result);
 
       if (!result.success) {
+        console.error('❌ Backend error details:', result);
         throw new Error(result.error || 'Failed to add token to database');
       }
 
