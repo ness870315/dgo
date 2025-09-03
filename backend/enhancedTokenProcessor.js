@@ -30,7 +30,7 @@ class EnhancedTokenProcessor {
     this.rateLimits = {
       coingecko: { batchSize: 100, delayMs: 30000, maxTokens: 500 }, // Conservative: 100 per batch, 30s delay
       dexscreener: { batchSize: 50, delayMs: 5000, maxTokens: 70 }, // Conservative: 50 per batch, 5s delay, 70 tokens max
-      jupiter: { batchSize: 100, delayMs: 30000, maxTokens: 600 }, // 30 second delay to avoid rate limits
+      jupiter: { batchSize: 50, delayMs: 30000, maxTokens: 600 }, // Reduced batch size to avoid 429 errors
       twitter: { batchSize: 10, delayMs: 15000, maxTokens: 1000 } // Reduced batch size, increased delay to avoid 429 errors
     };
     
