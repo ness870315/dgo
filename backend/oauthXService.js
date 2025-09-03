@@ -8,7 +8,7 @@ class OAuthXService {
     // X OAuth Credentials
     this.clientId = 'bWpzSFQ4M3k4VE1OeWRpVE8yTjY6MTpjaQ';
     this.clientSecret = 'ucnr-DcJkNx9RSYexiqW3Jv4wF4Ll6XLBJesRB7i0SN8VHXman';
-    this.redirectUri = process.env.X_REDIRECT_URI || `${process.env.FRONTEND_URL || 'https://degen-oracle.com'}/auth/callback`;
+    this.redirectUri = process.env.X_REDIRECT_URI || `${process.env.API_URL || 'https://api.degen-oracle.com'}/auth/callback`;
     this.scope = 'tweet.read users.read follows.read';
     
     // User database file
