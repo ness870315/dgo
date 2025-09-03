@@ -9,7 +9,7 @@ class HelioPaymentService {
 
     // Payment amounts (in cents)
     this.prices = {
-      tokenListing: 990, // $9.90 for token listing
+      tokenListing: 9500, // $95.00 for token listing (FIXED: was $9.90)
       socialUpdate: 490, // $4.90 for social links update
       priorityBoost: 1990 // $19.90 for priority boost
     };

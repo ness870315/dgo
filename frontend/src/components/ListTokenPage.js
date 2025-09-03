@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, CheckCircle, AlertCircle, Loader, ArrowLeft, Twitter, Globe, MessageCircle, Music, Instagram, ChevronDown, ChevronUp } from 'lucide-react';
+import { HelioCheckout } from '@heliofi/checkout-react';
 
 // Professional Success Modal Function
 const showProfessionalSuccessModal = (tokenData) => {
@@ -1037,80 +1038,96 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
 
 
 
-  // Helio Pay Configuration with enhanced callbacks
+  // 🔧 FIXED: Helio Pay Configuration with proper success handling
   const helioConfig = {
     paylinkId: "68ae3424a561997f2bc70c7e",
     theme: { "themeMode": "dark" },
     primaryColor: "#FE5300",
-    neutralColor: "#5A6578",
+    neutralColor: "#5A6578", 
     display: "inline",
     onSuccess: event => {
-      console.log('✅ Payment successful:', event);
+      console.log('🎉 Helio Payment SUCCESS detected!', event);
       
-      // Get pending token data
+      // Get pending token data from localStorage
       const pendingToken = localStorage.getItem('pendingTokenListing');
       if (pendingToken) {
-        const tokenData = JSON.parse(pendingToken);
-        console.log('Processing successful payment for token:', tokenData);
-        
-        // Show immediate professional success message
-        showProfessionalSuccessModal(tokenData);
-        
-        // Mark as payment completed
-        localStorage.setItem('completedTokenListing', JSON.stringify({
-          ...tokenData,
-          paymentCompleted: new Date().toISOString(),
-          paymentEvent: event
-        }));
-        
-        // Remove pending status
-        localStorage.removeItem('pendingTokenListing');
-        
-        // Send to backend API to add token to database (async, don't wait)
-        submitTokenToDatabase(tokenData, event).catch(error => {
-          console.error('❌ Background token submission error:', error);
-        });
-        
-        // Small delay before redirect to let user read the message
-        setTimeout(() => {
-          window.location.href = `${window.location.origin}/?payment=success&token=${tokenData.symbol || 'TOKEN'}`;
-        }, 2000);
+        try {
+          const tokenData = JSON.parse(pendingToken);
+          console.log('📦 Processing successful payment for token:', tokenData.symbol);
+          
+          // Immediately show success modal
+          showProfessionalSuccessModal(tokenData);
+          
+          // Submit token to database in background
+          submitTokenToDatabase(tokenData, event).then(() => {
+            console.log('✅ Token successfully added to database');
+          }).catch(error => {
+            console.error('❌ Background token submission error:', error);
+            // Still show success to user since payment completed
+          });
+          
+          // Clean up localStorage
+          localStorage.removeItem('pendingTokenListing');
+          
+          // Set completion flag for redirect handling
+          localStorage.setItem('paymentCompleted', JSON.stringify({
+            tokenSymbol: tokenData.symbol,
+            completedAt: new Date().toISOString(),
+            paymentEvent: event
+          }));
+          
+        } catch (error) {
+          console.error('❌ Error processing payment success:', error);
+          showErrorModal('Payment completed but there was an error processing your token. Please contact support.');
+        }
       } else {
-        // No pending token data, redirect immediately
-        window.location.href = `${window.location.origin}/?payment=success`;
+        console.warn('⚠️ Payment successful but no pending token data found');
+        showErrorModal('Payment completed but token data was lost. Please contact support with your payment confirmation.');
       }
     },
     onError: event => {
-      console.log('❌ Payment error:', event);
-      
-      // Redirect back with error message
-      window.location.href = `${window.location.origin}/?payment=error&reason=${event?.error || 'unknown'}`;
+      console.log('❌ Helio Payment ERROR:', event);
+      showErrorModal(`Payment failed: ${event?.error || 'Unknown error occurred'}`);
     },
     onPending: event => {
-      console.log('🕐 Payment pending:', event);
-      
-      // Store pending status
+      console.log('🕐 Helio Payment PENDING:', event);
+      // Update pending status but don't change UI significantly
       const pendingToken = localStorage.getItem('pendingTokenListing');
       if (pendingToken) {
         const tokenData = JSON.parse(pendingToken);
         localStorage.setItem('pendingTokenListing', JSON.stringify({
           ...tokenData,
           paymentStatus: 'pending',
-          lastUpdate: new Date().toISOString()
+          lastUpdate: new Date().toISOString(),
+          pendingEvent: event
         }));
       }
     },
     onCancel: () => {
-      console.log("❌ Payment cancelled");
-      
-      // Redirect back with cancellation message
-      window.location.href = `${window.location.origin}/?payment=cancelled`;
+      console.log("❌ Helio Payment CANCELLED by user");
+      showErrorModal('Payment was cancelled. Your token was not listed.');
     },
     onStartPayment: () => {
-      console.log("🚀 Starting payment");
+      console.log("🚀 Helio Payment STARTED");
+      
+      // Store token data for post-payment processing
+      if (tokenData) {
+        localStorage.setItem('pendingTokenListing', JSON.stringify({
+          contractAddress: tokenData.contractAddress,
+          name: tokenData.name,
+          symbol: tokenData.symbol,
+          price: tokenData.price,
+          marketCap: tokenData.marketCap,
+          totalSupply: tokenData.totalSupply,
+          paymentInitiated: new Date().toISOString(),
+          socialLinks: socials // Include social links if provided
+        }));
+        console.log('💾 Token data stored for post-payment processing');
+      }
     },
   };
 
+  // 🔧 FIXED: Use actual HelioCheckout React component instead of manual redirect
   const HelioPayComponent = () => {
     return (
       <div className="bg-dark-bg border border-orange-500 rounded-lg p-4">
@@ -1121,68 +1138,32 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
           </p>
         </div>
         
-        {/* Temporary placeholder while fixing React 19 compatibility */}
-        <div className="bg-gradient-to-r from-orange-600 to-red-600 rounded-lg p-6 text-center">
-          <div className="mb-4">
+        {/* 🎯 ACTUAL Helio React Component Integration */}
+        <div className="bg-gradient-to-r from-orange-600 to-red-600 rounded-lg p-6">
+          <div className="text-center mb-4">
             <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-3">
               <span className="text-2xl">💳</span>
             </div>
-            <h4 className="text-white font-semibold text-lg mb-2">Helio Pay Integration</h4>
-            <p className="text-blue-100 text-sm">
-              Secure crypto payment portal ready - click below to proceed
+            <h4 className="text-white font-semibold text-lg mb-2">Secure Crypto Payment</h4>
+            <p className="text-blue-100 text-sm mb-4">
+              Pay with USDC, SOL, or other supported cryptocurrencies
             </p>
           </div>
           
-          <button 
-            onClick={() => {
-              // Configure return URLs for post-payment handling
-              const baseUrl = window.location.origin;
-              const successUrl = `${baseUrl}/?payment=success`;
-              const cancelUrl = `${baseUrl}/?payment=cancelled`;
-              
-              // Navigate to Helio Pay portal with return URLs
-              const paymentUrl = `https://app.hel.io/pay/${helioConfig.paylinkId}?successUrl=${encodeURIComponent(successUrl)}&cancelUrl=${encodeURIComponent(cancelUrl)}`;
-              
-              console.log('Navigating to Helio Pay portal:', paymentUrl);
-              console.log('Success URL:', successUrl);
-              console.log('Token data for payment:', {
-                contractAddress: tokenData?.contractAddress,
-                name: tokenData?.name,
-                symbol: tokenData?.symbol
-              });
-              
-              // Store token data in localStorage for post-payment handling
-              if (tokenData) {
-                localStorage.setItem('pendingTokenListing', JSON.stringify({
-                  contractAddress: tokenData.contractAddress,
-                  name: tokenData.name,
-                  symbol: tokenData.symbol,
-                  paymentInitiated: new Date().toISOString(),
-                  paymentUrl: paymentUrl,
-                  successUrl: successUrl,
-                  cancelUrl: cancelUrl
-                }));
-                
-                console.log('✅ Token data stored in localStorage for post-payment handling');
-              }
-              
-              // Navigate to payment portal
-              window.location.href = paymentUrl;
-            }}
-            className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg transition-all duration-200 transform hover:scale-105"
-          >
-            🚀 Pay Now - Open Payment Portal
-          </button>
+          {/* Helio Checkout Component */}
+          <div className="bg-white bg-opacity-10 rounded-lg p-4">
+            <HelioCheckout config={helioConfig} />
+          </div>
           
-          <div className="mt-4 space-y-2">
+          <div className="mt-4 space-y-2 text-center">
             <p className="text-blue-200 text-xs">
-              💳 Secure payment via Helio Pay
+              💳 Powered by Helio Pay - Secure crypto payments
             </p>
             <p className="text-blue-200 text-xs">
-              🔒 Supports SOL, USDC, and other crypto payments
+              🔒 Supports SOL, USDC, and other Solana tokens
             </p>
             <p className="text-gray-300 text-xs">
-              PayLink ID: 68ae3424a561997f2bc70c7e
+              PayLink ID: {helioConfig.paylinkId}
             </p>
           </div>
         </div>
@@ -1554,56 +1535,10 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                           <p className="text-xs text-gray-400 mb-4">
                             Secure payment powered by Helio Pay. Pay with USDC on Solana.
                           </p>
-                      <button
-                            onClick={async () => {
-                              try {
-                                console.log('💳 Creating payment for token:', tokenData?.symbol);
-
-                                const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-                                const successUrl = `${window.location.origin}/?payment=success`;
-                                const cancelUrl = `${window.location.origin}/?payment=cancelled`;
-
-                                const response = await fetch(`${apiBase}/api/payments/create-token-listing`, {
-                                  method: 'POST',
-                                  headers: {
-                                    'Content-Type': 'application/json',
-                                  },
-                                  body: JSON.stringify({
-                                    tokenData: tokenData,
-                                    userId: 'user_' + Date.now(), // Generate temporary user ID
-                                    successUrl: successUrl,
-                                    cancelUrl: cancelUrl
-                                  })
-                                });
-
-                                const result = await response.json();
-
-                                if (result.success && result.payment) {
-                                  console.log('✅ Payment created:', result.payment);
-
-                                  // Store payment info in localStorage for post-payment processing
-                                  localStorage.setItem('pendingTokenListing', JSON.stringify({
-                                    ...tokenData,
-                                    paymentId: result.payment.paymentId,
-                                    paymentUrl: result.payment.paymentUrl,
-                                    paymentInitiated: new Date().toISOString()
-                                  }));
-
-                                  // Navigate to Helio payment
-                                  window.location.href = result.payment.paymentUrl;
-                                } else {
-                                  throw new Error(result.error || 'Payment creation failed');
-                                }
-
-                              } catch (error) {
-                                console.error('❌ Payment creation error:', error);
-                                showErrorModal('Failed to create payment. Please try again.');
-                              }
-                            }}
-                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105"
-                          >
-                            💳 Proceed to Payment ($95)
-                      </button>
+                      {/* 🎯 FIXED: Use HelioCheckout component instead of manual button */}
+                      <div className="w-full">
+                        <HelioCheckout config={helioConfig} />
+                      </div>
                           <div className="flex items-center justify-center mt-3 space-x-4 text-xs text-gray-400">
                             <span className="flex items-center">
                               <span className="w-2 h-2 bg-green-400 rounded-full mr-1"></span>
