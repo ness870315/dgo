@@ -1814,29 +1814,18 @@ class EnhancedBackend {
       // Filter only completed tokens
       const completedTokens = tokens.filter(t => t.stage === 'completed');
 
-      // Load Twitter data and merge it with tokens
-      const tokensWithTwitter = await this.mergeTwitterData(completedTokens);
-
-      // Check if tokens are missing Jupiter data
-      const tokensWithoutJupiter = tokensWithTwitter.filter(t => !t.jupiterData);
-
-      // If tokens exist but many don't have Jupiter data, trigger processing
-      if (tokensWithTwitter.length > 0 && tokensWithoutJupiter.length > 50 && !this.tokenProcessor.isProcessing) {
-        console.log(`[🛡️ Enhanced Backend] 🔄 Found ${tokensWithoutJupiter.length} tokens without Jupiter data, starting processing...`);
-        setTimeout(() => {
-          this.tokenProcessor.startProcessing();
-        }, 1000); // Small delay to ensure backend is fully ready
-      }
-
-      // If no completed tokens found, trigger processing
-      if (tokensWithTwitter.length === 0 && !this.tokenProcessor.isProcessing) {
+      // 🔧 FIX: Don't merge Twitter data on every API call - it should only happen during proper workflow
+      // Twitter data should already be merged during the processing pipeline
+      
+      // Check if we need to start processing (only if no tokens exist)
+      if (completedTokens.length === 0 && !this.tokenProcessor.isProcessing) {
         console.log('[🛡️ Enhanced Backend] 🔄 No completed tokens found, starting processing...');
         setTimeout(() => {
           this.tokenProcessor.startProcessing();
-        }, 1000); // Small delay to ensure backend is fully ready
+        }, 1000);
       }
 
-      return tokensWithTwitter;
+      return completedTokens;
 
     } catch (error) {
       console.log('[🛡️ Enhanced Backend] ⚠️ No cache file found, starting fresh processing...');
