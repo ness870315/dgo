@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, CheckCircle, AlertCircle, Loader, ArrowLeft, Twitter, Globe, MessageCircle, Music, Instagram, ChevronDown, ChevronUp } from 'lucide-react';
-// NOTE: HelioCheckout removed due to React 19 compatibility issues
+// HelioCheckout removed due to React 19 compatibility issues
 
 // Professional Success Modal Function
 const showProfessionalSuccessModal = (tokenData) => {
@@ -568,7 +568,9 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     return () => clearInterval(interval);
   }, [submitTokenToDatabase]);
 
-  // 🔧 NEW: Poll backend to check if token was processed
+    // 🔧 TEMPORARILY DISABLED: Poll backend to check if token was processed
+  // TODO: Re-enable after fixing frontend loading issues
+  /*
   useEffect(() => {
     const pollForTokenCompletion = async () => {
       const pendingData = localStorage.getItem('pendingTokenListing');
@@ -576,21 +578,25 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         try {
           const tokenData = JSON.parse(pendingData);
           const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-          
+
           console.log('🔍 Polling for token completion:', tokenData.contractAddress);
-          
+
           const response = await fetch(`${apiBase}/api/payments/check-token/${tokenData.contractAddress}`);
           const result = await response.json();
-          
+
           if (result.success && result.processed) {
             console.log('🎉 Token processing detected via polling!', result.token);
-            
+
             // Clear pending data
             localStorage.removeItem('pendingTokenListing');
-            
-            // Show success modal
-            showProfessionalSuccessModal(result.token);
-            
+
+            // Show success modal with correct format
+            showProfessionalSuccessModal({
+              symbol: result.token.symbol,
+              name: result.token.name,
+              contractAddress: result.token.contractAddress
+            });
+
             // Clear URL parameters if any
             window.history.replaceState({}, document.title, window.location.pathname);
           }
@@ -605,6 +611,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
 
     return () => clearInterval(pollInterval);
   }, []);
+  */
 
 
   // Validate Solana contract address format
@@ -1325,146 +1332,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   };
 
   // 🔧 FIXED: Direct payment redirect (React 19 compatible)
-  const HelioPayComponent = () => {
-    const [isProcessing, setIsProcessing] = useState(false);
-
-    // Handle direct payment redirect
-    const handlePayment = async () => {
-      if (isProcessing) return;
-      
-      try {
-        setIsProcessing(true);
-        console.log('💳 Creating payment for token:', tokenData?.symbol);
-        
-        // Store token data before redirect
-        if (tokenData) {
-          localStorage.setItem('pendingTokenListing', JSON.stringify({
-            contractAddress: tokenData.contractAddress,
-            name: tokenData.name,
-            symbol: tokenData.symbol,
-            price: tokenData.price,
-            marketCap: tokenData.marketCap,
-            totalSupply: tokenData.totalSupply,
-            paymentInitiated: new Date().toISOString(),
-            socialLinks: socials // Include social links if provided
-          }));
-          console.log('💾 Token data stored for payment processing');
-        }
-
-        // Create payment via backend API
-        const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-        const successUrl = `${window.location.origin}/?payment=success`;
-        const cancelUrl = `${window.location.origin}/?payment=cancelled`;
-
-        console.log('🔗 Payment URLs:', { successUrl, cancelUrl });
-
-        const response = await fetch(`${apiBase}/api/payments/create-token-listing`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tokenData: tokenData,
-            userId: 'user_' + Date.now(),
-            successUrl: successUrl,
-            cancelUrl: cancelUrl
-          })
-        });
-
-        const result = await response.json();
-        console.log('📊 Payment creation result:', result);
-
-        if (result.success && result.payment) {
-          console.log('✅ Payment created successfully:', result.payment.paymentId);
-          console.log('🚀 Redirecting to Helio payment portal...');
-          
-          // Redirect to Helio payment portal
-          window.location.href = result.payment.paymentUrl;
-        } else {
-          throw new Error(result.error || 'Payment creation failed');
-        }
-
-      } catch (error) {
-        console.error('❌ Payment creation error:', error);
-        setIsProcessing(false);
-        showErrorModal(`Failed to create payment: ${error.message}`);
-      }
-    };
-
-    return (
-      <div className="bg-dark-bg border border-orange-500 rounded-lg p-4">
-        <div className="mb-4">
-          <h3 className="text-white font-medium mb-2">Complete Payment to List Token</h3>
-          <p className="text-gray-300 text-sm">
-            Pay to list your token on DeGen Oracle and get exposure to our community.
-          </p>
-        </div>
-        
-        <div className="bg-gradient-to-r from-orange-600 to-red-600 rounded-lg p-6">
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-3">
-              <span className="text-2xl">💳</span>
-            </div>
-            <h4 className="text-white font-semibold text-lg mb-2">Secure Crypto Payment</h4>
-            <p className="text-blue-100 text-sm mb-4">
-              Pay with USDC, SOL, or other supported cryptocurrencies
-            </p>
-            
-            {/* Payment Details */}
-            <div className="bg-white bg-opacity-10 rounded-lg p-4 mb-4">
-              <div className="flex justify-between items-center text-sm mb-2">
-                <span className="text-gray-300">Token Listing Fee:</span>
-                <span className="text-white font-semibold">$95.00</span>
-              </div>
-              <div className="flex justify-between items-center text-sm mb-2">
-                <span className="text-gray-300">Payment Method:</span>
-                <span className="text-green-400 font-medium">USDC, SOL, or other crypto</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-300">Processing:</span>
-                <span className="text-blue-400 font-medium">Instant</span>
-              </div>
-            </div>
-          </div>
-          
-          {/* Payment Button */}
-          <div className="text-center">
-            <button
-              onClick={handlePayment}
-              disabled={isProcessing}
-              className={`w-full py-4 px-6 rounded-lg font-semibold text-lg transition-all duration-200 transform ${
-                isProcessing 
-                  ? 'bg-gray-600 cursor-not-allowed' 
-                  : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 hover:scale-105'
-              } text-white`}
-            >
-              {isProcessing ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Creating Payment...
-                </div>
-              ) : (
-                '💳 Pay $95 - Proceed to Helio'
-              )}
-            </button>
-          </div>
-          
-          <div className="mt-4 space-y-2 text-center">
-            <p className="text-blue-200 text-xs">
-              💳 Powered by Helio Pay - Secure crypto payments
-            </p>
-            <p className="text-blue-200 text-xs">
-              🔒 Supports SOL, USDC, and other Solana tokens
-            </p>
-            <p className="text-gray-300 text-xs">
-              PayLink ID: {helioConfig.paylinkId}
-            </p>
-            <p className="text-yellow-200 text-xs">
-              ⚡ After payment, you'll be redirected back automatically
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  };
+// HelioPayComponent removed - using inline payment handling instead
 
   return (
     <div className="min-h-screen bg-dark-bg">
