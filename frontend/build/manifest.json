@@ -3,17 +3,22 @@
   "name": "DeGen Oracle - Spot the Next Cult Before it Goes Viral",
   "icons": [
     {
-      "src": "favicon.svg",
+      "src": "dgo.png",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/png"
     },
     {
-      "src": "logo192.png",
+      "src": "dgo.png",
+      "type": "image/png",
+      "sizes": "32x32"
+    },
+    {
+      "src": "dgo.png",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "logo512.png",
+      "src": "dgo.png",
       "type": "image/png",
       "sizes": "512x512"
     }
