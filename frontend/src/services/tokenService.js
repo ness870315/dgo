@@ -197,14 +197,14 @@ class TokenService {
             { hashtag: '#solana', count: Math.floor((token.socialScore || 0) * 5) }
           ],
           
-          // Market data from new Jupiter API structure
-          currentPrice: token.jupiterData?.marketData?.price || token.currentPrice || 0,
-          marketCap: token.jupiterData?.marketData?.marketCap || token.marketCap || 0,
-          volume24h: token.jupiterData?.marketData?.volume24h || token.volume24h || 0,
-          priceChange1h: token.jupiterData?.marketData?.priceChange1h || token.priceChange1h || 0,
-          priceChange24h: token.jupiterData?.marketData?.priceChange24h || token.priceChange24h || 0,
-          priceChange7d: token.jupiterData?.marketData?.priceChange7d || token.priceChange7d || 0,
-          marketCapRank: token.jupiterData?.marketData?.marketCapRank || token.marketCapRank || 999,
+          // Market data from Jupiter API structure
+          currentPrice: token.jupiterData?.usdPrice || token.currentPrice || 0,
+          marketCap: token.jupiterData?.mcap || token.marketCap || 0,
+          volume24h: token.jupiterData?.stats24h?.buyVolume || token.volume24h || 0,
+          priceChange1h: token.jupiterData?.stats1h?.priceChange || token.priceChange1h || 0,
+          priceChange24h: token.jupiterData?.stats24h?.priceChange || token.priceChange24h || 0,
+          priceChange7d: token.jupiterData?.stats24h?.priceChange || token.priceChange7d || 0,
+          marketCapRank: token.jupiterData?.marketCapRank || token.marketCapRank || 999,
           image: token.image || null,
           
           // Contract address data from backend enhancement
