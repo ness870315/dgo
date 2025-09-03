@@ -1281,7 +1281,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                   <div className="bg-green-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold">3</div>
                   <div>
                     <h4 className="text-white font-medium">Proceed to Payment</h4>
-                    <p className="text-gray-400 text-sm">Redirect to Helio</p>
+                    <p className="text-gray-400 text-sm">Powered by Helio</p>
                   </div>
                 </div>
               </div>
