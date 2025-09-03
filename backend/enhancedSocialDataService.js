@@ -927,15 +927,15 @@ class EnhancedSocialDataService {
 
     console.log('🚀 Starting 24-hour background refresh system...');
     
-    // Run initial refresh
-    await this.runBackgroundRefresh();
+    // DON'T run initial refresh immediately - let the normal processing workflow handle it
+    // This prevents Twitter API calls before Jupiter API in the processing order
     
     // Set up 24-hour interval (24 * 60 * 60 * 1000 = 24 hours in milliseconds)
     this.backgroundRefreshInterval = setInterval(async () => {
       await this.runBackgroundRefresh();
     }, 24 * 60 * 60 * 1000);
     
-    console.log('✅ Background refresh system started - will run every 24 hours');
+    console.log('✅ Background refresh system started - will run every 24 hours (no immediate refresh)');
   }
 
   /**
