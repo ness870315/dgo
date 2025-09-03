@@ -466,6 +466,8 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
             primaryColor: "#9333ea", // Solana purple
             neutralColor: "#5A6578",
             display: "inline",
+            width: "100%",
+            height: "350px",
             onSuccess: (event) => {
               console.log('🎉 Payment successful!', event);
               setPaymentProcessing(true);
@@ -1583,48 +1585,73 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                           <span className="text-gray-300">Payment Method:</span>
                           <span className="text-green-400 font-medium">USDC</span>
                         </div>
-                        <div className="pt-2 border-t border-gray-600">
-                          <p className="text-xs text-gray-400 mb-4">
-                            Secure payment powered by Helio Pay. Pay with USDC on Solana.
-                          </p>
+                        <div className="pt-4 border-t border-gray-600">
+                          <div className="text-center mb-4">
+                            <p className="text-sm text-gray-300 mb-2">
+                              Complete your payment to list your token
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              Secure payment powered by Helio Pay • USDC on Solana
+                            </p>
+                          </div>
                           
                           {/* Helio Pay Embedded Widget */}
                           {paymentProcessing && (
-                            <div className="mb-4 p-3 bg-blue-900 bg-opacity-30 rounded-lg border border-blue-500">
-                              <div className="flex items-center space-x-2">
-                                <Loader className="w-4 h-4 animate-spin text-blue-400" />
-                                <span className="text-blue-300 text-sm">Processing payment...</span>
+                            <div className="mb-4 p-4 bg-blue-900 bg-opacity-20 rounded-xl border border-blue-500/50">
+                              <div className="flex items-center justify-center space-x-3">
+                                <Loader className="w-5 h-5 animate-spin text-blue-400" />
+                                <span className="text-blue-300 font-medium">Processing payment...</span>
                               </div>
                             </div>
                           )}
                           
-                          <div className="bg-gray-800 rounded-lg p-4 border border-gray-600">
-                            <div id="helioCheckoutContainer" className="min-h-[400px] flex items-center justify-center">
-                              {!helioLoaded ? (
-                                <div className="flex items-center space-x-2 text-gray-400">
-                                  <Loader className="w-5 h-5 animate-spin" />
-                                  <span>Loading payment widget...</span>
+                          <div className="relative">
+                            <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700 shadow-2xl overflow-hidden">
+                              <div className="p-1 bg-gradient-to-r from-purple-500/20 to-blue-500/20">
+                                <div className="bg-gray-800 rounded-lg">
+                                  <div id="helioCheckoutContainer" className="min-h-[350px] w-full">
+                                    {!helioLoaded ? (
+                                      <div className="min-h-[350px] flex flex-col items-center justify-center space-y-4 text-gray-400">
+                                        <div className="flex items-center space-x-3">
+                                          <Loader className="w-6 h-6 animate-spin text-purple-400" />
+                                          <span className="text-lg font-medium">Loading payment widget...</span>
+                                        </div>
+                                        <div className="w-8 h-1 bg-gray-700 rounded-full overflow-hidden">
+                                          <div className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full animate-pulse"></div>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="min-h-[350px] flex flex-col items-center justify-center space-y-4 text-gray-400">
+                                        <div className="flex items-center space-x-3">
+                                          <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                                            <span className="text-white text-sm">✓</span>
+                                          </div>
+                                          <span className="text-lg font-medium">Initializing secure payment...</span>
+                                        </div>
+                                        <div className="text-sm text-gray-500">
+                                          Please wait while we prepare your payment form
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                              ) : (
-                                <div className="text-gray-400 text-sm">
-                                  Initializing secure payment...
-                                </div>
-                              )}
+                              </div>
                             </div>
                           </div>
-                          <div className="flex items-center justify-center mt-3 space-x-4 text-xs text-gray-400">
-                            <span className="flex items-center">
-                              <span className="w-2 h-2 bg-green-400 rounded-full mr-1"></span>
-                              Secure
-                            </span>
-                            <span className="flex items-center">
-                              <span className="w-2 h-2 bg-blue-400 rounded-full mr-1"></span>
-                              Instant
-                            </span>
-                            <span className="flex items-center">
-                              <span className="w-2 h-2 bg-purple-400 rounded-full mr-1"></span>
-                              Crypto
-                            </span>
+                          
+                          <div className="mt-4 flex items-center justify-center space-x-6 text-xs">
+                            <div className="flex items-center space-x-2 text-gray-400">
+                              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                              <span className="font-medium">Secure</span>
+                            </div>
+                            <div className="flex items-center space-x-2 text-gray-400">
+                              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                              <span className="font-medium">Instant</span>
+                            </div>
+                            <div className="flex items-center space-x-2 text-gray-400">
+                              <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+                              <span className="font-medium">Crypto</span>
+                            </div>
                           </div>
                         </div>
                       </div>
