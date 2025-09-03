@@ -51,8 +51,10 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
                     <stop offset="100%" style={{stopColor:'#7c3aed', stopOpacity:1}} />
                   </linearGradient>
                 </defs>
-                {/* Trending upward arrow (diagonal) */}
-                <path d="M6 26L26 6M20 6H26V12" fill="none" stroke="url(#headerGradient)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                {/* Stepped trending upward arrow like stock chart */}
+                <path d="M4 24L10 18L16 14L22 8L28 4" fill="none" stroke="url(#headerGradient)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                {/* Arrow head */}
+                <path d="M24 4L28 4L28 8" fill="none" stroke="url(#headerGradient)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               <div>
                 <h1 className="text-2xl font-bold text-white">
