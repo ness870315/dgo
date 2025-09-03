@@ -1422,6 +1422,17 @@ class EnhancedBackend {
                 }
 
                 if (updatedToken) {
+                  // CRITICAL FIX: Update the token in the main tokens array
+                  const tokenIndex = tokens.findIndex(t => t.contractAddress === token.contractAddress);
+                  if (tokenIndex !== -1) {
+                    tokens[tokenIndex] = { 
+                      ...tokens[tokenIndex], 
+                      ...updatedToken,
+                      jupiterTimestamp: new Date().toISOString() // Track when Jupiter data was updated
+                    };
+                    console.log(`💾 Updated ${token.symbol} in cache with fresh Jupiter data`);
+                  }
+                  
                   results.push({
                     symbol: token.symbol,
                     contractAddress: token.contractAddress,
