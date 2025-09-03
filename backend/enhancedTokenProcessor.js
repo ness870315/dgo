@@ -928,9 +928,10 @@ class EnhancedTokenProcessor {
         
         // Create a map of contract address to Jupiter data
         const jupiterMap = new Map();
-        jupiterResults.forEach(result => {
-          if (result.contractAddress && result.jupiterData) {
-            jupiterMap.set(result.contractAddress, result.jupiterData);
+        jupiterResults.forEach((result, index) => {
+          if (result && contractAddresses[index]) {
+            // result IS the Jupiter data, contractAddresses[index] is the contract address
+            jupiterMap.set(contractAddresses[index], result);
           }
         });
         
