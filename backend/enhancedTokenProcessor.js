@@ -30,7 +30,7 @@ class EnhancedTokenProcessor {
     this.rateLimits = {
       coingecko: { batchSize: 100, delayMs: 30000, maxTokens: 500 }, // Conservative: 100 per batch, 30s delay
       dexscreener: { batchSize: 50, delayMs: 5000, maxTokens: 70 }, // Conservative: 50 per batch, 5s delay, 70 tokens max
-      jupiter: { batchSize: 50, delayMs: 30000, maxTokens: 600 }, // Reduced batch size to avoid 429 errors
+      jupiter: { batchSize: 100, delayMs: 30000, maxTokens: 600 }, // 30 second delay to avoid rate limits
       twitter: { batchSize: 10, delayMs: 15000, maxTokens: 1000 } // Reduced batch size, increased delay to avoid 429 errors
     };
     
@@ -920,26 +920,17 @@ class EnhancedTokenProcessor {
       
       console.log(`🚀 Fetching Jupiter data for ${contractAddresses.length} contracts...`);
       
-      // Use comma-separated mint addresses in query parameter
-      const mintQuery = contractAddresses.join(',');
-      const url = `${this.apis.jupiter}/search?query=${mintQuery}`;
+      // Use the proper Jupiter service with rate limiting and error handling
+      const jupiterResults = await this.jupiterService.getBatchTokenDetails(contractAddresses);
       
-      const response = await axios.get(url, {
-        timeout: 15000,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'application/json'
-        }
-      });
-      
-      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-        console.log(`✅ Jupiter returned data for ${response.data.length} tokens`);
+      if (jupiterResults && jupiterResults.length > 0) {
+        console.log(`✅ Jupiter returned data for ${jupiterResults.length} tokens`);
         
         // Create a map of contract address to Jupiter data
         const jupiterMap = new Map();
-        response.data.forEach(jupiterToken => {
-          if (jupiterToken.id) {
-            jupiterMap.set(jupiterToken.id, jupiterToken);
+        jupiterResults.forEach(result => {
+          if (result.contractAddress && result.jupiterData) {
+            jupiterMap.set(result.contractAddress, result.jupiterData);
           }
         });
         
