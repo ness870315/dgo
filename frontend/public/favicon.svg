@@ -5,8 +5,8 @@
       <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
     </linearGradient>
   </defs>
-  <!-- Stepped trending upward arrow like stock chart -->
-  <path d="M4 24L10 18L16 14L22 8L28 4" fill="none" stroke="url(#gradient)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- Arrow head -->
-  <path d="M24 4L28 4L28 8" fill="none" stroke="url(#gradient)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Zigzag trending line matching header -->
+  <path d="M3 26L8 20L8 20L14 16L14 16L20 10L20 10L26 4" fill="none" stroke="url(#gradient)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Filled triangular arrow head -->
+  <path d="M22 4L30 8L22 12Z" fill="url(#gradient)" stroke="url(#gradient)" stroke-width="1"/>
 </svg>

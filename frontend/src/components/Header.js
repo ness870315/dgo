@@ -43,7 +43,7 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
           {/* Logo and Title */}
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
-              {/* Purple Trending Arrow Logo */}
+              {/* Purple Trending Arrow Logo - Zigzag Pattern */}
               <svg width="32" height="32" viewBox="0 0 32 32" className="text-solana-purple">
                 <defs>
                   <linearGradient id="headerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -51,10 +51,10 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
                     <stop offset="100%" style={{stopColor:'#7c3aed', stopOpacity:1}} />
                   </linearGradient>
                 </defs>
-                {/* Stepped trending upward arrow like stock chart */}
-                <path d="M4 24L10 18L16 14L22 8L28 4" fill="none" stroke="url(#headerGradient)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-                {/* Arrow head */}
-                <path d="M24 4L28 4L28 8" fill="none" stroke="url(#headerGradient)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                {/* Zigzag trending line like your image */}
+                <path d="M3 26L8 20L8 20L14 16L14 16L20 10L20 10L26 4" fill="none" stroke="url(#headerGradient)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                {/* Filled triangular arrow head */}
+                <path d="M22 4L30 8L22 12Z" fill="url(#headerGradient)" stroke="url(#headerGradient)" strokeWidth="1"/>
               </svg>
               <div>
                 <h1 className="text-2xl font-bold text-white">
