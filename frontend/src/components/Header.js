@@ -43,7 +43,7 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
           {/* Logo and Title */}
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
-              {/* Purple Arrow Logo matching favicon */}
+              {/* Purple Trending Arrow Logo */}
               <svg width="32" height="32" viewBox="0 0 32 32" className="text-solana-purple">
                 <defs>
                   <linearGradient id="headerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -51,7 +51,8 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
                     <stop offset="100%" style={{stopColor:'#7c3aed', stopOpacity:1}} />
                   </linearGradient>
                 </defs>
-                <path d="M24 12L16 4L8 12H12V20H20V12H24Z" fill="url(#headerGradient)" stroke="#9333ea" strokeWidth="1"/>
+                {/* Trending upward arrow (diagonal) */}
+                <path d="M6 26L26 6M20 6H26V12" fill="none" stroke="url(#headerGradient)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               <div>
                 <h1 className="text-2xl font-bold text-white">
