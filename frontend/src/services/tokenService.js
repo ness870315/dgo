@@ -89,7 +89,7 @@ const generateMockPosts = (symbol, count) => {
 class TokenService {
   constructor() {
     this.cache = new Map();
-    this.cacheExpiry = 30 * 1000; // 30 seconds
+    this.cacheExpiry = 5 * 1000; // 5 seconds - reduced for faster Jupiter data updates
   }
 
   async fetchTokens(useRealData = false) {

@@ -331,8 +331,6 @@ class EnhancedBackend {
       }
     });
 
-
-
     // Get payment history for user
     this.app.get('/api/payments/history/:userId', async (req, res) => {
       try {
@@ -1336,6 +1334,26 @@ class EnhancedBackend {
       }
     });
 
+    // Clear Jupiter cache endpoint
+    this.app.post('/api/jupiter/clear-cache', async (req, res) => {
+      try {
+        console.log('🧹 Clearing Jupiter API cache...');
+        this.jupiterService.clearCache();
+        res.json({
+          success: true,
+          message: 'Jupiter cache cleared successfully',
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('❌ Error clearing Jupiter cache:', error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
     this.app.post('/api/admin/jupiter/refresh-all', async (req, res) => {
       try {
         console.log('🔄 Starting Jupiter refresh for all tokens (with batch processing)...');
@@ -1985,29 +2003,41 @@ class EnhancedBackend {
         return;
       }
       
-      // Filter tokens that need Jupiter data refresh (older than 1 hour)
+      // Filter tokens that need Jupiter data refresh (older than 30 minutes OR missing data)
       const now = new Date();
       const tokensToUpdate = tokens.filter(token => {
-        if (!token.jupiterData || !token.contractAddress) return false;
+        // Must have contract address to fetch Jupiter data
+        if (!token.contractAddress) return false;
         
-        if (!token.jupiterTimestamp) return true; // No timestamp = needs update
+        // Include tokens without Jupiter data OR without timestamp
+        if (!token.jupiterData || !token.jupiterTimestamp) return true;
         
+        // Include tokens older than 30 minutes (reduced from 1 hour)
         const timestamp = new Date(token.jupiterTimestamp);
-        const ageHours = (now - timestamp) / (1000 * 60 * 60);
-        return ageHours > 1; // Update if older than 1 hour
+        const ageMinutes = (now - timestamp) / (1000 * 60);
+        return ageMinutes > 30; // Update if older than 30 minutes
       });
       
       if (tokensToUpdate.length === 0) {
-        console.log('[🛡️ Enhanced Backend] ✅ All Jupiter data is current (< 1 hour old)');
+        console.log('[🛡️ Enhanced Backend] ✅ All Jupiter data is current (< 30 minutes old)');
         return;
       }
       
       console.log(`[🛡️ Enhanced Backend] 🔄 Updating Jupiter data for ${tokensToUpdate.length} tokens...`);
       
-      // Sort by market cap and update top 20 tokens per cycle
+      // Sort by priority: tokens without Jupiter data first, then by market cap
+      // Update up to 50 tokens per cycle (increased from 20)
       const topTokens = tokensToUpdate
-        .sort((a, b) => (b.jupiterData?.mcap || 0) - (a.jupiterData?.mcap || 0))
-        .slice(0, 20);
+        .sort((a, b) => {
+          // Prioritize tokens without Jupiter data
+          const aHasData = !!a.jupiterData;
+          const bHasData = !!b.jupiterData;
+          if (aHasData !== bHasData) return aHasData ? 1 : -1;
+          
+          // Then sort by market cap
+          return (b.jupiterData?.mcap || 0) - (a.jupiterData?.mcap || 0);
+        })
+        .slice(0, 50);
       
       let updated = 0;
       let errors = 0;
