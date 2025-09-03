@@ -35,17 +35,14 @@ class DexscreenerApiService {
 
       console.log(`🔍 Dynamically discovering trending Solana memecoins from Dexscreener...`);
 
-      // STRATEGY 1: Search for trending terms to discover current hot tokens
+      // STRATEGY 1: Reduced trending terms to avoid rate limits (403 errors)
       const trendingSearchTerms = [
-        'meme', 'solana', 'pump', 'moon', 'gem', 'cat', 'dog', 'wif', 'wen',
-        'frog', 'pepe', 'shiba', 'inu', 'doge', 'coin', 'token', 'crypto',
-        'defi', 'nft', 'dao', 'metaverse', 'ai', 'gaming', 'sports'
+        'meme', 'pump', 'wif', 'pepe', 'doge'  // Only top 5 most effective terms
       ];
 
-      // STRATEGY 2: Search major Solana DEXes for their top pairs
+      // STRATEGY 2: Reduced DEX terms to avoid rate limits
       const dexSearchTerms = [
-        'raydium', 'orca', 'meteora', 'jupiter', 'saber', 'saros', 'lifinity',
-        'cropper', 'step', 'penguin', 'solanatracker', 'dexlab', 'bonfida'
+        'raydium', 'orca', 'jupiter'  // Only top 3 most active DEXes
       ];
 
       const allSearchTerms = [...trendingSearchTerms, ...dexSearchTerms];
@@ -73,8 +70,8 @@ class DexscreenerApiService {
             }
           }
 
-          // Respectful delay
-          await new Promise(resolve => setTimeout(resolve, 200));
+          // Increased delay to prevent 403 rate limit errors
+          await new Promise(resolve => setTimeout(resolve, 2000)); // 2 seconds between searches
 
         } catch (error) {
           console.log(`⚠️ Search failed for "${searchTerm}":`, error.message);
