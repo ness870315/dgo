@@ -5,8 +5,8 @@
       <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
     </linearGradient>
   </defs>
-  <!-- Zigzag trending line matching header -->
-  <path d="M3 26L8 20L8 20L14 16L14 16L20 10L20 10L26 4" fill="none" stroke="url(#gradient)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- Filled triangular arrow head -->
-  <path d="M22 4L30 8L22 12Z" fill="url(#gradient)" stroke="url(#gradient)" stroke-width="1"/>
+  <!-- Clean zigzag trending line matching your original -->
+  <path d="M4 24L10 18L16 12L22 6L28 2" fill="none" stroke="url(#gradient)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Clean triangular arrow head pointing up-right -->
+  <path d="M24 2L30 2L27 8Z" fill="url(#gradient)"/>
 </svg>
