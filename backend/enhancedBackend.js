@@ -1,8 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import axios from 'axios';
+import crypto from 'crypto';
 import EnhancedTokenProcessor from './enhancedTokenProcessor.js';
 import HelioPaymentService from './helioPaymentService.js';
+import OAuthXService from './oauthXService.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -16,6 +18,7 @@ class EnhancedBackend {
     this.port = process.env.PORT || 4000;
     this.tokenProcessor = new EnhancedTokenProcessor();
     this.helioService = new HelioPaymentService();
+    this.oauthXService = new OAuthXService();
     this.isRunning = false;
     
     this.setupMiddleware();
@@ -397,6 +400,385 @@ class EnhancedBackend {
         res.status(500).json({ 
           success: false, 
           message: 'Internal server error' 
+        });
+      }
+    });
+
+    // ========================================
+    // 🐦 OAUTH X AUTHENTICATION ENDPOINTS
+    // ========================================
+
+    // OAuth X: Start authentication flow
+    this.app.get('/auth/x', (req, res) => {
+      try {
+        const state = crypto.randomUUID();
+        const authUrl = this.oauthXService.getAuthorizationUrl(state);
+        
+        console.log(`🐦 OAuth X: Starting authentication flow for state: ${state}`);
+        res.redirect(authUrl);
+      } catch (error) {
+        console.error('❌ OAuth X error:', error);
+        res.status(500).json({ 
+          success: false, 
+          error: 'Failed to start OAuth flow' 
+        });
+      }
+    });
+
+    // OAuth X: Handle callback
+    this.app.get('/auth/callback', async (req, res) => {
+      try {
+        const { code, state } = req.query;
+        
+        if (!code) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Authorization code not provided' 
+          });
+        }
+
+        console.log(`🐦 OAuth X: Processing callback with code: ${code.substring(0, 10)}...`);
+
+        // Exchange code for token
+        const tokenData = await this.oauthXService.exchangeCodeForToken(code, state);
+        
+        // Get user profile
+        const profile = await this.oauthXService.getUserProfile(tokenData.access_token);
+        
+        // Create or update user
+        const user = await this.oauthXService.createOrUpdateUser(
+          profile, 
+          tokenData.access_token, 
+          tokenData.refresh_token
+        );
+        
+        // Create session
+        const { sessionId, expiresAt } = this.oauthXService.createSession(user.id);
+        
+        console.log(`✅ OAuth X: User ${user.username} authenticated successfully`);
+
+        // Redirect to frontend with session
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        res.redirect(`${frontendUrl}/?auth=success&sessionId=${sessionId}`);
+        
+      } catch (error) {
+        console.error('❌ OAuth X callback error:', error);
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        res.redirect(`${frontendUrl}/?auth=error&message=${encodeURIComponent(error.message)}`);
+      }
+    });
+
+    // OAuth X: Validate session
+    this.app.get('/auth/validate', (req, res) => {
+      try {
+        const { sessionId } = req.query;
+        
+        if (!sessionId) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Session ID required' 
+          });
+        }
+
+        const user = this.oauthXService.getUserBySession(sessionId);
+        
+        if (!user) {
+          return res.status(401).json({ 
+            success: false, 
+            error: 'Invalid or expired session' 
+          });
+        }
+
+        res.json({
+          success: true,
+          user: {
+            id: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            profileImage: user.profileImage,
+            verified: user.verified,
+            followersCount: user.followersCount,
+            followingCount: user.followingCount,
+            tweetCount: user.tweetCount,
+            createdAt: user.createdAt,
+            lastLogin: user.lastLogin,
+            preferences: user.preferences,
+            stats: user.stats
+          }
+        });
+        
+      } catch (error) {
+        console.error('❌ Session validation error:', error);
+        res.status(500).json({ 
+          success: false, 
+          error: 'Failed to validate session' 
+        });
+      }
+    });
+
+    // OAuth X: Logout
+    this.app.post('/auth/logout', (req, res) => {
+      try {
+        const { sessionId } = req.body;
+        
+        if (sessionId) {
+          this.oauthXService.logout(sessionId);
+        }
+
+        res.json({
+          success: true,
+          message: 'Logged out successfully'
+        });
+        
+      } catch (error) {
+        console.error('❌ Logout error:', error);
+        res.status(500).json({ 
+          success: false, 
+          error: 'Failed to logout' 
+        });
+      }
+    });
+
+    // ========================================
+    // 👤 USER MANAGEMENT ENDPOINTS
+    // ========================================
+
+    // Get user profile
+    this.app.get('/api/user/profile', (req, res) => {
+      try {
+        const { sessionId } = req.query;
+        
+        if (!sessionId) {
+          return res.status(401).json({ 
+            success: false, 
+            error: 'Authentication required' 
+          });
+        }
+
+        const user = this.oauthXService.getUserBySession(sessionId);
+        
+        if (!user) {
+          return res.status(401).json({ 
+            success: false, 
+            error: 'Invalid session' 
+          });
+        }
+
+        res.json({
+          success: true,
+          user: {
+            id: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            profileImage: user.profileImage,
+            verified: user.verified,
+            followersCount: user.followersCount,
+            followingCount: user.followingCount,
+            tweetCount: user.tweetCount,
+            createdAt: user.createdAt,
+            lastLogin: user.lastLogin,
+            preferences: user.preferences,
+            stats: user.stats
+          }
+        });
+        
+      } catch (error) {
+        console.error('❌ Get user profile error:', error);
+        res.status(500).json({ 
+          success: false, 
+          error: 'Failed to get user profile' 
+        });
+      }
+    });
+
+    // Update user preferences
+    this.app.post('/api/user/preferences', async (req, res) => {
+      try {
+        const { sessionId, preferences } = req.body;
+        
+        if (!sessionId) {
+          return res.status(401).json({ 
+            success: false, 
+            error: 'Authentication required' 
+          });
+        }
+
+        const user = this.oauthXService.getUserBySession(sessionId);
+        
+        if (!user) {
+          return res.status(401).json({ 
+            success: false, 
+            error: 'Invalid session' 
+          });
+        }
+
+        const updatedUser = await this.oauthXService.updateUser(user.id, { preferences });
+        
+        res.json({
+          success: true,
+          preferences: updatedUser.preferences
+        });
+        
+      } catch (error) {
+        console.error('❌ Update preferences error:', error);
+        res.status(500).json({ 
+          success: false, 
+          error: 'Failed to update preferences' 
+        });
+      }
+    });
+
+    // ========================================
+    // ⭐ WATCHLIST ENDPOINTS
+    // ========================================
+
+    // Get user's watchlist
+    this.app.get('/api/user/watchlist', (req, res) => {
+      try {
+        const { sessionId } = req.query;
+        
+        if (!sessionId) {
+          return res.status(401).json({ 
+            success: false, 
+            error: 'Authentication required' 
+          });
+        }
+
+        const user = this.oauthXService.getUserBySession(sessionId);
+        
+        if (!user) {
+          return res.status(401).json({ 
+            success: false, 
+            error: 'Invalid session' 
+          });
+        }
+
+        const watchlist = this.oauthXService.getWatchlist(user.id);
+        
+        res.json({
+          success: true,
+          watchlist: watchlist
+        });
+        
+      } catch (error) {
+        console.error('❌ Get watchlist error:', error);
+        res.status(500).json({ 
+          success: false, 
+          error: 'Failed to get watchlist' 
+        });
+      }
+    });
+
+    // Add token to watchlist
+    this.app.post('/api/user/watchlist/add', async (req, res) => {
+      try {
+        const { sessionId, tokenData } = req.body;
+        
+        if (!sessionId) {
+          return res.status(401).json({ 
+            success: false, 
+            error: 'Authentication required' 
+          });
+        }
+
+        const user = this.oauthXService.getUserBySession(sessionId);
+        
+        if (!user) {
+          return res.status(401).json({ 
+            success: false, 
+            error: 'Invalid session' 
+          });
+        }
+
+        const watchlist = await this.oauthXService.addToWatchlist(user.id, tokenData);
+        
+        res.json({
+          success: true,
+          watchlist: watchlist,
+          message: `${tokenData.symbol} added to watchlist`
+        });
+        
+      } catch (error) {
+        console.error('❌ Add to watchlist error:', error);
+        res.status(500).json({ 
+          success: false, 
+          error: 'Failed to add to watchlist' 
+        });
+      }
+    });
+
+    // Remove token from watchlist
+    this.app.post('/api/user/watchlist/remove', async (req, res) => {
+      try {
+        const { sessionId, symbol } = req.body;
+        
+        if (!sessionId) {
+          return res.status(401).json({ 
+            success: false, 
+            error: 'Authentication required' 
+          });
+        }
+
+        const user = this.oauthXService.getUserBySession(sessionId);
+        
+        if (!user) {
+          return res.status(401).json({ 
+            success: false, 
+            error: 'Invalid session' 
+          });
+        }
+
+        const watchlist = await this.oauthXService.removeFromWatchlist(user.id, symbol);
+        
+        res.json({
+          success: true,
+          watchlist: watchlist,
+          message: `${symbol} removed from watchlist`
+        });
+        
+      } catch (error) {
+        console.error('❌ Remove from watchlist error:', error);
+        res.status(500).json({ 
+          success: false, 
+          error: 'Failed to remove from watchlist' 
+        });
+      }
+    });
+
+    // Check if token is in watchlist
+    this.app.get('/api/user/watchlist/check/:symbol', (req, res) => {
+      try {
+        const { sessionId } = req.query;
+        const { symbol } = req.params;
+        
+        if (!sessionId) {
+          return res.status(401).json({ 
+            success: false, 
+            error: 'Authentication required' 
+          });
+        }
+
+        const user = this.oauthXService.getUserBySession(sessionId);
+        
+        if (!user) {
+          return res.status(401).json({ 
+            success: false, 
+            error: 'Invalid session' 
+          });
+        }
+
+        const isInWatchlist = this.oauthXService.isInWatchlist(user.id, symbol);
+        
+        res.json({
+          success: true,
+          isInWatchlist: isInWatchlist
+        });
+        
+      } catch (error) {
+        console.error('❌ Check watchlist error:', error);
+        res.status(500).json({ 
+          success: false, 
+          error: 'Failed to check watchlist' 
         });
       }
     });

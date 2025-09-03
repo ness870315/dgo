@@ -599,9 +599,16 @@
                 return;
             }
 
-            // Validate Solana contract address format
-            if (contractAddress.length !== 44 && contractAddress.length !== 32) {
-                resultDiv.innerHTML = showAlert('❌ Invalid contract address format (must be 32 or 44 characters)', 'error');
+            // Validate Solana contract address format (base58 encoded, typically 32-44 characters)
+            if (contractAddress.length < 32 || contractAddress.length > 44) {
+                resultDiv.innerHTML = showAlert('❌ Invalid contract address format (must be 32-44 characters)', 'error');
+                return;
+            }
+            
+            // Basic base58 character validation
+            const base58Regex = /^[1-9A-HJ-NP-Za-km-z]+$/;
+            if (!base58Regex.test(contractAddress)) {
+                resultDiv.innerHTML = showAlert('❌ Invalid contract address format (contains invalid characters)', 'error');
                 return;
             }
 
