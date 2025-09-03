@@ -229,6 +229,8 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     tiktok: '',
     website: ''
   });
+  const [helioLoaded, setHelioLoaded] = useState(false);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
 
   // Submit token to database after successful payment (moved up for useEffect)
   const submitTokenToDatabase = useCallback(async (tokenData, paymentEvent) => {
@@ -408,6 +410,90 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     return () => clearTimeout(timeoutId);
   }, [submitTokenToDatabase]); // Include submitTokenToDatabase as dependency
 
+  // Load Helio Pay script and initialize widget
+  useEffect(() => {
+    const loadHelioScript = () => {
+      // Check if script already exists
+      if (document.querySelector('script[src*="embed.hel.io"]')) {
+        setHelioLoaded(true);
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.type = 'module';
+      script.crossOrigin = 'anonymous';
+      script.src = 'https://embed.hel.io/assets/index-v1.js';
+      script.onload = () => {
+        console.log('✅ Helio Pay script loaded');
+        setHelioLoaded(true);
+      };
+      script.onerror = () => {
+        console.error('❌ Failed to load Helio Pay script');
+      };
+      document.head.appendChild(script);
+    };
+
+    loadHelioScript();
+  }, []);
+
+  // Initialize Helio widget when script is loaded and payment step is reached
+  useEffect(() => {
+    if (helioLoaded && validationComplete && !duplicateCheck?.exists && tokenData) {
+      const initializeHelioWidget = () => {
+        const container = document.getElementById('helioCheckoutContainer');
+        if (container && window.helioCheckout) {
+          console.log('🎯 Initializing Helio Pay widget...');
+          
+          window.helioCheckout(container, {
+            paylinkId: "68ae3424a561997f2bc70c7e", // Your paylink ID
+            theme: { "themeMode": "dark" },
+            primaryColor: "#9333ea", // Solana purple
+            neutralColor: "#5A6578",
+            display: "inline",
+            onSuccess: (event) => {
+              console.log('🎉 Payment successful!', event);
+              setPaymentProcessing(true);
+              
+              // Process the token immediately
+              submitTokenToDatabase(tokenData, event).then(() => {
+                showProfessionalSuccessModal(tokenData);
+                setPaymentProcessing(false);
+                
+                // Close the modal after success
+                setTimeout(() => {
+                  if (onTokenAdded) onTokenAdded();
+                  if (onBack) onBack();
+                }, 3000);
+              }).catch((error) => {
+                console.error('❌ Token submission failed:', error);
+                setPaymentProcessing(false);
+                alert('Payment successful but token submission failed. Please contact support.');
+              });
+            },
+            onError: (event) => {
+              console.error('❌ Payment error:', event);
+              alert('Payment failed. Please try again.');
+            },
+            onPending: (event) => {
+              console.log('⏳ Payment pending:', event);
+              setPaymentProcessing(true);
+            },
+            onCancel: () => {
+              console.log('❌ Payment cancelled');
+              setPaymentProcessing(false);
+            },
+            onStartPayment: () => {
+              console.log('🚀 Starting payment...');
+              setPaymentProcessing(true);
+            }
+          });
+        }
+      };
+
+      // Small delay to ensure DOM is ready
+      setTimeout(initializeHelioWidget, 100);
+    }
+  }, [helioLoaded, validationComplete, duplicateCheck, tokenData, submitTokenToDatabase, onTokenAdded, onBack]);
 
   // Validate Solana contract address format
   const isValidSolanaAddress = (address) => {
@@ -1485,56 +1571,31 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                           <p className="text-xs text-gray-400 mb-4">
                             Secure payment powered by Helio Pay. Pay with USDC on Solana.
                           </p>
-                      <button
-                            onClick={async () => {
-                              try {
-                                console.log('💳 Creating payment for token:', tokenData?.symbol);
-
-                                const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-                                const successUrl = `${window.location.origin}/?payment=success`;
-                                const cancelUrl = `${window.location.origin}/?payment=cancelled`;
-
-                                const response = await fetch(`${apiBase}/api/payments/create-token-listing`, {
-                                  method: 'POST',
-                                  headers: {
-                                    'Content-Type': 'application/json',
-                                  },
-                                  body: JSON.stringify({
-                                    tokenData: tokenData,
-                                    userId: 'user_' + Date.now(), // Generate temporary user ID
-                                    successUrl: successUrl,
-                                    cancelUrl: cancelUrl
-                                  })
-                                });
-
-                                const result = await response.json();
-
-                                if (result.success && result.payment) {
-                                  console.log('✅ Payment created:', result.payment);
-
-                                  // Store payment info in localStorage for post-payment processing
-                                  localStorage.setItem('pendingTokenListing', JSON.stringify({
-                                    ...tokenData,
-                                    paymentId: result.payment.paymentId,
-                                    paymentUrl: result.payment.paymentUrl,
-                                    paymentInitiated: new Date().toISOString()
-                                  }));
-
-                                  // Navigate to Helio payment
-                                  window.location.href = result.payment.paymentUrl;
-                                } else {
-                                  throw new Error(result.error || 'Payment creation failed');
-                                }
-
-                              } catch (error) {
-                                console.error('❌ Payment creation error:', error);
-                                showErrorModal('Failed to create payment. Please try again.');
-                              }
-                            }}
-                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105"
-                          >
-                            💳 Proceed to Payment ($95)
-                      </button>
+                          
+                          {/* Helio Pay Embedded Widget */}
+                          {paymentProcessing && (
+                            <div className="mb-4 p-3 bg-blue-900 bg-opacity-30 rounded-lg border border-blue-500">
+                              <div className="flex items-center space-x-2">
+                                <Loader className="w-4 h-4 animate-spin text-blue-400" />
+                                <span className="text-blue-300 text-sm">Processing payment...</span>
+                              </div>
+                            </div>
+                          )}
+                          
+                          <div className="bg-gray-800 rounded-lg p-4 border border-gray-600">
+                            <div id="helioCheckoutContainer" className="min-h-[400px] flex items-center justify-center">
+                              {!helioLoaded ? (
+                                <div className="flex items-center space-x-2 text-gray-400">
+                                  <Loader className="w-5 h-5 animate-spin" />
+                                  <span>Loading payment widget...</span>
+                                </div>
+                              ) : (
+                                <div className="text-gray-400 text-sm">
+                                  Initializing secure payment...
+                                </div>
+                              )}
+                            </div>
+                          </div>
                           <div className="flex items-center justify-center mt-3 space-x-4 text-xs text-gray-400">
                             <span className="flex items-center">
                               <span className="w-2 h-2 bg-green-400 rounded-full mr-1"></span>
