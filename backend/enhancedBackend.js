@@ -2360,7 +2360,7 @@ class EnhancedBackend {
       
       try {
         // Refresh Jupiter data for this specific token
-        const freshJupiterData = await this.tokenProcessor.jupiterService.getTokenData(contractAddress);
+        const freshJupiterData = await this.tokenProcessor.jupiterService.getTokenDetails(contractAddress);
         
         if (freshJupiterData) {
           // Update the token with fresh Jupiter data
@@ -2454,7 +2454,7 @@ class EnhancedBackend {
           console.log(`[🛡️ Enhanced Backend] 🔄 Recalculating ${existingToken.symbol} without fuel boost...`);
           
           // Refresh Jupiter data and recalculate score
-          const freshJupiterData = await this.tokenProcessor.jupiterService.getTokenData(contractAddress);
+          const freshJupiterData = await this.tokenProcessor.jupiterService.getTokenDetails(contractAddress);
           
           if (freshJupiterData) {
             existingToken.jupiterData = freshJupiterData;
@@ -2511,7 +2511,7 @@ class EnhancedBackend {
             console.log(`[🛡️ Enhanced Backend] 🔄 Recalculating ${expiredToken.symbol} (${expiredToken.reason})...`);
             
             // Refresh Jupiter data
-            const freshJupiterData = await this.tokenProcessor.jupiterService.getTokenData(expiredToken.contractAddress);
+            const freshJupiterData = await this.tokenProcessor.jupiterService.getTokenDetails(expiredToken.contractAddress);
             
             if (freshJupiterData) {
               existingToken.jupiterData = freshJupiterData;

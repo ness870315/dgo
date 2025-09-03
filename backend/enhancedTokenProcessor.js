@@ -1311,7 +1311,7 @@ class EnhancedTokenProcessor {
           console.error(`❌ CRITICAL: Jupiter service not initialized! Backend needs restart.`);
           console.log(`⚠️ No Jupiter data for ${token.symbol}, service not available`);
         } else {
-          const jupiterData = await this.jupiterService.getTokenData(token.contractAddress);
+          const jupiterData = await this.jupiterService.getTokenDetails(token.contractAddress);
           if (jupiterData && !jupiterData.fallback) {
             token.jupiterData = jupiterData;
             // Update name and symbol from Jupiter if available
