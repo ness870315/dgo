@@ -2430,15 +2430,23 @@ class EnhancedBackend {
           // Then sort by market cap
           return (b.jupiterData?.mcap || 0) - (a.jupiterData?.mcap || 0);
         })
-        .slice(0, 50);
+        .slice(0, 100);
       
       let updated = 0;
       let errors = 0;
       
-      for (const token of topTokens) {
+      // Process tokens in batches of 100 (Jupiter API limit)
+      const batchSize = 100;
+      for (let i = 0; i < topTokens.length; i += batchSize) {
+        const batch = topTokens.slice(i, i + batchSize);
+        const contractAddresses = batch.map(token => token.contractAddress);
+        
         try {
-          const response = await axios.get(`https://lite-api.jup.ag/tokens/v2/search?query=${token.contractAddress}`, {
-            timeout: 8000,
+          console.log(`[🛡️ Enhanced Backend] 🚀 Batch updating Jupiter data for ${batch.length} tokens (batch ${Math.floor(i/batchSize) + 1})...`);
+          
+          // Use Jupiter API batch endpoint
+          const response = await axios.get(`https://lite-api.jup.ag/tokens/v2/search?query=${contractAddresses.join(',')}`, {
+            timeout: 15000,
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
               'Accept': 'application/json'
@@ -2446,33 +2454,50 @@ class EnhancedBackend {
           });
           
           if (response.data && response.data.length > 0) {
-            const freshData = response.data[0];
-            
-            // Update token in cache
-            const tokenIndex = tokens.findIndex(t => t.contractAddress === token.contractAddress);
-            if (tokenIndex !== -1) {
-              tokens[tokenIndex].jupiterData = freshData;
-              tokens[tokenIndex].jupiterTimestamp = new Date().toISOString();
-              updated++;
-              
-              // Log significant changes
-              const oldMcap = token.jupiterData?.mcap || 0;
-              const newMcap = freshData.mcap || 0;
-              if (oldMcap > 0 && Math.abs((newMcap - oldMcap) / oldMcap) > 0.05) {
-                const change = ((newMcap - oldMcap) / oldMcap * 100).toFixed(1);
-                console.log(`[🛡️ Enhanced Backend] 📊 ${token.symbol}: ${(oldMcap/1e6).toFixed(1)}M → ${(newMcap/1e6).toFixed(1)}M (${change}%)`);
+            // Create a map of contract address to Jupiter data
+            const jupiterMap = new Map();
+            response.data.forEach(jupiterToken => {
+              if (jupiterToken.id) {
+                jupiterMap.set(jupiterToken.id, jupiterToken);
               }
-            }
+            });
+            
+            // Update tokens with their corresponding Jupiter data
+            batch.forEach(token => {
+              const tokenIndex = tokens.findIndex(t => t.contractAddress === token.contractAddress);
+              if (tokenIndex !== -1 && jupiterMap.has(token.contractAddress)) {
+                const freshData = jupiterMap.get(token.contractAddress);
+                tokens[tokenIndex].jupiterData = freshData;
+                tokens[tokenIndex].jupiterTimestamp = new Date().toISOString();
+                updated++;
+                
+                // Log significant changes
+                const oldMcap = token.jupiterData?.mcap || 0;
+                const newMcap = freshData.mcap || 0;
+                if (oldMcap > 0 && Math.abs((newMcap - oldMcap) / oldMcap) > 0.05) {
+                  const change = ((newMcap - oldMcap) / oldMcap * 100).toFixed(1);
+                  console.log(`[🛡️ Enhanced Backend] 📊 ${token.symbol}: ${(oldMcap/1e6).toFixed(1)}M → ${(newMcap/1e6).toFixed(1)}M (${change}%)`);
+                }
+                
+                console.log(`[🛡️ Enhanced Backend] ✅ Updated Jupiter data for ${token.symbol} (${token.contractAddress.substring(0, 8)})`);
+              } else if (tokenIndex !== -1) {
+                console.log(`[🛡️ Enhanced Backend] ⚠️ No Jupiter data found for ${token.symbol} (${token.contractAddress.substring(0, 8)})`);
+                errors++;
+              }
+            });
           } else {
-            errors++;
+            errors += batch.length;
+            console.log(`[🛡️ Enhanced Backend] ⚠️ No Jupiter data returned for batch of ${batch.length} tokens`);
           }
           
-          // Rate limiting
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
         } catch (error) {
-          console.log(`[🛡️ Enhanced Backend] ❌ Failed to update ${token.symbol}: ${error.message}`);
-          errors++;
+          errors += batch.length;
+          console.log(`[🛡️ Enhanced Backend] ❌ Failed to update Jupiter batch for ${batch.length} tokens: ${error.message}`);
+        }
+        
+        // Rate limiting: wait 3 seconds between batches (reduced from individual 1s delays)
+        if (i + batchSize < topTokens.length) {
+          await new Promise(resolve => setTimeout(resolve, 3000));
         }
       }
       
