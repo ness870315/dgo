@@ -458,12 +458,12 @@ class EnhancedBackend {
         console.log(`✅ OAuth X: User ${user.username} authenticated successfully`);
 
         // Redirect to frontend with session
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const frontendUrl = process.env.FRONTEND_URL || 'https://degen-oracle.com';
         res.redirect(`${frontendUrl}/?auth=success&sessionId=${sessionId}`);
         
       } catch (error) {
         console.error('❌ OAuth X callback error:', error);
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const frontendUrl = process.env.FRONTEND_URL || 'https://degen-oracle.com';
         res.redirect(`${frontendUrl}/?auth=error&message=${encodeURIComponent(error.message)}`);
       }
     });
