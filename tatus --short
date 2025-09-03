@@ -1,0 +1,38 @@
+warning: in the working copy of 'backend/enhancedTokenProcessor.js', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/backend/enhancedTokenProcessor.js b/backend/enhancedTokenProcessor.js[m
+[1mindex f366c18..630d5d8 100644[m
+[1m--- a/backend/enhancedTokenProcessor.js[m
+[1m+++ b/backend/enhancedTokenProcessor.js[m
+[36m@@ -1319,9 +1319,13 @@[m [mclass EnhancedTokenProcessor {[m
+           console.error(`❌ CRITICAL: Jupiter service not initialized! Backend needs restart.`);[m
+           console.log(`⚠️ No Jupiter data for ${token.symbol}, service not available`);[m
+         } else {[m
+[32m+[m[32m          console.log(`🔍 Attempting to fetch Jupiter data for ${token.symbol} (${token.contractAddress})...`);[m
+           const jupiterData = await this.jupiterService.getTokenData(token.contractAddress);[m
+[32m+[m
+           if (jupiterData && !jupiterData.fallback) {[m
+[32m+[m[32m            console.log(`✅ Jupiter API returned data for ${token.symbol}`);[m
+             token.jupiterData = jupiterData;[m
+[32m+[m
+             // Update name and symbol from Jupiter if available[m
+             if (jupiterData.name) token.name = jupiterData.name;[m
+             if (jupiterData.symbol) token.symbol = jupiterData.symbol.toUpperCase();[m
+[36m@@ -1335,9 +1339,16 @@[m [mclass EnhancedTokenProcessor {[m
+               console.log(`⚠️ No valid price in Jupiter data for ${token.symbol}`);[m
+             }[m
+ [m
+[31m-            console.log(`✅ Jupiter data found for ${token.symbol}`);[m
+[32m+[m[32m            console.log(`✅ Jupiter data successfully integrated for ${token.symbol}`);[m
+           } else {[m
+[31m-            console.log(`⚠️ No Jupiter data for ${token.symbol}, using fallback`);[m
+[32m+[m[32m            console.log(`⚠️ Jupiter API returned no data for ${token.symbol} (${token.contractAddress})`);[m
+[32m+[m
+[32m+[m[32m            // If Jupiter doesn't have data but we previously had Jupiter data, keep the old data[m
+[32m+[m[32m            if (token.jupiterData) {[m
+[32m+[m[32m              console.log(`📋 Keeping existing Jupiter data for ${token.symbol}`);[m
+[32m+[m[32m            } else {[m
+[32m+[m[32m              console.log(`📋 No Jupiter data available for ${token.symbol}, will use DexScreener fallback`);[m
+[32m+[m[32m            }[m
+           }[m
+         }[m
+       } catch (error) {[m

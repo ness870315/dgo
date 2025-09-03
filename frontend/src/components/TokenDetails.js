@@ -330,8 +330,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                       {(token?.jupiterData?.stats24h?.priceChange || 0) >= 0 ? '↗' : '↘'} 
                       {formatPercentage(token?.jupiterData?.stats24h?.priceChange || 0)}
                     </span>
-                  </div>
-                </div>
+              </div>
+              </div>
 
                 {/* Price - Green Gradient */}
                 <div className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-green-600/20 to-emerald-600/20 rounded border border-green-500/30 aspect-square relative overflow-hidden">
@@ -348,7 +348,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                       {formatPercentage(token?.jupiterData?.stats24h?.priceChangePercentage || 0)}
                     </span>
               </div>
-              </div>
+            </div>
 
                 {/* Liquidity - Purple Gradient */}
                 <div className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-purple-600/20 to-violet-600/20 rounded border border-purple-500/30 aspect-square relative overflow-hidden">
@@ -365,7 +365,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                       {formatPercentage(token?.jupiterData?.stats24h?.liquidityChange || 0)}
                     </span>
               </div>
-            </div>
+              </div>
 
                 {/* Holders - Orange Gradient */}
                 <div className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-orange-600/20 to-amber-600/20 rounded border border-orange-500/30 aspect-square relative overflow-hidden">
@@ -381,7 +381,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                       {(token?.jupiterData?.stats24h?.holderChange || 0) >= 0 ? '↗' : '↘'} 
                       {formatPercentage(token?.jupiterData?.stats24h?.holderChange || 0)}
                     </span>
-                  </div>
+                </div>
                 </div>
               </div>
 
@@ -434,7 +434,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                   <span className="text-white font-semibold text-sm">
                     ${formatNumber(token?.jupiterData?.fdv)}
                   </span>
-                </div>
+              </div>
                 <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
                   <span className="text-gray-400 text-sm">📊 Volume (24h):</span>
                   <span className="text-white font-semibold text-sm">
@@ -449,7 +449,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                     {formatPercentage(token?.jupiterData?.stats24h?.priceChange)}
                   </span>
               </div>
-              </div>
+            </div>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
@@ -457,7 +457,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                   <span className="text-white font-semibold text-sm">
                     {((token?.jupiterData?.organicScore || 0) / 10).toFixed(1)}/10
                   </span>
-            </div>
+              </div>
                 <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
                   <span className="text-gray-400 text-sm">💰 Total Supply:</span>
                   <span className="text-white font-semibold text-sm">
@@ -487,14 +487,14 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                     <span className="text-white font-semibold text-sm">
                       {((token.jupiterData.audit.devBalancePercentage || 0) * 100).toFixed(2)}%
                     </span>
-                  </div>
+              </div>
                   <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
                     <span className="text-gray-400 text-sm">🏆 Top Holders %:</span>
                     <span className="text-white font-semibold text-sm">
                       {(token.jupiterData.audit.topHoldersPercentage || 0).toFixed(2)}%
                     </span>
-                  </div>
-                </div>
+              </div>
+              </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
                     <span className="text-gray-400 text-sm">📅 Creation Date:</span>
@@ -512,7 +512,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                         return 'N/A';
                       })()}
                     </span>
-                  </div>
+            </div>
                   <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
                     <span className="text-gray-400 text-sm">🚀 Launchpad:</span>
                     <span className="text-white font-semibold text-sm">
@@ -542,16 +542,16 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                         (token.jupiterData.stats1h.priceChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'
                       }`}>
                         {formatPercentage(token.jupiterData.stats1h.priceChange)}
-                      </div>
-                    </div>
+              </div>
+              </div>
                     <div className="bg-dark-bg p-2 rounded border border-gray-700">
                       <div className="text-gray-400 text-xs mb-1">👥 Holder Change</div>
                       <div className={`font-semibold text-xs ${
                         (token.jupiterData.stats1h.holderChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'
                       }`}>
                         {formatPercentage(token.jupiterData.stats1h.holderChange)}
-                      </div>
-                    </div>
+              </div>
+            </div>
                     <div className="bg-dark-bg p-2 rounded border border-gray-700">
                       <div className="text-gray-400 text-xs mb-1">💰 Liquidity Change</div>
                       <div className={`font-semibold text-xs ${
@@ -631,23 +631,23 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                         (token.jupiterData.stats6h.priceChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'
                       }`}>
                         {formatPercentage(token.jupiterData.stats6h.priceChange)}
-                      </div>
-                    </div>
+              </div>
+              </div>
                     <div className="bg-dark-bg p-2 rounded border border-gray-700">
                       <div className="text-gray-400 text-xs mb-1">👥 Holder Change</div>
                       <div className={`font-semibold text-xs ${
                         (token.jupiterData.stats6h.holderChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'
                       }`}>
                         {formatPercentage(token.jupiterData.stats6h.holderChange)}
-                      </div>
-                    </div>
+              </div>
+            </div>
                     <div className="bg-dark-bg p-2 rounded border border-gray-700">
                       <div className="text-gray-400 text-xs mb-1">💰 Liquidity Change</div>
                       <div className={`font-semibold text-xs ${
                         (token.jupiterData.stats6h.liquidityChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'
                       }`}>
                         {formatPercentage(token.jupiterData.stats6h.liquidityChange)}
-                      </div>
+          </div>
                     </div>
                     <div className="bg-dark-bg p-2 rounded border border-gray-700">
                       <div className="text-gray-400 text-xs mb-1">📊 Volume Change</div>
@@ -720,7 +720,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                         (token.jupiterData.stats24h.priceChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'
                       }`}>
                         {formatPercentage(token.jupiterData.stats24h.priceChange)}
-                      </div>
+                </div>
                     </div>
                     <div className="bg-dark-bg p-2 rounded border border-gray-700">
                       <div className="text-gray-400 text-xs mb-1">👥 Holder Change</div>
@@ -832,7 +832,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                 }`}>
                   {(token?.socials?.twitter || token?.jupiterData?.twitter || token?.twitterHandle) ? '✅ Found' : '❌ Not Found'}
                 </span>
-              </div>
+                  </div>
             </div>
 
             {/* Social Links Section */}
@@ -849,15 +849,15 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                         token?.jupiterData?.twitter ||
                         `https://twitter.com/${token?.twitterHandle}`
                       }
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    target="_blank"
+                    rel="noopener noreferrer"
                       className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded transition-colors w-full"
-                    >
+                  >
                       <Twitter className="w-4 h-4" />
                       <span className="text-sm font-medium">Twitter</span>
-                    </a>
-          </div>
-                )}
+                  </a>
+                </div>
+              )}
 
                 {/* Website Link */}
                 {(token?.socials?.website || token?.jupiterData?.website) && (
@@ -871,7 +871,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                       <ExternalLink className="w-4 h-4" />
                       <span className="text-sm font-medium">Website</span>
                     </a>
-                  </div>
+                </div>
                 )}
 
                 {/* Telegram Link */}
@@ -886,7 +886,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                       <MessageCircle className="w-4 h-4" />
                       <span className="text-sm font-medium">Telegram</span>
                     </a>
-                    </div>
+              </div>
                 )}
 
                 {/* Discord Link */}
@@ -924,17 +924,17 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                   <div className="p-2 bg-dark-bg rounded border border-gray-700">
                     <a
                       href={token?.socials?.coinmarketcap || token?.jupiterData?.coinmarketcap}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                          target="_blank"
+                          rel="noopener noreferrer"
                       className="flex items-center justify-center space-x-2 bg-blue-800 hover:bg-blue-900 text-white p-2 rounded transition-colors w-full"
-                    >
+                        >
                       <ExternalLink className="w-4 h-4" />
                       <span className="text-sm font-medium">CMC</span>
-                    </a>
+                        </a>
                   </div>
-                )}
+                      )}
 
-                </div>
+                    </div>
 
               {/* No Social Links Message */}
               {!(token?.socials?.twitter || token?.jupiterData?.twitter || token?.twitterHandle) &&
@@ -946,10 +946,10 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                 <div className="text-center py-4 text-gray-400">
                   <p className="text-sm">📭 No social links available</p>
                   <p className="text-xs mt-1">Links can be added via Token List or Update Token feature</p>
-                </div>
+                  </div>
               )}
-            </div>
-          </div>
+                </div>
+                </div>
 
           {/* 🐦 Section 6 – Social Activity */}
           <div className="bg-gray-800 rounded-lg p-3 border border-gray-600">
@@ -1044,8 +1044,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                                 <span className="text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity text-xs ml-2">
                                   {post.tweetId ? '🔗 Click to view tweet' : post.text ? '🔍 Click to search tweet' : '👤 Click to view profile'}
                                 </span>
-                              )}
-                            </div>
+              )}
+            </div>
                           )}
                           
                           {/* Tweet content */}
@@ -1072,7 +1072,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                                 {new Date(post.date || post.createdAt).toLocaleDateString()}
                               </span>
                             )}
-                          </div>
+          </div>
                         </div>
                       </div>
                     );
@@ -1093,7 +1093,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                         className="bg-dark-bg p-3 rounded border border-gray-700"
                       >
                         {tweetContent}
-                      </div>
+                  </div>
                     );
                   })}
                 </div>
@@ -1140,10 +1140,10 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                   <span className="text-white font-semibold text-sm">
                     {token?.lastUpdated ? new Date(token.lastUpdated).toLocaleTimeString() : 'N/A'}
                   </span>
+                  </div>
                 </div>
               </div>
-            </div>
-
+              
             {token?.enhancedScore?.calculationTime && (
               <div className="mt-3 pt-2 border-t border-gray-600">
                 <div className="text-center text-gray-400 text-xs">
@@ -1169,7 +1169,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                 >
                   <X size={20} />
                 </button>
-              </div>
+                  </div>
 
               <div className="px-6 pb-6">
                 {/* Token Info */}
@@ -1187,8 +1187,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                   {fuelMultiplier && (
                     <div className="mt-2 text-sm text-orange-400">
                       🔥 Currently fueled: {fuelMultiplier}
-                    </div>
-                  )}
+                </div>
+              )}
                 </div>
 
                 {/* Contract Validation */}
@@ -1226,8 +1226,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                     >
                       {fuelLoading ? '🔍 Validating...' : '🔍 Validate Contract Address'}
                     </button>
-                  </div>
-                )}
+            </div>
+          )}
 
                 {/* Fuel Selection */}
                 {contractValidated && !paymentCompleted && (
@@ -1264,19 +1264,19 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                           <span className="mr-2">💳</span>
                           Payment Details
                         </h4>
-                        <div className="space-y-3">
+            <div className="space-y-3">
                           <div className="flex justify-between items-center text-sm">
                             <span className="text-gray-300">Selected Fuel:</span>
                             <span className="text-white font-semibold">{selectedFuel}</span>
-                          </div>
+              </div>
                           <div className="flex justify-between items-center text-sm">
                             <span className="text-gray-300">Duration:</span>
                             <span className="text-white font-semibold">12 hours</span>
-                          </div>
+              </div>
                           <div className="flex justify-between items-center text-sm">
                             <span className="text-gray-300">Price:</span>
                             <span className="text-white font-semibold">{fuelOptions.find(f => f.type === selectedFuel)?.price}</span>
-                          </div>
+              </div>
                           <div className="flex justify-between items-center text-sm">
                             <span className="text-gray-300">Payment Method:</span>
                             <span className="text-green-400 font-medium">USDC</span>
@@ -1342,7 +1342,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                       : 'bg-blue-900/20 border border-blue-500 text-blue-400'
                   }`}>
                     {fuelMessage.text}
-                  </div>
+              </div>
                 )}
 
                 {/* Close Button */}
@@ -1359,9 +1359,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                   >
                     Close
                   </button>
-                </div>
-              </div>
             </div>
+          </div>
+        </div>
           </div>
         )}
       </div>

@@ -1,0 +1,20 @@
+[33m052bff0[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mfeature/fuel-token-testing[m[33m, [m[1;31morigin/feature/fuel-token-testing[m[33m)[m ROLLBACK: Revert to working state with Twitter API disabled
+[33mdc7bd2c[m Fix: Generate standalone package-lock.json without workspace interference
+[33m9f06d97[m Fix: Regenerate package-lock.json with fresh dependencies
+[33m132526d[m Fix: Move package-lock.json to backend directory
+[33mf5dbd0a[m Fix: Implement optional rettiwt-api dependency with graceful fallback
+[33m585cf52[m Fix: Remove rettiwt-api dependency and temporarily disable Twitter service to resolve deployment issues
+[33m2e4e0b5[m Fix: Add missing rettiwt-api dependency for Twitter service
+[33md5d34fa[m Fix: Implement dynamic CORS pattern for Cloudflare Pages subdomains
+[33meaa6645[m Fix: Add Cloudflare Pages subdomain to CORS allowed origins
+[33ma55ee1d[m Fix: Import jupiterApiService as instance instead of constructor
+[33m1fd5747[m Fix: Replace missing enhancedJupiterService import with jupiterApiService
+[33m8c02840[m Fix: Add ES module support to backend package.json for Render deployment
+[33m4a8b933[m Trigger Render deployment for admin dashboard fix
+[33mf5a01c9[m Fix: Improve admin dashboard environment detection for Render deployment
+[33m05b7321[m Fix: Update admin dashboard to use production API URL instead of localhost
+[33m4a00ce9[m Fix: Disable ESLint plugin in CI build to prevent warnings as errors
+[33mde44f68[m Fix: Replace all localhost:4000 URLs with production API URL (api.degen-oracle.com)
+[33me5c5f18[m fix: Update backend logging to show correct production URLs
+[33mf431ad7[m feat: Configure custom domain api.degen-oracle.com
+[33maf2407c[m feat: Switch to enhanced backend with proper CORS and credentials
