@@ -2535,9 +2535,8 @@ class EnhancedBackend {
               await this.tokenProcessor.startProcessing();
             } else {
               console.log(`[🛡️ Enhanced Backend] 📊 Found ${status.processedCount} existing tokens`);
-              // Check if we need to refresh data (start processing anyway for updates)
-              console.log('[🛡️ Enhanced Backend] 🔄 Starting processing to refresh existing data...');
-              await this.tokenProcessor.startProcessing();
+              console.log('[🛡️ Enhanced Backend] ✅ Tokens exist, skipping initial processing to avoid rate limits');
+              console.log('[🛡️ Enhanced Backend] ⏰ Processing will run on scheduled intervals (every 10 minutes)');
             }
           } catch (error) {
             console.error('[🛡️ Enhanced Backend] ❌ Error starting token processing:', error);
