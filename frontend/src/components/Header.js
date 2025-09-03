@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Filter, TrendingUp, RefreshCw, Settings, Star } from 'lucide-react';
+import dgoLogo from '../assets/dgo.png';
 
 const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, authButton, onWatchlistClick, onApifyTestClick }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,9 +46,13 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
             <div className="flex items-center space-x-2">
               {/* DeGen Oracle Logo */}
               <img
-                src="/dgo.png"
+                src={dgoLogo}
                 alt="DeGen Oracle Logo"
                 className="w-8 h-8"
+                onError={(e) => {
+                  console.error('Logo failed to load:', e);
+                  e.target.style.display = 'none';
+                }}
               />
               <div>
                 <h1 className="text-2xl font-bold text-white">
