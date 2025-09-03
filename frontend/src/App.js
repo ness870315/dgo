@@ -651,6 +651,7 @@ function App() {
   }, []);
 
   const handleWatchlistClick = useCallback(() => {
+    console.log('🎯 Navigating to Watchlist');
     setShowWatchlist(true);
   }, []);
 
@@ -672,10 +673,7 @@ function App() {
     setShowUserDashboard(true);
   }, []);
 
-  const handleWatchlistClick = useCallback(() => {
-    console.log('🎯 Navigating to Watchlist');
-    setShowWatchlist(true);
-  }, []);
+
 
   const handleApifyTestClick = useCallback(() => {
     setShowApifyTest(true);
