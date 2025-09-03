@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, CheckCircle, AlertCircle, Loader, ArrowLeft, Twitter, Globe, MessageCircle, Music, Instagram, ChevronDown, ChevronUp } from 'lucide-react';
-// HelioCheckout removed due to React 19 compatibility issues
 
 // Professional Success Modal Function
 const showProfessionalSuccessModal = (tokenData) => {
@@ -68,7 +67,7 @@ const showProfessionalSuccessModal = (tokenData) => {
         <div style="font-size: 24px; margin-right: 10px;">⏱️</div>
         <span style="font-size: 16px; font-weight: 600;">Processing Time: Approximately 2-3 minutes</span>
       </div>
-      
+
       <div style="text-align: left; margin-bottom: 20px;">
         <div style="font-size: 18px; font-weight: 600; margin-bottom: 15px; text-align: center;">
           📊 DeGen Oracle is calculating:
@@ -105,7 +104,7 @@ const showProfessionalSuccessModal = (tokenData) => {
       cursor: pointer;
       transition: all 0.3s ease;
       backdrop-filter: blur(10px);
-    " onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'" 
+    " onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'"
        onmouseout="this.style.background='rgba(255, 255, 255, 0.2)'">
       OK
     </button>
@@ -118,7 +117,7 @@ const showProfessionalSuccessModal = (tokenData) => {
   document.getElementById('successModalOK').onclick = () => {
     document.body.removeChild(overlay);
     document.head.removeChild(style);
-    
+
     // Redirect to main page after closing modal
     window.location.href = window.location.origin;
   };
@@ -128,7 +127,7 @@ const showProfessionalSuccessModal = (tokenData) => {
     if (e.target === overlay) {
       document.body.removeChild(overlay);
       document.head.removeChild(style);
-      
+
       // Redirect to main page after closing modal
       window.location.href = window.location.origin;
     }
@@ -191,7 +190,7 @@ const showErrorModal = (message) => {
       cursor: pointer;
       transition: all 0.3s ease;
       backdrop-filter: blur(10px);
-    " onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'" 
+    " onmouseover="this.style.background='rgba(255, 255, 255, 0.3)'"
        onmouseout="this.style.background='rgba(255, 255, 255, 0.2)'">
       OK
     </button>
@@ -220,7 +219,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   const [error, setError] = useState('');
   const [validationComplete, setValidationComplete] = useState(false);
   const [duplicateCheck, setDuplicateCheck] = useState(null);
-  
+
   // Social links state (optional)
   const [showSocialLinks, setShowSocialLinks] = useState(false);
   const [socials, setSocials] = useState({
@@ -332,36 +331,20 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     }
   }, [submitTokenToDatabase]);
 
-  // 🔧 ENHANCED: Handle payment completion with multiple detection methods
+  // Handle payment completion on page load
   useEffect(() => {
     const handlePaymentCompletion = async () => {
       console.log('🔍 Checking for payment completion...');
 
-      // Method 1: Check URL parameters for payment success
+      // Check URL parameters for payment success
       const urlParams = new URLSearchParams(window.location.search);
       const paymentStatus = urlParams.get('payment');
-      const paymentSuccess = urlParams.get('success'); // Alternative parameter
-      const helioStatus = urlParams.get('status'); // Helio might use this
       const currentUrl = window.location.href;
 
       console.log('📍 Current URL:', currentUrl);
-      console.log('💳 Payment parameters:', {
-        payment: paymentStatus,
-        success: paymentSuccess,
-        status: helioStatus
-      });
+      console.log('💳 Payment status parameter:', paymentStatus);
 
-      // Method 2: Check localStorage for completed payment flag
-      const paymentCompleted = localStorage.getItem('paymentCompleted');
-      console.log('💾 Payment completed flag:', !!paymentCompleted);
-
-      // Determine if payment was successful
-      const isPaymentSuccess = paymentStatus === 'success' || 
-                              paymentSuccess === 'true' || 
-                              helioStatus === 'completed' ||
-                              paymentCompleted;
-
-      if (isPaymentSuccess) {
+      if (paymentStatus === 'success') {
         console.log('🎉 Payment success detected! Processing pending token...');
 
         // Check for pending payment data in localStorage
@@ -380,15 +363,14 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
             // Process the payment and add token
             console.log('🚀 Starting token submission to database...');
             await submitTokenToDatabase(tokenData, {
-              paymentId: paymentId || 'url_redirect_payment',
+              paymentId,
               status: 'completed',
               timestamp: new Date().toISOString()
             });
             console.log('✅ Token submission completed successfully!');
 
-            // Clear the pending data and completion flag
+            // Clear the pending data
             localStorage.removeItem('pendingTokenListing');
-            localStorage.removeItem('paymentCompleted');
             console.log('🧹 Cleared pending data from localStorage');
 
             // Clear URL parameters
@@ -407,16 +389,9 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         } else {
           console.warn('⚠️ Payment success detected but no pending token data found in localStorage');
           console.log('💡 This might happen if the page was refreshed before processing or data was cleared');
-          showErrorModal('Payment completed but token data was lost. Please contact support with your payment confirmation.');
         }
-      } else if (paymentStatus === 'cancelled' || paymentStatus === 'error') {
-        console.log('❌ Payment cancelled or failed');
-        showErrorModal(paymentStatus === 'cancelled' ? 'Payment was cancelled.' : 'Payment failed. Please try again.');
-        
-        // Clear URL parameters
-        window.history.replaceState({}, document.title, window.location.pathname);
       } else {
-        console.log('ℹ️ No payment completion detected');
+        console.log('ℹ️ No payment success detected in URL parameters');
       }
     };
 
@@ -432,186 +407,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     // Cleanup timeout
     return () => clearTimeout(timeoutId);
   }, [submitTokenToDatabase]); // Include submitTokenToDatabase as dependency
-
-  // 🔧 ENHANCED: Comprehensive payment completion detection
-  useEffect(() => {
-    const checkPendingPayments = () => {
-      const pendingData = localStorage.getItem('pendingTokenListing');
-      if (pendingData) {
-        try {
-          const tokenData = JSON.parse(pendingData);
-          const paymentInitiated = new Date(tokenData.paymentInitiated);
-          const now = new Date();
-          const timeDiff = now - paymentInitiated;
-          
-          // If payment was initiated more than 2 minutes ago, show helper with manual completion
-          if (timeDiff > 2 * 60 * 1000) {
-            console.log('⏰ Found pending payment, showing completion helper');
-            
-            // Create enhanced notification with manual completion option
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-              position: fixed;
-              top: 20px;
-              right: 20px;
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              color: white;
-              padding: 20px;
-              border-radius: 15px;
-              box-shadow: 0 15px 35px rgba(0,0,0,0.4);
-              z-index: 10000;
-              max-width: 350px;
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            `;
-            
-            notification.innerHTML = `
-              <div style="font-weight: 700; margin-bottom: 12px; font-size: 16px;">💳 Payment Status Check</div>
-              <div style="font-size: 14px; opacity: 0.9; margin-bottom: 15px; line-height: 1.4;">
-                Found a pending payment for <strong>${tokenData.symbol || 'your token'}</strong>.<br>
-                If you completed the payment on Helio, click below to process your token.
-              </div>
-              <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-                <button id="completePayment" style="
-                  background: #10b981;
-                  border: none;
-                  color: white;
-                  padding: 8px 16px;
-                  border-radius: 8px;
-                  cursor: pointer;
-                  font-size: 13px;
-                  font-weight: 600;
-                  flex: 1;
-                ">✅ I Paid - Process Token</button>
-                <button id="cancelPayment" style="
-                  background: #ef4444;
-                  border: none;
-                  color: white;
-                  padding: 8px 16px;
-                  border-radius: 8px;
-                  cursor: pointer;
-                  font-size: 13px;
-                  font-weight: 600;
-                  flex: 1;
-                ">❌ Cancel</button>
-              </div>
-              <button id="dismissNotification" style="
-                background: rgba(255,255,255,0.2);
-                border: none;
-                color: white;
-                padding: 6px 12px;
-                border-radius: 6px;
-                cursor: pointer;
-                font-size: 12px;
-                width: 100%;
-              ">Dismiss</button>
-            `;
-            
-            document.body.appendChild(notification);
-            
-            // Handle manual completion
-            document.getElementById('completePayment').onclick = async () => {
-              try {
-                console.log('🔄 Manual payment completion triggered');
-                
-                // Process the payment manually
-                await submitTokenToDatabase(tokenData, {
-                  paymentId: 'manual_completion_' + Date.now(),
-                  status: 'completed',
-                  timestamp: new Date().toISOString(),
-                  manual: true
-                });
-                
-                // Clear pending data
-                localStorage.removeItem('pendingTokenListing');
-                
-                // Show success modal
-                showProfessionalSuccessModal(tokenData);
-                
-                // Remove notification
-                document.body.removeChild(notification);
-                
-              } catch (error) {
-                console.error('❌ Manual completion error:', error);
-                alert('Failed to process token. Please contact support.');
-              }
-            };
-            
-            // Handle cancellation
-            document.getElementById('cancelPayment').onclick = () => {
-              localStorage.removeItem('pendingTokenListing');
-              document.body.removeChild(notification);
-              console.log('🗑️ Pending payment cancelled by user');
-            };
-            
-            // Handle dismiss
-            document.getElementById('dismissNotification').onclick = () => {
-              document.body.removeChild(notification);
-            };
-            
-            // Auto-remove after 30 seconds
-            setTimeout(() => {
-              if (document.body.contains(notification)) {
-                document.body.removeChild(notification);
-              }
-            }, 30000);
-          }
-        } catch (error) {
-          console.error('Error checking pending payments:', error);
-        }
-      }
-    };
-
-    // Check immediately and then every 15 seconds (more frequent)
-    checkPendingPayments();
-    const interval = setInterval(checkPendingPayments, 15000);
-
-    return () => clearInterval(interval);
-  }, [submitTokenToDatabase]);
-
-    // 🔧 TEMPORARILY DISABLED: Poll backend to check if token was processed
-  // TODO: Re-enable after fixing frontend loading issues
-  /*
-  useEffect(() => {
-    const pollForTokenCompletion = async () => {
-      const pendingData = localStorage.getItem('pendingTokenListing');
-      if (pendingData) {
-        try {
-          const tokenData = JSON.parse(pendingData);
-          const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-
-          console.log('🔍 Polling for token completion:', tokenData.contractAddress);
-
-          const response = await fetch(`${apiBase}/api/payments/check-token/${tokenData.contractAddress}`);
-          const result = await response.json();
-
-          if (result.success && result.processed) {
-            console.log('🎉 Token processing detected via polling!', result.token);
-
-            // Clear pending data
-            localStorage.removeItem('pendingTokenListing');
-
-            // Show success modal with correct format
-            showProfessionalSuccessModal({
-              symbol: result.token.symbol,
-              name: result.token.name,
-              contractAddress: result.token.contractAddress
-            });
-
-            // Clear URL parameters if any
-            window.history.replaceState({}, document.title, window.location.pathname);
-          }
-        } catch (error) {
-          console.error('❌ Error polling for token completion:', error);
-        }
-      }
-    };
-
-    // Poll every 10 seconds for token completion
-    const pollInterval = setInterval(pollForTokenCompletion, 10000);
-
-    return () => clearInterval(pollInterval);
-  }, []);
-  */
 
 
   // Validate Solana contract address format
@@ -629,21 +424,21 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     if (!address || address.length < 32 || address.length > 44) {
       return 'Solana addresses must be 32-44 characters long';
     }
-    
+
     const invalidChars = [];
     const validBase58Chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-    
+
     for (let i = 0; i < address.length; i++) {
       const char = address[i];
       if (!validBase58Chars.includes(char)) {
         invalidChars.push(`'${char}' at position ${i + 1}`);
       }
     }
-    
+
     if (invalidChars.length > 0) {
       return `Invalid characters found: ${invalidChars.join(', ')}. Base58 excludes: 0, O, I, l`;
     }
-    
+
     return 'Invalid Solana contract address format';
   };
 
@@ -651,7 +446,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   const fetchTokenMetadata = async (ca) => {
     try {
       console.log('🔍 Attempting to fetch token metadata from Bitquery for:', ca);
-      
+
       const query = `
         query MyQuery {
           Solana(dataset: archive) {
@@ -675,7 +470,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       `;
 
       console.log('🔍 Trying Bitquery API...');
-      
+
       const response = await fetch('https://streaming.bitquery.io/eap', {
         method: 'POST',
         headers: {
@@ -701,14 +496,14 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }
 
       const tokenData = data.data?.Solana?.DEXTradeByTokens?.[0]?.Trade?.Currency;
-      
+
       if (!tokenData) {
         console.log('⚠️ No token data found in DEX trades for this address');
         throw new Error('Token not found in DEX trading data. This token may not have been traded yet.');
       }
 
       console.log('✅ Successfully retrieved token metadata:', tokenData);
-      
+
       return {
         name: tokenData.Name || 'Unknown Token',
         symbol: tokenData.Symbol || 'UNKNOWN', // Use actual symbol from Bitquery
@@ -732,7 +527,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   const fetchPriceData = async (ca) => {
     try {
       console.log('🔍 Fetching price data from Bitquery for:', ca);
-      
+
       const priceQuery = `{
         Solana {
           DEXTradeByTokens(
@@ -763,7 +558,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }`;
 
       console.log('🔍 Price query:', priceQuery);
-      
+
       const response = await fetch('https://streaming.bitquery.io/eap', {
         method: 'POST',
         headers: {
@@ -786,7 +581,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }
 
       const priceData = data.data?.Solana?.DEXTradeByTokens?.[0];
-      
+
       if (!priceData) {
         console.log('⚠️ No price data found');
         return {
@@ -800,7 +595,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }
 
       console.log('✅ Successfully retrieved price data:', priceData);
-      
+
       return {
         price: priceData.Trade.PriceInUSD || 0,
         priceInSol: priceData.Trade.PriceInSol || 0,
@@ -827,20 +622,20 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   const checkTokenExists = async (ca, symbol, name) => {
     try {
       console.log('🔍 Checking if token already exists:', { ca, symbol, name });
-      
+
       // Check by contract address first (most reliable)
       const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/tokens`);
       const tokens = await response.json();
-      
+
       // Convert to array if it's an object with tokens property
       const tokenArray = Array.isArray(tokens) ? tokens : (tokens.tokens || []);
-      
+
       console.log('🔍 DEBUGGING CONTRACT CHECK:');
       console.log('   Input CA:', ca);
       console.log('   Total tokens:', tokenArray.length);
-      
+
       // Debug: Look for memeputer tokens specifically
-      const memeputerTokens = tokenArray.filter(token => 
+      const memeputerTokens = tokenArray.filter(token =>
         token.name && token.name.toLowerCase().includes('memeputer')
       );
       console.log('   Memeputer tokens found:', memeputerTokens.map(t => ({
@@ -848,14 +643,14 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         symbol: t.symbol,
         contractAddress: t.contractAddress
       })));
-      
+
       // Check for duplicates by contract address (primary)
-      const existingByContract = tokenArray.find(token => 
+      const existingByContract = tokenArray.find(token =>
         token.contractAddress && token.contractAddress.toLowerCase() === ca.toLowerCase()
       );
-      
+
       console.log('   Contract match result:', existingByContract ? 'FOUND' : 'NOT FOUND');
-      
+
       if (existingByContract) {
         console.log('⚠️ Token found by contract address:', existingByContract);
         return {
@@ -865,16 +660,16 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
           message: `This token is already listed in our database with the contract address ${ca}`
         };
       }
-      
+
       // REMOVED: Symbol/name checking to avoid false positives
       // Only contract address checking is reliable for Solana tokens
-      
+
       console.log('✅ Token is not in database - safe to list');
       return {
         exists: false,
         message: 'Token is not in our database. Safe to proceed with listing.'
       };
-      
+
     } catch (error) {
       console.error('❌ Error checking token existence:', error);
       return {
@@ -889,7 +684,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   const fetchMarketCapData = async (ca) => {
     try {
       console.log('🔍 Fetching market cap data from Bitquery for:', ca);
-      
+
       // First try simple supply query
       const simpleSupplyQuery = `{
         Solana {
@@ -915,7 +710,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }`;
 
       console.log('🔍 Trying simple supply query first:', simpleSupplyQuery);
-      
+
       let response = await fetch('https://streaming.bitquery.io/eap', {
         method: 'POST',
         headers: {
@@ -928,7 +723,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       if (response.ok) {
         const simpleData = await response.json();
         console.log('✅ Simple supply query response:', simpleData);
-        
+
         if (!simpleData.errors && simpleData.data?.Solana?.TokenSupplyUpdates?.[0]) {
           const supplyData = simpleData.data.Solana.TokenSupplyUpdates[0].TokenSupplyUpdate;
           console.log('✅ Found supply data with simple query:', supplyData);
@@ -938,7 +733,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
           console.log('   hasMarketCap:', !!supplyData.PostBalanceInUSD);
           console.log('   marketCapValue:', supplyData.PostBalanceInUSD);
           console.log('   typeof PostBalanceInUSD:', typeof supplyData.PostBalanceInUSD);
-          
+
           return {
             marketCap: supplyData.PostBalanceInUSD || 0,
             totalSupply: supplyData.PostBalance || 0,
@@ -949,10 +744,10 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }
 
       console.log('⚠️ Simple query failed, trying complex join query...');
-      
+
       // Get time 15 seconds ago for recent data
       const time15sAgo = new Date(Date.now() - 15000).toISOString();
-      
+
       const marketCapQuery = `query MyQuery($time_15s: DateTime) {
         Solana {
           DEXTradeByTokens(
@@ -985,14 +780,14 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }`;
 
       console.log('🔍 Market cap query:', marketCapQuery);
-      
+
       response = await fetch('https://streaming.bitquery.io/eap', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ory_at_gdYmaq9AHhGAwTIFSGzIsS6kas1bFJfJXuBthqzFDx4.StK99y_pGpRxVe91TPwftlfOi-PNOIu05KhQK-WAQiI'
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           query: marketCapQuery,
           variables: {
             time_15s: time15sAgo
@@ -1013,14 +808,14 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }
 
       const marketCapData = data.data?.Solana?.DEXTradeByTokens?.[0];
-      
+
       console.log('🔍 Detailed market cap response analysis:', {
         hasData: !!marketCapData,
         tradeData: marketCapData?.Trade,
         joinData: marketCapData?.joinTokenSupplyUpdates,
         rawResponse: data.data?.Solana
       });
-      
+
       if (!marketCapData) {
         console.log('⚠️ No market cap data found - no DEXTradeByTokens results');
         return {
@@ -1029,7 +824,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
           marketCapSource: 'no_trades'
         };
       }
-      
+
       if (!marketCapData.joinTokenSupplyUpdates || marketCapData.joinTokenSupplyUpdates.length === 0) {
         console.log('⚠️ No supply updates found in join - trying alternative calculation');
         // Alternative: Calculate market cap from price and a common supply estimate
@@ -1045,7 +840,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
             priceForCalculation: priceInUSD
           };
         }
-        
+
         return {
           marketCap: 0,
           totalSupply: 0,
@@ -1054,12 +849,12 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }
 
       const supplyUpdate = marketCapData.joinTokenSupplyUpdates?.[0]?.TokenSupplyUpdate;
-      
+
       console.log('✅ Successfully retrieved market cap data:', {
         marketCap: supplyUpdate?.PostBalanceInUSD,
         totalSupply: supplyUpdate?.PostBalance
       });
-      
+
       return {
         marketCap: supplyUpdate?.PostBalanceInUSD || 0,
         totalSupply: supplyUpdate?.PostBalance || 0,
@@ -1078,7 +873,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     const trimmedAddress = contractAddress.trim();
     console.log('🧪 Validation Debug:', {
       address: trimmedAddress,
@@ -1086,7 +881,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       isValid: isValidSolanaAddress(trimmedAddress),
       regex: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(trimmedAddress)
     });
-    
+
     if (!trimmedAddress) {
       setError('Please enter a contract address');
       return;
@@ -1107,13 +902,13 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
 
     try {
       console.log('🔍 Fetching token metadata for:', contractAddress);
-      
+
       // Step 1: Get basic metadata from Bitquery
       const metadata = await fetchTokenMetadata(contractAddress);
-      
+
       // Step 2: Get real price data from Bitquery
       const priceData = await fetchPriceData(contractAddress);
-      
+
       // Step 3: Get market cap data from Bitquery
       const marketCapData = await fetchMarketCapData(contractAddress);
 
@@ -1123,17 +918,17 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         metadata.symbol || priceData?.symbol || 'UNKNOWN',
         metadata.name || 'Unknown Token'
       );
-      
+
       setDuplicateCheck(duplicateCheckResult);
 
           // Calculate market cap manually if not available from Bitquery
     let finalMarketCap = marketCapData?.marketCap || 0;
-    
+
     console.log('🔍 Market cap calculation check:');
     console.log('   finalMarketCap:', finalMarketCap);
     console.log('   priceData?.price:', priceData?.price);
     console.log('   marketCapData?.totalSupply:', marketCapData?.totalSupply);
-    
+
     if (!finalMarketCap && priceData?.price && marketCapData?.totalSupply) {
       finalMarketCap = priceData.price * marketCapData.totalSupply;
       console.log('💡 Calculated market cap manually:');
@@ -1162,10 +957,10 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         marketCapCheck: combinedData.marketCap && combinedData.marketCap > 0,
         fullCombinedData: combinedData
       });
-      
+
       setTokenData(combinedData);
       setValidationComplete(true);
-      
+
     } catch (err) {
       setError(err.message || 'Failed to fetch token data');
     } finally {
@@ -1175,13 +970,13 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
 
   const calculateTokenScore = (metadata, coinGecko, dexScreener) => {
     let score = 5; // Base score
-    
+
     // Add points for available data
     if (metadata?.name && metadata?.symbol) score += 1;
     if (coinGecko?.marketCap > 100000) score += 1;
     if (dexScreener?.liquidity > 50000) score += 1;
     if (coinGecko?.volume24h > 10000) score += 1;
-    
+
     return Math.min(score, 10);
   };
 
@@ -1220,12 +1015,12 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   // Validate social links
   const validateSocials = () => {
     const errors = [];
-    
+
     // Twitter handle validation
     if (socials.twitter && !/^[a-zA-Z0-9_]{1,15}$/.test(socials.twitter.replace(/^@/, ''))) {
       errors.push('Invalid Twitter handle format');
     }
-    
+
     // Website URL validation
     if (socials.website && socials.website.trim()) {
       try {
@@ -1235,94 +1030,89 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         errors.push('Invalid website URL format');
       }
     }
-    
+
     return errors;
   };
 
 
-
-
-  // 🔧 FIXED: Helio Pay Configuration with proper success handling
+  // Helio Pay Configuration with enhanced callbacks
   const helioConfig = {
     paylinkId: "68ae3424a561997f2bc70c7e",
     theme: { "themeMode": "dark" },
     primaryColor: "#FE5300",
-    neutralColor: "#5A6578", 
+    neutralColor: "#5A6578",
     display: "inline",
     onSuccess: event => {
-      console.log('🎉 Helio Payment SUCCESS detected!', event);
-      
-      // Get pending token data from localStorage
+      console.log('✅ Payment successful:', event);
+
+      // Get pending token data
       const pendingToken = localStorage.getItem('pendingTokenListing');
       if (pendingToken) {
-        try {
-          const tokenData = JSON.parse(pendingToken);
-          console.log('📦 Processing successful payment for token:', tokenData.symbol);
-          
-          // Immediately show success modal
-          showProfessionalSuccessModal(tokenData);
-          
-          // Submit token to database in background
-          submitTokenToDatabase(tokenData, event).then(() => {
-            console.log('✅ Token successfully added to database');
-          }).catch(error => {
-            console.error('❌ Background token submission error:', error);
-            // Still show success to user since payment completed
-          });
-          
-          // Clean up localStorage
-          localStorage.removeItem('pendingTokenListing');
-          
-          // Set completion flag for redirect handling
-          localStorage.setItem('paymentCompleted', JSON.stringify({
-            tokenSymbol: tokenData.symbol,
-            completedAt: new Date().toISOString(),
-            paymentEvent: event
-          }));
-          
-        } catch (error) {
-          console.error('❌ Error processing payment success:', error);
-          showErrorModal('Payment completed but there was an error processing your token. Please contact support.');
-        }
+        const tokenData = JSON.parse(pendingToken);
+        console.log('Processing successful payment for token:', tokenData);
+
+        // Show immediate professional success message
+        showProfessionalSuccessModal(tokenData);
+
+        // Mark as payment completed
+        localStorage.setItem('completedTokenListing', JSON.stringify({
+          ...tokenData,
+          paymentCompleted: new Date().toISOString(),
+          paymentEvent: event
+        }));
+
+        // Remove pending status
+        localStorage.removeItem('pendingTokenListing');
+
+        // Send to backend API to add token to database (async, don't wait)
+        submitTokenToDatabase(tokenData, event).catch(error => {
+          console.error('❌ Background token submission error:', error);
+        });
+
+        // Small delay before redirect to let user read the message
+        setTimeout(() => {
+          window.location.href = `${window.location.origin}/?payment=success&token=${tokenData.symbol || 'TOKEN'}`;
+        }, 2000);
       } else {
-        console.warn('⚠️ Payment successful but no pending token data found');
-        showErrorModal('Payment completed but token data was lost. Please contact support with your payment confirmation.');
+        // No pending token data, redirect immediately
+        window.location.href = `${window.location.origin}/?payment=success`;
       }
     },
     onError: event => {
-      console.log('❌ Helio Payment ERROR:', event);
-      showErrorModal(`Payment failed: ${event?.error || 'Unknown error occurred'}`);
+      console.log('❌ Payment error:', event);
+
+      // Redirect back with error message
+      window.location.href = `${window.location.origin}/?payment=error&reason=${event?.error || 'unknown'}`;
     },
     onPending: event => {
-      console.log('🕐 Helio Payment PENDING:', event);
-      // Update pending status but don't change UI significantly
+      console.log('🕐 Payment pending:', event);
+
+      // Store pending status
       const pendingToken = localStorage.getItem('pendingTokenListing');
       if (pendingToken) {
         const tokenData = JSON.parse(pendingToken);
         localStorage.setItem('pendingTokenListing', JSON.stringify({
           ...tokenData,
           paymentStatus: 'pending',
-          lastUpdate: new Date().toISOString(),
-          pendingEvent: event
+          lastUpdate: new Date().toISOString()
         }));
       }
     },
     onCancel: () => {
-      console.log("❌ Helio Payment CANCELLED by user");
-      showErrorModal('Payment was cancelled. Your token was not listed.');
+      console.log("❌ Payment cancelled");
+
+      // Redirect back with cancellation message
+      window.location.href = `${window.location.origin}/?payment=cancelled`;
     },
     onStartPayment: () => {
-      console.log("🚀 Helio Payment STARTED");
-      
-      // Store token data for post-payment processing
+      console.log("🚀 Starting payment");
+
+      // Store token data for post-payment handling
       if (tokenData) {
         localStorage.setItem('pendingTokenListing', JSON.stringify({
           contractAddress: tokenData.contractAddress,
           name: tokenData.name,
           symbol: tokenData.symbol,
-          price: tokenData.price,
-          marketCap: tokenData.marketCap,
-          totalSupply: tokenData.totalSupply,
           paymentInitiated: new Date().toISOString(),
           socialLinks: socials // Include social links if provided
         }));
@@ -1330,9 +1120,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }
     },
   };
-
-  // 🔧 FIXED: Direct payment redirect (React 19 compatible)
-// HelioPayComponent removed - using inline payment handling instead
 
   return (
     <div className="min-h-screen bg-dark-bg">
@@ -1401,7 +1188,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
           <div className="space-y-6">
             <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
               <h2 className="text-xl font-semibold text-white mb-4">Token Information</h2>
-              
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -1442,7 +1229,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                           <p className="text-red-300 font-medium">Token Already Listed!</p>
                         </div>
                         <p className="text-red-200 text-sm mb-3">{duplicateCheck.message}</p>
-                        
+
                         {duplicateCheck.existingToken && (
                           <div className="bg-red-800 bg-opacity-40 p-3 rounded-lg">
                             <p className="text-red-200 text-xs font-medium mb-2">Existing Token Details:</p>
@@ -1454,7 +1241,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                             </div>
                           </div>
                         )}
-                        
+
                         <div className="mt-3">
                           <button
                             onClick={() => {
@@ -1479,7 +1266,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                         <p className="text-green-200 text-sm mb-3">
                           Token validated and ready for listing. Proceed with payment to add it to DeGen Oracle.
                         </p>
-                        
+
                         {/* Optional Social Links Section */}
                         <div className="mt-4 pt-4 border-t border-green-600">
                           <button
@@ -1495,14 +1282,14 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                           <p className="text-purple-200 text-xs mt-1 text-center">
                             Boost community score by adding social media links
                           </p>
-                          
+
                           {/* Social Links Form */}
                           {showSocialLinks && (
                             <div className="mt-4 space-y-3 p-4 bg-purple-900 bg-opacity-30 rounded-lg border border-purple-600">
                               <p className="text-purple-200 text-sm mb-3">
                                 Adding social links will improve your token's community score and visibility.
                               </p>
-                              
+
                               {Object.entries(socials).map(([platform, value]) => (
                                 <div key={platform}>
                                   <label className="block text-sm font-medium text-purple-200 mb-1 capitalize">
@@ -1520,7 +1307,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                                   />
                                 </div>
                               ))}
-                              
+
                               <div className="mt-3 p-3 bg-purple-800 bg-opacity-40 rounded-lg">
                                 <p className="text-purple-200 text-xs">
                                   💡 <strong>Community Score Bonus:</strong> +1 for 2+ socials, +2 for 3+ socials, +3 for all 5 socials
@@ -1570,8 +1357,8 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                   {/* Token Basic Info */}
                   <div className="flex items-center space-x-3">
                     {(tokenData.image || tokenData.jupiterData?.icon) ? (
-                      <img 
-                        src={tokenData.jupiterData?.icon || tokenData.image} 
+                      <img
+                        src={tokenData.jupiterData?.icon || tokenData.image}
                         alt={tokenData.name}
                         className="w-12 h-12 rounded-full"
                       />
@@ -1615,14 +1402,14 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                                 totalSupply: tokenData.totalSupply,
                                 manualCalc: tokenData.price * tokenData.totalSupply
                               });
-                              
+
                               // If marketCap is 0 but we have price and supply, calculate it here
                               let finalMarketCap = marketCap;
                               if (finalMarketCap === 0 && tokenData.price && tokenData.totalSupply) {
                                 finalMarketCap = tokenData.price * tokenData.totalSupply;
                                 console.log('💡 UI Fallback calculation:', finalMarketCap);
                               }
-                              
+
                               return finalMarketCap >= 1000000
                                 ? `$${(finalMarketCap / 1000000).toFixed(2)}M`
                                 : finalMarketCap >= 1000
@@ -1662,17 +1449,17 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                   <CheckCircle size={20} className="text-green-400" />
                   <h2 className="text-xl font-semibold text-white">Token Address Validated!</h2>
                 </div>
-                
+
                 <p className="text-gray-300 mb-4">
                   ✅ <strong>Solana contract address verified</strong> - Your token address passed Base58 validation and is confirmed as a valid Solana token address.
                 </p>
-                
+
                 {tokenData.source === 'bitquery' && (
                   <p className="text-green-300 mb-4">
                     ✅ <strong>Token metadata found</strong> - Successfully retrieved token information from Bitquery.
                   </p>
                 )}
-                
+
                 {/* Only show payment if duplicate check passed */}
                 {duplicateCheck && !duplicateCheck.exists ? (
                   <>
@@ -1698,62 +1485,56 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                           <p className="text-xs text-gray-400 mb-4">
                             Secure payment powered by Helio Pay. Pay with USDC on Solana.
                           </p>
-                      {/* 🎯 FIXED: Direct payment button (React 19 compatible) */}
-                      <div className="w-full">
-                        <button
-                          onClick={async () => {
-                            try {
-                              console.log('💳 Creating payment for token:', tokenData?.symbol);
+                      <button
+                            onClick={async () => {
+                              try {
+                                console.log('💳 Creating payment for token:', tokenData?.symbol);
 
-                              // Store token data before redirect
-                              if (tokenData) {
-                                localStorage.setItem('pendingTokenListing', JSON.stringify({
-                                  contractAddress: tokenData.contractAddress,
-                                  name: tokenData.name,
-                                  symbol: tokenData.symbol,
-                                  price: tokenData.price,
-                                  marketCap: tokenData.marketCap,
-                                  totalSupply: tokenData.totalSupply,
-                                  paymentInitiated: new Date().toISOString(),
-                                  socialLinks: socials
-                                }));
-                                console.log('💾 Token data stored for payment processing');
+                                const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+                                const successUrl = `${window.location.origin}/?payment=success`;
+                                const cancelUrl = `${window.location.origin}/?payment=cancelled`;
+
+                                const response = await fetch(`${apiBase}/api/payments/create-token-listing`, {
+                                  method: 'POST',
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                  },
+                                  body: JSON.stringify({
+                                    tokenData: tokenData,
+                                    userId: 'user_' + Date.now(), // Generate temporary user ID
+                                    successUrl: successUrl,
+                                    cancelUrl: cancelUrl
+                                  })
+                                });
+
+                                const result = await response.json();
+
+                                if (result.success && result.payment) {
+                                  console.log('✅ Payment created:', result.payment);
+
+                                  // Store payment info in localStorage for post-payment processing
+                                  localStorage.setItem('pendingTokenListing', JSON.stringify({
+                                    ...tokenData,
+                                    paymentId: result.payment.paymentId,
+                                    paymentUrl: result.payment.paymentUrl,
+                                    paymentInitiated: new Date().toISOString()
+                                  }));
+
+                                  // Navigate to Helio payment
+                                  window.location.href = result.payment.paymentUrl;
+                                } else {
+                                  throw new Error(result.error || 'Payment creation failed');
+                                }
+
+                              } catch (error) {
+                                console.error('❌ Payment creation error:', error);
+                                showErrorModal('Failed to create payment. Please try again.');
                               }
-
-                              const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-                              const successUrl = `${window.location.origin}/?payment=success`;
-                              const cancelUrl = `${window.location.origin}/?payment=cancelled`;
-
-                              const response = await fetch(`${apiBase}/api/payments/create-token-listing`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                  tokenData: tokenData,
-                                  userId: 'user_' + Date.now(),
-                                  successUrl: successUrl,
-                                  cancelUrl: cancelUrl
-                                })
-                              });
-
-                              const result = await response.json();
-
-                              if (result.success && result.payment) {
-                                console.log('✅ Payment created:', result.payment);
-                                window.location.href = result.payment.paymentUrl;
-                              } else {
-                                throw new Error(result.error || 'Payment creation failed');
-                              }
-
-                            } catch (error) {
-                              console.error('❌ Payment creation error:', error);
-                              showErrorModal('Failed to create payment. Please try again.');
-                            }
-                          }}
-                          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105"
-                        >
-                          💳 Proceed to Payment ($95)
-                        </button>
-                      </div>
+                            }}
+                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105"
+                          >
+                            💳 Proceed to Payment ($95)
+                      </button>
                           <div className="flex items-center justify-center mt-3 space-x-4 text-xs text-gray-400">
                             <span className="flex items-center">
                               <span className="w-2 h-2 bg-green-400 rounded-full mr-1"></span>
@@ -1793,7 +1574,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
             )}
 
             {/* Duplicate Check Results */}
-
 
 
           </div>
