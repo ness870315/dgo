@@ -1203,35 +1203,25 @@ class EnhancedTokenProcessor {
     return needsRefresh;
   }
 
-  // DEDUPLICATION METHOD: Remove duplicate tokens by multiple criteria
+  // DEDUPLICATION METHOD: Remove duplicate tokens by CONTRACT ADDRESS ONLY
   deduplicateTokens(tokens) {
     const seen = new Set();
     const uniqueTokens = [];
     
     for (const token of tokens) {
-      // Create unique keys based on multiple criteria
-      const symbolKey = token.symbol?.toLowerCase();
+      // Only check for duplicates by contract address - symbols can be the same for different tokens
       const contractKey = token.contractAddress?.toLowerCase();
-      const coinGeckoKey = token.coinGeckoId?.toLowerCase();
-      const nameKey = token.name?.toLowerCase();
       
-      // Check for duplicates using multiple criteria
-      const isDuplicate = 
-        (symbolKey && seen.has(`symbol:${symbolKey}`)) ||
-        (contractKey && seen.has(`contract:${contractKey}`)) ||
-        (coinGeckoKey && seen.has(`coingecko:${coinGeckoKey}`)) ||
-        (symbolKey && nameKey && seen.has(`combo:${symbolKey}:${nameKey}`));
+      // Check for duplicates using CONTRACT ADDRESS ONLY
+      const isDuplicate = contractKey && seen.has(`contract:${contractKey}`);
       
       if (!isDuplicate) {
-        // Add all identifiers to seen set
-        if (symbolKey) seen.add(`symbol:${symbolKey}`);
+        // Add contract address to seen set
         if (contractKey) seen.add(`contract:${contractKey}`);
-        if (coinGeckoKey) seen.add(`coingecko:${coinGeckoKey}`);
-        if (symbolKey && nameKey) seen.add(`combo:${symbolKey}:${nameKey}`);
         
         uniqueTokens.push(token);
       } else {
-        console.log(`🔄 Removed duplicate: ${token.symbol} (${token.name})`);
+        console.log(`🔄 Removed duplicate by contract address: ${token.symbol} (${token.contractAddress})`);
       }
     }
     
