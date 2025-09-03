@@ -24,6 +24,10 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
   const [currentSocials, setCurrentSocials] = useState(null);
   const [contractValidated, setContractValidated] = useState(false);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
+  
+  // Helio payment widget state
+  const [helioLoaded, setHelioLoaded] = useState(false);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
 
   // Load current socials if token is pre-selected
   useEffect(() => {
@@ -47,6 +51,81 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
     console.log('📍 Current URL:', window.location.href);
     console.log('👤 Auth state:', { user, isAuthenticated });
   }, []);
+
+  // Load Helio Pay script
+  useEffect(() => {
+    const loadHelioScript = () => {
+      // Check if script is already loaded
+      if (document.querySelector('script[src*="embed.hel.io"]')) {
+        setHelioLoaded(true);
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.type = 'module';
+      script.crossOrigin = 'anonymous';
+      script.src = 'https://embed.hel.io/assets/index-v1.js';
+      script.onload = () => {
+        console.log('✅ Helio Pay script loaded for Update Token');
+        setHelioLoaded(true);
+      };
+      script.onerror = () => {
+        console.error('❌ Failed to load Helio Pay script for Update Token');
+      };
+      document.head.appendChild(script);
+    };
+
+    loadHelioScript();
+  }, []);
+
+  // Initialize Helio widget when conditions are met
+  useEffect(() => {
+    if (helioLoaded && validationComplete && selectedToken && !paymentCompleted) {
+      const container = document.getElementById('helioUpdateCheckoutContainer');
+      if (container && window.helioCheckout) {
+        console.log('🎯 Initializing Helio Pay widget for Update Token...');
+        
+        window.helioCheckout(container, {
+          paylinkId: "68b51815c743122a7be18721", // Update Token paylink ID
+          theme: { "themeMode": "dark" },
+          primaryColor: "#FE5300", // Orange color as specified
+          neutralColor: "#5A6578",
+          display: "inline",
+          onSuccess: (event) => {
+            console.log('✅ Update Token Payment Success:', event);
+            setPaymentCompleted(true);
+            setPaymentProcessing(false);
+            
+            // Store payment info for processing
+            localStorage.setItem('pendingUpdatePayment', JSON.stringify({
+              tokenData: selectedToken,
+              socials: socials,
+              paymentId: event.paymentId || `update_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              paymentInitiated: new Date().toISOString(),
+              helioEvent: event
+            }));
+          },
+          onError: (event) => {
+            console.error('❌ Update Token Payment Error:', event);
+            setPaymentProcessing(false);
+            alert('Payment failed. Please try again.');
+          },
+          onPending: (event) => {
+            console.log('⏳ Update Token Payment Pending:', event);
+            setPaymentProcessing(true);
+          },
+          onCancel: () => {
+            console.log('❌ Update Token Payment Cancelled');
+            setPaymentProcessing(false);
+          },
+          onStartPayment: () => {
+            console.log('🚀 Update Token Payment Started');
+            setPaymentProcessing(true);
+          }
+        });
+      }
+    }
+  }, [helioLoaded, validationComplete, selectedToken, paymentCompleted, socials]);
 
   // Expose debug function globally for testing
   useEffect(() => {
@@ -654,50 +733,81 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
                         </button>
                       </div>
                     ) : !paymentCompleted ? (
-                      <div className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 rounded-lg p-6 border border-blue-500/30">
-                        <h4 className="text-white font-semibold text-lg mb-4 flex items-center">
-                          <span className="mr-2">💳</span>
-                          Payment Details
-                        </h4>
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-300">Service:</span>
-                            <span className="text-white font-semibold">Social Links Update</span>
+                      <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700 shadow-2xl overflow-hidden">
+                        <div className="p-6">
+                          <div className="flex items-center space-x-3 mb-6">
+                            <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
+                              <span className="text-white text-sm font-bold">$</span>
+                            </div>
+                            <h3 className="text-lg font-semibold text-white">Secure Payment</h3>
                           </div>
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-300">Token:</span>
-                            <span className="text-white font-semibold">{selectedToken.symbol}</span>
+                          
+                          <div className="space-y-3 mb-6">
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-300">Service:</span>
+                              <span className="text-white font-semibold">Social Links Update</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-300">Token:</span>
+                              <span className="text-white font-semibold">{selectedToken.symbol}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-300">Price:</span>
+                              <span className="text-white font-semibold">$35</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-gray-300">Payment Method:</span>
+                              <span className="text-green-400 font-semibold">USDC</span>
+                            </div>
                           </div>
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-300">Price:</span>
-                            <span className="text-white font-semibold">$35</span>
+                          
+                          <div className="border-t border-gray-600 pt-4 mb-6">
+                            <p className="text-gray-300 text-sm mb-2">Complete your payment to update social links</p>
+                            <p className="text-gray-400 text-xs">Secure payment powered by Helio Pay • USDC on Solana</p>
                           </div>
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-300">Payment Method:</span>
-                            <span className="text-green-400 font-medium">USDC</span>
+                          
+                          {/* Helio Widget Container - Original Size */}
+                          <div className="relative">
+                            <div id="helioUpdateCheckoutContainer" className="w-full">
+                              {!helioLoaded ? (
+                                <div className="min-h-[300px] flex flex-col items-center justify-center space-y-4 text-gray-400">
+                                  <div className="flex items-center space-x-3">
+                                    <Loader className="w-5 h-5 animate-spin text-orange-400" />
+                                    <span className="text-base font-medium">Loading payment widget...</span>
+                                  </div>
+                                  <div className="w-6 h-1 bg-gray-700 rounded-full overflow-hidden">
+                                    <div className="h-full bg-gradient-to-r from-orange-500 to-red-500 rounded-full animate-pulse"></div>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="min-h-[300px] flex flex-col items-center justify-center space-y-3 text-gray-400">
+                                  <div className="flex items-center space-x-2">
+                                    <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                                      <span className="text-white text-xs">✓</span>
+                                    </div>
+                                    <span className="text-base font-medium">Payment form ready</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <div className="pt-2 border-t border-gray-600">
-                            <p className="text-xs text-gray-400 mb-4">
-                              Secure payment powered by Helio Pay. Pay with USDC on Solana.
-                            </p>
-                            <button
-                              onClick={() => {
-                                // Store payment info in localStorage for post-payment processing
-                                localStorage.setItem('pendingUpdatePayment', JSON.stringify({
-                                  tokenData: selectedToken,
-                                  socials: socials,
-                                  paymentId: `update_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                                  paymentInitiated: new Date().toISOString()
-                                }));
-
-                                // Open Helio payment link
-                                window.open('https://app.hel.io/pay/68b51815c743122a7be18721', '_blank');
-                                alert('💳 Payment page opened! Complete your payment and return here to apply the social updates.');
-                              }}
-                              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105"
-                            >
-                              💳 Proceed to Payment ($35)
-                            </button>
+                          
+                          {/* Security Footer */}
+                          <div className="mt-6 pt-4 border-t border-gray-600">
+                            <div className="flex items-center justify-center space-x-6 text-xs text-gray-400">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                <span className="font-medium">SSL Encrypted</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                                <span className="font-medium">PCI Compliant</span>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
+                                <span className="font-medium">Instant Processing</span>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
