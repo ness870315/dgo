@@ -216,7 +216,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
               </span>
             </div>
             <div class="text-sm">Market Cap: ${formatMarketCap(d.jupiterData?.mcap || d.marketCap || 0)}</div>
-            <div class="text-sm">Price: ${formatPrice(d.currentPrice || d.price || 0)}</div>
+            <div class="text-sm">Price: ${formatPrice(d.jupiterData?.usdPrice || d.currentPrice || d.price || 0)}</div>
             <div class="text-sm">Mentions: ${d.mentions}</div>
             <div class="text-sm">Community: ${d.communityScore ? d.communityScore.toFixed(1) : 'N/A'}/10</div>
           `);
