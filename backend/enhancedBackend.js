@@ -1769,20 +1769,8 @@ class EnhancedBackend {
   }
 
   setupBackgroundTasks() {
-    // Start token processing when backend starts
-    this.app.on('ready', async () => {
-      console.log('[🛡️ Enhanced Backend] 🚀 Backend ready, starting token processing...');
-      await this.tokenProcessor.initialize();
-      
-      // Check if we need to start processing
-      const status = this.tokenProcessor.getProcessingStatus();
-      if (status.processedCount === 0) {
-        console.log('[🛡️ Enhanced Backend] 🆕 No tokens found, starting initial processing...');
-        await this.tokenProcessor.startProcessing();
-      } else {
-        console.log(`[🛡️ Enhanced Backend] 📊 Found ${status.processedCount} existing tokens`);
-      }
-    });
+    // Background tasks will be started from the start() method
+    // No event listeners needed here since Express doesn't emit 'ready' events
 
     // Periodic cache refresh (every 10 minutes)
     setInterval(async () => {
@@ -2535,20 +2523,26 @@ class EnhancedBackend {
 
         this.isRunning = true;
 
-        // Check if we need to start processing
+        // Start token processing workflow after backend is ready
         setTimeout(async () => {
           try {
-            const tokens = await this.getTokensFromCache();
-            if (tokens.length === 0) {
-              console.log('[🛡️ Enhanced Backend] 🚀 No tokens in cache, starting fresh processing...');
+            console.log('[🛡️ Enhanced Backend] 🚀 Backend ready, starting token processing...');
+            
+            // Check if we need to start processing
+            const status = this.tokenProcessor.getProcessingStatus();
+            if (status.processedCount === 0) {
+              console.log('[🛡️ Enhanced Backend] 🆕 No tokens found, starting initial processing...');
+              await this.tokenProcessor.startProcessing();
+            } else {
+              console.log(`[🛡️ Enhanced Backend] 📊 Found ${status.processedCount} existing tokens`);
+              // Check if we need to refresh data (start processing anyway for updates)
+              console.log('[🛡️ Enhanced Backend] 🔄 Starting processing to refresh existing data...');
+              await this.tokenProcessor.startProcessing();
             }
           } catch (error) {
-            console.log('[🛡️ Enhanced Backend] 🚀 Cache not found, starting fresh processing...');
+            console.error('[🛡️ Enhanced Backend] ❌ Error starting token processing:', error);
           }
         }, 2000); // Wait 2 seconds for everything to be ready
-
-        // Emit ready event
-        this.app.emit('ready');
       });
       
     } catch (error) {
