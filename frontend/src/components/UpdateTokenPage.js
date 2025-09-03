@@ -90,51 +90,67 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
     });
     
     if (helioLoaded && validationComplete && selectedToken && !paymentCompleted) {
-      const container = document.getElementById('helioUpdateCheckoutContainer');
-      console.log('🔍 Container found:', !!container);
-      
-      if (container && window.helioCheckout) {
-        console.log('🎯 Initializing Helio Pay widget for Update Token...');
+      // Add a small delay to ensure the container is rendered
+      const initializeWidget = () => {
+        const container = document.getElementById('helioUpdateCheckoutContainer');
+        console.log('🔍 Container found:', !!container);
         
-        window.helioCheckout(container, {
-          paylinkId: "68b51815c743122a7be18721", // Update Token paylink ID
-          theme: { "themeMode": "dark" },
-          primaryColor: "#FE5300", // Orange color as specified
-          neutralColor: "#5A6578",
-          display: "inline",
-          onSuccess: (event) => {
-            console.log('✅ Update Token Payment Success:', event);
-            setPaymentCompleted(true);
-            setPaymentProcessing(false);
-            
-            // Store payment info for processing
-            localStorage.setItem('pendingUpdatePayment', JSON.stringify({
-              tokenData: selectedToken,
-              socials: socials,
-              paymentId: event.paymentId || `update_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-              paymentInitiated: new Date().toISOString(),
-              helioEvent: event
-            }));
-          },
-          onError: (event) => {
-            console.error('❌ Update Token Payment Error:', event);
-            setPaymentProcessing(false);
-            alert('Payment failed. Please try again.');
-          },
-          onPending: (event) => {
-            console.log('⏳ Update Token Payment Pending:', event);
-            setPaymentProcessing(true);
-          },
-          onCancel: () => {
-            console.log('❌ Update Token Payment Cancelled');
-            setPaymentProcessing(false);
-          },
-          onStartPayment: () => {
-            console.log('🚀 Update Token Payment Started');
-            setPaymentProcessing(true);
+        if (container && window.helioCheckout) {
+          console.log('🎯 Initializing Helio Pay widget for Update Token...');
+          
+          try {
+            window.helioCheckout(container, {
+              paylinkId: "68b51815c743122a7be18721", // Update Token paylink ID
+              theme: { "themeMode": "dark" },
+              primaryColor: "#FE5300", // Orange color as specified
+              neutralColor: "#5A6578",
+              display: "inline",
+              // Add additional configuration to help with authorization
+              environment: "production",
+              allowedDomains: ["degen-oracle.com", "localhost"],
+              onSuccess: (event) => {
+                console.log('✅ Update Token Payment Success:', event);
+                setPaymentCompleted(true);
+                setPaymentProcessing(false);
+                
+                // Store payment info for processing
+                localStorage.setItem('pendingUpdatePayment', JSON.stringify({
+                  tokenData: selectedToken,
+                  socials: socials,
+                  paymentId: event.paymentId || `update_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                  paymentInitiated: new Date().toISOString(),
+                  helioEvent: event
+                }));
+              },
+              onError: (event) => {
+                console.error('❌ Update Token Payment Error:', event);
+                setPaymentProcessing(false);
+                alert('Payment failed. Please try again.');
+              },
+              onPending: (event) => {
+                console.log('⏳ Update Token Payment Pending:', event);
+                setPaymentProcessing(true);
+              },
+              onCancel: () => {
+                console.log('❌ Update Token Payment Cancelled');
+                setPaymentProcessing(false);
+              },
+              onStartPayment: () => {
+                console.log('🚀 Update Token Payment Started');
+                setPaymentProcessing(true);
+              }
+            });
+          } catch (error) {
+            console.error('❌ Helio widget initialization error:', error);
           }
-        });
-      }
+        } else {
+          console.log('⏳ Container not ready, retrying in 500ms...');
+          setTimeout(initializeWidget, 500);
+        }
+      };
+      
+      // Try to initialize immediately, then retry if needed
+      setTimeout(initializeWidget, 100);
     }
   }, [helioLoaded, validationComplete, selectedToken, paymentCompleted, socials]);
 
@@ -161,6 +177,8 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
             primaryColor: "#FE5300",
             neutralColor: "#5A6578",
             display: "inline",
+            environment: "production",
+            allowedDomains: ["degen-oracle.com", "localhost"],
             onSuccess: (event) => console.log('✅ Manual Success:', event),
             onError: (event) => console.error('❌ Manual Error:', event),
             onPending: (event) => console.log('⏳ Manual Pending:', event),
@@ -814,7 +832,7 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
                           
                           {/* Helio Widget Container - Original Size */}
                           <div className="relative">
-                            <div id="helioUpdateCheckoutContainer" className="w-full">
+                            <div id="helioUpdateCheckoutContainer" className="w-full -ml-4">
                               {!helioLoaded && (
                                 <div className="min-h-[300px] flex flex-col items-center justify-center space-y-4 text-gray-400">
                                   <div className="flex items-center space-x-3">
