@@ -64,18 +64,22 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
+        console.log('🔍 Validating session:', sessionId);
         const response = await fetch(`${API_BASE}/auth/validate?sessionId=${sessionId}`);
+        console.log('📊 Session validation response:', response.status);
 
         if (response.ok) {
           const data = await response.json();
+          console.log('✅ Session valid, user data:', data.user);
           setUser(data.user);
         } else {
+          console.log('❌ Session invalid, clearing session');
           // Session might be invalid
           localStorage.removeItem('sessionId');
           setSessionId(null);
         }
       } catch (error) {
-        console.error('Error fetching user:', error);
+        console.error('❌ Error validating session:', error);
         localStorage.removeItem('sessionId');
         setSessionId(null);
       }
@@ -84,7 +88,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     getCurrentUser();
-  }, [sessionId, user, API_BASE]);
+  }, [sessionId, API_BASE]);
 
   const login = (userData = null, sessionId = null, authType = 'x') => {
     if (authType === 'demo' && userData && sessionId) {
