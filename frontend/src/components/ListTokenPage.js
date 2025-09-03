@@ -433,7 +433,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     return () => clearTimeout(timeoutId);
   }, [submitTokenToDatabase]); // Include submitTokenToDatabase as dependency
 
-  // 🔧 ADDITIONAL: Periodic check for payment completion (in case user returns later)
+  // 🔧 ENHANCED: Comprehensive payment completion detection
   useEffect(() => {
     const checkPendingPayments = () => {
       const pendingData = localStorage.getItem('pendingTokenListing');
@@ -444,11 +444,11 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
           const now = new Date();
           const timeDiff = now - paymentInitiated;
           
-          // If payment was initiated more than 5 minutes ago, show a helper message
-          if (timeDiff > 5 * 60 * 1000) {
-            console.log('⏰ Found old pending payment, showing helper message');
+          // If payment was initiated more than 2 minutes ago, show helper with manual completion
+          if (timeDiff > 2 * 60 * 1000) {
+            console.log('⏰ Found pending payment, showing completion helper');
             
-            // Create a subtle notification
+            // Create enhanced notification with manual completion option
             const notification = document.createElement('div');
             notification.style.cssText = `
               position: fixed;
@@ -456,39 +456,104 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
               right: 20px;
               background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
               color: white;
-              padding: 15px 20px;
-              border-radius: 10px;
-              box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+              padding: 20px;
+              border-radius: 15px;
+              box-shadow: 0 15px 35px rgba(0,0,0,0.4);
               z-index: 10000;
-              max-width: 300px;
+              max-width: 350px;
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             `;
             
             notification.innerHTML = `
-              <div style="font-weight: 600; margin-bottom: 8px;">💳 Payment Pending</div>
-              <div style="font-size: 14px; opacity: 0.9; margin-bottom: 10px;">
-                Found a pending payment for ${tokenData.symbol || 'your token'}. 
-                If you completed the payment, it should process automatically.
+              <div style="font-weight: 700; margin-bottom: 12px; font-size: 16px;">💳 Payment Status Check</div>
+              <div style="font-size: 14px; opacity: 0.9; margin-bottom: 15px; line-height: 1.4;">
+                Found a pending payment for <strong>${tokenData.symbol || 'your token'}</strong>.<br>
+                If you completed the payment on Helio, click below to process your token.
               </div>
-              <button onclick="this.parentElement.remove()" style="
+              <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                <button id="completePayment" style="
+                  background: #10b981;
+                  border: none;
+                  color: white;
+                  padding: 8px 16px;
+                  border-radius: 8px;
+                  cursor: pointer;
+                  font-size: 13px;
+                  font-weight: 600;
+                  flex: 1;
+                ">✅ I Paid - Process Token</button>
+                <button id="cancelPayment" style="
+                  background: #ef4444;
+                  border: none;
+                  color: white;
+                  padding: 8px 16px;
+                  border-radius: 8px;
+                  cursor: pointer;
+                  font-size: 13px;
+                  font-weight: 600;
+                  flex: 1;
+                ">❌ Cancel</button>
+              </div>
+              <button id="dismissNotification" style="
                 background: rgba(255,255,255,0.2);
                 border: none;
                 color: white;
-                padding: 5px 10px;
-                border-radius: 5px;
+                padding: 6px 12px;
+                border-radius: 6px;
                 cursor: pointer;
                 font-size: 12px;
+                width: 100%;
               ">Dismiss</button>
             `;
             
             document.body.appendChild(notification);
             
-            // Auto-remove after 10 seconds
+            // Handle manual completion
+            document.getElementById('completePayment').onclick = async () => {
+              try {
+                console.log('🔄 Manual payment completion triggered');
+                
+                // Process the payment manually
+                await submitTokenToDatabase(tokenData, {
+                  paymentId: 'manual_completion_' + Date.now(),
+                  status: 'completed',
+                  timestamp: new Date().toISOString(),
+                  manual: true
+                });
+                
+                // Clear pending data
+                localStorage.removeItem('pendingTokenListing');
+                
+                // Show success modal
+                showProfessionalSuccessModal(tokenData);
+                
+                // Remove notification
+                document.body.removeChild(notification);
+                
+              } catch (error) {
+                console.error('❌ Manual completion error:', error);
+                alert('Failed to process token. Please contact support.');
+              }
+            };
+            
+            // Handle cancellation
+            document.getElementById('cancelPayment').onclick = () => {
+              localStorage.removeItem('pendingTokenListing');
+              document.body.removeChild(notification);
+              console.log('🗑️ Pending payment cancelled by user');
+            };
+            
+            // Handle dismiss
+            document.getElementById('dismissNotification').onclick = () => {
+              document.body.removeChild(notification);
+            };
+            
+            // Auto-remove after 30 seconds
             setTimeout(() => {
               if (document.body.contains(notification)) {
                 document.body.removeChild(notification);
               }
-            }, 10000);
+            }, 30000);
           }
         } catch (error) {
           console.error('Error checking pending payments:', error);
@@ -496,11 +561,49 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }
     };
 
-    // Check immediately and then every 30 seconds
+    // Check immediately and then every 15 seconds (more frequent)
     checkPendingPayments();
-    const interval = setInterval(checkPendingPayments, 30000);
+    const interval = setInterval(checkPendingPayments, 15000);
 
     return () => clearInterval(interval);
+  }, [submitTokenToDatabase]);
+
+  // 🔧 NEW: Poll backend to check if token was processed
+  useEffect(() => {
+    const pollForTokenCompletion = async () => {
+      const pendingData = localStorage.getItem('pendingTokenListing');
+      if (pendingData) {
+        try {
+          const tokenData = JSON.parse(pendingData);
+          const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+          
+          console.log('🔍 Polling for token completion:', tokenData.contractAddress);
+          
+          const response = await fetch(`${apiBase}/api/payments/check-token/${tokenData.contractAddress}`);
+          const result = await response.json();
+          
+          if (result.success && result.processed) {
+            console.log('🎉 Token processing detected via polling!', result.token);
+            
+            // Clear pending data
+            localStorage.removeItem('pendingTokenListing');
+            
+            // Show success modal
+            showProfessionalSuccessModal(result.token);
+            
+            // Clear URL parameters if any
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        } catch (error) {
+          console.error('❌ Error polling for token completion:', error);
+        }
+      }
+    };
+
+    // Poll every 10 seconds for token completion
+    const pollInterval = setInterval(pollForTokenCompletion, 10000);
+
+    return () => clearInterval(pollInterval);
   }, []);
 
 

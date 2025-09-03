@@ -281,10 +281,40 @@ class EnhancedBackend {
 
         // Process the webhook based on payment type
         if (webhookResult.metadata?.type === 'token_listing') {
-          console.log('📝 Processing token listing webhook');
+          console.log('📝 Processing token listing webhook for:', webhookResult.metadata?.symbol);
 
-          // Here you could automatically process the token listing
-          // For now, just log the successful payment
+          try {
+            // Automatically process the token listing
+            const tokenData = {
+              symbol: webhookResult.metadata.symbol,
+              name: webhookResult.metadata.name,
+              contractAddress: webhookResult.metadata.contractAddress
+            };
+
+            console.log('🚀 Auto-processing token from webhook:', tokenData.symbol);
+
+            // Process paid token IMMEDIATELY
+            const processedToken = await this.tokenProcessor.addPaidToken({
+              symbol: tokenData.symbol.toUpperCase(),
+              name: tokenData.name,
+              contractAddress: tokenData.contractAddress,
+              isPaid: true,
+              timestamp: new Date().toISOString(),
+              paymentData: {
+                validated: true,
+                paymentId: webhookResult.paymentId,
+                amount: webhookResult.amount,
+                status: 'completed',
+                timestamp: new Date().toISOString(),
+                source: 'webhook'
+              }
+            });
+
+            console.log(`✅ Token ${processedToken.symbol} auto-processed from webhook!`);
+
+          } catch (error) {
+            console.error('❌ Error auto-processing token from webhook:', error);
+          }
 
         } else if (webhookResult.metadata?.type === 'social_update') {
           console.log('📱 Processing social update webhook');
@@ -327,6 +357,51 @@ class EnhancedBackend {
         res.status(500).json({
           success: false,
           error: 'Failed to get payment status'
+        });
+      }
+    });
+
+    // Check if token was processed (for payment completion verification)
+    this.app.get('/api/payments/check-token/:contractAddress', async (req, res) => {
+      try {
+        const { contractAddress } = req.params;
+        
+        console.log('🔍 Checking if token was processed:', contractAddress);
+
+        // Check if token exists in our database
+        const tokens = await this.getTokensFromCache();
+        const existingToken = tokens.find(token => 
+          token.contractAddress && 
+          token.contractAddress.toLowerCase() === contractAddress.toLowerCase()
+        );
+
+        if (existingToken) {
+          console.log('✅ Token found in database:', existingToken.symbol);
+          res.json({
+            success: true,
+            processed: true,
+            token: {
+              symbol: existingToken.symbol,
+              name: existingToken.name,
+              contractAddress: existingToken.contractAddress,
+              isPaid: existingToken.isPaid,
+              timestamp: existingToken.timestamp
+            }
+          });
+        } else {
+          console.log('❌ Token not found in database');
+          res.json({
+            success: true,
+            processed: false,
+            message: 'Token not yet processed'
+          });
+        }
+
+      } catch (error) {
+        console.error('❌ Error checking token status:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to check token status'
         });
       }
     });
