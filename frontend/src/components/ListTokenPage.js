@@ -477,7 +477,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
             neutralColor: "#5A6578",
             display: "inline",
             width: "100%",
-            height: "300px",
             onSuccess: (event) => {
               console.log('🎉 Payment successful!', event);
               setPaymentProcessing(true);
@@ -1615,52 +1614,85 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                             </div>
                           )}
                           
+                          {/* Secure Payment Modal */}
                           <div className="relative">
-                            <div className="bg-gray-800 rounded-lg border border-gray-600 overflow-hidden">
-                              <div className="p-4">
+                            <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border border-gray-700 shadow-2xl overflow-hidden">
+                              {/* Header */}
+                              <div className="bg-gradient-to-r from-purple-600/20 to-blue-600/20 border-b border-gray-700">
+                                <div className="p-4">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center space-x-3">
+                                      <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
+                                        <span className="text-white text-sm font-bold">$</span>
+                                      </div>
+                                      <div>
+                                        <h3 className="text-lg font-semibold text-white">Secure Payment</h3>
+                                        <p className="text-sm text-gray-400">Powered by Helio Pay</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                      <span className="text-xs text-green-400 font-medium">Secure</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Payment Widget Container */}
+                              <div className="p-6">
                                 <div id="helioCheckoutContainer" className="w-full">
                                   {!helioLoaded ? (
-                                    <div className="min-h-[300px] flex flex-col items-center justify-center space-y-4 text-gray-400">
-                                      <div className="flex items-center space-x-3">
-                                        <Loader className="w-5 h-5 animate-spin text-purple-400" />
-                                        <span className="text-base font-medium">Loading payment widget...</span>
+                                    <div className="min-h-[400px] flex flex-col items-center justify-center space-y-6 text-gray-400">
+                                      <div className="flex items-center space-x-4">
+                                        <Loader className="w-8 h-8 animate-spin text-purple-400" />
+                                        <span className="text-xl font-medium">Loading secure payment form...</span>
                                       </div>
-                                      <div className="w-6 h-1 bg-gray-700 rounded-full overflow-hidden">
+                                      <div className="w-32 h-2 bg-gray-700 rounded-full overflow-hidden">
                                         <div className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full animate-pulse"></div>
+                                      </div>
+                                      <div className="text-center">
+                                        <p className="text-sm text-gray-500">Initializing encrypted payment gateway</p>
                                       </div>
                                     </div>
                                   ) : (
-                                    <div className="min-h-[300px] flex flex-col items-center justify-center space-y-3 text-gray-400">
-                                      <div className="flex items-center space-x-2">
-                                        <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                                          <span className="text-white text-xs">✓</span>
+                                    <div className="min-h-[400px] flex flex-col items-center justify-center space-y-4 text-gray-400">
+                                      <div className="flex items-center space-x-3">
+                                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                                          <span className="text-white text-lg">✓</span>
                                         </div>
-                                        <span className="text-base font-medium">Initializing secure payment...</span>
+                                        <span className="text-xl font-medium">Payment form ready</span>
                                       </div>
-                                      <div className="text-sm text-gray-500">
-                                        Please wait while we prepare your payment form
+                                      <div className="text-center">
+                                        <p className="text-sm text-gray-500">Complete your secure payment below</p>
                                       </div>
                                     </div>
                                   )}
                                 </div>
                               </div>
+                              
+                              {/* Footer */}
+                              <div className="bg-gray-800/50 border-t border-gray-700">
+                                <div className="p-4">
+                                  <div className="flex items-center justify-center space-x-8 text-xs text-gray-400">
+                                    <div className="flex items-center space-x-2">
+                                      <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                                      <span className="font-medium">SSL Encrypted</span>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
+                                      <span className="font-medium">PCI Compliant</span>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <div className="w-3 h-3 bg-purple-400 rounded-full"></div>
+                                      <span className="font-medium">Instant Processing</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
                           
-                          <div className="mt-4 flex items-center justify-center space-x-6 text-xs">
-                            <div className="flex items-center space-x-2 text-gray-400">
-                              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                              <span className="font-medium">Secure</span>
-                            </div>
-                            <div className="flex items-center space-x-2 text-gray-400">
-                              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                              <span className="font-medium">Instant</span>
-                            </div>
-                            <div className="flex items-center space-x-2 text-gray-400">
-                              <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
-                              <span className="font-medium">Crypto</span>
-                            </div>
-                          </div>
+
                         </div>
                       </div>
                     </div>
