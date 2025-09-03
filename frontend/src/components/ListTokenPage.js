@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, CheckCircle, AlertCircle, Loader, ArrowLeft, Twitter, Globe, MessageCircle, Music, Instagram, ChevronDown, ChevronUp } from 'lucide-react';
-import { HelioCheckout } from '@heliofi/checkout-react';
+// NOTE: HelioCheckout removed due to React 19 compatibility issues
 
 // Professional Success Modal Function
 const showProfessionalSuccessModal = (tokenData) => {
@@ -1221,15 +1221,17 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     },
   };
 
-  // 🔧 HYBRID: React component with fallback to manual redirect
+  // 🔧 FIXED: Direct payment redirect (React 19 compatible)
   const HelioPayComponent = () => {
-    const [showFallback, setShowFallback] = useState(false);
-    const [paymentError, setPaymentError] = useState(null);
+    const [isProcessing, setIsProcessing] = useState(false);
 
-    // Handle manual payment redirect as fallback
-    const handleManualPayment = async () => {
+    // Handle direct payment redirect
+    const handlePayment = async () => {
+      if (isProcessing) return;
+      
       try {
-        console.log('🔄 Using manual payment fallback...');
+        setIsProcessing(true);
+        console.log('💳 Creating payment for token:', tokenData?.symbol);
         
         // Store token data before redirect
         if (tokenData) {
@@ -1241,15 +1243,17 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
             marketCap: tokenData.marketCap,
             totalSupply: tokenData.totalSupply,
             paymentInitiated: new Date().toISOString(),
-            socialLinks: socials
+            socialLinks: socials // Include social links if provided
           }));
-          console.log('💾 Token data stored for manual payment');
+          console.log('💾 Token data stored for payment processing');
         }
 
         // Create payment via backend API
         const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
         const successUrl = `${window.location.origin}/?payment=success`;
         const cancelUrl = `${window.location.origin}/?payment=cancelled`;
+
+        console.log('🔗 Payment URLs:', { successUrl, cancelUrl });
 
         const response = await fetch(`${apiBase}/api/payments/create-token-listing`, {
           method: 'POST',
@@ -1263,17 +1267,22 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         });
 
         const result = await response.json();
+        console.log('📊 Payment creation result:', result);
 
         if (result.success && result.payment) {
-          console.log('✅ Manual payment created:', result.payment);
+          console.log('✅ Payment created successfully:', result.payment.paymentId);
+          console.log('🚀 Redirecting to Helio payment portal...');
+          
+          // Redirect to Helio payment portal
           window.location.href = result.payment.paymentUrl;
         } else {
           throw new Error(result.error || 'Payment creation failed');
         }
 
       } catch (error) {
-        console.error('❌ Manual payment error:', error);
-        showErrorModal('Failed to create payment. Please try again.');
+        console.error('❌ Payment creation error:', error);
+        setIsProcessing(false);
+        showErrorModal(`Failed to create payment: ${error.message}`);
       }
     };
 
@@ -1287,7 +1296,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         </div>
         
         <div className="bg-gradient-to-r from-orange-600 to-red-600 rounded-lg p-6">
-          <div className="text-center mb-4">
+          <div className="text-center mb-6">
             <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-3">
               <span className="text-2xl">💳</span>
             </div>
@@ -1295,64 +1304,45 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
             <p className="text-blue-100 text-sm mb-4">
               Pay with USDC, SOL, or other supported cryptocurrencies
             </p>
+            
+            {/* Payment Details */}
+            <div className="bg-white bg-opacity-10 rounded-lg p-4 mb-4">
+              <div className="flex justify-between items-center text-sm mb-2">
+                <span className="text-gray-300">Token Listing Fee:</span>
+                <span className="text-white font-semibold">$95.00</span>
+              </div>
+              <div className="flex justify-between items-center text-sm mb-2">
+                <span className="text-gray-300">Payment Method:</span>
+                <span className="text-green-400 font-medium">USDC, SOL, or other crypto</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-300">Processing:</span>
+                <span className="text-blue-400 font-medium">Instant</span>
+              </div>
+            </div>
           </div>
           
-          {!showFallback ? (
-            <>
-              {/* Primary: Helio Checkout Component */}
-              <div className="bg-white bg-opacity-10 rounded-lg p-4 mb-4">
-                <HelioCheckout 
-                  config={helioConfig}
-                  onError={(error) => {
-                    console.warn('⚠️ HelioCheckout error, showing fallback:', error);
-                    setPaymentError(error);
-                    setShowFallback(true);
-                  }}
-                />
-              </div>
-              
-              {/* Fallback option */}
-              <div className="text-center">
-                <button
-                  onClick={() => setShowFallback(true)}
-                  className="text-blue-200 text-sm underline hover:text-blue-100"
-                >
-                  Having issues? Try alternative payment method
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              {/* Fallback: Manual redirect payment */}
-              <div className="bg-white bg-opacity-10 rounded-lg p-4 mb-4">
-                <div className="text-center">
-                  <p className="text-white text-sm mb-4">
-                    {paymentError ? 'Payment widget encountered an issue. ' : ''}
-                    Click below to proceed with secure payment.
-                  </p>
-                  <button
-                    onClick={handleManualPayment}
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105"
-                  >
-                    💳 Proceed to Payment ($95)
-                  </button>
+          {/* Payment Button */}
+          <div className="text-center">
+            <button
+              onClick={handlePayment}
+              disabled={isProcessing}
+              className={`w-full py-4 px-6 rounded-lg font-semibold text-lg transition-all duration-200 transform ${
+                isProcessing 
+                  ? 'bg-gray-600 cursor-not-allowed' 
+                  : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 hover:scale-105'
+              } text-white`}
+            >
+              {isProcessing ? (
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Creating Payment...
                 </div>
-              </div>
-              
-              {/* Back to primary option */}
-              <div className="text-center">
-                <button
-                  onClick={() => {
-                    setShowFallback(false);
-                    setPaymentError(null);
-                  }}
-                  className="text-blue-200 text-sm underline hover:text-blue-100"
-                >
-                  ← Back to integrated payment
-                </button>
-              </div>
-            </>
-          )}
+              ) : (
+                '💳 Pay $95 - Proceed to Helio'
+              )}
+            </button>
+          </div>
           
           <div className="mt-4 space-y-2 text-center">
             <p className="text-blue-200 text-xs">
@@ -1363,6 +1353,9 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
             </p>
             <p className="text-gray-300 text-xs">
               PayLink ID: {helioConfig.paylinkId}
+            </p>
+            <p className="text-yellow-200 text-xs">
+              ⚡ After payment, you'll be redirected back automatically
             </p>
           </div>
         </div>
@@ -1734,9 +1727,61 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                           <p className="text-xs text-gray-400 mb-4">
                             Secure payment powered by Helio Pay. Pay with USDC on Solana.
                           </p>
-                      {/* 🎯 FIXED: Use HelioCheckout component instead of manual button */}
+                      {/* 🎯 FIXED: Direct payment button (React 19 compatible) */}
                       <div className="w-full">
-                        <HelioCheckout config={helioConfig} />
+                        <button
+                          onClick={async () => {
+                            try {
+                              console.log('💳 Creating payment for token:', tokenData?.symbol);
+
+                              // Store token data before redirect
+                              if (tokenData) {
+                                localStorage.setItem('pendingTokenListing', JSON.stringify({
+                                  contractAddress: tokenData.contractAddress,
+                                  name: tokenData.name,
+                                  symbol: tokenData.symbol,
+                                  price: tokenData.price,
+                                  marketCap: tokenData.marketCap,
+                                  totalSupply: tokenData.totalSupply,
+                                  paymentInitiated: new Date().toISOString(),
+                                  socialLinks: socials
+                                }));
+                                console.log('💾 Token data stored for payment processing');
+                              }
+
+                              const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+                              const successUrl = `${window.location.origin}/?payment=success`;
+                              const cancelUrl = `${window.location.origin}/?payment=cancelled`;
+
+                              const response = await fetch(`${apiBase}/api/payments/create-token-listing`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  tokenData: tokenData,
+                                  userId: 'user_' + Date.now(),
+                                  successUrl: successUrl,
+                                  cancelUrl: cancelUrl
+                                })
+                              });
+
+                              const result = await response.json();
+
+                              if (result.success && result.payment) {
+                                console.log('✅ Payment created:', result.payment);
+                                window.location.href = result.payment.paymentUrl;
+                              } else {
+                                throw new Error(result.error || 'Payment creation failed');
+                              }
+
+                            } catch (error) {
+                              console.error('❌ Payment creation error:', error);
+                              showErrorModal('Failed to create payment. Please try again.');
+                            }
+                          }}
+                          className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105"
+                        >
+                          💳 Proceed to Payment ($95)
+                        </button>
                       </div>
                           <div className="flex items-center justify-center mt-3 space-x-4 text-xs text-gray-400">
                             <span className="flex items-center">
