@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, CheckCircle, AlertCircle, Loader, ArrowLeft, Twitter, Globe, MessageCircle, Music, Instagram } from 'lucide-react';
+import { Search, CheckCircle, AlertCircle, Loader, ArrowLeft, Twitter, Globe, MessageCircle, Music, Instagram, Send } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
@@ -17,7 +17,8 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
     discord: '',
     instagram: '',
     tiktok: '',
-    website: ''
+    website: '',
+    telegram: ''
   });
   
   const [validationComplete, setValidationComplete] = useState(false);
@@ -80,8 +81,18 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
 
   // Initialize Helio widget when conditions are met
   useEffect(() => {
+    console.log('🔍 Helio Widget Init Check:', {
+      helioLoaded,
+      validationComplete,
+      selectedToken: !!selectedToken,
+      paymentCompleted,
+      helioCheckoutExists: !!window.helioCheckout
+    });
+    
     if (helioLoaded && validationComplete && selectedToken && !paymentCompleted) {
       const container = document.getElementById('helioUpdateCheckoutContainer');
+      console.log('🔍 Container found:', !!container);
+      
       if (container && window.helioCheckout) {
         console.log('🎯 Initializing Helio Pay widget for Update Token...');
         
@@ -129,6 +140,39 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
 
   // Expose debug function globally for testing
   useEffect(() => {
+    window.debugHelioWidget = () => {
+      console.log('🔧 DEBUG: Manual Helio Widget Check');
+      console.log('helioLoaded:', helioLoaded);
+      console.log('validationComplete:', validationComplete);
+      console.log('selectedToken:', selectedToken);
+      console.log('paymentCompleted:', paymentCompleted);
+      console.log('window.helioCheckout exists:', !!window.helioCheckout);
+      
+      const container = document.getElementById('helioUpdateCheckoutContainer');
+      console.log('Container found:', !!container);
+      console.log('Container element:', container);
+      
+      if (container && window.helioCheckout) {
+        console.log('🎯 Manually initializing Helio widget...');
+        try {
+          window.helioCheckout(container, {
+            paylinkId: "68b51815c743122a7be18721",
+            theme: { "themeMode": "dark" },
+            primaryColor: "#FE5300",
+            neutralColor: "#5A6578",
+            display: "inline",
+            onSuccess: (event) => console.log('✅ Manual Success:', event),
+            onError: (event) => console.error('❌ Manual Error:', event),
+            onPending: (event) => console.log('⏳ Manual Pending:', event),
+            onCancel: () => console.log('❌ Manual Cancel'),
+            onStartPayment: () => console.log('🚀 Manual Start')
+          });
+        } catch (error) {
+          console.error('❌ Manual initialization error:', error);
+        }
+      }
+    };
+    
     window.debugContractValidation = async () => {
       console.log('🔧 DEBUG: Testing contract validation...');
       try {
@@ -497,6 +541,7 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
       case 'instagram': return <Instagram size={16} className="text-pink-400" />;
       case 'tiktok': return <Music size={16} className="text-red-400" />;
       case 'website': return <Globe size={16} className="text-green-400" />;
+      case 'telegram': return <Send size={16} className="text-cyan-400" />;
       default: return null;
     }
   };
@@ -509,6 +554,7 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
       case 'instagram': return 'username (without @)';
       case 'tiktok': return 'username (without @)';
       case 'website': return 'https://example.com';
+      case 'telegram': return 't.me/username or @username';
       default: return '';
     }
   };
@@ -769,7 +815,7 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
                           {/* Helio Widget Container - Original Size */}
                           <div className="relative">
                             <div id="helioUpdateCheckoutContainer" className="w-full">
-                              {!helioLoaded ? (
+                              {!helioLoaded && (
                                 <div className="min-h-[300px] flex flex-col items-center justify-center space-y-4 text-gray-400">
                                   <div className="flex items-center space-x-3">
                                     <Loader className="w-5 h-5 animate-spin text-orange-400" />
@@ -777,15 +823,6 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
                                   </div>
                                   <div className="w-6 h-1 bg-gray-700 rounded-full overflow-hidden">
                                     <div className="h-full bg-gradient-to-r from-orange-500 to-red-500 rounded-full animate-pulse"></div>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="min-h-[300px] flex flex-col items-center justify-center space-y-3 text-gray-400">
-                                  <div className="flex items-center space-x-2">
-                                    <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                                      <span className="text-white text-xs">✓</span>
-                                    </div>
-                                    <span className="text-base font-medium">Payment form ready</span>
                                   </div>
                                 </div>
                               )}
