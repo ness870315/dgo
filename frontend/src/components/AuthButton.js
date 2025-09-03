@@ -1,9 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Twitter, LogOut, User, UserPlus, ChevronDown, BarChart3, List, Flame, Edit } from 'lucide-react';
+import { Twitter, LogOut, User, UserPlus, ChevronDown, BarChart3, List, Flame, Edit, Star, Settings, Activity, TrendingUp, Wallet } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import SimpleLogin from './SimpleLogin';
 
-const AuthButton = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigateToUpdateToken }) => {
+const AuthButton = ({ 
+  onNavigateToListToken, 
+  onNavigateToFuelToken, 
+  onNavigateToUpdateToken,
+  onNavigateToDashboard,
+  onNavigateToWatchlist,
+  onNavigateToSettings
+}) => {
   const { user, login, logout, loading, isAuthenticated } = useAuth();
   const [showQuickLogin, setShowQuickLogin] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
@@ -61,20 +68,59 @@ const AuthButton = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigateTo
 
           {/* Dropdown Menu */}
           {showUserDropdown && (
-            <div className="absolute top-full mt-2 right-0 bg-dark-card border border-gray-700 rounded-lg shadow-xl z-50 min-w-48">
+            <div className="absolute top-full mt-2 right-0 bg-dark-card border border-gray-700 rounded-lg shadow-xl z-50 min-w-56">
               <div className="py-2">
+                {/* User Info Header */}
+                <div className="px-4 py-3 border-b border-gray-700">
+                  <div className="flex items-center space-x-3">
+                    {user.profileImage ? (
+                      <img 
+                        src={user.profileImage} 
+                        alt={user.displayName}
+                        className="w-8 h-8 rounded-full"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                        <User size={16} className="text-white" />
+                      </div>
+                    )}
+                    <div>
+                      <div className="text-white text-sm font-medium">{user.displayName}</div>
+                      <div className="text-gray-400 text-xs">@{user.username}</div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Dashboard */}
                 <button
                   onClick={() => {
                     setShowUserDropdown(false);
-                    // TODO: Navigate to dashboard
-                    console.log('Navigate to Dashboard');
+                    if (onNavigateToDashboard) {
+                      onNavigateToDashboard();
+                    }
                   }}
                   className="w-full flex items-center space-x-3 px-4 py-2 text-left hover:bg-gray-800 transition-colors"
                 >
                   <BarChart3 size={16} className="text-blue-400" />
                   <span className="text-white text-sm">Dashboard</span>
                 </button>
+
+                {/* Watchlist */}
+                <button
+                  onClick={() => {
+                    setShowUserDropdown(false);
+                    if (onNavigateToWatchlist) {
+                      onNavigateToWatchlist();
+                    }
+                  }}
+                  className="w-full flex items-center space-x-3 px-4 py-2 text-left hover:bg-gray-800 transition-colors"
+                >
+                  <Star size={16} className="text-yellow-400" />
+                  <span className="text-white text-sm">Watchlist</span>
+                </button>
+
+                {/* Divider */}
+                <div className="border-t border-gray-700 my-2"></div>
 
                 {/* List Token */}
                 <button
@@ -107,13 +153,9 @@ const AuthButton = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigateTo
                 {/* Update Token */}
                 <button
                   onClick={() => {
-                    console.log('🎯 Update Token button clicked');
                     setShowUserDropdown(false);
                     if (onNavigateToUpdateToken) {
-                      console.log('🎯 Calling onNavigateToUpdateToken');
                       onNavigateToUpdateToken();
-                    } else {
-                      console.log('❌ onNavigateToUpdateToken is not defined');
                     }
                   }}
                   className="w-full flex items-center space-x-3 px-4 py-2 text-left hover:bg-gray-800 transition-colors"
@@ -124,6 +166,20 @@ const AuthButton = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigateTo
 
                 {/* Divider */}
                 <div className="border-t border-gray-700 my-2"></div>
+
+                {/* Settings */}
+                <button
+                  onClick={() => {
+                    setShowUserDropdown(false);
+                    if (onNavigateToSettings) {
+                      onNavigateToSettings();
+                    }
+                  }}
+                  className="w-full flex items-center space-x-3 px-4 py-2 text-left hover:bg-gray-800 transition-colors"
+                >
+                  <Settings size={16} className="text-gray-400" />
+                  <span className="text-white text-sm">Settings</span>
+                </button>
 
                 {/* Logout */}
                 <button

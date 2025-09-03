@@ -14,29 +14,31 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem('authToken'));
+  const [sessionId, setSessionId] = useState(localStorage.getItem('sessionId'));
 
   const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
 
-  // Check for auth token in URL params (from Twitter OAuth callback)
+  // Check for auth callback in URL params (from OAuth X callback)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const authToken = urlParams.get('token');
     const authStatus = urlParams.get('auth');
+    const authSessionId = urlParams.get('sessionId');
+    const authMessage = urlParams.get('message');
     
-    if (authToken && authStatus === 'success') {
-      localStorage.setItem('authToken', authToken);
-      setToken(authToken);
+    if (authSessionId && authStatus === 'success') {
+      localStorage.setItem('sessionId', authSessionId);
+      setSessionId(authSessionId);
       
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (authStatus === 'failed') {
-      console.error('Authentication failed');
+    } else if (authStatus === 'error') {
+      console.error('Authentication failed:', authMessage);
       // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 
-  // Get user info when token changes
+  // Get user info when session changes
   useEffect(() => {
     const getCurrentUser = async () => {
       const authType = localStorage.getItem('authType');
@@ -55,49 +57,44 @@ export const AuthProvider = ({ children }) => {
         return;
       }
       
-      // Handle Twitter OAuth token
-      if (!token) {
+      // Handle OAuth X session
+      if (!sessionId) {
         setLoading(false);
         return;
       }
 
       try {
-        const response = await fetch(`${API_BASE}/auth/user`, {
-          credentials: 'include',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+        const response = await fetch(`${API_BASE}/auth/validate?sessionId=${sessionId}`);
 
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
         } else {
-          // Token might be invalid
-          localStorage.removeItem('authToken');
-          setToken(null);
+          // Session might be invalid
+          localStorage.removeItem('sessionId');
+          setSessionId(null);
         }
       } catch (error) {
         console.error('Error fetching user:', error);
-        localStorage.removeItem('authToken');
-        setToken(null);
+        localStorage.removeItem('sessionId');
+        setSessionId(null);
       }
       
       setLoading(false);
     };
 
     getCurrentUser();
-  }, [token, user, API_BASE]);
+  }, [sessionId, user, API_BASE]);
 
-  const login = (userData = null, sessionId = null, authType = 'twitter') => {
+  const login = (userData = null, sessionId = null, authType = 'x') => {
     if (authType === 'demo' && userData && sessionId) {
       // Demo login - set user data directly
       setUser(userData);
       localStorage.setItem('demoSessionId', sessionId);
       localStorage.setItem('authType', 'demo');
     } else {
-      // Twitter OAuth login
-      window.location.href = `${API_BASE}/auth/twitter`;
+      // OAuth X login
+      window.location.href = `${API_BASE}/auth/x`;
     }
   };
 
@@ -109,19 +106,23 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('demoSessionId');
       localStorage.removeItem('authType');
     } else {
-      // Twitter OAuth logout
+      // OAuth X logout
       try {
         await fetch(`${API_BASE}/auth/logout`, {
           method: 'POST',
-          credentials: 'include'
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ sessionId: sessionId })
         });
       } catch (error) {
         console.error('Logout error:', error);
       }
-      localStorage.removeItem('authToken');
+      localStorage.removeItem('sessionId');
     }
     
     setToken(null);
+    setSessionId(null);
     setUser(null);
   };
 
@@ -132,6 +133,7 @@ export const AuthProvider = ({ children }) => {
   const value = {
     user,
     token,
+    sessionId,
     loading,
     login,
     logout,

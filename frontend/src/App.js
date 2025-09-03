@@ -10,6 +10,7 @@ import WatchlistPanel from './components/WatchlistPanel';
 import ListTokenPage from './components/ListTokenPage';
 import FuelTokenPage from './components/FuelTokenPage';
 import UpdateTokenPage from './components/UpdateTokenPage';
+import UserDashboard from './components/UserDashboard';
 import ApifyTestPage from './components/ApifyTestPage';
 import { AuthProvider } from './contexts/AuthContext';
 import tokenService from './services/tokenService';
@@ -198,6 +199,7 @@ function App() {
   const [showListToken, setShowListToken] = useState(false);
   const [showFuelToken, setShowFuelToken] = useState(false);
   const [showUpdateToken, setShowUpdateToken] = useState(false);
+  const [showUserDashboard, setShowUserDashboard] = useState(false);
   const [showApifyTest, setShowApifyTest] = useState(false);
   const [fueledTokens, setFueledTokens] = useState([]);
   const [viewMode, setViewMode] = useState('bubbles'); // 'bubbles' or 'cards'
@@ -665,6 +667,16 @@ function App() {
     setShowUpdateToken(true);
   }, []);
 
+  const handleUserDashboardClick = useCallback(() => {
+    console.log('🎯 Navigating to User Dashboard');
+    setShowUserDashboard(true);
+  }, []);
+
+  const handleWatchlistClick = useCallback(() => {
+    console.log('🎯 Navigating to Watchlist');
+    setShowWatchlist(true);
+  }, []);
+
   const handleApifyTestClick = useCallback(() => {
     setShowApifyTest(true);
   }, []);
@@ -747,6 +759,15 @@ function App() {
     );
   }
 
+  // Show User Dashboard page if requested
+  if (showUserDashboard) {
+    return (
+      <AuthProvider>
+        <UserDashboard />
+      </AuthProvider>
+    );
+  }
+
   // Show Apify Test page if requested
   if (showApifyTest) {
     return (
@@ -778,7 +799,14 @@ function App() {
           onWatchlistClick={handleWatchlistClick}
           onApifyTestClick={handleApifyTestClick}
 
-          authButton={<AuthButton onNavigateToListToken={handleListTokenClick} onNavigateToFuelToken={handleFuelTokenClick} onNavigateToUpdateToken={handleUpdateTokenClick} />}
+          authButton={<AuthButton 
+            onNavigateToListToken={handleListTokenClick} 
+            onNavigateToFuelToken={handleFuelTokenClick} 
+            onNavigateToUpdateToken={handleUpdateTokenClick}
+            onNavigateToDashboard={handleUserDashboardClick}
+            onNavigateToWatchlist={handleWatchlistClick}
+            onNavigateToSettings={handleSettingsClick}
+          />}
           isLoading={isLoading}
         />
         
