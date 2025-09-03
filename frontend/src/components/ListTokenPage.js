@@ -332,20 +332,36 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     }
   }, [submitTokenToDatabase]);
 
-  // Handle payment completion on page load
+  // 🔧 ENHANCED: Handle payment completion with multiple detection methods
   useEffect(() => {
     const handlePaymentCompletion = async () => {
       console.log('🔍 Checking for payment completion...');
 
-      // Check URL parameters for payment success
+      // Method 1: Check URL parameters for payment success
       const urlParams = new URLSearchParams(window.location.search);
       const paymentStatus = urlParams.get('payment');
+      const paymentSuccess = urlParams.get('success'); // Alternative parameter
+      const helioStatus = urlParams.get('status'); // Helio might use this
       const currentUrl = window.location.href;
 
       console.log('📍 Current URL:', currentUrl);
-      console.log('💳 Payment status parameter:', paymentStatus);
+      console.log('💳 Payment parameters:', {
+        payment: paymentStatus,
+        success: paymentSuccess,
+        status: helioStatus
+      });
 
-      if (paymentStatus === 'success') {
+      // Method 2: Check localStorage for completed payment flag
+      const paymentCompleted = localStorage.getItem('paymentCompleted');
+      console.log('💾 Payment completed flag:', !!paymentCompleted);
+
+      // Determine if payment was successful
+      const isPaymentSuccess = paymentStatus === 'success' || 
+                              paymentSuccess === 'true' || 
+                              helioStatus === 'completed' ||
+                              paymentCompleted;
+
+      if (isPaymentSuccess) {
         console.log('🎉 Payment success detected! Processing pending token...');
 
         // Check for pending payment data in localStorage
@@ -364,14 +380,15 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
             // Process the payment and add token
             console.log('🚀 Starting token submission to database...');
             await submitTokenToDatabase(tokenData, {
-              paymentId,
+              paymentId: paymentId || 'url_redirect_payment',
               status: 'completed',
               timestamp: new Date().toISOString()
             });
             console.log('✅ Token submission completed successfully!');
 
-            // Clear the pending data
+            // Clear the pending data and completion flag
             localStorage.removeItem('pendingTokenListing');
+            localStorage.removeItem('paymentCompleted');
             console.log('🧹 Cleared pending data from localStorage');
 
             // Clear URL parameters
@@ -390,9 +407,16 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         } else {
           console.warn('⚠️ Payment success detected but no pending token data found in localStorage');
           console.log('💡 This might happen if the page was refreshed before processing or data was cleared');
+          showErrorModal('Payment completed but token data was lost. Please contact support with your payment confirmation.');
         }
+      } else if (paymentStatus === 'cancelled' || paymentStatus === 'error') {
+        console.log('❌ Payment cancelled or failed');
+        showErrorModal(paymentStatus === 'cancelled' ? 'Payment was cancelled.' : 'Payment failed. Please try again.');
+        
+        // Clear URL parameters
+        window.history.replaceState({}, document.title, window.location.pathname);
       } else {
-        console.log('ℹ️ No payment success detected in URL parameters');
+        console.log('ℹ️ No payment completion detected');
       }
     };
 
@@ -408,6 +432,76 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     // Cleanup timeout
     return () => clearTimeout(timeoutId);
   }, [submitTokenToDatabase]); // Include submitTokenToDatabase as dependency
+
+  // 🔧 ADDITIONAL: Periodic check for payment completion (in case user returns later)
+  useEffect(() => {
+    const checkPendingPayments = () => {
+      const pendingData = localStorage.getItem('pendingTokenListing');
+      if (pendingData) {
+        try {
+          const tokenData = JSON.parse(pendingData);
+          const paymentInitiated = new Date(tokenData.paymentInitiated);
+          const now = new Date();
+          const timeDiff = now - paymentInitiated;
+          
+          // If payment was initiated more than 5 minutes ago, show a helper message
+          if (timeDiff > 5 * 60 * 1000) {
+            console.log('⏰ Found old pending payment, showing helper message');
+            
+            // Create a subtle notification
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+              position: fixed;
+              top: 20px;
+              right: 20px;
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              color: white;
+              padding: 15px 20px;
+              border-radius: 10px;
+              box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+              z-index: 10000;
+              max-width: 300px;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            `;
+            
+            notification.innerHTML = `
+              <div style="font-weight: 600; margin-bottom: 8px;">💳 Payment Pending</div>
+              <div style="font-size: 14px; opacity: 0.9; margin-bottom: 10px;">
+                Found a pending payment for ${tokenData.symbol || 'your token'}. 
+                If you completed the payment, it should process automatically.
+              </div>
+              <button onclick="this.parentElement.remove()" style="
+                background: rgba(255,255,255,0.2);
+                border: none;
+                color: white;
+                padding: 5px 10px;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 12px;
+              ">Dismiss</button>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remove after 10 seconds
+            setTimeout(() => {
+              if (document.body.contains(notification)) {
+                document.body.removeChild(notification);
+              }
+            }, 10000);
+          }
+        } catch (error) {
+          console.error('Error checking pending payments:', error);
+        }
+      }
+    };
+
+    // Check immediately and then every 30 seconds
+    checkPendingPayments();
+    const interval = setInterval(checkPendingPayments, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
 
 
   // Validate Solana contract address format
@@ -1127,8 +1221,62 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     },
   };
 
-  // 🔧 FIXED: Use actual HelioCheckout React component instead of manual redirect
+  // 🔧 HYBRID: React component with fallback to manual redirect
   const HelioPayComponent = () => {
+    const [showFallback, setShowFallback] = useState(false);
+    const [paymentError, setPaymentError] = useState(null);
+
+    // Handle manual payment redirect as fallback
+    const handleManualPayment = async () => {
+      try {
+        console.log('🔄 Using manual payment fallback...');
+        
+        // Store token data before redirect
+        if (tokenData) {
+          localStorage.setItem('pendingTokenListing', JSON.stringify({
+            contractAddress: tokenData.contractAddress,
+            name: tokenData.name,
+            symbol: tokenData.symbol,
+            price: tokenData.price,
+            marketCap: tokenData.marketCap,
+            totalSupply: tokenData.totalSupply,
+            paymentInitiated: new Date().toISOString(),
+            socialLinks: socials
+          }));
+          console.log('💾 Token data stored for manual payment');
+        }
+
+        // Create payment via backend API
+        const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+        const successUrl = `${window.location.origin}/?payment=success`;
+        const cancelUrl = `${window.location.origin}/?payment=cancelled`;
+
+        const response = await fetch(`${apiBase}/api/payments/create-token-listing`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tokenData: tokenData,
+            userId: 'user_' + Date.now(),
+            successUrl: successUrl,
+            cancelUrl: cancelUrl
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success && result.payment) {
+          console.log('✅ Manual payment created:', result.payment);
+          window.location.href = result.payment.paymentUrl;
+        } else {
+          throw new Error(result.error || 'Payment creation failed');
+        }
+
+      } catch (error) {
+        console.error('❌ Manual payment error:', error);
+        showErrorModal('Failed to create payment. Please try again.');
+      }
+    };
+
     return (
       <div className="bg-dark-bg border border-orange-500 rounded-lg p-4">
         <div className="mb-4">
@@ -1138,7 +1286,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
           </p>
         </div>
         
-        {/* 🎯 ACTUAL Helio React Component Integration */}
         <div className="bg-gradient-to-r from-orange-600 to-red-600 rounded-lg p-6">
           <div className="text-center mb-4">
             <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -1150,10 +1297,62 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
             </p>
           </div>
           
-          {/* Helio Checkout Component */}
-          <div className="bg-white bg-opacity-10 rounded-lg p-4">
-            <HelioCheckout config={helioConfig} />
-          </div>
+          {!showFallback ? (
+            <>
+              {/* Primary: Helio Checkout Component */}
+              <div className="bg-white bg-opacity-10 rounded-lg p-4 mb-4">
+                <HelioCheckout 
+                  config={helioConfig}
+                  onError={(error) => {
+                    console.warn('⚠️ HelioCheckout error, showing fallback:', error);
+                    setPaymentError(error);
+                    setShowFallback(true);
+                  }}
+                />
+              </div>
+              
+              {/* Fallback option */}
+              <div className="text-center">
+                <button
+                  onClick={() => setShowFallback(true)}
+                  className="text-blue-200 text-sm underline hover:text-blue-100"
+                >
+                  Having issues? Try alternative payment method
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Fallback: Manual redirect payment */}
+              <div className="bg-white bg-opacity-10 rounded-lg p-4 mb-4">
+                <div className="text-center">
+                  <p className="text-white text-sm mb-4">
+                    {paymentError ? 'Payment widget encountered an issue. ' : ''}
+                    Click below to proceed with secure payment.
+                  </p>
+                  <button
+                    onClick={handleManualPayment}
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105"
+                  >
+                    💳 Proceed to Payment ($95)
+                  </button>
+                </div>
+              </div>
+              
+              {/* Back to primary option */}
+              <div className="text-center">
+                <button
+                  onClick={() => {
+                    setShowFallback(false);
+                    setPaymentError(null);
+                  }}
+                  className="text-blue-200 text-sm underline hover:text-blue-100"
+                >
+                  ← Back to integrated payment
+                </button>
+              </div>
+            </>
+          )}
           
           <div className="mt-4 space-y-2 text-center">
             <p className="text-blue-200 text-xs">
