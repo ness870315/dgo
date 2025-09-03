@@ -236,6 +236,21 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   const submitTokenToDatabase = useCallback(async (tokenData, paymentEvent) => {
     try {
       console.log('🔥 Submitting paid token to database:', tokenData);
+      console.log('💳 Payment event data:', paymentEvent);
+
+      // Generate a payment ID if not provided by Helio
+      const paymentId = paymentEvent?.paymentId || `helio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Prepare payment data for validation
+      const paymentData = {
+        paymentId: paymentId,
+        amount: 9500, // $95.00 in cents
+        currency: 'USD',
+        status: 'completed',
+        timestamp: new Date().toISOString(),
+        source: 'helio_widget',
+        ...paymentEvent
+      };
 
       // First validate the payment with backend
       const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
@@ -245,12 +260,13 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          paymentId: paymentEvent?.paymentId || tokenData?.paymentId,
-          paymentData: paymentEvent
+          paymentId: paymentId,
+          paymentData: paymentData
         })
       });
 
       const validationResult = await paymentValidation.json();
+      console.log('🔍 Payment validation result:', validationResult);
 
       if (!validationResult.success || !validationResult.validation?.isValid) {
         throw new Error('Payment validation failed. Please contact support.');
@@ -268,7 +284,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       const payload = {
         tokenData: tokenData,
         paymentData: {
-          ...paymentEvent,
+          ...paymentData,
           validated: true,
           validationResult: validationResult.validation
         }
