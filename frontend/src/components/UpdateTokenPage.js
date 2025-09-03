@@ -29,6 +29,10 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
   // Helio payment widget state
   const [helioLoaded, setHelioLoaded] = useState(false);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
+  
+  // Success modal state
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [updateSuccess, setUpdateSuccess] = useState(false);
 
   // Load current socials if token is pre-selected
   useEffect(() => {
@@ -108,7 +112,7 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
               // Add additional configuration to help with authorization
               environment: "production",
               allowedDomains: ["degen-oracle.com", "localhost"],
-              onSuccess: (event) => {
+              onSuccess: async (event) => {
                 console.log('✅ Update Token Payment Success:', event);
                 setPaymentCompleted(true);
                 setPaymentProcessing(false);
@@ -121,6 +125,14 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
                   paymentInitiated: new Date().toISOString(),
                   helioEvent: event
                 }));
+                
+                // Automatically apply the social updates
+                try {
+                  console.log('🚀 Auto-applying social updates after payment success...');
+                  await handleApplyUpdate();
+                } catch (error) {
+                  console.error('❌ Error auto-applying updates:', error);
+                }
               },
               onError: (event) => {
                 console.error('❌ Update Token Payment Error:', event);
@@ -404,31 +416,55 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
           `${result.communityScoreImpact?.description || 'No bonus calculated'}\n\n` +
           `✅ Social links updated successfully!`;
 
-        alert(successMessage);
-
         console.log('🎉 DETAILED UPDATE RESULTS:', result);
+
+        // Show success modal
+        setUpdateSuccess(true);
+        setShowSuccessModal(true);
 
         // Notify parent component that token was updated
         if (onTokenUpdated && selectedToken) {
           onTokenUpdated(selectedToken);
         }
 
-        // Reset form
-        setSearchSymbol('');
-        setSelectedToken(null);
-        setSocials({
-          twitter: '',
-          discord: '',
-          instagram: '',
-          tiktok: '',
-          website: ''
-        });
-        setCurrentSocials(null);
-        setValidationComplete(false);
-        setContractValidated(false);
-        setPaymentCompleted(false);
-        localStorage.removeItem('pendingUpdatePayment');
-        setError('');
+        // Trigger score recalculation
+        try {
+          console.log('🔄 Triggering score recalculation for updated token...');
+          const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+          await fetch(`${apiBase}/api/admin/recalculate-scores`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              contractAddress: selectedToken.contractAddress,
+              reason: 'social_links_updated'
+            })
+          });
+          console.log('✅ Score recalculation triggered successfully');
+        } catch (error) {
+          console.error('❌ Error triggering score recalculation:', error);
+        }
+
+        // Reset form after a delay to allow user to see success modal
+        setTimeout(() => {
+          setSearchSymbol('');
+          setSelectedToken(null);
+          setSocials({
+            twitter: '',
+            discord: '',
+            instagram: '',
+            tiktok: '',
+            website: '',
+            telegram: ''
+          });
+          setCurrentSocials(null);
+          setValidationComplete(false);
+          setContractValidated(false);
+          setPaymentCompleted(false);
+          localStorage.removeItem('pendingUpdatePayment');
+          setError('');
+          setShowSuccessModal(false);
+          setUpdateSuccess(false);
+        }, 3000);
       } else {
         setError(`Update failed: ${result.message || 'Unknown error'}`);
       }
@@ -870,22 +906,14 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
                       <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4">
                         <h4 className="text-green-300 font-medium mb-2">✅ Payment Completed!</h4>
                         <p className="text-green-200 text-sm mb-4">
-                          Your payment has been processed successfully. Click below to apply the social updates to {selectedToken.symbol}.
+                          Your payment has been processed successfully. Social updates are being applied automatically...
                         </p>
-                        <button
-                          onClick={handleApplyUpdate}
-                          disabled={loading}
-                          className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 disabled:opacity-50"
-                        >
-                          {loading ? (
-                            <div className="flex items-center justify-center space-x-2">
-                              <Loader size={16} className="animate-spin" />
-                              <span>Applying Updates...</span>
-                            </div>
-                          ) : (
-                            '📱 Apply Social Updates'
-                          )}
-                        </button>
+                        {loading && (
+                          <div className="flex items-center justify-center space-x-2 text-green-300">
+                            <Loader size={16} className="animate-spin" />
+                            <span>Applying Updates...</span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -978,6 +1006,50 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
           </div>
         </div>
       </div>
+
+      {/* Success Modal */}
+      {showSuccessModal && updateSuccess && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-green-500 shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="p-8 text-center">
+              {/* Success Icon */}
+              <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle size={32} className="text-white" />
+              </div>
+              
+              {/* Success Title */}
+              <h2 className="text-2xl font-bold text-white mb-4">
+                🎉 Social Links Updated!
+              </h2>
+              
+              {/* Success Message */}
+              <div className="space-y-3 mb-6">
+                <p className="text-gray-300">
+                  Your social links for <span className="text-white font-semibold">{selectedToken?.symbol}</span> have been successfully updated!
+                </p>
+                <div className="bg-green-900 bg-opacity-30 rounded-lg p-4 border border-green-500">
+                  <p className="text-green-300 text-sm">
+                    ✅ Payment processed successfully<br/>
+                    ✅ Social links applied<br/>
+                    ✅ Community score recalculation triggered
+                  </p>
+                </div>
+              </div>
+              
+              {/* Action Button */}
+              <button
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  setUpdateSuccess(false);
+                }}
+                className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105"
+              >
+                🚀 Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
