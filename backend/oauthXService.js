@@ -138,6 +138,18 @@ class OAuthXService {
   }
 
   /**
+   * Generate a unique referral code
+   */
+  generateReferralCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 8; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  /**
    * Create or update user in database
    */
   async createOrUpdateUser(profile, accessToken, refreshToken) {
@@ -157,6 +169,8 @@ class OAuthXService {
       refreshToken: refreshToken,
       createdAt: existingUser?.createdAt || new Date().toISOString(),
       lastLogin: new Date().toISOString(),
+      // Generate referral code for new users
+      referralCode: existingUser?.referralCode || this.generateReferralCode(),
       // User-specific data
       watchlist: existingUser?.watchlist || [],
       preferences: existingUser?.preferences || {

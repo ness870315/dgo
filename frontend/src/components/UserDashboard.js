@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { BarChart3, Star, TrendingUp, Activity, Wallet, Users, Calendar, Award, Target, DollarSign } from 'lucide-react';
+import { BarChart3, Star, TrendingUp, Activity, Wallet, Users, Calendar, Award, Target, Crown, ArrowLeft, Plus, Zap, Edit } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import TokenDetails from './TokenDetails';
 
 const UserDashboard = () => {
   const { user, sessionId } = useAuth();
@@ -9,12 +10,14 @@ const UserDashboard = () => {
     tokensListed: 0,
     tokensFueled: 0,
     tokensUpdated: 0,
-    totalSpent: 0,
-    recentActivity: [],
-    portfolioValue: 0,
-    topPerformers: []
+    referralCode: '',
+    kolCalls: [],
+    kolLeaderboard: [],
+    watchlist: []
   });
   const [loading, setLoading] = useState(true);
+  const [showWatchlistModal, setShowWatchlistModal] = useState(false);
+  const [selectedToken, setSelectedToken] = useState(null);
 
   const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
 
@@ -43,10 +46,10 @@ const UserDashboard = () => {
           tokensListed: profileData.user?.stats?.tokensListed || 0,
           tokensFueled: profileData.user?.stats?.tokensFueled || 0,
           tokensUpdated: profileData.user?.stats?.tokensUpdated || 0,
-          totalSpent: profileData.user?.stats?.totalSpent || 0,
-          recentActivity: [], // TODO: Implement recent activity
-          portfolioValue: 0, // TODO: Calculate portfolio value
-          topPerformers: [] // TODO: Get top performing tokens
+          referralCode: profileData.user?.referralCode || '',
+          kolCalls: [], // TODO: Implement KOL calls
+          kolLeaderboard: [], // TODO: Implement KOL leaderboard
+          watchlist: watchlistData.watchlist || []
         });
       } else {
         console.error('❌ API calls failed:', {
@@ -62,10 +65,10 @@ const UserDashboard = () => {
           tokensListed: 0,
           tokensFueled: 0,
           tokensUpdated: 0,
-          totalSpent: 0,
-          recentActivity: [],
-          portfolioValue: 0,
-          topPerformers: []
+          referralCode: '',
+          kolCalls: [],
+          kolLeaderboard: [],
+          watchlist: []
         });
       }
     } catch (error) {
@@ -121,11 +124,12 @@ const UserDashboard = () => {
       bgColor: 'bg-orange-400/10'
     },
     {
-      title: 'Total Spent',
-      value: `$${dashboardData.totalSpent.toFixed(2)}`,
-      icon: DollarSign,
-      color: 'text-blue-400',
-      bgColor: 'bg-blue-400/10'
+      title: 'Upgrade',
+      value: 'Premium',
+      icon: Crown,
+      color: 'text-purple-400',
+      bgColor: 'bg-purple-400/10',
+      isButton: true
     }
   ];
 
@@ -134,6 +138,25 @@ const UserDashboard = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
+          {/* Return to Main App Button */}
+          <div className="flex justify-between items-center mb-6">
+            <button 
+              onClick={() => window.location.href = '/'}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            >
+              <ArrowLeft size={20} />
+              <span>Return to Main App</span>
+            </button>
+            
+            {/* Referral Code Display */}
+            {dashboardData.referralCode && (
+              <div className="text-right">
+                <p className="text-gray-400 text-sm">Your Referral Code</p>
+                <p className="text-white font-mono text-lg">{dashboardData.referralCode}</p>
+              </div>
+            )}
+          </div>
+          
           <div className="flex items-center space-x-4 mb-4">
             {user.profileImage ? (
               <img 
@@ -187,7 +210,13 @@ const UserDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-gray-400 text-sm">{stat.title}</p>
-                  <p className="text-2xl font-bold text-white mt-1">{stat.value}</p>
+                  {stat.isButton ? (
+                    <button className="text-2xl font-bold text-purple-400 mt-1 hover:text-purple-300 transition-colors">
+                      {stat.value}
+                    </button>
+                  ) : (
+                    <p className="text-2xl font-bold text-white mt-1">{stat.value}</p>
+                  )}
                 </div>
                 <div className={`p-3 rounded-lg ${stat.bgColor}`}>
                   <stat.icon size={24} className={stat.color} />
@@ -199,131 +228,189 @@ const UserDashboard = () => {
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Recent Activity */}
+          {/* KOL Calls */}
           <div className="bg-dark-card border border-gray-700 rounded-lg p-6">
             <div className="flex items-center space-x-2 mb-4">
               <Activity size={20} className="text-blue-400" />
-              <h2 className="text-xl font-semibold text-white">Recent Activity</h2>
+              <h2 className="text-xl font-semibold text-white">KOL Calls</h2>
             </div>
             <div className="space-y-4">
-              {dashboardData.recentActivity.length > 0 ? (
-                dashboardData.recentActivity.map((activity, index) => (
+              {dashboardData.kolCalls.length > 0 ? (
+                dashboardData.kolCalls.map((call, index) => (
                   <div key={index} className="flex items-center space-x-3 p-3 bg-gray-800/50 rounded-lg">
                     <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
                     <div>
-                      <p className="text-white text-sm">{activity.description}</p>
-                      <p className="text-gray-400 text-xs">{activity.timestamp}</p>
+                      <p className="text-white text-sm">{call.description}</p>
+                      <p className="text-gray-400 text-xs">{call.timestamp}</p>
                     </div>
                   </div>
                 ))
               ) : (
                 <div className="text-center py-8">
                   <Activity size={48} className="text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">No recent activity</p>
-                  <p className="text-gray-500 text-sm">Start listing and fueling tokens to see activity here</p>
+                  <p className="text-gray-400">No KOL calls yet</p>
+                  <p className="text-gray-500 text-sm">KOL calls will appear here when available</p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Portfolio Overview */}
+          {/* KOL Leaderboard */}
           <div className="bg-dark-card border border-gray-700 rounded-lg p-6">
             <div className="flex items-center space-x-2 mb-4">
               <BarChart3 size={20} className="text-green-400" />
-              <h2 className="text-xl font-semibold text-white">Portfolio Overview</h2>
+              <h2 className="text-xl font-semibold text-white">KOL Leaderboard</h2>
             </div>
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400">Total Value</span>
-                <span className="text-2xl font-bold text-white">${dashboardData.portfolioValue.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400">Tokens in Watchlist</span>
-                <span className="text-lg font-semibold text-white">{dashboardData.watchlistCount}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400">Active Listings</span>
-                <span className="text-lg font-semibold text-white">{dashboardData.tokensListed}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400">Total Spent</span>
-                <span className="text-lg font-semibold text-white">${dashboardData.totalSpent.toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Top Performers */}
-          <div className="bg-dark-card border border-gray-700 rounded-lg p-6">
-            <div className="flex items-center space-x-2 mb-4">
-              <Award size={20} className="text-yellow-400" />
-              <h2 className="text-xl font-semibold text-white">Top Performers</h2>
-            </div>
-            <div className="space-y-3">
-              {dashboardData.topPerformers.length > 0 ? (
-                dashboardData.topPerformers.map((token, index) => (
+              {dashboardData.kolLeaderboard.length > 0 ? (
+                dashboardData.kolLeaderboard.map((kol, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                         <span className="text-white text-sm font-bold">{index + 1}</span>
                       </div>
                       <div>
-                        <p className="text-white font-medium">{token.symbol}</p>
-                        <p className="text-gray-400 text-sm">{token.name}</p>
+                        <p className="text-white font-medium">{kol.name}</p>
+                        <p className="text-gray-400 text-sm">{kol.username}</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-green-400 font-semibold">+{token.change}%</p>
-                      <p className="text-gray-400 text-sm">${token.price}</p>
+                      <p className="text-green-400 font-semibold">{kol.score}</p>
+                      <p className="text-gray-400 text-sm">{kol.calls} calls</p>
                     </div>
                   </div>
                 ))
               ) : (
                 <div className="text-center py-8">
-                  <Target size={48} className="text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">No performance data</p>
-                  <p className="text-gray-500 text-sm">Add tokens to your watchlist to track performance</p>
+                  <Award size={48} className="text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400">No KOL leaderboard data</p>
+                  <p className="text-gray-500 text-sm">KOL rankings will appear here</p>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="bg-dark-card border border-gray-700 rounded-lg p-6">
-            <div className="flex items-center space-x-2 mb-4">
-              <Wallet size={20} className="text-purple-400" />
-              <h2 className="text-xl font-semibold text-white">Quick Actions</h2>
-            </div>
-            <div className="grid grid-cols-1 gap-3">
-              <button className="w-full p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-left">
-                <div className="flex items-center space-x-3">
-                  <TrendingUp size={20} />
-                  <div>
-                    <p className="font-medium">List New Token</p>
-                    <p className="text-sm opacity-90">Add your token to the platform</p>
-                  </div>
+
+        </div>
+
+        {/* Quick Actions */}
+        <div className="bg-dark-card border border-gray-700 rounded-lg p-6 mt-8">
+          <div className="flex items-center space-x-2 mb-4">
+            <Wallet size={20} className="text-purple-400" />
+            <h2 className="text-xl font-semibold text-white">Quick Actions</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <button 
+              onClick={() => window.location.href = '/list-token'}
+              className="w-full p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-left"
+            >
+              <div className="flex items-center space-x-3">
+                <Plus size={20} />
+                <div>
+                  <p className="font-medium">List New Token</p>
+                  <p className="text-sm opacity-90">Add your token to the platform</p>
                 </div>
-              </button>
-              <button className="w-full p-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors text-left">
-                <div className="flex items-center space-x-3">
-                  <Activity size={20} />
-                  <div>
-                    <p className="font-medium">Fuel Token</p>
-                    <p className="text-sm opacity-90">Boost token visibility</p>
-                  </div>
+              </div>
+            </button>
+            <button 
+              onClick={() => window.location.href = '/fuel-token'}
+              className="w-full p-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors text-left"
+            >
+              <div className="flex items-center space-x-3">
+                <Zap size={20} />
+                <div>
+                  <p className="font-medium">Fuel Token</p>
+                  <p className="text-sm opacity-90">Boost token visibility</p>
                 </div>
-              </button>
-              <button className="w-full p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-left">
-                <div className="flex items-center space-x-3">
-                  <Star size={20} />
-                  <div>
-                    <p className="font-medium">View Watchlist</p>
-                    <p className="text-sm opacity-90">Manage your favorite tokens</p>
-                  </div>
+              </div>
+            </button>
+            <button 
+              onClick={() => window.location.href = '/update-token'}
+              className="w-full p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-left"
+            >
+              <div className="flex items-center space-x-3">
+                <Edit size={20} />
+                <div>
+                  <p className="font-medium">Update Token</p>
+                  <p className="text-sm opacity-90">Update token information</p>
                 </div>
-              </button>
-            </div>
+              </div>
+            </button>
+            <button 
+              onClick={() => setShowWatchlistModal(true)}
+              className="w-full p-3 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors text-left"
+            >
+              <div className="flex items-center space-x-3">
+                <Star size={20} />
+                <div>
+                  <p className="font-medium">View Watchlist</p>
+                  <p className="text-sm opacity-90">Manage your favorite tokens</p>
+                </div>
+              </div>
+            </button>
           </div>
         </div>
+
+        {/* Watchlist Modal */}
+        {showWatchlistModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-dark-card border border-gray-700 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-white">Your Watchlist</h2>
+                <button 
+                  onClick={() => setShowWatchlistModal(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              {dashboardData.watchlist.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {dashboardData.watchlist.map((token, index) => (
+                    <div 
+                      key={index}
+                      onClick={() => setSelectedToken(token)}
+                      className="bg-gray-800/50 rounded-lg p-4 cursor-pointer hover:bg-gray-700/50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-white font-medium">{token.symbol}</p>
+                          <p className="text-gray-400 text-sm">{token.name}</p>
+                        </div>
+                        <Star size={20} className="text-yellow-400" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Star size={48} className="text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400">Your watchlist is empty</p>
+                  <p className="text-gray-500 text-sm">Add tokens to your watchlist to see them here</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Token Details Modal */}
+        {selectedToken && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-dark-card border border-gray-700 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-white">Token Details</h2>
+                <button 
+                  onClick={() => setSelectedToken(null)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+              <TokenDetails token={selectedToken} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
