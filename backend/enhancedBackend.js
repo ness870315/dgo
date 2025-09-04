@@ -502,6 +502,7 @@ class EnhancedBackend {
             tweetCount: user.tweetCount,
             createdAt: user.createdAt,
             lastLogin: user.lastLogin,
+            referralCode: user.referralCode,
             preferences: user.preferences,
             stats: user.stats
           }
@@ -577,6 +578,7 @@ class EnhancedBackend {
             tweetCount: user.tweetCount,
             createdAt: user.createdAt,
             lastLogin: user.lastLogin,
+            referralCode: user.referralCode,
             preferences: user.preferences,
             stats: user.stats
           }
