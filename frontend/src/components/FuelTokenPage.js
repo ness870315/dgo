@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Flame, Rocket, Zap, Gem, ArrowLeft, Search } from 'lucide-react';
 
 const FuelTokenPage = ({ onBack, headerAuth = null }) => {
@@ -48,6 +48,14 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
       description: 'Maximum boost'
     }
   ];
+
+  // Map fuel type to Helio Paylink IDs
+  const paylinkByType = useMemo(() => ({
+    '10x': '68b50d01c743122a7be16ce9',
+    '50x': '68b50dd130074e35926e3c8d',
+    '500x': '68b50cef3d14a3c150c1f6cb',
+    '1000x': '68b50ded2b102da2c16c2359'
+  }), []);
 
   useEffect(() => {
     loadFueledTokens();
@@ -207,6 +215,41 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
     return `${hours}h ${minutes}m left`;
   };
 
+  // Ensure Helio embed script
+  useEffect(() => {
+    if (document.querySelector('script[src*="embed.hel.io/assets/index-v1.js"]')) return;
+    const script = document.createElement('script');
+    script.type = 'module';
+    script.crossOrigin = 'anonymous';
+    script.src = 'https://embed.hel.io/assets/index-v1.js';
+    document.head.appendChild(script);
+  }, []);
+
+  // Initialize Helio widget once validated and fuel selected
+  useEffect(() => {
+    if (!selectedFuel || !contractValidated) return;
+    if (!window.helioCheckout) return; // wait for script
+    const container = document.getElementById('helioCheckoutContainerFuel');
+    if (!container) return;
+
+    try {
+      window.helioCheckout(container, {
+        paylinkId: paylinkByType[selectedFuel],
+        theme: { themeMode: 'dark' },
+        primaryColor: '#7C3AED',
+        neutralColor: '#5A6578',
+        display: 'inline',
+        onSuccess: (e) => console.log('Helio success', e),
+        onError: (e) => console.log('Helio error', e),
+        onPending: (e) => console.log('Helio pending', e),
+        onCancel: () => console.log('Cancelled payment'),
+        onStartPayment: () => console.log('Starting payment')
+      });
+    } catch (err) {
+      console.error('Failed to init Helio widget:', err);
+    }
+  }, [selectedFuel, contractValidated, paylinkByType]);
+
   return (
     <div className="min-h-screen bg-dark-bg">
       <div className="bg-dark-card border-b border-solana-purple px-6 py-4">
@@ -226,6 +269,21 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Steps */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className={`rounded-lg p-4 border ${selectedFuel ? 'border-green-400 bg-green-900/20' : 'border-gray-700 bg-gray-800/40'}`}>
+            <div className="text-sm text-gray-300 mb-1">Step 1</div>
+            <div className="text-white font-semibold">Select your Fuel</div>
+          </div>
+          <div className={`rounded-lg p-4 border ${contractValidated ? 'border-green-400 bg-green-900/20' : 'border-gray-700 bg-gray-800/40'}`}>
+            <div className="text-sm text-gray-300 mb-1">Step 2</div>
+            <div className="text-white font-semibold">Enter contract and Validate Token</div>
+          </div>
+          <div className={`rounded-lg p-4 border ${(selectedFuel && contractValidated) ? 'border-green-400 bg-green-900/20' : 'border-gray-700 bg-gray-800/40'}`}>
+            <div className="text-sm text-gray-300 mb-1">Step 3</div>
+            <div className="text-white font-semibold">Proceed to Payment</div>
+          </div>
+        </div>
         {/* Pricing Overview */}
         <div className="bg-gradient-to-r from-green-700/30 via-blue-700/30 to-purple-700/30 border border-purple-500/40 rounded-lg p-6 mb-8">
           <h2 className="text-xl font-bold text-white mb-4">💰 Fuel Token Pricing</h2>
@@ -233,18 +291,22 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
             <div className="bg-dark-card p-4 rounded-lg">
               <div className="text-2xl font-bold text-green-400">$45</div>
               <div className="text-sm text-gray-400">10x Fuel</div>
+              <button onClick={() => setSelectedFuel('10x')} className={`mt-3 px-3 py-1 rounded ${selectedFuel==='10x' ? 'bg-solana-purple text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}>Select 10x</button>
             </div>
             <div className="bg-dark-card p-4 rounded-lg">
               <div className="text-2xl font-bold text-green-400">$195</div>
               <div className="text-sm text-gray-400">50x Fuel</div>
+              <button onClick={() => setSelectedFuel('50x')} className={`mt-3 px-3 py-1 rounded ${selectedFuel==='50x' ? 'bg-solana-purple text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}>Select 50x</button>
             </div>
             <div className="bg-dark-card p-4 rounded-lg">
               <div className="text-2xl font-bold text-green-400">$695</div>
               <div className="text-sm text-gray-400">500x Fuel</div>
+              <button onClick={() => setSelectedFuel('500x')} className={`mt-3 px-3 py-1 rounded ${selectedFuel==='500x' ? 'bg-solana-purple text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}>Select 500x</button>
             </div>
             <div className="bg-dark-card p-4 rounded-lg">
               <div className="text-2xl font-bold text-green-400">$995</div>
               <div className="text-sm text-gray-400">1000x Fuel</div>
+              <button onClick={() => setSelectedFuel('1000x')} className={`mt-3 px-3 py-1 rounded ${selectedFuel==='1000x' ? 'bg-solana-purple text-white' : 'bg-gray-700 text-gray-200 hover:bg-gray-600'}`}>Select 1000x</button>
             </div>
           </div>
           <p className="text-gray-400 text-sm mt-4">
@@ -292,6 +354,15 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
             </button>
           </div>
         </div>
+
+        {/* Secure Payment (Helio) */}
+        {(selectedFuel && contractValidated) && (
+          <div className="bg-dark-card border border-gray-700 rounded-lg p-6 mb-8">
+            <h3 className="text-xl font-bold text-white mb-4">🔒 Secure Payment (Powered by Helio)</h3>
+            <div id="helioCheckoutContainerFuel"></div>
+            <p className="text-xs text-gray-500 mt-3">By proceeding, you agree to Helio's terms. Payment initializes in a secure iframe.</p>
+          </div>
+        )}
 
         {/* Fuel Selection (only show after contract validation) */}
         {contractValidated && (
