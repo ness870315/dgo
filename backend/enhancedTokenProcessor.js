@@ -1205,12 +1205,14 @@ class EnhancedTokenProcessor {
 
   // DEDUPLICATION METHOD: Remove duplicate tokens by CONTRACT ADDRESS ONLY
   deduplicateTokens(tokens) {
-    console.log(`\n🔍 Deduplication start: input tokens = ${Array.isArray(tokens) ? tokens.length : 0}`);
+    const inputTokens = Array.isArray(tokens) ? tokens : [];
+    const totalInput = inputTokens.length;
+    console.log(`\n🔍 Deduplication start: input tokens = ${totalInput}`);
     const seen = new Set();
     const firstByContract = new Map();
     const uniqueTokens = [];
     
-    for (const token of tokens) {
+    for (const token of inputTokens) {
       // Only check for duplicates by contract address - symbols can be the same for different tokens
       const contractKey = token.contractAddress?.toLowerCase();
       if ((token.symbol || '').toUpperCase() === 'STUPID') {
@@ -1234,7 +1236,7 @@ class EnhancedTokenProcessor {
       }
     }
     
-    console.log(`✅ Deduplication complete: unique tokens = ${uniqueTokens.length}, removed = ${tokens.length - uniqueTokens.length}`);
+    console.log(`✅ Deduplication complete: unique tokens = ${uniqueTokens.length}, removed = ${totalInput - uniqueTokens.length}`);
     return uniqueTokens;
   }
 
