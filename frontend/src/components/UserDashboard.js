@@ -19,8 +19,6 @@ const UserDashboard = () => {
   const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
 
   const fetchDashboardData = useCallback(async () => {
-    if (loading) return; // Prevent multiple simultaneous calls
-    
     try {
       setLoading(true);
       console.log('🔄 Fetching dashboard data for session:', sessionId);
@@ -78,10 +76,14 @@ const UserDashboard = () => {
   }, [sessionId, API_BASE]);
 
   useEffect(() => {
+    console.log('🔄 UserDashboard useEffect triggered:', { user: !!user, sessionId: !!sessionId });
     if (user && sessionId) {
       fetchDashboardData();
+    } else {
+      console.log('⚠️ UserDashboard: Missing user or sessionId:', { user: !!user, sessionId: !!sessionId });
+      setLoading(false);
     }
-  }, [user, sessionId]);
+  }, [user, sessionId, fetchDashboardData]);
 
   if (loading) {
     return (
@@ -89,6 +91,8 @@ const UserDashboard = () => {
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-400">Loading dashboard...</p>
+          <p className="text-gray-500 text-sm mt-2">User: {user?.username || 'None'}</p>
+          <p className="text-gray-500 text-sm">Session: {sessionId ? 'Present' : 'Missing'}</p>
         </div>
       </div>
     );
