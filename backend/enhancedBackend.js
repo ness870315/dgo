@@ -7,6 +7,7 @@ import HelioPaymentService from './helioPaymentService.js';
 import OAuthXService from './oauthXService.js';
 import fs from 'fs/promises';
 import path from 'path';
+import BirdEyeTrendingService from './birdEyeTrendingService.js';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -17,6 +18,7 @@ class EnhancedBackend {
     this.app = express();
     this.port = process.env.PORT || 4000;
     this.tokenProcessor = new EnhancedTokenProcessor();
+    this.birdeyeService = new BirdEyeTrendingService();
     this.helioService = new HelioPaymentService();
     this.oauthXService = new OAuthXService();
     this.isRunning = false;
@@ -171,6 +173,25 @@ class EnhancedBackend {
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Error fetching Dexscreener tokens:', error);
         res.status(500).json({ error: 'Failed to fetch Dexscreener tokens' });
+      }
+    });
+
+    // Get BirdEye trending tokens (test endpoint)
+    this.app.get('/api/tokens/birdeye-trending', async (req, res) => {
+      try {
+        console.log('[🛡️ Enhanced Backend] 🐦 Getting BirdEye trending tokens...');
+        const { limit, offset, sort_by, sort_type } = req.query;
+        const tokens = await this.birdeyeService.fetchTrending({
+          limit: limit ? Number(limit) : undefined,
+          offset: offset ? Number(offset) : undefined,
+          sort_by,
+          sort_type
+        });
+        console.log(`[🛡️ Enhanced Backend] ✅ BirdEye trending returned ${tokens.length} tokens`);
+        res.json(tokens);
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ BirdEye trending error:', error);
+        res.status(500).json({ error: 'Failed to fetch BirdEye trending tokens' });
       }
     });
 
