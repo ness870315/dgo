@@ -1205,12 +1205,17 @@ class EnhancedTokenProcessor {
 
   // DEDUPLICATION METHOD: Remove duplicate tokens by CONTRACT ADDRESS ONLY
   deduplicateTokens(tokens) {
+    console.log(`\n🔍 Deduplication start: input tokens = ${Array.isArray(tokens) ? tokens.length : 0}`);
     const seen = new Set();
+    const firstByContract = new Map();
     const uniqueTokens = [];
     
     for (const token of tokens) {
       // Only check for duplicates by contract address - symbols can be the same for different tokens
       const contractKey = token.contractAddress?.toLowerCase();
+      if ((token.symbol || '').toUpperCase() === 'STUPID') {
+        console.log(`🧪 [Dedup] Candidate STUPID token: CA=${token.contractAddress} | name=${token.name}`);
+      }
       
       // Check for duplicates using CONTRACT ADDRESS ONLY
       const isDuplicate = contractKey && seen.has(`contract:${contractKey}`);
@@ -1218,28 +1223,39 @@ class EnhancedTokenProcessor {
       if (!isDuplicate) {
         // Add contract address to seen set
         if (contractKey) seen.add(`contract:${contractKey}`);
+        if (contractKey && !firstByContract.has(contractKey)) {
+          firstByContract.set(contractKey, token);
+        }
         
         uniqueTokens.push(token);
       } else {
-        console.log(`🔄 Removed duplicate by contract address: ${token.symbol} (${token.contractAddress})`);
+        const firstToken = contractKey ? firstByContract.get(contractKey) : undefined;
+        console.log(`🔄 Removed duplicate by contract address: ${token.symbol} (${token.contractAddress}) -> first kept: ${firstToken?.symbol} (${firstToken?.contractAddress})`);
       }
     }
     
+    console.log(`✅ Deduplication complete: unique tokens = ${uniqueTokens.length}, removed = ${tokens.length - uniqueTokens.length}`);
     return uniqueTokens;
   }
 
   mergeWithExistingTokens(newTokens, existingTokens) {
+    console.log(`\n🔗 Merge start: new=${Array.isArray(newTokens) ? newTokens.length : 0}, existing=${Array.isArray(existingTokens) ? existingTokens.length : 0}`);
     const merged = [...newTokens];
 
     for (const existing of existingTokens) {
-      // Enhanced deduplication: check both symbol and contract address
+      // Deduplicate ONLY by contract address (symbols can collide across different tokens)
       const existingIndex = merged.findIndex(t =>
-        t.symbol === existing.symbol ||
-        (t.contractAddress && existing.contractAddress &&
-         t.contractAddress.toLowerCase() === existing.contractAddress.toLowerCase())
+        t.contractAddress && existing.contractAddress &&
+        t.contractAddress.toLowerCase() === existing.contractAddress.toLowerCase()
       );
 
       if (existingIndex >= 0) {
+        const newToken = merged[existingIndex];
+        if ((existing.symbol || '').toUpperCase() === 'STUPID' || (newToken.symbol || '').toUpperCase() === 'STUPID') {
+          console.log(`🧪 [Merge] MATCH by CA for STUPID: existing=${existing.contractAddress} new=${newToken.contractAddress}`);
+        } else {
+          console.log(`🔁 Merge match by CA: existing ${existing.symbol} (${existing.contractAddress}) with new ${newToken.symbol} (${newToken.contractAddress})`);
+        }
         // Update existing token with new CoinGecko data but preserve Twitter data if recent
         const mergedToken = {
           ...existing,
@@ -1256,14 +1272,16 @@ class EnhancedTokenProcessor {
         };
         
         merged[existingIndex] = mergedToken;
-        console.log(`🔄 Merged existing token ${existing.symbol} (preserving recent data)`);
+        console.log(`🔄 Merged existing token ${existing.symbol} (preserved recent Twitter/Jupiter data when applicable)`);
       } else {
         // Add existing token that wasn't in new batch
         merged.push(existing);
-        console.log(`➕ Added existing token ${existing.symbol} to processing queue`);
+        const isStupid = (existing.symbol || '').toUpperCase() === 'STUPID';
+        console.log(`➕ Added existing token ${existing.symbol}${isStupid ? ' [STUPID]' : ''} to processing queue (no CA match in new batch)`);
       }
     }
     
+    console.log(`✅ Merge complete: total=${merged.length}`);
     return merged;
   }
 
