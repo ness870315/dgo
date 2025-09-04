@@ -72,6 +72,47 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
     }
   }, [showFuelModal, token?.contractAddress]);
 
+  // Ensure Helio script is present
+  useEffect(() => {
+    if (!showFuelModal) return;
+    if (document.querySelector('script[src*="embed.hel.io/assets/index-v1.js"]')) return;
+    const script = document.createElement('script');
+    script.type = 'module';
+    script.crossOrigin = 'anonymous';
+    script.src = 'https://embed.hel.io/assets/index-v1.js';
+    document.head.appendChild(script);
+  }, [showFuelModal]);
+
+  // Initialize Helio when selection + validated
+  useEffect(() => {
+    if (!showFuelModal || !selectedFuel || !contractValidated) return;
+    if (!window.helioCheckout) return;
+    const container = document.getElementById('helioCheckoutContainerToken');
+    if (!container) return;
+    const map = {
+      '10x': '68b50d01c743122a7be16ce9',
+      '50x': '68b50dd130074e35926e3c8d',
+      '500x': '68b50cef3d14a3c150c1f6cb',
+      '1000x': '68b50ded2b102da2c16c2359'
+    };
+    try {
+      window.helioCheckout(container, {
+        paylinkId: map[selectedFuel],
+        theme: { themeMode: 'dark' },
+        primaryColor: '#7C3AED',
+        neutralColor: '#5A6578',
+        display: 'inline',
+        onSuccess: (e) => console.log('Helio success', e),
+        onError: (e) => console.log('Helio error', e),
+        onPending: (e) => console.log('Helio pending', e),
+        onCancel: () => console.log('Cancelled payment'),
+        onStartPayment: () => console.log('Starting payment')
+      });
+    } catch (err) {
+      console.error('Failed to mount Helio widget in TokenDetails:', err);
+    }
+  }, [showFuelModal, selectedFuel, contractValidated]);
+
   const toggleWatchlist = async () => {
     if (!token?.symbol) return;
     // Optimistic UI update
@@ -1286,59 +1327,15 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                       ))}
                     </div>
 
-                    {/* Proceed to Payment */}
+                    {/* Proceed to Payment (Inline Helio widget) */}
                     {selectedFuel && (
                       <div className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 rounded-lg p-6 border border-blue-500/30">
                         <h4 className="text-white font-semibold text-lg mb-4 flex items-center">
-                          <span className="mr-2">💳</span>
-                          Payment Details
+                          <span className="mr-2">🔒</span>
+                          Secure Payment (Powered by Helio)
                         </h4>
-            <div className="space-y-3">
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-300">Selected Fuel:</span>
-                            <span className="text-white font-semibold">{selectedFuel}</span>
-              </div>
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-300">Duration:</span>
-                            <span className="text-white font-semibold">12 hours</span>
-              </div>
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-300">Price:</span>
-                            <span className="text-white font-semibold">{fuelOptions.find(f => f.type === selectedFuel)?.price}</span>
-              </div>
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="text-gray-300">Payment Method:</span>
-                            <span className="text-green-400 font-medium">USDC</span>
-                          </div>
-                          <div className="pt-2 border-t border-gray-600">
-                            <p className="text-xs text-gray-400 mb-4">
-                              Secure payment powered by Helio Pay. Pay with USDC on Solana.
-                            </p>
-                            <button
-                              onClick={() => {
-                                const selectedFuelOption = fuelOptions.find(f => f.type === selectedFuel);
-                                if (selectedFuelOption && selectedFuelOption.helioLink) {
-                                  // Store payment info in localStorage for post-payment processing
-                                  localStorage.setItem('pendingFuelPayment', JSON.stringify({
-                                    contractAddress: token.contractAddress,
-                                    fuelType: selectedFuel,
-                                    paymentId: `fuel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                                    paymentInitiated: new Date().toISOString()
-                                  }));
-
-                                  // Open Helio payment link
-                                  window.open(selectedFuelOption.helioLink, '_blank');
-                                  setFuelMessage({ text: '💳 Payment page opened! Complete your payment and return to apply the fuel boost.', type: 'info' });
-                                } else {
-                                  setFuelMessage({ text: '❌ Payment link not available for selected fuel type.', type: 'error' });
-                                }
-                              }}
-                              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105"
-                            >
-                              💳 Proceed to Payment {fuelOptions.find(f => f.type === selectedFuel)?.price}
-                            </button>
-                          </div>
-                        </div>
+                        <div id="helioCheckoutContainerToken"></div>
+                        <p className="text-xs text-gray-400 mt-3">Complete your payment securely. The widget is embedded and does not redirect.</p>
                       </div>
                     )}
                   </div>
