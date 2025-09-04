@@ -364,8 +364,8 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
           </div>
         )}
 
-        {/* Fuel Selection (only show after contract validation) */}
-        {contractValidated && (
+        {/* Fuel Selection (only show before payment) */}
+        {contractValidated && !selectedFuel && (
           <div className="bg-dark-card border border-gray-700 rounded-lg p-6 mb-8">
             <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
               <Flame size={20} />
@@ -376,7 +376,7 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
               {fuelOptions.map((fuel) => (
                 <div
                   key={fuel.type}
-                  onClick={() => handleFuelSelect(fuel.type)}
+                  onClick={() => setSelectedFuel(fuel.type)}
                   className={`bg-dark-bg border-2 rounded-lg p-4 text-center cursor-pointer transition-all duration-300 hover:scale-105 ${
                     selectedFuel === fuel.type
                       ? 'border-orange-500 bg-orange-900 bg-opacity-20'
@@ -390,85 +390,6 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
                 </div>
               ))}
             </div>
-
-            {/* Proceed to Payment */}
-            {selectedFuel && (
-              <div className="bg-gradient-to-br from-blue-900/30 to-purple-900/30 rounded-lg p-6 border border-blue-500/30">
-                <h4 className="text-white font-semibold text-lg mb-4 flex items-center">
-                  <span className="mr-2">💳</span>
-                  Payment Details
-                </h4>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-300">Selected Fuel:</span>
-                    <span className="text-white font-semibold">{selectedFuel}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-300">Duration:</span>
-                    <span className="text-white font-semibold">12 hours</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-300">Price:</span>
-                    <span className="text-white font-semibold">{fuelOptions.find(f => f.type === selectedFuel)?.price}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-300">Payment Method:</span>
-                    <span className="text-green-400 font-medium">USDC</span>
-                  </div>
-                  <div className="pt-2 border-t border-gray-600">
-                    <p className="text-xs text-gray-400 mb-4">
-                      Secure payment powered by Helio Pay. Pay with USDC on Solana.
-                    </p>
-                    <button
-                      onClick={handleProceedToPayment}
-                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 transform hover:scale-105"
-                    >
-                      💳 Proceed to Payment {fuelOptions.find(f => f.type === selectedFuel)?.price}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Fuel Application Form (only show after payment completion) */}
-        {paymentCompleted && (
-          <div className="bg-dark-card border border-gray-700 rounded-lg p-6 mb-8">
-            <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-              <Rocket size={20} />
-              Apply Fuel to Token
-            </h3>
-
-            <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4 mb-6">
-              <p className="text-green-300 text-sm">
-                ✅ <strong>Payment completed successfully!</strong> Now enter your contract address to apply the fuel boost.
-              </p>
-            </div>
-          
-                        <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Contract Address (CA):
-              </label>
-              <input
-                type="text"
-                value={contractAddress}
-                onChange={(e) => setContractAddress(e.target.value)}
-                placeholder="Enter the contract address you just paid for..."
-                className="w-full px-4 py-3 bg-dark-bg border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Use the same contract address you entered before payment
-              </p>
-            </div>
-          
-          <button
-            onClick={handleApplyFuel}
-            disabled={!contractAddress.trim() || loading}
-            className="mt-6 w-full md:w-auto px-8 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold rounded-lg transition-all duration-300 hover:from-orange-600 hover:to-red-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-orange-500 disabled:hover:to-red-500"
-          >
-            {loading ? 'Applying Fuel...' : 'Apply Fuel Boost'}
-          </button>
           </div>
         )}
 
