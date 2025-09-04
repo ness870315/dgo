@@ -259,8 +259,13 @@ class HybridDatabaseService {
   async addToWatchlist(userId, tokenData) {
     const watchlist = await this.getUserWatchlist(userId);
     
-    // Check if token already exists
-    const existingIndex = watchlist.findIndex(item => item.symbol === tokenData.symbol);
+    // Check if token already exists (prefer contractAddress when provided)
+    const existingIndex = watchlist.findIndex(item => {
+      if (tokenData.contractAddress && item.contractAddress) {
+        return item.contractAddress === tokenData.contractAddress;
+      }
+      return item.symbol === tokenData.symbol;
+    });
     
     if (existingIndex >= 0) {
       // Update existing entry
@@ -288,9 +293,14 @@ class HybridDatabaseService {
   /**
    * Remove token from watchlist
    */
-  async removeFromWatchlist(userId, symbol) {
+  async removeFromWatchlist(userId, symbol, contractAddress) {
     const watchlist = await this.getUserWatchlist(userId);
-    const filtered = watchlist.filter(item => item.symbol !== symbol);
+    const filtered = watchlist.filter(item => {
+      if (contractAddress && item.contractAddress) {
+        return item.contractAddress !== contractAddress;
+      }
+      return item.symbol !== symbol;
+    });
     
     const watchlistFile = this.getUserFile(userId, 'watchlist.json');
     await this.writeJsonFile(watchlistFile, filtered);
@@ -301,9 +311,14 @@ class HybridDatabaseService {
   /**
    * Check if token is in watchlist
    */
-  async isInWatchlist(userId, symbol) {
+  async isInWatchlist(userId, symbol, contractAddress) {
     const watchlist = await this.getUserWatchlist(userId);
-    return watchlist.some(item => item.symbol === symbol);
+    return watchlist.some(item => {
+      if (contractAddress && item.contractAddress) {
+        return item.contractAddress === contractAddress;
+      }
+      return item.symbol === symbol;
+    });
   }
 
   /**

@@ -54,13 +54,13 @@ class WatchlistService {
   }
 
   // Remove token from watchlist
-  async removeFromWatchlist(symbol) {
+  async removeFromWatchlist(symbol, contractAddress) {
     try {
       const sessionId = localStorage.getItem('sessionId');
       const response = await fetch(`${this.API_BASE}/api/user/watchlist/remove`, {
         method: 'POST',
         headers: this.getAuthHeaders(),
-        body: JSON.stringify({ sessionId, symbol })
+        body: JSON.stringify({ sessionId, symbol, contractAddress })
       });
 
       const result = await response.json();
@@ -77,10 +77,11 @@ class WatchlistService {
   }
 
   // Check if token is in watchlist
-  async isInWatchlist(symbol) {
+  async isInWatchlist(symbol, contractAddress) {
     try {
       const sessionId = localStorage.getItem('sessionId');
-      const response = await fetch(`${this.API_BASE}/api/user/watchlist/check/${encodeURIComponent(symbol)}?sessionId=${encodeURIComponent(sessionId || '')}`);
+      const query = new URLSearchParams({ sessionId: sessionId || '', contractAddress: contractAddress || '' }).toString();
+      const response = await fetch(`${this.API_BASE}/api/user/watchlist/check/${encodeURIComponent(symbol)}?${query}`);
 
       if (!response.ok) {
         throw new Error('Failed to check watchlist');

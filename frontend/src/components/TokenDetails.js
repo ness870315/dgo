@@ -39,7 +39,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
     const checkWatchlistStatus = async () => {
       try {
         if (!token?.symbol) return;
-        const inList = await watchlistService.isInWatchlist(token.symbol);
+        const inList = await watchlistService.isInWatchlist(token.symbol, token.contractAddress);
         setIsInWatchlist(!!inList);
       } catch (err) {
         // Fallback to localStorage only if API fails
@@ -95,10 +95,12 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
         local.push(payload);
         localStorage.setItem('watchlist', JSON.stringify(local));
       } else {
-        await watchlistService.removeFromWatchlist(token.symbol);
+        await watchlistService.removeFromWatchlist(token.symbol, token.contractAddress);
         // Update local fallback
         const local = JSON.parse(localStorage.getItem('watchlist') || '[]');
-        const updated = local.filter(item => item.symbol !== token.symbol);
+        const updated = local.filter(item => (item.contractAddress && token.contractAddress)
+          ? item.contractAddress !== token.contractAddress
+          : item.symbol !== token.symbol);
         localStorage.setItem('watchlist', JSON.stringify(updated));
       }
     } catch (error) {

@@ -189,8 +189,8 @@ class OAuthXService {
   /**
    * Remove token from user's watchlist
    */
-  async removeFromWatchlist(userId, symbol) {
-    return await this.db.removeFromWatchlist(userId, symbol);
+  async removeFromWatchlist(userId, symbol, contractAddress) {
+    return await this.db.removeFromWatchlist(userId, symbol, contractAddress);
   }
 
   /**
@@ -203,8 +203,8 @@ class OAuthXService {
   /**
    * Check if token is in user's watchlist
    */
-  async isInWatchlist(userId, symbol) {
-    return await this.db.isInWatchlist(userId, symbol);
+  async isInWatchlist(userId, symbol, contractAddress) {
+    return await this.db.isInWatchlist(userId, symbol, contractAddress);
   }
 
   /**

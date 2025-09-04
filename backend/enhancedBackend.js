@@ -712,7 +712,7 @@ class EnhancedBackend {
     // Remove token from watchlist
     this.app.post('/api/user/watchlist/remove', async (req, res) => {
       try {
-        const { sessionId, symbol } = req.body;
+        const { sessionId, symbol, contractAddress } = req.body;
         
         if (!sessionId) {
           return res.status(401).json({ 
@@ -730,7 +730,7 @@ class EnhancedBackend {
           });
         }
 
-        const watchlist = await this.oauthXService.removeFromWatchlist(user.id, symbol);
+        const watchlist = await this.oauthXService.removeFromWatchlist(user.id, symbol, contractAddress);
         
         res.json({
           success: true,
@@ -750,7 +750,7 @@ class EnhancedBackend {
     // Check if token is in watchlist
     this.app.get('/api/user/watchlist/check/:symbol', async (req, res) => {
       try {
-        const { sessionId } = req.query;
+        const { sessionId, contractAddress } = req.query;
         const { symbol } = req.params;
         
         if (!sessionId) {
@@ -769,7 +769,7 @@ class EnhancedBackend {
           });
         }
 
-        const isInWatchlist = await this.oauthXService.isInWatchlist(user.id, symbol);
+        const isInWatchlist = await this.oauthXService.isInWatchlist(user.id, symbol, contractAddress);
         
         res.json({
           success: true,
