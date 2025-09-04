@@ -1422,14 +1422,17 @@ class EnhancedTokenProcessor {
         tokens = [];
       }
 
-      // Check if token already exists (update) or add new
-      const existingIndex = tokens.findIndex(t => t.symbol === token.symbol);
+      // Check if token already exists by CONTRACT ADDRESS (symbols can collide)
+      const existingIndex = tokens.findIndex(t => 
+        t.contractAddress && token.contractAddress &&
+        t.contractAddress.toLowerCase() === token.contractAddress.toLowerCase()
+      );
       if (existingIndex !== -1) {
         tokens[existingIndex] = token;
-        console.log(`🔄 Updated existing token ${token.symbol} in cache`);
+        console.log(`🔄 Updated existing token ${token.symbol} in cache (by CA ${token.contractAddress})`);
       } else {
         tokens.push(token);
-        console.log(`➕ Added new paid token ${token.symbol} to cache`);
+        console.log(`➕ Added new paid token ${token.symbol} to cache (CA ${token.contractAddress})`);
       }
 
       // Save updated cache
