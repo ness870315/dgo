@@ -1334,7 +1334,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                           <span className="mr-2">🔒</span>
                           Secure Payment (Powered by Helio)
                         </h4>
-                        <div id="helioCheckoutContainerToken"></div>
+                        <div className="flex justify-center">
+                          <div id="helioCheckoutContainerToken" className="w-full max-w-md"></div>
+                        </div>
                         <p className="text-xs text-gray-400 mt-3">Complete your payment securely. The widget is embedded and does not redirect.</p>
                       </div>
                     )}

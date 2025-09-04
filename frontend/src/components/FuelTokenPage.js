@@ -359,8 +359,15 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
         {(selectedFuel && contractValidated) && (
           <div className="bg-dark-card border border-gray-700 rounded-lg p-6 mb-8">
             <h3 className="text-xl font-bold text-white mb-4">🔒 Secure Payment (Powered by Helio)</h3>
-            <div id="helioCheckoutContainerFuel"></div>
-            <p className="text-xs text-gray-500 mt-3">By proceeding, you agree to Helio's terms. Payment initializes in a secure iframe.</p>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between"><span className="text-gray-300">Selected Fuel:</span><span className="text-white font-semibold">{selectedFuel}</span></div>
+              <div className="flex justify-between"><span className="text-gray-300">Duration:</span><span className="text-white font-semibold">12 hours</span></div>
+              <div className="flex justify-between"><span className="text-gray-300">Price:</span><span className="text-white font-semibold">{fuelOptions.find(f => f.type === selectedFuel)?.price}</span></div>
+            </div>
+            <div className="mt-4 flex justify-center">
+              <div id="helioCheckoutContainerFuel" className="w-full max-w-md"></div>
+            </div>
+            <p className="text-xs text-gray-500 mt-3 text-center">By proceeding, you agree to Helio's terms. Payment initializes in a secure iframe.</p>
           </div>
         )}
 
