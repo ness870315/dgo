@@ -29,8 +29,10 @@ const WatchlistPanel = ({ isOpen, onClose, onTokenSelect, allTokensData = [] }) 
     setLoading(true);
     try {
       const data = await watchlistService.getWatchlist();
-      // Backend returns an array of symbols, so use it directly
-      const symbols = Array.isArray(data) ? data : [];
+      // Normalize to array of UPPERCASE symbols regardless of backend shape
+      const symbols = (Array.isArray(data) ? data : [])
+        .map(item => typeof item === 'string' ? item.toUpperCase() : (item?.symbol || '').toUpperCase())
+        .filter(Boolean);
       setWatchlist(symbols);
       
       // Get full token data for each symbol in watchlist from already-loaded cache

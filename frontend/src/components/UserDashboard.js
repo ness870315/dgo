@@ -41,15 +41,19 @@ const UserDashboard = () => {
         
         console.log('✅ Dashboard data received:', { profileData, watchlistData });
         
+        const symbols = (watchlistData.watchlist || [])
+          .map(item => typeof item === 'string' ? item.toUpperCase() : (item?.symbol || '').toUpperCase())
+          .filter(Boolean);
+
         setDashboardData({
-          watchlistCount: watchlistData.watchlist?.length || 0,
+          watchlistCount: symbols.length,
           tokensListed: profileData.user?.stats?.tokensListed || 0,
           tokensFueled: profileData.user?.stats?.tokensFueled || 0,
           tokensUpdated: profileData.user?.stats?.tokensUpdated || 0,
           referralCode: profileData.user?.referralCode || '',
           kolCalls: [], // TODO: Implement KOL calls
           kolLeaderboard: [], // TODO: Implement KOL leaderboard
-          watchlist: watchlistData.watchlist || []
+          watchlist: symbols
         });
       } else {
         console.error('❌ API calls failed:', {

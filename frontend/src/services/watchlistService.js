@@ -30,7 +30,8 @@ class WatchlistService {
   // Get user's watchlist
   async getWatchlist() {
     try {
-      const response = await fetch(`${this.API_BASE}/api/watchlist`, {
+      const sessionId = localStorage.getItem('sessionId');
+      const response = await fetch(`${this.API_BASE}/api/user/watchlist?sessionId=${encodeURIComponent(sessionId || '')}`, {
         credentials: 'include',
         headers: this.getAuthHeaders()
       });
@@ -39,7 +40,9 @@ class WatchlistService {
         throw new Error('Failed to fetch watchlist');
       }
 
-      return await response.json();
+      const result = await response.json();
+      // Backend returns { success, watchlist: [...] }
+      return result.watchlist || [];
     } catch (error) {
       console.error('Error fetching watchlist:', error);
       throw error;
@@ -49,11 +52,12 @@ class WatchlistService {
   // Add token to watchlist
   async addToWatchlist(tokenData) {
     try {
-      const response = await fetch(`${this.API_BASE}/api/watchlist/add`, {
+      const sessionId = localStorage.getItem('sessionId');
+      const response = await fetch(`${this.API_BASE}/api/user/watchlist/add`, {
         method: 'POST',
         credentials: 'include',
         headers: this.getAuthHeaders(),
-        body: JSON.stringify({ tokenData })
+        body: JSON.stringify({ sessionId, tokenData })
       });
 
       const result = await response.json();
@@ -72,11 +76,12 @@ class WatchlistService {
   // Remove token from watchlist
   async removeFromWatchlist(symbol) {
     try {
-      const response = await fetch(`${this.API_BASE}/api/watchlist/remove`, {
+      const sessionId = localStorage.getItem('sessionId');
+      const response = await fetch(`${this.API_BASE}/api/user/watchlist/remove`, {
         method: 'POST',
         credentials: 'include',
         headers: this.getAuthHeaders(),
-        body: JSON.stringify({ symbol })
+        body: JSON.stringify({ sessionId, symbol })
       });
 
       const result = await response.json();
@@ -95,7 +100,8 @@ class WatchlistService {
   // Check if token is in watchlist
   async isInWatchlist(symbol) {
     try {
-      const response = await fetch(`${this.API_BASE}/api/watchlist/check/${symbol}`, {
+      const sessionId = localStorage.getItem('sessionId');
+      const response = await fetch(`${this.API_BASE}/api/user/watchlist/check/${encodeURIComponent(symbol)}?sessionId=${encodeURIComponent(sessionId || '')}`, {
         credentials: 'include',
         headers: this.getAuthHeaders()
       });
@@ -105,7 +111,7 @@ class WatchlistService {
       }
 
       const result = await response.json();
-      return result.isInWatchlist;
+      return !!result.isInWatchlist;
     } catch (error) {
       console.error('Error checking watchlist:', error);
       return false;
