@@ -81,12 +81,19 @@ class HybridDatabaseService {
   async ensureUserDir(userId) {
     const userDir = this.getUserDir(userId);
     try {
-      await fs.mkdir(userDir, { recursive: true });
-      console.log(`📁 Created user directory: ${userDir}`);
-    } catch (error) {
-      if (error.code !== 'EEXIST') {
-        console.error(`❌ Error creating user directory ${userDir}:`, error.message);
-        throw error;
+      // Check if directory exists first
+      await fs.access(userDir);
+      // Exists – don't log as created
+    } catch (_) {
+      // Doesn't exist – create and log
+      try {
+        await fs.mkdir(userDir, { recursive: true });
+        console.log(`📁 Created user directory: ${userDir}`);
+      } catch (error) {
+        if (error.code !== 'EEXIST') {
+          console.error(`❌ Error creating user directory ${userDir}:`, error.message);
+          throw error;
+        }
       }
     }
     return userDir;
