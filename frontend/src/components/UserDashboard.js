@@ -144,7 +144,7 @@ const UserDashboard = () => {
           <div className="flex justify-between items-center mb-6">
             <button 
               onClick={() => window.location.href = '/'}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              className="flex items-center space-x-2 px-4 py-2 bg-solana-purple hover:bg-purple-700 text-white rounded-lg transition-colors"
             >
               <ArrowLeft size={20} />
               <span>Return to Main App</span>
@@ -159,13 +159,13 @@ const UserDashboard = () => {
                 </div>
                 <a
                   href={`https://twitter.com/intent/tweet?${new URLSearchParams({
-                    text: "Here is my referal code for a 1 month Premium subscription for DeGen Oracle, spot the next cult before it goes Viral and become a KOL",
-                    url: "https://degen-oracle.com",
+                    text: `Here is my referral code for a 1 month Premium subscription for DeGen Oracle, spot the next cult before it goes Viral and become a KOL`,
+                    url: `https://degen-oracle.com/?ref=${dashboardData.referralCode}`,
                     hashtags: "DeGenOracle,Crypto,KOL"
                   }).toString()}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm"
+                  className="px-3 py-2 bg-solana-purple hover:bg-purple-700 text-white rounded-lg text-sm"
                   title="Share on X"
                 >
                   Share on X
@@ -179,10 +179,10 @@ const UserDashboard = () => {
               <img 
                 src={user.profileImage} 
                 alt={user.displayName}
-                className="w-16 h-16 rounded-full border-2 border-blue-500"
+                className="w-16 h-16 rounded-full border-2 border-solana-purple"
               />
             ) : (
-              <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center border-2 border-blue-500">
+              <div className="w-16 h-16 bg-solana-purple rounded-full flex items-center justify-center border-2 border-solana-purple">
                 <Users size={24} className="text-white" />
               </div>
             )}

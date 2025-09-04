@@ -167,19 +167,7 @@ const AuthButton = ({
                 {/* Divider */}
                 <div className="border-t border-gray-700 my-2"></div>
 
-                {/* Settings */}
-                <button
-                  onClick={() => {
-                    setShowUserDropdown(false);
-                    if (onNavigateToSettings) {
-                      onNavigateToSettings();
-                    }
-                  }}
-                  className="w-full flex items-center space-x-3 px-4 py-2 text-left hover:bg-gray-800 transition-colors"
-                >
-                  <Settings size={16} className="text-gray-400" />
-                  <span className="text-white text-sm">Settings</span>
-                </button>
+                {/* Settings removed per request */}
 
                 {/* Logout */}
                 <button
@@ -205,7 +193,7 @@ const AuthButton = ({
       {/* Twitter OAuth Login */}
       <button
         onClick={login}
-        className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 border border-blue-500 rounded-lg transition-colors"
+        className="flex items-center space-x-2 px-4 py-2 bg-solana-purple hover:bg-purple-700 border border-purple-500 rounded-lg transition-colors"
         title="Login with Twitter/X"
       >
         <Twitter size={16} />
@@ -213,25 +201,10 @@ const AuthButton = ({
       </button>
 
       {/* Quick Login Toggle */}
-      <button
-        onClick={() => setShowQuickLogin(!showQuickLogin)}
-        className="flex items-center space-x-2 px-3 py-2 bg-green-600 hover:bg-green-700 border border-green-500 rounded-lg transition-colors"
-        title="Quick Demo Login"
-      >
-        <UserPlus size={16} />
-        <span className="text-white font-medium">Quick Login</span>
-      </button>
+      {/* Quick Login removed per request */}
 
       {/* Quick Login Form */}
-      {showQuickLogin && (
-        <div className="absolute top-full mt-2 right-0 bg-dark-card border border-gray-700 rounded-lg p-4 shadow-xl z-50 min-w-80">
-          <div className="mb-3">
-            <h3 className="text-white font-medium">Demo Login</h3>
-            <p className="text-gray-400 text-xs">For testing watchlist & auth features</p>
-          </div>
-          <SimpleLogin onClose={() => setShowQuickLogin(false)} />
-        </div>
-      )}
+      {/* Demo login UI removed */}
     </div>
   );
 };

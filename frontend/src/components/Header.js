@@ -81,18 +81,7 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
               />
             </div>
 
-            {/* Basic Filter Button */}
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`p-2 rounded-md border transition-colors ${
-                showFilters
-                  ? 'border-solana-purple bg-solana-purple bg-opacity-20 text-solana-purple'
-                  : 'border-gray-600 text-gray-400 hover:text-white hover:border-gray-500'
-              }`}
-              title="Basic Filters"
-            >
-              <Filter size={20} />
-            </button>
+            {/* Filters removed per request */}
 
 
 
@@ -116,24 +105,11 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
               <Star size={20} />
             </button>
 
-            {/* Apify Test Button */}
-            <button
-              onClick={onApifyTestClick}
-              className="p-2 rounded-md border border-gray-600 text-gray-400 hover:text-blue-400 hover:border-blue-500 transition-colors"
-              title="Test Apify Integration"
-            >
-              🚀
-            </button>
+            {/* Rocket button removed per request */}
 
 
 
-            {/* Settings Button */}
-            <button
-              onClick={onSettingsClick}
-              className="p-2 rounded-md border border-gray-600 text-gray-400 hover:text-white hover:border-gray-500 transition-colors"
-            >
-              <Settings size={20} />
-            </button>
+            {/* Settings button removed per request */}
 
             {/* Authentication Button */}
             {authButton}
