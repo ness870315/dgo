@@ -73,21 +73,16 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
   }, [showFuelModal, token?.contractAddress]);
 
   const toggleWatchlist = async () => {
+    if (!token?.symbol) return;
+    // Optimistic UI update
+    const next = !isInWatchlist;
+    setIsInWatchlist(next);
     try {
       if (!isAuthenticated) {
         console.warn('Watchlist: user not authenticated');
       }
 
-      if (!token?.symbol) return;
-
-      if (isInWatchlist) {
-        await watchlistService.removeFromWatchlist(token.symbol);
-        // Update local fallback
-        const local = JSON.parse(localStorage.getItem('watchlist') || '[]');
-        const updated = local.filter(item => item.symbol !== token.symbol);
-        localStorage.setItem('watchlist', JSON.stringify(updated));
-        setIsInWatchlist(false);
-      } else {
+      if (next) {
         const payload = {
           symbol: token.symbol,
           name: token.name,
@@ -99,10 +94,17 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
         const local = JSON.parse(localStorage.getItem('watchlist') || '[]');
         local.push(payload);
         localStorage.setItem('watchlist', JSON.stringify(local));
-        setIsInWatchlist(true);
+      } else {
+        await watchlistService.removeFromWatchlist(token.symbol);
+        // Update local fallback
+        const local = JSON.parse(localStorage.getItem('watchlist') || '[]');
+        const updated = local.filter(item => item.symbol !== token.symbol);
+        localStorage.setItem('watchlist', JSON.stringify(updated));
       }
     } catch (error) {
       console.error('Error toggling watchlist:', error);
+      // Revert optimistic update on failure
+      setIsInWatchlist(!next);
     }
   };
 
@@ -315,6 +317,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
               >
                   <Star 
                     size={20} 
+                    stroke="currentColor"
                     fill={isInWatchlist ? 'currentColor' : 'none'} 
                   />
               </button>
