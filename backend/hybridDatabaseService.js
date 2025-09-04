@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
+import { fileURLToPath } from 'url';
 
 /**
  * Hybrid Database Service
@@ -25,7 +26,9 @@ import crypto from 'crypto';
  */
 class HybridDatabaseService {
   constructor() {
-    this.baseDir = './data';
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    this.baseDir = process.env.DATA_DIR || path.join(__dirname, 'data');
     this.usersDir = path.join(this.baseDir, 'users');
     this.globalDir = path.join(this.baseDir, 'global');
     this.cacheDir = path.join(this.baseDir, 'cache');
