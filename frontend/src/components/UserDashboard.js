@@ -409,7 +409,7 @@ const UserDashboard = () => {
                   ✕
                 </button>
               </div>
-              <TokenDetails token={selectedToken} />
+              <TokenDetails token={selectedToken} onClose={() => setSelectedToken(null)} />
             </div>
           </div>
         )}
