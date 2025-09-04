@@ -159,8 +159,8 @@ const UserDashboard = () => {
                 </div>
                 <a
                   href={`https://twitter.com/intent/tweet?${new URLSearchParams({
-                    text: `Here is my referral code for a 1 month Premium subscription for DeGen Oracle, spot the next cult before it goes Viral and become a KOL`,
-                    url: `https://degen-oracle.com/?ref=${dashboardData.referralCode}`,
+                    text: `Here is my referral code ${dashboardData.referralCode} for a 1 month Premium subscription for DeGen Oracle, spot the next cult before it goes Viral and become a KOL`,
+                    url: `https://degen-oracle.com`,
                     hashtags: "DeGenOracle,Crypto,KOL"
                   }).toString()}`}
                   target="_blank"
