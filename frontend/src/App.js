@@ -722,7 +722,7 @@ function App() {
   }
 
   // Show List Token page if requested
-  if (showListToken) {
+  if (showListToken && !showUserDashboard) {
     return (
       <AuthProvider>
         <div className="min-h-screen bg-dark-bg">
@@ -749,7 +749,7 @@ function App() {
   }
 
   // Show Fuel Token page if requested
-  if (showFuelToken) {
+  if (showFuelToken && !showUserDashboard) {
     return (
       <AuthProvider>
         <div className="min-h-screen bg-dark-bg">
@@ -775,7 +775,7 @@ function App() {
   }
 
   // Show Update Token page if requested
-  if (showUpdateToken) {
+  if (showUpdateToken && !showUserDashboard) {
     return (
       <AuthProvider>
         <div className="min-h-screen bg-dark-bg">
@@ -802,7 +802,7 @@ function App() {
     );
   }
 
-  // Show User Dashboard page if requested
+  // Show User Dashboard page if requested (highest priority override)
   if (showUserDashboard) {
     return (
       <AuthProvider>
