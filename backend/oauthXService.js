@@ -57,10 +57,13 @@ class OAuthXService {
         lastUpdated: new Date().toISOString()
       };
       
+      console.log(`💾 Attempting to save ${this.users.size} users to: ${this.usersDbFile}`);
       await fs.writeFile(this.usersDbFile, JSON.stringify(data, null, 2));
-      console.log(`💾 Saved ${this.users.size} users to database`);
+      console.log(`✅ Successfully saved ${this.users.size} users to database`);
     } catch (error) {
       console.error('❌ Error saving users database:', error);
+      console.error('❌ File path:', this.usersDbFile);
+      console.error('❌ Current working directory:', process.cwd());
     }
   }
 
@@ -187,6 +190,7 @@ class OAuthXService {
     };
 
     this.users.set(userId, userData);
+    console.log(`👤 User ${userData.username} ${existingUser ? 'updated' : 'created'} with referral code: ${userData.referralCode}`);
     await this.saveUsersDatabase();
 
     console.log(`✅ User ${userData.username} ${existingUser ? 'updated' : 'created'}`);
