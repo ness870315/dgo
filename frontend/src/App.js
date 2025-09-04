@@ -752,24 +752,19 @@ function App() {
   if (showFuelToken && !showUserDashboard) {
     return (
       <AuthProvider>
-        <div className="min-h-screen bg-dark-bg">
-          <div className="bg-dark-card border-b border-solana-purple px-6 py-4">
-            <div className="max-w-7xl mx-auto flex items-center justify-between">
-              <h1 className="text-2xl font-bold text-white">🔥 Fuel Token</h1>
-              <AuthButton 
-                onNavigateToListToken={handleListTokenClick} 
-                onNavigateToFuelToken={handleFuelTokenClick} 
-                onNavigateToUpdateToken={handleUpdateTokenClick}
-                onNavigateToDashboard={handleUserDashboardClick}
-                onNavigateToWatchlist={handleWatchlistClick}
-                onNavigateToSettings={handleSettingsClick}
-              />
-            </div>
-          </div>
-          <FuelTokenPage 
-            onBack={() => setShowFuelToken(false)}
-          />
-        </div>
+        <FuelTokenPage 
+          onBack={() => setShowFuelToken(false)}
+          headerAuth={
+            <AuthButton 
+              onNavigateToListToken={handleListTokenClick} 
+              onNavigateToFuelToken={handleFuelTokenClick} 
+              onNavigateToUpdateToken={handleUpdateTokenClick}
+              onNavigateToDashboard={handleUserDashboardClick}
+              onNavigateToWatchlist={handleWatchlistClick}
+              onNavigateToSettings={handleSettingsClick}
+            />
+          }
+        />
       </AuthProvider>
     );
   }
