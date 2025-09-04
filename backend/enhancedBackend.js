@@ -453,7 +453,7 @@ class EnhancedBackend {
         );
         
         // Create session
-        const { sessionId, expiresAt } = this.oauthXService.createSession(user.id);
+        const { sessionId, expiresAt } = await this.oauthXService.createSession(user.id);
         
         console.log(`✅ OAuth X: User ${user.username} authenticated successfully`);
 
@@ -480,7 +480,7 @@ class EnhancedBackend {
           });
         }
 
-        const user = this.oauthXService.getUserBySession(sessionId);
+        const user = await this.oauthXService.getUserBySession(sessionId);
         
         if (!user) {
           return res.status(401).json({ 
@@ -518,12 +518,12 @@ class EnhancedBackend {
     });
 
     // OAuth X: Logout
-    this.app.post('/auth/logout', (req, res) => {
+    this.app.post('/auth/logout', async (req, res) => {
       try {
         const { sessionId } = req.body;
         
         if (sessionId) {
-          this.oauthXService.logout(sessionId);
+          await this.oauthXService.logout(sessionId);
         }
 
         res.json({
@@ -556,7 +556,7 @@ class EnhancedBackend {
           });
         }
 
-        const user = this.oauthXService.getUserBySession(sessionId);
+        const user = await this.oauthXService.getUserBySession(sessionId);
         
         if (!user) {
           return res.status(401).json({ 
@@ -605,7 +605,7 @@ class EnhancedBackend {
           });
         }
 
-        const user = this.oauthXService.getUserBySession(sessionId);
+        const user = await this.oauthXService.getUserBySession(sessionId);
         
         if (!user) {
           return res.status(401).json({ 
@@ -646,7 +646,7 @@ class EnhancedBackend {
           });
         }
 
-        const user = this.oauthXService.getUserBySession(sessionId);
+        const user = await this.oauthXService.getUserBySession(sessionId);
         
         if (!user) {
           return res.status(401).json({ 
@@ -655,7 +655,7 @@ class EnhancedBackend {
           });
         }
 
-        const watchlist = this.oauthXService.getWatchlist(user.id);
+        const watchlist = await this.oauthXService.getWatchlist(user.id);
         
         res.json({
           success: true,
@@ -683,7 +683,7 @@ class EnhancedBackend {
           });
         }
 
-        const user = this.oauthXService.getUserBySession(sessionId);
+        const user = await this.oauthXService.getUserBySession(sessionId);
         
         if (!user) {
           return res.status(401).json({ 
@@ -721,7 +721,7 @@ class EnhancedBackend {
           });
         }
 
-        const user = this.oauthXService.getUserBySession(sessionId);
+        const user = await this.oauthXService.getUserBySession(sessionId);
         
         if (!user) {
           return res.status(401).json({ 
@@ -760,7 +760,7 @@ class EnhancedBackend {
           });
         }
 
-        const user = this.oauthXService.getUserBySession(sessionId);
+        const user = await this.oauthXService.getUserBySession(sessionId);
         
         if (!user) {
           return res.status(401).json({ 
@@ -769,7 +769,7 @@ class EnhancedBackend {
           });
         }
 
-        const isInWatchlist = this.oauthXService.isInWatchlist(user.id, symbol);
+        const isInWatchlist = await this.oauthXService.isInWatchlist(user.id, symbol);
         
         res.json({
           success: true,

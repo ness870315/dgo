@@ -1,7 +1,6 @@
 import axios from 'axios';
 import crypto from 'crypto';
-import fs from 'fs/promises';
-import path from 'path';
+import HybridDatabaseService from './hybridDatabaseService.js';
 
 class OAuthXService {
   constructor() {
@@ -11,59 +10,23 @@ class OAuthXService {
     this.redirectUri = process.env.X_REDIRECT_URI || `${process.env.API_URL || 'https://api.degen-oracle.com'}/auth/callback`;
     this.scope = 'tweet.read users.read follows.read';
     
-    // User database file
-    this.usersDbFile = './cache/users-database.json';
-    this.users = new Map();
-    
-    // Session management
-    this.sessions = new Map();
-    this.sessionTimeout = 24 * 60 * 60 * 1000; // 24 hours
+    // Initialize hybrid database service
+    this.db = new HybridDatabaseService();
     
     console.log('🐦 OAuth X Service initialized');
     console.log(`   Client ID: ${this.clientId ? '✅ Set' : '❌ Missing'}`);
     console.log(`   Client Secret: ${this.clientSecret ? '✅ Set' : '❌ Missing'}`);
     console.log(`   Redirect URI: ${this.redirectUri}`);
-    
-    this.loadUsersDatabase();
   }
 
   /**
-   * Load users database from file
+   * Migrate from old database if it exists
    */
-  async loadUsersDatabase() {
+  async migrateFromOldDatabase() {
     try {
-      const data = await fs.readFile(this.usersDbFile, 'utf8');
-      const usersData = JSON.parse(data);
-      
-      // Convert array back to Map
-      this.users = new Map(usersData.users || []);
-      this.sessions = new Map(usersData.sessions || []);
-      
-      console.log(`📊 Loaded ${this.users.size} users from database`);
+      await this.db.migrateFromOldDatabase('./cache/users-database.json');
     } catch (error) {
-      console.log('📝 Creating new users database...');
-      await this.saveUsersDatabase();
-    }
-  }
-
-  /**
-   * Save users database to file
-   */
-  async saveUsersDatabase() {
-    try {
-      const data = {
-        users: Array.from(this.users.entries()),
-        sessions: Array.from(this.sessions.entries()),
-        lastUpdated: new Date().toISOString()
-      };
-      
-      console.log(`💾 Attempting to save ${this.users.size} users to: ${this.usersDbFile}`);
-      await fs.writeFile(this.usersDbFile, JSON.stringify(data, null, 2));
-      console.log(`✅ Successfully saved ${this.users.size} users to database`);
-    } catch (error) {
-      console.error('❌ Error saving users database:', error);
-      console.error('❌ File path:', this.usersDbFile);
-      console.error('❌ Current working directory:', process.cwd());
+      console.log('📝 No old database to migrate');
     }
   }
 
@@ -156,123 +119,62 @@ class OAuthXService {
    * Create or update user in database
    */
   async createOrUpdateUser(profile, accessToken, refreshToken) {
-    const userId = profile.id;
-    const existingUser = this.users.get(userId);
-
-    const userData = {
-      id: userId,
-      username: profile.username,
-      displayName: profile.name,
-      profileImage: profile.profile_image_url,
-      verified: profile.verified || false,
-      followersCount: profile.public_metrics?.followers_count || 0,
-      followingCount: profile.public_metrics?.following_count || 0,
-      tweetCount: profile.public_metrics?.tweet_count || 0,
-      accessToken: accessToken,
-      refreshToken: refreshToken,
-      createdAt: existingUser?.createdAt || new Date().toISOString(),
-      lastLogin: new Date().toISOString(),
-      // Generate referral code for new users
-      referralCode: existingUser?.referralCode || this.generateReferralCode(),
-      // User-specific data
-      watchlist: existingUser?.watchlist || [],
-      preferences: existingUser?.preferences || {
-        theme: 'dark',
-        notifications: true,
-        defaultView: 'bubble'
-      },
-      stats: existingUser?.stats || {
-        tokensListed: 0,
-        tokensFueled: 0,
-        tokensUpdated: 0,
-        totalSpent: 0
-      }
-    };
-
-    this.users.set(userId, userData);
-    console.log(`👤 User ${userData.username} ${existingUser ? 'updated' : 'created'} with referral code: ${userData.referralCode}`);
-    await this.saveUsersDatabase();
-
-    console.log(`✅ User ${userData.username} ${existingUser ? 'updated' : 'created'}`);
-    return userData;
+    return await this.db.createOrUpdateUser(profile, accessToken, refreshToken);
   }
 
   /**
    * Create user session
    */
-  createSession(userId) {
-    const sessionId = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + this.sessionTimeout);
-
-    this.sessions.set(sessionId, {
-      userId: userId,
-      createdAt: new Date().toISOString(),
-      expiresAt: expiresAt.toISOString(),
-      lastActivity: new Date().toISOString()
-    });
-
-    return { sessionId, expiresAt };
+  async createSession(userId) {
+    return await this.db.createSession(userId);
   }
 
   /**
    * Validate session
    */
-  validateSession(sessionId) {
-    const session = this.sessions.get(sessionId);
-    
-    if (!session) {
-      return null;
-    }
-
-    if (new Date() > new Date(session.expiresAt)) {
-      this.sessions.delete(sessionId);
-      return null;
-    }
-
-    // Update last activity
-    session.lastActivity = new Date().toISOString();
-    return session;
+  async validateSession(sessionId) {
+    return await this.db.validateSession(sessionId);
   }
 
   /**
    * Get user by session ID
    */
-  getUserBySession(sessionId) {
-    const session = this.validateSession(sessionId);
-    if (!session) {
-      return null;
-    }
-
-    return this.users.get(session.userId);
+  async getUserBySession(sessionId) {
+    return await this.db.getUserBySession(sessionId);
   }
 
   /**
    * Logout user
    */
-  logout(sessionId) {
-    this.sessions.delete(sessionId);
-    console.log(`👋 User logged out (session: ${sessionId})`);
+  async logout(sessionId) {
+    return await this.db.logout(sessionId);
   }
 
   /**
    * Get user by ID
    */
-  getUserById(userId) {
-    return this.users.get(userId);
+  async getUserById(userId) {
+    return await this.db.getUserProfile(userId);
   }
 
   /**
    * Update user data
    */
   async updateUser(userId, updates) {
-    const user = this.users.get(userId);
+    const profileFile = this.db.getUserFile(userId, 'profile.json');
+    const user = await this.db.readJsonFile(profileFile);
     if (!user) {
       return null;
     }
 
     const updatedUser = { ...user, ...updates, lastUpdated: new Date().toISOString() };
-    this.users.set(userId, updatedUser);
-    await this.saveUsersDatabase();
+    await this.db.writeJsonFile(profileFile, updatedUser);
+    await this.db.updateUserIndex(userId, {
+      username: updatedUser.username,
+      displayName: updatedUser.displayName,
+      lastLogin: updatedUser.lastLogin,
+      referralCode: updatedUser.referralCode
+    });
 
     return updatedUser;
   }
@@ -281,93 +183,42 @@ class OAuthXService {
    * Add token to user's watchlist
    */
   async addToWatchlist(userId, tokenData) {
-    const user = this.users.get(userId);
-    if (!user) {
-      return null;
-    }
-
-    // Check if token already in watchlist
-    const existingIndex = user.watchlist.findIndex(item => item.symbol === tokenData.symbol);
-    
-    if (existingIndex >= 0) {
-      // Update existing entry
-      user.watchlist[existingIndex] = {
-        ...user.watchlist[existingIndex],
-        ...tokenData,
-        addedAt: user.watchlist[existingIndex].addedAt,
-        updatedAt: new Date().toISOString()
-      };
-    } else {
-      // Add new entry
-      user.watchlist.push({
-        ...tokenData,
-        addedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-    }
-
-    await this.updateUser(userId, { watchlist: user.watchlist });
-    return user.watchlist;
+    return await this.db.addToWatchlist(userId, tokenData);
   }
 
   /**
    * Remove token from user's watchlist
    */
   async removeFromWatchlist(userId, symbol) {
-    const user = this.users.get(userId);
-    if (!user) {
-      return null;
-    }
-
-    user.watchlist = user.watchlist.filter(item => item.symbol !== symbol);
-    await this.updateUser(userId, { watchlist: user.watchlist });
-    return user.watchlist;
+    return await this.db.removeFromWatchlist(userId, symbol);
   }
 
   /**
    * Get user's watchlist
    */
-  getWatchlist(userId) {
-    const user = this.users.get(userId);
-    return user?.watchlist || [];
+  async getWatchlist(userId) {
+    return await this.db.getUserWatchlist(userId);
   }
 
   /**
    * Check if token is in user's watchlist
    */
-  isInWatchlist(userId, symbol) {
-    const user = this.users.get(userId);
-    return user?.watchlist?.some(item => item.symbol === symbol) || false;
+  async isInWatchlist(userId, symbol) {
+    return await this.db.isInWatchlist(userId, symbol);
   }
 
   /**
    * Get service statistics
    */
-  getStats() {
-    return {
-      totalUsers: this.users.size,
-      activeSessions: this.sessions.size,
-      lastUpdated: new Date().toISOString()
-    };
+  async getStats() {
+    return await this.db.getStats();
   }
 
   /**
    * Clean up expired sessions
    */
-  cleanupExpiredSessions() {
-    const now = new Date();
-    let cleaned = 0;
-
-    for (const [sessionId, session] of this.sessions.entries()) {
-      if (now > new Date(session.expiresAt)) {
-        this.sessions.delete(sessionId);
-        cleaned++;
-      }
-    }
-
-    if (cleaned > 0) {
-      console.log(`🧹 Cleaned up ${cleaned} expired sessions`);
-    }
+  async cleanupExpiredSessions() {
+    return await this.db.cleanupExpiredSessions();
   }
 }
 

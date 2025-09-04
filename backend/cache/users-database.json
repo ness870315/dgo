@@ -1,0 +1,36 @@
+{
+  "users": [
+    [
+      "test123",
+      {
+        "id": "test123",
+        "username": "testuser",
+        "displayName": "Test User",
+        "profileImage": "https://example.com/avatar.jpg",
+        "verified": false,
+        "followersCount": 100,
+        "followingCount": 50,
+        "tweetCount": 25,
+        "accessToken": "test_token",
+        "refreshToken": "test_refresh",
+        "createdAt": "2025-09-04T01:42:21.436Z",
+        "lastLogin": "2025-09-04T01:42:21.436Z",
+        "referralCode": "N5XMMD08",
+        "watchlist": [],
+        "preferences": {
+          "theme": "dark",
+          "notifications": true,
+          "defaultView": "bubble"
+        },
+        "stats": {
+          "tokensListed": 0,
+          "tokensFueled": 0,
+          "tokensUpdated": 0,
+          "totalSpent": 0
+        }
+      }
+    ]
+  ],
+  "sessions": [],
+  "lastUpdated": "2025-09-04T01:42:21.437Z"
+}

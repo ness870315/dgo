@@ -1,0 +1,470 @@
+import fs from 'fs/promises';
+import path from 'path';
+import crypto from 'crypto';
+
+/**
+ * Hybrid Database Service
+ * 
+ * Architecture:
+ * - data/users/ - User-specific data directories
+ * - data/global/ - Global data files
+ * - data/cache/ - Cached data (existing)
+ * 
+ * User Directory Structure:
+ * - user-{userId}/profile.json - User profile data
+ * - user-{userId}/watchlist.json - User's watchlist
+ * - user-{userId}/premium.json - Premium features & subscription
+ * - user-{userId}/referral.json - Referral data & earnings
+ * - user-{userId}/activity.json - User activity logs
+ * 
+ * Global Files:
+ * - global/users-index.json - User index for quick lookups
+ * - global/sessions.json - Active sessions
+ * - global/referral-codes.json - Referral code registry
+ * - global/analytics.json - Global analytics
+ */
+class HybridDatabaseService {
+  constructor() {
+    this.baseDir = './data';
+    this.usersDir = path.join(this.baseDir, 'users');
+    this.globalDir = path.join(this.baseDir, 'global');
+    this.cacheDir = path.join(this.baseDir, 'cache');
+    
+    // Ensure directories exist
+    this.initializeDirectories();
+    
+    console.log('🗄️ Hybrid Database Service initialized');
+    console.log(`   Users: ${this.usersDir}`);
+    console.log(`   Global: ${this.globalDir}`);
+    console.log(`   Cache: ${this.cacheDir}`);
+  }
+
+  /**
+   * Initialize all required directories
+   */
+  async initializeDirectories() {
+    const dirs = [this.baseDir, this.usersDir, this.globalDir, this.cacheDir];
+    
+    for (const dir of dirs) {
+      try {
+        await fs.mkdir(dir, { recursive: true });
+      } catch (error) {
+        // Directory might already exist, that's fine
+      }
+    }
+  }
+
+  /**
+   * Get user directory path
+   */
+  getUserDir(userId) {
+    return path.join(this.usersDir, `user-${userId}`);
+  }
+
+  /**
+   * Get user file path
+   */
+  getUserFile(userId, filename) {
+    return path.join(this.getUserDir(userId), filename);
+  }
+
+  /**
+   * Get global file path
+   */
+  getGlobalFile(filename) {
+    return path.join(this.globalDir, filename);
+  }
+
+  /**
+   * Ensure user directory exists
+   */
+  async ensureUserDir(userId) {
+    const userDir = this.getUserDir(userId);
+    try {
+      await fs.mkdir(userDir, { recursive: true });
+      console.log(`📁 Created user directory: ${userDir}`);
+    } catch (error) {
+      if (error.code !== 'EEXIST') {
+        console.error(`❌ Error creating user directory ${userDir}:`, error.message);
+        throw error;
+      }
+    }
+    return userDir;
+  }
+
+  /**
+   * Read JSON file with error handling
+   */
+  async readJsonFile(filePath, defaultValue = null) {
+    try {
+      const data = await fs.readFile(filePath, 'utf8');
+      return JSON.parse(data);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        return defaultValue;
+      }
+      console.error(`❌ Error reading ${filePath}:`, error.message);
+      return defaultValue;
+    }
+  }
+
+  /**
+   * Write JSON file with error handling
+   */
+  async writeJsonFile(filePath, data) {
+    try {
+      await fs.writeFile(filePath, JSON.stringify(data, null, 2));
+      return true;
+    } catch (error) {
+      console.error(`❌ Error writing ${filePath}:`, error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Create or update user profile
+   */
+  async createOrUpdateUser(profile, accessToken, refreshToken) {
+    const userId = profile.id;
+    const userDir = await this.ensureUserDir(userId);
+    
+    // Load existing profile or create new one
+    const profileFile = this.getUserFile(userId, 'profile.json');
+    const existingProfile = await this.readJsonFile(profileFile, {});
+    
+    const userData = {
+      id: userId,
+      username: profile.username,
+      displayName: profile.name,
+      profileImage: profile.profile_image_url,
+      verified: profile.verified || false,
+      followersCount: profile.public_metrics?.followers_count || 0,
+      followingCount: profile.public_metrics?.following_count || 0,
+      tweetCount: profile.public_metrics?.tweet_count || 0,
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      createdAt: existingProfile.createdAt || new Date().toISOString(),
+      lastLogin: new Date().toISOString(),
+      lastUpdated: new Date().toISOString(),
+      // Generate referral code for new users
+      referralCode: existingProfile.referralCode || this.generateReferralCode(),
+      // User preferences
+      preferences: existingProfile.preferences || {
+        theme: 'dark',
+        notifications: true,
+        defaultView: 'bubble'
+      },
+      // User stats
+      stats: existingProfile.stats || {
+        tokensListed: 0,
+        tokensFueled: 0,
+        tokensUpdated: 0,
+        totalSpent: 0
+      }
+    };
+
+    // Save user profile
+    await this.writeJsonFile(profileFile, userData);
+    
+    // Update global user index
+    await this.updateUserIndex(userId, {
+      username: userData.username,
+      displayName: userData.displayName,
+      lastLogin: userData.lastLogin,
+      referralCode: userData.referralCode
+    });
+
+    // Initialize other user files if they don't exist
+    await this.initializeUserFiles(userId);
+
+    console.log(`✅ User ${userData.username} ${existingProfile.id ? 'updated' : 'created'}`);
+    return userData;
+  }
+
+  /**
+   * Initialize user files if they don't exist
+   */
+  async initializeUserFiles(userId) {
+    const files = [
+      { name: 'watchlist.json', data: [] },
+      { name: 'premium.json', data: { 
+        isPremium: false, 
+        subscriptionType: null, 
+        expiresAt: null,
+        features: []
+      }},
+      { name: 'referral.json', data: { 
+        code: null, 
+        referredBy: null, 
+        referrals: [], 
+        earnings: 0 
+      }},
+      { name: 'activity.json', data: { 
+        loginHistory: [], 
+        actions: [], 
+        lastActivity: null 
+      }}
+    ];
+
+    for (const file of files) {
+      const filePath = this.getUserFile(userId, file.name);
+      const existing = await this.readJsonFile(filePath);
+      if (!existing) {
+        await this.writeJsonFile(filePath, file.data);
+      }
+    }
+  }
+
+  /**
+   * Update global user index
+   */
+  async updateUserIndex(userId, userInfo) {
+    const indexFile = this.getGlobalFile('users-index.json');
+    const index = await this.readJsonFile(indexFile, {});
+    
+    index[userId] = {
+      ...userInfo,
+      lastUpdated: new Date().toISOString()
+    };
+
+    await this.writeJsonFile(indexFile, index);
+  }
+
+  /**
+   * Get user profile
+   */
+  async getUserProfile(userId) {
+    const profileFile = this.getUserFile(userId, 'profile.json');
+    return await this.readJsonFile(profileFile);
+  }
+
+  /**
+   * Get user watchlist
+   */
+  async getUserWatchlist(userId) {
+    const watchlistFile = this.getUserFile(userId, 'watchlist.json');
+    return await this.readJsonFile(watchlistFile, []);
+  }
+
+  /**
+   * Add token to watchlist
+   */
+  async addToWatchlist(userId, tokenData) {
+    const watchlist = await this.getUserWatchlist(userId);
+    
+    // Check if token already exists
+    const existingIndex = watchlist.findIndex(item => item.symbol === tokenData.symbol);
+    
+    if (existingIndex >= 0) {
+      // Update existing entry
+      watchlist[existingIndex] = {
+        ...watchlist[existingIndex],
+        ...tokenData,
+        addedAt: watchlist[existingIndex].addedAt,
+        updatedAt: new Date().toISOString()
+      };
+    } else {
+      // Add new entry
+      watchlist.push({
+        ...tokenData,
+        addedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    const watchlistFile = this.getUserFile(userId, 'watchlist.json');
+    await this.writeJsonFile(watchlistFile, watchlist);
+    
+    return watchlist;
+  }
+
+  /**
+   * Remove token from watchlist
+   */
+  async removeFromWatchlist(userId, symbol) {
+    const watchlist = await this.getUserWatchlist(userId);
+    const filtered = watchlist.filter(item => item.symbol !== symbol);
+    
+    const watchlistFile = this.getUserFile(userId, 'watchlist.json');
+    await this.writeJsonFile(watchlistFile, filtered);
+    
+    return filtered;
+  }
+
+  /**
+   * Check if token is in watchlist
+   */
+  async isInWatchlist(userId, symbol) {
+    const watchlist = await this.getUserWatchlist(userId);
+    return watchlist.some(item => item.symbol === symbol);
+  }
+
+  /**
+   * Create user session
+   */
+  async createSession(userId) {
+    const sessionId = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    const session = {
+      sessionId,
+      userId,
+      createdAt: new Date().toISOString(),
+      expiresAt: expiresAt.toISOString(),
+      lastActivity: new Date().toISOString()
+    };
+
+    // Save to global sessions file
+    const sessionsFile = this.getGlobalFile('sessions.json');
+    const sessions = await this.readJsonFile(sessionsFile, {});
+    sessions[sessionId] = session;
+    await this.writeJsonFile(sessionsFile, sessions);
+
+    return { sessionId, expiresAt };
+  }
+
+  /**
+   * Validate session
+   */
+  async validateSession(sessionId) {
+    const sessionsFile = this.getGlobalFile('sessions.json');
+    const sessions = await this.readJsonFile(sessionsFile, {});
+    const session = sessions[sessionId];
+    
+    if (!session) {
+      return null;
+    }
+
+    if (new Date() > new Date(session.expiresAt)) {
+      // Session expired, remove it
+      delete sessions[sessionId];
+      await this.writeJsonFile(sessionsFile, sessions);
+      return null;
+    }
+
+    // Update last activity
+    session.lastActivity = new Date().toISOString();
+    sessions[sessionId] = session;
+    await this.writeJsonFile(sessionsFile, sessions);
+
+    return session;
+  }
+
+  /**
+   * Get user by session
+   */
+  async getUserBySession(sessionId) {
+    const session = await this.validateSession(sessionId);
+    if (!session) {
+      return null;
+    }
+
+    return await this.getUserProfile(session.userId);
+  }
+
+  /**
+   * Logout user
+   */
+  async logout(sessionId) {
+    const sessionsFile = this.getGlobalFile('sessions.json');
+    const sessions = await this.readJsonFile(sessionsFile, {});
+    delete sessions[sessionId];
+    await this.writeJsonFile(sessionsFile, sessions);
+    
+    console.log(`👋 User logged out (session: ${sessionId})`);
+  }
+
+  /**
+   * Generate referral code
+   */
+  generateReferralCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 8; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  /**
+   * Get service statistics
+   */
+  async getStats() {
+    const indexFile = this.getGlobalFile('users-index.json');
+    const sessionsFile = this.getGlobalFile('sessions.json');
+    
+    const users = await this.readJsonFile(indexFile, {});
+    const sessions = await this.readJsonFile(sessionsFile, {});
+    
+    return {
+      totalUsers: Object.keys(users).length,
+      activeSessions: Object.keys(sessions).length,
+      lastUpdated: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Clean up expired sessions
+   */
+  async cleanupExpiredSessions() {
+    const sessionsFile = this.getGlobalFile('sessions.json');
+    const sessions = await this.readJsonFile(sessionsFile, {});
+    const now = new Date();
+    let cleaned = 0;
+
+    for (const [sessionId, session] of Object.entries(sessions)) {
+      if (now > new Date(session.expiresAt)) {
+        delete sessions[sessionId];
+        cleaned++;
+      }
+    }
+
+    if (cleaned > 0) {
+      await this.writeJsonFile(sessionsFile, sessions);
+      console.log(`🧹 Cleaned up ${cleaned} expired sessions`);
+    }
+  }
+
+  /**
+   * Migrate from old database format
+   */
+  async migrateFromOldDatabase(oldDbFile) {
+    try {
+      const oldData = await this.readJsonFile(oldDbFile);
+      if (!oldData || !oldData.users) {
+        console.log('📝 No old database to migrate');
+        return;
+      }
+
+      console.log(`🔄 Migrating ${oldData.users.length} users from old database...`);
+
+      for (const [userId, userData] of oldData.users) {
+        // Ensure user directory exists first
+        await this.ensureUserDir(userId);
+        
+        // Create user profile
+        const profileFile = this.getUserFile(userId, 'profile.json');
+        await this.writeJsonFile(profileFile, userData);
+
+        // Initialize other user files
+        await this.initializeUserFiles(userId);
+
+        // Update user index
+        await this.updateUserIndex(userId, {
+          username: userData.username,
+          displayName: userData.displayName,
+          lastLogin: userData.lastLogin,
+          referralCode: userData.referralCode
+        });
+
+        console.log(`✅ Migrated user: ${userData.username}`);
+      }
+
+      console.log('🎉 Migration completed successfully!');
+    } catch (error) {
+      console.error('❌ Migration failed:', error.message);
+    }
+  }
+}
+
+export default HybridDatabaseService;
