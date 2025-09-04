@@ -151,8 +151,12 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
   ];
 
   const handleFuelClick = () => {
-    // Navigate user to the Fuel Token page for unified Helio flow
-    window.location.href = '/#fuel-token';
+    if (!token?.contractAddress) {
+      setFuelMessage({ text: 'No contract address available for this token', type: 'error' });
+      return;
+    }
+    setShowFuelModal(true);
+    setFuelMessage({ text: '', type: '' });
   };
 
   const handleApplyFuel = async () => {
