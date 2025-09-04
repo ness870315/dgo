@@ -6,24 +6,8 @@ class WatchlistService {
   // Get auth headers
   getAuthHeaders() {
     const token = localStorage.getItem('authToken');
-    const sessionId = localStorage.getItem('sessionId');
-    const demoSessionId = localStorage.getItem('demoSessionId');
-    const authType = localStorage.getItem('authType');
-    
-    const headers = {
-      'Content-Type': 'application/json',
-    };
-    
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    
-    if (authType === 'demo' && demoSessionId) {
-      headers['X-Session-Id'] = demoSessionId;
-    } else if (sessionId) {
-      headers['X-Session-Id'] = sessionId;
-    }
-    
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
     return headers;
   }
 
@@ -31,10 +15,7 @@ class WatchlistService {
   async getWatchlist() {
     try {
       const sessionId = localStorage.getItem('sessionId');
-      const response = await fetch(`${this.API_BASE}/api/user/watchlist?sessionId=${encodeURIComponent(sessionId || '')}`, {
-        credentials: 'include',
-        headers: this.getAuthHeaders()
-      });
+      const response = await fetch(`${this.API_BASE}/api/user/watchlist?sessionId=${encodeURIComponent(sessionId || '')}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch watchlist');
@@ -55,7 +36,6 @@ class WatchlistService {
       const sessionId = localStorage.getItem('sessionId');
       const response = await fetch(`${this.API_BASE}/api/user/watchlist/add`, {
         method: 'POST',
-        credentials: 'include',
         headers: this.getAuthHeaders(),
         body: JSON.stringify({ sessionId, tokenData })
       });
@@ -79,7 +59,6 @@ class WatchlistService {
       const sessionId = localStorage.getItem('sessionId');
       const response = await fetch(`${this.API_BASE}/api/user/watchlist/remove`, {
         method: 'POST',
-        credentials: 'include',
         headers: this.getAuthHeaders(),
         body: JSON.stringify({ sessionId, symbol })
       });
@@ -101,10 +80,7 @@ class WatchlistService {
   async isInWatchlist(symbol) {
     try {
       const sessionId = localStorage.getItem('sessionId');
-      const response = await fetch(`${this.API_BASE}/api/user/watchlist/check/${encodeURIComponent(symbol)}?sessionId=${encodeURIComponent(sessionId || '')}`, {
-        credentials: 'include',
-        headers: this.getAuthHeaders()
-      });
+      const response = await fetch(`${this.API_BASE}/api/user/watchlist/check/${encodeURIComponent(symbol)}?sessionId=${encodeURIComponent(sessionId || '')}`);
 
       if (!response.ok) {
         throw new Error('Failed to check watchlist');
