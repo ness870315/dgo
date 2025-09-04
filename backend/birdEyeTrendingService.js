@@ -6,7 +6,7 @@ class BirdEyeTrendingService {
     this.baseUrl = 'https://public-api.birdeye.so/defi/token_trending';
     this.defaultParams = {
       sort_by: 'volume24hUSD',
-      sort_type: 'asc',
+      sort_type: 'desc',
       offset: 0,
       limit: 20,
       ui_amount_mode: 'scaled'
@@ -29,8 +29,25 @@ class BirdEyeTrendingService {
         timeout: 15000
       });
 
-      const raw = response?.data?.data || response?.data || [];
-      const items = Array.isArray(raw) ? raw : (raw?.items || []);
+      const body = response?.data;
+      const rawData = body?.data !== undefined ? body.data : body;
+      let items = [];
+      if (Array.isArray(rawData)) {
+        items = rawData;
+      } else if (Array.isArray(rawData?.items)) {
+        items = rawData.items;
+      } else if (Array.isArray(body?.items)) {
+        items = body.items;
+      } else if (Array.isArray(body)) {
+        items = body;
+      } else if (Array.isArray(rawData?.tokens)) {
+        items = rawData.tokens;
+      }
+
+      console.log(`[BirdEyeTrending] HTTP ${response.status} • items=${items.length} • keys=${Object.keys(body || {}).join(',')}`);
+      if (items.length === 0) {
+        console.log('[BirdEyeTrending] Debug body snippet:', JSON.stringify(body)?.slice(0, 400));
+      }
 
       // Map and filter
       const mapped = items
