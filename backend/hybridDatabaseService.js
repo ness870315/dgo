@@ -326,7 +326,7 @@ class HybridDatabaseService {
    */
   async createSession(userId) {
     const sessionId = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 hours
 
     const session = {
       sessionId,
