@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { X, Twitter, MessageCircle, ExternalLink, Star, Flame } from 'lucide-react';
+import watchlistService from '../services/watchlistService';
+import { useAuth } from '../contexts/AuthContext';
 
 const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
+  const { isAuthenticated } = useAuth();
   const [isInWatchlist, setIsInWatchlist] = useState(false);
   const [showFuelModal, setShowFuelModal] = useState(false);
   const [selectedFuel, setSelectedFuel] = useState(null);
@@ -32,10 +35,17 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
   const fuelMultiplier = getFuelMultiplier();
 
   useEffect(() => {
-    // Check if token is in watchlist on component mount
-    const checkWatchlistStatus = () => {
-      const watchlist = JSON.parse(localStorage.getItem('watchlist') || '[]');
-      setIsInWatchlist(watchlist.some(item => item.symbol === token?.symbol));
+    // Check if token is in watchlist on component mount (backend source of truth)
+    const checkWatchlistStatus = async () => {
+      try {
+        if (!token?.symbol) return;
+        const inList = await watchlistService.isInWatchlist(token.symbol);
+        setIsInWatchlist(!!inList);
+      } catch (err) {
+        // Fallback to localStorage only if API fails
+        const fallback = JSON.parse(localStorage.getItem('watchlist') || '[]');
+        setIsInWatchlist(fallback.some(item => item.symbol === token?.symbol));
+      }
     };
 
     checkWatchlistStatus();
@@ -62,24 +72,38 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
     }
   }, [showFuelModal, token?.contractAddress]);
 
-  const toggleWatchlist = () => {
-    const watchlist = JSON.parse(localStorage.getItem('watchlist') || '[]');
-    let newWatchlist;
+  const toggleWatchlist = async () => {
+    try {
+      if (!isAuthenticated) {
+        console.warn('Watchlist: user not authenticated');
+      }
 
-    if (isInWatchlist) {
-      newWatchlist = watchlist.filter(item => item.symbol !== token?.symbol);
-    } else {
-      newWatchlist = [...watchlist, {
-        symbol: token?.symbol,
-        name: token?.name,
-        image: token?.jupiterData?.icon || token?.image,
-        jupiterData: token?.jupiterData, // Include full Jupiter data for future use
-        contractAddress: token?.contractAddress
-      }];
+      if (!token?.symbol) return;
+
+      if (isInWatchlist) {
+        await watchlistService.removeFromWatchlist(token.symbol);
+        // Update local fallback
+        const local = JSON.parse(localStorage.getItem('watchlist') || '[]');
+        const updated = local.filter(item => item.symbol !== token.symbol);
+        localStorage.setItem('watchlist', JSON.stringify(updated));
+        setIsInWatchlist(false);
+      } else {
+        const payload = {
+          symbol: token.symbol,
+          name: token.name,
+          image: token?.jupiterData?.icon || token?.image,
+          contractAddress: token.contractAddress
+        };
+        await watchlistService.addToWatchlist(payload);
+        // Update local fallback
+        const local = JSON.parse(localStorage.getItem('watchlist') || '[]');
+        local.push(payload);
+        localStorage.setItem('watchlist', JSON.stringify(local));
+        setIsInWatchlist(true);
+      }
+    } catch (error) {
+      console.error('Error toggling watchlist:', error);
     }
-
-    localStorage.setItem('watchlist', JSON.stringify(newWatchlist));
-    setIsInWatchlist(!isInWatchlist);
   };
 
   // Fuel Token functionality
