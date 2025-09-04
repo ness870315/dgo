@@ -469,7 +469,7 @@ class EnhancedBackend {
     });
 
     // OAuth X: Validate session
-    this.app.get('/auth/validate', (req, res) => {
+    this.app.get('/auth/validate', async (req, res) => {
       try {
         const { sessionId } = req.query;
         
@@ -545,7 +545,7 @@ class EnhancedBackend {
     // ========================================
 
     // Get user profile
-    this.app.get('/api/user/profile', (req, res) => {
+    this.app.get('/api/user/profile', async (req, res) => {
       try {
         const { sessionId } = req.query;
         
@@ -635,7 +635,7 @@ class EnhancedBackend {
     // ========================================
 
     // Get user's watchlist
-    this.app.get('/api/user/watchlist', (req, res) => {
+    this.app.get('/api/user/watchlist', async (req, res) => {
       try {
         const { sessionId } = req.query;
         
@@ -748,7 +748,7 @@ class EnhancedBackend {
     });
 
     // Check if token is in watchlist
-    this.app.get('/api/user/watchlist/check/:symbol', (req, res) => {
+    this.app.get('/api/user/watchlist/check/:symbol', async (req, res) => {
       try {
         const { sessionId } = req.query;
         const { symbol } = req.params;
