@@ -279,18 +279,18 @@ function App() {
     }
     
     if (categories.cults) {
-      // CULTS (formerly trending): Established coins with high market cap + score ≥3.0
+      // CULTS: Established coins with market cap ≥ $10M + score ≥ 3.0
       const fueledSymbols = new Set(fueledTokens?.map(fuel => fuel.symbol) || []);
       
       // First, separate fueled tokens from regular tokens
       const fueledTokensList = tokenData.filter(token => 
-        getMarketCap(token) >= 1000000 && // ≥$1M market cap (minimum for cults)
+        getMarketCap(token) >= 10000000 && // ≥$10M market cap
         (token.score || token.overallScore || 0) >= 3.0 && // ≥3.0 score (balanced threshold)
         fueledSymbols.has(token.symbol) // Is fueled
       );
       
       const regularTokens = tokenData.filter(token => 
-        getMarketCap(token) >= 1000000 && // ≥$1M market cap (minimum for cults)
+        getMarketCap(token) >= 10000000 && // ≥$10M market cap
         (token.score || token.overallScore || 0) >= 3.0 && // ≥3.0 score (balanced threshold)
         !fueledSymbols.has(token.symbol) // Not fueled
       );
@@ -312,7 +312,7 @@ function App() {
       // Combine: fueled tokens first, then regular tokens, total 50
       const cultsTokens = [...sortedFueledTokens, ...sortedRegularTokens].slice(0, 50);
       
-      console.log(`🏛️ Cults filter: Showing top 50 established tokens (${sortedFueledTokens.length} fueled + ${Math.min(sortedRegularTokens.length, 50 - sortedFueledTokens.length)} regular) with score ≥3.0 and market cap ≥$1M`);
+      console.log(`🏛️ Cults filter: Showing top 50 established tokens (${sortedFueledTokens.length} fueled + ${Math.min(sortedRegularTokens.length, 50 - sortedFueledTokens.length)} regular) with score ≥3.0 and market cap ≥$10M`);
       console.log('Category filtering result:', cultsTokens.length, 'tokens out of', tokenData.length);
       return cultsTokens;
     }

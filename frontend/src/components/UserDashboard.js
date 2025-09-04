@@ -152,9 +152,24 @@ const UserDashboard = () => {
             
             {/* Referral Code Display */}
             {dashboardData.referralCode && (
-              <div className="text-right">
-                <p className="text-gray-400 text-sm">Your Referral Code</p>
-                <p className="text-white font-mono text-lg">{dashboardData.referralCode}</p>
+              <div className="flex items-center space-x-3">
+                <div className="text-right">
+                  <p className="text-gray-400 text-sm">Your Referral Code</p>
+                  <p className="text-white font-mono text-lg">{dashboardData.referralCode}</p>
+                </div>
+                <a
+                  href={`https://twitter.com/intent/tweet?${new URLSearchParams({
+                    text: "Here is my referal code for a 1 month Premium subscription for DeGen Oracle, spot the next cult before it goes Viral and become a KOL",
+                    url: "https://degen-oracle.com",
+                    hashtags: "DeGenOracle,Crypto,KOL"
+                  }).toString()}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm"
+                  title="Share on X"
+                >
+                  Share on X
+                </a>
               </div>
             )}
           </div>

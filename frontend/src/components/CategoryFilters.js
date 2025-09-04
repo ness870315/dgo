@@ -6,13 +6,11 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
   // Use the filters passed from parent (controlled component)
   const categories = currentFilters || {
     trending: true,   // NEW: Score >7 with 60% score + 40% volume (DEFAULT) - FIRST
-    cults: false,     // RENAMED: Established coins (score ≥3.0, market cap ≥$1M) - formerly trending
+    cults: false,     // Established coins (score ≥3.0, market cap ≥$10M)
     highCap: false,   // ≥$100M market cap
     midCap: false,    // ≥$5M to ≤$10M market cap
     smallCap: false,  // >$500K to <$5M market cap
-    microCap: false,  // $30K to $500K market cap
-    volatile: false,  // High price changes
-    stable: false     // Low price changes
+    microCap: false   // $30K to $500K market cap
   };
 
   const handleCategoryToggle = (category) => {
@@ -25,8 +23,6 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
       midCap: false,
       smallCap: false,
       microCap: false,
-      volatile: false,
-      stable: false,
       [category]: true // Enable only the clicked filter
     };
     
@@ -44,7 +40,7 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
       case 'cults':
         return {
           title: '🏛️ Cults',
-          description: '≥$1M + Score ≥3 • Top 50 proven tokens'
+          description: 'MCap ≥$10M + Score ≥3 • Top 50 proven tokens'
         };
       case 'highCap':
         return {
@@ -66,16 +62,7 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
           title: '🔍 Micro Cap',
           description: 'MCap $30K-$500K • Micro tokens'
         };
-      case 'volatile':
-        return {
-          title: '⚡ Volatile',
-          description: 'Price >5% change • High volatility'
-        };
-      case 'stable':
-        return {
-          title: '📈 Stable',
-          description: 'Price ≤5% change • Low volatility'
-        };
+      // Removed volatile/stable per product update
       default:
         return { title: key, description: '' };
     }
