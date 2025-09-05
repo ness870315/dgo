@@ -1,4 +1,5 @@
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
@@ -30,6 +31,10 @@ class EnhancedTokenProcessor {
     this.dexscreenerService = new DexscreenerApiService();
     this.birdEyeService = new BirdEyeTrendingService();
     this.hypeService = new HypeSnapshotService();
+    // Resolve persistent cache directory
+    const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
+    this.cacheDir = path.join(dataDir, 'cache');
+    try { fsSync.mkdirSync(this.cacheDir, { recursive: true }); } catch (_) {}
     
     // CONSERVATIVE Rate limiting configuration to avoid 429 errors
     this.rateLimits = {
@@ -59,7 +64,7 @@ class EnhancedTokenProcessor {
 
   async loadExistingData() {
     try {
-      const cachePath = path.join(__dirname, 'cache', 'tokens-cache.json');
+      const cachePath = path.join(this.cacheDir, 'tokens-cache.json');
       const data = await fs.readFile(cachePath, 'utf8');
       const parsed = JSON.parse(data);
       
@@ -642,7 +647,7 @@ class EnhancedTokenProcessor {
       console.log(`🔄 Final deduplication: ${allTokens.length} → ${finalUniqueTokens.length} tokens (removed ${allTokens.length - finalUniqueTokens.length} duplicates)`);
       
       // Save to cache
-      const cachePath = path.join(__dirname, 'cache', 'tokens-cache.json');
+      const cachePath = path.join(this.cacheDir, 'tokens-cache.json');
       await fs.writeFile(cachePath, JSON.stringify(finalUniqueTokens, null, 2));
       
       // Update our internal state with deduplicated tokens
@@ -1470,7 +1475,7 @@ class EnhancedTokenProcessor {
   async savePaidTokenToCache(token) {
     try {
       // Load existing cache
-      const cachePath = path.join(__dirname, 'cache', 'tokens-cache.json');
+      const cachePath = path.join(this.cacheDir, 'tokens-cache.json');
       let tokens = [];
       
       try {

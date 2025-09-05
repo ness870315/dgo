@@ -1290,7 +1290,8 @@ class EnhancedBackend {
         console.log(`[🛡️ Admin] 🗑️ Deleting token: ${symbol}`);
         
         // Remove from tokens cache
-        const cachePath = path.join(__dirname, 'cache', 'tokens-cache.json');
+        const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
+        const cachePath = path.join(dataDir, 'cache', 'tokens-cache.json');
         const data = await fs.readFile(cachePath, 'utf8');
         const tokens = JSON.parse(data);
         
@@ -1464,7 +1465,8 @@ class EnhancedBackend {
         console.log(`[🛡️ Admin] 🐦 Manual Twitter refresh for: ${symbol}`);
         
         // Load raw tokens from cache (not the filtered/merged ones)
-        const cachePath = path.join(__dirname, 'cache', 'tokens-cache.json');
+        const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
+        const cachePath = path.join(dataDir, 'cache', 'tokens-cache.json');
         let rawTokens = [];
         try {
           const data = await fs.readFile(cachePath, 'utf8');
