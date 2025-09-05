@@ -60,6 +60,8 @@ def twitter_api_get(path: str, params: Dict[str, Any]) -> Optional[Dict[str, Any
     r = requests.get(url, headers=headers, params=params, timeout=20)
     logger.info("HTTP %d %s in %.0fms", r.status_code, path, (time.time()-t0)*1000)
     if r.status_code != 200:
+        logger.error("Twitter API error %d: %s", r.status_code, r.text)
+        logger.error("Request params: %s", params)
         return None
     try:
         return r.json()
