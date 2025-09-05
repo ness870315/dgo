@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import axios from 'axios';
 import jupiterApiService from './jupiterApiService.js';
 import DexscreenerApiService from './dexscreenerApiService.js';
+import BirdEyeTrendingService from './birdEyeTrendingService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,6 +18,7 @@ class EnhancedTokenProcessor {
     this.stageProgress = {
       coingecko: { total: 0, processed: 0, status: 'pending' },
       dexscreener: { total: 0, processed: 0, status: 'pending' },
+      birdeye: { total: 0, processed: 0, status: 'pending' },
       jupiter: { total: 0, processed: 0, status: 'pending' },
       twitter: { total: 0, processed: 0, status: 'pending' },
       scoring: { total: 0, processed: 0, status: 'pending' }
@@ -25,17 +27,19 @@ class EnhancedTokenProcessor {
     // Initialize API services
     this.jupiterService = jupiterApiService;
     this.dexscreenerService = new DexscreenerApiService();
+    this.birdEyeService = new BirdEyeTrendingService();
     
     // CONSERVATIVE Rate limiting configuration to avoid 429 errors
     this.rateLimits = {
       coingecko: { batchSize: 40, delayMs: 60000, maxTokens: 500 }, // 40 tokens per batch to avoid rate limits
       dexscreener: { batchSize: 50, delayMs: 5000, maxTokens: 70 }, // Conservative: 50 per batch, 5s delay, 70 tokens max
+      birdeye: { maxTokens: 50 },
       jupiter: { batchSize: 100, delayMs: 30000, maxTokens: 600 }, // 30 second delay to avoid rate limits
       twitter: { batchSize: 10, delayMs: 15000, maxTokens: 1000 } // Reduced batch size, increased delay to avoid 429 errors
     };
     
     // Processing stages
-    this.stages = ['coingecko', 'dexscreener', 'jupiter', 'twitter', 'scoring', 'saving'];
+    this.stages = ['coingecko', 'dexscreener', 'birdeye', 'jupiter', 'twitter', 'scoring', 'saving'];
     
     // API endpoints
     this.apis = {
@@ -108,6 +112,9 @@ class EnhancedTokenProcessor {
             break;
           case 'dexscreener':
             await this.processDexscreenerStage();
+            break;
+          case 'birdeye':
+            await this.processBirdEyeStage();
             break;
           case 'jupiter':
             await this.processJupiterStage();
@@ -276,6 +283,41 @@ class EnhancedTokenProcessor {
         processed: 0,
         status: 'failed'
       };
+    }
+  }
+
+  async processBirdEyeStage() {
+    console.log('🐦 Stage 1.6: Fetching Trending Tokens from BirdEye...');
+
+    try {
+      const target = this.rateLimits.birdeye.maxTokens;
+      console.log(`🔄 Fetching up to ${target} trending tokens from BirdEye...`);
+      const birdTokens = await this.birdEyeService.fetchTrending({ limit: target, sort_type: 'desc' });
+
+      if (!birdTokens || birdTokens.length === 0) {
+        console.log('⚠️ No tokens retrieved from BirdEye');
+        this.stageProgress.birdeye = { total: this.processingQueue.length, processed: this.processingQueue.length, status: 'completed' };
+        return;
+      }
+
+      console.log(`✅ Retrieved ${birdTokens.length} tokens from BirdEye`);
+
+      // Merge with existing tokens from processing queue
+      const existingTokens = this.processingQueue;
+      const mergedTokens = this.mergeWithExistingTokens(birdTokens, existingTokens);
+
+      this.stageProgress.birdeye = {
+        total: mergedTokens.length,
+        processed: mergedTokens.length,
+        status: 'completed'
+      };
+
+      console.log(`🎯 BirdEye Stage Complete: ${mergedTokens.length} total tokens (${birdTokens.length} new + ${existingTokens.length} existing)`);
+      this.processingQueue = mergedTokens;
+
+    } catch (error) {
+      console.error('❌ BirdEye stage failed:', error);
+      this.stageProgress.birdeye = { total: this.processingQueue.length, processed: 0, status: 'failed' };
     }
   }
 
