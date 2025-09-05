@@ -97,7 +97,8 @@ class EnhancedBackend {
         cache: {
           totalTokens: status.processedCount,
           queueLength: status.queueLength
-        }
+        },
+        dataDir: process.env.DATA_DIR || '/var/data/dgo'
       });
     });
 

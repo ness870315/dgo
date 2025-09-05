@@ -1,4 +1,5 @@
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
@@ -28,7 +29,17 @@ class HybridDatabaseService {
   constructor() {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
-    this.baseDir = process.env.DATA_DIR || path.join(__dirname, 'data');
+    // Prefer persistent disk if available; fallback to local data dir
+    const preferredDir = process.env.DATA_DIR || '/var/data/dgo';
+    let chosenDir = preferredDir;
+    try {
+      fsSync.mkdirSync(chosenDir, { recursive: true });
+    } catch (_) {
+      chosenDir = path.join(__dirname, 'data');
+      try { fsSync.mkdirSync(chosenDir, { recursive: true }); } catch (_) {}
+      console.warn(`⚠️ Using non-persistent data directory: ${chosenDir}`);
+    }
+    this.baseDir = chosenDir;
     this.usersDir = path.join(this.baseDir, 'users');
     this.globalDir = path.join(this.baseDir, 'global');
     this.cacheDir = path.join(this.baseDir, 'cache');
