@@ -1290,7 +1290,6 @@ class EnhancedSocialDataService {
     // Round to 1 decimal place
     return Math.round(averageSentiment * 10) / 10;
   }
-  }
 
   // Public API methods for Twitter search endpoints
   async searchTwitter(query, count = 20) {
