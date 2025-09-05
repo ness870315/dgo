@@ -142,9 +142,11 @@ export default function DetailDrawer({ call, onClose }) {
   
   // Load chart data when call changes
   useEffect(() => {
-    if (call && call.token?.contractAddress && call.calledAt) {
+    const contract = call?.token?.contractAddress || call?.contractAddress;
+    const calledAt = call?.calledAt || call?.calledTs;
+    if (call && contract && calledAt) {
       setLoadingChart(true);
-      chartService.getMcapChart(call.token.contractAddress, call.calledAt)
+      chartService.getMcapChart(contract, calledAt)
         .then(response => {
           if (response.success) {
             setChartData(response.data);
@@ -230,7 +232,7 @@ export default function DetailDrawer({ call, onClose }) {
         <div className="p-5 md:p-6 flex flex-col gap-6">
           {/* Stats Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Stat label="Called MC" value={formatUSD(call.calledMc || 0)} />
+            <Stat label="Called MC" value={formatUSD((call.calledMc ?? call.calledMC ?? 0))} />
             <Stat label="Current MC" value={formatUSD(call.currentMC || 0)} />
             <Stat 
               label="ATH since call" 
