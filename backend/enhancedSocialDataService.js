@@ -1457,5 +1457,6 @@ class EnhancedSocialDataService {
       source: 'direct_fallback'
     };
   }
+}
 
 export default EnhancedSocialDataService;
