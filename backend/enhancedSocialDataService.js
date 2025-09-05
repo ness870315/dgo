@@ -257,7 +257,7 @@ class EnhancedSocialDataService {
     try {
       // Check if Twitter microservice is available
       const healthResponse = await axios.get(`${this.twitterServiceUrl}/health`, { timeout: 5000 });
-      if (!healthResponse.data.twitter_available) {
+      if (healthResponse.data.status !== 'healthy' || healthResponse.data.bearer_token !== 'present') {
         console.log(`⚠️ Twitter API not available for ${symbol}, returning fallback data`);
         return this.getDefaultTwitterData(symbol, name);
       }
