@@ -109,7 +109,7 @@ def search_tweets(
         query = clean_query  # Use simple query instead of complex OR
         params = {
             "query": query,
-            "max_results": min(count, 100),
+            "max_results": max(10, min(count, 100)),  # Twitter API requires min 10, max 100
             "tweet.fields": "created_at,public_metrics,author_id,text",
             "expansions": "author_id",
             "user.fields": "name,username,public_metrics"
@@ -168,7 +168,7 @@ def get_user_tweets(
             return {"success": False, "username": username, "count": 0, "tweets": [], "source": "twitter_api_v2", "error": "user_not_found"}
 
         params = {
-            "max_results": min(count, 100),
+            "max_results": max(10, min(count, 100)),  # Twitter API requires min 10, max 100
             "tweet.fields": "created_at,public_metrics,text"
         }
         data = twitter_api_get(f"/2/users/{uid}/tweets", params)
@@ -206,7 +206,7 @@ def search_mentions(
         query = f"@{handle.replace('@', '')}"
         params = {
             "query": query,
-            "max_results": min(count, 100),
+            "max_results": max(10, min(count, 100)),  # Twitter API requires min 10, max 100
             "tweet.fields": "created_at,public_metrics,author_id,text",
             "expansions": "author_id",
             "user.fields": "name,username,public_metrics"
