@@ -3227,13 +3227,14 @@ class EnhancedBackend {
         return;
       }
       
-      // Create a map of contract address to current market cap and holder count
+      // Create a map of contract address to current market cap, holder count, and liquidity
       const tokenDataMap = new Map();
       tokens.forEach(token => {
         if (token.contractAddress && token.jupiterData?.mcap) {
           tokenDataMap.set(token.contractAddress, {
             mcap: token.jupiterData.mcap,
-            holderCount: token.jupiterData.holderCount || 0
+            holderCount: token.jupiterData.holderCount || 0,
+            liquidity: token.jupiterData.liquidity || null
           });
         }
       });
@@ -3248,7 +3249,8 @@ class EnhancedBackend {
             call.userId, 
             call.contractAddress, 
             tokenData.mcap, 
-            tokenData.holderCount
+            tokenData.holderCount,
+            tokenData.liquidity
           );
           if (result.updated > 0) {
             updated += result.updated;
