@@ -406,6 +406,32 @@ class HybridDatabaseService {
   }
 
   /**
+   * Get all users (for priority queue calculations)
+   */
+  async getAllUsers() {
+    try {
+      const userIndex = await this.readJsonFile(this.getGlobalFile('users-index.json'), {});
+      const users = [];
+      
+      for (const userId in userIndex) {
+        try {
+          const profile = await this.getUserProfile(userId);
+          if (profile) {
+            users.push(profile);
+          }
+        } catch (error) {
+          console.error(`[🗃️ Database] ⚠️ Failed to load profile for user ${userId}:`, error.message);
+        }
+      }
+      
+      return users;
+    } catch (error) {
+      console.error('[🗃️ Database] ❌ Failed to get all users:', error.message);
+      return [];
+    }
+  }
+
+  /**
    * Get user watchlist
    */
   async getUserWatchlist(userId) {

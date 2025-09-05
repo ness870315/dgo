@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, ExternalLink, TrendingUp, TrendingDown } from 'lucide-react';
 import chartService from '../services/chartService';
+import priorityService from '../services/priorityService';
 
 // Helper functions
 function formatUSD(n) {
@@ -145,6 +146,10 @@ export default function DetailDrawer({ call, onClose }) {
     const contract = call?.token?.contractAddress || call?.contractAddress;
     const calledAt = call?.calledAt || call?.calledTs;
     if (call && contract && calledAt) {
+      // Boost priority for this token when DetailDrawer is opened
+      const tokenSymbol = call?.token?.symbol || call?.token?.name || 'Unknown';
+      priorityService.boostTokenOnView(contract, tokenSymbol);
+      
       setLoadingChart(true);
       chartService.getMcapChart(contract, calledAt)
         .then(response => {

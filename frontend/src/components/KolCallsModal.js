@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import kolCallsService from '../services/kolCallsService';
+import priorityService from '../services/priorityService';
 import DetailDrawer from './DetailDrawer';
 
 function formatUSD(n) {
@@ -78,6 +79,14 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
       });
 
       setRows(mapped);
+      
+      // Boost priority for all tokens in KOL calls for better real-time updates
+      mapped.forEach(call => {
+        if (call.contractAddress) {
+          priorityService.boostTokenOnView(call.contractAddress, call.token);
+        }
+      });
+      
     } catch (e) {
       setError('Failed to load KOL calls');
     } finally {
@@ -225,7 +234,13 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
                       <td className={`px-3 py-2 ${pnlClass}`}>{formatPct(d.pnl)}</td>
                       <td className="px-3 py-2 text-gray-300">
                         <div className="flex items-center gap-2">
-                          <button className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded" onClick={() => setSelectedCall(r)}>Open</button>
+                          <button className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded" onClick={() => {
+                            setSelectedCall(r);
+                            // Boost priority when DetailDrawer is opened for more real-time updates
+                            if (r.contractAddress) {
+                              priorityService.boostTokenOnView(r.contractAddress, r.token);
+                            }
+                          }}>Open</button>
                           <button className="px-2 py-1 text-xs bg-red-700 hover:bg-red-600 rounded" onClick={async () => {
                             try {
                               await kolCallsService.deleteCall(r.id);

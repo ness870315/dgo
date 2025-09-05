@@ -10,6 +10,7 @@ import path from 'path';
 import HypeSnapshotService from './hypeSnapshotService.js';
 import McapSnapshotService from './mcapSnapshotService.js';
 import BirdEyeTrendingService from './birdEyeTrendingService.js';
+import PriorityQueueService from './priorityQueueService.js';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -25,6 +26,7 @@ class EnhancedBackend {
     this.birdeyeService = new BirdEyeTrendingService();
     this.helioService = new HelioPaymentService();
     this.oauthXService = new OAuthXService();
+    this.priorityQueue = new PriorityQueueService();
     // Persistent cache path for tokens-cache.json under DATA_DIR
     try {
       const baseDir = this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo';
@@ -97,20 +99,40 @@ class EnhancedBackend {
     });
 
     // API status
-    this.app.get('/api/status', (req, res) => {
-      const status = this.tokenProcessor.getProcessingStatus();
-      res.json({
-        success: true,
-        backend: 'Enhanced Backend v3.0',
-        timestamp: new Date().toISOString(),
-        processing: status,
-        cache: {
-          totalTokens: status.processedCount,
-          queueLength: status.queueLength
-        },
-        dataDir: process.env.DATA_DIR || '/var/data/dgo',
-        notes: 'Ensure DATA_DIR points to a persistent disk to preserve user watchlists and calls.'
-      });
+    this.app.get('/api/status', async (req, res) => {
+      try {
+        const status = this.tokenProcessor.getProcessingStatus();
+        const tokens = await this.getTokensFromCache();
+        const priorityStats = this.priorityQueue.getPriorityStats(tokens);
+        
+        res.json({
+          success: true,
+          backend: 'Enhanced Backend v3.0 + Priority Queue',
+          timestamp: new Date().toISOString(),
+          processing: status,
+          cache: {
+            totalTokens: status.processedCount,
+            queueLength: status.queueLength
+          },
+          priorityQueue: {
+            highPriority: priorityStats.HIGH.count,
+            mediumPriority: priorityStats.MEDIUM.count,
+            lowPriority: priorityStats.LOW.count,
+            canMakeRequest: priorityStats.canMakeRequest,
+            requestsInLastMinute: priorityStats.requestsInLastMinute,
+            rateLimitBudget: `${priorityStats.requestsInLastMinute}/2.5 per minute`
+          },
+          dataDir: process.env.DATA_DIR || '/var/data/dgo',
+          notes: 'Priority queue provides near real-time updates for high-priority tokens while respecting rate limits.'
+        });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Status endpoint error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get status',
+          timestamp: new Date().toISOString()
+        });
+      }
     });
 
     // Get all tokens
@@ -952,6 +974,14 @@ class EnhancedBackend {
           calledAt: new Date().toISOString()
         });
 
+        // Boost token priority for 1 hour after KOL call
+        try {
+          await this.priorityQueue.boostTokenPriority(token.contractAddress, 3600000); // 1 hour
+          console.log(`[🛡️ Enhanced Backend] 🚀 Boosted ${token.symbol} to HIGH priority after KOL call`);
+        } catch (error) {
+          console.error('[🛡️ Enhanced Backend] ⚠️ Failed to boost priority after KOL call:', error.message);
+        }
+
         res.json({ success: true, call: saved });
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Add KOL call error:', error.message);
@@ -984,6 +1014,38 @@ class EnhancedBackend {
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Delete KOL call error:', error.message);
         res.status(500).json({ error: 'Failed to delete KOL call' });
+      }
+    });
+
+    // Priority boost endpoints for near real-time updates
+    this.app.post('/api/tokens/boost-priority', async (req, res) => {
+      try {
+        const { contractAddress, durationMs = 3600000 } = req.body; // Default 1 hour boost
+        
+        if (!contractAddress) {
+          return res.status(400).json({ error: 'Contract address is required' });
+        }
+        
+        await this.priorityQueue.boostTokenPriority(contractAddress, durationMs);
+        res.json({ 
+          success: true, 
+          message: `Token ${contractAddress.substring(0, 8)} boosted to HIGH priority`,
+          durationMinutes: Math.round(durationMs / 60000)
+        });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Priority boost error:', error.message);
+        res.status(500).json({ error: 'Failed to boost token priority' });
+      }
+    });
+
+    this.app.get('/api/tokens/priority-stats', async (req, res) => {
+      try {
+        const tokens = await this.getTokensFromCache();
+        const stats = this.priorityQueue.getPriorityStats(tokens);
+        res.json({ success: true, data: stats });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Priority stats error:', error.message);
+        res.status(500).json({ error: 'Failed to get priority stats' });
       }
     });
 
@@ -2342,15 +2404,15 @@ class EnhancedBackend {
       }
     }, 10 * 60 * 1000);
 
-    // Periodic Jupiter data update (every 5 minutes)
+    // Priority-based Jupiter data update (every 60 seconds - more frequent checks, but smart filtering)
     setInterval(async () => {
       try {
-        console.log('[🛡️ Enhanced Backend] 🚀 Periodic Jupiter data update...');
-        await this.updateJupiterData();
+        console.log('[🛡️ Enhanced Backend] 🎯 Priority-based Jupiter data update...');
+        await this.updateJupiterDataWithPriority();
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Jupiter update failed:', error);
+        console.error('[🛡️ Enhanced Backend] ❌ Priority Jupiter update failed:', error);
       }
-    }, 5 * 60 * 1000);
+    }, 60 * 1000); // Check every minute, but only update what needs updating based on priority
   }
 
   async getTokensFromCache() {
@@ -2732,6 +2794,219 @@ class EnhancedBackend {
       
     } catch (error) {
       console.error('[🛡️ Enhanced Backend] ❌ KOL calls update failed:', error);
+    }
+  }
+
+  async updateJupiterDataWithPriority() {
+    try {
+      console.log('[🛡️ Enhanced Backend] 🎯 Starting priority-based Jupiter data update...');
+      
+      // Load current tokens
+      const tokens = await this.getTokensFromCache();
+      if (!tokens || tokens.length === 0) {
+        console.log('[🛡️ Enhanced Backend] ⚠️ No tokens found for priority update');
+        return;
+      }
+      
+      // Get watchlist and KOL call tokens for priority calculation
+      const watchlistTokens = await this.getActiveWatchlistTokens();
+      const kolCallTokens = await this.getActiveKolCallTokens();
+      
+      // Get tokens that need updates based on priority system
+      const tokensToUpdate = this.priorityQueue.getTokensForUpdate(tokens, watchlistTokens, kolCallTokens);
+      
+      if (tokensToUpdate.length === 0) {
+        console.log('[🛡️ Enhanced Backend] ✅ No tokens need priority updates at this time');
+        return;
+      }
+      
+      console.log(`[🛡️ Enhanced Backend] 🔄 Priority update: ${tokensToUpdate.length} tokens selected`);
+      
+      // Log priority breakdown
+      const priorityBreakdown = tokensToUpdate.reduce((acc, token) => {
+        acc[token.priority] = (acc[token.priority] || 0) + 1;
+        return acc;
+      }, {});
+      console.log(`[🛡️ Enhanced Backend] 📊 Priority breakdown:`, priorityBreakdown);
+      
+      // Check rate limiting
+      if (!this.priorityQueue.canMakeRequest()) {
+        console.log('[🛡️ Enhanced Backend] ⏸️ Rate limit reached, skipping this cycle');
+        return;
+      }
+      
+      // Create old tokens map for change detection
+      const oldTokensMap = new Map();
+      tokens.forEach(token => {
+        if (token.contractAddress) {
+          oldTokensMap.set(token.contractAddress, { ...token });
+        }
+      });
+      
+      let updated = 0;
+      let errors = 0;
+      
+      // Process tokens in batches of 100 (Jupiter API limit)
+      const batchSize = 100;
+      for (let i = 0; i < tokensToUpdate.length; i += batchSize) {
+        const batch = tokensToUpdate.slice(i, i + batchSize);
+        const contractAddresses = batch.map(token => token.contractAddress);
+        
+        try {
+          console.log(`[🛡️ Enhanced Backend] 🚀 Priority batch ${Math.floor(i/batchSize) + 1}: ${batch.length} tokens (${batch.map(t => t.priority).join(', ')})...`);
+          
+          // Record request for rate limiting
+          this.priorityQueue.recordRequest();
+          
+          // Use Jupiter API batch endpoint
+          const response = await axios.get(`https://lite-api.jup.ag/tokens/v2/search?query=${contractAddresses.join(',')}`, {
+            timeout: 15000,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              'Accept': 'application/json'
+            }
+          });
+          
+          if (response.data && response.data.length > 0) {
+            // Create a map of contract address to Jupiter data
+            const jupiterMap = new Map();
+            response.data.forEach(jupiterToken => {
+              if (jupiterToken.id) {
+                jupiterMap.set(jupiterToken.id, jupiterToken);
+              }
+            });
+            
+            // Update tokens with their corresponding Jupiter data
+            const updatedTokensInBatch = [];
+            batch.forEach(token => {
+              const tokenIndex = tokens.findIndex(t => t.contractAddress === token.contractAddress);
+              if (tokenIndex !== -1 && jupiterMap.has(token.contractAddress)) {
+                const freshData = jupiterMap.get(token.contractAddress);
+                tokens[tokenIndex].jupiterData = freshData;
+                tokens[tokenIndex].jupiterTimestamp = new Date().toISOString();
+                updatedTokensInBatch.push(tokens[tokenIndex]);
+                updated++;
+                
+                // Log significant changes for high priority tokens
+                if (token.priority === 'HIGH') {
+                  const oldMcap = token.jupiterData?.mcap || 0;
+                  const newMcap = freshData.mcap || 0;
+                  if (oldMcap > 0 && Math.abs((newMcap - oldMcap) / oldMcap) > 0.02) { // 2% threshold for high priority
+                    const change = ((newMcap - oldMcap) / oldMcap * 100).toFixed(1);
+                    console.log(`[🛡️ Enhanced Backend] 📊 HIGH: ${token.symbol}: ${(oldMcap/1e6).toFixed(1)}M → ${(newMcap/1e6).toFixed(1)}M (${change}%)`);
+                  }
+                }
+                
+                console.log(`[🛡️ Enhanced Backend] ✅ ${token.priority}: ${token.symbol} (${token.contractAddress.substring(0, 8)})`);
+              } else if (tokenIndex !== -1) {
+                console.log(`[🛡️ Enhanced Backend] ⚠️ No Jupiter data for ${token.symbol} (${token.contractAddress.substring(0, 8)})`);
+                errors++;
+              }
+            });
+            
+            // Mark tokens as updated in priority queue
+            await this.priorityQueue.markTokensUpdated(updatedTokensInBatch, oldTokensMap);
+            
+          } else {
+            errors += batch.length;
+            console.log(`[🛡️ Enhanced Backend] ⚠️ No Jupiter data returned for batch of ${batch.length} tokens`);
+          }
+          
+        } catch (error) {
+          errors += batch.length;
+          console.log(`[🛡️ Enhanced Backend] ❌ Failed to update priority batch: ${error.message}`);
+        }
+        
+        // Rate limiting: wait 3 seconds between batches
+        if (i + batchSize < tokensToUpdate.length) {
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+      }
+      
+      // Save updated cache
+      if (updated > 0) {
+        await this.saveTokensToCache(tokens);
+        console.log(`[🛡️ Enhanced Backend] ✅ Priority update complete: ${updated} tokens updated, ${errors} errors`);
+        
+        // Update KOL calls with new market cap data
+        await this.updateKolCallsWithJupiterData(tokens);
+        
+        // Cleanup old priority data
+        await this.priorityQueue.cleanupOldPriorities(tokens);
+      } else {
+        console.log(`[🛡️ Enhanced Backend] ⚠️ No tokens updated: ${errors} errors`);
+      }
+      
+    } catch (error) {
+      console.error('[🛡️ Enhanced Backend] ❌ Priority Jupiter update failed:', error);
+    }
+  }
+
+  async getActiveWatchlistTokens() {
+    try {
+      // Get all unique contract addresses from all user watchlists
+      const watchlistTokens = new Set();
+      
+      // Get all users from the database
+      const allUsers = await this.oauthXService.db.getAllUsers();
+      
+      for (const user of allUsers) {
+        try {
+          const userWatchlist = await this.oauthXService.db.getUserWatchlist(user.id);
+          if (userWatchlist && userWatchlist.length > 0) {
+            userWatchlist.forEach(item => {
+              if (item.contractAddress) {
+                watchlistTokens.add(item.contractAddress);
+              }
+            });
+          }
+        } catch (error) {
+          console.error(`[🛡️ Enhanced Backend] ⚠️ Failed to get watchlist for user ${user.id}:`, error.message);
+        }
+      }
+      
+      const result = Array.from(watchlistTokens);
+      console.log(`[🛡️ Enhanced Backend] 📋 Found ${result.length} unique tokens in watchlists`);
+      return result;
+    } catch (error) {
+      console.error('[🛡️ Enhanced Backend] ❌ Failed to get watchlist tokens:', error);
+      return [];
+    }
+  }
+
+  async getActiveKolCallTokens() {
+    try {
+      // Get contract addresses from recent KOL calls (last 30 days)
+      const kolCallTokens = new Set();
+      const thirtyDaysAgo = new Date(Date.now() - (30 * 24 * 60 * 60 * 1000));
+      
+      // Get all users from the database
+      const allUsers = await this.oauthXService.db.getAllUsers();
+      
+      for (const user of allUsers) {
+        try {
+          const userKolCalls = await this.oauthXService.db.getKolCalls(user.id);
+          if (userKolCalls && userKolCalls.length > 0) {
+            userKolCalls.forEach(call => {
+              if (call.token?.contractAddress && call.calledAt) {
+                const callDate = new Date(call.calledAt);
+                if (callDate >= thirtyDaysAgo) {
+                  kolCallTokens.add(call.token.contractAddress);
+                }
+              }
+            });
+          }
+        } catch (error) {
+          console.error(`[🛡️ Enhanced Backend] ⚠️ Failed to get KOL calls for user ${user.id}:`, error.message);
+        }
+      }
+      
+      const result = Array.from(kolCallTokens);
+      console.log(`[🛡️ Enhanced Backend] 📞 Found ${result.length} unique tokens with recent KOL calls`);
+      return result;
+    } catch (error) {
+      console.error('[🛡️ Enhanced Backend] ❌ Failed to get KOL call tokens:', error);
+      return [];
     }
   }
 

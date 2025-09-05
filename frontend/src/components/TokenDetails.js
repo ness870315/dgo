@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Twitter, MessageCircle, ExternalLink, Star, Flame } from 'lucide-react';
 import kolCallsService from '../services/kolCallsService';
 import watchlistService from '../services/watchlistService';
+import priorityService from '../services/priorityService';
 import { useAuth } from '../contexts/AuthContext';
 
 const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
@@ -51,6 +52,11 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
     };
 
     checkWatchlistStatus();
+    
+    // Boost token priority when viewed
+    if (token?.contractAddress) {
+      priorityService.boostTokenOnView(token.contractAddress, token.symbol);
+    }
   }, [token]);
 
   // Check for pending fuel payment on modal open
@@ -137,6 +143,11 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
         const local = JSON.parse(localStorage.getItem('watchlist') || '[]');
         local.push(payload);
         localStorage.setItem('watchlist', JSON.stringify(local));
+        
+        // Boost token priority when added to watchlist
+        if (token.contractAddress) {
+          priorityService.boostTokenOnWatchlist(token.contractAddress, token.symbol);
+        }
       } else {
         await watchlistService.removeFromWatchlist(token.symbol, token.contractAddress);
         // Update local fallback

@@ -3,6 +3,7 @@ import { BarChart3, Star, TrendingUp, Activity, Wallet, Users, Calendar, Award, 
 import { useAuth } from '../contexts/AuthContext';
 import TokenDetails from './TokenDetails';
 import hypeService from '../services/hypeService';
+import priorityService from '../services/priorityService';
 import KolCallsModal from './KolCallsModal';
 
 const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigateToUpdateToken, onNavigateToPremium }) => {
@@ -278,6 +279,12 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                     key={`${token.contractAddress || token.symbol}-${index}`}
                     onClick={async () => {
                       setSelectedHypeToken(token);
+                      
+                      // Boost priority when hype chart is viewed from inline grid
+                      if (token.contractAddress) {
+                        priorityService.boostTokenOnView(token.contractAddress, token.symbol);
+                      }
+                      
                       try {
                         const res = await hypeService.getHype(token.contractAddress, hypeRange);
                         setHypeSeries(res.data || []);
@@ -507,6 +514,12 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                       key={index}
                       onClick={async () => {
                         setSelectedHypeToken(token);
+                        
+                        // Boost priority when hype chart is viewed for more real-time updates
+                        if (token.contractAddress) {
+                          priorityService.boostTokenOnView(token.contractAddress, token.symbol);
+                        }
+                        
                         try {
                           const res = await hypeService.getHype(token.contractAddress, hypeRange);
                           setHypeSeries(res.data || []);
@@ -553,6 +566,12 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                     key={r}
                     onClick={async () => {
                       setHypeRange(r);
+                      
+                      // Boost priority when hype range is changed for more real-time updates
+                      if (selectedHypeToken?.contractAddress) {
+                        priorityService.boostTokenOnView(selectedHypeToken.contractAddress, selectedHypeToken.symbol);
+                      }
+                      
                       try {
                         const res = await hypeService.getHype(selectedHypeToken.contractAddress, r);
                         setHypeSeries(res.data || []);
