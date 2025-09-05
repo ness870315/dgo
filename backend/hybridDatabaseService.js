@@ -363,6 +363,54 @@ class HybridDatabaseService {
   }
 
   /**
+   * Referral registry: data/global/referral-codes.json
+   * Structure: { [code]: { ownerUserId, uses, maxUses, createdAt, lastUsedAt } }
+   */
+  async getReferralRegistry() {
+    const file = this.getGlobalFile('referral-codes.json');
+    return await this.readJsonFile(file, {});
+  }
+
+  async setReferralRegistry(registry) {
+    const file = this.getGlobalFile('referral-codes.json');
+    await this.writeJsonFile(file, registry);
+  }
+
+  async ensureUserReferralCode(userId, code) {
+    const registry = await this.getReferralRegistry();
+    if (!registry[code]) {
+      registry[code] = {
+        ownerUserId: userId,
+        uses: 0,
+        maxUses: 30,
+        createdAt: new Date().toISOString(),
+        lastUsedAt: null
+      };
+      await this.setReferralRegistry(registry);
+    }
+  }
+
+  async markReferralUse(code, redeemerUserId) {
+    const registry = await this.getReferralRegistry();
+    if (!registry[code]) throw new Error('Referral code not found');
+    registry[code].uses = (registry[code].uses || 0) + 1;
+    registry[code].lastUsedAt = new Date().toISOString();
+    await this.setReferralRegistry(registry);
+
+    // Track per-user redemption to prevent multiple redemptions
+    const file = this.getUserFile(redeemerUserId, 'referral.json');
+    const data = await this.readJsonFile(file, { code: null, referredBy: null, referrals: [], earnings: 0 });
+    data.referredBy = code;
+    await this.writeJsonFile(file, data);
+  }
+
+  async getReferralRedemption(userId) {
+    const file = this.getUserFile(userId, 'referral.json');
+    const data = await this.readJsonFile(file, null);
+    return data?.referredBy || null;
+  }
+
+  /**
    * Get user's KOL calls
    */
   async getKolCalls(userId) {

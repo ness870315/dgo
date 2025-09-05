@@ -204,8 +204,29 @@ class EnhancedBackend {
         // Basic code validation: must be 6-12 uppercase alphanumerics
         const valid = /^[A-Z0-9]{6,12}$/.test(code);
         if (!valid) return res.status(400).json({ success: false, error: 'Invalid code format' });
+        
+        // Enforce rules:
+        // 1) User cannot redeem own code
+        // 2) A user can redeem only once
+        // 3) Each code can be used up to 30 times
+        
+        // Find owner of code from registry; lazily ensure owner's code on first login elsewhere
+        const registry = await this.oauthXService.db.getReferralRegistry();
+        const entry = registry[code];
+        if (!entry) {
+          return res.status(400).json({ success: false, error: 'Code not found' });
+        }
+        if (String(entry.ownerUserId) === String(user.id)) {
+          return res.status(400).json({ success: false, error: 'You cannot use your own code' });
+        }
+        if ((entry.uses || 0) >= (entry.maxUses || 30)) {
+          return res.status(400).json({ success: false, error: 'Code has reached its maximum uses' });
+        }
+        const already = await this.oauthXService.db.getReferralRedemption(user.id);
+        if (already) {
+          return res.status(400).json({ success: false, error: 'You have already redeemed a referral code' });
+        }
 
-        // TODO: Validate code against registry; for now accept any well-formed code
         const now = new Date();
         const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
         const result = await this.oauthXService.db.setPremiumStatus(user.id, {
@@ -216,6 +237,9 @@ class EnhancedBackend {
           expiresAt: expiresAt.toISOString(),
           durationDays: 30
         });
+
+        // Increment code usage and mark redemption
+        await this.oauthXService.db.markReferralUse(code, user.id);
 
         // Record earning as 0 (promo)
         await this.oauthXService.db.addEarning({
