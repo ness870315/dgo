@@ -23,8 +23,11 @@ async function fetchJupiterCategory(category, interval, attempt = 1) {
       headers: {
         'Accept': 'application/json, text/plain, */*',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125 Safari/537.36',
-        'Cache-Control': 'no-cache'
+        'Cache-Control': 'no-cache',
+        'Origin': 'https://jup.ag',
+        'Referer': 'https://jup.ag/'
       },
+      params: { limit: 100 },
       timeout: 20000,
       validateStatus: s => s >= 200 && s < 500
     });
@@ -65,7 +68,7 @@ function normalizeToken(t) {
     trades1h: t.trades1h ?? (t.trades && (t.trades['1h'] || t.trades.h1)) ?? null,
     change1hPct: t.change1hPct ?? (t.priceChange && (t.priceChange['1h'] || t.priceChange.h1)) ?? null,
     holders: t.holders ?? t.holderCount ?? null,
-    graduatedAt: t.graduatedAt || null
+    graduatedAt: t.graduatedAt || t.graduated_at || null
   };
 }
 
