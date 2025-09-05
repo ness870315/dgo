@@ -27,19 +27,35 @@ function classNames(...xs) {
 
 // Compute X multiple and PnL
 function derive(call) {
-  if (!call || !call.calledMc || !call.currentMC) {
+  if (!call || !call.calledMc) {
     return { x: 0, pnl: 0, athX: 0, timeToAth: "—", ddPct: 0 };
   }
   
-  const x = call.currentMC / call.calledMc;
-  const pnl = ((call.currentMC - call.calledMc) / call.calledMc) * 100;
-  const athX = call.athMC && call.athMC > 0 ? call.athMC / call.calledMc : x; // Use current if no ATH
+  const calledMc = call.calledMc || 0;
+  const currentMC = call.currentMC || calledMc;
+  const athMC = call.athMC || currentMC;
   
-  // time to ATH since call (mock for now)
-  const timeToAth = "—"; // Will be calculated when we have real data
+  const x = calledMc > 0 ? currentMC / calledMc : 0;
+  const pnl = calledMc > 0 ? ((currentMC - calledMc) / calledMc) * 100 : 0;
+  const athX = calledMc > 0 ? athMC / calledMc : 0;
   
-  // max drawdown (mock for now)
-  const ddPct = -5.2; // Will be calculated when we have sparkline data
+  // Calculate time to ATH
+  let timeToAth = "—";
+  if (call.athTimestamp && call.calledAt) {
+    try {
+      const athTime = new Date(call.athTimestamp).getTime();
+      const callTime = new Date(call.calledAt).getTime();
+      const diffMs = athTime - callTime;
+      if (diffMs > 0) {
+        timeToAth = humanizeMs(diffMs);
+      }
+    } catch (e) {
+      timeToAth = "—";
+    }
+  }
+  
+  // Use stored max drawdown percentage
+  const ddPct = call.maxDrawdownPct || 0;
   
   return { x, pnl, athX, timeToAth, ddPct };
 }

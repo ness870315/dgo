@@ -20,7 +20,7 @@ function formatPct(p) {
 
 function computeDerived(row) {
   const called = Number(row.calledMc || row.calledMC || 0);
-  const current = Number(row.currentMc || row.currentMC || 0);
+  const current = Number(row.currentMC || row.currentMc || called);
   const x = called > 0 ? current / called : 0;
   const pnl = called > 0 ? ((current - called) / called) * 100 : 0;
   return { x, pnl };
@@ -57,20 +57,7 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
       const callsRes = await kolCallsService.getCalls();
       const calls = Array.isArray(callsRes.calls) ? callsRes.calls : [];
 
-      // Fetch current tokens for current MC lookup
-      let tokenList = [];
-      try {
-        const r = await fetch(`${API_BASE}/api/tokens`);
-        const data = await r.json();
-        tokenList = Array.isArray(data) ? data : (data.tokens || []);
-      } catch (_) {}
-
-      const byCa = new Map(tokenList.filter(t => t.contractAddress).map(t => [t.contractAddress.toLowerCase(), t]));
-
       const mapped = calls.map(c => {
-        const ca = c.token?.contractAddress?.toLowerCase();
-        const t = ca ? byCa.get(ca) : undefined;
-        const currentMC = t?.jupiterData?.mcap || t?.marketCap || 0;
         const calledAtRaw = c.calledAt || c.calledTs || c.createdAt;
         const calledTs = new Date(calledAtRaw || Date.now()).getTime();
         return {
@@ -79,8 +66,13 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
           name: c.token?.name || c.token?.symbol || 'Unknown',
           calledTs,
           calledMC: Number(c.calledMc || c.calledMC || 0),
-          currentMC,
-          contractAddress: c.token?.contractAddress || ''
+          currentMC: Number(c.currentMC || c.calledMc || c.calledMC || 0),
+          contractAddress: c.token?.contractAddress || '',
+          athMC: c.athMC,
+          athTimestamp: c.athTimestamp,
+          maxDrawdownPct: c.maxDrawdownPct,
+          peakMC: c.peakMC,
+          lastUpdated: c.lastUpdated
         };
       });
 

@@ -941,21 +941,7 @@ class EnhancedBackend {
         const user = await this.oauthXService.getUserBySession(sessionId);
         if (!user) return res.status(401).json({ error: 'Invalid session' });
         const calls = await this.oauthXService.db.getKolCalls(user.id);
-        // Enrich with current MC from Jupiter for accuracy
-        const enriched = await Promise.all((calls || []).map(async (c) => {
-          try {
-            const ca = c?.token?.contractAddress;
-            let currentMC = 0;
-            if (ca) {
-              const j = await this.tokenProcessor.jupiterService.getTokenDetails(ca);
-              currentMC = Number(j?.mcap || j?.fdv || 0) || 0;
-            }
-            return { ...c, currentMC };
-          } catch (_) {
-            return { ...c, currentMC: 0 };
-          }
-        }));
-        res.json({ success: true, calls: enriched });
+        res.json({ success: true, calls: calls || [] });
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Get KOL calls error:', error.message);
         res.status(500).json({ error: 'Failed to fetch KOL calls' });
@@ -2626,12 +2612,62 @@ class EnhancedBackend {
         const cachePath = path.join(__dirname, 'cache', 'tokens-cache.json');
         await fs.writeFile(cachePath, JSON.stringify(tokens, null, 2));
         console.log(`[🛡️ Enhanced Backend] ✅ Jupiter update complete: ${updated} tokens updated, ${errors} errors`);
+        
+        // Update KOL calls with new market cap data
+        await this.updateKolCallsWithJupiterData(tokens);
       } else {
         console.log(`[🛡️ Enhanced Backend] ⚠️ No tokens updated: ${errors} errors`);
       }
       
     } catch (error) {
       console.error('[🛡️ Enhanced Backend] ❌ Jupiter update failed:', error);
+    }
+  }
+
+  async updateKolCallsWithJupiterData(tokens) {
+    try {
+      console.log('[🛡️ Enhanced Backend] 🎯 Updating KOL calls with fresh Jupiter data...');
+      
+      // Get all KOL calls that need updates
+      const callsToUpdate = await this.oauthXService.db.getAllKolCallsForMCUpdate();
+      if (callsToUpdate.length === 0) {
+        console.log('[🛡️ Enhanced Backend] ✅ No KOL calls to update');
+        return;
+      }
+      
+      // Create a map of contract address to current market cap
+      const mcapMap = new Map();
+      tokens.forEach(token => {
+        if (token.contractAddress && token.jupiterData?.mcap) {
+          mcapMap.set(token.contractAddress, token.jupiterData.mcap);
+        }
+      });
+      
+      let updated = 0;
+      const userUpdates = new Map(); // Track updates per user
+      
+      for (const call of callsToUpdate) {
+        const currentMC = mcapMap.get(call.contractAddress);
+        if (currentMC !== undefined) {
+          const result = await this.oauthXService.db.updateKolCallMC(call.userId, call.contractAddress, currentMC);
+          if (result.updated > 0) {
+            updated += result.updated;
+            userUpdates.set(call.userId, (userUpdates.get(call.userId) || 0) + result.updated);
+          }
+        }
+      }
+      
+      if (updated > 0) {
+        console.log(`[🛡️ Enhanced Backend] ✅ Updated ${updated} KOL calls across ${userUpdates.size} users`);
+        for (const [userId, count] of userUpdates) {
+          console.log(`[🛡️ Enhanced Backend]    User ${userId}: ${count} calls updated`);
+        }
+      } else {
+        console.log('[🛡️ Enhanced Backend] ⚠️ No KOL calls updated (no matching tokens with fresh data)');
+      }
+      
+    } catch (error) {
+      console.error('[🛡️ Enhanced Backend] ❌ KOL calls update failed:', error);
     }
   }
 

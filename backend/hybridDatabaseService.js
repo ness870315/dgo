@@ -285,6 +285,11 @@ class HybridDatabaseService {
     const toSave = {
       id: crypto.randomUUID(),
       ...call,
+      // Initialize tracking fields
+      athMC: call.calledMc || 0, // ATH starts at called MC
+      athTimestamp: call.calledAt || new Date().toISOString(),
+      maxDrawdownPct: 0, // No drawdown at start
+      peakMC: call.calledMc || 0, // Rolling peak starts at called MC
       createdAt: new Date().toISOString()
     };
     calls.push(toSave);
@@ -302,6 +307,74 @@ class HybridDatabaseService {
     const filtered = (calls || []).filter(c => c.id !== callId);
     await this.writeJsonFile(file, filtered);
     return { removed: (calls || []).length - filtered.length };
+  }
+
+  /**
+   * Update KOL call with new market cap data (for ATH and drawdown tracking)
+   */
+  async updateKolCallMC(userId, contractAddress, currentMC) {
+    await this.ensureUserDir(userId);
+    const file = this.getUserFile(userId, 'kol-calls.json');
+    const calls = await this.readJsonFile(file, []);
+    let updated = 0;
+
+    calls.forEach(call => {
+      if (call.token?.contractAddress === contractAddress) {
+        const oldCurrentMC = call.currentMC || call.calledMc || 0;
+        call.currentMC = currentMC;
+        call.lastUpdated = new Date().toISOString();
+
+        // Update ATH if current MC is higher
+        if (currentMC > (call.athMC || 0)) {
+          call.athMC = currentMC;
+          call.athTimestamp = new Date().toISOString();
+        }
+
+        // Update rolling peak for drawdown calculation
+        const currentPeak = Math.max(call.peakMC || call.calledMc || 0, currentMC);
+        call.peakMC = currentPeak;
+
+        // Calculate max drawdown from rolling peak
+        if (currentPeak > 0) {
+          const currentDrawdownPct = ((currentMC - currentPeak) / currentPeak) * 100;
+          // Max drawdown is the worst (most negative) drawdown we've seen
+          call.maxDrawdownPct = Math.min(call.maxDrawdownPct || 0, currentDrawdownPct);
+        }
+
+        updated++;
+      }
+    });
+
+    if (updated > 0) {
+      await this.writeJsonFile(file, calls);
+    }
+
+    return { updated };
+  }
+
+  /**
+   * Get all KOL calls that need MC updates (have contract addresses)
+   */
+  async getAllKolCallsForMCUpdate() {
+    const indexFile = this.getGlobalFile('users-index.json');
+    const userIndex = await this.readJsonFile(indexFile, {});
+    const callsToUpdate = [];
+
+    for (const userId of Object.keys(userIndex)) {
+      const calls = await this.getKolCalls(userId);
+      calls.forEach(call => {
+        if (call.token?.contractAddress) {
+          callsToUpdate.push({
+            userId,
+            callId: call.id,
+            contractAddress: call.token.contractAddress,
+            symbol: call.token.symbol || 'UNKNOWN'
+          });
+        }
+      });
+    }
+
+    return callsToUpdate;
   }
 
   /**
