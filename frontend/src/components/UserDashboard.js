@@ -252,34 +252,7 @@ const UserDashboard = () => {
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* KOL Calls */}
-          <div className="bg-dark-card border border-gray-700 rounded-lg p-6">
-            <div className="flex items-center space-x-2 mb-4">
-              <Activity size={20} className="text-blue-400" />
-              <h2 className="text-xl font-semibold text-white">KOL Calls</h2>
-            </div>
-            <div className="space-y-4">
-              {dashboardData.kolCalls.length > 0 ? (
-                dashboardData.kolCalls.map((call, index) => (
-                  <div key={index} className="flex items-center space-x-3 p-3 bg-gray-800/50 rounded-lg">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                    <div>
-                      <p className="text-white text-sm">{call.description}</p>
-                      <p className="text-gray-400 text-xs">{call.timestamp}</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <Activity size={48} className="text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">No KOL calls yet</p>
-                  <p className="text-gray-500 text-sm">KOL calls will appear here when available</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Hype over Time Card (separate box under KOL Calls) */}
+          {/* Hype over Time - TOP LEFT */}
           <div className="bg-dark-card border border-gray-700 rounded-lg p-6">
             <div className="flex items-center space-x-2 mb-4">
               <BarChart3 size={20} className="text-blue-400" />
@@ -320,23 +293,7 @@ const UserDashboard = () => {
             </div>
           </div>
 
-          {/* KOL Calls Card */}
-          <div className="bg-dark-card border border-gray-700 rounded-lg p-6">
-            <div className="flex items-center space-x-2 mb-4">
-              <Activity size={20} className="text-green-400" />
-              <h2 className="text-xl font-semibold text-white">KOL Calls</h2>
-            </div>
-            <p className="text-gray-400 text-sm mb-4">Your recorded calls with performance metrics.</p>
-            {/* Inline KOL Calls table */}
-            <KolCallsModal open asInline onClose={() => {}} onOpenToken={(row) => {
-              const tokenMatch = dashboardData.watchlist.find(t => (t.contractAddress && row.contractAddress) && t.contractAddress.toLowerCase() === row.contractAddress.toLowerCase());
-              if (tokenMatch) {
-                setSelectedToken(tokenMatch);
-              }
-            }} />
-          </div>
-
-          {/* KOL Leaderboard */}
+          {/* KOL Leaderboard - TOP RIGHT */}
           <div className="bg-dark-card border border-gray-700 rounded-lg p-6">
             <div className="flex items-center space-x-2 mb-4">
               <BarChart3 size={20} className="text-green-400" />
@@ -369,6 +326,21 @@ const UserDashboard = () => {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* KOL Calls - BELOW ROW */}
+          <div className="bg-dark-card border border-gray-700 rounded-lg p-6 lg:col-span-2">
+            <div className="flex items-center space-x-2 mb-4">
+              <Activity size={20} className="text-green-400" />
+              <h2 className="text-xl font-semibold text-white">KOL Calls</h2>
+            </div>
+            <p className="text-gray-400 text-sm mb-4">Your recorded calls with performance metrics.</p>
+            <KolCallsModal open asInline onClose={() => {}} onOpenToken={(row) => {
+              const tokenMatch = dashboardData.watchlist.find(t => (t.contractAddress && row.contractAddress) && t.contractAddress.toLowerCase() === row.contractAddress.toLowerCase());
+              if (tokenMatch) {
+                setSelectedToken(tokenMatch);
+              }
+            }} />
           </div>
 
 
