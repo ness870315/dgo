@@ -65,8 +65,8 @@ function normalizeToken(t) {
   return {
     symbol: (t.symbol || '').toUpperCase(),
     name: t.name || t.symbol || 'Unknown',
-    contractAddress: t.contractAddress || t.address || t.mint || null,
-    price: t.price ?? t.uiPrice ?? t.currentPrice ?? t.priceUsd ?? null,
+    contractAddress: t.id || t.contractAddress || t.address || t.mint || null,
+    price: t.usdPrice ?? t.price ?? t.uiPrice ?? t.currentPrice ?? t.priceUsd ?? null,
     mcap: t.mcap ?? t.marketCap ?? null,
     liquidity: t.liquidity ?? t.liq ?? null,
     volume1h: t.volume1h ?? (t.volume && (t.volume['1h'] || t.volume.h1)) ?? null,
