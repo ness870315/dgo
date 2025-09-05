@@ -95,8 +95,13 @@ function ChainPill({ chain = "sol" }) {
 
 // Stat component
 function Stat({ label, value, hint, good, tooltip }) {
+  const [hover, setHover] = useState(false);
   return (
-    <div className="flex flex-col gap-1 p-3 rounded-2xl bg-white/5 border border-white/10" title={tooltip || undefined}>
+    <div
+      className="relative flex flex-col gap-1 p-3 rounded-2xl bg-white/5 border border-white/10"
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
       <div className="text-xs text-white/60">{label}</div>
       <div className={classNames(
         "text-lg font-semibold", 
@@ -107,6 +112,14 @@ function Stat({ label, value, hint, good, tooltip }) {
         {value}
       </div>
       {hint && <div className="text-[11px] text-white/50">{hint}</div>}
+      {tooltip && hover && (
+        <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-50">
+          <div className="text-xs leading-tight">
+            <span className="font-semibold text-white">{label}:</span>
+            <span className="text-gray-300 ml-1">{tooltip}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
