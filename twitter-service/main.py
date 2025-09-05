@@ -78,6 +78,17 @@ def health_check():
         "timestamp": datetime.now().isoformat()
     }
 
+@app.get("/debug")
+def debug_check():
+    """Debug endpoint to check Bearer token details"""
+    return {
+        "bearer_present": bool(TW_BEARER),
+        "bearer_length": len(TW_BEARER) if TW_BEARER else 0,
+        "bearer_starts_with": TW_BEARER[:20] + "..." if TW_BEARER and len(TW_BEARER) > 20 else TW_BEARER,
+        "bearer_ends_with": "..." + TW_BEARER[-10:] if TW_BEARER and len(TW_BEARER) > 10 else TW_BEARER,
+        "timestamp": datetime.now().isoformat()
+    }
+
 @app.get("/api/twitter/search")
 def search_tweets(
     q: str = Query(..., description="Search query"),
