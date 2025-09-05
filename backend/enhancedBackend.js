@@ -193,6 +193,47 @@ class EnhancedBackend {
       }
     });
 
+    // Redeem referral code for 30 days premium
+    this.app.post('/api/user/premium/redeem', async (req, res) => {
+      try {
+        const { sessionId, code } = req.body;
+        if (!sessionId || !code) return res.status(400).json({ success: false, error: 'Missing sessionId or code' });
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) return res.status(401).json({ success: false, error: 'Invalid session' });
+
+        // Basic code validation: must be 6-12 uppercase alphanumerics
+        const valid = /^[A-Z0-9]{6,12}$/.test(code);
+        if (!valid) return res.status(400).json({ success: false, error: 'Invalid code format' });
+
+        // TODO: Validate code against registry; for now accept any well-formed code
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+        const result = await this.oauthXService.db.setPremiumStatus(user.id, {
+          isPremium: true,
+          subscriptionType: 'referral_30d',
+          updatedAt: now.toISOString(),
+          lastActivatedAt: now.toISOString(),
+          expiresAt: expiresAt.toISOString(),
+          durationDays: 30
+        });
+
+        // Record earning as 0 (promo)
+        await this.oauthXService.db.addEarning({
+          type: 'premium',
+          category: 'referral',
+          amount: 0,
+          currency: 'USD',
+          userId: user.id,
+          meta: { code }
+        });
+
+        res.json({ success: true, premium: result });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Redeem code failed:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to redeem code' });
+      }
+    });
+
     // Admin: Users stats and list
     this.app.get('/api/admin/users/stats', async (req, res) => {
       try {

@@ -6,6 +6,8 @@ export default function PremiumPage({ onBack, headerAuth }) {
   const containerRef = useRef(null);
   const [statusMsg, setStatusMsg] = useState('');
   const [isInitializing, setIsInitializing] = useState(false);
+  const [referral, setReferral] = useState('');
+  const [refStatus, setRefStatus] = useState('');
 
   // Ensure Helio script is present once
   useEffect(() => {
@@ -120,15 +122,54 @@ export default function PremiumPage({ onBack, headerAuth }) {
           </div>
         </div>
 
-        <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-3">Upgrade to Premium</h3>
-          <p className="text-gray-300 text-sm mb-4">Complete your secure payment below. Your account will be upgraded automatically after success.</p>
-          <div className="flex justify-center">
-            <div id="helioCheckoutPremium" ref={containerRef} className="w-full max-w-xl" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Helio Payment */}
+          <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
+            <h3 className="text-lg font-semibold text-white mb-3">Upgrade to Premium</h3>
+            <p className="text-gray-300 text-sm mb-4">Complete your secure payment below. Your account will be upgraded automatically after success.</p>
+            <div className="flex justify-center">
+              <div id="helioCheckoutPremium" ref={containerRef} className="w-full max-w-xl" />
+            </div>
+            {statusMsg && (
+              <div className="mt-4 text-sm text-gray-300">{statusMsg}</div>
+            )}
           </div>
-          {statusMsg && (
-            <div className="mt-4 text-sm text-gray-300">{statusMsg}</div>
-          )}
+
+          {/* Referral Code Redeem */}
+          <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
+            <h3 className="text-lg font-semibold text-white mb-3">Have a Referral Code?</h3>
+            <p className="text-gray-300 text-sm mb-4">Redeem a valid code to get 30 days of Premium for free.</p>
+            <div className="flex gap-2">
+              <input
+                value={referral}
+                onChange={(e) => setReferral(e.target.value.toUpperCase())}
+                placeholder="ENTER CODE"
+                className="flex-1 bg-transparent border border-gray-700 rounded-md px-3 py-2 text-white placeholder-gray-500"
+              />
+              <button
+                onClick={async () => {
+                  try {
+                    setRefStatus('Processing...');
+                    const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+                    const resp = await fetch(`${apiBase}/api/user/premium/redeem`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ sessionId, code: referral })
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok || !data.success) throw new Error(data.error || `HTTP ${resp.status}`);
+                    setRefStatus('✅ Code applied! Premium active for 30 days.');
+                  } catch (e) {
+                    setRefStatus(`❌ ${e.message}`);
+                  }
+                }}
+                className="px-4 py-2 bg-solana-purple hover:bg-purple-700 text-white rounded-md"
+              >
+                Redeem
+              </button>
+            </div>
+            {refStatus && <div className="mt-3 text-sm text-gray-300">{refStatus}</div>}
+          </div>
         </div>
       </div>
     </div>
