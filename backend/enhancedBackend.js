@@ -138,20 +138,35 @@ class EnhancedBackend {
     // Activate Premium for the authenticated user
     this.app.post('/api/user/premium/activate', async (req, res) => {
       try {
-        const { sessionId, receipt } = req.body;
+        const { sessionId, receipt, paylinkId: clientPaylinkId } = req.body;
         if (!sessionId) return res.status(400).json({ success: false, error: 'Missing sessionId' });
         const user = await this.oauthXService.getUserBySession(sessionId);
         if (!user) return res.status(401).json({ success: false, error: 'Invalid session' });
 
-        // Persist premium status (1 year default expiry for now)
-        const expiresAt = new Date();
-        expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+        // Determine plan by paylinkId (monthly vs yearly)
+        const envMonthly = process.env.HELIO_MONTHLY_PAYLINK_ID || '68b8ed60cf71471addc8adb6';
+        const envYearly = process.env.HELIO_YEARLY_PAYLINK_ID || null;
+        const receiptPaylinkId = receipt?.paylinkId || receipt?.paylink?.id || clientPaylinkId || null;
+
+        let planType = 'monthly';
+        let durationDays = 30;
+        if (envYearly && receiptPaylinkId && String(receiptPaylinkId) === String(envYearly)) {
+          planType = 'yearly';
+          durationDays = 365; // Yearly plan (assumed 20% discount handled by Helio)
+        }
+
+        // Persist premium status for the selected duration
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
         const result = await this.oauthXService.db.setPremiumStatus(user.id, {
           isPremium: true,
-          subscriptionType: 'helio',
+          subscriptionType: `helio_${planType}`,
           receipt: receipt || null,
-          updatedAt: new Date().toISOString(),
-          expiresAt: expiresAt.toISOString()
+          paylinkId: receiptPaylinkId || null,
+          updatedAt: now.toISOString(),
+          lastActivatedAt: now.toISOString(),
+          expiresAt: expiresAt.toISOString(),
+          durationDays
         });
 
         res.json({ success: true, premium: result });

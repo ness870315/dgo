@@ -55,7 +55,7 @@ export default function PremiumPage({ onBack, headerAuth }) {
               const resp = await fetch(`${apiBase}/api/user/premium/activate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sessionId, receipt: event })
+                body: JSON.stringify({ sessionId, receipt: event, paylinkId: '68b8ed60cf71471addc8adb6' })
               });
               if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
               const data = await resp.json();
