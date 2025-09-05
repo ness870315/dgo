@@ -916,6 +916,7 @@ class EnhancedBackend {
         const jData = await this.tokenProcessor.jupiterService.getTokenDetails(token.contractAddress);
         const calledMC = Number(jData?.mcap || jData?.fdv || 0) || 0;
         const price = Number(jData?.usdPrice || 0) || 0;
+        const holderCount = Number(jData?.holderCount || 0) || 0;
 
         const saved = await this.oauthXService.db.addKolCall(user.id, {
           token: {
@@ -924,7 +925,9 @@ class EnhancedBackend {
             contractAddress: token.contractAddress
           },
           calledMc: calledMC,
+          currentMC: calledMC, // Same as called MC at time of call
           calledPrice: price,
+          holderCount: holderCount,
           calledAt: new Date().toISOString()
         });
 
@@ -2635,11 +2638,14 @@ class EnhancedBackend {
         return;
       }
       
-      // Create a map of contract address to current market cap
-      const mcapMap = new Map();
+      // Create a map of contract address to current market cap and holder count
+      const tokenDataMap = new Map();
       tokens.forEach(token => {
         if (token.contractAddress && token.jupiterData?.mcap) {
-          mcapMap.set(token.contractAddress, token.jupiterData.mcap);
+          tokenDataMap.set(token.contractAddress, {
+            mcap: token.jupiterData.mcap,
+            holderCount: token.jupiterData.holderCount || 0
+          });
         }
       });
       
@@ -2647,9 +2653,14 @@ class EnhancedBackend {
       const userUpdates = new Map(); // Track updates per user
       
       for (const call of callsToUpdate) {
-        const currentMC = mcapMap.get(call.contractAddress);
-        if (currentMC !== undefined) {
-          const result = await this.oauthXService.db.updateKolCallMC(call.userId, call.contractAddress, currentMC);
+        const tokenData = tokenDataMap.get(call.contractAddress);
+        if (tokenData) {
+          const result = await this.oauthXService.db.updateKolCallMC(
+            call.userId, 
+            call.contractAddress, 
+            tokenData.mcap, 
+            tokenData.holderCount
+          );
           if (result.updated > 0) {
             updated += result.updated;
             userUpdates.set(call.userId, (userUpdates.get(call.userId) || 0) + result.updated);

@@ -72,6 +72,7 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
           athTimestamp: c.athTimestamp,
           maxDrawdownPct: c.maxDrawdownPct,
           peakMC: c.peakMC,
+          holderCount: c.holderCount,
           lastUpdated: c.lastUpdated
         };
       });

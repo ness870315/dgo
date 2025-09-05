@@ -312,7 +312,7 @@ class HybridDatabaseService {
   /**
    * Update KOL call with new market cap data (for ATH and drawdown tracking)
    */
-  async updateKolCallMC(userId, contractAddress, currentMC) {
+  async updateKolCallMC(userId, contractAddress, currentMC, holderCount = null) {
     await this.ensureUserDir(userId);
     const file = this.getUserFile(userId, 'kol-calls.json');
     const calls = await this.readJsonFile(file, []);
@@ -323,6 +323,11 @@ class HybridDatabaseService {
         const oldCurrentMC = call.currentMC || call.calledMc || 0;
         call.currentMC = currentMC;
         call.lastUpdated = new Date().toISOString();
+
+        // Update holder count if provided
+        if (holderCount !== null && holderCount !== undefined) {
+          call.holderCount = holderCount;
+        }
 
         // Update ATH if current MC is higher
         if (currentMC > (call.athMC || 0)) {

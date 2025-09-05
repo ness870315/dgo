@@ -211,7 +211,7 @@ export default function DetailDrawer({ call, onClose }) {
             <Stat label="X Multiple" value={`${x.toFixed(2)}×`} good={x >= 1} />
             <Stat label="Max Drawdown" value={formatPct(ddPct)} good={false} />
             <Stat label="Liquidity" value={formatUSD(0)} hint="Coming soon" />
-            <Stat label="Holders" value="—" hint="Coming soon" />
+            <Stat label="Holders" value={(call.holderCount || 0).toLocaleString()} />
           </div>
 
           {/* Chart */}
