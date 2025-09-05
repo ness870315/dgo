@@ -411,6 +411,69 @@ class HybridDatabaseService {
   }
 
   /**
+   * Feature usage tracking for premium limits
+   * Structure: { kolCalls: { [month]: count }, hypeViews: { [month]: Set<contractAddress> } }
+   */
+  async getFeatureUsage(userId) {
+    const file = this.getUserFile(userId, 'feature-usage.json');
+    const data = await this.readJsonFile(file, { kolCalls: {}, hypeViews: {} });
+    
+    // Convert hypeViews arrays back to Sets for current month
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    if (data.hypeViews[currentMonth] && Array.isArray(data.hypeViews[currentMonth])) {
+      data.hypeViews[currentMonth] = new Set(data.hypeViews[currentMonth]);
+    }
+    
+    return data;
+  }
+
+  async setFeatureUsage(userId, usage) {
+    const file = this.getUserFile(userId, 'feature-usage.json');
+    
+    // Convert Sets to arrays for JSON serialization
+    const serializable = { ...usage };
+    Object.keys(serializable.hypeViews).forEach(month => {
+      if (serializable.hypeViews[month] instanceof Set) {
+        serializable.hypeViews[month] = Array.from(serializable.hypeViews[month]);
+      }
+    });
+    
+    await this.writeJsonFile(file, serializable);
+  }
+
+  async incrementKolCallUsage(userId) {
+    const usage = await this.getFeatureUsage(userId);
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    usage.kolCalls[currentMonth] = (usage.kolCalls[currentMonth] || 0) + 1;
+    await this.setFeatureUsage(userId, usage);
+    return usage.kolCalls[currentMonth];
+  }
+
+  async addHypeViewUsage(userId, contractAddress) {
+    const usage = await this.getFeatureUsage(userId);
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    if (!usage.hypeViews[currentMonth]) {
+      usage.hypeViews[currentMonth] = new Set();
+    }
+    usage.hypeViews[currentMonth].add(contractAddress);
+    await this.setFeatureUsage(userId, usage);
+    return usage.hypeViews[currentMonth].size;
+  }
+
+  async getKolCallsThisMonth(userId) {
+    const usage = await this.getFeatureUsage(userId);
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    return usage.kolCalls[currentMonth] || 0;
+  }
+
+  async getHypeViewsThisMonth(userId) {
+    const usage = await this.getFeatureUsage(userId);
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const views = usage.hypeViews[currentMonth];
+    return views ? (views instanceof Set ? views.size : views.length) : 0;
+  }
+
+  /**
    * Get user's KOL calls
    */
   async getKolCalls(userId) {

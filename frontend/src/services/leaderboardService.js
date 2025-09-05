@@ -1,13 +1,11 @@
-class HypeService {
+class LeaderboardService {
   constructor() {
     this.API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
   }
 
-  async getHype(contractAddress, range = '7d') {
-    if (!contractAddress) return { contract: '', range, data: [] };
+  async getLeaderboard() {
     const sessionId = localStorage.getItem('sessionId');
-    const url = `${this.API_BASE}/api/tokens/${encodeURIComponent(contractAddress)}/hype?range=${encodeURIComponent(range)}&sessionId=${encodeURIComponent(sessionId || '')}`;
-    const res = await fetch(url);
+    const res = await fetch(`${this.API_BASE}/api/leaderboard?sessionId=${encodeURIComponent(sessionId || '')}`);
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       let payload = {};
@@ -21,7 +19,5 @@ class HypeService {
   }
 }
 
-const hypeService = new HypeService();
-export default hypeService;
-
-
+const leaderboardService = new LeaderboardService();
+export default leaderboardService;

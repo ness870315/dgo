@@ -389,12 +389,20 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                     };
                     try {
                       await kolCallsService.addCall(payload);
-                      alert('✅ You’ve made your call… let’s see if you have what it takes to become the next KOL.');
+                      alert('✅ You\'ve made your call... let\'s see if you have what it takes to become the next KOL.');
                       setCallRecorded(true);
                     } catch (err) {
                       // @ts-ignore
                       if (err && err.code === 'already_called') {
                         alert('Come on chad! You already called this one!');
+                        return;
+                      }
+                      // @ts-ignore
+                      if (err && err.code === 'limit_exceeded') {
+                        const upgrade = window.confirm('🚀 ' + err.message + '\n\nWould you like to upgrade now?');
+                        if (upgrade && onNavigateToPremium) {
+                          onNavigateToPremium();
+                        }
                         return;
                       }
                       throw err;

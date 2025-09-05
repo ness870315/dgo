@@ -430,7 +430,27 @@ class EnhancedBackend {
     this.app.get('/api/tokens/:contract/hype', async (req, res) => {
       try {
         const { contract } = req.params;
-        const { range } = req.query; // 1d | 3d | 7d | 15d | 30d
+        const { range, sessionId } = req.query; // 1d | 3d | 7d | 15d | 30d
+        
+        // Check authentication for premium limits
+        if (sessionId) {
+          const user = await this.oauthXService.getUserBySession(sessionId);
+          if (user) {
+            const premiumStatus = await this.oauthXService.db.getPremiumStatus(user.id);
+            const isPremium = premiumStatus?.isPremium && new Date(premiumStatus.expiresAt) > new Date();
+            
+            if (!isPremium) {
+              const viewsThisMonth = await this.oauthXService.db.addHypeViewUsage(user.id, contract);
+              if (viewsThisMonth > 5) {
+                return res.status(403).json({ 
+                  error: 'limit_exceeded',
+                  message: 'Free users can only view hype charts for 5 different tokens per month. Upgrade to Premium for unlimited access!' 
+                });
+              }
+            }
+          }
+        }
+        
         const ranges = { '1d': 1, '3d': 3, '7d': 7, '15d': 15, '30d': 30 };
         const days = ranges[(range || '30d').toLowerCase()] || 30;
         const sinceMs = Date.now() - days * 24 * 60 * 60 * 1000;
@@ -1169,6 +1189,20 @@ class EnhancedBackend {
           }
         } catch (_) {}
 
+        // Check premium limits for free users
+        const premiumStatus = await this.oauthXService.db.getPremiumStatus(user.id);
+        const isPremium = premiumStatus?.isPremium && new Date(premiumStatus.expiresAt) > new Date();
+        
+        if (!isPremium) {
+          const callsThisMonth = await this.oauthXService.db.getKolCallsThisMonth(user.id);
+          if (callsThisMonth >= 1) {
+            return res.status(403).json({ 
+              error: 'limit_exceeded',
+              message: 'Free users can only make 1 call per month. Upgrade to Premium for unlimited calls!' 
+            });
+          }
+        }
+
         // Fresh Jupiter snapshot for called MC
         const jData = await this.tokenProcessor.jupiterService.getTokenDetails(token.contractAddress);
         const calledMC = Number(jData?.mcap || jData?.fdv || 0) || 0;
@@ -1187,6 +1221,11 @@ class EnhancedBackend {
           holderCount: holderCount,
           calledAt: new Date().toISOString()
         });
+
+        // Increment usage counter for free users
+        if (!isPremium) {
+          await this.oauthXService.db.incrementKolCallUsage(user.id);
+        }
 
         // Boost token priority for 1 hour after KOL call
         try {
@@ -1228,6 +1267,44 @@ class EnhancedBackend {
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Delete KOL call error:', error.message);
         res.status(500).json({ error: 'Failed to delete KOL call' });
+      }
+    });
+
+    // KOL Leaderboard (Premium only)
+    this.app.get('/api/leaderboard', async (req, res) => {
+      try {
+        const { sessionId } = req.query;
+        
+        if (!sessionId) {
+          return res.status(401).json({ error: 'Authentication required' });
+        }
+        
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) return res.status(401).json({ error: 'Invalid session' });
+        
+        // Check premium status
+        const premiumStatus = await this.oauthXService.db.getPremiumStatus(user.id);
+        const isPremium = premiumStatus?.isPremium && new Date(premiumStatus.expiresAt) > new Date();
+        
+        if (!isPremium) {
+          return res.status(403).json({ 
+            error: 'premium_required',
+            message: 'Leaderboard is a Premium feature. Upgrade to access KOL rankings!' 
+          });
+        }
+        
+        // TODO: Implement actual leaderboard logic
+        // For now, return mock data
+        const leaderboard = [
+          { rank: 1, username: 'CryptoKing', calls: 25, winRate: 85.2, totalPnL: 1250.5 },
+          { rank: 2, username: 'DegenLord', calls: 18, winRate: 78.9, totalPnL: 890.3 },
+          { rank: 3, username: 'MoonHunter', calls: 22, winRate: 72.7, totalPnL: 675.8 }
+        ];
+        
+        res.json({ success: true, leaderboard });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Leaderboard error:', error.message);
+        res.status(500).json({ error: 'Failed to fetch leaderboard' });
       }
     });
 

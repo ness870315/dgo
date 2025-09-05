@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import TokenDetails from './TokenDetails';
 import hypeService from '../services/hypeService';
 import priorityService from '../services/priorityService';
+import leaderboardService from '../services/leaderboardService';
 import KolCallsModal from './KolCallsModal';
 
 const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigateToUpdateToken, onNavigateToPremium }) => {
@@ -16,7 +17,9 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
     referralCode: '',
     kolCalls: [],
     kolLeaderboard: [],
-    watchlist: []
+    watchlist: [],
+    isPremium: false,
+    premiumExpiry: null
   });
   const [loading, setLoading] = useState(true);
   const [showWatchlistModal, setShowWatchlistModal] = useState(false);
@@ -52,6 +55,24 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         
         const entries = Array.isArray(watchlistData.watchlist) ? watchlistData.watchlist : [];
 
+        // Try to fetch leaderboard (premium feature)
+        let leaderboard = [];
+        let isPremium = false;
+        let premiumExpiry = null;
+        
+        try {
+          const leaderboardData = await leaderboardService.getLeaderboard();
+          leaderboard = leaderboardData.leaderboard || [];
+          isPremium = true; // If we got leaderboard data, user is premium
+        } catch (err) {
+          // @ts-ignore
+          if (err && err.code === 'premium_required') {
+            isPremium = false;
+          } else {
+            console.warn('Failed to fetch leaderboard:', err);
+          }
+        }
+
         setDashboardData({
           watchlistCount: entries.length,
           tokensListed: profileData.user?.stats?.tokensListed || 0,
@@ -59,8 +80,10 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
           tokensUpdated: profileData.user?.stats?.tokensUpdated || 0,
           referralCode: profileData.user?.referralCode || '',
           kolCalls: [], // TODO: Implement KOL calls
-          kolLeaderboard: [], // TODO: Implement KOL leaderboard
-          watchlist: entries
+          kolLeaderboard: leaderboard,
+          watchlist: entries,
+          isPremium: isPremium,
+          premiumExpiry: premiumExpiry
         });
       } else {
         console.error('❌ API calls failed:', {
@@ -79,7 +102,9 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
           referralCode: '',
           kolCalls: [],
           kolLeaderboard: [],
-          watchlist: []
+          watchlist: [],
+          isPremium: false,
+          premiumExpiry: null
         });
       }
     } catch (error) {
@@ -289,6 +314,14 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                         const res = await hypeService.getHype(token.contractAddress, hypeRange);
                         setHypeSeries(res.data || []);
                       } catch (e) {
+                        // @ts-ignore
+                        if (e && e.code === 'limit_exceeded') {
+                          const upgrade = window.confirm('🚀 ' + e.message + '\n\nWould you like to upgrade now?');
+                          if (upgrade && onNavigateToPremium) {
+                            onNavigateToPremium();
+                          }
+                          return;
+                        }
                         console.error('Hype fetch error:', e);
                         setHypeSeries([]);
                       }
@@ -340,23 +373,37 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
             <div className="flex items-center space-x-2 mb-4">
               <BarChart3 size={20} className="text-green-400" />
               <h2 className="text-xl font-semibold text-white">KOL Leaderboard</h2>
+              {!dashboardData.isPremium && (
+                <Crown size={16} className="text-yellow-400" title="Premium Feature" />
+              )}
             </div>
             <div className="space-y-4">
-              {dashboardData.kolLeaderboard.length > 0 ? (
+              {!dashboardData.isPremium ? (
+                <div className="text-center py-8">
+                  <Crown size={48} className="mx-auto text-yellow-400 mb-4" />
+                  <p className="text-gray-400 mb-4">Leaderboard is a Premium feature</p>
+                  <button
+                    onClick={onNavigateToPremium}
+                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all"
+                  >
+                    Upgrade to Premium
+                  </button>
+                </div>
+              ) : dashboardData.kolLeaderboard.length > 0 ? (
                 dashboardData.kolLeaderboard.map((kol, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                        <span className="text-white text-sm font-bold">{index + 1}</span>
+                        <span className="text-white text-sm font-bold">{kol.rank}</span>
                       </div>
                       <div>
-                        <p className="text-white font-medium">{kol.name}</p>
-                        <p className="text-gray-400 text-sm">{kol.username}</p>
+                        <p className="text-white font-medium">{kol.username}</p>
+                        <p className="text-gray-400 text-sm">{kol.calls} calls</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-green-400 font-semibold">{kol.score}</p>
-                      <p className="text-gray-400 text-sm">{kol.calls} calls</p>
+                      <p className="text-green-400 font-semibold">{kol.winRate}%</p>
+                      <p className="text-gray-400 text-sm">+${kol.totalPnL}</p>
                     </div>
                   </div>
                 ))
@@ -524,6 +571,14 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                           const res = await hypeService.getHype(token.contractAddress, hypeRange);
                           setHypeSeries(res.data || []);
                         } catch (e) {
+                          // @ts-ignore
+                          if (e && e.code === 'limit_exceeded') {
+                            const upgrade = window.confirm('🚀 ' + e.message + '\n\nWould you like to upgrade now?');
+                            if (upgrade && onNavigateToPremium) {
+                              onNavigateToPremium();
+                            }
+                            return;
+                          }
                           console.error('Hype fetch error:', e);
                           setHypeSeries([]);
                         }
@@ -576,6 +631,14 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                         const res = await hypeService.getHype(selectedHypeToken.contractAddress, r);
                         setHypeSeries(res.data || []);
                       } catch (e) {
+                        // @ts-ignore
+                        if (e && e.code === 'limit_exceeded') {
+                          const upgrade = window.confirm('🚀 ' + e.message + '\n\nWould you like to upgrade now?');
+                          if (upgrade && onNavigateToPremium) {
+                            onNavigateToPremium();
+                          }
+                          return;
+                        }
                         console.error('Hype fetch error:', e);
                         setHypeSeries([]);
                       }
