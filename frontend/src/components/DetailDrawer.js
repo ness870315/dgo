@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, ExternalLink, TrendingUp, TrendingDown } from 'lucide-react';
+import chartService from '../services/chartService';
 
 // Helper functions
 function formatUSD(n) {
@@ -136,27 +137,57 @@ function Sparkline({ data = [], width = 120, height = 32, color = "rgb(52,211,15
 
 // Main DetailDrawer component
 export default function DetailDrawer({ call, onClose }) {
+  const [chartData, setChartData] = useState(null);
+  const [loadingChart, setLoadingChart] = useState(false);
+  
+  // Load chart data when call changes
+  useEffect(() => {
+    if (call && call.token?.contractAddress && call.calledAt) {
+      setLoadingChart(true);
+      chartService.getMcapChart(call.token.contractAddress, call.calledAt)
+        .then(response => {
+          if (response.success) {
+            setChartData(response.data);
+          }
+        })
+        .catch(error => {
+          console.error('Failed to load chart data:', error);
+        })
+        .finally(() => {
+          setLoadingChart(false);
+        });
+    }
+  }, [call]);
+  
   if (!call) return null;
   
   const { x, pnl, athX, timeToAth, ddPct } = derive(call);
   
-  // Mock sparkline data - will be replaced with real data later
-  const mockSparkData = call.calledMc && call.currentMC ? 
-    [call.calledMc, call.calledMc * 1.1, call.calledMc * 0.9, call.currentMC] : 
-    [];
-
   // Build chart data for detail view
-  const series = mockSparkData.length > 0 ? mockSparkData : [100, 120, 90, 150]; // fallback
+  let series, callIndex, athIndex;
+  
+  if (chartData && chartData.snapshots && chartData.snapshots.length > 0) {
+    // Use real chart data
+    series = chartData.snapshots.map(s => s.mcap);
+    callIndex = chartData.callIndex;
+    athIndex = chartData.athIndex;
+  } else {
+    // Fallback to mock data
+    const mockSparkData = call.calledMc && call.currentMC ? 
+      [call.calledMc, call.calledMc * 1.1, call.calledMc * 0.9, call.currentMC] : 
+      [100, 120, 90, 150];
+    series = mockSparkData;
+    callIndex = 0;
+    athIndex = series.indexOf(Math.max(...series));
+  }
+  
   const min = Math.min(...series);
   const max = Math.max(...series);
   const w = 640;
   const h = 220;
-  const step = w / (series.length - 1);
+  const step = series.length > 1 ? w / (series.length - 1) : w;
   const norm = series.map((v) => (v - min) / (max - min || 1));
   const path = norm.map((v, i) => `${i === 0 ? "M" : "L"}${i * step},${h - v * (h - 2) - 1}`).join(" ");
-  
-  const callIndex = 0; // assume first point is at call
-  const athIndex = series.indexOf(Math.max(...series));
 
   return (
     <div className="fixed inset-0 z-50">
@@ -216,29 +247,51 @@ export default function DetailDrawer({ call, onClose }) {
 
           {/* Chart */}
           <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-            <div className="text-sm font-medium mb-3 text-white">Market Cap since call</div>
-            <svg width={w} height={h} className="max-w-full">
-              <defs>
-                <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="rgb(52,211,153)" stopOpacity="0.35" />
-                  <stop offset="100%" stopColor="rgb(52,211,153)" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              {/* area fill */}
-              <path d={`${path} L ${w},${h} L 0,${h} Z`} fill="url(#grad)" opacity={0.35} />
-              {/* line */}
-              <path d={path} fill="none" stroke="rgb(52,211,153)" strokeWidth={2} />
-              {/* call marker */}
-              <line x1={callIndex * step} x2={callIndex * step} y1={0} y2={h} stroke="rgba(255,255,255,0.2)" strokeDasharray="4 4" />
-              {/* ATH marker */}
-              {athIndex >= 0 && (
-                <g>
-                  <line x1={athIndex * step} x2={athIndex * step} y1={0} y2={h} stroke="rgba(255,255,255,0.2)" strokeDasharray="4 4" />
-                  <circle cx={athIndex * step} cy={h - norm[athIndex] * (h - 2) - 1} r={4} fill="rgb(52,211,153)" />
-                </g>
-              )}
-            </svg>
-            <div className="mt-2 text-xs text-white/60">Call (dashed line at left). ATH marker shows peak since call.</div>
+            <div className="text-sm font-medium mb-3 text-white flex items-center justify-between">
+              <span>Market Cap since call</span>
+              {loadingChart && <span className="text-xs text-gray-400">Loading chart data...</span>}
+            </div>
+            
+            {loadingChart ? (
+              <div className="flex items-center justify-center" style={{height: h}}>
+                <div className="text-gray-400 text-sm">Loading chart...</div>
+              </div>
+            ) : (
+              <svg width={w} height={h} className="max-w-full">
+                <defs>
+                  <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="rgb(52,211,153)" stopOpacity="0.35" />
+                    <stop offset="100%" stopColor="rgb(52,211,153)" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                {/* area fill */}
+                <path d={`${path} L ${w},${h} L 0,${h} Z`} fill="url(#grad)" opacity={0.35} />
+                {/* line */}
+                <path d={path} fill="none" stroke="rgb(52,211,153)" strokeWidth={2} />
+                {/* call marker */}
+                {callIndex >= 0 && (
+                  <g>
+                    <line x1={callIndex * step} x2={callIndex * step} y1={0} y2={h} stroke="rgba(255,255,255,0.4)" strokeDasharray="4 4" />
+                    <text x={callIndex * step + 5} y={15} className="text-xs fill-white/60">Call</text>
+                  </g>
+                )}
+                {/* ATH marker */}
+                {athIndex >= 0 && athIndex !== callIndex && (
+                  <g>
+                    <line x1={athIndex * step} x2={athIndex * step} y1={0} y2={h} stroke="rgba(255,255,255,0.4)" strokeDasharray="4 4" />
+                    <circle cx={athIndex * step} cy={h - norm[athIndex] * (h - 2) - 1} r={4} fill="rgb(52,211,153)" />
+                    <text x={athIndex * step + 5} y={30} className="text-xs fill-white/60">ATH</text>
+                  </g>
+                )}
+              </svg>
+            )}
+            
+            <div className="mt-2 text-xs text-white/60">
+              {chartData && chartData.snapshots && chartData.snapshots.length > 0 ? 
+                `Showing ${chartData.snapshots.length} data points from ${new Date(call.calledAt).toLocaleDateString()}` :
+                "Call (dashed line at left). ATH marker shows peak since call."
+              }
+            </div>
           </div>
 
           {/* Social & On-chain Context */}

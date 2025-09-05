@@ -8,6 +8,7 @@ import OAuthXService from './oauthXService.js';
 import fs from 'fs/promises';
 import path from 'path';
 import HypeSnapshotService from './hypeSnapshotService.js';
+import McapSnapshotService from './mcapSnapshotService.js';
 import BirdEyeTrendingService from './birdEyeTrendingService.js';
 import { fileURLToPath } from 'url';
 
@@ -20,6 +21,7 @@ class EnhancedBackend {
     this.port = process.env.PORT || 4000;
     this.tokenProcessor = new EnhancedTokenProcessor();
     this.hypeService = new HypeSnapshotService();
+    this.mcapService = new McapSnapshotService();
     this.birdeyeService = new BirdEyeTrendingService();
     this.helioService = new HelioPaymentService();
     this.oauthXService = new OAuthXService();
@@ -963,6 +965,23 @@ class EnhancedBackend {
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Delete KOL call error:', error.message);
         res.status(500).json({ error: 'Failed to delete KOL call' });
+      }
+    });
+
+    this.app.get('/api/tokens/:contract/mcap-chart', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        const { calledAt } = req.query;
+        
+        if (!calledAt) {
+          return res.status(400).json({ error: 'Missing calledAt parameter' });
+        }
+        
+        const chartData = await this.mcapService.getKolCallMcapChart(contract, calledAt);
+        res.json({ success: true, data: chartData });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Get mcap chart error:', error.message);
+        res.status(500).json({ error: 'Failed to fetch chart data' });
       }
     });
 
@@ -2666,6 +2685,21 @@ class EnhancedBackend {
             userUpdates.set(call.userId, (userUpdates.get(call.userId) || 0) + result.updated);
           }
         }
+      }
+      
+      // Save market cap snapshots for charting
+      console.log('[🛡️ Enhanced Backend] 📊 Saving market cap snapshots for charting...');
+      let snapshotsSaved = 0;
+      for (const [contractAddress, tokenData] of tokenDataMap) {
+        try {
+          await this.mcapService.saveMcapSnapshot(contractAddress, tokenData.mcap, tokenData.holderCount);
+          snapshotsSaved++;
+        } catch (error) {
+          console.error(`[🛡️ Enhanced Backend] ❌ Failed to save mcap snapshot for ${contractAddress}:`, error.message);
+        }
+      }
+      if (snapshotsSaved > 0) {
+        console.log(`[🛡️ Enhanced Backend] ✅ Saved ${snapshotsSaved} market cap snapshots`);
       }
       
       if (updated > 0) {
