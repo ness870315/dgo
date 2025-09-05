@@ -104,7 +104,7 @@ def search_tweets(
             logger.error("TWITTER_BEARER_TOKEN not set")
             return _get_mock_tweets(q, count, "missing_bearer")
 
-        query = f"#{clean_query} OR {clean_query}"
+        query = clean_query  # Use simple query instead of complex OR
         params = {
             "query": query,
             "max_results": min(count, 100),
