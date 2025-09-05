@@ -115,33 +115,49 @@ async function importToBackend({ source, category, interval, tokens }) {
 
 async function runOnce() {
   const startedAt = new Date();
-  const s = SEARCHES[roundRobinIndex];
-  roundRobinIndex = (roundRobinIndex + 1) % SEARCHES.length;
-  let fetched = 0;
-  let candidates = 0;
-  let imported = 0;
-  let boosted = 0;
+  let totalFetched = 0;
+  let totalCandidates = 0;
+  let totalImported = 0;
+  let totalBoosted = 0;
+
   // aggressive jitter 10-30s to avoid backend collisions
   const jitter = 10000 + Math.floor(Math.random() * 20000);
   await sleep(jitter);
-  try {
-    const raw = await fetchJupiterCategory(s.category, s.interval);
-    fetched = Array.isArray(raw) ? raw.length : 0;
-    const filtered = filterCandidates(raw);
-    candidates = filtered.length;
-    const deduped = dedupeByAddress(filtered);
-    const result = await importToBackend({ source: 'jup-discovery', category: s.category, interval: s.interval, tokens: deduped });
-    if (result?.success) {
-      imported = (result.stats?.inserted || 0) + (result.stats?.updated || 0);
-      boosted = (result.stats?.boosted || 0);
-      console.log(`✅ Imported ${result.stats?.inserted || 0} new, updated ${result.stats?.updated || 0}, boosted ${result.stats?.boosted || 0} for ${s.key}`);
-    } else {
-      console.warn(`⚠️ Import failed for ${s.key}:`, result?.error || 'unknown');
+
+  for (let i = 0; i < SEARCHES.length; i++) {
+    const s = SEARCHES[i];
+    try {
+      const raw = await fetchJupiterCategory(s.category, s.interval);
+      const fetched = Array.isArray(raw) ? raw.length : 0;
+      totalFetched += fetched;
+      const filtered = filterCandidates(raw);
+      const candidates = filtered.length;
+      totalCandidates += candidates;
+      const deduped = dedupeByAddress(filtered);
+      const result = await importToBackend({ source: 'jup-discovery', category: s.category, interval: s.interval, tokens: deduped });
+      if (result?.success) {
+        const imported = (result.stats?.inserted || 0) + (result.stats?.updated || 0);
+        const boosted = (result.stats?.boosted || 0);
+        totalImported += imported;
+        totalBoosted += boosted;
+        console.log(`✅ Imported ${imported} (updated ${result.stats?.updated || 0}), boosted ${boosted} for ${s.key}`);
+      } else {
+        console.warn(`⚠️ Import failed for ${s.key}:`, result?.error || 'unknown');
+      }
+    } catch (e) {
+      console.error(`❌ Discovery error for ${s.key}:`, e.message);
     }
-  } catch (e) {
-    console.error(`❌ Discovery error for ${s.key}:`, e.message);
+
+    // Wait 2 minutes between categories, except after the last one
+    if (i < SEARCHES.length - 1) {
+      console.log('⏳ Waiting 2 minutes before next category...');
+      await sleep(120000);
+    }
   }
-  console.log(`🎯 Discovery run (${s.key}) in ${((Date.now() - startedAt.getTime())/1000).toFixed(1)}s: fetched=${fetched}, candidates=${candidates}, imported=${imported}, boosted=${boosted}`);
+
+  console.log(`🎯 Discovery cycle completed in ${((Date.now() - startedAt.getTime())/1000).toFixed(1)}s: fetched=${totalFetched}, candidates=${totalCandidates}, imported=${totalImported}, boosted=${totalBoosted}`);
+  console.log('⏳ Sleeping 5 minutes before next cycle...');
+  await sleep(300000);
 }
 
 async function main() {
