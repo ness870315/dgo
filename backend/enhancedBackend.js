@@ -349,6 +349,28 @@ class EnhancedBackend {
       }
     });
 
+    // Admin: Referral codes
+    this.app.get('/api/admin/referrals', async (req, res) => {
+      try {
+        const list = await this.oauthXService.db.listReferralCodes();
+        res.json({ success: true, referrals: list });
+      } catch (e) {
+        console.error('[🛡️ Enhanced Backend] ❌ List referrals error:', e.message);
+        res.status(500).json({ error: 'Failed to list referral codes' });
+      }
+    });
+
+    this.app.post('/api/admin/referrals', async (req, res) => {
+      try {
+        const { ownerUserId = 'admin', code, maxUses = 30 } = req.body || {};
+        const created = await this.oauthXService.db.createReferralCode({ ownerUserId, code, maxUses });
+        res.json({ success: true, referral: created });
+      } catch (e) {
+        console.error('[🛡️ Enhanced Backend] ❌ Create referral error:', e.message);
+        res.status(500).json({ error: 'Failed to create referral code' });
+      }
+    });
+
     // Get all tokens
     this.app.get('/api/tokens', async (req, res) => {
       try {

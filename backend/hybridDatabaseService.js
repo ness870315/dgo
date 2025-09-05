@@ -216,6 +216,13 @@ class HybridDatabaseService {
 
     // Save user profile
     await this.writeJsonFile(profileFile, userData);
+
+    // Ensure referral code is registered in global registry
+    try {
+      if (userData.referralCode) {
+        await this.ensureUserReferralCode(userId, String(userData.referralCode).toUpperCase());
+      }
+    } catch (_) {}
     
     // Update global user index
     await this.updateUserIndex(userId, {
@@ -408,6 +415,28 @@ class HybridDatabaseService {
     const file = this.getUserFile(userId, 'referral.json');
     const data = await this.readJsonFile(file, null);
     return data?.referredBy || null;
+  }
+
+  async createReferralCode({ ownerUserId, code, maxUses = 30 }) {
+    const registry = await this.getReferralRegistry();
+    const normalizedCode = String(code || this.generateReferralCode()).toUpperCase();
+    if (registry[normalizedCode]) {
+      return { code: normalizedCode, ...registry[normalizedCode], alreadyExisted: true };
+    }
+    registry[normalizedCode] = {
+      ownerUserId: ownerUserId || 'admin',
+      uses: 0,
+      maxUses: Number(maxUses) || 30,
+      createdAt: new Date().toISOString(),
+      lastUsedAt: null
+    };
+    await this.setReferralRegistry(registry);
+    return { code: normalizedCode, ...registry[normalizedCode] };
+  }
+
+  async listReferralCodes() {
+    const registry = await this.getReferralRegistry();
+    return Object.entries(registry).map(([code, entry]) => ({ code, ...entry }));
   }
 
   /**
