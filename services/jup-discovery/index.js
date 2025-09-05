@@ -13,6 +13,8 @@ const SEARCHES = [
 ];
 
 const STABLE_SYMBOLS = new Set(['SOL', 'JUP', 'WETH', 'WSOL', 'WBTC', 'USDC']);
+const DISCOVERY_LIMIT = parseInt(process.env.DISCOVERY_LIMIT || '100', 10);
+let roundRobinIndex = 0;
 
 function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
 
@@ -27,7 +29,7 @@ async function fetchJupiterCategory(category, interval, attempt = 1) {
         'Origin': 'https://jup.ag',
         'Referer': 'https://jup.ag/'
       },
-      params: { limit: 100 },
+      params: { limit: DISCOVERY_LIMIT },
       timeout: 20000,
       validateStatus: s => s >= 200 && s < 500
     });
@@ -111,32 +113,33 @@ async function importToBackend({ source, category, interval, tokens }) {
 
 async function runOnce() {
   const startedAt = new Date();
-  let totalFetched = 0;
-  let totalCandidates = 0;
-  let totalImported = 0;
-  let totalBoosted = 0;
-  for (const s of SEARCHES) {
-    try {
-      const raw = await fetchJupiterCategory(s.category, s.interval);
-      totalFetched += Array.isArray(raw) ? raw.length : 0;
-      const filtered = filterCandidates(raw);
-      totalCandidates += filtered.length;
-      const deduped = dedupeByAddress(filtered);
-      const result = await importToBackend({ source: 'jup-discovery', category: s.category, interval: s.interval, tokens: deduped });
-      if (result?.success) {
-        totalImported += (result.stats?.inserted || 0) + (result.stats?.updated || 0);
-        totalBoosted += (result.stats?.boosted || 0);
-        console.log(`✅ Imported ${result.stats?.inserted || 0} new, updated ${result.stats?.updated || 0}, boosted ${result.stats?.boosted || 0} for ${s.key}`);
-      } else {
-        console.warn(`⚠️ Import failed for ${s.key}:`, result?.error || 'unknown');
-      }
-    } catch (e) {
-      console.error(`❌ Discovery error for ${s.key}:`, e.message);
+  const s = SEARCHES[roundRobinIndex];
+  roundRobinIndex = (roundRobinIndex + 1) % SEARCHES.length;
+  let fetched = 0;
+  let candidates = 0;
+  let imported = 0;
+  let boosted = 0;
+  // jitter 1-3s to reduce burst collisions
+  const jitter = 1000 + Math.floor(Math.random() * 2000);
+  await sleep(jitter);
+  try {
+    const raw = await fetchJupiterCategory(s.category, s.interval);
+    fetched = Array.isArray(raw) ? raw.length : 0;
+    const filtered = filterCandidates(raw);
+    candidates = filtered.length;
+    const deduped = dedupeByAddress(filtered);
+    const result = await importToBackend({ source: 'jup-discovery', category: s.category, interval: s.interval, tokens: deduped });
+    if (result?.success) {
+      imported = (result.stats?.inserted || 0) + (result.stats?.updated || 0);
+      boosted = (result.stats?.boosted || 0);
+      console.log(`✅ Imported ${result.stats?.inserted || 0} new, updated ${result.stats?.updated || 0}, boosted ${result.stats?.boosted || 0} for ${s.key}`);
+    } else {
+      console.warn(`⚠️ Import failed for ${s.key}:`, result?.error || 'unknown');
     }
-    // pacing between categories
-    await sleep(1500);
+  } catch (e) {
+    console.error(`❌ Discovery error for ${s.key}:`, e.message);
   }
-  console.log(`🎯 Discovery run completed in ${((Date.now() - startedAt.getTime())/1000).toFixed(1)}s: fetched=${totalFetched}, candidates=${totalCandidates}, imported=${totalImported}, boosted=${totalBoosted}`);
+  console.log(`🎯 Discovery run (${s.key}) in ${((Date.now() - startedAt.getTime())/1000).toFixed(1)}s: fetched=${fetched}, candidates=${candidates}, imported=${imported}, boosted=${boosted}`);
 }
 
 async function main() {
