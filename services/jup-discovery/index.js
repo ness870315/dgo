@@ -3,7 +3,7 @@ import axios from 'axios';
 const API_BASE = process.env.API_BASE || 'https://api.degen-oracle.com';
 const JUPITER_API_KEY = process.env.JUPITER_API_KEY || '';
 const INTERNAL_TOKEN = process.env.INTERNAL_TOKEN || process.env.DISCOVERY_INTERNAL_TOKEN;
-const INTERVAL_MS = parseInt(process.env.DISCOVERY_INTERVAL_MS || '3600000', 10); // 60 minutes default
+const INTERVAL_MS = parseInt(process.env.DISCOVERY_INTERVAL_MS || '600000', 10); // 10 minutes default
 const RUN_ON_START = (process.env.DISCOVERY_RUN_ON_START || 'true') === 'true';
 
 const FORCE_LITE_API = (process.env.FORCE_LITE_API || 'true') === 'true';
