@@ -15,7 +15,7 @@ const SEARCHES = [
 ];
 
 const STABLE_SYMBOLS = new Set(['SOL', 'JUP', 'WETH', 'WSOL', 'WBTC', 'USDC']);
-const DISCOVERY_LIMIT = parseInt(process.env.DISCOVERY_LIMIT || '50', 10);
+const DISCOVERY_LIMIT = parseInt(process.env.DISCOVERY_LIMIT || '90', 10);
 let roundRobinIndex = 0;
 
 function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
