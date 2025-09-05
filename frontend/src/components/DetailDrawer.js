@@ -94,9 +94,9 @@ function ChainPill({ chain = "sol" }) {
 }
 
 // Stat component
-function Stat({ label, value, hint, good }) {
+function Stat({ label, value, hint, good, tooltip }) {
   return (
-    <div className="flex flex-col gap-1 p-3 rounded-2xl bg-white/5 border border-white/10">
+    <div className="flex flex-col gap-1 p-3 rounded-2xl bg-white/5 border border-white/10" title={tooltip || undefined}>
       <div className="text-xs text-white/60">{label}</div>
       <div className={classNames(
         "text-lg font-semibold", 
@@ -243,11 +243,27 @@ export default function DetailDrawer({ call, onClose }) {
               label="ATH since call" 
               value={`${athX.toFixed(2)}×`} 
               hint={`${formatUSD(call.athMC || call.currentMC || 0)} · ${timeToAth}`} 
-              good={true} 
+              good={true}
+              tooltip={"The best multiple it hit at any time since you called it, even if it later dropped."}
             />
-            <Stat label="PnL" value={formatPct(pnl)} good={pnl >= 0} />
-            <Stat label="X Multiple" value={`${x.toFixed(2)}×`} good={x >= 1} />
-            <Stat label="Max Drawdown" value={formatPct(ddPct)} good={false} />
+            <Stat 
+              label="PnL" 
+              value={formatPct(pnl)} 
+              good={pnl >= 0}
+              tooltip={"Unrealized % return since your call, based on market cap at call vs current market cap."}
+            />
+            <Stat 
+              label="X Multiple" 
+              value={`${x.toFixed(2)}×`} 
+              good={x >= 1}
+              tooltip={"How many × you are up right now."}
+            />
+            <Stat 
+              label="Max Drawdown" 
+              value={formatPct(ddPct)} 
+              good={false}
+              tooltip={"From the highest market cap reached since my call, how far did it fall at the worst point?"}
+            />
             <Stat label="Liquidity" value={formatUSD(0)} hint="Coming soon" />
             <Stat label="Holders" value={(call.holderCount || 0).toLocaleString()} />
           </div>
