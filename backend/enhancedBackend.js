@@ -7,6 +7,7 @@ import HelioPaymentService from './helioPaymentService.js';
 import OAuthXService from './oauthXService.js';
 import fs from 'fs/promises';
 import path from 'path';
+import HypeSnapshotService from './hypeSnapshotService.js';
 import BirdEyeTrendingService from './birdEyeTrendingService.js';
 import { fileURLToPath } from 'url';
 
@@ -18,6 +19,7 @@ class EnhancedBackend {
     this.app = express();
     this.port = process.env.PORT || 4000;
     this.tokenProcessor = new EnhancedTokenProcessor();
+    this.hypeService = new HypeSnapshotService();
     this.birdeyeService = new BirdEyeTrendingService();
     this.helioService = new HelioPaymentService();
     this.oauthXService = new OAuthXService();
@@ -173,6 +175,22 @@ class EnhancedBackend {
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Error fetching Dexscreener tokens:', error);
         res.status(500).json({ error: 'Failed to fetch Dexscreener tokens' });
+      }
+    });
+
+    // Hype snapshots API
+    this.app.get('/api/tokens/:contract/hype', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        const { range } = req.query; // 1d | 3d | 7d | 15d | 30d
+        const ranges = { '1d': 1, '3d': 3, '7d': 7, '15d': 15, '30d': 30 };
+        const days = ranges[(range || '30d').toLowerCase()] || 30;
+        const sinceMs = Date.now() - days * 24 * 60 * 60 * 1000;
+        const snaps = await this.hypeService.getSnapshots(contract, sinceMs);
+        res.json({ contract, range: `${days}d`, data: snaps });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Hype snapshots error:', error.message);
+        res.status(500).json({ error: 'Failed to fetch hype snapshots' });
       }
     });
 

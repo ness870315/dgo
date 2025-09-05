@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import axios from 'axios';
 import jupiterApiService from './jupiterApiService.js';
 import DexscreenerApiService from './dexscreenerApiService.js';
+import HypeSnapshotService from './hypeSnapshotService.js';
 import BirdEyeTrendingService from './birdEyeTrendingService.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -28,6 +29,7 @@ class EnhancedTokenProcessor {
     this.jupiterService = jupiterApiService;
     this.dexscreenerService = new DexscreenerApiService();
     this.birdEyeService = new BirdEyeTrendingService();
+    this.hypeService = new HypeSnapshotService();
     
     // CONSERVATIVE Rate limiting configuration to avoid 429 errors
     this.rateLimits = {
@@ -545,6 +547,21 @@ class EnhancedTokenProcessor {
           token.overallScore = enhancedScore;
           token.stage = 'scoring';
           token.scoringTimestamp = new Date().toISOString();
+          
+          // Persist hype snapshot (hourly min, 30d retention)
+          try {
+            const contractAddress = token.contractAddress;
+            const mentions = token.mentions || token.twitterData?.mentions || 0;
+            const followers = token.twitterData?.followers || 0;
+            const engagement = (token.twitterData?.likes || 0) + (token.twitterData?.retweets || 0) + (token.twitterData?.replies || 0);
+            const score = enhancedScore || 0;
+            const label = score >= 8 ? 'Viral' : score >= 5 ? 'Trending' : score >= 3 ? 'Building' : 'Sleeping';
+            if (contractAddress) {
+              await this.hypeService.appendSnapshot(contractAddress, { score, label, mentions, followers, engagement });
+            }
+          } catch (snapErr) {
+            console.log(`⚠️ Hype snapshot save failed for ${token.symbol}: ${snapErr.message}`);
+          }
           
           console.log(`✅ Score calculated for ${token.symbol}: ${enhancedScore.toFixed(2)}/10`);
           
