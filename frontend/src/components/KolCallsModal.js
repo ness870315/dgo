@@ -164,7 +164,7 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
     <Container>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-xl font-semibold text-white">KOL Calls</h2>
+            <h2 className="text-xl font-semibold text-white">Your Calls</h2>
             <p className="text-xs text-gray-400">Track performance of every token you called.</p>
           </div>
           <div className="flex items-center gap-2">
@@ -208,7 +208,7 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
                   <TableHeader label="Current MC" sortKey="currentMC" sort={sort} setSort={setSort} />
                   <TableHeader label="X" sortKey="x" sort={sort} setSort={setSort} />
                   <TableHeader label="PnL %" sortKey="pnl" sort={sort} setSort={setSort} />
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-300">Trend</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-300">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -217,13 +217,26 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
                   const xClass = d.x >= 1 ? 'text-green-400' : 'text-red-400';
                   const pnlClass = d.pnl >= 0 ? 'text-green-400' : 'text-red-400';
                   return (
-                    <tr key={r.id} className="hover:bg-gray-800 cursor-pointer" onClick={() => setSelectedCall(r)}>
+                    <tr key={r.id} className="hover:bg-gray-800">
                       <td className="px-3 py-2 text-white">{r.token} <span className="text-gray-400">· {r.name}</span></td>
                       <td className="px-3 py-2 text-gray-200">{formatUSD(r.calledMC)}</td>
                       <td className="px-3 py-2 text-gray-200">{formatUSD(r.currentMC)}</td>
                       <td className={`px-3 py-2 font-semibold ${xClass}`}>{d.x.toFixed(2)}×</td>
                       <td className={`px-3 py-2 ${pnlClass}`}>{formatPct(d.pnl)}</td>
-                      <td className="px-3 py-2 text-gray-400">—</td>
+                      <td className="px-3 py-2 text-gray-300">
+                        <div className="flex items-center gap-2">
+                          <button className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded" onClick={() => setSelectedCall(r)}>Open</button>
+                          <button className="px-2 py-1 text-xs bg-red-700 hover:bg-red-600 rounded" onClick={async () => {
+                            try {
+                              await kolCallsService.deleteCall(r.id);
+                              await load();
+                            } catch (e) {
+                              console.error('Delete failed', e);
+                              alert('Failed to delete');
+                            }
+                          }}>Delete</button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}

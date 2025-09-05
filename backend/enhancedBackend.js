@@ -962,6 +962,21 @@ class EnhancedBackend {
       }
     });
 
+    this.app.delete('/api/user/kol-calls/:id', async (req, res) => {
+      try {
+        const { sessionId } = req.query;
+        const { id } = req.params;
+        if (!sessionId || !id) return res.status(400).json({ error: 'Missing sessionId or id' });
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) return res.status(401).json({ error: 'Invalid session' });
+        const result = await this.oauthXService.db.deleteKolCall(user.id, id);
+        res.json({ success: true, ...result });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Delete KOL call error:', error.message);
+        res.status(500).json({ error: 'Failed to delete KOL call' });
+      }
+    });
+
     // Add paid token (legacy endpoint)
     this.app.post('/api/tokens/paid', async (req, res) => {
       try {

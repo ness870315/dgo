@@ -293,6 +293,18 @@ class HybridDatabaseService {
   }
 
   /**
+   * Delete a KOL call by id
+   */
+  async deleteKolCall(userId, callId) {
+    await this.ensureUserDir(userId);
+    const file = this.getUserFile(userId, 'kol-calls.json');
+    const calls = await this.readJsonFile(file, []);
+    const filtered = (calls || []).filter(c => c.id !== callId);
+    await this.writeJsonFile(file, filtered);
+    return { removed: (calls || []).length - filtered.length };
+  }
+
+  /**
    * Update global user index
    */
   async updateUserIndex(userId, userInfo) {

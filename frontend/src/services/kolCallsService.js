@@ -20,6 +20,15 @@ class KolCallsService {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   }
+
+  async deleteCall(id) {
+    const sessionId = localStorage.getItem('sessionId');
+    const res = await fetch(`${this.API_BASE}/api/user/kol-calls/${encodeURIComponent(id)}?sessionId=${encodeURIComponent(sessionId || '')}`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  }
 }
 
 const kolCallsService = new KolCallsService();
