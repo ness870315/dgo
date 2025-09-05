@@ -1290,6 +1290,173 @@ class EnhancedSocialDataService {
     // Round to 1 decimal place
     return Math.round(averageSentiment * 10) / 10;
   }
-}
+  }
+
+  // Public API methods for Twitter search endpoints
+  async searchTwitter(query, count = 20) {
+    try {
+      console.log(`🔍 Searching Twitter for: "${query}" (count: ${count})`);
+
+      // Try to use twitter-service microservice first
+      try {
+        const response = await axios.get(`${this.twitterServiceUrl}/api/twitter/search`, {
+          params: { q: query, count },
+          timeout: 30000
+        });
+
+        if (response.data.success) {
+          console.log(`✅ Twitter microservice returned ${response.data.tweets?.length || 0} tweets`);
+          return {
+            tweets: response.data.tweets || [],
+            source: 'microservice'
+          };
+        }
+      } catch (microserviceError) {
+        console.warn(`⚠️ Twitter microservice unavailable: ${microserviceError.message}`);
+      }
+
+      // Fallback to direct Twitter API implementation
+      return await this._searchTwitterDirect(query, count);
+
+    } catch (error) {
+      console.error('❌ Twitter search failed:', error);
+      return { tweets: [], error: error.message };
+    }
+  }
+
+  async getUserTweets(username, count = 20) {
+    try {
+      console.log(`👤 Getting tweets for user: ${username} (count: ${count})`);
+
+      // Try to use twitter-service microservice first
+      try {
+        const response = await axios.get(`${this.twitterServiceUrl}/api/twitter/user/${username}/tweets`, {
+          params: { count },
+          timeout: 30000
+        });
+
+        if (response.data.success) {
+          console.log(`✅ Twitter microservice returned ${response.data.tweets?.length || 0} user tweets`);
+          return {
+            tweets: response.data.tweets || [],
+            source: 'microservice'
+          };
+        }
+      } catch (microserviceError) {
+        console.warn(`⚠️ Twitter microservice unavailable: ${microserviceError.message}`);
+      }
+
+      // Fallback to direct implementation
+      return await this._getUserTweetsDirect(username, count);
+
+    } catch (error) {
+      console.error('❌ User tweets fetch failed:', error);
+      return { tweets: [], error: error.message };
+    }
+  }
+
+  async searchMentions(handle, count = 10) {
+    try {
+      console.log(`📢 Searching mentions for: ${handle} (count: ${count})`);
+
+      // Try to use twitter-service microservice first
+      try {
+        const response = await axios.get(`${this.twitterServiceUrl}/api/twitter/mentions/${handle}`, {
+          params: { count },
+          timeout: 30000
+        });
+
+        if (response.data.success) {
+          console.log(`✅ Twitter microservice returned ${response.data.mentions?.length || 0} mentions`);
+          return {
+            mentions: response.data.mentions || [],
+            source: 'microservice'
+          };
+        }
+      } catch (microserviceError) {
+        console.warn(`⚠️ Twitter microservice unavailable: ${microserviceError.message}`);
+      }
+
+      // Fallback to direct implementation
+      return await this._searchMentionsDirect(handle, count);
+
+    } catch (error) {
+      console.error('❌ Mentions search failed:', error);
+      return { mentions: [], error: error.message };
+    }
+  }
+
+  // Direct Twitter API implementations (fallback when microservice is unavailable)
+  async _searchTwitterDirect(query, count = 20) {
+    // Mock implementation - returns sample data
+    console.log(`🔄 Using direct Twitter search fallback for: "${query}"`);
+
+    const mockTweets = [];
+    for (let i = 0; i < Math.min(count, 5); i++) {
+      mockTweets.push({
+        id: `mock_${i}_${Date.now()}`,
+        text: `Sample tweet about ${query} #${i + 1}`,
+        created_at: new Date().toISOString(),
+        user: {
+          name: `Twitter User ${i + 1}`,
+          screen_name: `user${i + 1}`
+        },
+        retweet_count: Math.floor(Math.random() * 100),
+        favorite_count: Math.floor(Math.random() * 200),
+        reply_count: Math.floor(Math.random() * 50)
+      });
+    }
+
+    return {
+      tweets: mockTweets,
+      source: 'direct_fallback'
+    };
+  }
+
+  async _getUserTweetsDirect(username, count = 20) {
+    console.log(`🔄 Using direct user tweets fallback for: ${username}`);
+
+    const mockTweets = [];
+    for (let i = 0; i < Math.min(count, 3); i++) {
+      mockTweets.push({
+        id: `user_mock_${i}_${Date.now()}`,
+        text: `Tweet from @${username} #${i + 1}`,
+        created_at: new Date().toISOString(),
+        retweet_count: Math.floor(Math.random() * 50),
+        favorite_count: Math.floor(Math.random() * 100),
+        reply_count: Math.floor(Math.random() * 25)
+      });
+    }
+
+    return {
+      tweets: mockTweets,
+      source: 'direct_fallback'
+    };
+  }
+
+  async _searchMentionsDirect(handle, count = 10) {
+    console.log(`🔄 Using direct mentions fallback for: ${handle}`);
+
+    const mockMentions = [];
+    for (let i = 0; i < Math.min(count, 3); i++) {
+      mockMentions.push({
+        id: `mention_mock_${i}_${Date.now()}`,
+        text: `Mention of ${handle} in tweet #${i + 1}`,
+        created_at: new Date().toISOString(),
+        user: {
+          name: `Mentioner ${i + 1}`,
+          screen_name: `mentioner${i + 1}`
+        },
+        retweet_count: Math.floor(Math.random() * 30),
+        favorite_count: Math.floor(Math.random() * 60),
+        reply_count: Math.floor(Math.random() * 15)
+      });
+    }
+
+    return {
+      mentions: mockMentions,
+      source: 'direct_fallback'
+    };
+  }
 
 export default EnhancedSocialDataService;

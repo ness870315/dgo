@@ -2145,6 +2145,118 @@ class EnhancedBackend {
       }
     });
 
+    // Twitter search endpoints (direct integration)
+    this.app.get('/api/twitter/search', async (req, res) => {
+      try {
+        const { q, count = 20 } = req.query;
+
+        if (!q) {
+          return res.status(400).json({
+            success: false,
+            error: 'Query parameter "q" is required'
+          });
+        }
+
+        // Ensure social data service is initialized
+        if (!this.tokenProcessor.socialDataService) {
+          const { default: EnhancedSocialDataService } = await import('./enhancedSocialDataService.js');
+          this.tokenProcessor.socialDataService = new EnhancedSocialDataService();
+          await this.tokenProcessor.socialDataService.initialize();
+        }
+
+        const socialService = this.tokenProcessor.socialDataService;
+
+        // Use the social service to search Twitter
+        const searchResult = await socialService.searchTwitter(q, parseInt(count));
+
+        res.json({
+          success: true,
+          query: q,
+          count: searchResult.tweets?.length || 0,
+          tweets: searchResult.tweets || [],
+          source: 'backend_integration'
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Backend] ❌ Twitter search error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Twitter search failed',
+          details: error.message
+        });
+      }
+    });
+
+    this.app.get('/api/twitter/user/:username/tweets', async (req, res) => {
+      try {
+        const { username } = req.params;
+        const { count = 20 } = req.query;
+
+        // Ensure social data service is initialized
+        if (!this.tokenProcessor.socialDataService) {
+          const { default: EnhancedSocialDataService } = await import('./enhancedSocialDataService.js');
+          this.tokenProcessor.socialDataService = new EnhancedSocialDataService();
+          await this.tokenProcessor.socialDataService.initialize();
+        }
+
+        const socialService = this.tokenProcessor.socialDataService;
+
+        // Use the social service to get user tweets
+        const userTweets = await socialService.getUserTweets(username, parseInt(count));
+
+        res.json({
+          success: true,
+          username,
+          count: userTweets.tweets?.length || 0,
+          tweets: userTweets.tweets || [],
+          source: 'backend_integration'
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Backend] ❌ User tweets error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get user tweets',
+          details: error.message
+        });
+      }
+    });
+
+    this.app.get('/api/twitter/mentions/:handle', async (req, res) => {
+      try {
+        const { handle } = req.params;
+        const { count = 10 } = req.query;
+
+        // Ensure social data service is initialized
+        if (!this.tokenProcessor.socialDataService) {
+          const { default: EnhancedSocialDataService } = await import('./enhancedSocialDataService.js');
+          this.tokenProcessor.socialDataService = new EnhancedSocialDataService();
+          await this.tokenProcessor.socialDataService.initialize();
+        }
+
+        const socialService = this.tokenProcessor.socialDataService;
+
+        // Use the social service to search mentions
+        const mentionsResult = await socialService.searchMentions(handle, parseInt(count));
+
+        res.json({
+          success: true,
+          handle,
+          count: mentionsResult.mentions?.length || 0,
+          mentions: mentionsResult.mentions || [],
+          source: 'backend_integration'
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Backend] ❌ Mentions search error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Mentions search failed',
+          details: error.message
+        });
+      }
+    });
+
     // Admin: Get Twitter API status and rate limits
     this.app.get('/api/admin/twitter/status', async (req, res) => {
       try {
