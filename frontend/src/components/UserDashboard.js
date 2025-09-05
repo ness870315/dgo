@@ -6,6 +6,7 @@ import hypeService from '../services/hypeService';
 import priorityService from '../services/priorityService';
 import leaderboardService from '../services/leaderboardService';
 import KolCallsModal from './KolCallsModal';
+import watchlistService from '../services/watchlistService';
 
 const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigateToUpdateToken, onNavigateToPremium }) => {
   const { user, sessionId } = useAuth();
@@ -333,7 +334,38 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                         <p className="text-white font-medium">{token.symbol}</p>
                         <p className="text-gray-400 text-sm">{token.name}</p>
                       </div>
-                      <BarChart3 size={20} className="text-blue-400" />
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              // optimistic removal
+                              setDashboardData(prev => ({
+                                ...prev,
+                                watchlist: prev.watchlist.filter(t => (t.contractAddress && token.contractAddress)
+                                  ? t.contractAddress !== token.contractAddress
+                                  : t.symbol !== token.symbol)
+                              }));
+                              await watchlistService.removeFromWatchlist(token.symbol, token.contractAddress);
+                            } catch (err) {
+                              console.error('Failed to remove from watchlist:', err);
+                              // reload watchlist on failure
+                              try {
+                                const wlRes = await fetch(`${API_BASE}/api/user/watchlist?sessionId=${sessionId}`);
+                                if (wlRes.ok) {
+                                  const wlData = await wlRes.json();
+                                  setDashboardData(prev => ({ ...prev, watchlist: wlData.watchlist || [] }));
+                                }
+                              } catch (_) {}
+                            }
+                          }}
+                          title="Remove from Hype over Time"
+                          className="px-2 py-1 text-xs rounded border border-red-500/60 text-red-300 hover:bg-red-500/10"
+                        >
+                          Remove
+                        </button>
+                        <BarChart3 size={20} className="text-blue-400" />
+                      </div>
                     </div>
                   </div>
                     ))}
