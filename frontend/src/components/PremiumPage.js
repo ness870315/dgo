@@ -6,27 +6,20 @@ export default function PremiumPage({ onBack, headerAuth }) {
   const containerRef = useRef(null);
   const [statusMsg, setStatusMsg] = useState('');
   const [isInitializing, setIsInitializing] = useState(false);
+  const helioInitializedRef = useRef(false);
   const [referral, setReferral] = useState('');
   const [refStatus, setRefStatus] = useState('');
 
-  // Ensure Helio script is present once
-  useEffect(() => {
-    if (document.querySelector('script[src*="embed.hel.io/assets/index-v1.js"]')) return;
-    const script = document.createElement('script');
-    script.type = 'module';
-    script.crossOrigin = 'anonymous';
-    script.src = 'https://embed.hel.io/assets/index-v1.js';
-    document.head.appendChild(script);
-  }, []);
-
-  // Initialize Helio widget
-  useEffect(() => {
+  // Guarded initializer to avoid double-mounts and handle first-load race conditions
+  const initHelio = (attempt = 0) => {
+    if (helioInitializedRef.current) return;
     if (!containerRef.current) return;
+    if (!window.helioCheckout) {
+      if (attempt < 10) setTimeout(() => initHelio(attempt + 1), 200);
+      return;
+    }
     if (isInitializing) return;
-    if (!window.helioCheckout) return; // wait until script loads
-
     setIsInitializing(true);
-
     try {
       window.helioCheckout(
         containerRef.current,
@@ -36,31 +29,20 @@ export default function PremiumPage({ onBack, headerAuth }) {
           primaryColor: '#FE5300',
           neutralColor: '#5A6578',
           display: 'inline',
-          onStartPayment: () => {
-            setStatusMsg('Starting payment...');
-          },
-          onPending: (event) => {
-            setStatusMsg('Payment pending...');
-            console.log('Helio pending', event);
-          },
-          onCancel: () => {
-            setStatusMsg('Payment cancelled');
-          },
-          onError: (event) => {
-            setStatusMsg('Payment error');
-            console.error('Helio error', event);
-          },
+          onStartPayment: () => setStatusMsg('Starting payment...'),
+          onPending: (event) => { setStatusMsg('Payment pending...'); console.log('Helio pending', event); },
+          onCancel: () => setStatusMsg('Payment cancelled'),
+          onError: (event) => { setStatusMsg('Payment error'); console.error('Helio error', event); },
           onSuccess: async (event) => {
             try {
               setStatusMsg('Payment successful! Activating Premium...');
               const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
               const resp = await fetch(`${apiBase}/api/user/premium/activate`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sessionId, receipt: event, paylinkId: '68b8ed60cf71471addc8adb6' })
               });
               if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-              const data = await resp.json();
+              await resp.json();
               setStatusMsg('✅ Premium activated! Enjoy your new features.');
             } catch (err) {
               console.error('Failed to activate premium', err);
@@ -69,10 +51,38 @@ export default function PremiumPage({ onBack, headerAuth }) {
           }
         }
       );
+      helioInitializedRef.current = true;
+    } catch (err) {
+      console.error('Failed to initialize Helio widget:', err);
+      if (attempt < 10) setTimeout(() => initHelio(attempt + 1), 300);
     } finally {
       setIsInitializing(false);
     }
-  }, [sessionId, isInitializing]);
+  };
+
+  // Ensure Helio script is present once and initialize on load
+  useEffect(() => {
+    const existing = document.querySelector('script[src*="embed.hel.io/assets/index-v1.js"]');
+    if (existing) {
+      if (window.helioCheckout) initHelio(0);
+      else existing.addEventListener('load', () => initHelio(0), { once: true });
+      return;
+    }
+    const script = document.createElement('script');
+    script.type = 'module';
+    script.crossOrigin = 'anonymous';
+    script.src = 'https://embed.hel.io/assets/index-v1.js';
+    script.addEventListener('load', () => initHelio(0), { once: true });
+    document.head.appendChild(script);
+  }, []);
+
+  // Fallback: if container becomes available later, attempt init
+  useEffect(() => {
+    if (containerRef.current && !helioInitializedRef.current) {
+      initHelio(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [containerRef.current, sessionId]);
   return (
     <div className="min-h-screen bg-dark-bg">
       <div className="bg-dark-card border-b border-solana-purple px-6 py-4">
