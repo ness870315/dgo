@@ -658,20 +658,40 @@ function App() {
   }, []);
 
   const handleListTokenClick = useCallback(() => {
+    // Ensure dashboard is hidden when navigating to List Token page
+    setShowUserDashboard(false);
+    setShowFuelToken(false);
+    setShowUpdateToken(false);
+    setShowPremium(false);
     setShowListToken(true);
   }, []);
 
   const handleFuelTokenClick = useCallback(() => {
+    // Ensure dashboard is hidden when navigating to Fuel Token page
+    setShowUserDashboard(false);
+    setShowListToken(false);
+    setShowUpdateToken(false);
+    setShowPremium(false);
     setShowFuelToken(true);
   }, []);
 
   const handleUpdateTokenClick = useCallback(() => {
     console.log('🎯 Navigating to Update Token page');
+    // Ensure dashboard is hidden when navigating to Update Token page
+    setShowUserDashboard(false);
+    setShowListToken(false);
+    setShowFuelToken(false);
+    setShowPremium(false);
     setShowUpdateToken(true);
   }, []);
 
   const handleUserDashboardClick = useCallback(() => {
     console.log('🎯 Navigating to User Dashboard');
+    // Close other views when opening dashboard
+    setShowListToken(false);
+    setShowFuelToken(false);
+    setShowUpdateToken(false);
+    setShowPremium(false);
     setShowUserDashboard(true);
   }, []);
 
@@ -682,6 +702,11 @@ function App() {
   }, []);
 
   const handlePremiumClick = useCallback(() => {
+    // Ensure dashboard is hidden when navigating to Premium page
+    setShowUserDashboard(false);
+    setShowListToken(false);
+    setShowFuelToken(false);
+    setShowUpdateToken(false);
     setShowPremium(true);
   }, []);
 
