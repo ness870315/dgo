@@ -9,7 +9,8 @@ const AuthButton = ({
   onNavigateToUpdateToken,
   onNavigateToDashboard,
   onNavigateToWatchlist,
-  onNavigateToSettings
+  onNavigateToSettings,
+  onNavigateToPremium
 }) => {
   const { user, login, logout, loading, isAuthenticated } = useAuth();
   const [showQuickLogin, setShowQuickLogin] = useState(false);
@@ -121,6 +122,20 @@ const AuthButton = ({
 
                 {/* Divider */}
                 <div className="border-t border-gray-700 my-2"></div>
+
+                {/* Premium */}
+                <button
+                  onClick={() => {
+                    setShowUserDropdown(false);
+                    if (onNavigateToPremium) {
+                      onNavigateToPremium();
+                    }
+                  }}
+                  className="w-full flex items-center space-x-3 px-4 py-2 text-left hover:bg-gray-800 transition-colors"
+                >
+                  <Wallet size={16} className="text-purple-300" />
+                  <span className="text-white text-sm">Premium</span>
+                </button>
 
                 {/* List Token */}
                 <button
