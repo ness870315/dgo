@@ -46,6 +46,9 @@ class HybridDatabaseService {
     
     // Ensure directories exist
     this.initializeDirectories();
+
+    // Attempt one-time migration from legacy local data dir if present and target is empty
+    this.migrateLegacyDataDir(path.join(__dirname, 'data')).catch(() => {});
     
     console.log('🗄️ Hybrid Database Service initialized');
     console.log(`   Users: ${this.usersDir}`);
@@ -65,6 +68,33 @@ class HybridDatabaseService {
       } catch (error) {
         // Directory might already exist, that's fine
       }
+    }
+  }
+
+  /**
+   * Migrate existing data from legacy local dir to the persistent baseDir if target is empty
+   */
+  async migrateLegacyDataDir(legacyDir) {
+    try {
+      // If legacy equals base, skip
+      if (!legacyDir || path.resolve(legacyDir) === path.resolve(this.baseDir)) return;
+
+      // Legacy must exist
+      try { await fs.access(legacyDir); } catch (_) { return; }
+
+      // If users dir already has content, skip
+      let hasUsers = false;
+      try {
+        const entries = await fs.readdir(this.usersDir);
+        hasUsers = entries && entries.length > 0;
+      } catch (_) {}
+      if (hasUsers) return;
+
+      // Copy legacy data to persistent base dir
+      await fs.cp(legacyDir, this.baseDir, { recursive: true, force: false, errorOnExist: false });
+      console.log(`🔁 Migrated legacy data directory from ${legacyDir} → ${this.baseDir}`);
+    } catch (err) {
+      console.warn(`⚠️ Legacy data migration skipped: ${err.message}`);
     }
   }
 
@@ -208,6 +238,7 @@ class HybridDatabaseService {
   async initializeUserFiles(userId) {
     const files = [
       { name: 'watchlist.json', data: [] },
+      { name: 'kol-calls.json', data: [] },
       { name: 'premium.json', data: { 
         isPremium: false, 
         subscriptionType: null, 
@@ -234,6 +265,31 @@ class HybridDatabaseService {
         await this.writeJsonFile(filePath, file.data);
       }
     }
+  }
+
+  /**
+   * Get user's KOL calls
+   */
+  async getKolCalls(userId) {
+    const file = this.getUserFile(userId, 'kol-calls.json');
+    return await this.readJsonFile(file, []);
+  }
+
+  /**
+   * Add a KOL call
+   */
+  async addKolCall(userId, call) {
+    await this.ensureUserDir(userId);
+    const file = this.getUserFile(userId, 'kol-calls.json');
+    const calls = await this.readJsonFile(file, []);
+    const toSave = {
+      id: crypto.randomUUID(),
+      ...call,
+      createdAt: new Date().toISOString()
+    };
+    calls.push(toSave);
+    await this.writeJsonFile(file, calls);
+    return toSave;
   }
 
   /**

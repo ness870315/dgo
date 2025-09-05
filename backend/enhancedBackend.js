@@ -98,7 +98,8 @@ class EnhancedBackend {
           totalTokens: status.processedCount,
           queueLength: status.queueLength
         },
-        dataDir: process.env.DATA_DIR || '/var/data/dgo'
+        dataDir: process.env.DATA_DIR || '/var/data/dgo',
+        notes: 'Ensure DATA_DIR points to a persistent disk to preserve user watchlists and calls.'
       });
     });
 
@@ -898,6 +899,52 @@ class EnhancedBackend {
           success: false,
           message: 'Failed to get token socials'
         });
+      }
+    });
+
+    // KOL Calls: add a call and fetch list
+    this.app.post('/api/user/kol-calls/add', async (req, res) => {
+      try {
+        const { sessionId, token } = req.body; // token: { symbol, name, contractAddress }
+        if (!sessionId || !token?.contractAddress) {
+          return res.status(400).json({ error: 'Missing sessionId or token.contractAddress' });
+        }
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) return res.status(401).json({ error: 'Invalid session' });
+
+        // Fresh Jupiter snapshot for called MC
+        const jData = await this.tokenProcessor.jupiterService.getTokenDetails(token.contractAddress);
+        const calledMC = jData?.mcap || 0;
+        const price = jData?.usdPrice || 0;
+
+        const saved = await this.oauthXService.db.addKolCall(user.id, {
+          token: {
+            symbol: token.symbol,
+            name: token.name,
+            contractAddress: token.contractAddress
+          },
+          calledMc: calledMC,
+          calledPrice: price,
+          calledAt: new Date().toISOString()
+        });
+
+        res.json({ success: true, call: saved });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Add KOL call error:', error.message);
+        res.status(500).json({ error: 'Failed to save KOL call' });
+      }
+    });
+
+    this.app.get('/api/user/kol-calls', async (req, res) => {
+      try {
+        const { sessionId } = req.query;
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) return res.status(401).json({ error: 'Invalid session' });
+        const calls = await this.oauthXService.db.getKolCalls(user.id);
+        res.json({ success: true, calls });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Get KOL calls error:', error.message);
+        res.status(500).json({ error: 'Failed to fetch KOL calls' });
       }
     });
 
