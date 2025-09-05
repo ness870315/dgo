@@ -5,7 +5,7 @@ import TokenDetails from './TokenDetails';
 import hypeService from '../services/hypeService';
 import KolCallsModal from './KolCallsModal';
 
-const UserDashboard = () => {
+const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigateToUpdateToken, onNavigateToPremium }) => {
   const { user, sessionId } = useAuth();
   const [dashboardData, setDashboardData] = useState({
     watchlistCount: 0,
@@ -139,7 +139,8 @@ const UserDashboard = () => {
       icon: Crown,
       color: 'text-purple-400',
       bgColor: 'bg-purple-400/10',
-      isButton: true
+      isButton: true,
+      onClick: () => { if (onNavigateToPremium) onNavigateToPremium(); }
     }
   ];
 
@@ -236,7 +237,7 @@ const UserDashboard = () => {
                 <div>
                   <p className="text-gray-400 text-sm">{stat.title}</p>
                   {stat.isButton ? (
-                    <button className="text-2xl font-bold text-purple-400 mt-1 hover:text-purple-300 transition-colors">
+                    <button onClick={stat.onClick} className="text-2xl font-bold text-purple-400 mt-1 hover:text-purple-300 transition-colors">
                       {stat.value}
                     </button>
                   ) : (
@@ -388,7 +389,10 @@ const UserDashboard = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             <button 
-              onClick={() => window.location.href = '/list-token'}
+              onClick={() => {
+                if (onNavigateToListToken) onNavigateToListToken();
+                else window.location.href = '/list-token';
+              }}
               className="w-full p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-left"
             >
               <div className="flex items-center space-x-3">
@@ -400,7 +404,10 @@ const UserDashboard = () => {
               </div>
             </button>
             <button 
-              onClick={() => window.location.href = '/fuel-token'}
+              onClick={() => {
+                if (onNavigateToFuelToken) onNavigateToFuelToken();
+                else window.location.href = '/fuel-token';
+              }}
               className="w-full p-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors text-left"
             >
               <div className="flex items-center space-x-3">
@@ -412,7 +419,10 @@ const UserDashboard = () => {
               </div>
             </button>
             <button 
-              onClick={() => window.location.href = '/update-token'}
+              onClick={() => {
+                if (onNavigateToUpdateToken) onNavigateToUpdateToken();
+                else window.location.href = '/update-token';
+              }}
               className="w-full p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-left"
             >
               <div className="flex items-center space-x-3">

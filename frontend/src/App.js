@@ -806,7 +806,12 @@ function App() {
   if (showUserDashboard) {
     return (
       <AuthProvider>
-        <UserDashboard />
+        <UserDashboard 
+          onNavigateToListToken={handleListTokenClick}
+          onNavigateToFuelToken={handleFuelTokenClick}
+          onNavigateToUpdateToken={handleUpdateTokenClick}
+          onNavigateToPremium={handlePremiumClick}
+        />
       </AuthProvider>
     );
   }
