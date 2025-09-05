@@ -36,6 +36,14 @@ class EnhancedTokenProcessor {
     this.cacheDir = path.join(dataDir, 'cache');
     try { fsSync.mkdirSync(this.cacheDir, { recursive: true }); } catch (_) {}
     
+    // CoinGecko page cycling state
+    this.coinGeckoPageState = {
+      currentPageSet: 1, // Which set of 3 pages (1-3, 4-6, 7-9)
+      maxPageSets: 3,    // Total sets (covers pages 1-9)
+      stateFile: path.join(this.cacheDir, 'coingecko-page-state.json')
+    };
+    this.loadCoinGeckoPageState();
+    
     // CONSERVATIVE Rate limiting configuration to avoid 429 errors
     this.rateLimits = {
       coingecko: { batchSize: 40, delayMs: 60000, maxTokens: 500 }, // 40 tokens per batch to avoid rate limits
@@ -159,10 +167,16 @@ class EnhancedTokenProcessor {
     const delayMs = this.rateLimits.coingecko.delayMs; // 2 seconds
     
     let allTokens = [];
-    let page = 1;
     
-    // Much faster: only need 2-3 pages to get 500 tokens (vs 15+ pages with old approach)
-    while (allTokens.length < targetTokens && this.isProcessing && page <= 3) {
+    // Calculate starting page based on current page set (1-3, 4-6, or 7-9)
+    const startPage = (this.coinGeckoPageState.currentPageSet - 1) * 3 + 1;
+    const endPage = startPage + 2; // Fetch 3 pages per cycle
+    let page = startPage;
+    
+    console.log(`🔄 CoinGecko Page Cycling: Fetching pages ${startPage}-${endPage} (set ${this.coinGeckoPageState.currentPageSet}/${this.coinGeckoPageState.maxPageSets})`);
+    
+    // Fetch 3 consecutive pages per cycle
+    while (allTokens.length < targetTokens && this.isProcessing && page <= endPage) {
       console.log(`📄 FAST Fetching page ${page} (target: ${targetTokens} tokens, current: ${allTokens.length})`);
       
       try {
@@ -218,6 +232,9 @@ class EnhancedTokenProcessor {
     
     console.log(`🎯 CoinGecko Stage Complete: ${mergedTokens.length} unique tokens (${deduplicatedTokens.length} new + ${existingTokens.length} existing)`);
     this.processingQueue = mergedTokens;
+    
+    // Advance to next page set for next cycle
+    this.advanceCoinGeckoPageSet();
   }
 
   async processDexscreenerStage() {
@@ -1521,8 +1538,46 @@ class EnhancedTokenProcessor {
         dexscreener: this.processingQueue.filter(t => t.source === 'dexscreener').length,
         total: this.processingQueue.length
       },
+      coinGeckoPageSet: `${this.coinGeckoPageState.currentPageSet}/${this.coinGeckoPageState.maxPageSets}`,
       lastUpdated: new Date().toISOString()
     };
+  }
+
+  // CoinGecko page cycling methods
+  loadCoinGeckoPageState() {
+    try {
+      if (fsSync.existsSync(this.coinGeckoPageState.stateFile)) {
+        const data = fsSync.readFileSync(this.coinGeckoPageState.stateFile, 'utf8');
+        const state = JSON.parse(data);
+        this.coinGeckoPageState.currentPageSet = state.currentPageSet || 1;
+        console.log(`📄 Loaded CoinGecko page state: set ${this.coinGeckoPageState.currentPageSet}/${this.coinGeckoPageState.maxPageSets}`);
+      }
+    } catch (error) {
+      console.log('📄 No existing CoinGecko page state found, starting from set 1');
+      this.coinGeckoPageState.currentPageSet = 1;
+    }
+  }
+
+  saveCoinGeckoPageState() {
+    try {
+      const state = { currentPageSet: this.coinGeckoPageState.currentPageSet };
+      fsSync.writeFileSync(this.coinGeckoPageState.stateFile, JSON.stringify(state, null, 2));
+    } catch (error) {
+      console.error('❌ Error saving CoinGecko page state:', error.message);
+    }
+  }
+
+  advanceCoinGeckoPageSet() {
+    this.coinGeckoPageState.currentPageSet++;
+    if (this.coinGeckoPageState.currentPageSet > this.coinGeckoPageState.maxPageSets) {
+      this.coinGeckoPageState.currentPageSet = 1; // Reset to first set
+      console.log('🔄 CoinGecko page cycling: Reset to page set 1 (pages 1-3)');
+    } else {
+      const startPage = (this.coinGeckoPageState.currentPageSet - 1) * 3 + 1;
+      const endPage = startPage + 2;
+      console.log(`🔄 CoinGecko page cycling: Advanced to page set ${this.coinGeckoPageState.currentPageSet} (pages ${startPage}-${endPage})`);
+    }
+    this.saveCoinGeckoPageState();
   }
 
   stopProcessing() {
