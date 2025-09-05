@@ -25,6 +25,7 @@ const UserDashboard = () => {
   const [hypeRange, setHypeRange] = useState('7d');
   const [hypeSeries, setHypeSeries] = useState([]);
   const [showKolCalls, setShowKolCalls] = useState(false);
+  const [hypePage, setHypePage] = useState(0);
 
   const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
 
@@ -261,10 +262,19 @@ const UserDashboard = () => {
             <p className="text-gray-400 text-sm mb-4">View hype trends for the tokens in your watchlist across multiple time ranges.</p>
             {/* Inline Hype list (reuse existing modal content) */}
             <div className="mt-2">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {dashboardData.watchlist.map((token, index) => (
+              {(() => {
+                const perPage = 8;
+                const total = dashboardData.watchlist.length;
+                const totalPages = Math.max(1, Math.ceil(total / perPage));
+                const currentPage = Math.min(hypePage, totalPages - 1);
+                const start = currentPage * perPage;
+                const pageItems = dashboardData.watchlist.slice(start, start + perPage);
+                return (
+                  <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {pageItems.map((token, index) => (
                   <div
-                    key={index}
+                    key={`${token.contractAddress || token.symbol}-${index}`}
                     onClick={async () => {
                       setSelectedHypeToken(token);
                       try {
@@ -285,11 +295,35 @@ const UserDashboard = () => {
                       <BarChart3 size={20} className="text-blue-400" />
                     </div>
                   </div>
-                ))}
-                {dashboardData.watchlist.length === 0 && (
+                    ))}
+                    {dashboardData.watchlist.length === 0 && (
                   <div className="text-gray-400 text-sm">Your watchlist is empty</div>
-                )}
-              </div>
+                    )}
+                  </div>
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-end gap-3 mt-3 text-sm">
+                      <button
+                        onClick={() => setHypePage(p => Math.max(0, p - 1))}
+                        disabled={currentPage === 0}
+                        className={`px-2 py-1 rounded border ${currentPage === 0 ? 'border-gray-700 text-gray-600' : 'border-gray-600 text-gray-300 hover:bg-gray-700'}`}
+                        title="Previous"
+                      >
+                        ◀
+                      </button>
+                      <span className="text-gray-400">Page {currentPage + 1} of {totalPages}</span>
+                      <button
+                        onClick={() => setHypePage(p => Math.min(totalPages - 1, p + 1))}
+                        disabled={currentPage >= totalPages - 1}
+                        className={`px-2 py-1 rounded border ${currentPage >= totalPages - 1 ? 'border-gray-700 text-gray-600' : 'border-gray-600 text-gray-300 hover:bg-gray-700'}`}
+                        title="Next"
+                      >
+                        ▶
+                      </button>
+                    </div>
+                  )}
+                  </>
+                );
+              })()}
             </div>
           </div>
 
