@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { BarChart3, Star, TrendingUp, Activity, Wallet, Users, Calendar, Award, Target, Crown, ArrowLeft, Plus, Zap, Edit } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import TokenDetails from './TokenDetails';
+import hypeService from '../services/hypeService';
 
 const UserDashboard = () => {
   const { user, sessionId } = useAuth();
@@ -18,6 +19,10 @@ const UserDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showWatchlistModal, setShowWatchlistModal] = useState(false);
   const [selectedToken, setSelectedToken] = useState(null);
+  const [showHypeModal, setShowHypeModal] = useState(false);
+  const [selectedHypeToken, setSelectedHypeToken] = useState(null);
+  const [hypeRange, setHypeRange] = useState('7d');
+  const [hypeSeries, setHypeSeries] = useState([]);
 
   const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
 
@@ -365,6 +370,18 @@ const UserDashboard = () => {
                 </div>
               </div>
             </button>
+            <button 
+              onClick={() => setShowHypeModal(true)}
+              className="w-full p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-left"
+            >
+              <div className="flex items-center space-x-3">
+                <BarChart3 size={20} />
+                <div>
+                  <p className="font-medium">Hype over Time</p>
+                  <p className="text-sm opacity-90">Watchlist hype trends</p>
+                </div>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -411,6 +428,91 @@ const UserDashboard = () => {
           </div>
         )}
 
+        {/* Hype Over Time - Watchlist List Modal */}
+        {showHypeModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-dark-card border border-gray-700 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-white">Hype over Time</h2>
+                <button onClick={() => setShowHypeModal(false)} className="text-gray-400 hover:text-white">✕</button>
+              </div>
+              {dashboardData.watchlist.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {dashboardData.watchlist.map((token, index) => (
+                    <div
+                      key={index}
+                      onClick={async () => {
+                        setSelectedHypeToken(token);
+                        try {
+                          const res = await hypeService.getHype(token.contractAddress, hypeRange);
+                          setHypeSeries(res.data || []);
+                        } catch (e) {
+                          console.error('Hype fetch error:', e);
+                          setHypeSeries([]);
+                        }
+                      }}
+                      className="bg-gray-800/50 rounded-lg p-4 cursor-pointer hover:bg-gray-700/50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-white font-medium">{token.symbol}</p>
+                          <p className="text-gray-400 text-sm">{token.name}</p>
+                        </div>
+                        <BarChart3 size={20} className="text-blue-400" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <BarChart3 size={48} className="text-gray-600 mx-auto mb-4" />
+                  <p className="text-gray-400">Your watchlist is empty</p>
+                  <p className="text-gray-500 text-sm">Add tokens to see hype trends here</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Hype Chart Modal */}
+        {selectedHypeToken && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-dark-card border border-gray-700 rounded-lg p-6 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-white">{selectedHypeToken.symbol} • Hype over Time</h2>
+                <button onClick={() => setSelectedHypeToken(null)} className="text-gray-400 hover:text-white">✕</button>
+              </div>
+
+              <div className="flex items-center gap-2 mb-4">
+                {['1d','3d','7d','15d','30d'].map(r => (
+                  <button
+                    key={r}
+                    onClick={async () => {
+                      setHypeRange(r);
+                      try {
+                        const res = await hypeService.getHype(selectedHypeToken.contractAddress, r);
+                        setHypeSeries(res.data || []);
+                      } catch (e) {
+                        console.error('Hype fetch error:', e);
+                        setHypeSeries([]);
+                      }
+                    }}
+                    className={`px-3 py-1 rounded text-sm border ${hypeRange===r ? 'bg-blue-600 border-blue-500 text-white' : 'bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700'}`}
+                  >{r}</button>
+                ))}
+              </div>
+
+              {/* Simple inline chart rendering using SVG for zero-deps */}
+              <HypeMiniChart data={hypeSeries} />
+
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-gray-300">
+                <div>Last points: {hypeSeries.length}</div>
+                <div>Latest label: {hypeSeries[hypeSeries.length-1]?.label || '—'}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Token Details Modal */}
         {selectedToken && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -434,3 +536,64 @@ const UserDashboard = () => {
 };
 
 export default UserDashboard;
+
+// Lightweight SVG chart for hype score over time (0-10)
+function HypeMiniChart({ data }) {
+  const width = 720;
+  const height = 220;
+  const padding = 32;
+  const points = Array.isArray(data) ? data : [];
+  if (points.length === 0) {
+    return (
+      <div className="h-56 flex items-center justify-center text-gray-500 border border-gray-700 rounded">
+        No data yet
+      </div>
+    );
+  }
+
+  const xs = points.map(p => new Date(p.timestamp).getTime());
+  const ys = points.map(p => (typeof p.score === 'number' ? p.score : 0));
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = 0;
+  const maxY = 10;
+
+  const xScale = t => padding + (maxX === minX ? 0 : ((t - minX) / (maxX - minX)) * (width - padding * 2));
+  const yScale = v => height - padding - ((v - minY) / (maxY - minY)) * (height - padding * 2);
+
+  const path = points.map((p, i) => {
+    const x = xScale(new Date(p.timestamp).getTime());
+    const y = yScale(typeof p.score === 'number' ? p.score : 0);
+    return `${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
+  }).join(' ');
+
+  // Label bands
+  const bands = [
+    { y: yScale(8), h: yScale(10) - yScale(8), color: 'rgba(34,197,94,0.10)', label: 'Viral (≥8)' },
+    { y: yScale(5), h: yScale(8) - yScale(5), color: 'rgba(59,130,246,0.10)', label: 'Trending (≥5)' },
+    { y: yScale(3), h: yScale(5) - yScale(3), color: 'rgba(234,179,8,0.10)', label: 'Building (≥3)' },
+    { y: yScale(0), h: yScale(3) - yScale(0), color: 'rgba(148,163,184,0.10)', label: 'Sleeping (<3)' }
+  ];
+
+  return (
+    <svg width={width} height={height} className="w-full h-56 bg-gray-900/40 border border-gray-700 rounded">
+      {bands.map((b, i) => (
+        <g key={i}>
+          <rect x={padding} y={b.y} width={width - padding * 2} height={Math.max(0, b.h)} fill={b.color} />
+        </g>
+      ))}
+      <polyline fill="none" stroke="#7c3aed" strokeWidth="2" points={points.map(p => `${xScale(new Date(p.timestamp).getTime())},${yScale(p.score||0)}`).join(' ')} />
+      <path d={path} fill="none" stroke="#8b5cf6" strokeWidth="2" />
+      {/* Axes */}
+      <line x1={padding} y1={height - padding} x2={width - padding} y2={height - padding} stroke="#475569" />
+      <line x1={padding} y1={padding} x2={padding} y2={height - padding} stroke="#475569" />
+      {/* Y ticks */}
+      {[0,2,4,6,8,10].map(v => (
+        <g key={v}>
+          <line x1={padding - 4} y1={yScale(v)} x2={width - padding} y2={yScale(v)} stroke="#334155" strokeDasharray="3,3" />
+          <text x={8} y={yScale(v) + 4} fill="#94a3b8" fontSize="10">{v}</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
