@@ -13,6 +13,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
   const [fuelMessage, setFuelMessage] = useState({ text: '', type: '' });
   const [contractValidated, setContractValidated] = useState(false);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
+  const [callRecorded, setCallRecorded] = useState(false);
 
   // Check if token is fueled and get fuel multiplier
   const getFuelMultiplier = () => {
@@ -377,6 +378,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                     };
                     await kolCallsService.addCall(payload);
                     alert('✅ You’ve made your call… let’s see if you have what it takes to become the next KOL.');
+                    setCallRecorded(true);
                   } catch (e) {
                     console.error('Call it failed:', e);
                     alert('❌ Failed to record call');
@@ -390,7 +392,14 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
 
               {/* Close Button */}
               <button
-                onClick={onClose}
+                onClick={() => {
+                  try {
+                    if (callRecorded) {
+                      window.dispatchEvent(new CustomEvent('kol-call-added'));
+                    }
+                  } catch (_) {}
+                  onClose && onClose();
+                }}
               className="p-2 text-gray-400 hover:text-white transition-colors"
               title="Close"
               >

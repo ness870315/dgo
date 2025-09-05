@@ -87,6 +87,13 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
 
   useEffect(() => { if (open) load(); }, [open, load]);
 
+  // Refresh after a call is added elsewhere (e.g., TokenDetails)
+  useEffect(() => {
+    const handler = () => { if (open || asInline) load(); };
+    window.addEventListener('kol-call-added', handler);
+    return () => window.removeEventListener('kol-call-added', handler);
+  }, [open, asInline, load]);
+
   const filtered = useMemo(() => {
     const now = Date.now();
     let windowMs = Infinity;
