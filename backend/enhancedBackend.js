@@ -135,6 +135,32 @@ class EnhancedBackend {
       }
     });
 
+    // Activate Premium for the authenticated user
+    this.app.post('/api/user/premium/activate', async (req, res) => {
+      try {
+        const { sessionId, receipt } = req.body;
+        if (!sessionId) return res.status(400).json({ success: false, error: 'Missing sessionId' });
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) return res.status(401).json({ success: false, error: 'Invalid session' });
+
+        // Persist premium status (1 year default expiry for now)
+        const expiresAt = new Date();
+        expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+        const result = await this.oauthXService.db.setPremiumStatus(user.id, {
+          isPremium: true,
+          subscriptionType: 'helio',
+          receipt: receipt || null,
+          updatedAt: new Date().toISOString(),
+          expiresAt: expiresAt.toISOString()
+        });
+
+        res.json({ success: true, premium: result });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Activate premium failed:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to activate premium' });
+      }
+    });
+
     // Get all tokens
     this.app.get('/api/tokens', async (req, res) => {
       try {

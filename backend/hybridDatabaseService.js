@@ -268,6 +268,27 @@ class HybridDatabaseService {
   }
 
   /**
+   * Set premium status and persist to premium.json
+   */
+  async setPremiumStatus(userId, premiumData) {
+    await this.ensureUserDir(userId);
+    const file = this.getUserFile(userId, 'premium.json');
+    const current = await this.readJsonFile(file, {
+      isPremium: false,
+      subscriptionType: null,
+      expiresAt: null,
+      features: []
+    });
+    const updated = {
+      ...current,
+      ...premiumData,
+      isPremium: premiumData?.isPremium === true,
+    };
+    await this.writeJsonFile(file, updated);
+    return updated;
+  }
+
+  /**
    * Get user's KOL calls
    */
   async getKolCalls(userId) {

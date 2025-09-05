@@ -1,6 +1,76 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function PremiumPage({ onBack, headerAuth }) {
+  const { sessionId, user } = useAuth();
+  const containerRef = useRef(null);
+  const [statusMsg, setStatusMsg] = useState('');
+  const [isInitializing, setIsInitializing] = useState(false);
+
+  // Ensure Helio script is present once
+  useEffect(() => {
+    if (document.querySelector('script[src*="embed.hel.io/assets/index-v1.js"]')) return;
+    const script = document.createElement('script');
+    script.type = 'module';
+    script.crossOrigin = 'anonymous';
+    script.src = 'https://embed.hel.io/assets/index-v1.js';
+    document.head.appendChild(script);
+  }, []);
+
+  // Initialize Helio widget
+  useEffect(() => {
+    if (!containerRef.current) return;
+    if (isInitializing) return;
+    if (!window.helioCheckout) return; // wait until script loads
+
+    setIsInitializing(true);
+
+    try {
+      window.helioCheckout(
+        containerRef.current,
+        {
+          paylinkId: '68b8ed60cf71471addc8adb6',
+          theme: { themeMode: 'dark' },
+          primaryColor: '#FE5300',
+          neutralColor: '#5A6578',
+          display: 'inline',
+          onStartPayment: () => {
+            setStatusMsg('Starting payment...');
+          },
+          onPending: (event) => {
+            setStatusMsg('Payment pending...');
+            console.log('Helio pending', event);
+          },
+          onCancel: () => {
+            setStatusMsg('Payment cancelled');
+          },
+          onError: (event) => {
+            setStatusMsg('Payment error');
+            console.error('Helio error', event);
+          },
+          onSuccess: async (event) => {
+            try {
+              setStatusMsg('Payment successful! Activating Premium...');
+              const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+              const resp = await fetch(`${apiBase}/api/user/premium/activate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId, receipt: event })
+              });
+              if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+              const data = await resp.json();
+              setStatusMsg('✅ Premium activated! Enjoy your new features.');
+            } catch (err) {
+              console.error('Failed to activate premium', err);
+              setStatusMsg('❌ Premium activation failed. Please contact support.');
+            }
+          }
+        }
+      );
+    } finally {
+      setIsInitializing(false);
+    }
+  }, [sessionId, isInitializing]);
   return (
     <div className="min-h-screen bg-dark-bg">
       <div className="bg-dark-card border-b border-solana-purple px-6 py-4">
@@ -51,16 +121,14 @@ export default function PremiumPage({ onBack, headerAuth }) {
         </div>
 
         <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-white mb-3">Notes</h3>
-          <ul className="space-y-2 text-gray-300 text-sm">
-            <li>• A Call is a public pick recorded with an immutable timestamp and the token’s market cap at that moment.</li>
-            <li>• Leaderboard metrics include X multiple, hit rate, time-to-ATH, and drawdown, so performance is transparent and comparable.</li>
-          </ul>
-          <div className="mt-5">
-            <button disabled className="px-4 py-2 bg-solana-purple/50 border border-solana-purple/40 text-white rounded-lg opacity-70 cursor-not-allowed">
-              Helio payment coming soon
-            </button>
+          <h3 className="text-lg font-semibold text-white mb-3">Upgrade to Premium</h3>
+          <p className="text-gray-300 text-sm mb-4">Complete your secure payment below. Your account will be upgraded automatically after success.</p>
+          <div className="flex justify-center">
+            <div id="helioCheckoutPremium" ref={containerRef} className="w-full max-w-xl" />
           </div>
+          {statusMsg && (
+            <div className="mt-4 text-sm text-gray-300">{statusMsg}</div>
+          )}
         </div>
       </div>
     </div>
