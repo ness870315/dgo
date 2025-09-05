@@ -25,6 +25,14 @@ class EnhancedBackend {
     this.birdeyeService = new BirdEyeTrendingService();
     this.helioService = new HelioPaymentService();
     this.oauthXService = new OAuthXService();
+    // Persistent cache path for tokens-cache.json under DATA_DIR
+    try {
+      const baseDir = this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo';
+      this.persistentCachePath = path.join(baseDir, 'cache', 'tokens-cache.json');
+    } catch (_) {
+      // Fallback to local (non-persistent) path only if necessary
+      this.persistentCachePath = path.join(__dirname, 'cache', 'tokens-cache.json');
+    }
     this.isRunning = false;
     
     this.setupMiddleware();
@@ -2347,7 +2355,7 @@ class EnhancedBackend {
 
   async getTokensFromCache() {
     try {
-      const cachePath = path.join(__dirname, 'cache', 'tokens-cache.json');
+      const cachePath = this.persistentCachePath;
       const data = await fs.readFile(cachePath, 'utf8');
       const tokens = JSON.parse(data);
 
@@ -2383,7 +2391,7 @@ class EnhancedBackend {
 
   async saveTokensToCache(tokens) {
     try {
-      const cachePath = path.join(__dirname, 'cache', 'tokens-cache.json');
+      const cachePath = this.persistentCachePath;
       
       // Ensure cache directory exists
       const cacheDir = path.dirname(cachePath);
