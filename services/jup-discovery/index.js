@@ -80,7 +80,6 @@ function filterCandidates(list) {
     const n = normalizeToken(t);
     if (!n.contractAddress || n.contractAddress.length < 10) continue;
     if (!n.symbol || STABLE_SYMBOLS.has(n.symbol)) continue;
-    if (!n.graduatedAt) continue; // Filter non-graduated
     out.push({ ...n });
   }
   return out.slice(0, 100);
