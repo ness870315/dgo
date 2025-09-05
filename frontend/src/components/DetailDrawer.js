@@ -140,6 +140,9 @@ function Sparkline({ data = [], width = 120, height = 32, color = "rgb(52,211,15
 export default function DetailDrawer({ call, onClose }) {
   const [chartData, setChartData] = useState(null);
   const [loadingChart, setLoadingChart] = useState(false);
+  const [jupToken, setJupToken] = useState(null);
+  const [loadingJup, setLoadingJup] = useState(false);
+  const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
   
   // Load chart data when call changes
   useEffect(() => {
@@ -165,6 +168,21 @@ export default function DetailDrawer({ call, onClose }) {
         });
     }
   }, [call]);
+  
+  // Fetch Jupiter token details for header (symbol, name, icon)
+  useEffect(() => {
+    const contract = call?.token?.contractAddress || call?.contractAddress;
+    if (!contract) return;
+    setLoadingJup(true);
+    fetch(`${API_BASE}/api/jupiter/raw/${encodeURIComponent(contract)}`)
+      .then(res => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
+      .then(data => {
+        const raw = data?.raw || data?.token || data;
+        setJupToken(raw || null);
+      })
+      .catch(() => setJupToken(null))
+      .finally(() => setLoadingJup(false));
+  }, [call, API_BASE]);
   
   if (!call) return null;
   
@@ -203,17 +221,21 @@ export default function DetailDrawer({ call, onClose }) {
         {/* Header */}
         <div className="p-5 md:p-6 sticky top-0 bg-dark-card/90 backdrop-blur border-b border-gray-700 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-white/10 flex items-center justify-center text-xs font-bold">
-              {(call.token?.symbol || call.token || "?").slice(0, 3)}
-            </div>
+            {jupToken?.icon ? (
+              <img src={jupToken.icon} alt="icon" className="h-9 w-9 rounded-xl object-cover border border-white/10" />
+            ) : (
+              <div className="h-9 w-9 rounded-xl bg-white/10 flex items-center justify-center text-xs font-bold">
+                {(jupToken?.symbol || call.token?.symbol || call.token || "?").slice(0, 3)}
+              </div>
+            )}
             <div>
               <div className="text-lg font-semibold text-white">
-                {call.token?.symbol || call.token || "Unknown"} 
-                <span className="text-white/50"> · {call.token?.name || "Unknown Token"}</span>
+                {jupToken?.symbol || call.token?.symbol || call.token || "Unknown"} 
+                <span className="text-white/50"> · {jupToken?.name || call.token?.name || "Unknown Token"}</span>
               </div>
               <div className="text-xs text-gray-400 flex items-center gap-2">
                 <ChainPill chain="sol" />
-                <span>Called {formatDate(new Date(call.calledAt || call.createdAt).getTime())}</span>
+                <span>Called {(() => { const raw = call?.calledAt || call?.calledTs || call?.createdAt; const t = (typeof raw === 'number') ? raw : Date.parse(raw || ''); return Number.isFinite(t) ? formatDate(t) : '—'; })()}</span>
               </div>
             </div>
           </div>
@@ -264,7 +286,7 @@ export default function DetailDrawer({ call, onClose }) {
               good={false}
               tooltip={"From the highest market cap reached since my call, how far did it fall at the worst point?"}
             />
-            <Stat label="Liquidity" value={formatUSD(0)} hint="Coming soon" />
+            <Stat label="Liquidity" value={formatUSD(call.liquidity ?? jupToken?.liquidity ?? 0)} hint={loadingJup ? 'Loading...' : undefined} />
             <Stat label="Holders" value={(call.holderCount || 0).toLocaleString()} />
           </div>
 
