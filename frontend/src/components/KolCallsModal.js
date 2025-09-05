@@ -1,0 +1,220 @@
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import kolCallsService from '../services/kolCallsService';
+
+function formatUSD(n) {
+  const v = typeof n === 'number' ? n : Number(n || 0);
+  if (!isFinite(v)) return '—';
+  if (v >= 1e9) return '$' + (v / 1e9).toFixed(2) + 'B';
+  if (v >= 1e6) return '$' + (v / 1e6).toFixed(2) + 'M';
+  if (v >= 1e3) return '$' + (v / 1e3).toFixed(2) + 'K';
+  return '$' + v.toFixed(2);
+}
+
+function formatPct(p) {
+  const v = typeof p === 'number' ? p : Number(p || 0);
+  if (!isFinite(v)) return '—';
+  const sign = v > 0 ? '+' : '';
+  return sign + v.toFixed(2) + '%';
+}
+
+function computeDerived(row) {
+  const called = Number(row.calledMc || row.calledMC || 0);
+  const current = Number(row.currentMc || row.currentMC || 0);
+  const x = called > 0 ? current / called : 0;
+  const pnl = called > 0 ? ((current - called) / called) * 100 : 0;
+  return { x, pnl };
+}
+
+function TableHeader({ label, sortKey, sort, setSort }) {
+  const is = sort.key === sortKey;
+  const arrow = is ? (sort.dir === 'asc' ? '▲' : '▼') : '';
+  return (
+    <th
+      onClick={() => setSort({ key: sortKey, dir: is ? (sort.dir === 'asc' ? 'desc' : 'asc') : 'desc' })}
+      className="px-3 py-2 text-left text-xs font-medium text-gray-300 select-none cursor-pointer"
+    >
+      <span className="inline-flex items-center gap-1">{label}<span className="text-gray-500">{arrow}</span></span>
+    </th>
+  );
+}
+
+export default function KolCallsModal({ open, onClose, onOpenToken }) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [q, setQ] = useState('');
+  const [timeframe, setTimeframe] = useState('all');
+  const [rows, setRows] = useState([]);
+  const [sort, setSort] = useState({ key: 'x', dir: 'desc' });
+
+  const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const callsRes = await kolCallsService.getCalls();
+      const calls = Array.isArray(callsRes.calls) ? callsRes.calls : [];
+
+      // Fetch current tokens for current MC lookup
+      let tokenList = [];
+      try {
+        const r = await fetch(`${API_BASE}/api/tokens`);
+        const data = await r.json();
+        tokenList = Array.isArray(data) ? data : (data.tokens || []);
+      } catch (_) {}
+
+      const byCa = new Map(tokenList.filter(t => t.contractAddress).map(t => [t.contractAddress.toLowerCase(), t]));
+
+      const mapped = calls.map(c => {
+        const ca = c.token?.contractAddress?.toLowerCase();
+        const t = ca ? byCa.get(ca) : undefined;
+        const currentMC = t?.jupiterData?.mcap || t?.marketCap || 0;
+        return {
+          id: c.id,
+          token: c.token?.symbol || c.token?.name || 'UNKNOWN',
+          name: c.token?.name || c.token?.symbol || 'Unknown',
+          calledTs: new Date(c.calledAt || c.calledAtTs || c.calledAt || c.createdAt || c.calledAtTime || c.called_at || c.calledAtISO || c.calledAtIso || c.calledAtUtc || c.calledAtDate || c.calledAtTimestamp || c.calledAtMillis || c.calledAtMs || c.calledAtISO8601 || c.calledAtISO8601Date || c.calledAtISOString || c.calledAtIsoString || c.calledAtIso8601 || c.calledAtIso8601Date || c.calledAtIso8601String || c.calledAtIso8601Timestamp || c.calledAtIso8601Ms || c.calledAtIso8601Millis || c.calledAtIso8601Milliseconds || c.calledAtIso8601Utc || c.calledAtIso8601Z || c.calledAtIso8601Zulu || c.calledAtIso8601TZ || c.calledAtIso8601Timezone || c.calledAtIso8601Offset || c.calledAtIso8601WithOffset || c.calledAtIso8601WithTimezone || c.calledAtIso8601WithZ || c.calledAtIso8601WithZulu || c.calledAtIso8601WithUTC || c.calledAtIso8601WithGMT || c.calledAtIso8601WithTime || c.calledAtIso8601WithDate || c.calledAtIso8601WithTimeZone || c.calledAtIso8601WithOffsetTimezone || c.calledAtIso8601WithOffsetTime || c.calledAtIso8601WithTimeAndOffset || c.calledAtIso8601WithTimeAndTimezone || c.calledAtIso8601WithTimeAndZ || c.calledAtIso8601WithTimeAndZulu || c.calledAtIso8601WithTimeAndUTC || c.calledAtIso8601WithTimeAndGMT || c.calledAtIso8601WithDatetime || c.calledAtIso8601WithDateTime || c.calledAtIso8601DateTime || c.calledAtIso8601DateTimeString || c.calledAtIso8601DateTimeZ || c.calledAtIso8601DateTimeZulu || c.calledAtIso8601DateTimeUTC || c.calledAtIso8601DateTimeGMT || c.calledAtIso8601DateTimeTimezone || c.calledAtIso8601DateTimeOffset || c.calledAtIso8601DateTimeWithOffset || c.calledAtIso8601DateTimeWithTimezone || c.calledAtIso8601DateTimeWithZ || c.calledAtIso8601DateTimeWithZulu || c.calledAtIso8601DateTimeWithUTC || c.calledAtIso8601DateTimeWithGMT || c.calledAt || c.calledTime || c.called || c.calledAtString || c.calledAtIso8601 || c.calledUTC || c.calledDate || c.calledTimestamp || c.calledMs || c.calledMillis || c.calledISO || c.calledISOString || c.calledISO8601 || c.calledISO8601String || c.calledISO8601Z || c.calledISO8601Zulu || c.calledISO8601UTC || c.calledISO8601GMT || c.calledISO8601Timezone || c.calledISO8601Offset || c.calledISO8601WithOffset || c.calledISO8601WithTimezone || c.calledISO8601WithZ || c.calledISO8601WithZulu || c.calledISO8601WithUTC || c.calledISO8601WithGMT) || c.calledAt || c.createdAt || Date.now()).getTime(),
+          calledMC: Number(c.calledMc || c.calledMC || 0),
+          currentMC,
+          contractAddress: c.token?.contractAddress || ''
+        };
+      });
+
+      setRows(mapped);
+    } catch (e) {
+      setError('Failed to load KOL calls');
+    } finally {
+      setLoading(false);
+    }
+  }, [API_BASE]);
+
+  useEffect(() => { if (open) load(); }, [open, load]);
+
+  const filtered = useMemo(() => {
+    const now = Date.now();
+    let windowMs = Infinity;
+    if (timeframe === '24h') windowMs = 24 * 60 * 60 * 1000;
+    else if (timeframe === '7d') windowMs = 7 * 24 * 60 * 60 * 1000;
+    else if (timeframe === '30d') windowMs = 30 * 24 * 60 * 60 * 1000;
+    const qq = q.trim().toLowerCase();
+    return rows.filter(r => {
+      const text = (r.token + ' ' + r.name).toLowerCase();
+      const timeOk = timeframe === 'all' ? true : (now - r.calledTs) <= windowMs;
+      return text.includes(qq) && timeOk;
+    });
+  }, [rows, q, timeframe]);
+
+  const sorted = useMemo(() => {
+    const d = [...filtered];
+    const key = sort.key;
+    d.sort((a, b) => {
+      const da = computeDerived(a);
+      const db = computeDerived(b);
+      let av = 0, bv = 0;
+      if (key === 'token') { av = a.token.localeCompare(b.token); bv = 0; return sort.dir === 'asc' ? av : -av; }
+      if (key === 'calledMC') { av = a.calledMC; bv = b.calledMC; }
+      else if (key === 'currentMC') { av = a.currentMC; bv = b.currentMC; }
+      else if (key === 'x') { av = da.x; bv = db.x; }
+      else if (key === 'pnl') { av = da.pnl; bv = db.pnl; }
+      else { av = 0; bv = 0; }
+      return sort.dir === 'asc' ? av - bv : bv - av;
+    });
+    return d;
+  }, [filtered, sort]);
+
+  function exportCSV() {
+    const rowsCsv = [
+      ['Token', 'Name', 'CalledAt', 'CalledMC', 'CurrentMC', 'X', 'PnL%'],
+      ...sorted.map(r => {
+        const d = computeDerived(r);
+        return [r.token, r.name, new Date(r.calledTs).toISOString(), r.calledMC, r.currentMC, d.x.toFixed(4), d.pnl.toFixed(4)];
+      })
+    ];
+    const csv = rowsCsv.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `kol-calls-${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-dark-card border border-gray-700 rounded-lg p-6 max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-semibold text-white">KOL Calls</h2>
+            <p className="text-xs text-gray-400">Track performance of every token you called.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={exportCSV} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm">Export CSV</button>
+            <button onClick={onClose} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm">Close</button>
+          </div>
+        </div>
+
+        <div className="flex flex-col md:flex-row md:items-center gap-3 mb-3">
+          <input
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            placeholder="Search by token…"
+            className="flex-1 bg-dark-bg border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-400"
+          />
+          <select
+            value={timeframe}
+            onChange={e => setTimeframe(e.target.value)}
+            className="bg-dark-bg border border-gray-700 rounded px-3 py-2 text-sm text-white"
+          >
+            <option value="all">All time</option>
+            <option value="24h">Last 24h</option>
+            <option value="7d">Last 7d</option>
+            <option value="30d">Last 30d</option>
+          </select>
+        </div>
+
+        {loading ? (
+          <div className="text-gray-400">Loading…</div>
+        ) : error ? (
+          <div className="text-red-400">{error}</div>
+        ) : (
+          <div className="overflow-auto border border-gray-700 rounded">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-800 sticky top-0">
+                <tr>
+                  <TableHeader label="Token" sortKey="token" sort={sort} setSort={setSort} />
+                  <TableHeader label="Called MC" sortKey="calledMC" sort={sort} setSort={setSort} />
+                  <TableHeader label="Current MC" sortKey="currentMC" sort={sort} setSort={setSort} />
+                  <TableHeader label="X" sortKey="x" sort={sort} setSort={setSort} />
+                  <TableHeader label="PnL %" sortKey="pnl" sort={sort} setSort={setSort} />
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-300">Trend</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map(r => {
+                  const d = computeDerived(r);
+                  const xClass = d.x >= 1 ? 'text-green-400' : 'text-red-400';
+                  const pnlClass = d.pnl >= 0 ? 'text-green-400' : 'text-red-400';
+                  return (
+                    <tr key={r.id} className="hover:bg-gray-800 cursor-pointer" onClick={() => onOpenToken && onOpenToken(r)}>
+                      <td className="px-3 py-2 text-white">{r.token} <span className="text-gray-400">· {r.name}</span></td>
+                      <td className="px-3 py-2 text-gray-200">{formatUSD(r.calledMC)}</td>
+                      <td className="px-3 py-2 text-gray-200">{formatUSD(r.currentMC)}</td>
+                      <td className={`px-3 py-2 font-semibold ${xClass}`}>{d.x.toFixed(2)}×</td>
+                      <td className={`px-3 py-2 ${pnlClass}`}>{formatPct(d.pnl)}</td>
+                      <td className="px-3 py-2 text-gray-400">—</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+

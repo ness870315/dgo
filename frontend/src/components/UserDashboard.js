@@ -3,6 +3,7 @@ import { BarChart3, Star, TrendingUp, Activity, Wallet, Users, Calendar, Award, 
 import { useAuth } from '../contexts/AuthContext';
 import TokenDetails from './TokenDetails';
 import hypeService from '../services/hypeService';
+import KolCallsModal from './KolCallsModal';
 
 const UserDashboard = () => {
   const { user, sessionId } = useAuth();
@@ -23,6 +24,7 @@ const UserDashboard = () => {
   const [selectedHypeToken, setSelectedHypeToken] = useState(null);
   const [hypeRange, setHypeRange] = useState('7d');
   const [hypeSeries, setHypeSeries] = useState([]);
+  const [showKolCalls, setShowKolCalls] = useState(false);
 
   const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
 
@@ -292,6 +294,21 @@ const UserDashboard = () => {
             </button>
           </div>
 
+          {/* KOL Calls Card */}
+          <div className="bg-dark-card border border-gray-700 rounded-lg p-6">
+            <div className="flex items-center space-x-2 mb-4">
+              <Activity size={20} className="text-green-400" />
+              <h2 className="text-xl font-semibold text-white">KOL Calls</h2>
+            </div>
+            <p className="text-gray-400 text-sm mb-4">Your recorded calls with performance metrics.</p>
+            <button
+              onClick={() => setShowKolCalls(true)}
+              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+            >
+              Open
+            </button>
+          </div>
+
           {/* KOL Leaderboard */}
           <div className="bg-dark-card border border-gray-700 rounded-lg p-6">
             <div className="flex items-center space-x-2 mb-4">
@@ -515,6 +532,23 @@ const UserDashboard = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* KOL Calls Modal */}
+        {showKolCalls && (
+          <KolCallsModal
+            open={showKolCalls}
+            onClose={() => setShowKolCalls(false)}
+            onOpenToken={(row) => {
+              // When clicking a KOL call row, open the TokenDetails modal if we have it in cache
+              // Fallback: open hype chart modal if not found
+              const tokenMatch = dashboardData.watchlist.find(t => (t.contractAddress && row.contractAddress) && t.contractAddress.toLowerCase() === row.contractAddress.toLowerCase());
+              if (tokenMatch) {
+                setSelectedToken(tokenMatch);
+                setShowKolCalls(false);
+              }
+            }}
+          />
         )}
 
         {/* Token Details Modal */}

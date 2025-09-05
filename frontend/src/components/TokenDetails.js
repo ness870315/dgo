@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Twitter, MessageCircle, ExternalLink, Star, Flame } from 'lucide-react';
+import kolCallsService from '../services/kolCallsService';
 import watchlistService from '../services/watchlistService';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -363,6 +364,28 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                     stroke="currentColor"
                     fill={isInWatchlist ? 'currentColor' : 'none'} 
                   />
+              </button>
+
+              {/* Call it! */}
+              <button
+                onClick={async () => {
+                  try {
+                    const payload = {
+                      symbol: token.symbol,
+                      name: token.name,
+                      contractAddress: token.contractAddress
+                    };
+                    await kolCallsService.addCall(payload);
+                    alert('✅ Call recorded! We snapped current MC from Jupiter.');
+                  } catch (e) {
+                    console.error('Call it failed:', e);
+                    alert('❌ Failed to record call');
+                  }
+                }}
+                className="px-2 py-1 ml-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                title="Record a call at current market cap"
+              >
+                Call it!
               </button>
 
               {/* Close Button */}
