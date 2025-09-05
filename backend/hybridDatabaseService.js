@@ -506,6 +506,7 @@ class HybridDatabaseService {
   // HYPE LIST (per-user selection)
   // ================================
   async getHypeList(userId) {
+    await this.ensureUserDir(userId);
     const file = this.getUserFile(userId, 'hype.json');
     const data = await this.readJsonFile(file, []);
     if (Array.isArray(data)) return data;
@@ -514,6 +515,7 @@ class HybridDatabaseService {
   }
 
   async setHypeList(userId, list) {
+    await this.ensureUserDir(userId);
     const file = this.getUserFile(userId, 'hype.json');
     const unique = Array.from(new Set((list || []).filter(Boolean)));
     await this.writeJsonFile(file, unique);
