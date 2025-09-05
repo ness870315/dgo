@@ -275,6 +275,21 @@ const UserDashboard = () => {
                 </div>
               )}
             </div>
+
+            {/* Hype over Time trigger under KOL Calls */}
+            <div className="mt-6 pt-4 border-t border-gray-700">
+              <button
+                onClick={() => setShowHypeModal(true)}
+                className="w-full flex items-center justify-between text-left text-gray-300 hover:text-white"
+                title="View hype over time for your watchlist"
+              >
+                <div className="flex items-center gap-2">
+                  <BarChart3 size={18} className="text-blue-400" />
+                  <span className="font-medium">Hype over Time</span>
+                </div>
+                <span className="text-sm text-gray-400">Open</span>
+              </button>
+            </div>
           </div>
 
           {/* KOL Leaderboard */}
@@ -370,18 +385,7 @@ const UserDashboard = () => {
                 </div>
               </div>
             </button>
-            <button 
-              onClick={() => setShowHypeModal(true)}
-              className="w-full p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-left"
-            >
-              <div className="flex items-center space-x-3">
-                <BarChart3 size={20} />
-                <div>
-                  <p className="font-medium">Hype over Time</p>
-                  <p className="text-sm opacity-90">Watchlist hype trends</p>
-                </div>
-              </div>
-            </button>
+            {/* Hype over Time moved under KOL Calls */}
           </div>
         </div>
 
