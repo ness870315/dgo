@@ -36,7 +36,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('🔄 Fetching dashboard data for session:', sessionId);
+      console.log('🔄 Fetching dashboard data for session:', sessionId, '- Premium features active');
       
       // Fetch user profile and watchlist
       const [profileResponse, watchlistResponse] = await Promise.all([
