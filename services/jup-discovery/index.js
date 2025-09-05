@@ -6,7 +6,7 @@ const INTERNAL_TOKEN = process.env.INTERNAL_TOKEN || process.env.DISCOVERY_INTER
 const INTERVAL_MS = parseInt(process.env.DISCOVERY_INTERVAL_MS || '300000', 10); // 5 minutes
 const RUN_ON_START = (process.env.DISCOVERY_RUN_ON_START || 'true') === 'true';
 
-const JUP_BASE = 'https://lite-api.jup.ag/tokens/v2';
+const JUP_BASE = process.env.JUP_BASE || (JUPITER_API_KEY ? 'https://api.jup.ag/tokens/v2' : 'https://lite-api.jup.ag/tokens/v2');
 const SEARCHES = [
   { key: 'JupTrending5m', category: 'toptrending', interval: '5m' },
   { key: 'JupOrganic5m', category: 'toporganicscore', interval: '5m' },
