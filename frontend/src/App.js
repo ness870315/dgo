@@ -12,6 +12,7 @@ import FuelTokenPage from './components/FuelTokenPage';
 import UpdateTokenPage from './components/UpdateTokenPage';
 import UserDashboard from './components/UserDashboard';
 import ApifyTestPage from './components/ApifyTestPage';
+import PremiumPage from './components/PremiumPage';
 import { AuthProvider } from './contexts/AuthContext';
 import tokenService from './services/tokenService';
 import './App.css';
@@ -201,6 +202,7 @@ function App() {
   const [showUpdateToken, setShowUpdateToken] = useState(false);
   const [showUserDashboard, setShowUserDashboard] = useState(false);
   const [showApifyTest, setShowApifyTest] = useState(false);
+  const [showPremium, setShowPremium] = useState(false);
   const [fueledTokens, setFueledTokens] = useState([]);
   const [viewMode, setViewMode] = useState('bubbles'); // 'bubbles' or 'cards'
   const [settings, setSettings] = useState({
@@ -679,6 +681,9 @@ function App() {
     setShowApifyTest(true);
   }, []);
 
+  const handlePremiumClick = useCallback(() => {
+    setShowPremium(true);
+  }, []);
 
 
   const handleCategoryFiltersChange = useCallback((newCategoryFilters) => {
@@ -826,6 +831,27 @@ function App() {
     );
   }
 
+  // Show Premium page if requested
+  if (showPremium && !showUserDashboard) {
+    return (
+      <AuthProvider>
+        <PremiumPage
+          onBack={() => setShowPremium(false)}
+          headerAuth={
+            <AuthButton 
+              onNavigateToListToken={handleListTokenClick} 
+              onNavigateToFuelToken={handleFuelTokenClick} 
+              onNavigateToUpdateToken={handleUpdateTokenClick}
+              onNavigateToDashboard={handleUserDashboardClick}
+              onNavigateToWatchlist={handleWatchlistClick}
+              onNavigateToSettings={handleSettingsClick}
+            />
+          }
+        />
+      </AuthProvider>
+    );
+  }
+
   return (
     <AuthProvider>
       <div className="min-h-screen bg-dark-bg">
@@ -844,6 +870,7 @@ function App() {
             onNavigateToDashboard={handleUserDashboardClick}
             onNavigateToWatchlist={handleWatchlistClick}
             onNavigateToSettings={handleSettingsClick}
+            onNavigateToPremium={handlePremiumClick}
           />}
           isLoading={isLoading}
         />
