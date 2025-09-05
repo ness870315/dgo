@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import kolCallsService from '../services/kolCallsService';
+import DetailDrawer from './DetailDrawer';
 
 function formatUSD(n) {
   const v = typeof n === 'number' ? n : Number(n || 0);
@@ -45,6 +46,7 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
   const [timeframe, setTimeframe] = useState('all');
   const [rows, setRows] = useState([]);
   const [sort, setSort] = useState({ key: 'x', dir: 'desc' });
+  const [selectedCall, setSelectedCall] = useState(null);
 
   const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
 
@@ -215,7 +217,7 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
                   const xClass = d.x >= 1 ? 'text-green-400' : 'text-red-400';
                   const pnlClass = d.pnl >= 0 ? 'text-green-400' : 'text-red-400';
                   return (
-                    <tr key={r.id} className="hover:bg-gray-800 cursor-pointer" onClick={() => onOpenToken && onOpenToken(r)}>
+                    <tr key={r.id} className="hover:bg-gray-800 cursor-pointer" onClick={() => setSelectedCall(r)}>
                       <td className="px-3 py-2 text-white">{r.token} <span className="text-gray-400">· {r.name}</span></td>
                       <td className="px-3 py-2 text-gray-200">{formatUSD(r.calledMC)}</td>
                       <td className="px-3 py-2 text-gray-200">{formatUSD(r.currentMC)}</td>
@@ -229,6 +231,12 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
             </table>
           </div>
         )}
+        
+        {/* Detail Drawer */}
+        <DetailDrawer 
+          call={selectedCall} 
+          onClose={() => setSelectedCall(null)} 
+        />
     </Container>
   );
 }
