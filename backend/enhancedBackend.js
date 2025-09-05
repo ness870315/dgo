@@ -914,8 +914,8 @@ class EnhancedBackend {
 
         // Fresh Jupiter snapshot for called MC
         const jData = await this.tokenProcessor.jupiterService.getTokenDetails(token.contractAddress);
-        const calledMC = jData?.mcap || 0;
-        const price = jData?.usdPrice || 0;
+        const calledMC = Number(jData?.mcap || jData?.fdv || 0) || 0;
+        const price = Number(jData?.usdPrice || 0) || 0;
 
         const saved = await this.oauthXService.db.addKolCall(user.id, {
           token: {
@@ -941,7 +941,21 @@ class EnhancedBackend {
         const user = await this.oauthXService.getUserBySession(sessionId);
         if (!user) return res.status(401).json({ error: 'Invalid session' });
         const calls = await this.oauthXService.db.getKolCalls(user.id);
-        res.json({ success: true, calls });
+        // Enrich with current MC from Jupiter for accuracy
+        const enriched = await Promise.all((calls || []).map(async (c) => {
+          try {
+            const ca = c?.token?.contractAddress;
+            let currentMC = 0;
+            if (ca) {
+              const j = await this.tokenProcessor.jupiterService.getTokenDetails(ca);
+              currentMC = Number(j?.mcap || j?.fdv || 0) || 0;
+            }
+            return { ...c, currentMC };
+          } catch (_) {
+            return { ...c, currentMC: 0 };
+          }
+        }));
+        res.json({ success: true, calls: enriched });
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Get KOL calls error:', error.message);
         res.status(500).json({ error: 'Failed to fetch KOL calls' });

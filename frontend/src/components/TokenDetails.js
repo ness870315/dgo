@@ -376,7 +376,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                       contractAddress: token.contractAddress
                     };
                     await kolCallsService.addCall(payload);
-                    alert('✅ Call recorded! We snapped current MC from Jupiter.');
+                    alert('✅ You’ve made your call… let’s see if you have what it takes to become the next KOL.');
                   } catch (e) {
                     console.error('Call it failed:', e);
                     alert('❌ Failed to record call');
