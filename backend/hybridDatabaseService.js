@@ -473,6 +473,36 @@ class HybridDatabaseService {
     return views ? (views instanceof Set ? views.size : views.length) : 0;
   }
 
+  // ================================
+  // HYPE LIST (per-user selection)
+  // ================================
+  async getHypeList(userId) {
+    const file = this.getUserFile(userId, 'hype.json');
+    const data = await this.readJsonFile(file, []);
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.list)) return data.list;
+    return [];
+  }
+
+  async setHypeList(userId, list) {
+    const file = this.getUserFile(userId, 'hype.json');
+    const unique = Array.from(new Set((list || []).filter(Boolean)));
+    await this.writeJsonFile(file, unique);
+    return unique;
+  }
+
+  async addHypeToken(userId, contractAddress) {
+    const current = await this.getHypeList(userId);
+    const next = Array.from(new Set([...(current || []), contractAddress]));
+    return await this.setHypeList(userId, next);
+  }
+
+  async removeHypeToken(userId, contractAddress) {
+    const current = await this.getHypeList(userId);
+    const next = (current || []).filter(ca => String(ca) !== String(contractAddress));
+    return await this.setHypeList(userId, next);
+  }
+
   /**
    * Get user's KOL calls
    */

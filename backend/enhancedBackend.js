@@ -462,6 +462,59 @@ class EnhancedBackend {
       }
     });
 
+    // ================================
+    // HYPE LIST (per-user selection)
+    // ================================
+    this.app.get('/api/user/hype', async (req, res) => {
+      try {
+        const { sessionId } = req.query;
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) return res.status(401).json({ error: 'Invalid session' });
+        const list = await this.oauthXService.db.getHypeList(user.id);
+        res.json({ success: true, list });
+      } catch (e) {
+        console.error('[🛡️ Enhanced Backend] ❌ Get hype list error:', e.message);
+        res.status(500).json({ error: 'Failed to fetch hype list' });
+      }
+    });
+
+    this.app.post('/api/user/hype', async (req, res) => {
+      try {
+        const { sessionId, contractAddress } = req.body;
+        if (!sessionId || !contractAddress) return res.status(400).json({ error: 'Missing sessionId or contractAddress' });
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) return res.status(401).json({ error: 'Invalid session' });
+
+        const premiumStatus = await this.oauthXService.db.getPremiumStatus(user.id);
+        const isPremium = premiumStatus?.isPremium && new Date(premiumStatus.expiresAt) > new Date();
+        const current = await this.oauthXService.db.getHypeList(user.id);
+        if (!isPremium && current.length >= 5 && !current.includes(contractAddress)) {
+          return res.status(403).json({ error: 'limit_exceeded', message: 'Free users can track up to 5 tokens in Hype over Time. Upgrade to Premium for unlimited.' });
+        }
+
+        const list = await this.oauthXService.db.addHypeToken(user.id, contractAddress);
+        res.json({ success: true, list });
+      } catch (e) {
+        console.error('[🛡️ Enhanced Backend] ❌ Add hype token error:', e.message);
+        res.status(500).json({ error: 'Failed to add token to hype list' });
+      }
+    });
+
+    this.app.delete('/api/user/hype/:contract', async (req, res) => {
+      try {
+        const { sessionId } = req.query;
+        const { contract } = req.params;
+        if (!sessionId || !contract) return res.status(400).json({ error: 'Missing sessionId or contract' });
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) return res.status(401).json({ error: 'Invalid session' });
+        const list = await this.oauthXService.db.removeHypeToken(user.id, contract);
+        res.json({ success: true, list });
+      } catch (e) {
+        console.error('[🛡️ Enhanced Backend] ❌ Remove hype token error:', e.message);
+        res.status(500).json({ error: 'Failed to remove token from hype list' });
+      }
+    });
+
     // Get BirdEye trending tokens (test endpoint)
     this.app.get('/api/tokens/birdeye-trending', async (req, res) => {
       try {

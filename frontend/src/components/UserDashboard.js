@@ -36,19 +36,60 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
 
   const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
 
-  // Persisted selection for Hype list per user
+  // Persisted selection for Hype list per user (sync with backend if available)
   useEffect(() => {
-    const key = `hypeSelected:${user?.id || 'anon'}`;
-    try {
-      const saved = JSON.parse(localStorage.getItem(key) || '[]');
-      if (Array.isArray(saved)) setHypeSelected(saved);
-    } catch (_) {}
+    (async () => {
+      const key = `hypeSelected:${user?.id || 'anon'}`;
+      // Try backend first
+      try {
+        const sessionId = localStorage.getItem('sessionId');
+        if (sessionId) {
+          const res = await fetch(`${API_BASE}/api/user/hype?sessionId=${encodeURIComponent(sessionId)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data.list)) {
+              setHypeSelected(data.list);
+              try { localStorage.setItem(key, JSON.stringify(data.list)); } catch (_) {}
+              return;
+            }
+          }
+        }
+      } catch (_) {}
+      // Fallback to local
+      try {
+        const saved = JSON.parse(localStorage.getItem(key) || '[]');
+        if (Array.isArray(saved)) setHypeSelected(saved);
+      } catch (_) {}
+    })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   useEffect(() => {
     const key = `hypeSelected:${user?.id || 'anon'}`;
     try { localStorage.setItem(key, JSON.stringify(hypeSelected)); } catch (_) {}
+    // Push to backend
+    (async () => {
+      try {
+        const sessionId = localStorage.getItem('sessionId');
+        if (!sessionId) return;
+        // Fetch current list to diff and minimize requests
+        const res = await fetch(`${API_BASE}/api/user/hype?sessionId=${encodeURIComponent(sessionId)}`);
+        let serverList = [];
+        if (res.ok) {
+          const data = await res.json();
+          serverList = Array.isArray(data.list) ? data.list : [];
+        }
+        const toAdd = hypeSelected.filter(ca => !serverList.includes(ca));
+        const toRemove = serverList.filter(ca => !hypeSelected.includes(ca));
+        await Promise.all([
+          ...toAdd.map(ca => fetch(`${API_BASE}/api/user/hype`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId, contractAddress: ca })
+          })),
+          ...toRemove.map(ca => fetch(`${API_BASE}/api/user/hype/${encodeURIComponent(ca)}?sessionId=${encodeURIComponent(sessionId)}`, { method: 'DELETE' }))
+        ]);
+      } catch (_) {}
+    })();
   }, [hypeSelected, user?.id]);
 
   const fetchDashboardData = useCallback(async () => {
