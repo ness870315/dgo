@@ -259,7 +259,7 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
             {headerAuth}
             <button
               onClick={onBack}
-              className="px-4 py-2 bg-solana-purple hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2"
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg border border-solana-purple/60 flex items-center gap-2"
             >
               <ArrowLeft size={16} />
               Back to Main App

@@ -179,7 +179,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
           <div className="flex justify-between items-center mb-6">
             <button 
               onClick={() => window.location.href = '/'}
-              className="flex items-center space-x-2 px-4 py-2 bg-solana-purple hover:bg-purple-700 text-white rounded-lg transition-colors"
+              className="flex items-center space-x-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg border border-solana-purple/60"
             >
               <ArrowLeft size={20} />
               <span>Return to Main App</span>

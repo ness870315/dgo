@@ -90,7 +90,7 @@ export default function PremiumPage({ onBack, headerAuth }) {
           <h1 className="text-2xl font-bold text-white">👑 Premium</h1>
           <div className="flex items-center gap-3">
             {headerAuth}
-            <button onClick={onBack} className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
+            <button onClick={onBack} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg border border-solana-purple/60">
               ← Back
             </button>
           </div>

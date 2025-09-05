@@ -608,7 +608,7 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
           <div className="flex items-center space-x-4">
             <button
               onClick={onBack}
-              className="p-2 rounded-lg border border-gray-600 text-gray-400 hover:text-white hover:border-gray-500 transition-colors"
+              className="p-2 rounded-lg border border-solana-purple/60 bg-gray-700 hover:bg-gray-600 text-white transition-colors"
               title="Go back"
             >
               <ArrowLeft size={20} />

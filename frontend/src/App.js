@@ -850,7 +850,7 @@ function App() {
             <h1 className="text-2xl font-bold text-white">🚀 Apify Integration Test</h1>
             <button
               onClick={() => setShowApifyTest(false)}
-              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg border border-solana-purple/60"
             >
               ← Back to Main App
             </button>
