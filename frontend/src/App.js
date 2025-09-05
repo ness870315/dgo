@@ -752,7 +752,7 @@ function App() {
   }
 
   // Show List Token page if requested
-  if (showListToken && !showUserDashboard) {
+  if (showListToken) {
     return (
       <AuthProvider>
         <div className="min-h-screen bg-dark-bg">
@@ -779,7 +779,7 @@ function App() {
   }
 
   // Show Fuel Token page if requested
-  if (showFuelToken && !showUserDashboard) {
+  if (showFuelToken) {
     return (
       <AuthProvider>
         <FuelTokenPage 
@@ -800,7 +800,7 @@ function App() {
   }
 
   // Show Update Token page if requested
-  if (showUpdateToken && !showUserDashboard) {
+  if (showUpdateToken) {
     return (
       <AuthProvider>
         <div className="min-h-screen bg-dark-bg">
@@ -862,7 +862,7 @@ function App() {
   }
 
   // Show Premium page if requested
-  if (showPremium && !showUserDashboard) {
+  if (showPremium) {
     return (
       <AuthProvider>
         <PremiumPage
