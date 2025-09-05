@@ -1415,6 +1415,122 @@ class EnhancedBackend {
       }
     });
 
+    // Internal import endpoint for discovery microservices (secured via X-Internal-Token)
+    this.app.post('/api/internal/discovery/import', async (req, res) => {
+      try {
+        const internalToken = process.env.INTERNAL_TOKEN || process.env.DISCOVERY_INTERNAL_TOKEN;
+        const providedToken = req.headers['x-internal-token'] || req.query.token;
+
+        if (!internalToken) {
+          return res.status(503).json({ success: false, error: 'Internal import not configured (no INTERNAL_TOKEN)' });
+        }
+        if (!providedToken || providedToken !== internalToken) {
+          return res.status(403).json({ success: false, error: 'Forbidden' });
+        }
+
+        const { source = 'jup-discovery', category = 'unknown', interval = '5m', tokens: candidates } = req.body || {};
+        if (!Array.isArray(candidates)) {
+          return res.status(400).json({ success: false, error: 'Invalid payload: tokens[] required' });
+        }
+
+        const stableSymbols = new Set(['SOL', 'JUP', 'WETH', 'WSOL', 'WBTC', 'USDC']);
+        const nowIso = new Date().toISOString();
+
+        // Load current cache
+        const tokens = await this.getTokensFromCache();
+        const byAddress = new Map(tokens.filter(t => t.contractAddress).map(t => [t.contractAddress.toLowerCase(), t]));
+
+        let inserted = 0;
+        let updated = 0;
+        let boosted = 0;
+        let skipped = 0;
+
+        // Normalize and merge
+        for (const c of candidates) {
+          try {
+            const contract = (c.contractAddress || c.address || c.mint || '').toString();
+            const symbol = (c.symbol || '').toUpperCase();
+            const name = c.name || symbol || 'Unknown Token';
+
+            if (!contract || contract.length < 10) { skipped++; continue; }
+            if (stableSymbols.has(symbol)) { skipped++; continue; }
+            if (!c.graduatedAt) { skipped++; continue; }
+
+            const key = contract.toLowerCase();
+
+            const jupInfo = {
+              price: c.price ?? c.uiPrice ?? c.currentPrice ?? c.priceUsd ?? null,
+              mcap: c.mcap ?? c.marketCap ?? null,
+              liquidity: c.liquidity ?? c.liq ?? null,
+              volume1h: c.volume1h ?? (c.volume && (c.volume['1h'] || c.volume.h1)) ?? null,
+              trades1h: c.trades1h ?? (c.trades && (c.trades['1h'] || c.trades.h1)) ?? null,
+              change1hPct: c.change1hPct ?? (c.priceChange && (c.priceChange['1h'] || c.priceChange.h1)) ?? null,
+              holders: c.holders ?? c.holderCount ?? null,
+              graduatedAt: c.graduatedAt,
+              updatedAt: nowIso,
+              sourceCategory: category,
+              sourceInterval: interval
+            };
+
+            if (byAddress.has(key)) {
+              // Update existing
+              const existing = byAddress.get(key);
+              existing.symbol = existing.symbol || symbol;
+              existing.name = existing.name || name;
+              existing.contractAddress = existing.contractAddress || contract;
+              existing.source = existing.source || 'jupiter';
+              existing.stage = existing.stage || 'jupiter';
+              existing.lastDiscoveredAt = nowIso;
+              existing.discoveredVia = existing.discoveredVia || [];
+              if (Array.isArray(existing.discoveredVia)) {
+                existing.discoveredVia.push({ source, category, interval, at: nowIso });
+              }
+              existing.jupiterData = { ...(existing.jupiterData || {}), ...jupInfo };
+              updated++;
+            } else {
+              // Insert new minimal token
+              const newToken = {
+                symbol: symbol || 'UNKNOWN',
+                name,
+                contractAddress: contract,
+                source: 'jupiter',
+                stage: 'jupiter',
+                createdAt: nowIso,
+                lastDiscoveredAt: nowIso,
+                discoveredVia: [{ source, category, interval, at: nowIso }],
+                hasJupiterData: true,
+                jupiterData: jupInfo
+              };
+              tokens.push(newToken);
+              byAddress.set(key, newToken);
+              inserted++;
+            }
+
+            // Boost priority for near real-time updates
+            try {
+              await this.priorityQueue.boostTokenPriority(contract, 30 * 60 * 1000);
+              boosted++;
+            } catch (boostErr) {
+              // Non-fatal
+              console.warn('[🎯 PriorityQueue] Boost failed for', contract.substring(0, 8), boostErr.message);
+            }
+          } catch (_err) {
+            skipped++;
+          }
+        }
+
+        // Save updated cache if any changes
+        if (inserted > 0 || updated > 0) {
+          await this.saveTokensToCache(tokens);
+        }
+
+        return res.json({ success: true, stats: { inserted, updated, boosted, skipped, total: candidates.length } });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Internal discovery import error:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to import discovery tokens' });
+      }
+    });
+
     this.app.get('/api/tokens/:contract/mcap-chart', async (req, res) => {
       try {
         const { contract } = req.params;
