@@ -333,6 +333,17 @@
             </div>
         </div>
 
+        <!-- Earnings -->
+        <div class="card">
+            <h2>💰 Earnings</h2>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+                <button class="btn" onclick="loadEarningsSummary()">📈 Load Summary</button>
+                <button class="btn" onclick="loadEarningsList()">📋 List Earnings</button>
+            </div>
+            <div id="earningsSummary" class="status-display" style="display:none;"></div>
+            <div id="earningsList" class="results-container" style="display:none;"></div>
+        </div>
+
         <!-- Jupiter API Management -->
         <div class="card">
             <h2>🪐 Jupiter API Management</h2>
@@ -630,6 +641,57 @@
                 loadUsersList();
             } catch (e) {
                 resultDiv.innerHTML = showAlert('❌ Failed to upgrade user: ' + e.message, 'error');
+            }
+        }
+
+        // Earnings
+        async function loadEarningsSummary() {
+            const div = document.getElementById('earningsSummary');
+            div.style.display = 'block';
+            div.innerHTML = showLoading();
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/earnings/summary`);
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error || 'Failed');
+                const s = data.summary;
+                let html = `<div class="status-item"><span class="status-label">Total</span><span class="status-value">$${(s.total||0).toFixed(2)}</span></div>`;
+                Object.keys(s.breakdown || {}).forEach(k => {
+                    const b = s.breakdown[k];
+                    html += `<div class="status-item"><span class="status-label">${k}</span><span class="status-value">$${(b.total||0).toFixed(2)} (${b.count})</span></div>`;
+                });
+                div.innerHTML = html;
+            } catch (e) {
+                div.innerHTML = showAlert('❌ Failed to load earnings summary: ' + e.message, 'error');
+            }
+        }
+
+        async function loadEarningsList() {
+            const div = document.getElementById('earningsList');
+            div.style.display = 'block';
+            div.innerHTML = showLoading();
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/earnings`);
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error || 'Failed');
+                if (!Array.isArray(data.earnings) || data.earnings.length === 0) {
+                    div.innerHTML = showAlert('No earnings recorded yet', 'warning');
+                    return;
+                }
+                let html = `<h4>Total records: ${data.earnings.length}</h4>`;
+                data.earnings.forEach(r => {
+                    html += `
+                        <div class="token-item">
+                            <div class="token-info">
+                                <h4>${r.type} • ${r.category || '—'} • $${(r.amount||0).toFixed(2)}</h4>
+                                <p>Currency: ${r.currency || '—'} • User: ${r.userId || '—'} • Paylink: ${r.paylinkId || '—'}</p>
+                                <p>Created: ${r.createdAt}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+                div.innerHTML = html;
+            } catch (e) {
+                div.innerHTML = showAlert('❌ Failed to load earnings: ' + e.message, 'error');
             }
         }
         function showLoading() {

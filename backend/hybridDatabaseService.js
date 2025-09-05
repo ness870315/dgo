@@ -307,6 +307,62 @@ class HybridDatabaseService {
   }
 
   /**
+   * Earnings - global store under data/global/earnings.json
+   */
+  async addEarning(entry) {
+    try {
+      const file = this.getGlobalFile('earnings.json');
+      const list = await this.readJsonFile(file, []);
+      const record = {
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+        type: entry?.type || 'unknown',
+        category: entry?.category || null,
+        amount: typeof entry?.amount === 'number' ? entry.amount : null,
+        currency: entry?.currency || null,
+        paylinkId: entry?.paylinkId || null,
+        txId: entry?.txId || null,
+        userId: entry?.userId || null,
+        meta: entry?.meta || null
+      };
+      list.push(record);
+      await this.writeJsonFile(file, list);
+      return record;
+    } catch (error) {
+      console.error('[🗃️ Database] ❌ Failed to add earning:', error.message);
+      throw error;
+    }
+  }
+
+  async getEarnings() {
+    const file = this.getGlobalFile('earnings.json');
+    return await this.readJsonFile(file, []);
+  }
+
+  async getEarningsSummary() {
+    const list = await this.getEarnings();
+    const sum = (arr) => arr.reduce((acc, x) => acc + (typeof x.amount === 'number' ? x.amount : 0), 0);
+
+    const byType = list.reduce((acc, r) => {
+      const key = r.category || r.type || 'unknown';
+      acc[key] = acc[key] || [];
+      acc[key].push(r);
+      return acc;
+    }, {});
+
+    const summary = {};
+    for (const key of Object.keys(byType)) {
+      summary[key] = {
+        count: byType[key].length,
+        total: sum(byType[key])
+      };
+    }
+
+    const total = sum(list);
+    return { total, breakdown: summary, count: list.length };
+  }
+
+  /**
    * Get user's KOL calls
    */
   async getKolCalls(userId) {

@@ -169,6 +169,23 @@ class EnhancedBackend {
           durationDays
         });
 
+        // Record earning (amount may be present on receipt)
+        try {
+          const amount = Number(receipt?.amount || receipt?.payment?.amount || 0) || null;
+          await this.oauthXService.db.addEarning({
+            type: 'premium',
+            category: planType,
+            amount,
+            currency: receipt?.currency || receipt?.payment?.currency || 'USD',
+            paylinkId: receiptPaylinkId || null,
+            txId: receipt?.txId || receipt?.id || null,
+            userId: user.id,
+            meta: { durationDays }
+          });
+        } catch (e) {
+          console.error('[🛡️ Enhanced Backend] ⚠️ Failed to record earning:', e.message);
+        }
+
         res.json({ success: true, premium: result });
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Activate premium failed:', error.message);
@@ -243,6 +260,27 @@ class EnhancedBackend {
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Admin upgrade failed:', error.message);
         res.status(500).json({ success: false, error: 'Failed to upgrade user' });
+      }
+    });
+
+    // Admin: Earnings endpoints
+    this.app.get('/api/admin/earnings/summary', async (req, res) => {
+      try {
+        const summary = await this.oauthXService.db.getEarningsSummary();
+        res.json({ success: true, summary });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Earnings summary failed:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to get earnings summary' });
+      }
+    });
+
+    this.app.get('/api/admin/earnings', async (req, res) => {
+      try {
+        const list = await this.oauthXService.db.getEarnings();
+        res.json({ success: true, earnings: list });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Earnings list failed:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to get earnings list' });
       }
     });
 
