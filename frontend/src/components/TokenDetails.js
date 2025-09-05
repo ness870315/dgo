@@ -376,9 +376,18 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                       name: token.name,
                       contractAddress: token.contractAddress
                     };
-                    await kolCallsService.addCall(payload);
-                    alert('✅ You’ve made your call… let’s see if you have what it takes to become the next KOL.');
-                    setCallRecorded(true);
+                    try {
+                      await kolCallsService.addCall(payload);
+                      alert('✅ You’ve made your call… let’s see if you have what it takes to become the next KOL.');
+                      setCallRecorded(true);
+                    } catch (err) {
+                      // @ts-ignore
+                      if (err && err.code === 'already_called') {
+                        alert('Come on chad! You already called this one!');
+                        return;
+                      }
+                      throw err;
+                    }
                   } catch (e) {
                     console.error('Call it failed:', e);
                     alert('❌ Failed to record call');

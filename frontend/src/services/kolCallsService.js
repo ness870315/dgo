@@ -10,7 +10,16 @@ class KolCallsService {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionId, token })
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      let payload = {};
+      try { payload = JSON.parse(text); } catch (_) {}
+      const err = new Error(payload?.message || `HTTP ${res.status}`);
+      // attach code for client logic
+      // @ts-ignore
+      err.code = payload?.error || null;
+      throw err;
+    }
     return await res.json();
   }
 

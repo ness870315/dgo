@@ -914,6 +914,17 @@ class EnhancedBackend {
         const user = await this.oauthXService.getUserBySession(sessionId);
         if (!user) return res.status(401).json({ error: 'Invalid session' });
 
+        // Prevent duplicate calls per token per user
+        try {
+          const existingCalls = await this.oauthXService.db.getKolCalls(user.id);
+          const already = (existingCalls || []).some(c =>
+            (c?.token?.contractAddress || '').toLowerCase() === token.contractAddress.toLowerCase()
+          );
+          if (already) {
+            return res.status(409).json({ error: 'already_called', message: "Come on chad! You already called this one!" });
+          }
+        } catch (_) {}
+
         // Fresh Jupiter snapshot for called MC
         const jData = await this.tokenProcessor.jupiterService.getTokenDetails(token.contractAddress);
         const calledMC = Number(jData?.mcap || jData?.fdv || 0) || 0;
