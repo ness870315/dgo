@@ -1433,6 +1433,12 @@ class EnhancedBackend {
           return res.status(400).json({ success: false, error: 'Invalid payload: tokens[] required' });
         }
 
+        console.log(`[🔍 Discovery Import] Received ${candidates.length} candidates from ${source} (${category}/${interval})`);
+        if (candidates.length > 0) {
+          const sampleSymbols = candidates.slice(0, 5).map(c => c.symbol || 'UNKNOWN').join(', ');
+          console.log(`[🔍 Discovery Import] Sample tokens: ${sampleSymbols}${candidates.length > 5 ? '...' : ''}`);
+        }
+
         const stableSymbols = new Set(['SOL', 'JUP', 'WETH', 'WSOL', 'WBTC', 'USDC']);
         const nowIso = new Date().toISOString();
 
@@ -1504,6 +1510,7 @@ class EnhancedBackend {
               tokens.push(newToken);
               byAddress.set(key, newToken);
               inserted++;
+              console.log(`[🔍 Discovery Import] ➕ New token: ${symbol} (${name}) - MC: $${jupInfo.mcap ? (jupInfo.mcap/1000000).toFixed(1) + 'M' : 'N/A'}`);
             }
 
             // Boost priority for near real-time updates
