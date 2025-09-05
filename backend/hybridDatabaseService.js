@@ -289,6 +289,24 @@ class HybridDatabaseService {
   }
 
   /**
+   * Get premium status for a user (reads premium.json)
+   */
+  async getPremiumStatus(userId) {
+    await this.ensureUserDir(userId);
+    const file = this.getUserFile(userId, 'premium.json');
+    const data = await this.readJsonFile(file, null);
+    if (!data) {
+      return {
+        isPremium: false,
+        subscriptionType: null,
+        expiresAt: null,
+        features: []
+      };
+    }
+    return data;
+  }
+
+  /**
    * Get user's KOL calls
    */
   async getKolCalls(userId) {

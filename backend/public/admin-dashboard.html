@@ -310,6 +310,29 @@
             </div>
         </div>
 
+        <!-- Users Management -->
+        <div class="card">
+            <h2>👥 Users</h2>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+                <button class="btn" onclick="loadUsersStats()">📈 Load User Stats</button>
+                <button class="btn" onclick="loadUsersList()">📋 List Users</button>
+            </div>
+            <div id="usersStats" class="status-display" style="display:none;"></div>
+            <div id="usersList" class="results-container" style="display:none;"></div>
+            <div style="margin-top:15px; padding:12px; background: #fff8e1; border-left: 4px solid #ffb300; border-radius:8px;">
+                <strong>Admin Upgrade:</strong>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; align-items:center;">
+                    <input id="upgradeUserId" placeholder="user id (e.g., 1962643731066081280)" style="flex:1; padding:8px 10px; border:1px solid #ddd; border-radius:8px;" />
+                    <select id="upgradeDuration" style="padding:8px 10px; border:1px solid #ddd; border-radius:8px;">
+                        <option value="30">30 days (Monthly)</option>
+                        <option value="365">365 days (Yearly)</option>
+                    </select>
+                    <button class="btn btn-success" onclick="adminUpgradeUser()">⬆️ Upgrade to Premium</button>
+                </div>
+                <div id="upgradeResult" style="margin-top:10px;"></div>
+            </div>
+        </div>
+
         <!-- Jupiter API Management -->
         <div class="card">
             <h2>🪐 Jupiter API Management</h2>
@@ -528,6 +551,87 @@
             return `<div class="alert ${alertClass}">${message}</div>`;
         }
 
+        // Users Management
+        async function loadUsersStats() {
+            const statsDiv = document.getElementById('usersStats');
+            statsDiv.style.display = 'block';
+            statsDiv.innerHTML = showLoading();
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/users/stats`);
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error || 'Failed');
+                statsDiv.innerHTML = `
+                    <div class="status-item"><span class="status-label">Total Users</span><span class="status-value">${data.total}</span></div>
+                    <div class="status-item"><span class="status-label">Premium Users</span><span class="status-value">${data.premium}</span></div>
+                    <div class="status-item"><span class="status-label">Free Users</span><span class="status-value">${data.free}</span></div>
+                `;
+            } catch (e) {
+                statsDiv.innerHTML = showAlert('❌ Failed to load user stats: ' + e.message, 'error');
+            }
+        }
+
+        async function loadUsersList() {
+            const listDiv = document.getElementById('usersList');
+            listDiv.style.display = 'block';
+            listDiv.innerHTML = showLoading();
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/users`);
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error || 'Failed');
+                if (!Array.isArray(data.users) || data.users.length === 0) {
+                    listDiv.innerHTML = showAlert('No users found', 'warning');
+                    return;
+                }
+                let html = `<h4>Found ${data.users.length} users</h4>`;
+                data.users.forEach(u => {
+                    html += `
+                        <div class="token-item">
+                            <div class="token-info">
+                                <h4>${u.displayName || u.username} <span style="font-size:12px; color:#666;">(@${u.username})</span></h4>
+                                <p>ID: ${u.id} • Premium: ${u.isPremium ? '✅' : '❌'} • Type: ${u.subscriptionType || '—'} • Expires: ${u.expiresAt || '—'}</p>
+                                <p>Last Login: ${u.lastLogin || '—'}</p>
+                            </div>
+                            <div class="token-actions">
+                                <button class="btn btn-small btn-success" onclick="prefillUpgrade('${u.id}')">Upgrade</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                listDiv.innerHTML = html;
+            } catch (e) {
+                listDiv.innerHTML = showAlert('❌ Failed to load users: ' + e.message, 'error');
+            }
+        }
+
+        function prefillUpgrade(userId) {
+            document.getElementById('upgradeUserId').value = userId;
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+
+        async function adminUpgradeUser() {
+            const id = document.getElementById('upgradeUserId').value.trim();
+            const durationDays = parseInt(document.getElementById('upgradeDuration').value, 10);
+            const resultDiv = document.getElementById('upgradeResult');
+            if (!id) {
+                resultDiv.innerHTML = showAlert('Please enter a user id', 'error');
+                return;
+            }
+            resultDiv.innerHTML = showLoading();
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/users/${encodeURIComponent(id)}/upgrade`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ durationDays })
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error || 'Failed');
+                resultDiv.innerHTML = showAlert('✅ User upgraded successfully', 'success');
+                loadUsersStats();
+                loadUsersList();
+            } catch (e) {
+                resultDiv.innerHTML = showAlert('❌ Failed to upgrade user: ' + e.message, 'error');
+            }
+        }
         function showLoading() {
             return '<div class="loading"></div> Processing...';
         }

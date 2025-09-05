@@ -176,6 +176,76 @@ class EnhancedBackend {
       }
     });
 
+    // Admin: Users stats and list
+    this.app.get('/api/admin/users/stats', async (req, res) => {
+      try {
+        const users = await this.oauthXService.db.getAllUsers();
+        let total = users.length;
+        let premium = 0;
+        let free = 0;
+
+        for (const u of users) {
+          try {
+            const prem = await this.oauthXService.db.getPremiumStatus(u.id);
+            if (prem?.isPremium && (!prem.expiresAt || new Date(prem.expiresAt) > new Date())) premium++;
+            else free++;
+          } catch (_) { free++; }
+        }
+
+        res.json({ success: true, total, premium, free });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Users stats failed:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to get users stats' });
+      }
+    });
+
+    this.app.get('/api/admin/users', async (req, res) => {
+      try {
+        const users = await this.oauthXService.db.getAllUsers();
+        const enriched = [];
+        for (const u of users) {
+          const premium = await this.oauthXService.db.getPremiumStatus(u.id);
+          enriched.push({
+            id: u.id,
+            username: u.username,
+            displayName: u.displayName,
+            referralCode: u.referralCode,
+            createdAt: u.createdAt,
+            lastLogin: u.lastLogin,
+            isPremium: !!premium?.isPremium,
+            expiresAt: premium?.expiresAt || null,
+            subscriptionType: premium?.subscriptionType || null
+          });
+        }
+        res.json({ success: true, users: enriched });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Users list failed:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to get users list' });
+      }
+    });
+
+    // Admin: Upgrade a user to premium bypassing payment
+    this.app.post('/api/admin/users/:id/upgrade', async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { durationDays = 30, subscriptionType = 'admin_grant' } = req.body || {};
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
+        const result = await this.oauthXService.db.setPremiumStatus(id, {
+          isPremium: true,
+          subscriptionType,
+          updatedAt: now.toISOString(),
+          lastActivatedAt: now.toISOString(),
+          expiresAt: expiresAt.toISOString(),
+          durationDays
+        });
+        res.json({ success: true, premium: result });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Admin upgrade failed:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to upgrade user' });
+      }
+    });
+
     // Get all tokens
     this.app.get('/api/tokens', async (req, res) => {
       try {
