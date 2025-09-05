@@ -689,7 +689,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                   ✕
                 </button>
               </div>
-              <TokenDetails token={selectedToken} onClose={() => setSelectedToken(null)} />
+              <TokenDetails token={selectedToken} onClose={() => setSelectedToken(null)} onNavigateToPremium={onNavigateToPremium} />
             </div>
           </div>
         )}

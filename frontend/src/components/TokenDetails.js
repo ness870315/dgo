@@ -5,7 +5,7 @@ import watchlistService from '../services/watchlistService';
 import priorityService from '../services/priorityService';
 import { useAuth } from '../contexts/AuthContext';
 
-const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
+const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }) => {
   const { isAuthenticated } = useAuth();
   const [isInWatchlist, setIsInWatchlist] = useState(false);
   const [showFuelModal, setShowFuelModal] = useState(false);
