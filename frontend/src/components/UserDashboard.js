@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { BarChart3, Star, TrendingUp, Activity, Wallet, Users, Calendar, Award, Target, Crown, ArrowLeft, Plus, Zap, Edit } from 'lucide-react';
+import { BarChart3, Star, TrendingUp, Activity, Wallet, Users, Calendar, Award, Target, Crown, ArrowLeft, Plus, Zap, Edit, Trash } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import TokenDetails from './TokenDetails';
 import hypeService from '../services/hypeService';
@@ -360,9 +360,9 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                             }
                           }}
                           title="Remove from Hype over Time"
-                          className="px-2 py-1 text-xs rounded border border-red-500/60 text-red-300 hover:bg-red-500/10"
+                          className="p-1 rounded border border-red-500/60 text-red-300 hover:bg-red-500/10"
                         >
-                          Remove
+                          <Trash size={16} />
                         </button>
                         <BarChart3 size={20} className="text-blue-400" />
                       </div>
