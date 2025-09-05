@@ -31,8 +31,25 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   const [hypeSeries, setHypeSeries] = useState([]);
   const [showKolCalls, setShowKolCalls] = useState(false);
   const [hypePage, setHypePage] = useState(0);
+  const [showManageHype, setShowManageHype] = useState(false);
+  const [hypeSelected, setHypeSelected] = useState([]); // array of contractAddress
 
   const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+
+  // Persisted selection for Hype list per user
+  useEffect(() => {
+    const key = `hypeSelected:${user?.id || 'anon'}`;
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) || '[]');
+      if (Array.isArray(saved)) setHypeSelected(saved);
+    } catch (_) {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  useEffect(() => {
+    const key = `hypeSelected:${user?.id || 'anon'}`;
+    try { localStorage.setItem(key, JSON.stringify(hypeSelected)); } catch (_) {}
+  }, [hypeSelected, user?.id]);
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -283,20 +300,34 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Hype over Time - TOP LEFT */}
           <div className="bg-dark-card border border-gray-700 rounded-lg p-6">
-            <div className="flex items-center space-x-2 mb-4">
-              <BarChart3 size={20} className="text-blue-400" />
-              <h2 className="text-xl font-semibold text-white">Hype over Time</h2>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <BarChart3 size={20} className="text-blue-400" />
+                <h2 className="text-xl font-semibold text-white">Hype over Time</h2>
+                <span className="text-xs text-gray-400">{`${Math.min(hypeSelected.length, 5)} / ${dashboardData.isPremium ? '∞' : '5'}`}</span>
+              </div>
+              <button
+                onClick={() => setShowManageHype(true)}
+                className="px-3 py-1 text-sm rounded border border-solana-purple/60 text-white hover:bg-gray-700"
+              >
+                + Manage Hype List
+              </button>
             </div>
             <p className="text-gray-400 text-sm mb-4">View hype trends for the tokens in your watchlist across multiple time ranges.</p>
             {/* Inline Hype list (reuse existing modal content) */}
             <div className="mt-2">
               {(() => {
                 const perPage = 8;
-                const total = dashboardData.watchlist.length;
+                const visible = dashboardData.watchlist.filter(t => {
+                  if (dashboardData.isPremium) return hypeSelected.length ? hypeSelected.includes(t.contractAddress) : true;
+                  // free users: only show ones explicitly selected up to 5
+                  return hypeSelected.includes(t.contractAddress);
+                });
+                const total = visible.length;
                 const totalPages = Math.max(1, Math.ceil(total / perPage));
                 const currentPage = Math.min(hypePage, totalPages - 1);
                 const start = currentPage * perPage;
-                const pageItems = dashboardData.watchlist.slice(start, start + perPage);
+                const pageItems = visible.slice(start, start + perPage);
                 return (
                   <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -339,24 +370,10 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                           onClick={async (e) => {
                             e.stopPropagation();
                             try {
-                              // optimistic removal
-                              setDashboardData(prev => ({
-                                ...prev,
-                                watchlist: prev.watchlist.filter(t => (t.contractAddress && token.contractAddress)
-                                  ? t.contractAddress !== token.contractAddress
-                                  : t.symbol !== token.symbol)
-                              }));
-                              await watchlistService.removeFromWatchlist(token.symbol, token.contractAddress);
+                              // remove only from hype selection
+                              setHypeSelected(prev => prev.filter(ca => ca !== token.contractAddress));
                             } catch (err) {
                               console.error('Failed to remove from watchlist:', err);
-                              // reload watchlist on failure
-                              try {
-                                const wlRes = await fetch(`${API_BASE}/api/user/watchlist?sessionId=${sessionId}`);
-                                if (wlRes.ok) {
-                                  const wlData = await wlRes.json();
-                                  setDashboardData(prev => ({ ...prev, watchlist: wlData.watchlist || [] }));
-                                }
-                              } catch (_) {}
                             }
                           }}
                           title="Remove from Hype over Time"
@@ -466,6 +483,56 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
 
 
         </div>
+
+        {/* Manage Hype List Modal */}
+        {showManageHype && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+            <div className="bg-dark-bg border border-gray-700 rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+              <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+                <h3 className="text-white text-lg font-semibold">Manage Hype List</h3>
+                <button className="text-gray-400 hover:text-white" onClick={() => setShowManageHype(false)}>✕</button>
+              </div>
+              <div className="p-4">
+                <p className="text-gray-400 text-sm mb-3">Select tokens from your watchlist to include in Hype over Time.</p>
+                <div className="text-xs text-gray-500 mb-4">Selected: {Math.min(hypeSelected.length, 5)} / {dashboardData.isPremium ? 'Unlimited' : '5'}</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {dashboardData.watchlist.map((t, i) => {
+                    const selected = hypeSelected.includes(t.contractAddress);
+                    const atLimit = !dashboardData.isPremium && !selected && hypeSelected.length >= 5;
+                    return (
+                      <label key={`${t.contractAddress || t.symbol}-${i}`} className={`flex items-center justify-between p-3 rounded border ${selected ? 'border-blue-500 bg-blue-900/10' : 'border-gray-600 bg-gray-800/40'} ${atLimit ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}>
+                        <div>
+                          <div className="text-white font-medium">{t.symbol}</div>
+                          <div className="text-gray-400 text-xs">{t.name}</div>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          disabled={atLimit}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setHypeSelected(prev => {
+                              if (checked) {
+                                if (dashboardData.isPremium) return Array.from(new Set([...prev, t.contractAddress]));
+                                if (prev.length >= 5) return prev; // guard
+                                return Array.from(new Set([...prev, t.contractAddress]));
+                              } else {
+                                return prev.filter(ca => ca !== t.contractAddress);
+                              }
+                            });
+                          }}
+                        />
+                      </label>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-end gap-2 mt-4">
+                  <button className="px-3 py-1 rounded border border-gray-600 text-gray-300 hover:bg-gray-700" onClick={() => setShowManageHype(false)}>Close</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div className="bg-dark-card border border-gray-700 rounded-lg p-6 mt-8">
