@@ -1,35 +1,24 @@
 # Twitter Microservice
 
-A Python FastAPI microservice that provides Twitter data using advanced scraping techniques with robust fallback mechanisms.
+A Python FastAPI microservice that provides Twitter data using the official Twitter v2 API with Bearer token authentication.
 
 ## Features
 
-- 🌐 **Selenium Integration** - Advanced browser automation
-- 🔍 Search tweets by keyword using multiple methods
+- 🔑 **Twitter v2 API Integration** - Official API with Bearer token
+- 🔍 Search tweets by keyword
 - 👤 Get user tweets from profiles
 - 📢 Search mentions of specific handles
-- 📈 Get trending topics
 - 🚀 FastAPI with automatic documentation
-- 🔄 Robust error handling with multiple fallback levels
-- 🔒 Works with or without Twitter API credentials
-- ⚡ User agent rotation and retry logic for reliability
-
-## Advanced Multi-Method Approach
-
-**This service uses a 3-tier approach for maximum reliability:**
-
-1. **🌐 Selenium** - Advanced browser automation (primary)
-2. **🔑 Twitter API** - Official API when credentials available (secondary)
-3. **🌐 Web Scraping** - Traditional scraping as fallback (tertiary)
+- 📊 Request/response logging for monitoring
+- 🔄 Robust error handling with mock data fallbacks
+- ⚡ Rate limit awareness and proper API compliance
 
 The service includes:
-- ✅ **Selenium-powered scraping** - Real browser automation for accurate results
-- ✅ **Twitter API integration** - Official data when available
-- ✅ **Web scraping fallback** - Always works even without credentials
-- ✅ **Headless Chrome** - Runs without visible browser window
-- ✅ **User agent rotation** - Avoids blocking by rotating browser signatures
-- ✅ **Rate limiting protection** - Built-in delays and retry logic
-- ✅ **Mock data generation** - Always returns valid responses even on failures
+- ✅ **Twitter v2 API** - Official API with Bearer token authentication
+- ✅ **Request logging** - HTTP status and timing for monitoring
+- ✅ **Mock data fallback** - Returns valid responses when API unavailable
+- ✅ **Rate limit compliance** - Proper API rate limit handling
+- ✅ **Structured responses** - Consistent JSON format
 
 ## Setup
 
@@ -45,7 +34,12 @@ The service includes:
 3. **Set up environment variables:**
    ```bash
    cp env.example .env
-   # Edit .env with your Twitter credentials
+   # Edit .env with your Twitter Bearer token
+   ```
+
+   **Required Environment Variable:**
+   ```bash
+   TWITTER_BEARER_TOKEN=your_bearer_token_here
    ```
 
 4. **Run the service:**
@@ -67,16 +61,13 @@ Once running, visit:
 - `GET /health` - Service health status
 
 ### Twitter Endpoints
-- `GET /api/twitter/search?q=keyword&count=20` - Search tweets (multi-method: Selenium + API + Web)
-- `GET /api/twitter/selenium/search?q=keyword&count=20` - Search tweets using Selenium only (for testing)
+- `GET /api/twitter/search?q=keyword&count=20` - Search tweets using Twitter v2 API
 - `GET /api/twitter/user/{username}/tweets?count=20` - Get user tweets
 - `GET /api/twitter/mentions/{handle}?count=10` - Search mentions
-- `GET /api/twitter/trends` - Get trending topics
 
 ### Response Sources
-- **`"source": "selenium"`** - Data from Selenium browser automation
-- **`"source": "scraping"`** - Successfully scraped real data
-- **`"source": "fallback"`** - Generated mock data due to limitations
+- **`"source": "twitter_api_v2"`** - Data from official Twitter API
+- **`"source": "mock_data"`** - Generated mock data when API unavailable
 
 ## Deployment
 
@@ -88,9 +79,7 @@ Once running, visit:
    - **Build Command:** `pip install -r requirements.txt`
    - **Start Command:** `python main.py`
    - **Environment Variables:**
-     - `TWITTER_USERNAME=your_username`
-     - `TWITTER_EMAIL=your_email`
-     - `TWITTER_PASSWORD=your_password`
+     - `TWITTER_BEARER_TOKEN=your_bearer_token_here`
 
 ### Docker Deployment
 
@@ -98,44 +87,33 @@ Once running, visit:
 # Build image
 docker build -t twitter-service .
 
-# Run container with API credentials (recommended)
+# Run container with Twitter Bearer token
 docker run -p 8000:8000 \
-  -e TWITTER_BEARER_TOKEN=your_bearer_token \
+  -e TWITTER_BEARER_TOKEN=your_bearer_token_here \
   twitter-service
-
-# Or run without credentials (scraping fallback mode)
-docker run -p 8000:8000 twitter-service
 ```
 
 ## Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
+| `TWITTER_BEARER_TOKEN` | Required | Twitter v2 API Bearer token |
 | `PORT` | Optional | Server port (default: 8000) |
 
-## Advanced Fallback Strategy
+## API Integration
 
-The service implements a **4-tier fallback system** for maximum reliability:
-
-1. **🌐 Primary**: Selenium browser automation
-2. **🔑 Secondary**: Twitter official API (when credentials available)
-3. **🌐 Tertiary**: Enhanced web scraping with multiple strategies
-4. **🎭 Quaternary**: Mock data generation - **always returns valid responses**
+The service uses **Twitter v2 API** with Bearer token authentication:
 
 ### Response Sources:
-- ✅ **`"source": "selenium"`** - Advanced Selenium browser automation results
-- ✅ **`"source": "scraping"`** - Successfully scraped real data
-- ✅ **`"source": "fallback"`** - Generated mock data due to limitations
-- ✅ **Structured JSON responses** - Consistent format regardless of source
+- ✅ **`"source": "twitter_api_v2"`** - Official Twitter API data
+- ✅ **`"source": "mock_data"`** - Generated mock data when API unavailable
+- ✅ **Structured JSON responses** - Consistent format
 
-### Anti-Blocking Features:
-- 🌐 **Selenium automation** - Real browser behavior for maximum compatibility
-- 🔄 **User agent rotation** - Changes browser signature on each request
-- ⏱️ **Rate limiting protection** - Built-in delays and retry logic
-- 🔁 **Retry logic** - Automatic retries with exponential backoff
-- 🎯 **Multiple selectors** - Tries different CSS selectors if one fails
-- 🎲 **Randomization** - Randomized delays and request patterns
-- 🚫 **Headless operation** - Runs invisibly on servers
+### Features:
+- 🔑 **Bearer token authentication** - Official API access
+- 📊 **Request logging** - HTTP status and timing monitoring
+- ⚡ **Rate limit compliance** - Proper API usage limits
+- 🔄 **Error handling** - Graceful fallbacks with mock data
 
 ## Security Notes
 
