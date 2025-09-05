@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const API_BASE = process.env.API_BASE || 'https://api.degen-oracle.com';
+const JUPITER_API_KEY = process.env.JUPITER_API_KEY || '';
 const INTERNAL_TOKEN = process.env.INTERNAL_TOKEN || process.env.DISCOVERY_INTERNAL_TOKEN;
 const INTERVAL_MS = parseInt(process.env.DISCOVERY_INTERVAL_MS || '300000', 10); // 5 minutes
 const RUN_ON_START = (process.env.DISCOVERY_RUN_ON_START || 'true') === 'true';
@@ -27,7 +28,8 @@ async function fetchJupiterCategory(category, interval, attempt = 1) {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125 Safari/537.36',
         'Cache-Control': 'no-cache',
         'Origin': 'https://jup.ag',
-        'Referer': 'https://jup.ag/'
+        'Referer': 'https://jup.ag/',
+        ...(JUPITER_API_KEY ? { 'Authorization': `Bearer ${JUPITER_API_KEY}` } : {})
       },
       params: { limit: DISCOVERY_LIMIT },
       timeout: 20000,
