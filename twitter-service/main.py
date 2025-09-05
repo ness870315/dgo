@@ -32,6 +32,24 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Twitter Microservice", version="3.0.0")
 
+# Startup diagnostics
+def _mask(s: Optional[str]) -> str:
+    try:
+        return 'present' if s and len(s) > 5 else 'missing'
+    except Exception:
+        return 'missing'
+
+TW_BEARER = os.getenv('TWITTER_BEARER_TOKEN')
+TW_API_KEY = os.getenv('TWITTER_API_KEY')
+TW_API_SECRET = os.getenv('TWITTER_API_SECRET')
+TW_AT = os.getenv('TWITTER_ACCESS_TOKEN')
+TW_ATS = os.getenv('TWITTER_ACCESS_TOKEN_SECRET')
+
+logger.info(
+    "twitter-service starting… mode=%s bearer=%s api_key=%s access_token=%s",
+    ('Bearer' if TW_BEARER else 'Scraping/API-fallback'), _mask(TW_BEARER), _mask(TW_API_KEY), _mask(TW_AT)
+)
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -351,9 +369,10 @@ def search_tweets_scraping(query, count):
             bearer_token = os.getenv('TWITTER_BEARER_TOKEN')
 
             if bearer_token or (api_key and api_secret and access_token and access_token_secret):
-                logger.info("🔑 Twitter API credentials found - using official API as fallback")
+                logger.info("🔑 Twitter API: attempting search_recent_tweets for '%s' (count=%d)", clean_query, count)
                 try:
                     tweets_found = search_via_twitter_api(clean_query, count, bearer_token, api_key, api_secret, access_token, access_token_secret)
+                    logger.info("🔑 Twitter API: search_recent_tweets returned %d tweets", len(tweets_found) if tweets_found else 0)
                 except Exception as api_error:
                     logger.warning(f"Twitter API failed: {str(api_error)}")
 
@@ -770,11 +789,17 @@ def search_via_twitter_api(query, count, bearer_token, api_key, api_secret, acce
 
         # Search for tweets
         search_query = f"#{query} OR {query}"
+        logger.info("GET /2/tweets/search/recent q='%s'", search_query)
         response = client.search_recent_tweets(
             query=search_query,
             max_results=min(count, 100),
             tweet_fields=['created_at', 'public_metrics', 'author_id', 'text']
         )
+        try:
+            returned = len(response.data) if hasattr(response, 'data') and response.data else 0
+        except Exception:
+            returned = 0
+        logger.info("HTTP 200 from /2/tweets/search/recent — returned=%d", returned)
 
         if response.data:
             for tweet in response.data:
