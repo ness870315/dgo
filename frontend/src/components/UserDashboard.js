@@ -286,12 +286,38 @@ const UserDashboard = () => {
               <h2 className="text-xl font-semibold text-white">Hype over Time</h2>
             </div>
             <p className="text-gray-400 text-sm mb-4">View hype trends for the tokens in your watchlist across multiple time ranges.</p>
-            <button
-              onClick={() => setShowHypeModal(true)}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-            >
-              Open
-            </button>
+            {/* Inline Hype list (reuse existing modal content) */}
+            <div className="mt-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {dashboardData.watchlist.map((token, index) => (
+                  <div
+                    key={index}
+                    onClick={async () => {
+                      setSelectedHypeToken(token);
+                      try {
+                        const res = await hypeService.getHype(token.contractAddress, hypeRange);
+                        setHypeSeries(res.data || []);
+                      } catch (e) {
+                        console.error('Hype fetch error:', e);
+                        setHypeSeries([]);
+                      }
+                    }}
+                    className="bg-gray-800/50 rounded-lg p-4 cursor-pointer hover:bg-gray-700/50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-white font-medium">{token.symbol}</p>
+                        <p className="text-gray-400 text-sm">{token.name}</p>
+                      </div>
+                      <BarChart3 size={20} className="text-blue-400" />
+                    </div>
+                  </div>
+                ))}
+                {dashboardData.watchlist.length === 0 && (
+                  <div className="text-gray-400 text-sm">Your watchlist is empty</div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* KOL Calls Card */}
@@ -301,12 +327,13 @@ const UserDashboard = () => {
               <h2 className="text-xl font-semibold text-white">KOL Calls</h2>
             </div>
             <p className="text-gray-400 text-sm mb-4">Your recorded calls with performance metrics.</p>
-            <button
-              onClick={() => setShowKolCalls(true)}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-            >
-              Open
-            </button>
+            {/* Inline KOL Calls table */}
+            <KolCallsModal open asInline onClose={() => {}} onOpenToken={(row) => {
+              const tokenMatch = dashboardData.watchlist.find(t => (t.contractAddress && row.contractAddress) && t.contractAddress.toLowerCase() === row.contractAddress.toLowerCase());
+              if (tokenMatch) {
+                setSelectedToken(tokenMatch);
+              }
+            }} />
           </div>
 
           {/* KOL Leaderboard */}

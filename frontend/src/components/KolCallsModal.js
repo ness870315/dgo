@@ -38,7 +38,7 @@ function TableHeader({ label, sortKey, sort, setSort }) {
   );
 }
 
-export default function KolCallsModal({ open, onClose, onOpenToken }) {
+export default function KolCallsModal({ open, onClose, onOpenToken, asInline = false }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [q, setQ] = useState('');
@@ -142,11 +142,24 @@ export default function KolCallsModal({ open, onClose, onOpenToken }) {
     URL.revokeObjectURL(url);
   }
 
-  if (!open) return null;
+  if (!open && !asInline) return null;
+
+  const Container = ({ children }) => (
+    asInline ? (
+      <div className="bg-dark-card border border-gray-700 rounded-lg p-4">
+        {children}
+      </div>
+    ) : (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-dark-card border border-gray-700 rounded-lg p-6 max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          {children}
+        </div>
+      </div>
+    )
+  );
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-dark-card border border-gray-700 rounded-lg p-6 max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+    <Container>
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-xl font-semibold text-white">KOL Calls</h2>
@@ -154,7 +167,9 @@ export default function KolCallsModal({ open, onClose, onOpenToken }) {
           </div>
           <div className="flex items-center gap-2">
             <button onClick={exportCSV} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm">Export CSV</button>
-            <button onClick={onClose} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm">Close</button>
+            {!asInline && (
+              <button onClick={onClose} className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm">Close</button>
+            )}
           </div>
         </div>
 
@@ -214,8 +229,7 @@ export default function KolCallsModal({ open, onClose, onOpenToken }) {
             </table>
           </div>
         )}
-      </div>
-    </div>
+    </Container>
   );
 }
 

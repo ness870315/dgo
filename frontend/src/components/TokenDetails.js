@@ -382,7 +382,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose }) => {
                     alert('❌ Failed to record call');
                   }
                 }}
-                className="px-2 py-1 ml-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                className="px-2 py-1 ml-1 rounded-lg bg-solana-purple hover:bg-purple-700 border border-solana-purple text-white text-xs"
                 title="Record a call at current market cap"
               >
                 Call it!
