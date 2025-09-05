@@ -15,7 +15,7 @@ const SEARCHES = [
 ];
 
 const STABLE_SYMBOLS = new Set(['SOL', 'JUP', 'WETH', 'WSOL', 'WBTC', 'USDC']);
-const DISCOVERY_LIMIT = parseInt(process.env.DISCOVERY_LIMIT || '100', 10);
+const DISCOVERY_LIMIT = parseInt(process.env.DISCOVERY_LIMIT || '50', 10);
 let roundRobinIndex = 0;
 
 function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
@@ -37,9 +37,14 @@ async function fetchJupiterCategory(category, interval, attempt = 1) {
       validateStatus: s => s >= 200 && s < 500
     });
     if (res.status === 429 || res.status === 503 || res.status === 502) {
-      if (attempt <= 5) {
-        const backoff = 5000 * attempt + Math.floor(Math.random() * 3000); // 5s base + jitter
-        console.warn(`⏳ ${res.status} from Jupiter for ${category}/${interval}. Retrying in ${backoff}ms (attempt ${attempt}/5)`);
+      if (attempt === 1) {
+        console.warn(`⏸️ ${res.status} on first attempt for ${category}/${interval}. Cooling down 15 minutes...`);
+        await sleep(15 * 60 * 1000);
+        throw new Error(`HTTP ${res.status}`);
+      }
+      if (attempt <= 2) {
+        const backoff = 10000 * attempt + Math.floor(Math.random() * 5000); // 10s base + jitter
+        console.warn(`⏳ ${res.status} from Jupiter for ${category}/${interval}. Retrying in ${backoff}ms (attempt ${attempt}/2)`);
         await sleep(backoff);
         return fetchJupiterCategory(category, interval, attempt + 1);
       }
@@ -51,9 +56,13 @@ async function fetchJupiterCategory(category, interval, attempt = 1) {
     const data = Array.isArray(res.data) ? res.data : (res.data?.tokens || []);
     return data;
   } catch (e) {
-    if (attempt <= 5) {
-      const backoff = 5000 * attempt + Math.floor(Math.random() * 3000); // 5s base + jitter
-      console.warn(`⏳ Error fetching ${category}/${interval}: ${e.message}. Retrying in ${backoff}ms (attempt ${attempt}/5)`);
+    if (e.message.includes('HTTP 429') || e.message.includes('HTTP 503') || e.message.includes('HTTP 502')) {
+      // Already cooled down or retried above
+      throw e;
+    }
+    if (attempt <= 2) {
+      const backoff = 10000 * attempt + Math.floor(Math.random() * 5000);
+      console.warn(`⏳ Error fetching ${category}/${interval}: ${e.message}. Retrying in ${backoff}ms (attempt ${attempt}/2)`);
       await sleep(backoff);
       return fetchJupiterCategory(category, interval, attempt + 1);
     }
@@ -120,8 +129,8 @@ async function runOnce() {
   let totalImported = 0;
   let totalBoosted = 0;
 
-  // aggressive jitter 10-30s to avoid backend collisions
-  const jitter = 10000 + Math.floor(Math.random() * 20000);
+  // aggressive jitter 30-90s to avoid backend collisions
+  const jitter = 30000 + Math.floor(Math.random() * 60000);
   await sleep(jitter);
 
   for (let i = 0; i < SEARCHES.length; i++) {
@@ -148,16 +157,16 @@ async function runOnce() {
       console.error(`❌ Discovery error for ${s.key}:`, e.message);
     }
 
-    // Wait 2 minutes between categories, except after the last one
+    // Wait 5 minutes between categories, except after the last one
     if (i < SEARCHES.length - 1) {
-      console.log('⏳ Waiting 2 minutes before next category...');
-      await sleep(120000);
+      console.log('⏳ Waiting 5 minutes before next category...');
+      await sleep(5 * 60 * 1000);
     }
   }
 
   console.log(`🎯 Discovery cycle completed in ${((Date.now() - startedAt.getTime())/1000).toFixed(1)}s: fetched=${totalFetched}, candidates=${totalCandidates}, imported=${totalImported}, boosted=${totalBoosted}`);
-  console.log('⏳ Sleeping 5 minutes before next cycle...');
-  await sleep(300000);
+  console.log('⏳ Sleeping 10 minutes before next cycle...');
+  await sleep(10 * 60 * 1000);
 }
 
 async function main() {
