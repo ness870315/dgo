@@ -63,22 +63,9 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Check for pending fuel payment on page load
+  // Remove any stale pending payment; do not auto-show any modal/message on load
   useEffect(() => {
-    const pendingData = localStorage.getItem('pendingFuelPayment');
-    if (pendingData) {
-      try {
-        const pending = JSON.parse(pendingData);
-        setContractAddress(pending.contractAddress);
-        setSelectedFuel(pending.fuelType);
-        setPaymentCompleted(true);
-        setMessage({ text: '💳 Payment completed! Please apply the fuel boost to your token.', type: 'success' });
-        console.log('Found pending fuel payment:', pending);
-      } catch (error) {
-        console.error('Error parsing pending fuel payment:', error);
-        localStorage.removeItem('pendingFuelPayment');
-      }
-    }
+    try { localStorage.removeItem('pendingFuelPayment'); } catch (_) {}
   }, []);
 
 
