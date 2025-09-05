@@ -14,11 +14,43 @@ const SEARCHES = [
 
 const STABLE_SYMBOLS = new Set(['SOL', 'JUP', 'WETH', 'WSOL', 'WBTC', 'USDC']);
 
-async function fetchJupiterCategory(category, interval) {
+function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+async function fetchJupiterCategory(category, interval, attempt = 1) {
   const url = `${JUP_BASE}/${encodeURIComponent(category)}/${encodeURIComponent(interval)}`;
-  const res = await axios.get(url, { headers: { Accept: 'application/json' }, timeout: 20000 });
-  const data = Array.isArray(res.data) ? res.data : (res.data?.tokens || []);
-  return data;
+  try {
+    const res = await axios.get(url, {
+      headers: {
+        'Accept': 'application/json, text/plain, */*',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/125 Safari/537.36',
+        'Cache-Control': 'no-cache'
+      },
+      timeout: 20000,
+      validateStatus: s => s >= 200 && s < 500
+    });
+    if (res.status === 429 || res.status === 503 || res.status === 502) {
+      if (attempt <= 3) {
+        const backoff = 2000 * attempt;
+        console.warn(`⏳ ${res.status} from Jupiter for ${category}/${interval}. Retrying in ${backoff}ms (attempt ${attempt}/3)`);
+        await sleep(backoff);
+        return fetchJupiterCategory(category, interval, attempt + 1);
+      }
+      throw new Error(`HTTP ${res.status}`);
+    }
+    if (res.status !== 200) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+    const data = Array.isArray(res.data) ? res.data : (res.data?.tokens || []);
+    return data;
+  } catch (e) {
+    if (attempt <= 3) {
+      const backoff = 2000 * attempt;
+      console.warn(`⏳ Error fetching ${category}/${interval}: ${e.message}. Retrying in ${backoff}ms (attempt ${attempt}/3)`);
+      await sleep(backoff);
+      return fetchJupiterCategory(category, interval, attempt + 1);
+    }
+    throw e;
+  }
 }
 
 function normalizeToken(t) {
@@ -98,6 +130,8 @@ async function runOnce() {
     } catch (e) {
       console.error(`❌ Discovery error for ${s.key}:`, e.message);
     }
+    // pacing between categories
+    await sleep(1500);
   }
   console.log(`🎯 Discovery run completed in ${((Date.now() - startedAt.getTime())/1000).toFixed(1)}s: fetched=${totalFetched}, candidates=${totalCandidates}, imported=${totalImported}, boosted=${totalBoosted}`);
 }
