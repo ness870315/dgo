@@ -2067,9 +2067,8 @@ class EnhancedBackend {
     // Admin: Manual Twitter refresh for specific token
     this.app.post('/api/admin/tokens/:symbol/refresh-twitter', async (req, res) => {
       try {
-        const { symbol } = req.params;
-        
-        console.log(`[🛡️ Admin] 🐦 Manual Twitter refresh for: ${symbol}`);
+        const { symbol } = req.params; // may be a symbol or a contract address
+        console.log(`[🛡️ Admin] 🐦 Manual Twitter refresh for identifier: ${symbol}`);
         
         // Load raw tokens from cache (not the filtered/merged ones)
         const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -2082,8 +2081,13 @@ class EnhancedBackend {
           return res.status(404).json({ error: 'Token cache not found' });
         }
         
-        // Find token in raw cache
-        const token = rawTokens.find(t => t.symbol === symbol.toUpperCase());
+        // Find token by symbol (case-insensitive) or by contract address
+        const identifier = symbol.trim();
+        const upperSym = identifier.toUpperCase();
+        const token = rawTokens.find(t => (
+          (t.symbol && t.symbol.toUpperCase() === upperSym) ||
+          (t.contractAddress && (t.contractAddress === identifier || t.contractAddress.toLowerCase() === identifier.toLowerCase()))
+        ));
         
         if (!token) {
           return res.status(404).json({ error: `Token ${symbol} not found` });
@@ -2100,7 +2104,8 @@ class EnhancedBackend {
         const socialService = this.tokenProcessor.socialDataService;
         
         // Force refresh Twitter data
-        const twitterData = await socialService.forceImmediateRefresh(symbol, token.name);
+        const lookupSymbol = token.symbol || upperSym;
+        const twitterData = await socialService.forceImmediateRefresh(lookupSymbol, token.name);
         
         // Update token with new Twitter data
         token.twitterData = twitterData;
@@ -2115,16 +2120,16 @@ class EnhancedBackend {
         token.score = token.overallScore; // Ensure both fields are set
         
         // Save updated tokens back to raw cache
-        const updatedTokens = rawTokens.map(t => t.symbol === symbol.toUpperCase() ? token : t);
+        const updatedTokens = rawTokens.map(t => (t.symbol && t.symbol.toUpperCase() === (token.symbol || '').toUpperCase()) ? token : t);
         await this.saveTokensToCache(updatedTokens);
         
         console.log(`[🛡️ Admin] ✅ Twitter data updated for ${symbol}: ${twitterData.mentions} mentions, Community Score: ${token.communityHealthScore.toFixed(2)}, Overall Score: ${token.overallScore.toFixed(2)}`);
         
         res.json({
           success: true,
-          message: `Twitter data refreshed for ${symbol}`,
+          message: `Twitter data refreshed for ${token.symbol}`,
           token: {
-            symbol: symbol.toUpperCase(),
+            symbol: token.symbol,
             name: token.name,
             twitterData: {
               mentions: twitterData.mentions,
@@ -2310,6 +2315,94 @@ class EnhancedBackend {
       } catch (error) {
         console.error('[🛡️ Admin] ❌ Error getting Twitter status:', error);
         res.status(500).json({ error: 'Failed to get Twitter status' });
+      }
+    });
+
+    // Admin: Refresh Twitter data for ALL tokens
+    this.app.post('/api/admin/twitter/refresh-all', async (req, res) => {
+      try {
+        // Ensure social data service is initialized
+        if (!this.tokenProcessor.socialDataService) {
+          const { default: EnhancedSocialDataService } = await import('./enhancedSocialDataService.js');
+          this.tokenProcessor.socialDataService = new EnhancedSocialDataService();
+          await this.tokenProcessor.socialDataService.initialize();
+        }
+
+        const socialService = this.tokenProcessor.socialDataService;
+
+        // Load raw tokens from persistent cache
+        const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
+        const cachePath = path.join(dataDir, 'cache', 'tokens-cache.json');
+
+        let rawTokens = [];
+        try {
+          const data = await fs.readFile(cachePath, 'utf8');
+          rawTokens = JSON.parse(data);
+        } catch (error) {
+          return res.status(404).json({ success: false, error: 'Token cache not found' });
+        }
+
+        if (!Array.isArray(rawTokens) || rawTokens.length === 0) {
+          return res.status(404).json({ success: false, error: 'No tokens found in cache' });
+        }
+
+        console.log(`[🛡️ Admin] 🐦 Refreshing Twitter data for ${rawTokens.length} tokens...`);
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        const updatedTokens = [];
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+        for (const token of rawTokens) {
+          try {
+            // Skip if symbol or name missing
+            if (!token?.symbol || !token?.name) {
+              updatedTokens.push(token);
+              continue;
+            }
+
+            const twitterData = await socialService.forceImmediateRefresh(token.symbol, token.name);
+
+            token.twitterData = twitterData;
+            token.twitterTimestamp = new Date().toISOString();
+
+            // Recalculate scores using new Twitter data
+            token.communityHealthScore = socialService.calculateCommunityHealthScore(twitterData);
+            token.communityScore = token.communityHealthScore;
+            token.overallScore = this.tokenProcessor.calculateEnhancedOverallScore(token);
+            token.score = token.overallScore;
+
+            successCount++;
+          } catch (err) {
+            errorCount++;
+            console.warn(`[🛡️ Admin] ⚠️ Failed Twitter refresh for ${token?.symbol || 'UNKNOWN'}: ${err.message}`);
+          }
+
+          updatedTokens.push(token);
+
+          // Gentle pacing to respect external API limits
+          await sleep(500);
+        }
+
+        // Persist updated cache
+        await this.saveTokensToCache(updatedTokens);
+
+        console.log(`[🛡️ Admin] ✅ Twitter refresh complete. Success: ${successCount}, Errors: ${errorCount}`);
+
+        res.json({
+          success: true,
+          message: 'Twitter refresh completed',
+          stats: {
+            total: rawTokens.length,
+            success: successCount,
+            errors: errorCount
+          }
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Error refreshing Twitter for all tokens:', error);
+        res.status(500).json({ success: false, error: 'Failed to refresh Twitter for all tokens' });
       }
     });
 

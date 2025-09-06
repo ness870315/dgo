@@ -65,6 +65,47 @@ class EnhancedSocialDataService {
   }
 
   /**
+   * Normalize a Twitter handle or URL into a plain username (no @)
+   */
+  normalizeTwitterHandle(rawValue) {
+    try {
+      if (!rawValue) return null;
+      let value = String(rawValue).trim();
+      if (!value) return null;
+
+      // Remove leading @ if present
+      if (value.startsWith('@')) value = value.slice(1);
+
+      // If it looks like a URL, extract the last non-empty path segment
+      if (value.includes('twitter.com') || value.includes('x.com')) {
+        try {
+          // Prepend protocol if missing
+          if (!/^https?:\/\//i.test(value)) {
+            value = 'https://' + value;
+          }
+          const url = new URL(value);
+          // Path may contain segments like /username or /username/status/...
+          const segments = url.pathname.split('/').filter(Boolean);
+          if (segments.length > 0) {
+            value = segments[0];
+          }
+        } catch (_) {
+          // If URL parsing fails, continue with raw value
+        }
+      }
+
+      // Strip query string remnants if any
+      const qIndex = value.indexOf('?');
+      if (qIndex !== -1) value = value.slice(0, qIndex);
+
+      // Final cleanup
+      return value.replace(/[^a-zA-Z0-9_]/g, '');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /**
    * Initialize the service asynchronously
    */
   async initialize() {

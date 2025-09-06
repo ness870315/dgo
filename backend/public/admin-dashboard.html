@@ -496,6 +496,7 @@
                     <input type="text" id="twitterRefreshSymbol" placeholder="e.g., BTC" style="text-transform: uppercase;">
                 </div>
                 <button class="btn" onclick="refreshTwitterData()">🐦 Refresh Twitter Data</button>
+                <button class="btn btn-success" onclick="refreshAllTwitterData()">🔄 Refresh All Twitter Data</button>
                 <button class="btn btn-warning" onclick="getTwitterStatus()">📊 Check API Status</button>
                 <div id="twitterResults"></div>
                 <div id="twitterStatusDisplay" class="twitter-status" style="display: none;"></div>
@@ -1224,6 +1225,35 @@
                                 <span class="status-label">Recent Mentions:</span>
                                 <span class="status-value">${twitter.recentMentions}</span>
                             </div>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = showAlert(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function refreshAllTwitterData() {
+            const resultDiv = document.getElementById('twitterResults');
+            resultDiv.innerHTML = showLoading();
+
+            if (!confirm('This will refresh Twitter data for ALL tokens. Proceed?')) {
+                resultDiv.innerHTML = showAlert('Operation cancelled', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/twitter/refresh-all`, { method: 'POST' });
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.innerHTML = showAlert(`✅ ${data.message}`, 'success') + `
+                        <div class="status-display">
+                            <div class="status-item"><span class="status-label">Total</span><span class="status-value">${data.stats.total}</span></div>
+                            <div class="status-item"><span class="status-label">Success</span><span class="status-value">${data.stats.success}</span></div>
+                            <div class="status-item"><span class="status-label">Errors</span><span class="status-value">${data.stats.errors}</span></div>
                         </div>
                     `;
                 } else {

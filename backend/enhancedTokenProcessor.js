@@ -482,7 +482,18 @@ class EnhancedTokenProcessor {
           
           try {
             // Get official Twitter handle from Jupiter data if available
-            const officialHandle = token.jupiterData?.twitter || null;
+            const jupTwitter = token.jupiterData?.twitter || null;
+            let officialHandle = null;
+            if (jupTwitter) {
+              try {
+                const { default: EnhancedSocialDataService } = await import('./enhancedSocialDataService.js');
+                const tmpSvc = new EnhancedSocialDataService();
+                const normalized = tmpSvc.normalizeTwitterHandle(jupTwitter);
+                if (normalized) officialHandle = '@' + normalized;
+              } catch (_) {
+                officialHandle = jupTwitter; // fallback if normalization fails
+              }
+            }
             const twitterData = await this.fetchTwitterData(symbol, token.name, officialHandle);
             token.twitterData = twitterData;
             await this.ensureSocialDataService();
