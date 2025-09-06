@@ -461,17 +461,20 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
             <button
               onClick={fetchAIAnalysis}
               disabled={aiLoading}
-              className={`p-2 rounded-lg transition-all duration-200 ${
+              className={`px-2 py-1 rounded-lg border border-solana-purple/60 bg-transparent text-xs flex items-center gap-1 transition-all duration-200 ${
                 aiLoading 
                   ? 'text-gray-500 cursor-not-allowed' 
-                  : 'text-purple-400 hover:text-purple-300 hover:bg-purple-400/10'
+                  : 'text-gray-200 hover:bg-gray-700'
               }`}
-              title="AI Social Context Analysis"
+              title="Oracle AI"
             >
               {aiLoading ? (
-                <div className="animate-spin w-5 h-5 border-2 border-purple-400 border-t-transparent rounded-full"></div>
+                <div className="animate-spin w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full"></div>
               ) : (
-                <Brain size={20} />
+                <>
+                  <Brain size={16} />
+                  <span>Oracle AI</span>
+                </>
               )}
             </button>
             
@@ -535,7 +538,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                     alert('❌ Failed to record call');
                   }
                 }}
-                className="px-2 py-1 ml-1 rounded-lg bg-solana-purple hover:bg-purple-700 border border-solana-purple text-white text-xs"
+                className="px-2 py-1 ml-1 rounded-lg bg-transparent border border-solana-purple/60 text-gray-200 hover:bg-gray-700 text-xs"
                 title="Record a call at current market cap"
               >
                 Call it!

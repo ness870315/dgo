@@ -310,7 +310,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                   }).toString()}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3 py-2 bg-solana-purple hover:bg-purple-700 text-white rounded-lg text-sm"
+                  className="px-3 py-2 bg-transparent border border-solana-purple/60 text-gray-200 hover:bg-gray-700 rounded-lg text-sm"
                   title="Share on X"
                 >
                   Share on X
@@ -848,11 +848,11 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                         }
                       }}
                       disabled={hypeAILoading}
-                      className="flex items-center gap-1 px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm disabled:opacity-50"
-                      title="AI Trend Analysis"
+                      className="flex items-center gap-1 px-3 py-1 bg-transparent border border-solana-purple/60 text-gray-200 hover:bg-gray-700 rounded text-sm disabled:opacity-50"
+                      title="Oracle AI"
                     >
                       <Brain size={16} />
-                      {hypeAILoading ? 'Analyzing...' : 'AI Analysis'}
+                      {hypeAILoading ? 'Analyzing...' : 'Oracle AI'}
                     </button>
                   )}
                   <button onClick={() => setSelectedHypeToken(null)} className="text-gray-400 hover:text-white">✕</button>
