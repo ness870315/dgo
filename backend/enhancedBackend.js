@@ -2318,92 +2318,157 @@ class EnhancedBackend {
       }
     });
 
-    // Admin: Refresh Twitter data for ALL tokens
-    this.app.post('/api/admin/twitter/refresh-all', async (req, res) => {
+    // === Twitter Refresh ALL (Queued + Rate-limit aware) ===
+    this.twitterRefreshJob = this.twitterRefreshJob || { running: false };
+
+    const ensureSocialService = async () => {
+      if (!this.tokenProcessor.socialDataService) {
+        const { default: EnhancedSocialDataService } = await import('./enhancedSocialDataService.js');
+        this.tokenProcessor.socialDataService = new EnhancedSocialDataService();
+        await this.tokenProcessor.socialDataService.initialize();
+      }
+      return this.tokenProcessor.socialDataService;
+    };
+
+    this._runTwitterRefreshWorker = this._runTwitterRefreshWorker || (async () => {
+      const job = this.twitterRefreshJob;
+      if (!job.running) return;
+      const socialService = await ensureSocialService();
+
       try {
-        // Ensure social data service is initialized
-        if (!this.tokenProcessor.socialDataService) {
-          const { default: EnhancedSocialDataService } = await import('./enhancedSocialDataService.js');
-          this.tokenProcessor.socialDataService = new EnhancedSocialDataService();
-          await this.tokenProcessor.socialDataService.initialize();
+        // If queue empty, finish
+        if (!job.queue || job.queue.length === 0) {
+          job.running = false;
+          console.log('[🛡️ Admin] ✅ Twitter refresh queue completed');
+          return;
         }
 
-        const socialService = this.tokenProcessor.socialDataService;
+        // Check rate limits
+        let canProceed = true;
+        if (typeof socialService.getRateLimitStatus === 'function') {
+          const rl = socialService.getRateLimitStatus();
+          if (rl?.isRateLimited) {
+            canProceed = false;
+            job.nextRunDelayMs = Math.max(rl.rateLimitUntil - Date.now(), 60_000);
+          } else if (rl?.hourlyRequests >= rl?.hourlyLimit - 5) {
+            canProceed = false;
+            job.nextRunDelayMs = 60_000; // wait a minute
+          }
+        }
 
-        // Load raw tokens from persistent cache
-        const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
-        const cachePath = path.join(dataDir, 'cache', 'tokens-cache.json');
+        if (!canProceed) {
+          const delay = job.nextRunDelayMs || 60_000;
+          setTimeout(this._runTwitterRefreshWorker, delay);
+          return;
+        }
 
-        let rawTokens = [];
+        // Process next token
+        const item = job.queue.shift();
+        if (!item) {
+          setTimeout(this._runTwitterRefreshWorker, 250); // small yield
+          return;
+        }
+
         try {
-          const data = await fs.readFile(cachePath, 'utf8');
-          rawTokens = JSON.parse(data);
-        } catch (error) {
-          return res.status(404).json({ success: false, error: 'Token cache not found' });
-        }
+          const twitterData = await socialService.forceImmediateRefresh(item.symbol, item.name);
 
-        if (!Array.isArray(rawTokens) || rawTokens.length === 0) {
-          return res.status(404).json({ success: false, error: 'No tokens found in cache' });
-        }
-
-        console.log(`[🛡️ Admin] 🐦 Refreshing Twitter data for ${rawTokens.length} tokens...`);
-
-        let successCount = 0;
-        let errorCount = 0;
-
-        const updatedTokens = [];
-        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-        for (const token of rawTokens) {
-          try {
-            // Skip if symbol or name missing
-            if (!token?.symbol || !token?.name) {
-              updatedTokens.push(token);
-              continue;
-            }
-
-            const twitterData = await socialService.forceImmediateRefresh(token.symbol, token.name);
-
+          // Update cache entry
+          if (job.tokensArray && item.index != null && job.tokensArray[item.index]) {
+            const token = job.tokensArray[item.index];
             token.twitterData = twitterData;
             token.twitterTimestamp = new Date().toISOString();
-
-            // Recalculate scores using new Twitter data
             token.communityHealthScore = socialService.calculateCommunityHealthScore(twitterData);
             token.communityScore = token.communityHealthScore;
             token.overallScore = this.tokenProcessor.calculateEnhancedOverallScore(token);
             token.score = token.overallScore;
-
-            successCount++;
-          } catch (err) {
-            errorCount++;
-            console.warn(`[🛡️ Admin] ⚠️ Failed Twitter refresh for ${token?.symbol || 'UNKNOWN'}: ${err.message}`);
           }
 
-          updatedTokens.push(token);
-
-          // Gentle pacing to respect external API limits
-          await sleep(500);
+          job.success++;
+        } catch (err) {
+          job.errors++;
+          job.lastError = err.message;
+          console.warn(`[🛡️ Admin] ⚠️ Refresh failed for ${item.symbol}: ${err.message}`);
         }
 
-        // Persist updated cache
-        await this.saveTokensToCache(updatedTokens);
+        job.processed++;
+        job.lastUpdated = Date.now();
 
-        console.log(`[🛡️ Admin] ✅ Twitter refresh complete. Success: ${successCount}, Errors: ${errorCount}`);
+        // Persist every 25 tokens
+        if (job.processed % 25 === 0 && job.tokensArray) {
+          try { await this.saveTokensToCache(job.tokensArray); } catch {}
+        }
 
-        res.json({
-          success: true,
-          message: 'Twitter refresh completed',
-          stats: {
-            total: rawTokens.length,
-            success: successCount,
-            errors: errorCount
-          }
+        // Pace requests
+        const delayMs = job.baseDelayMs || 1500; // default 1.5s between tokens
+        setTimeout(this._runTwitterRefreshWorker, delayMs);
+
+      } catch (err) {
+        console.error('[🛡️ Admin] Worker error:', err);
+        setTimeout(this._runTwitterRefreshWorker, 5000);
+      }
+    });
+
+    // Start queued refresh
+    this.app.post('/api/admin/twitter/refresh-all/start', async (req, res) => {
+      try {
+        const socialService = await ensureSocialService();
+
+        // Load tokens
+        const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
+        const cachePath = path.join(dataDir, 'cache', 'tokens-cache.json');
+        const rawData = await fs.readFile(cachePath, 'utf8');
+        const tokens = JSON.parse(rawData) || [];
+
+        const queue = [];
+        tokens.forEach((t, idx) => {
+          if (t?.symbol && t?.name) queue.push({ symbol: t.symbol, name: t.name, index: idx });
         });
 
+        this.twitterRefreshJob = {
+          running: true,
+          startedAt: Date.now(),
+          lastUpdated: Date.now(),
+          total: queue.length,
+          processed: 0,
+          success: 0,
+          errors: 0,
+          queue,
+          tokensArray: tokens,
+          baseDelayMs: 1500,
+          lastError: null
+        };
+
+        console.log(`[🛡️ Admin] 🐦 Queued refresh for ${queue.length} tokens`);
+        setTimeout(this._runTwitterRefreshWorker, 250);
+
+        res.json({ success: true, message: 'Twitter refresh started', total: queue.length });
       } catch (error) {
-        console.error('[🛡️ Admin] ❌ Error refreshing Twitter for all tokens:', error);
-        res.status(500).json({ success: false, error: 'Failed to refresh Twitter for all tokens' });
+        console.error('[🛡️ Admin] ❌ Start queue failed:', error);
+        res.status(500).json({ success: false, error: 'Failed to start refresh' });
       }
+    });
+
+    // Job status
+    this.app.get('/api/admin/twitter/refresh-all/status', (req, res) => {
+      const job = this.twitterRefreshJob || { running: false };
+      res.json({
+        success: true,
+        running: !!job.running,
+        total: job.total || 0,
+        processed: job.processed || 0,
+        successCount: job.success || 0,
+        errorCount: job.errors || 0,
+        queueRemaining: job.queue ? job.queue.length : 0,
+        startedAt: job.startedAt || null,
+        lastUpdated: job.lastUpdated || null,
+        lastError: job.lastError || null
+      });
+    });
+
+    // Stop job
+    this.app.post('/api/admin/twitter/refresh-all/stop', (req, res) => {
+      if (this.twitterRefreshJob) this.twitterRefreshJob.running = false;
+      res.json({ success: true, message: 'Twitter refresh stopped' });
     });
 
     // Admin: Recalculate all token scores (no API calls)

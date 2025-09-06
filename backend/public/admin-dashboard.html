@@ -496,7 +496,9 @@
                     <input type="text" id="twitterRefreshSymbol" placeholder="e.g., BTC" style="text-transform: uppercase;">
                 </div>
                 <button class="btn" onclick="refreshTwitterData()">🐦 Refresh Twitter Data</button>
-                <button class="btn btn-success" onclick="refreshAllTwitterData()">🔄 Refresh All Twitter Data</button>
+                <button class="btn btn-success" onclick="startRefreshAllTwitter()">🔄 Start Refresh All Twitter</button>
+                <button class="btn" onclick="pollRefreshAllStatus()">📊 Refresh Status</button>
+                <button class="btn btn-warning" onclick="stopRefreshAllTwitter()">⏹️ Stop</button>
                 <button class="btn btn-warning" onclick="getTwitterStatus()">📊 Check API Status</button>
                 <div id="twitterResults"></div>
                 <div id="twitterStatusDisplay" class="twitter-status" style="display: none;"></div>
@@ -1235,7 +1237,7 @@
             }
         }
 
-        async function refreshAllTwitterData() {
+        async function startRefreshAllTwitter() {
             const resultDiv = document.getElementById('twitterResults');
             resultDiv.innerHTML = showLoading();
 
@@ -1245,22 +1247,53 @@
             }
 
             try {
-                const response = await fetch(`${API_BASE}/api/admin/twitter/refresh-all`, { method: 'POST' });
+                const response = await fetch(`${API_BASE}/api/admin/twitter/refresh-all/start`, { method: 'POST' });
                 const data = await response.json();
 
                 if (data.success) {
-                    resultDiv.innerHTML = showAlert(`✅ ${data.message}`, 'success') + `
-                        <div class="status-display">
-                            <div class="status-item"><span class="status-label">Total</span><span class="status-value">${data.stats.total}</span></div>
-                            <div class="status-item"><span class="status-label">Success</span><span class="status-value">${data.stats.success}</span></div>
-                            <div class="status-item"><span class="status-label">Errors</span><span class="status-value">${data.stats.errors}</span></div>
-                        </div>
-                    `;
+                    resultDiv.innerHTML = showAlert(`✅ ${data.message} (total ${data.total})`, 'success');
+                    pollRefreshAllStatus();
                 } else {
                     resultDiv.innerHTML = showAlert(`❌ ${data.error}`, 'error');
                 }
             } catch (error) {
                 resultDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function pollRefreshAllStatus() {
+            const resultDiv = document.getElementById('twitterResults');
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/twitter/refresh-all/status`);
+                const data = await res.json();
+                if (data.success) {
+                    const pct = data.total ? Math.round((data.processed / data.total) * 100) : 0;
+                    resultDiv.innerHTML = `
+                        <div class="status-display">
+                            <div class="status-item"><span class="status-label">Running</span><span class="status-value">${data.running ? 'YES' : 'NO'}</span></div>
+                            <div class="status-item"><span class="status-label">Processed</span><span class="status-value">${data.processed}/${data.total} (${pct}%)</span></div>
+                            <div class="status-item"><span class="status-label">Success</span><span class="status-value">${data.successCount}</span></div>
+                            <div class="status-item"><span class="status-label">Errors</span><span class="status-value">${data.errorCount}</span></div>
+                            <div class="status-item"><span class="status-label">Queue Left</span><span class="status-value">${data.queueRemaining}</span></div>
+                            <div class="status-item"><span class="status-label">Last Error</span><span class="status-value">${data.lastError || '—'}</span></div>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = showAlert(`❌ ${data.error}`, 'error');
+                }
+            } catch (e) {
+                resultDiv.innerHTML = showAlert(`❌ Status error: ${e.message}`, 'error');
+            }
+        }
+
+        async function stopRefreshAllTwitter() {
+            const resultDiv = document.getElementById('twitterResults');
+            try {
+                const res = await fetch(`${API_BASE}/api/admin/twitter/refresh-all/stop`, { method: 'POST' });
+                const data = await res.json();
+                resultDiv.innerHTML = showAlert(data.success ? `✅ ${data.message}` : `❌ ${data.error}`, data.success ? 'success' : 'error');
+            } catch (e) {
+                resultDiv.innerHTML = showAlert(`❌ Stop error: ${e.message}`, 'error');
             }
         }
 
