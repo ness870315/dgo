@@ -122,11 +122,26 @@ class SocialContextAI {
     const jupiterData = tokenData.jupiterData || {};
     const callHistory = tokenData.callHistory || {};
     
+    // Debug log the data structure
+    console.log(`🔍 AI Data Debug for ${tokenData.symbol}:`, {
+      hasJupiterData: !!jupiterData,
+      jupiterMcap: jupiterData.mcap,
+      jupiterPrice: jupiterData.usdPrice,
+      tokenMcap: tokenData.marketCap,
+      tokenPrice: tokenData.price,
+      hasTwitterData: !!twitterData,
+      twitterHandle: twitterData.officialHandle,
+      jupiterSocials: jupiterData.socials,
+      communityScore: tokenData.communityHealthScore || tokenData.communityScore,
+      mentions: twitterData.mentions
+    });
+
     return {
       tokenName: tokenData.name || 'Unknown',
       symbol: tokenData.symbol || 'N/A',
-      marketCap: this.formatNumber(jupiterData.marketCap || tokenData.marketCap || 0),
-      price: jupiterData.price || tokenData.price || 'N/A',
+      // Fix: Use correct Jupiter field names
+      marketCap: this.formatNumber(jupiterData.mcap || jupiterData.marketCap || tokenData.marketCap || 0),
+      price: jupiterData.usdPrice || jupiterData.price || tokenData.price || 'N/A',
       priceChange24h: jupiterData.priceChange24h || tokenData.priceChange24h || 0,
       
       // Social metrics
@@ -136,7 +151,12 @@ class SocialContextAI {
       engagementRate: this.calculateEngagementRate(twitterData),
       communityScore: tokenData.communityHealthScore || tokenData.communityScore || 5,
       hypeScore: tokenData.hypeScore || 'N/A',
-      officialHandle: twitterData.officialHandle || 'N/A',
+      // Fix: Check multiple sources for official handle
+      officialHandle: twitterData.officialHandle || 
+                     jupiterData.socials?.twitter || 
+                     jupiterData.socials?.x || 
+                     tokenData.officialHandle || 
+                     'N/A',
       
       // Call history
       totalCalls: callHistory.totalCalls || 0,
@@ -156,16 +176,20 @@ class SocialContextAI {
       
       // Enhanced scoring data
       overallScore: tokenData.overallScore || tokenData.score || 0,
-      sentimentScore: tokenData.sentimentScore || 5,
-      
-      // Volume and trading data
-      volume24h: this.formatNumber(jupiterData.volume24h || 0),
-      volumeChange24h: jupiterData.volumeChange24h || 0,
-      
-      // Technical indicators
-      priceChange1h: jupiterData.priceChange1h || 0,
-      priceChange6h: jupiterData.priceChange6h || 0,
-      priceChange7d: jupiterData.priceChange7d || 0
+      sentimentScore: tokenData.sentimentScore || tokenData.twitterData?.sentimentScore || tokenData.mediasentiment || 5,
+
+      // Volume and trading data - Fix: Use correct Jupiter field names
+      volume24h: this.formatNumber(
+        (jupiterData.stats24h?.buyVolume || 0) + (jupiterData.stats24h?.sellVolume || 0) ||
+        jupiterData.volume24h || 
+        tokenData.volume24h || 0
+      ),
+      volumeChange24h: jupiterData.stats24h?.volumeChange || jupiterData.volumeChange24h || 0,
+
+      // Technical indicators - Fix: Use correct Jupiter field names  
+      priceChange1h: jupiterData.stats1h?.priceChange || jupiterData.priceChange1h || 0,
+      priceChange6h: jupiterData.stats6h?.priceChange || jupiterData.priceChange6h || 0,
+      priceChange7d: jupiterData.stats7d?.priceChange || jupiterData.priceChange7d || 0
     };
   }
 

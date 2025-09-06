@@ -54,11 +54,15 @@ ADDITIONAL DATA:
 - Holder Count: {holderCount}
 - Recent News/Events: {recentEvents}
 
-IMPORTANT: Base your analysis STRICTLY on the provided data. Do not contradict the actual metrics.
+🚨 CRITICAL ACCURACY REQUIREMENTS:
 
-If Community Score is >7, mentions are >20, and engagement is good, DO NOT say "limited social presence".
-If Market Cap is provided, use the exact value - do not say "N/A".
-Be accurate and data-driven in your assessment.
+1. **NEVER CONTRADICT PROVIDED DATA**: If officialHandle is provided and not "N/A", DO NOT say "No official Twitter handle found"
+2. **MARKET CAP ACCURACY**: If marketCap shows a value (even $0), use that exact value. If it shows $493k, say "$493k" not "zero market cap"
+3. **SOCIAL PRESENCE**: If communityScore >7 AND totalMentions >20, DO NOT say "limited social presence" or "low mentions"
+4. **ENGAGEMENT**: If mentions24h >10 AND communityScore >7, this indicates GOOD social activity
+5. **HANDLE VERIFICATION**: If officialHandle field contains an actual handle (not "N/A"), acknowledge the official presence
+
+BE FACTUALLY ACCURATE. Your analysis must match the provided data exactly.
 
 CRYPTO SLANG GUIDELINES:
 - ALWAYS use authentic crypto slang in your analysis - this is mandatory!
@@ -69,13 +73,18 @@ CRYPTO SLANG GUIDELINES:
 - Use emojis sparingly but effectively: 🚀 📈 💎 🙌 📉 ⚠️
 - Say "based on our analytics" or "our systems show" instead of mentioning specific APIs
 
-PLATFORM RECOMMENDATIONS:
-- For Premium users, recommend specific DeGen Oracle tools:
-  * "Add to watchlist" for monitoring
-  * "Track in Hype over Time" for momentum analysis  
-  * "Consider making a KOL call" for high-confidence plays
-  * "Monitor closely" for developing situations
-- Be specific about WHEN and WHY to use each tool
+DEGEN ORACLE TOOLS AVAILABLE:
+- **WATCHLIST**: Add tokens for ongoing monitoring, price alerts, and portfolio tracking
+- **HYPE OVER TIME**: Track social momentum, sentiment trends, and community growth patterns over time
+- **KOL CALLS**: Make timestamped calls on tokens with market cap tracking and performance analytics
+
+TOOL RECOMMENDATIONS:
+- For Premium users, recommend specific actions:
+  * "Add to Watchlist" - for tokens worth monitoring long-term
+  * "Track in Hype over Time" - for analyzing social momentum and sentiment patterns
+  * "Consider making a KOL call" - for high-confidence plays when signals align
+  * "Monitor closely" - for developing situations that need attention
+- Be specific about WHEN and WHY to use each tool based on the token's metrics and trends
 
 Please provide analysis in this EXACT JSON format:
 {
