@@ -3440,6 +3440,107 @@ class EnhancedBackend {
       }
     });
 
+    // DIAGNOSTIC: Cache investigation endpoint
+    this.app.get('/api/admin/cache/diagnostic', async (req, res) => {
+      try {
+        console.log('🔍 PRODUCTION CACHE DIAGNOSTIC REQUESTED');
+        
+        const cachePath = this.persistentCachePath;
+        const baseDir = this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo';
+        
+        // Check file system state
+        const fsStats = {};
+        try {
+          const stats = await fs.stat(cachePath);
+          fsStats.exists = true;
+          fsStats.size = stats.size;
+          fsStats.modified = stats.mtime;
+          fsStats.created = stats.birthtime;
+        } catch (error) {
+          fsStats.exists = false;
+          fsStats.error = error.message;
+        }
+        
+        // Check directory structure
+        const dirCheck = {};
+        try {
+          const cacheDir = path.dirname(cachePath);
+          const files = await fs.readdir(cacheDir);
+          dirCheck.cacheDir = cacheDir;
+          dirCheck.files = files;
+        } catch (error) {
+          dirCheck.error = error.message;
+        }
+        
+        // Load and analyze cache content
+        let cacheAnalysis = {};
+        try {
+          const data = await fs.readFile(cachePath, 'utf8');
+          const tokens = JSON.parse(data);
+          
+          const stages = {};
+          const sources = {};
+          const dates = [];
+          
+          tokens.forEach(token => {
+            const stage = token.stage || 'undefined';
+            const source = token.source || 'undefined';
+            stages[stage] = (stages[stage] || 0) + 1;
+            sources[source] = (sources[source] || 0) + 1;
+            
+            if (token.createdAt) dates.push(new Date(token.createdAt));
+            if (token.lastDiscoveredAt) dates.push(new Date(token.lastDiscoveredAt));
+          });
+          
+          dates.sort((a, b) => a - b);
+          
+          cacheAnalysis = {
+            totalTokens: tokens.length,
+            stages,
+            sources,
+            oldestToken: dates[0]?.toISOString(),
+            newestToken: dates[dates.length - 1]?.toISOString(),
+            sampleTokens: tokens.slice(0, 5).map(t => ({
+              symbol: t.symbol,
+              stage: t.stage,
+              source: t.source,
+              created: t.createdAt,
+              discovered: t.lastDiscoveredAt
+            }))
+          };
+        } catch (error) {
+          cacheAnalysis.error = error.message;
+        }
+        
+        res.json({
+          success: true,
+          timestamp: new Date().toISOString(),
+          environment: {
+            DATA_DIR: process.env.DATA_DIR,
+            NODE_ENV: process.env.NODE_ENV,
+            baseDir,
+            cachePath
+          },
+          filesystem: fsStats,
+          directory: dirCheck,
+          cache: cacheAnalysis,
+          renderInfo: {
+            instanceId: process.env.RENDER_INSTANCE_ID,
+            serviceId: process.env.RENDER_SERVICE_ID,
+            deployId: process.env.RENDER_GIT_COMMIT
+          }
+        });
+        
+      } catch (error) {
+        console.error('❌ Cache diagnostic failed:', error);
+        res.status(500).json({ 
+          success: false, 
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
     this.app.get('/api/admin/system/status', async (req, res) => {
       try {
         const processingStatus = this.tokenProcessor.getProcessingStatus();
