@@ -218,7 +218,6 @@ class TokenService {
           
           // Enhanced scoring data
           enhancedScore: token.enhancedScore || null,
-          overallScore: token.overallScore || token.enhancedScore?.overallScore || token.score || 0,
           
           // Twitter data from backend (CRITICAL: Preserve this!)
           twitterData: token.twitterData || null,
