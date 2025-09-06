@@ -3440,6 +3440,110 @@ class EnhancedBackend {
       }
     });
 
+    // EMERGENCY: Cache restore endpoint
+    this.app.post('/api/admin/cache/emergency-restore', async (req, res) => {
+      try {
+        console.log('🚨 EMERGENCY CACHE RESTORE REQUESTED');
+        
+        const { tokens, source = 'local-backup' } = req.body;
+        
+        if (!Array.isArray(tokens) || tokens.length === 0) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid payload: tokens array required'
+          });
+        }
+        
+        console.log(`🔄 Restoring ${tokens.length} tokens from ${source}...`);
+        
+        // Backup current cache first
+        const cachePath = this.persistentCachePath;
+        const backupPath = cachePath.replace('.json', `-backup-${Date.now()}.json`);
+        
+        try {
+          const currentData = await fs.readFile(cachePath, 'utf8');
+          await fs.writeFile(backupPath, currentData);
+          console.log(`✅ Current cache backed up to: ${backupPath}`);
+        } catch (error) {
+          console.log(`⚠️ No existing cache to backup: ${error.message}`);
+        }
+        
+        // Load current tokens (if any) to merge with restored tokens
+        let existingTokens = [];
+        try {
+          const data = await fs.readFile(cachePath, 'utf8');
+          existingTokens = JSON.parse(data);
+          console.log(`📊 Found ${existingTokens.length} existing tokens to merge`);
+        } catch (error) {
+          console.log(`📊 No existing tokens found, starting fresh`);
+        }
+        
+        // Merge logic: prioritize restored tokens, keep unique existing ones
+        const restoredMap = new Map();
+        tokens.forEach(token => {
+          if (token.contractAddress) {
+            restoredMap.set(token.contractAddress.toLowerCase(), token);
+          } else if (token.symbol) {
+            restoredMap.set(`symbol:${token.symbol.toUpperCase()}`, token);
+          }
+        });
+        
+        const existingMap = new Map();
+        existingTokens.forEach(token => {
+          const key = token.contractAddress 
+            ? token.contractAddress.toLowerCase()
+            : `symbol:${token.symbol?.toUpperCase()}`;
+          
+          if (key && !restoredMap.has(key)) {
+            existingMap.set(key, token);
+          }
+        });
+        
+        // Combine restored + unique existing
+        const finalTokens = [
+          ...tokens,
+          ...Array.from(existingMap.values())
+        ];
+        
+        // Add restore metadata
+        const restoreTimestamp = new Date().toISOString();
+        finalTokens.forEach(token => {
+          if (!token._restoreInfo) {
+            token._restoreInfo = {
+              restoredAt: restoreTimestamp,
+              source: source,
+              emergencyRestore: true
+            };
+          }
+        });
+        
+        // Save to production cache
+        await this.saveTokensToCache(finalTokens);
+        
+        console.log(`✅ EMERGENCY RESTORE COMPLETE: ${finalTokens.length} tokens saved`);
+        
+        res.json({
+          success: true,
+          message: `Emergency restore completed successfully`,
+          restored: {
+            totalTokens: finalTokens.length,
+            restoredTokens: tokens.length,
+            existingKept: existingTokens.length,
+            backupPath: backupPath,
+            timestamp: restoreTimestamp
+          }
+        });
+        
+      } catch (error) {
+        console.error('❌ Emergency restore failed:', error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
     // DIAGNOSTIC: Cache investigation endpoint
     this.app.get('/api/admin/cache/diagnostic', async (req, res) => {
       try {
