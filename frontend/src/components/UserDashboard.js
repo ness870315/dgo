@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { BarChart3, Star, TrendingUp, Activity, Wallet, Users, Calendar, Award, Target, Crown, ArrowLeft, Plus, Zap, Edit, Trash, Brain } from 'lucide-react';
+import { BarChart3, Star, TrendingUp, Activity, Wallet, Users, Calendar, Award, Target, Crown, ArrowLeft, Plus, Zap, Edit, Trash, Brain, Info, AlertTriangle, CheckCircle, TrendingDown, Clock, Gauge } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import TokenDetails from './TokenDetails';
 import hypeService from '../services/hypeService';
@@ -36,8 +36,47 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   const [showHypeAI, setShowHypeAI] = useState(false);
   const [hypeAIData, setHypeAIData] = useState(null);
   const [hypeAILoading, setHypeAILoading] = useState(false);
+  const [hoveredTooltip, setHoveredTooltip] = useState(null);
 
   const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+
+  // Tooltip content for AI analysis terms
+  const getTooltipContent = (key) => {
+    switch (key) {
+      case 'strength':
+        return {
+          title: '💪 Regime Strength',
+          description: 'How many technical indicators agree on the current regime. 70%+ = high confidence, 50-69% = medium, <50% = low confidence'
+        };
+      case 'ewma':
+        return {
+          title: '📊 EWMA',
+          description: 'Exponential Weighted Moving Average - tracks recent momentum vs historical average'
+        };
+      case 'derivative':
+        return {
+          title: '📈 Derivative',
+          description: 'Rate of change analysis - velocity (speed) and acceleration (change in speed)'
+        };
+      case 'changepoints':
+        return {
+          title: '🎯 Change Points',
+          description: 'Bayesian detection of significant regime shifts (upturn/downturn moments)'
+        };
+      case 'forecast':
+        return {
+          title: '🔮 Forecast',
+          description: '6-12h prediction based on current momentum, velocity, and acceleration patterns'
+        };
+      case 'confidence':
+        return {
+          title: '🎯 Confidence',
+          description: 'AI certainty in the prediction. Higher % = more reliable forecast'
+        };
+      default:
+        return { title: key, description: '' };
+    }
+  };
 
   // Persisted selection for Hype list per user (sync with backend if available)
   useEffect(() => {
@@ -902,84 +941,185 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
               </div>
 
               {/* Current Regime */}
-              <div className="mb-6 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="text-2xl">{hypeAIData.regime.emoji}</span>
-                  <div>
-                    <h3 className="text-lg font-semibold text-white capitalize">{hypeAIData.regime.type} Regime</h3>
+              <div className="mb-6 p-4 bg-gradient-to-r from-gray-800/50 to-gray-800/30 rounded-lg border border-gray-700 shadow-lg">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-gray-700/50 rounded-full">
+                    <span className="text-2xl">{hypeAIData.regime.emoji}</span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-semibold text-white capitalize">{hypeAIData.regime.type} Regime</h3>
+                      <Gauge size={16} className="text-gray-400" />
+                    </div>
                     <p className="text-gray-400 text-sm">{hypeAIData.regime.description}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 text-sm">
-                  <span className="text-gray-400">Strength:</span>
-                  <div className="flex-1 bg-gray-700 rounded-full h-2">
-                    <div 
-                      className="h-2 rounded-full transition-all"
-                      style={{ 
-                        width: `${hypeAIData.regime.strength * 100}%`,
-                        backgroundColor: hypeAIData.regime.color
-                      }}
-                    ></div>
+                
+                <div className="relative">
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-2 relative">
+                      <span className="text-gray-400">Strength:</span>
+                      <Info 
+                        size={14} 
+                        className="text-gray-500 cursor-help"
+                        onMouseEnter={() => setHoveredTooltip('strength')}
+                        onMouseLeave={() => setHoveredTooltip(null)}
+                      />
+                      
+                      {/* Tooltip */}
+                      {hoveredTooltip === 'strength' && (
+                        <div className="bubble-tooltip absolute bottom-full left-0 mb-2 z-50">
+                          <div className="text-xs leading-tight">
+                            <span className="font-semibold text-white">{getTooltipContent('strength').title}:</span>
+                            <span className="text-gray-300 ml-1">{getTooltipContent('strength').description}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex-1 bg-gray-700 rounded-full h-3 shadow-inner">
+                      <div 
+                        className="h-3 rounded-full transition-all duration-500 shadow-sm"
+                        style={{ 
+                          width: `${hypeAIData.regime.strength * 100}%`,
+                          backgroundColor: hypeAIData.regime.color,
+                          boxShadow: `0 0 8px ${hypeAIData.regime.color}40`
+                        }}
+                      ></div>
+                    </div>
+                    <span className="text-white font-medium">{(hypeAIData.regime.strength * 100).toFixed(0)}%</span>
                   </div>
-                  <span className="text-white font-medium">{(hypeAIData.regime.strength * 100).toFixed(0)}%</span>
+                  
+                  {/* Pro Tip */}
+                  <div className="mt-3 p-2 bg-blue-900/20 border border-blue-700/50 rounded text-xs">
+                    <div className="flex items-center gap-1 text-blue-400 font-medium mb-1">
+                      <Info size={12} />
+                      💡 PRO TIP:
+                    </div>
+                    <p className="text-gray-300">
+                      Look for <span className="text-green-400 font-medium">70%+ strength</span> for high-confidence signals. 
+                      At <span className="text-yellow-400 font-medium">{(hypeAIData.regime.strength * 100).toFixed(0)}%</span>, the AI is saying 
+                      <span className="text-white font-medium"> "I think it's {hypeAIData.regime.type}, but {hypeAIData.regime.strength >= 0.7 ? 'I\'m confident!' : 'be cautious!'}"</span>
+                    </p>
+                  </div>
                 </div>
               </div>
 
               {/* Prediction */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
-                  <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-                    <span className="text-2xl">{hypeAIData.direction}</span>
-                    Prediction
-                  </h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
+                <div className="p-4 bg-gradient-to-br from-gray-800/50 to-gray-800/30 rounded-lg border border-gray-700 shadow-lg">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="p-2 bg-gray-700/50 rounded-full">
+                      <span className="text-2xl">{hypeAIData.direction}</span>
+                    </div>
+                    <h3 className="text-lg font-semibold text-white">Prediction</h3>
+                    {hypeAIData.trend === 'bullish' && <TrendingUp size={16} className="text-green-400" />}
+                    {hypeAIData.trend === 'bearish' && <TrendingDown size={16} className="text-red-400" />}
+                    {hypeAIData.trend === 'sideways' && <Activity size={16} className="text-gray-400" />}
+                  </div>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex justify-between items-center">
                       <span className="text-gray-400">Trend:</span>
-                      <span className={`font-medium ${
+                      <span className={`font-medium flex items-center gap-1 ${
                         hypeAIData.trend === 'bullish' ? 'text-green-400' :
                         hypeAIData.trend === 'bearish' ? 'text-red-400' : 'text-gray-400'
-                      }`}>{hypeAIData.trend}</span>
+                      }`}>
+                        {hypeAIData.trend}
+                        {hypeAIData.trend === 'bullish' && '📈'}
+                        {hypeAIData.trend === 'bearish' && '📉'}
+                        {hypeAIData.trend === 'sideways' && '➡️'}
+                      </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Confidence:</span>
+                    <div className="flex justify-between items-center relative">
+                      <div className="flex items-center gap-1">
+                        <span className="text-gray-400">Confidence:</span>
+                        <Info 
+                          size={12} 
+                          className="text-gray-500 cursor-help"
+                          onMouseEnter={() => setHoveredTooltip('confidence')}
+                          onMouseLeave={() => setHoveredTooltip(null)}
+                        />
+                        {hoveredTooltip === 'confidence' && (
+                          <div className="bubble-tooltip absolute bottom-full left-0 mb-2 z-50">
+                            <div className="text-xs leading-tight">
+                              <span className="font-semibold text-white">{getTooltipContent('confidence').title}:</span>
+                              <span className="text-gray-300 ml-1">{getTooltipContent('confidence').description}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                       <span className="text-white font-medium">{(hypeAIData.confidence * 100).toFixed(0)}%</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Time Horizon:</span>
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-1">
+                        <Clock size={12} className="text-gray-400" />
+                        <span className="text-gray-400">Time Horizon:</span>
+                      </div>
                       <span className="text-white">{hypeAIData.forecast?.[0]?.timeOffset || '6-12h'}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700">
-                  <h3 className="text-lg font-semibold text-white mb-3">Recommendation</h3>
-                  <div className="space-y-2 text-sm">
+                <div className="p-4 bg-gradient-to-br from-gray-800/50 to-gray-800/30 rounded-lg border border-gray-700 shadow-lg">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="p-2 bg-gray-700/50 rounded-full">
+                      {hypeAIData.recommendation.action === 'BULLISH' && <CheckCircle size={20} className="text-green-400" />}
+                      {hypeAIData.recommendation.action === 'BEARISH' && <AlertTriangle size={20} className="text-red-400" />}
+                      {hypeAIData.recommendation.action === 'NEUTRAL' && <Info size={20} className="text-gray-400" />}
+                    </div>
+                    <h3 className="text-lg font-semibold text-white">Recommendation</h3>
+                  </div>
+                  <div className="space-y-3 text-sm">
                     <div className="flex items-center gap-2">
-                      <span className={`px-2 py-1 rounded text-xs font-medium ${
-                        hypeAIData.recommendation.action === 'BULLISH' ? 'bg-green-600 text-white' :
-                        hypeAIData.recommendation.action === 'BEARISH' ? 'bg-red-600 text-white' :
-                        'bg-gray-600 text-white'
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium shadow-sm ${
+                        hypeAIData.recommendation.action === 'BULLISH' ? 'bg-green-600 text-white shadow-green-600/20' :
+                        hypeAIData.recommendation.action === 'BEARISH' ? 'bg-red-600 text-white shadow-red-600/20' :
+                        'bg-gray-600 text-white shadow-gray-600/20'
                       }`}>
                         {hypeAIData.recommendation.action}
                       </span>
-                      <span className="text-gray-400">Risk: {hypeAIData.recommendation.riskLevel}</span>
+                      <span className="text-gray-400 text-xs">Risk: <span className="text-white">{hypeAIData.recommendation.riskLevel}</span></span>
                     </div>
-                    <p className="text-gray-300">{hypeAIData.recommendation.message}</p>
-                    <p className="text-gray-400 text-xs">{hypeAIData.recommendation.reasoning}</p>
+                    <div className="p-2 bg-gray-700/30 rounded border-l-2 border-blue-500">
+                      <p className="text-gray-300 text-sm">{hypeAIData.recommendation.message}</p>
+                    </div>
+                    <p className="text-gray-400 text-xs italic">{hypeAIData.recommendation.reasoning}</p>
                   </div>
                 </div>
               </div>
 
               {/* Forecast */}
               {hypeAIData.forecast && hypeAIData.forecast.length > 0 && (
-                <div className="mb-6 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
-                  <h3 className="text-lg font-semibold text-white mb-3">6-12h Forecast</h3>
+                <div className="mb-6 p-4 bg-gradient-to-r from-gray-800/50 to-gray-800/30 rounded-lg border border-gray-700 shadow-lg">
+                  <div className="flex items-center gap-2 mb-3 relative">
+                    <div className="p-2 bg-gray-700/50 rounded-full">
+                      <Clock size={18} className="text-blue-400" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-white">6-12h Forecast</h3>
+                    <Info 
+                      size={14} 
+                      className="text-gray-500 cursor-help"
+                      onMouseEnter={() => setHoveredTooltip('forecast')}
+                      onMouseLeave={() => setHoveredTooltip(null)}
+                    />
+                    {hoveredTooltip === 'forecast' && (
+                      <div className="bubble-tooltip absolute top-full left-0 mt-2 z-50">
+                        <div className="text-xs leading-tight">
+                          <span className="font-semibold text-white">{getTooltipContent('forecast').title}:</span>
+                          <span className="text-gray-300 ml-1">{getTooltipContent('forecast').description}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                     {hypeAIData.forecast.map((point, index) => (
-                      <div key={index} className="text-center p-2 bg-gray-700/50 rounded">
-                        <div className="text-xs text-gray-400 mb-1">{point.timeOffset}</div>
-                        <div className="text-lg font-semibold text-white">{point.predictedScore}</div>
-                        <div className="text-xs text-gray-500">{(point.confidence * 100).toFixed(0)}%</div>
+                      <div key={index} className="text-center p-3 bg-gradient-to-b from-gray-700/50 to-gray-700/30 rounded-lg border border-gray-600/50 shadow-sm">
+                        <div className="text-xs text-gray-400 mb-1 flex items-center justify-center gap-1">
+                          <Clock size={10} />
+                          {point.timeOffset}
+                        </div>
+                        <div className="text-lg font-semibold text-white mb-1">{point.predictedScore}</div>
+                        <div className="text-xs text-gray-500">{(point.confidence * 100).toFixed(0)}% conf.</div>
                       </div>
                     ))}
                   </div>
@@ -1018,44 +1158,114 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
 
               {/* Technical Indicators */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div className="p-3 bg-gray-800/30 rounded border border-gray-700">
-                  <h4 className="text-white font-medium mb-2">EWMA</h4>
-                  <div className="space-y-1 text-xs">
-                    <div className="flex justify-between">
+                <div className="p-4 bg-gradient-to-br from-gray-800/40 to-gray-800/20 rounded-lg border border-gray-700 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3 relative">
+                    <BarChart3 size={16} className="text-blue-400" />
+                    <h4 className="text-white font-medium">EWMA</h4>
+                    <Info 
+                      size={12} 
+                      className="text-gray-500 cursor-help"
+                      onMouseEnter={() => setHoveredTooltip('ewma')}
+                      onMouseLeave={() => setHoveredTooltip(null)}
+                    />
+                    {hoveredTooltip === 'ewma' && (
+                      <div className="bubble-tooltip absolute top-full left-0 mt-2 z-50">
+                        <div className="text-xs leading-tight">
+                          <span className="font-semibold text-white">{getTooltipContent('ewma').title}:</span>
+                          <span className="text-gray-300 ml-1">{getTooltipContent('ewma').description}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between items-center">
                       <span className="text-gray-400">Momentum:</span>
-                      <span className="text-white">{hypeAIData.technicalIndicators?.ewma?.momentum?.toFixed(2) || 'N/A'}</span>
+                      <span className="text-white font-mono">{hypeAIData.technicalIndicators?.ewma?.momentum?.toFixed(2) || 'N/A'}</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-gray-400">Trend:</span>
-                      <span className="text-white">{hypeAIData.technicalIndicators?.ewma?.trend || 'N/A'}</span>
+                      <span className={`font-medium ${
+                        hypeAIData.technicalIndicators?.ewma?.trend === 'rising' ? 'text-green-400' :
+                        hypeAIData.technicalIndicators?.ewma?.trend === 'falling' ? 'text-red-400' : 'text-gray-400'
+                      }`}>
+                        {hypeAIData.technicalIndicators?.ewma?.trend || 'N/A'}
+                      </span>
                     </div>
                   </div>
                 </div>
                 
-                <div className="p-3 bg-gray-800/30 rounded border border-gray-700">
-                  <h4 className="text-white font-medium mb-2">Derivative</h4>
-                  <div className="space-y-1 text-xs">
-                    <div className="flex justify-between">
+                <div className="p-4 bg-gradient-to-br from-gray-800/40 to-gray-800/20 rounded-lg border border-gray-700 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3 relative">
+                    <TrendingUp size={16} className="text-green-400" />
+                    <h4 className="text-white font-medium">Derivative</h4>
+                    <Info 
+                      size={12} 
+                      className="text-gray-500 cursor-help"
+                      onMouseEnter={() => setHoveredTooltip('derivative')}
+                      onMouseLeave={() => setHoveredTooltip(null)}
+                    />
+                    {hoveredTooltip === 'derivative' && (
+                      <div className="bubble-tooltip absolute top-full left-0 mt-2 z-50">
+                        <div className="text-xs leading-tight">
+                          <span className="font-semibold text-white">{getTooltipContent('derivative').title}:</span>
+                          <span className="text-gray-300 ml-1">{getTooltipContent('derivative').description}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between items-center">
                       <span className="text-gray-400">Velocity:</span>
-                      <span className="text-white">{hypeAIData.technicalIndicators?.derivative?.velocity?.toFixed(2) || 'N/A'}</span>
+                      <span className="text-white font-mono">{hypeAIData.technicalIndicators?.derivative?.velocity?.toFixed(2) || 'N/A'}</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-gray-400">Acceleration:</span>
-                      <span className="text-white">{hypeAIData.technicalIndicators?.derivative?.acceleration?.toFixed(2) || 'N/A'}</span>
+                      <span className={`font-mono ${
+                        (hypeAIData.technicalIndicators?.derivative?.acceleration || 0) > 0 ? 'text-green-400' :
+                        (hypeAIData.technicalIndicators?.derivative?.acceleration || 0) < 0 ? 'text-red-400' : 'text-gray-400'
+                      }`}>
+                        {hypeAIData.technicalIndicators?.derivative?.acceleration?.toFixed(2) || 'N/A'}
+                      </span>
                     </div>
                   </div>
                 </div>
                 
-                <div className="p-3 bg-gray-800/30 rounded border border-gray-700">
-                  <h4 className="text-white font-medium mb-2">Change Points</h4>
-                  <div className="space-y-1 text-xs">
-                    <div className="flex justify-between">
+                <div className="p-4 bg-gradient-to-br from-gray-800/40 to-gray-800/20 rounded-lg border border-gray-700 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3 relative">
+                    <Target size={16} className="text-purple-400" />
+                    <h4 className="text-white font-medium">Change Points</h4>
+                    <Info 
+                      size={12} 
+                      className="text-gray-500 cursor-help"
+                      onMouseEnter={() => setHoveredTooltip('changepoints')}
+                      onMouseLeave={() => setHoveredTooltip(null)}
+                    />
+                    {hoveredTooltip === 'changepoints' && (
+                      <div className="bubble-tooltip absolute top-full left-0 mt-2 z-50">
+                        <div className="text-xs leading-tight">
+                          <span className="font-semibold text-white">{getTooltipContent('changepoints').title}:</span>
+                          <span className="text-gray-300 ml-1">{getTooltipContent('changepoints').description}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between items-center">
                       <span className="text-gray-400">Recent Change:</span>
-                      <span className="text-white">{hypeAIData.technicalIndicators?.changePoints?.hasRecentChange ? 'Yes' : 'No'}</span>
+                      <span className={`font-medium ${
+                        hypeAIData.technicalIndicators?.changePoints?.hasRecentChange ? 'text-yellow-400' : 'text-gray-400'
+                      }`}>
+                        {hypeAIData.technicalIndicators?.changePoints?.hasRecentChange ? 'Yes' : 'No'}
+                      </span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-gray-400">Direction:</span>
-                      <span className="text-white">{hypeAIData.technicalIndicators?.changePoints?.changeDirection || 'stable'}</span>
+                      <span className={`font-medium ${
+                        hypeAIData.technicalIndicators?.changePoints?.changeDirection === 'upturn' ? 'text-green-400' :
+                        hypeAIData.technicalIndicators?.changePoints?.changeDirection === 'downturn' ? 'text-red-400' : 'text-gray-400'
+                      }`}>
+                        {hypeAIData.technicalIndicators?.changePoints?.changeDirection || 'stable'}
+                      </span>
                     </div>
                   </div>
                 </div>
