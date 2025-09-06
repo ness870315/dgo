@@ -63,10 +63,16 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
         const calledTs = new Date(calledAtRaw || Date.now()).getTime();
         return {
           id: c.id,
-          token: c.token?.symbol || c.token?.name || 'UNKNOWN',
+          token: {
+            symbol: c.token?.symbol || 'UNKNOWN',
+            name: c.token?.name || 'Unknown',
+            contractAddress: c.token?.contractAddress || ''
+          },
           name: c.token?.name || c.token?.symbol || 'Unknown',
           calledTs,
-          calledMC: Number(c.calledMc || c.calledMC || 0),
+          calledAt: calledAtRaw, // Keep original calledAt for DetailDrawer
+          calledMc: Number(c.calledMc || c.calledMC || 0), // Use lowercase 'c' to match DetailDrawer
+          calledMC: Number(c.calledMc || c.calledMC || 0), // Keep both for compatibility
           currentMC: Number(c.currentMC || c.calledMc || c.calledMC || 0),
           contractAddress: c.token?.contractAddress || '',
           athMC: c.athMC,
@@ -74,6 +80,7 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
           maxDrawdownPct: c.maxDrawdownPct,
           peakMC: c.peakMC,
           holderCount: c.holderCount,
+          liquidity: c.liquidity, // Pass through liquidity if available
           lastUpdated: c.lastUpdated
         };
       });
@@ -83,7 +90,7 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
       // Boost priority for all tokens in KOL calls for better real-time updates
       mapped.forEach(call => {
         if (call.contractAddress) {
-          priorityService.boostTokenOnView(call.contractAddress, call.token);
+          priorityService.boostTokenOnView(call.contractAddress, call.token.symbol);
         }
       });
       
@@ -111,7 +118,7 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
     else if (timeframe === '30d') windowMs = 30 * 24 * 60 * 60 * 1000;
     const qq = q.trim().toLowerCase();
     return rows.filter(r => {
-      const text = (r.token + ' ' + r.name).toLowerCase();
+      const text = (r.token.symbol + ' ' + r.token.name).toLowerCase();
       const timeOk = timeframe === 'all' ? true : (now - r.calledTs) <= windowMs;
       return text.includes(qq) && timeOk;
     });
@@ -140,7 +147,7 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
       ['Token', 'Name', 'CalledAt', 'CalledMC', 'CurrentMC', 'X', 'PnL%'],
       ...sorted.map(r => {
         const d = computeDerived(r);
-        return [r.token, r.name, new Date(r.calledTs).toISOString(), r.calledMC, r.currentMC, d.x.toFixed(4), d.pnl.toFixed(4)];
+        return [r.token.symbol, r.token.name, new Date(r.calledTs).toISOString(), r.calledMC, r.currentMC, d.x.toFixed(4), d.pnl.toFixed(4)];
       })
     ];
     const csv = rowsCsv.map(r => r.join(',')).join('\n');
@@ -227,7 +234,7 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
                   const pnlClass = d.pnl >= 0 ? 'text-green-400' : 'text-red-400';
                   return (
                     <tr key={r.id} className="hover:bg-gray-800">
-                      <td className="px-3 py-2 text-white">{r.token} <span className="text-gray-400">· {r.name}</span></td>
+                      <td className="px-3 py-2 text-white">{r.token.symbol} <span className="text-gray-400">· {r.token.name}</span></td>
                       <td className="px-3 py-2 text-gray-200">{formatUSD(r.calledMC)}</td>
                       <td className="px-3 py-2 text-gray-200">{formatUSD(r.currentMC)}</td>
                       <td className={`px-3 py-2 font-semibold ${xClass}`}>{d.x.toFixed(2)}×</td>
@@ -238,7 +245,7 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
                             setSelectedCall(r);
                             // Boost priority when DetailDrawer is opened for more real-time updates
                             if (r.contractAddress) {
-                              priorityService.boostTokenOnView(r.contractAddress, r.token);
+                              priorityService.boostTokenOnView(r.contractAddress, r.token.symbol);
                             }
                           }}>Open</button>
                           <button className="px-2 py-1 text-xs bg-red-700 hover:bg-red-600 rounded" onClick={async () => {

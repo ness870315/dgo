@@ -29,13 +29,15 @@ function classNames(...xs) {
 
 // Compute X multiple and PnL
 function derive(call) {
-  if (!call || !call.calledMc) {
+  if (!call) {
     return { x: 0, pnl: 0, athX: 0, timeToAth: "—", ddPct: 0 };
   }
   
-  const calledMc = call.calledMc || 0;
-  const currentMC = call.currentMC || calledMc;
-  const athMC = call.athMC || currentMC;
+  const calledMc = call.calledMc || call.calledMC || 0;
+  const currentMC = call.currentMC || calledMc || 0;
+  const athMC = call.athMC || currentMC || calledMc || 0;
+  
+  console.log('DetailDrawer derive debug:', { calledMc, currentMC, athMC, call });
   
   const x = calledMc > 0 ? currentMC / calledMc : 0;
   const pnl = calledMc > 0 ? ((currentMC - calledMc) / calledMc) * 100 : 0;
@@ -43,15 +45,16 @@ function derive(call) {
   
   // Calculate time to ATH
   let timeToAth = "—";
-  if (call.athTimestamp && call.calledAt) {
+  if (call.athTimestamp && (call.calledAt || call.calledTs)) {
     try {
       const athTime = new Date(call.athTimestamp).getTime();
-      const callTime = new Date(call.calledAt).getTime();
+      const callTime = new Date(call.calledAt || call.calledTs).getTime();
       const diffMs = athTime - callTime;
       if (diffMs > 0) {
         timeToAth = humanizeMs(diffMs);
       }
     } catch (e) {
+      console.error('Time to ATH calculation error:', e);
       timeToAth = "—";
     }
   }
