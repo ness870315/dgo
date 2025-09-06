@@ -14,6 +14,7 @@ import PriorityQueueService from './priorityQueueService.js';
 import LeaderboardScoringEngine from './leaderboardScoringEngine.js';
 import SocialContextAI from './socialContextAI.js';
 import BackupRecoveryService from './backupRecoveryService.js';
+import HypeTrendAnalysis from './hypeTrendAnalysis.js';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -32,6 +33,7 @@ class EnhancedBackend {
     this.priorityQueue = new PriorityQueueService();
     this.leaderboardEngine = new LeaderboardScoringEngine();
     this.socialContextAI = new SocialContextAI();
+    this.hypeTrendAnalysis = new HypeTrendAnalysis();
     this.backupRecoveryService = new BackupRecoveryService(this);
     // Persistent cache path for tokens-cache.json under DATA_DIR
     try {
@@ -1455,6 +1457,68 @@ class EnhancedBackend {
     });
 
     // === AI ANALYSIS ENDPOINTS ===
+    
+    // Hype Trend Analysis endpoint
+    this.app.get('/api/ai/hype-analysis/:contract', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        const { range = '7d', sessionId } = req.query;
+        
+        console.log(`🧠 Hype Analysis request for ${contract} (${range})`);
+        
+        // Get user for premium check
+        let user = null;
+        let isPremium = false;
+        
+        if (sessionId) {
+          try {
+            user = await this.oauthXService.getUserBySession(sessionId);
+            if (user) {
+              const premiumStatus = await this.oauthXService.db.getPremiumStatus(user.id);
+              isPremium = premiumStatus?.isPremium &&
+                (!premiumStatus.expiresAt || new Date(premiumStatus.expiresAt) > new Date());
+            }
+          } catch (err) {
+            console.log(`🧠 Hype Analysis - Failed to get user: ${err.message}`);
+          }
+        }
+        
+        // Premium feature gate
+        if (!isPremium) {
+          return res.status(403).json({
+            success: false,
+            error: 'Premium feature required',
+            message: 'Hype trend analysis is available for Premium users only'
+          });
+        }
+        
+        // Get hype data for the token
+        const hypeData = await this.getHypeDataForAnalysis(contract, range);
+        
+        if (!hypeData || hypeData.length < 3) {
+          return res.json({
+            success: false,
+            error: 'Insufficient hype data',
+            message: 'Need at least 3 data points for trend analysis'
+          });
+        }
+        
+        // Perform hype trend analysis
+        const analysis = this.hypeTrendAnalysis.analyzeHypeTrend(hypeData, range);
+        
+        console.log(`🧠 Hype Analysis completed for ${contract}: ${analysis.success ? 'SUCCESS' : 'FAILED'}`);
+        
+        res.json(analysis);
+        
+      } catch (error) {
+        console.error('❌ Hype analysis error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Internal server error',
+          message: 'Failed to analyze hype trend'
+        });
+      }
+    });
     
     // Get AI social context analysis for a token
     this.app.get('/api/ai/social-context/:contract', async (req, res) => {
@@ -3825,6 +3889,73 @@ class EnhancedBackend {
         console.error('[🛡️ Enhanced Backend] ❌ Priority Jupiter update failed:', error);
       }
     }, 60 * 1000); // Check every minute, but only update what needs updating based on priority
+  }
+
+  async getHypeDataForAnalysis(contractAddress, range = '7d') {
+    try {
+      console.log(`🧠 Getting hype data for analysis: ${contractAddress} (${range})`);
+      
+      // Get token from cache
+      const tokens = await this.getTokensFromCache();
+      const token = tokens.find(t => 
+        t.contractAddress?.toLowerCase() === contractAddress.toLowerCase() ||
+        t.symbol?.toLowerCase() === contractAddress.toLowerCase()
+      );
+      
+      if (!token) {
+        console.log(`🧠 Token not found for hype analysis: ${contractAddress}`);
+        return [];
+      }
+      
+      // Generate mock hype data based on token's current metrics
+      // In a real implementation, this would fetch from a time-series database
+      const now = Date.now();
+      const hypeData = [];
+      
+      // Generate data points based on range
+      const ranges = {
+        '1d': { points: 24, interval: 60 * 60 * 1000 }, // hourly for 1 day
+        '3d': { points: 36, interval: 2 * 60 * 60 * 1000 }, // 2-hourly for 3 days  
+        '7d': { points: 42, interval: 4 * 60 * 60 * 1000 }, // 4-hourly for 7 days
+        '15d': { points: 45, interval: 8 * 60 * 60 * 1000 }, // 8-hourly for 15 days
+        '30d': { points: 60, interval: 12 * 60 * 60 * 1000 } // 12-hourly for 30 days
+      };
+      
+      const config = ranges[range] || ranges['7d'];
+      const baseScore = token.score || token.overallScore || 5;
+      const baseMentions = token.twitterData?.mentions || token.mentions || 10;
+      
+      // Generate historical data with some trend and noise
+      for (let i = 0; i < config.points; i++) {
+        const timestamp = new Date(now - (config.points - i - 1) * config.interval);
+        
+        // Add trend and random variation
+        const trendFactor = Math.sin((i / config.points) * Math.PI * 2) * 0.3; // Sine wave trend
+        const noise = (Math.random() - 0.5) * 1.5; // Random noise
+        const score = Math.max(0, Math.min(10, baseScore + trendFactor + noise));
+        const mentions = Math.max(0, baseMentions + Math.floor(trendFactor * 20 + noise * 10));
+        
+        // Determine label based on score
+        let label = 'Sleeping';
+        if (score >= 8) label = 'Viral';
+        else if (score >= 6) label = 'Trending';
+        else if (score >= 4) label = 'Building';
+        
+        hypeData.push({
+          timestamp: timestamp.toISOString(),
+          score: Math.round(score * 10) / 10,
+          mentions: mentions,
+          label: label
+        });
+      }
+      
+      console.log(`🧠 Generated ${hypeData.length} hype data points for analysis`);
+      return hypeData;
+      
+    } catch (error) {
+      console.error('❌ Error getting hype data for analysis:', error);
+      return [];
+    }
   }
 
   async getTokensFromCache() {
