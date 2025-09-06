@@ -284,10 +284,11 @@ function App() {
         if (!isFresh) return false;
         // 2) Recent dump penalty → exclude if heavy dump across 1h and 6h
         if (volChange1h <= -50 && volChange6h <= -50) return false;
-        // 3) Social floor
-        if (community < 6 && mentions < 10) return false;
-        // 4) Micro-cap gate: require healthy turnover
-        if (mcap > 0 && mcap < 20_000 && turnover <= 1.0) return false;
+        // 3) Social floor (relaxed) — only exclude if weak socials AND low score
+        const score = (token.score || token.overallScore || 0);
+        if (community < 4 && mentions < 5 && score < 7) return false;
+        // 4) Micro-cap gate (relaxed) — allow if basic turnover present
+        if (mcap > 0 && mcap < 10_000 && turnover <= 0.5) return false;
 
         return true;
       });
@@ -322,9 +323,18 @@ function App() {
       });
       
       // Combine: fueled tokens first, then regular tokens, total 50
-      const trendingTokens = [...sortedFueledTokens, ...sortedRegularTokens].slice(0, 50);
+      let trendingTokens = [...sortedFueledTokens, ...sortedRegularTokens].slice(0, 50);
+
+      // Safety fallback: never return zero — fall back to base tokens by score
+      if (trendingTokens.length === 0) {
+        const fallback = [...baseTokens]
+          .sort((a, b) => (b.score || b.overallScore || 0) - (a.score || a.overallScore || 0))
+          .slice(0, 50);
+        console.log('⚠️ Trending fallback engaged: returning top-scored base tokens because guardrails filtered all');
+        return fallback;
+      }
       
-      console.log(`🚀 NEW Trending filter: Showing top 50 tokens with score >=6.0 + market cap ≤$10M (60% score + 40% volume weighting)`);
+      console.log(`🚀 NEW Trending filter: Showing top 50 tokens with score >=6.0 + market cap ≤$10M (refined ranking)`);
       console.log(`   Found ${highScoreTokens.length} tokens with score >=6 and market cap ≤$10M (${sortedFueledTokens.length} fueled + ${Math.min(sortedRegularTokens.length, 50 - sortedFueledTokens.length)} regular), showing top 50`);
       console.log('Category filtering result:', trendingTokens.length, 'tokens out of', tokenData.length);
       return trendingTokens;
