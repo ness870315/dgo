@@ -3565,17 +3565,43 @@ class EnhancedBackend {
       const completedTokens = tokens.filter(t => t.stage === 'completed');
       console.log(`[🛡️ Enhanced Backend] 📊 Completed tokens: ${completedTokens.length}`);
 
-      // 🔧 FIX: Don't merge Twitter data on every API call - it should only happen during proper workflow
-      // Twitter data should already be merged during the processing pipeline
-      
-      // Check if we need to start processing (only if no tokens exist)
-      if (completedTokens.length === 0 && !this.tokenProcessor.isProcessing) {
-        console.log('[🛡️ Enhanced Backend] 🔄 No completed tokens found, starting processing...');
-        console.log(`[🛡️ Enhanced Backend] 🔄 Processor status - isProcessing: ${this.tokenProcessor.isProcessing}`);
-        setTimeout(() => {
-          console.log('[🛡️ Enhanced Backend] 🚀 Triggering token processor...');
-          this.tokenProcessor.startProcessing();
-        }, 1000);
+      // 🔧 FALLBACK: If no completed tokens, serve jupiter-stage tokens with basic data
+      if (completedTokens.length === 0) {
+        const jupiterTokens = tokens.filter(t => t.stage === 'jupiter' && t.contractAddress && t.symbol);
+        console.log(`[🛡️ Enhanced Backend] 📊 Fallback to Jupiter tokens: ${jupiterTokens.length}`);
+        
+        if (jupiterTokens.length > 0) {
+          // Start processing in background but serve tokens immediately
+          if (!this.tokenProcessor.isProcessing) {
+            console.log('[🛡️ Enhanced Backend] 🔄 Starting background processing while serving Jupiter tokens...');
+            setTimeout(() => {
+              console.log('[🛡️ Enhanced Backend] 🚀 Triggering token processor...');
+              this.tokenProcessor.startProcessing();
+            }, 1000);
+          }
+          
+          // Return Jupiter tokens with minimal processing
+          return jupiterTokens.map(token => ({
+            ...token,
+            // Ensure basic fields are present
+            price: token.jupiterData?.price || token.price || 0,
+            marketCap: token.jupiterData?.mcap || token.marketCap || 0,
+            volume24h: token.jupiterData?.volume1h ? token.jupiterData.volume1h * 24 : 0,
+            score: token.score || token.overallScore || 5.0,
+            // Mark as fallback data
+            _fallbackData: true,
+            _dataSource: 'jupiter-discovery'
+          }));
+        }
+        
+        // No tokens at all - start processing
+        if (!this.tokenProcessor.isProcessing) {
+          console.log('[🛡️ Enhanced Backend] 🔄 No tokens found, starting fresh processing...');
+          setTimeout(() => {
+            console.log('[🛡️ Enhanced Backend] 🚀 Triggering token processor...');
+            this.tokenProcessor.startProcessing();
+          }, 1000);
+        }
       }
 
       return completedTokens;
