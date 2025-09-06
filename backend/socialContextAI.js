@@ -147,8 +147,41 @@ class SocialContextAI {
       // Additional data
       liquidity: this.formatNumber(jupiterData.liquidity || 0),
       holderCount: jupiterData.holderCount || 'N/A',
-      recentEvents: this.extractRecentEvents(tokenData)
+      recentEvents: this.extractRecentEvents(tokenData),
+      
+      // Jupiter API Stats (1h, 6h, 24h)
+      stats1h: this.formatJupiterStats(jupiterData.stats1h),
+      stats6h: this.formatJupiterStats(jupiterData.stats6h), 
+      stats24h: this.formatJupiterStats(jupiterData.stats24h),
+      
+      // Enhanced scoring data
+      overallScore: tokenData.overallScore || tokenData.score || 0,
+      sentimentScore: tokenData.sentimentScore || 5,
+      
+      // Volume and trading data
+      volume24h: this.formatNumber(jupiterData.volume24h || 0),
+      volumeChange24h: jupiterData.volumeChange24h || 0,
+      
+      // Technical indicators
+      priceChange1h: jupiterData.priceChange1h || 0,
+      priceChange6h: jupiterData.priceChange6h || 0,
+      priceChange7d: jupiterData.priceChange7d || 0
     };
+  }
+
+  /**
+   * Format Jupiter API stats for AI analysis
+   */
+  formatJupiterStats(stats) {
+    if (!stats) return 'N/A';
+    
+    const formatted = [];
+    if (stats.priceChange !== undefined) formatted.push(`Price: ${stats.priceChange.toFixed(2)}%`);
+    if (stats.volumeChange !== undefined) formatted.push(`Volume: ${stats.volumeChange.toFixed(2)}%`);
+    if (stats.liquidityChange !== undefined) formatted.push(`Liquidity: ${stats.liquidityChange.toFixed(2)}%`);
+    if (stats.txnChange !== undefined) formatted.push(`Transactions: ${stats.txnChange.toFixed(2)}%`);
+    
+    return formatted.length > 0 ? formatted.join(', ') : 'N/A';
   }
 
   /**

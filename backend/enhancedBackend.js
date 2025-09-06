@@ -1450,14 +1450,29 @@ class EnhancedBackend {
         
         console.log(`🧠 AI social context request for ${contract}`);
         
-        // Optional authentication check (can be used without login for basic analysis)
+        // Authentication and usage limit check
         let isPremium = false;
+        let user = null;
         if (sessionId) {
           try {
-            const user = await this.oauthXService.db.getUserBySessionId(sessionId);
+            user = await this.oauthXService.db.getUserBySessionId(sessionId);
             isPremium = user?.isPremium || false;
           } catch (err) {
             // Continue without premium features
+          }
+        }
+        
+        // Check usage limits for free users
+        if (!isPremium && user) {
+          const usageCount = await this.getAIUsageCount(user.id);
+          if (usageCount >= 5) {
+            return res.status(429).json({
+              error: 'Usage limit exceeded',
+              message: 'Free users are limited to 5 AI analyses per month. Upgrade to Premium for unlimited access.',
+              usageCount: usageCount,
+              limit: 5,
+              isPremium: false
+            });
           }
         }
         
@@ -1497,6 +1512,11 @@ class EnhancedBackend {
         
         const analysis = await this.socialContextAI.analyzeSocialContext(token, analysisOptions);
         
+        // Track usage for free users
+        if (!isPremium && user) {
+          await this.trackAIUsage(user.id, analysis.metadata?.analysisId);
+        }
+        
         // Add premium features and actionable recommendations
         if (isPremium) {
           analysis.premiumInsights = {
@@ -1519,6 +1539,9 @@ class EnhancedBackend {
           analysis.actionableRecommendations = this.generateBasicRecommendations(analysis, token);
         }
         
+        // Get updated usage count for response
+        const currentUsageCount = !isPremium && user ? await this.getAIUsageCount(user.id) : 0;
+        
         res.json({
           success: true,
           analysis: analysis,
@@ -1530,6 +1553,8 @@ class EnhancedBackend {
             marketCap: token.jupiterData?.marketCap || token.marketCap
           },
           isPremium: isPremium,
+          usageCount: currentUsageCount,
+          usageLimit: 5,
           dataFreshness: analysis.metadata?.dataFreshness || 'unknown'
         });
         
@@ -3721,6 +3746,55 @@ class EnhancedBackend {
     }
     
     return recommendations;
+  }
+
+  /**
+   * Get AI usage count for a user (current month)
+   */
+  async getAIUsageCount(userId) {
+    try {
+      const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+      const usageFile = await this.oauthXService.db.getUserFile(userId, 'ai_usage.json');
+      const usage = await this.oauthXService.db.readJsonFile(usageFile, {});
+      
+      return usage[currentMonth] || 0;
+    } catch (error) {
+      console.error('Error getting AI usage count:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Track AI usage for a user
+   */
+  async trackAIUsage(userId, analysisId) {
+    try {
+      const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+      const usageFile = await this.oauthXService.db.getUserFile(userId, 'ai_usage.json');
+      const usage = await this.oauthXService.db.readJsonFile(usageFile, {});
+      
+      // Increment usage count for current month
+      usage[currentMonth] = (usage[currentMonth] || 0) + 1;
+      
+      // Keep track of analysis IDs for debugging
+      if (!usage.analyses) usage.analyses = [];
+      usage.analyses.push({
+        id: analysisId,
+        timestamp: new Date().toISOString(),
+        month: currentMonth
+      });
+      
+      // Keep only last 100 analyses to prevent file bloat
+      if (usage.analyses.length > 100) {
+        usage.analyses = usage.analyses.slice(-100);
+      }
+      
+      await this.oauthXService.db.writeJsonFile(usageFile, usage);
+      
+      console.log(`📊 AI usage tracked for user ${userId}: ${usage[currentMonth]}/5 this month`);
+    } catch (error) {
+      console.error('Error tracking AI usage:', error);
+    }
   }
 
   async saveTokensToCache(tokens) {

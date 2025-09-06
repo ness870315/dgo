@@ -193,6 +193,10 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
       const data = await response.json();
       
       if (!response.ok) {
+        if (response.status === 429) {
+          // Usage limit exceeded
+          throw new Error(`${data.message || 'Usage limit exceeded'} (${data.usageCount || 0}/${data.limit || 5} used)`);
+        }
         throw new Error(data.message || data.error || 'AI analysis failed');
       }
       
@@ -1599,6 +1603,11 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                         <span className={`px-2 py-1 rounded text-xs ${aiAnalysis.isPremium ? 'bg-purple-900 text-purple-300' : 'bg-gray-700 text-gray-300'}`}>
                           {aiAnalysis.isPremium ? 'Premium Analysis' : 'Free Analysis'}
                         </span>
+                        {!aiAnalysis.isPremium && aiAnalysis.usageCount !== undefined && (
+                          <span className="px-2 py-1 rounded text-xs bg-orange-900 text-orange-300">
+                            {aiAnalysis.usageCount + 1}/5 Used
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
