@@ -3551,8 +3551,19 @@ class EnhancedBackend {
       const data = await fs.readFile(cachePath, 'utf8');
       const tokens = JSON.parse(data);
 
+      console.log(`[🛡️ Enhanced Backend] 📊 Total tokens in cache: ${tokens.length}`);
+      
+      // Count tokens by stage
+      const stageCount = {};
+      tokens.forEach(token => {
+        const stage = token.stage || 'undefined';
+        stageCount[stage] = (stageCount[stage] || 0) + 1;
+      });
+      console.log(`[🛡️ Enhanced Backend] 📊 Tokens by stage:`, stageCount);
+
       // Filter only completed tokens
       const completedTokens = tokens.filter(t => t.stage === 'completed');
+      console.log(`[🛡️ Enhanced Backend] 📊 Completed tokens: ${completedTokens.length}`);
 
       // 🔧 FIX: Don't merge Twitter data on every API call - it should only happen during proper workflow
       // Twitter data should already be merged during the processing pipeline
@@ -3560,7 +3571,9 @@ class EnhancedBackend {
       // Check if we need to start processing (only if no tokens exist)
       if (completedTokens.length === 0 && !this.tokenProcessor.isProcessing) {
         console.log('[🛡️ Enhanced Backend] 🔄 No completed tokens found, starting processing...');
+        console.log(`[🛡️ Enhanced Backend] 🔄 Processor status - isProcessing: ${this.tokenProcessor.isProcessing}`);
         setTimeout(() => {
+          console.log('[🛡️ Enhanced Backend] 🚀 Triggering token processor...');
           this.tokenProcessor.startProcessing();
         }, 1000);
       }
