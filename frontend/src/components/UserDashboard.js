@@ -669,9 +669,25 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
               {dashboardData.watchlist.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {dashboardData.watchlist.map((token, index) => (
-                    <div 
+                    <div
                       key={index}
-                      onClick={() => setSelectedToken(token)}
+                      onClick={async () => {
+                        try {
+                          // Fetch complete token data from API for watchlist tokens
+                          const response = await fetch(`${API_BASE}/api/tokens/${token.contractAddress}`);
+                          if (response.ok) {
+                            const data = await response.json();
+                            if (data.success && data.token) {
+                              setSelectedToken(data.token);
+                              return;
+                            }
+                          }
+                        } catch (error) {
+                          console.warn('Failed to fetch complete token data, using stored data:', error);
+                        }
+                        // Fallback to stored watchlist data if API fails
+                        setSelectedToken(token);
+                      }}
                       className="bg-gray-800/50 rounded-lg p-4 cursor-pointer hover:bg-gray-700/50 transition-colors"
                     >
                       <div className="flex items-center justify-between">

@@ -1546,11 +1546,39 @@ class EnhancedBackend {
       }
     });
 
+    // Get complete token data by contract address
+    this.app.get('/api/tokens/:contract', async (req, res) => {
+      try {
+        const { contract } = req.params;
+
+        console.log(`[🛡️ Enhanced Backend] 📊 Getting complete token data for: ${contract}`);
+
+        // Get tokens from cache
+        const tokens = await this.getTokensFromCache();
+
+        // Find the token by contract address
+        const token = tokens.find(t =>
+          t.contractAddress?.toLowerCase() === contract.toLowerCase() ||
+          t.address?.toLowerCase() === contract.toLowerCase()
+        );
+
+        if (!token) {
+          return res.status(404).json({ success: false, error: 'Token not found' });
+        }
+
+        res.json({ success: true, token: token });
+
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Get token error:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to get token data' });
+      }
+    });
+
     this.app.get('/api/tokens/:contract/mcap-chart', async (req, res) => {
       try {
         const { contract } = req.params;
         const { calledAt } = req.query;
-        
+
         if (!calledAt) {
           return res.status(400).json({ error: 'Missing calledAt parameter' });
         }
