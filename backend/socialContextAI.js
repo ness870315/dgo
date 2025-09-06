@@ -131,6 +131,28 @@ class SocialContextAI {
       tokenKeys: Object.keys(tokenData).filter(k => !['twitterData', 'jupiterData'].includes(k))
     });
 
+    // Debug official handle detection specifically
+    const officialHandle = tokenData.socials?.twitter ||
+                          jupiterData.twitter ||
+                          tokenData.twitterHandle ||
+                          twitterData.officialHandle ||
+                          jupiterData.socials?.twitter ||
+                          jupiterData.socials?.x ||
+                          tokenData.officialHandle ||
+                          'N/A';
+    
+    console.log(`🧠 AI Official Handle Debug for ${tokenData.symbol}:`, {
+      'tokenData.socials?.twitter': tokenData.socials?.twitter,
+      'jupiterData.twitter': jupiterData.twitter,
+      'tokenData.twitterHandle': tokenData.twitterHandle,
+      'twitterData.officialHandle': twitterData.officialHandle,
+      'jupiterData.socials?.twitter': jupiterData.socials?.twitter,
+      'jupiterData.socials?.x': jupiterData.socials?.x,
+      'tokenData.officialHandle': tokenData.officialHandle,
+      'FINAL_officialHandle': officialHandle,
+      'isNotNA': officialHandle !== 'N/A'
+    });
+
     return {
       tokenName: tokenData.name || 'Unknown',
       symbol: tokenData.symbol || 'N/A',

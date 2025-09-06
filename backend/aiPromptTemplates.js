@@ -93,17 +93,33 @@ TOKEN SCORING BREAKDOWN:
 RECENT EVENTS & NEWS:
 - Recent News/Events: {recentEvents}
 
-🚨 CRITICAL ACCURACY REQUIREMENTS:
+🚨 CRITICAL ACCURACY REQUIREMENTS - MANDATORY COMPLIANCE:
 
-1. **OFFICIAL HANDLE DETECTION**: If officialHandle is provided and not "N/A", DO NOT say "No official Twitter handle found", "no official presence", or similar. Acknowledge the official handle exists.
+⚠️ VIOLATION OF THESE RULES WILL RESULT IN ANALYSIS REJECTION ⚠️
+
+1. **OFFICIAL HANDLE DETECTION - ABSOLUTE RULE**: 
+   - If officialHandle contains ANY URL or handle (not "N/A"), you MUST acknowledge it exists
+   - NEVER say: "lack of official social media", "no official presence", "absence of social media presence", "lack of social media presence", "no social media presence"
+   - INSTEAD say: "Official X handle is active" or "Has established social presence"
+
 2. **MARKET CAP ACCURACY**: If marketCap shows a value (even $0), use that exact value. If it shows $493k, say "$493k" not "zero market cap"
+
 3. **SOCIAL PRESENCE**: If communityScore >7 AND totalMentions >20, DO NOT say "limited social presence", "low mentions", or "low recent mentions"
+
 4. **ENGAGEMENT FOCUS**: Focus on mentions24h, totalMentions, and engagementRate. If mentions24h >10 OR totalMentions >20 AND communityScore >7, this indicates GOOD social activity
+
 5. **TRENDING CONTEXT**: If a token appears in trending, it has PASSED quality filters - acknowledge this strength
+
 6. **NO DEVELOPER TALK**: Do NOT discuss developers, dev wallets, team allocation, or token supply/tokenomics
+
 7. **NO HANDLE BIAS**: Missing official handle should NOT negatively impact your analysis - focus on actual social metrics
 
-BE FACTUALLY ACCURATE. Your analysis must match the provided data exactly. Focus on X mentions and engagement, not technical aspects.
+🔴 BEFORE WRITING YOUR ANALYSIS, CHECK:
+- Does officialHandle contain a URL or handle? If YES, acknowledge it exists
+- Are you saying "lack of social media presence"? If YES, STOP and rewrite
+- Are you discussing developers or supply? If YES, remove that content
+
+BE FACTUALLY ACCURATE. Your analysis must match the provided data exactly.
 
 CRYPTO SLANG GUIDELINES:
 - ALWAYS use authentic crypto slang in your analysis - this is mandatory!
