@@ -232,14 +232,18 @@ class EnhancedSocialDataService {
     if (this.isCurrentlyRateLimited()) {
       console.log(`🚨 Rate limited for ${symbol}, returning cached data if available`);
       const cached = this.twitterMetricsCache.get(cacheKey);
-      return cached ? cached.data : this.getDefaultTwitterData(symbol, name);
+      const fallbackData = cached ? cached.data : this.getDefaultTwitterData(symbol, name);
+      fallbackData._dataFreshness = 'rate_limited'; // Mark as rate limited
+      return fallbackData;
     }
-    
+
     const rateLimitCheck = this.checkRateLimits();
     if (rateLimitCheck.limited) {
       console.log(`🚨 Rate limit reached for ${symbol}: ${rateLimitCheck.reason}`);
       const cached = this.twitterMetricsCache.get(cacheKey);
-      return cached ? cached.data : this.getDefaultTwitterData(symbol, name);
+      const fallbackData = cached ? cached.data : this.getDefaultTwitterData(symbol, name);
+      fallbackData._dataFreshness = 'rate_limited'; // Mark as rate limited
+      return fallbackData;
     }
     
     try {
@@ -277,6 +281,7 @@ class EnhancedSocialDataService {
       await this.saveHistoricalSnapshot(symbol, name, twitterData);
       
       console.log(`✅ Twitter data collected for ${symbol}: ${twitterData.mentions} mentions`);
+      twitterData._dataFreshness = 'fresh'; // Mark as fresh data
       return twitterData;
       
     } catch (error) {
@@ -284,7 +289,9 @@ class EnhancedSocialDataService {
       
       // Return cached data if available, otherwise default
       const cached = this.twitterMetricsCache.get(cacheKey);
-      return cached ? cached.data : this.getDefaultTwitterData(symbol, name);
+      const fallbackData = cached ? cached.data : this.getDefaultTwitterData(symbol, name);
+      fallbackData._dataFreshness = 'error_fallback'; // Mark as error fallback
+      return fallbackData;
     }
   }
 
@@ -482,7 +489,9 @@ class EnhancedSocialDataService {
       
     } catch (error) {
       console.error(`❌ Twitter microservice error for ${symbol}: ${error.message}`);
-      return this.getDefaultTwitterData(symbol, name);
+      const fallbackData = this.getDefaultTwitterData(symbol, name);
+      fallbackData._dataFreshness = 'error_fallback'; // Mark as error fallback
+      return fallbackData;
     }
   }
 
@@ -695,17 +704,17 @@ class EnhancedSocialDataService {
   /**
    * Get default Twitter data when API fails
    */
-  getDefaultTwitterData(symbol, name) {
+  getDefaultTwitterData(symbol, name, freshness = 'default') {
     return {
       symbol: symbol,
       name: name,
-      
+
       // Official Twitter Account Info
       officialHandle: 'not found',
       username: null,
       followers: 0,
       hasOfficialAccount: false,
-      
+
       // Community Activity Metrics
       mentions: 0,
       mentions24h: 0,
@@ -718,15 +727,16 @@ class EnhancedSocialDataService {
         replies: 0,
         total: 0
       },
-      
+
       // Social Activity Feed
       recentMentions: [],
       tweets: [],
-      
+
       // Status and Metadata
       status: 'no_data',
       communityHealth: 0,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
+      _dataFreshness: freshness // Track data freshness
     };
   }
 

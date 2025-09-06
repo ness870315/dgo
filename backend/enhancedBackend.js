@@ -2369,21 +2369,57 @@ class EnhancedBackend {
           return;
         }
 
-        try {
+          // Check 24-hour cooldown before refreshing
+          const token = job.tokensArray && item.index != null ? job.tokensArray[item.index] : null;
+          const needsRefresh = !token || this.tokenProcessor.shouldRefreshTwitterData(token);
+
+          if (!needsRefresh) {
+            console.log(`[🛡️ Admin] ⏰ Skipping ${item.symbol} (within 24h cooldown)`);
+            job.skipped = (job.skipped || 0) + 1;
+            job.processed++;
+            continue;
+          }
+
           const twitterData = await socialService.forceImmediateRefresh(item.symbol, item.name);
 
           // Update cache entry
           if (job.tokensArray && item.index != null && job.tokensArray[item.index]) {
             const token = job.tokensArray[item.index];
             token.twitterData = twitterData;
-            token.twitterTimestamp = new Date().toISOString();
             token.communityHealthScore = socialService.calculateCommunityHealthScore(twitterData);
             token.communityScore = token.communityHealthScore;
             token.overallScore = this.tokenProcessor.calculateEnhancedOverallScore(token);
             token.score = token.overallScore;
+
+            // Only apply 24h cooldown if we got fresh data
+            const dataFreshness = twitterData._dataFreshness || 'unknown';
+            if (dataFreshness === 'fresh') {
+              token.twitterTimestamp = new Date().toISOString();
+              console.log(`[🛡️ Admin] ✅ Fresh data for ${item.symbol} (24h cooldown applied)`);
+            } else {
+              console.log(`[🛡️ Admin] ⚠️ ${dataFreshness.replace('_', ' ').toUpperCase()} data for ${item.symbol} (no cooldown applied)`);
+            }
           }
 
           job.success++;
+
+          // Track recently refreshed tokens and next eligible time (24h cooldown by default)
+          try {
+            const cooldownMs = this.twitterRefreshJob?.cooldownWindowMs || (24 * 60 * 60 * 1000);
+            const refreshedAtIso = (job.tokensArray && item.index != null && job.tokensArray[item.index]?.twitterTimestamp)
+              ? job.tokensArray[item.index].twitterTimestamp
+              : new Date().toISOString();
+            const nextEligibleAtIso = new Date(Date.parse(refreshedAtIso) + cooldownMs).toISOString();
+            job.recentRefreshed = job.recentRefreshed || [];
+            job.recentRefreshed.unshift({
+              symbol: item.symbol,
+              name: item.name,
+              index: item.index,
+              refreshedAt: refreshedAtIso,
+              nextEligibleAt: nextEligibleAtIso
+            });
+            if (job.recentRefreshed.length > 50) job.recentRefreshed.length = 50;
+          } catch (_) { /* noop */ }
         } catch (err) {
           job.errors++;
           job.lastError = err.message;
@@ -2398,8 +2434,22 @@ class EnhancedBackend {
           try { await this.saveTokensToCache(job.tokensArray); } catch {}
         }
 
-        // Pace requests
-        const delayMs = job.baseDelayMs || 1500; // default 1.5s between tokens
+        // Rate limiting aligned to 60 req / 15 min (per app & per user)
+        // Base: 15s between tokens (4 req/min) => 60 req in 15 min
+        let delayMs = job.baseDelayMs || 15_000;
+
+        // Safety batch cooldowns
+        // After every 50 tokens, cool down 5 minutes to leave headroom
+        if (job.processed % 50 === 0) {
+          delayMs = 5 * 60 * 1000; // 5 minutes
+          console.log(`[🛡️ Admin] 🛑 Cooldown: 5-minute break after ${job.processed} tokens (rate limit protection)`);
+        }
+        // After every 10 tokens (but not 50), short 60s cooldown to smooth bursts
+        else if (job.processed % 10 === 0) {
+          delayMs = 60 * 1000; // 60 seconds
+          console.log(`[🛡️ Admin] ⏸️ Short cooldown: 60-second break after ${job.processed} tokens`);
+        }
+
         setTimeout(this._runTwitterRefreshWorker, delayMs);
 
       } catch (err) {
@@ -2451,6 +2501,26 @@ class EnhancedBackend {
     // Job status
     this.app.get('/api/admin/twitter/refresh-all/status', (req, res) => {
       const job = this.twitterRefreshJob || { running: false };
+      
+      // Calculate next break info (aligned to new policy)
+      let nextBreakInfo = null;
+      if (job.running && (job.processed || job.processed === 0)) {
+        const mod50 = job.processed % 50;
+        const mod10 = job.processed % 10;
+        const until50 = mod50 === 0 ? 0 : (50 - mod50);
+        const until10 = mod10 === 0 ? 0 : (10 - mod10);
+
+        if (until50 === 0 && job.processed > 0) {
+          nextBreakInfo = "Taking 5-minute break now";
+        } else if (until10 === 0 && job.processed > 0) {
+          nextBreakInfo = "Taking 60-second break now";
+        } else if (until10 <= until50) {
+          nextBreakInfo = `${until10} tokens until 60-second break`;
+        } else {
+          nextBreakInfo = `${until50} tokens until 5-minute break`;
+        }
+      }
+      
       res.json({
         success: true,
         running: !!job.running,
@@ -2458,10 +2528,18 @@ class EnhancedBackend {
         processed: job.processed || 0,
         successCount: job.success || 0,
         errorCount: job.errors || 0,
+        skippedCount: job.skipped || 0,
         queueRemaining: job.queue ? job.queue.length : 0,
         startedAt: job.startedAt || null,
         lastUpdated: job.lastUpdated || null,
-        lastError: job.lastError || null
+        lastError: job.lastError || null,
+        recentRefreshed: job.recentRefreshed || [],
+        rateLimitInfo: {
+          baseDelay: "15 seconds between tokens",
+          batchBreaks: "60s break every 10 tokens, 5min break every 50 tokens",
+          nextBreak: nextBreakInfo,
+          cooldown: "24 hours between refreshes"
+        }
       });
     });
 

@@ -499,9 +499,16 @@ class EnhancedTokenProcessor {
             await this.ensureSocialDataService();
             token.communityHealthScore = this.socialDataService.calculateCommunityHealthScore(twitterData);
             token.stage = 'twitter';
-            token.twitterTimestamp = new Date().toISOString();
-            
-            console.log(`✅ Twitter data collected for ${symbol}: ${twitterData.mentions} mentions`);
+
+            // Only apply 24h cooldown if we got fresh data, not rate-limited cached data
+            const dataFreshness = twitterData._dataFreshness || 'unknown';
+            if (dataFreshness === 'fresh') {
+              token.twitterTimestamp = new Date().toISOString();
+              console.log(`✅ Fresh Twitter data for ${symbol}: ${twitterData.mentions} mentions (24h cooldown applied)`);
+            } else {
+              console.log(`⚠️ ${dataFreshness.replace('_', ' ').toUpperCase()} Twitter data for ${symbol}: ${twitterData.mentions} mentions (no cooldown applied)`);
+              // Keep existing timestamp to allow retry soon
+            }
             batchProcessed++;
             
             // Rate limiting delay between tokens
@@ -1134,7 +1141,8 @@ class EnhancedTokenProcessor {
           recentMentions: [],
           engagement: 0,
           lastUpdate: new Date().toISOString(),
-          error: 'No data found'
+          error: 'No data found',
+          _dataFreshness: 'no_data_found'
         };
       }
       
@@ -1152,7 +1160,8 @@ class EnhancedTokenProcessor {
         recentMentions: [],
         engagement: 0,
         lastUpdate: new Date().toISOString(),
-        error: error.message
+        error: error.message,
+        _dataFreshness: 'api_error'
       };
     }
   }

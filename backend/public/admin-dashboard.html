@@ -491,6 +491,10 @@
             <!-- Manual Twitter Refresh -->
             <div class="card">
                 <h2>🐦 Twitter API Control</h2>
+                <p style="color: #666; font-size: 0.9em; margin-bottom: 15px;">
+                    ⚡ <strong>Rate Limiting:</strong> 15s between tokens, 60s break every 10 tokens, 5min break every 50 tokens<br>
+                    🕒 <strong>Smart Cooldown:</strong> Respects 24h cooldowns, skips recently refreshed tokens
+                </p>
                 <div class="form-group">
                     <label>Token Symbol</label>
                     <input type="text" id="twitterRefreshSymbol" placeholder="e.g., BTC" style="text-transform: uppercase;">
@@ -1268,15 +1272,35 @@
                 const data = await res.json();
                 if (data.success) {
                     const pct = data.total ? Math.round((data.processed / data.total) * 100) : 0;
+                    const rateLimitInfo = data.rateLimitInfo || {};
                     resultDiv.innerHTML = `
                         <div class="status-display">
                             <div class="status-item"><span class="status-label">Running</span><span class="status-value">${data.running ? 'YES' : 'NO'}</span></div>
                             <div class="status-item"><span class="status-label">Processed</span><span class="status-value">${data.processed}/${data.total} (${pct}%)</span></div>
                             <div class="status-item"><span class="status-label">Success</span><span class="status-value">${data.successCount}</span></div>
                             <div class="status-item"><span class="status-label">Errors</span><span class="status-value">${data.errorCount}</span></div>
+                            <div class="status-item"><span class="status-label">Skipped (24h)</span><span class="status-value">${data.skippedCount || 0}</span></div>
                             <div class="status-item"><span class="status-label">Queue Left</span><span class="status-value">${data.queueRemaining}</span></div>
                             <div class="status-item"><span class="status-label">Last Error</span><span class="status-value">${data.lastError || '—'}</span></div>
+                            ${rateLimitInfo.baseDelay ? `<div class="status-item"><span class="status-label">Base Delay</span><span class="status-value">${rateLimitInfo.baseDelay}</span></div>` : ''}
+                            ${rateLimitInfo.batchBreaks ? `<div class="status-item"><span class="status-label">Batch Breaks</span><span class="status-value">${rateLimitInfo.batchBreaks}</span></div>` : ''}
+                            ${rateLimitInfo.nextBreak ? `<div class="status-item"><span class="status-label">Next Break</span><span class="status-value">${rateLimitInfo.nextBreak}</span></div>` : ''}
+                            ${rateLimitInfo.cooldown ? `<div class="status-item"><span class="status-label">Cooldown</span><span class="status-value">${rateLimitInfo.cooldown}</span></div>` : ''}
                         </div>
+                        ${data.recentRefreshed && data.recentRefreshed.length > 0 ? `
+                        <div class="mt-4">
+                            <div class="font-medium text-sm mb-2">Recently Refreshed (24h cooldown):</div>
+                            <div class="space-y-1 max-h-32 overflow-y-auto">
+                                ${data.recentRefreshed.slice(0, 10).map(refresh => {
+                                    const nextRefresh = new Date(refresh.nextEligibleAt);
+                                    const now = new Date();
+                                    const timeUntil = Math.max(0, nextRefresh - now);
+                                    const hoursLeft = Math.floor(timeUntil / (1000 * 60 * 60));
+                                    const minsLeft = Math.floor((timeUntil % (1000 * 60 * 60)) / (1000 * 60));
+                                    return `<div class="text-xs text-gray-600">• ${refresh.symbol} (${refresh.name}) - Next: ${hoursLeft}h ${minsLeft}m</div>`;
+                                }).join('')}
+                            </div>
+                        </div>` : ''}
                     `;
                 } else {
                     resultDiv.innerHTML = showAlert(`❌ ${data.error}`, 'error');
