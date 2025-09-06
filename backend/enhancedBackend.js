@@ -13,6 +13,7 @@ import BirdEyeTrendingService from './birdEyeTrendingService.js';
 import PriorityQueueService from './priorityQueueService.js';
 import LeaderboardScoringEngine from './leaderboardScoringEngine.js';
 import SocialContextAI from './socialContextAI.js';
+import BackupRecoveryService from './backupRecoveryService.js';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -31,6 +32,7 @@ class EnhancedBackend {
     this.priorityQueue = new PriorityQueueService();
     this.leaderboardEngine = new LeaderboardScoringEngine();
     this.socialContextAI = new SocialContextAI();
+    this.backupRecoveryService = new BackupRecoveryService(this);
     // Persistent cache path for tokens-cache.json under DATA_DIR
     try {
       const baseDir = this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo';
@@ -49,6 +51,13 @@ class EnhancedBackend {
     this.setupMiddleware();
     this.setupRoutes();
     this.setupBackgroundTasks();
+    
+    // Start backup recovery service
+    setTimeout(() => {
+      this.backupRecoveryService.start().catch(error => {
+        console.error('❌ Failed to start backup recovery service:', error.message);
+      });
+    }, 5000); // Start after 5 seconds to allow backend to fully initialize
   }
 
   setupMiddleware() {
@@ -3536,6 +3545,64 @@ class EnhancedBackend {
         
       } catch (error) {
         console.error('❌ Emergency restore failed:', error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    // BACKUP RECOVERY: Status endpoint
+    this.app.get('/api/admin/backup/status', async (req, res) => {
+      try {
+        const status = await this.backupRecoveryService.getBackupStatus();
+        res.json({
+          success: true,
+          timestamp: new Date().toISOString(),
+          backup: status
+        });
+      } catch (error) {
+        console.error('❌ Backup status failed:', error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    // BACKUP RECOVERY: Force backup endpoint
+    this.app.post('/api/admin/backup/create', async (req, res) => {
+      try {
+        await this.backupRecoveryService.forceBackup();
+        res.json({
+          success: true,
+          message: 'Manual backup completed successfully',
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('❌ Manual backup failed:', error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    // BACKUP RECOVERY: Force recovery endpoint
+    this.app.post('/api/admin/backup/recover', async (req, res) => {
+      try {
+        const { reason = 'Manual recovery via admin endpoint' } = req.body;
+        await this.backupRecoveryService.forceRecovery(reason);
+        res.json({
+          success: true,
+          message: 'Manual recovery completed successfully',
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('❌ Manual recovery failed:', error);
         res.status(500).json({
           success: false,
           error: error.message,

@@ -16,39 +16,67 @@ async function emergencyRestore() {
     console.log(`✅ Loaded ${localTokens.length} tokens from local cache`);
     console.log(`📊 Sample tokens: ${localTokens.slice(0, 3).map(t => t.symbol).join(', ')}...`);
     
-    // Prepare payload
-    const payload = {
-      tokens: localTokens,
-      source: 'local-development-backup'
-    };
-    
-    console.log(`🚀 Uploading to production...`);
-    
-    // Upload to production
-    const response = await axios.post(
-      'https://dgo-backend.onrender.com/api/admin/cache/emergency-restore',
-      payload,
-      {
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        timeout: 60000 // 60 second timeout for large upload
-      }
-    );
-    
-    if (response.data.success) {
-      console.log('✅ EMERGENCY RESTORE SUCCESSFUL!');
-      console.log('================================');
-      console.log(`📊 Total tokens restored: ${response.data.restored.totalTokens}`);
-      console.log(`📊 From local backup: ${response.data.restored.restoredTokens}`);
-      console.log(`📊 Existing kept: ${response.data.restored.existingKept}`);
-      console.log(`📅 Restore timestamp: ${response.data.restored.timestamp}`);
-      console.log(`💾 Backup saved to: ${response.data.restored.backupPath}`);
-      console.log('');
-      console.log('🎉 Production cache restored! Frontend should show tokens now.');
-    } else {
-      console.error('❌ Restore failed:', response.data.error);
+    // Split into batches to avoid payload size limits
+    const batchSize = 5; // 5 tokens per batch (Render has strict limits)
+    const batches = [];
+    for (let i = 0; i < localTokens.length; i += batchSize) {
+      batches.push(localTokens.slice(i, i + batchSize));
     }
+    
+    console.log(`🔄 Splitting into ${batches.length} batches of ${batchSize} tokens each...`);
+    
+    let totalRestored = 0;
+    let totalExisting = 0;
+    
+    // Upload batches sequentially
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i];
+      console.log(`🚀 Uploading batch ${i + 1}/${batches.length} (${batch.length} tokens)...`);
+      
+      const payload = {
+        tokens: batch,
+        source: `local-development-backup-batch-${i + 1}`
+      };
+      
+      try {
+        const response = await axios.post(
+          'https://dgo-1-kmw9.onrender.com/api/admin/cache/emergency-restore',
+          payload,
+          {
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            timeout: 30000 // 30 second timeout per batch
+          }
+        );
+        
+        if (response.data.success) {
+          console.log(`✅ Batch ${i + 1} successful: ${response.data.restored.totalTokens} total tokens in cache`);
+          totalRestored += response.data.restored.restoredTokens;
+          totalExisting = response.data.restored.existingKept;
+        } else {
+          console.error(`❌ Batch ${i + 1} failed:`, response.data.error);
+        }
+        
+        // Small delay between batches
+        if (i < batches.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        
+      } catch (error) {
+        console.error(`❌ Batch ${i + 1} failed:`, error.message);
+        if (error.response) {
+          console.error(`📊 Status: ${error.response.status}`);
+        }
+      }
+    }
+    
+    console.log('');
+    console.log('✅ EMERGENCY RESTORE COMPLETE!');
+    console.log('===============================');
+    console.log(`📊 Total tokens restored: ${totalRestored}`);
+    console.log(`📊 Existing tokens kept: ${totalExisting}`);
+    console.log('🎉 Production cache restored! Frontend should show tokens now.');
     
   } catch (error) {
     console.error('❌ Emergency restore failed:', error.message);
