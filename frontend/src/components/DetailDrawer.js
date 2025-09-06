@@ -216,7 +216,9 @@ export default function DetailDrawer({ call, onClose }) {
       [100, 120, 90, 150];
     series = mockSparkData;
     callIndex = 0;
-    athIndex = series.indexOf(Math.max(...series));
+    // Find ATH index (highest value in the series)
+    const maxValue = Math.max(...series);
+    athIndex = series.findIndex(val => val === maxValue);
   }
   
   const min = Math.min(...series);
@@ -334,21 +336,28 @@ export default function DetailDrawer({ call, onClose }) {
                   </g>
                 )}
                 {/* ATH marker */}
-                {athIndex >= 0 && athIndex !== callIndex && (
+                {athIndex >= 0 && (
                   <g>
-                    <line x1={athIndex * step} x2={athIndex * step} y1={0} y2={h} stroke="rgba(255,255,255,0.4)" strokeDasharray="4 4" />
-                    <circle cx={athIndex * step} cy={h - norm[athIndex] * (h - 2) - 1} r={4} fill="rgb(52,211,153)" />
+                    <circle cx={athIndex * step} cy={h - norm[athIndex] * (h - 2) - 1} r={4} fill="rgb(52,211,153)" stroke="rgba(255,255,255,0.8)" strokeWidth="1" />
                     <text x={athIndex * step + 5} y={30} className="text-xs fill-white/60">ATH</text>
                   </g>
                 )}
               </svg>
             )}
             
-            <div className="mt-2 text-xs text-white/60">
-              {chartData && chartData.snapshots && chartData.snapshots.length > 0 ? 
-                `Showing ${chartData.snapshots.length} data points from ${new Date(call.calledAt).toLocaleDateString()}` :
-                "Call (dashed line at left). ATH marker shows peak since call."
-              }
+            <div className="mt-3 text-xs text-white/60 space-y-1">
+              {chartData && chartData.snapshots && chartData.snapshots.length > 0 ? (
+                <div>Showing {chartData.snapshots.length} data points from {new Date(call.calledAt).toLocaleDateString()}</div>
+              ) : null}
+              <div className="mt-2">
+                <div className="font-medium text-white/70 mb-1">How to read this chart:</div>
+                <ul className="space-y-0.5 text-[11px] leading-relaxed">
+                  <li>• <span className="text-white/80">Dashed vertical line</span> = the exact time you made the call.</li>
+                  <li>• <span className="text-emerald-300">Green line & area</span> = market cap movement since the call (scaled to fit the panel).</li>
+                  <li>• <span className="text-emerald-300">Green dot</span> = ATH since your call; the "ATH since call" tile shows the multiple and time to peak.</li>
+                  <li>• <span className="text-white/80">Y‑axis is normalized</span> (no ticks); use the tiles above for exact Called MC, Current MC, and ATH values.</li>
+                </ul>
+              </div>
             </div>
           </div>
 
