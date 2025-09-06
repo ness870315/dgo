@@ -164,6 +164,8 @@ export default function DetailDrawer({ call, onClose }) {
   useEffect(() => {
     const contract = call?.token?.contractAddress || call?.contractAddress;
     const calledAt = call?.calledAt || call?.calledTs;
+    console.log('DetailDrawer chart loading:', { contract, calledAt, call });
+    
     if (call && contract && calledAt) {
       // Boost priority for this token when DetailDrawer is opened
       const tokenSymbol = call?.token?.symbol || call?.token?.name || 'Unknown';
@@ -172,16 +174,24 @@ export default function DetailDrawer({ call, onClose }) {
       setLoadingChart(true);
       chartService.getMcapChart(contract, calledAt)
         .then(response => {
+          console.log('Chart API response:', response);
           if (response.success) {
             setChartData(response.data);
+          } else {
+            console.warn('Chart API returned unsuccessful response:', response);
+            setChartData(null);
           }
         })
         .catch(error => {
           console.error('Failed to load chart data:', error);
+          setChartData(null);
         })
         .finally(() => {
           setLoadingChart(false);
         });
+    } else {
+      console.warn('Missing required data for chart:', { contract, calledAt });
+      setChartData(null);
     }
   }, [call]);
   
@@ -212,16 +222,50 @@ export default function DetailDrawer({ call, onClose }) {
     series = chartData.snapshots.map(s => s.mcap);
     callIndex = chartData.callIndex;
     athIndex = chartData.athIndex;
+    console.log('Using real chart data:', { series, callIndex, athIndex, chartData });
   } else {
-    // Fallback to mock data
-    const mockSparkData = call.calledMc && call.currentMC ? 
-      [call.calledMc, call.calledMc * 1.1, call.calledMc * 0.9, call.currentMC] : 
-      [100, 120, 90, 150];
-    series = mockSparkData;
+    // Fallback to mock data - create a more realistic progression
+    const calledMc = call.calledMc || call.calledMC || 1000000;
+    const currentMC = call.currentMC || calledMc;
+    const athMC = call.athMC || Math.max(calledMc, currentMC);
+    
+    // Generate a realistic price progression over time
+    const numPoints = 20;
+    const mockSeries = [];
+    
+    for (let i = 0; i < numPoints; i++) {
+      const progress = i / (numPoints - 1);
+      
+      if (i === 0) {
+        // Start at called MC
+        mockSeries.push(calledMc);
+      } else if (i === numPoints - 1) {
+        // End at current MC
+        mockSeries.push(currentMC);
+      } else {
+        // Create some volatility between called and current
+        const baseValue = calledMc + (currentMC - calledMc) * progress;
+        const volatility = Math.sin(progress * Math.PI * 3) * calledMc * 0.2;
+        const athBoost = progress > 0.3 && progress < 0.7 ? athMC - baseValue : 0;
+        mockSeries.push(Math.max(baseValue + volatility + athBoost * 0.5, calledMc * 0.5));
+      }
+    }
+    
+    // Ensure ATH is represented in the series
+    if (athMC > Math.max(...mockSeries)) {
+      const athPosition = Math.floor(numPoints * 0.6); // Place ATH around 60% through
+      mockSeries[athPosition] = athMC;
+    }
+    
+    series = mockSeries;
     callIndex = 0;
-    // Find ATH index (highest value in the series)
-    const maxValue = Math.max(...series);
-    athIndex = series.findIndex(val => val === maxValue);
+    athIndex = series.indexOf(Math.max(...series));
+    
+    console.log('Using mock chart data:', { 
+      calledMc, currentMC, athMC, 
+      series, callIndex, athIndex,
+      seriesLength: series.length 
+    });
   }
   
   const min = Math.min(...series);
@@ -231,6 +275,14 @@ export default function DetailDrawer({ call, onClose }) {
   const step = series.length > 1 ? w / (series.length - 1) : w;
   const norm = series.map((v) => (v - min) / (max - min || 1));
   const path = norm.map((v, i) => `${i === 0 ? "M" : "L"}${i * step},${h - v * (h - 2) - 1}`).join(" ");
+  
+  console.log('SVG Chart generation:', {
+    seriesLength: series.length,
+    min, max, w, h, step,
+    firstFewSeries: series.slice(0, 5),
+    firstFewNorm: norm.slice(0, 5),
+    pathPreview: path.substring(0, 100) + '...'
+  });
 
   return (
     <div className="fixed inset-0 z-50">
