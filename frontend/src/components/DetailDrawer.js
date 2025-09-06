@@ -116,8 +116,8 @@ function Stat({ label, value, hint, good, tooltip }) {
       </div>
       {hint && <div className="text-[11px] text-white/50">{hint}</div>}
       {tooltip && hover && (
-        <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-50">
-          <div className="text-xs leading-tight">
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 px-2 py-1 rounded bg-black/85 border border-white/10 shadow-lg max-w-[220px]">
+          <div className="text-[11px] leading-snug text-gray-200">
             <span className="font-semibold text-white">{label}:</span>
             <span className="text-gray-300 ml-1">{tooltip}</span>
           </div>
