@@ -1801,6 +1801,41 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                   </div>
                 </div>
 
+                {/* Actionable Recommendations */}
+                {aiAnalysis.analysis.actionableRecommendations && aiAnalysis.analysis.actionableRecommendations.length > 0 && (
+                  <div className="mt-6 bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-lg p-4 border border-purple-500/30">
+                    <h5 className="text-white font-semibold mb-3 flex items-center">
+                      🎯 Recommended Actions
+                    </h5>
+                    <div className="space-y-2">
+                      {aiAnalysis.analysis.actionableRecommendations.map((rec, index) => (
+                        <div key={index} className={`flex items-center justify-between p-3 rounded-lg border ${
+                          rec.priority === 'high' ? 'border-red-500/30 bg-red-900/10' :
+                          rec.priority === 'medium' ? 'border-yellow-500/30 bg-yellow-900/10' :
+                          'border-gray-500/30 bg-gray-900/10'
+                        }`}>
+                          <div className="flex items-center space-x-3">
+                            <span className="text-2xl">{rec.icon}</span>
+                            <div>
+                              <div className="text-white font-medium capitalize">
+                                {rec.action.replace(/_/g, ' ')}
+                              </div>
+                              <div className="text-gray-400 text-sm">{rec.reason}</div>
+                            </div>
+                          </div>
+                          <div className={`px-2 py-1 rounded text-xs font-medium ${
+                            rec.priority === 'high' ? 'bg-red-900 text-red-300' :
+                            rec.priority === 'medium' ? 'bg-yellow-900 text-yellow-300' :
+                            'bg-gray-900 text-gray-300'
+                          }`}>
+                            {rec.priority}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Feedback & Footer */}
                 <div className="mt-6 pt-4 border-t border-gray-700">
                   <div className="flex items-center justify-between">

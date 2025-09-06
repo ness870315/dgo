@@ -40,14 +40,20 @@ ADDITIONAL DATA:
 - Holder Count: {holderCount}
 - Recent News/Events: {recentEvents}
 
+IMPORTANT: Base your analysis STRICTLY on the provided data. Do not contradict the actual metrics.
+
+If Community Score is >7, mentions are >20, and engagement is good, DO NOT say "limited social presence".
+If Market Cap is provided, use the exact value - do not say "N/A".
+Be accurate and data-driven in your assessment.
+
 Please provide analysis in this EXACT JSON format:
 {
   "sentiment": "Bullish|Bearish|Neutral",
   "confidence": 0.85,
   "keyInsights": [
-    "Primary insight about social momentum",
-    "Secondary insight about community health", 
-    "Third insight about timing/opportunity"
+    "Data-driven insight about actual social metrics",
+    "Insight based on real community score and mentions", 
+    "Insight about timing based on actual data"
   ],
   "socialMomentum": {
     "direction": "Accelerating|Stable|Declining",

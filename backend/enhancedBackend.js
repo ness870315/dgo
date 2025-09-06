@@ -1497,7 +1497,7 @@ class EnhancedBackend {
         
         const analysis = await this.socialContextAI.analyzeSocialContext(token, analysisOptions);
         
-        // Add premium features
+        // Add premium features and actionable recommendations
         if (isPremium) {
           analysis.premiumInsights = {
             detailedRiskAnalysis: true,
@@ -1505,12 +1505,18 @@ class EnhancedBackend {
             competitiveAnalysis: true,
             marketTimingSignals: true
           };
+          
+          // Add actionable recommendations for premium users
+          analysis.actionableRecommendations = this.generateActionableRecommendations(analysis, token);
         } else {
           // Limit insights for free users
           if (analysis.keyInsights && analysis.keyInsights.length > 2) {
             analysis.keyInsights = analysis.keyInsights.slice(0, 2);
             analysis.keyInsights.push("Upgrade to Premium for more insights...");
           }
+          
+          // Basic recommendations for free users
+          analysis.actionableRecommendations = this.generateBasicRecommendations(analysis, token);
         }
         
         res.json({
@@ -3603,6 +3609,118 @@ class EnhancedBackend {
         avgTimeTo2x: 'N/A'
       };
     }
+  }
+
+  /**
+   * Generate actionable recommendations for premium users
+   */
+  generateActionableRecommendations(analysis, token) {
+    const recommendations = [];
+    const sentiment = analysis.sentiment;
+    const confidence = analysis.confidence;
+    const communityScore = token.communityHealthScore || token.communityScore || 5;
+    const mentions = token.twitterData?.mentions || 0;
+    
+    // High confidence bullish recommendations
+    if (sentiment === 'Bullish' && confidence > 0.8) {
+      recommendations.push({
+        action: 'add_to_watchlist',
+        priority: 'high',
+        reason: 'Strong bullish sentiment with high confidence',
+        icon: '⭐'
+      });
+      
+      if (communityScore > 7) {
+        recommendations.push({
+          action: 'add_to_hype_tracking',
+          priority: 'high', 
+          reason: 'High community score indicates strong momentum potential',
+          icon: '📈'
+        });
+      }
+      
+      if (mentions > 20) {
+        recommendations.push({
+          action: 'consider_call',
+          priority: 'medium',
+          reason: 'Active social discussion with positive sentiment',
+          icon: '🎯'
+        });
+      }
+    }
+    
+    // Medium confidence or neutral recommendations
+    if (sentiment === 'Neutral' || (sentiment === 'Bullish' && confidence < 0.8)) {
+      recommendations.push({
+        action: 'monitor_closely',
+        priority: 'medium',
+        reason: 'Mixed signals - watch for clearer trend development',
+        icon: '👀'
+      });
+      
+      if (communityScore > 6) {
+        recommendations.push({
+          action: 'add_to_watchlist',
+          priority: 'medium',
+          reason: 'Decent fundamentals worth monitoring',
+          icon: '⭐'
+        });
+      }
+    }
+    
+    // Bearish recommendations
+    if (sentiment === 'Bearish') {
+      recommendations.push({
+        action: 'avoid_or_wait',
+        priority: 'high',
+        reason: 'Negative sentiment suggests waiting for better entry',
+        icon: '⚠️'
+      });
+      
+      if (confidence > 0.7) {
+        recommendations.push({
+          action: 'remove_from_watchlist',
+          priority: 'medium',
+          reason: 'Strong bearish signals indicate potential decline',
+          icon: '🗑️'
+        });
+      }
+    }
+    
+    return recommendations;
+  }
+
+  /**
+   * Generate basic recommendations for free users
+   */
+  generateBasicRecommendations(analysis, token) {
+    const recommendations = [];
+    const sentiment = analysis.sentiment;
+    
+    if (sentiment === 'Bullish') {
+      recommendations.push({
+        action: 'add_to_watchlist',
+        priority: 'medium',
+        reason: 'Positive sentiment detected',
+        icon: '⭐'
+      });
+    } else if (sentiment === 'Bearish') {
+      recommendations.push({
+        action: 'avoid_for_now',
+        priority: 'medium', 
+        reason: 'Negative sentiment suggests caution',
+        icon: '⚠️'
+      });
+    } else {
+      recommendations.push({
+        action: 'monitor',
+        priority: 'low',
+        reason: 'Mixed signals - upgrade to Premium for detailed analysis',
+        icon: '👀'
+      });
+    }
+    
+    return recommendations;
   }
 
   async saveTokensToCache(tokens) {
