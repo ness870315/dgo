@@ -497,6 +497,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                       </div>
                       <div className="flex-1">
                         <p className="text-white font-medium">{kol.displayName}</p>
+                        <p className="text-blue-400 text-sm font-medium">{kol.username}</p>
                         <div className="flex items-center space-x-4 text-xs text-gray-400">
                           <span>{kol.callCount} calls</span>
                           <span>Hit Rate: {(kol.metrics?.hitRate * 100 || 0).toFixed(1)}%</span>

@@ -1405,17 +1405,22 @@ class EnhancedBackend {
           leaderboardResult.leaderboard.map(async (entry) => {
             try {
               const user = await this.oauthXService.db.getUserById(entry.userId);
+              const xHandle = user?.username;
+              const displayName = user?.displayName || user?.username;
+
               return {
                 ...entry,
-                username: user?.username || `User${entry.userId.slice(-4)}`,
-                displayName: user?.displayName || user?.username || `User${entry.userId.slice(-4)}`,
+                username: xHandle ? `@${xHandle}` : `User${entry.userId.slice(-4)}`,
+                displayName: displayName || (xHandle ? `@${xHandle}` : `User${entry.userId.slice(-4)}`),
+                xHandle: xHandle, // Store clean handle for API use
                 profileImage: user?.profileImage
               };
             } catch (err) {
               return {
                 ...entry,
                 username: `User${entry.userId.slice(-4)}`,
-                displayName: `User${entry.userId.slice(-4)}`
+                displayName: `User${entry.userId.slice(-4)}`,
+                xHandle: null
               };
             }
           })
