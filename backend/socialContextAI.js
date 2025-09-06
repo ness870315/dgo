@@ -141,7 +141,7 @@ class SocialContextAI {
       
       // Social metrics
       followers: this.formatNumber(twitterData.followers || 0),
-      mentions24h: twitterData.mentions24h || 0,
+      mentions24h: twitterData.mentions24h || twitterData.mentions || 0,
       totalMentions: twitterData.mentions || 0,
       engagementRate: this.calculateEngagementRate(twitterData),
       communityScore: tokenData.communityHealthScore || tokenData.communityScore || 5,

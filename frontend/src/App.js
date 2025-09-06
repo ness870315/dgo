@@ -280,8 +280,11 @@ function App() {
         const volChange6h = token?.jupiterData?.stats6h?.volumeChange ?? 0;
 
         // Guardrails
-        // 1) Freshness
-        if (!isFresh) return false;
+        // 1) Freshness - CRITICAL: Exclude stale data from trending
+        if (!isFresh) {
+          console.log(`⚠️ Excluding ${token.symbol} from trending: stale data (${Math.round((now - lastUpdated) / 60000)} min old)`);
+          return false;
+        }
         // 2) Recent dump penalty → exclude if heavy dump across 1h and 6h
         if (volChange1h <= -50 && volChange6h <= -50) return false;
         // 3) Social floor (relaxed) — only exclude if weak socials AND low score

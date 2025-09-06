@@ -95,9 +95,10 @@ RECENT EVENTS & NEWS:
 
 1. **NEVER CONTRADICT PROVIDED DATA**: If officialHandle is provided and not "N/A", DO NOT say "No official Twitter handle found"
 2. **MARKET CAP ACCURACY**: If marketCap shows a value (even $0), use that exact value. If it shows $493k, say "$493k" not "zero market cap"
-3. **SOCIAL PRESENCE**: If communityScore >7 AND totalMentions >20, DO NOT say "limited social presence" or "low mentions"
-4. **ENGAGEMENT**: If mentions24h >10 AND communityScore >7, this indicates GOOD social activity
-5. **HANDLE VERIFICATION**: If officialHandle field contains an actual handle (not "N/A"), acknowledge the official presence
+3. **SOCIAL PRESENCE**: If communityScore >7 AND totalMentions >20, DO NOT say "limited social presence", "low mentions", or "low recent mentions"
+4. **ENGAGEMENT**: If mentions24h >10 OR totalMentions >20 AND communityScore >7, this indicates GOOD social activity
+5. **TRENDING CONTEXT**: If a token appears in trending, it has PASSED quality filters - acknowledge this strength
+6. **HANDLE VERIFICATION**: If officialHandle field contains an actual handle (not "N/A"), acknowledge the official presence
 
 BE FACTUALLY ACCURATE. Your analysis must match the provided data exactly.
 
