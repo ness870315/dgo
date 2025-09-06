@@ -122,18 +122,13 @@ class SocialContextAI {
     const jupiterData = tokenData.jupiterData || {};
     const callHistory = tokenData.callHistory || {};
     
-    // Debug log the data structure
-    console.log(`🔍 AI Data Debug for ${tokenData.symbol}:`, {
+    // Debug log the complete data structure
+    console.log(`🔍 AI Complete Data Debug for ${tokenData.symbol}:`, {
       hasJupiterData: !!jupiterData,
-      jupiterMcap: jupiterData.mcap,
-      jupiterPrice: jupiterData.usdPrice,
-      tokenMcap: tokenData.marketCap,
-      tokenPrice: tokenData.price,
       hasTwitterData: !!twitterData,
-      twitterHandle: twitterData.officialHandle,
-      jupiterSocials: jupiterData.socials,
-      communityScore: tokenData.communityHealthScore || tokenData.communityScore,
-      mentions: twitterData.mentions
+      jupiterKeys: Object.keys(jupiterData),
+      twitterKeys: Object.keys(twitterData),
+      tokenKeys: Object.keys(tokenData).filter(k => !['twitterData', 'jupiterData'].includes(k))
     });
 
     return {
@@ -189,7 +184,80 @@ class SocialContextAI {
       // Technical indicators - Fix: Use correct Jupiter field names  
       priceChange1h: jupiterData.stats1h?.priceChange || jupiterData.priceChange1h || 0,
       priceChange6h: jupiterData.stats6h?.priceChange || jupiterData.priceChange6h || 0,
-      priceChange7d: jupiterData.stats7d?.priceChange || jupiterData.priceChange7d || 0
+      priceChange7d: jupiterData.stats7d?.priceChange || jupiterData.priceChange7d || 0,
+
+      // === COMPREHENSIVE JUPITER DATA ===
+      // Supply & Economics
+      totalSupply: this.formatNumber(jupiterData.totalSupply || 0),
+      circSupply: this.formatNumber(jupiterData.circSupply || 0),
+      fdv: this.formatNumber(jupiterData.fdv || 0),
+      
+      // Launch & Development Info
+      launchpad: jupiterData.launchpad || 'Unknown',
+      creationTime: jupiterData.firstPool?.createdAt || jupiterData.metadata?.creationTime || 'Unknown',
+      dev: jupiterData.dev || 'Unknown',
+      
+      // Audit & Security
+      auditStatus: jupiterData.audit ? 'Audited' : 'Not Audited',
+      auditDetails: JSON.stringify(jupiterData.audit || {}),
+      
+      // Social Links (All Available)
+      socialLinks: JSON.stringify(jupiterData.socials || {}),
+      website: jupiterData.socials?.website || 'N/A',
+      telegram: jupiterData.socials?.telegram || 'N/A',
+      discord: jupiterData.socials?.discord || 'N/A',
+      
+      // Organic Metrics
+      organicScore: jupiterData.organicScore || 0,
+      organicLabel: jupiterData.organicScoreLabel || 'Unknown',
+      
+      // Tags & Categories
+      tags: JSON.stringify(jupiterData.tags || []),
+      
+      // === COMPREHENSIVE TWITTER/SOCIAL DATA ===
+      // Engagement Metrics
+      totalEngagement: twitterData.engagement?.total || 0,
+      avgEngagement: twitterData.engagement?.average || 0,
+      engagementTrend: twitterData.engagement?.trend || 'stable',
+      
+      // Follower Analysis
+      followerGrowth: twitterData.followerGrowth || 0,
+      followerQuality: twitterData.followerQuality || 'Unknown',
+      
+      // Content Analysis
+      tweetFrequency: twitterData.tweetFrequency || 0,
+      contentQuality: twitterData.contentQuality || 'Unknown',
+      hashtagUsage: JSON.stringify(twitterData.hashtags || []),
+      
+      // Sentiment Analysis
+      sentimentBreakdown: JSON.stringify(twitterData.sentimentBreakdown || {}),
+      mediasentiment: tokenData.mediasentiment || 5,
+      
+      // Influence Metrics
+      influencerMentions: twitterData.influencerMentions || 0,
+      retweetRate: twitterData.retweetRate || 0,
+      
+      // === COMPREHENSIVE TOKEN METRICS ===
+      // Scoring Components
+      marketTierScore: tokenData.marketTierScore || 0,
+      volumeScore: tokenData.volumeScore || 0,
+      socialScore: tokenData.socialScore || 0,
+      technicalScore: tokenData.technicalScore || 0,
+      
+      // Additional Metrics
+      isPaid: tokenData.isPaid || false,
+      isVerified: tokenData.isVerified || false,
+      riskLevel: tokenData.riskLevel || 'Unknown',
+      
+      // Raw Data for Advanced Analysis
+      rawJupiterData: JSON.stringify(jupiterData),
+      rawTwitterData: JSON.stringify(twitterData),
+      rawTokenData: JSON.stringify({
+        stage: tokenData.stage,
+        source: tokenData.source,
+        lastUpdated: tokenData.lastUpdated,
+        processingTimestamp: tokenData.processingTimestamp
+      })
     };
   }
 

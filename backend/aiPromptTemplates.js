@@ -49,9 +49,46 @@ CALL HISTORY:
 - Success Rate (2x+): {successRate}%
 - Average Time to 2x: {avgTimeTo2x}
 
-ADDITIONAL DATA:
+COMPREHENSIVE JUPITER DATA:
+- Total Supply: {totalSupply}
+- Circulating Supply: {circSupply}
+- Fully Diluted Valuation: {fdv}
 - Liquidity: {liquidity}
 - Holder Count: {holderCount}
+- Launchpad: {launchpad}
+- Creation Time: {creationTime}
+- Developer: {dev}
+- Audit Status: {auditStatus}
+- Audit Details: {auditDetails}
+- Organic Score: {organicScore} ({organicLabel})
+- Tags: {tags}
+
+SOCIAL ECOSYSTEM:
+- Website: {website}
+- Telegram: {telegram}
+- Discord: {discord}
+- All Social Links: {socialLinks}
+
+ENGAGEMENT ANALYTICS:
+- Total Engagement: {totalEngagement}
+- Average Engagement: {avgEngagement}
+- Engagement Trend: {engagementTrend}
+- Follower Growth: {followerGrowth}
+- Tweet Frequency: {tweetFrequency}
+- Retweet Rate: {retweetRate}
+- Influencer Mentions: {influencerMentions}
+- Sentiment Breakdown: {sentimentBreakdown}
+
+TOKEN SCORING BREAKDOWN:
+- Market Tier Score: {marketTierScore}
+- Volume Score: {volumeScore}
+- Social Score: {socialScore}
+- Technical Score: {technicalScore}
+- Is Paid Token: {isPaid}
+- Is Verified: {isVerified}
+- Risk Level: {riskLevel}
+
+RECENT EVENTS & NEWS:
 - Recent News/Events: {recentEvents}
 
 🚨 CRITICAL ACCURACY REQUIREMENTS:
@@ -85,6 +122,39 @@ TOOL RECOMMENDATIONS:
   * "Consider making a KOL call" - for high-confidence plays when signals align
   * "Monitor closely" - for developing situations that need attention
 - Be specific about WHEN and WHY to use each tool based on the token's metrics and trends
+
+🔥 ADVANCED CATALYST DETECTION:
+
+Analyze ALL available data to identify potential catalysts and opportunities:
+
+**TECHNICAL CATALYSTS:**
+- Launch timing: Recent creation vs established (creationTime)
+- Audit status: Security credibility (auditStatus, auditDetails)
+- Supply dynamics: Inflation/deflation patterns (totalSupply vs circSupply)
+- Liquidity health: Market depth analysis (liquidity vs marketCap ratio)
+- Volume patterns: Unusual activity in stats1h/6h/24h
+
+**SOCIAL CATALYSTS:**
+- Community growth: Follower trends and engagement acceleration
+- Influencer activity: High-profile mentions and endorsements
+- Social momentum: Cross-platform presence (telegram, discord, website quality)
+- Content quality: Tweet frequency and engagement rates
+- Viral potential: Hashtag usage and retweet patterns
+
+**MARKET CATALYSTS:**
+- Launchpad prestige: Platform credibility and track record
+- Developer reputation: Known vs anonymous teams
+- Organic score trends: Natural vs artificial growth patterns
+- Tag analysis: Sector trends and narrative alignment
+- Risk assessment: Security flags and red flags
+
+**ECOSYSTEM CATALYSTS:**
+- Cross-platform integration: Multiple social channels active
+- Community infrastructure: Discord/Telegram activity levels
+- Official presence: Verified handles and professional setup
+- Partnership signals: Developer connections and collaborations
+
+Use this comprehensive data to identify SPECIFIC catalysts, not generic ones. Reference actual metrics and trends from the provided data.
 
 Please provide analysis in this EXACT JSON format:
 {
