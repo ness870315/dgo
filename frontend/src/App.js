@@ -279,19 +279,45 @@ function App() {
         const volChange1h = token?.jupiterData?.stats1h?.volumeChange ?? 0;
         const volChange6h = token?.jupiterData?.stats6h?.volumeChange ?? 0;
 
-        // Guardrails
+        // Guardrails - STRENGTHENED to prevent crashed micro-caps
         // 1) Freshness - CRITICAL: Exclude stale data from trending
         if (!isFresh) {
           console.log(`⚠️ Excluding ${token.symbol} from trending: stale data (${Math.round((now - lastUpdated) / 60000)} min old)`);
           return false;
         }
-        // 2) Recent dump penalty → exclude if heavy dump across 1h and 6h
-        if (volChange1h <= -50 && volChange6h <= -50) return false;
-        // 3) Social floor (relaxed) — only exclude if weak socials AND low score
+        
+        // 2) ABSOLUTE MICRO-CAP FILTER - No tokens under $50k market cap
+        if (mcap > 0 && mcap < 50_000) {
+          console.log(`⚠️ Excluding ${token.symbol} from trending: micro-cap ($${mcap.toLocaleString()})`);
+          return false;
+        }
+        
+        // 3) PRICE CRASH PROTECTION - Exclude catastrophic dumps
+        const priceChange24h = token?.jupiterData?.stats24h?.priceChange ?? token?.priceChange24h ?? 0;
+        const priceChange7d = token?.jupiterData?.stats7d?.priceChange ?? 0;
+        if (priceChange24h <= -75 || priceChange7d <= -90) {
+          console.log(`⚠️ Excluding ${token.symbol} from trending: price crash (24h: ${priceChange24h.toFixed(1)}%, 7d: ${priceChange7d.toFixed(1)}%)`);
+          return false;
+        }
+        
+        // 4) COMBINED RISK FILTER - Exclude small caps with major dumps
+        if (mcap > 0 && mcap < 100_000 && priceChange24h <= -50) {
+          console.log(`⚠️ Excluding ${token.symbol} from trending: small-cap dump (mcap: $${mcap.toLocaleString()}, 24h: ${priceChange24h.toFixed(1)}%)`);
+          return false;
+        }
+        
+        // 5) Volume dump penalty → exclude if heavy dump across 1h and 6h
+        if (volChange1h <= -50 && volChange6h <= -50) {
+          console.log(`⚠️ Excluding ${token.symbol} from trending: volume dump (1h: ${volChange1h.toFixed(1)}%, 6h: ${volChange6h.toFixed(1)}%)`);
+          return false;
+        }
+        
+        // 6) Social floor (relaxed) — only exclude if weak socials AND low score
         const score = (token.score || token.overallScore || 0);
-        if (community < 4 && mentions < 5 && score < 7) return false;
-        // 4) Micro-cap gate (relaxed) — allow if basic turnover present
-        if (mcap > 0 && mcap < 10_000 && turnover <= 0.5) return false;
+        if (community < 4 && mentions < 5 && score < 7) {
+          console.log(`⚠️ Excluding ${token.symbol} from trending: weak socials (community: ${community}, mentions: ${mentions}, score: ${score})`);
+          return false;
+        }
 
         return true;
       });
