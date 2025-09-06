@@ -37,7 +37,7 @@ function derive(call) {
   const currentMC = call.currentMC || calledMc || 0;
   const athMC = call.athMC || currentMC || calledMc || 0;
   
-  console.log('DetailDrawer derive debug:', { calledMc, currentMC, athMC, call });
+  // Debug logging removed for production
   
   const x = calledMc > 0 ? currentMC / calledMc : 0;
   const pnl = calledMc > 0 ? ((currentMC - calledMc) / calledMc) * 100 : 0;
@@ -175,15 +175,17 @@ export default function DetailDrawer({ call, onClose }) {
       chartService.getMcapChart(contract, calledAt)
         .then(response => {
           console.log('Chart API response:', response);
-          if (response.success) {
+          if (response.success && response.data && response.data.snapshots && response.data.snapshots.length > 0) {
+            console.log(`✅ Loaded ${response.data.snapshots.length} real chart data points`);
             setChartData(response.data);
           } else {
-            console.warn('Chart API returned unsuccessful response:', response);
+            console.log('📊 No historical data available, using mock data');
             setChartData(null);
           }
         })
         .catch(error => {
           console.error('Failed to load chart data:', error);
+          console.log('📊 Falling back to mock data due to API error');
           setChartData(null);
         })
         .finally(() => {
@@ -222,7 +224,7 @@ export default function DetailDrawer({ call, onClose }) {
     series = chartData.snapshots.map(s => s.mcap);
     callIndex = chartData.callIndex;
     athIndex = chartData.athIndex;
-    console.log('Using real chart data:', { series, callIndex, athIndex, chartData });
+    // Using real historical data from backend
   } else {
     // Fallback to mock data - create a more realistic progression
     const calledMc = call.calledMc || call.calledMC || 1000000;
@@ -261,11 +263,7 @@ export default function DetailDrawer({ call, onClose }) {
     callIndex = 0;
     athIndex = series.indexOf(Math.max(...series));
     
-    console.log('Using mock chart data:', { 
-      calledMc, currentMC, athMC, 
-      series, callIndex, athIndex,
-      seriesLength: series.length 
-    });
+    // Using simulated data - real historical data not available yet
   }
   
   const min = Math.min(...series);
@@ -276,13 +274,7 @@ export default function DetailDrawer({ call, onClose }) {
   const norm = series.map((v) => (v - min) / (max - min || 1));
   const path = norm.map((v, i) => `${i === 0 ? "M" : "L"}${i * step},${h - v * (h - 2) - 1}`).join(" ");
   
-  console.log('SVG Chart generation:', {
-    seriesLength: series.length,
-    min, max, w, h, step,
-    firstFewSeries: series.slice(0, 5),
-    firstFewNorm: norm.slice(0, 5),
-    pathPreview: path.substring(0, 100) + '...'
-  });
+  // Chart generated successfully
 
   return (
     <div className="fixed inset-0 z-50">
@@ -402,8 +394,16 @@ export default function DetailDrawer({ call, onClose }) {
             
             <div className="mt-3 text-xs text-white/60 space-y-1">
               {chartData && chartData.snapshots && chartData.snapshots.length > 0 ? (
-                <div>Showing {chartData.snapshots.length} data points from {new Date(call.calledAt).toLocaleDateString()}</div>
-              ) : null}
+                <div className="flex items-center gap-2">
+                  <span className="text-emerald-400">📊 Real Data:</span>
+                  <span>Showing {chartData.snapshots.length} hourly snapshots from {new Date(call.calledAt || call.calledTs).toLocaleDateString()}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-orange-400">🎯 Simulated:</span>
+                  <span>Chart shows estimated progression (real historical data not yet available)</span>
+                </div>
+              )}
               <div className="mt-2">
                 <div className="font-medium text-white/70 mb-1">How to read this chart:</div>
                 <ul className="space-y-0.5 text-[11px] leading-relaxed">
