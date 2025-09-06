@@ -303,6 +303,29 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
     return '😢';
   }
 
+  // Aggregate tweets once and derive unique mentions (unique authors)
+  const aggregatedTweets = React.useMemo(() => {
+    try {
+      let tweets = [];
+      if (token?.twitterData?.tweets) tweets = token.twitterData.tweets;
+      else if (token?.jupiterData?.twitterData?.tweets) tweets = token.jupiterData.twitterData.tweets;
+      else if (token?.recentPosts) tweets = token.recentPosts;
+      else if (token?.tweets) tweets = token.tweets;
+      return Array.isArray(tweets) ? tweets : [];
+    } catch (_) {
+      return [];
+    }
+  }, [token]);
+
+  const uniqueMentionsCount = React.useMemo(() => {
+    const authors = new Set();
+    aggregatedTweets.forEach(tw => {
+      const author = tw?.author || tw?.user?.screen_name || tw?.user?.username || tw?.user?.name;
+      if (author) authors.add(String(author).toLowerCase());
+    });
+    return authors.size;
+  }, [aggregatedTweets]);
+
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2">
       <div className="bg-dark-bg border border-gray-700 rounded-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto">
@@ -1253,7 +1276,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                 <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
                   <span className="text-gray-400 text-sm">🧑‍🤝‍🧑 Unique Mentions:</span>
                   <span className="text-white font-semibold text-sm">
-                    {(token?.uniqueMentions || Math.floor((token?.mentions || 0) * 0.7)).toLocaleString()}
+                    {(token?.uniqueMentions ?? uniqueMentionsCount).toLocaleString()}
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
