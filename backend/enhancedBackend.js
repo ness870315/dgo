@@ -939,13 +939,18 @@ class EnhancedBackend {
         }
 
         const user = await this.oauthXService.getUserBySession(sessionId);
-        
+
         if (!user) {
-          return res.status(401).json({ 
-            success: false, 
-            error: 'Invalid session' 
+          return res.status(401).json({
+            success: false,
+            error: 'Invalid session'
           });
         }
+
+        // Get premium status
+        const premiumStatus = await this.oauthXService.db.getPremiumStatus(user.id);
+        const isPremium = premiumStatus?.isPremium &&
+          (!premiumStatus.expiresAt || new Date(premiumStatus.expiresAt) > new Date());
 
         res.json({
           success: true,
@@ -962,7 +967,10 @@ class EnhancedBackend {
             lastLogin: user.lastLogin,
             referralCode: user.referralCode,
             preferences: user.preferences,
-            stats: user.stats
+            stats: user.stats,
+            isPremium: isPremium,
+            premiumExpiry: premiumStatus?.expiresAt || null,
+            subscriptionType: premiumStatus?.subscriptionType || null
           }
         });
         

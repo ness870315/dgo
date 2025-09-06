@@ -114,22 +114,19 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         
         const entries = Array.isArray(watchlistData.watchlist) ? watchlistData.watchlist : [];
 
+        // Get premium status from user profile
+        const isPremium = profileData.user?.isPremium || false;
+        const premiumExpiry = profileData.user?.premiumExpiry || null;
+
         // Try to fetch leaderboard (premium feature)
         let leaderboard = [];
-        let isPremium = false;
-        let premiumExpiry = null;
-        
+
         try {
           const leaderboardData = await leaderboardService.getLeaderboard();
           leaderboard = leaderboardData.leaderboard || [];
-          isPremium = true; // If we got leaderboard data, user is premium
         } catch (err) {
-          // @ts-ignore
-          if (err && err.code === 'premium_required') {
-            isPremium = false;
-          } else {
-            console.warn('Failed to fetch leaderboard:', err);
-          }
+          // Leaderboard fetch failed - this is expected for non-premium users
+          console.log('Leaderboard not available (expected for non-premium users)');
         }
 
         setDashboardData({
@@ -218,7 +215,19 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
       color: 'text-orange-400',
       bgColor: 'bg-orange-400/10'
     },
-    {
+    dashboardData.isPremium ? {
+      title: 'Premium',
+      value: dashboardData.premiumExpiry ? (() => {
+        const expiry = new Date(dashboardData.premiumExpiry);
+        const now = new Date();
+        const daysLeft = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+        return `${daysLeft} days`;
+      })() : 'Active',
+      icon: Crown,
+      color: 'text-green-400',
+      bgColor: 'bg-green-400/10',
+      isButton: false
+    } : {
       title: 'Upgrade',
       value: 'Premium',
       icon: Crown,
