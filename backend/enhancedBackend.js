@@ -1471,7 +1471,7 @@ class EnhancedBackend {
         
         if (sessionId) {
           try {
-            user = await this.oauthXService.db.getUserBySessionId(sessionId);
+            user = await this.oauthXService.getUserBySession(sessionId);
             console.log(`🧠 AI Analysis - User lookup result:`, {
               found: !!user,
               username: user?.username,
@@ -1644,7 +1644,7 @@ class EnhancedBackend {
         // Optional: verify user session
         if (sessionId) {
           try {
-            await this.oauthXService.db.getUserBySessionId(sessionId);
+            await this.oauthXService.getUserBySession(sessionId);
           } catch (err) {
             return res.status(401).json({ error: 'Invalid session' });
           }
@@ -3921,7 +3921,7 @@ class EnhancedBackend {
   async getTokenCallHistory(contractAddress) {
     try {
       // Get all KOL calls for this token
-      const allCalls = await this.oauthXService.db.getAllKOLCalls();
+      const allCalls = await this.oauthXService.db.getAllKolCalls();
       const tokenCalls = allCalls.filter(call => 
         call.contractAddress?.toLowerCase() === contractAddress.toLowerCase()
       );
