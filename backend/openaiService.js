@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import fs from 'fs/promises';
 import path from 'path';
+import crypto from 'crypto';
 
 /**
  * OpenAI Service - Core AI engine for DeGen Oracle
@@ -120,7 +121,6 @@ class OpenAIService {
    * Generate cache key for requests
    */
   generateCacheKey(prompt, model = 'gpt-3.5-turbo', temperature = 0.7) {
-    const crypto = await import('crypto');
     return crypto.createHash('md5')
       .update(`${model}-${temperature}-${prompt}`)
       .digest('hex');
@@ -146,7 +146,7 @@ class OpenAIService {
     
     try {
       // Check cache first
-      const cacheKey = await this.generateCacheKey(prompt, model, temperature);
+      const cacheKey = this.generateCacheKey(prompt, model, temperature);
       
       if (useCache && this.cache.has(cacheKey)) {
         const cached = this.cache.get(cacheKey);
