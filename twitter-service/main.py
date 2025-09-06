@@ -57,6 +57,11 @@ def twitter_api_get(path: str, params: Dict[str, Any]) -> Optional[Dict[str, Any
     url = f"{base}{path}"
     headers = {"Authorization": f"Bearer {TW_BEARER}"}
     t0 = time.time()
+    # Sanitize unsupported operators for Basic plan (e.g., cashtags starting with $)
+    q = params.get("query")
+    if isinstance(q, str) and q.strip().startswith("$"):
+        params = dict(params)
+        params["query"] = q.lstrip("$")
     r = requests.get(url, headers=headers, params=params, timeout=20)
     logger.info("HTTP %d %s in %.0fms", r.status_code, path, (time.time()-t0)*1000)
     if r.status_code != 200:

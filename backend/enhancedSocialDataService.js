@@ -336,7 +336,7 @@ class EnhancedSocialDataService {
         if (!username) username = cleanHandle;
       }
       
-      // 3. Hashtag and cashtag searches
+      // 3. Hashtag searches (cashtags not supported on current plan)
       const symbolLower = symbol.toLowerCase();
       const safeName = name || symbol;
       const nameLower = safeName.toLowerCase();
@@ -346,11 +346,6 @@ class EnhancedSocialDataService {
           type: 'hashtag_symbol',
           endpoint: '/api/twitter/search',
           params: { q: `#${symbolLower}`, count: 30 }
-        },
-        {
-          type: 'cashtag_symbol', 
-          endpoint: '/api/twitter/search',
-          params: { q: `$${symbolLower}`, count: 30 }
         }
       );
       
@@ -361,11 +356,6 @@ class EnhancedSocialDataService {
             type: 'hashtag_name',
             endpoint: '/api/twitter/search',
             params: { q: `#${nameLower}`, count: 20 }
-          },
-          {
-            type: 'cashtag_name',
-            endpoint: '/api/twitter/search', 
-            params: { q: `$${nameLower}`, count: 20 }
           }
         );
       }
