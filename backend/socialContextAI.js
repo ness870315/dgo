@@ -146,12 +146,15 @@ class SocialContextAI {
       engagementRate: this.calculateEngagementRate(twitterData),
       communityScore: tokenData.communityHealthScore || tokenData.communityScore || 5,
       hypeScore: tokenData.hypeScore || 'N/A',
-      // Fix: Check multiple sources for official handle
-      officialHandle: twitterData.officialHandle || 
-                     jupiterData.socials?.twitter || 
-                     jupiterData.socials?.x || 
-                     tokenData.officialHandle || 
-                     'N/A',
+      // Fix: Check ALL sources that TokenDetails checks for official handle
+      officialHandle: tokenData.socials?.twitter ||
+                      jupiterData.twitter ||
+                      tokenData.twitterHandle ||
+                      twitterData.officialHandle ||
+                      jupiterData.socials?.twitter ||
+                      jupiterData.socials?.x ||
+                      tokenData.officialHandle ||
+                      'N/A',
       
       // Call history
       totalCalls: callHistory.totalCalls || 0,
