@@ -2382,9 +2382,10 @@ class EnhancedBackend {
             return;
           }
 
-          const twitterData = await socialService.forceImmediateRefresh(item.symbol, item.name);
+          try {
+            const twitterData = await socialService.forceImmediateRefresh(item.symbol, item.name);
 
-          // Update cache entry
+            // Update cache entry
           if (job.tokensArray && item.index != null && job.tokensArray[item.index]) {
             const token = job.tokensArray[item.index];
             token.twitterData = twitterData;
@@ -2422,7 +2423,7 @@ class EnhancedBackend {
             });
             if (job.recentRefreshed.length > 50) job.recentRefreshed.length = 50;
           } catch (_) { /* noop */ }
-        } catch (err) {
+          } catch (err) {
           job.errors++;
           job.lastError = err.message;
           console.warn(`[🛡️ Admin] ⚠️ Refresh failed for ${item.symbol}: ${err.message}`);
