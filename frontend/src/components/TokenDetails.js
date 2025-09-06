@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Twitter, MessageCircle, ExternalLink, Star, Flame } from 'lucide-react';
+import { X, Twitter, MessageCircle, ExternalLink, Star, Flame, Brain } from 'lucide-react';
 import kolCallsService from '../services/kolCallsService';
 import watchlistService from '../services/watchlistService';
 import priorityService from '../services/priorityService';
@@ -15,6 +15,12 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
   const [contractValidated, setContractValidated] = useState(false);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const [callRecorded, setCallRecorded] = useState(false);
+  
+  // AI Analysis states
+  const [showAIAnalysis, setShowAIAnalysis] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(null);
 
   // Check if token is fueled and get fuel multiplier
   const getFuelMultiplier = () => {
@@ -161,6 +167,66 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
       console.error('Error toggling watchlist:', error);
       // Revert optimistic update on failure
       setIsInWatchlist(!next);
+    }
+  };
+
+  // AI Analysis functionality
+  const fetchAIAnalysis = async () => {
+    if (!token?.contractAddress && !token?.symbol) {
+      setAiError('Token contract address or symbol required for AI analysis');
+      return;
+    }
+
+    setAiLoading(true);
+    setAiError(null);
+    
+    try {
+      const sessionId = localStorage.getItem('sessionId');
+      const identifier = token.contractAddress || token.symbol;
+      const url = `${process.env.REACT_APP_API_URL || 'http://localhost:4000'}/api/ai/social-context/${identifier}`;
+      
+      const params = new URLSearchParams();
+      if (sessionId) params.append('sessionId', sessionId);
+      params.append('useCache', 'true');
+      
+      const response = await fetch(`${url}?${params.toString()}`);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || data.error || 'AI analysis failed');
+      }
+      
+      setAiAnalysis(data);
+      setShowAIAnalysis(true);
+      
+    } catch (error) {
+      console.error('AI Analysis error:', error);
+      setAiError(error.message || 'Failed to get AI analysis');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const submitAIFeedback = async (analysisId, feedback) => {
+    try {
+      const sessionId = localStorage.getItem('sessionId');
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:4000'}/api/ai/feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          analysisId,
+          feedback,
+          sessionId
+        })
+      });
+      
+      if (response.ok) {
+        console.log('AI feedback submitted successfully');
+      }
+    } catch (error) {
+      console.error('Failed to submit AI feedback:', error);
     }
   };
 
@@ -375,6 +441,24 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
           </div>
 
             <div className="flex items-center space-x-2">
+            {/* AI Analysis Button */}
+            <button
+              onClick={fetchAIAnalysis}
+              disabled={aiLoading}
+              className={`p-2 rounded-lg transition-all duration-200 ${
+                aiLoading 
+                  ? 'text-gray-500 cursor-not-allowed' 
+                  : 'text-purple-400 hover:text-purple-300 hover:bg-purple-400/10'
+              }`}
+              title="AI Social Context Analysis"
+            >
+              {aiLoading ? (
+                <div className="animate-spin w-5 h-5 border-2 border-purple-400 border-t-transparent rounded-full"></div>
+              ) : (
+                <Brain size={20} />
+              )}
+            </button>
+            
             {/* Fuel Token Button */}
             <button
               onClick={handleFuelClick}
@@ -1475,6 +1559,308 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
         </div>
           </div>
         )}
+
+        {/* AI Analysis Modal */}
+        {showAIAnalysis && aiAnalysis && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div className="bg-dark-bg border border-gray-700 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6 p-6 pb-0">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Brain className="text-purple-400" size={24} />
+                  DeGen Oracle AI Analysis
+                </h3>
+                <button
+                  onClick={() => setShowAIAnalysis(false)}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="px-6 pb-6">
+                {/* Token Info Header */}
+                <div className="bg-gray-800/50 rounded-lg p-4 mb-6">
+                  <div className="flex items-center space-x-3">
+                    {aiAnalysis.tokenInfo?.contractAddress && (
+                      <img 
+                        src={token?.jupiterData?.icon || token?.image} 
+                        alt={aiAnalysis.tokenInfo.symbol} 
+                        className="w-12 h-12 rounded-full"
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                      />
+                    )}
+                    <div>
+                      <h4 className="text-white font-semibold text-lg">
+                        {aiAnalysis.tokenInfo?.name} (${aiAnalysis.tokenInfo?.symbol})
+                      </h4>
+                      <div className="flex items-center space-x-4 text-sm text-gray-400">
+                        <span>Price: ${aiAnalysis.tokenInfo?.currentPrice || 'N/A'}</span>
+                        <span>MCap: ${aiAnalysis.tokenInfo?.marketCap ? (aiAnalysis.tokenInfo.marketCap / 1e6).toFixed(2) + 'M' : 'N/A'}</span>
+                        <span className={`px-2 py-1 rounded text-xs ${aiAnalysis.isPremium ? 'bg-purple-900 text-purple-300' : 'bg-gray-700 text-gray-300'}`}>
+                          {aiAnalysis.isPremium ? 'Premium Analysis' : 'Free Analysis'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Analysis Content */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  
+                  {/* Left Column */}
+                  <div className="space-y-6">
+                    
+                    {/* Sentiment & Confidence */}
+                    <div className="bg-gray-800/50 rounded-lg p-4">
+                      <h5 className="text-white font-semibold mb-3 flex items-center">
+                        🎯 AI Assessment
+                      </h5>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400">Sentiment:</span>
+                          <span className={`font-semibold px-2 py-1 rounded text-sm ${
+                            aiAnalysis.analysis.sentiment === 'Bullish' ? 'bg-green-900 text-green-300' :
+                            aiAnalysis.analysis.sentiment === 'Bearish' ? 'bg-red-900 text-red-300' :
+                            'bg-yellow-900 text-yellow-300'
+                          }`}>
+                            {aiAnalysis.analysis.sentiment}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400">Confidence:</span>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-20 bg-gray-700 rounded-full h-2">
+                              <div 
+                                className="bg-purple-500 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${(aiAnalysis.analysis.confidence * 100)}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-white font-semibold text-sm">
+                              {Math.round(aiAnalysis.analysis.confidence * 100)}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Key Insights */}
+                    <div className="bg-gray-800/50 rounded-lg p-4">
+                      <h5 className="text-white font-semibold mb-3 flex items-center">
+                        💡 Key Insights
+                      </h5>
+                      <div className="space-y-2">
+                        {aiAnalysis.analysis.keyInsights?.map((insight, index) => (
+                          <div key={index} className="flex items-start space-x-2">
+                            <span className="text-purple-400 mt-1">•</span>
+                            <span className="text-gray-300 text-sm">{insight}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Recommendation */}
+                    <div className="bg-gray-800/50 rounded-lg p-4">
+                      <h5 className="text-white font-semibold mb-3 flex items-center">
+                        🎯 Recommendation
+                      </h5>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400">Action:</span>
+                          <span className={`font-semibold px-2 py-1 rounded text-sm ${
+                            aiAnalysis.analysis.recommendation?.action === 'Strong Buy' || aiAnalysis.analysis.recommendation?.action === 'Buy' ? 'bg-green-900 text-green-300' :
+                            aiAnalysis.analysis.recommendation?.action === 'Avoid' ? 'bg-red-900 text-red-300' :
+                            'bg-yellow-900 text-yellow-300'
+                          }`}>
+                            {aiAnalysis.analysis.recommendation?.action}
+                          </span>
+                        </div>
+                        <div className="text-gray-300 text-sm">
+                          <span className="text-gray-400">Reasoning:</span> {aiAnalysis.analysis.recommendation?.reasoning}
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400">Timeframe:</span>
+                          <span className="text-white text-sm">{aiAnalysis.analysis.recommendation?.timeframe}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400">Entry Strategy:</span>
+                          <span className="text-white text-sm">{aiAnalysis.analysis.recommendation?.entryStrategy}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column */}
+                  <div className="space-y-6">
+                    
+                    {/* Social Momentum */}
+                    <div className="bg-gray-800/50 rounded-lg p-4">
+                      <h5 className="text-white font-semibold mb-3 flex items-center">
+                        📈 Social Momentum
+                      </h5>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400">Direction:</span>
+                          <span className={`font-semibold text-sm ${
+                            aiAnalysis.analysis.socialMomentum?.direction === 'Accelerating' ? 'text-green-400' :
+                            aiAnalysis.analysis.socialMomentum?.direction === 'Declining' ? 'text-red-400' :
+                            'text-yellow-400'
+                          }`}>
+                            {aiAnalysis.analysis.socialMomentum?.direction}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400">Strength:</span>
+                          <span className="text-white text-sm">{aiAnalysis.analysis.socialMomentum?.strength}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400">Sustainability:</span>
+                          <span className="text-white text-sm">{aiAnalysis.analysis.socialMomentum?.sustainability}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Risk Assessment */}
+                    <div className="bg-gray-800/50 rounded-lg p-4">
+                      <h5 className="text-white font-semibold mb-3 flex items-center">
+                        ⚠️ Risk Assessment
+                      </h5>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400">Risk Level:</span>
+                          <span className={`font-semibold px-2 py-1 rounded text-sm ${
+                            aiAnalysis.analysis.riskAssessment?.level === 'Low' ? 'bg-green-900 text-green-300' :
+                            aiAnalysis.analysis.riskAssessment?.level === 'High' ? 'bg-red-900 text-red-300' :
+                            'bg-yellow-900 text-yellow-300'
+                          }`}>
+                            {aiAnalysis.analysis.riskAssessment?.level}
+                          </span>
+                        </div>
+                        {aiAnalysis.analysis.riskAssessment?.factors?.length > 0 && (
+                          <div>
+                            <span className="text-gray-400 text-sm">Risk Factors:</span>
+                            <div className="mt-1 space-y-1">
+                              {aiAnalysis.analysis.riskAssessment.factors.map((factor, index) => (
+                                <div key={index} className="flex items-start space-x-2">
+                                  <span className="text-red-400 mt-1">•</span>
+                                  <span className="text-gray-300 text-sm">{factor}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {aiAnalysis.analysis.riskAssessment?.mitigants?.length > 0 && (
+                          <div>
+                            <span className="text-gray-400 text-sm">Positive Factors:</span>
+                            <div className="mt-1 space-y-1">
+                              {aiAnalysis.analysis.riskAssessment.mitigants.map((mitigant, index) => (
+                                <div key={index} className="flex items-start space-x-2">
+                                  <span className="text-green-400 mt-1">•</span>
+                                  <span className="text-gray-300 text-sm">{mitigant}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Catalysts & Red Flags */}
+                    <div className="bg-gray-800/50 rounded-lg p-4">
+                      <h5 className="text-white font-semibold mb-3 flex items-center">
+                        🚀 Catalysts & 🚩 Red Flags
+                      </h5>
+                      <div className="space-y-3">
+                        {aiAnalysis.analysis.catalysts?.length > 0 && (
+                          <div>
+                            <span className="text-green-400 text-sm font-medium">Catalysts:</span>
+                            <div className="mt-1 space-y-1">
+                              {aiAnalysis.analysis.catalysts.map((catalyst, index) => (
+                                <div key={index} className="flex items-start space-x-2">
+                                  <span className="text-green-400 mt-1">•</span>
+                                  <span className="text-gray-300 text-sm">{catalyst}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {aiAnalysis.analysis.redFlags?.length > 0 && (
+                          <div>
+                            <span className="text-red-400 text-sm font-medium">Red Flags:</span>
+                            <div className="mt-1 space-y-1">
+                              {aiAnalysis.analysis.redFlags.map((flag, index) => (
+                                <div key={index} className="flex items-start space-x-2">
+                                  <span className="text-red-400 mt-1">•</span>
+                                  <span className="text-gray-300 text-sm">{flag}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Feedback & Footer */}
+                <div className="mt-6 pt-4 border-t border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <span className="text-gray-400 text-sm">Was this analysis helpful?</span>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => submitAIFeedback(aiAnalysis.analysis.metadata?.analysisId, 'positive')}
+                          className="px-3 py-1 bg-green-900/30 hover:bg-green-900/50 text-green-400 rounded text-sm transition-colors"
+                        >
+                          👍 Yes
+                        </button>
+                        <button
+                          onClick={() => submitAIFeedback(aiAnalysis.analysis.metadata?.analysisId, 'negative')}
+                          className="px-3 py-1 bg-red-900/30 hover:bg-red-900/50 text-red-400 rounded text-sm transition-colors"
+                        >
+                          👎 No
+                        </button>
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Analysis ID: {aiAnalysis.analysis.metadata?.analysisId?.slice(-8) || 'N/A'} • 
+                      Data Freshness: {aiAnalysis.dataFreshness} • 
+                      Generated: {aiAnalysis.analysis.metadata?.analysisTimestamp ? new Date(aiAnalysis.analysis.metadata.analysisTimestamp).toLocaleTimeString() : 'N/A'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Close Button */}
+                <div className="flex justify-end mt-4">
+                  <button
+                    onClick={() => setShowAIAnalysis(false)}
+                    className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* AI Error Display */}
+        {aiError && (
+          <div className="fixed bottom-4 right-4 bg-red-900/90 border border-red-500 text-red-200 px-4 py-3 rounded-lg max-w-md z-50">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-semibold">AI Analysis Failed</div>
+                <div className="text-sm">{aiError}</div>
+              </div>
+              <button
+                onClick={() => setAiError(null)}
+                className="text-red-400 hover:text-red-200 ml-4"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );

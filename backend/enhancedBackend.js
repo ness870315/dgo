@@ -12,6 +12,7 @@ import McapSnapshotService from './mcapSnapshotService.js';
 import BirdEyeTrendingService from './birdEyeTrendingService.js';
 import PriorityQueueService from './priorityQueueService.js';
 import LeaderboardScoringEngine from './leaderboardScoringEngine.js';
+import SocialContextAI from './socialContextAI.js';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -29,6 +30,7 @@ class EnhancedBackend {
     this.oauthXService = new OAuthXService();
     this.priorityQueue = new PriorityQueueService();
     this.leaderboardEngine = new LeaderboardScoringEngine();
+    this.socialContextAI = new SocialContextAI();
     // Persistent cache path for tokens-cache.json under DATA_DIR
     try {
       const baseDir = this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo';
@@ -1435,6 +1437,158 @@ class EnhancedBackend {
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Leaderboard error:', error.message);
         res.status(500).json({ error: 'Failed to fetch leaderboard' });
+      }
+    });
+
+    // === AI ANALYSIS ENDPOINTS ===
+    
+    // Get AI social context analysis for a token
+    this.app.get('/api/ai/social-context/:contract', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        const { sessionId, useCache = 'true' } = req.query;
+        
+        console.log(`🧠 AI social context request for ${contract}`);
+        
+        // Optional authentication check (can be used without login for basic analysis)
+        let isPremium = false;
+        if (sessionId) {
+          try {
+            const user = await this.oauthXService.db.getUserBySessionId(sessionId);
+            isPremium = user?.isPremium || false;
+          } catch (err) {
+            // Continue without premium features
+          }
+        }
+        
+        // Get token data
+        const tokens = await this.getTokensFromCache();
+        const token = tokens.find(t => 
+          t.contractAddress?.toLowerCase() === contract.toLowerCase() ||
+          t.symbol?.toLowerCase() === contract.toLowerCase()
+        );
+        
+        if (!token) {
+          return res.status(404).json({ 
+            error: 'Token not found',
+            message: 'Token not found in our database'
+          });
+        }
+        
+        // Check if we have sufficient data for analysis
+        if (!token.twitterData && !token.jupiterData) {
+          return res.status(400).json({
+            error: 'Insufficient data',
+            message: 'Token lacks social and market data for AI analysis'
+          });
+        }
+        
+        // Add call history data
+        const callHistory = await this.getTokenCallHistory(contract);
+        token.callHistory = callHistory;
+        
+        // Generate AI analysis
+        const analysisOptions = {
+          useCache: useCache === 'true',
+          cacheExpiry: isPremium ? 900000 : 1800000, // Premium: 15min, Free: 30min
+          model: isPremium ? 'gpt-4' : 'gpt-3.5-turbo',
+          temperature: 0.7
+        };
+        
+        const analysis = await this.socialContextAI.analyzeSocialContext(token, analysisOptions);
+        
+        // Add premium features
+        if (isPremium) {
+          analysis.premiumInsights = {
+            detailedRiskAnalysis: true,
+            advancedCatalysts: true,
+            competitiveAnalysis: true,
+            marketTimingSignals: true
+          };
+        } else {
+          // Limit insights for free users
+          if (analysis.keyInsights && analysis.keyInsights.length > 2) {
+            analysis.keyInsights = analysis.keyInsights.slice(0, 2);
+            analysis.keyInsights.push("Upgrade to Premium for more insights...");
+          }
+        }
+        
+        res.json({
+          success: true,
+          analysis: analysis,
+          tokenInfo: {
+            symbol: token.symbol,
+            name: token.name,
+            contractAddress: token.contractAddress,
+            currentPrice: token.jupiterData?.price || token.price,
+            marketCap: token.jupiterData?.marketCap || token.marketCap
+          },
+          isPremium: isPremium,
+          dataFreshness: analysis.metadata?.dataFreshness || 'unknown'
+        });
+        
+      } catch (error) {
+        console.error('[🧠 AI] ❌ Social context analysis error:', error.message);
+        res.status(500).json({ 
+          error: 'AI analysis failed',
+          message: error.message,
+          fallback: 'Try again in a few moments'
+        });
+      }
+    });
+    
+    // Get AI analysis metrics and status
+    this.app.get('/api/ai/metrics', async (req, res) => {
+      try {
+        const socialMetrics = this.socialContextAI.getPerformanceMetrics();
+        const openaiMetrics = this.socialContextAI.openaiService.getMetrics();
+        
+        res.json({
+          success: true,
+          metrics: {
+            social: socialMetrics,
+            openai: openaiMetrics,
+            status: {
+              socialAI: this.socialContextAI.isInitialized,
+              openaiService: openaiMetrics.isInitialized
+            }
+          }
+        });
+      } catch (error) {
+        console.error('[🧠 AI] ❌ Metrics error:', error.message);
+        res.status(500).json({ error: 'Failed to get AI metrics' });
+      }
+    });
+    
+    // Record user feedback on AI analysis
+    this.app.post('/api/ai/feedback', async (req, res) => {
+      try {
+        const { analysisId, feedback, sessionId } = req.body;
+        
+        if (!analysisId || !feedback) {
+          return res.status(400).json({ error: 'Analysis ID and feedback required' });
+        }
+        
+        // Optional: verify user session
+        if (sessionId) {
+          try {
+            await this.oauthXService.db.getUserBySessionId(sessionId);
+          } catch (err) {
+            return res.status(401).json({ error: 'Invalid session' });
+          }
+        }
+        
+        // Record feedback
+        this.socialContextAI.recordUserFeedback(analysisId, feedback);
+        
+        res.json({
+          success: true,
+          message: 'Feedback recorded successfully'
+        });
+        
+      } catch (error) {
+        console.error('[🧠 AI] ❌ Feedback error:', error.message);
+        res.status(500).json({ error: 'Failed to record feedback' });
       }
     });
 
@@ -3371,6 +3525,83 @@ class EnhancedBackend {
       }
 
       return [];
+    }
+  }
+
+  /**
+   * Get call history statistics for a token
+   */
+  async getTokenCallHistory(contractAddress) {
+    try {
+      // Get all KOL calls for this token
+      const allCalls = await this.oauthXService.db.getAllKOLCalls();
+      const tokenCalls = allCalls.filter(call => 
+        call.contractAddress?.toLowerCase() === contractAddress.toLowerCase()
+      );
+      
+      if (tokenCalls.length === 0) {
+        return {
+          totalCalls: 0,
+          recentCalls: 0,
+          successRate: 0,
+          avgTimeTo2x: 'N/A'
+        };
+      }
+      
+      // Calculate recent calls (last 7 days)
+      const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+      const recentCalls = tokenCalls.filter(call => 
+        new Date(call.calledAt).getTime() > sevenDaysAgo
+      ).length;
+      
+      // Calculate success rate (calls that hit 2x+)
+      const successfulCalls = tokenCalls.filter(call => {
+        const currentPrice = call.currentPrice || 0;
+        const calledPrice = call.marketCap || 0;
+        return calledPrice > 0 && (currentPrice / calledPrice) >= 2;
+      });
+      
+      const successRate = tokenCalls.length > 0 
+        ? (successfulCalls.length / tokenCalls.length) * 100 
+        : 0;
+      
+      // Calculate average time to 2x for successful calls
+      let avgTimeTo2x = 'N/A';
+      if (successfulCalls.length > 0) {
+        const times = successfulCalls
+          .filter(call => call.athTimestamp && call.calledAt)
+          .map(call => {
+            const callTime = new Date(call.calledAt).getTime();
+            const athTime = new Date(call.athTimestamp).getTime();
+            return (athTime - callTime) / (1000 * 60 * 60); // Hours
+          })
+          .filter(time => time > 0 && time < 168); // Filter valid times (< 1 week)
+        
+        if (times.length > 0) {
+          const avgHours = times.reduce((sum, time) => sum + time, 0) / times.length;
+          if (avgHours < 24) {
+            avgTimeTo2x = `${avgHours.toFixed(1)}h`;
+          } else {
+            avgTimeTo2x = `${(avgHours / 24).toFixed(1)}d`;
+          }
+        }
+      }
+      
+      return {
+        totalCalls: tokenCalls.length,
+        recentCalls: recentCalls,
+        successRate: Math.round(successRate),
+        avgTimeTo2x: avgTimeTo2x
+      };
+      
+    } catch (error) {
+      console.error('[🧠 AI] ❌ Error getting token call history:', error.message);
+      return {
+        totalCalls: 0,
+        recentCalls: 0,
+        successRate: 0,
+        avgTimeTo2x: 'N/A'
+      };
     }
   }
 
