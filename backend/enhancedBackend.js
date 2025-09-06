@@ -35,9 +35,14 @@ class EnhancedBackend {
     try {
       const baseDir = this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo';
       this.persistentCachePath = path.join(baseDir, 'cache', 'tokens-cache.json');
-    } catch (_) {
+      console.log(`[🛡️ Enhanced Backend] 🔧 Persistent cache path set to: ${this.persistentCachePath}`);
+      console.log(`[🛡️ Enhanced Backend] 🔧 Base directory: ${baseDir}`);
+      console.log(`[🛡️ Enhanced Backend] 🔧 DATA_DIR env: ${process.env.DATA_DIR}`);
+    } catch (error) {
       // Fallback to local (non-persistent) path only if necessary
       this.persistentCachePath = path.join(__dirname, 'cache', 'tokens-cache.json');
+      console.log(`[🛡️ Enhanced Backend] ⚠️ Fallback to local cache path: ${this.persistentCachePath}`);
+      console.log(`[🛡️ Enhanced Backend] ⚠️ Fallback reason:`, error.message);
     }
     this.isRunning = false;
     
@@ -3530,6 +3535,19 @@ class EnhancedBackend {
   async getTokensFromCache() {
     try {
       const cachePath = this.persistentCachePath;
+      console.log(`[🛡️ Enhanced Backend] 🔍 Reading cache from: ${cachePath}`);
+      
+      // Check if file exists
+      try {
+        await fs.access(cachePath);
+        console.log(`[🛡️ Enhanced Backend] ✅ Cache file exists at: ${cachePath}`);
+      } catch (accessError) {
+        console.log(`[🛡️ Enhanced Backend] ❌ Cache file NOT found at: ${cachePath}`);
+        console.log(`[🛡️ Enhanced Backend] 🔍 DATA_DIR: ${process.env.DATA_DIR}`);
+        console.log(`[🛡️ Enhanced Backend] 🔍 __dirname: ${__dirname}`);
+        throw new Error(`Cache file not accessible: ${cachePath}`);
+      }
+      
       const data = await fs.readFile(cachePath, 'utf8');
       const tokens = JSON.parse(data);
 
