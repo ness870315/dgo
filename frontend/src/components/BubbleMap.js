@@ -25,6 +25,16 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
   useEffect(() => {
     if (!tokens || tokens.length === 0) return;
 
+    // Debug: Log sample token data to check consistency
+    console.log('🫧 BubbleMap Debug - Sample token data:', {
+      symbol: tokens[0]?.symbol,
+      overallScore: tokens[0]?.overallScore,
+      score: tokens[0]?.score,
+      mentions: tokens[0]?.mentions,
+      twitterMentions: tokens[0]?.twitterData?.mentions,
+      communityScore: tokens[0]?.communityScore
+    });
+
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
@@ -210,14 +220,14 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
             <div class="font-bold text-solana-purple">${d.symbol}</div>
             <div class="text-xs text-gray-300">${d.name || d.symbol}</div>
             <div class="text-sm mt-1 flex items-center">
-              <span>Score: ${(d.score || d.overallScore) ? (d.score || d.overallScore).toFixed(2) : 'N/A'}</span>
+              <span>Score: ${(d.overallScore || d.score) ? (d.overallScore || d.score).toFixed(1) : 'N/A'}/10</span>
               <span class="ml-2 px-2 py-0.5 rounded text-xs font-medium" style="background-color: ${hypeData.color}20; color: ${hypeData.color}; border: 1px solid ${hypeData.color}40;">
                 ${hypeData.icon} ${hypeData.level}
               </span>
             </div>
             <div class="text-sm">Market Cap: ${formatMarketCap(d.jupiterData?.mcap || d.marketCap || 0)}</div>
             <div class="text-sm">Price: ${formatPrice(d.jupiterData?.usdPrice || d.currentPrice || d.price || 0)}</div>
-            <div class="text-sm">Mentions: ${d.mentions}</div>
+            <div class="text-sm">Mentions: ${d.twitterData?.mentions || d.mentions || 0}</div>
             <div class="text-sm">Community: ${d.communityScore ? d.communityScore.toFixed(1) : 'N/A'}/10</div>
           `);
       })

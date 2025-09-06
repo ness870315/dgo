@@ -174,7 +174,8 @@ class TokenService {
           name: token.name || this.getTokenName(token.symbol), // Preserve backend name
           // Use new enhanced scoring structure
           score: Math.min(token.overallScore || token.enhancedScore?.overallScore || token.score || 0, 10),
-          mentions: token.mentions || Math.floor((token.socialScore || 0) * 100), // Preserve backend mentions
+          overallScore: token.overallScore || token.enhancedScore?.overallScore || token.score || 0, // Preserve raw overall score
+          mentions: token.twitterData?.mentions || token.mentions || 0, // Use Twitter API mentions first, then fallback
           mentionsTrend: (token.mediasentiment - 5) * 20, // Convert to -100% to +100%
           communityScore: token.communityScore || token.communityHealthScore || token.communityHealth || 0, // Preserve backend community score
           hasOfficialProfile: (token.socialScore || 0) > 5,

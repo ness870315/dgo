@@ -44,6 +44,18 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
   const fuelMultiplier = getFuelMultiplier();
 
   useEffect(() => {
+    // Debug: Log token data consistency
+    console.log('🔍 TokenDetails DEBUG - Token data:', {
+      symbol: token?.symbol,
+      name: token?.name,
+      contractAddress: token?.contractAddress,
+      overallScore: token?.overallScore,
+      score: token?.score,
+      mentions: token?.mentions,
+      twitterMentions: token?.twitterData?.mentions,
+      communityScore: token?.communityScore
+    });
+
     // Check if token is in watchlist on component mount (backend source of truth)
     const checkWatchlistStatus = async () => {
       try {

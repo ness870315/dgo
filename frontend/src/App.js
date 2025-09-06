@@ -213,9 +213,14 @@ function App() {
     refreshInterval: 5
   });
 
-  // Helper function to get market cap from the correct source (Jupiter first, fallback to legacy)
+  // Helper function to get market cap from the correct source (prefer normalized Jupiter field)
   const getMarketCap = (token) => {
-    return token?.jupiterData?.mcap || token?.marketCap || 0;
+    return (
+      token?.jupiterData?.marketCap ??
+      token?.jupiterData?.mcap ??
+      token?.marketCap ??
+      0
+    );
   };
   const [filters, setFilters] = useState({
     minScore: 0,
@@ -241,33 +246,78 @@ function App() {
     
     // Since filters are mutually exclusive, find which one is active
     if (categories.trending) {
-      // NEW TRENDING: Score >=6 with 60% score + 40% volume weighting + hidden market cap ≤$10M
+      // NEW TRENDING (refined):
+      // - Score ≥ 6
+      // - Market cap ≤ $10M
+      // - Freshness gate (updated within last 30m)
+      // - Guardrails against recent dumps & weak socials
+      // Ranking: 50% score + 30% turnover + 20% volume
       const fueledSymbols = new Set(fueledTokens?.map(fuel => fuel.symbol) || []);
       
-      // Filter tokens with score >=6 AND market cap ≤$10M (hidden filter)
-      const highScoreTokens = tokenData.filter(token =>
-        (token.score || token.overallScore || 0) >= 6.0 && // Score >=6
-        getMarketCap(token) <= 10000000 // Market cap ≤$10M (hidden filter)
+      // Base filter: score & market cap
+      const baseTokens = tokenData.filter(token =>
+        (token.score || token.overallScore || 0) >= 6.0 &&
+        getMarketCap(token) <= 10_000_000
       );
+
+      // Apply guardrails
+      const now = Date.now();
+      const highScoreTokens = baseTokens.filter(token => {
+        const mcap = Math.max(getMarketCap(token), 0);
+        const volume24h = (
+          (token.jupiterData?.stats24h?.buyVolume || 0) +
+          (token.jupiterData?.stats24h?.sellVolume || 0)
+        ) || token.volume24h || 0;
+        const turnover = mcap > 0 ? volume24h / mcap : 0;
+
+        const lastUpdated = token.lastUpdated ? Date.parse(token.lastUpdated) : null;
+        const isFresh = lastUpdated ? (now - lastUpdated) <= (30 * 60 * 1000) : true; // allow if unknown
+
+        const mentions = token?.twitterData?.mentions ?? token?.mentions ?? 0;
+        const community = token?.communityScore ?? token?.communityHealthScore ?? 0;
+
+        const volChange1h = token?.jupiterData?.stats1h?.volumeChange ?? 0;
+        const volChange6h = token?.jupiterData?.stats6h?.volumeChange ?? 0;
+
+        // Guardrails
+        // 1) Freshness
+        if (!isFresh) return false;
+        // 2) Recent dump penalty → exclude if heavy dump across 1h and 6h
+        if (volChange1h <= -50 && volChange6h <= -50) return false;
+        // 3) Social floor
+        if (community < 6 && mentions < 10) return false;
+        // 4) Micro-cap gate: require healthy turnover
+        if (mcap > 0 && mcap < 20_000 && turnover <= 1.0) return false;
+
+        return true;
+      });
       
       // Separate fueled and regular tokens
       const fueledTokensList = highScoreTokens.filter(token => fueledSymbols.has(token.symbol));
       const regularTokens = highScoreTokens.filter(token => !fueledSymbols.has(token.symbol));
       
-      // Sort by NEW formula: 60% score + 40% volume
+      // Sort by refined formula: 50% score + 30% turnover + 20% volume
       const sortedFueledTokens = fueledTokensList.sort((a, b) => {
-        const volume24hA = ((a.jupiterData?.stats24h?.buyVolume || 0) + (a.jupiterData?.stats24h?.sellVolume || 0)) || a.volume24h || 1;
-        const volume24hB = ((b.jupiterData?.stats24h?.buyVolume || 0) + (b.jupiterData?.stats24h?.sellVolume || 0)) || b.volume24h || 1;
-        const scoreA = (a.score || a.overallScore || 0) * 0.6 + Math.log10(volume24hA + 1) * 0.4;
-        const scoreB = (b.score || b.overallScore || 0) * 0.6 + Math.log10(volume24hB + 1) * 0.4;
+        const mcapA = Math.max(getMarketCap(a), 0);
+        const mcapB = Math.max(getMarketCap(b), 0);
+        const volume24hA = ((a.jupiterData?.stats24h?.buyVolume || 0) + (a.jupiterData?.stats24h?.sellVolume || 0)) || a.volume24h || 0;
+        const volume24hB = ((b.jupiterData?.stats24h?.buyVolume || 0) + (b.jupiterData?.stats24h?.sellVolume || 0)) || b.volume24h || 0;
+        const turnoverA = mcapA > 0 ? volume24hA / mcapA : 0;
+        const turnoverB = mcapB > 0 ? volume24hB / mcapB : 0;
+        const scoreA = (a.score || a.overallScore || 0) * 0.5 + Math.log10(turnoverA + 1) * 0.3 + Math.log10(volume24hA + 1) * 0.2;
+        const scoreB = (b.score || b.overallScore || 0) * 0.5 + Math.log10(turnoverB + 1) * 0.3 + Math.log10(volume24hB + 1) * 0.2;
         return scoreB - scoreA;
       });
       
       const sortedRegularTokens = regularTokens.sort((a, b) => {
-        const volume24hA = ((a.jupiterData?.stats24h?.buyVolume || 0) + (a.jupiterData?.stats24h?.sellVolume || 0)) || a.volume24h || 1;
-        const volume24hB = ((b.jupiterData?.stats24h?.buyVolume || 0) + (b.jupiterData?.stats24h?.sellVolume || 0)) || b.volume24h || 1;
-        const scoreA = (a.score || a.overallScore || 0) * 0.6 + Math.log10(volume24hA + 1) * 0.4;
-        const scoreB = (b.score || b.overallScore || 0) * 0.6 + Math.log10(volume24hB + 1) * 0.4;
+        const mcapA = Math.max(getMarketCap(a), 0);
+        const mcapB = Math.max(getMarketCap(b), 0);
+        const volume24hA = ((a.jupiterData?.stats24h?.buyVolume || 0) + (a.jupiterData?.stats24h?.sellVolume || 0)) || a.volume24h || 0;
+        const volume24hB = ((b.jupiterData?.stats24h?.buyVolume || 0) + (b.jupiterData?.stats24h?.sellVolume || 0)) || b.volume24h || 0;
+        const turnoverA = mcapA > 0 ? volume24hA / mcapA : 0;
+        const turnoverB = mcapB > 0 ? volume24hB / mcapB : 0;
+        const scoreA = (a.score || a.overallScore || 0) * 0.5 + Math.log10(turnoverA + 1) * 0.3 + Math.log10(volume24hA + 1) * 0.2;
+        const scoreB = (b.score || b.overallScore || 0) * 0.5 + Math.log10(turnoverB + 1) * 0.3 + Math.log10(volume24hB + 1) * 0.2;
         return scoreB - scoreA;
       });
       
