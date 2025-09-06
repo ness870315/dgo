@@ -793,7 +793,14 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
 
               <div className="mt-4 grid grid-cols-2 gap-3 text-sm text-gray-300">
                 <div>Last points: {hypeSeries.length}</div>
-                <div>Latest label: {hypeSeries[hypeSeries.length-1]?.label || '—'}</div>
+                <div>
+                  {(() => {
+                    const latest = hypeSeries[hypeSeries.length-1]?.label;
+                    const emojiMap = { Trending: '🔥', Viral: '🚀', Building: '🧱', Sleeping: '💤' };
+                    const emoji = latest ? (emojiMap[latest] || '') : '';
+                    return `Latest label: ${latest || '—'} ${emoji}`;
+                  })()}
+                </div>
               </div>
             </div>
           </div>
