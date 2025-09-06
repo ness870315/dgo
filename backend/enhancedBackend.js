@@ -2377,7 +2377,9 @@ class EnhancedBackend {
             console.log(`[🛡️ Admin] ⏰ Skipping ${item.symbol} (within 24h cooldown)`);
             job.skipped = (job.skipped || 0) + 1;
             job.processed++;
-            continue;
+            // Schedule next item processing
+            setTimeout(this._runTwitterRefreshWorker, 250);
+            return;
           }
 
           const twitterData = await socialService.forceImmediateRefresh(item.symbol, item.name);
