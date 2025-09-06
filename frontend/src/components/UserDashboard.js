@@ -489,20 +489,24 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                   </button>
                 </div>
               ) : dashboardData.kolLeaderboard.length > 0 ? (
-                dashboardData.kolLeaderboard.map((kol, index) => (
+                dashboardData.kolLeaderboard.slice(0, 10).map((kol, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                         <span className="text-white text-sm font-bold">{kol.rank}</span>
                       </div>
-                      <div>
-                        <p className="text-white font-medium">{kol.username}</p>
-                        <p className="text-gray-400 text-sm">{kol.calls} calls</p>
+                      <div className="flex-1">
+                        <p className="text-white font-medium">{kol.displayName}</p>
+                        <div className="flex items-center space-x-4 text-xs text-gray-400">
+                          <span>{kol.callCount} calls</span>
+                          <span>Hit Rate: {(kol.metrics?.hitRate * 100 || 0).toFixed(1)}%</span>
+                          <span>Median X: {kol.metrics?.medianX?.toFixed(1) || 'N/A'}x</span>
+                        </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-green-400 font-semibold">{kol.winRate}%</p>
-                      <p className="text-gray-400 text-sm">+${kol.totalPnL}</p>
+                      <p className="text-green-400 font-semibold text-lg">{kol.score}</p>
+                      <p className="text-gray-400 text-sm">Efficiency: {kol.efficiency?.toFixed(2) || 'N/A'}</p>
                     </div>
                   </div>
                 ))

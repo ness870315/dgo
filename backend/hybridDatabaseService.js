@@ -543,6 +543,31 @@ class HybridDatabaseService {
   }
 
   /**
+   * Get all KOL calls from all users
+   */
+  async getAllKolCalls() {
+    const indexFile = this.getGlobalFile('users-index.json');
+    const userIndex = await this.readJsonFile(indexFile, {});
+    const allCalls = [];
+
+    for (const userId of Object.keys(userIndex)) {
+      try {
+        const userCalls = await this.getKolCalls(userId);
+        userCalls.forEach(call => {
+          allCalls.push({
+            ...call,
+            userId
+          });
+        });
+      } catch (error) {
+        console.warn(`Failed to get KOL calls for user ${userId}:`, error.message);
+      }
+    }
+
+    return allCalls;
+  }
+
+  /**
    * Add a KOL call
    */
   async addKolCall(userId, call) {

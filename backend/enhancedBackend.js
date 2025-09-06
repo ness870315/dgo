@@ -11,6 +11,7 @@ import HypeSnapshotService from './hypeSnapshotService.js';
 import McapSnapshotService from './mcapSnapshotService.js';
 import BirdEyeTrendingService from './birdEyeTrendingService.js';
 import PriorityQueueService from './priorityQueueService.js';
+import LeaderboardScoringEngine from './leaderboardScoringEngine.js';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -27,6 +28,7 @@ class EnhancedBackend {
     this.helioService = new HelioPaymentService();
     this.oauthXService = new OAuthXService();
     this.priorityQueue = new PriorityQueueService();
+    this.leaderboardEngine = new LeaderboardScoringEngine();
     // Persistent cache path for tokens-cache.json under DATA_DIR
     try {
       const baseDir = this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo';
@@ -1376,15 +1378,55 @@ class EnhancedBackend {
           });
         }
         
-        // TODO: Implement actual leaderboard logic
-        // For now, return mock data
-        const leaderboard = [
-          { rank: 1, username: 'CryptoKing', calls: 25, winRate: 85.2, totalPnL: 1250.5 },
-          { rank: 2, username: 'DegenLord', calls: 18, winRate: 78.9, totalPnL: 890.3 },
-          { rank: 3, username: 'MoonHunter', calls: 22, winRate: 72.7, totalPnL: 675.8 }
-        ];
-        
-        res.json({ success: true, leaderboard });
+        // Get all KOL calls from all users
+        const allKolCalls = await this.oauthXService.db.getAllKolCalls();
+
+        // Group calls by user
+        const userCalls = {};
+        allKolCalls.forEach(call => {
+          if (!userCalls[call.userId]) {
+            userCalls[call.userId] = [];
+          }
+          userCalls[call.userId].push(call);
+        });
+
+        // Get current token data for calculations
+        const tokens = await this.getTokensFromCache();
+        const currentTokenData = {};
+        tokens.forEach(token => {
+          currentTokenData[token.contractAddress] = token;
+        });
+
+        // Generate leaderboard using advanced scoring
+        const leaderboardResult = this.leaderboardEngine.generateLeaderboard(userCalls, currentTokenData);
+
+        // Enrich with user data
+        const enrichedLeaderboard = await Promise.all(
+          leaderboardResult.leaderboard.map(async (entry) => {
+            try {
+              const user = await this.oauthXService.db.getUserById(entry.userId);
+              return {
+                ...entry,
+                username: user?.username || `User${entry.userId.slice(-4)}`,
+                displayName: user?.displayName || user?.username || `User${entry.userId.slice(-4)}`,
+                profileImage: user?.profileImage
+              };
+            } catch (err) {
+              return {
+                ...entry,
+                username: `User${entry.userId.slice(-4)}`,
+                displayName: `User${entry.userId.slice(-4)}`
+              };
+            }
+          })
+        );
+
+        res.json({
+          success: true,
+          leaderboard: enrichedLeaderboard,
+          globalStats: leaderboardResult.globalStats,
+          generatedAt: leaderboardResult.generatedAt
+        });
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Leaderboard error:', error.message);
         res.status(500).json({ error: 'Failed to fetch leaderboard' });
