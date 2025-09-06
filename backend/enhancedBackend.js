@@ -1467,13 +1467,36 @@ class EnhancedBackend {
         // Authentication and usage limit check
         let isPremium = false;
         let user = null;
+        console.log(`🧠 AI Analysis - SessionId received: ${sessionId ? sessionId.slice(-8) + '...' : 'NONE'}`);
+        
         if (sessionId) {
           try {
             user = await this.oauthXService.db.getUserBySessionId(sessionId);
-            isPremium = user?.isPremium || false;
-            console.log(`🧠 AI Analysis - User: ${user?.username || 'unknown'}, Premium: ${isPremium}, SessionId: ${sessionId?.slice(-8)}`);
+            console.log(`🧠 AI Analysis - User lookup result:`, {
+              found: !!user,
+              username: user?.username,
+              userId: user?.id
+            });
+            
+            if (user) {
+              // Properly check premium status using the same method as other endpoints
+              const premiumStatus = await this.oauthXService.db.getPremiumStatus(user.id);
+              isPremium = premiumStatus?.isPremium && 
+                (!premiumStatus.expiresAt || new Date(premiumStatus.expiresAt) > new Date());
+              
+              console.log(`🧠 AI Analysis - Premium Status Details:`, {
+                premiumStatus,
+                isPremiumFlag: premiumStatus?.isPremium,
+                expiresAt: premiumStatus?.expiresAt,
+                isExpired: premiumStatus?.expiresAt ? new Date(premiumStatus.expiresAt) <= new Date() : 'no expiry',
+                finalIsPremium: isPremium
+              });
+            }
+            
+            console.log(`🧠 AI Analysis - Final Premium Status: ${isPremium}`);
           } catch (err) {
             console.log(`🧠 AI Analysis - Failed to get user from sessionId: ${err.message}`);
+            console.log(`🧠 AI Analysis - Error details:`, err);
             // Continue without premium features
           }
         } else {
