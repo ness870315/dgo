@@ -1005,7 +1005,63 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                 </div>
               </div>
 
-              {/* Prediction */}
+              {/* Why Bearish/Bullish? Explainer */}
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <Target size={16} className="text-purple-400" />
+                  <h3 className="text-lg font-semibold text-white">Why {hypeAIData.trend === 'bearish' ? 'Bearish' : hypeAIData.trend === 'bullish' ? 'Bullish' : 'Neutral'}?</h3>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {(() => {
+                    const chips = [];
+                    const ewma = hypeAIData.technicalIndicators?.ewma || {};
+                    const deriv = hypeAIData.technicalIndicators?.derivative || {};
+                    const cp = hypeAIData.technicalIndicators?.changePoints || {};
+                    const liquidity = selectedHypeToken?.jupiterData?.liquidity || 0;
+                    const price24h = selectedHypeToken?.jupiterData?.stats24h?.priceChange ?? selectedHypeToken?.priceChange24h ?? null;
+
+                    // Bearish drivers
+                    if (hypeAIData.trend === 'bearish') {
+                      if (deriv.velocity < 0) chips.push({ type: 'bearish', text: 'Mentions velocity falling', tip: 'Rate of change is negative; momentum is decelerating' });
+                      if (deriv.acceleration < 0) chips.push({ type: 'bearish', text: 'Acceleration negative', tip: 'Momentum weakening over time (second derivative < 0)' });
+                      if (ewma.trend === 'falling') chips.push({ type: 'bearish', text: 'EWMA trend down', tip: 'EWMA shows recent momentum below historical' });
+                      if (cp.hasRecentChange && cp.changeDirection === 'downturn') chips.push({ type: 'bearish', text: 'Change-point: downturn', tip: 'Recent statistical regime shift to downside' });
+                      if (typeof price24h === 'number' && price24h <= -30) chips.push({ type: 'risk', text: `24h price ${price24h.toFixed(0)}%`, tip: 'Large drawdown increases fade risk' });
+                      if (liquidity > 0 && liquidity < 25000) chips.push({ type: 'risk', text: `Low liquidity $${Math.round(liquidity).toLocaleString()}`, tip: 'Thin books amplify downside/volatility' });
+                    }
+
+                    // Bullish drivers
+                    if (hypeAIData.trend === 'bullish') {
+                      if (deriv.velocity > 0) chips.push({ type: 'bullish', text: 'Mentions velocity rising', tip: 'Momentum increasing (rate of change > 0)' });
+                      if (deriv.acceleration > 0) chips.push({ type: 'bullish', text: 'Acceleration positive', tip: 'Momentum strengthening (second derivative > 0)' });
+                      if (ewma.trend === 'rising') chips.push({ type: 'bullish', text: 'EWMA trend up', tip: 'Recent momentum above historical baseline' });
+                      if (cp.hasRecentChange && cp.changeDirection === 'upturn') chips.push({ type: 'bullish', text: 'Change-point: upturn', tip: 'Recent statistical shift to upside' });
+                      if (liquidity >= 25000) chips.push({ type: 'bullish', text: `Healthy liquidity $${Math.round(liquidity).toLocaleString()}`, tip: 'Deeper liquidity supports sustained moves' });
+                    }
+
+                    // Neutral or fallback
+                    if (chips.length === 0) {
+                      chips.push({ type: 'neutral', text: 'Mixed signals', tip: 'Indicators do not align strongly; consolidation likely' });
+                    }
+
+                    const iconFor = (t) => t === 'bullish' ? <CheckCircle size={12} /> : t === 'bearish' ? <AlertTriangle size={12} /> : <Info size={12} />;
+                    const styleFor = (t) => t === 'bullish' ? 'bg-green-900/20 border-green-700 text-green-300' : t === 'bearish' ? 'bg-red-900/20 border-red-700 text-red-300' : 'bg-gray-800/40 border-gray-700 text-gray-300';
+
+                    return chips.map((c, i) => (
+                      <span
+                        key={i}
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-xs ${styleFor(c.type)}`}
+                        title={c.tip}
+                      >
+                        {iconFor(c.type)}
+                        {c.text}
+                      </span>
+                    ));
+                  })()}
+                </div>
+              </div>
+
+              {/* Forecast */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div className="p-4 bg-gradient-to-br from-gray-800/50 to-gray-800/30 rounded-lg border border-gray-700 shadow-lg">
                   <div className="flex items-center gap-2 mb-3">
