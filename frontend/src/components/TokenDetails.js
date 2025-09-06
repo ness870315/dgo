@@ -183,7 +183,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
     try {
       const sessionId = localStorage.getItem('sessionId');
       const identifier = token.contractAddress || token.symbol;
-      const url = `${process.env.REACT_APP_API_URL || 'http://localhost:4000'}/api/ai/social-context/${identifier}`;
+      const url = `${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/ai/social-context/${identifier}`;
       
       const params = new URLSearchParams();
       if (sessionId) params.append('sessionId', sessionId);
@@ -210,7 +210,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
   const submitAIFeedback = async (analysisId, feedback) => {
     try {
       const sessionId = localStorage.getItem('sessionId');
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:4000'}/api/ai/feedback`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/ai/feedback`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
