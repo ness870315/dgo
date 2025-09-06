@@ -1829,6 +1829,11 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                               <div className="text-white font-medium capitalize">
                                 {rec.action.replace(/_/g, ' ')}
                               </div>
+                              {rec.tool && (
+                                <div className="text-purple-400 text-xs font-medium mb-1">
+                                  🛠️ {rec.tool}
+                                </div>
+                              )}
                               <div className="text-gray-400 text-sm">{rec.reason}</div>
                             </div>
                           </div>

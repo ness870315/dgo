@@ -1457,9 +1457,13 @@ class EnhancedBackend {
           try {
             user = await this.oauthXService.db.getUserBySessionId(sessionId);
             isPremium = user?.isPremium || false;
+            console.log(`🧠 AI Analysis - User: ${user?.username || 'unknown'}, Premium: ${isPremium}, SessionId: ${sessionId?.slice(-8)}`);
           } catch (err) {
+            console.log(`🧠 AI Analysis - Failed to get user from sessionId: ${err.message}`);
             // Continue without premium features
           }
+        } else {
+          console.log(`🧠 AI Analysis - No sessionId provided, treating as non-premium`);
         }
         
         // Check usage limits for free users
@@ -3651,25 +3655,28 @@ class EnhancedBackend {
       recommendations.push({
         action: 'add_to_watchlist',
         priority: 'high',
-        reason: 'Strong bullish sentiment with high confidence',
-        icon: '⭐'
+        reason: 'This gem is showing diamond hands energy - add to watchlist to track the moon mission 🚀',
+        icon: '⭐',
+        tool: 'DeGen Oracle Watchlist'
       });
       
       if (communityScore > 7) {
         recommendations.push({
-          action: 'add_to_hype_tracking',
+          action: 'track_hype_over_time',
           priority: 'high', 
-          reason: 'High community score indicates strong momentum potential',
-          icon: '📈'
+          reason: 'Community is absolutely based - track momentum in Hype over Time for perfect entry timing',
+          icon: '📈',
+          tool: 'Hype over Time Analytics'
         });
       }
       
-      if (mentions > 20) {
+      if (mentions > 20 && communityScore > 6) {
         recommendations.push({
-          action: 'consider_call',
-          priority: 'medium',
-          reason: 'Active social discussion with positive sentiment',
-          icon: '🎯'
+          action: 'make_kol_call',
+          priority: 'high',
+          reason: 'All signals bullish AF - this could be a 10x play. Make a KOL call before it moons!',
+          icon: '🎯',
+          tool: 'KOL Call Tracker'
         });
       }
     }
@@ -3679,16 +3686,18 @@ class EnhancedBackend {
       recommendations.push({
         action: 'monitor_closely',
         priority: 'medium',
-        reason: 'Mixed signals - watch for clearer trend development',
-        icon: '👀'
+        reason: 'Crab market vibes - wait for clearer signals before aping in',
+        icon: '👀',
+        tool: 'DeGen Oracle Watchlist'
       });
       
       if (communityScore > 6) {
         recommendations.push({
           action: 'add_to_watchlist',
           priority: 'medium',
-          reason: 'Decent fundamentals worth monitoring',
-          icon: '⭐'
+          reason: 'Solid fundamentals but needs more confirmation - watchlist this gem',
+          icon: '⭐',
+          tool: 'DeGen Oracle Watchlist'
         });
       }
     }
@@ -3698,16 +3707,18 @@ class EnhancedBackend {
       recommendations.push({
         action: 'avoid_or_wait',
         priority: 'high',
-        reason: 'Negative sentiment suggests waiting for better entry',
-        icon: '⚠️'
+        reason: 'Major red flags detected - paper hands panic incoming. Wait for better entry or you might get rekt 📉',
+        icon: '⚠️',
+        tool: 'Risk Management'
       });
       
       if (confidence > 0.7) {
         recommendations.push({
           action: 'remove_from_watchlist',
           priority: 'medium',
-          reason: 'Strong bearish signals indicate potential decline',
-          icon: '🗑️'
+          reason: 'Bearish AF - time to clean up your bags and focus on better plays',
+          icon: '🗑️',
+          tool: 'Portfolio Management'
         });
       }
     }
