@@ -1420,7 +1420,7 @@ class EnhancedBackend {
         const enrichedLeaderboard = await Promise.all(
           leaderboardResult.leaderboard.map(async (entry) => {
             try {
-              const user = await this.oauthXService.db.getUserById(entry.userId);
+              const user = await this.oauthXService.getUserById(entry.userId);
               const xHandle = user?.username;
               const displayName = user?.displayName || user?.username;
 
