@@ -4,8 +4,10 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 
 // Rettiwt-API
-import RettiwtApiPkg from 'rettiwt-api';
-const { Rettiwt, RettiwtConfig, SearchFilter, SortBy, SortOrder } = RettiwtApiPkg;
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+// Use CJS require to ensure proper class exports under Node 18
+const { Rettiwt, RettiwtConfig, SearchFilter, SortBy, SortOrder } = require('rettiwt-api');
 
 dotenv.config();
 
@@ -22,8 +24,13 @@ const RETTIWT_API_KEY = process.env.RETTIWT_API_KEY || process.env.RETTIWT_KEY |
 let rettiwt;
 function initRettiwt() {
   try {
-    const config = new RettiwtConfig({ apiKey: RETTIWT_API_KEY || undefined });
-    rettiwt = new Rettiwt(config);
+    if (typeof RettiwtConfig === 'function') {
+      const config = new RettiwtConfig({ apiKey: RETTIWT_API_KEY || undefined });
+      rettiwt = new Rettiwt(config);
+    } else {
+      // Fallback: some builds expose constructors that accept plain objects
+      rettiwt = new Rettiwt({ apiKey: RETTIWT_API_KEY || undefined });
+    }
     return true;
   } catch (err) {
     console.error('❌ Failed to initialize Rettiwt:', err?.message || err);
