@@ -13,7 +13,7 @@ import BirdEyeTrendingService from './birdEyeTrendingService.js';
 import PriorityQueueService from './priorityQueueService.js';
 import LeaderboardScoringEngine from './leaderboardScoringEngine.js';
 import SocialContextAI from './socialContextAI.js';
-import BackupRecoveryService from './backupRecoveryService.js';
+import { createBackupIntegration } from './backupIntegration.js';
 import HypeTrendAnalysis from './hypeTrendAnalysis.js';
 import { fileURLToPath } from 'url';
 
@@ -34,7 +34,7 @@ class EnhancedBackend {
     this.leaderboardEngine = new LeaderboardScoringEngine();
     this.socialContextAI = new SocialContextAI();
     this.hypeTrendAnalysis = new HypeTrendAnalysis();
-    this.backupRecoveryService = new BackupRecoveryService(this);
+    this.backupIntegration = null; // Will be initialized in setupServices()
     // Persistent cache path for tokens-cache.json under DATA_DIR
     try {
       const baseDir = this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo';
@@ -54,12 +54,7 @@ class EnhancedBackend {
     this.setupRoutes();
     this.setupBackgroundTasks();
     
-    // Start backup recovery service
-    setTimeout(() => {
-      this.backupRecoveryService.start().catch(error => {
-        console.error('❌ Failed to start backup recovery service:', error.message);
-      });
-    }, 5000); // Start after 5 seconds to allow backend to fully initialize
+    // Enhanced backup system is now initialized in start() method
   }
 
   setupMiddleware() {
@@ -1806,6 +1801,13 @@ class EnhancedBackend {
             if (!contract || contract.length < 10) { skipped++; continue; }
             if (stableSymbols.has(symbol)) { skipped++; continue; }
             if (!c.graduatedAt) { skipped++; continue; }
+            
+            // Filter out suspicious tokens based on audit data
+            if (c.audit && c.audit.isSus === true) { 
+              console.log(`[🔍 Discovery Import] 🚫 Skipping suspicious token: ${symbol} (isSus=true)`);
+              skipped++; 
+              continue; 
+            }
 
             const key = contract.toLowerCase();
 
@@ -1818,6 +1820,7 @@ class EnhancedBackend {
               change1hPct: c.change1hPct ?? (c.priceChange && (c.priceChange['1h'] || c.priceChange.h1)) ?? null,
               holders: c.holders ?? c.holderCount ?? null,
               graduatedAt: c.graduatedAt,
+              audit: c.audit || null, // Store audit information for reference
               updatedAt: nowIso,
               sourceCategory: category,
               sourceInterval: interval
@@ -3690,17 +3693,27 @@ class EnhancedBackend {
       }
     });
 
-    // BACKUP RECOVERY: Status endpoint
+    // ===== ENHANCED BACKUP SYSTEM API ENDPOINTS =====
+    
+    // Get comprehensive backup status
     this.app.get('/api/admin/backup/status', async (req, res) => {
       try {
-        const status = await this.backupRecoveryService.getBackupStatus();
+        if (!this.backupIntegration) {
+          return res.status(503).json({
+            success: false,
+            error: 'Enhanced Backup System not initialized',
+            timestamp: new Date().toISOString()
+          });
+        }
+
+        const status = await this.backupIntegration.getStatus();
         res.json({
           success: true,
           timestamp: new Date().toISOString(),
           backup: status
         });
       } catch (error) {
-        console.error('❌ Backup status failed:', error);
+        console.error('❌ Enhanced backup status failed:', error);
         res.status(500).json({
           success: false,
           error: error.message,
@@ -3709,17 +3722,60 @@ class EnhancedBackend {
       }
     });
 
-    // BACKUP RECOVERY: Force backup endpoint
+    // List all available snapshots
+    this.app.get('/api/admin/backup/snapshots', async (req, res) => {
+      try {
+        if (!this.backupIntegration) {
+          return res.status(503).json({
+            success: false,
+            error: 'Enhanced Backup System not initialized'
+          });
+        }
+
+        const snapshots = await this.backupIntegration.getBackupService().listSnapshots();
+        res.json({
+          success: true,
+          snapshots,
+          total: snapshots.length,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('❌ List snapshots failed:', error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    // Create manual snapshot
     this.app.post('/api/admin/backup/create', async (req, res) => {
       try {
-        await this.backupRecoveryService.forceBackup();
+        if (!this.backupIntegration) {
+          return res.status(503).json({
+            success: false,
+            error: 'Enhanced Backup System not initialized'
+          });
+        }
+
+        const { reason = 'Manual admin snapshot' } = req.body;
+        const snapshot = await this.backupIntegration.createContextualBackup(reason);
+        
         res.json({
           success: true,
-          message: 'Manual backup completed successfully',
+          message: 'Enhanced snapshot created successfully',
+          snapshot: {
+            id: snapshot.snapshotId,
+            timestamp: snapshot.timestamp,
+            fileCount: snapshot.stats.fileCount,
+            size: snapshot.stats.totalSize,
+            duration: snapshot.duration
+          },
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('❌ Manual backup failed:', error);
+        console.error('❌ Manual snapshot creation failed:', error);
         res.status(500).json({
           success: false,
           error: error.message,
@@ -3728,18 +3784,137 @@ class EnhancedBackend {
       }
     });
 
-    // BACKUP RECOVERY: Force recovery endpoint
-    this.app.post('/api/admin/backup/recover', async (req, res) => {
+    // Restore from specific snapshot
+    this.app.post('/api/admin/backup/restore', async (req, res) => {
       try {
-        const { reason = 'Manual recovery via admin endpoint' } = req.body;
-        await this.backupRecoveryService.forceRecovery(reason);
+        if (!this.backupIntegration) {
+          return res.status(503).json({
+            success: false,
+            error: 'Enhanced Backup System not initialized'
+          });
+        }
+
+        const { snapshotId } = req.body;
+        if (!snapshotId) {
+          return res.status(400).json({
+            success: false,
+            error: 'snapshotId is required'
+          });
+        }
+
+        console.log(`🔄 Admin requested restoration from snapshot: ${snapshotId}`);
+        const result = await this.backupIntegration.restoreWithRestart(snapshotId);
+        
         res.json({
           success: true,
-          message: 'Manual recovery completed successfully',
+          message: 'Restoration completed successfully',
+          restored: {
+            snapshotId,
+            timestamp: result.timestamp,
+            fileCount: result.stats.fileCount,
+            size: result.stats.totalSize
+          },
           timestamp: new Date().toISOString()
         });
       } catch (error) {
-        console.error('❌ Manual recovery failed:', error);
+        console.error('❌ Snapshot restoration failed:', error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    // Get backup system health
+    this.app.get('/api/admin/backup/health', async (req, res) => {
+      try {
+        if (!this.backupIntegration) {
+          return res.status(503).json({
+            success: false,
+            error: 'Enhanced Backup System not initialized'
+          });
+        }
+
+        const health = await this.backupIntegration.getBackupService().performHealthCheck();
+        res.json({
+          success: true,
+          health,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('❌ Backup health check failed:', error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    // Force cleanup old snapshots
+    this.app.post('/api/admin/backup/cleanup', async (req, res) => {
+      try {
+        if (!this.backupIntegration) {
+          return res.status(503).json({
+            success: false,
+            error: 'Enhanced Backup System not initialized'
+          });
+        }
+
+        await this.backupIntegration.getBackupService().cleanupOldSnapshots();
+        const snapshots = await this.backupIntegration.getBackupService().listSnapshots();
+        
+        res.json({
+          success: true,
+          message: 'Cleanup completed successfully',
+          remainingSnapshots: snapshots.length,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('❌ Backup cleanup failed:', error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    // Start/Stop backup service
+    this.app.post('/api/admin/backup/service/:action', async (req, res) => {
+      try {
+        const { action } = req.params; // 'start' or 'stop'
+        
+        if (!this.backupIntegration) {
+          return res.status(503).json({
+            success: false,
+            error: 'Enhanced Backup System not initialized'
+          });
+        }
+
+        if (action === 'start') {
+          await this.backupIntegration.start();
+          res.json({
+            success: true,
+            message: 'Enhanced Backup Service started',
+            timestamp: new Date().toISOString()
+          });
+        } else if (action === 'stop') {
+          await this.backupIntegration.stop();
+          res.json({
+            success: true,
+            message: 'Enhanced Backup Service stopped',
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          res.status(400).json({
+            success: false,
+            error: 'Invalid action. Use "start" or "stop"'
+          });
+        }
+      } catch (error) {
+        console.error(`❌ Backup service ${req.params.action} failed:`, error);
         res.status(500).json({
           success: false,
           error: error.message,
@@ -5347,6 +5522,19 @@ class EnhancedBackend {
   async start() {
     try {
       await this.tokenProcessor.initialize();
+
+      // Initialize Enhanced Backup System
+      console.log('🔄 Initializing Enhanced Backup System...');
+      try {
+        this.backupIntegration = await createBackupIntegration(this.oauthXService?.db);
+        await this.backupIntegration.start();
+        console.log('✅ Enhanced Backup System started successfully');
+        console.log('📸 Automatic snapshots: 5 per day (every 4.8 hours)');
+        console.log('🕐 Retention: 48 hours (10 snapshots max)');
+      } catch (error) {
+        console.error('❌ Enhanced Backup System failed to start:', error.message);
+        console.warn('⚠️ Continuing without enhanced backups...');
+      }
 
       this.app.listen(this.port, () => {
         const isProduction = process.env.NODE_ENV === 'production';
