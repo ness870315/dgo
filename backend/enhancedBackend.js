@@ -399,8 +399,19 @@ class EnhancedBackend {
           return;
         }
 
-        console.log(`[🛡️ Enhanced Backend] ✅ Returning ${tokens.length} tokens`);
-        res.json(tokens);
+        // Apply enhanced deduplication to ensure no duplicates are served
+        const deduplicatedTokens = this.tokenProcessor.deduplicateTokens(tokens);
+        console.log(`[🛡️ Enhanced Backend] 🔄 Deduplicated API response: ${tokens.length} → ${deduplicatedTokens.length} tokens`);
+
+        // Filter out tokens without valid contract addresses
+        const validTokens = deduplicatedTokens.filter(token => 
+          token.contractAddress && 
+          token.contractAddress !== null && 
+          token.contractAddress.length > 10
+        );
+        
+        console.log(`[🛡️ Enhanced Backend] ✅ Returning ${validTokens.length} valid tokens (filtered out ${deduplicatedTokens.length - validTokens.length} without contracts)`);
+        res.json(validTokens);
 
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Error fetching tokens:', error);
@@ -2418,16 +2429,27 @@ class EnhancedBackend {
         
         const tokens = await this.getTokensFromCache();
         
-        let results = tokens;
+        // Apply enhanced deduplication to ensure no duplicates in search results
+        const deduplicatedTokens = this.tokenProcessor.deduplicateTokens(tokens);
+        console.log(`[🛡️ Admin] 🔄 Deduplicated search pool: ${tokens.length} → ${deduplicatedTokens.length} tokens`);
+        
+        let results = deduplicatedTokens;
         
         if (q) {
           const query = q.toLowerCase();
-          results = tokens.filter(token => 
+          results = deduplicatedTokens.filter(token => 
             token.symbol.toLowerCase().includes(query) ||
             token.name.toLowerCase().includes(query) ||
             (token.contractAddress && token.contractAddress.toLowerCase().includes(query))
           );
         }
+        
+        // Filter out tokens without valid contract addresses
+        results = results.filter(token => 
+          token.contractAddress && 
+          token.contractAddress !== null && 
+          token.contractAddress.length > 10
+        );
         
         // Limit results
         results = results.slice(0, parseInt(limit));
