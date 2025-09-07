@@ -165,6 +165,54 @@
             overflow-y: auto;
         }
 
+        .token-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        .token-dropdown-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .token-dropdown-item:hover {
+            background: #f8f9fa;
+        }
+
+        .token-dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .token-dropdown-symbol {
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .token-dropdown-name {
+            color: #666;
+            font-size: 12px;
+            margin-left: 8px;
+        }
+
+        .token-dropdown-contract {
+            font-family: monospace;
+            font-size: 11px;
+            color: #888;
+        }
+
         .token-item {
             background: white;
             border-radius: 8px;
@@ -506,10 +554,41 @@
             <!-- Delete Token -->
             <div class="card">
                 <h2>🗑️ Delete Token</h2>
+                
+                <!-- Search Type Selection -->
                 <div class="form-group">
-                    <label>Token Symbol to Delete</label>
-                    <input type="text" id="deleteTokenSymbol" placeholder="e.g., BTC" style="text-transform: uppercase;">
+                    <label>Delete By</label>
+                    <select id="deleteSearchType" onchange="toggleDeleteSearchType()">
+                        <option value="symbol">Token Symbol</option>
+                        <option value="contract">Contract Address</option>
+                    </select>
                 </div>
+
+                <!-- Symbol Search with Dropdown -->
+                <div id="symbolDeleteSection" class="form-group">
+                    <label>Token Symbol to Delete</label>
+                    <div style="position: relative;">
+                        <input type="text" id="deleteTokenSymbol" placeholder="Start typing symbol..." 
+                               style="text-transform: uppercase;" 
+                               oninput="searchTokensForDelete(this.value)"
+                               onfocus="searchTokensForDelete(this.value)"
+                               onblur="hideDeleteDropdown()">
+                        <div id="deleteTokenDropdown" class="token-dropdown" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <!-- Contract Address Search -->
+                <div id="contractDeleteSection" class="form-group" style="display: none;">
+                    <label>Contract Address to Delete</label>
+                    <div style="position: relative;">
+                        <input type="text" id="deleteTokenContract" placeholder="Enter contract address..." 
+                               oninput="searchTokensByContractForDelete(this.value)"
+                               onfocus="searchTokensByContractForDelete(this.value)"
+                               onblur="hideDeleteDropdown()">
+                        <div id="deleteContractDropdown" class="token-dropdown" style="display: none;"></div>
+                    </div>
+                </div>
+
                 <button class="btn btn-danger" onclick="deleteTokenDirect()">🗑️ Delete Token</button>
                 <div id="deleteTokenResult"></div>
                 <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 5px; border-left: 4px solid #ffc107;">
@@ -1051,24 +1130,161 @@
             }
         }
 
-        // Delete Token (direct input)
-        async function deleteTokenDirect() {
-            const symbol = document.getElementById('deleteTokenSymbol').value.trim().toUpperCase();
-            const resultDiv = document.getElementById('deleteTokenResult');
+        // Toggle delete search type
+        function toggleDeleteSearchType() {
+            const searchType = document.getElementById('deleteSearchType').value;
+            const symbolSection = document.getElementById('symbolDeleteSection');
+            const contractSection = document.getElementById('contractDeleteSection');
+            
+            if (searchType === 'symbol') {
+                symbolSection.style.display = 'block';
+                contractSection.style.display = 'none';
+                document.getElementById('deleteTokenSymbol').value = '';
+            } else {
+                symbolSection.style.display = 'none';
+                contractSection.style.display = 'block';
+                document.getElementById('deleteTokenContract').value = '';
+            }
+            
+            // Hide any open dropdowns
+            hideDeleteDropdown();
+        }
 
-            if (!symbol) {
-                resultDiv.innerHTML = showAlert('Please enter a token symbol', 'error');
+        // Search tokens for delete dropdown (by symbol)
+        async function searchTokensForDelete(query) {
+            if (!query || query.length < 1) {
+                hideDeleteDropdown();
                 return;
             }
 
-            if (!confirm(`⚠️ Are you sure you want to PERMANENTLY DELETE ${symbol}?\n\nThis will remove:\n• Token from main database\n• All Twitter data\n• All social links\n• All cached information\n\nThis action CANNOT be undone!`)) {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/tokens/search?q=${encodeURIComponent(query)}&limit=10`);
+                const data = await response.json();
+
+                if (data.success && data.tokens.length > 0) {
+                    showDeleteDropdown(data.tokens, 'symbol');
+                } else {
+                    hideDeleteDropdown();
+                }
+            } catch (error) {
+                console.error('Error searching tokens:', error);
+                hideDeleteDropdown();
+            }
+        }
+
+        // Search tokens for delete dropdown (by contract)
+        async function searchTokensByContractForDelete(query) {
+            if (!query || query.length < 10) {
+                hideDeleteDropdown();
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/tokens/search?q=${encodeURIComponent(query)}&limit=10`);
+                const data = await response.json();
+
+                if (data.success && data.tokens.length > 0) {
+                    // Filter tokens that match the contract address
+                    const matchingTokens = data.tokens.filter(token => 
+                        token.contractAddress && 
+                        token.contractAddress.toLowerCase().includes(query.toLowerCase())
+                    );
+                    
+                    if (matchingTokens.length > 0) {
+                        showDeleteDropdown(matchingTokens, 'contract');
+                    } else {
+                        hideDeleteDropdown();
+                    }
+                } else {
+                    hideDeleteDropdown();
+                }
+            } catch (error) {
+                console.error('Error searching tokens:', error);
+                hideDeleteDropdown();
+            }
+        }
+
+        // Show delete dropdown
+        function showDeleteDropdown(tokens, type) {
+            const dropdownId = type === 'symbol' ? 'deleteTokenDropdown' : 'deleteContractDropdown';
+            const dropdown = document.getElementById(dropdownId);
+            
+            let html = '';
+            tokens.forEach(token => {
+                const displayContract = token.contractAddress ? 
+                    token.contractAddress.substring(0, 8) + '...' + token.contractAddress.substring(-8) : 
+                    'No contract';
+                    
+                html += `
+                    <div class="token-dropdown-item" onclick="selectTokenForDelete('${token.symbol}', '${token.contractAddress || ''}', '${token.name || ''}', '${type}')">
+                        <div>
+                            <span class="token-dropdown-symbol">${token.symbol}</span>
+                            <span class="token-dropdown-name">${token.name || 'Unknown'}</span>
+                        </div>
+                        <div class="token-dropdown-contract">${displayContract}</div>
+                    </div>
+                `;
+            });
+            
+            dropdown.innerHTML = html;
+            dropdown.style.display = 'block';
+        }
+
+        // Hide delete dropdown
+        function hideDeleteDropdown() {
+            setTimeout(() => {
+                document.getElementById('deleteTokenDropdown').style.display = 'none';
+                document.getElementById('deleteContractDropdown').style.display = 'none';
+            }, 200);
+        }
+
+        // Select token for deletion
+        function selectTokenForDelete(symbol, contractAddress, name, type) {
+            if (type === 'symbol') {
+                document.getElementById('deleteTokenSymbol').value = symbol;
+            } else {
+                document.getElementById('deleteTokenContract').value = contractAddress;
+            }
+            hideDeleteDropdown();
+        }
+
+        // Delete Token (direct input) - Enhanced
+        async function deleteTokenDirect() {
+            const searchType = document.getElementById('deleteSearchType').value;
+            const resultDiv = document.getElementById('deleteTokenResult');
+            
+            let identifier, identifierType, displayName;
+            
+            if (searchType === 'symbol') {
+                identifier = document.getElementById('deleteTokenSymbol').value.trim().toUpperCase();
+                identifierType = 'symbol';
+                displayName = identifier;
+            } else {
+                identifier = document.getElementById('deleteTokenContract').value.trim();
+                identifierType = 'contract address';
+                displayName = identifier.substring(0, 8) + '...' + identifier.substring(-8);
+            }
+
+            if (!identifier) {
+                resultDiv.innerHTML = showAlert(`Please enter a token ${identifierType}`, 'error');
+                return;
+            }
+
+            if (!confirm(`⚠️ Are you sure you want to PERMANENTLY DELETE the token with ${identifierType}: ${displayName}?\n\nThis will remove:\n• Token from main database\n• All Twitter data\n• All social links\n• All cached information\n\nThis action CANNOT be undone!`)) {
                 return;
             }
 
             resultDiv.innerHTML = showLoading();
 
             try {
-                const response = await fetch(`${API_BASE}/api/admin/tokens/${symbol}`, {
+                let deleteUrl;
+                if (searchType === 'symbol') {
+                    deleteUrl = `${API_BASE}/api/admin/tokens/${identifier}`;
+                } else {
+                    deleteUrl = `${API_BASE}/api/admin/tokens/contract/${identifier}`;
+                }
+
+                const response = await fetch(deleteUrl, {
                     method: 'DELETE'
                 });
 
@@ -1076,8 +1292,9 @@
                 
                 if (data.success) {
                     resultDiv.innerHTML = showAlert(`✅ ${data.message}`, 'success');
-                    // Clear the input
+                    // Clear the inputs
                     document.getElementById('deleteTokenSymbol').value = '';
+                    document.getElementById('deleteTokenContract').value = '';
                     // Refresh system status to show updated counts
                     loadSystemStatus();
                 } else {

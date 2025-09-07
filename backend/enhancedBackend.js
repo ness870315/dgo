@@ -2332,6 +2332,83 @@ class EnhancedBackend {
       }
     });
 
+    // Admin: Delete token from database (by contract address)
+    this.app.delete('/api/admin/tokens/contract/:contractAddress', async (req, res) => {
+      try {
+        const { contractAddress } = req.params;
+        
+        console.log(`[🛡️ Admin] 🗑️ Deleting token by contract: ${contractAddress}`);
+        
+        // Remove from tokens cache
+        const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
+        const cachePath = path.join(dataDir, 'cache', 'tokens-cache.json');
+        const data = await fs.readFile(cachePath, 'utf8');
+        const tokens = JSON.parse(data);
+        
+        const originalLength = tokens.length;
+        const tokenToDelete = tokens.find(t => t.contractAddress === contractAddress);
+        
+        if (!tokenToDelete) {
+          return res.status(404).json({ error: `Token with contract ${contractAddress} not found` });
+        }
+        
+        const symbol = tokenToDelete.symbol;
+        const filteredTokens = tokens.filter(t => t.contractAddress !== contractAddress);
+        
+        // Save updated cache
+        await fs.writeFile(cachePath, JSON.stringify(filteredTokens, null, 2));
+        
+        // Remove from Twitter metrics
+        try {
+          const twitterCachePath = path.join(__dirname, 'cache', 'twitter_metrics.json');
+          const twitterData = JSON.parse(await fs.readFile(twitterCachePath, 'utf8'));
+          
+          // Find and remove Twitter data entries for this token
+          const keysToDelete = Object.keys(twitterData).filter(key => 
+            key.startsWith(symbol.toUpperCase() + '_')
+          );
+          
+          keysToDelete.forEach(key => delete twitterData[key]);
+          
+          await fs.writeFile(twitterCachePath, JSON.stringify(twitterData, null, 2));
+          console.log(`[🛡️ Admin] 🐦 Removed Twitter data for ${symbol} (${contractAddress})`);
+        } catch (twitterError) {
+          console.log(`[🛡️ Admin] ⚠️ No Twitter data found for ${symbol}`);
+        }
+        
+        // Remove from socials cache
+        try {
+          const socialsPath = path.join(__dirname, 'cache', 'socials-cache.json');
+          const socialsData = JSON.parse(await fs.readFile(socialsPath, 'utf8'));
+          
+          if (socialsData[symbol.toUpperCase()]) {
+            delete socialsData[symbol.toUpperCase()];
+            await fs.writeFile(socialsPath, JSON.stringify(socialsData, null, 2));
+            console.log(`[🛡️ Admin] 📱 Removed social links for ${symbol} (${contractAddress})`);
+          }
+        } catch (socialsError) {
+          console.log(`[🛡️ Admin] ⚠️ No social data found for ${symbol}`);
+        }
+        
+        console.log(`[🛡️ Admin] ✅ Successfully deleted token: ${symbol} (${contractAddress})`);
+        
+        res.json({ 
+          success: true, 
+          message: `Token ${symbol} with contract ${contractAddress.substring(0, 8)}...${contractAddress.substring(-8)} deleted successfully`,
+          deletedCount: originalLength - filteredTokens.length,
+          deletedToken: {
+            symbol: symbol,
+            name: tokenToDelete.name,
+            contractAddress: contractAddress
+          }
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Error deleting token by contract:', error);
+        res.status(500).json({ error: 'Failed to delete token by contract address' });
+      }
+    });
+
     // Admin: Search tokens in database
     this.app.get('/api/admin/tokens/search', async (req, res) => {
       try {
