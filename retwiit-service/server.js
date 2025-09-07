@@ -4,7 +4,8 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 
 // Rettiwt-API
-import { Rettiwt, RettiwtConfig, SearchFilter, SortBy, SortOrder } from 'rettiwt-api';
+import RettiwtApiPkg from 'rettiwt-api';
+const { Rettiwt, RettiwtConfig, SearchFilter, SortBy, SortOrder } = RettiwtApiPkg;
 
 dotenv.config();
 
