@@ -450,7 +450,7 @@ class SocialContextAI {
     
     // Determine sentiment based on multiple factors
     let sentiment = 'Neutral';
-    let confidence = 0.7; // Higher confidence for enhanced fallback
+    let confidence = 0.70; // Higher confidence for enhanced fallback (0-1 scale)
     let recommendation = 'Hold';
     
     // Advanced sentiment calculation
@@ -482,7 +482,7 @@ class SocialContextAI {
     if (bullishSignals >= 4 && bearishSignals <= 1) {
       sentiment = 'Bullish';
       recommendation = 'Buy';
-      confidence = 0.8;
+      confidence = 0.80;
     } else if (bearishSignals >= 3 || (bearishSignals > bullishSignals && bearishSignals >= 2)) {
       sentiment = 'Bearish';
       recommendation = 'Avoid';
@@ -535,7 +535,7 @@ class SocialContextAI {
     
     return {
       // Match the expected AI response format
-      socialSummary: `${sentiment} sentiment with ${confidence.toFixed(1)} confidence. Community health: ${communityScore.toFixed(1)}/10. Social activity: ${mentions} mentions with ${totalEngagement} total engagement.`,
+      socialSummary: `${sentiment} sentiment with ${Math.round(confidence * 100)}% confidence. Community health: ${communityScore.toFixed(1)}/10. Social activity: ${mentions} mentions with ${totalEngagement} total engagement.`,
       thesis: `Based on current metrics, ${tokenData.symbol} shows ${sentiment.toLowerCase()} indicators with ${bullishSignals} positive signals vs ${bearishSignals} negative signals. ${recommendation} position recommended.`,
       riskFactors: bearishSignals >= 2 ? [
         'Multiple negative indicators detected',
