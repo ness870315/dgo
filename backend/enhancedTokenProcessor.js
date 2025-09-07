@@ -457,7 +457,7 @@ class EnhancedTokenProcessor {
           const symbol = token.symbol;
           
           // Check if we need to refresh Twitter data (24-hour rule)
-          const needsTwitterRefresh = this.shouldRefreshTwitterData(token);
+          const needsTwitterRefresh = await this.shouldRefreshTwitterData(token);
           
           if (!needsTwitterRefresh) {
             console.log(`⏰ Skipping Twitter refresh for ${symbol} (last updated: ${token.twitterTimestamp || 'never'})`);
@@ -494,7 +494,7 @@ class EnhancedTokenProcessor {
                 officialHandle = jupTwitter; // fallback if normalization fails
               }
             }
-            const twitterData = await this.fetchTwitterData(symbol, token.name, officialHandle);
+            const twitterData = await this.fetchTwitterData(symbol, token.name, officialHandle, token);
             token.twitterData = twitterData;
             await this.ensureSocialDataService();
             token.communityHealthScore = this.socialDataService.calculateCommunityHealthScore(twitterData);
@@ -673,9 +673,21 @@ class EnhancedTokenProcessor {
       // Mark all as completed
       tokensToSave.forEach(t => t.stage = 'completed');
       
-      // Merge with existing completed tokens
-      const existingCompleted = this.processedTokens.filter(t => t.stage === 'completed');
-      const allTokens = [...existingCompleted, ...tokensToSave];
+      // Load existing cache and merge with processed tokens
+      let existingTokens = [];
+      try {
+        const cachePath = path.join(this.cacheDir, 'tokens-cache.json');
+        if (await fs.access(cachePath).then(() => true).catch(() => false)) {
+          const cacheData = await fs.readFile(cachePath, 'utf8');
+          existingTokens = JSON.parse(cacheData);
+          console.log(`📊 Loaded ${existingTokens.length} existing tokens from cache`);
+        }
+      } catch (error) {
+        console.warn('⚠️ Could not load existing cache, starting fresh:', error.message);
+      }
+      
+      // Merge existing tokens with newly processed tokens
+      const allTokens = [...existingTokens, ...tokensToSave];
       
       // FINAL DEDUPLICATION: Ensure no duplicates in final database
       const finalUniqueTokens = this.deduplicateTokens(allTokens);
@@ -1097,7 +1109,7 @@ class EnhancedTokenProcessor {
     }
   }
 
-  async fetchTwitterData(symbol, name, officialHandle = null) {
+  async fetchTwitterData(symbol, name, officialHandle = null, token = null) {
     try {
       // Use the real EnhancedSocialDataService
       await this.ensureSocialDataService();
@@ -1119,6 +1131,13 @@ class EnhancedTokenProcessor {
         console.log(`🐦 Searching Twitter for: ${symbol} (${name}) with Jupiter handle: ${officialHandle}`);
       } else {
         console.log(`🐦 Searching Twitter for: ${symbol} (${name}) - no handles found, using hashtag/cashtag search only`);
+      }
+      
+      // 🚨 CRITICAL FIX: Pass Jupiter data to social service for enhanced fallbacks
+      if (token?.jupiterData) {
+        // Temporarily store Jupiter data in the social service for this call
+        this.socialDataService._currentJupiterData = token.jupiterData;
+        console.log(`📊 Passing Jupiter data to social service for ${symbol} (mcap: $${token.jupiterData.marketCap?.toLocaleString()})`);
       }
       
       // Use the real Twitter API service with social links and official handle
@@ -1281,13 +1300,29 @@ class EnhancedTokenProcessor {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  shouldRefreshTwitterData(token) {
-    // If no existing Twitter data, always refresh
+  async shouldRefreshTwitterData(token) {
+    // 🚨 NEW: Use Twitter API Manager for smart refresh decisions
+    if (this.socialDataService?.twitterApiManager) {
+      try {
+        const canRefresh = await this.socialDataService.twitterApiManager.canRefreshToken(token);
+        if (!canRefresh.allowed) {
+          console.log(`🚨 Twitter API Manager blocked refresh for ${token.symbol}: ${canRefresh.reason}`);
+          return false;
+        }
+        console.log(`✅ Twitter API Manager approved refresh for ${token.symbol} (${canRefresh.tier} tier)`);
+        return true;
+      } catch (error) {
+        console.error(`❌ Error checking Twitter API Manager for ${token.symbol}:`, error);
+        // Fall back to legacy logic if API manager fails
+      }
+    }
+    
+    // LEGACY FALLBACK: If no existing Twitter data, always refresh
     if (!token.twitterData || !token.twitterTimestamp) {
       return true;
     }
     
-    // Check if it's been more than 24 hours since last Twitter update
+    // LEGACY FALLBACK: Check if it's been more than 24 hours since last Twitter update
     const lastUpdate = new Date(token.twitterTimestamp);
     const now = new Date();
     const hoursSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60);
@@ -1302,6 +1337,22 @@ class EnhancedTokenProcessor {
     }
     
     return needsRefresh;
+  }
+
+  // Legacy method for synchronous operations (like merge)
+  legacyShouldRefreshTwitterData(token) {
+    // If no existing Twitter data, always refresh
+    if (!token.twitterData || !token.twitterTimestamp) {
+      return true;
+    }
+    
+    // Check if it's been more than 24 hours since last Twitter update
+    const lastUpdate = new Date(token.twitterTimestamp);
+    const now = new Date();
+    const hoursSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60);
+    
+    // Refresh if more than 24 hours have passed
+    return hoursSinceUpdate >= 24;
   }
 
   // DEDUPLICATION METHOD: Remove duplicate tokens by CONTRACT ADDRESS ONLY
@@ -1363,10 +1414,10 @@ class EnhancedTokenProcessor {
         const mergedToken = {
           ...existing,
           ...merged[existingIndex],
-          // Preserve Twitter data if it's less than 24 hours old
-          twitterData: this.shouldRefreshTwitterData(existing) ? undefined : existing.twitterData,
-          twitterTimestamp: this.shouldRefreshTwitterData(existing) ? undefined : existing.twitterTimestamp,
-          communityHealthScore: this.shouldRefreshTwitterData(existing) ? undefined : existing.communityHealthScore,
+          // Preserve Twitter data if it's less than 24 hours old (using legacy check for merge operation)
+          twitterData: this.legacyShouldRefreshTwitterData(existing) ? undefined : existing.twitterData,
+          twitterTimestamp: this.legacyShouldRefreshTwitterData(existing) ? undefined : existing.twitterTimestamp,
+          communityHealthScore: this.legacyShouldRefreshTwitterData(existing) ? undefined : existing.communityHealthScore,
           // Preserve other existing data
           enhancedScore: existing.enhancedScore,
           overallScore: existing.overallScore,
