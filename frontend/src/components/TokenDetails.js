@@ -145,7 +145,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
     const next = !isInWatchlist;
     setIsInWatchlist(next);
     try {
-      if (!isAuthenticated) {
+    if (!isAuthenticated) {
         console.warn('Watchlist: user not authenticated');
       }
 
@@ -1157,7 +1157,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                       <MessageCircle className="w-4 h-4" />
                       <span className="text-sm font-medium">Discord</span>
                     </a>
-                  </div>
+            </div>
                 )}
 
                 {/* CoinGecko Link */}
@@ -1172,7 +1172,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                       <ExternalLink className="w-4 h-4" />
                       <span className="text-sm font-medium">CoinGecko</span>
                     </a>
-                    </div>
+          </div>
                 )}
 
                 {/* CoinMarketCap Link */}
@@ -1337,8 +1337,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                       <a
                         key={`tweet-${index}-${post.author || 'unknown'}`}
                         href={tweetUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                          target="_blank"
+                          rel="noopener noreferrer"
                         className="block bg-dark-bg p-3 rounded border border-gray-700 hover:border-blue-500 hover:bg-gray-600 transition-all duration-200 cursor-pointer group no-underline"
                       >
                         {tweetContent}
@@ -1406,9 +1406,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                   Last calculated: {new Date(token.enhancedScore.calculationTime).toLocaleString()}
                 </div>
             </div>
-          )}
-          </div>
-        </div>
+                      )}
+                    </div>
+                  </div>
 
         {/* Fuel Token Modal */}
         {showFuelModal && (
@@ -1425,7 +1425,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                 >
                   <X size={20} />
                 </button>
-                  </div>
+                </div>
 
               <div className="px-6 pb-6">
                 {/* Token Info */}
@@ -1445,7 +1445,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                       🔥 Currently fueled: {fuelMultiplier}
                 </div>
               )}
-                </div>
+            </div>
 
                 {/* Contract Validation */}
                 {!contractValidated && !paymentCompleted && (
@@ -1482,12 +1482,12 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                     >
                       {fuelLoading ? '🔍 Validating...' : '🔍 Validate Contract Address'}
                     </button>
-            </div>
+          </div>
           )}
 
                 {/* Fuel Selection */}
                 {contractValidated && !paymentCompleted && (
-                  <div className="mb-6">
+            <div className="mb-6">
                     <h4 className="text-white font-medium mb-4">Choose Fuel Boost</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                       {fuelOptions.map((fuel) => (
@@ -1505,13 +1505,13 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                             <div className="text-left">
                               <div className="text-white font-bold">Fuel {fuel.type}</div>
                               <div className="text-sm text-gray-400">{fuel.description}</div>
-                            </div>
-                          </div>
+                  </div>
+                </div>
                           <div className="text-xl font-bold text-green-400">{fuel.price}</div>
                           <div className="text-xs text-gray-500">Duration: 12 hours</div>
                         </button>
                       ))}
-                    </div>
+                  </div>
 
                     {/* Proceed to Payment (Inline Helio widget) */}
                     {selectedFuel && (
@@ -1522,11 +1522,11 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                         </h4>
                         <div className="flex justify-center">
                           <div id="helioCheckoutContainerToken" className="w-full max-w-md"></div>
-                        </div>
+                </div>
                         <p className="text-xs text-gray-400 mt-3">Complete your payment securely. The widget is embedded and does not redirect.</p>
-                      </div>
-                    )}
                   </div>
+                    )}
+                </div>
                 )}
 
                 {/* Apply Fuel (after payment) */}
@@ -1556,7 +1556,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                       : 'bg-blue-900/20 border border-blue-500 text-blue-400'
                   }`}>
                     {fuelMessage.text}
-              </div>
+                  </div>
                 )}
 
                 {/* Close Button */}
@@ -1573,8 +1573,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                   >
                     Close
                   </button>
-            </div>
-          </div>
+                </div>
+              </div>
         </div>
           </div>
         )}
@@ -1617,15 +1617,15 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                         <span>MCap: ${aiAnalysis.tokenInfo?.marketCap ? (aiAnalysis.tokenInfo.marketCap / 1e6).toFixed(2) + 'M' : 'N/A'}</span>
                         <span className={`px-2 py-1 rounded text-xs ${aiAnalysis.isPremium ? 'bg-purple-900 text-purple-300' : 'bg-gray-700 text-gray-300'}`}>
                           {aiAnalysis.isPremium ? 'Premium Analysis' : 'Free Analysis'}
-                        </span>
+                      </span>
                         {!aiAnalysis.isPremium && aiAnalysis.usageCount !== undefined && (
                           <span className="px-2 py-1 rounded text-xs bg-orange-900 text-orange-300">
                             {aiAnalysis.usageCount + 1}/5 Used
                           </span>
                         )}
-                      </div>
-                    </div>
                   </div>
+                </div>
+            </div>
                 </div>
 
                 {/* Analysis Content */}
@@ -1639,7 +1639,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                       <h5 className="text-white font-semibold mb-3 flex items-center">
                         🎯 AI Assessment
                       </h5>
-                      <div className="space-y-3">
+            <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Sentiment:</span>
                           <span className={`font-semibold px-2 py-1 rounded text-sm ${
@@ -1648,8 +1648,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                             'bg-yellow-900 text-yellow-300'
                           }`}>
                             {aiAnalysis.analysis.sentiment}
-                          </span>
-                        </div>
+                </span>
+              </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Confidence:</span>
                           <div className="flex items-center space-x-2">
@@ -1661,8 +1661,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                             </div>
                             <span className="text-white font-semibold text-sm">
                               {Math.round(aiAnalysis.analysis.confidence * 100)}%
-                            </span>
-                          </div>
+                </span>
+              </div>
                         </div>
                       </div>
                     </div>
@@ -1696,8 +1696,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                             'bg-yellow-900 text-yellow-300'
                           }`}>
                             {aiAnalysis.analysis.recommendation?.action}
-                          </span>
-                        </div>
+                </span>
+              </div>
                         <div className="text-gray-300 text-sm">
                           <span className="text-gray-400">Reasoning:</span> {aiAnalysis.analysis.recommendation?.reasoning}
                         </div>
@@ -1730,17 +1730,17 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                             'text-yellow-400'
                           }`}>
                             {aiAnalysis.analysis.socialMomentum?.direction}
-                          </span>
-                        </div>
+                </span>
+              </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Strength:</span>
                           <span className="text-white text-sm">{aiAnalysis.analysis.socialMomentum?.strength}</span>
-                        </div>
+            </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Sustainability:</span>
                           <span className="text-white text-sm">{aiAnalysis.analysis.socialMomentum?.sustainability}</span>
-                        </div>
-                      </div>
+          </div>
+        </div>
                     </div>
 
                     {/* Risk Assessment */}
@@ -1794,32 +1794,42 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                         🚀 Catalysts & 🚩 Red Flags
                       </h5>
                       <div className="space-y-3">
-                        {aiAnalysis.analysis.catalysts?.length > 0 && (
-                          <div>
-                            <span className="text-green-400 text-sm font-medium">Catalysts:</span>
-                            <div className="mt-1 space-y-1">
-                              {aiAnalysis.analysis.catalysts.map((catalyst, index) => (
-                                <div key={index} className="flex items-start space-x-2">
-                                  <span className="text-green-400 mt-1">•</span>
-                                  <span className="text-gray-300 text-sm">{catalyst}</span>
-                                </div>
-                              ))}
+                        {(() => {
+                          const list = Array.isArray(aiAnalysis.analysis.catalysts)
+                            ? aiAnalysis.analysis.catalysts
+                            : (aiAnalysis.analysis.catalysts ? [aiAnalysis.analysis.catalysts] : []);
+                          return list.length > 0 && (
+                            <div>
+                              <span className="text-green-400 text-sm font-medium">Catalysts:</span>
+                              <div className="mt-1 space-y-1">
+                                {list.map((catalyst, index) => (
+                                  <div key={index} className="flex items-start space-x-2">
+                                    <span className="text-green-400 mt-1">•</span>
+                                    <span className="text-gray-300 text-sm">{catalyst}</span>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                        {aiAnalysis.analysis.redFlags?.length > 0 && (
-                          <div>
-                            <span className="text-red-400 text-sm font-medium">Red Flags:</span>
-                            <div className="mt-1 space-y-1">
-                              {aiAnalysis.analysis.redFlags.map((flag, index) => (
-                                <div key={index} className="flex items-start space-x-2">
-                                  <span className="text-red-400 mt-1">•</span>
-                                  <span className="text-gray-300 text-sm">{flag}</span>
-                                </div>
-                              ))}
+                          );
+                        })()}
+                        {(() => {
+                          const list = Array.isArray(aiAnalysis.analysis.redFlags)
+                            ? aiAnalysis.analysis.redFlags
+                            : (aiAnalysis.analysis.redFlags ? [aiAnalysis.analysis.redFlags] : []);
+                          return list.length > 0 && (
+                            <div>
+                              <span className="text-red-400 text-sm font-medium">Red Flags:</span>
+                              <div className="mt-1 space-y-1">
+                                {list.map((flag, index) => (
+                                  <div key={index} className="flex items-start space-x-2">
+                                    <span className="text-red-400 mt-1">•</span>
+                                    <span className="text-gray-300 text-sm">{flag}</span>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
