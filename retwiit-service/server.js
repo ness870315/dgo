@@ -7,7 +7,7 @@ import dotenv from 'dotenv';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 // Use CJS require to ensure proper class exports under Node 18
-const { Rettiwt, RettiwtConfig, SearchFilter, SortBy, SortOrder } = require('rettiwt-api');
+const { Rettiwt, RettiwtConfig, SortBy, SortOrder } = require('rettiwt-api');
 
 dotenv.config();
 
@@ -56,10 +56,10 @@ app.get('/api/search', async (req, res) => {
     const { q = '', limit = '20' } = req.query;
     const lim = Math.max(1, Math.min(parseInt(limit, 10) || 20, 50));
 
-    const filter = new SearchFilter({
-      words: q ? [String(q)] : [],
+    const filter = {
+      words: q && !String(q).startsWith('#') ? [String(q)] : [],
       hashtags: q && String(q).startsWith('#') ? [String(q).slice(1)] : []
-    });
+    };
 
     const tweets = await rettiwt.tweet.search(filter, {
       limit: lim,
@@ -94,7 +94,7 @@ app.get('/api/mentions', async (req, res) => {
     const q = symbol ? `#${String(symbol).toUpperCase()}` : '';
     if (!q) return res.json({ success: true, count: 0, data: [] });
 
-    const filter = new SearchFilter({ hashtags: [q.slice(1)] });
+    const filter = { hashtags: [q.slice(1)] };
     const tweets = await rettiwt.tweet.search(filter, { limit: 20, sortBy: SortBy.LATEST, sortOrder: SortOrder.DESC });
     const data = Array.isArray(tweets) ? tweets.map(t => (typeof t?.toJSON === 'function' ? t.toJSON() : t)) : [];
     res.json({ success: true, count: data.length, data });
