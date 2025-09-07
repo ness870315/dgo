@@ -384,6 +384,68 @@
             </div>
         </div>
 
+        <!-- Enhanced Backup Management Section -->
+        <div class="card" style="margin-bottom: 30px;">
+            <h2>🔄 Enhanced Backup System</h2>
+            <div class="alert alert-info" style="margin-bottom: 20px; padding: 15px; background: rgba(0,123,255,0.1); border: 1px solid rgba(0,123,255,0.3); border-radius: 8px;">
+                <strong>📸 Automated Snapshots:</strong> 5 per day (every 4.8 hours) • <strong>🕐 Retention:</strong> 48 hours (10 snapshots max) • <strong>📂 Coverage:</strong> Complete persistent disk
+            </div>
+            
+            <!-- Backup Status -->
+            <div class="backup-status" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                <div class="status-card" style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px; margin-bottom: 5px;" id="backupServiceStatus">⏳</div>
+                    <div style="font-size: 12px; color: #666;">Service Status</div>
+                </div>
+                <div class="status-card" style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 18px; font-weight: bold; margin-bottom: 5px;" id="totalSnapshots">-</div>
+                    <div style="font-size: 12px; color: #666;">Total Snapshots</div>
+                </div>
+                <div class="status-card" style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 12px; font-weight: bold; margin-bottom: 5px;" id="lastBackupTime">-</div>
+                    <div style="font-size: 12px; color: #666;">Last Backup</div>
+                </div>
+                <div class="status-card" style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 18px; margin-bottom: 5px;" id="backupHealth">⏳</div>
+                    <div style="font-size: 12px; color: #666;">System Health</div>
+                </div>
+            </div>
+
+            <!-- Backup Controls -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 20px;">
+                <button class="btn btn-primary" onclick="refreshBackupStatus()">🔄 Refresh Status</button>
+                <button class="btn btn-success" onclick="createManualSnapshot()">📸 Create Snapshot</button>
+                <button class="btn btn-warning" onclick="cleanupSnapshots()">🧹 Cleanup Old</button>
+                <button class="btn btn-info" onclick="checkBackupHealth()">🏥 Health Check</button>
+            </div>
+
+            <!-- Snapshots List -->
+            <div style="margin-bottom: 20px;">
+                <h3 style="margin-bottom: 15px;">📸 Available Snapshots</h3>
+                <div id="snapshotsList" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 8px;">
+                    <div style="padding: 20px; text-align: center; color: #666;">Loading snapshots...</div>
+                </div>
+            </div>
+
+            <!-- Restore Section -->
+            <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                <h4 style="color: #856404; margin-bottom: 10px;">⚠️ Restore from Snapshot</h4>
+                <p style="color: #856404; font-size: 14px; margin-bottom: 15px;">
+                    <strong>Warning:</strong> This will overwrite all current persistent disk data. An emergency backup will be created first.
+                </p>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="text" id="restoreSnapshotId" placeholder="Enter snapshot ID" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <button class="btn btn-danger" onclick="restoreFromSnapshot()">🔄 Restore</button>
+                </div>
+            </div>
+
+            <!-- Results Display -->
+            <div id="backupResults" style="display: none; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <h4>Results</h4>
+                <pre id="backupResultsContent" style="white-space: pre-wrap; font-size: 12px; margin: 10px 0;"></pre>
+            </div>
+        </div>
+
         <!-- Main Dashboard Grid -->
         <div class="dashboard-grid">
             <!-- Add Free Token -->
@@ -2100,6 +2162,272 @@
                 }
             } catch (error) {
                 alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        // ===== ENHANCED BACKUP SYSTEM FUNCTIONS =====
+        
+        // Auto-refresh backup status on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshBackupStatus();
+            // Auto-refresh every 30 seconds
+            setInterval(refreshBackupStatus, 30000);
+        });
+
+        async function refreshBackupStatus() {
+            try {
+                // Get backup status
+                const statusResponse = await fetch(`${API_BASE}/api/admin/backup/status`);
+                const statusData = await statusResponse.json();
+
+                if (statusData.success) {
+                    updateBackupStatusDisplay(statusData.backup);
+                } else {
+                    document.getElementById('backupServiceStatus').textContent = '❌';
+                    console.error('Backup status error:', statusData.error);
+                }
+
+                // Get snapshots list
+                await loadSnapshotsList();
+
+            } catch (error) {
+                document.getElementById('backupServiceStatus').textContent = '❌';
+                console.error('Error refreshing backup status:', error);
+            }
+        }
+
+        function updateBackupStatusDisplay(backupData) {
+            // Service status
+            const isRunning = backupData.backup?.isRunning;
+            document.getElementById('backupServiceStatus').textContent = isRunning ? '✅' : '❌';
+
+            // Total snapshots
+            const totalSnapshots = backupData.backup?.snapshots?.total || 0;
+            document.getElementById('totalSnapshots').textContent = totalSnapshots;
+
+            // Last backup time
+            const lastBackup = backupData.backup?.snapshots?.lastBackup;
+            if (lastBackup) {
+                const date = new Date(lastBackup);
+                const now = new Date();
+                const diffMinutes = Math.round((now - date) / (1000 * 60));
+                document.getElementById('lastBackupTime').textContent = `${diffMinutes}m ago`;
+            } else {
+                document.getElementById('lastBackupTime').textContent = 'Never';
+            }
+
+            // Health status
+            const health = backupData.backup?.health?.status;
+            const healthIcon = health === 'healthy' ? '✅' : 
+                              health === 'warning' ? '⚠️' : '❌';
+            document.getElementById('backupHealth').textContent = healthIcon;
+        }
+
+        async function loadSnapshotsList() {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/backup/snapshots`);
+                const data = await response.json();
+
+                const listContainer = document.getElementById('snapshotsList');
+
+                if (data.success && data.snapshots.length > 0) {
+                    let html = '<table style="width: 100%; border-collapse: collapse;">';
+                    html += '<thead><tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">';
+                    html += '<th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">ID</th>';
+                    html += '<th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Timestamp</th>';
+                    html += '<th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Age</th>';
+                    html += '<th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Files</th>';
+                    html += '<th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Size</th>';
+                    html += '<th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Actions</th>';
+                    html += '</tr></thead><tbody>';
+
+                    data.snapshots.forEach(snapshot => {
+                        const shortId = snapshot.id.length > 20 ? snapshot.id.substring(0, 20) + '...' : snapshot.id;
+                        const timestamp = new Date(snapshot.timestamp).toLocaleString();
+                        
+                        html += '<tr style="border-bottom: 1px solid #dee2e6;">';
+                        html += `<td style="padding: 8px; font-family: monospace; font-size: 11px;" title="${snapshot.id}">${shortId}</td>`;
+                        html += `<td style="padding: 8px; font-size: 12px;">${timestamp}</td>`;
+                        html += `<td style="padding: 8px; font-size: 12px;">${snapshot.age}</td>`;
+                        html += `<td style="padding: 8px; font-size: 12px;">${snapshot.fileCount}</td>`;
+                        html += `<td style="padding: 8px; font-size: 12px;">${snapshot.size}</td>`;
+                        html += `<td style="padding: 8px;">`;
+                        html += `<button class="btn btn-sm btn-primary" onclick="selectSnapshotForRestore('${snapshot.id}')" style="font-size: 10px; padding: 4px 8px;">Select</button>`;
+                        html += `</td>`;
+                        html += '</tr>';
+                    });
+
+                    html += '</tbody></table>';
+                    listContainer.innerHTML = html;
+                } else {
+                    listContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">No snapshots available</div>';
+                }
+
+            } catch (error) {
+                document.getElementById('snapshotsList').innerHTML = '<div style="padding: 20px; text-align: center; color: #e74c3c;">Error loading snapshots</div>';
+                console.error('Error loading snapshots:', error);
+            }
+        }
+
+        function selectSnapshotForRestore(snapshotId) {
+            document.getElementById('restoreSnapshotId').value = snapshotId;
+            showAlert(`Selected snapshot: ${snapshotId}`, 'info');
+        }
+
+        async function createManualSnapshot() {
+            const resultDiv = document.getElementById('backupResults');
+            const contentDiv = document.getElementById('backupResultsContent');
+            
+            resultDiv.style.display = 'block';
+            contentDiv.textContent = 'Creating manual snapshot...';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/backup/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason: 'Manual admin snapshot' })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    contentDiv.textContent = `✅ Snapshot created successfully!\n\nSnapshot ID: ${data.snapshot.id}\nTimestamp: ${data.snapshot.timestamp}\nFiles: ${data.snapshot.fileCount}\nSize: ${data.snapshot.size} bytes\nDuration: ${data.snapshot.duration}ms`;
+                    
+                    // Refresh the snapshots list
+                    setTimeout(refreshBackupStatus, 1000);
+                    showAlert('Manual snapshot created successfully!', 'success');
+                } else {
+                    contentDiv.textContent = `❌ Error: ${data.error}`;
+                    showAlert('Failed to create snapshot', 'error');
+                }
+
+            } catch (error) {
+                contentDiv.textContent = `❌ Error: ${error.message}`;
+                showAlert('Failed to create snapshot', 'error');
+            }
+        }
+
+        async function restoreFromSnapshot() {
+            const snapshotId = document.getElementById('restoreSnapshotId').value.trim();
+            
+            if (!snapshotId) {
+                showAlert('Please enter a snapshot ID', 'error');
+                return;
+            }
+
+            if (!confirm(`⚠️ WARNING: This will overwrite ALL current persistent disk data with the snapshot data.\n\nSnapshot ID: ${snapshotId}\n\nAn emergency backup will be created first. Are you sure you want to continue?`)) {
+                return;
+            }
+
+            const resultDiv = document.getElementById('backupResults');
+            const contentDiv = document.getElementById('backupResultsContent');
+            
+            resultDiv.style.display = 'block';
+            contentDiv.textContent = 'Restoring from snapshot... This may take a few moments.';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/backup/restore`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ snapshotId })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    contentDiv.textContent = `✅ Restoration completed successfully!\n\nRestored from: ${data.restored.snapshotId}\nTimestamp: ${data.restored.timestamp}\nFiles restored: ${data.restored.fileCount}\nData size: ${data.restored.size} bytes\n\n⚠️ The system has been restarted to reload the restored data.`;
+                    
+                    showAlert('Restoration completed successfully! System restarted.', 'success');
+                    
+                    // Refresh status after restoration
+                    setTimeout(refreshBackupStatus, 3000);
+                } else {
+                    contentDiv.textContent = `❌ Restoration failed: ${data.error}`;
+                    showAlert('Restoration failed', 'error');
+                }
+
+            } catch (error) {
+                contentDiv.textContent = `❌ Error: ${error.message}`;
+                showAlert('Restoration failed', 'error');
+            }
+        }
+
+        async function cleanupSnapshots() {
+            if (!confirm('This will remove old snapshots beyond the 48-hour retention period. Continue?')) {
+                return;
+            }
+
+            const resultDiv = document.getElementById('backupResults');
+            const contentDiv = document.getElementById('backupResultsContent');
+            
+            resultDiv.style.display = 'block';
+            contentDiv.textContent = 'Cleaning up old snapshots...';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/backup/cleanup`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    contentDiv.textContent = `✅ Cleanup completed!\n\nRemaining snapshots: ${data.remainingSnapshots}`;
+                    showAlert('Cleanup completed successfully!', 'success');
+                    
+                    // Refresh the snapshots list
+                    setTimeout(refreshBackupStatus, 1000);
+                } else {
+                    contentDiv.textContent = `❌ Cleanup failed: ${data.error}`;
+                    showAlert('Cleanup failed', 'error');
+                }
+
+            } catch (error) {
+                contentDiv.textContent = `❌ Error: ${error.message}`;
+                showAlert('Cleanup failed', 'error');
+            }
+        }
+
+        async function checkBackupHealth() {
+            const resultDiv = document.getElementById('backupResults');
+            const contentDiv = document.getElementById('backupResultsContent');
+            
+            resultDiv.style.display = 'block';
+            contentDiv.textContent = 'Checking backup system health...';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/backup/health`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const health = data.health;
+                    const statusIcon = health.status === 'healthy' ? '✅' : 
+                                      health.status === 'warning' ? '⚠️' : '❌';
+                    
+                    let healthReport = `${statusIcon} Health Status: ${health.status.toUpperCase()}\n`;
+                    healthReport += `Check Time: ${health.timestamp}\n\n`;
+                    
+                    if (health.issues.length === 0) {
+                        healthReport += '🎉 All systems healthy! No issues detected.';
+                    } else {
+                        healthReport += `Issues Found (${health.issues.length}):\n`;
+                        health.issues.forEach((issue, index) => {
+                            healthReport += `${index + 1}. ${issue}\n`;
+                        });
+                    }
+                    
+                    contentDiv.textContent = healthReport;
+                    
+                    const alertType = health.status === 'healthy' ? 'success' : 
+                                     health.status === 'warning' ? 'warning' : 'error';
+                    showAlert(`Health check completed: ${health.status}`, alertType);
+                } else {
+                    contentDiv.textContent = `❌ Health check failed: ${data.error}`;
+                    showAlert('Health check failed', 'error');
+                }
+
+            } catch (error) {
+                contentDiv.textContent = `❌ Error: ${error.message}`;
+                showAlert('Health check failed', 'error');
             }
         }
     </script>
