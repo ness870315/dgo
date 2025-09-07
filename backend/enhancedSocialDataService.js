@@ -1,6 +1,7 @@
 import axios from 'axios';
 import fs from 'fs/promises';
 import path from 'path';
+import TwitterApiManager from './twitterApiManager.js';
 
 class EnhancedSocialDataService {
   constructor() {
@@ -18,26 +19,25 @@ class EnhancedSocialDataService {
     this.twitterServiceUrl = process.env.TWITTER_SERVICE_URL || 'http://localhost:8000';
     this.twitterApi = null; // Will be replaced by microservice calls
     
+    // 🚨 NEW: Twitter API Manager for 15K/month limit protection
+    this.twitterApiManager = new TwitterApiManager();
+    
     console.log(`🐦 Twitter microservice configured: ${this.twitterServiceUrl}`);
     
-    // 🚨 RATE LIMITING CONFIGURATION - CRITICAL FOR PREVENTING BANS
+    // 🚨 DEPRECATED RATE LIMITING - NOW HANDLED BY TwitterApiManager
+    // Keeping for backward compatibility but will be ignored
     this.rateLimits = {
-      // Per-token limits
-      maxSearchesPerToken: 2,           // Reduced from 4 to 2 (50% reduction)
-      delayBetweenSearches: 10000,      // Increased to 10 seconds to avoid 429 errors
-      maxTokensPerHour: 200,            // Increased from 20 to 200 tokens per hour
-      maxTokensPerDay: 1000,            // Increased from 100 to 1000 tokens per day
-      
-      // Global limits
-      maxRequestsPerHour: 500,          // Increased from 100 to 500 API calls per hour
-      maxRequestsPerDay: 2000,          // Increased from 500 to 2000 API calls per day
-      
-      // Cooldown periods
-      cooldownAfterRateLimit: 300000,   // 5 minutes after rate limit
-      dailyResetTime: '00:00 UTC'       // Reset daily limits at midnight UTC
+      maxSearchesPerToken: 1,           // ✅ OPTIMIZED: 1 search per token (was 3-4)
+      delayBetweenSearches: 2000,       // 2 seconds between searches
+      maxTokensPerHour: 200,            // INCREASED back up (more efficient per token)
+      maxTokensPerDay: 500,             // INCREASED back up (75% API reduction allows this)
+      maxRequestsPerHour: 200,          // INCREASED back up (1 call per token now)
+      maxRequestsPerDay: 500,           // Matches token limit (1:1 ratio)
+      cooldownAfterRateLimit: 300000,
+      dailyResetTime: '00:00 UTC'
     };
     
-    // Request tracking
+    // Request tracking - DEPRECATED, now handled by TwitterApiManager
     this.requestCounts = {
       hourly: 0,
       daily: 0,
@@ -228,32 +228,74 @@ class EnhancedSocialDataService {
       }
     }
     
-    // Check rate limits
-    if (this.isCurrentlyRateLimited()) {
-      console.log(`🚨 Rate limited for ${symbol}, returning cached data if available`);
+    // 🚨 NEW: Check Twitter API Manager for monthly limits and smart cooldowns
+    const tokenForCheck = { 
+      symbol, 
+      name, 
+      twitterData: this.twitterMetricsCache.get(cacheKey)?.data,
+      twitterLastRefresh: this.twitterMetricsCache.get(cacheKey)?.data?.lastRefreshed,
+      jupiterData: this._currentJupiterData || null // Get from temporary storage
+    };
+    
+    const canRefresh = await this.twitterApiManager.canRefreshToken(tokenForCheck);
+    if (!canRefresh.allowed) {
+      console.log(`🚨 Twitter API Manager blocked refresh for ${symbol}: ${canRefresh.reason}`);
       const cached = this.twitterMetricsCache.get(cacheKey);
-      const fallbackData = cached ? cached.data : this.getDefaultTwitterData(symbol, name);
-      fallbackData._dataFreshness = 'rate_limited'; // Mark as rate limited
+      
+      // 🚨 CRITICAL FIX: ALWAYS preserve existing Twitter data during cooldowns
+      if (cached && cached.data) {
+        console.log(`📦 Preserving existing Twitter data for ${symbol} during cooldown (${cached.data.mentions} mentions, score: ${cached.data.communityHealth || cached.data.communityScore || 'N/A'})`);
+        const preservedData = { ...cached.data };
+        preservedData._dataFreshness = 'preserved_during_cooldown';
+        preservedData._blockReason = canRefresh.reason;
+        preservedData._preservedAt = new Date().toISOString();
+        return preservedData;
+      }
+      
+      // Only use default data if NO cached data exists (new token)
+      const jupiterData = tokenForCheck.jupiterData || null;
+      console.log(`⚠️ No cached Twitter data found for ${symbol}, using Jupiter-enhanced default`);
+      const fallbackData = this.getDefaultTwitterData(symbol, name, 'api_manager_blocked', jupiterData);
+      fallbackData._dataFreshness = 'api_manager_blocked';
+      fallbackData._blockReason = canRefresh.reason;
       return fallbackData;
     }
-
-    const rateLimitCheck = this.checkRateLimits();
-    if (rateLimitCheck.limited) {
-      console.log(`🚨 Rate limit reached for ${symbol}: ${rateLimitCheck.reason}`);
+    
+    console.log(`✅ Twitter API Manager approved refresh for ${symbol} (${canRefresh.tier} tier)`);
+    
+    // Legacy rate limit checks (keeping for backward compatibility)
+    if (this.isCurrentlyRateLimited()) {
+      console.log(`🚨 Legacy rate limited for ${symbol}, returning cached data if available`);
       const cached = this.twitterMetricsCache.get(cacheKey);
-      const fallbackData = cached ? cached.data : this.getDefaultTwitterData(symbol, name);
-      fallbackData._dataFreshness = 'rate_limited'; // Mark as rate limited
+      
+      // 🚨 CRITICAL FIX: ALWAYS preserve existing Twitter data during rate limits
+      if (cached && cached.data) {
+        console.log(`📦 Preserving existing Twitter data for ${symbol} during rate limit (${cached.data.mentions} mentions)`);
+        const preservedData = { ...cached.data };
+        preservedData._dataFreshness = 'preserved_during_rate_limit';
+        preservedData._preservedAt = new Date().toISOString();
+        return preservedData;
+      }
+      
+      // Only use default data if NO cached data exists
+      const jupiterData = tokenForCheck.jupiterData || null;
+      const fallbackData = this.getDefaultTwitterData(symbol, name, 'rate_limited', jupiterData);
+      fallbackData._dataFreshness = 'rate_limited';
       return fallbackData;
     }
     
     try {
       console.log(`🔍 Collecting Twitter data for ${symbol} (${name})...`);
       
-      // Increment request counters
+      // Legacy increment (keeping for backward compatibility)
       this.incrementRequestCounts();
       
       // Search for Twitter mentions using multiple strategies
       const twitterData = await this.searchTwitterMentions(symbol, name, officialHandle, socialLinks);
+      
+      // 🚨 NEW: Record API usage with the Twitter API Manager
+      const apiCallsUsed = 1; // ✅ OPTIMIZED: Always 1 call per token now
+      await this.twitterApiManager.recordApiCall(tokenForCheck, apiCallsUsed);
       
       // Get historical data for 24-hour comparison
       const historicalData = await this.getHistoricalTwitterData(symbol, name);
@@ -267,6 +309,7 @@ class EnhancedSocialDataService {
       twitterData.mentionsYesterday = historicalData.yesterdayMentions || 0;
       twitterData.mentionsTrend = mentions24hChange > 0 ? 'increasing' : 
                                   mentions24hChange < 0 ? 'decreasing' : 'stable';
+      twitterData.lastRefreshed = new Date().toISOString(); // Track refresh time
       
       console.log(`📊 Historical Context for ${symbol}: Today=${twitterData.mentions}, Yesterday=${twitterData.mentionsYesterday}, Change=${mentions24hChange}`);
       
@@ -282,15 +325,35 @@ class EnhancedSocialDataService {
       
       console.log(`✅ Twitter data collected for ${symbol}: ${twitterData.mentions} mentions`);
       twitterData._dataFreshness = 'fresh'; // Mark as fresh data
+      
+      // Clean up temporary Jupiter data
+      delete this._currentJupiterData;
+      
       return twitterData;
       
     } catch (error) {
       console.error(`❌ Error collecting Twitter data for ${symbol}:`, error.message);
       
-      // Return cached data if available, otherwise default
+      // 🚨 CRITICAL FIX: ALWAYS preserve existing Twitter data during errors
       const cached = this.twitterMetricsCache.get(cacheKey);
-      const fallbackData = cached ? cached.data : this.getDefaultTwitterData(symbol, name);
-      fallbackData._dataFreshness = 'error_fallback'; // Mark as error fallback
+      if (cached && cached.data) {
+        console.log(`📦 Preserving existing Twitter data for ${symbol} during API error (${cached.data.mentions} mentions)`);
+        const preservedData = { ...cached.data };
+        preservedData._dataFreshness = 'preserved_during_error';
+        preservedData._preservedAt = new Date().toISOString();
+        preservedData._errorMessage = error.message;
+        return preservedData;
+      }
+      
+      // Only use default data if NO cached data exists
+      const jupiterData = tokenForCheck.jupiterData || null;
+      const fallbackData = this.getDefaultTwitterData(symbol, name, 'error_fallback', jupiterData);
+      fallbackData._dataFreshness = 'error_fallback';
+      fallbackData._errorMessage = error.message;
+      
+      // Clean up temporary Jupiter data
+      delete this._currentJupiterData;
+      
       return fallbackData;
     }
   }
@@ -306,7 +369,20 @@ class EnhancedSocialDataService {
       // Check if Twitter microservice is available
       const healthResponse = await axios.get(`${this.twitterServiceUrl}/health`, { timeout: 5000 });
       if (healthResponse.data.status !== 'healthy' || healthResponse.data.bearer_token !== 'present') {
-        console.log(`⚠️ Twitter API not available for ${symbol}, returning fallback data`);
+        console.log(`⚠️ Twitter API not available for ${symbol}, checking for cached data first`);
+        
+        // 🚨 CRITICAL FIX: Check for existing cached data before using defaults
+        const cacheKey = `${symbol}_${name}`;
+        const cached = this.twitterMetricsCache.get(cacheKey);
+        if (cached && cached.data) {
+          console.log(`📦 Using cached Twitter data for ${symbol} (API unavailable)`);
+          const preservedData = { ...cached.data };
+          preservedData._dataFreshness = 'preserved_api_unavailable';
+          preservedData._preservedAt = new Date().toISOString();
+          return preservedData;
+        }
+        
+        console.log(`⚠️ No cached data found for ${symbol}, using default data`);
         return this.getDefaultTwitterData(symbol, name);
       }
       
@@ -318,53 +394,27 @@ class EnhancedSocialDataService {
       let username = null;
       let followers = 0;
       
-      // Search strategies in priority order
-      const searchStrategies = [];
+      // 🚨 OPTIMIZED: Single search strategy to stay within 15K/month API limit
+      // Reduced from 3-4 searches per token to 1 search per token
+      // This reduces API usage by ~75% (from 1,695-2,260 calls to ~565 calls per refresh)
       
-      // 1. Official handle (highest priority)
-      if (officialHandle && officialHandle !== 'not found') {
-        const cleanHandle = officialHandle.replace('@', '');
-        searchStrategies.push({
-          type: 'official_handle',
-          endpoint: `/api/twitter/user/${cleanHandle}/tweets`,
-          params: { count: 20 }
-        });
-        username = cleanHandle;
-      }
-      
-      // 2. User-added Twitter handle
-      if (socialLinks?.twitter && socialLinks.twitter !== 'not_found') {
-        const cleanHandle = socialLinks.twitter.replace('@', '');
-        searchStrategies.push({
-          type: 'user_handle',
-          endpoint: `/api/twitter/user/${cleanHandle}/tweets`,
-          params: { count: 20 }
-        });
-        if (!username) username = cleanHandle;
-      }
-      
-      // 3. Hashtag searches (cashtags not supported on current plan)
       const symbolLower = symbol.toLowerCase();
       const safeName = name || symbol;
-      const nameLower = safeName.toLowerCase();
       
-      searchStrategies.push(
+      // Single hashtag search strategy - most cost-effective for community sentiment
+      const searchStrategies = [
         {
-          type: 'hashtag_symbol',
+          type: 'hashtag_symbol_optimized',
           endpoint: '/api/twitter/search',
-          params: { q: `#${symbolLower}`, count: 30 }
+          params: { q: `#${symbolLower}`, count: 50 } // Increased count to get more data in single call
         }
-      );
+      ];
       
-      // Add name-based searches if different from symbol
-      if (nameLower !== symbolLower) {
-        searchStrategies.push(
-          {
-            type: 'hashtag_name',
-            endpoint: '/api/twitter/search',
-            params: { q: `#${nameLower}`, count: 20 }
-          }
-        );
+      // Store official handle info for follower detection (without API call)
+      if (officialHandle && officialHandle !== 'not found') {
+        username = officialHandle.replace('@', '');
+      } else if (socialLinks?.twitter && socialLinks.twitter !== 'not_found') {
+        username = socialLinks.twitter.replace('@', '');
       }
       
       // Execute searches
@@ -436,7 +486,7 @@ class EnhancedSocialDataService {
           }
           
           // Small delay between searches
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 2000));
           
         } catch (error) {
           console.log(`⚠️ ${strategy.type} search error: ${error.message}`);
@@ -489,8 +539,23 @@ class EnhancedSocialDataService {
       
     } catch (error) {
       console.error(`❌ Twitter microservice error for ${symbol}: ${error.message}`);
+      
+      // 🚨 CRITICAL FIX: Check for existing cached data before using defaults
+      const cacheKey = `${symbol}_${name}`;
+      const cached = this.twitterMetricsCache.get(cacheKey);
+      if (cached && cached.data) {
+        console.log(`📦 Using cached Twitter data for ${symbol} (microservice error)`);
+        const preservedData = { ...cached.data };
+        preservedData._dataFreshness = 'preserved_microservice_error';
+        preservedData._preservedAt = new Date().toISOString();
+        preservedData._errorMessage = error.message;
+        return preservedData;
+      }
+      
+      console.log(`⚠️ No cached data found for ${symbol}, using default data`);
       const fallbackData = this.getDefaultTwitterData(symbol, name);
-      fallbackData._dataFreshness = 'error_fallback'; // Mark as error fallback
+      fallbackData._dataFreshness = 'error_fallback';
+      fallbackData._errorMessage = error.message;
       return fallbackData;
     }
   }
@@ -703,17 +768,64 @@ class EnhancedSocialDataService {
 
   /**
    * Get default Twitter data when API fails
+   * 🚨 ENHANCED: Now uses Jupiter social data to improve scoring when Twitter API is limited
    */
-  getDefaultTwitterData(symbol, name, freshness = 'default') {
+  getDefaultTwitterData(symbol, name, freshness = 'default', jupiterData = null) {
+    // Base default values
+    let enhancedCommunityHealth = 0;
+    let officialHandle = 'not found';
+    let hasOfficialAccount = false;
+    let followers = 0;
+    
+    // 🚨 NEW: Extract and use Jupiter social data for enhanced scoring
+    if (jupiterData) {
+      // Check for official Twitter/X handle from Jupiter
+      const jupiterHandle = jupiterData.twitter || 
+                           jupiterData.socials?.twitter || 
+                           jupiterData.socials?.x || 
+                           null;
+      
+      if (jupiterHandle) {
+        officialHandle = jupiterHandle;
+        hasOfficialAccount = true;
+        enhancedCommunityHealth = 4.0; // Boost from 0 to 4.0 for having official social presence
+        console.log(`📈 ${symbol}: Enhanced default community health to ${enhancedCommunityHealth} using Jupiter social data (${jupiterHandle})`);
+      }
+      
+      // Use market metrics as social engagement indicators
+      const marketCap = jupiterData.marketCap || 0;
+      const volume24h = jupiterData.stats24h?.volume || 0;
+      const holders = jupiterData.holders || 0;
+      
+      // Market cap boost (indicates community size/interest)
+      if (marketCap > 50000000) enhancedCommunityHealth += 2.0; // $50M+ mcap
+      else if (marketCap > 10000000) enhancedCommunityHealth += 1.5; // $10M+ mcap
+      else if (marketCap > 1000000) enhancedCommunityHealth += 1.0; // $1M+ mcap
+      else if (marketCap > 100000) enhancedCommunityHealth += 0.5; // $100K+ mcap
+      
+      // Volume boost (indicates active engagement)
+      if (volume24h > 1000000) enhancedCommunityHealth += 1.0; // $1M+ volume
+      else if (volume24h > 100000) enhancedCommunityHealth += 0.5; // $100K+ volume
+      
+      // Holder count boost (indicates community size)
+      if (holders > 10000) enhancedCommunityHealth += 0.5; // 10K+ holders
+      else if (holders > 1000) enhancedCommunityHealth += 0.3; // 1K+ holders
+      
+      // Cap at reasonable maximum for default data
+      enhancedCommunityHealth = Math.min(enhancedCommunityHealth, 7.0);
+      
+      console.log(`📊 ${symbol}: Jupiter-enhanced community health: ${enhancedCommunityHealth} (mcap: $${marketCap?.toLocaleString()}, vol: $${volume24h?.toLocaleString()}, holders: ${holders})`);
+    }
+    
     return {
       symbol: symbol,
       name: name,
 
-      // Official Twitter Account Info
-      officialHandle: 'not found',
+      // Official Twitter Account Info (enhanced with Jupiter data)
+      officialHandle: officialHandle,
       username: null,
-      followers: 0,
-      hasOfficialAccount: false,
+      followers: followers,
+      hasOfficialAccount: hasOfficialAccount,
 
       // Community Activity Metrics
       mentions: 0,
@@ -733,10 +845,11 @@ class EnhancedSocialDataService {
       tweets: [],
 
       // Status and Metadata
-      status: 'no_data',
-      communityHealth: 0,
+      status: jupiterData ? 'jupiter_enhanced' : 'no_data',
+      communityHealth: enhancedCommunityHealth,
       lastUpdated: new Date().toISOString(),
-      _dataFreshness: freshness // Track data freshness
+      _dataFreshness: freshness, // Track data freshness
+      _jupiterEnhanced: !!jupiterData
     };
   }
 
