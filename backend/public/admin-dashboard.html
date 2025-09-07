@@ -492,20 +492,34 @@
             <div class="card">
                 <h2>🐦 Twitter API Control</h2>
                 <p style="color: #666; font-size: 0.9em; margin-bottom: 15px;">
+                    🛡️ <strong>Admin Override:</strong> Single token refresh bypasses TwitterApiManager cooldowns<br>
                     ⚡ <strong>Rate Limiting:</strong> 15s between tokens, 60s break every 10 tokens, 5min break every 50 tokens<br>
-                    🕒 <strong>Smart Cooldown:</strong> Respects 24h cooldowns, skips recently refreshed tokens
+                    🚨 <strong>Use Carefully:</strong> Admin refreshes still count toward monthly 15K API limit
                 </p>
                 <div class="form-group">
-                    <label>Token Symbol</label>
+                    <label>Token Symbol (Emergency Override)</label>
                     <input type="text" id="twitterRefreshSymbol" placeholder="e.g., BTC" style="text-transform: uppercase;">
                 </div>
-                <button class="btn" onclick="refreshTwitterData()">🐦 Refresh Twitter Data</button>
+                <button class="btn" onclick="refreshTwitterData()">🛡️ Admin Refresh (Bypass Cooldown)</button>
                 <button class="btn btn-success" onclick="startRefreshAllTwitter()">🔄 Start Refresh All Twitter</button>
                 <button class="btn" onclick="pollRefreshAllStatus()">📊 Refresh Status</button>
                 <button class="btn btn-warning" onclick="stopRefreshAllTwitter()">⏹️ Stop</button>
                 <button class="btn btn-warning" onclick="getTwitterStatus()">📊 Check API Status</button>
                 <div id="twitterResults"></div>
                 <div id="twitterStatusDisplay" class="twitter-status" style="display: none;"></div>
+            </div>
+
+            <!-- Twitter API Usage Monitor -->
+            <div class="card">
+                <h2>📊 Twitter API Usage Monitor</h2>
+                <p style="color: #666; font-size: 0.9em; margin-bottom: 15px;">
+                    🚨 <strong>Critical:</strong> 15K calls/month limit - Monitor usage to prevent overages<br>
+                    📈 <strong>Smart Tiers:</strong> Critical (3d), Important (7d), Standard (14d), Archive (30d) cooldowns
+                </p>
+                <button class="btn btn-primary" onclick="getTwitterUsage()">📊 Check Usage</button>
+                <button class="btn btn-danger" onclick="activateEmergencyMode()">🚨 Emergency Mode</button>
+                <button class="btn btn-success" onclick="deactivateEmergencyMode()">✅ Resume Normal</button>
+                <div id="twitterUsageResults"></div>
             </div>
 
             <!-- Processing Control -->
@@ -1355,6 +1369,127 @@
                 }
             } catch (error) {
                 statusDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Twitter API Usage Monitoring Functions
+        async function getTwitterUsage() {
+            const resultsDiv = document.getElementById('twitterUsageResults');
+            resultsDiv.innerHTML = showLoading();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/twitter/usage`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const usage = data.usage;
+                    const recommendations = data.recommendations;
+                    
+                    let usageColor = 'success';
+                    if (usage.usagePercent >= 90) usageColor = 'error';
+                    else if (usage.usagePercent >= 80) usageColor = 'warning';
+                    
+                    let html = `
+                        <div class="metric-card" style="background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin: 10px 0;">
+                            <h4 style="color: #2d3748; margin-bottom: 10px;">📊 Monthly Usage Overview</h4>
+                            <div style="background: #e2e8f0; height: 20px; border-radius: 10px; position: relative; margin: 10px 0;">
+                                <div style="background: ${usageColor === 'error' ? '#f56565' : usageColor === 'warning' ? '#ed8936' : '#48bb78'}; height: 100%; width: ${usage.usagePercent}%; border-radius: 10px; position: relative;">
+                                    <span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 12px; font-weight: bold; color: white;">
+                                        ${usage.totalCalls} / ${usage.monthlyLimit} calls (${usage.usagePercent}%)
+                                    </span>
+                                </div>
+                            </div>
+                            <p><strong>Remaining:</strong> ${usage.remainingCalls} calls</p>
+                            <p><strong>Daily Average:</strong> ${usage.dailyAverage} calls/day</p>
+                            <p><strong>Projected Monthly:</strong> ${usage.projectedMonthlyUsage} calls</p>
+                            ${usage.emergencyMode ? '<p style="color: #f56565; font-weight: bold;">🚨 EMERGENCY MODE ACTIVE</p>' : ''}
+                        </div>
+                        
+                        <div class="metric-card" style="background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin: 10px 0;">
+                            <h4 style="color: #2d3748; margin-bottom: 10px;">📈 Tier Usage Breakdown</h4>
+                            <div style="display: grid; gap: 8px;">
+                                <div style="display: flex; justify-content: space-between; padding: 5px; background: #fed7d7; border-radius: 4px;">
+                                    <span><strong>CRITICAL (3d cooldown):</strong></span>
+                                    <span>${usage.tierUsage.CRITICAL}/500</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; padding: 5px; background: #feebc8; border-radius: 4px;">
+                                    <span><strong>IMPORTANT (7d cooldown):</strong></span>
+                                    <span>${usage.tierUsage.IMPORTANT}/300</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; padding: 5px; background: #e6fffa; border-radius: 4px;">
+                                    <span><strong>STANDARD (14d cooldown):</strong></span>
+                                    <span>${usage.tierUsage.STANDARD}/200</span>
+                                </div>
+                                <div style="display: flex; justify-content: space-between; padding: 5px; background: #f0fff4; border-radius: 4px;">
+                                    <span><strong>ARCHIVE (30d cooldown):</strong></span>
+                                    <span>${usage.tierUsage.ARCHIVE}/50</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    if (recommendations.length > 0) {
+                        html += '<div class="metric-card" style="background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; margin: 10px 0;"><h4 style="color: #2d3748; margin-bottom: 10px;">💡 Recommendations</h4>';
+                        recommendations.forEach(rec => {
+                            const recColor = rec.type === 'critical' ? '#f56565' : rec.type === 'warning' ? '#ed8936' : '#4299e1';
+                            html += `<div style="border-left: 4px solid ${recColor}; padding: 10px; margin: 8px 0; background: white; border-radius: 4px;">
+                                <strong style="color: ${recColor};">${rec.message}</strong><br>
+                                <em style="color: #718096;">${rec.action}</em>
+                            </div>`;
+                        });
+                        html += '</div>';
+                    }
+                    
+                    resultsDiv.innerHTML = html;
+                } else {
+                    resultsDiv.innerHTML = showAlert(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function activateEmergencyMode() {
+            if (!confirm('🚨 This will BLOCK ALL Twitter API calls until manually deactivated. Continue?')) return;
+            
+            const resultsDiv = document.getElementById('twitterUsageResults');
+            resultsDiv.innerHTML = showAlert('🚨 Activating emergency mode...', 'warning');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/twitter/emergency-mode/activate`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    resultsDiv.innerHTML = showAlert(`🚨 ${data.message}`, 'warning');
+                    setTimeout(getTwitterUsage, 1000); // Refresh usage display
+                } else {
+                    resultsDiv.innerHTML = showAlert(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function deactivateEmergencyMode() {
+            const resultsDiv = document.getElementById('twitterUsageResults');
+            resultsDiv.innerHTML = showAlert('✅ Deactivating emergency mode...', 'info');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/twitter/emergency-mode/deactivate`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    resultsDiv.innerHTML = showAlert(`✅ ${data.message}`, 'success');
+                    setTimeout(getTwitterUsage, 1000); // Refresh usage display
+                } else {
+                    resultsDiv.innerHTML = showAlert(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
             }
         }
 

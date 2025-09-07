@@ -2476,9 +2476,9 @@ class EnhancedBackend {
         // Get social data service
         const socialService = this.tokenProcessor.socialDataService;
         
-        // Force refresh Twitter data
+        // Force refresh Twitter data with admin bypass
         const lookupSymbol = token.symbol || upperSym;
-        const twitterData = await socialService.forceImmediateRefresh(lookupSymbol, token.name);
+        const twitterData = await socialService.forceImmediateRefresh(lookupSymbol, token.name, true);
         
         // Update token with new Twitter data
         token.twitterData = twitterData;
@@ -2923,6 +2923,56 @@ class EnhancedBackend {
     this.app.post('/api/admin/twitter/refresh-all/stop', (req, res) => {
       if (this.twitterRefreshJob) this.twitterRefreshJob.running = false;
       res.json({ success: true, message: 'Twitter refresh stopped' });
+    });
+
+    // === NEW: Twitter API Usage Management ===
+    
+    // Get Twitter API usage statistics
+    this.app.get('/api/admin/twitter/usage', async (req, res) => {
+      try {
+        const socialService = this.tokenProcessor?.socialDataService;
+        if (!socialService?.twitterApiManager) {
+          return res.status(500).json({ error: 'Twitter API Manager not available' });
+        }
+        
+        const stats = socialService.twitterApiManager.getUsageStats();
+        
+        res.json({
+          success: true,
+          usage: stats,
+          recommendations: this.getTwitterUsageRecommendations(stats)
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Error getting Twitter usage:', error);
+        res.status(500).json({ error: 'Failed to get Twitter usage stats' });
+      }
+    });
+    
+    // Emergency mode controls
+    this.app.post('/api/admin/twitter/emergency-mode/:action', async (req, res) => {
+      try {
+        const { action } = req.params; // 'activate' or 'deactivate'
+        
+        const socialService = this.tokenProcessor?.socialDataService;
+        if (!socialService?.twitterApiManager) {
+          return res.status(500).json({ error: 'Twitter API Manager not available' });
+        }
+        
+        if (action === 'activate') {
+          await socialService.twitterApiManager.activateEmergencyMode();
+          res.json({ success: true, message: 'Emergency mode activated - all Twitter refreshes blocked' });
+        } else if (action === 'deactivate') {
+          await socialService.twitterApiManager.deactivateEmergencyMode();
+          res.json({ success: true, message: 'Emergency mode deactivated - Twitter refreshes resumed' });
+        } else {
+          res.status(400).json({ error: 'Invalid action. Use "activate" or "deactivate"' });
+        }
+        
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Error controlling emergency mode:', error);
+        res.status(500).json({ error: 'Failed to control emergency mode' });
+      }
     });
 
     // Admin: Recalculate all token scores (no API calls)
@@ -5351,6 +5401,70 @@ class EnhancedBackend {
     } catch (error) {
       console.error('[🛡️ Enhanced Backend] ❌ Shutdown error:', error);
     }
+  }
+
+  // Helper method for Twitter usage recommendations
+  getTwitterUsageRecommendations(stats) {
+    const recommendations = [];
+    
+    if (stats.emergencyMode) {
+      recommendations.push({
+        type: 'critical',
+        message: 'Emergency mode is active - all Twitter refreshes are blocked',
+        action: 'Deactivate emergency mode only if you have confirmed API limit reset'
+      });
+    } else if (stats.usagePercent >= 90) {
+      recommendations.push({
+        type: 'critical',
+        message: `Critically high usage: ${stats.usagePercent}% of monthly limit used`,
+        action: 'Consider activating emergency mode to preserve remaining calls'
+      });
+    } else if (stats.usagePercent >= 80) {
+      recommendations.push({
+        type: 'warning',
+        message: `High usage warning: ${stats.usagePercent}% of monthly limit used`,
+        action: 'Monitor usage closely and reduce refresh frequency'
+      });
+    }
+    
+    if (stats.projectedMonthlyUsage > stats.monthlyLimit) {
+      recommendations.push({
+        type: 'warning',
+        message: `Projected monthly usage (${stats.projectedMonthlyUsage}) exceeds limit`,
+        action: 'Reduce daily refresh rate or activate emergency mode'
+      });
+    }
+    
+    // Tier-specific recommendations
+    Object.entries(stats.tierUsage).forEach(([tier, usage]) => {
+      const tierLimits = {
+        CRITICAL: 500,
+        IMPORTANT: 300,
+        STANDARD: 200,
+        ARCHIVE: 50
+      };
+      
+      const limit = tierLimits[tier];
+      const percent = (usage / limit) * 100;
+      
+      if (percent >= 90) {
+        recommendations.push({
+          type: 'warning',
+          message: `${tier} tier at ${percent.toFixed(1)}% capacity (${usage}/${limit})`,
+          action: `Reduce ${tier.toLowerCase()} tier refreshes`
+        });
+      }
+    });
+    
+    if (recommendations.length === 0) {
+      recommendations.push({
+        type: 'info',
+        message: 'Twitter API usage is within normal limits',
+        action: 'Continue monitoring usage patterns'
+      });
+    }
+    
+    return recommendations;
   }
 }
 

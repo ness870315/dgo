@@ -211,7 +211,7 @@ class EnhancedSocialDataService {
   /**
    * Get comprehensive Twitter social data for a token
    */
-  async getTwitterSocialData(symbol, name, forceRefresh = false, officialHandle = null, socialLinks = null) {
+  async getTwitterSocialData(symbol, name, forceRefresh = false, officialHandle = null, socialLinks = null, adminBypass = false) {
     // Initialize if not already done
     if (!this.initialized) {
       await this.initialize();
@@ -228,40 +228,44 @@ class EnhancedSocialDataService {
       }
     }
     
-    // 🚨 NEW: Check Twitter API Manager for monthly limits and smart cooldowns
-    const tokenForCheck = { 
-      symbol, 
-      name, 
-      twitterData: this.twitterMetricsCache.get(cacheKey)?.data,
-      twitterLastRefresh: this.twitterMetricsCache.get(cacheKey)?.data?.lastRefreshed,
-      jupiterData: this._currentJupiterData || null // Get from temporary storage
-    };
-    
-    const canRefresh = await this.twitterApiManager.canRefreshToken(tokenForCheck);
-    if (!canRefresh.allowed) {
-      console.log(`🚨 Twitter API Manager blocked refresh for ${symbol}: ${canRefresh.reason}`);
-      const cached = this.twitterMetricsCache.get(cacheKey);
+    // 🚨 NEW: Check Twitter API Manager for monthly limits and smart cooldowns (unless admin bypass)
+    if (!adminBypass) {
+      const tokenForCheck = { 
+        symbol, 
+        name, 
+        twitterData: this.twitterMetricsCache.get(cacheKey)?.data,
+        twitterLastRefresh: this.twitterMetricsCache.get(cacheKey)?.data?.lastRefreshed,
+        jupiterData: this._currentJupiterData || null // Get from temporary storage
+      };
       
-      // 🚨 CRITICAL FIX: ALWAYS preserve existing Twitter data during cooldowns
-      if (cached && cached.data) {
-        console.log(`📦 Preserving existing Twitter data for ${symbol} during cooldown (${cached.data.mentions} mentions, score: ${cached.data.communityHealth || cached.data.communityScore || 'N/A'})`);
-        const preservedData = { ...cached.data };
-        preservedData._dataFreshness = 'preserved_during_cooldown';
-        preservedData._blockReason = canRefresh.reason;
-        preservedData._preservedAt = new Date().toISOString();
-        return preservedData;
+      const canRefresh = await this.twitterApiManager.canRefreshToken(tokenForCheck);
+      if (!canRefresh.allowed) {
+        console.log(`🚨 Twitter API Manager blocked refresh for ${symbol}: ${canRefresh.reason}`);
+        const cached = this.twitterMetricsCache.get(cacheKey);
+        
+        // 🚨 CRITICAL FIX: ALWAYS preserve existing Twitter data during cooldowns
+        if (cached && cached.data) {
+          console.log(`📦 Preserving existing Twitter data for ${symbol} during cooldown (${cached.data.mentions} mentions, score: ${cached.data.communityHealth || cached.data.communityScore || 'N/A'})`);
+          const preservedData = { ...cached.data };
+          preservedData._dataFreshness = 'preserved_during_cooldown';
+          preservedData._blockReason = canRefresh.reason;
+          preservedData._preservedAt = new Date().toISOString();
+          return preservedData;
+        }
+        
+        // Only use default data if NO cached data exists (new token)
+        const jupiterData = tokenForCheck.jupiterData || null;
+        console.log(`⚠️ No cached Twitter data found for ${symbol}, using Jupiter-enhanced default`);
+        const fallbackData = this.getDefaultTwitterData(symbol, name, 'api_manager_blocked', jupiterData);
+        fallbackData._dataFreshness = 'api_manager_blocked';
+        fallbackData._blockReason = canRefresh.reason;
+        return fallbackData;
       }
       
-      // Only use default data if NO cached data exists (new token)
-      const jupiterData = tokenForCheck.jupiterData || null;
-      console.log(`⚠️ No cached Twitter data found for ${symbol}, using Jupiter-enhanced default`);
-      const fallbackData = this.getDefaultTwitterData(symbol, name, 'api_manager_blocked', jupiterData);
-      fallbackData._dataFreshness = 'api_manager_blocked';
-      fallbackData._blockReason = canRefresh.reason;
-      return fallbackData;
+      console.log(`✅ Twitter API Manager approved refresh for ${symbol} (${canRefresh.tier} tier)`);
+    } else {
+      console.log(`🛡️ ADMIN BYPASS: Skipping TwitterApiManager cooldown checks for ${symbol}`);
     }
-    
-    console.log(`✅ Twitter API Manager approved refresh for ${symbol} (${canRefresh.tier} tier)`);
     
     // Legacy rate limit checks (keeping for backward compatibility)
     if (this.isCurrentlyRateLimited()) {
@@ -295,7 +299,10 @@ class EnhancedSocialDataService {
       
       // 🚨 NEW: Record API usage with the Twitter API Manager
       const apiCallsUsed = 1; // ✅ OPTIMIZED: Always 1 call per token now
-      await this.twitterApiManager.recordApiCall(tokenForCheck, apiCallsUsed);
+      const tokenForRecord = adminBypass ? 
+        { symbol, name, jupiterData: this._currentJupiterData, _adminBypass: true } : 
+        tokenForCheck;
+      await this.twitterApiManager.recordApiCall(tokenForRecord, apiCallsUsed);
       
       // Get historical data for 24-hour comparison
       const historicalData = await this.getHistoricalTwitterData(symbol, name);
@@ -1152,13 +1159,16 @@ class EnhancedSocialDataService {
 
   /**
    * Force immediate refresh for a specific token (for new tokens or paid tokens)
+   * @param {string} symbol - Token symbol
+   * @param {string} name - Token name  
+   * @param {boolean} adminBypass - If true, bypasses TwitterApiManager cooldowns (admin only)
    */
-  async forceImmediateRefresh(symbol, name) {
+  async forceImmediateRefresh(symbol, name, adminBypass = false) {
     try {
-      console.log(`🚀 Force refreshing ${symbol} (${name}) immediately...`);
+      console.log(`🚀 Force refreshing ${symbol} (${name}) immediately...${adminBypass ? ' [ADMIN BYPASS]' : ''}`);
       
       // Force refresh and update cache
-      const twitterData = await this.getTwitterSocialData(symbol, name, true);
+      const twitterData = await this.getTwitterSocialData(symbol, name, true, null, null, adminBypass);
       
       console.log(`✅ Immediate refresh completed for ${symbol}: ${twitterData.mentions} mentions`);
       return twitterData;
