@@ -256,14 +256,15 @@ class EnhancedSocialDataService {
     }
     
     // 🚨 NEW: Check Twitter API Manager for monthly limits and smart cooldowns (unless admin bypass)
+    const tokenForCheck = { 
+      symbol, 
+      name, 
+      twitterData: this.twitterMetricsCache.get(cacheKey)?.data,
+      twitterLastRefresh: this.twitterMetricsCache.get(cacheKey)?.data?.lastRefreshed,
+      jupiterData: this._currentJupiterData || null // Get from temporary storage
+    };
+    
     if (!adminBypass && this.twitterApiManager) {
-      const tokenForCheck = { 
-        symbol, 
-        name, 
-        twitterData: this.twitterMetricsCache.get(cacheKey)?.data,
-        twitterLastRefresh: this.twitterMetricsCache.get(cacheKey)?.data?.lastRefreshed,
-        jupiterData: this._currentJupiterData || null // Get from temporary storage
-      };
       
       const canRefresh = await this.twitterApiManager.canRefreshToken(tokenForCheck);
       if (!canRefresh.allowed) {
