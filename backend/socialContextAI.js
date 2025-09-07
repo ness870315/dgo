@@ -581,6 +581,9 @@ class SocialContextAI {
         timeframe: 'Short-term',
         entryStrategy: sentiment === 'Bullish' ? 'Consider entry on dips' : sentiment === 'Bearish' ? 'Avoid or wait for reversal' : 'Monitor for clear signals'
       },
+      
+      // Add sentiment field that frontend expects
+      sentiment,
       metadata: {
         tokenSymbol: tokenData.symbol,
         analysisTimestamp: new Date().toISOString(),
