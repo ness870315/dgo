@@ -1,5 +1,5 @@
 import OpenAIService from './openaiService.js';
-import { PROMPT_TEMPLATES, fillTemplate, validateAIResponse, extractConfidence, formatForDisplay } from './aiPromptTemplates.js';
+import { ENHANCED_PROMPT_TEMPLATES, fillEnhancedTemplate, validateEnhancedAIResponse, extractEnhancedConfidence, formatForDisplay } from './aiPromptTemplates_enhanced.js';
 
 /**
  * Social Context AI - DeGen Oracle's social sentiment analysis engine
@@ -62,8 +62,8 @@ class SocialContextAI {
         return this.analysisCache.get(cacheKey);
       }
 
-      // Fill template with token data
-      const prompt = fillTemplate(PROMPT_TEMPLATES.SOCIAL_CONTEXT_ANALYSIS, templateVars);
+      // Fill template with enhanced Jupiter data and varied crypto slang
+      const prompt = fillEnhancedTemplate(ENHANCED_PROMPT_TEMPLATES.SOCIAL_CONTEXT_ANALYSIS, templateVars);
       
       // Generate AI analysis
       const rawResponse = await this.openaiService.generateCompletion(prompt, {
@@ -74,8 +74,8 @@ class SocialContextAI {
         cacheExpiry
       });
 
-      // Validate and parse response
-      if (!validateAIResponse(rawResponse, 'SOCIAL_CONTEXT')) {
+      // Validate and parse enhanced response
+      if (!validateEnhancedAIResponse(rawResponse, 'SOCIAL_CONTEXT')) {
         throw new Error('Invalid AI response format');
       }
 
@@ -160,6 +160,13 @@ class SocialContextAI {
       marketCap: this.formatNumber(jupiterData.mcap || jupiterData.marketCap || tokenData.marketCap || 0),
       price: jupiterData.usdPrice || jupiterData.price || tokenData.price || 'N/A',
       priceChange24h: jupiterData.priceChange24h || tokenData.priceChange24h || 0,
+      
+      // 🔥 NEW: Jupiter API metrics for enhanced analysis
+      holderChange: jupiterData.holderChange || 0,
+      volumeChange: jupiterData.volumeChange || 0,
+      priceChange: jupiterData.priceChange || jupiterData.priceChange24h || 0,
+      organicScore: jupiterData.organicScore || 0,
+      organicScoreLabel: jupiterData.organicScoreLabel || 'Unknown',
       
       // Social metrics
       followers: this.formatNumber(twitterData.followers || 0),
