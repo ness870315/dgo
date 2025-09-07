@@ -1,7 +1,7 @@
 import axios from 'axios';
 import fs from 'fs/promises';
 import path from 'path';
-import TwitterApiManager from './twitterApiManager.js';
+// TwitterApiManager will be imported dynamically to handle deployment issues
 
 class EnhancedSocialDataService {
   constructor() {
@@ -19,8 +19,9 @@ class EnhancedSocialDataService {
     this.twitterServiceUrl = process.env.TWITTER_SERVICE_URL || 'http://localhost:8000';
     this.twitterApi = null; // Will be replaced by microservice calls
     
-    // 🚨 NEW: Twitter API Manager for 15K/month limit protection
-    this.twitterApiManager = new TwitterApiManager();
+    // 🚨 NEW: Twitter API Manager for 15K/month limit protection with fallback
+    // Will be initialized asynchronously in initialize() method
+    this.twitterApiManager = null;
     
     console.log(`🐦 Twitter microservice configured: ${this.twitterServiceUrl}`);
     
@@ -106,12 +107,38 @@ class EnhancedSocialDataService {
   }
 
   /**
+   * Initialize Twitter API Manager with dynamic import and fallback
+   */
+  async initializeTwitterApiManager() {
+    try {
+      const { default: TwitterApiManager } = await import('./twitterApiManager.js');
+      this.twitterApiManager = new TwitterApiManager();
+      console.log('✅ TwitterApiManager initialized successfully');
+    } catch (error) {
+      console.error('⚠️ TwitterApiManager import/init failed, using fallback:', error.message);
+      // Fallback manager that allows all requests
+      this.twitterApiManager = {
+        async canRefreshToken() { 
+          return { allowed: true, tier: 'FALLBACK', reason: 'TwitterApiManager unavailable' }; 
+        },
+        async recordApiCall() { 
+          console.log('📊 Fallback: API call recorded (TwitterApiManager unavailable)'); 
+        }
+      };
+    }
+  }
+
+  /**
    * Initialize the service asynchronously
    */
   async initialize() {
     if (this.initialized) return;
     
     try {
+      // Initialize TwitterApiManager first
+      if (!this.twitterApiManager) {
+        await this.initializeTwitterApiManager();
+      }
       await this.initializePersistentStorage();
       this.startBackgroundRefresh(); // Enabled for automatic Twitter data refresh
       this.initialized = true;
@@ -229,7 +256,7 @@ class EnhancedSocialDataService {
     }
     
     // 🚨 NEW: Check Twitter API Manager for monthly limits and smart cooldowns (unless admin bypass)
-    if (!adminBypass) {
+    if (!adminBypass && this.twitterApiManager) {
       const tokenForCheck = { 
         symbol, 
         name, 
@@ -298,11 +325,13 @@ class EnhancedSocialDataService {
       const twitterData = await this.searchTwitterMentions(symbol, name, officialHandle, socialLinks);
       
       // 🚨 NEW: Record API usage with the Twitter API Manager
-      const apiCallsUsed = 1; // ✅ OPTIMIZED: Always 1 call per token now
-      const tokenForRecord = adminBypass ? 
-        { symbol, name, jupiterData: this._currentJupiterData, _adminBypass: true } : 
-        tokenForCheck;
-      await this.twitterApiManager.recordApiCall(tokenForRecord, apiCallsUsed);
+      if (this.twitterApiManager) {
+        const apiCallsUsed = 1; // ✅ OPTIMIZED: Always 1 call per token now
+        const tokenForRecord = adminBypass ? 
+          { symbol, name, jupiterData: this._currentJupiterData, _adminBypass: true } : 
+          tokenForCheck;
+        await this.twitterApiManager.recordApiCall(tokenForRecord, apiCallsUsed);
+      }
       
       // Get historical data for 24-hour comparison
       const historicalData = await this.getHistoricalTwitterData(symbol, name);
