@@ -48,7 +48,7 @@ class EnhancedTokenProcessor {
     this.rateLimits = {
       coingecko: { batchSize: 40, delayMs: 120000, maxTokens: 500 }, // 40 tokens per batch, 2min delay to avoid rate limits
       dexscreener: { batchSize: 50, delayMs: 5000, maxTokens: 70 }, // Conservative: 50 per batch, 5s delay, 70 tokens max
-      birdeye: { maxTokens: 50 },
+      birdeye: { maxTokens: 20 }, // BirdEye API limit: 1-20
       jupiter: { batchSize: 100, delayMs: 30000, maxTokens: 600 }, // 30 second delay to avoid rate limits
       twitter: { batchSize: 10, delayMs: 15000, maxTokens: 1000 } // Reduced batch size, increased delay to avoid 429 errors
     };
