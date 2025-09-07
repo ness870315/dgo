@@ -1355,40 +1355,116 @@ class EnhancedTokenProcessor {
     return hoursSinceUpdate >= 24;
   }
 
-  // DEDUPLICATION METHOD: Remove duplicate tokens by CONTRACT ADDRESS ONLY
+  // ENHANCED DEDUPLICATION METHOD: Remove duplicates by CONTRACT ADDRESS with symbol fallback
   deduplicateTokens(tokens) {
     const inputTokens = Array.isArray(tokens) ? tokens : [];
     const totalInput = inputTokens.length;
-    console.log(`\n🔍 Deduplication start: input tokens = ${totalInput}`);
+    console.log(`\n🔍 Enhanced Deduplication start: input tokens = ${totalInput}`);
+    
     const seen = new Set();
     const firstByContract = new Map();
+    const firstBySymbol = new Map();
     const uniqueTokens = [];
     
+    // Source priority for conflict resolution (higher number = higher priority)
+    const sourcePriority = {
+      'jupiter': 4,      // Highest priority - most complete data
+      'dexscreener': 3,  // High priority - has contract addresses
+      'birdeye': 2,      // Medium priority
+      'coingecko': 1     // Lowest priority - often missing contracts
+    };
+    
     for (const token of inputTokens) {
-      // Only check for duplicates by contract address - symbols can be the same for different tokens
       const contractKey = token.contractAddress?.toLowerCase();
-      if ((token.symbol || '').toUpperCase() === 'STUPID') {
-        console.log(`🧪 [Dedup] Candidate STUPID token: CA=${token.contractAddress} | name=${token.name}`);
-      }
+      const symbolKey = token.symbol?.toUpperCase();
+      const hasValidContract = contractKey && contractKey !== 'null' && contractKey.length > 10;
       
-      // Check for duplicates using CONTRACT ADDRESS ONLY
-      const isDuplicate = contractKey && seen.has(`contract:${contractKey}`);
+      let isDuplicate = false;
+      let duplicateReason = '';
+      let shouldKeep = true;
       
-      if (!isDuplicate) {
-        // Add contract address to seen set
-        if (contractKey) seen.add(`contract:${contractKey}`);
-        if (contractKey && !firstByContract.has(contractKey)) {
+      if (hasValidContract) {
+        // Primary deduplication by contract address
+        if (seen.has(`contract:${contractKey}`)) {
+          const existingToken = firstByContract.get(contractKey);
+          const currentPriority = sourcePriority[token.source] || 0;
+          const existingPriority = sourcePriority[existingToken?.source] || 0;
+          
+          if (currentPriority > existingPriority) {
+            // Replace existing token with higher priority one
+            console.log(`🔄 Replacing lower priority token: ${existingToken?.symbol} (${existingToken?.source}) -> ${token.symbol} (${token.source})`);
+            const existingIndex = uniqueTokens.findIndex(t => 
+              t.contractAddress?.toLowerCase() === contractKey
+            );
+            if (existingIndex >= 0) {
+              uniqueTokens[existingIndex] = token;
+              firstByContract.set(contractKey, token);
+            }
+            shouldKeep = false;
+          } else {
+            isDuplicate = true;
+            duplicateReason = `contract address (kept higher priority: ${existingToken?.source})`;
+            shouldKeep = false;
+          }
+        } else {
+          // New contract address
+          seen.add(`contract:${contractKey}`);
           firstByContract.set(contractKey, token);
         }
-        
-        uniqueTokens.push(token);
+      } else if (symbolKey) {
+        // Fallback deduplication by symbol for tokens without valid contract addresses
+        if (seen.has(`symbol:${symbolKey}`)) {
+          const existingToken = firstBySymbol.get(symbolKey);
+          const existingHasContract = existingToken?.contractAddress && 
+                                   existingToken.contractAddress !== 'null' && 
+                                   existingToken.contractAddress.length > 10;
+          
+          if (existingHasContract) {
+            // Always prefer token with contract address
+            isDuplicate = true;
+            duplicateReason = `symbol (kept version with contract address)`;
+            shouldKeep = false;
+          } else {
+            // Both tokens lack contract addresses, use source priority
+            const currentPriority = sourcePriority[token.source] || 0;
+            const existingPriority = sourcePriority[existingToken?.source] || 0;
+            
+            if (currentPriority > existingPriority) {
+              console.log(`🔄 Replacing lower priority token without contract: ${existingToken?.symbol} (${existingToken?.source}) -> ${token.symbol} (${token.source})`);
+              const existingIndex = uniqueTokens.findIndex(t => 
+                t.symbol?.toUpperCase() === symbolKey && 
+                (!t.contractAddress || t.contractAddress === 'null' || t.contractAddress.length <= 10)
+              );
+              if (existingIndex >= 0) {
+                uniqueTokens[existingIndex] = token;
+                firstBySymbol.set(symbolKey, token);
+              }
+              shouldKeep = false;
+            } else {
+              isDuplicate = true;
+              duplicateReason = `symbol without contract (kept higher priority: ${existingToken?.source})`;
+              shouldKeep = false;
+            }
+          }
+        } else {
+          // New symbol without contract
+          seen.add(`symbol:${symbolKey}`);
+          firstBySymbol.set(symbolKey, token);
+        }
       } else {
-        const firstToken = contractKey ? firstByContract.get(contractKey) : undefined;
-        console.log(`🔄 Removed duplicate by contract address: ${token.symbol} (${token.contractAddress}) -> first kept: ${firstToken?.symbol} (${firstToken?.contractAddress})`);
+        // Token has neither valid contract nor symbol - skip it
+        console.log(`⚠️ Skipping token without valid contract or symbol: ${JSON.stringify({name: token.name, symbol: token.symbol, contract: token.contractAddress})}`);
+        shouldKeep = false;
+      }
+      
+      if (shouldKeep && !isDuplicate) {
+        uniqueTokens.push(token);
+      } else if (isDuplicate) {
+        console.log(`🔄 Removed duplicate by ${duplicateReason}: ${token.symbol} (${token.contractAddress || 'no contract'}) from ${token.source}`);
       }
     }
     
-    console.log(`✅ Deduplication complete: unique tokens = ${uniqueTokens.length}, removed = ${totalInput - uniqueTokens.length}`);
+    console.log(`✅ Enhanced Deduplication complete: unique tokens = ${uniqueTokens.length}, removed = ${totalInput - uniqueTokens.length}`);
     return uniqueTokens;
   }
 

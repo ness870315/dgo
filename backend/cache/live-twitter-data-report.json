@@ -1,0 +1,175 @@
+{
+  "source": "LIVE Production API (api.degen-oracle.com)",
+  "generatedAt": "2025-09-07T08:26:59.796Z",
+  "summary": {
+    "total": 10,
+    "withTwitterData": 10,
+    "withoutTwitterData": 0,
+    "withMentions": 10,
+    "withFollowers": 0,
+    "withOfficialHandle": 0,
+    "withCommunityScore": 10,
+    "freshData": 0,
+    "staleData": 10,
+    "preservedData": 0,
+    "errorFallback": 0,
+    "jupiterEnhanced": 0,
+    "apiManagerBlocked": 0,
+    "byFreshness": {
+      "unknown": 10
+    },
+    "mentionRanges": {
+      "0": 0,
+      "1-10": 0,
+      "11-50": 10,
+      "51-100": 0,
+      "100+": 0
+    },
+    "communityScoreRanges": {
+      "0-2": 0,
+      "2-4": 1,
+      "4-6": 2,
+      "6-8": 7,
+      "8-10": 0
+    },
+    "twitterTimestamps": {
+      "last24h": 10,
+      "last7d": 0,
+      "last30d": 0,
+      "older": 0,
+      "never": 0
+    }
+  },
+  "tokens": [
+    {
+      "symbol": "NOSEY",
+      "name": "Nosey",
+      "hasTwitterData": true,
+      "mentions": 26,
+      "followers": 0,
+      "communityScore": 4.46,
+      "officialHandle": "N/A",
+      "dataFreshness": "unknown",
+      "lastUpdated": "2025-09-07T07:56:37.936Z",
+      "blockReason": null,
+      "twitterTimestamp": "2025-09-07T07:56:37.936Z"
+    },
+    {
+      "symbol": "HELLYEAH",
+      "name": "HELL YEAH",
+      "hasTwitterData": true,
+      "mentions": 21,
+      "followers": 0,
+      "communityScore": 6.05,
+      "officialHandle": "N/A",
+      "dataFreshness": "unknown",
+      "lastUpdated": "2025-09-07T07:56:37.936Z",
+      "blockReason": null,
+      "twitterTimestamp": "2025-09-07T07:56:37.936Z"
+    },
+    {
+      "symbol": "AICOIN",
+      "name": "AICOIN",
+      "hasTwitterData": true,
+      "mentions": 21,
+      "followers": 0,
+      "communityScore": 6.05,
+      "officialHandle": "N/A",
+      "dataFreshness": "unknown",
+      "lastUpdated": "2025-09-07T07:56:37.936Z",
+      "blockReason": null,
+      "twitterTimestamp": "2025-09-07T07:56:37.936Z"
+    },
+    {
+      "symbol": "RTC",
+      "name": "Raise The Colours",
+      "hasTwitterData": true,
+      "mentions": 23,
+      "followers": 0,
+      "communityScore": 3.91,
+      "officialHandle": "N/A",
+      "dataFreshness": "unknown",
+      "lastUpdated": "2025-09-07T07:56:37.936Z",
+      "blockReason": null,
+      "twitterTimestamp": "2025-09-07T07:56:37.936Z"
+    },
+    {
+      "symbol": "OGME",
+      "name": "OG.meme",
+      "hasTwitterData": true,
+      "mentions": 20,
+      "followers": 0,
+      "communityScore": 6,
+      "officialHandle": "N/A",
+      "dataFreshness": "unknown",
+      "lastUpdated": "2025-09-07T07:56:37.936Z",
+      "blockReason": null,
+      "twitterTimestamp": "2025-09-07T07:56:37.936Z"
+    },
+    {
+      "symbol": "MEMEPUTER",
+      "name": "memeputer",
+      "hasTwitterData": true,
+      "mentions": 16,
+      "followers": 0,
+      "communityScore": 5.8,
+      "officialHandle": "N/A",
+      "dataFreshness": "unknown",
+      "lastUpdated": "2025-09-07T07:56:37.936Z",
+      "blockReason": null,
+      "twitterTimestamp": "2025-09-07T07:56:37.936Z"
+    },
+    {
+      "symbol": "CLIPPY",
+      "name": "Clippy PFP Cult",
+      "hasTwitterData": true,
+      "mentions": 44,
+      "followers": 0,
+      "communityScore": 7.2,
+      "officialHandle": "N/A",
+      "dataFreshness": "unknown",
+      "lastUpdated": "2025-09-07T07:56:37.936Z",
+      "blockReason": null,
+      "twitterTimestamp": "2025-09-07T07:56:37.936Z"
+    },
+    {
+      "symbol": "MONKEY",
+      "name": "Monkey The Picasso",
+      "hasTwitterData": true,
+      "mentions": 31,
+      "followers": 0,
+      "communityScore": 6.55,
+      "officialHandle": "N/A",
+      "dataFreshness": "unknown",
+      "lastUpdated": "2025-09-07T07:56:37.936Z",
+      "blockReason": null,
+      "twitterTimestamp": "2025-09-07T07:56:37.936Z"
+    },
+    {
+      "symbol": "USDUT",
+      "name": "unstable tether",
+      "hasTwitterData": true,
+      "mentions": 42,
+      "followers": 0,
+      "communityScore": 7.1,
+      "officialHandle": "N/A",
+      "dataFreshness": "unknown",
+      "lastUpdated": "2025-09-07T07:56:37.936Z",
+      "blockReason": null,
+      "twitterTimestamp": "2025-09-07T07:56:37.936Z"
+    },
+    {
+      "symbol": "EAGLE",
+      "name": "The Eagle",
+      "hasTwitterData": true,
+      "mentions": 43,
+      "followers": 0,
+      "communityScore": 7.15,
+      "officialHandle": "N/A",
+      "dataFreshness": "unknown",
+      "lastUpdated": "2025-09-07T07:56:37.936Z",
+      "blockReason": null,
+      "twitterTimestamp": "2025-09-07T07:56:37.936Z"
+    }
+  ]
+}

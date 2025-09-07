@@ -205,3 +205,5 @@ export function formatForDisplay(analysis) {
     _slangVariation: getRandomTone()
   };
 }
+
+
