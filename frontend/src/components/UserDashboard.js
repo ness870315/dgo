@@ -825,7 +825,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-white">{selectedHypeToken.symbol} • Hype over Time</h2>
                 <div className="flex items-center gap-2">
-                  {dashboardData.isPremium && (
+                  {dashboardData.isPremium ? (
                     <button
                       onClick={async () => {
                         setHypeAILoading(true);
@@ -853,6 +853,15 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                     >
                       <Brain size={16} />
                       {hypeAILoading ? 'Analyzing...' : 'Oracle AI'}
+                    </button>
+                  ) : (
+                    <button
+                      disabled
+                      className="flex items-center gap-1 px-3 py-1 bg-gray-800/50 border border-gray-600 text-gray-500 rounded text-sm cursor-not-allowed opacity-60"
+                      title="Oracle AI only available on Premium"
+                    >
+                      <Brain size={16} />
+                      Oracle AI
                     </button>
                   )}
                   <button onClick={() => setSelectedHypeToken(null)} className="text-gray-400 hover:text-white">✕</button>
