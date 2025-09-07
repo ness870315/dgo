@@ -25,10 +25,12 @@ class SocialContextAI {
     try {
       await this.openaiService.initialize();
       this.isInitialized = true;
-      console.log('🧠 Social Context AI initialized successfully');
+      console.log('🧠 Social Context AI initialized successfully with OpenAI');
     } catch (error) {
-      console.error('❌ Failed to initialize Social Context AI:', error.message);
-      throw error;
+      console.warn('⚠️ OpenAI service not available:', error.message);
+      console.log('🧠 Social Context AI will use enhanced fallback analysis only');
+      this.isInitialized = true; // Still mark as initialized to allow fallback analysis
+      this.openaiService = null; // Clear the service to prevent further attempts
     }
   }
 
@@ -60,6 +62,12 @@ class SocialContextAI {
       if (useCache && this.analysisCache.has(cacheKey)) {
         console.log(`💾 Using cached social analysis for ${tokenData.symbol}`);
         return this.analysisCache.get(cacheKey);
+      }
+
+      // Check if OpenAI service is available
+      if (!this.openaiService) {
+        console.log(`🧠 OpenAI not available for ${tokenData.symbol}, using enhanced fallback analysis`);
+        throw new Error('OpenAI service not available - using enhanced fallback');
       }
 
       // Fill template with enhanced Jupiter data and varied crypto slang
