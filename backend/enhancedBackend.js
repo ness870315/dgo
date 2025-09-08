@@ -4757,15 +4757,15 @@ class EnhancedBackend {
     if (jupiterData && jupiterData.organicScore !== undefined) {
       const organicScore = jupiterData.organicScore;
       
-      // Severe penalties for low organic scores
+      // Balanced penalties for low organic scores
       if (organicScore === 0) {
-        score -= 2.0; // Major penalty for zero organic score (likely bots)
+        score -= 0.5; // Penalty for zero organic score
       } else if (organicScore < 20) {
-        score -= 1.5; // High penalty for very low organic score
+        score -= 0.4; // Penalty for very low organic score
       } else if (organicScore < 40) {
-        score -= 1.0; // Medium penalty for low organic score
+        score -= 0.3; // Penalty for low organic score
       } else if (organicScore < 60) {
-        score -= 0.5; // Small penalty for below-average organic score
+        score -= 0.2; // Small penalty for below-average organic score
       }
       // No penalty for organic scores >= 60
     }
