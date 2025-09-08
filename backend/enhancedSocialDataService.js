@@ -13,7 +13,7 @@ class EnhancedSocialDataService {
     this.historicalMetricsFile = './cache/twitter_history.json';
     this.twitterMetricsCache = new Map();
     this.lastRefreshTime = 0;
-    this.refreshInterval = 48 * 60 * 60 * 1000; // 48 hours
+    this.refreshInterval = 72 * 60 * 60 * 1000; // 72 hours
     
     // Twitter microservice configuration
     this.twitterServiceUrl = process.env.TWITTER_SERVICE_URL || 'http://localhost:8000';
@@ -58,7 +58,7 @@ class EnhancedSocialDataService {
     console.log('🔑 Twitter API initialized with authentication - RATE LIMITING ENABLED!');
     console.log('🚨 SAFETY MODE: Max 2 searches per token, 5-second delays, hourly/daily limits');
     console.log('🏷️ OPTIMIZED SEARCH: Using primary hashtags (#TOKEN) and cashtags ($TOKEN) only');
-    console.log('⏰ BACKGROUND REFRESH: 24-hour Twitter metrics refresh system');
+    console.log('⏰ BACKGROUND REFRESH: 72-hour Twitter metrics refresh system');
     console.log('💾 PERSISTENT STORAGE: Twitter metrics saved across restarts');
     
     // Don't call async functions in constructor - they'll be called when needed
@@ -461,7 +461,7 @@ class EnhancedSocialDataService {
         {
           type: 'hashtag_symbol_optimized',
           endpoint: '/api/twitter/search',
-          params: { q: `#${symbolLower}`, count: 50 } // Increased count to get more data in single call
+          params: { q: `#${symbolLower}`, count: 5 } // Reduce count to 5 to minimize post pulls
         }
       ];
       
@@ -549,11 +549,25 @@ class EnhancedSocialDataService {
         }
       }
       
+      // Compute 72h rolling average from historical cache if available
+      let mentions72hAvg = null;
+      try {
+        const historyData = await fs.readFile(this.historicalMetricsFile, 'utf8');
+        const history = JSON.parse(historyData);
+        const tokenKey = `${symbol}_${name}`;
+        const tokenHistory = history[tokenKey] || {};
+        const dates = Object.keys(tokenHistory).sort().slice(-3); // last ~72h (3 daily snapshots)
+        if (dates.length > 0) {
+          const sum = dates.reduce((acc, d) => acc + (Number(tokenHistory[d]?.mentions) || 0), 0);
+          mentions72hAvg = Math.round(sum / dates.length);
+        }
+      } catch (_) {}
+
       // Summary
       console.log(`📊 Twitter Search Summary for ${symbol}:`);
       console.log(`   🎯 Official Handle: ${officialHandle || 'not found'}`);
       console.log(`   👥 Followers: ${followers}`);
-      console.log(`   📊 Community Mentions: ${totalMentions}`);
+      console.log(`   📊 Community Mentions: ${totalMentions}${mentions72hAvg != null ? ` (72h avg: ${mentions72hAvg})` : ''}`);
       console.log(`   💖 Total Engagement: ${totalLikes + totalRetweets + totalReplies}`);
       
       return {
@@ -567,7 +581,7 @@ class EnhancedSocialDataService {
         hasOfficialAccount: !!officialHandle,
         
         // Community Activity Metrics
-        mentions: totalMentions,
+        mentions: mentions72hAvg != null ? mentions72hAvg : totalMentions,
         mentions24h: totalMentions,
         likes: totalLikes,
         retweets: totalRetweets,
