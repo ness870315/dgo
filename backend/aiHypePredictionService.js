@@ -21,6 +21,8 @@ class AIHypePredictionService {
   async initializeCache() {
     try {
       await fs.mkdir(this.cacheDir, { recursive: true });
+      console.log(`🧠 AI Hype Prediction cache directory: ${this.cacheDir}`);
+      console.log(`🧠 AI Hype Prediction cache file: ${this.predictionCacheFile}`);
       
       // Load existing cache
       try {
@@ -29,15 +31,23 @@ class AIHypePredictionService {
         
         // Convert to Map and filter expired entries
         const now = Date.now();
+        let loaded = 0;
+        let expired = 0;
+        
         for (const [key, value] of Object.entries(parsed)) {
           if (value.timestamp && (now - value.timestamp) < this.cacheTimeout) {
             this.predictionCache.set(key, value);
+            loaded++;
+          } else {
+            expired++;
           }
         }
         
-        console.log(`🧠 Loaded ${this.predictionCache.size} cached AI hype predictions`);
+        console.log(`🧠 Loaded ${loaded} cached AI hype predictions (${expired} expired entries filtered)`);
       } catch (err) {
         console.log('🧠 No existing AI hype prediction cache found, starting fresh');
+        console.log(`🧠 Cache file path: ${this.predictionCacheFile}`);
+        console.log(`🧠 Error details: ${err.message}`);
       }
     } catch (error) {
       console.error('❌ Error initializing AI hype prediction cache:', error);
@@ -48,8 +58,11 @@ class AIHypePredictionService {
     try {
       const cacheObj = Object.fromEntries(this.predictionCache);
       await fs.writeFile(this.predictionCacheFile, JSON.stringify(cacheObj, null, 2));
+      console.log(`🧠 Saved ${this.predictionCache.size} AI hype predictions to cache file`);
     } catch (error) {
       console.error('❌ Error saving AI hype prediction cache:', error);
+      console.error(`❌ Cache file path: ${this.predictionCacheFile}`);
+      console.error(`❌ Cache directory exists: ${await fs.access(this.cacheDir).then(() => true).catch(() => false)}`);
     }
   }
 
@@ -106,10 +119,12 @@ class AIHypePredictionService {
         dataHash
       });
       
-      // Save cache to file (async, don't wait)
-      this.saveCacheToFile().catch(err => 
-        console.error('❌ Error saving AI prediction cache:', err)
-      );
+      // Save cache to file immediately to ensure persistence
+      try {
+        await this.saveCacheToFile();
+      } catch (err) {
+        console.error('❌ Error saving AI prediction cache:', err);
+      }
       
       console.log(`🧠 Generated fresh AI prediction for ${contractAddress}`);
       return {
