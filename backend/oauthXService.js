@@ -5,10 +5,10 @@ import HybridDatabaseService from './hybridDatabaseService.js';
 class OAuthXService {
   constructor() {
     // X OAuth Credentials
-    this.clientId = 'bWpzSFQ4M3k4VE1OeWRpVE8yTjY6MTpjaQ';
-    this.clientSecret = 'ucnr-DcJkNx9RSYexiqW3Jv4wF4Ll6XLBJesRB7i0SN8VHXman';
+    this.clientId = process.env.X_CLIENT_ID || process.env.TWITTER_CLIENT_ID || '';
+    this.clientSecret = process.env.X_CLIENT_SECRET || process.env.TWITTER_CLIENT_SECRET || '';
     this.redirectUri = process.env.X_REDIRECT_URI || `${process.env.API_URL || 'https://api.degen-oracle.com'}/auth/callback`;
-    this.scope = 'tweet.read users.read follows.read';
+    this.scope = process.env.X_SCOPE || 'tweet.read users.read follows.read';
     
     // Initialize hybrid database service
     this.db = new HybridDatabaseService();
@@ -17,6 +17,9 @@ class OAuthXService {
     console.log(`   Client ID: ${this.clientId ? '✅ Set' : '❌ Missing'}`);
     console.log(`   Client Secret: ${this.clientSecret ? '✅ Set' : '❌ Missing'}`);
     console.log(`   Redirect URI: ${this.redirectUri}`);
+    if (!this.clientId || !this.clientSecret) {
+      console.warn('⚠️ OAuth X credentials are not set via env. Set X_CLIENT_ID and X_CLIENT_SECRET.');
+    }
   }
 
   /**
