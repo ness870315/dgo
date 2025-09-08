@@ -554,7 +554,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                    onMouseEnter={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'block'; }}
                    onMouseLeave={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'none'; }}>
                 <button
-                  onClick={isAuthenticated ? async () => {
+                  onClick={isAuthenticated ? (async () => {
                   try {
                     const payload = {
                       symbol: token.symbol,
@@ -585,7 +585,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                     console.error('Call it failed:', e);
                     alert('❌ Failed to record call');
                   }
-                }} : undefined}
+                }) : undefined}
                   disabled={!isAuthenticated}
                   className={`px-2 py-1 ml-1 rounded-lg bg-transparent border border-solana-purple/60 text-xs ${
                     !isAuthenticated ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none' : 'text-gray-200 hover:bg-gray-700'
