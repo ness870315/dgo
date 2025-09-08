@@ -188,11 +188,11 @@ class SocialContextAI {
       price: jupiterData.usdPrice || jupiterData.price || tokenData.price || 'N/A',
       priceChange24h: jupiterData.priceChange24h || tokenData.priceChange24h || 0,
       
-      // 🔥 NEW: Jupiter API metrics for enhanced analysis
-      holderChange: jupiterData.holderChange || 0,
-      volumeChange: jupiterData.volumeChange || 0,
-      priceChange: jupiterData.priceChange || jupiterData.priceChange24h || 0,
-      organicScore: jupiterData.organicScore || 0,
+      // 🔥 NEW: Jupiter API metrics for enhanced analysis (formatted for display)
+      holderChange: this.formatPercentage(jupiterData.stats24h?.holderChange || jupiterData.holderChange || 0),
+      volumeChange: this.formatPercentage(jupiterData.stats24h?.volumeChange || jupiterData.volumeChange || 0),
+      priceChange: this.formatPercentage(jupiterData.stats24h?.priceChange || jupiterData.priceChange || jupiterData.priceChange24h || 0),
+      organicScore: Math.round(jupiterData.organicScore || 0), // No decimals for organic score
       organicScoreLabel: jupiterData.organicScoreLabel || 'Unknown',
       
       // Social metrics
@@ -601,11 +601,11 @@ class SocialContextAI {
         influencerSupport: mentions > 50 ? 'Active' : 'Limited',
         botActivity: engagementRate < 1 ? 'Suspected High' : engagementRate < 2 ? 'Moderate' : 'Low'
       },
-      recommendation: {
+      summary: {
         action: recommendation,
         reasoning: 'Based on comprehensive rule-based analysis using Jupiter and social metrics',
         timeframe: 'Short-term',
-        entryStrategy: sentiment === 'Bullish' ? 'Consider entry on dips' : sentiment === 'Bearish' ? 'Avoid or wait for reversal' : 'Monitor for clear signals'
+        entryStrategy: sentiment === 'Bullish' ? 'DCA on dips and accumulate' : sentiment === 'Bearish' ? 'Avoid until fundamentals improve' : 'Wait for confirmation signals'
       },
       
       // Add sentiment field that frontend expects
@@ -716,6 +716,14 @@ class SocialContextAI {
     if (num >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
     if (num >= 1e3) return `$${(num / 1e3).toFixed(1)}K`;
     return `$${num.toFixed(2)}`;
+  }
+
+  /**
+   * Format percentage values for display (handles null/undefined)
+   */
+  formatPercentage(num) {
+    if (num === null || num === undefined || isNaN(num)) return '0';
+    return num.toFixed(2);
   }
 
   /**

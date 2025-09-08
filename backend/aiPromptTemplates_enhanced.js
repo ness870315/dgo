@@ -48,12 +48,12 @@ Price: {{price}}
 Volume 24h: {{volume24h}}
 Liquidity: {{liquidity}}
 
-🔥 JUPITER METRICS (Use these for deep insights):
+🔥 ANALYTICS ENGINE METRICS (Use these for deep insights):
 - Holder Count: {{holderCount}} holders (current holder base size)
 - Holder Change: {{holderChange}}% (24h community growth/decline - CRITICAL for analysis)
 - Volume Change: {{volumeChange}}% (momentum and interest indicator)  
 - Price Change: {{priceChange}}% (recent performance context)
-- Organic Score: {{organicScore}}/100 ({{organicScoreLabel}}) (authenticity measure)
+- Organic Score: {{organicScore}}/100 ({{organicScoreLabel}}) (authenticity measure from our AI tools)
 - Liquidity: {{liquidity}} (market depth and slippage risk)
 
 📊 SOCIAL METRICS:
@@ -81,23 +81,24 @@ ANALYSIS INSTRUCTIONS:
 🚀 Hype Detection: Identify if tweets show genuine excitement or forced shilling
 ⚡ Make each analysis unique - avoid cookie-cutter responses
 🚨 Focus on actionable insights for degens and diamond hands
+📊 Sentiment Logic: Use actual sentiment percentages - if negative is low/0%, don't claim "high negative"
 
 CRITICAL GUIDELINES - CRYPTO SLANG MANDATORY:
 - NEVER use formal language - always use degen slang (bullish/bearish, diamond hands/paper hands, moon/dump, etc.)
 - Community Analysis: Determine if holders are "diamond handed degens" or "paper handed normies" 
-- Sentiment Analysis: Use tweet sentiment to assess if community is "absolutely sending it" or "getting rekt"
+- Sentiment Analysis: Use actual tweet sentiment data - high positive = "absolutely sending it", high negative = "getting rekt", high neutral = "sideways vibes"
 - Activity Assessment: Gauge if community is "based and active" or "dead and sus"
 - Hype Detection: Identify "organic moon missions" vs "forced pump attempts"
 - Risk Communication: Frame risks as "red flags for degens" not "investment concerns"
 - Opportunities: Present as "alpha plays" and "degen opportunities" not "investment opportunities"
-- Recommendation Section: Use trading actions "Buy", "Hold", "Avoid" - this is the main trading recommendation
-- Recommended Actions Section: Use app features "Add to Watchlist", "Hype over Time", "Call it" - these are tools for analysis
+- Summary Section: Use trading actions "Buy", "Hold", "Avoid" - clean trading summary without app tool references
+- Recommended Actions Section: Use app features "Add to Watchlist", "Hype over Time", "Call it" - this is where app tool strategies go
 - CRITICAL: Keep sections consistent - don't contradict "Buy" with "Remove from Watchlist"
-- If recommendation.action is "Buy" → recommendedActions should include "Add to Watchlist"
-- If recommendation.action is "Avoid" → recommendedActions should include "Remove from Watchlist" 
-- If recommendation.action is "Hold" → recommendedActions should focus on "Hype over Time" analysis
-- ENTRY STRATEGY: Use the provided variations naturally - reference app tools in the strategy with degen slang
-- Vary the language each time - don't use the same entry strategy twice
+- If summary.action is "Buy" → recommendedActions should include "Add to Watchlist"
+- If summary.action is "Avoid" → recommendedActions should include "Remove from Watchlist" 
+- If summary.action is "Hold" → recommendedActions should focus on "Hype over Time" analysis
+- ENTRY STRATEGY: Keep generic and clean - NO app tool references (save those for recommendedActions)
+- Example entryStrategy: "DCA on dips", "Wait for confirmation", "Avoid until fundamentals improve"
 - Always reference actual tweet sentiment percentages and engagement levels
 - Use hashtag trends to identify community themes and narratives
 
@@ -105,10 +106,10 @@ Respond in this JSON format:
 {
   "socialSummary": "Community is absolutely sending it with {{tweetSentiments}} - these degens are diamond handed AF based on the engagement",
   "thesis": "This token is either about to moon or get absolutely rekt - {{holderChange}}% holder momentum shows if degens are accumulating or dumping bags",
-  "riskFactors": "Specific risk factors using Jupiter metrics - holder change {{holderChange}}%, volume change {{volumeChange}}%, price action {{priceChange}}%",
-  "catalysts": "Potential positive catalysts from Jupiter organic activity ({{organicScore}}/100) and growth metrics with fresh crypto terminology",
-  "redFlags": "Warning signs from Jupiter data and social indicators using varied expressions",
-  "actionableInsights": "Specific recommendations using diverse crypto slang and Jupiter-backed reasoning",
+  "riskFactors": "Specific risk factors using our analytics engine - holder change {{holderChange}}%, volume change {{volumeChange}}%, price action {{priceChange}}%",
+  "catalysts": "Potential positive catalysts from our AI analytics ({{organicScore}}/100 organic activity) and growth metrics with fresh crypto terminology",
+  "redFlags": "Warning signs from our analytics engine and social indicators using varied expressions",
+  "actionableInsights": "Specific recommendations using diverse crypto slang and our AI-backed reasoning",
   "confidence": 0.85,
   "sentiment": "Bullish",
   "keyInsights": ["{{holderCount}} degens holding strong with {{holderChange}}% diamond hands momentum", "Community sentiment {{tweetSentiments}} shows if these apes are bullish or getting rekt", "Organic score {{organicScore}}/100 - high score means authentic hype, low score means bot farm sus AF"],
@@ -119,38 +120,57 @@ Respond in this JSON format:
   },
   "riskAssessment": {
     "level": "Medium",
-    "factors": ["{{holderChange}}% holder momentum - negative means degens are dumping bags", "Tweet sentiment {{tweetSentiments}} - high negative means community getting rekt"],
-    "mitigants": ["Organic score {{organicScore}}/100 - high score means authentic diamond hands not bots", "{{holderCount}} based degens still holding - community foundation solid"]
+    "factors": ["{{holderChange}}% holder momentum - negative means degens are dumping bags", "Tweet sentiment analysis: {{tweetSentiments}} - monitor for bearish shifts"],
+    "mitigants": ["Organic score {{organicScore}}/100 from our AI engine - high score means authentic diamond hands not bots", "{{holderCount}} based degens still holding - community foundation solid"]
   },
-  "recommendation": {
+  "summary": {
     "action": "Buy",
     "reasoning": "Community sentiment {{tweetSentiments}} and {{holderChange}}% diamond hands momentum shows degens are accumulating",
     "timeframe": "Short-term",
-    "entryStrategy": "Add to Watchlist and monitor closely with Hype over Time - if forecasts show moon mission incoming, Call it before the pump!"
+    "entryStrategy": "DCA on dips and accumulate during weakness"
   },
   "recommendedActions": ["Add to Watchlist", "Hype over Time", "Call it"]
 }
 
-ENTRY STRATEGY VARIATIONS (use these dynamically based on analysis):
+ENTRY STRATEGY VARIATIONS (clean trading strategies - NO app tool references):
 
 FOR "BUY" RECOMMENDATIONS (adapt based on data):
-- High sentiment: "This is sending it! Add to Watchlist immediately, check Hype over Time for optimal entry, and Call it before the degens catch on"
-- Growing holders: "Diamond hands opportunity - Add to Watchlist, DCA using Hype over Time signals, Call it when forecasts show moon mission"
-- High organic score: "Based play incoming - Add to Watchlist now, monitor with Hype over Time, Call it when the stars align"
-- Strong engagement: "Community is absolutely based - Add to Watchlist and ape in on any dip, use Hype over Time to time your entry perfectly"
-- Volume spike: "Momentum building - Add to Watchlist, wait for Hype over Time confirmation, then Call it when the rocket ignites"
+- High sentiment: "Ape in on any dip - this community is absolutely sending it"
+- Growing holders: "DCA strategy recommended - diamond hands are accumulating"
+- High organic score: "Strong entry opportunity - fundamentals are based AF"
+- Strong engagement: "Buy the dip and hold - community momentum is building"
+- Volume spike: "Enter on pullbacks - momentum is accelerating"
 
 FOR "HOLD" RECOMMENDATIONS:
-- "Keep your bags but Add to Watchlist for monitoring - use Hype over Time to decide if you should add more or prepare exit"
-- "Diamond hands mode activated - Add to Watchlist, watch Hype over Time closely for next move signals"
-- "Patience, degen - Add to Watchlist and let Hype over Time guide your next play, don't get shaken out"
+- "Keep your bags - let the play develop naturally"
+- "Diamond hands mode - patience will be rewarded"
+- "Hold tight - fundamentals remain solid despite noise"
+- "Stay strong - community is still based"
+- "Maintain position - wait for next catalyst"
 
 FOR "AVOID" RECOMMENDATIONS (adapt based on red flags):
-- Negative sentiment: "Community getting rekt - Remove from Watchlist, use Hype over Time to confirm the dump is real"
-- Holder exodus: "Degens are dumping bags - Remove from Watchlist unless Hype over Time shows reversal incoming"
-- Low engagement: "Dead community vibes - Remove from Watchlist and wait for better setups, check Hype over Time for confirmation"
-- Suspicious activity: "Sus AF - Remove from Watchlist immediately, use Hype over Time to find better alpha plays"
-- Multiple red flags: "This ain't it chief - Remove from Watchlist, let Hype over Time guide you to actual gems"
+- Negative sentiment: "Stay away - community is getting rekt"
+- Holder exodus: "Avoid until reversal confirmed - degens are dumping"
+- Low engagement: "Skip this play - dead community vibes"
+- Suspicious activity: "Hard pass - too many red flags"
+- Multiple red flags: "Absolutely not - find better opportunities"
+
+RECOMMENDED ACTIONS VARIATIONS (app tool strategies with heavy crypto slang):
+
+FOR "BUY" ACTIONS:
+- "Add to Watchlist immediately, check Hype over Time for optimal entry, and Call it before the degens catch on!"
+- "Add to Watchlist now, monitor with Hype over Time, Call it when the stars align for maximum gains!"
+- "Get this on your Watchlist ASAP, use Hype over Time to time your entry perfectly, then Call it!"
+
+FOR "HOLD" ACTIONS:
+- "Keep on Watchlist for monitoring, use Hype over Time to decide next move"
+- "Stay on Watchlist, watch Hype over Time closely for signals"
+- "Maintain Watchlist position, let Hype over Time guide your strategy"
+
+FOR "AVOID" ACTIONS:
+- "Remove from Watchlist, use Hype over Time to confirm the dump is real"
+- "Take off Watchlist unless Hype over Time shows reversal incoming"
+- "Remove from Watchlist immediately, use Hype over Time to find better alpha plays"
 
 EXAMPLES FOR CONSISTENCY:
 - If "action": "Buy" → "recommendedActions": ["Add to Watchlist", "Call it"]
@@ -228,7 +248,7 @@ export function validateEnhancedAIResponse(response, type = 'SOCIAL_CONTEXT') {
     const parsed = JSON.parse(response);
     
     if (type === 'SOCIAL_CONTEXT') {
-      const required = ['socialSummary', 'thesis', 'riskFactors', 'catalysts', 'redFlags', 'actionableInsights', 'confidence', 'sentiment', 'keyInsights', 'socialMomentum', 'riskAssessment', 'recommendation', 'recommendedActions'];
+      const required = ['socialSummary', 'thesis', 'riskFactors', 'catalysts', 'redFlags', 'actionableInsights', 'confidence', 'sentiment', 'keyInsights', 'socialMomentum', 'riskAssessment', 'summary', 'recommendedActions'];
       return required.every(field => parsed.hasOwnProperty(field));
     }
     
