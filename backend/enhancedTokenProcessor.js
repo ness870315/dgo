@@ -670,17 +670,16 @@ class EnhancedTokenProcessor {
         
         try {
           // Ensure token has Twitter data for scoring - preserve existing or use fallback
-          if (!token.twitterData || !token.communityHealthScore) {
+          if (!token.twitterData) {
             // Try to find existing cached Twitter data
             const existingToken = this.processedTokens.find(t => 
               t.contractAddress && token.contractAddress && 
               t.contractAddress.toLowerCase() === token.contractAddress.toLowerCase()
             );
             
-            if (existingToken?.twitterData && existingToken?.communityHealthScore) {
-              console.log(`📦 Preserving existing Twitter data for ${token.symbol} during scoring`);
+            if (existingToken?.twitterData) {
+              console.log(`📦 Using cached Twitter data for ${token.symbol} during scoring`);
               token.twitterData = existingToken.twitterData;
-              token.communityHealthScore = existingToken.communityHealthScore;
               token.twitterTimestamp = existingToken.twitterTimestamp;
             } else {
               // Use cohort baseline to prevent score collapse
@@ -698,9 +697,18 @@ class EnhancedTokenProcessor {
                 engagement: { total: baselineMentions * 3 },
                 _dataFreshness: 'cohort_baseline'
               };
-              token.communityHealthScore = 3.5; // Reasonable baseline
-              console.log(`🎯 Applied cohort baseline for ${token.symbol}: ${baselineMentions} mentions, 3.5 community score`);
+              console.log(`🎯 Applied cohort baseline for ${token.symbol}: ${baselineMentions} mentions`);
             }
+          }
+          
+          // CRITICAL: Always recalculate community health score from Twitter data (cached or fresh)
+          if (token.twitterData) {
+            await this.ensureSocialDataService();
+            token.communityHealthScore = this.socialDataService.calculateCommunityHealthScore(token.twitterData);
+            console.log(`🏆 Community Health Score calculated for ${token.symbol}: ${token.communityHealthScore.toFixed(2)}/10`);
+          } else {
+            token.communityHealthScore = 2.0; // Fallback base score
+            console.log(`⚠️ No Twitter data for ${token.symbol}, using base community score: 2.0`);
           }
           
           const enhancedScore = this.calculateEnhancedOverallScore(token);
