@@ -553,9 +553,31 @@ class SocialContextAI {
     const riskKeys = new Set(risksList.map(r => r.t.split(' ')[0].toLowerCase()));
     // Also exclude items overlapping with catalysts by basic keywords
     const catalystKeys = new Set(['momentum','volume','mentions','community']);
-    const keyInsights = insightsRaw
+    let keyInsights = insightsRaw
       .filter(i => !Array.from(riskKeys).some(k => i.toLowerCase().includes(k)))
       .filter(i => !Array.from(catalystKeys).some(k => i.toLowerCase().includes(k)));
+
+    // Ensure at least 3 silver-bullet insights
+    if (keyInsights.length < 3) {
+      const extraCandidates = [
+        `Turnover: ${marketCap > 0 ? ( (volume24h/marketCap)*100 ).toFixed(1) : '0.0'}% — flow vs mcap`,
+        `Engagement quality: ${(engagementRate).toFixed(1)}x — real chatter vs noise`,
+        liquidity > 0 ? `Liquidity band: $${(liquidity/1e6).toFixed(2)}M — slip check` : null,
+        holderCount > 0 ? `Holder trend: ${(typeof holderCountDelta==='number' ? holderCountDelta.toFixed(1) : '0.0')}%/24h — accumulation vs bleed` : null,
+        (topHashtags && topHashtags.length) ? `Theme heat: #${topHashtags[0]} — narrative hook` : null,
+        `Sentiment mix: bullish vibes if buyers keep stepping — watch CT`
+      ].filter(Boolean);
+      // Add unique extras until we reach 3
+      const seenKI = new Set(keyInsights.map(s => s.toLowerCase()));
+      for (const extra of extraCandidates) {
+        if (keyInsights.length >= 3) break;
+        const low = extra.toLowerCase();
+        if (!seenKI.has(low)) {
+          keyInsights.push(extra);
+          seenKI.add(low);
+        }
+      }
+    }
     
     // Enhanced catalysts and red flags
     const catalysts = [];
