@@ -602,36 +602,36 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                 <input type="month" value={seasonMonth} onChange={(e)=>setSeasonMonth(e.target.value)} className="bg-gray-800 border border-gray-700 text-gray-200 rounded px-2 py-1 ml-auto" />
               </div>
             )}
-            {dashboardData.isPremium && (
-              <div className="mb-4 p-3 rounded border border-gray-700 bg-gray-800/40">
-                <div className="flex items-center gap-2 mb-2">
-                  <Award size={16} className="text-yellow-400" />
-                  <span className="text-white font-medium">Winners {seasonMonth}</span>
-                  {winnersLoading && <span className="text-gray-400 text-xs">computing…</span>}
-                </div>
-                {winners.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {dashboardData.isPremium && (() => {
+              const currentMonth = new Date().toISOString().slice(0,7);
+              const showWinners = seasonMonth !== currentMonth && winners.length > 0;
+              return showWinners ? (
+                <div className="mb-3 p-2 rounded border border-gray-700 bg-gray-800/40">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Award size={14} className="text-yellow-400" />
+                    <span className="text-white font-medium text-sm">Winners {seasonMonth}</span>
+                    {winnersLoading && <span className="text-gray-400 text-xs">computing…</span>}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                     {winners.map((w, i) => (
-                      <button key={w.userId || i} onClick={()=>setSelectedKolUser(w)} className="p-3 rounded bg-gray-800/60 border border-gray-700 hover:bg-gray-800 text-left">
+                      <button key={w.userId || i} onClick={()=>setSelectedKolUser(w)} className="p-2 rounded bg-gray-800/60 border border-gray-700 hover:bg-gray-800 text-left">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-white font-semibold">#{i+1}</span>
-                          <span className={`inline-flex items-center justify-center w-5 h-5 rounded ${i===0?'bg-yellow-500':i===1?'bg-gray-400':'bg-amber-700'}`}></span>
-                          <span className="text-white font-medium">{w.displayName}</span>
-                          <span className="text-blue-400 text-xs">@{w.username}</span>
+                          <span className="text-white font-semibold text-sm">#{i+1}</span>
+                          <span className={`inline-flex items-center justify-center w-4 h-4 rounded ${i===0?'bg-yellow-500':i===1?'bg-gray-400':'bg-amber-700'}`}></span>
+                          <span className="text-white font-medium text-sm truncate">{w.displayName}</span>
+                          <span className="text-blue-400 text-[11px] truncate">@{w.username}</span>
                         </div>
-                        <div className="text-xs text-gray-300 flex gap-3">
+                        <div className="text-[11px] text-gray-300 flex gap-2">
                           <span>Calls: {w.callCount}</span>
-                          <span>Median X: {w.medianX.toFixed(2)}x</span>
+                          <span>Median X: {w.medianX.toFixed(1)}x</span>
                           <span>Hit: {(w.hitRate*100).toFixed(0)}%</span>
                         </div>
                       </button>
                     ))}
                   </div>
-                ) : (
-                  <div className="text-gray-500 text-sm">No winners for this month yet</div>
-                )}
-              </div>
-            )}
+                </div>
+              ) : null;
+            })()}
             <div className="space-y-4">
               {!dashboardData.isPremium ? (
                 <div className="text-center py-8">
@@ -706,6 +706,50 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                   <p className="text-gray-500 text-sm">KOL rankings will appear here once users make calls</p>
                 </div>
               )}
+            {dashboardData.isPremium && (
+              <div className="mt-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Users size={16} className="text-blue-400" />
+                  <span className="text-white font-medium">Following</span>
+                </div>
+                {Array.isArray(kolStats?.follows?.following) && kolStats.follows.following.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {kolStats.follows.following.slice(0, 12).map((uid, i) => (
+                      <button
+                        key={`${uid}-${i}`}
+                        className="flex items-center gap-2 px-2 py-1 rounded border border-gray-700 bg-gray-800/50 hover:bg-gray-800 text-sm"
+                        onClick={async () => {
+                          try {
+                            const profile = await leaderboardService.getUserProfile(uid);
+                            const basic = profile?.user || { id: uid, username: `user_${String(uid).slice(-4)}`, displayName: `User ${String(uid).slice(-4)}` };
+                            setSelectedKolUser({
+                              id: uid,
+                              userId: uid,
+                              username: basic.username,
+                              displayName: basic.displayName,
+                              profileImage: basic.profileImage || null,
+                              rank: undefined,
+                              score: undefined,
+                              callCount: undefined
+                            });
+                          } catch (_) {
+                            setSelectedKolUser({ id: uid, userId: uid, username: `user_${String(uid).slice(-4)}`, displayName: `User ${String(uid).slice(-4)}` });
+                          }
+                        }}
+                        title={`View @${String(uid).slice(-6)}`}
+                      >
+                        <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                          <span className="text-white text-[10px] font-bold">{String(uid).slice(-2)}</span>
+                        </div>
+                        <span className="text-gray-200">@{String(uid).slice(-6)}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-gray-500 text-sm">You are not following anyone yet</div>
+                )}
+              </div>
+            )}
             </div>
           </div>
 
