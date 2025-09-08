@@ -160,11 +160,14 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         // Get premium status from user profile
         const isPremium = profileData.user?.isPremium || false;
         const premiumExpiry = profileData.user?.premiumExpiry || null;
+        
+        console.log('🏆 Premium status check:', { isPremium, premiumExpiry, userId: profileData.user?.id });
 
         // Try to fetch leaderboard (premium feature)
         let leaderboard = [];
         let leaderboardError = null;
 
+        console.log('🏆 About to fetch KOL leaderboard...');
         try {
           console.log('🏆 Fetching KOL leaderboard...');
           const leaderboardData = await leaderboardService.getLeaderboard();
