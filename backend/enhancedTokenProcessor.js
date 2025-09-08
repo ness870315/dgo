@@ -1712,16 +1712,20 @@ class EnhancedTokenProcessor {
         merged[existingIndex] = mergedToken;
         console.log(`🔄 Merged existing token ${existing.symbol} (preserved recent Twitter/Jupiter data when applicable)`);
       } else {
-        // Add existing token that wasn't in new batch (but guard against re-queue spam)
-        const key = (existing.contractAddress || existing.symbol || '').toLowerCase();
-        if (!this.alreadyQueuedSet.has(key)) {
-          merged.push(existing);
-          this.alreadyQueuedSet.add(key);
-          this.saveAlreadyQueuedSet(); // Persist to disk
-          const isStupid = (existing.symbol || '').toUpperCase() === 'STUPID';
-          console.log(`➕ Added existing token ${existing.symbol}${isStupid ? ' [STUPID]' : ''} to processing queue (no CA match in new batch)`);
+        // CRITICAL FIX: Don't add existing completed tokens back to processing queue
+        // This prevents unnecessary Twitter API calls for tokens that already have data
+        if (existing.stage !== 'completed') {
+          // Only add incomplete tokens that need processing
+          const key = (existing.contractAddress || existing.symbol || '').toLowerCase();
+          if (!this.alreadyQueuedSet.has(key)) {
+            merged.push(existing);
+            this.alreadyQueuedSet.add(key);
+            this.saveAlreadyQueuedSet(); // Persist to disk
+            console.log(`➕ Added incomplete token ${existing.symbol} to processing queue (stage: ${existing.stage})`);
+          }
         } else {
-          // console.log(`⏭️ Skipping already queued token: ${existing.symbol} (${key})`);
+          // Skip completed tokens - they don't need reprocessing
+          console.log(`⏭️ Skipping completed token ${existing.symbol} (no reprocessing needed)`);
         }
       }
     }
