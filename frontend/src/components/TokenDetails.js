@@ -522,7 +522,22 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
 
             {/* Watchlist Star */}
               <div className="relative"
-                   onMouseEnter={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'block'; }}
+                   onMouseEnter={(e) => {
+                     const t = e.currentTarget.querySelector('.bubble-tooltip');
+                     if (t) {
+                       t.style.display = 'block';
+                       const rect = e.currentTarget.getBoundingClientRect();
+                       t.style.position = 'fixed';
+                       t.style.left = `${rect.left + rect.width / 2}px`;
+                       t.style.top = `${rect.top - 8}px`;
+                       t.style.transform = 'translate(-50%, -100%)';
+                       t.style.maxWidth = '300px';
+                       t.style.whiteSpace = 'normal';
+                       t.style.wordBreak = 'break-word';
+                       t.style.zIndex = '3000';
+                       t.style.pointerEvents = 'none';
+                     }
+                   }}
                    onMouseLeave={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'none'; }}>
                 <button
                   onClick={isAuthenticated ? toggleWatchlist : undefined}
@@ -593,7 +608,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                 >
                   Call it!
                 </button>
-                <div className="bubble-tooltip absolute -top-2 left-1/2 transform -translate-x-1/2 -translate-y-full mb-1 z-[1100] max-w-[240px]" style={{ display: 'none' }}>
+                <div className="bubble-tooltip" style={{ display: 'none' }}>
                   <div className="text-xs leading-tight">
                     <span className="font-semibold text-white">Call it:</span>
                     <span className="text-gray-300 ml-1">{isAuthenticated ? 'Record your play at current MCAP' : 'Log in to use this feature'}</span>
