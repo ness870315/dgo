@@ -90,10 +90,14 @@ CRITICAL GUIDELINES - CRYPTO SLANG MANDATORY:
 - Hype Detection: Identify "organic moon missions" vs "forced pump attempts"
 - Risk Communication: Frame risks as "red flags for degens" not "investment concerns"
 - Opportunities: Present as "alpha plays" and "degen opportunities" not "investment opportunities"
-- Recommendation Actions: Use only "Add to Watchlist", "Hype over Time", or "Call it" - these are the actual app features
+- Recommendation Section: Use trading actions "Buy", "Hold", "Avoid" - this is the main trading recommendation
+- Recommended Actions Section: Use app features "Add to Watchlist", "Hype over Time", "Call it" - these are tools for analysis
+- CRITICAL: Keep sections consistent - don't contradict "Buy" with "Remove from Watchlist"
+- If recommendation.action is "Buy" → recommendedActions should include "Add to Watchlist"
+- If recommendation.action is "Avoid" → recommendedActions should include "Remove from Watchlist" 
+- If recommendation.action is "Hold" → recommendedActions should focus on "Hype over Time" analysis
 - Always reference actual tweet sentiment percentages and engagement levels
 - Use hashtag trends to identify community themes and narratives
-- Entry Strategy: Reference "Hype over Time analysis" and "Call it" features for timing
 
 Respond in this JSON format:
 {
@@ -117,12 +121,18 @@ Respond in this JSON format:
     "mitigants": ["Organic score {{organicScore}}/100 - high score means authentic diamond hands not bots", "{{holderCount}} based degens still holding - community foundation solid"]
   },
   "recommendation": {
-    "action": "Add to Watchlist",
-    "reasoning": "Community sentiment {{tweetSentiments}} and {{holderChange}}% diamond hands momentum - degens are either accumulating or dumping",
-    "timeframe": "Degen play",
-    "entryStrategy": "Monitor for Hype over Time analysis or Call it when momentum peaks"
-  }
-}`,
+    "action": "Buy",
+    "reasoning": "Community sentiment {{tweetSentiments}} and {{holderChange}}% diamond hands momentum shows degens are accumulating",
+    "timeframe": "Short-term",
+    "entryStrategy": "DCA on dips, avoid FOMO entries during pumps"
+  },
+  "recommendedActions": ["Add to Watchlist", "Hype over Time", "Call it"]
+}
+
+EXAMPLES FOR CONSISTENCY:
+- If "action": "Buy" → "recommendedActions": ["Add to Watchlist", "Call it"]
+- If "action": "Hold" → "recommendedActions": ["Hype over Time", "Add to Watchlist"] 
+- If "action": "Avoid" → "recommendedActions": ["Remove from Watchlist", "Hype over Time"]`,
 
   /**
    * Hype Trend Analysis - For Hype over Time modal
@@ -195,7 +205,7 @@ export function validateEnhancedAIResponse(response, type = 'SOCIAL_CONTEXT') {
     const parsed = JSON.parse(response);
     
     if (type === 'SOCIAL_CONTEXT') {
-      const required = ['socialSummary', 'thesis', 'riskFactors', 'catalysts', 'redFlags', 'actionableInsights', 'confidence', 'sentiment', 'keyInsights', 'socialMomentum', 'riskAssessment', 'recommendation'];
+      const required = ['socialSummary', 'thesis', 'riskFactors', 'catalysts', 'redFlags', 'actionableInsights', 'confidence', 'sentiment', 'keyInsights', 'socialMomentum', 'riskAssessment', 'recommendation', 'recommendedActions'];
       return required.every(field => parsed.hasOwnProperty(field));
     }
     
