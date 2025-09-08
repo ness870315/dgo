@@ -302,15 +302,22 @@ class EnhancedTokenProcessor {
       // Merge with existing tokens from processing queue (from Coingecko)
       const existingTokens = this.processingQueue;
       const mergedTokens = this.mergeWithExistingTokens(validDexscreenerTokens, existingTokens);
+      
+      // 🚨 CRITICAL FIX: Deduplicate immediately after merge to prevent Twitter API waste
+      const deduplicatedTokens = this.deduplicateTokens(mergedTokens);
+      const duplicatesRemoved = mergedTokens.length - deduplicatedTokens.length;
+      if (duplicatesRemoved > 0) {
+        console.log(`🔧 DEXSCREENER DEDUP: Removed ${duplicatesRemoved} duplicates after merge (${mergedTokens.length} → ${deduplicatedTokens.length})`);
+      }
 
       this.stageProgress.dexscreener = {
-        total: mergedTokens.length,
-        processed: mergedTokens.length,
+        total: deduplicatedTokens.length,
+        processed: deduplicatedTokens.length,
         status: 'completed'
       };
 
-      console.log(`🎯 Dexscreener Stage Complete: ${mergedTokens.length} total tokens (${validDexscreenerTokens.length} new + ${existingTokens.length} existing)`);
-      this.processingQueue = mergedTokens;
+      console.log(`🎯 Dexscreener Stage Complete: ${deduplicatedTokens.length} total tokens (${validDexscreenerTokens.length} new + ${existingTokens.length} existing, ${duplicatesRemoved} duplicates removed)`);
+      this.processingQueue = deduplicatedTokens;
 
     } catch (error) {
       console.error('❌ Dexscreener stage failed:', error);
@@ -341,15 +348,22 @@ class EnhancedTokenProcessor {
       // Merge with existing tokens from processing queue
       const existingTokens = this.processingQueue;
       const mergedTokens = this.mergeWithExistingTokens(birdTokens, existingTokens);
+      
+      // 🚨 CRITICAL FIX: Deduplicate immediately after merge to prevent Twitter API waste
+      const deduplicatedTokens = this.deduplicateTokens(mergedTokens);
+      const duplicatesRemoved = mergedTokens.length - deduplicatedTokens.length;
+      if (duplicatesRemoved > 0) {
+        console.log(`🔧 BIRDEYE DEDUP: Removed ${duplicatesRemoved} duplicates after merge (${mergedTokens.length} → ${deduplicatedTokens.length})`);
+      }
 
       this.stageProgress.birdeye = {
-        total: mergedTokens.length,
-        processed: mergedTokens.length,
+        total: deduplicatedTokens.length,
+        processed: deduplicatedTokens.length,
         status: 'completed'
       };
 
-      console.log(`🎯 BirdEye Stage Complete: ${mergedTokens.length} total tokens (${birdTokens.length} new + ${existingTokens.length} existing)`);
-      this.processingQueue = mergedTokens;
+      console.log(`🎯 BirdEye Stage Complete: ${deduplicatedTokens.length} total tokens (${birdTokens.length} new + ${existingTokens.length} existing, ${duplicatesRemoved} duplicates removed)`);
+      this.processingQueue = deduplicatedTokens;
 
     } catch (error) {
       console.error('❌ BirdEye stage failed:', error);
