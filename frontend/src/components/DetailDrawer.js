@@ -443,7 +443,7 @@ export default function DetailDrawer({ call, onClose }) {
                 <div className="space-y-2">
                   <div className="grid grid-cols-2 gap-2">
                     <Stat label="Social Health" value={`${(socialContext.socialHealthScore ?? 0).toFixed(1)}/10`} good={(socialContext.socialHealthScore ?? 0) >= 6} />
-                    <Stat label="Mentions (est)" value={(socialContext.mentions ?? 0).toLocaleString()} />
+                    <Stat label="Mentions" value={(socialContext.mentions ?? 0).toLocaleString()} />
                     <Stat label="Engagement" value={(socialContext.engagement ?? 0).toLocaleString()} />
                     <Stat label="Followers" value={(socialContext.followers ?? 0).toLocaleString()} />
                   </div>

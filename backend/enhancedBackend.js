@@ -680,7 +680,7 @@ class EnhancedBackend {
 
         // Extract existing social metrics (already fetched earlier, do not call APIs)
         const td = token.twitterData || {};
-        const mentions = Number(td.mentions || td.mentions24h || 0);
+        const mentions = Number(td.displayMentions || td.mentions || td.mentions24h || 0);
         const likes = Number(td.likes || 0);
         const retweets = Number(td.retweets || 0);
         const replies = Number(td.replies || 0);
@@ -5440,9 +5440,10 @@ class EnhancedBackend {
     try {
       const status = this.tokenProcessor.getProcessingStatus();
       
-      // DISABLED: Automatic processing to prevent unwanted Twitter API calls
-      // Manual processing only via admin dashboard or explicit triggers
-      console.log('[🛡️ Enhanced Backend] 🔄 Cache refresh completed (auto-processing disabled)');
+      if (status.processedCount > 0 && !status.isProcessing) {
+        console.log('[🛡️ Enhanced Backend] 🔄 Starting cache refresh (skipTwitter=true)...');
+        await this.tokenProcessor.startProcessing({ skipTwitter: true });
+      }
       
     } catch (error) {
       console.error('[🛡️ Enhanced Backend] ❌ Cache refresh failed:', error);

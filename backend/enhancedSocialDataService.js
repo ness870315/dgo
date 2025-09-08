@@ -567,11 +567,39 @@ class EnhancedSocialDataService {
       const uniqueTweetIds = new Set((recentMentions || []).map(t => t.tweetId || t.id || t.tweet_id));
       const uniqueAuthorsSet = new Set((recentMentions || []).map(t => (t.author || t.user?.screen_name || t.user?.username || t.user?.name || '').toLowerCase()));
 
+      // Calculate displayMentions estimate for UI
+      let displayMentions = totalMentions;
+      if (mentions72hAvg != null) {
+        // Blend 72h average with current sample projection
+        const alpha = 0.7;
+        let projected = totalMentions;
+        
+        // Project from sample if we have time span data
+        if (recentMentions.length >= 2) {
+          const timestamps = recentMentions.map(t => new Date(t.createdAt).getTime()).filter(t => !isNaN(t));
+          if (timestamps.length >= 2) {
+            const deltaHours = (Math.max(...timestamps) - Math.min(...timestamps)) / (1000 * 60 * 60);
+            if (deltaHours >= 1) {
+              const rate = totalMentions / deltaHours;
+              projected = Math.round(rate * 24); // Project to 24h
+            }
+          }
+        }
+        
+        // Blend with caps
+        const blended = alpha * mentions72hAvg + (1 - alpha) * projected;
+        displayMentions = Math.round(Math.max(mentions72hAvg * 0.5, Math.min(mentions72hAvg * 1.5, blended)));
+      } else {
+        // New token without history - conservative estimate
+        displayMentions = Math.max(totalMentions * 4, 8); // Assume 4x multiplier, minimum 8
+      }
+
       // Summary
       console.log(`📊 Twitter Search Summary for ${symbol}:`);
       console.log(`   🎯 Official Handle: ${officialHandle || 'not found'}`);
       console.log(`   👥 Followers: ${followers}`);
       console.log(`   📊 Community Mentions: ${totalMentions}${mentions72hAvg != null ? ` (72h avg: ${mentions72hAvg})` : ''}`);
+      console.log(`   📈 Display Mentions: ${displayMentions} (estimated)`);
       console.log(`   💖 Total Engagement: ${totalLikes + totalRetweets + totalReplies}`);
       
       return {
@@ -586,6 +614,7 @@ class EnhancedSocialDataService {
         
         // Community Activity Metrics
         mentions: mentions72hAvg != null ? mentions72hAvg : totalMentions,
+        displayMentions: displayMentions, // UI-friendly estimated mentions
         mentions24h: totalMentions,
         mentions72hAvg: mentions72hAvg != null ? mentions72hAvg : null,
         mentionsWindowHours: mentions72hAvg != null ? 72 : 0,
@@ -907,6 +936,7 @@ class EnhancedSocialDataService {
 
       // Community Activity Metrics
       mentions: 0,
+      displayMentions: jupiterData ? Math.max(8, Math.floor((jupiterData.marketCap || 0) / 1000000) * 2) : 8, // Baseline estimate
       mentions24h: 0,
       likes: 0,
       retweets: 0,

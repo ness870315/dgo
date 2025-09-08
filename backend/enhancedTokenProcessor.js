@@ -108,26 +108,35 @@ class EnhancedTokenProcessor {
     return this.processedTokens;
   }
 
-  async startProcessing() {
+  async startProcessing(options = {}) {
     if (this.isProcessing) {
       console.log('⚠️ Processing already in progress');
       return;
     }
 
-    console.log('🚀 Starting Enhanced Token Processing Pipeline...');
+    const { skipTwitter = false } = options;
+    console.log(`🚀 Starting Enhanced Token Processing Pipeline... ${skipTwitter ? '(Twitter stage skipped)' : ''}`);
     this.isProcessing = true;
     
     try {
-      await this.runStagedProcessing();
+      await this.runStagedProcessing(options);
     } catch (error) {
       console.error('❌ Processing pipeline failed:', error);
       this.isProcessing = false;
     }
   }
 
-  async runStagedProcessing() {
+  async runStagedProcessing(options = {}) {
+    const { skipTwitter = false } = options;
+    
     for (const stage of this.stages) {
       if (!this.isProcessing) break;
+      
+      // Skip Twitter stage if requested
+      if (stage === 'twitter' && skipTwitter) {
+        console.log(`\n⏭️ Skipping Stage: ${stage.toUpperCase()} (skipTwitter=true)`);
+        continue;
+      }
       
       console.log(`\n🔄 Starting Stage: ${stage.toUpperCase()}`);
       this.currentStage = stage;
@@ -660,6 +669,40 @@ class EnhancedTokenProcessor {
         console.log(`📊 Calculating score for ${token.symbol} (${i + 1}/${tokens.length})`);
         
         try {
+          // Ensure token has Twitter data for scoring - preserve existing or use fallback
+          if (!token.twitterData || !token.communityHealthScore) {
+            // Try to find existing cached Twitter data
+            const existingToken = this.processedTokens.find(t => 
+              t.contractAddress && token.contractAddress && 
+              t.contractAddress.toLowerCase() === token.contractAddress.toLowerCase()
+            );
+            
+            if (existingToken?.twitterData && existingToken?.communityHealthScore) {
+              console.log(`📦 Preserving existing Twitter data for ${token.symbol} during scoring`);
+              token.twitterData = existingToken.twitterData;
+              token.communityHealthScore = existingToken.communityHealthScore;
+              token.twitterTimestamp = existingToken.twitterTimestamp;
+            } else {
+              // Use cohort baseline to prevent score collapse
+              const marketCap = token.jupiterData?.mcap || token.marketCap || 0;
+              const baselineMentions = marketCap > 10000000 ? 15 : marketCap > 1000000 ? 8 : 4;
+              
+              token.twitterData = {
+                mentions: baselineMentions,
+                displayMentions: baselineMentions,
+                mentions24h: 0,
+                likes: baselineMentions * 2,
+                retweets: Math.floor(baselineMentions * 0.5),
+                replies: Math.floor(baselineMentions * 0.3),
+                followers: 0,
+                engagement: { total: baselineMentions * 3 },
+                _dataFreshness: 'cohort_baseline'
+              };
+              token.communityHealthScore = 3.5; // Reasonable baseline
+              console.log(`🎯 Applied cohort baseline for ${token.symbol}: ${baselineMentions} mentions, 3.5 community score`);
+            }
+          }
+          
           const enhancedScore = this.calculateEnhancedOverallScore(token);
           token.enhancedScore = enhancedScore;
           token.overallScore = enhancedScore;

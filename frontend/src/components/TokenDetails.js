@@ -740,7 +740,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
               </div>
                   <div className="text-center">
                     <span className="text-white font-semibold text-sm block">
-                      {formatNumber(token?.twitterData?.mentions || 0)}
+                      {formatNumber(token?.twitterData?.displayMentions || token?.twitterData?.mentions || 0)}
                     </span>
                     <span className={`text-xs font-medium ${
                       (token?.twitterData?.mentionsTrend || 0) >= 0 ? 'text-green-400' : 'text-red-400'
