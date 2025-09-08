@@ -37,7 +37,7 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
       case 'trending':
         return {
           title: '🔥 Trending',
-          description: 'Score ≥6 + Volume • Top 50 emerging ≤$10M'
+          description: 'Viral + Emerging • Top 100 (fresh, ranked by score/flow)'
         };
       case 'cults':
         return {

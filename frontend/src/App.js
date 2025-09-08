@@ -246,19 +246,29 @@ function App() {
     
     // Since filters are mutually exclusive, find which one is active
     if (categories.trending) {
-      // NEW TRENDING (refined):
-      // - Score ≥ 6
-      // - Market cap ≤ $10M
+      // NEW TRENDING (refined + viral override):
+      // - Base: Score ≥ 6 AND Market cap ≤ $10M (emerging)
+      // - Viral override: include tokens with latest hype label 'Viral' (score ≥8) regardless of cap/CULT
       // - Freshness gate (updated within last 30m)
       // - Guardrails against recent dumps & weak socials
-      // Ranking: 50% score + 30% turnover + 20% volume
+      // Ranking: Viral first, then base ranked by 50% score + 30% turnover + 20% volume
+      // Limit: top 100
       const fueledSymbols = new Set(fueledTokens?.map(fuel => fuel.symbol) || []);
       
-      // Base filter: score & market cap
+      // Base filter: score & market cap (emerging)
       const baseTokens = tokenData.filter(token =>
         (token.score || token.overallScore || 0) >= 6.0 &&
         getMarketCap(token) <= 10_000_000
       );
+
+      // Viral override set (hype label Viral regardless of cap)
+      const isViralToken = (t) => {
+        const hypeLabel = t?.hypeAnalysis?.latestLabel || t?.hypeLabel;
+        if (hypeLabel) return /viral/i.test(hypeLabel);
+        const s = (t.score || t.overallScore || 0);
+        return s >= 8.0; // fallback using score bands
+      };
+      const viralCandidates = tokenData.filter(isViralToken);
 
       // Apply guardrails
       const now = Date.now();
@@ -351,20 +361,36 @@ function App() {
         return scoreB - scoreA;
       });
       
-      // Combine: fueled tokens first, then regular tokens, total 50
-      let trendingTokens = [...sortedFueledTokens, ...sortedRegularTokens].slice(0, 50);
+      // Combine Viral first (any cap), then emerging ranked, total 100
+      // De-duplicate by contract/symbol
+      const seen = new Set();
+      const pushUnique = (arr, t) => {
+        const key = (t.contractAddress || t.symbol || '').toLowerCase();
+        if (!seen.has(key)) { seen.add(key); arr.push(t); }
+      };
+      let trendingTokens = [];
+      // Viral tokens (keep same guardrails except cap constraints)
+      viralCandidates.forEach(t => {
+        // Basic freshness guard only
+        const lastUpdated = t.lastUpdated ? Date.parse(t.lastUpdated) : null;
+        const isFresh = lastUpdated ? (Date.now() - lastUpdated) <= (30 * 60 * 1000) : true;
+        if (isFresh) pushUnique(trendingTokens, t);
+      });
+      // Then ranked emerging
+      [...sortedFueledTokens, ...sortedRegularTokens].forEach(t => pushUnique(trendingTokens, t));
+      trendingTokens = trendingTokens.slice(0, 100);
 
       // Safety fallback: never return zero — fall back to base tokens by score
       if (trendingTokens.length === 0) {
         const fallback = [...baseTokens]
           .sort((a, b) => (b.score || b.overallScore || 0) - (a.score || a.overallScore || 0))
-          .slice(0, 50);
+          .slice(0, 100);
         console.log('⚠️ Trending fallback engaged: returning top-scored base tokens because guardrails filtered all');
         return fallback;
       }
       
-      console.log(`🚀 NEW Trending filter: Showing top 50 tokens with score >=6.0 + market cap ≤$10M (refined ranking)`);
-      console.log(`   Found ${highScoreTokens.length} tokens with score >=6 and market cap ≤$10M (${sortedFueledTokens.length} fueled + ${Math.min(sortedRegularTokens.length, 50 - sortedFueledTokens.length)} regular), showing top 50`);
+      console.log(`🚀 NEW Trending filter: Viral override + emerging. Showing top 100 (viral first, then ranked emerging)`);
+      console.log(`   Viral included: ${viralCandidates.length}. Emerging candidates: ${highScoreTokens.length}. Returning: ${trendingTokens.length}`);
       console.log('Category filtering result:', trendingTokens.length, 'tokens out of', tokenData.length);
       return trendingTokens;
     }
