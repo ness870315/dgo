@@ -446,7 +446,7 @@ class EnhancedTokenProcessor {
     // Filter out tokens that should NEVER hit Twitter API
     let allTokens = this.processingQueue;
     const preFilterCount = allTokens.length;
-    allTokens = allTokens.filter(t => this.isValidCandidate(t) && !this.isSuspiciousToken(t) && !this.isRuggedToken(t));
+    allTokens = allTokens.filter(t => this.isValidCandidate(t) && !this.isSuspiciousToken(t) && !this.isRuggedToken(t) && !this.isExcludedMajorOrStable(t));
     const filteredOut = preFilterCount - allTokens.length;
     if (filteredOut > 0) {
       console.log(`🧹 FILTER: Skipped ${filteredOut} tokens (invalid/suspicious/rugged) before Twitter stage (${preFilterCount} → ${allTokens.length})`);
@@ -1363,6 +1363,23 @@ class EnhancedTokenProcessor {
   // =============================
   // Candidate and safety filters
   // =============================
+  isExcludedMajorOrStable(token) {
+    try {
+      const symbolRaw = (token?.symbol || token?.jupiterData?.symbol || '').toString();
+      const nameRaw = (token?.name || token?.jupiterData?.name || '').toString();
+      const symbol = symbolRaw.trim().toUpperCase();
+      const name = nameRaw.trim().toUpperCase();
+      const bannedSymbols = new Set([
+        'WETH','WBTC','ETH','BTC','SOL','USDC','USDT','DAI','TUSD','FRAX','PYUSD','WBNB','WBCH','WAVAX'
+      ]);
+      if (bannedSymbols.has(symbol)) return true;
+      const bannedFragments = [' STABLE', 'STABLE ', ' STABLECOIN', 'WRAPPED ETH', 'WRAPPED BTC'];
+      const hay = `${symbol} ${name}`;
+      return bannedFragments.some(f => hay.includes(f));
+    } catch (_) {
+      return false;
+    }
+  }
   isValidCandidate(token) {
     const ca = token?.contractAddress;
     return typeof ca === 'string' && ca !== 'null' && ca.length > 10;

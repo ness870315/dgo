@@ -75,6 +75,24 @@ class EnhancedBackend {
       return false;
     }
   }
+
+  isExcludedMajorOrStable(token) {
+    try {
+      const symbolRaw = (token?.symbol || token?.jupiterData?.symbol || '').toString();
+      const nameRaw = (token?.name || token?.jupiterData?.name || '').toString();
+      const symbol = symbolRaw.trim().toUpperCase();
+      const name = nameRaw.trim().toUpperCase();
+      const bannedSymbols = new Set([
+        'WETH','WBTC','ETH','BTC','SOL','USDC','USDT','DAI','TUSD','FRAX','PYUSD','WBNB','WBCH','WAVAX'
+      ]);
+      if (bannedSymbols.has(symbol)) return true;
+      const bannedFragments = [' STABLE', 'STABLE ', ' STABLECOIN', 'WRAPPED ETH', 'WRAPPED BTC'];
+      const hay = `${symbol} ${name}`;
+      return bannedFragments.some(f => hay.includes(f));
+    } catch (_) {
+      return false;
+    }
+  }
   constructor() {
     this.app = express();
     this.port = process.env.PORT || 4000;
@@ -517,8 +535,8 @@ class EnhancedBackend {
           return;
         }
 
-        // Exclude suspicious or rugged tokens from API output as an extra safety layer
-        tokens = tokens.filter(t => !this.isSuspiciousToken(t) && !this.isRuggedToken(t));
+        // Exclude suspicious, rugged, or major/stable tokens from API output as an extra safety layer
+        tokens = tokens.filter(t => !this.isSuspiciousToken(t) && !this.isRuggedToken(t) && !this.isExcludedMajorOrStable(t));
 
         // Apply enhanced deduplication to ensure no duplicates are served
         const deduplicatedTokens = this.tokenProcessor.deduplicateTokens(tokens);
@@ -804,7 +822,7 @@ class EnhancedBackend {
               liquidity: typeof t.liquidity === 'number' ? t.liquidity : undefined
             }
           };
-          return !this.isSuspiciousToken(t) && !this.isRuggedToken(mapped);
+          return !this.isSuspiciousToken(t) && !this.isRuggedToken(mapped) && !this.isExcludedMajorOrStable(mapped);
         });
         console.log(`[🛡️ Enhanced Backend] ✅ BirdEye trending returned ${tokens.length} tokens → ${filtered.length} after filters`);
         res.json(filtered);
