@@ -1053,7 +1053,7 @@ class EnhancedSocialDataService {
       
       // 2. ENGAGEMENT SCORING (35% weight) - Quality of community interaction
       const totalEngagement = (twitterData.likes || 0) + (twitterData.retweets || 0) + (twitterData.replies || 0);
-      const engagementRate = mentions > 0 ? totalEngagement / mentions : 0;
+      const engagementRate = mentionsRaw > 0 ? totalEngagement / mentionsRaw : 0;
       
       let engagementScore = 0;
       if (engagementRate >= 8) engagementScore = 2.5;      // 8+ engagement = excellent
@@ -1085,7 +1085,7 @@ class EnhancedSocialDataService {
       
       // 4. QUALITY INDICATORS (5% weight) - Basic legitimacy checks
       const hasOfficialAccount = twitterData.username ? 1.0 : 0;
-      const hasRecentActivity = mentions > 0 ? 1.0 : 0;
+      const hasRecentActivity = mentionsRaw > 0 ? 1.0 : 0;
       let qualityScore = (hasOfficialAccount + hasRecentActivity) * 0.5; // base
       // Bootstrap quality bump to avoid unfair nerf on brand-new tokens
       if (isBootstrap) {
