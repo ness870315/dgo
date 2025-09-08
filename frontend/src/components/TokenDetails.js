@@ -436,77 +436,125 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                       }
                     </code>
                 {token?.contractAddress && (
+                  <div className="relative"
+                       onMouseEnter={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'block'; }}
+                       onMouseLeave={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'none'; }}>
                     <button
-                    onClick={(event) => {
-                      navigator.clipboard.writeText(token.contractAddress);
-                      const button = event.target;
-                      const originalText = button.innerHTML;
-                      button.innerHTML = '✅';
-                      setTimeout(() => {
-                        button.innerHTML = originalText;
-                      }, 2000);
-                    }}
-                    className="text-gray-500 hover:text-gray-300 transition-colors text-xs"
-                      title="Copy contract address"
+                      onClick={(event) => {
+                        navigator.clipboard.writeText(token.contractAddress);
+                        const button = event.currentTarget;
+                        const originalText = button.innerHTML;
+                        button.innerHTML = '✅';
+                        setTimeout(() => {
+                          button.innerHTML = originalText;
+                        }, 2000);
+                      }}
+                      className="text-gray-500 hover:text-gray-300 transition-colors text-xs"
                     >
-                    📋
+                      📋
                     </button>
+                    <div className="bubble-tooltip mt-1 left-1/2 -translate-x-1/2" style={{ display: 'none' }}>
+                      <div className="text-xs leading-tight">
+                        <span className="font-semibold text-white">Copy:</span>
+                        <span className="text-gray-300 ml-1">Copy contract address to clipboard</span>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
           </div>
 
             <div className="flex items-center space-x-2">
-            {/* AI Analysis Button */}
-            <button
-              onClick={fetchAIAnalysis}
-              disabled={aiLoading}
-              className={`px-2 py-1 rounded-lg border border-solana-purple/60 bg-transparent text-xs flex items-center gap-1 transition-all duration-200 ${
-                aiLoading 
-                  ? 'text-gray-500 cursor-not-allowed' 
-                  : 'text-gray-200 hover:bg-gray-700'
-              }`}
-              title="Oracle AI"
-            >
-              {aiLoading ? (
-                <div className="animate-spin w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full"></div>
-              ) : (
-                <>
-                  <Brain size={16} />
-                  <span>Oracle AI</span>
-                </>
-              )}
-            </button>
+            {/* AI Analysis Button with bubble-tooltip */}
+            <div className="relative"
+                 onMouseEnter={(e) => {
+                   const tip = e.currentTarget.querySelector('.bubble-tooltip');
+                   if (tip) tip.style.display = 'block';
+                 }}
+                 onMouseLeave={(e) => {
+                   const tip = e.currentTarget.querySelector('.bubble-tooltip');
+                   if (tip) tip.style.display = 'none';
+                 }}>
+              <button
+                onClick={isAuthenticated ? fetchAIAnalysis : undefined}
+                disabled={!isAuthenticated || aiLoading}
+                className={`px-2 py-1 rounded-lg border border-solana-purple/60 bg-transparent text-xs flex items-center gap-1 transition-all duration-200 ${
+                  (!isAuthenticated || aiLoading)
+                    ? 'text-gray-500 cursor-not-allowed opacity-60' 
+                    : 'text-gray-200 hover:bg-gray-700'
+                }`}
+              >
+                {aiLoading ? (
+                  <div className="animate-spin w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full"></div>
+                ) : (
+                  <>
+                    <Brain size={16} />
+                    <span>Oracle AI</span>
+                  </>
+                )}
+              </button>
+              <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-50" style={{ display: 'none' }}>
+                <div className="text-xs leading-tight">
+                  <span className="font-semibold text-white">Oracle AI:</span>
+                  <span className="text-gray-300 ml-1">{isAuthenticated ? 'Deep-dive analysis with hype, risks, and plays' : 'Log in to use this feature'}</span>
+                </div>
+              </div>
+            </div>
             
-            {/* Fuel Token Button */}
-            <button
-              onClick={handleFuelClick}
-              className="p-2 rounded-lg transition-all duration-200 text-orange-400 hover:text-orange-300 hover:bg-orange-400/10"
-              title="Apply Fuel to Token"
-            >
-              <Flame size={20} />
-            </button>
+            {/* Fuel Token Button with bubble-tooltip */}
+            <div className="relative"
+                 onMouseEnter={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'block'; }}
+                 onMouseLeave={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'none'; }}>
+              <button
+                onClick={handleFuelClick}
+                className="p-2 rounded-lg transition-all duration-200 text-orange-400 hover:text-orange-300 hover:bg-orange-400/10"
+              >
+                <Flame size={20} />
+              </button>
+              <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-50" style={{ display: 'none' }}>
+                <div className="text-xs leading-tight">
+                  <span className="font-semibold text-white">Fuel:</span>
+                  <span className="text-gray-300 ml-1">Boost visibility and priority for this token</span>
+                </div>
+              </div>
+            </div>
 
             {/* Watchlist Star */}
-              <button
-                onClick={toggleWatchlist}
-                className={`p-2 rounded-lg transition-all duration-200 ${
-                  isInWatchlist 
-                    ? 'text-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20' 
-                    : 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/10'
-              }`}
-                title={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
-              >
-                  <Star 
-                    size={20} 
-                    stroke="currentColor"
-                    fill={isInWatchlist ? 'currentColor' : 'none'} 
-                  />
-              </button>
+              <div className="relative"
+                   onMouseEnter={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'block'; }}
+                   onMouseLeave={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'none'; }}>
+                <button
+                  onClick={isAuthenticated ? toggleWatchlist : undefined}
+                  disabled={!isAuthenticated}
+                  className={`p-2 rounded-lg transition-all duration-200 ${
+                    !isAuthenticated
+                      ? 'text-gray-500 cursor-not-allowed opacity-60'
+                      : isInWatchlist 
+                        ? 'text-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20' 
+                        : 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/10'
+                }`}
+                >
+                    <Star 
+                      size={20} 
+                      stroke="currentColor"
+                      fill={isInWatchlist ? 'currentColor' : 'none'} 
+                    />
+                </button>
+                <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-50" style={{ display: 'none' }}>
+                  <div className="text-xs leading-tight">
+                    <span className="font-semibold text-white">Watchlist:</span>
+                    <span className="text-gray-300 ml-1">{isAuthenticated ? (isInWatchlist ? 'Remove from your watchlist' : 'Add to your watchlist') : 'Log in to use this feature'}</span>
+                  </div>
+                </div>
+              </div>
 
               {/* Call it! */}
-              <button
-                onClick={async () => {
+              <div className="relative"
+                   onMouseEnter={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'block'; }}
+                   onMouseLeave={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'none'; }}>
+                <button
+                  onClick={isAuthenticated ? async () => {
                   try {
                     const payload = {
                       symbol: token.symbol,
@@ -537,16 +585,28 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                     console.error('Call it failed:', e);
                     alert('❌ Failed to record call');
                   }
-                }}
-                className="px-2 py-1 ml-1 rounded-lg bg-transparent border border-solana-purple/60 text-gray-200 hover:bg-gray-700 text-xs"
-                title="Record a call at current market cap"
-              >
-                Call it!
-              </button>
+                }} : undefined}
+                  disabled={!isAuthenticated}
+                  className={`px-2 py-1 ml-1 rounded-lg bg-transparent border border-solana-purple/60 text-xs ${
+                    !isAuthenticated ? 'text-gray-500 cursor-not-allowed opacity-60' : 'text-gray-200 hover:bg-gray-700'
+                  }`}
+                >
+                  Call it!
+                </button>
+                <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-50" style={{ display: 'none' }}>
+                  <div className="text-xs leading-tight">
+                    <span className="font-semibold text-white">Call it:</span>
+                    <span className="text-gray-300 ml-1">{isAuthenticated ? 'Record your play at current MCAP' : 'Log in to use this feature'}</span>
+                  </div>
+                </div>
+              </div>
 
               {/* Close Button */}
-              <button
-                onClick={() => {
+              <div className="relative"
+                   onMouseEnter={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'block'; }}
+                   onMouseLeave={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'none'; }}>
+                <button
+                  onClick={() => {
                   try {
                     if (callRecorded) {
                       window.dispatchEvent(new CustomEvent('kol-call-added'));
@@ -554,11 +614,17 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                   } catch (_) {}
                   onClose && onClose();
                 }}
-              className="p-2 text-gray-400 hover:text-white transition-colors"
-              title="Close"
-              >
-              <X size={20} />
-              </button>
+                className="p-2 text-gray-400 hover:text-white transition-colors"
+                >
+                  <X size={20} />
+                </button>
+                <div className="bubble-tooltip mt-1 left-1/2 -translate-x-1/2" style={{ display: 'none' }}>
+                  <div className="text-xs leading-tight">
+                    <span className="font-semibold text-white">Close:</span>
+                    <span className="text-gray-300 ml-1">Close token details</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1682,32 +1748,32 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                       </div>
                     </div>
 
-                    {/* Recommendation */}
+                    {/* Summary */}
                     <div className="bg-gray-800/50 rounded-lg p-4">
                       <h5 className="text-white font-semibold mb-3 flex items-center">
-                        🎯 Recommendation
+                        📋 Summary
                       </h5>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Action:</span>
                           <span className={`font-semibold px-2 py-1 rounded text-sm ${
-                            aiAnalysis.analysis.recommendation?.action === 'Strong Buy' || aiAnalysis.analysis.recommendation?.action === 'Buy' ? 'bg-green-900 text-green-300' :
-                            aiAnalysis.analysis.recommendation?.action === 'Avoid' ? 'bg-red-900 text-red-300' :
+                            aiAnalysis.analysis.summary?.action === 'Strong Buy' || aiAnalysis.analysis.summary?.action === 'Buy' ? 'bg-green-900 text-green-300' :
+                            aiAnalysis.analysis.summary?.action === 'Avoid' ? 'bg-red-900 text-red-300' :
                             'bg-yellow-900 text-yellow-300'
                           }`}>
-                            {aiAnalysis.analysis.recommendation?.action}
+                            {aiAnalysis.analysis.summary?.action}
                 </span>
               </div>
                         <div className="text-gray-300 text-sm">
-                          <span className="text-gray-400">Reasoning:</span> {aiAnalysis.analysis.recommendation?.reasoning}
+                          <span className="text-gray-400">Reasoning:</span> {aiAnalysis.analysis.summary?.reasoning}
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Timeframe:</span>
-                          <span className="text-white text-sm">{aiAnalysis.analysis.recommendation?.timeframe}</span>
+                          <span className="text-white text-sm">{aiAnalysis.analysis.summary?.timeframe}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Entry Strategy:</span>
-                          <span className="text-white text-sm">{aiAnalysis.analysis.recommendation?.entryStrategy}</span>
+                          <span className="text-white text-sm">{aiAnalysis.analysis.summary?.entryStrategy}</span>
                         </div>
                       </div>
                     </div>
