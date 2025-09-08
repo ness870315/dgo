@@ -510,13 +510,35 @@ class SocialContextAI {
     }
     
     // Generate comprehensive insights
-    const keyInsights = [
-      `Community health: ${communityScore.toFixed(1)}/10 ${communityScore > 7 ? '🟢' : communityScore > 5 ? '🟡' : '🔴'}`,
-      `Social activity: ${mentions} mentions, ${totalEngagement} total engagement`,
-      `Price momentum: 1h: ${priceChange1h.toFixed(1)}%, 6h: ${priceChange6h.toFixed(1)}%, 24h: ${priceChange24h.toFixed(1)}%`,
-      `Market metrics: $${(marketCap / 1000000).toFixed(1)}M mcap, $${(volume24h / 1000).toFixed(0)}K volume`,
-      holderCount > 0 ? `Holder base: ${holderCount.toLocaleString()} holders` : 'Holder data unavailable'
-    ].filter(insight => !insight.includes('unavailable'));
+    // Build distinct sections with anti-duplication and crypto slang
+    const insightsRaw = [
+      `Community health: ${communityScore.toFixed(1)}/10 — vibes are ${communityScore > 7 ? 'based' : communityScore > 5 ? 'decent' : 'mid'}`,
+      `Social activity: ${mentions} mentions, ${totalEngagement} total engagement — degen chatter check`,
+      `Momentum check: 1h ${priceChange1h.toFixed(1)}%, 6h ${priceChange6h.toFixed(1)}%, 24h ${priceChange24h.toFixed(1)}%`,
+      `Market context: $${(marketCap / 1e6).toFixed(1)}M mcap, $${(volume24h / 1e3).toFixed(0)}K vol`,
+      holderCount > 0 ? `Holders: ${holderCount.toLocaleString()} diamond hands on deck` : null,
+      liquidity > 0 ? `Liquidity: $${(liquidity/1e6).toFixed(2)}M — slippage radar` : null,
+      (topHashtags && topHashtags.length) ? `Narrative: #${topHashtags.slice(0,3).join(' #')}` : null
+    ].filter(Boolean);
+
+    // Risks with severity and slang
+    const risksList = [];
+    if (priceChange24h <= -15) risksList.push({ t: '24h drawdown', why: `${priceChange24h.toFixed(1)}%`, sev: 'high' });
+    if (mentions < 5) risksList.push({ t: 'Low social buzz', why: `${mentions} mentions`, sev: 'high' });
+    if (liquidity > 0 && liquidity < 100000) risksList.push({ t: 'Thin liq', why: `$${(liquidity/1e3).toFixed(0)}K`, sev: 'medium' });
+    if (holderCount > 0 && holderCountDelta < 0) risksList.push({ t: 'Holder bleed', why: `${holderCountDelta.toFixed(1)}%`, sev: 'medium' });
+    if (engagementRate < 1) risksList.push({ t: 'Weak engagement', why: `${engagementRate.toFixed(1)}x`, sev: 'low' });
+
+    // Catalysts (forward looking)
+    const cataList = [];
+    if (priceChange6h > 8) cataList.push(`6h momentum picking up (+${priceChange6h.toFixed(1)}%) — could send`);
+    if (volume24h > 1_000_000) cataList.push(`Big boy volume ($${(volume24h/1e6).toFixed(2)}M) — real flow`);
+    if (mentions >= 25) cataList.push(`Mentions heating up (${mentions}) — CT waking up`);
+    if (communityScore > 7) cataList.push(`Community is based (${communityScore.toFixed(1)}/10) — diamond hands`);
+
+    // De-duplicate across sections by keywords
+    const riskKeys = new Set(risksList.map(r => r.t.split(' ')[0].toLowerCase()));
+    const keyInsights = insightsRaw.filter(i => !Array.from(riskKeys).some(k => i.toLowerCase().includes(k)));
     
     // Enhanced catalysts and red flags
     const catalysts = [];
@@ -585,18 +607,17 @@ class SocialContextAI {
         sustainability: engagementRate > 5 ? 'High' : engagementRate > 2 ? 'Medium' : 'Low'
       },
       riskAssessment: {
-        level: bearishSignals >= 3 ? 'High' : bearishSignals >= 2 ? 'Medium' : 'Low',
-        factors: bearishSignals >= 2 ? [
-          'Multiple negative indicators detected',
-          priceChange24h < -15 ? 'Significant price decline' : null,
-          mentions < 10 ? 'Low social engagement' : null,
-          communityScore < 4 ? 'Poor community metrics' : null
-        ].filter(Boolean) : ['Standard market risks apply'],
-        mitigants: bullishSignals >= 2 ? [
-          'Positive momentum indicators present',
-          communityScore > 6 ? 'Strong community foundation' : null,
-          volume24h > 1000000 ? 'Healthy trading volume' : null
-        ].filter(Boolean) : ['Monitor for trend changes']
+        level: risksList.length >= 3 ? 'High' : risksList.length === 2 ? 'Medium' : 'Low',
+        factors: risksList.map(r => `${r.t} — ${r.why} (${r.sev})`),
+        mitigants: [
+          communityScore > 6 ? 'Based community offsets chop' : null,
+          volume24h > 1_000_000 ? 'Strong volume cushions volatility' : null,
+          mentions >= 25 ? 'CT attention improving' : null
+        ].filter(Boolean).length ? [
+          communityScore > 6 ? 'Based community offsets chop' : null,
+          volume24h > 1_000_000 ? 'Strong volume cushions volatility' : null,
+          mentions >= 25 ? 'CT attention improving' : null
+        ].filter(Boolean) : ['Watch for confirmation on Hype over Time']
       },
       communityAnalysis: {
         organicGrowth: holderCount > 5000 ? 'Strong' : holderCount > 1000 ? 'Moderate' : 'Developing',

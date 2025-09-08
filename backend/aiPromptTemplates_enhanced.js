@@ -214,10 +214,12 @@ Use terms like "${getRandomSlang('opportunity')}", "${getRandomSlang('strong')}"
 export function fillEnhancedTemplate(template, variables) {
   let filled = template;
   
-  // Standard variable replacement
+  // Standard variable replacement (preserve 0/false, treat only null/undefined/empty-string as N/A)
   Object.keys(variables).forEach(key => {
     const regex = new RegExp(`{{${key}}}`, 'g');
-    filled = filled.replace(regex, variables[key] || 'N/A');
+    const v = variables[key];
+    const value = (v === null || v === undefined || v === '') ? 'N/A' : String(v);
+    filled = filled.replace(regex, value);
   });
   
   // Add Jupiter-specific enhancements
