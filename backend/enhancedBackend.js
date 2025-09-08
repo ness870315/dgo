@@ -1712,6 +1712,219 @@ class EnhancedBackend {
       }
     });
 
+    // === KOL: Public profile + stats ===
+    this.app.get('/api/kol/:userId/profile', async (req, res) => {
+      try {
+        const { userId } = req.params;
+        const user = await this.oauthXService.getUserById(userId);
+        if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+        res.json({ success: true, user: {
+          id: user.id,
+          username: user.username,
+          displayName: user.displayName || user.username,
+          profileImage: user.profileImage || null,
+        }});
+      } catch (e) {
+        res.status(500).json({ success: false, error: 'Failed to fetch profile' });
+      }
+    });
+
+    // Helper to compute simple user stats from calls and current token data
+    const computeUserKolStats = (calls, currentTokenDataMap) => {
+      const now30d = Date.now() - (30 * 24 * 60 * 60 * 1000);
+      const xs = [];
+      let recentCount = 0;
+      for (const c of calls) {
+        const calledAtMs = c.calledAt ? new Date(c.calledAt).getTime() : 0;
+        if (calledAtMs && calledAtMs >= now30d) recentCount++;
+        const ca = c.token?.contractAddress || c.contractAddress;
+        const current = currentTokenDataMap.get(ca) || {};
+        const currentMC = Number(current?.jupiterData?.mcap || current?.marketCap || c.currentMC || 0) || 0;
+        const calledMC = Number(c.calledMc || c.calledMC || 0) || 0;
+        if (calledMC > 0 && currentMC > 0) {
+          xs.push(currentMC / calledMC);
+        }
+      }
+      xs.sort((a,b)=>a-b);
+      const medianX = xs.length ? (xs.length % 2 ? xs[(xs.length-1)/2] : (xs[xs.length/2-1]+xs[xs.length/2])/2) : 0;
+      const hitRate = xs.length ? xs.filter(v => v >= 2).length / xs.length : 0;
+      return {
+        totalCalls: calls.length,
+        recentCalls30d: recentCount,
+        medianX,
+        hitRate
+      };
+    };
+
+    // KOL: Stats for a specific user (auth required)
+    this.app.get('/api/kol/:userId/stats', async (req, res) => {
+      try {
+        const { userId } = req.params;
+        const { sessionId } = req.query;
+        const viewer = await this.oauthXService.getUserBySession(sessionId);
+        if (!viewer) return res.status(401).json({ success: false, error: 'Invalid session' });
+
+        const calls = await this.oauthXService.db.getKolCalls(userId);
+        const tokens = await this.getTokensFromCache();
+        const map = new Map(tokens.filter(t => t.contractAddress).map(t => [t.contractAddress, t]));
+        const stats = computeUserKolStats(calls || [], map);
+
+        // follow info
+        const follows = await this.oauthXService.db.getFollows(userId).catch(()=>({following:[],followers:[]}));
+        const viewerFollows = await this.oauthXService.db.getFollows(viewer.id).catch(()=>({following:[],followers:[]}));
+        const isFollowing = Array.isArray(viewerFollows.following) && viewerFollows.following.includes(userId);
+
+        res.json({ success: true, stats, follows, isFollowing });
+      } catch (e) {
+        res.status(500).json({ success: false, error: 'Failed to fetch stats' });
+      }
+    });
+
+    // KOL: Calls list for a specific user (auth required)
+    this.app.get('/api/kol/:userId/calls', async (req, res) => {
+      try {
+        const { userId } = req.params;
+        const { sessionId } = req.query;
+        const viewer = await this.oauthXService.getUserBySession(sessionId);
+        if (!viewer) return res.status(401).json({ success: false, error: 'Invalid session' });
+        const calls = await this.oauthXService.db.getKolCalls(userId);
+        res.json({ success: true, calls: calls || [] });
+      } catch (e) {
+        res.status(500).json({ success: false, error: 'Failed to fetch calls' });
+      }
+    });
+
+    // === KOL: Monthly winners (server-side, cached) ===
+    this.app.get('/api/leaderboard/winners', async (req, res) => {
+      try {
+        const { sessionId, month, limit } = req.query; // month: 'YYYY-MM'
+        const viewer = await this.oauthXService.getUserBySession(sessionId);
+        if (!viewer) return res.status(401).json({ success: false, error: 'Invalid session' });
+
+        // Premium-gated similar to leaderboard
+        const premiumStatus = await this.oauthXService.db.getPremiumStatus(viewer.id);
+        const isPremium = premiumStatus?.isPremium && new Date(premiumStatus.expiresAt) > new Date();
+        if (!isPremium) {
+          return res.status(403).json({ success: false, error: 'premium_required', message: 'Winners is a Premium feature.' });
+        }
+
+        const monthKey = (typeof month === 'string' && /^\d{4}-\d{2}$/.test(month)) ? month : new Date().toISOString().slice(0,7);
+        const topN = Math.max(1, Math.min(20, Number(limit) || 3));
+
+        // Cache file under DATA_DIR/cache
+        let cachePath;
+        try {
+          const baseDir = this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo';
+          cachePath = path.join(baseDir, 'cache', `kol-winners-${monthKey}.json`);
+        } catch (_) {
+          cachePath = path.join(__dirname, 'cache', `kol-winners-${monthKey}.json`);
+        }
+
+        // Attempt cache (10 min TTL)
+        try {
+          const raw = await fs.readFile(cachePath, 'utf8');
+          const cached = JSON.parse(raw);
+          const ttlMs = 10 * 60 * 1000;
+          if (cached && cached.generatedAt && (Date.now() - new Date(cached.generatedAt).getTime()) < ttlMs) {
+            return res.json({ success: true, month: monthKey, winners: cached.winners?.slice(0, topN) || [], generatedAt: cached.generatedAt, cached: true });
+          }
+        } catch (_) {}
+
+        // Build data for computation
+        const allCalls = await this.oauthXService.db.getAllKolCalls();
+        const monthCalls = (allCalls || []).filter(c => {
+          const d = c.calledAt || c.createdAt;
+          if (!d) return false;
+          return new Date(d).toISOString().slice(0,7) === monthKey;
+        });
+
+        // Current token data map
+        const tokens = await this.getTokensFromCache();
+        const tokenMap = new Map(tokens.filter(t => t.contractAddress).map(t => [t.contractAddress.toLowerCase(), t]));
+
+        // Group by user
+        const byUser = new Map();
+        for (const c of monthCalls) {
+          const uid = c.userId || c.user || null;
+          if (!uid) continue;
+          if (!byUser.has(uid)) byUser.set(uid, []);
+          byUser.get(uid).push(c);
+        }
+
+        // Compute per-user metrics
+        const results = [];
+        for (const [userId, calls] of byUser.entries()) {
+          const xs = [];
+          for (const c of calls) {
+            const ca = (c.token?.contractAddress || c.contractAddress || '').toLowerCase();
+            const calledMC = Number(c.calledMc || c.calledMC || 0) || 0;
+            const token = tokenMap.get(ca);
+            const currentMC = Number(token?.jupiterData?.mcap || token?.marketCap || c.currentMC || 0) || 0;
+            if (calledMC > 0 && currentMC > 0) xs.push(currentMC / calledMC);
+          }
+          if (xs.length === 0) continue;
+          xs.sort((a,b)=>a-b);
+          const medianX = xs.length % 2 ? xs[(xs.length-1)/2] : (xs[xs.length/2-1] + xs[xs.length/2]) / 2;
+          const hitRate = xs.filter(v => v >= 2).length / xs.length;
+          const scoreMonth = medianX * (1 + 0.1 * calls.length) * (0.75 + 0.25 * hitRate);
+          // Enrich with user profile basics
+          let userBasic = null;
+          try { userBasic = await this.oauthXService.getUserById(userId); } catch (_) {}
+          results.push({
+            userId,
+            displayName: userBasic?.displayName || userBasic?.username || `User${String(userId).slice(-4)}`,
+            username: userBasic?.username || `user_${String(userId).slice(-4)}`,
+            profileImage: userBasic?.profileImage || null,
+            callCount: calls.length,
+            medianX,
+            hitRate,
+            scoreMonth
+          });
+        }
+
+        results.sort((a,b)=> b.scoreMonth - a.scoreMonth);
+        const winners = results.slice(0, topN);
+
+        const payload = { winners, generatedAt: new Date().toISOString() };
+        try {
+          await fs.mkdir(path.dirname(cachePath), { recursive: true });
+          await fs.writeFile(cachePath, JSON.stringify(payload, null, 2));
+        } catch (_) {}
+
+        res.json({ success: true, month: monthKey, winners, generatedAt: payload.generatedAt, cached: false });
+      } catch (e) {
+        console.error('[🛡️ Enhanced Backend] ❌ Monthly winners error:', e.message);
+        res.status(500).json({ success: false, error: 'Failed to compute monthly winners' });
+      }
+    });
+    // KOL: Follow
+    this.app.post('/api/kol/:userId/follow', async (req, res) => {
+      try {
+        const { userId } = req.params;
+        const { sessionId } = req.body || {};
+        const viewer = await this.oauthXService.getUserBySession(sessionId);
+        if (!viewer) return res.status(401).json({ success: false, error: 'Invalid session' });
+        const result = await this.oauthXService.db.followUser(viewer.id, userId);
+        res.json({ success: true, result });
+      } catch (e) {
+        res.status(500).json({ success: false, error: 'Failed to follow user' });
+      }
+    });
+
+    // KOL: Unfollow
+    this.app.delete('/api/kol/:userId/follow', async (req, res) => {
+      try {
+        const { userId } = req.params;
+        const { sessionId } = req.query;
+        const viewer = await this.oauthXService.getUserBySession(sessionId);
+        if (!viewer) return res.status(401).json({ success: false, error: 'Invalid session' });
+        const result = await this.oauthXService.db.unfollowUser(viewer.id, userId);
+        res.json({ success: true, result });
+      } catch (e) {
+        res.status(500).json({ success: false, error: 'Failed to unfollow user' });
+      }
+    });
+
     // === AI ANALYSIS ENDPOINTS ===
     
     // Hype Trend Analysis endpoint
@@ -5227,10 +5440,9 @@ class EnhancedBackend {
     try {
       const status = this.tokenProcessor.getProcessingStatus();
       
-      if (status.processedCount > 0 && !status.isProcessing) {
-        console.log('[🛡️ Enhanced Backend] 🔄 Starting cache refresh...');
-        await this.tokenProcessor.startProcessing();
-      }
+      // DISABLED: Automatic processing to prevent unwanted Twitter API calls
+      // Manual processing only via admin dashboard or explicit triggers
+      console.log('[🛡️ Enhanced Backend] 🔄 Cache refresh completed (auto-processing disabled)');
       
     } catch (error) {
       console.error('[🛡️ Enhanced Backend] ❌ Cache refresh failed:', error);
