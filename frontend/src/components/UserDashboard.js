@@ -1060,14 +1060,25 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                     const styleFor = (t) => t === 'bullish' ? 'bg-green-900/20 border-green-700 text-green-300' : t === 'bearish' ? 'bg-red-900/20 border-red-700 text-red-300' : 'bg-gray-800/40 border-gray-700 text-gray-300';
 
                     return chips.map((c, i) => (
-                      <span
+                      <div
                         key={i}
-                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-xs ${styleFor(c.type)}`}
-                        title={c.tip}
+                        className="relative inline-block"
+                        onMouseEnter={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'block'; }}
+                        onMouseLeave={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'none'; }}
                       >
-                        {iconFor(c.type)}
-                        {c.text}
-                      </span>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-xs ${styleFor(c.type)}`}
+                        >
+                          {iconFor(c.type)}
+                          {c.text}
+                        </span>
+                        <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-50" style={{ display: 'none' }}>
+                          <div className="text-xs leading-tight">
+                            <span className="font-semibold text-white">{c.text}:</span>
+                            <span className="text-gray-300 ml-1">{c.tip}</span>
+                          </div>
+                        </div>
+                      </div>
                     ));
                   })()}
                 </div>
