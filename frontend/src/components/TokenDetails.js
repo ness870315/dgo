@@ -494,7 +494,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                   </>
                 )}
               </button>
-              <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-50" style={{ display: 'none' }}>
+              <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-[1000] max-w-[220px]" style={{ display: 'none' }}>
                 <div className="text-xs leading-tight">
                   <span className="font-semibold text-white">Oracle AI:</span>
                   <span className="text-gray-300 ml-1">{isAuthenticated ? 'Deep-dive analysis with hype, risks, and plays' : 'Log in to use this feature'}</span>
@@ -512,7 +512,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
               >
                 <Flame size={20} />
               </button>
-              <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-50" style={{ display: 'none' }}>
+              <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-[1000] max-w-[220px]" style={{ display: 'none' }}>
                 <div className="text-xs leading-tight">
                   <span className="font-semibold text-white">Fuel:</span>
                   <span className="text-gray-300 ml-1">Boost visibility and priority for this token</span>
@@ -541,7 +541,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                       fill={isInWatchlist ? 'currentColor' : 'none'} 
                     />
                 </button>
-                <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-50" style={{ display: 'none' }}>
+                <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-[1000] max-w-[220px]" style={{ display: 'none' }}>
                   <div className="text-xs leading-tight">
                     <span className="font-semibold text-white">Watchlist:</span>
                     <span className="text-gray-300 ml-1">{isAuthenticated ? (isInWatchlist ? 'Remove from your watchlist' : 'Add to your watchlist') : 'Log in to use this feature'}</span>
@@ -593,7 +593,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                 >
                   Call it!
                 </button>
-                <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-50" style={{ display: 'none' }}>
+                <div className="bubble-tooltip absolute -top-2 left-1/2 transform -translate-x-1/2 -translate-y-full mb-1 z-[1100] max-w-[240px]" style={{ display: 'none' }}>
                   <div className="text-xs leading-tight">
                     <span className="font-semibold text-white">Call it:</span>
                     <span className="text-gray-300 ml-1">{isAuthenticated ? 'Record your play at current MCAP' : 'Log in to use this feature'}</span>
