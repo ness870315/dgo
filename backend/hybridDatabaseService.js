@@ -680,6 +680,56 @@ class HybridDatabaseService {
   }
 
   /**
+   * Get follow data for a user
+   */
+  async getFollows(userId) {
+    await this.ensureUserDir(userId);
+    const file = this.getUserFile(userId, 'follows.json');
+    const data = await this.readJsonFile(file, { following: [], followers: [] });
+    // Normalize to unique arrays
+    const following = Array.from(new Set(Array.isArray(data.following) ? data.following : []));
+    const followers = Array.from(new Set(Array.isArray(data.followers) ? data.followers : []));
+    return { following, followers };
+  }
+
+  /**
+   * Follow a user (adds to follower's following and target's followers)
+   */
+  async followUser(userId, targetUserId) {
+    if (!userId || !targetUserId || userId === targetUserId) return { success: false };
+    // Follower
+    const followerFile = this.getUserFile(userId, 'follows.json');
+    const follower = await this.readJsonFile(followerFile, { following: [], followers: [] });
+    follower.following = Array.from(new Set([...(follower.following || []), targetUserId]));
+    await this.writeJsonFile(followerFile, follower);
+    // Target
+    await this.ensureUserDir(targetUserId);
+    const targetFile = this.getUserFile(targetUserId, 'follows.json');
+    const target = await this.readJsonFile(targetFile, { following: [], followers: [] });
+    target.followers = Array.from(new Set([...(target.followers || []), userId]));
+    await this.writeJsonFile(targetFile, target);
+    return { success: true };
+  }
+
+  /**
+   * Unfollow a user
+   */
+  async unfollowUser(userId, targetUserId) {
+    if (!userId || !targetUserId || userId === targetUserId) return { success: false };
+    const followerFile = this.getUserFile(userId, 'follows.json');
+    const follower = await this.readJsonFile(followerFile, { following: [], followers: [] });
+    follower.following = (follower.following || []).filter(id => id !== targetUserId);
+    await this.writeJsonFile(followerFile, follower);
+    // Target
+    await this.ensureUserDir(targetUserId);
+    const targetFile = this.getUserFile(targetUserId, 'follows.json');
+    const target = await this.readJsonFile(targetFile, { following: [], followers: [] });
+    target.followers = (target.followers || []).filter(id => id !== userId);
+    await this.writeJsonFile(targetFile, target);
+    return { success: true };
+  }
+
+  /**
    * Update global user index
    */
   async updateUserIndex(userId, userInfo) {

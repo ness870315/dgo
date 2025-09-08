@@ -38,6 +38,16 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   const [hypeAIData, setHypeAIData] = useState(null);
   const [hypeAILoading, setHypeAILoading] = useState(false);
   const [hoveredTooltip, setHoveredTooltip] = useState(null);
+  const [selectedKolUser, setSelectedKolUser] = useState(null);
+  const [kolStats, setKolStats] = useState(null);
+  const [kolCalls, setKolCalls] = useState([]);
+  const [kolLoading, setKolLoading] = useState(false);
+  const [kolFollowBusy, setKolFollowBusy] = useState(false);
+  const [kolIsFollowing, setKolIsFollowing] = useState(false);
+  // Seasons (monthly)
+  const [seasonMonth, setSeasonMonth] = useState(() => new Date().toISOString().slice(0,7)); // YYYY-MM
+  const [winners, setWinners] = useState([]);
+  const [winnersLoading, setWinnersLoading] = useState(false);
 
   const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
 
@@ -243,6 +253,46 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
       setLoading(false);
     }
   }, [user, sessionId, fetchDashboardData]);
+
+  // Load KOL profile data when modal opens
+  useEffect(() => {
+    (async () => {
+      if (!selectedKolUser) return;
+      try {
+        setKolLoading(true);
+        const userId = selectedKolUser.userId || selectedKolUser.id;
+        const [statsRes, callsRes] = await Promise.all([
+          leaderboardService.getUserStats(userId),
+          leaderboardService.getUserCalls(userId)
+        ]);
+        setKolStats(statsRes?.stats || null);
+        setKolIsFollowing(!!statsRes?.isFollowing);
+        setKolCalls(Array.isArray(callsRes?.calls) ? callsRes.calls : []);
+      } catch (e) {
+        console.error('Failed to load KOL profile', e);
+        setKolStats(null);
+        setKolCalls([]);
+      } finally {
+        setKolLoading(false);
+      }
+    })();
+  }, [selectedKolUser]);
+
+  // Load monthly winners from server-side endpoint
+  useEffect(() => {
+    (async () => {
+      try {
+        setWinnersLoading(true);
+        const resp = await leaderboardService.getMonthlyWinners(seasonMonth, 3);
+        setWinners(Array.isArray(resp?.winners) ? resp.winners : []);
+      } catch (e) {
+        console.error('Failed to compute monthly winners', e);
+        setWinners([]);
+      } finally {
+        setWinnersLoading(false);
+      }
+    })();
+  }, [seasonMonth]);
 
   if (loading) {
     return (
@@ -532,13 +582,56 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
 
           {/* KOL Leaderboard - TOP RIGHT */}
           <div className="bg-dark-card border border-gray-700 rounded-lg p-6">
-            <div className="flex items-center space-x-2 mb-4">
+            <div className="flex items-center space-x-2 mb-2">
               <BarChart3 size={20} className="text-green-400" />
               <h2 className="text-xl font-semibold text-white">KOL Leaderboard</h2>
               {!dashboardData.isPremium && (
                 <Crown size={16} className="text-yellow-400" title="Premium Feature" />
               )}
             </div>
+            {dashboardData.isPremium && (
+              <div className="flex items-center gap-2 mb-4 text-sm">
+                <button
+                  onClick={() => setSeasonMonth(new Date().toISOString().slice(0,7))}
+                  className={`px-2 py-1 rounded border ${seasonMonth === new Date().toISOString().slice(0,7) ? 'bg-purple-600 border-purple-500 text-white' : 'bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700'}`}
+                >This Month</button>
+                <button
+                  onClick={() => { const d = new Date(); d.setMonth(d.getMonth()-1); setSeasonMonth(d.toISOString().slice(0,7)); }}
+                  className="px-2 py-1 rounded border bg-transparent border-gray-600 text-gray-300 hover:bg-gray-700"
+                >Last Month</button>
+                <input type="month" value={seasonMonth} onChange={(e)=>setSeasonMonth(e.target.value)} className="bg-gray-800 border border-gray-700 text-gray-200 rounded px-2 py-1 ml-auto" />
+              </div>
+            )}
+            {dashboardData.isPremium && (
+              <div className="mb-4 p-3 rounded border border-gray-700 bg-gray-800/40">
+                <div className="flex items-center gap-2 mb-2">
+                  <Award size={16} className="text-yellow-400" />
+                  <span className="text-white font-medium">Winners {seasonMonth}</span>
+                  {winnersLoading && <span className="text-gray-400 text-xs">computing…</span>}
+                </div>
+                {winners.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {winners.map((w, i) => (
+                      <button key={w.userId || i} onClick={()=>setSelectedKolUser(w)} className="p-3 rounded bg-gray-800/60 border border-gray-700 hover:bg-gray-800 text-left">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-white font-semibold">#{i+1}</span>
+                          <span className={`inline-flex items-center justify-center w-5 h-5 rounded ${i===0?'bg-yellow-500':i===1?'bg-gray-400':'bg-amber-700'}`}></span>
+                          <span className="text-white font-medium">{w.displayName}</span>
+                          <span className="text-blue-400 text-xs">@{w.username}</span>
+                        </div>
+                        <div className="text-xs text-gray-300 flex gap-3">
+                          <span>Calls: {w.callCount}</span>
+                          <span>Median X: {w.medianX.toFixed(2)}x</span>
+                          <span>Hit: {(w.hitRate*100).toFixed(0)}%</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-gray-500 text-sm">No winners for this month yet</div>
+                )}
+              </div>
+            )}
             <div className="space-y-4">
               {!dashboardData.isPremium ? (
                 <div className="text-center py-8">
@@ -564,32 +657,48 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                   </button>
                 </div>
               ) : dashboardData.kolLeaderboard.length > 0 ? (
-                dashboardData.kolLeaderboard.slice(0, 10).map((kol, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      {kol.profileImage ? (
-                        <img src={kol.profileImage} alt={kol.displayName || kol.username} className="w-8 h-8 rounded-full object-cover" />
-                      ) : (
-                        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                          <span className="text-white text-sm font-bold">{kol.rank}</span>
+                dashboardData.kolLeaderboard.slice(0, 10).map((kol, index) => {
+                  const rank = kol.rank || (index + 1);
+                  const trophy = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : null;
+                  const trophyClass = trophy === 'gold' ? 'text-yellow-400' : trophy === 'silver' ? 'text-gray-300' : 'text-amber-700';
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedKolUser(kol)}
+                      className="w-full flex items-center justify-between p-3 bg-gray-800/50 rounded-lg hover:bg-gray-800 transition-colors text-left"
+                      title="View profile"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className="w-9 h-9 bg-gray-700 rounded-full flex items-center justify-center border border-gray-600">
+                          <span className="text-white text-xs font-bold">#{rank}</span>
                         </div>
-                      )}
-                      <div className="flex-1">
-                        <p className="text-white font-medium">{kol.displayName}</p>
-                        <p className="text-blue-400 text-sm font-medium">@{kol.username}</p>
-                        <div className="flex items-center space-x-4 text-xs text-gray-400">
-                          <span>{kol.callCount} calls</span>
-                          <span>Hit Rate: {(kol.metrics?.hitRate * 100 || 0).toFixed(1)}%</span>
-                          <span>Median X: {kol.metrics?.medianX?.toFixed(1) || 'N/A'}x</span>
+                        {kol.profileImage ? (
+                          <img src={kol.profileImage} alt={kol.displayName || kol.username} className="w-8 h-8 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                            <span className="text-white text-sm font-bold">{(kol.displayName || kol.username || '?').slice(0,1).toUpperCase()}</span>
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-white font-medium">{kol.displayName}</p>
+                            {trophy && <Award size={16} className={trophyClass} />}
+                          </div>
+                          <p className="text-blue-400 text-sm font-medium">@{kol.username}</p>
+                          <div className="flex items-center space-x-4 text-xs text-gray-400">
+                            <span>{kol.callCount} calls</span>
+                            <span>Hit Rate: {(kol.metrics?.hitRate * 100 || 0).toFixed(1)}%</span>
+                            <span>Median X: {kol.metrics?.medianX?.toFixed(1) || 'N/A'}x</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-green-400 font-semibold text-lg">{kol.score}</p>
-                      <p className="text-gray-400 text-sm">Efficiency: {kol.efficiency?.toFixed(2) || 'N/A'}</p>
-                    </div>
-                  </div>
-                ))
+                      <div className="text-right">
+                        <p className="text-green-400 font-semibold text-lg">{kol.score}</p>
+                        <p className="text-gray-400 text-sm">Efficiency: {kol.efficiency?.toFixed(2) || 'N/A'}</p>
+                      </div>
+                    </button>
+                  );
+                })
               ) : (
                 <div className="text-center py-8">
                   <Award size={48} className="text-gray-600 mx-auto mb-4" />
@@ -664,6 +773,64 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                   <button className="px-3 py-1 rounded border border-gray-600 text-gray-300 hover:bg-gray-700" onClick={() => setShowManageHype(false)}>Close</button>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* KOL Profile Modal */}
+        {selectedKolUser && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+            <div className="bg-dark-card border border-gray-700 rounded-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+              <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {selectedKolUser.profileImage ? (
+                    <img src={selectedKolUser.profileImage} alt={selectedKolUser.displayName || selectedKolUser.username} className="w-10 h-10 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm font-bold">{(selectedKolUser.displayName || selectedKolUser.username || '?').slice(0,1).toUpperCase()}</span>
+                    </div>
+                  )}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-white text-lg font-semibold">{selectedKolUser.displayName}</h3>
+                      <span className="text-gray-400 text-sm">@{selectedKolUser.username}</span>
+                    </div>
+                    <div className="text-xs text-gray-400 flex gap-3 mt-1">
+                      <span>Rank #{selectedKolUser.rank || '-'}</span>
+                      <span>Score {selectedKolUser.score}</span>
+                      <span>Calls {selectedKolUser.callCount}</span>
+                    </div>
+                  </div>
+                </div>
+                <button className="text-gray-400 hover:text-white" onClick={() => setSelectedKolUser(null)}>✕</button>
+              </div>
+              <KolProfile
+                kol={selectedKolUser}
+                onClose={() => setSelectedKolUser(null)}
+                stats={kolStats}
+                calls={kolCalls}
+                loading={kolLoading}
+                isFollowing={kolIsFollowing}
+                onToggleFollow={async () => {
+                  if (!selectedKolUser) return;
+                  try {
+                    setKolFollowBusy(true);
+                    if (kolIsFollowing) {
+                      await leaderboardService.unfollow(selectedKolUser.userId || selectedKolUser.id);
+                      setKolIsFollowing(false);
+                    } else {
+                      await leaderboardService.follow(selectedKolUser.userId || selectedKolUser.id);
+                      setKolIsFollowing(true);
+                    }
+                  } catch (e) {
+                    console.error('Follow toggle failed', e);
+                    alert('Failed to update follow state');
+                  } finally {
+                    setKolFollowBusy(false);
+                  }
+                }}
+                followBusy={kolFollowBusy}
+              />
             </div>
           </div>
         )}
@@ -1416,6 +1583,63 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
 };
 
 export default UserDashboard;
+
+// KOL Profile content
+function KolProfile({ kol, stats, calls, loading, isFollowing, onToggleFollow, followBusy, onClose }) {
+  return (
+    <div>
+      <div className="p-4">
+        {loading ? (
+          <div className="text-gray-400 text-sm">Loading profile…</div>
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <span className="px-2 py-1 rounded bg-gray-800/60 border border-gray-700 text-gray-300">Total Calls: {stats?.totalCalls ?? 0}</span>
+              <span className="px-2 py-1 rounded bg-gray-800/60 border border-gray-700 text-gray-300">30d Calls: {stats?.recentCalls30d ?? 0}</span>
+              <span className="px-2 py-1 rounded bg-gray-800/60 border border-gray-700 text-gray-300">Hit Rate: {((stats?.hitRate || 0) * 100).toFixed(1)}%</span>
+              <span className="px-2 py-1 rounded bg-gray-800/60 border border-gray-700 text-gray-300">Median X: {stats?.medianX ? stats.medianX.toFixed(2) : 'N/A'}x</span>
+            </div>
+
+            <div className="mt-4 flex items-center justify-between">
+              <div className="text-gray-400 text-sm">Followers and following stats coming soon</div>
+              <button
+                onClick={onToggleFollow}
+                disabled={followBusy}
+                className={`px-3 py-2 rounded border text-sm ${isFollowing ? 'border-red-500 text-red-300 hover:bg-red-500/10' : 'border-blue-500 text-blue-300 hover:bg-blue-500/10'} ${followBusy ? 'opacity-60 cursor-not-allowed' : ''}`}
+              >
+                {isFollowing ? (followBusy ? 'Unfollowing…' : 'Unfollow') : (followBusy ? 'Following…' : 'Follow')}
+              </button>
+            </div>
+
+            <div className="mt-6">
+              <h4 className="text-white font-semibold mb-3">Recent Calls</h4>
+              {Array.isArray(calls) && calls.length > 0 ? (
+                <div className="divide-y divide-gray-700 border border-gray-700 rounded">
+                  {calls.slice().reverse().slice(0, 20).map((c, i) => (
+                    <div key={c.id || i} className="p-3 text-sm flex items-center justify-between">
+                      <div>
+                        <div className="text-white font-medium">{c.token?.symbol || 'UNKNOWN'} <span className="text-gray-400">• {c.token?.name}</span></div>
+                        <div className="text-gray-400">{new Date(c.calledAt || c.createdAt).toLocaleString()}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-gray-300">Called MC: ${Number(c.calledMc || c.calledMC || 0).toLocaleString()}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-gray-500 text-sm">No calls yet</div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+      <div className="p-4 border-t border-gray-700 flex items-center justify-end gap-2">
+        <button className="px-3 py-2 bg-transparent border border-gray-600 text-gray-200 hover:bg-gray-700 rounded" onClick={onClose}>Close</button>
+      </div>
+    </div>
+  );
+}
 
 // Lightweight SVG chart for hype score over time (0-10)
 function HypeMiniChart({ data }) {
