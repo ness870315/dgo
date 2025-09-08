@@ -583,6 +583,9 @@ class EnhancedSocialDataService {
         // Community Activity Metrics
         mentions: mentions72hAvg != null ? mentions72hAvg : totalMentions,
         mentions24h: totalMentions,
+        mentions72hAvg: mentions72hAvg != null ? mentions72hAvg : null,
+        mentionsWindowHours: mentions72hAvg != null ? 72 : 0,
+        _mentionsSmoothing: mentions72hAvg != null ? '72h_avg' : 'single_fetch_5',
         likes: totalLikes,
         retweets: totalRetweets,
         replies: totalReplies,
@@ -1031,17 +1034,16 @@ class EnhancedSocialDataService {
     
     try {
       // 1. MENTIONS SCORING (55% weight) - PRIMARY importance for community buzz
-      const mentions = twitterData.mentions || 0;
-      let mentionsScore = 0;
-      if (mentions >= 50) mentionsScore = 3.5;        // 50+ mentions = excellent buzz
-      else if (mentions >= 25) mentionsScore = 3.0;   // 25+ mentions = very good
-      else if (mentions >= 15) mentionsScore = 2.5;   // 15+ mentions = good
-      else if (mentions >= 8) mentionsScore = 2.0;    // 8+ mentions = decent
-      else if (mentions >= 3) mentionsScore = 1.5;    // 3+ mentions = some activity
-      else if (mentions >= 1) mentionsScore = 1.0;    // 1+ mentions = minimal activity
-      
+      const mentionsRaw = Number(twitterData.mentions || 0);
+      const has72h = Number(twitterData.mentionsWindowHours || 0) >= 72;
+      // Normalize to new 5-post pull policy; if 72h avg exists, it’s already smoothed
+      const normalizedActivity = Math.min(1, (has72h ? mentionsRaw : mentionsRaw) / 5);
+      const isBootstrap = !has72h; // no history yet
+      const mentionsWeight = isBootstrap ? 0.40 : 0.55; // reduce weight for new tokens
+      const mentionsScore = normalizedActivity * (3.5 / 0.55) * mentionsWeight; // keep max ~3.5 when weight=0.55
+
       score += mentionsScore;
-      console.log(`   🐦 Mentions (${mentions}): +${mentionsScore.toFixed(2)} points (55% weight)`);
+      console.log(`   🐦 Mentions (${mentionsRaw}${has72h ? ' avg72h' : ''}): +${mentionsScore.toFixed(2)} points (${Math.round(mentionsWeight*100)}% weight)`);
       
       // 2. ENGAGEMENT SCORING (35% weight) - Quality of community interaction
       const totalEngagement = (twitterData.likes || 0) + (twitterData.retweets || 0) + (twitterData.replies || 0);
@@ -1054,9 +1056,11 @@ class EnhancedSocialDataService {
       else if (engagementRate >= 2) engagementScore = 1.2; // 2+ engagement = decent
       else if (engagementRate >= 1) engagementScore = 0.8; // 1+ engagement = some
       else if (engagementRate >= 0.5) engagementScore = 0.5; // 0.5+ engagement = minimal
-      
-      score += engagementScore;
-      console.log(`   💬 Engagement Rate (${engagementRate.toFixed(2)}): +${engagementScore.toFixed(2)} points (35% weight)`);
+      // Boost engagement weight in bootstrap since mentions are capped
+      const engagementWeight = isBootstrap ? 0.45 : 0.35;
+      const engagementScoreWeighted = engagementScore * (engagementWeight / 0.35);
+      score += engagementScoreWeighted;
+      console.log(`   💬 Engagement Rate (${engagementRate.toFixed(2)}): +${engagementScoreWeighted.toFixed(2)} points (${Math.round(engagementWeight*100)}% weight)`);
       
       // 3. FOLLOWER BASE SCORING (5% weight) - Minor importance
       const followers = twitterData.followers || 0;
@@ -1076,9 +1080,15 @@ class EnhancedSocialDataService {
       // 4. QUALITY INDICATORS (5% weight) - Basic legitimacy checks
       const hasOfficialAccount = twitterData.username ? 1.0 : 0;
       const hasRecentActivity = mentions > 0 ? 1.0 : 0;
-      const qualityScore = (hasOfficialAccount + hasRecentActivity) * 0.5; // Increased from 0.25 to 0.5
+      let qualityScore = (hasOfficialAccount + hasRecentActivity) * 0.5; // base
+      // Bootstrap quality bump to avoid unfair nerf on brand-new tokens
+      if (isBootstrap) {
+        const engagementPerPost = mentionsRaw > 0 ? totalEngagement / mentionsRaw : 0;
+        const bump = Math.max(0, Math.min(0.7, (engagementPerPost >= 2 ? 0.5 : 0.3) + (hasOfficialAccount ? 0.2 : 0)));
+        qualityScore += bump;
+      }
       score += qualityScore;
-      console.log(`   ✅ Quality (Official=${!!twitterData.username}, Active=${mentions > 0}): +${qualityScore.toFixed(2)} points (5% weight)`);
+      console.log(`   ✅ Quality (Official=${!!twitterData.username}, Active=${mentionsRaw > 0}${isBootstrap ? ', Bootstrap bump applied' : ''}): +${qualityScore.toFixed(2)} points (5%+ variable)`);
       
       // Ensure score is within 0-10 range
       score = Math.min(9.9, Math.max(0, score));
