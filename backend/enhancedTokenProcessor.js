@@ -431,7 +431,21 @@ class EnhancedTokenProcessor {
     
     const batchSize = this.rateLimits.twitter.batchSize; // 20 tokens per batch
     const delayMs = this.rateLimits.twitter.delayMs; // 5 seconds between tokens
+    
+    // 🚨 CRITICAL FIX: Deduplicate processing queue before Twitter stage to prevent duplicate API calls
+    const rawTokens = this.processingQueue;
+    const deduplicatedTokens = this.deduplicateTokens(rawTokens);
+    const duplicatesRemoved = rawTokens.length - deduplicatedTokens.length;
+    
+    if (duplicatesRemoved > 0) {
+      console.log(`🔧 DUPLICATE PREVENTION: Removed ${duplicatesRemoved} duplicate tokens from Twitter processing queue (${rawTokens.length} → ${deduplicatedTokens.length})`);
+      this.processingQueue = deduplicatedTokens; // Update the queue
+    }
+    
     const allTokens = this.processingQueue;
+    
+    // 🚨 CRITICAL FIX: In-flight protection to prevent duplicate processing within same run
+    const currentlyProcessing = new Set();
     
     console.log(`🔄 Processing ${allTokens.length} tokens with Twitter API in batches of ${batchSize}...`);
     
@@ -455,6 +469,17 @@ class EnhancedTokenProcessor {
           
           const token = tokens[j];
           const symbol = token.symbol;
+          const contractKey = token.contractAddress || symbol; // Use contract address as primary key, fallback to symbol
+          
+          // 🚨 CRITICAL FIX: In-flight protection - skip if already processing this token in current run
+          if (currentlyProcessing.has(contractKey)) {
+            console.log(`🚫 DUPLICATE PREVENTION: Skipping ${symbol} - already processing in current run (key: ${contractKey})`);
+            batchSkipped++;
+            continue;
+          }
+          
+          // Mark as currently processing
+          currentlyProcessing.add(contractKey);
           
           // Check if we need to refresh Twitter data (24-hour rule)
           const needsTwitterRefresh = await this.shouldRefreshTwitterData(token);
