@@ -37,6 +37,10 @@ class EnhancedTokenProcessor {
     this.cacheDir = path.join(dataDir, 'cache');
     try { fsSync.mkdirSync(this.cacheDir, { recursive: true }); } catch (_) {}
     
+    // Set up persistent queue tracking
+    this.alreadyQueuedFile = path.join(this.cacheDir, 'already-queued-tokens.json');
+    this.loadAlreadyQueuedSet();
+    
     // CoinGecko page cycling state
     this.coinGeckoPageState = {
       currentPageSet: 1, // Which set of 3 pages (1-3, 4-6, 7-9)
@@ -1641,14 +1645,64 @@ class EnhancedTokenProcessor {
         if (!this.alreadyQueuedSet.has(key)) {
           merged.push(existing);
           this.alreadyQueuedSet.add(key);
+          this.saveAlreadyQueuedSet(); // Persist to disk
+          const isStupid = (existing.symbol || '').toUpperCase() === 'STUPID';
+          console.log(`➕ Added existing token ${existing.symbol}${isStupid ? ' [STUPID]' : ''} to processing queue (no CA match in new batch)`);
+        } else {
+          // console.log(`⏭️ Skipping already queued token: ${existing.symbol} (${key})`);
         }
-        const isStupid = (existing.symbol || '').toUpperCase() === 'STUPID';
-        console.log(`➕ Added existing token ${existing.symbol}${isStupid ? ' [STUPID]' : ''} to processing queue (no CA match in new batch)`);
       }
     }
     
     console.log(`✅ Merge complete: total=${merged.length}`);
+    
+    // Cleanup the already queued set if it's getting too large
+    this.cleanupAlreadyQueuedSet();
+    
     return merged;
+  }
+
+  /**
+   * Load already queued set from disk
+   */
+  loadAlreadyQueuedSet() {
+    try {
+      const data = fsSync.readFileSync(this.alreadyQueuedFile, 'utf8');
+      const queuedArray = JSON.parse(data || '[]');
+      this.alreadyQueuedSet = new Set(queuedArray);
+      console.log(`📂 Loaded ${this.alreadyQueuedSet.size} already-queued tokens from disk`);
+    } catch (error) {
+      // File doesn't exist or is corrupted, start fresh
+      this.alreadyQueuedSet = new Set();
+      console.log('📂 Starting with empty already-queued set');
+    }
+  }
+
+  /**
+   * Save already queued set to disk
+   */
+  saveAlreadyQueuedSet() {
+    try {
+      const queuedArray = Array.from(this.alreadyQueuedSet);
+      fsSync.writeFileSync(this.alreadyQueuedFile, JSON.stringify(queuedArray, null, 2));
+    } catch (error) {
+      console.error('❌ Failed to save already-queued set:', error.message);
+    }
+  }
+
+  /**
+   * Clean up old entries from already queued set (keep only last 24 hours of entries)
+   */
+  cleanupAlreadyQueuedSet() {
+    // For now, just limit the size to prevent it from growing indefinitely
+    if (this.alreadyQueuedSet.size > 1000) {
+      console.log(`🧹 Cleaning up already-queued set (${this.alreadyQueuedSet.size} entries)`);
+      // Convert to array, keep last 500 entries, convert back to Set
+      const entries = Array.from(this.alreadyQueuedSet);
+      this.alreadyQueuedSet = new Set(entries.slice(-500));
+      this.saveAlreadyQueuedSet();
+      console.log(`🧹 Cleaned up to ${this.alreadyQueuedSet.size} entries`);
+    }
   }
 
   // Public methods for external control
