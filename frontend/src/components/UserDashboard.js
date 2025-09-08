@@ -534,9 +534,13 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                 dashboardData.kolLeaderboard.slice(0, 10).map((kol, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
                     <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                        <span className="text-white text-sm font-bold">{kol.rank}</span>
-                      </div>
+                      {kol.profileImage ? (
+                        <img src={kol.profileImage} alt={kol.displayName || kol.username} className="w-8 h-8 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                          <span className="text-white text-sm font-bold">{kol.rank}</span>
+                        </div>
+                      )}
                       <div className="flex-1">
                         <p className="text-white font-medium">{kol.displayName}</p>
                         <p className="text-blue-400 text-sm font-medium">{kol.username}</p>

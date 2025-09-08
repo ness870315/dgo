@@ -417,6 +417,59 @@ class EnhancedBackend {
       }
     });
 
+    // Admin: KOL calls summary/debug endpoint
+    this.app.get('/api/admin/kol-calls/summary', async (req, res) => {
+      try {
+        // Load all KOL calls
+        const allKolCalls = await this.oauthXService.db.getAllKolCalls();
+        const totalCalls = Array.isArray(allKolCalls) ? allKolCalls.length : 0;
+
+        // Aggregate by user
+        const byUser = new Map();
+        for (const call of allKolCalls || []) {
+          const uid = call.userId;
+          byUser.set(uid, (byUser.get(uid) || 0) + 1);
+        }
+
+        // Enrich top users with profile
+        const topUsers = Array.from(byUser.entries())
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 25);
+
+        const users = await Promise.all(topUsers.map(async ([userId, count]) => {
+          try {
+            const u = await this.oauthXService.getUserById(userId);
+            return {
+              userId,
+              count,
+              username: u?.username || null,
+              displayName: u?.displayName || null,
+              profileImage: u?.profileImage || null
+            };
+          } catch (_) {
+            return { userId, count };
+          }
+        }));
+
+        // Provide a small sample of recent calls
+        const sample = (allKolCalls || [])
+          .slice(-20)
+          .reverse()
+          .map(c => ({
+            id: c.id,
+            userId: c.userId,
+            token: c.token,
+            calledAt: c.calledAt || c.createdAt,
+            calledMC: c.calledMc || c.calledMC
+          }));
+
+        res.json({ success: true, totalCalls, users, sample });
+      } catch (e) {
+        console.error('[🛡️ Enhanced Backend] ❌ KOL calls summary error:', e.message);
+        res.status(500).json({ success: false, error: 'Failed to get KOL calls summary' });
+      }
+    });
+
     // Admin: Referral codes
     this.app.get('/api/admin/referrals', async (req, res) => {
       try {
