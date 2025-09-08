@@ -91,6 +91,8 @@ class SocialContextAI {
       }
 
       const analysis = JSON.parse(rawResponse);
+      // Enforce distinct sections and formatting on AI output
+      this._enforceDistinctSections(analysis, tokenData);
       
       // Add metadata
       const enrichedAnalysis = {
@@ -129,6 +131,8 @@ class SocialContextAI {
       
       // Return enhanced fallback analysis with error context
       const fallbackAnalysis = this.getFallbackAnalysis(tokenData, error.message);
+      // Ensure distinct sections on fallback too
+      this._enforceDistinctSections(fallbackAnalysis, tokenData);
       
       // Add error metadata for debugging
       fallbackAnalysis.metadata = {
@@ -538,7 +542,11 @@ class SocialContextAI {
 
     // De-duplicate across sections by keywords
     const riskKeys = new Set(risksList.map(r => r.t.split(' ')[0].toLowerCase()));
-    const keyInsights = insightsRaw.filter(i => !Array.from(riskKeys).some(k => i.toLowerCase().includes(k)));
+    // Also exclude items overlapping with catalysts by basic keywords
+    const catalystKeys = new Set(['momentum','volume','mentions','community']);
+    const keyInsights = insightsRaw
+      .filter(i => !Array.from(riskKeys).some(k => i.toLowerCase().includes(k)))
+      .filter(i => !Array.from(catalystKeys).some(k => i.toLowerCase().includes(k)));
     
     // Enhanced catalysts and red flags
     const catalysts = [];
@@ -664,6 +672,40 @@ class SocialContextAI {
       const timeAgo = this.getTimeAgo(tweet.createdAt);
       return `${index + 1}. "${tweet.text?.substring(0, 100)}..." (${engagement} engagement, ${timeAgo})`;
     }).join('\n');
+  }
+
+  // Enforce distinct sections post-processing (OpenAI and fallback)
+  _enforceDistinctSections(analysis, tokenData) {
+    try {
+      if (!analysis) return;
+      // Normalize fields
+      const insights = Array.isArray(analysis.keyInsights) ? analysis.keyInsights : [];
+      const risks = analysis.riskAssessment?.factors || [];
+      const cats = Array.isArray(analysis.catalysts) ? analysis.catalysts : (typeof analysis.catalysts === 'string' ? analysis.catalysts.split(/\.\s+/).filter(Boolean) : []);
+
+      // Basic keyword families to avoid overlap
+      const riskKeys = ['liquidity','drawdown','mentions','engagement','holder','holder base','bot'];
+      const catKeys = ['momentum','volume','mentions','community','holder','listing','kol','partnership'];
+
+      const filteredInsights = insights.filter(i => !riskKeys.some(k => i.toLowerCase().includes(k)) && !catKeys.some(k => i.toLowerCase().includes(k)));
+
+      // Rebuild risks with severity and slang if plain strings
+      let rebuiltRisks = risks;
+      if (Array.isArray(risks)) {
+        rebuiltRisks = risks.map(r => typeof r === 'string' ? r : String(r));
+        // Ensure slang sprinkle
+        rebuiltRisks = rebuiltRisks.map(r => r.replace(/significant/gi, 'chunky').replace(/decline/gi, 'dump').replace(/low/gi, 'thin/low'));
+      }
+
+      // Limit counts for diversity
+      analysis.keyInsights = filteredInsights.slice(0, 3);
+      if (analysis.riskAssessment && Array.isArray(rebuiltRisks)) {
+        analysis.riskAssessment.factors = rebuiltRisks.slice(0, 4);
+      }
+      if (Array.isArray(cats)) {
+        analysis.catalysts = cats.filter(c => !riskKeys.some(k => c.toLowerCase().includes(k))).slice(0, 3);
+      }
+    } catch (_) {}
   }
 
   /**
