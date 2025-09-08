@@ -18,6 +18,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
     referralCode: '',
     kolCalls: [],
     kolLeaderboard: [],
+    leaderboardError: null,
     watchlist: [],
     isPremium: false,
     premiumExpiry: null
@@ -162,13 +163,29 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
 
         // Try to fetch leaderboard (premium feature)
         let leaderboard = [];
+        let leaderboardError = null;
 
         try {
+          console.log('🏆 Fetching KOL leaderboard...');
           const leaderboardData = await leaderboardService.getLeaderboard();
-          leaderboard = leaderboardData.leaderboard || [];
+          console.log('🏆 Leaderboard response:', leaderboardData);
+          
+          if (leaderboardData && leaderboardData.success) {
+            leaderboard = leaderboardData.leaderboard || [];
+            console.log(`🏆 Loaded ${leaderboard.length} leaderboard entries`);
+          } else {
+            console.warn('🏆 Leaderboard response indicates failure:', leaderboardData);
+            leaderboardError = leaderboardData?.error || 'Unknown error';
+          }
         } catch (err) {
-          // Leaderboard fetch failed - this is expected for non-premium users
-          console.log('Leaderboard not available (expected for non-premium users)');
+          console.error('🏆 Leaderboard fetch failed:', err);
+          leaderboardError = err.message || 'Failed to fetch leaderboard';
+          
+          // Check if it's a premium-related error
+          if (err.code === 'premium_required') {
+            console.log('🏆 Leaderboard requires premium (expected for non-premium users)');
+            leaderboardError = null; // Don't show error for expected premium restriction
+          }
         }
 
         setDashboardData({
@@ -179,6 +196,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
           referralCode: profileData.user?.referralCode || '',
           kolCalls: [], // TODO: Implement KOL calls
           kolLeaderboard: leaderboard,
+          leaderboardError: leaderboardError,
           watchlist: entries,
           isPremium: isPremium,
           premiumExpiry: premiumExpiry
@@ -200,6 +218,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
           referralCode: '',
           kolCalls: [],
           kolLeaderboard: [],
+          leaderboardError: null,
           watchlist: [],
           isPremium: false,
           premiumExpiry: null
@@ -529,6 +548,18 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                     Upgrade to Premium
                   </button>
                 </div>
+              ) : dashboardData.leaderboardError ? (
+                <div className="text-center py-8">
+                  <AlertTriangle size={48} className="text-red-400 mx-auto mb-4" />
+                  <p className="text-red-400 mb-2">Leaderboard Error</p>
+                  <p className="text-gray-400 text-sm">{dashboardData.leaderboardError}</p>
+                  <button
+                    onClick={fetchDashboardData}
+                    className="mt-4 px-4 py-2 bg-red-600/20 border border-red-600/40 text-red-400 rounded-lg hover:bg-red-600/30 transition-all text-sm"
+                  >
+                    Retry
+                  </button>
+                </div>
               ) : dashboardData.kolLeaderboard.length > 0 ? (
                 dashboardData.kolLeaderboard.slice(0, 10).map((kol, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
@@ -542,7 +573,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                       )}
                       <div className="flex-1">
                         <p className="text-white font-medium">{kol.displayName}</p>
-                        <p className="text-blue-400 text-sm font-medium">{kol.username}</p>
+                        <p className="text-blue-400 text-sm font-medium">@{kol.username}</p>
                         <div className="flex items-center space-x-4 text-xs text-gray-400">
                           <span>{kol.callCount} calls</span>
                           <span>Hit Rate: {(kol.metrics?.hitRate * 100 || 0).toFixed(1)}%</span>
@@ -560,7 +591,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                 <div className="text-center py-8">
                   <Award size={48} className="text-gray-600 mx-auto mb-4" />
                   <p className="text-gray-400">No KOL leaderboard data</p>
-                  <p className="text-gray-500 text-sm">KOL rankings will appear here</p>
+                  <p className="text-gray-500 text-sm">KOL rankings will appear here once users make calls</p>
                 </div>
               )}
             </div>
