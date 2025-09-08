@@ -82,7 +82,25 @@ Respond in this JSON format:
   "catalysts": "Potential positive catalysts from Jupiter organic activity ({{organicScore}}/100) and growth metrics with fresh crypto terminology",
   "redFlags": "Warning signs from Jupiter data and social indicators using varied expressions",
   "actionableInsights": "Specific recommendations using diverse crypto slang and Jupiter-backed reasoning",
-  "confidence": 85
+  "confidence": 0.85,
+  "sentiment": "Bullish",
+  "keyInsights": ["Key insight 1", "Key insight 2", "Key insight 3"],
+  "socialMomentum": {
+    "direction": "Accelerating",
+    "strength": "Strong", 
+    "sustainability": "High"
+  },
+  "riskAssessment": {
+    "level": "Medium",
+    "factors": ["Risk factor 1", "Risk factor 2"],
+    "mitigants": ["Positive factor 1", "Positive factor 2"]
+  },
+  "recommendation": {
+    "action": "Buy",
+    "reasoning": "Clear reasoning for the recommendation",
+    "timeframe": "Short-term",
+    "entryStrategy": "Entry strategy advice"
+  }
 }`,
 
   /**
@@ -156,7 +174,7 @@ export function validateEnhancedAIResponse(response, type = 'SOCIAL_CONTEXT') {
     const parsed = JSON.parse(response);
     
     if (type === 'SOCIAL_CONTEXT') {
-      const required = ['socialSummary', 'thesis', 'riskFactors', 'catalysts', 'redFlags', 'actionableInsights', 'confidence'];
+      const required = ['socialSummary', 'thesis', 'riskFactors', 'catalysts', 'redFlags', 'actionableInsights', 'confidence', 'sentiment', 'keyInsights', 'socialMomentum', 'riskAssessment', 'recommendation'];
       return required.every(field => parsed.hasOwnProperty(field));
     }
     
@@ -172,10 +190,15 @@ export function validateEnhancedAIResponse(response, type = 'SOCIAL_CONTEXT') {
 export function extractEnhancedConfidence(response) {
   try {
     const parsed = JSON.parse(response);
-    const confidence = parseInt(parsed.confidence);
-    return isNaN(confidence) ? 50 : Math.max(0, Math.min(100, confidence));
+    const confidence = parseFloat(parsed.confidence);
+    // If confidence is > 1, assume it's a percentage and convert to decimal
+    if (confidence > 1) {
+      return Math.max(0, Math.min(1, confidence / 100));
+    }
+    // If confidence is <= 1, assume it's already a decimal
+    return isNaN(confidence) ? 0.5 : Math.max(0, Math.min(1, confidence));
   } catch (error) {
-    return 50;
+    return 0.5;
   }
 }
 
