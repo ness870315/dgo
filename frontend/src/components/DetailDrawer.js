@@ -433,17 +433,8 @@ export default function DetailDrawer({ call, onClose }) {
             </div>
           </div>
 
-          {/* Social & On-chain Context */}
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-              <div className="text-sm font-medium mb-2 text-white">On-chain context</div>
-              <ul className="text-sm list-disc pl-5 space-y-1 text-white/80">
-                <li>LP: Coming soon (trend analysis)</li>
-                <li>Holder growth: Analysis pending</li>
-                <li>Whale netflow: Data integration in progress</li>
-                <li>Contract: Security analysis pending</li>
-              </ul>
-            </div>
+          {/* Social Context */}
+          <div className="grid grid-cols-1 gap-4">
             <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
               <div className="text-sm font-medium mb-2 text-white">Social context</div>
               {loadingSocial ? (

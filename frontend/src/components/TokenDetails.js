@@ -494,7 +494,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                   </>
                 )}
               </button>
-              <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-[1000] max-w-[220px]" style={{ display: 'none' }}>
+              <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-[1000] max-w-[280px] whitespace-normal" style={{ display: 'none' }}>
                 <div className="text-xs leading-tight">
                   <span className="font-semibold text-white">Oracle AI:</span>
                   <span className="text-gray-300 ml-1">{isAuthenticated ? 'Deep-dive analysis with hype, risks, and plays' : 'Log in to use this feature'}</span>
@@ -608,7 +608,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                 >
                   Call it!
                 </button>
-                <div className="bubble-tooltip" style={{ display: 'none' }}>
+                <div className="bubble-tooltip fixed z-[2000] max-w-[300px] whitespace-normal" style={{ display: 'none', bottom: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)' }}>
                   <div className="text-xs leading-tight">
                     <span className="font-semibold text-white">Call it:</span>
                     <span className="text-gray-300 ml-1">{isAuthenticated ? 'Record your play at current MCAP' : 'Log in to use this feature'}</span>
