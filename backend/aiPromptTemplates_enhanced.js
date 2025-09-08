@@ -49,10 +49,12 @@ Volume 24h: {{volume24h}}
 Liquidity: {{liquidity}}
 
 🔥 JUPITER METRICS (Use these for deep insights):
-- Holder Change: {{holderChange}}% (key for community growth/decline analysis)
+- Holder Count: {{holderCount}} holders (current holder base size)
+- Holder Change: {{holderChange}}% (24h community growth/decline - CRITICAL for analysis)
 - Volume Change: {{volumeChange}}% (momentum and interest indicator)  
 - Price Change: {{priceChange}}% (recent performance context)
 - Organic Score: {{organicScore}}/100 ({{organicScoreLabel}}) (authenticity measure)
+- Liquidity: {{liquidity}} (market depth and slippage risk)
 
 📊 SOCIAL METRICS:
 - Mentions: {{mentions}} (24h change: {{mentions24h}})
@@ -68,11 +70,13 @@ ANALYSIS INSTRUCTIONS:
 🚨 Focus on actionable insights for ${getRandomSlang('holders')}
 
 CRITICAL GUIDELINES:
-- Risk Factors: Use Jupiter holder/volume/price changes for specific concerns
-- Catalysts: Leverage organic score, holder growth, volume spikes for opportunities  
-- Red Flags: Highlight Jupiter data warning signs (holder dumps, low organic score)
-- Social Summary: Incorporate organic score with social sentiment
-- Vary your language every time - sound human, not robotic
+- NEVER say "data not available" - use the Jupiter metrics provided
+- Key Insights: Use specific holder count ({{holderCount}}), holder change ({{holderChange}}%), organic score ({{organicScore}}/100)
+- Risk Factors: Analyze holder change trends, liquidity levels, organic score warnings
+- Catalysts: Identify growth opportunities from holder increases, volume spikes, high organic scores
+- Red Flags: Flag holder dumps (negative {{holderChange}}%), low liquidity, poor organic scores
+- Recommendations: Base entry/exit strategies on holder momentum and liquidity depth
+- Make each response unique using actual data - avoid generic statements
 
 Respond in this JSON format:
 {
@@ -84,7 +88,7 @@ Respond in this JSON format:
   "actionableInsights": "Specific recommendations using diverse crypto slang and Jupiter-backed reasoning",
   "confidence": 0.85,
   "sentiment": "Bullish",
-  "keyInsights": ["Key insight 1", "Key insight 2", "Key insight 3"],
+  "keyInsights": ["Holder base of {{holderCount}} with {{holderChange}}% 24h change shows community momentum", "Organic score {{organicScore}}/100 indicates authentic vs bot activity", "Liquidity depth of {{liquidity}} affects entry/exit slippage"],
   "socialMomentum": {
     "direction": "Accelerating",
     "strength": "Strong", 
@@ -92,14 +96,14 @@ Respond in this JSON format:
   },
   "riskAssessment": {
     "level": "Medium",
-    "factors": ["Risk factor 1", "Risk factor 2"],
-    "mitigants": ["Positive factor 1", "Positive factor 2"]
+    "factors": ["Holder change {{holderChange}}% indicates community stability risk", "Liquidity {{liquidity}} may cause slippage on larger trades"],
+    "mitigants": ["Organic score {{organicScore}}/100 shows authentic interest", "Current holder base {{holderCount}} provides foundation"]
   },
   "recommendation": {
     "action": "Buy",
-    "reasoning": "Clear reasoning for the recommendation",
+    "reasoning": "Based on {{holderChange}}% holder momentum and {{organicScore}}/100 authenticity score",
     "timeframe": "Short-term",
-    "entryStrategy": "Entry strategy advice"
+    "entryStrategy": "Monitor liquidity depth {{liquidity}} for optimal entry sizing"
   }
 }`,
 
