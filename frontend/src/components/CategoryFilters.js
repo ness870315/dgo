@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
 const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
+  const { isAuthenticated } = useAuth();
   const [hoveredFilter, setHoveredFilter] = useState(null);
 
   // Use the filters passed from parent (controlled component)
@@ -71,7 +73,9 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
   return (
     <div className="flex items-center space-x-2 relative">
       <span className="text-sm text-gray-400 mr-2">Categories:</span>
-      {Object.entries(categories).map(([key, value]) => {
+      {Object.entries(categories)
+        .filter(([key]) => isAuthenticated || (key !== 'volatile' && key !== 'stable'))
+        .map(([key, value]) => {
         const tooltipContent = getTooltipContent(key);
         return (
           <div key={key} className="relative">
