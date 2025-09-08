@@ -57,38 +57,55 @@ Liquidity: {{liquidity}}
 - Liquidity: {{liquidity}} (market depth and slippage risk)
 
 📊 SOCIAL METRICS:
-- Mentions: {{mentions}} (24h change: {{mentions24h}})
+- Mentions: {{totalMentions}} (24h change: {{mentions24h}})
 - Community Score: {{communityScore}}/10
 - Followers: {{followers}}
 - Official Handle: {{officialHandle}}
-- Sentiment: {{sentiment}}
+- Engagement Rate: {{engagementRate}}%
+- Total Engagement: {{totalEngagement}}
+
+🐦 RECENT TWEET ANALYSIS:
+{{recentTweets}}
+
+💭 TWEET SENTIMENT BREAKDOWN:
+{{tweetSentiments}}
+
+🏷️ TRENDING HASHTAGS:
+{{topHashtags}}
 
 ANALYSIS INSTRUCTIONS:
-🎯 Use varied crypto slang - mix terms like "${getRandomSlang('good')}", "${getRandomSlang('bullish')}", "${getRandomSlang('holders')}"
-🔍 Integrate Jupiter metrics naturally (don't mention "Jupiter API")
+🎯 MANDATORY: Use heavy crypto slang throughout - sound like a degen trader, not a corporate analyst
+🔥 Community Sentiment: Analyze tweets to gauge if community is bullish, bearish, or neutral
+📈 Activity Level: Use engagement metrics to determine if community is active or dead
+💎 Holder Mentality: Assess if community has diamond hands or paper hands based on tweet sentiment
+🚀 Hype Detection: Identify if tweets show genuine excitement or forced shilling
 ⚡ Make each analysis unique - avoid cookie-cutter responses
-🚨 Focus on actionable insights for ${getRandomSlang('holders')}
+🚨 Focus on actionable insights for degens and diamond hands
 
-CRITICAL GUIDELINES:
-- NEVER say "data not available" - use the Jupiter metrics provided
-- Key Insights: Use specific holder count ({{holderCount}}), holder change ({{holderChange}}%), organic score ({{organicScore}}/100)
-- Risk Factors: Analyze holder change trends, liquidity levels, organic score warnings
-- Catalysts: Identify growth opportunities from holder increases, volume spikes, high organic scores
-- Red Flags: Flag holder dumps (negative {{holderChange}}%), low liquidity, poor organic scores
-- Recommendations: Base entry/exit strategies on holder momentum and liquidity depth
-- Make each response unique using actual data - avoid generic statements
+CRITICAL GUIDELINES - CRYPTO SLANG MANDATORY:
+- NEVER use formal language - always use degen slang (bullish/bearish, diamond hands/paper hands, moon/dump, etc.)
+- Community Analysis: Determine if holders are "diamond handed degens" or "paper handed normies" 
+- Sentiment Analysis: Use tweet sentiment to assess if community is "absolutely sending it" or "getting rekt"
+- Activity Assessment: Gauge if community is "based and active" or "dead and sus"
+- Hype Detection: Identify "organic moon missions" vs "forced pump attempts"
+- Risk Communication: Frame risks as "red flags for degens" not "investment concerns"
+- Opportunities: Present as "alpha plays" and "degen opportunities" not "investment opportunities"
+- Recommendation Actions: Use only "Add to Watchlist", "Hype over Time", or "Call it" - these are the actual app features
+- Always reference actual tweet sentiment percentages and engagement levels
+- Use hashtag trends to identify community themes and narratives
+- Entry Strategy: Reference "Hype over Time analysis" and "Call it" features for timing
 
 Respond in this JSON format:
 {
-  "socialSummary": "Brief overview incorporating organic score ({{organicScore}}/100 - {{organicScoreLabel}}) and social sentiment with varied crypto slang",
-  "thesis": "Main investment thesis based on Jupiter holder change ({{holderChange}}%), volume trends, and social data using dynamic language",
+  "socialSummary": "Community is absolutely sending it with {{tweetSentiments}} - these degens are diamond handed AF based on the engagement",
+  "thesis": "This token is either about to moon or get absolutely rekt - {{holderChange}}% holder momentum shows if degens are accumulating or dumping bags",
   "riskFactors": "Specific risk factors using Jupiter metrics - holder change {{holderChange}}%, volume change {{volumeChange}}%, price action {{priceChange}}%",
   "catalysts": "Potential positive catalysts from Jupiter organic activity ({{organicScore}}/100) and growth metrics with fresh crypto terminology",
   "redFlags": "Warning signs from Jupiter data and social indicators using varied expressions",
   "actionableInsights": "Specific recommendations using diverse crypto slang and Jupiter-backed reasoning",
   "confidence": 0.85,
   "sentiment": "Bullish",
-  "keyInsights": ["Holder base of {{holderCount}} with {{holderChange}}% 24h change shows community momentum", "Organic score {{organicScore}}/100 indicates authentic vs bot activity", "Liquidity depth of {{liquidity}} affects entry/exit slippage"],
+  "keyInsights": ["{{holderCount}} degens holding strong with {{holderChange}}% diamond hands momentum", "Community sentiment {{tweetSentiments}} shows if these apes are bullish or getting rekt", "Organic score {{organicScore}}/100 - high score means authentic hype, low score means bot farm sus AF"],
   "socialMomentum": {
     "direction": "Accelerating",
     "strength": "Strong", 
@@ -96,14 +113,14 @@ Respond in this JSON format:
   },
   "riskAssessment": {
     "level": "Medium",
-    "factors": ["Holder change {{holderChange}}% indicates community stability risk", "Liquidity {{liquidity}} may cause slippage on larger trades"],
-    "mitigants": ["Organic score {{organicScore}}/100 shows authentic interest", "Current holder base {{holderCount}} provides foundation"]
+    "factors": ["{{holderChange}}% holder momentum - negative means degens are dumping bags", "Tweet sentiment {{tweetSentiments}} - high negative means community getting rekt"],
+    "mitigants": ["Organic score {{organicScore}}/100 - high score means authentic diamond hands not bots", "{{holderCount}} based degens still holding - community foundation solid"]
   },
   "recommendation": {
-    "action": "Buy",
-    "reasoning": "Based on {{holderChange}}% holder momentum and {{organicScore}}/100 authenticity score",
-    "timeframe": "Short-term",
-    "entryStrategy": "Monitor liquidity depth {{liquidity}} for optimal entry sizing"
+    "action": "Add to Watchlist",
+    "reasoning": "Community sentiment {{tweetSentiments}} and {{holderChange}}% diamond hands momentum - degens are either accumulating or dumping",
+    "timeframe": "Degen play",
+    "entryStrategy": "Monitor for Hype over Time analysis or Call it when momentum peaks"
   }
 }`,
 

@@ -296,6 +296,11 @@ class SocialContextAI {
       influencerMentions: twitterData.influencerMentions || 0,
       retweetRate: twitterData.retweetRate || 0,
       
+      // Recent Tweet Content for Social Context Analysis
+      recentTweets: this.formatRecentTweets(twitterData.recentMentions || []),
+      tweetSentiments: this.analyzeTweetSentiments(twitterData.recentMentions || []),
+      topHashtags: this.extractTopHashtags(twitterData.recentMentions || []),
+      
       // === COMPREHENSIVE TOKEN METRICS ===
       // Scoring Components
       marketTierScore: tokenData.marketTierScore || 0,
@@ -622,6 +627,84 @@ class SocialContextAI {
         }
       }
     };
+  }
+
+  /**
+   * Format recent tweets for AI analysis
+   */
+  formatRecentTweets(recentMentions) {
+    if (!recentMentions || recentMentions.length === 0) return 'No recent tweets available';
+    
+    return recentMentions.slice(0, 5).map((tweet, index) => {
+      const engagement = (tweet.likes || 0) + (tweet.retweets || 0) + (tweet.replies || 0);
+      const timeAgo = this.getTimeAgo(tweet.createdAt);
+      return `${index + 1}. "${tweet.text?.substring(0, 100)}..." (${engagement} engagement, ${timeAgo})`;
+    }).join('\n');
+  }
+
+  /**
+   * Analyze tweet sentiments
+   */
+  analyzeTweetSentiments(recentMentions) {
+    if (!recentMentions || recentMentions.length === 0) return 'No sentiment data';
+    
+    let positive = 0, negative = 0, neutral = 0;
+    
+    recentMentions.forEach(tweet => {
+      const text = (tweet.text || '').toLowerCase();
+      const positiveWords = ['bullish', 'moon', 'pump', 'buy', 'hodl', 'diamond', 'rocket', '🚀', '💎', '📈'];
+      const negativeWords = ['bearish', 'dump', 'sell', 'crash', 'rekt', 'scam', 'rug', '📉', '💀'];
+      
+      const hasPositive = positiveWords.some(word => text.includes(word));
+      const hasNegative = negativeWords.some(word => text.includes(word));
+      
+      if (hasPositive && !hasNegative) positive++;
+      else if (hasNegative && !hasPositive) negative++;
+      else neutral++;
+    });
+    
+    const total = positive + negative + neutral;
+    if (total === 0) return 'No sentiment data';
+    
+    return `${Math.round(positive/total*100)}% positive, ${Math.round(negative/total*100)}% negative, ${Math.round(neutral/total*100)}% neutral`;
+  }
+
+  /**
+   * Extract top hashtags from tweets
+   */
+  extractTopHashtags(recentMentions) {
+    if (!recentMentions || recentMentions.length === 0) return 'No hashtags';
+    
+    const hashtags = {};
+    recentMentions.forEach(tweet => {
+      const text = tweet.text || '';
+      const matches = text.match(/#\w+/g) || [];
+      matches.forEach(tag => {
+        hashtags[tag] = (hashtags[tag] || 0) + 1;
+      });
+    });
+    
+    const sorted = Object.entries(hashtags)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5)
+      .map(([tag, count]) => `${tag}(${count})`);
+    
+    return sorted.length > 0 ? sorted.join(', ') : 'No hashtags';
+  }
+
+  /**
+   * Get time ago string
+   */
+  getTimeAgo(timestamp) {
+    if (!timestamp) return 'unknown time';
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffMs = now - time;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    
+    if (diffHours < 1) return 'just now';
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${Math.floor(diffHours / 24)}d ago`;
   }
 
   /**
