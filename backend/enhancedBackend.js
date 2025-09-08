@@ -5762,6 +5762,39 @@ class EnhancedBackend {
               }
             });
             
+            // CRITICAL FIX: Recalculate community health scores for all tokens with fresh Jupiter data
+            for (const updatedToken of updatedTokensInBatch) {
+              try {
+                // Recalculate community health score using cached Twitter data
+                if (updatedToken.twitterData) {
+                  await this.ensureSocialDataService();
+                  const newCommunityScore = this.socialDataService.calculateCommunityHealthScore(updatedToken.twitterData);
+                  updatedToken.communityHealthScore = newCommunityScore;
+                  updatedToken.communityScore = newCommunityScore; // Ensure both fields are set
+                  
+                  // Recalculate overall score with fresh Jupiter data + recalculated community score
+                  const newOverallScore = this.tokenProcessor.calculateEnhancedOverallScore(updatedToken);
+                  updatedToken.overallScore = newOverallScore;
+                  updatedToken.enhancedScore = newOverallScore;
+                  updatedToken.scoringTimestamp = new Date().toISOString();
+                  
+                  console.log(`[🛡️ Enhanced Backend] 🏆 ${updatedToken.priority}: ${updatedToken.symbol} - Community: ${newCommunityScore.toFixed(2)}, Overall: ${newOverallScore.toFixed(2)}`);
+                } else {
+                  // Use baseline score for tokens without Twitter data
+                  updatedToken.communityHealthScore = 2.0;
+                  updatedToken.communityScore = 2.0;
+                  const newOverallScore = this.tokenProcessor.calculateEnhancedOverallScore(updatedToken);
+                  updatedToken.overallScore = newOverallScore;
+                  updatedToken.enhancedScore = newOverallScore;
+                  updatedToken.scoringTimestamp = new Date().toISOString();
+                  
+                  console.log(`[🛡️ Enhanced Backend] 🏆 ${updatedToken.priority}: ${updatedToken.symbol} - No Twitter data, Overall: ${newOverallScore.toFixed(2)}`);
+                }
+              } catch (scoreError) {
+                console.error(`[🛡️ Enhanced Backend] ❌ Score recalculation failed for ${updatedToken.symbol}:`, scoreError.message);
+              }
+            }
+            
             // Mark tokens as updated in priority queue
             await this.priorityQueue.markTokensUpdated(updatedTokensInBatch, oldTokensMap);
             
@@ -5797,6 +5830,14 @@ class EnhancedBackend {
       
     } catch (error) {
       console.error('[🛡️ Enhanced Backend] ❌ Priority Jupiter update failed:', error);
+    }
+  }
+
+  async ensureSocialDataService() {
+    if (!this.socialDataService) {
+      const { default: EnhancedSocialDataService } = await import('./enhancedSocialDataService.js');
+      this.socialDataService = new EnhancedSocialDataService();
+      await this.socialDataService.initialize();
     }
   }
 
