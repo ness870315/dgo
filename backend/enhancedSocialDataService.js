@@ -1353,7 +1353,7 @@ class EnhancedSocialDataService {
       const lastRefresh = cachedData.timestamp;
       const hoursSinceRefresh = (now - lastRefresh) / (1000 * 60 * 60);
       
-      if (hoursSinceRefresh >= 24) {
+      if (hoursSinceRefresh >= 72) {
         const [symbol, name] = cacheKey.split('|');
         tokensNeedingRefresh.push({ 
           symbol, 

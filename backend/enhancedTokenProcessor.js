@@ -17,6 +17,7 @@ class EnhancedTokenProcessor {
     this.currentStage = 'idle';
     this.processingQueue = [];
     this.processedTokens = [];
+    this.alreadyQueuedSet = new Set(); // cross-run enqueue guard by contract/symbol
     this.stageProgress = {
       coingecko: { total: 0, processed: 0, status: 'pending' },
       dexscreener: { total: 0, processed: 0, status: 'pending' },
@@ -1410,6 +1411,14 @@ class EnhancedTokenProcessor {
     // 🚨 NEW: Use Twitter API Manager for smart refresh decisions
     if (this.socialDataService?.twitterApiManager) {
       try {
+        // HARD 72h GATE: short-circuit before manager
+        if (token.twitterTimestamp) {
+          const last = new Date(token.twitterTimestamp).getTime();
+          const hours = (Date.now() - last) / (1000 * 60 * 60);
+          if (hours < 72) {
+            return false;
+          }
+        }
         const canRefresh = await this.socialDataService.twitterApiManager.canRefreshToken(token);
         if (!canRefresh.allowed) {
           console.log(`🚨 Twitter API Manager blocked refresh for ${token.symbol}: ${canRefresh.reason}`);
@@ -1610,8 +1619,12 @@ class EnhancedTokenProcessor {
         merged[existingIndex] = mergedToken;
         console.log(`🔄 Merged existing token ${existing.symbol} (preserved recent Twitter/Jupiter data when applicable)`);
       } else {
-        // Add existing token that wasn't in new batch
-        merged.push(existing);
+        // Add existing token that wasn't in new batch (but guard against re-queue spam)
+        const key = (existing.contractAddress || existing.symbol || '').toLowerCase();
+        if (!this.alreadyQueuedSet.has(key)) {
+          merged.push(existing);
+          this.alreadyQueuedSet.add(key);
+        }
         const isStupid = (existing.symbol || '').toUpperCase() === 'STUPID';
         console.log(`➕ Added existing token ${existing.symbol}${isStupid ? ' [STUPID]' : ''} to processing queue (no CA match in new batch)`);
       }
