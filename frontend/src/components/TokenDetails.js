@@ -481,7 +481,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                 disabled={!isAuthenticated || aiLoading}
                 className={`px-2 py-1 rounded-lg border border-solana-purple/60 bg-transparent text-xs flex items-center gap-1 transition-all duration-200 ${
                   (!isAuthenticated || aiLoading)
-                    ? 'text-gray-500 cursor-not-allowed opacity-60' 
+                    ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none' 
                     : 'text-gray-200 hover:bg-gray-700'
                 }`}
               >
@@ -529,7 +529,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                   disabled={!isAuthenticated}
                   className={`p-2 rounded-lg transition-all duration-200 ${
                     !isAuthenticated
-                      ? 'text-gray-500 cursor-not-allowed opacity-60'
+                      ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none'
                       : isInWatchlist 
                         ? 'text-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20' 
                         : 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/10'
@@ -588,7 +588,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                 }} : undefined}
                   disabled={!isAuthenticated}
                   className={`px-2 py-1 ml-1 rounded-lg bg-transparent border border-solana-purple/60 text-xs ${
-                    !isAuthenticated ? 'text-gray-500 cursor-not-allowed opacity-60' : 'text-gray-200 hover:bg-gray-700'
+                    !isAuthenticated ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none' : 'text-gray-200 hover:bg-gray-700'
                   }`}
                 >
                   Call it!
