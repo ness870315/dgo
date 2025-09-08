@@ -183,7 +183,7 @@ class TokenService {
           communityType: this.determineCommunityTypeFromScore(token.socialScore || 0),
           sentimentScore: token.twitterData?.sentimentScore || token.mediasentiment || 5,
           engagementRate: token.twitterData?.engagement?.total ? (token.twitterData.engagement.total / Math.max(token.twitterData.mentions, 1)) : Math.min((token.developmentActivity || 0) / 100, 0.1),
-          uniqueMentions: Math.floor((token.socialScore || 0) * 50),
+          uniqueMentions: token.twitterData?.uniqueMentions ?? token.uniqueMentions ?? (token.twitterData?.recentMentions?.length || 0),
           riskLevel: this.assessRiskLevelFromScore(token.overallScore || token.enhancedScore?.overallScore || token.score || 0),
           recentPosts: recentPosts,
           lastUpdated: new Date().toISOString(),

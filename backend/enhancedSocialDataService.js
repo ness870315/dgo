@@ -563,6 +563,10 @@ class EnhancedSocialDataService {
         }
       } catch (_) {}
 
+      // Compute unique mention metrics
+      const uniqueTweetIds = new Set((recentMentions || []).map(t => t.tweetId || t.id || t.tweet_id));
+      const uniqueAuthorsSet = new Set((recentMentions || []).map(t => (t.author || t.user?.screen_name || t.user?.username || t.user?.name || '').toLowerCase()));
+
       // Summary
       console.log(`📊 Twitter Search Summary for ${symbol}:`);
       console.log(`   🎯 Official Handle: ${officialHandle || 'not found'}`);
@@ -586,6 +590,8 @@ class EnhancedSocialDataService {
         mentions72hAvg: mentions72hAvg != null ? mentions72hAvg : null,
         mentionsWindowHours: mentions72hAvg != null ? 72 : 0,
         _mentionsSmoothing: mentions72hAvg != null ? '72h_avg' : 'single_fetch_5',
+        uniqueMentions: uniqueTweetIds.size || (recentMentions?.length || 0),
+        uniqueAuthors: uniqueAuthorsSet.size || 0,
         likes: totalLikes,
         retweets: totalRetweets,
         replies: totalReplies,
