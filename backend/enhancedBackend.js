@@ -4777,14 +4777,8 @@ class EnhancedBackend {
         console.log(`[🛡️ Enhanced Backend] 📊 Fallback to Jupiter tokens: ${jupiterTokens.length}`);
         
         if (jupiterTokens.length > 0) {
-          // Start processing in background but serve tokens immediately
-          if (!this.tokenProcessor.isProcessing) {
-            console.log('[🛡️ Enhanced Backend] 🔄 Starting background processing while serving Jupiter tokens...');
-            setTimeout(() => {
-              console.log('[🛡️ Enhanced Backend] 🚀 Triggering token processor...');
-              this.tokenProcessor.startProcessing();
-            }, 1000);
-          }
+          // Don't start processing automatically on restart - let manual triggers handle it
+          console.log('[🛡️ Enhanced Backend] 📊 Serving existing Jupiter tokens without auto-processing (prevents duplicate Twitter API calls)');
           
           // Return Jupiter tokens with minimal processing
           return jupiterTokens.map(token => ({
@@ -4800,14 +4794,8 @@ class EnhancedBackend {
           }));
         }
         
-        // No tokens at all - start processing
-        if (!this.tokenProcessor.isProcessing) {
-          console.log('[🛡️ Enhanced Backend] 🔄 No tokens found, starting fresh processing...');
-          setTimeout(() => {
-            console.log('[🛡️ Enhanced Backend] 🚀 Triggering token processor...');
-            this.tokenProcessor.startProcessing();
-          }, 1000);
-        }
+        // No tokens at all - only start processing if this is truly a fresh start
+        console.log('[🛡️ Enhanced Backend] ⚠️ No tokens found, but not auto-starting processing to prevent duplicate API calls');
       }
 
       return completedTokens;
@@ -4815,12 +4803,8 @@ class EnhancedBackend {
     } catch (error) {
       console.log('[🛡️ Enhanced Backend] ⚠️ No cache file found, starting fresh processing...');
 
-      // Start processing if cache doesn't exist
-      if (!this.tokenProcessor.isProcessing) {
-        setTimeout(() => {
-          this.tokenProcessor.startProcessing();
-        }, 1000); // Small delay to ensure backend is fully ready
-      }
+      // Don't auto-start processing on cache miss to prevent duplicate API calls
+      console.log('[🛡️ Enhanced Backend] 📝 Cache file not found, but not auto-starting processing (use manual trigger or wait for scheduled run)');
 
       return [];
     }
@@ -6147,15 +6131,14 @@ class EnhancedBackend {
           try {
             console.log('[🛡️ Enhanced Backend] 🚀 Backend ready, starting token processing...');
             
-            // Check if we need to start processing
+            // Check if we need to start processing (only on truly fresh start)
             const status = this.tokenProcessor.getProcessingStatus();
             if (status.processedCount === 0) {
               console.log('[🛡️ Enhanced Backend] 🆕 No tokens found, starting initial processing...');
               await this.tokenProcessor.startProcessing();
             } else {
               console.log(`[🛡️ Enhanced Backend] 📊 Found ${status.processedCount} existing tokens`);
-              console.log('[🛡️ Enhanced Backend] 🔄 Starting processing to fetch NEW coins with proper rate limiting...');
-              await this.tokenProcessor.startProcessing();
+              console.log('[🛡️ Enhanced Backend] ✅ Backend ready - existing tokens loaded, processing can be triggered manually or via scheduled runs');
             }
           } catch (error) {
             console.error('[🛡️ Enhanced Backend] ❌ Error starting token processing:', error);
