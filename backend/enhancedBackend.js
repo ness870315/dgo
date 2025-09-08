@@ -3143,6 +3143,30 @@ class EnhancedBackend {
       }
     });
     
+    // Reset Twitter API monthly counter
+    this.app.post('/api/admin/twitter/reset-counter', async (req, res) => {
+      try {
+        const socialService = this.tokenProcessor?.socialDataService;
+        if (!socialService?.twitterApiManager) {
+          return res.status(500).json({ error: 'Twitter API Manager not available' });
+        }
+        
+        const result = await socialService.twitterApiManager.resetMonthlyCounter();
+        
+        console.log('[🛡️ Admin] 🔄 Twitter API monthly counter reset by admin');
+        
+        res.json({
+          success: true,
+          message: 'Monthly Twitter API counter reset to 0',
+          result
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Error resetting Twitter counter:', error);
+        res.status(500).json({ error: 'Failed to reset Twitter counter' });
+      }
+    });
+    
     // Emergency mode controls
     this.app.post('/api/admin/twitter/emergency-mode/:action', async (req, res) => {
       try {
