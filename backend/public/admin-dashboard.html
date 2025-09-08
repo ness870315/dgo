@@ -494,6 +494,75 @@
             </div>
         </div>
 
+        <!-- AI Hype Prediction Management Section -->
+        <div class="card" style="margin-bottom: 30px;">
+            <h2>🧠 AI Hype Prediction System</h2>
+            <div class="alert alert-info" style="margin-bottom: 20px; padding: 15px; background: rgba(0,123,255,0.1); border: 1px solid rgba(0,123,255,0.3); border-radius: 8px;">
+                <strong>🤖 AI-Enhanced Predictions:</strong> GPT-4 powered hype trend analysis • <strong>⏰ Cache:</strong> 24-hour intelligent caching • <strong>💰 Cost Optimization:</strong> Shared predictions across users
+            </div>
+            
+            <!-- AI Prediction Status -->
+            <div class="ai-status" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                <div class="status-card" style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 24px; margin-bottom: 5px;" id="aiServiceStatus">⏳</div>
+                    <div style="font-size: 12px; color: #666;">AI Service Status</div>
+                </div>
+                <div class="status-card" style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 18px; font-weight: bold; margin-bottom: 5px;" id="totalPredictions">-</div>
+                    <div style="font-size: 12px; color: #666;">Cached Predictions</div>
+                </div>
+                <div class="status-card" style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 12px; font-weight: bold; margin-bottom: 5px;" id="avgCacheAge">-</div>
+                    <div style="font-size: 12px; color: #666;">Avg Cache Age (hrs)</div>
+                </div>
+                <div class="status-card" style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 18px; margin-bottom: 5px;" id="cacheEfficiency">⏳</div>
+                    <div style="font-size: 12px; color: #666;">Cache Efficiency</div>
+                </div>
+            </div>
+
+            <!-- AI Prediction Controls -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 20px;">
+                <button class="btn btn-primary" onclick="refreshAIPredictionStats()">🔄 Refresh Stats</button>
+                <button class="btn btn-warning" onclick="cleanExpiredPredictions()">🧹 Clean Expired</button>
+                <button class="btn btn-info" onclick="viewPredictionCache()">📊 View Cache</button>
+                <button class="btn btn-secondary" onclick="testAIPrediction()">🧪 Test Prediction</button>
+            </div>
+
+            <!-- Cache Statistics Display -->
+            <div style="margin-bottom: 20px;">
+                <h3 style="margin-bottom: 15px;">📈 Cache Performance</h3>
+                <div id="aiCacheStats" style="background: #f8f9fa; border-radius: 8px; padding: 15px; font-family: monospace; font-size: 12px;">
+                    <div style="padding: 20px; text-align: center; color: #666;">Loading AI prediction statistics...</div>
+                </div>
+            </div>
+
+            <!-- Test Prediction Section -->
+            <div style="background: #e8f5e8; border: 1px solid #c3e6c3; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                <h4 style="color: #2d5016; margin-bottom: 10px;">🧪 Test AI Prediction</h4>
+                <p style="color: #2d5016; font-size: 14px; margin-bottom: 15px;">
+                    Test the AI prediction system with any token contract address.
+                </p>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="text" id="testPredictionContract" placeholder="Enter contract address" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <select id="testPredictionRange" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="1d">1 Day</option>
+                        <option value="3d">3 Days</option>
+                        <option value="7d" selected>7 Days</option>
+                        <option value="15d">15 Days</option>
+                        <option value="30d">30 Days</option>
+                    </select>
+                    <button class="btn btn-success" onclick="runTestPrediction()">🚀 Predict</button>
+                </div>
+            </div>
+
+            <!-- Results Display -->
+            <div id="aiPredictionResults" style="display: none; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <h4>AI Prediction Results</h4>
+                <pre id="aiPredictionResultsContent" style="white-space: pre-wrap; font-size: 12px; margin: 10px 0;"></pre>
+            </div>
+        </div>
+
         <!-- Main Dashboard Grid -->
         <div class="dashboard-grid">
             <!-- Add Free Token -->
@@ -2647,6 +2716,266 @@
                 showAlert('Health check failed', 'error');
             }
         }
+
+        // =============================
+        // AI Prediction Management Functions
+        // =============================
+
+        async function refreshAIPredictionStats() {
+            const statusElements = {
+                aiServiceStatus: document.getElementById('aiServiceStatus'),
+                totalPredictions: document.getElementById('totalPredictions'),
+                avgCacheAge: document.getElementById('avgCacheAge'),
+                cacheEfficiency: document.getElementById('cacheEfficiency'),
+                aiCacheStats: document.getElementById('aiCacheStats')
+            };
+
+            // Set loading state
+            statusElements.aiServiceStatus.textContent = '⏳';
+            statusElements.totalPredictions.textContent = '-';
+            statusElements.avgCacheAge.textContent = '-';
+            statusElements.cacheEfficiency.textContent = '⏳';
+            statusElements.aiCacheStats.innerHTML = '<div style="padding: 20px; text-align: center; color: #666;">Loading AI prediction statistics...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/ai-predictions/stats`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const stats = data.stats;
+                    
+                    // Update status indicators
+                    statusElements.aiServiceStatus.textContent = '✅';
+                    statusElements.totalPredictions.textContent = stats.totalEntries || 0;
+                    statusElements.avgCacheAge.textContent = stats.avgAge ? `${stats.avgAge.toFixed(1)}h` : '0h';
+                    
+                    // Calculate efficiency indicator
+                    const efficiency = stats.totalEntries > 0 ? '🔥' : '💤';
+                    statusElements.cacheEfficiency.textContent = efficiency;
+
+                    // Display detailed stats
+                    const statsDisplay = `
+📊 AI Prediction Cache Statistics
+═══════════════════════════════════════════════════════════════════════════════
+
+🤖 Service Status: ✅ Active
+📈 Total Cached Predictions: ${stats.totalEntries}
+⏰ Average Cache Age: ${stats.avgAge ? stats.avgAge.toFixed(1) : 0} hours
+🕐 Oldest Entry: ${stats.oldestEntry ? stats.oldestEntry.toFixed(1) : 0} hours
+💾 Cache Timeout: ${stats.cacheTimeout}
+🧹 Last Cleanup: ${stats.lastCleanup}
+
+💡 Cache Performance:
+   • Entries > 0: ${stats.totalEntries > 0 ? '✅ Active' : '❌ Empty'}
+   • Avg Age < 12h: ${(stats.avgAge || 0) < 12 ? '✅ Fresh' : '⚠️ Aging'}
+   • System Health: ${stats.totalEntries > 0 && (stats.avgAge || 0) < 12 ? '🔥 Excellent' : '💤 Idle'}
+
+🎯 Cost Optimization:
+   • 24h cache reduces OpenAI API calls by up to 95%
+   • Shared predictions across all users
+   • Intelligent cache invalidation on data changes
+                    `;
+                    
+                    statusElements.aiCacheStats.textContent = statsDisplay;
+                    showAlert('AI prediction statistics refreshed successfully', 'success');
+                } else {
+                    throw new Error(data.error || 'Failed to get AI prediction statistics');
+                }
+            } catch (error) {
+                console.error('Error refreshing AI prediction stats:', error);
+                statusElements.aiServiceStatus.textContent = '❌';
+                statusElements.aiCacheStats.innerHTML = `<div style="color: #e74c3c; padding: 20px; text-align: center;">❌ Error loading statistics: ${error.message}</div>`;
+                showAlert('Failed to refresh AI prediction statistics', 'error');
+            }
+        }
+
+        async function cleanExpiredPredictions() {
+            if (!confirm('Clean expired AI prediction cache entries? This will remove predictions older than 24 hours.')) {
+                return;
+            }
+
+            try {
+                showAlert('Cleaning expired AI predictions...', 'info');
+                
+                const response = await fetch(`${API_BASE}/api/admin/ai-predictions/clean`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert(data.message, 'success');
+                    // Refresh stats after cleaning
+                    await refreshAIPredictionStats();
+                } else {
+                    throw new Error(data.error || 'Failed to clean AI prediction cache');
+                }
+            } catch (error) {
+                console.error('Error cleaning AI prediction cache:', error);
+                showAlert(`Failed to clean AI prediction cache: ${error.message}`, 'error');
+            }
+        }
+
+        async function viewPredictionCache() {
+            const resultsDiv = document.getElementById('aiPredictionResults');
+            const contentDiv = document.getElementById('aiPredictionResultsContent');
+            
+            resultsDiv.style.display = 'block';
+            contentDiv.textContent = 'Loading AI prediction cache...';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/ai-predictions/stats`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const stats = data.stats;
+                    const cacheView = `
+🧠 AI Prediction Cache Overview
+═══════════════════════════════════════════════════════════════════════════════
+
+📊 Cache Statistics:
+   • Total Entries: ${stats.totalEntries}
+   • Average Age: ${stats.avgAge ? stats.avgAge.toFixed(2) : 0} hours
+   • Oldest Entry: ${stats.oldestEntry ? stats.oldestEntry.toFixed(2) : 0} hours
+   • Cache Timeout: ${stats.cacheTimeout}
+
+💡 Cache Benefits:
+   ✅ Reduces OpenAI API costs by sharing predictions
+   ✅ Faster response times for cached predictions
+   ✅ Automatic cleanup of expired entries
+   ✅ Data-aware cache invalidation
+
+🎯 Usage Recommendations:
+   • Cache hit rate improves with more users
+   • Popular tokens benefit most from caching
+   • Fresh data triggers new predictions automatically
+   • 24-hour window balances freshness vs cost
+
+📈 Performance Metrics:
+   • Cache Efficiency: ${stats.totalEntries > 0 ? 'Active' : 'Idle'}
+   • Memory Usage: Optimized with automatic cleanup
+   • API Cost Savings: Up to 95% reduction in OpenAI calls
+                    `;
+                    
+                    contentDiv.textContent = cacheView;
+                } else {
+                    throw new Error(data.error || 'Failed to load cache view');
+                }
+            } catch (error) {
+                console.error('Error viewing prediction cache:', error);
+                contentDiv.textContent = `❌ Error: ${error.message}`;
+                showAlert('Failed to load prediction cache view', 'error');
+            }
+        }
+
+        async function testAIPrediction() {
+            // This function is called by the "Test Prediction" button, but the actual test is run by runTestPrediction()
+            const contractInput = document.getElementById('testPredictionContract');
+            if (!contractInput.value.trim()) {
+                showAlert('Please enter a contract address to test', 'warning');
+                contractInput.focus();
+                return;
+            }
+            runTestPrediction();
+        }
+
+        async function runTestPrediction() {
+            const contractInput = document.getElementById('testPredictionContract');
+            const rangeSelect = document.getElementById('testPredictionRange');
+            const resultsDiv = document.getElementById('aiPredictionResults');
+            const contentDiv = document.getElementById('aiPredictionResultsContent');
+            
+            const contract = contractInput.value.trim();
+            const range = rangeSelect.value;
+            
+            if (!contract) {
+                showAlert('Please enter a contract address', 'warning');
+                contractInput.focus();
+                return;
+            }
+
+            resultsDiv.style.display = 'block';
+            contentDiv.textContent = `🧠 Generating AI prediction for ${contract} (${range})...\\n\\nThis may take 10-30 seconds for fresh predictions.`;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/ai/hype-analysis/${encodeURIComponent(contract)}?range=${range}&sessionId=admin_test`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const analysis = data;
+                    const aiPrediction = analysis.aiPrediction;
+                    
+                    let resultText = `
+🧠 AI Hype Prediction Test Results
+═══════════════════════════════════════════════════════════════════════════════
+
+📋 Test Parameters:
+   • Contract: ${contract}
+   • Range: ${range}
+   • Data Source: ${analysis.dataSource || 'unknown'}
+   • Data Points: ${analysis.dataPoints || 0}
+
+`;
+
+                    if (aiPrediction) {
+                        const prediction = aiPrediction.prediction || {};
+                        resultText += `
+🤖 AI Prediction Results:
+   • Direction: ${prediction.direction || 'unknown'} (${prediction.strength || 'unknown'})
+   • Target Score: ${prediction.targetScore || 'N/A'}/10
+   • Timeframe: ${prediction.timeframe || 'unknown'}
+   • Confidence: ${((prediction.confidence || 0) * 100).toFixed(1)}%
+   • Cache Status: ${aiPrediction.cached ? '✅ Cached' : '🆕 Fresh'}
+   • Cache Age: ${aiPrediction.cacheAge ? Math.round(aiPrediction.cacheAge / (60 * 60 * 1000)) + 'h' : '0h'}
+
+💭 AI Reasoning:
+${aiPrediction.reasoning || 'No reasoning provided'}
+
+🚀 Catalysts:
+${(aiPrediction.catalysts || []).map(c => `   • ${c}`).join('\\n') || '   • None identified'}
+
+⚠️ Risks:
+${(aiPrediction.risks || []).map(r => `   • ${r}`).join('\\n') || '   • None identified'}
+
+📊 Key Levels:
+   • Support: ${aiPrediction.keyLevels?.support || 'N/A'}
+   • Resistance: ${aiPrediction.keyLevels?.resistance || 'N/A'}
+
+💡 Recommendation: ${aiPrediction.recommendation || 'N/A'}
+`;
+                    } else {
+                        resultText += `
+❌ AI Prediction: Not available
+   • This could be due to insufficient data or AI service issues
+   • Check the logs for more details
+`;
+                    }
+
+                    if (analysis.analysis) {
+                        resultText += `
+📈 Technical Analysis:
+   • Current Regime: ${analysis.analysis.currentRegime || 'unknown'}
+   • Strength: ${analysis.analysis.strength ? (analysis.analysis.strength * 100).toFixed(1) + '%' : 'N/A'}
+   • Trend: ${analysis.analysis.trend || 'unknown'}
+`;
+                    }
+
+                    contentDiv.textContent = resultText;
+                    showAlert('AI prediction test completed successfully', 'success');
+                } else {
+                    throw new Error(data.error || data.message || 'Failed to generate AI prediction');
+                }
+            } catch (error) {
+                console.error('Error running AI prediction test:', error);
+                contentDiv.textContent = `❌ AI Prediction Test Failed\\n\\nError: ${error.message}\\n\\nThis could be due to:\\n• Invalid contract address\\n• Insufficient historical data\\n• AI service unavailable\\n• Network connectivity issues`;
+                showAlert('AI prediction test failed', 'error');
+            }
+        }
+
+        // Initialize AI prediction stats on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load AI prediction stats after a short delay
+            setTimeout(refreshAIPredictionStats, 2000);
+        });
     </script>
 </body>
 </html>

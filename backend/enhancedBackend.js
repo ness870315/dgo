@@ -15,6 +15,7 @@ import LeaderboardScoringEngine from './leaderboardScoringEngine.js';
 import SocialContextAI from './socialContextAI.js';
 import { createBackupIntegration } from './backupIntegration.js';
 import HypeTrendAnalysis from './hypeTrendAnalysis.js';
+import AIHypePredictionService from './aiHypePredictionService.js';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -87,6 +88,7 @@ class EnhancedBackend {
     this.leaderboardEngine = new LeaderboardScoringEngine();
     this.socialContextAI = new SocialContextAI();
     this.hypeTrendAnalysis = new HypeTrendAnalysis();
+    this.aiHypePrediction = new AIHypePredictionService();
     this.backupIntegration = null; // Will be initialized in setupServices()
     // Persistent cache path for tokens-cache.json under DATA_DIR
     try {
@@ -1633,9 +1635,26 @@ class EnhancedBackend {
         // Perform hype trend analysis
         const analysis = this.hypeTrendAnalysis.analyzeHypeTrend(hypeData, range);
         
-        console.log(`🧠 Hype Analysis completed for ${contract}: ${analysis.success ? 'SUCCESS' : 'FAILED'}`);
+        // Get AI predictions (with 24h caching)
+        let aiPrediction = null;
+        try {
+          aiPrediction = await this.aiHypePrediction.getPrediction(contract, token, hypeData, range);
+          console.log(`🧠 AI Prediction for ${contract}: ${aiPrediction.cached ? 'CACHED' : 'FRESH'} (${aiPrediction.prediction?.direction}/${aiPrediction.prediction?.strength})`);
+        } catch (error) {
+          console.error('❌ AI prediction failed:', error);
+        }
         
-        res.json(analysis);
+        // Combine analysis with AI predictions
+        const enhancedAnalysis = {
+          ...analysis,
+          aiPrediction,
+          dataSource: hypeData.length > 0 && !hypeData[0].synthetic ? 'real_snapshots' : 'synthetic_data',
+          dataPoints: hypeData.length
+        };
+        
+        console.log(`🧠 Enhanced Hype Analysis completed for ${contract}: ${analysis.success ? 'SUCCESS' : 'FAILED'}`);
+        
+        res.json(enhancedAnalysis);
         
       } catch (error) {
         console.error('❌ Hype analysis error:', error);
@@ -3226,6 +3245,52 @@ class EnhancedBackend {
         res.status(500).json({ error: 'Failed to reset Twitter counter' });
       }
     });
+
+    // Admin endpoint for AI prediction cache statistics
+    this.app.get('/api/admin/ai-predictions/stats', async (req, res) => {
+      try {
+        const stats = this.aiHypePrediction.getCacheStats();
+        
+        res.json({
+          success: true,
+          stats: {
+            ...stats,
+            cacheTimeout: '24 hours',
+            lastCleanup: 'on_startup'
+          },
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Error getting AI prediction stats:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get AI prediction statistics',
+          details: error.message
+        });
+      }
+    });
+
+    // Admin endpoint to clean expired AI prediction cache
+    this.app.post('/api/admin/ai-predictions/clean', async (req, res) => {
+      try {
+        await this.aiHypePrediction.cleanExpiredCache();
+        const stats = this.aiHypePrediction.getCacheStats();
+        
+        res.json({
+          success: true,
+          message: 'Expired AI prediction cache entries cleaned',
+          stats,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Error cleaning AI prediction cache:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to clean AI prediction cache',
+          details: error.message
+        });
+      }
+    });
     
     // Emergency mode controls
     this.app.post('/api/admin/twitter/emergency-mode/:action', async (req, res) => {
@@ -4407,13 +4472,38 @@ class EnhancedBackend {
         return [];
       }
       
-      // Generate mock hype data based on token's current metrics
-      // In a real implementation, this would fetch from a time-series database
+      // First try to get real historical data from snapshots
+      const ranges = { '1d': 1, '3d': 3, '7d': 7, '15d': 15, '30d': 30 };
+      const days = ranges[range.toLowerCase()] || 7;
+      const sinceMs = Date.now() - days * 24 * 60 * 60 * 1000;
+      
+      let realSnapshots = [];
+      try {
+        realSnapshots = await this.hypeService.getSnapshots(contractAddress, sinceMs);
+        console.log(`🧠 Found ${realSnapshots.length} real hype snapshots for ${contractAddress}`);
+      } catch (error) {
+        console.log(`🧠 No real snapshots found for ${contractAddress}:`, error.message);
+      }
+      
+      // If we have sufficient real data (at least 3 points), use it
+      if (realSnapshots.length >= 3) {
+        console.log(`🧠 Using ${realSnapshots.length} real hype data points for analysis`);
+        return realSnapshots.map(snap => ({
+          timestamp: snap.timestamp,
+          score: snap.score || snap.communityHealthScore || 5,
+          mentions: snap.mentions || snap.twitterMentions || 0,
+          label: this.getHypeLabel(snap.score || snap.communityHealthScore || 5)
+        }));
+      }
+      
+      // Fallback: Generate synthetic data based on current token metrics
+      console.log(`🧠 Insufficient real data (${realSnapshots.length} points), generating synthetic data for ${contractAddress}`);
+      
       const now = Date.now();
       const hypeData = [];
       
       // Generate data points based on range
-      const ranges = {
+      const configs = {
         '1d': { points: 24, interval: 60 * 60 * 1000 }, // hourly for 1 day
         '3d': { points: 36, interval: 2 * 60 * 60 * 1000 }, // 2-hourly for 3 days  
         '7d': { points: 42, interval: 4 * 60 * 60 * 1000 }, // 4-hourly for 7 days
@@ -4421,8 +4511,8 @@ class EnhancedBackend {
         '30d': { points: 60, interval: 12 * 60 * 60 * 1000 } // 12-hourly for 30 days
       };
       
-      const config = ranges[range] || ranges['7d'];
-      const baseScore = token.score || token.overallScore || 5;
+      const config = configs[range] || configs['7d'];
+      const baseScore = token.communityHealthScore || token.score || token.overallScore || 5;
       const baseMentions = token.twitterData?.mentions || token.mentions || 10;
       
       // Generate historical data with some trend and noise
@@ -4435,27 +4525,29 @@ class EnhancedBackend {
         const score = Math.max(0, Math.min(10, baseScore + trendFactor + noise));
         const mentions = Math.max(0, baseMentions + Math.floor(trendFactor * 20 + noise * 10));
         
-        // Determine label based on score
-        let label = 'Sleeping';
-        if (score >= 8) label = 'Viral';
-        else if (score >= 6) label = 'Trending';
-        else if (score >= 4) label = 'Building';
-        
         hypeData.push({
           timestamp: timestamp.toISOString(),
           score: Math.round(score * 10) / 10,
           mentions: mentions,
-          label: label
+          label: this.getHypeLabel(score),
+          synthetic: true
         });
       }
       
-      console.log(`🧠 Generated ${hypeData.length} hype data points for analysis`);
+      console.log(`🧠 Generated ${hypeData.length} synthetic hype data points for analysis`);
       return hypeData;
       
     } catch (error) {
       console.error('❌ Error getting hype data for analysis:', error);
       return [];
     }
+  }
+
+  getHypeLabel(score) {
+    if (score >= 8) return 'Viral';
+    if (score >= 6) return 'Trending';
+    if (score >= 4) return 'Building';
+    return 'Sleeping';
   }
 
   async getTokensFromCache() {

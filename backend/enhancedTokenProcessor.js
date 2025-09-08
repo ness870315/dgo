@@ -531,6 +531,26 @@ class EnhancedTokenProcessor {
             await this.ensureSocialDataService();
             token.communityHealthScore = this.socialDataService.calculateCommunityHealthScore(twitterData);
             token.stage = 'twitter';
+            
+            // 🚨 NEW: Collect hype snapshot for historical analysis
+            try {
+              if (token.contractAddress && token.communityHealthScore) {
+                await this.hypeService.appendSnapshot(token.contractAddress, {
+                  score: token.communityHealthScore,
+                  mentions: twitterData.mentions || 0,
+                  twitterMentions: twitterData.mentions || 0,
+                  engagement: (twitterData.likes || 0) + (twitterData.retweets || 0) + (twitterData.replies || 0),
+                  followers: twitterData.followers || 0,
+                  organicScore: token.jupiterData?.organicScore || token.organicScore || 0,
+                  volume24h: token.jupiterData?.volume24h || token.volume24h || 0,
+                  priceChange24h: token.jupiterData?.priceChange24h || token.priceChange24h || 0,
+                  label: this.getHypeLabel(token.communityHealthScore)
+                });
+                console.log(`📸 Hype snapshot saved for ${symbol} (score: ${token.communityHealthScore.toFixed(1)})`);
+              }
+            } catch (snapshotError) {
+              console.error(`❌ Failed to save hype snapshot for ${symbol}:`, snapshotError.message);
+            }
 
             // Only apply 24h cooldown if we got fresh data, not rate-limited cached data
             const dataFreshness = twitterData._dataFreshness || 'unknown';
@@ -1330,6 +1350,13 @@ class EnhancedTokenProcessor {
 
   async delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  getHypeLabel(score) {
+    if (score >= 8) return 'Viral';
+    if (score >= 6) return 'Trending';
+    if (score >= 4) return 'Building';
+    return 'Sleeping';
   }
 
   // =============================
