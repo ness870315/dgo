@@ -2070,7 +2070,13 @@ class EnhancedBackend {
           console.log(`[🔍 Discovery Import] Sample tokens: ${sampleSymbols}${candidates.length > 5 ? '...' : ''}`);
         }
 
-        const stableSymbols = new Set(['SOL', 'JUP', 'WETH', 'WSOL', 'WBTC', 'USDC']);
+        const stableSymbols = new Set(['SOL', 'JUP', 'WETH', 'WSOL', 'WBTC', 'USDC','USDT','DAI','FRAX','PYUSD']);
+        // Recently-seen TTL (15m) to avoid spam inserts/logs for same contract
+        const recentFile = path.join(this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo', 'cache', 'recent-seen-contracts.json');
+        let recentMap = {};
+        try { const raw = await fs.readFile(recentFile, 'utf8'); recentMap = JSON.parse(raw || '{}'); } catch (_) {}
+        const nowMs = Date.now();
+        const ttlMs = 15 * 60 * 1000;
         const nowIso = new Date().toISOString();
 
         // Load current cache
@@ -2092,6 +2098,10 @@ class EnhancedBackend {
             if (!contract || contract.length < 10) { skipped++; continue; }
             if (stableSymbols.has(symbol)) { skipped++; continue; }
             if (!c.graduatedAt) { skipped++; continue; }
+            // TTL suppression
+            const lower = contract.toLowerCase();
+            const lastSeen = recentMap[lower] || 0;
+            if (nowMs - lastSeen < ttlMs) { skipped++; continue; }
             
             // Robust suspicious filter: check multiple possible locations/encodings of isSus
             if (this.isSuspiciousToken(c)) {
@@ -2160,6 +2170,7 @@ class EnhancedBackend {
               tokens.push(newToken);
               byAddress.set(key, newToken);
               inserted++;
+              recentMap[lower] = nowMs;
               console.log(`[🔍 Discovery Import] ➕ New token: ${symbol} (${name}) - MC: $${jupInfo.mcap ? (jupInfo.mcap/1000000).toFixed(1) + 'M' : 'N/A'}`);
             }
 
@@ -2180,6 +2191,14 @@ class EnhancedBackend {
         if (inserted > 0 || updated > 0) {
           await this.saveTokensToCache(tokens);
         }
+        // Persist recent-seen TTL file (prune old)
+        try {
+          const pruned = {};
+          for (const [k, v] of Object.entries(recentMap)) {
+            if (nowMs - v < ttlMs) pruned[k] = v;
+          }
+          await fs.writeFile(recentFile, JSON.stringify(pruned, null, 2));
+        } catch (_) {}
 
         return res.json({ success: true, stats: { inserted, updated, boosted, skipped, total: candidates.length } });
       } catch (error) {
@@ -3164,7 +3183,7 @@ class EnhancedBackend {
             const dataFreshness = twitterData._dataFreshness || 'unknown';
             if (dataFreshness === 'fresh') {
               token.twitterTimestamp = new Date().toISOString();
-              console.log(`[🛡️ Admin] ✅ Fresh data for ${item.symbol} (24h cooldown applied)`);
+              console.log(`[🛡️ Admin] ✅ Fresh data for ${item.symbol} (72h cooldown applied)`);
             } else {
               console.log(`[🛡️ Admin] ⚠️ ${dataFreshness.replace('_', ' ').toUpperCase()} data for ${item.symbol} (no cooldown applied)`);
             }
