@@ -24,7 +24,7 @@ export default class LeaderboardScoringEngine {
       wilsonConfidence: 0.95,
 
       // Gates
-      minCallAge: 24, // hours minimum call age
+      minCallAge: 1, // hours minimum call age (reduced from 24h to allow recent calls)
       maxDuplicateHours: 168, // 7 days for duplicate prevention
     };
 
@@ -50,8 +50,8 @@ export default class LeaderboardScoringEngine {
       return null;
     }
 
-    // X multiple
-    const calledMC = Number(call.calledMC || call.calledMc || 0);
+    // X multiple (prioritize lowercase 'c' as that's how it's saved)
+    const calledMC = Number(call.calledMc || call.calledMC || 0);
     const currentMC = Number(currentData?.mcap || currentData?.marketCap || call.currentMC || 0);
 
     if (!calledMC || !currentMC || calledMC <= 0) {
