@@ -463,6 +463,13 @@ class SocialContextAI {
     const marketCap = tokenData.marketCap || jupiterData.mcap || 0;
     const liquidity = jupiterData.liquidity || 0;
     const holderCount = jupiterData.holderCount || 0;
+    // Parse holder change delta if available
+    let holderCountDelta = 0;
+    try {
+      const hc = jupiterData.holderChange;
+      if (typeof hc === 'string') holderCountDelta = parseFloat(hc.replace('%','')) || 0;
+      else if (typeof hc === 'number') holderCountDelta = hc;
+    } catch (_) {}
     
     // Calculate engagement metrics
     const totalEngagement = likes + retweets + replies;
@@ -533,12 +540,14 @@ class SocialContextAI {
     if (holderCount > 0 && holderCountDelta < 0) risksList.push({ t: 'Holder bleed', why: `${holderCountDelta.toFixed(1)}%`, sev: 'medium' });
     if (engagementRate < 1) risksList.push({ t: 'Weak engagement', why: `${engagementRate.toFixed(1)}x`, sev: 'low' });
 
-    // Catalysts (forward looking)
+    // Catalysts (forward looking) — concrete triggers
     const cataList = [];
-    if (priceChange6h > 8) cataList.push(`6h momentum picking up (+${priceChange6h.toFixed(1)}%) — could send`);
-    if (volume24h > 1_000_000) cataList.push(`Big boy volume ($${(volume24h/1e6).toFixed(2)}M) — real flow`);
-    if (mentions >= 25) cataList.push(`Mentions heating up (${mentions}) — CT waking up`);
-    if (communityScore > 7) cataList.push(`Community is based (${communityScore.toFixed(1)}/10) — diamond hands`);
+    if (holderCountDelta > 2) cataList.push(`Holder acceleration (+${holderCountDelta.toFixed(1)}%/24h) — accumulation phase`);
+    if (priceChange6h > 8) cataList.push(`6h momentum (+${priceChange6h.toFixed(1)}%) — impulse leg forming`);
+    if (volume24h > 1_000_000) cataList.push(`Volume expansion ($${(volume24h/1e6).toFixed(2)}M/24h) — fresh flow`);
+    if (mentions >= 25) cataList.push(`Mentions breakout (${mentions} vs floor) — CT waking up`);
+    if (communityScore > 7) cataList.push(`Based community (${communityScore.toFixed(1)}/10) — diamond hand support`);
+    if (followers > 10000) cataList.push(`Decent social reach (${followers.toLocaleString()} followers) — amplification ready`);
 
     // De-duplicate across sections by keywords
     const riskKeys = new Set(risksList.map(r => r.t.split(' ')[0].toLowerCase()));
@@ -602,7 +611,7 @@ class SocialContextAI {
         mentions < 10 ? `Low social engagement (${mentions} mentions)` : null,
         communityScore < 4 ? `Poor community metrics (${communityScore.toFixed(1)}/10)` : null
       ].filter(Boolean).join('. ') : 'Standard market risks apply. Monitor for trend changes.',
-      catalysts: catalysts.join('. '),
+      catalysts: (cataList.length ? cataList : ['Narrative pickup potential']).join('. '),
       redFlags: redFlags.join('. '),
       actionableInsights: `${recommendation} - ${sentiment} outlook based on ${bullishSignals} bullish vs ${bearishSignals} bearish signals. Key metrics: ${communityScore.toFixed(1)}/10 community health, ${mentions} mentions, ${(engagementRate).toFixed(1)}x engagement rate.`,
       confidence,
@@ -639,6 +648,12 @@ class SocialContextAI {
         timeframe: 'Short-term',
         entryStrategy: sentiment === 'Bullish' ? 'DCA on dips and accumulate' : sentiment === 'Bearish' ? 'Avoid until fundamentals improve' : 'Wait for confirmation signals'
       },
+      // Align recommended actions with summary
+      recommendedActions: (() => {
+        if (recommendation === 'Buy') return ['Add to Watchlist', 'Hype over Time', 'Call it'];
+        if (recommendation === 'Avoid') return ['Remove from Watchlist', 'Hype over Time'];
+        return ['Add to Watchlist', 'Hype over Time'];
+      })(),
       
       // Add sentiment field that frontend expects
       sentiment,
