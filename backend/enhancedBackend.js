@@ -90,6 +90,16 @@ class EnhancedBackend {
     this.hypeTrendAnalysis = new HypeTrendAnalysis();
     this.aiHypePrediction = new AIHypePredictionService();
     this.backupIntegration = null; // Will be initialized in setupServices()
+    // Social Context cache (72h TTL)
+    this.socialContextCache = new Map();
+    try {
+      const baseDir = this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo';
+      this.socialContextCachePath = path.join(baseDir, 'cache', 'social-context-cache.json');
+    } catch (_) {
+      this.socialContextCachePath = path.join(__dirname, 'cache', 'social-context-cache.json');
+    }
+    // Lazy-load cache file (non-blocking)
+    this._loadSocialContextCache().catch(() => {});
     // Persistent cache path for tokens-cache.json under DATA_DIR
     try {
       const baseDir = this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo';
@@ -618,6 +628,105 @@ class EnhancedBackend {
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Hype snapshots error:', error.message);
         res.status(500).json({ error: 'Failed to fetch hype snapshots' });
+      }
+    });
+
+    // Social Context (72h-cached, no Twitter API calls)
+    this.app.get('/api/tokens/:contract/social-context', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        if (!contract) return res.status(400).json({ success: false, error: 'Missing contract' });
+
+        // 72 hours TTL
+        const ttlMs = 72 * 60 * 60 * 1000;
+
+        // Return cached if fresh
+        const cached = this._getSocialContextFromCache(contract, ttlMs);
+        if (cached) {
+          return res.json({ success: true, contract, cached: true, cachedAt: cached.timestamp, data: cached.data });
+        }
+
+        // Compose from existing cached token + snapshots (no new Twitter calls)
+        const tokens = await this.getTokensFromCache();
+        const token = tokens.find(t =>
+          t.contractAddress?.toLowerCase() === contract.toLowerCase() ||
+          t.symbol?.toLowerCase() === contract.toLowerCase()
+        );
+        if (!token) return res.status(404).json({ success: false, error: 'Token not found' });
+
+        // Recent snapshots for trend/catalysts
+        const sinceMs = Date.now() - ttlMs; // look back 72h for context
+        const snaps = await this.hypeService.getSnapshots(token.contractAddress || contract, sinceMs).catch(() => []);
+        const last = snaps[snaps.length - 1] || null;
+        const prev = snaps[snaps.length - 2] || null;
+
+        // Extract existing social metrics (already fetched earlier, do not call APIs)
+        const td = token.twitterData || {};
+        const mentions = Number(td.mentions || td.mentions24h || 0);
+        const likes = Number(td.likes || 0);
+        const retweets = Number(td.retweets || 0);
+        const replies = Number(td.replies || 0);
+        const followers = Number(td.followers || 0);
+        const engagement = likes + retweets + replies;
+
+        // Sentiment: use stored percentages if available, otherwise default to neutral
+        const sentiments = td.tweetSentiments || td.sentiment || {};
+        const sentiment = {
+          positive: Math.round(Number(sentiments.positive || 0)),
+          negative: Math.round(Number(sentiments.negative || 0)),
+          neutral: Math.round(Number(sentiments.neutral || (sentiments.positive || sentiments.negative ? 0 : 100)))
+        };
+
+        // Social health score from token cache (computed earlier)
+        const socialHealthScore = typeof token.communityHealthScore === 'number'
+          ? Number(token.communityHealthScore)
+          : (last?.score ?? 0);
+
+        // Build catalysts using simple heuristics (no external calls)
+        const catalysts = [];
+        const j = token.jupiterData || {};
+        const holderChange = j.holderChange; // could be % string or number
+        const volumeChange = j.volumeChange ?? j.stats24h?.volumeChange;
+        const priceChange = j.priceChange ?? j.stats24h?.priceChange;
+
+        // Mentions trend
+        if (prev && last && typeof prev.twitterMentions === 'number' && typeof last.twitterMentions === 'number') {
+          if (last.twitterMentions > prev.twitterMentions) catalysts.push('Mentions rising');
+        }
+
+        // Holder growth
+        if (typeof holderChange === 'number' ? holderChange > 0 : (typeof holderChange === 'string' && holderChange.trim().startsWith('+'))) {
+          catalysts.push('Holder base growing');
+        }
+
+        // Volume uptick
+        if (typeof volumeChange === 'number' && volumeChange > 0) catalysts.push('Volume uptick');
+
+        // Price momentum
+        if (typeof priceChange === 'number' && priceChange > 0) catalysts.push('Price momentum');
+
+        // Top hashtags if present
+        const topHashtags = Array.isArray(td.topHashtags) ? td.topHashtags.slice(0, 5) : [];
+
+        const payload = {
+          socialHealthScore,
+          mentions,
+          engagement,
+          followers,
+          sentiment,
+          catalysts,
+          topHashtags,
+          lastSnapshotAt: last?.timestamp || null,
+          dataFreshness: td._dataFreshness || 'unknown'
+        };
+
+        // Save to cache and return
+        await this._setSocialContextCache(contract, payload).catch(() => {});
+        return res.json({ success: true, contract, cached: false, data: payload });
+
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Social context error:', error);
+        return res.status(500).json({ success: false, error: 'Failed to build social context' });
       }
     });
 
@@ -4454,6 +4563,48 @@ class EnhancedBackend {
         console.error('[🛡️ Enhanced Backend] ❌ Priority Jupiter update failed:', error);
       }
     }, 60 * 1000); // Check every minute, but only update what needs updating based on priority
+  }
+
+  // ===== Social Context Cache Helpers =====
+  async _loadSocialContextCache() {
+    try {
+      const raw = await fs.readFile(this.socialContextCachePath, 'utf8');
+      const obj = JSON.parse(raw);
+      this.socialContextCache = new Map(Object.entries(obj));
+      console.log(`[🛡️ Enhanced Backend] 🧠 Loaded Social Context cache: ${this.socialContextCache.size} entries`);
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  async _saveSocialContextCache() {
+    try {
+      const obj = Object.fromEntries(this.socialContextCache.entries());
+      await fs.writeFile(this.socialContextCachePath, JSON.stringify(obj, null, 2));
+    } catch (e) {
+      console.warn('[🛡️ Enhanced Backend] ⚠️ Failed saving Social Context cache:', e.message);
+    }
+  }
+
+  _getSocialContextFromCache(contract, ttlMs) {
+    try {
+      const key = (contract || '').toLowerCase();
+      const item = this.socialContextCache.get(key);
+      if (!item) return null;
+      const ts = Number(item.timestamp || 0);
+      if (!Number.isFinite(ts) || Date.now() - ts > ttlMs) return null;
+      return item;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async _setSocialContextCache(contract, data) {
+    try {
+      const key = (contract || '').toLowerCase();
+      this.socialContextCache.set(key, { timestamp: Date.now(), data });
+      await this._saveSocialContextCache();
+    } catch (_) {}
   }
 
   async getHypeDataForAnalysis(contractAddress, range = '7d') {
