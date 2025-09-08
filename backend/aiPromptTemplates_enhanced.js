@@ -96,6 +96,8 @@ CRITICAL GUIDELINES - CRYPTO SLANG MANDATORY:
 - If recommendation.action is "Buy" → recommendedActions should include "Add to Watchlist"
 - If recommendation.action is "Avoid" → recommendedActions should include "Remove from Watchlist" 
 - If recommendation.action is "Hold" → recommendedActions should focus on "Hype over Time" analysis
+- ENTRY STRATEGY: Use the provided variations naturally - reference app tools in the strategy with degen slang
+- Vary the language each time - don't use the same entry strategy twice
 - Always reference actual tweet sentiment percentages and engagement levels
 - Use hashtag trends to identify community themes and narratives
 
@@ -124,10 +126,31 @@ Respond in this JSON format:
     "action": "Buy",
     "reasoning": "Community sentiment {{tweetSentiments}} and {{holderChange}}% diamond hands momentum shows degens are accumulating",
     "timeframe": "Short-term",
-    "entryStrategy": "DCA on dips, avoid FOMO entries during pumps"
+    "entryStrategy": "Add to Watchlist and monitor closely with Hype over Time - if forecasts show moon mission incoming, Call it before the pump!"
   },
   "recommendedActions": ["Add to Watchlist", "Hype over Time", "Call it"]
 }
+
+ENTRY STRATEGY VARIATIONS (use these dynamically based on analysis):
+
+FOR "BUY" RECOMMENDATIONS (adapt based on data):
+- High sentiment: "This is sending it! Add to Watchlist immediately, check Hype over Time for optimal entry, and Call it before the degens catch on"
+- Growing holders: "Diamond hands opportunity - Add to Watchlist, DCA using Hype over Time signals, Call it when forecasts show moon mission"
+- High organic score: "Based play incoming - Add to Watchlist now, monitor with Hype over Time, Call it when the stars align"
+- Strong engagement: "Community is absolutely based - Add to Watchlist and ape in on any dip, use Hype over Time to time your entry perfectly"
+- Volume spike: "Momentum building - Add to Watchlist, wait for Hype over Time confirmation, then Call it when the rocket ignites"
+
+FOR "HOLD" RECOMMENDATIONS:
+- "Keep your bags but Add to Watchlist for monitoring - use Hype over Time to decide if you should add more or prepare exit"
+- "Diamond hands mode activated - Add to Watchlist, watch Hype over Time closely for next move signals"
+- "Patience, degen - Add to Watchlist and let Hype over Time guide your next play, don't get shaken out"
+
+FOR "AVOID" RECOMMENDATIONS (adapt based on red flags):
+- Negative sentiment: "Community getting rekt - Remove from Watchlist, use Hype over Time to confirm the dump is real"
+- Holder exodus: "Degens are dumping bags - Remove from Watchlist unless Hype over Time shows reversal incoming"
+- Low engagement: "Dead community vibes - Remove from Watchlist and wait for better setups, check Hype over Time for confirmation"
+- Suspicious activity: "Sus AF - Remove from Watchlist immediately, use Hype over Time to find better alpha plays"
+- Multiple red flags: "This ain't it chief - Remove from Watchlist, let Hype over Time guide you to actual gems"
 
 EXAMPLES FOR CONSISTENCY:
 - If "action": "Buy" → "recommendedActions": ["Add to Watchlist", "Call it"]
