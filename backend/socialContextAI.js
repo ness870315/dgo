@@ -55,8 +55,11 @@ class SocialContextAI {
       // Prepare template variables
       const templateVars = this.prepareTemplateVariables(tokenData);
       
-      // Generate cache key
-      const cacheKey = `social_${tokenData.symbol}_${Date.now() - (Date.now() % cacheExpiry)}`;
+      // Generate cache key (tier/model-specific to avoid free↔premium collisions)
+      const timeBucket = Date.now() - (Date.now() % cacheExpiry);
+      const tier = (options?.model && String(options.model).toLowerCase().includes('gpt-4')) ? 'premium' : 'free';
+      const id = tokenData.contractAddress || tokenData.symbol || 'unknown';
+      const cacheKey = `social_${tier}_${options?.model || 'gpt-3.5-turbo'}_${id}_${timeBucket}`;
       
       // Check cache
       if (useCache && this.analysisCache.has(cacheKey)) {

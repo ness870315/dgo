@@ -80,7 +80,7 @@ class DexscreenerApiService {
       }
 
       // Convert to array and sort by multiple factors for "trendiness"
-      const trendingPairs = Array.from(discoveredTokens.values())
+      let trendingPairs = Array.from(discoveredTokens.values())
         .map(pair => ({
           ...pair,
           // Calculate trend score: volume + recent price action
@@ -88,6 +88,9 @@ class DexscreenerApiService {
         }))
         .sort((a, b) => b.trendScore - a.trendScore) // Sort by trendiness
         .slice(0, limit); // Take top N
+
+      // Filter out rugged-looking tokens from trending (collapse or massive drop)
+      trendingPairs = trendingPairs.filter(p => !this.isRuggedFromDex(p));
 
       console.log(`✅ Dynamically discovered ${trendingPairs.length} trending Solana memecoins`);
 
@@ -144,6 +147,23 @@ class DexscreenerApiService {
     const isReasonableSize = !pair.marketCap || pair.marketCap < 1000000000; // Under $1B
 
     return !isStablecoin && !isMajorToken && !isStableContract && isReasonableSize;
+  }
+
+  /**
+   * Rugged heuristic for Dexscreener processed pairs
+   * - 24h price change <= -80%
+   * - OR liquidity <= $1,000 AND 24h change <= -60%
+   */
+  isRuggedFromDex(processedPair) {
+    try {
+      const drop24h = typeof processedPair.priceChange24h === 'number' ? processedPair.priceChange24h : undefined;
+      const liqUsd = typeof processedPair.liquidity === 'number' ? processedPair.liquidity : undefined;
+      const bigDrop = drop24h !== undefined && drop24h <= -80;
+      const liqAndDrop = (liqUsd !== undefined && liqUsd <= 1000) && (drop24h !== undefined && drop24h <= -60);
+      return Boolean(bigDrop || liqAndDrop);
+    } catch (_) {
+      return false;
+    }
   }
 
   /**

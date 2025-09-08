@@ -120,9 +120,11 @@ class OpenAIService {
   /**
    * Generate cache key for requests
    */
-  generateCacheKey(prompt, model = 'gpt-3.5-turbo', temperature = 0.7) {
+  generateCacheKey(prompt, model = 'gpt-3.5-turbo', temperature = 0.7, extras = {}) {
+    const tier = (model && String(model).toLowerCase().includes('gpt-4')) ? 'premium' : 'free';
+    const identity = `${extras.contract || extras.symbol || ''}`;
     return crypto.createHash('md5')
-      .update(`${model}-${temperature}-${prompt}`)
+      .update(`${tier}-${model}-${temperature}-${identity}-${prompt}`)
       .digest('hex');
   }
 
@@ -146,7 +148,7 @@ class OpenAIService {
     
     try {
       // Check cache first
-      const cacheKey = this.generateCacheKey(prompt, model, temperature);
+      const cacheKey = this.generateCacheKey(prompt, model, temperature, options?.identity || {});
       
       if (useCache && this.cache.has(cacheKey)) {
         const cached = this.cache.get(cacheKey);

@@ -21,6 +21,59 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 class EnhancedBackend {
+  // Determine if a token should be excluded due to suspicious audit flags
+  isSuspiciousToken(token) {
+    const isTrue = (v) => {
+      if (v === true) return true;
+      if (typeof v === 'string') {
+        const s = v.trim().toLowerCase();
+        return s === 'true' || s === '1' || s === 'yes';
+      }
+      if (typeof v === 'number') return v === 1;
+      return false;
+    };
+
+    const candidates = [
+      token?.isSus,
+      token?.audit?.isSus,
+      token?.auditInfo?.isSus,
+      token?.jupiterData?.isSus,
+      token?.jupiterData?.audit?.isSus,
+      token?.jupiterData?.auditInfo?.isSus,
+      token?.jupiterData?.audit?.suspicious,
+      token?.jupiterData?.audit?.is_sus
+    ];
+
+    return candidates.some(isTrue);
+  }
+
+  // Determine if a token appears rugged or effectively dead based on sharp drawdowns and collapsed liquidity
+  isRuggedToken(token) {
+    try {
+      const j = token?.jupiterData || {};
+      const s1 = j.stats1h || {};
+      const s6 = j.stats6h || {};
+      const s24 = j.stats24h || {};
+
+      const priceChange1h = typeof s1.priceChange === 'number' ? s1.priceChange : undefined;
+      const priceChange6h = typeof s6.priceChange === 'number' ? s6.priceChange : undefined;
+      const priceChange24h = typeof s24.priceChange === 'number' ? s24.priceChange : undefined;
+      const liquidityUsd = typeof j.liquidity === 'number' ? j.liquidity : undefined;
+
+      // Rug heuristics (conservative):
+      // - 24h drop ≤ -80%
+      // - OR 6h drop ≤ -70%
+      // - OR liquidity collapsed (≤ $1,000) AND 24h drop ≤ -60%
+      const big24hDrop = priceChange24h !== undefined && priceChange24h <= -80;
+      const big6hDrop = priceChange6h !== undefined && priceChange6h <= -70;
+      const collapsedLiq = liquidityUsd !== undefined && liquidityUsd <= 1000;
+      const liqAndDrop = collapsedLiq && priceChange24h !== undefined && priceChange24h <= -60;
+
+      return Boolean(big24hDrop || big6hDrop || liqAndDrop);
+    } catch (_) {
+      return false;
+    }
+  }
   constructor() {
     this.app = express();
     this.port = process.env.PORT || 4000;
@@ -117,7 +170,7 @@ class EnhancedBackend {
     this.app.get('/api/status', async (req, res) => {
       try {
         const status = this.tokenProcessor.getProcessingStatus();
-        const tokens = await this.getTokensFromCache();
+        let tokens = await this.getTokensFromCache();
         const priorityStats = this.priorityQueue.getPriorityStats(tokens);
         
         res.json({
@@ -399,6 +452,9 @@ class EnhancedBackend {
           return;
         }
 
+        // Exclude suspicious or rugged tokens from API output as an extra safety layer
+        tokens = tokens.filter(t => !this.isSuspiciousToken(t) && !this.isRuggedToken(t));
+
         // Apply enhanced deduplication to ensure no duplicates are served
         const deduplicatedTokens = this.tokenProcessor.deduplicateTokens(tokens);
         console.log(`[🛡️ Enhanced Backend] 🔄 Deduplicated API response: ${tokens.length} → ${deduplicatedTokens.length} tokens`);
@@ -574,8 +630,20 @@ class EnhancedBackend {
           sort_by,
           sort_type
         });
-        console.log(`[🛡️ Enhanced Backend] ✅ BirdEye trending returned ${tokens.length} tokens`);
-        res.json(tokens);
+        // Extra safety: filter suspicious/rugged tokens from BirdEye trending output
+        const filtered = (tokens || []).filter(t => {
+          // Try to map minimal fields into a shape consumable by isRuggedToken
+          const mapped = {
+            jupiterData: {
+              stats24h: { priceChange: typeof t.priceChange24h === 'number' ? t.priceChange24h : undefined },
+              stats6h: { priceChange: typeof t.priceChange6h === 'number' ? t.priceChange6h : undefined },
+              liquidity: typeof t.liquidity === 'number' ? t.liquidity : undefined
+            }
+          };
+          return !this.isSuspiciousToken(t) && !this.isRuggedToken(mapped);
+        });
+        console.log(`[🛡️ Enhanced Backend] ✅ BirdEye trending returned ${tokens.length} tokens → ${filtered.length} after filters`);
+        res.json(filtered);
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ BirdEye trending error:', error);
         res.status(500).json({ error: 'Failed to fetch BirdEye trending tokens' });
@@ -1618,7 +1686,8 @@ class EnhancedBackend {
           useCache: useCache === 'true',
           cacheExpiry: isPremium ? 900000 : 1800000, // Premium: 15min, Free: 30min
           model: isPremium ? 'gpt-4' : 'gpt-3.5-turbo',
-          temperature: 0.7
+          temperature: 0.7,
+          identity: { contract: identifier, symbol: token?.symbol }
         };
         
         const analysis = await this.socialContextAI.analyzeSocialContext(token, analysisOptions);
@@ -1825,11 +1894,11 @@ class EnhancedBackend {
             if (stableSymbols.has(symbol)) { skipped++; continue; }
             if (!c.graduatedAt) { skipped++; continue; }
             
-            // Filter out suspicious tokens based on audit data
-            if (c.audit && c.audit.isSus === true) { 
-              console.log(`[🔍 Discovery Import] 🚫 Skipping suspicious token: ${symbol} (isSus=true)`);
-              skipped++; 
-              continue; 
+            // Robust suspicious filter: check multiple possible locations/encodings of isSus
+            if (this.isSuspiciousToken(c)) {
+              console.log(`[🔍 Discovery Import] 🚫 Skipping suspicious token: ${symbol} (audit flagged isSus)`);
+              skipped++;
+              continue;
             }
 
             const key = contract.toLowerCase();
@@ -1863,6 +1932,12 @@ class EnhancedBackend {
                 existing.discoveredVia.push({ source, category, interval, at: nowIso });
               }
               existing.jupiterData = { ...(existing.jupiterData || {}), ...jupInfo };
+              // Ensure suspicious tokens never leak through updates
+              if (this.isSuspiciousToken(existing)) {
+                console.log(`[🔍 Discovery Import] 🚫 Update blocked (suspicious): ${symbol}`);
+                skipped++;
+                continue;
+              }
               updated++;
             } else {
               // Insert new minimal token
@@ -1878,6 +1953,11 @@ class EnhancedBackend {
                 hasJupiterData: true,
                 jupiterData: jupInfo
               };
+              if (this.isSuspiciousToken(newToken)) {
+                console.log(`[🔍 Discovery Import] 🚫 Insert blocked (suspicious): ${symbol}`);
+                skipped++;
+                continue;
+              }
               tokens.push(newToken);
               byAddress.set(key, newToken);
               inserted++;
