@@ -6385,14 +6385,16 @@ class EnhancedBackend {
           try {
             console.log('[🛡️ Enhanced Backend] 🚀 Backend ready, starting token processing...');
             
-            // Check if we need to start processing (only on truly fresh start)
             const status = this.tokenProcessor.getProcessingStatus();
             if (status.processedCount === 0) {
+              // Fresh installation - start full processing
               console.log('[🛡️ Enhanced Backend] 🆕 No tokens found, starting initial processing...');
               await this.tokenProcessor.startProcessing();
             } else {
+              // Auto-start processing after reboot with existing tokens (skip Twitter to avoid API waste)
               console.log(`[🛡️ Enhanced Backend] 📊 Found ${status.processedCount} existing tokens`);
-              console.log('[🛡️ Enhanced Backend] ✅ Backend ready - existing tokens loaded, processing can be triggered manually or via scheduled runs');
+              console.log('[🛡️ Enhanced Backend] 🔄 Auto-starting processing pipeline after reboot (skipTwitter=true)...');
+              await this.tokenProcessor.startProcessing({ skipTwitter: true });
             }
           } catch (error) {
             console.error('[🛡️ Enhanced Backend] ❌ Error starting token processing:', error);
