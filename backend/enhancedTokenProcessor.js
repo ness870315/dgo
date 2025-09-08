@@ -72,6 +72,11 @@ class EnhancedTokenProcessor {
   async initialize() {
     console.log('🚀 Enhanced Token Processor Initializing...');
     await this.loadExistingData();
+    
+    // Populate already-queued set with tokens that have recent Twitter data
+    // This prevents duplicate Twitter API calls on restart
+    await this.populateAlreadyQueuedFromExisting();
+    
     console.log('✅ Enhanced Token Processor Ready');
   }
 
@@ -99,6 +104,8 @@ class EnhancedTokenProcessor {
       console.log('⚠️ Ensuring processedTokens is an array');
       this.processedTokens = [];
     }
+    
+    return this.processedTokens;
   }
 
   async startProcessing() {
@@ -1675,6 +1682,40 @@ class EnhancedTokenProcessor {
       // File doesn't exist or is corrupted, start fresh
       this.alreadyQueuedSet = new Set();
       console.log('📂 Starting with empty already-queued set');
+    }
+  }
+
+  /**
+   * Populate already queued set with existing tokens that have recent Twitter data
+   * This prevents duplicate Twitter API calls on restart
+   */
+  async populateAlreadyQueuedFromExisting() {
+    try {
+      const existingTokens = await this.loadExistingData();
+      const now = new Date();
+      const cooldownMs = 72 * 60 * 60 * 1000; // 72 hours
+      let populated = 0;
+
+      for (const token of existingTokens) {
+        if (token.twitterTimestamp) {
+          const twitterAge = now - new Date(token.twitterTimestamp);
+          if (twitterAge < cooldownMs) {
+            // Token has recent Twitter data, add to already queued set
+            const key = (token.contractAddress || token.symbol || '').toLowerCase();
+            if (!this.alreadyQueuedSet.has(key)) {
+              this.alreadyQueuedSet.add(key);
+              populated++;
+            }
+          }
+        }
+      }
+
+      if (populated > 0) {
+        this.saveAlreadyQueuedSet();
+        console.log(`🔄 Populated ${populated} tokens with recent Twitter data into already-queued set`);
+      }
+    } catch (error) {
+      console.error('❌ Failed to populate already-queued set from existing tokens:', error.message);
     }
   }
 
