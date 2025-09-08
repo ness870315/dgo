@@ -444,7 +444,7 @@ class EnhancedBackend {
       try {
         console.log('[🛡️ Enhanced Backend] 📊 API request for tokens received...');
 
-        const tokens = await this.getTokensFromCache();
+        let tokens = await this.getTokensFromCache();
 
         if (tokens.length === 0) {
           console.log('[🛡️ Enhanced Backend] ⚠️ No tokens found in cache');
