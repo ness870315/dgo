@@ -1740,7 +1740,7 @@ class EnhancedBackend {
           cacheExpiry: isPremium ? 900000 : 1800000, // Premium: 15min, Free: 30min
           model: isPremium ? 'gpt-4' : 'gpt-3.5-turbo',
           temperature: 0.7,
-          identity: { contract: identifier, symbol: token?.symbol }
+          identity: { contract, symbol: token?.symbol }
         };
         
         const analysis = await this.socialContextAI.analyzeSocialContext(token, analysisOptions);
