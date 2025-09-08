@@ -46,14 +46,16 @@ export default class LeaderboardScoringEngine {
 
     // Skip calls that are too recent
     if (ageHours < this.config.minCallAge) {
+      console.log(`🏆 Skipping call (too recent): ${ageHours}h < ${this.config.minCallAge}h`);
       return null;
     }
 
     // X multiple
-    const calledMC = Number(call.calledMC || call.calledMC || 0);
+    const calledMC = Number(call.calledMC || call.calledMc || 0);
     const currentMC = Number(currentData?.mcap || currentData?.marketCap || call.currentMC || 0);
 
     if (!calledMC || !currentMC || calledMC <= 0) {
+      console.log(`🏆 Skipping call (invalid MC): calledMC=${calledMC}, currentMC=${currentMC}`);
       return null;
     }
 
@@ -223,10 +225,15 @@ export default class LeaderboardScoringEngine {
    * Process user calls and calculate all metrics
    */
   processUserCalls(userId, calls, currentTokenData = {}) {
+    console.log(`🏆 Processing ${calls.length} calls for user ${userId}`);
+    
     // Calculate per-call metrics
     const callMetrics = calls
       .map(call => {
-        const tokenData = currentTokenData[call.contractAddress] || {};
+        // Handle both call.contractAddress and call.token.contractAddress formats
+        const contractAddress = call.contractAddress || call.token?.contractAddress;
+        const tokenData = currentTokenData[contractAddress] || {};
+        console.log(`🏆 Call: ${call.token?.symbol || 'UNKNOWN'}, Contract: ${contractAddress}, CalledMC: ${call.calledMC || call.calledMc}, CurrentMC: ${tokenData?.mcap || tokenData?.marketCap || call.currentMC}`);
         return this.calculateCallMetrics(call, tokenData);
       })
       .filter(call => call !== null);
