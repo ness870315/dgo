@@ -158,7 +158,7 @@ class EnhancedSocialDataService {
         await this.initializeTwitterApiManager();
       }
       await this.initializePersistentStorage();
-      this.startBackgroundRefresh(); // Enabled for automatic Twitter data refresh
+      // this.startBackgroundRefresh(); // DISABLED to prevent excessive Twitter API usage
       this.initialized = true;
       console.log('✅ EnhancedSocialDataService initialized successfully');
     } catch (error) {

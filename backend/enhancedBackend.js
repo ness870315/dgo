@@ -2888,9 +2888,9 @@ class EnhancedBackend {
         // Get social data service
         const socialService = this.tokenProcessor.socialDataService;
         
-        // Force refresh Twitter data with admin bypass
+        // Force refresh Twitter data (REMOVED admin bypass to respect 72h cooldown)
         const lookupSymbol = token.symbol || upperSym;
-        const twitterData = await socialService.forceImmediateRefresh(lookupSymbol, token.name, true);
+        const twitterData = await socialService.forceImmediateRefresh(lookupSymbol, token.name, false);
         
         // Update token with new Twitter data
         token.twitterData = twitterData;
