@@ -74,7 +74,7 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
     <div className="flex items-center space-x-2 relative">
       <span className="text-sm text-gray-400 mr-2">Categories:</span>
       {Object.entries(categories)
-        .filter(([key]) => isAuthenticated || (key !== 'volatile' && key !== 'stable'))
+        .filter(([key]) => key !== 'volatile' && key !== 'stable')
         .map(([key, value]) => {
         const tooltipContent = getTooltipContent(key);
         return (
@@ -95,8 +95,7 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
               {key === 'midCap' && '🏢 Mid Cap'}
               {key === 'smallCap' && '💎 Small Cap'}
               {key === 'microCap' && '🔍 Micro Cap'}
-              {key === 'volatile' && '⚡ Volatile'}
-              {key === 'stable' && '📈 Stable'}
+              {/* volatile/stable removed */}
             </button>
 
             {/* Tooltip Modal (matching BubbleMap design) */}
