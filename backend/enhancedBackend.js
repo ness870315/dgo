@@ -1653,6 +1653,18 @@ class EnhancedBackend {
         // Get updated usage count for response
         const currentUsageCount = !isPremium && user ? await this.getAIUsageCount(user.id) : 0;
         
+        // Debug: Log the analysis structure being returned
+        console.log(`🔍 AI Analysis Response for ${token.symbol}:`, {
+          sentiment: analysis.sentiment,
+          confidence: analysis.confidence,
+          keyInsights: analysis.keyInsights?.length || 0,
+          socialMomentum: analysis.socialMomentum,
+          riskAssessment: analysis.riskAssessment,
+          recommendation: analysis.recommendation,
+          catalysts: typeof analysis.catalysts,
+          redFlags: typeof analysis.redFlags
+        });
+
         res.json({
           success: true,
           analysis: analysis,

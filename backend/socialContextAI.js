@@ -541,6 +541,19 @@ class SocialContextAI {
       redFlags.push('No major red flags detected in current data');
     }
     
+    // Debug: Log fallback analysis values
+    console.log(`🔍 Fallback Analysis Debug for ${tokenData.symbol}:`, {
+      sentiment,
+      confidence,
+      confidencePercent: Math.round(confidence * 100),
+      bullishSignals,
+      bearishSignals,
+      recommendation,
+      keyInsightsCount: keyInsights.length,
+      catalystsCount: catalysts.length,
+      redFlagsCount: redFlags.length
+    });
+
     return {
       // Match the expected AI response format
       socialSummary: `${sentiment} sentiment with ${Math.round(confidence * 100)}% confidence. Community health: ${communityScore.toFixed(1)}/10. Social activity: ${mentions} mentions with ${totalEngagement} total engagement.`,
