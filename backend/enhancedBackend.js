@@ -2599,7 +2599,7 @@ class EnhancedBackend {
         token.twitterTimestamp = new Date().toISOString();
         
         // Recalculate community health score with new Twitter data using ENHANCED method
-        token.communityHealthScore = socialService.calculateCommunityHealthScore(twitterData);
+        token.communityHealthScore = this.calculateCommunityHealthScore(twitterData, token.socials, token.jupiterData);
         token.communityScore = token.communityHealthScore; // Ensure both fields are set
         
         // Recalculate overall score
@@ -2876,7 +2876,7 @@ class EnhancedBackend {
           if (job.tokensArray && item.index != null && job.tokensArray[item.index]) {
             const token = job.tokensArray[item.index];
             token.twitterData = twitterData;
-            token.communityHealthScore = socialService.calculateCommunityHealthScore(twitterData);
+            token.communityHealthScore = this.calculateCommunityHealthScore(twitterData, token.socials, token.jupiterData);
             token.communityScore = token.communityHealthScore;
             token.overallScore = this.tokenProcessor.calculateEnhancedOverallScore(token);
             token.score = token.overallScore;
@@ -4660,7 +4660,7 @@ class EnhancedBackend {
 
         if (twitterInfo && twitterInfo.data) {
           // Calculate community health score from Twitter metrics and social links
-          const communityHealthScore = this.calculateCommunityHealthScore(twitterInfo.data, token.socials);
+          const communityHealthScore = this.calculateCommunityHealthScore(twitterInfo.data, token.socials, token.jupiterData);
 
           return {
             ...token,
@@ -4704,10 +4704,10 @@ class EnhancedBackend {
     }
   }
 
-  calculateCommunityHealthScore(twitterData, socialLinks = null) {
+  calculateCommunityHealthScore(twitterData, socialLinks = null, jupiterData = null) {
     if (!twitterData) return 0;
 
-    let score = 5.0; // Base score to match Enhanced Social Data Service
+    let score = 2.0; // Lowered base score - tokens must earn their community score
     const maxScore = 10;
 
     // FINAL WEIGHTS: Mentions 55%, Engagement 35%, Followers 5%, Quality 5%
@@ -4745,7 +4745,7 @@ class EnhancedBackend {
     const hasRecentActivity = mentions > 0 ? 1.0 : 0;
     score += (hasOfficialAccount + hasRecentActivity) * 0.25;
 
-    // 6. Social links bonus (BONUS points) - NEW!
+    // 5. Social links bonus (BONUS points)
     if (socialLinks) {
       const socialCount = Object.values(socialLinks).filter(link => link && link !== 'not_found').length;
       if (socialCount >= 5) score += 1.0;      // All socials = +1.0 bonus
@@ -4753,7 +4753,46 @@ class EnhancedBackend {
       else if (socialCount >= 2) score += 0.5; // Some socials = +0.5 bonus
     }
 
-    return Math.min(score, maxScore);
+    // 6. Organic Score Penalties (NEW!) - Prevent inflated scores from suspicious activity
+    if (jupiterData && jupiterData.organicScore !== undefined) {
+      const organicScore = jupiterData.organicScore;
+      
+      // Severe penalties for low organic scores
+      if (organicScore === 0) {
+        score -= 2.0; // Major penalty for zero organic score (likely bots)
+      } else if (organicScore < 20) {
+        score -= 1.5; // High penalty for very low organic score
+      } else if (organicScore < 40) {
+        score -= 1.0; // Medium penalty for low organic score
+      } else if (organicScore < 60) {
+        score -= 0.5; // Small penalty for below-average organic score
+      }
+      // No penalty for organic scores >= 60
+    }
+
+    // 7. Low Volume High Engagement Penalty (NEW!) - Detect artificial engagement
+    if (mentions > 0 && mentions <= 5) {
+      const avgEngagementPerMention = totalEngagement / mentions;
+      
+      // If very few mentions but extremely high engagement per mention, it's suspicious
+      if (avgEngagementPerMention > 15 && mentions <= 2) {
+        score -= 1.5; // Major penalty for likely artificial engagement
+      } else if (avgEngagementPerMention > 10 && mentions <= 3) {
+        score -= 1.0; // Medium penalty for suspicious engagement patterns
+      } else if (avgEngagementPerMention > 8 && mentions <= 5) {
+        score -= 0.5; // Small penalty for potentially inflated engagement
+      }
+    }
+
+    // 8. Minimum Activity Threshold (NEW!) - Require basic activity for decent scores
+    if (mentions < 5) {
+      score = Math.min(score, 4.0); // Cap score at 4.0 for tokens with <5 mentions
+    }
+    if (mentions < 2) {
+      score = Math.min(score, 2.5); // Cap score at 2.5 for tokens with <2 mentions
+    }
+
+    return Math.max(0, Math.min(score, maxScore)); // Ensure score is between 0 and 10
   }
 
   async refreshCache() {
