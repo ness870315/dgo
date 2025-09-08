@@ -235,9 +235,14 @@ class HypeTrendAnalysis {
         color: '#ef4444'
       };
     } else {
+      // Dynamic strength for stable regime based on weak signals
+      const momentumMag = Math.min(1, Math.abs(momentum) / 1.5); // normalize ~[0,1]
+      const velocityMag = Math.min(1, Math.abs(velocity) / 0.5);
+      const accelBoost = Math.min(0.2, Math.max(0, Math.abs(acceleration) / 1));
+      const dynamicStrength = Math.max(0.3, Math.min(0.7, 0.3 + 0.4 * (0.6 * momentumMag + 0.3 * velocityMag + 0.1 * accelBoost)));
       return {
         type: 'stable',
-        strength: 0.5,
+        strength: Number(dynamicStrength.toFixed(2)),
         description: 'Social momentum is consolidating',
         emoji: '➡️',
         color: '#6b7280'
