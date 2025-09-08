@@ -442,7 +442,14 @@ class EnhancedTokenProcessor {
       this.processingQueue = deduplicatedTokens; // Update the queue
     }
     
-    const allTokens = this.processingQueue;
+    // Filter out tokens that should NEVER hit Twitter API
+    let allTokens = this.processingQueue;
+    const preFilterCount = allTokens.length;
+    allTokens = allTokens.filter(t => this.isValidCandidate(t) && !this.isSuspiciousToken(t) && !this.isRuggedToken(t));
+    const filteredOut = preFilterCount - allTokens.length;
+    if (filteredOut > 0) {
+      console.log(`🧹 FILTER: Skipped ${filteredOut} tokens (invalid/suspicious/rugged) before Twitter stage (${preFilterCount} → ${allTokens.length})`);
+    }
     
     // 🚨 CRITICAL FIX: In-flight protection to prevent duplicate processing within same run
     const currentlyProcessing = new Set();
@@ -1323,6 +1330,53 @@ class EnhancedTokenProcessor {
 
   async delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // =============================
+  // Candidate and safety filters
+  // =============================
+  isValidCandidate(token) {
+    const ca = token?.contractAddress;
+    return typeof ca === 'string' && ca !== 'null' && ca.length > 10;
+  }
+
+  isTrueish(value) {
+    if (value === true) return true;
+    if (typeof value === 'string') {
+      const v = value.toLowerCase().trim();
+      return v === 'true' || v === '1' || v === 'yes' || v === 'y';
+    }
+    if (typeof value === 'number') return value === 1;
+    return false;
+  }
+
+  isSuspiciousToken(token) {
+    try {
+      const audit = token?.audit || {};
+      const auditInfo = token?.auditInfo || {};
+      const jupAudit = token?.jupiterData?.audit || {};
+      const candidates = [audit.isSus, auditInfo.isSus, jupAudit.isSus, token?.isSus];
+      return candidates.some(v => this.isTrueish(v));
+    } catch (_) {
+      return false;
+    }
+  }
+
+  isRuggedToken(token) {
+    try {
+      const stats24h = token?.jupiterData?.stats24h;
+      const stats6h = token?.jupiterData?.stats6h;
+      const liquidity = token?.jupiterData?.liquidity;
+      if (!stats24h || !stats6h || liquidity == null) return false;
+      const priceChange24h = stats24h.priceChange || 0;
+      const priceChange6h = stats6h.priceChange || 0;
+      if (priceChange24h <= -80) return true;
+      if (priceChange6h <= -70) return true;
+      if (liquidity <= 1000 && priceChange24h <= -60) return true;
+      return false;
+    } catch (_) {
+      return false;
+    }
   }
 
   async shouldRefreshTwitterData(token) {
