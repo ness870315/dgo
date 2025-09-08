@@ -3124,17 +3124,24 @@ class EnhancedBackend {
     // Get Twitter API usage statistics
     this.app.get('/api/admin/twitter/usage', async (req, res) => {
       try {
-        const socialService = this.tokenProcessor?.socialDataService;
+        // Ensure social data service is initialized
+        if (!this.tokenProcessor.socialDataService) {
+          const { default: EnhancedSocialDataService } = await import('./enhancedSocialDataService.js');
+          this.tokenProcessor.socialDataService = new EnhancedSocialDataService();
+          await this.tokenProcessor.socialDataService.initialize();
+        }
+        const socialService = this.tokenProcessor.socialDataService;
         if (!socialService?.twitterApiManager) {
           return res.status(500).json({ error: 'Twitter API Manager not available' });
         }
         
         const stats = await socialService.twitterApiManager.getUsageStats();
+        const recommendations = this.getTwitterUsageRecommendations(stats || {});
         
         res.json({
           success: true,
           usage: stats,
-          recommendations: this.getTwitterUsageRecommendations(stats)
+          recommendations
         });
         
       } catch (error) {
