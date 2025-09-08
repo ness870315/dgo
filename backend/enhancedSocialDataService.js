@@ -123,6 +123,24 @@ class EnhancedSocialDataService {
         },
         async recordApiCall() { 
           console.log('📊 Fallback: API call recorded (TwitterApiManager unavailable)'); 
+        },
+        async getUsageStats() {
+          return {
+            monthly: 0,
+            monthlyLimit: 15000,
+            monthlyPercent: '0.0',
+            daily: 0,
+            dailyLimit: 500,
+            hourly: 0,
+            hourlyLimit: 50,
+            monthStart: new Date().toISOString().substring(0,7),
+            dayStart: new Date().toISOString().substring(0,10),
+            hourStart: new Date().toISOString().substring(0,13)
+          };
+        },
+        async resetMonthlyCounter() {
+          console.log('🔄 Fallback: Monthly counter reset (TwitterApiManager unavailable)');
+          return { success: true, message: 'Counter reset (fallback)' };
         }
       };
     }

@@ -3129,7 +3129,7 @@ class EnhancedBackend {
           return res.status(500).json({ error: 'Twitter API Manager not available' });
         }
         
-        const stats = socialService.twitterApiManager.getUsageStats();
+        const stats = await socialService.twitterApiManager.getUsageStats();
         
         res.json({
           success: true,
