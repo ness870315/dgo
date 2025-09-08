@@ -32,6 +32,7 @@ class EnhancedBackupService {
     this.persistentDir = process.env.DATA_DIR || '/var/data/dgo';
     this.localCacheDir = path.join(__dirname, 'local-backup-cache');
     this.backupMetadataPath = path.join(this.localCacheDir, 'backup-metadata.json');
+    this.schedulerStatePath = path.join(this.localCacheDir, 'backup-scheduler.json');
     
     // Ensure local cache directory exists
     this.initializeLocalCache();
@@ -65,17 +66,47 @@ class EnhancedBackupService {
     this.isRunning = true;
     console.log('🔄 Starting Enhanced Backup Service...');
     
-    // Initial backup
-    await this.createSnapshot();
-    
-    // Start backup interval
-    this.backupTimer = setInterval(async () => {
-      try {
-        await this.createSnapshot();
-      } catch (error) {
-        console.error('❌ Scheduled backup failed:', error.message);
-      }
-    }, this.backupIntervalMs);
+    // Load scheduler state
+    const now = Date.now();
+    const state = await this.loadSchedulerState();
+    let lastRunAt = state?.lastRunAt || 0;
+    let nextRunAt = state?.nextRunAt || 0;
+
+    const scheduleNext = (delayMs) => {
+      if (this.backupTimer) clearInterval(this.backupTimer);
+      if (this.backupTimeout) clearTimeout(this.backupTimeout);
+      // One-shot timeout, then switch to steady interval
+      this.backupTimeout = setTimeout(async () => {
+        try {
+          await this.createSnapshot();
+        } catch (e) {
+          console.error('❌ Scheduled backup failed:', e.message);
+        }
+        // After first execution, continue at steady interval
+        this.backupTimer = setInterval(async () => {
+          try {
+            await this.createSnapshot();
+          } catch (error) {
+            console.error('❌ Scheduled backup failed:', error.message);
+          }
+        }, this.backupIntervalMs);
+      }, Math.max(0, delayMs));
+    };
+
+    if (!lastRunAt || !nextRunAt) {
+      // First run: create snapshot immediately and schedule next
+      await this.createSnapshot();
+      scheduleNext(this.backupIntervalMs);
+    } else if (now >= nextRunAt) {
+      // Missed at least one run while down → catch up immediately
+      await this.createSnapshot();
+      scheduleNext(this.backupIntervalMs);
+    } else {
+      // Schedule for remaining time until nextRunAt
+      const delay = nextRunAt - now;
+      console.log(`⏳ Next snapshot in ${(delay / (60*1000)).toFixed(1)} minutes`);
+      scheduleNext(delay);
+    }
     
     // Health check every 30 minutes
     this.healthTimer = setInterval(async () => {
@@ -97,10 +128,8 @@ class EnhancedBackupService {
     
     this.isRunning = false;
     
-    if (this.backupTimer) {
-      clearInterval(this.backupTimer);
-      this.backupTimer = null;
-    }
+    if (this.backupTimer) { clearInterval(this.backupTimer); this.backupTimer = null; }
+    if (this.backupTimeout) { clearTimeout(this.backupTimeout); this.backupTimeout = null; }
     
     if (this.healthTimer) {
       clearInterval(this.healthTimer);
@@ -152,6 +181,12 @@ class EnhancedBackupService {
       // Update global backup metadata
       await this.updateBackupMetadata(metadata);
 
+      // Update scheduler state (persist next run)
+      await this.saveSchedulerState({
+        lastRunAt: Date.now(),
+        nextRunAt: Date.now() + this.backupIntervalMs
+      });
+
       // Clean up old snapshots
       await this.cleanupOldSnapshots();
 
@@ -175,6 +210,26 @@ class EnhancedBackupService {
       }
       
       throw error;
+    }
+  }
+
+  /**
+   * Scheduler state persistence
+   */
+  async loadSchedulerState() {
+    try {
+      const raw = await fs.readFile(this.schedulerStatePath, 'utf8');
+      return JSON.parse(raw || '{}');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async saveSchedulerState(state) {
+    try {
+      await fs.writeFile(this.schedulerStatePath, JSON.stringify(state, null, 2));
+    } catch (e) {
+      console.warn('⚠️ Failed to persist backup scheduler state:', e.message);
     }
   }
 
