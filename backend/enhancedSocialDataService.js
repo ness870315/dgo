@@ -13,7 +13,7 @@ class EnhancedSocialDataService {
     this.historicalMetricsFile = './cache/twitter_history.json';
     this.twitterMetricsCache = new Map();
     this.lastRefreshTime = 0;
-    this.refreshInterval = 24 * 60 * 60 * 1000; // 24 hours
+    this.refreshInterval = 48 * 60 * 60 * 1000; // 48 hours
     
     // Twitter microservice configuration
     this.twitterServiceUrl = process.env.TWITTER_SERVICE_URL || 'http://localhost:8000';

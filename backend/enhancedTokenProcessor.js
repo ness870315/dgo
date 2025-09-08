@@ -1347,18 +1347,18 @@ class EnhancedTokenProcessor {
       return true;
     }
     
-    // LEGACY FALLBACK: Check if it's been more than 24 hours since last Twitter update
+    // LEGACY FALLBACK: Check if it's been more than 48 hours since last Twitter update
     const lastUpdate = new Date(token.twitterTimestamp);
     const now = new Date();
     const hoursSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60);
     
-    // Refresh if more than 24 hours have passed
-    const needsRefresh = hoursSinceUpdate >= 24;
+    // Refresh if more than 48 hours have passed
+    const needsRefresh = hoursSinceUpdate >= 48;
     
     if (needsRefresh) {
-      console.log(`⏰ ${token.symbol}: Last Twitter update was ${hoursSinceUpdate.toFixed(1)} hours ago (24h+ threshold)`);
+      console.log(`⏰ ${token.symbol}: Last Twitter update was ${hoursSinceUpdate.toFixed(1)} hours ago (48h+ threshold)`);
     } else {
-      console.log(`⏰ ${token.symbol}: Last Twitter update was ${hoursSinceUpdate.toFixed(1)} hours ago (within 24h)`);
+      console.log(`⏰ ${token.symbol}: Last Twitter update was ${hoursSinceUpdate.toFixed(1)} hours ago (within 48h)`);
     }
     
     return needsRefresh;
@@ -1376,8 +1376,8 @@ class EnhancedTokenProcessor {
     const now = new Date();
     const hoursSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60);
     
-    // Refresh if more than 24 hours have passed
-    return hoursSinceUpdate >= 24;
+    // Refresh if more than 48 hours have passed
+    return hoursSinceUpdate >= 48;
   }
 
   // ENHANCED DEDUPLICATION METHOD: Remove duplicates by CONTRACT ADDRESS with symbol fallback
