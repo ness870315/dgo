@@ -6391,25 +6391,32 @@ class EnhancedBackend {
         this.isRunning = true;
 
         // Start token processing workflow after backend is ready
-        setTimeout(async () => {
-          try {
-            console.log('[🛡️ Enhanced Backend] 🚀 Backend ready, starting token processing...');
-            
-            const status = this.tokenProcessor.getProcessingStatus();
-            if (status.processedCount === 0) {
-              // Fresh installation - start full processing
-              console.log('[🛡️ Enhanced Backend] 🆕 No tokens found, starting initial processing...');
-              await this.tokenProcessor.startProcessing();
-            } else {
-              // Auto-start processing after reboot with existing tokens (skip Twitter to avoid API waste)
-              console.log(`[🛡️ Enhanced Backend] 📊 Found ${status.processedCount} existing tokens`);
-              console.log('[🛡️ Enhanced Backend] 🔄 Auto-starting processing pipeline after reboot (skipTwitter=true)...');
-              await this.tokenProcessor.startProcessing({ skipTwitter: true });
+        // Delay more to ensure platform health checks pass before heavy work and allow kill switch via env
+        const disableAutoStart = String(process.env.DISABLE_AUTO_START || '').trim() === '1';
+        const startDelayMs = Number(process.env.START_PIPELINE_DELAY_MS || 12000); // default 12s
+        if (disableAutoStart) {
+          console.log('[🛡️ Enhanced Backend] ⏸️ Auto-start disabled via DISABLE_AUTO_START=1');
+        } else {
+          console.log(`[🛡️ Enhanced Backend] ⏱️ Scheduling pipeline auto-start in ${startDelayMs}ms...`);
+          setTimeout(async () => {
+            try {
+              console.log('[🛡️ Enhanced Backend] 🚀 Backend ready, starting token processing...');
+              const status = this.tokenProcessor.getProcessingStatus();
+              if (status.processedCount === 0) {
+                // Fresh installation - start full processing
+                console.log('[🛡️ Enhanced Backend] 🆕 No tokens found, starting initial processing...');
+                await this.tokenProcessor.startProcessing();
+              } else {
+                // Auto-start processing after reboot with existing tokens (skip Twitter to avoid API waste)
+                console.log(`[🛡️ Enhanced Backend] 📊 Found ${status.processedCount} existing tokens`);
+                console.log('[🛡️ Enhanced Backend] 🔄 Auto-starting processing pipeline after reboot (skipTwitter=true)...');
+                await this.tokenProcessor.startProcessing({ skipTwitter: true });
+              }
+            } catch (error) {
+              console.error('[🛡️ Enhanced Backend] ❌ Error starting token processing:', error);
             }
-          } catch (error) {
-            console.error('[🛡️ Enhanced Backend] ❌ Error starting token processing:', error);
-          }
-        }, 2000); // Wait 2 seconds for everything to be ready
+          }, startDelayMs);
+        }
       });
       
     } catch (error) {
