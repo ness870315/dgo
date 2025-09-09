@@ -6,6 +6,8 @@ import EnhancedTokenProcessor from './enhancedTokenProcessor.js';
 import HelioPaymentService from './helioPaymentService.js';
 import OAuthXService from './oauthXService.js';
 import fs from 'fs/promises';
+import { createWriteStream } from 'fs';
+import * as fsSync from 'fs';
 import path from 'path';
 import HypeSnapshotService from './hypeSnapshotService.js';
 import McapSnapshotService from './mcapSnapshotService.js';
@@ -5078,7 +5080,7 @@ class EnhancedBackend {
    * Locate the newest snapshot's tokens-cache.json across known backup dirs
    */
   async findLatestSnapshotCacheFile() {
-    const fsSync = await import('fs');
+    // Use the imported fsSync
     const backupDirs = [];
     try {
       const dataDir = this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo';
@@ -5143,7 +5145,7 @@ class EnhancedBackend {
     // Extract just that entry to tmpOut
     await new Promise((resolve, reject) => {
       const p = spawn('tar', ['-xzf', tarPath, entry, '-O']);
-      const fsOut = (await import('fs')).createWriteStream(tmpOut);
+      const fsOut = createWriteStream(tmpOut);
       p.stdout.pipe(fsOut);
       p.on('error', reject);
       p.on('close', code => code === 0 ? resolve() : reject(new Error(`tar extract exit ${code}`)));
