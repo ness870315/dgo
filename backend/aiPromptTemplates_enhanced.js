@@ -138,7 +138,7 @@ Respond in this JSON format:
     "factors": [
       "Short-term volatility: {{stats1h.priceChange}}% in 1h with {{stats1h.volumeChange}}% volume change - monitoring for whale activity",
       "Buy vs sell pressure: Buy volume {{stats24h.buyVolume}} vs sell volume {{stats24h.sellVolume}} - market sentiment analysis",
-      "Liquidity risk: ${{liquidity}}K liquidity - slippage and rug risk assessment from our analytics"
+      "Liquidity risk: {{liquidity}} liquidity - slippage and rug risk assessment from our analytics"
     ],
     "mitigants": ["{{stats24h.numNetBuyers}} net buyers showing community participation levels", "Organic score {{organicScore}}/100 from our analytics indicating authenticity"]
   },
