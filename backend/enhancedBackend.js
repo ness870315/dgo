@@ -6355,6 +6355,16 @@ class EnhancedBackend {
     try {
       await this.tokenProcessor.initialize();
 
+      // Initialize Social Context AI
+      console.log('🧠 Initializing Social Context AI...');
+      try {
+        await this.socialContextAI.initialize();
+        console.log('✅ Social Context AI initialized successfully');
+      } catch (error) {
+        console.error('❌ Social Context AI failed to initialize:', error.message);
+        console.warn('⚠️ Continuing with fallback analysis only...');
+      }
+
       // Initialize Enhanced Backup System
       console.log('🔄 Initializing Enhanced Backup System...');
       try {

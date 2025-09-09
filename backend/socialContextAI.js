@@ -187,6 +187,12 @@ class SocialContextAI {
       'isNotNA': officialHandle !== 'N/A'
     });
 
+    // Extract Jupiter stats with safety checks
+    const stats5m = jupiterData.stats5m || {};
+    const stats1h = jupiterData.stats1h || {};
+    const stats6h = jupiterData.stats6h || {};
+    const stats24h = jupiterData.stats24h || {};
+
     return {
       tokenName: tokenData.name || 'Unknown',
       symbol: tokenData.symbol || 'N/A',
@@ -194,6 +200,28 @@ class SocialContextAI {
       marketCap: this.formatNumber(jupiterData.mcap || jupiterData.marketCap || tokenData.marketCap || 0),
       price: jupiterData.usdPrice || jupiterData.price || tokenData.price || 'N/A',
       priceChange24h: jupiterData.priceChange24h || tokenData.priceChange24h || 0,
+      
+      // Jupiter stats fields with safety checks
+      'stats5m.priceChange': stats5m.priceChange || 0,
+      'stats1h.priceChange': stats1h.priceChange || 0,
+      'stats6h.priceChange': stats6h.priceChange || 0,
+      'stats24h.priceChange': stats24h.priceChange || 0,
+      'stats5m.holderChange': stats5m.holderChange || 0,
+      'stats1h.holderChange': stats1h.holderChange || 0,
+      'stats6h.holderChange': stats6h.holderChange || 0,
+      'stats24h.holderChange': stats24h.holderChange || 0,
+      'stats5m.liquidityChange': stats5m.liquidityChange || 0,
+      'stats1h.liquidityChange': stats1h.liquidityChange || 0,
+      'stats6h.liquidityChange': stats6h.liquidityChange || 0,
+      'stats24h.liquidityChange': stats24h.liquidityChange || 0,
+      'stats5m.volumeChange': stats5m.volumeChange || 0,
+      'stats1h.volumeChange': stats1h.volumeChange || 0,
+      'stats6h.volumeChange': stats6h.volumeChange || 0,
+      'stats24h.volumeChange': stats24h.volumeChange || 0,
+      'stats24h.buyVolume': stats24h.buyVolume || 0,
+      'stats24h.sellVolume': stats24h.sellVolume || 0,
+      'stats24h.numNetBuyers': stats24h.numNetBuyers || 0,
+      'stats6h.numNetBuyers': stats6h.numNetBuyers || 0,
       
       // 🔥 NEW: Jupiter API metrics for enhanced analysis (formatted for display)
       holderChange: this.formatPercentage(jupiterData.stats24h?.holderChange || jupiterData.holderChange || 0),
