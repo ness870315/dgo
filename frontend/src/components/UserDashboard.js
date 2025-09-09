@@ -67,6 +67,8 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
       const data = await response.json();
       
       console.log('DGO Followers data:', data);
+      console.log('Raw followers:', data.followers);
+      console.log('Raw following:', data.following);
       
       if (data.success) {
         setDgoFollowers(data.followers || []);
@@ -850,6 +852,13 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                 isFollowing={kolIsFollowing}
                 onToggleFollow={async () => {
                   if (!selectedKolUser) return;
+                  
+                  // Prevent self-following
+                  if (selectedKolUser.userId === user?.id || selectedKolUser.id === user?.id) {
+                    alert('You cannot follow yourself!');
+                    return;
+                  }
+                  
                   try {
                     setKolFollowBusy(true);
                     if (kolIsFollowing) {
@@ -1635,8 +1644,9 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                   <div className="space-y-2">
                     {dgoFollowers.map((follower, index) => {
                       const userId = follower.id || follower;
-                      const username = `user_${String(userId).slice(-6)}`;
-                      const displayName = `User ${String(userId).slice(-6)}`;
+                      const userIdStr = String(userId || 'unknown');
+                      const username = `user_${userIdStr.slice(-6)}`;
+                      const displayName = `User ${userIdStr.slice(-6)}`;
                       
                       return (
                         <button
@@ -1705,8 +1715,9 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                   <div className="space-y-2">
                     {dgoFollowing.map((following, index) => {
                       const userId = following.id || following;
-                      const username = `user_${String(userId).slice(-6)}`;
-                      const displayName = `User ${String(userId).slice(-6)}`;
+                      const userIdStr = String(userId || 'unknown');
+                      const username = `user_${userIdStr.slice(-6)}`;
+                      const displayName = `User ${userIdStr.slice(-6)}`;
                       
                       return (
                         <button
@@ -1771,7 +1782,7 @@ function KolProfile({ kol, stats, calls, loading, isFollowing, onToggleFollow, f
         ) : (
           <>
             <div className="flex flex-wrap gap-4 text-sm">
-              <span className="px-2 py-1 rounded bg-gray-800/60 border border-gray-700 text-gray-300">Total Calls: {stats?.totalCalls ?? 0}</span>
+              <span className="px-2 py-1 rounded bg-gray-800/60 border border-gray-700 text-gray-300">Total Calls: {Array.isArray(calls) ? calls.length : (stats?.totalCalls ?? 0)}</span>
               <span className="px-2 py-1 rounded bg-gray-800/60 border border-gray-700 text-gray-300">30d Calls: {stats?.recentCalls30d ?? 0}</span>
               <span className="px-2 py-1 rounded bg-gray-800/60 border border-gray-700 text-gray-300">Hit Rate: {((stats?.hitRate || 0) * 100).toFixed(1)}%</span>
               <span className="px-2 py-1 rounded bg-gray-800/60 border border-gray-700 text-gray-300">Median X: {stats?.medianX ? stats.medianX.toFixed(2) : 'N/A'}x</span>
@@ -1791,7 +1802,9 @@ function KolProfile({ kol, stats, calls, loading, isFollowing, onToggleFollow, f
             </div>
 
             <div className="mt-6">
-              <h4 className="text-white font-semibold mb-3">Recent Calls</h4>
+              <h4 className="text-white font-semibold mb-3">
+                Recent Calls {Array.isArray(calls) && calls.length > 0 && `(${calls.length})`}
+              </h4>
               {Array.isArray(calls) && calls.length > 0 ? (
                 <div className="divide-y divide-gray-700 border border-gray-700 rounded">
                   {calls.slice().reverse().slice(0, 20).map((c, i) => (
@@ -1802,9 +1815,19 @@ function KolProfile({ kol, stats, calls, loading, isFollowing, onToggleFollow, f
                       </div>
                       <div className="text-right space-y-1">
                         <div className="text-gray-300">Called MC: ${Number(c.calledMc || c.calledMC || 0).toLocaleString()}</div>
-                        {Number(c.athMC) > 0 && Number(c.calledMc || c.calledMC || 0) > 0 && (
-                          <div className="text-gray-300">ATH since call: {(Number(c.athMC) / Number(c.calledMc || c.calledMC)).toFixed(2)}× <span className="text-gray-500">(${Number(c.athMC).toLocaleString()})</span></div>
-                        )}
+                        {Number(c.athMC) > 0 && Number(c.calledMc || c.calledMC || 0) > 0 && (() => {
+                          const athMultiple = Number(c.athMC) / Number(c.calledMc || c.calledMC);
+                          const athClass = athMultiple >= 2 ? 'text-green-400 font-semibold' : 
+                                         athMultiple >= 1.5 ? 'text-green-300' : 
+                                         athMultiple >= 1 ? 'text-yellow-400' : 
+                                         athMultiple >= 0.5 ? 'text-orange-400' : 'text-red-400';
+                          return (
+                            <div className={`${athClass} font-medium`}>
+                              ATH since call: {athMultiple.toFixed(2)}× 
+                              <span className="text-gray-500 ml-1">(${Number(c.athMC).toLocaleString()})</span>
+                            </div>
+                          );
+                        })()}
                         {typeof c.maxDrawdownPct === 'number' && (
                           <div className={`text-sm ${c.maxDrawdownPct < 0 ? 'text-red-400' : 'text-gray-300'}`}>Max Drawdown: {c.maxDrawdownPct.toFixed(2)}%</div>
                         )}
