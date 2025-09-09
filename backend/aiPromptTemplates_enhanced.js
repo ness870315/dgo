@@ -126,7 +126,7 @@ Respond in this JSON format:
   "keyInsights": [
     "Price action: {{stats24h.priceChange}}% in 24h, {{stats6h.priceChange}}% in 6h - momentum analysis based on our analytics engine",
     "Holder growth: {{stats24h.holderChange}}% new degens in 24h - adoption trends from Jupiter data showing community expansion",
-    "Liquidity: {{stats24h.liquidityChange}}% change in 24h at ${{liquidity}}M - capital flow analysis indicating market depth"
+    "Liquidity: {{stats24h.liquidityChange}}% change in 24h at {{liquidity}} - capital flow analysis indicating market depth"
   ],
   "socialMomentum": {
     "direction": "Accelerating",
