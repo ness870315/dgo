@@ -4964,11 +4964,28 @@ class EnhancedBackend {
         console.log(`[🛡️ Enhanced Backend] ❌ Cache file NOT found at: ${cachePath}`);
         console.log(`[🛡️ Enhanced Backend] 🔍 DATA_DIR: ${process.env.DATA_DIR}`);
         console.log(`[🛡️ Enhanced Backend] 🔍 __dirname: ${__dirname}`);
-        throw new Error(`Cache file not accessible: ${cachePath}`);
+        // Attempt automatic recovery from latest snapshot
+        const restored = await this.attemptRestoreCacheFromLatestSnapshot(cachePath);
+        if (!restored) {
+          throw new Error(`Cache file not accessible: ${cachePath}`);
+        }
       }
       
       const data = await fs.readFile(cachePath, 'utf8');
-      const tokens = JSON.parse(data);
+      const tokens = JSON.parse(data || '[]');
+
+      if (!Array.isArray(tokens) || tokens.length === 0) {
+        console.log('[🛡️ Enhanced Backend] ⚠️ Cache is empty - attempting recovery from latest snapshot');
+        const recovered = await this.attemptRestoreCacheFromLatestSnapshot(cachePath);
+        if (recovered) {
+          const recoveredData = await fs.readFile(cachePath, 'utf8');
+          const recoveredTokens = JSON.parse(recoveredData || '[]');
+          if (Array.isArray(recoveredTokens) && recoveredTokens.length > 0) {
+            console.log(`[🛡️ Enhanced Backend] ✅ Auto-recovered ${recoveredTokens.length} tokens from latest snapshot`);
+            return recoveredTokens;
+          }
+        }
+      }
 
       console.log(`[🛡️ Enhanced Backend] 📊 Total tokens in cache: ${tokens.length}`);
       
@@ -5021,6 +5038,63 @@ class EnhancedBackend {
 
       return [];
     }
+  }
+
+  /**
+   * Attempt to restore tokens-cache.json from the newest available snapshot
+   */
+  async attemptRestoreCacheFromLatestSnapshot(targetCachePath) {
+    try {
+      const candidatePaths = await this.findLatestSnapshotCacheFile();
+      if (!candidatePaths) {
+        console.log('[🛡️ Enhanced Backend] ⚠️ No snapshot cache file found for recovery');
+        return false;
+      }
+      const { snapshotCachePath, snapshotId } = candidatePaths;
+      // Ensure target dir
+      const targetDir = path.dirname(targetCachePath);
+      await fs.mkdir(targetDir, { recursive: true });
+      // Copy file
+      const data = await fs.readFile(snapshotCachePath, 'utf8');
+      await fs.writeFile(targetCachePath, data);
+      console.log(`[🛡️ Enhanced Backend] 🔄 Restored cache from snapshot ${snapshotId}`);
+      return true;
+    } catch (e) {
+      console.warn('[🛡️ Enhanced Backend] ⚠️ Auto-recovery from snapshot failed:', e.message);
+      return false;
+    }
+  }
+
+  /**
+   * Locate the newest snapshot's tokens-cache.json across known backup dirs
+   */
+  async findLatestSnapshotCacheFile() {
+    const fsSync = await import('fs');
+    const backupDirs = [];
+    try {
+      const dataDir = this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo';
+      const defaultBackups = path.join(path.dirname(dataDir), path.basename(dataDir) + '_backups');
+      const envBackups = process.env.BACKUP_DIR || path.join(dataDir, 'backups');
+      backupDirs.push(defaultBackups, envBackups, path.join(__dirname, 'local-backup-cache'));
+    } catch (_) {}
+
+    let newest = null;
+    for (const dir of backupDirs) {
+      try {
+        const entries = fsSync.readdirSync(dir, { withFileTypes: true }).filter(d => d.isDirectory() && d.name.startsWith('snapshot_'));
+        entries.sort((a, b) => b.name.localeCompare(a.name));
+        for (const e of entries) {
+          const snapshotId = e.name;
+          const snapshotCache = path.join(dir, snapshotId, 'cache', 'tokens-cache.json');
+          if (fsSync.existsSync(snapshotCache)) {
+            newest = { snapshotCachePath: snapshotCache, snapshotId };
+            break;
+          }
+        }
+        if (newest) break;
+      } catch (_) {}
+    }
+    return newest;
   }
 
   /**
