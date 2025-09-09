@@ -292,6 +292,23 @@ class EnhancedBackupService {
         const targetPath = path.join(targetDir, item.name);
 
         try {
+          // Prevent recursive self-inclusion of the backups directory
+          const backupsDirName = path.basename(this.localCacheDir);
+          const resolvedSourcePath = path.resolve(sourcePath);
+          const resolvedLocalCache = path.resolve(this.localCacheDir);
+          const resolvedPersistent = path.resolve(this.persistentDir);
+
+          // Skip if this path IS the backups dir, or is inside it
+          if (resolvedSourcePath === resolvedLocalCache || resolvedSourcePath.startsWith(resolvedLocalCache + path.sep)) {
+            // Do not copy backups into new snapshots
+            continue;
+          }
+
+          // Also skip a child folder named exactly like backups when traversing the persistent root
+          if (item.isDirectory() && item.name === backupsDirName && resolvedSourcePath.startsWith(resolvedPersistent)) {
+            continue;
+          }
+
           if (item.isDirectory()) {
             // Create directory and recurse
             await fs.mkdir(targetPath, { recursive: true });
