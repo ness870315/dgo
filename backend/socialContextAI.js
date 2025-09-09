@@ -448,6 +448,12 @@ class SocialContextAI {
     const jupiterData = tokenData.jupiterData || {};
     const callHistory = tokenData.callHistory || {};
     
+    // Extract Jupiter stats data with proper fallbacks
+    const stats5m = jupiterData.stats5m || {};
+    const stats1h = jupiterData.stats1h || {};
+    const stats6h = jupiterData.stats6h || {};
+    const stats24h = jupiterData.stats24h || {};
+    
     const communityScore = tokenData.communityHealthScore || tokenData.communityScore || 5;
     const mentions = twitterData.mentions || 0;
     const likes = twitterData.likes || 0;
@@ -455,187 +461,94 @@ class SocialContextAI {
     const replies = twitterData.replies || 0;
     const followers = twitterData.followers || 0;
     
-    const priceChange1h = tokenData.priceChange1h || jupiterData.stats1h?.priceChange || 0;
-    const priceChange6h = tokenData.priceChange6h || jupiterData.stats6h?.priceChange || 0;
-    const priceChange24h = tokenData.priceChange24h || jupiterData.stats24h?.priceChange || 0;
-    
-    const volume24h = tokenData.volume24h || jupiterData.volume24h || 0;
-    const marketCap = tokenData.marketCap || jupiterData.mcap || 0;
+    const marketCap = jupiterData.mcap || jupiterData.marketCap || 0;
+    const fdv = jupiterData.fdv || 0;
     const liquidity = jupiterData.liquidity || 0;
     const holderCount = jupiterData.holderCount || 0;
-    // Parse holder change delta if available
-    let holderCountDelta = 0;
-    try {
-      const hc = jupiterData.holderChange;
-      if (typeof hc === 'string') holderCountDelta = parseFloat(hc.replace('%','')) || 0;
-      else if (typeof hc === 'number') holderCountDelta = hc;
-    } catch (_) {}
     
     // Calculate engagement metrics
     const totalEngagement = likes + retweets + replies;
     const engagementRate = mentions > 0 ? totalEngagement / mentions : 0;
     
+    // Generate Key Insights using new mapping logic
+    const keyInsights = this.generateKeyInsights(stats5m, stats1h, stats6h, stats24h, jupiterData, twitterData);
+    
+    // Generate Risk Assessment using new logic
+    const riskAssessment = this.generateRiskAssessment(stats5m, stats1h, stats6h, stats24h, jupiterData, twitterData);
+    
+    // Generate Catalysts and Red Flags using new logic
+    const { catalysts, redFlags } = this.generateCatalystsAndRedFlags(stats5m, stats1h, stats6h, stats24h, jupiterData, twitterData);
+    
     // Determine sentiment based on multiple factors
     let sentiment = 'Neutral';
-    let confidence = 0.70; // Higher confidence for enhanced fallback (0-1 scale)
+    let confidence = 0.70;
     let recommendation = 'Hold';
     
-    // Advanced sentiment calculation
+    // Advanced sentiment calculation using Jupiter stats
     let bullishSignals = 0;
     let bearishSignals = 0;
     
-    // Price momentum signals
-    if (priceChange1h > 5) bullishSignals++;
-    if (priceChange6h > 10) bullishSignals++;
-    if (priceChange24h > 15) bullishSignals++;
-    if (priceChange1h < -5) bearishSignals++;
-    if (priceChange6h < -10) bearishSignals++;
-    if (priceChange24h < -15) bearishSignals++;
+    // Price momentum signals (24h primary)
+    const priceChange24h = stats24h.priceChange || 0;
+    const priceChange6h = stats6h.priceChange || 0;
+    const priceChange1h = stats1h.priceChange || 0;
+    
+    if (priceChange24h > 15) bullishSignals += 2;
+    else if (priceChange24h > 5) bullishSignals++;
+    if (priceChange24h < -15) bearishSignals += 2;
+    else if (priceChange24h < -5) bearishSignals++;
+    
+    // Holder growth signals
+    const holderChange24h = stats24h.holderChange || 0;
+    const holderChange6h = stats6h.holderChange || 0;
+    if (holderChange24h > 10) bullishSignals += 2;
+    else if (holderChange24h > 2) bullishSignals++;
+    if (holderChange24h < -5) bearishSignals++;
+    
+    // Net buyers signals
+    const netBuyers24h = stats24h.numNetBuyers || 0;
+    if (netBuyers24h > 1000) bullishSignals += 2;
+    else if (netBuyers24h > 100) bullishSignals++;
+    if (netBuyers24h < -100) bearishSignals++;
+    
+    // Liquidity signals
+    const liquidityChange24h = stats24h.liquidityChange || 0;
+    if (liquidityChange24h > 20) bullishSignals++;
+    if (liquidityChange24h < -20) bearishSignals++;
+    if (liquidity < 100000) bearishSignals++;
     
     // Social signals
-    if (mentions > 50) bullishSignals++;
     if (mentions > 100) bullishSignals++;
+    if (mentions > 50) bullishSignals++;
     if (engagementRate > 5) bullishSignals++;
     if (communityScore > 7) bullishSignals++;
     if (mentions < 10) bearishSignals++;
     if (communityScore < 4) bearishSignals++;
     
-    // Market signals
-    if (volume24h > 1000000) bullishSignals++;
-    if (holderCount > 5000) bullishSignals++;
-    if (liquidity > 500000) bullishSignals++;
-    
     // Determine final sentiment
-    if (bullishSignals >= 4 && bearishSignals <= 1) {
+    if (bullishSignals >= 5 && bearishSignals <= 1) {
       sentiment = 'Bullish';
-      recommendation = 'Buy';
-      confidence = 0.80;
-    } else if (bearishSignals >= 3 || (bearishSignals > bullishSignals && bearishSignals >= 2)) {
+      recommendation = 'Call it';
+      confidence = 0.85;
+    } else if (bearishSignals >= 4 || (bearishSignals > bullishSignals && bearishSignals >= 3)) {
       sentiment = 'Bearish';
       recommendation = 'Avoid';
-      confidence = 0.75;
+      confidence = 0.80;
     } else if (bullishSignals > bearishSignals) {
       sentiment = 'Cautiously Bullish';
-      recommendation = 'Consider';
-      confidence = 0.65;
+      recommendation = 'Add to Watchlist';
+      confidence = 0.70;
     }
     
-    // Generate comprehensive insights
-    // Build distinct sections with anti-duplication and crypto slang
-    const insightsRaw = [
-      `Community health: ${communityScore.toFixed(1)}/10 — vibes are ${communityScore > 7 ? 'based' : communityScore > 5 ? 'decent' : 'mid'}`,
-      `Social activity: ${mentions} mentions, ${totalEngagement} total engagement — degen chatter check`,
-      `Momentum check: 1h ${priceChange1h.toFixed(1)}%, 6h ${priceChange6h.toFixed(1)}%, 24h ${priceChange24h.toFixed(1)}%`,
-      `Market context: $${(marketCap / 1e6).toFixed(1)}M mcap, $${(volume24h / 1e3).toFixed(0)}K vol`,
-      holderCount > 0 ? `Holders: ${holderCount.toLocaleString()} diamond hands on deck` : null,
-      liquidity > 0 ? `Liquidity: $${(liquidity/1e6).toFixed(2)}M — slippage radar` : null,
-      (topHashtags && topHashtags.length) ? `Narrative: #${topHashtags.slice(0,3).join(' #')}` : null
-    ].filter(Boolean);
-
-    // Risks with severity and slang
-    const risksList = [];
-    if (priceChange24h <= -15) risksList.push({ t: '24h drawdown', why: `${priceChange24h.toFixed(1)}%`, sev: 'high' });
-    if (mentions < 5) risksList.push({ t: 'Low social buzz', why: `${mentions} mentions`, sev: 'high' });
-    if (liquidity > 0 && liquidity < 100000) risksList.push({ t: 'Thin liq', why: `$${(liquidity/1e3).toFixed(0)}K`, sev: 'medium' });
-    if (holderCount > 0 && holderCountDelta < 0) risksList.push({ t: 'Holder bleed', why: `${holderCountDelta.toFixed(1)}%`, sev: 'medium' });
-    if (engagementRate < 1) risksList.push({ t: 'Weak engagement', why: `${engagementRate.toFixed(1)}x`, sev: 'low' });
-
-    // Catalysts (forward looking) — concrete triggers
-    const cataList = [];
-    if (holderCountDelta > 2) cataList.push(`Holder acceleration (+${holderCountDelta.toFixed(1)}%/24h) — accumulation phase`);
-    if (priceChange6h > 8) cataList.push(`6h momentum (+${priceChange6h.toFixed(1)}%) — impulse leg forming`);
-    if (volume24h > 1_000_000) cataList.push(`Volume expansion ($${(volume24h/1e6).toFixed(2)}M/24h) — fresh flow`);
-    if (mentions >= 25) cataList.push(`Mentions breakout (${mentions} vs floor) — CT waking up`);
-    if (communityScore > 7) cataList.push(`Based community (${communityScore.toFixed(1)}/10) — diamond hand support`);
-    if (followers > 10000) cataList.push(`Decent social reach (${followers.toLocaleString()} followers) — amplification ready`);
-
-    // De-duplicate across sections by keywords
-    const riskKeys = new Set(risksList.map(r => r.t.split(' ')[0].toLowerCase()));
-    // Also exclude items overlapping with catalysts by basic keywords
-    const catalystKeys = new Set(['momentum','volume','mentions','community']);
-    let keyInsights = insightsRaw
-      .filter(i => !Array.from(riskKeys).some(k => i.toLowerCase().includes(k)))
-      .filter(i => !Array.from(catalystKeys).some(k => i.toLowerCase().includes(k)));
-
-    // Ensure at least 3 silver-bullet insights
-    if (keyInsights.length < 3) {
-      const extraCandidates = [
-        `Turnover: ${marketCap > 0 ? ( (volume24h/marketCap)*100 ).toFixed(1) : '0.0'}% — flow vs mcap`,
-        `Engagement quality: ${(engagementRate).toFixed(1)}x — real chatter vs noise`,
-        liquidity > 0 ? `Liquidity band: $${(liquidity/1e6).toFixed(2)}M — slip check` : null,
-        holderCount > 0 ? `Holder trend: ${(typeof holderCountDelta==='number' ? holderCountDelta.toFixed(1) : '0.0')}%/24h — accumulation vs bleed` : null,
-        (topHashtags && topHashtags.length) ? `Theme heat: #${topHashtags[0]} — narrative hook` : null,
-        `Sentiment mix: bullish vibes if buyers keep stepping — watch CT`
-      ].filter(Boolean);
-      // Add unique extras until we reach 3
-      const seenKI = new Set(keyInsights.map(s => s.toLowerCase()));
-      for (const extra of extraCandidates) {
-        if (keyInsights.length >= 3) break;
-        const low = extra.toLowerCase();
-        if (!seenKI.has(low)) {
-          keyInsights.push(extra);
-          seenKI.add(low);
-        }
-      }
-    }
-    
-    // Enhanced catalysts and red flags
-    const catalysts = [];
-    const redFlags = [];
-    
-    // Catalysts
-    if (priceChange6h > 15) catalysts.push('Strong 6-hour price momentum (+' + priceChange6h.toFixed(1) + '%)');
-    if (mentions > 100) catalysts.push('High social media buzz (' + mentions + ' mentions)');
-    if (engagementRate > 10) catalysts.push('Exceptional engagement rate (' + engagementRate.toFixed(1) + 'x)');
-    if (communityScore > 8) catalysts.push('Excellent community health score (' + communityScore.toFixed(1) + '/10)');
-    if (volume24h > 5000000) catalysts.push('High trading volume ($' + (volume24h / 1000000).toFixed(1) + 'M)');
-    if (holderCount > 10000) catalysts.push('Large holder base (' + holderCount.toLocaleString() + ' holders)');
-    if (liquidity > 1000000) catalysts.push('Strong liquidity ($' + (liquidity / 1000000).toFixed(1) + 'M)');
-    
-    // Red flags
-    if (priceChange24h < -20) redFlags.push('Significant 24h price decline (' + priceChange24h.toFixed(1) + '%)');
-    if (mentions < 5) redFlags.push('Very low social media presence (' + mentions + ' mentions)');
-    if (communityScore < 3) redFlags.push('Poor community health score (' + communityScore.toFixed(1) + '/10)');
-    if (volume24h < 50000) redFlags.push('Low trading volume ($' + (volume24h / 1000).toFixed(0) + 'K)');
-    if (holderCount > 0 && holderCount < 500) redFlags.push('Small holder base (' + holderCount + ' holders)');
-    if (liquidity > 0 && liquidity < 100000) redFlags.push('Low liquidity ($' + (liquidity / 1000).toFixed(0) + 'K)');
-    
-    // Default messages if no specific catalysts/red flags
-    if (catalysts.length === 0) {
-      catalysts.push('Stable market position with moderate fundamentals');
-      catalysts.push('Community engagement within normal ranges');
-    }
-    
-    if (redFlags.length === 0) {
-      redFlags.push('No major red flags detected in current data');
-    }
-    
-    // Debug: Log fallback analysis values
-    console.log(`🔍 Fallback Analysis Debug for ${tokenData.symbol}:`, {
-      sentiment,
-      confidence,
-      confidencePercent: Math.round(confidence * 100),
-      bullishSignals,
-      bearishSignals,
-      recommendation,
-      keyInsightsCount: keyInsights.length,
-      catalystsCount: catalysts.length,
-      redFlagsCount: redFlags.length
-    });
-
+    // Build comprehensive analysis response using new methods
     return {
       // Match the expected AI response format
-      socialSummary: `${sentiment} sentiment with ${Math.round(confidence * 100)}% confidence. Community health: ${communityScore.toFixed(1)}/10. Social activity: ${mentions} mentions with ${totalEngagement} total engagement.`,
-      thesis: `Based on current metrics, ${tokenData.symbol} shows ${sentiment.toLowerCase()} indicators with ${bullishSignals} positive signals vs ${bearishSignals} negative signals. ${recommendation} position recommended.`,
-      riskFactors: bearishSignals >= 2 ? [
-        'Multiple negative indicators detected',
-        priceChange24h < -15 ? `Significant price decline (${priceChange24h.toFixed(1)}%)` : null,
-        mentions < 10 ? `Low social engagement (${mentions} mentions)` : null,
-        communityScore < 4 ? `Poor community metrics (${communityScore.toFixed(1)}/10)` : null
-      ].filter(Boolean).join('. ') : 'Standard market risks apply. Monitor for trend changes.',
-      catalysts: (cataList.length ? cataList : ['Narrative pickup potential']).join('. '),
+      socialSummary: `${sentiment} sentiment with ${Math.round(confidence * 100)}% confidence based on Jupiter analytics. Community health: ${communityScore.toFixed(1)}/10. Social activity: ${mentions} mentions with ${totalEngagement} total engagement.`,
+      thesis: `Based on our analytics engine, ${tokenData.symbol} shows ${sentiment.toLowerCase()} indicators with ${bullishSignals} positive signals vs ${bearishSignals} negative signals. ${recommendation} position recommended.`,
+      riskFactors: riskAssessment.factors.join('. '),
+      catalysts: catalysts.join('. '),
       redFlags: redFlags.join('. '),
-      actionableInsights: `${recommendation} - ${sentiment} outlook based on ${bullishSignals} bullish vs ${bearishSignals} bearish signals. Key metrics: ${communityScore.toFixed(1)}/10 community health, ${mentions} mentions, ${(engagementRate).toFixed(1)}x engagement rate.`,
+      actionableInsights: `${recommendation} - ${sentiment} outlook based on ${bullishSignals} bullish vs ${bearishSignals} bearish signals from our AI analytics. Key metrics: ${communityScore.toFixed(1)}/10 community health, ${mentions} mentions, ${(engagementRate).toFixed(1)}x engagement rate.`,
       confidence,
       
       // Additional structured data for compatibility
@@ -645,19 +558,7 @@ class SocialContextAI {
         strength: mentions > 100 ? 'Strong' : mentions > 50 ? 'Moderate' : 'Weak',
         sustainability: engagementRate > 5 ? 'High' : engagementRate > 2 ? 'Medium' : 'Low'
       },
-      riskAssessment: {
-        level: risksList.length >= 3 ? 'High' : risksList.length === 2 ? 'Medium' : 'Low',
-        factors: risksList.map(r => `${r.t} — ${r.why} (${r.sev})`),
-        mitigants: [
-          communityScore > 6 ? 'Based community offsets chop' : null,
-          volume24h > 1_000_000 ? 'Strong volume cushions volatility' : null,
-          mentions >= 25 ? 'CT attention improving' : null
-        ].filter(Boolean).length ? [
-          communityScore > 6 ? 'Based community offsets chop' : null,
-          volume24h > 1_000_000 ? 'Strong volume cushions volatility' : null,
-          mentions >= 25 ? 'CT attention improving' : null
-        ].filter(Boolean) : ['Watch for confirmation on Hype over Time']
-      },
+      riskAssessment,
       communityAnalysis: {
         organicGrowth: holderCount > 5000 ? 'Strong' : holderCount > 1000 ? 'Moderate' : 'Developing',
         engagementQuality: engagementRate > 5 ? 'High' : engagementRate > 2 ? 'Medium' : 'Low',
@@ -666,13 +567,13 @@ class SocialContextAI {
       },
       summary: {
         action: recommendation,
-        reasoning: 'Based on comprehensive rule-based analysis using Jupiter and social metrics',
+        reasoning: 'Based on comprehensive Jupiter stats analysis and social metrics from our AI engine',
         timeframe: 'Short-term',
         entryStrategy: sentiment === 'Bullish' ? 'DCA on dips and accumulate' : sentiment === 'Bearish' ? 'Avoid until fundamentals improve' : 'Wait for confirmation signals'
       },
       // Align recommended actions with summary
       recommendedActions: (() => {
-        if (recommendation === 'Buy') return ['Add to Watchlist', 'Hype over Time', 'Call it'];
+        if (recommendation === 'Call it') return ['Add to Watchlist', 'Hype over Time', 'Call it'];
         if (recommendation === 'Avoid') return ['Remove from Watchlist', 'Hype over Time'];
         return ['Add to Watchlist', 'Hype over Time'];
       })(),
@@ -682,16 +583,17 @@ class SocialContextAI {
       metadata: {
         tokenSymbol: tokenData.symbol,
         analysisTimestamp: new Date().toISOString(),
-        model: 'enhanced_fallback_v2',
+        model: 'enhanced_jupiter_fallback_v3',
         confidence: confidence,
         dataFreshness: 'current',
         analysisId: `fallback_${tokenData.symbol}_${Date.now()}`,
-        fallbackReason: errorMessage || 'Enhanced rule-based analysis',
+        fallbackReason: errorMessage || 'Enhanced Jupiter stats analysis',
         dataQuality: {
           hasTwitterData: !!twitterData && Object.keys(twitterData).length > 0,
           hasJupiterData: !!jupiterData && Object.keys(jupiterData).length > 0,
+          hasJupiterStats: !!(stats24h && Object.keys(stats24h).length > 0),
           hasPriceData: priceChange24h !== 0 || priceChange6h !== 0 || priceChange1h !== 0,
-          hasVolumeData: volume24h > 0,
+          hasVolumeData: (stats24h.buyVolume || 0) + (stats24h.sellVolume || 0) > 0,
           hasHolderData: holderCount > 0
         }
       }
@@ -711,6 +613,295 @@ class SocialContextAI {
     }).join('\n');
   }
 
+  /**
+   * Generate Key Insights using Jupiter stats mapping
+   */
+  generateKeyInsights(stats5m, stats1h, stats6h, stats24h, jupiterData, twitterData) {
+    const insights = [];
+    
+    // 1. Price Action Analysis
+    const priceChange5m = stats5m.priceChange || 0;
+    const priceChange1h = stats1h.priceChange || 0;
+    const priceChange6h = stats6h.priceChange || 0;
+    const priceChange24h = stats24h.priceChange || 0;
+    
+    if (Math.abs(priceChange24h) > 50 || Math.abs(priceChange6h) > 30) {
+      if (priceChange24h > 50) {
+        insights.push(`🚀 Price is absolutely sending it +${priceChange24h.toFixed(1)}% in 24h — explosive moon mission activated`);
+      } else if (priceChange24h < -30) {
+        insights.push(`⚠️ Major crash detected ${priceChange24h.toFixed(1)}% in 24h — bags getting absolutely rekt`);
+      } else if (priceChange6h > 15) {
+        insights.push(`🚀 Price rallying hard +${priceChange6h.toFixed(1)}% in 6h — momentum building fast`);
+      } else if (priceChange6h < -15) {
+        insights.push(`⚠️ Price correction hitting ${priceChange6h.toFixed(1)}% in 6h — profit-taking or dump incoming`);
+      }
+    } else if (priceChange24h > 0) {
+      insights.push(`Price is up +${priceChange24h.toFixed(1)}% in 24h — steady gains keeping degens interested`);
+    } else if (priceChange24h < 0) {
+      insights.push(`Price cooling ${priceChange24h.toFixed(1)}% in 24h — consolidation or early exit pressure`);
+    }
+    
+    // 2. Holder Growth Analysis
+    const holderChange5m = stats5m.holderChange || 0;
+    const holderChange1h = stats1h.holderChange || 0;
+    const holderChange6h = stats6h.holderChange || 0;
+    const holderChange24h = stats24h.holderChange || 0;
+    
+    if (holderChange24h > 50) {
+      insights.push(`🚨 Viral adoption spike with +${holderChange24h.toFixed(1)}% new holders in 24h — cult momentum building`);
+    } else if (holderChange24h > 10) {
+      insights.push(`Rapid adoption happening with +${holderChange24h.toFixed(1)}% holder growth — strong retail inflow detected`);
+    } else if (holderChange24h > 2) {
+      insights.push(`Steady holder growth +${holderChange24h.toFixed(1)}% in 24h — organic accumulation phase`);
+    } else if (holderChange24h < -2) {
+      insights.push(`Holder bleed detected ${holderChange24h.toFixed(1)}% in 24h — diamond hands getting shaky`);
+    } else {
+      insights.push(`Flat holder growth — no new traction, existing degens holding bags`);
+    }
+    
+    // 3. Liquidity Movement Analysis
+    const liquidityChange5m = stats5m.liquidityChange || 0;
+    const liquidityChange1h = stats1h.liquidityChange || 0;
+    const liquidityChange6h = stats6h.liquidityChange || 0;
+    const liquidityChange24h = stats24h.liquidityChange || 0;
+    const liquidity = jupiterData.liquidity || 0;
+    
+    if (liquidity < 100000) {
+      insights.push(`⚠️ Thin liquidity at $${(liquidity/1000).toFixed(0)}K — high rug risk, slippage gonna hurt`);
+    } else if (liquidityChange24h > 20) {
+      insights.push(`✅ Liquidity strengthening +${liquidityChange24h.toFixed(1)}% in 24h — capital inflows reducing rug risk`);
+    } else if (liquidityChange24h < -20) {
+      insights.push(`⚠️ Liquidity drying up ${liquidityChange24h.toFixed(1)}% in 24h — whales might be exiting`);
+    } else if (liquidity > 1000000) {
+      insights.push(`Solid liquidity at $${(liquidity/1e6).toFixed(1)}M — smooth trading for degens`);
+    }
+    
+    // 4. Net Buyers & Demand Analysis
+    const netBuyers24h = stats24h.numNetBuyers || 0;
+    const netBuyers6h = stats6h.numNetBuyers || 0;
+    
+    if (netBuyers24h > 1000) {
+      insights.push(`Heavy demand with ${netBuyers24h.toLocaleString()} net buyers in 24h — massive accumulation pressure`);
+    } else if (netBuyers24h > 100) {
+      insights.push(`Strong buying interest with ${netBuyers24h} net buyers — community participation looking based`);
+    } else if (netBuyers24h < -100) {
+      insights.push(`Net selling pressure with ${Math.abs(netBuyers24h)} more sellers — exit liquidity being provided`);
+    }
+    
+    // Ensure we have at least 3 insights
+    if (insights.length < 3) {
+      // Add backup insights from social/market data
+      const mentions = twitterData.mentions || 0;
+      const communityScore = jupiterData.communityHealthScore || 5;
+      const mcap = jupiterData.mcap || 0;
+      
+      if (mentions > 50) {
+        insights.push(`CT buzz at ${mentions} mentions — degens are talking, narrative building`);
+      }
+      if (communityScore > 7) {
+        insights.push(`Based community vibes at ${communityScore.toFixed(1)}/10 — diamond hands holding strong`);
+      }
+      if (mcap > 0 && mcap < 10e6) {
+        insights.push(`Early stage gem at $${(mcap/1e6).toFixed(1)}M mcap — room for massive growth`);
+      }
+      
+      // Final fallback
+      if (insights.length < 3) {
+        insights.push(`Market dynamics showing ${priceChange24h > 0 ? 'bullish' : 'bearish'} undertones — watch for confirmation`);
+      }
+    }
+    
+    return insights.slice(0, 3); // Max 3 key insights
+  }
+
+  /**
+   * Generate Risk Assessment using Jupiter stats
+   */
+  generateRiskAssessment(stats5m, stats1h, stats6h, stats24h, jupiterData, twitterData) {
+    const factors = [];
+    
+    // Volume & Trading Activity Analysis
+    const buyVolume24h = stats24h.buyVolume || 0;
+    const sellVolume24h = stats24h.sellVolume || 0;
+    const volumeChange1h = stats1h.volumeChange || 0;
+    const volumeChange6h = stats6h.volumeChange || 0;
+    const volumeChange24h = stats24h.volumeChange || 0;
+    
+    // Short-term volatility check
+    const priceChange1h = stats1h.priceChange || 0;
+    const priceChange5m = stats5m.priceChange || 0;
+    
+    if (Math.abs(priceChange1h) > 10 || Math.abs(priceChange5m) > 5) {
+      factors.push(`Short-term volatility: Price ${priceChange1h > 0 ? 'pumping' : 'dumping'} ${Math.abs(priceChange1h).toFixed(1)}% in 1h, volume ${volumeChange1h > 0 ? 'surging' : 'drying up'} ${volumeChange1h.toFixed(1)}% — possible whale moves or exit liquidity`);
+    }
+    
+    // Buy vs Sell pressure analysis
+    if (buyVolume24h > 0 && sellVolume24h > 0) {
+      const buyRatio = buyVolume24h / (buyVolume24h + sellVolume24h);
+      if (buyRatio > 0.6) {
+        factors.push(`Strong buy pressure: $${(buyVolume24h/1e6).toFixed(2)}M buys vs $${(sellVolume24h/1e6).toFixed(2)}M sells (${(buyRatio*100).toFixed(1)}% buy-heavy) — accumulation mode active`);
+      } else if (buyRatio < 0.4) {
+        factors.push(`Sell-off pressure: $${(sellVolume24h/1e6).toFixed(2)}M sells vs $${(buyVolume24h/1e6).toFixed(2)}M buys (${((1-buyRatio)*100).toFixed(1)}% sell-heavy) — distribution phase or profit-taking`);
+      } else {
+        factors.push(`Balanced market: $${(buyVolume24h/1e6).toFixed(2)}M buys vs $${(sellVolume24h/1e6).toFixed(2)}M sells — healthy two-way flow`);
+      }
+    }
+    
+    // Volume trend analysis
+    if (volumeChange24h < -50) {
+      factors.push(`Cooling interest: Volume crashed ${volumeChange24h.toFixed(1)}% in 24h — hype fading, degens moving on`);
+    } else if (volumeChange1h < -70) {
+      factors.push(`Volume cliff: 1h volume down ${volumeChange1h.toFixed(1)}% — possible dump completion or consolidation`);
+    }
+    
+    // Liquidity risks
+    const liquidity = jupiterData.liquidity || 0;
+    const liquidityChange24h = stats24h.liquidityChange || 0;
+    
+    if (liquidity < 100000) {
+      factors.push(`High rug risk: Thin liquidity at $${(liquidity/1000).toFixed(0)}K — slippage will be brutal, easy to manipulate`);
+    }
+    
+    if (liquidityChange24h < -30) {
+      factors.push(`Liquidity exodus: ${liquidityChange24h.toFixed(1)}% liquidity pulled in 24h — LPs getting nervous or rug prep`);
+    }
+    
+    // Holder concentration risk
+    const holderChange24h = stats24h.holderChange || 0;
+    if (holderChange24h < -10) {
+      factors.push(`Holder exodus: ${holderChange24h.toFixed(1)}% holders dumping in 24h — confidence cracking, bags getting heavy`);
+    }
+    
+    // Social sentiment risks
+    const mentions = twitterData.mentions || 0;
+    if (mentions < 5) {
+      factors.push(`Ghost town vibes: Only ${mentions} mentions — no CT buzz, narrative dead in the water`);
+    }
+    
+    // Default if no major risks
+    if (factors.length === 0) {
+      factors.push(`Standard degen risks apply — watch for sudden moves, always DYOR before aping`);
+    }
+    
+    return {
+      level: factors.length >= 3 ? 'High' : factors.length === 2 ? 'Medium' : 'Low',
+      factors: factors.slice(0, 4) // Max 4 risk factors
+    };
+  }
+
+  /**
+   * Generate Catalysts and Red Flags using Jupiter stats
+   */
+  generateCatalystsAndRedFlags(stats5m, stats1h, stats6h, stats24h, jupiterData, twitterData) {
+    const catalysts = [];
+    const redFlags = [];
+    
+    // Catalysts based on Jupiter stats
+    
+    // 1. Holder Growth Catalyst
+    const holderChange24h = stats24h.holderChange || 0;
+    const holderChange6h = stats6h.holderChange || 0;
+    
+    if (holderChange24h > 20) {
+      catalysts.push(`Explosive holder growth: +${holderChange24h.toFixed(1)}% new wallets in 24h — viral traction building, cult momentum incoming`);
+    } else if (holderChange6h > 10) {
+      catalysts.push(`Rapid adoption: +${holderChange6h.toFixed(1)}% holders in 6h — fresh degens piling in, FOMO starting`);
+    }
+    
+    // 2. Net Buyers Surge Catalyst
+    const netBuyers24h = stats24h.numNetBuyers || 0;
+    const netBuyers6h = stats6h.numNetBuyers || 0;
+    
+    if (netBuyers24h > 1000) {
+      catalysts.push(`Massive accumulation: ${netBuyers24h.toLocaleString()} net buyers in 24h — whale and retail FOMO converging`);
+    } else if (netBuyers6h > 500) {
+      catalysts.push(`Buy pressure surge: ${netBuyers6h} net buyers in 6h — momentum building for next leg up`);
+    }
+    
+    // 3. Liquidity Inflows Catalyst
+    const liquidityChange24h = stats24h.liquidityChange || 0;
+    const liquidity = jupiterData.liquidity || 0;
+    
+    if (liquidityChange24h > 30 && liquidity > 500000) {
+      catalysts.push(`Liquidity expansion: +${liquidityChange24h.toFixed(1)}% in 24h to $${(liquidity/1e6).toFixed(1)}M — confidence building, whale-friendly`);
+    }
+    
+    // 4. Volume on Buy Side Catalyst
+    const buyVolume24h = stats24h.buyVolume || 0;
+    const sellVolume24h = stats24h.sellVolume || 0;
+    
+    if (buyVolume24h > sellVolume24h * 1.5 && buyVolume24h > 1e6) {
+      catalysts.push(`Buy-side dominance: $${(buyVolume24h/1e6).toFixed(1)}M buys vs $${(sellVolume24h/1e6).toFixed(1)}M sells — sustained accumulation pressure`);
+    }
+    
+    // 5. Macro Valuation Catalyst
+    const fdv = jupiterData.fdv || 0;
+    const mcap = jupiterData.mcap || 0;
+    
+    if (mcap > 0 && mcap < 10e6 && holderChange24h > 5) {
+      catalysts.push(`Early stage gem: $${(mcap/1e6).toFixed(1)}M mcap with growing adoption — 100x potential still on the table`);
+    }
+    
+    // Social catalysts
+    const mentions = twitterData.mentions || 0;
+    if (mentions > 100) {
+      catalysts.push(`CT buzz building: ${mentions} mentions — narrative gaining traction, influencer attention incoming`);
+    }
+    
+    // Red Flags
+    
+    // Price action red flags
+    const priceChange5m = stats5m.priceChange || 0;
+    const priceChange1h = stats1h.priceChange || 0;
+    const volumeChange1h = stats1h.volumeChange || 0;
+    
+    if (priceChange1h < -15 && volumeChange1h < -50) {
+      redFlags.push(`Dump in progress: ${priceChange1h.toFixed(1)}% price drop with ${volumeChange1h.toFixed(1)}% volume collapse — possible rug or whale exit`);
+    }
+    
+    // Volume red flags
+    const volumeChange24h = stats24h.volumeChange || 0;
+    if (volumeChange24h < -70) {
+      redFlags.push(`Interest evaporating: Volume crashed ${volumeChange24h.toFixed(1)}% in 24h — hype cycle ending, degens moving on`);
+    }
+    
+    // Sell volume dominance
+    if (sellVolume24h > buyVolume24h * 1.5) {
+      redFlags.push(`Heavy distribution: $${(sellVolume24h/1e6).toFixed(1)}M sells vs $${(buyVolume24h/1e6).toFixed(1)}M buys — insiders or whales dumping bags`);
+    }
+    
+    // Liquidity red flags
+    if (liquidity < 50000) {
+      redFlags.push(`Rug risk extreme: Only $${(liquidity/1000).toFixed(0)}K liquidity — one whale move could nuke this to zero`);
+    }
+    
+    // Holder exodus
+    if (holderChange24h < -15) {
+      redFlags.push(`Mass exodus: ${holderChange24h.toFixed(1)}% holders dumping — confidence shattered, bags getting too heavy`);
+    }
+    
+    // Social red flags
+    if (mentions < 3) {
+      redFlags.push(`Dead narrative: Only ${mentions} mentions — CT has moved on, no influencer support`);
+    }
+    
+    // Default catalysts if none found
+    if (catalysts.length === 0) {
+      catalysts.push(`Potential for narrative pickup if fundamentals improve`);
+      catalysts.push(`Market positioning allows for quick moves on positive news`);
+    }
+    
+    // Default red flags if none found
+    if (redFlags.length === 0) {
+      redFlags.push(`Standard market volatility and liquidity risks`);
+    }
+    
+    return {
+      catalysts: catalysts.slice(0, 3), // Max 3 catalysts
+      redFlags: redFlags.slice(0, 3)   // Max 3 red flags
+    };
+  }
+
   // Enforce distinct sections post-processing (OpenAI and fallback)
   _enforceDistinctSections(analysis, tokenData) {
     try {
@@ -724,7 +915,21 @@ class SocialContextAI {
       const riskKeys = ['liquidity','drawdown','mentions','engagement','holder','holder base','bot'];
       const catKeys = ['momentum','volume','mentions','community','holder','listing','kol','partnership'];
 
-      const filteredInsights = insights.filter(i => !riskKeys.some(k => i.toLowerCase().includes(k)) && !catKeys.some(k => i.toLowerCase().includes(k)));
+      let filteredInsights = insights.filter(i => !riskKeys.some(k => i.toLowerCase().includes(k)) && !catKeys.some(k => i.toLowerCase().includes(k)));
+      if (filteredInsights.length === 0 && insights.length > 0) {
+        filteredInsights = insights.slice(0, 3);
+      }
+      if (filteredInsights.length < 3 && insights.length > filteredInsights.length) {
+        const seen = new Set(filteredInsights.map(s => s.toLowerCase()));
+        for (const s of insights) {
+          const low = (s || '').toLowerCase();
+          if (!seen.has(low)) {
+            filteredInsights.push(s);
+            seen.add(low);
+          }
+          if (filteredInsights.length >= 3) break;
+        }
+      }
 
       // Rebuild risks with severity and slang if plain strings
       let rebuiltRisks = risks;
