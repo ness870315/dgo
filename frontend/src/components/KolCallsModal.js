@@ -24,7 +24,10 @@ function computeDerived(row) {
   const current = Number(row.currentMC || row.currentMc || called);
   const x = called > 0 ? current / called : 0;
   const pnl = called > 0 ? ((current - called) / called) * 100 : 0;
-  return { x, pnl };
+  const ath = Number(row.athMC || 0);
+  const athX = called > 0 ? (ath / called) : 0;
+  const mdd = typeof row.maxDrawdownPct === 'number' ? row.maxDrawdownPct : 0;
+  return { x, pnl, athX, mdd };
 }
 
 function TableHeader({ label, sortKey, sort, setSort }) {
@@ -136,6 +139,8 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
       else if (key === 'currentMC') { av = a.currentMC; bv = b.currentMC; }
       else if (key === 'x') { av = da.x; bv = db.x; }
       else if (key === 'pnl') { av = da.pnl; bv = db.pnl; }
+      else if (key === 'athx') { av = da.athX; bv = db.athX; }
+      else if (key === 'mdd') { av = da.mdd; bv = db.mdd; }
       else { av = 0; bv = 0; }
       return sort.dir === 'asc' ? av - bv : bv - av;
     });
@@ -144,10 +149,20 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
 
   function exportCSV() {
     const rowsCsv = [
-      ['Token', 'Name', 'CalledAt', 'CalledMC', 'CurrentMC', 'X', 'PnL%'],
+      ['Token', 'Name', 'CalledAt', 'CalledMC', 'CurrentMC', 'X', 'PnL%', 'ATHx', 'MDD%'],
       ...sorted.map(r => {
         const d = computeDerived(r);
-        return [r.token.symbol, r.token.name, new Date(r.calledTs).toISOString(), r.calledMC, r.currentMC, d.x.toFixed(4), d.pnl.toFixed(4)];
+        return [
+          r.token.symbol,
+          r.token.name,
+          new Date(r.calledTs).toISOString(),
+          r.calledMC,
+          r.currentMC,
+          d.x.toFixed(4),
+          d.pnl.toFixed(4),
+          d.athX.toFixed(4),
+          d.mdd.toFixed(4)
+        ];
       })
     ];
     const csv = rowsCsv.map(r => r.join(',')).join('\n');
@@ -224,6 +239,8 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
                   <TableHeader label="Current MC" sortKey="currentMC" sort={sort} setSort={setSort} />
                   <TableHeader label="X" sortKey="x" sort={sort} setSort={setSort} />
                   <TableHeader label="PnL %" sortKey="pnl" sort={sort} setSort={setSort} />
+                  <TableHeader label="ATH×" sortKey="athx" sort={sort} setSort={setSort} />
+                  <TableHeader label="MDD %" sortKey="mdd" sort={sort} setSort={setSort} />
                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-300">Actions</th>
                 </tr>
               </thead>
@@ -232,6 +249,8 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
                   const d = computeDerived(r);
                   const xClass = d.x >= 1 ? 'text-green-400' : 'text-red-400';
                   const pnlClass = d.pnl >= 0 ? 'text-green-400' : 'text-red-400';
+                  const athClass = d.athX >= 1 ? 'text-green-300' : 'text-gray-300';
+                  const mddClass = d.mdd < 0 ? 'text-red-400' : 'text-gray-300';
                   return (
                     <tr key={r.id} className="hover:bg-gray-800">
                       <td className="px-3 py-2 text-white">{r.token.symbol} <span className="text-gray-400">· {r.token.name}</span></td>
@@ -239,6 +258,8 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
                       <td className="px-3 py-2 text-gray-200">{formatUSD(r.currentMC)}</td>
                       <td className={`px-3 py-2 font-semibold ${xClass}`}>{d.x.toFixed(2)}×</td>
                       <td className={`px-3 py-2 ${pnlClass}`}>{formatPct(d.pnl)}</td>
+                      <td className={`px-3 py-2 ${athClass}`}>{d.athX ? d.athX.toFixed(2) + '×' : '—'}</td>
+                      <td className={`px-3 py-2 ${mddClass}`}>{isFinite(d.mdd) ? d.mdd.toFixed(2) + '%' : '—'}</td>
                       <td className="px-3 py-2 text-gray-300">
                         <div className="flex items-center gap-2">
                           <button className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded" onClick={() => {

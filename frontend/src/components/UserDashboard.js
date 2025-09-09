@@ -1645,7 +1645,9 @@ function KolProfile({ kol, stats, calls, loading, isFollowing, onToggleFollow, f
             </div>
 
             <div className="mt-4 flex items-center justify-between">
-              <div className="text-gray-400 text-sm">Followers and following stats coming soon</div>
+              <div className="text-gray-400 text-sm">
+                Followers: {Array.isArray(stats?.follows?.followers) ? stats.follows.followers.length : 0} · Following: {Array.isArray(stats?.follows?.following) ? stats.follows.following.length : 0}
+              </div>
               <button
                 onClick={onToggleFollow}
                 disabled={followBusy}
@@ -1665,8 +1667,14 @@ function KolProfile({ kol, stats, calls, loading, isFollowing, onToggleFollow, f
                         <div className="text-white font-medium">{c.token?.symbol || 'UNKNOWN'} <span className="text-gray-400">• {c.token?.name}</span></div>
                         <div className="text-gray-400">{new Date(c.calledAt || c.createdAt).toLocaleString()}</div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right space-y-1">
                         <div className="text-gray-300">Called MC: ${Number(c.calledMc || c.calledMC || 0).toLocaleString()}</div>
+                        {Number(c.athMC) > 0 && Number(c.calledMc || c.calledMC || 0) > 0 && (
+                          <div className="text-gray-300">ATH since call: {(Number(c.athMC) / Number(c.calledMc || c.calledMC)).toFixed(2)}× <span className="text-gray-500">(${Number(c.athMC).toLocaleString()})</span></div>
+                        )}
+                        {typeof c.maxDrawdownPct === 'number' && (
+                          <div className={`text-sm ${c.maxDrawdownPct < 0 ? 'text-red-400' : 'text-gray-300'}`}>Max Drawdown: {c.maxDrawdownPct.toFixed(2)}%</div>
+                        )}
                       </div>
                     </div>
                   ))}

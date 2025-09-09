@@ -30,7 +30,8 @@ class EnhancedBackupService {
     
     // Paths
     this.persistentDir = process.env.DATA_DIR || '/var/data/dgo';
-    this.localCacheDir = path.join(__dirname, 'local-backup-cache');
+    // Store snapshots on persistent disk to survive reboots (fallback to DATA_DIR/backups)
+    this.localCacheDir = process.env.BACKUP_DIR || path.join(this.persistentDir, 'backups');
     this.backupMetadataPath = path.join(this.localCacheDir, 'backup-metadata.json');
     this.schedulerStatePath = path.join(this.localCacheDir, 'backup-scheduler.json');
     
@@ -48,9 +49,48 @@ class EnhancedBackupService {
     try {
       await fs.mkdir(this.localCacheDir, { recursive: true });
       console.log(`✅ Local backup cache directory ready: ${this.localCacheDir}`);
+      // One-time migration from legacy path inside code directory if present
+      await this.migrateLegacyCacheIfNeeded();
     } catch (error) {
       console.error('❌ Failed to create local backup cache directory:', error.message);
       throw error;
+    }
+  }
+
+  /**
+   * Migrate legacy snapshots from backend/local-backup-cache to persistent location
+   */
+  async migrateLegacyCacheIfNeeded() {
+    try {
+      const legacyDir = path.join(__dirname, 'local-backup-cache');
+      // If legacyDir equals current dir, nothing to do
+      if (path.resolve(legacyDir) === path.resolve(this.localCacheDir)) return;
+
+      const legacyExists = fsSync.existsSync(legacyDir);
+      if (!legacyExists) return;
+
+      // If new location already has metadata or any snapshot directories, skip migration
+      const newHasMetadata = fsSync.existsSync(this.backupMetadataPath);
+      let newHasSnapshots = false;
+      try {
+        const items = await fs.readdir(this.localCacheDir, { withFileTypes: true });
+        newHasSnapshots = items.some(d => d.isDirectory() && d.name.startsWith('snapshot_'));
+      } catch (_) {}
+      if (newHasMetadata || newHasSnapshots) {
+        console.log('ℹ️ Persistent backup directory already initialized, skipping legacy migration');
+        return;
+      }
+
+      console.log(`🚚 Migrating legacy snapshots from ${legacyDir} → ${this.localCacheDir} ...`);
+      // Copy all contents from legacy to new location
+      await this.restoreDirectory(legacyDir, this.localCacheDir, []);
+      // Attempt to remove legacy directory after successful copy
+      try {
+        await fs.rm(legacyDir, { recursive: true, force: true });
+      } catch (_) {}
+      console.log('✅ Legacy snapshots migrated to persistent storage');
+    } catch (error) {
+      console.warn('⚠️ Legacy backup migration failed (continuing):', error.message);
     }
   }
 
