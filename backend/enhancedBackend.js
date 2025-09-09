@@ -95,7 +95,7 @@ class EnhancedBackend {
   }
   constructor() {
     this.app = express();
-    this.port = process.env.PORT || 4000;
+    this.port = Number(process.env.PORT) || 4000;
     this.tokenProcessor = new EnhancedTokenProcessor();
     this.hypeService = new HypeSnapshotService();
     this.mcapService = new McapSnapshotService();
@@ -6365,7 +6365,10 @@ class EnhancedBackend {
         console.warn('⚠️ Continuing with fallback analysis only...');
       }
       // Start HTTP server first so /health is immediately available for platform health checks
-      this.app.listen(this.port, () => {
+      const host = '0.0.0.0';
+      console.log(`[Startup] Binding server on ${host}:${this.port}`);
+      this.app.get('/', (req, res) => res.redirect('/health'));
+      this.app.listen(this.port, host, () => {
         const isProduction = process.env.NODE_ENV === 'production';
         const baseUrl = isProduction ? 'https://api.degen-oracle.com' : `http://localhost:${this.port}`;
 
