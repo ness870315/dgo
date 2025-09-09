@@ -70,6 +70,22 @@ class EnhancedBackupService {
       // One-time migration from legacy path inside code directory if present
       await this.migrateLegacyCacheIfNeeded();
     } catch (error) {
+      // Fallback for environments without permission to write to /var/data
+      if (error && (error.code === 'EACCES' || error.code === 'EPERM')) {
+        try {
+          const fallbackDir = path.join('/tmp', 'dgo_backups');
+          console.warn(`⚠️ Permission denied for ${this.localCacheDir}. Falling back to ${fallbackDir}`);
+          this.localCacheDir = fallbackDir;
+          this.backupMetadataPath = path.join(this.localCacheDir, 'backup-metadata.json');
+          this.schedulerStatePath = path.join(this.localCacheDir, 'backup-scheduler.json');
+          await fs.mkdir(this.localCacheDir, { recursive: true });
+          console.log(`✅ Local backup cache directory ready (fallback): ${this.localCacheDir}`);
+          await this.migrateLegacyCacheIfNeeded();
+          return;
+        } catch (fallbackError) {
+          console.error('❌ Fallback backup directory creation failed:', fallbackError.message);
+        }
+      }
       console.error('❌ Failed to create local backup cache directory:', error.message);
       throw error;
     }
