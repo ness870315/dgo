@@ -6364,20 +6364,7 @@ class EnhancedBackend {
         console.error('❌ Social Context AI failed to initialize:', error.message);
         console.warn('⚠️ Continuing with fallback analysis only...');
       }
-
-      // Initialize Enhanced Backup System
-      console.log('🔄 Initializing Enhanced Backup System...');
-      try {
-        this.backupIntegration = await createBackupIntegration(this.oauthXService?.db);
-        await this.backupIntegration.start();
-        console.log('✅ Enhanced Backup System started successfully');
-        console.log('📸 Automatic snapshots: 5 per day (every 4.8 hours)');
-        console.log('🕐 Retention: 48 hours (10 snapshots max)');
-      } catch (error) {
-        console.error('❌ Enhanced Backup System failed to start:', error.message);
-        console.warn('⚠️ Continuing without enhanced backups...');
-      }
-
+      // Start HTTP server first so /health is immediately available for platform health checks
       this.app.listen(this.port, () => {
         const isProduction = process.env.NODE_ENV === 'production';
         const baseUrl = isProduction ? 'https://api.degen-oracle.com' : `http://localhost:${this.port}`;
@@ -6389,6 +6376,21 @@ class EnhancedBackend {
         console.log(`📱 Admin Dashboard: ${baseUrl}/admin-dashboard.html`);
 
         this.isRunning = true;
+
+        // Defer Enhanced Backup System initialization so health checks pass quickly
+        setTimeout(async () => {
+          console.log('🔄 Initializing Enhanced Backup System...');
+          try {
+            this.backupIntegration = await createBackupIntegration(this.oauthXService?.db);
+            await this.backupIntegration.start();
+            console.log('✅ Enhanced Backup System started successfully');
+            console.log('📸 Automatic snapshots: 5 per day (every 4.8 hours)');
+            console.log('🕐 Retention: 48 hours (10 snapshots max)');
+          } catch (error) {
+            console.error('❌ Enhanced Backup System failed to start:', error.message);
+            console.warn('⚠️ Continuing without enhanced backups...');
+          }
+        }, 0);
 
         // Start token processing workflow after backend is ready
         // Delay more to ensure platform health checks pass before heavy work and allow kill switch via env
