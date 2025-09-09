@@ -1631,6 +1631,26 @@ class EnhancedBackend {
       }
     });
 
+    // Get DGO followers/following
+    this.app.get('/api/user/followers', async (req, res) => {
+      try {
+        const { sessionId } = req.query;
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) return res.status(401).json({ error: 'Invalid session' });
+        
+        const follows = await this.oauthXService.db.getFollows(user.id).catch(() => ({ following: [], followers: [] }));
+        
+        res.json({ 
+          success: true, 
+          followers: follows.followers || [], 
+          following: follows.following || [] 
+        });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Get followers error:', error.message);
+        res.status(500).json({ error: 'Failed to fetch followers' });
+      }
+    });
+
     // KOL Leaderboard (Premium only)
     this.app.get('/api/leaderboard', async (req, res) => {
       try {

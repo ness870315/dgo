@@ -44,12 +44,38 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   const [kolLoading, setKolLoading] = useState(false);
   const [kolFollowBusy, setKolFollowBusy] = useState(false);
   const [kolIsFollowing, setKolIsFollowing] = useState(false);
+  // DGO Followers/Following
+  const [dgoFollowers, setDgoFollowers] = useState([]);
+  const [dgoFollowing, setDgoFollowing] = useState([]);
+  const [dgoFollowersLoading, setDgoFollowersLoading] = useState(false);
+  const [showFollowersModal, setShowFollowersModal] = useState(false);
+  const [showFollowingModal, setShowFollowingModal] = useState(false);
   // Seasons (monthly)
   const [seasonMonth, setSeasonMonth] = useState(() => new Date().toISOString().slice(0,7)); // YYYY-MM
   const [winners, setWinners] = useState([]);
   const [winnersLoading, setWinnersLoading] = useState(false);
 
   const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+
+  // Load DGO followers/following data
+  const loadDgoFollowers = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      setDgoFollowersLoading(true);
+      const response = await fetch(`${API_BASE}/api/user/followers?sessionId=${encodeURIComponent(sessionId)}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setDgoFollowers(data.followers || []);
+        setDgoFollowing(data.following || []);
+      }
+    } catch (error) {
+      console.error('Failed to load DGO followers:', error);
+    } finally {
+      setDgoFollowersLoading(false);
+    }
+  }, [user?.id, sessionId]);
 
   // Tooltip content for AI analysis terms
   const getTooltipContent = (key) => {
@@ -248,11 +274,12 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
     console.log('🔄 UserDashboard useEffect triggered:', { user: !!user, sessionId: !!sessionId });
     if (user && sessionId) {
       fetchDashboardData();
+      loadDgoFollowers();
     } else {
       console.log('⚠️ UserDashboard: Missing user or sessionId:', { user: !!user, sessionId: !!sessionId });
       setLoading(false);
     }
-  }, [user, sessionId, fetchDashboardData]);
+  }, [user, sessionId, fetchDashboardData, loadDgoFollowers]);
 
   // Load KOL profile data when modal opens
   useEffect(() => {
@@ -417,14 +444,22 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
           </div>
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-400">
-            <div className="flex items-center space-x-2">
+            <button 
+              className="flex items-center space-x-2 hover:text-blue-400 transition-colors"
+              onClick={() => setShowFollowersModal(true)}
+              disabled={dgoFollowersLoading}
+            >
               <Users size={16} />
-              <span>{user.followersCount?.toLocaleString() || 0} followers</span>
-            </div>
-            <div className="flex items-center space-x-2">
+              <span>{dgoFollowersLoading ? '...' : dgoFollowers.length} DGO followers</span>
+            </button>
+            <button 
+              className="flex items-center space-x-2 hover:text-blue-400 transition-colors"
+              onClick={() => setShowFollowingModal(true)}
+              disabled={dgoFollowersLoading}
+            >
               <Users size={16} />
-              <span>{user.followingCount?.toLocaleString() || 0} following</span>
-            </div>
+              <span>{dgoFollowersLoading ? '...' : dgoFollowing.length} DGO following</span>
+            </button>
             <div className="flex items-center space-x-2">
               <Calendar size={16} />
               <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
@@ -706,50 +741,6 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                   <p className="text-gray-500 text-sm">KOL rankings will appear here once users make calls</p>
                 </div>
               )}
-            {dashboardData.isPremium && (
-              <div className="mt-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users size={16} className="text-blue-400" />
-                  <span className="text-white font-medium">Following</span>
-                </div>
-                {Array.isArray(kolStats?.follows?.following) && kolStats.follows.following.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {kolStats.follows.following.slice(0, 12).map((uid, i) => (
-                      <button
-                        key={`${uid}-${i}`}
-                        className="flex items-center gap-2 px-2 py-1 rounded border border-gray-700 bg-gray-800/50 hover:bg-gray-800 text-sm"
-                        onClick={async () => {
-                          try {
-                            const profile = await leaderboardService.getUserProfile(uid);
-                            const basic = profile?.user || { id: uid, username: `user_${String(uid).slice(-4)}`, displayName: `User ${String(uid).slice(-4)}` };
-                            setSelectedKolUser({
-                              id: uid,
-                              userId: uid,
-                              username: basic.username,
-                              displayName: basic.displayName,
-                              profileImage: basic.profileImage || null,
-                              rank: undefined,
-                              score: undefined,
-                              callCount: undefined
-                            });
-                          } catch (_) {
-                            setSelectedKolUser({ id: uid, userId: uid, username: `user_${String(uid).slice(-4)}`, displayName: `User ${String(uid).slice(-4)}` });
-                          }
-                        }}
-                        title={`View @${String(uid).slice(-6)}`}
-                      >
-                        <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                          <span className="text-white text-[10px] font-bold">{String(uid).slice(-2)}</span>
-                        </div>
-                        <span className="text-gray-200">@{String(uid).slice(-6)}</span>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-gray-500 text-sm">You are not following anyone yet</div>
-                )}
-              </div>
-            )}
             </div>
           </div>
 
@@ -1618,6 +1609,134 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                 </button>
               </div>
               <TokenDetails token={selectedToken} onClose={() => setSelectedToken(null)} onNavigateToPremium={onNavigateToPremium} />
+            </div>
+          </div>
+        )}
+
+        {/* DGO Followers Modal */}
+        {showFollowersModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-gray-900 border border-gray-700 rounded-lg max-w-md w-full mx-4 max-h-[80vh] overflow-hidden">
+              <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+                <h3 className="text-white font-semibold">DGO Followers</h3>
+                <button 
+                  onClick={() => setShowFollowersModal(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="p-4 max-h-96 overflow-y-auto">
+                {dgoFollowersLoading ? (
+                  <div className="text-gray-400 text-center">Loading...</div>
+                ) : dgoFollowers.length > 0 ? (
+                  <div className="space-y-2">
+                    {dgoFollowers.map((follower, index) => (
+                      <button
+                        key={follower.id || index}
+                        className="w-full flex items-center space-x-3 p-2 rounded hover:bg-gray-800 transition-colors"
+                        onClick={async () => {
+                          try {
+                            const profile = await leaderboardService.getUserProfile(follower.id);
+                            const basic = profile?.user || { 
+                              id: follower.id, 
+                              username: `user_${String(follower.id).slice(-4)}`, 
+                              displayName: `User ${String(follower.id).slice(-4)}` 
+                            };
+                            setSelectedKolUser({
+                              id: follower.id,
+                              userId: follower.id,
+                              username: basic.username,
+                              displayName: basic.displayName,
+                              profileImage: basic.profileImage || null,
+                              rank: undefined,
+                              score: undefined,
+                              callCount: undefined
+                            });
+                            setShowFollowersModal(false);
+                          } catch (error) {
+                            console.error('Failed to load user profile:', error);
+                          }
+                        }}
+                      >
+                        <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                          <span className="text-white text-xs font-bold">{String(follower.id).slice(-2)}</span>
+                        </div>
+                        <div className="flex-1 text-left">
+                          <div className="text-white font-medium">@{String(follower.id).slice(-6)}</div>
+                          <div className="text-gray-400 text-sm">User {String(follower.id).slice(-4)}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-gray-400 text-center">No followers yet</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* DGO Following Modal */}
+        {showFollowingModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-gray-900 border border-gray-700 rounded-lg max-w-md w-full mx-4 max-h-[80vh] overflow-hidden">
+              <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+                <h3 className="text-white font-semibold">DGO Following</h3>
+                <button 
+                  onClick={() => setShowFollowingModal(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="p-4 max-h-96 overflow-y-auto">
+                {dgoFollowersLoading ? (
+                  <div className="text-gray-400 text-center">Loading...</div>
+                ) : dgoFollowing.length > 0 ? (
+                  <div className="space-y-2">
+                    {dgoFollowing.map((following, index) => (
+                      <button
+                        key={following.id || index}
+                        className="w-full flex items-center space-x-3 p-2 rounded hover:bg-gray-800 transition-colors"
+                        onClick={async () => {
+                          try {
+                            const profile = await leaderboardService.getUserProfile(following.id);
+                            const basic = profile?.user || { 
+                              id: following.id, 
+                              username: `user_${String(following.id).slice(-4)}`, 
+                              displayName: `User ${String(following.id).slice(-4)}` 
+                            };
+                            setSelectedKolUser({
+                              id: following.id,
+                              userId: following.id,
+                              username: basic.username,
+                              displayName: basic.displayName,
+                              profileImage: basic.profileImage || null,
+                              rank: undefined,
+                              score: undefined,
+                              callCount: undefined
+                            });
+                            setShowFollowingModal(false);
+                          } catch (error) {
+                            console.error('Failed to load user profile:', error);
+                          }
+                        }}
+                      >
+                        <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                          <span className="text-white text-xs font-bold">{String(following.id).slice(-2)}</span>
+                        </div>
+                        <div className="flex-1 text-left">
+                          <div className="text-white font-medium">@{String(following.id).slice(-6)}</div>
+                          <div className="text-gray-400 text-sm">User {String(following.id).slice(-4)}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-gray-400 text-center">Not following anyone yet</div>
+                )}
+              </div>
             </div>
           </div>
         )}
