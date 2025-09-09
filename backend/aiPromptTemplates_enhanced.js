@@ -111,21 +111,21 @@ Respond in this JSON format:
   "thesis": "This token is either about to moon or get absolutely rekt - {{holderChange}}% holder momentum shows if degens are accumulating or dumping bags",
   "riskFactors": "Specific risk factors using our analytics engine - holder change {{holderChange}}%, volume change {{volumeChange}}%, price action {{priceChange}}%",
   "catalysts": [
-    "Holder growth catalyst: {{stats24h.holderChange}}% new wallets in 24h from Jupiter analytics - viral traction potential",
+    "Holder growth catalyst: {{holderChange}}% new wallets in 24h from Jupiter analytics - viral traction potential",
     "Net buyer surge: {{stats24h.numNetBuyers}} net buyers showing accumulation pressure from our analytics engine",
     "Liquidity catalyst: {{stats24h.liquidityChange}}% change in 24h indicating capital flow trends and whale confidence"
   ],
   "redFlags": [
     "Price volatility: {{stats1h.priceChange}}% in 1h with {{stats1h.volumeChange}}% volume change - monitoring for whale moves",
     "Volume distribution: Buy/sell ratio analysis from Jupiter data showing market sentiment and insider activity",
-    "Holder retention: {{stats24h.holderChange}}% holder change indicating community confidence levels"
+    "Holder retention: {{holderChange}}% holder change indicating community confidence levels"
   ],
   "actionableInsights": "Specific recommendations using diverse crypto slang and our AI-backed reasoning",
   "confidence": 0.85,
   "sentiment": "Bullish",
   "keyInsights": [
-    "Price action: {{stats24h.priceChange}}% in 24h, {{stats6h.priceChange}}% in 6h - momentum analysis based on our analytics engine",
-    "Holder growth: {{stats24h.holderChange}}% new degens in 24h - adoption trends from Jupiter data showing community expansion",
+    "Price action: {{priceChange}}% in 24h, {{stats6h.priceChange}}% in 6h - momentum analysis based on our analytics engine",
+    "Holder growth: {{holderChange}}% new degens in 24h - adoption trends from Jupiter data showing community expansion",
     "Liquidity: {{stats24h.liquidityChange}}% change in 24h at {{liquidity}} - capital flow analysis indicating market depth"
   ],
   "socialMomentum": {

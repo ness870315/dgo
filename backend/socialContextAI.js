@@ -162,7 +162,10 @@ class SocialContextAI {
       hasTwitterData: !!twitterData,
       jupiterKeys: Object.keys(jupiterData),
       twitterKeys: Object.keys(twitterData),
-      tokenKeys: Object.keys(tokenData).filter(k => !['twitterData', 'jupiterData'].includes(k))
+      tokenKeys: Object.keys(tokenData).filter(k => !['twitterData', 'jupiterData'].includes(k)),
+      stats24h: jupiterData.stats24h,
+      holderChange: jupiterData.stats24h?.holderChange,
+      priceChange: jupiterData.stats24h?.priceChange
     });
 
     // Debug official handle detection specifically
@@ -187,11 +190,47 @@ class SocialContextAI {
       'isNotNA': officialHandle !== 'N/A'
     });
 
-    // Extract Jupiter stats with safety checks
-    const stats5m = jupiterData.stats5m || {};
-    const stats1h = jupiterData.stats1h || {};
-    const stats6h = jupiterData.stats6h || {};
-    const stats24h = jupiterData.stats24h || {};
+    // Extract Jupiter stats with safety checks and ensure all fields exist
+    const stats5m = {
+      priceChange: 0,
+      holderChange: 0,
+      liquidityChange: 0,
+      volumeChange: 0,
+      buyVolume: 0,
+      sellVolume: 0,
+      numNetBuyers: 0,
+      ...(jupiterData.stats5m || {})
+    };
+    const stats1h = {
+      priceChange: 0,
+      holderChange: 0,
+      liquidityChange: 0,
+      volumeChange: 0,
+      buyVolume: 0,
+      sellVolume: 0,
+      numNetBuyers: 0,
+      ...(jupiterData.stats1h || {})
+    };
+    const stats6h = {
+      priceChange: 0,
+      holderChange: 0,
+      liquidityChange: 0,
+      volumeChange: 0,
+      buyVolume: 0,
+      sellVolume: 0,
+      numNetBuyers: 0,
+      ...(jupiterData.stats6h || {})
+    };
+    const stats24h = {
+      priceChange: 0,
+      holderChange: 0,
+      liquidityChange: 0,
+      volumeChange: 0,
+      buyVolume: 0,
+      sellVolume: 0,
+      numNetBuyers: 0,
+      ...(jupiterData.stats24h || {})
+    };
 
     return {
       tokenName: tokenData.name || 'Unknown',
@@ -358,6 +397,22 @@ class SocialContextAI {
         processingTimestamp: tokenData.processingTimestamp
       })
     };
+
+    // Debug log the final template variables
+    console.log(`🔍 AI Template Variables for ${tokenData.symbol}:`, {
+      holderChange: templateVars.holderChange,
+      priceChange: templateVars.priceChange,
+      volumeChange: templateVars.volumeChange,
+      organicScore: templateVars.organicScore,
+      'stats24h.holderChange': templateVars['stats24h.holderChange'],
+      'stats24h.priceChange': templateVars['stats24h.priceChange'],
+      'stats24h.liquidityChange': templateVars['stats24h.liquidityChange'],
+      'stats24h.numNetBuyers': templateVars['stats24h.numNetBuyers'],
+      'stats1h.priceChange': templateVars['stats1h.priceChange'],
+      'stats6h.priceChange': templateVars['stats6h.priceChange']
+    });
+
+    return templateVars;
   }
 
   /**
