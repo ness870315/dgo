@@ -24,6 +24,9 @@ class AIHypePredictionService {
       console.log(`🧠 AI Hype Prediction cache directory: ${this.cacheDir}`);
       console.log(`🧠 AI Hype Prediction cache file: ${this.predictionCacheFile}`);
       
+      // Ensure cache file exists
+      await this.ensureCacheFileExists();
+      
       // Load existing cache
       try {
         const cacheData = await fs.readFile(this.predictionCacheFile, 'utf8');
@@ -45,17 +48,34 @@ class AIHypePredictionService {
         
         console.log(`🧠 Loaded ${loaded} cached AI hype predictions (${expired} expired entries filtered)`);
       } catch (err) {
-        console.log('🧠 No existing AI hype prediction cache found, starting fresh');
-        console.log(`🧠 Cache file path: ${this.predictionCacheFile}`);
-        console.log(`🧠 Error details: ${err.message}`);
+        if (err.code === 'ENOENT') {
+          console.log('🧠 No existing AI hype prediction cache found, starting fresh');
+        } else {
+          console.log('🧠 No existing AI hype prediction cache found, starting fresh');
+          console.log(`🧠 Cache file path: ${this.predictionCacheFile}`);
+          console.log(`🧠 Error details: ${err.message}`);
+        }
       }
     } catch (error) {
       console.error('❌ Error initializing AI hype prediction cache:', error);
     }
   }
 
+  async ensureCacheFileExists() {
+    try {
+      await fs.access(this.predictionCacheFile);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        // Create empty cache file
+        await fs.writeFile(this.predictionCacheFile, '{}');
+        console.log('🧠 Created empty AI hype prediction cache file');
+      }
+    }
+  }
+
   async saveCacheToFile() {
     try {
+      await this.ensureCacheFileExists();
       const cacheObj = Object.fromEntries(this.predictionCache);
       await fs.writeFile(this.predictionCacheFile, JSON.stringify(cacheObj, null, 2));
       console.log(`🧠 Saved ${this.predictionCache.size} AI hype predictions to cache file`);
