@@ -2,6 +2,8 @@ import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import os from 'os';
+import DropboxUploader from './dropboxUploader.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -268,6 +270,31 @@ class EnhancedBackupService {
       console.log(`📊 Files: ${backupStats.fileCount}, Dirs: ${backupStats.dirCount}, Size: ${this.formatBytes(backupStats.totalSize)}`);
       console.log(`⏱️ Duration: ${metadata.duration}ms`);
 
+      // Post-snapshot upload to Dropbox (env-gated)
+      try {
+        if (String(process.env.ENABLE_DROPBOX_UPLOAD || '') === '1' && process.env.DROPBOX_TOKEN) {
+          const targetFolder = (process.env.DROPBOX_FOLDER || '/dgo-backups').replace(/\\/g, '/');
+          const tarName = `${snapshotId}.tar.gz`;
+          const tmpTar = path.join(os.tmpdir(), tarName);
+          console.log(`☁️  Preparing tarball for Dropbox: ${tmpTar}`);
+
+          // Create tarball of the snapshot directory
+          await this.createTarball(snapshotDir, tmpTar);
+
+          // Upload to Dropbox
+          const uploader = new DropboxUploader(process.env.DROPBOX_TOKEN);
+          const dropboxPath = `${targetFolder}/${tarName}`;
+          console.log(`⬆️  Uploading snapshot to Dropbox: ${dropboxPath}`);
+          await uploader.uploadFile(tmpTar, dropboxPath);
+          console.log('✅ Dropbox upload completed');
+
+          // Retention: keep local snapshots (user requested no deletion)
+          try { await fs.rm(tmpTar, { force: true }); } catch (_) {}
+        }
+      } catch (cloudError) {
+        console.warn('⚠️ Dropbox upload failed:', cloudError.message);
+      }
+
       return metadata;
 
     } catch (error) {
@@ -285,6 +312,19 @@ class EnhancedBackupService {
       
       throw error;
     }
+  }
+
+  /**
+   * Create a .tar.gz of a directory using system tar (portable on Linux)
+   */
+  async createTarball(sourceDir, outFile) {
+    // Prefer system tar to avoid adding a library dependency in production
+    const { spawn } = await import('node:child_process');
+    await new Promise((resolve, reject) => {
+      const tar = spawn('tar', ['-czf', outFile, '-C', path.dirname(sourceDir), path.basename(sourceDir)]);
+      tar.on('error', reject);
+      tar.on('close', (code) => code === 0 ? resolve() : reject(new Error(`tar exited with code ${code}`)));
+    });
   }
 
   /**
