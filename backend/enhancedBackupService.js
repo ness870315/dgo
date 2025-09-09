@@ -30,10 +30,28 @@ class EnhancedBackupService {
     
     // Paths
     this.persistentDir = process.env.DATA_DIR || '/var/data/dgo';
-    // Store snapshots on persistent disk to survive reboots (fallback to DATA_DIR/backups)
+    // Store snapshots on persistent disk (default inside DATA_DIR/backups)
     this.localCacheDir = process.env.BACKUP_DIR || path.join(this.persistentDir, 'backups');
     this.backupMetadataPath = path.join(this.localCacheDir, 'backup-metadata.json');
     this.schedulerStatePath = path.join(this.localCacheDir, 'backup-scheduler.json');
+
+    // Safety: if BACKUP_DIR is inside DATA_DIR, relocate to sibling to avoid any chance of self-inclusion
+    try {
+      const resolvedPersistent = path.resolve(this.persistentDir);
+      const resolvedLocalCache = path.resolve(this.localCacheDir);
+      if (resolvedLocalCache === resolvedPersistent || resolvedLocalCache.startsWith(resolvedPersistent + path.sep)) {
+        const parentDir = path.dirname(resolvedPersistent);
+        const safeBackupsDir = path.join(parentDir, path.basename(resolvedPersistent) + '_backups');
+        if (resolvedLocalCache !== safeBackupsDir) {
+          console.warn(`⚠️ BACKUP_DIR (${resolvedLocalCache}) is inside DATA_DIR (${resolvedPersistent}). Using safe location: ${safeBackupsDir}`);
+          this.localCacheDir = safeBackupsDir;
+          this.backupMetadataPath = path.join(this.localCacheDir, 'backup-metadata.json');
+          this.schedulerStatePath = path.join(this.localCacheDir, 'backup-scheduler.json');
+        }
+      }
+    } catch (_) {
+      // Best-effort safety; continue with defaults
+    }
     
     // Ensure local cache directory exists
     this.initializeLocalCache();
@@ -277,6 +295,18 @@ class EnhancedBackupService {
    * Recursively backup a directory
    */
   async backupDirectory(sourceDir, targetDir) {
+    // Hard-stop if target is within source to prevent recursive self-inclusion
+    try {
+      const resolvedSource = path.resolve(sourceDir);
+      const resolvedTarget = path.resolve(targetDir);
+      if (resolvedTarget === resolvedSource || resolvedTarget.startsWith(resolvedSource + path.sep)) {
+        console.warn(`⛔ Prevented recursive backup: target ${resolvedTarget} is within source ${resolvedSource}`);
+        return { fileCount: 0, dirCount: 0, totalSize: 0, errors: [] };
+      }
+    } catch (_) {
+      // continue; best-effort guard
+    }
+
     const stats = {
       fileCount: 0,
       dirCount: 0,
