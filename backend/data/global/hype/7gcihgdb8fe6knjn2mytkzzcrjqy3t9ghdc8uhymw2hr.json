@@ -1,0 +1,22 @@
+[
+  {
+    "timestamp": "2025-09-09T16:19:11.548Z",
+    "score": 2.3,
+    "mentions": 0,
+    "twitterMentions": 0,
+    "engagement": 0,
+    "followers": 0,
+    "organicScore": 92.03722524004542,
+    "volume24h": 8039117.746962134,
+    "priceChange24h": -0.12,
+    "label": "Sleeping"
+  },
+  {
+    "timestamp": "2025-09-09T17:20:04.887Z",
+    "score": 8.13090909090909,
+    "label": "Viral",
+    "mentions": 15,
+    "followers": 0,
+    "engagement": 41
+  }
+]

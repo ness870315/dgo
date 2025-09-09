@@ -1,0 +1,34 @@
+[
+  {
+    "symbol": "USELESS",
+    "name": "USELESS COIN",
+    "image": "https://res.cloudinary.com/dyrbtmptj/image/upload/v1755194158/Useless_logo_round_gq78ew.png",
+    "contractAddress": "Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk",
+    "addedAt": "2025-09-09T17:21:11.131Z",
+    "updatedAt": "2025-09-09T17:21:11.131Z"
+  },
+  {
+    "symbol": "MEMEPUTER",
+    "name": "memeputer",
+    "image": "https://ipfs.io/ipfs/QmRCZKCRv1WpBRxVBFwpBA6quRdF2cY5U6jhf8kQpwnWJS",
+    "contractAddress": "5EpbKX221NYVidK6A2nJGhtuLPvrPiQ6shknLbtjBAGS",
+    "addedAt": "2025-09-09T17:21:30.649Z",
+    "updatedAt": "2025-09-09T17:21:30.649Z"
+  },
+  {
+    "symbol": "MONKEY",
+    "name": "Monkey The Picasso",
+    "image": "https://ipfs.io/ipfs/bafkreigjfarwhik346xrpgk5t7qvegg46j6t7r2isswxblcotjoy3s5l4y",
+    "contractAddress": "CNNQZyEWfz9mDBRCiRNwjaUvMaLnaRWem8HeJYh7bonk",
+    "addedAt": "2025-09-09T17:21:43.662Z",
+    "updatedAt": "2025-09-09T17:21:43.662Z"
+  },
+  {
+    "symbol": "WIZI",
+    "name": "Wizi Order",
+    "image": "https://ipfs.io/ipfs/bafkreic7rr63xaeufyqeci74ywsrijvt5cnrs2wzs3c4fjcmlspv4tqw6i",
+    "contractAddress": "HwC99nBLV8mwQS2rQGWzQqgm5N1WKC4CQQrRkaBabonk",
+    "addedAt": "2025-09-09T17:21:53.095Z",
+    "updatedAt": "2025-09-09T17:21:53.095Z"
+  }
+]

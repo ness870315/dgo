@@ -1,0 +1,16 @@
+[
+  {
+    "id": "f1ce46bc-deca-4318-934d-af824a12b9d9",
+    "createdAt": "2025-09-09T17:22:31.843Z",
+    "type": "premium",
+    "category": "referral",
+    "amount": 0,
+    "currency": "USD",
+    "paylinkId": null,
+    "txId": null,
+    "userId": "1962643731066081280",
+    "meta": {
+      "code": "EHR2CI63"
+    }
+  }
+]

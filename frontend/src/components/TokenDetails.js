@@ -1753,14 +1753,34 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                       <h5 className="text-white font-semibold mb-3 flex items-center">
                         💡 Key Insights
                       </h5>
-                      <div className="space-y-2">
-                        {aiAnalysis.analysis.keyInsights?.map((insight, index) => (
-                          <div key={index} className="flex items-start space-x-2">
-                            <span className="text-purple-400 mt-1">•</span>
-                            <span className="text-gray-300 text-sm">{insight}</span>
+                      {(() => {
+                        const base = aiAnalysis?.analysis || aiAnalysis || {};
+                        let insights = Array.isArray(base.keyInsights) ? base.keyInsights : [];
+                        if (!insights || insights.length === 0) {
+                          const bullets = [];
+                          const sentiment = base.sentiment;
+                          const confidencePct = typeof base.confidence === 'number' ? Math.round(base.confidence * 100) : null;
+                          const momentum = base.socialMomentum?.direction;
+                          const hype = base.hypeTrend?.regime;
+                          const catalysts = Array.isArray(base.catalysts) ? base.catalysts.slice(0, 2) : [];
+                          if (sentiment) bullets.push(`Sentiment is ${sentiment} with ${confidencePct ?? 70}% confidence`);
+                          if (momentum) bullets.push(`Social momentum: ${momentum} (watch hype velocity)`);
+                          if (typeof base.organicScore === 'number') bullets.push(`Organic score: ${Math.max(0, Math.round(base.organicScore))}/100`);
+                          if (hype) bullets.push(`Hype regime: ${hype}`);
+                          if (catalysts.length > 0) bullets.push(`Catalysts: ${catalysts.join(' • ')}`);
+                          insights = bullets.slice(0, 4);
+                        }
+                        return (
+                          <div className="space-y-2">
+                            {insights.map((insight, index) => (
+                              <div key={index} className="flex items-start space-x-2">
+                                <span className="text-purple-400 mt-1">•</span>
+                                <span className="text-gray-300 text-sm">{insight}</span>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Summary */}

@@ -5045,19 +5045,28 @@ class EnhancedBackend {
    */
   async attemptRestoreCacheFromLatestSnapshot(targetCachePath) {
     try {
-      const candidatePaths = await this.findLatestSnapshotCacheFile();
-      if (!candidatePaths) {
+      const candidate = await this.findLatestSnapshotCacheFile();
+      if (!candidate) {
         console.log('[🛡️ Enhanced Backend] ⚠️ No snapshot cache file found for recovery');
         return false;
       }
-      const { snapshotCachePath, snapshotId } = candidatePaths;
-      // Ensure target dir
       const targetDir = path.dirname(targetCachePath);
       await fs.mkdir(targetDir, { recursive: true });
-      // Copy file
-      const data = await fs.readFile(snapshotCachePath, 'utf8');
-      await fs.writeFile(targetCachePath, data);
-      console.log(`[🛡️ Enhanced Backend] 🔄 Restored cache from snapshot ${snapshotId}`);
+
+      if (candidate.type === 'file') {
+        const { snapshotCachePath, snapshotId } = candidate;
+        const data = await fs.readFile(snapshotCachePath, 'utf8');
+        await fs.writeFile(targetCachePath, data);
+        console.log(`[🛡️ Enhanced Backend] 🔄 Restored cache from snapshot ${snapshotId}`);
+      } else if (candidate.type === 'tar') {
+        const { tarPath, snapshotId } = candidate;
+        const extractedPath = await this.extractTokensCacheFromTar(tarPath);
+        if (!extractedPath) throw new Error('Failed to extract tokens-cache.json from tar');
+        const data = await fs.readFile(extractedPath, 'utf8');
+        await fs.writeFile(targetCachePath, data);
+        console.log(`[🛡️ Enhanced Backend] 🔄 Restored cache from tar snapshot ${snapshotId}`);
+        try { await fs.rm(extractedPath, { force: true }); } catch (_) {}
+      }
       return true;
     } catch (e) {
       console.warn('[🛡️ Enhanced Backend] ⚠️ Auto-recovery from snapshot failed:', e.message);
@@ -5081,20 +5090,65 @@ class EnhancedBackend {
     let newest = null;
     for (const dir of backupDirs) {
       try {
-        const entries = fsSync.readdirSync(dir, { withFileTypes: true }).filter(d => d.isDirectory() && d.name.startsWith('snapshot_'));
-        entries.sort((a, b) => b.name.localeCompare(a.name));
-        for (const e of entries) {
+        const entries = fsSync.readdirSync(dir, { withFileTypes: true });
+        // Prefer directory snapshots first
+        const dirSnaps = entries.filter(d => d.isDirectory() && d.name.startsWith('snapshot_'));
+        dirSnaps.sort((a, b) => b.name.localeCompare(a.name));
+        for (const e of dirSnaps) {
           const snapshotId = e.name;
           const snapshotCache = path.join(dir, snapshotId, 'cache', 'tokens-cache.json');
           if (fsSync.existsSync(snapshotCache)) {
-            newest = { snapshotCachePath: snapshotCache, snapshotId };
+            newest = { type: 'file', snapshotCachePath: snapshotCache, snapshotId };
             break;
+          }
+        }
+        // If none, look for tarballs
+        if (!newest) {
+          const tarSnaps = entries
+            .filter(f => f.isFile() && /snapshot_.*\.(tar\.gz|tgz)$/i.test(f.name))
+            .map(f => f.name)
+            .sort((a, b) => b.localeCompare(a));
+          if (tarSnaps.length > 0) {
+            const tarName = tarSnaps[0];
+            const tarPath = path.join(dir, tarName);
+            const snapshotId = tarName.replace(/\.(tar\.gz|tgz)$/i, '');
+            newest = { type: 'tar', tarPath, snapshotId };
           }
         }
         if (newest) break;
       } catch (_) {}
     }
     return newest;
+  }
+
+  /**
+   * Extract cache/tokens-cache.json from a tar(.gz) snapshot to a temp file.
+   */
+  async extractTokensCacheFromTar(tarPath) {
+    const { spawn } = await import('node:child_process');
+    const os = await import('os');
+    const tmpOut = path.join(os.tmpdir(), `tokens-cache-${Date.now()}.json`);
+    // List entries to find the path to tokens-cache.json
+    const listArgs = ['-tzf', tarPath];
+    const listOutput = await new Promise((resolve, reject) => {
+      let out = '';
+      const p = spawn('tar', listArgs);
+      p.stdout.on('data', d => out += d.toString());
+      p.on('error', reject);
+      p.on('close', code => code === 0 ? resolve(out) : reject(new Error(`tar -tzf exit ${code}`)));
+    });
+    const lines = listOutput.split(/\r?\n/).filter(Boolean);
+    const entry = lines.find(l => /\/cache\/tokens-cache\.json$/.test(l));
+    if (!entry) return null;
+    // Extract just that entry to tmpOut
+    await new Promise((resolve, reject) => {
+      const p = spawn('tar', ['-xzf', tarPath, entry, '-O']);
+      const fsOut = (await import('fs')).createWriteStream(tmpOut);
+      p.stdout.pipe(fsOut);
+      p.on('error', reject);
+      p.on('close', code => code === 0 ? resolve() : reject(new Error(`tar extract exit ${code}`)));
+    });
+    return tmpOut;
   }
 
   /**
