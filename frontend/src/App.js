@@ -232,11 +232,11 @@ function App() {
     sortBy: 'score'
   });
   const [categoryFilters, setCategoryFilters] = useState({
-    trending: false, // Too restrictive - only shows ~20 tokens
-    cults: false, // Renamed from old trending (established coins)
+    trending: true,
+    cults: false,
     highCap: false,
     midCap: false,
-    smallCap: false, // No default filter - show all tokens
+    smallCap: false,
     microCap: false,
     volatile: false,
     stable: false
@@ -493,10 +493,9 @@ function App() {
       return stableTokens;
     }
     
-    // No category filter active - show all tokens sorted by score
-    console.log('No category filter active - showing all tokens sorted by score');
-    return tokenData
-      .sort((a, b) => (b.score || b.overallScore || 0) - (a.score || a.overallScore || 0));
+    // No category filter active - return empty array (should not happen with trending default)
+    console.log('No category filter active - returning empty array');
+    return [];
   }, []);
 
   // Apply filters and search
