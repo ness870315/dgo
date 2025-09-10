@@ -151,7 +151,7 @@ class OAuthXService {
   async hasTwitterPostingEnabled(userId) {
     try {
       const user = await this.getUserById(userId);
-      return !!(user && user.accessToken && user.twitterPostingEnabled);
+      return !!(user && user.twitterPostingEnabled);
     } catch (error) {
       console.error('❌ Error checking Twitter posting status:', error.message);
       return false;

@@ -15,15 +15,22 @@ class TwitterService {
   async getTwitterPostingStatus() {
     try {
       const sessionId = localStorage.getItem('sessionId');
+      console.log('Getting Twitter posting status:', { sessionId: !!sessionId });
+      
       const response = await fetch(`${this.API_BASE}/api/user/twitter-posting?sessionId=${encodeURIComponent(sessionId || '')}`, {
         headers: this.getAuthHeaders()
       });
 
+      console.log('Twitter posting status response:', response.status);
+
       if (!response.ok) {
-        throw new Error('Failed to fetch Twitter posting status');
+        const errorText = await response.text();
+        console.error('Twitter posting status error:', errorText);
+        throw new Error(`Failed to fetch Twitter posting status: ${response.status} ${errorText}`);
       }
 
       const result = await response.json();
+      console.log('Twitter posting status result:', result);
       return result.twitterPostingEnabled || false;
     } catch (error) {
       console.error('Error fetching Twitter posting status:', error);
@@ -35,17 +42,24 @@ class TwitterService {
   async setTwitterPostingEnabled(enabled) {
     try {
       const sessionId = localStorage.getItem('sessionId');
+      console.log('Setting Twitter posting preference:', { enabled, sessionId: !!sessionId });
+      
       const response = await fetch(`${this.API_BASE}/api/user/twitter-posting`, {
         method: 'POST',
         headers: this.getAuthHeaders(),
         body: JSON.stringify({ sessionId, enabled })
       });
 
+      console.log('Twitter posting response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Failed to update Twitter posting preference');
+        const errorText = await response.text();
+        console.error('Twitter posting error response:', errorText);
+        throw new Error(`Failed to update Twitter posting preference: ${response.status} ${errorText}`);
       }
 
       const result = await response.json();
+      console.log('Twitter posting success:', result);
       return result.success;
     } catch (error) {
       console.error('Error setting Twitter posting preference:', error);
