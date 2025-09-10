@@ -2927,20 +2927,36 @@ class EnhancedBackend {
       }
     });
 
-    // Force refresh all tokens
+    // Force refresh all tokens (preserves existing)
     this.app.post('/api/tokens/refresh-all', async (req, res) => {
       try {
         console.log('[🛡️ Enhanced Backend] 🔄 Force refresh all tokens requested');
+        
+        // Preserve existing tokens and add new ones
+        await this.preserveCacheAndRefresh();
+        
+        res.json({ success: true, message: 'Full refresh started - existing tokens preserved' });
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Error refreshing tokens:', error);
+        res.status(500).json({ error: 'Failed to refresh tokens' });
+      }
+    });
+
+    // Clear cache completely (for debugging - use with caution!)
+    this.app.post('/api/tokens/clear-cache', async (req, res) => {
+      try {
+        console.log('[🛡️ Enhanced Backend] 🗑️ Complete cache clear requested');
         
         // Clear cache and restart processing
         await this.clearCache();
         await this.tokenProcessor.startProcessing();
         
-        res.json({ success: true, message: 'Full refresh started' });
+        res.json({ success: true, message: 'Cache cleared and processing restarted' });
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error refreshing tokens:', error);
-        res.status(500).json({ error: 'Failed to refresh tokens' });
+        console.error('[🛡️ Enhanced Backend] ❌ Error clearing cache:', error);
+        res.status(500).json({ error: 'Failed to clear cache' });
       }
     });
 
@@ -6376,6 +6392,28 @@ class EnhancedBackend {
       
     } catch (error) {
       console.error('[🛡️ Enhanced Backend] ❌ Failed to clear cache:', error);
+    }
+  }
+
+  async preserveCacheAndRefresh() {
+    try {
+      console.log('[🛡️ Enhanced Backend] 🔄 Preserving existing tokens and refreshing...');
+      
+      // Load existing tokens first
+      const existingTokens = await this.getTokensFromCache();
+      console.log(`[🛡️ Enhanced Backend] 📊 Preserving ${existingTokens.length} existing tokens`);
+      
+      // Reset processor state but keep existing tokens
+      this.tokenProcessor.processedTokens = existingTokens;
+      this.tokenProcessor.processingQueue = [];
+      
+      // Start processing to add new tokens
+      await this.tokenProcessor.startProcessing();
+      
+      console.log('[🛡️ Enhanced Backend] ✅ Cache preserved and refresh started');
+      
+    } catch (error) {
+      console.error('[🛡️ Enhanced Backend] ❌ Failed to preserve cache and refresh:', error);
     }
   }
 
