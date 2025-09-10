@@ -6356,6 +6356,8 @@ class EnhancedBackend {
 
   async applyFuelToToken(contractAddress, fuelType) {
     try {
+      console.log(`[🛡️ Enhanced Backend] 🔥 Starting fuel application: ${fuelType} to ${contractAddress}`);
+      
       // Load current tokens to check if token exists
       const tokens = await this.getTokensFromCache();
       const existingToken = tokens.find(t => 
@@ -6463,6 +6465,7 @@ class EnhancedBackend {
       }
 
       await fs.writeFile(fueledTokensPath, JSON.stringify(fueledTokens, null, 2));
+      console.log(`[🛡️ Enhanced Backend] 🔥 Saved ${fueledTokens.length} fueled tokens to ${fueledTokensPath}`);
 
       console.log(`[🛡️ Enhanced Backend] 🔥 Fuel ${fuelType} applied to ${existingToken.symbol} (${contractAddress})`);
 
