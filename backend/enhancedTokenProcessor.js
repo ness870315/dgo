@@ -117,12 +117,25 @@ class EnhancedTokenProcessor {
     const { skipTwitter = false } = options;
     console.log(`🚀 Starting Enhanced Token Processing Pipeline... ${skipTwitter ? '(Twitter stage skipped)' : ''}`);
     this.isProcessing = true;
+    this.currentStage = 'starting';
+    this.lastActivity = Date.now();
     
     try {
       await this.runStagedProcessing(options);
+      console.log('✅ Processing pipeline completed successfully');
     } catch (error) {
       console.error('❌ Processing pipeline failed:', error);
+      console.error('❌ Error details:', error.stack);
       this.isProcessing = false;
+      this.currentStage = 'error';
+      
+      // Log the error for debugging
+      console.log('🔄 Processing will be automatically restarted by the background monitor');
+      
+      // Don't throw the error - let the background monitor handle restart
+    } finally {
+      this.isProcessing = false;
+      this.currentStage = 'idle';
     }
   }
 
@@ -140,6 +153,7 @@ class EnhancedTokenProcessor {
       
       console.log(`\n🔄 Starting Stage: ${stage.toUpperCase()}`);
       this.currentStage = stage;
+      this.updateActivity();
       
       try {
         switch (stage) {
@@ -167,8 +181,10 @@ class EnhancedTokenProcessor {
         }
         
         console.log(`✅ Stage ${stage} completed`);
+        this.updateActivity();
       } catch (error) {
         console.error(`❌ Stage ${stage} failed:`, error);
+        this.updateActivity();
         break;
       }
     }
@@ -1977,6 +1993,8 @@ class EnhancedTokenProcessor {
       stageProgress: this.stageProgress,
       queueLength: this.processingQueue.length,
       processedCount: this.processedTokens.length,
+      lastActivity: this.lastActivity,
+      isHealthy: this.isHealthy(),
       sources: {
         coingecko: this.processingQueue.filter(t => t.source === 'coingecko').length,
         dexscreener: this.processingQueue.filter(t => t.source === 'dexscreener').length,
@@ -1985,6 +2003,24 @@ class EnhancedTokenProcessor {
       coinGeckoPageSet: `${this.coinGeckoPageState.currentPageSet}/${this.coinGeckoPageState.maxPageSets}`,
       lastUpdated: new Date().toISOString()
     };
+  }
+
+  isHealthy() {
+    // Check if processor is in a healthy state
+    if (!this.isProcessing) {
+      return true; // Not processing is healthy
+    }
+    
+    // If processing, check if it's been active recently
+    const now = Date.now();
+    const timeSinceLastActivity = now - (this.lastActivity || 0);
+    
+    // If no activity for more than 15 minutes while processing, it's unhealthy
+    return timeSinceLastActivity < 15 * 60 * 1000;
+  }
+
+  updateActivity() {
+    this.lastActivity = Date.now();
   }
 
   // CoinGecko page cycling methods

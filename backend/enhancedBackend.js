@@ -5100,6 +5100,15 @@ class EnhancedBackend {
     // Background tasks will be started from the start() method
     // No event listeners needed here since Express doesn't emit 'ready' events
 
+    // Auto-restart token processing if it stops (every 2 minutes)
+    setInterval(async () => {
+      try {
+        await this.autoRestartTokenProcessing();
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Auto-restart check failed:', error);
+      }
+    }, 2 * 60 * 1000); // Check every 2 minutes
+
     // Periodic cache refresh (every 10 minutes)
     setInterval(async () => {
       try {
@@ -6414,6 +6423,79 @@ class EnhancedBackend {
       
     } catch (error) {
       console.error('[🛡️ Enhanced Backend] ❌ Failed to preserve cache and refresh:', error);
+    }
+  }
+
+  async autoRestartTokenProcessing() {
+    try {
+      // Check if token processing is running
+      const processingStatus = this.tokenProcessor.getProcessingStatus();
+      
+      if (processingStatus.isProcessing) {
+        // Processing is running, check if it's stuck
+        const now = Date.now();
+        const lastActivity = processingStatus.lastActivity || 0;
+        const timeSinceLastActivity = now - lastActivity;
+        
+        // If no activity for more than 10 minutes, consider it stuck
+        if (timeSinceLastActivity > 10 * 60 * 1000) {
+          console.log('[🛡️ Enhanced Backend] ⚠️ Token processing appears stuck (no activity for 10+ minutes)');
+          console.log('[🛡️ Enhanced Backend] 🔄 Restarting token processing...');
+          
+          // Stop current processing
+          this.tokenProcessor.stopProcessing();
+          
+          // Wait a moment
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          
+          // Restart with preserved cache
+          await this.preserveCacheAndRefresh();
+          
+          console.log('[🛡️ Enhanced Backend] ✅ Token processing restarted after being stuck');
+        }
+        return;
+      }
+      
+      // Processing is not running, check if we have tokens
+      const tokens = await this.getTokensFromCache();
+      
+      if (tokens.length === 0) {
+        console.log('[🛡️ Enhanced Backend] ⚠️ No tokens in cache and processing not running');
+        console.log('[🛡️ Enhanced Backend] 🚀 Starting fresh token processing...');
+        
+        // Start fresh processing
+        await this.tokenProcessor.startProcessing();
+        
+        console.log('[🛡️ Enhanced Backend] ✅ Fresh token processing started');
+      } else if (tokens.length < 100) {
+        console.log('[🛡️ Enhanced Backend] ⚠️ Low token count and processing not running');
+        console.log(`[🛡️ Enhanced Backend] 📊 Current tokens: ${tokens.length}, starting processing to add more...`);
+        
+        // Restart with preserved cache
+        await this.preserveCacheAndRefresh();
+        
+        console.log('[🛡️ Enhanced Backend] ✅ Token processing restarted to add more tokens');
+      } else {
+        // We have enough tokens, but processing stopped - restart it
+        console.log('[🛡️ Enhanced Backend] ⚠️ Token processing stopped but we have sufficient tokens');
+        console.log(`[🛡️ Enhanced Backend] 📊 Current tokens: ${tokens.length}, restarting processing...`);
+        
+        // Restart with preserved cache
+        await this.preserveCacheAndRefresh();
+        
+        console.log('[🛡️ Enhanced Backend] ✅ Token processing restarted');
+      }
+      
+    } catch (error) {
+      console.error('[🛡️ Enhanced Backend] ❌ Auto-restart failed:', error);
+      
+      // If auto-restart fails, try a simple restart
+      try {
+        console.log('[🛡️ Enhanced Backend] 🔄 Attempting simple restart after auto-restart failure...');
+        await this.preserveCacheAndRefresh();
+      } catch (restartError) {
+        console.error('[🛡️ Enhanced Backend] ❌ Simple restart also failed:', restartError);
+      }
     }
   }
 
