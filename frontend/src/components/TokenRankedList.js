@@ -9,12 +9,21 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
     return scoreB - scoreA;
   });
 
-  // Check if token is fueled
-  const isTokenFueled = (token) => {
+  // Check if token is fueled and get fuel multiplier
+  const getFuelInfo = (token) => {
     const fueledTokensArray = fueledTokens.value || fueledTokens;
-    return fueledTokensArray.some(fueled =>
+    const fueledToken = fueledTokensArray.find(fueled =>
       fueled.symbol?.toLowerCase() === token.symbol?.toLowerCase()
     );
+    
+    if (fueledToken) {
+      return {
+        isFueled: true,
+        multiplier: fueledToken.fuelType || '10x'
+      };
+    }
+    
+    return { isFueled: false, multiplier: null };
   };
 
   // Format market cap
@@ -90,7 +99,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
             const marketCap = token.jupiterData?.marketCap || token.marketCap || 0;
             const price = token.jupiterData?.price || token.price || 0;
             const mentions = token.mentions || token.twitterData?.mentions || 0;
-            const isFueled = isTokenFueled(token);
+            const fuelInfo = getFuelInfo(token);
             
             const { icon: PriceIcon, color: priceColor } = getPriceChangeDisplay(priceChange);
             const scoreColor = getScoreColor(score);
@@ -130,10 +139,12 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
                           <h4 className="text-white font-semibold text-lg">
                             {token.symbol || 'Unknown'}
                           </h4>
-                          {isFueled && (
+                          {fuelInfo.isFueled && (
                             <div className="flex items-center space-x-1 px-2 py-1 bg-orange-900 border border-orange-500 rounded-full">
                               <Flame className="w-3 h-3 text-orange-400" />
-                              <span className="text-orange-400 text-xs font-bold">FUELED</span>
+                              <span className="text-orange-400 text-xs font-bold">
+                                {fuelInfo.multiplier}
+                              </span>
                             </div>
                           )}
                         </div>
