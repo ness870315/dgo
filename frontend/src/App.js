@@ -232,11 +232,11 @@ function App() {
     sortBy: 'score'
   });
   const [categoryFilters, setCategoryFilters] = useState({
-    trending: true, // Default to new trending (score >7 + volume) - FIRST
+    trending: false, // Too restrictive - only shows ~20 tokens
     cults: false, // Renamed from old trending (established coins)
     highCap: false,
     midCap: false,
-    smallCap: false,
+    smallCap: false, // No default filter - show all tokens
     microCap: false,
     volatile: false,
     stable: false
@@ -493,12 +493,10 @@ function App() {
       return stableTokens;
     }
     
-    // Fallback to trending if no filter is active (should not happen)
-    console.log('No filter active, defaulting to trending');
+    // No category filter active - show all tokens sorted by score
+    console.log('No category filter active - showing all tokens sorted by score');
     return tokenData
-              .filter(token => getMarketCap(token) >= 10000 && (token.score || token.overallScore || 0) >= 3.0)
-      .sort((a, b) => (b.score || b.overallScore || 0) - (a.score || a.overallScore || 0))
-      .slice(0, 50);
+      .sort((a, b) => (b.score || b.overallScore || 0) - (a.score || a.overallScore || 0));
   }, []);
 
   // Apply filters and search
