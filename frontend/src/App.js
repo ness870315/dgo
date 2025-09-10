@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
 import BubbleMap from './components/BubbleMap';
+import TokenRankedList from './components/TokenRankedList';
+import ViewToggle from './components/ViewToggle';
 import TokenDetails from './components/TokenDetails';
 import Settings from './components/Settings';
 import CategoryFilters from './components/CategoryFilters';
@@ -239,6 +241,9 @@ function App() {
     volatile: false,
     stable: false
   });
+
+  // View toggle state
+  const [currentView, setCurrentView] = useState('bubbles'); // 'bubbles' or 'list'
 
   // Apply category filters function (mutually exclusive filters)
   const applyCategoryFilters = useCallback((tokenData, categories) => {
@@ -1129,7 +1134,7 @@ function App() {
                   </div>
                 </div>
                 
-                {/* Category Filters and Temperature Legend - Responsive */}
+                {/* Category Filters and Controls - Responsive */}
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-3 lg:space-y-0">
                   {/* Category Filters */}
                   <div className="flex-1">
@@ -1139,24 +1144,40 @@ function App() {
                     />
                   </div>
                   
-                  {/* Temperature Legend */}
-                  <div className="flex justify-center lg:justify-end">
+                  {/* View Toggle and Temperature Legend */}
+                  <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4">
+                    {/* View Toggle */}
+                    <ViewToggle 
+                      currentView={currentView}
+                      onViewChange={setCurrentView}
+                      tokenCount={filteredTokens.length}
+                    />
+                    
+                    {/* Temperature Legend */}
                     <TemperatureLegend />
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Bubble Map */}
+            {/* Main Content Area */}
             <div className={`h-screen sm:h-[calc(100vh-200px)] lg:h-screen xl:h-[calc(100vh-150px)] 2xl:h-[calc(100vh-100px)] ${
               filteredTokens.length > 50 ? 'overflow-auto' : 'overflow-hidden'
             }`}>
               {filteredTokens.length > 0 ? (
-                <BubbleMap
-                  tokens={filteredTokens}
-                  fueledTokens={fueledTokens}
-                  onTokenSelect={handleTokenSelect}
-                />
+                currentView === 'bubbles' ? (
+                  <BubbleMap
+                    tokens={filteredTokens}
+                    fueledTokens={fueledTokens}
+                    onTokenSelect={handleTokenSelect}
+                  />
+                ) : (
+                  <TokenRankedList
+                    tokens={filteredTokens}
+                    fueledTokens={fueledTokens}
+                    onTokenSelect={handleTokenSelect}
+                  />
+                )
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">

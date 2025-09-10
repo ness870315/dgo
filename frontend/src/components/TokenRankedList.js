@@ -1,0 +1,216 @@
+import React from 'react';
+import { TrendingUp, TrendingDown, Minus, Star, Flame } from 'lucide-react';
+
+const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
+  // Sort tokens by overall score (highest first)
+  const sortedTokens = [...tokens].sort((a, b) => {
+    const scoreA = a.overallScore || a.score || 0;
+    const scoreB = b.overallScore || b.score || 0;
+    return scoreB - scoreA;
+  });
+
+  // Check if token is fueled
+  const isTokenFueled = (token) => {
+    const fueledTokensArray = fueledTokens.value || fueledTokens;
+    return fueledTokensArray.some(fueled =>
+      fueled.symbol?.toLowerCase() === token.symbol?.toLowerCase()
+    );
+  };
+
+  // Format market cap
+  const formatMarketCap = (marketCap) => {
+    if (!marketCap || isNaN(marketCap) || marketCap === 0) return '$0';
+    const numMarketCap = Number(marketCap);
+    if (isNaN(numMarketCap)) return '$0';
+    
+    if (numMarketCap >= 1e9) return `$${(numMarketCap / 1e9).toFixed(1)}B`;
+    if (numMarketCap >= 1e6) return `$${(numMarketCap / 1e6).toFixed(1)}M`;
+    if (numMarketCap >= 1e3) return `$${(numMarketCap / 1e3).toFixed(1)}K`;
+    return `$${numMarketCap.toFixed(0)}`;
+  };
+
+  // Format price
+  const formatPrice = (price) => {
+    if (!price || isNaN(price) || price === 0) return '$0';
+    const numPrice = Number(price);
+    if (isNaN(numPrice)) return '$0';
+    
+    if (numPrice >= 1) return `$${numPrice.toFixed(2)}`;
+    if (numPrice >= 0.01) return `$${numPrice.toFixed(4)}`;
+    return `$${numPrice.toFixed(8)}`;
+  };
+
+  // Get price change icon and color
+  const getPriceChangeDisplay = (priceChange) => {
+    if (!priceChange || isNaN(priceChange)) return { icon: Minus, color: 'text-gray-400' };
+    
+    const change = Number(priceChange);
+    if (change > 0) return { icon: TrendingUp, color: 'text-green-400' };
+    if (change < 0) return { icon: TrendingDown, color: 'text-red-400' };
+    return { icon: Minus, color: 'text-gray-400' };
+  };
+
+  // Get score color based on value
+  const getScoreColor = (score) => {
+    if (score >= 8) return 'text-red-400'; // Viral
+    if (score >= 5) return 'text-orange-400'; // Trending
+    if (score >= 3) return 'text-yellow-400'; // Building
+    return 'text-blue-400'; // Sleeping
+  };
+
+  // Get score label
+  const getScoreLabel = (score) => {
+    if (score >= 8) return 'Viral';
+    if (score >= 5) return 'Trending';
+    if (score >= 3) return 'Building';
+    return 'Sleeping';
+  };
+
+  return (
+    <div className="w-full h-full overflow-y-auto">
+      <div className="space-y-2 p-4">
+        {/* Header */}
+        <div className="sticky top-0 bg-dark-bg border-b border-gray-700 pb-3 mb-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-white">
+              Token Rankings ({sortedTokens.length})
+            </h3>
+            <div className="text-xs text-gray-400">
+              Sorted by Overall Score
+            </div>
+          </div>
+        </div>
+
+        {/* Token List */}
+        <div className="space-y-2">
+          {sortedTokens.map((token, index) => {
+            const rank = index + 1;
+            const score = token.overallScore || token.score || 0;
+            const priceChange = token.jupiterData?.priceChange24h || token.priceChange24h || 0;
+            const marketCap = token.jupiterData?.marketCap || token.marketCap || 0;
+            const price = token.jupiterData?.price || token.price || 0;
+            const mentions = token.mentions || token.twitterData?.mentions || 0;
+            const isFueled = isTokenFueled(token);
+            
+            const { icon: PriceIcon, color: priceColor } = getPriceChangeDisplay(priceChange);
+            const scoreColor = getScoreColor(score);
+            const scoreLabel = getScoreLabel(score);
+
+            return (
+              <div
+                key={token.contractAddress || token.symbol || index}
+                className="bg-dark-card border border-gray-700 rounded-lg p-4 hover:border-solana-purple transition-all duration-200 cursor-pointer group"
+                onClick={() => onTokenSelect(token)}
+              >
+                <div className="flex items-center justify-between">
+                  {/* Left side - Rank, Token Info */}
+                  <div className="flex items-center space-x-4">
+                    {/* Rank */}
+                    <div className="flex-shrink-0">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                        rank <= 3 
+                          ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-black' 
+                          : 'bg-gray-700 text-gray-300'
+                      }`}>
+                        {rank}
+                      </div>
+                    </div>
+
+                    {/* Token Icon & Info */}
+                    <div className="flex items-center space-x-3">
+                      {token.jupiterData?.icon && (
+                        <img 
+                          src={token.jupiterData.icon} 
+                          alt={token.symbol} 
+                          className="w-10 h-10 rounded-full border-2 border-gray-600"
+                        />
+                      )}
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <h4 className="text-white font-semibold text-lg">
+                            {token.symbol || 'Unknown'}
+                          </h4>
+                          {isFueled && (
+                            <div className="flex items-center space-x-1 px-2 py-1 bg-orange-900 border border-orange-500 rounded-full">
+                              <Flame className="w-3 h-3 text-orange-400" />
+                              <span className="text-orange-400 text-xs font-bold">FUELED</span>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-gray-400 text-sm">
+                          {token.name || token.jupiterData?.name || 'Unknown Token'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right side - Stats */}
+                  <div className="flex items-center space-x-6">
+                    {/* Score */}
+                    <div className="text-center">
+                      <div className={`text-2xl font-bold ${scoreColor}`}>
+                        {score.toFixed(1)}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {scoreLabel}
+                      </div>
+                    </div>
+
+                    {/* Price Change */}
+                    <div className="text-center">
+                      <div className={`flex items-center space-x-1 ${priceColor}`}>
+                        <PriceIcon className="w-4 h-4" />
+                        <span className="font-semibold">
+                          {priceChange > 0 ? '+' : ''}{priceChange.toFixed(2)}%
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {formatPrice(price)}
+                      </div>
+                    </div>
+
+                    {/* Market Cap */}
+                    <div className="text-center">
+                      <div className="text-white font-semibold">
+                        {formatMarketCap(marketCap)}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        Market Cap
+                      </div>
+                    </div>
+
+                    {/* Mentions */}
+                    <div className="text-center">
+                      <div className="text-white font-semibold">
+                        {mentions}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        Mentions
+                      </div>
+                    </div>
+
+                    {/* Arrow indicator */}
+                    <div className="text-gray-400 group-hover:text-solana-purple transition-colors">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Footer */}
+        <div className="pt-4 border-t border-gray-700 mt-6">
+          <div className="text-center text-xs text-gray-500">
+            Click any token to view details • Rankings update in real-time
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TokenRankedList;
