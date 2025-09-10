@@ -6241,17 +6241,22 @@ class EnhancedBackend {
         await fs.access(fueledTokensPath);
       } catch {
         // File doesn't exist, return empty array
+        console.log('[🛡️ Enhanced Backend] 🔥 No fueled-tokens.json file found, returning empty array');
         return [];
       }
 
       const data = await fs.readFile(fueledTokensPath, 'utf8');
       const fueledTokens = JSON.parse(data);
+      
+      console.log(`[🛡️ Enhanced Backend] 🔥 Loaded ${fueledTokens.length} fueled tokens from file`);
 
       // Filter out expired tokens and handle stacked fuel applications
       const now = Date.now();
       const activeFueledTokens = [];
       const expiredTokens = []; // Track tokens that need recalculation
       let hasChanges = false;
+      
+      console.log(`[🛡️ Enhanced Backend] 🔥 Processing ${fueledTokens.length} fueled tokens, current time: ${new Date(now).toISOString()}`);
 
       for (const token of fueledTokens) {
         if (token.fuelApplications && Array.isArray(token.fuelApplications)) {
@@ -6328,6 +6333,7 @@ class EnhancedBackend {
       // Update the file if we removed expired tokens or applications
       if (hasChanges) {
         await fs.writeFile(fueledTokensPath, JSON.stringify(activeFueledTokens, null, 2));
+        console.log(`[🛡️ Enhanced Backend] 🔥 Updated fueled-tokens.json with ${activeFueledTokens.length} active tokens`);
       }
 
       // Recalculate scores for tokens with expired fuel (background process)
