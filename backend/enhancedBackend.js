@@ -2623,6 +2623,76 @@ class EnhancedBackend {
       }
     });
 
+    // ========================================
+    // 🔥 FUEL TOKEN ENDPOINTS
+    // ========================================
+
+    // Get fueled tokens
+    this.app.get('/api/tokens/fuel', async (req, res) => {
+      try {
+        console.log('[🛡️ Enhanced Backend] 🔥 Getting fueled tokens...');
+        
+        const fueledTokens = await this.getFueledTokens();
+        
+        console.log(`[🛡️ Enhanced Backend] ✅ Returning ${fueledTokens.length} fueled tokens`);
+        res.json(fueledTokens);
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Error getting fueled tokens:', error);
+        res.status(500).json({ error: 'Failed to get fueled tokens' });
+      }
+    });
+
+    // Apply fuel to token
+    this.app.post('/api/tokens/fuel', async (req, res) => {
+      try {
+        const { contractAddress, fuelType } = req.body;
+        
+        console.log(`[🛡️ Enhanced Backend] 🔥 Applying ${fuelType} fuel to token: ${contractAddress}`);
+        
+        if (!contractAddress || !fuelType) {
+          return res.status(400).json({ error: 'Contract address and fuel type are required' });
+        }
+
+        const result = await this.applyFuelToToken(contractAddress, fuelType);
+        
+        if (result.success) {
+          res.json({ success: true, message: result.message, token: result.token });
+        } else {
+          res.status(400).json({ success: false, error: result.error });
+        }
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Error applying fuel:', error);
+        res.status(500).json({ error: 'Failed to apply fuel' });
+      }
+    });
+
+    // Remove fuel from token
+    this.app.delete('/api/tokens/fuel/:contractAddress', async (req, res) => {
+      try {
+        const { contractAddress } = req.params;
+        
+        console.log(`[🛡️ Enhanced Backend] 🗑️ Removing fuel from token: ${contractAddress}`);
+        
+        if (!contractAddress) {
+          return res.status(400).json({ error: 'Contract address is required' });
+        }
+
+        const result = await this.removeFuelFromToken(contractAddress);
+        
+        if (result.success) {
+          res.json({ success: true, message: result.message });
+        } else {
+          res.status(400).json({ success: false, error: result.error });
+        }
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Error removing fuel:', error);
+        res.status(500).json({ error: 'Failed to remove fuel from token' });
+      }
+    });
+
     // Get complete token data by contract address
     this.app.get('/api/tokens/:contract', async (req, res) => {
       try {
@@ -2837,103 +2907,6 @@ class EnhancedBackend {
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Error refreshing tokens:', error);
         res.status(500).json({ error: 'Failed to refresh tokens' });
-      }
-    });
-
-    // ========================================
-    // 🔥 FUEL TOKEN ENDPOINTS
-    // ========================================
-
-    // Get fueled tokens
-    this.app.get('/api/tokens/fuel', async (req, res) => {
-      try {
-        console.log('[🛡️ Enhanced Backend] 🔥 Getting fueled tokens...');
-        
-        const fueledTokens = await this.getFueledTokens();
-        
-        console.log(`[🛡️ Enhanced Backend] ✅ Returning ${fueledTokens.length} fueled tokens`);
-        res.json(fueledTokens);
-        
-      } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error getting fueled tokens:', error);
-        res.status(500).json({ error: 'Failed to get fueled tokens' });
-      }
-    });
-
-    // Apply fuel to token
-    this.app.post('/api/tokens/fuel', async (req, res) => {
-      try {
-        const { contractAddress, fuelType } = req.body;
-        
-        console.log(`[🛡️ Enhanced Backend] 🔥 Applying ${fuelType} fuel to token: ${contractAddress}`);
-        
-        if (!contractAddress || !fuelType) {
-          return res.status(400).json({ 
-            error: 'Contract address and fuel type are required' 
-          });
-        }
-
-        // Validate fuel type
-        const validFuelTypes = ['10x', '50x', '500x', '1000x'];
-        if (!validFuelTypes.includes(fuelType)) {
-          return res.status(400).json({ 
-            error: 'Invalid fuel type. Must be one of: ' + validFuelTypes.join(', ') 
-          });
-        }
-
-        const result = await this.applyFuelToToken(contractAddress, fuelType);
-        
-        if (result.success) {
-          console.log(`[🛡️ Enhanced Backend] ✅ Fuel applied successfully: ${result.message}`);
-          res.json({ 
-            success: true, 
-            message: result.message,
-            token: result.token
-          });
-        } else {
-          console.log(`[🛡️ Enhanced Backend] ❌ Failed to apply fuel: ${result.error}`);
-          res.status(400).json({ 
-            error: result.error 
-          });
-        }
-        
-      } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error applying fuel:', error);
-        res.status(500).json({ error: 'Failed to apply fuel to token' });
-      }
-    });
-
-    // Remove fuel from token
-    this.app.delete('/api/tokens/fuel/:contractAddress', async (req, res) => {
-      try {
-        const { contractAddress } = req.params;
-        
-        console.log(`[🛡️ Enhanced Backend] 🗑️ Removing fuel from token: ${contractAddress}`);
-        
-        if (!contractAddress) {
-          return res.status(400).json({ 
-            error: 'Contract address is required' 
-          });
-        }
-
-        const result = await this.removeFuelFromToken(contractAddress);
-        
-        if (result.success) {
-          console.log(`[🛡️ Enhanced Backend] ✅ Fuel removed successfully: ${result.message}`);
-          res.json({ 
-            success: true, 
-            message: result.message
-          });
-        } else {
-          console.log(`[🛡️ Enhanced Backend] ❌ Failed to remove fuel: ${result.error}`);
-          res.status(400).json({ 
-            error: result.error 
-          });
-        }
-        
-      } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Error removing fuel:', error);
-        res.status(500).json({ error: 'Failed to remove fuel from token' });
       }
     });
 
