@@ -1148,7 +1148,9 @@ function App() {
             </div>
 
             {/* Bubble Map */}
-            <div className="h-screen sm:h-[calc(100vh-200px)] lg:h-screen xl:h-[calc(100vh-150px)] 2xl:h-[calc(100vh-100px)]">
+            <div className={`h-screen sm:h-[calc(100vh-200px)] lg:h-screen xl:h-[calc(100vh-150px)] 2xl:h-[calc(100vh-100px)] ${
+              filteredTokens.length > 50 ? 'overflow-auto' : 'overflow-hidden'
+            }`}>
               {filteredTokens.length > 0 ? (
                 <BubbleMap
                   tokens={filteredTokens}

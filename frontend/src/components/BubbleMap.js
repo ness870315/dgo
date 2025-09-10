@@ -5,6 +5,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
   const svgRef = useRef();
   const tooltipRef = useRef();
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  const [zoomTransform, setZoomTransform] = useState(d3.zoomIdentity);
 
   useEffect(() => {
     const handleResize = () => {
@@ -27,9 +28,22 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
         else if (isLargeDesktop) minHeight = 700; // Large desktop
         else if (isUltraWide) minHeight = 800; // Ultra-wide
         
+        // Dynamic height adjustment based on token count
+        const tokenCount = tokens?.length || 0;
+        let dynamicHeight = Math.max(minHeight, containerHeight);
+        
+        // Increase height for many tokens to prevent cutoff
+        if (tokenCount > 50) {
+          dynamicHeight = Math.max(dynamicHeight, 800); // Minimum 800px for many tokens
+        } else if (tokenCount > 30) {
+          dynamicHeight = Math.max(dynamicHeight, 700); // Minimum 700px for moderate tokens
+        } else if (tokenCount > 15) {
+          dynamicHeight = Math.max(dynamicHeight, 600); // Minimum 600px for some tokens
+        }
+        
         setDimensions({
           width: containerWidth,
-          height: Math.max(minHeight, containerHeight)
+          height: dynamicHeight
         });
       }
     };
@@ -141,6 +155,16 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
 
     const g = svg.append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
+
+    // Add zoom functionality for better navigation with many bubbles
+    const zoom = d3.zoom()
+      .scaleExtent([0.5, 3]) // Allow zoom from 0.5x to 3x
+      .on('zoom', (event) => {
+        setZoomTransform(event.transform);
+        g.attr('transform', `translate(${margin.left},${margin.top}) scale(${event.transform.k}) translate(${event.transform.x},${event.transform.y})`);
+      });
+
+    svg.call(zoom);
 
     // Create bubbles
     const bubbles = g.selectAll('.bubble')
@@ -524,6 +548,16 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
     };
   }, [tokens, dimensions, onTokenSelect]);
 
+  const resetZoom = () => {
+    if (svgRef.current) {
+      const svg = d3.select(svgRef.current);
+      svg.transition().duration(750).call(
+        d3.zoom().transform,
+        d3.zoomIdentity
+      );
+    }
+  };
+
   return (
     <div className="relative w-full h-full bubble-map-container">
       <style>
@@ -548,9 +582,68 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
             }
           }
           
+          .zoom-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+          }
+          
+          .zoom-button {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+          }
+          
+          .zoom-button:hover {
+            background: rgba(0, 0, 0, 0.9);
+            border-color: rgba(255, 255, 255, 0.4);
+          }
+          
+          .zoom-instructions {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            z-index: 10;
+          }
 
         `}
       </style>
+      
+      {/* Zoom Controls */}
+      {tokens.length > 15 && (
+        <div className="zoom-controls">
+          <button 
+            className="zoom-button" 
+            onClick={resetZoom}
+            title="Reset zoom to fit all bubbles"
+          >
+            🔍 Reset View
+          </button>
+        </div>
+      )}
+      
+      {/* Instructions for many bubbles */}
+      {tokens.length > 30 && (
+        <div className="zoom-instructions">
+          💡 Scroll to zoom • Drag to pan • Click bubbles to explore
+        </div>
+      )}
+      
       <svg
         ref={svgRef}
         width={dimensions.width}
