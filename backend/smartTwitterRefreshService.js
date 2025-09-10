@@ -245,4 +245,4 @@ class SmartTwitterRefreshService {
   }
 }
 
-module.exports = SmartTwitterRefreshService;
+export default SmartTwitterRefreshService;
