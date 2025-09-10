@@ -127,7 +127,7 @@ class CallThesisGenerator {
     const basePrompt = `You are DeGen Oracle's AI analyst generating a compelling thesis for a KOL call post. 
 
 TOKEN: ${templateVars.symbol} (${templateVars.name})
-MARKET CAP: $${templateVars.marketCap}M
+MARKET CAP: $${templateVars.marketCap}
 PRICE: $${templateVars.price}
 
 ANALYTICS METRICS:
@@ -144,7 +144,7 @@ SOCIAL METRICS:
 - Engagement Rate: ${templateVars.engagementRate}%
 
 Generate a ${tone} thesis that:
-1. Starts with: "${callAnnouncement} $${templateVars.symbol} at $${templateVars.marketCap}M MC"
+1. Starts with: "${callAnnouncement} $${templateVars.symbol} at $${templateVars.marketCap} MC"
 2. Follows with: "Thesis: [your AI-generated thesis here]"
 3. Is 1-2 sentences max (for Twitter)
 4. Uses heavy crypto slang and degen terminology
@@ -258,10 +258,10 @@ Respond with ONLY the complete thesis text, no quotes or formatting.`;
     const endingPhrase = this.getRandomEndingPhrase();
     
     const fallbacks = {
-      bullish: `${callAnnouncement} $${symbol} at $${marketCap}M MC. Thesis: Strong momentum with growing community and positive analytics signals. ${endingPhrase}`,
-      cautious: `${callAnnouncement} $${symbol} at $${marketCap}M MC. Thesis: Early play with potential - high risk, high reward opportunity. ${endingPhrase}`,
-      technical: `${callAnnouncement} $${symbol} at $${marketCap}M MC. Thesis: Technical breakout with volume confirmation and strong fundamentals. ${endingPhrase}`,
-      narrative: `${callAnnouncement} $${symbol} at $${marketCap}M MC. Thesis: Community narrative building with organic growth and engagement. ${endingPhrase}`
+      bullish: `${callAnnouncement} $${symbol} at $${marketCap} MC. Thesis: Strong momentum with growing community and positive analytics signals. ${endingPhrase}`,
+      cautious: `${callAnnouncement} $${symbol} at $${marketCap} MC. Thesis: Early play with potential - high risk, high reward opportunity. ${endingPhrase}`,
+      technical: `${callAnnouncement} $${symbol} at $${marketCap} MC. Thesis: Technical breakout with volume confirmation and strong fundamentals. ${endingPhrase}`,
+      narrative: `${callAnnouncement} $${symbol} at $${marketCap} MC. Thesis: Community narrative building with organic growth and engagement. ${endingPhrase}`
     };
 
     return fallbacks[tone] || fallbacks.bullish;
@@ -290,7 +290,7 @@ Respond with ONLY the complete thesis text, no quotes or formatting.`;
     // Get random milestone narrative
     const milestoneNarrative = this.getRandomMilestoneNarrative(milestone, multiplier, athMultiplier);
     
-    return `🚀 MILESTONE HIT! Called $${symbol} at $${initialMC}M MC — now $${currentMC}M (${multiplier.toFixed(2)}×). ATH since call: ${athMultiplier.toFixed(2)}× in ${timeSinceCall}. ${milestoneNarrative} Track my calls on @oracle_degen1 : https://degen-oracle.com`;
+    return `🚀 MILESTONE HIT! Called $${symbol} at $${initialMC} MC — now $${currentMC} (${multiplier.toFixed(2)}×). ATH since call: ${athMultiplier.toFixed(2)}× in ${timeSinceCall}. ${milestoneNarrative} Track my calls on @oracle_degen1 : https://degen-oracle.com`;
   }
 
   /**
@@ -307,7 +307,7 @@ Respond with ONLY the complete thesis text, no quotes or formatting.`;
     // Get random share narrative
     const shareNarrative = this.getRandomShareNarrative(multiplier, athMultiplier);
     
-    return `$${symbol} Update: Called at $${initialMC}M MC, now $${currentMC}M (${multiplier.toFixed(2)}×). ATH: ${athMultiplier.toFixed(2)}× in ${timeSinceCall}. ${shareNarrative} Track my calls on @oracle_degen1 : https://degen-oracle.com`;
+    return `$${symbol} Update: Called at $${initialMC} MC, now $${currentMC} (${multiplier.toFixed(2)}×). ATH: ${athMultiplier.toFixed(2)}× in ${timeSinceCall}. ${shareNarrative} Track my calls on @oracle_degen1 : https://degen-oracle.com`;
   }
 
   /**
@@ -353,8 +353,8 @@ Respond with ONLY the complete thesis text, no quotes or formatting.`;
    */
   formatNumber(num) {
     if (num === null || num === undefined || isNaN(num)) return '0';
-    if (num >= 1000000) return (num / 1000000).toFixed(1);
-    if (num >= 1000) return (num / 1000).toFixed(1);
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
     return num.toFixed(2);
   }
 
