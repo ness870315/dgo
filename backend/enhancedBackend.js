@@ -6308,7 +6308,9 @@ class EnhancedBackend {
 
   async getFueledTokens() {
     try {
-      const fueledTokensPath = path.join(__dirname, 'cache', 'fueled-tokens.json');
+      // Use persistent DATA_DIR for fueled tokens (same as other persistent data)
+      const baseDir = this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo';
+      const fueledTokensPath = path.join(baseDir, 'cache', 'fueled-tokens.json');
       
       // Check if file exists
       try {
@@ -6528,7 +6530,8 @@ class EnhancedBackend {
       }
 
       // Save fueled tokens
-      const fueledTokensPath = path.join(__dirname, 'cache', 'fueled-tokens.json');
+      const baseDir = this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo';
+      const fueledTokensPath = path.join(baseDir, 'cache', 'fueled-tokens.json');
       
       // Ensure cache directory exists
       const cacheDir = path.dirname(fueledTokensPath);
@@ -6623,7 +6626,8 @@ class EnhancedBackend {
       fueledTokens.splice(fueledTokenIndex, 1);
 
       // Save updated fueled tokens
-      const fueledTokensPath = path.join(__dirname, 'cache', 'fueled-tokens.json');
+      const baseDir = this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo';
+      const fueledTokensPath = path.join(baseDir, 'cache', 'fueled-tokens.json');
       
       // Ensure cache directory exists
       const cacheDir = path.dirname(fueledTokensPath);
