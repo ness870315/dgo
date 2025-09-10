@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { X, Twitter } from 'lucide-react';
 import { Flame, Rocket, Zap, Gem, ArrowLeft, Search } from 'lucide-react';
+import fuelImageGenerator from '../services/fuelImageGenerator';
 
 const FuelTokenPage = ({ onBack, headerAuth = null }) => {
   const [selectedFuel, setSelectedFuel] = useState(null);
@@ -16,6 +17,7 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
   const [fuelShareMessage, setFuelShareMessage] = useState('');
   const [appliedFuelType, setAppliedFuelType] = useState(null);
   const [appliedTokenSymbol, setAppliedTokenSymbol] = useState('');
+  const [fuelImageDataURL, setFuelImageDataURL] = useState('');
 
   const fuelOptions = [
     {
@@ -208,6 +210,15 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
         // Generate share message
         const shareMessage = generateFuelShareMessage(tokenSymbol, fuelType);
         setFuelShareMessage(shareMessage);
+        
+        // Generate fuel image
+        try {
+          const imageDataURL = await fuelImageGenerator.generateFuelImageDataURL(fuelType, tokenSymbol);
+          setFuelImageDataURL(imageDataURL);
+        } catch (error) {
+          console.error('Error generating fuel image:', error);
+          setFuelImageDataURL('');
+        }
         
         // Show share modal
         setShowFuelShareModal(true);
@@ -524,6 +535,18 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
                   Share your alpha with the community on X:
                 </p>
                 
+                {/* Generated Fuel Image */}
+                {fuelImageDataURL && (
+                  <div className="mb-4 flex justify-center">
+                    <img 
+                      src={fuelImageDataURL} 
+                      alt={`${appliedFuelType} fuel for ${appliedTokenSymbol}`}
+                      className="max-w-full h-auto rounded-lg border border-orange-500/30"
+                      style={{ maxHeight: '200px' }}
+                    />
+                  </div>
+                )}
+                
                 <div className="bg-gray-800 border border-gray-600 rounded-lg p-4 mb-4">
                   <p className="text-white text-sm leading-relaxed">
                     "{fuelShareMessage}"
@@ -540,12 +563,20 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
                   </button>
                   
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       const newMessage = generateFuelShareMessage(appliedTokenSymbol, appliedFuelType);
                       setFuelShareMessage(newMessage);
+                      
+                      // Also regenerate the image
+                      try {
+                        const imageDataURL = await fuelImageGenerator.generateFuelImageDataURL(appliedFuelType, appliedTokenSymbol);
+                        setFuelImageDataURL(imageDataURL);
+                      } catch (error) {
+                        console.error('Error regenerating fuel image:', error);
+                      }
                     }}
                     className="px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center justify-center"
-                    title="Generate new message"
+                    title="Generate new message and image"
                   >
                     🔄
                   </button>

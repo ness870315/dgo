@@ -5,6 +5,7 @@ import watchlistService from '../services/watchlistService';
 import priorityService from '../services/priorityService';
 import { useAuth } from '../contexts/AuthContext';
 import EnhancedCallModal from './EnhancedCallModal';
+import fuelImageGenerator from '../services/fuelImageGenerator';
 
 const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }) => {
   const { isAuthenticated } = useAuth();
@@ -30,6 +31,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
   const [showFuelShareModal, setShowFuelShareModal] = useState(false);
   const [fuelShareMessage, setFuelShareMessage] = useState('');
   const [appliedFuelType, setAppliedFuelType] = useState(null);
+  const [fuelImageDataURL, setFuelImageDataURL] = useState('');
 
   // Check if token is fueled and get fuel multiplier
   const getFuelMultiplier = () => {
@@ -410,6 +412,15 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
         const shareMessage = generateFuelShareMessage(token.symbol, fuelType);
         setFuelShareMessage(shareMessage);
         
+        // Generate fuel image
+        try {
+          const imageDataURL = await fuelImageGenerator.generateFuelImageDataURL(fuelType, token.symbol);
+          setFuelImageDataURL(imageDataURL);
+        } catch (error) {
+          console.error('Error generating fuel image:', error);
+          setFuelImageDataURL('');
+        }
+        
         // Show share modal instead of closing immediately
         setShowFuelShareModal(true);
         
@@ -444,7 +455,12 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
   const handleCloseFuelShare = () => {
     setShowFuelShareModal(false);
     setShowFuelModal(false);
+    setSelectedFuel(null);
+    setContractValidated(false);
+    setPaymentCompleted(false);
     setFuelMessage({ text: '', type: '' });
+    setFuelImageDataURL('');
+    setAppliedFuelType(null);
   };
 
   const formatNumber = (num) => {
@@ -582,13 +598,13 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                       📋
                     </button>
                     {/* Tooltip */}
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[200px]">
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[200px]">
                       <div className="text-xs leading-tight">
                         <span className="font-semibold text-white">Copy:</span>
                         <span className="text-gray-300 ml-1">Copy contract address to clipboard</span>
                       </div>
                       {/* Arrow */}
-                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-600"></div>
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-600"></div>
                     </div>
                   </div>
                 )}
@@ -618,13 +634,13 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                 )}
               </button>
               {/* Tooltip */}
-              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[280px]">
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[280px]">
                 <div className="text-xs leading-tight">
                   <span className="font-semibold text-white">Oracle AI:</span>
                   <span className="text-gray-300 ml-1">{isAuthenticated ? 'Deep-dive analysis with hype, risks, and plays' : 'Log in to use this feature'}</span>
                 </div>
                 {/* Arrow */}
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-600"></div>
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-600"></div>
               </div>
             </div>
             
@@ -637,13 +653,13 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                 <Flame size={20} />
               </button>
               {/* Tooltip */}
-              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[220px]">
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[220px]">
                 <div className="text-xs leading-tight">
                   <span className="font-semibold text-white">Fuel:</span>
                   <span className="text-gray-300 ml-1">Boost visibility and priority for this token</span>
                 </div>
                 {/* Arrow */}
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-600"></div>
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-600"></div>
               </div>
             </div>
 
@@ -667,13 +683,13 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                 />
               </button>
               {/* Tooltip */}
-              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[220px]">
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[220px]">
                 <div className="text-xs leading-tight">
                   <span className="font-semibold text-white">Watchlist:</span>
                   <span className="text-gray-300 ml-1">{isAuthenticated ? (isInWatchlist ? 'Remove from your watchlist' : 'Add to your watchlist') : 'Log in to use this feature'}</span>
                 </div>
                 {/* Arrow */}
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-600"></div>
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-600"></div>
               </div>
             </div>
 
@@ -689,20 +705,19 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                 Call it!
               </button>
               {/* Tooltip */}
-              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[300px]">
+              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[300px]">
                 <div className="text-xs leading-tight">
                   <span className="font-semibold text-white">Call it:</span>
                   <span className="text-gray-300 ml-1">{isAuthenticated ? 'Make a KOL call with AI thesis and Twitter posting' : 'Log in to use this feature'}</span>
                 </div>
                 {/* Arrow */}
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-600"></div>
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-600"></div>
               </div>
             </div>
 
             {/* Close Button */}
-            <div className="relative group">
-              <button
-                onClick={() => {
+            <button
+              onClick={() => {
                 try {
                   if (callRecorded) {
                     window.dispatchEvent(new CustomEvent('kol-call-added'));
@@ -711,19 +726,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                 onClose && onClose();
               }}
               className="p-2 text-gray-400 hover:text-white transition-colors"
-              >
-                <X size={20} />
-              </button>
-              {/* Tooltip */}
-              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[200px]">
-                <div className="text-xs leading-tight">
-                  <span className="font-semibold text-white">Close:</span>
-                  <span className="text-gray-300 ml-1">Close token details</span>
-                </div>
-                {/* Arrow */}
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-600"></div>
-              </div>
-            </div>
+            >
+              <X size={20} />
+            </button>
             </div>
           </div>
 
@@ -1694,42 +1699,28 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                 </div>
                 )}
 
-                {/* Apply Fuel (after payment) */}
-                {paymentCompleted && (
-                  <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4 mb-6">
-                    <h4 className="text-green-300 font-medium mb-2">✅ Payment Completed!</h4>
-                    <p className="text-green-200 text-sm mb-4">
-                      Your payment has been processed successfully. Click below to apply the fuel boost to {token?.symbol}.
+                {/* Apply Fuel Button - Only show when fuel is selected and not in share modal */}
+                {selectedFuel && !showFuelShareModal && (
+                  <div className="bg-gradient-to-r from-orange-900/20 to-red-900/20 border border-orange-500/30 rounded-lg p-4 mb-6">
+                    <h4 className="text-orange-300 font-medium mb-2">🔥 Ready to Apply Fuel</h4>
+                    <p className="text-orange-200 text-sm mb-4">
+                      {paymentCompleted 
+                        ? `Your payment has been processed successfully. Click below to apply the ${selectedFuel} fuel boost to ${token?.symbol}.`
+                        : `Click below to apply ${selectedFuel} fuel to ${token?.symbol}.`
+                      }
                     </p>
                     <button
                       onClick={handleApplyFuel}
                       disabled={fuelLoading}
-                      className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 disabled:opacity-50"
+                      className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 disabled:opacity-50"
                     >
-                      {fuelLoading ? '🔥 Applying Fuel...' : '🔥 Apply Fuel Boost'}
+                      {fuelLoading ? '🔥 Applying Fuel...' : `🔥 Apply ${selectedFuel} Fuel`}
                     </button>
                   </div>
                 )}
 
-                {/* Manual Fuel Application (for testing) */}
-                {!paymentCompleted && selectedFuel && (
-                  <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-4 mb-6">
-                    <h4 className="text-yellow-300 font-medium mb-2">⚠️ Testing Mode</h4>
-                    <p className="text-yellow-200 text-sm mb-4">
-                      For testing purposes, you can apply fuel directly without payment.
-                    </p>
-                    <button
-                      onClick={handleApplyFuel}
-                      disabled={fuelLoading}
-                      className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 disabled:opacity-50"
-                    >
-                      {fuelLoading ? '🔥 Applying Fuel...' : `🔥 Apply ${selectedFuel} Fuel (Test)`}
-                    </button>
-                  </div>
-                )}
-
-                {/* Message Display */}
-                {fuelMessage.text && (
+                {/* Message Display - Only show when not in share modal */}
+                {fuelMessage.text && !showFuelShareModal && (
                   <div className={`mb-4 p-3 rounded-lg text-sm ${
                     fuelMessage.type === 'success'
                       ? 'bg-green-900/20 border border-green-500 text-green-400'
@@ -1741,21 +1732,23 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                   </div>
                 )}
 
-                {/* Close Button */}
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => {
-                      setShowFuelModal(false);
-                      setSelectedFuel(null);
-                      setContractValidated(false);
-                      setPaymentCompleted(false);
-                      setFuelMessage({ text: '', type: '' });
-                    }}
-                    className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
+                {/* Close Button - Only show when not in share modal */}
+                {!showFuelShareModal && (
+                  <div className="flex justify-end">
+                    <button
+                      onClick={() => {
+                        setShowFuelModal(false);
+                        setSelectedFuel(null);
+                        setContractValidated(false);
+                        setPaymentCompleted(false);
+                        setFuelMessage({ text: '', type: '' });
+                      }}
+                      className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                    >
+                      Close
+                    </button>
+                  </div>
+                )}
               </div>
         </div>
           </div>
@@ -2169,6 +2162,18 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                   Share your alpha with the community on X:
                 </p>
                 
+                {/* Generated Fuel Image */}
+                {fuelImageDataURL && (
+                  <div className="mb-4 flex justify-center">
+                    <img 
+                      src={fuelImageDataURL} 
+                      alt={`${appliedFuelType} fuel for ${token?.symbol}`}
+                      className="max-w-full h-auto rounded-lg border border-orange-500/30"
+                      style={{ maxHeight: '200px' }}
+                    />
+                  </div>
+                )}
+                
                 <div className="bg-gray-800 border border-gray-600 rounded-lg p-4 mb-4">
                   <p className="text-white text-sm leading-relaxed">
                     "{fuelShareMessage}"
@@ -2185,12 +2190,20 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                   </button>
                   
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       const newMessage = generateFuelShareMessage(token?.symbol, appliedFuelType);
                       setFuelShareMessage(newMessage);
+                      
+                      // Also regenerate the image
+                      try {
+                        const imageDataURL = await fuelImageGenerator.generateFuelImageDataURL(appliedFuelType, token?.symbol);
+                        setFuelImageDataURL(imageDataURL);
+                      } catch (error) {
+                        console.error('Error regenerating fuel image:', error);
+                      }
                     }}
                     className="px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center justify-center"
-                    title="Generate new message"
+                    title="Generate new message and image"
                   >
                     🔄
                   </button>
