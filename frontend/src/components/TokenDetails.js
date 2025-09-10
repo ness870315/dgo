@@ -499,9 +499,11 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
   const handleConfirmCall = async (callData) => {
     try {
       const payload = {
-        symbol: callData.token.symbol,
-        name: callData.token.name,
-        contractAddress: callData.token.contractAddress,
+        token: {
+          symbol: callData.token.symbol,
+          name: callData.token.name,
+          contractAddress: callData.token.contractAddress
+        },
         thesis: callData.thesis,
         twitterEnabled: callData.twitterEnabled,
         tone: callData.tone

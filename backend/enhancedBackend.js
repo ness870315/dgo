@@ -1544,7 +1544,7 @@ class EnhancedBackend {
     // KOL Calls: add a call and fetch list
     this.app.post('/api/user/kol-calls/add', async (req, res) => {
       try {
-        const { sessionId, token } = req.body; // token: { symbol, name, contractAddress }
+        const { sessionId, token, thesis, twitterEnabled, tone } = req.body; // token: { symbol, name, contractAddress }
         if (!sessionId || !token?.contractAddress) {
           return res.status(400).json({ error: 'Missing sessionId or token.contractAddress' });
         }
@@ -1582,41 +1582,46 @@ class EnhancedBackend {
         const price = Number(jData?.usdPrice || 0) || 0;
         const holderCount = Number(jData?.holderCount || 0) || 0;
 
-        // Generate AI thesis for the call
-        let thesis = null;
+        // Use frontend-generated thesis or generate fallback
+        let finalThesis = thesis;
         let twitterPostId = null;
-        try {
-          const tokenData = {
-            symbol: token.symbol,
-            name: token.name,
-            contractAddress: token.contractAddress,
-            jupiterData: jData
-          };
-          
-          const callData = {
-            calledMc: calledMC,
-            calledPrice: price,
-            calledAt: new Date().toISOString()
-          };
+        
+        // If no thesis provided, generate one
+        if (!finalThesis) {
+          try {
+            const tokenData = {
+              symbol: token.symbol,
+              name: token.name,
+              contractAddress: token.contractAddress,
+              jupiterData: jData
+            };
+            
+            const callData = {
+              calledMc: calledMC,
+              calledPrice: price,
+              calledAt: new Date().toISOString()
+            };
 
-          // Generate thesis with random tone
-          const tones = ['bullish', 'cautious', 'technical', 'narrative'];
-          const randomTone = tones[Math.floor(Math.random() * tones.length)];
-          thesis = await this.callThesisGenerator.generateCallThesis(tokenData, callData, { tone: randomTone });
-          
-          console.log(`🧠 Generated ${randomTone} thesis for ${token.symbol}: ${thesis}`);
-        } catch (error) {
-          console.error(`❌ Failed to generate thesis for ${token.symbol}:`, error.message);
-          thesis = `Calling ${token.symbol} based on our analytics engine signals. Track it on degen-oracle.com — let's see where this goes. NFA`;
+            // Use provided tone or default to bullish
+            const selectedTone = tone || 'bullish';
+            finalThesis = await this.callThesisGenerator.generateCallThesis(tokenData, callData, { tone: selectedTone });
+            
+            console.log(`🧠 Generated ${selectedTone} thesis for ${token.symbol}: ${finalThesis}`);
+          } catch (error) {
+            console.error(`❌ Failed to generate thesis for ${token.symbol}:`, error.message);
+            finalThesis = `Calling ${token.symbol} based on our analytics engine signals. Track it on degen-oracle.com — let's see where this goes. NFA`;
+          }
+        } else {
+          console.log(`📝 Using frontend-generated thesis for ${token.symbol}: ${finalThesis}`);
         }
 
-        // Check if user has Twitter posting enabled
-        const hasTwitterPosting = await this.oauthXService.hasTwitterPostingEnabled(user.id);
+        // Use frontend twitterEnabled flag or check user preference
+        const hasTwitterPosting = twitterEnabled !== undefined ? twitterEnabled : await this.oauthXService.hasTwitterPostingEnabled(user.id);
         
         // Post to Twitter if enabled
-        if (hasTwitterPosting && thesis) {
+        if (hasTwitterPosting && finalThesis) {
           try {
-            const tweet = await this.oauthXService.postTweet(user.id, thesis);
+            const tweet = await this.oauthXService.postTweet(user.id, finalThesis);
             twitterPostId = tweet.id;
             console.log(`🐦 Posted call tweet for ${token.symbol}: ${twitterPostId}`);
           } catch (error) {
@@ -1635,9 +1640,10 @@ class EnhancedBackend {
           calledPrice: price,
           holderCount: holderCount,
           calledAt: new Date().toISOString(),
-          thesis: thesis,
+          thesis: finalThesis,
           twitterPostId: twitterPostId,
-          twitterEnabled: hasTwitterPosting
+          twitterEnabled: hasTwitterPosting,
+          tone: tone || 'bullish'
         });
 
         // Increment usage counter for free users
