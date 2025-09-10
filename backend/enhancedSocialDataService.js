@@ -531,11 +531,18 @@ class EnhancedSocialDataService {
       const safeName = name || symbol;
       
       // Single hashtag search strategy - most cost-effective for community sentiment
+      // Get tweets from last 7 days to ensure freshness
+      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      
       const searchStrategies = [
         {
           type: 'hashtag_symbol_optimized',
           endpoint: '/api/twitter/search',
-          params: { q: `#${symbolLower}`, count: 5 } // Reduce count to 5 to minimize post pulls
+          params: { 
+            q: `#${symbolLower}`, 
+            count: 10, // Increased count for better coverage
+            start_time: oneWeekAgo // Only get tweets from last 7 days
+          }
         }
       ];
       

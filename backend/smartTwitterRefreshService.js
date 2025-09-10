@@ -64,14 +64,16 @@ class SmartTwitterRefreshService {
         return [];
       }
 
-      const searchDate = new Date(lastUpdate).toISOString().split('T')[0];
-      const searchQuery = `${symbol} since:${searchDate}`;
+      // Use start_time parameter for more precise time filtering
+      const startTime = new Date(lastUpdate).toISOString();
+      const searchQuery = `#${symbol.toLowerCase()}`;
       
-      console.log(`🧠 Timestamp search for ${symbol}: ${searchQuery}`);
+      console.log(`🧠 Timestamp search for ${symbol}: ${searchQuery} since ${startTime}`);
       
       const response = await this.makeTwitterApiCall('/api/twitter/search', {
         q: searchQuery,
-        count: 10
+        count: 15,
+        start_time: startTime
       });
       
       if (response?.success && response.tweets?.length > 0) {
@@ -93,13 +95,17 @@ class SmartTwitterRefreshService {
     try {
       // Fetch more tweets than needed to account for duplicates
       const searchCount = Math.min(15, 10 + existingTweetIds.size);
-      const searchQuery = symbol;
+      const searchQuery = `#${symbol.toLowerCase()}`;
       
-      console.log(`🧠 Regular search for ${symbol}: fetching ${searchCount} tweets`);
+      // Get tweets from last 24 hours to ensure freshness
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      
+      console.log(`🧠 Regular search for ${symbol}: fetching ${searchCount} tweets from last 24h`);
       
       const response = await this.makeTwitterApiCall('/api/twitter/search', {
         q: searchQuery,
-        count: searchCount
+        count: searchCount,
+        start_time: oneDayAgo
       });
       
       if (response?.success && response.tweets?.length > 0) {

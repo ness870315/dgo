@@ -99,7 +99,10 @@ def debug_check():
 @app.get("/api/twitter/search")
 def search_tweets(
     q: str = Query(..., description="Search query"),
-    count: int = Query(20, description="Number of tweets to return")
+    count: int = Query(20, description="Number of tweets to return"),
+    since_id: str = Query(None, description="Get tweets newer than this tweet ID"),
+    start_time: str = Query(None, description="Get tweets from this time (ISO format)"),
+    end_time: str = Query(None, description="Get tweets up to this time (ISO format)")
 ):
     """Search for tweets using Twitter v2 API only."""
     try:
@@ -119,6 +122,14 @@ def search_tweets(
             "expansions": "author_id",
             "user.fields": "name,username,public_metrics"
         }
+        
+        # Add time-based filtering if provided
+        if since_id:
+            params["since_id"] = since_id
+        if start_time:
+            params["start_time"] = start_time
+        if end_time:
+            params["end_time"] = end_time
         data = twitter_api_get("/2/tweets/search/recent", params)
 
         tweets = []
