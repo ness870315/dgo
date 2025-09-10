@@ -904,6 +904,12 @@ class EnhancedSocialDataService {
       return true;
     }
 
+    // APPROVAL: Direct token mentions (official handle or hashtag) - very high confidence
+    if (text.includes(`@${symbolLower}`) || text.includes(`#${symbolLower}`) || text.includes(symbolLower)) {
+      console.log(`   🎯 APPROVED: Direct token mention (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
+      return true;
+    }
+
     // REJECTION: Net negative score or no crypto indicators
     if (netScore <= 0 || cryptoScore === 0) {
       console.log(`   ❌ REJECTED: Insufficient crypto indicators (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
