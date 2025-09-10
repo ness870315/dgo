@@ -1722,6 +1722,34 @@ class EnhancedBackend {
       }
     });
 
+    // Generate AI thesis for call
+    this.app.post('/api/user/generate-thesis', async (req, res) => {
+      try {
+        const { sessionId, tokenData, tone = 'bullish' } = req.body;
+        if (!sessionId || !tokenData) {
+          return res.status(400).json({ error: 'Missing sessionId or tokenData' });
+        }
+        
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) return res.status(401).json({ error: 'Invalid session' });
+        
+        // Prepare call data for thesis generation
+        const callData = {
+          calledMc: tokenData.marketCap || 0,
+          calledPrice: tokenData.price || 0,
+          calledAt: new Date().toISOString()
+        };
+        
+        // Generate thesis with specified tone
+        const thesis = await this.callThesisGenerator.generateCallThesis(tokenData, callData, { tone });
+        
+        res.json({ success: true, thesis });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Generate thesis error:', error.message);
+        res.status(500).json({ error: 'Failed to generate thesis' });
+      }
+    });
+
     // Share call manually
     this.app.post('/api/user/kol-calls/:id/share', async (req, res) => {
       try {

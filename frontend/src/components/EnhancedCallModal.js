@@ -31,6 +31,13 @@ const EnhancedCallModal = ({
     }
   }, [isOpen, token]);
 
+  // Regenerate thesis when tone changes
+  useEffect(() => {
+    if (isOpen && token && thesis) {
+      generateThesis();
+    }
+  }, [selectedTone]);
+
   const loadTwitterStatus = async () => {
     try {
       const enabled = await twitterService.getTwitterPostingStatus();
@@ -47,13 +54,35 @@ const EnhancedCallModal = ({
     setThesisError(null);
     
     try {
-      // This would call the backend to generate a thesis
-      // For now, we'll use a placeholder
-      const mockThesis = `Calling $${token.symbol} at $${(token.marketCap / 1000000).toFixed(1)}M MC. Thesis: Strong momentum with growing community and positive analytics signals. Track it on degen-oracle.com — let's see where this goes. NFA`;
+      const sessionId = localStorage.getItem('sessionId');
+      const tokenData = {
+        symbol: token.symbol,
+        name: token.name,
+        marketCap: token.marketCap || 0,
+        price: token.price || 0,
+        jupiterData: token.jupiterData,
+        twitterData: token.twitterData
+      };
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setThesis(mockThesis);
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/user/generate-thesis`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({
+          sessionId,
+          tokenData,
+          tone: selectedTone
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate thesis');
+      }
+      
+      const result = await response.json();
+      setThesis(result.thesis);
     } catch (error) {
       setThesisError('Failed to generate thesis');
       console.error('Thesis generation error:', error);
