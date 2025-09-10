@@ -238,27 +238,27 @@ class SocialContextAI {
       // Fix: Use correct Jupiter field names
       marketCap: this.formatNumber(jupiterData.mcap || jupiterData.marketCap || tokenData.marketCap || 0),
       price: jupiterData.usdPrice || jupiterData.price || tokenData.price || 'N/A',
-      priceChange24h: jupiterData.priceChange24h || tokenData.priceChange24h || 0,
+      priceChange24h: Number(jupiterData.priceChange24h || tokenData.priceChange24h || 0).toFixed(2),
       
-      // Jupiter stats fields with safety checks
-      'stats5m.priceChange': stats5m.priceChange || 0,
-      'stats1h.priceChange': stats1h.priceChange || 0,
-      'stats6h.priceChange': stats6h.priceChange || 0,
-      'stats24h.priceChange': stats24h.priceChange || 0,
-      'stats5m.holderChange': stats5m.holderChange || 0,
-      'stats1h.holderChange': stats1h.holderChange || 0,
-      'stats6h.holderChange': stats6h.holderChange || 0,
-      'stats24h.holderChange': stats24h.holderChange || 0,
-      'stats5m.liquidityChange': stats5m.liquidityChange || 0,
-      'stats1h.liquidityChange': stats1h.liquidityChange || 0,
-      'stats6h.liquidityChange': stats6h.liquidityChange || 0,
-      'stats24h.liquidityChange': stats24h.liquidityChange || 0,
-      'stats5m.volumeChange': stats5m.volumeChange || 0,
-      'stats1h.volumeChange': stats1h.volumeChange || 0,
-      'stats6h.volumeChange': stats6h.volumeChange || 0,
-      'stats24h.volumeChange': stats24h.volumeChange || 0,
-      'stats24h.buyVolume': stats24h.buyVolume || 0,
-      'stats24h.sellVolume': stats24h.sellVolume || 0,
+      // Jupiter stats fields with safety checks - format all percentages to 2 decimal places
+      'stats5m.priceChange': Number(stats5m.priceChange || 0).toFixed(2),
+      'stats1h.priceChange': Number(stats1h.priceChange || 0).toFixed(2),
+      'stats6h.priceChange': Number(stats6h.priceChange || 0).toFixed(2),
+      'stats24h.priceChange': Number(stats24h.priceChange || 0).toFixed(2),
+      'stats5m.holderChange': Number(stats5m.holderChange || 0).toFixed(2),
+      'stats1h.holderChange': Number(stats1h.holderChange || 0).toFixed(2),
+      'stats6h.holderChange': Number(stats6h.holderChange || 0).toFixed(2),
+      'stats24h.holderChange': Number(stats24h.holderChange || 0).toFixed(2),
+      'stats5m.liquidityChange': Number(stats5m.liquidityChange || 0).toFixed(2),
+      'stats1h.liquidityChange': Number(stats1h.liquidityChange || 0).toFixed(2),
+      'stats6h.liquidityChange': Number(stats6h.liquidityChange || 0).toFixed(2),
+      'stats24h.liquidityChange': Number(stats24h.liquidityChange || 0).toFixed(2),
+      'stats5m.volumeChange': Number(stats5m.volumeChange || 0).toFixed(2),
+      'stats1h.volumeChange': Number(stats1h.volumeChange || 0).toFixed(2),
+      'stats6h.volumeChange': Number(stats6h.volumeChange || 0).toFixed(2),
+      'stats24h.volumeChange': Number(stats24h.volumeChange || 0).toFixed(2),
+      'stats24h.buyVolume': Number(stats24h.buyVolume || 0).toFixed(2),
+      'stats24h.sellVolume': Number(stats24h.sellVolume || 0).toFixed(2),
       'stats24h.numNetBuyers': stats24h.numNetBuyers || 0,
       'stats6h.numNetBuyers': stats6h.numNetBuyers || 0,
       
@@ -312,12 +312,12 @@ class SocialContextAI {
         jupiterData.volume24h || 
         tokenData.volume24h || 0
       ),
-      volumeChange24h: jupiterData.stats24h?.volumeChange || jupiterData.volumeChange24h || 0,
+      volumeChange24h: Number(jupiterData.stats24h?.volumeChange || jupiterData.volumeChange24h || 0).toFixed(2),
 
       // Technical indicators - Fix: Use correct Jupiter field names  
-      priceChange1h: jupiterData.stats1h?.priceChange || jupiterData.priceChange1h || 0,
-      priceChange6h: jupiterData.stats6h?.priceChange || jupiterData.priceChange6h || 0,
-      priceChange7d: jupiterData.stats7d?.priceChange || jupiterData.priceChange7d || 0,
+      priceChange1h: Number(jupiterData.stats1h?.priceChange || jupiterData.priceChange1h || 0).toFixed(2),
+      priceChange6h: Number(jupiterData.stats6h?.priceChange || jupiterData.priceChange6h || 0).toFixed(2),
+      priceChange7d: Number(jupiterData.stats7d?.priceChange || jupiterData.priceChange7d || 0).toFixed(2),
 
       // === COMPREHENSIVE JUPITER DATA ===
       // Supply & Economics
@@ -422,10 +422,10 @@ class SocialContextAI {
     if (!stats) return 'N/A';
     
     const formatted = [];
-    if (stats.priceChange !== undefined) formatted.push(`Price: ${stats.priceChange.toFixed(2)}%`);
-    if (stats.volumeChange !== undefined) formatted.push(`Volume: ${stats.volumeChange.toFixed(2)}%`);
-    if (stats.liquidityChange !== undefined) formatted.push(`Liquidity: ${stats.liquidityChange.toFixed(2)}%`);
-    if (stats.txnChange !== undefined) formatted.push(`Transactions: ${stats.txnChange.toFixed(2)}%`);
+    if (stats.priceChange !== undefined) formatted.push(`Price: ${Number(stats.priceChange).toFixed(2)}%`);
+    if (stats.volumeChange !== undefined) formatted.push(`Volume: ${Number(stats.volumeChange).toFixed(2)}%`);
+    if (stats.liquidityChange !== undefined) formatted.push(`Liquidity: ${Number(stats.liquidityChange).toFixed(2)}%`);
+    if (stats.txnChange !== undefined) formatted.push(`Transactions: ${Number(stats.txnChange).toFixed(2)}%`);
     
     return formatted.length > 0 ? formatted.join(', ') : 'N/A';
   }
@@ -450,9 +450,9 @@ class SocialContextAI {
     
     // Check for recent price movements
     if (tokenData.priceChange24h > 50) {
-      events.push(`+${tokenData.priceChange24h.toFixed(1)}% price surge in 24h`);
+      events.push(`+${Number(tokenData.priceChange24h).toFixed(2)}% price surge in 24h`);
     } else if (tokenData.priceChange24h < -30) {
-      events.push(`${tokenData.priceChange24h.toFixed(1)}% price drop in 24h`);
+      events.push(`${Number(tokenData.priceChange24h).toFixed(2)}% price drop in 24h`);
     }
     
     // Check for social momentum
@@ -815,7 +815,7 @@ class SocialContextAI {
     const priceChange5m = stats5m.priceChange || 0;
     
     if (Math.abs(priceChange1h) > 10 || Math.abs(priceChange5m) > 5) {
-      factors.push(`Short-term volatility: Price ${priceChange1h > 0 ? 'pumping' : 'dumping'} ${Math.abs(priceChange1h).toFixed(1)}% in 1h, volume ${volumeChange1h > 0 ? 'surging' : 'drying up'} ${volumeChange1h.toFixed(1)}% — possible whale moves or exit liquidity`);
+      factors.push(`Short-term volatility: Price ${priceChange1h > 0 ? 'pumping' : 'dumping'} ${Math.abs(priceChange1h).toFixed(2)}% in 1h, volume ${volumeChange1h > 0 ? 'surging' : 'drying up'} ${volumeChange1h.toFixed(2)}% — possible whale moves or exit liquidity`);
     }
     
     // Buy vs Sell pressure analysis
@@ -939,28 +939,28 @@ class SocialContextAI {
     const volumeChange1h = stats1h.volumeChange || 0;
     
     if (priceChange1h < -15 && volumeChange1h < -50) {
-      redFlags.push(`Dump in progress: ${priceChange1h.toFixed(1)}% price drop with ${volumeChange1h.toFixed(1)}% volume collapse — possible rug or whale exit`);
+      redFlags.push(`Dump in progress: ${priceChange1h.toFixed(2)}% price drop with ${volumeChange1h.toFixed(2)}% volume collapse — possible rug or whale exit`);
     }
     
     // Volume red flags
     const volumeChange24h = stats24h.volumeChange || 0;
     if (volumeChange24h < -70) {
-      redFlags.push(`Interest evaporating: Volume crashed ${volumeChange24h.toFixed(1)}% in 24h — hype cycle ending, degens moving on`);
+      redFlags.push(`Interest evaporating: Volume crashed ${volumeChange24h.toFixed(2)}% in 24h — hype cycle ending, degens moving on`);
     }
     
     // Sell volume dominance
     if (sellVolume24h > buyVolume24h * 1.5) {
-      redFlags.push(`Heavy distribution: $${(sellVolume24h/1e6).toFixed(1)}M sells vs $${(buyVolume24h/1e6).toFixed(1)}M buys — insiders or whales dumping bags`);
+      redFlags.push(`Heavy distribution: $${(sellVolume24h/1e6).toFixed(2)}M sells vs $${(buyVolume24h/1e6).toFixed(2)}M buys — insiders or whales dumping bags`);
     }
     
     // Liquidity red flags
     if (liquidity < 50000) {
-      redFlags.push(`Rug risk extreme: Only $${(liquidity/1000).toFixed(0)}K liquidity — one whale move could nuke this to zero`);
+      redFlags.push(`Rug risk extreme: Only $${(liquidity/1000).toFixed(2)}K liquidity — one whale move could nuke this to zero`);
     }
     
     // Holder exodus
     if (holderChange24h < -15) {
-      redFlags.push(`Mass exodus: ${holderChange24h.toFixed(1)}% holders dumping — confidence shattered, bags getting too heavy`);
+      redFlags.push(`Mass exodus: ${holderChange24h.toFixed(2)}% holders dumping — confidence shattered, bags getting too heavy`);
     }
     
     // Social red flags
@@ -1113,8 +1113,8 @@ class SocialContextAI {
    * Format percentage values for display (handles null/undefined)
    */
   formatPercentage(num) {
-    if (num === null || num === undefined || isNaN(num)) return '0';
-    return num.toFixed(2);
+    if (num === null || num === undefined || isNaN(num)) return '0.00';
+    return Number(num).toFixed(2);
   }
 
   /**

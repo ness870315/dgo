@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { BarChart3, Star, TrendingUp, Activity, Wallet, Users, Calendar, Award, Target, Crown, ArrowLeft, Plus, Zap, Edit, Trash, Brain, Info, AlertTriangle, CheckCircle, TrendingDown, Clock, Gauge } from 'lucide-react';
+import { BarChart3, Star, TrendingUp, Activity, Wallet, Users, Calendar, Award, Target, Crown, ArrowLeft, Plus, Zap, Edit, Trash, Brain, Info, AlertTriangle, CheckCircle, TrendingDown, Clock, Gauge, HelpCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import TokenDetails from './TokenDetails';
 import hypeService from '../services/hypeService';
@@ -7,6 +7,7 @@ import priorityService from '../services/priorityService';
 import leaderboardService from '../services/leaderboardService';
 import KolCallsModal from './KolCallsModal';
 import watchlistService from '../services/watchlistService';
+import KOLLeaderboardGuide from './KOLLeaderboardGuide';
 
 const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigateToUpdateToken, onNavigateToPremium }) => {
   const { user, sessionId } = useAuth();
@@ -38,6 +39,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   const [hypeAIData, setHypeAIData] = useState(null);
   const [hypeAILoading, setHypeAILoading] = useState(false);
   const [hoveredTooltip, setHoveredTooltip] = useState(null);
+  const [showLeaderboardGuide, setShowLeaderboardGuide] = useState(false);
   const [selectedKolUser, setSelectedKolUser] = useState(null);
   const [kolStats, setKolStats] = useState(null);
   const [kolCalls, setKolCalls] = useState([]);
@@ -47,6 +49,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   // DGO Followers/Following
   const [dgoFollowers, setDgoFollowers] = useState([]);
   const [dgoFollowing, setDgoFollowing] = useState([]);
+  const [dgoFollowingUsers, setDgoFollowingUsers] = useState([]);
   const [dgoFollowersLoading, setDgoFollowersLoading] = useState(false);
   const [showFollowersModal, setShowFollowersModal] = useState(false);
   const [showFollowingModal, setShowFollowingModal] = useState(false);
@@ -71,8 +74,95 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
       console.log('Raw following:', data.following);
       
       if (data.success) {
-        setDgoFollowers(data.followers || []);
-        setDgoFollowing(data.following || []);
+        // Clean up self-follows (users shouldn't follow themselves)
+        const cleanFollowers = (data.followers || []).filter(id => id !== user?.id);
+        const cleanFollowing = (data.following || []).filter(id => id !== user?.id);
+        
+        console.log('🧹 Cleaned followers:', cleanFollowers);
+        console.log('🧹 Cleaned following:', cleanFollowing);
+        
+        setDgoFollowers(cleanFollowers);
+        setDgoFollowing(cleanFollowing);
+        
+        // Fetch user details for following list
+        if (cleanFollowing.length > 0) {
+          try {
+            const userPromises = cleanFollowing.map(async (userId) => {
+              try {
+                console.log(`🔍 Fetching profile for user ID: ${userId}`);
+                
+                // Try multiple methods to get user profile data
+                let userData = null;
+                
+                // Method 1: Try leaderboard service
+                try {
+                  const profile = await leaderboardService.getUserProfile(userId);
+                  userData = profile?.user || profile;
+                  console.log(`📋 Leaderboard profile for ${userId}:`, userData);
+                } catch (leaderboardError) {
+                  console.warn(`⚠️ Leaderboard service failed for ${userId}:`, leaderboardError);
+                }
+                
+                // Method 2: If no data from leaderboard, try direct API call
+                if (!userData || !userData.username || userData.username.startsWith('user_')) {
+                  try {
+                    const directResponse = await fetch(`${API_BASE}/api/kol/${encodeURIComponent(userId)}/profile`);
+                    if (directResponse.ok) {
+                      const directData = await directResponse.json();
+                      userData = directData?.user || directData;
+                      console.log(`📋 Direct API profile for ${userId}:`, userData);
+                    }
+                  } catch (directError) {
+                    console.warn(`⚠️ Direct API failed for ${userId}:`, directError);
+                  }
+                }
+                
+                // Method 3: If still no real data, use generic fallback
+                if (!userData || !userData.username || userData.username.startsWith('user_')) {
+                  console.warn(`⚠️ No real profile data found for user ${userId}, using generic fallback`);
+                  return {
+                    id: userId,
+                    username: `user_${String(userId).slice(-6)}`,
+                    displayName: `User ${String(userId).slice(-6)}`,
+                    profileImage: null
+                  };
+                }
+                
+                // Use actual X profile data
+                const username = userData.username || `user_${String(userId).slice(-6)}`;
+                const displayName = userData.displayName || userData.username || `User ${String(userId).slice(-6)}`;
+                const profileImage = userData.profileImage || null;
+                
+                console.log(`✅ Final user ${userId} profile data:`, { username, displayName, profileImage });
+                
+                return {
+                  id: userData.id || userId,
+                  username: username,
+                  displayName: displayName,
+                  profileImage: profileImage
+                };
+                
+              } catch (error) {
+                console.warn(`❌ All methods failed for user ${userId}:`, error);
+                return {
+                  id: userId,
+                  username: `user_${String(userId).slice(-6)}`,
+                  displayName: `User ${String(userId).slice(-6)}`,
+                  profileImage: null
+                };
+              }
+            });
+            
+            const userDetails = await Promise.all(userPromises);
+            console.log('👥 Final user details for following:', userDetails);
+            setDgoFollowingUsers(userDetails);
+          } catch (error) {
+            console.error('❌ Failed to fetch following user details:', error);
+            setDgoFollowingUsers([]);
+          }
+        } else {
+          setDgoFollowingUsers([]);
+        }
       }
     } catch (error) {
       console.error('Failed to load DGO followers:', error);
@@ -324,6 +414,35 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
       }
     })();
   }, [seasonMonth]);
+
+  // Load hype data when a token is selected
+  useEffect(() => {
+    (async () => {
+      if (!selectedHypeToken?.contractAddress) {
+        setHypeSeries([]);
+        return;
+      }
+
+      console.log('🔄 Loading hype data for token:', selectedHypeToken.symbol, selectedHypeToken.contractAddress);
+      
+      try {
+        const res = await hypeService.getHype(selectedHypeToken.contractAddress, hypeRange);
+        console.log('📊 Hype data response:', res);
+        setHypeSeries(res.data || []);
+      } catch (e) {
+        console.error('❌ Hype fetch error:', e);
+        // @ts-ignore
+        if (e && e.code === 'limit_exceeded') {
+          const upgrade = window.confirm('🚀 ' + e.message + '\n\nWould you like to upgrade now?');
+          if (upgrade && onNavigateToPremium) {
+            onNavigateToPremium();
+          }
+          return;
+        }
+        setHypeSeries([]);
+      }
+    })();
+  }, [selectedHypeToken, hypeRange, onNavigateToPremium]);
 
   if (loading) {
     return (
@@ -621,12 +740,22 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
 
           {/* KOL Leaderboard - TOP RIGHT */}
           <div className="bg-dark-card border border-gray-700 rounded-lg p-6">
-            <div className="flex items-center space-x-2 mb-2">
-              <BarChart3 size={20} className="text-green-400" />
-              <h2 className="text-xl font-semibold text-white">KOL Leaderboard</h2>
-              {!dashboardData.isPremium && (
-                <Crown size={16} className="text-yellow-400" title="Premium Feature" />
-              )}
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center space-x-2">
+                <BarChart3 size={20} className="text-green-400" />
+                <h2 className="text-xl font-semibold text-white">KOL Leaderboard</h2>
+                {!dashboardData.isPremium && (
+                  <Crown size={16} className="text-yellow-400" title="Premium Feature" />
+                )}
+              </div>
+              <button
+                onClick={() => setShowLeaderboardGuide(true)}
+                className="flex items-center gap-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-sm transition-colors"
+                title="How KOL Leaderboard Works"
+              >
+                <HelpCircle size={14} />
+                Help
+              </button>
             </div>
             {dashboardData.isPremium && (
               <div className="flex items-center gap-2 mb-4 text-sm">
@@ -1711,13 +1840,13 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
               <div className="p-4 max-h-96 overflow-y-auto">
                 {dgoFollowersLoading ? (
                   <div className="text-gray-400 text-center">Loading...</div>
-                ) : dgoFollowing.length > 0 ? (
+                ) : dgoFollowingUsers.length > 0 ? (
                   <div className="space-y-2">
-                    {dgoFollowing.map((following, index) => {
-                      const userId = following.id || following;
-                      const userIdStr = String(userId || 'unknown');
-                      const username = `user_${userIdStr.slice(-6)}`;
-                      const displayName = `User ${userIdStr.slice(-6)}`;
+                    {dgoFollowingUsers.map((user, index) => {
+                      const userId = user.id;
+                      const username = user.username || `user_${String(userId).slice(-6)}`;
+                      const displayName = user.displayName || `User ${String(userId).slice(-6)}`;
+                      const profileImage = user.profileImage;
                       
                       return (
                         <button
@@ -1725,18 +1854,12 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                           className="w-full flex items-center space-x-3 p-2 rounded hover:bg-gray-800 transition-colors"
                           onClick={async () => {
                             try {
-                              const profile = await leaderboardService.getUserProfile(userId);
-                              const basic = profile?.user || { 
-                                id: userId, 
-                                username: username, 
-                                displayName: displayName 
-                              };
                               setSelectedKolUser({
                                 id: userId,
                                 userId: userId,
-                                username: basic.username,
-                                displayName: basic.displayName,
-                                profileImage: basic.profileImage || null,
+                                username: username,
+                                displayName: displayName,
+                                profileImage: profileImage || null,
                                 rank: undefined,
                                 score: undefined,
                                 callCount: undefined
@@ -1747,9 +1870,17 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                             }
                           }}
                         >
-                          <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
-                            <span className="text-white text-xs font-bold">{String(userId).slice(-2).toUpperCase()}</span>
-                          </div>
+                          {profileImage ? (
+                            <img 
+                              src={profileImage} 
+                              alt={displayName} 
+                              className="w-8 h-8 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                              <span className="text-white text-xs font-bold">{String(userId).slice(-2).toUpperCase()}</span>
+                            </div>
+                          )}
                           <div className="flex-1 text-left">
                             <div className="text-white font-medium">@{username}</div>
                             <div className="text-gray-400 text-sm">{displayName}</div>
@@ -1764,6 +1895,13 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
               </div>
             </div>
           </div>
+        )}
+
+        {/* KOL Leaderboard Guide */}
+        {showLeaderboardGuide && (
+          <KOLLeaderboardGuide
+            onClose={() => setShowLeaderboardGuide(false)}
+          />
         )}
       </div>
     </div>

@@ -621,6 +621,8 @@ class EnhancedBackend {
         const { contract } = req.params;
         const { range, sessionId } = req.query; // 1d | 3d | 7d | 15d | 30d
         
+        console.log(`📊 Hype API request: contract=${contract}, range=${range}, sessionId=${sessionId ? 'present' : 'none'}`);
+        
         // Check authentication for premium limits
         if (sessionId) {
           const user = await this.oauthXService.getUserBySession(sessionId);
@@ -631,6 +633,7 @@ class EnhancedBackend {
             if (!isPremium) {
               const viewsThisMonth = await this.oauthXService.db.addHypeViewUsage(user.id, contract);
               if (viewsThisMonth > 5) {
+                console.log(`🚫 Hype limit exceeded for user ${user.id}: ${viewsThisMonth} views`);
                 return res.status(403).json({ 
                   error: 'limit_exceeded',
                   message: 'Free users can only view hype charts for 5 different tokens per month. Upgrade to Premium for unlimited access!' 
@@ -643,7 +646,12 @@ class EnhancedBackend {
         const ranges = { '1d': 1, '3d': 3, '7d': 7, '15d': 15, '30d': 30 };
         const days = ranges[(range || '30d').toLowerCase()] || 30;
         const sinceMs = Date.now() - days * 24 * 60 * 60 * 1000;
+        
+        console.log(`📊 Fetching hype data: ${days} days, sinceMs=${new Date(sinceMs).toISOString()}`);
+        
         const snaps = await this.hypeService.getSnapshots(contract, sinceMs);
+        console.log(`📊 Retrieved ${snaps.length} hype snapshots for ${contract}`);
+        
         res.json({ contract, range: `${days}d`, data: snaps });
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Hype snapshots error:', error.message);
@@ -1738,15 +1746,61 @@ class EnhancedBackend {
     this.app.get('/api/kol/:userId/profile', async (req, res) => {
       try {
         const { userId } = req.params;
-        const user = await this.oauthXService.getUserById(userId);
-        if (!user) return res.status(404).json({ success: false, error: 'User not found' });
-        res.json({ success: true, user: {
+        let user = await this.oauthXService.getUserById(userId);
+        
+        if (!user) {
+          return res.status(404).json({ success: false, error: 'User not found' });
+        }
+        
+        // Debug: Log what user data we have
+        console.log(`🔍 User ${userId} profile data:`, {
           id: user.id,
           username: user.username,
-          displayName: user.displayName || user.username,
+          displayName: user.displayName,
+          profileImage: user.profileImage,
+          hasSessionId: !!user.sessionId
+        });
+        
+        // If user data exists but doesn't have X profile info, try to fetch it
+        if (user && (!user.username || user.username.startsWith('user_') || !user.profileImage)) {
+          console.log(`🔄 User ${userId} missing X profile data, attempting to fetch...`);
+          
+          // Try to get fresh X profile data if we have access token
+          if (user.sessionId) {
+            try {
+              const freshUser = await this.oauthXService.getUserBySession(user.sessionId);
+              if (freshUser && freshUser.username && !freshUser.username.startsWith('user_')) {
+                console.log(`✅ Found fresh X data for user ${userId}:`, freshUser.username);
+                user = freshUser;
+              }
+            } catch (fetchError) {
+              console.warn(`⚠️ Could not fetch fresh X data for user ${userId}:`, fetchError.message);
+            }
+          } else {
+            console.warn(`⚠️ User ${userId} has no sessionId, trying global users index...`);
+            
+            // Try to get user data from global users index
+            try {
+              const globalUsers = await this.oauthXService.db.getAllUsers();
+              const globalUser = globalUsers.find(u => u.id === userId);
+              if (globalUser && globalUser.username && !globalUser.username.startsWith('user_')) {
+                console.log(`✅ Found user ${userId} in global index:`, globalUser.username);
+                user = globalUser;
+              }
+            } catch (globalError) {
+              console.warn(`⚠️ Could not fetch from global users index for user ${userId}:`, globalError.message);
+            }
+          }
+        }
+        
+        res.json({ success: true, user: {
+          id: user.id,
+          username: user.username || `user_${String(userId).slice(-6)}`,
+          displayName: user.displayName || user.username || `User ${String(userId).slice(-6)}`,
           profileImage: user.profileImage || null,
         }});
       } catch (e) {
+        console.error(`❌ KOL profile fetch error for user ${req.params.userId}:`, e);
         res.status(500).json({ success: false, error: 'Failed to fetch profile' });
       }
     });
