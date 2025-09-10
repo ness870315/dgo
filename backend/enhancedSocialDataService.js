@@ -540,7 +540,7 @@ class EnhancedSocialDataService {
           endpoint: '/api/twitter/search',
           params: { 
             q: `#${symbolLower}`, 
-            count: 10, // Increased count for better coverage
+            count: 6, // Optimal count for coverage
             start_time: oneWeekAgo // Only get tweets from last 7 days
           }
         }
