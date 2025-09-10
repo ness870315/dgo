@@ -20,8 +20,8 @@ const ViewToggle = ({ currentView, onViewChange, tokenCount }) => {
   ];
 
   return (
-    <div className="flex items-center space-x-2">
-      <span className="text-sm text-gray-400 mr-2">View:</span>
+    <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
+      <span className="text-xs sm:text-sm text-gray-400">View:</span>
       <div className="flex bg-gray-800 rounded-lg p-1 border border-gray-600">
         {views.map((view) => {
           const Icon = view.icon;
@@ -34,7 +34,7 @@ const ViewToggle = ({ currentView, onViewChange, tokenCount }) => {
               onClick={() => !isDisabled && onViewChange(view.id)}
               disabled={isDisabled}
               className={`
-                flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200
+                flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-all duration-200
                 ${isActive 
                   ? 'bg-solana-purple text-white shadow-lg' 
                   : isDisabled
@@ -44,7 +44,7 @@ const ViewToggle = ({ currentView, onViewChange, tokenCount }) => {
               `}
               title={view.description}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">{view.name}</span>
             </button>
           );
@@ -52,7 +52,7 @@ const ViewToggle = ({ currentView, onViewChange, tokenCount }) => {
       </div>
       
       {/* Token count indicator */}
-      <div className="text-xs text-gray-500 ml-2">
+      <div className="text-xs text-gray-500">
         {tokenCount} tokens
       </div>
     </div>

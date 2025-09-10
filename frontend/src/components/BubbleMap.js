@@ -4,6 +4,7 @@ import * as d3 from 'd3';
 const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
   const svgRef = useRef();
   const tooltipRef = useRef();
+  const zoomRef = useRef();
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [zoomTransform, setZoomTransform] = useState(d3.zoomIdentity);
 
@@ -164,6 +165,8 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
         g.attr('transform', `translate(${margin.left},${margin.top}) scale(${event.transform.k}) translate(${event.transform.x},${event.transform.y})`);
       });
 
+    // Store zoom reference for reset function
+    zoomRef.current = zoom;
     svg.call(zoom);
 
     // Create bubbles
@@ -549,10 +552,10 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
   }, [tokens, dimensions, onTokenSelect]);
 
   const resetZoom = () => {
-    if (svgRef.current) {
+    if (svgRef.current && zoomRef.current) {
       const svg = d3.select(svgRef.current);
       svg.transition().duration(750).call(
-        d3.zoom().transform,
+        zoomRef.current.transform,
         d3.zoomIdentity
       );
     }
