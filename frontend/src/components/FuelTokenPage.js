@@ -290,11 +290,59 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
         primaryColor: '#7C3AED',
         neutralColor: '#5A6578',
         display: 'inline',
-        onSuccess: (e) => console.log('Helio success', e),
-        onError: (e) => console.log('Helio error', e),
-        onPending: (e) => console.log('Helio pending', e),
-        onCancel: () => console.log('Cancelled payment'),
-        onStartPayment: () => console.log('Starting payment')
+        onSuccess: async (e) => {
+          console.log('✅ Helio payment success:', e);
+          setPaymentCompleted(true);
+          
+          // Store payment data for fuel application
+          localStorage.setItem('pendingFuelPayment', JSON.stringify({
+            contractAddress: contractAddress.trim(),
+            fuelType: selectedFuel,
+            paymentId: e.paymentId || `fuel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            paymentInitiated: new Date().toISOString(),
+            helioEvent: e
+          }));
+          
+          // Auto-apply fuel after payment success
+          try {
+            console.log('🔥 Auto-applying fuel after payment success...');
+            await handleApplyFuel();
+          } catch (error) {
+            console.error('❌ Error auto-applying fuel:', error);
+            setMessage({ 
+              text: '❌ Payment successful but fuel application failed. Please try again.', 
+              type: 'error' 
+            });
+          }
+        },
+        onError: (e) => {
+          console.error('❌ Helio payment error:', e);
+          setMessage({ 
+            text: '❌ Payment failed. Please try again.', 
+            type: 'error' 
+          });
+        },
+        onPending: (e) => {
+          console.log('⏳ Helio payment pending:', e);
+          setMessage({ 
+            text: '⏳ Payment processing...', 
+            type: 'info' 
+          });
+        },
+        onCancel: () => {
+          console.log('❌ Payment cancelled');
+          setMessage({ 
+            text: 'Payment cancelled', 
+            type: 'info' 
+          });
+        },
+        onStartPayment: () => {
+          console.log('🚀 Starting payment');
+          setMessage({ 
+            text: '🚀 Processing payment...', 
+            type: 'info' 
+          });
+        }
       });
     } catch (err) {
       console.error('Failed to init Helio widget:', err);

@@ -139,7 +139,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
         primaryColor: '#7C3AED',
         neutralColor: '#5A6578',
         display: 'inline',
-        onSuccess: (event) => {
+        onSuccess: async (event) => {
           console.log('✅ Helio payment success:', event);
           setPaymentCompleted(true);
           
@@ -152,10 +152,17 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
             helioEvent: event
           }));
           
-          setFuelMessage({ 
-            text: '✅ Payment successful! Click "Apply Fuel Boost" to activate your fuel.', 
-            type: 'success' 
-          });
+          // Auto-apply fuel after payment success
+          try {
+            console.log('🔥 Auto-applying fuel after payment success...');
+            await handleApplyFuel();
+          } catch (error) {
+            console.error('❌ Error auto-applying fuel:', error);
+            setFuelMessage({ 
+              text: '❌ Payment successful but fuel application failed. Please try again.', 
+              type: 'error' 
+            });
+          }
         },
         onError: (event) => {
           console.error('❌ Helio payment error:', event);
@@ -1699,25 +1706,6 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                 </div>
                 )}
 
-                {/* Apply Fuel Button - Only show when fuel is selected and not in share modal */}
-                {selectedFuel && !showFuelShareModal && (
-                  <div className="bg-gradient-to-r from-orange-900/20 to-red-900/20 border border-orange-500/30 rounded-lg p-4 mb-6">
-                    <h4 className="text-orange-300 font-medium mb-2">🔥 Ready to Apply Fuel</h4>
-                    <p className="text-orange-200 text-sm mb-4">
-                      {paymentCompleted 
-                        ? `Your payment has been processed successfully. Click below to apply the ${selectedFuel} fuel boost to ${token?.symbol}.`
-                        : `Click below to apply ${selectedFuel} fuel to ${token?.symbol}.`
-                      }
-                    </p>
-                    <button
-                      onClick={handleApplyFuel}
-                      disabled={fuelLoading}
-                      className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 disabled:opacity-50"
-                    >
-                      {fuelLoading ? '🔥 Applying Fuel...' : `🔥 Apply ${selectedFuel} Fuel`}
-                    </button>
-                  </div>
-                )}
 
                 {/* Message Display - Only show when not in share modal */}
                 {fuelMessage.text && !showFuelShareModal && (

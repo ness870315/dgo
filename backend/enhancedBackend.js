@@ -6499,6 +6499,12 @@ class EnhancedBackend {
           existingToken.jupiterData = freshJupiterData;
           existingToken.jupiterTimestamp = new Date().toISOString();
           
+          // Mark token as fueled for scoring purposes
+          existingToken.isFueled = true;
+          existingToken.fuelType = fuelType;
+          existingToken.fuelApplied = now.toISOString();
+          existingToken.fuelExpiry = expiryTime.toISOString();
+          
           // Recalculate overall score using existing Twitter data (respecting 24hr rule)
           const newOverallScore = await this.tokenProcessor.calculateEnhancedOverallScore(existingToken);
           
