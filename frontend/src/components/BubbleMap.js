@@ -14,12 +14,18 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
         const containerHeight = container.clientHeight;
         
         // Responsive sizing based on screen size
-        const isMobile = window.innerWidth < 640; // sm breakpoint
-        const isTablet = window.innerWidth >= 640 && window.innerWidth < 1024; // lg breakpoint
+        const screenWidth = window.innerWidth;
+        const isMobile = screenWidth < 640; // sm breakpoint
+        const isTablet = screenWidth >= 640 && screenWidth < 1024; // lg breakpoint
+        const isDesktop = screenWidth >= 1024 && screenWidth < 1440;
+        const isLargeDesktop = screenWidth >= 1440 && screenWidth < 1920;
+        const isUltraWide = screenWidth >= 1920;
         
         let minHeight = 400; // Mobile default
         if (isTablet) minHeight = 500;
-        else if (!isMobile && !isTablet) minHeight = 600; // Desktop
+        else if (isDesktop) minHeight = 600; // Desktop
+        else if (isLargeDesktop) minHeight = 700; // Large desktop
+        else if (isUltraWide) minHeight = 800; // Ultra-wide
         
         setDimensions({
           width: containerWidth,
@@ -56,16 +62,59 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
 
     // Create scales with dynamic sizing based on token count and screen size
     const tokenCount = tokens.length;
-    const isMobile = window.innerWidth < 640;
-    const isTablet = window.innerWidth >= 640 && window.innerWidth < 1024;
+    const screenWidth = window.innerWidth;
+    const isMobile = screenWidth < 640;
+    const isTablet = screenWidth >= 640 && screenWidth < 1024;
+    const isDesktop = screenWidth >= 1024 && screenWidth < 1440;
+    const isLargeDesktop = screenWidth >= 1440 && screenWidth < 1920;
+    const isUltraWide = screenWidth >= 1920;
     
-    // Adjust base sizes for different screen sizes
+    // Base size calculation
     let baseSize = tokenCount <= 10 ? 60 : tokenCount <= 25 ? 40 : tokenCount <= 50 ? 25 : 15;
-    if (isMobile) baseSize *= 0.7; // Smaller bubbles on mobile
-    else if (isTablet) baseSize *= 0.85; // Medium bubbles on tablet
     
-    const maxSize = Math.min(isMobile ? 50 : isTablet ? 65 : 80, baseSize + 20);
-    const minSize = Math.max(6, baseSize - 10);
+    // Scale based on screen size
+    let screenType = 'unknown';
+    if (isMobile) {
+      baseSize *= 0.7; // Smaller bubbles on mobile
+      screenType = 'mobile';
+    } else if (isTablet) {
+      baseSize *= 0.85; // Medium bubbles on tablet
+      screenType = 'tablet';
+    } else if (isDesktop) {
+      baseSize *= 1.0; // Normal size on desktop
+      screenType = 'desktop';
+    } else if (isLargeDesktop) {
+      baseSize *= 1.3; // Larger bubbles on large screens
+      screenType = 'large-desktop';
+    } else if (isUltraWide) {
+      baseSize *= 1.6; // Much larger bubbles on ultra-wide screens
+      screenType = 'ultra-wide';
+    }
+    
+    console.log(`🫧 BubbleMap: Screen detected as ${screenType} (${screenWidth}px), baseSize: ${baseSize.toFixed(1)}`);
+    
+    // Set max and min sizes based on screen size
+    let maxSize, minSize;
+    if (isMobile) {
+      maxSize = 50;
+      minSize = 6;
+    } else if (isTablet) {
+      maxSize = 65;
+      minSize = 8;
+    } else if (isDesktop) {
+      maxSize = 80;
+      minSize = 10;
+    } else if (isLargeDesktop) {
+      maxSize = 100;
+      minSize = 12;
+    } else { // Ultra-wide
+      maxSize = 120;
+      minSize = 15;
+    }
+    
+    // Ensure base size fits within bounds
+    maxSize = Math.min(maxSize, baseSize + 20);
+    minSize = Math.max(minSize, baseSize - 10);
     
     const radiusScale = d3.scaleSqrt()
       .domain(d3.extent(tokens, d => d.score || d.overallScore || 5))
