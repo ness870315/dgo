@@ -567,25 +567,7 @@ class EnhancedTokenProcessor {
             token.communityHealthScore = this.socialDataService.calculateCommunityHealthScore(twitterData);
             token.stage = 'twitter';
             
-            // 🚨 NEW: Collect hype snapshot for historical analysis
-            try {
-              if (token.contractAddress && token.communityHealthScore) {
-                await this.hypeService.appendSnapshot(token.contractAddress, {
-                  score: token.communityHealthScore,
-                  mentions: twitterData.mentions || 0,
-                  twitterMentions: twitterData.mentions || 0,
-                  engagement: (twitterData.likes || 0) + (twitterData.retweets || 0) + (twitterData.replies || 0),
-                  followers: twitterData.followers || 0,
-                  organicScore: token.jupiterData?.organicScore || token.organicScore || 0,
-                  volume24h: token.jupiterData?.volume24h || token.volume24h || 0,
-                  priceChange24h: token.jupiterData?.priceChange24h || token.priceChange24h || 0,
-                  label: this.getHypeLabel(token.communityHealthScore)
-                });
-                console.log(`📸 Hype snapshot saved for ${symbol} (score: ${token.communityHealthScore.toFixed(1)})`);
-              }
-            } catch (snapshotError) {
-              console.error(`❌ Failed to save hype snapshot for ${symbol}:`, snapshotError.message);
-            }
+            // Note: Hype snapshots are created during the scoring stage, not here
 
             // Only apply 72h cooldown if we got fresh data, not rate-limited cached data
             const dataFreshness = twitterData._dataFreshness || 'unknown';
@@ -717,16 +699,31 @@ class EnhancedTokenProcessor {
           token.stage = 'scoring';
           token.scoringTimestamp = new Date().toISOString();
           
-          // Persist hype snapshot (hourly min, 30d retention)
+          // Persist hype snapshot (hourly min, 30d retention) - AFTER overall score calculation
           try {
             const contractAddress = token.contractAddress;
-            const mentions = token.mentions || token.twitterData?.mentions || 0;
-            const followers = token.twitterData?.followers || 0;
-            const engagement = (token.twitterData?.likes || 0) + (token.twitterData?.retweets || 0) + (token.twitterData?.replies || 0);
-            const score = enhancedScore || 0;
-            const label = score >= 8 ? 'Viral' : score >= 5 ? 'Trending' : score >= 3 ? 'Building' : 'Sleeping';
             if (contractAddress) {
-              await this.hypeService.appendSnapshot(contractAddress, { score, label, mentions, followers, engagement });
+              const mentions = token.mentions || token.twitterData?.mentions || 0;
+              const followers = token.twitterData?.followers || 0;
+              const engagement = (token.twitterData?.likes || 0) + (token.twitterData?.retweets || 0) + (token.twitterData?.replies || 0);
+              const score = enhancedScore || 0;
+              const label = score >= 8 ? 'Viral' : score >= 5 ? 'Trending' : score >= 3 ? 'Building' : 'Sleeping';
+              
+              await this.hypeService.appendSnapshot(contractAddress, {
+                score: score,
+                label: label,
+                mentions: mentions,
+                twitterMentions: mentions,
+                engagement: engagement,
+                followers: followers,
+                organicScore: token.jupiterData?.organicScore || token.organicScore || 0,
+                volume24h: token.jupiterData?.volume24h || token.volume24h || 0,
+                priceChange24h: token.jupiterData?.priceChange24h || token.priceChange24h || 0,
+                communityHealthScore: token.communityHealthScore || 0,
+                overallScore: enhancedScore || 0
+              });
+              
+              console.log(`📸 Hype snapshot saved for ${token.symbol} (overall score: ${score.toFixed(1)}, community: ${token.communityHealthScore?.toFixed(1) || 'N/A'})`);
             }
           } catch (snapErr) {
             console.log(`⚠️ Hype snapshot save failed for ${token.symbol}: ${snapErr.message}`);
