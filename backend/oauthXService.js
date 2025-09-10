@@ -168,8 +168,8 @@ class OAuthXService {
         throw new Error('User not found');
       }
 
-      user.twitterPostingEnabled = enabled;
-      await this.saveUser(user);
+      // Use the existing updateUser method instead of non-existent saveUser
+      await this.updateUser(userId, { twitterPostingEnabled: enabled });
       
       console.log(`🐦 Twitter posting ${enabled ? 'enabled' : 'disabled'} for user ${userId}`);
       return true;
