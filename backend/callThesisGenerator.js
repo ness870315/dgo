@@ -120,6 +120,10 @@ class CallThesisGenerator {
    * Build thesis prompt based on tone
    */
   buildThesisPrompt(templateVars, tone) {
+    // Get random call announcement and ending phrase
+    const callAnnouncement = this.getRandomCallAnnouncement();
+    const endingPhrase = this.getRandomEndingPhrase();
+    
     const basePrompt = `You are DeGen Oracle's AI analyst generating a compelling thesis for a KOL call post. 
 
 TOKEN: ${templateVars.symbol} (${templateVars.name})
@@ -140,18 +144,58 @@ SOCIAL METRICS:
 - Engagement Rate: ${templateVars.engagementRate}%
 
 Generate a ${tone} thesis that:
-1. Is 1-2 sentences max (for Twitter)
-2. Uses heavy crypto slang and degen terminology
-3. References specific metrics from our analytics
-4. Sounds like a confident KOL making a call
-5. Ends with "Track it on degen-oracle.com — let's see where this goes. NFA"
+1. Starts with: "${callAnnouncement} $${templateVars.symbol} at $${templateVars.marketCap}M MC"
+2. Follows with: "Thesis: [your AI-generated thesis here]"
+3. Is 1-2 sentences max (for Twitter)
+4. Uses heavy crypto slang and degen terminology
+5. References specific metrics from our analytics
+6. Sounds like a confident KOL making a call
+7. Ends with: "${endingPhrase}"
 
 TONE GUIDELINES:
 ${this.getToneGuidelines(tone)}
 
-Respond with ONLY the thesis text, no quotes or formatting.`;
+Respond with ONLY the complete thesis text, no quotes or formatting.`;
 
     return basePrompt;
+  }
+
+  /**
+   * Get random call announcement variation
+   */
+  getRandomCallAnnouncement() {
+    const announcements = [
+      "I am calling",
+      "Calling",
+      "Going long on",
+      "Taking a position in",
+      "Backing",
+      "Supporting",
+      "Riding with",
+      "Diamond handing",
+      "Stacking",
+      "Loading up on"
+    ];
+    return announcements[Math.floor(Math.random() * announcements.length)];
+  }
+
+  /**
+   * Get random ending phrase variation
+   */
+  getRandomEndingPhrase() {
+    const endings = [
+      "Track it on degen-oracle.com — this could be the next 100x gem. NFA",
+      "Follow the alpha on @oracle_degen1 — we're early. NFA",
+      "Check degen-oracle.com for updates — diamond hands only. NFA",
+      "Track on @oracle_degen1 — this narrative is building. NFA",
+      "Follow the journey on degen-oracle.com — not financial advice. NFA",
+      "Track it on @oracle_degen1 — let's see how this plays out. NFA",
+      "Check degen-oracle.com — this could be massive. NFA",
+      "Follow on @oracle_degen1 — early but promising. NFA",
+      "Track on degen-oracle.com — high conviction play. NFA",
+      "Follow the alpha on @oracle_degen1 — DYOR but this looks solid. NFA"
+    ];
+    return endings[Math.floor(Math.random() * endings.length)];
   }
 
   /**
@@ -195,9 +239,10 @@ Respond with ONLY the thesis text, no quotes or formatting.`;
     // Remove quotes if present
     thesis = thesis.replace(/^["']|["']$/g, '');
     
-    // Ensure it ends with the required phrase
-    if (!thesis.includes('Track it on degen-oracle.com')) {
-      thesis += ' Track it on degen-oracle.com — let\'s see where this goes. NFA';
+    // The AI should now include the ending phrase in its response
+    // If it doesn't, add a fallback ending
+    if (!thesis.includes('degen-oracle.com') && !thesis.includes('@oracle_degen1')) {
+      thesis += ' ' + this.getRandomEndingPhrase();
     }
     
     return thesis;
@@ -209,12 +254,14 @@ Respond with ONLY the thesis text, no quotes or formatting.`;
   generateFallbackThesis(tokenData, callData, tone) {
     const symbol = tokenData.symbol || 'Unknown';
     const marketCap = this.formatNumber(callData.calledMc || 0);
+    const callAnnouncement = this.getRandomCallAnnouncement();
+    const endingPhrase = this.getRandomEndingPhrase();
     
     const fallbacks = {
-      bullish: `Calling $${symbol} at $${marketCap}M MC. Thesis: Strong momentum with growing community and positive analytics signals. Track it on degen-oracle.com — let's see where this goes. NFA`,
-      cautious: `Calling $${symbol} at $${marketCap}M MC. Thesis: Early play with potential - high risk, high reward opportunity. Track it on degen-oracle.com — let's see where this goes. NFA`,
-      technical: `Calling $${symbol} at $${marketCap}M MC. Thesis: Technical breakout with volume confirmation and strong fundamentals. Track it on degen-oracle.com — let's see where this goes. NFA`,
-      narrative: `Calling $${symbol} at $${marketCap}M MC. Thesis: Community narrative building with organic growth and engagement. Track it on degen-oracle.com — let's see where this goes. NFA`
+      bullish: `${callAnnouncement} $${symbol} at $${marketCap}M MC. Thesis: Strong momentum with growing community and positive analytics signals. ${endingPhrase}`,
+      cautious: `${callAnnouncement} $${symbol} at $${marketCap}M MC. Thesis: Early play with potential - high risk, high reward opportunity. ${endingPhrase}`,
+      technical: `${callAnnouncement} $${symbol} at $${marketCap}M MC. Thesis: Technical breakout with volume confirmation and strong fundamentals. ${endingPhrase}`,
+      narrative: `${callAnnouncement} $${symbol} at $${marketCap}M MC. Thesis: Community narrative building with organic growth and engagement. ${endingPhrase}`
     };
 
     return fallbacks[tone] || fallbacks.bullish;
@@ -224,7 +271,9 @@ Respond with ONLY the thesis text, no quotes or formatting.`;
    * Get default thesis
    */
   getDefaultThesis() {
-    return "Calling this token based on our analytics engine signals. Track it on degen-oracle.com — let's see where this goes. NFA";
+    const callAnnouncement = this.getRandomCallAnnouncement();
+    const endingPhrase = this.getRandomEndingPhrase();
+    return `${callAnnouncement} this token based on our analytics engine signals. ${endingPhrase}`;
   }
 
   /**
@@ -238,7 +287,10 @@ Respond with ONLY the thesis text, no quotes or formatting.`;
     const athMultiplier = currentStats.athMultiplier || 0;
     const timeSinceCall = this.getTimeSinceCall(callData.calledAt);
     
-    return `Called $${symbol} at $${initialMC}M MC — now $${currentMC}M (${multiplier.toFixed(2)}×). ATH since call: ${athMultiplier.toFixed(2)}× in ${timeSinceCall}. ${callData.thesis || 'Thesis: Based on our analytics engine signals.'} Track my calls on @oracle_degen1 : https://degen-oracle.com`;
+    // Get random milestone narrative
+    const milestoneNarrative = this.getRandomMilestoneNarrative(milestone, multiplier, athMultiplier);
+    
+    return `🚀 MILESTONE HIT! Called $${symbol} at $${initialMC}M MC — now $${currentMC}M (${multiplier.toFixed(2)}×). ATH since call: ${athMultiplier.toFixed(2)}× in ${timeSinceCall}. ${milestoneNarrative} Track my calls on @oracle_degen1 : https://degen-oracle.com`;
   }
 
   /**
@@ -252,7 +304,48 @@ Respond with ONLY the thesis text, no quotes or formatting.`;
     const athMultiplier = currentStats.athMultiplier || 0;
     const timeSinceCall = this.getTimeSinceCall(callData.calledAt);
     
-    return `$${symbol} Update: Called at $${initialMC}M MC, now $${currentMC}M (${multiplier.toFixed(2)}×). ATH: ${athMultiplier.toFixed(2)}× in ${timeSinceCall}. ${callData.thesis || 'Thesis: Based on our analytics engine signals.'} Track my calls on @oracle_degen1 : https://degen-oracle.com`;
+    // Get random share narrative
+    const shareNarrative = this.getRandomShareNarrative(multiplier, athMultiplier);
+    
+    return `$${symbol} Update: Called at $${initialMC}M MC, now $${currentMC}M (${multiplier.toFixed(2)}×). ATH: ${athMultiplier.toFixed(2)}× in ${timeSinceCall}. ${shareNarrative} Track my calls on @oracle_degen1 : https://degen-oracle.com`;
+  }
+
+  /**
+   * Get random milestone narrative based on performance
+   */
+  getRandomMilestoneNarrative(milestone, multiplier, athMultiplier) {
+    const narratives = [
+      `This is why we diamond hand! The narrative is playing out exactly as predicted.`,
+      `Called it! The community saw the vision and now we're all winning together.`,
+      `Early calls pay off! This is what happens when you trust the analytics.`,
+      `Narrative + data = profit. The thesis is unfolding perfectly.`,
+      `From early call to milestone hit - this is how you build wealth in crypto.`,
+      `The community knew what was up! This is just the beginning of the run.`,
+      `Data doesn't lie! Our analytics engine called this move perfectly.`,
+      `This is why we do the research. The thesis is playing out beautifully.`,
+      `From call to moon - this is how you spot the next 100x gem early.`,
+      `The narrative is building and the price is following. This is crypto alpha.`
+    ];
+    return narratives[Math.floor(Math.random() * narratives.length)];
+  }
+
+  /**
+   * Get random share narrative based on performance
+   */
+  getRandomShareNarrative(multiplier, athMultiplier) {
+    const narratives = [
+      `The thesis is playing out - community momentum is building.`,
+      `Early call paying dividends! The narrative is gaining traction.`,
+      `Data-driven calls = consistent wins. This is how you alpha.`,
+      `The community is waking up to the potential here.`,
+      `From call to current - the analytics were spot on.`,
+      `Narrative + momentum = profit. This is crypto at its finest.`,
+      `The thesis is unfolding exactly as predicted.`,
+      `Community engagement is driving the price action.`,
+      `Early calls lead to big wins. This is the way.`,
+      `The data doesn't lie - this was always going to pump.`
+    ];
+    return narratives[Math.floor(Math.random() * narratives.length)];
   }
 
   /**
