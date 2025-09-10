@@ -71,45 +71,47 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
   };
 
   return (
-    <div className="flex items-center space-x-2 relative">
-      <span className="text-sm text-gray-400 mr-2">Categories:</span>
-      {Object.entries(categories)
-        .filter(([key]) => key !== 'volatile' && key !== 'stable')
-        .map(([key, value]) => {
-        const tooltipContent = getTooltipContent(key);
-        return (
-          <div key={key} className="relative">
-            <button
-              onClick={() => handleCategoryToggle(key)}
-              onMouseEnter={() => setHoveredFilter(key)}
-              onMouseLeave={() => setHoveredFilter(null)}
-              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-                value
-                  ? 'bg-solana-purple text-white'
-                  : 'bg-dark-bg text-gray-400 hover:text-white border border-gray-600'
-              }`}
-            >
-              {key === 'trending' && '🔥 Trending'}
-              {key === 'cults' && '🏛️ Cults'}
-              {key === 'highCap' && '🏦 High Cap'}
-              {key === 'midCap' && '🏢 Mid Cap'}
-              {key === 'smallCap' && '💎 Small Cap'}
-              {key === 'microCap' && '🔍 Micro Cap'}
-              {/* volatile/stable removed */}
-            </button>
+    <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 relative">
+      <span className="text-xs sm:text-sm text-gray-400 mr-0 sm:mr-2 flex-shrink-0">Categories:</span>
+      <div className="flex flex-wrap gap-1 sm:gap-2">
+        {Object.entries(categories)
+          .filter(([key]) => key !== 'volatile' && key !== 'stable')
+          .map(([key, value]) => {
+          const tooltipContent = getTooltipContent(key);
+          return (
+            <div key={key} className="relative">
+              <button
+                onClick={() => handleCategoryToggle(key)}
+                onMouseEnter={() => setHoveredFilter(key)}
+                onMouseLeave={() => setHoveredFilter(null)}
+                className={`px-1.5 sm:px-2 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
+                  value
+                    ? 'bg-solana-purple text-white'
+                    : 'bg-dark-bg text-gray-400 hover:text-white border border-gray-600'
+                }`}
+              >
+                {key === 'trending' && '🔥 Trending'}
+                {key === 'cults' && '🏛️ Cults'}
+                {key === 'highCap' && '🏦 High Cap'}
+                {key === 'midCap' && '🏢 Mid Cap'}
+                {key === 'smallCap' && '💎 Small Cap'}
+                {key === 'microCap' && '🔍 Micro Cap'}
+                {/* volatile/stable removed */}
+              </button>
 
-            {/* Tooltip Modal (matching BubbleMap design) */}
-            {hoveredFilter === key && (
-              <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-50">
-                <div className="text-xs leading-tight">
-                  <span className="font-semibold text-white">{tooltipContent.title}:</span>
-                  <span className="text-gray-300 ml-1">{tooltipContent.description}</span>
+              {/* Tooltip Modal (matching BubbleMap design) */}
+              {hoveredFilter === key && (
+                <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-50">
+                  <div className="text-xs leading-tight">
+                    <span className="font-semibold text-white">{tooltipContent.title}:</span>
+                    <span className="text-gray-300 ml-1">{tooltipContent.description}</span>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        );
-      })}
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };

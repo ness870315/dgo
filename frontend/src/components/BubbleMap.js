@@ -10,9 +10,20 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
     const handleResize = () => {
       const container = svgRef.current?.parentElement;
       if (container) {
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+        
+        // Responsive sizing based on screen size
+        const isMobile = window.innerWidth < 640; // sm breakpoint
+        const isTablet = window.innerWidth >= 640 && window.innerWidth < 1024; // lg breakpoint
+        
+        let minHeight = 400; // Mobile default
+        if (isTablet) minHeight = 500;
+        else if (!isMobile && !isTablet) minHeight = 600; // Desktop
+        
         setDimensions({
-          width: container.clientWidth,
-          height: Math.max(600, container.clientHeight)
+          width: containerWidth,
+          height: Math.max(minHeight, containerHeight)
         });
       }
     };
@@ -43,11 +54,18 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
 
-    // Create scales with dynamic sizing based on token count
+    // Create scales with dynamic sizing based on token count and screen size
     const tokenCount = tokens.length;
-    const baseSize = tokenCount <= 10 ? 60 : tokenCount <= 25 ? 40 : tokenCount <= 50 ? 25 : 15;
-    const maxSize = Math.min(80, baseSize + 20);
-    const minSize = Math.max(8, baseSize - 10);
+    const isMobile = window.innerWidth < 640;
+    const isTablet = window.innerWidth >= 640 && window.innerWidth < 1024;
+    
+    // Adjust base sizes for different screen sizes
+    let baseSize = tokenCount <= 10 ? 60 : tokenCount <= 25 ? 40 : tokenCount <= 50 ? 25 : 15;
+    if (isMobile) baseSize *= 0.7; // Smaller bubbles on mobile
+    else if (isTablet) baseSize *= 0.85; // Medium bubbles on tablet
+    
+    const maxSize = Math.min(isMobile ? 50 : isTablet ? 65 : 80, baseSize + 20);
+    const minSize = Math.max(6, baseSize - 10);
     
     const radiusScale = d3.scaleSqrt()
       .domain(d3.extent(tokens, d => d.score || d.overallScore || 5))

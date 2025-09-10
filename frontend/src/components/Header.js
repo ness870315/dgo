@@ -39,26 +39,26 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
 
   return (
     <header className="bg-dark-card border-b border-solana-purple">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between py-3 lg:py-0 lg:h-16 space-y-3 lg:space-y-0">
           {/* Logo and Title */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4">
             <div className="flex items-center space-x-2">
               {/* DeGen Oracle Logo */}
               <img
                 src={dgoLogo}
                 alt="DeGen Oracle Logo"
-                className="w-8 h-8"
+                className="w-6 h-6 sm:w-8 sm:h-8"
                 onError={(e) => {
                   console.error('Logo failed to load:', e);
                   e.target.style.display = 'none';
                 }}
               />
               <div>
-                <h1 className="text-2xl font-bold text-white">
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">
                   <span className="text-solana-purple">DeGen</span> Oracle
                 </h1>
-                <p className="text-sm text-gray-400 -mt-1">
+                <p className="text-xs sm:text-sm text-gray-400 -mt-1 hidden sm:block">
                   Spot the Next Cult Before it Goes Viral
                 </p>
               </div>
@@ -66,53 +66,49 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
           </div>
 
           {/* Search and Controls */}
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 lg:space-x-4">
             {/* Search Bar */}
-            <div className="relative">
+            <div className="relative flex-1 sm:flex-none">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
+                <Search className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
               </div>
               <input
                 type="text"
-                placeholder="Search tokens, names, or contract addresses..."
+                placeholder="Search tokens..."
                 value={searchTerm}
                 onChange={handleSearchChange}
-                className="block w-80 pl-10 pr-3 py-2 border border-gray-600 rounded-md leading-5 bg-dark-bg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-solana-purple focus:border-solana-purple"
+                className="block w-full sm:w-64 lg:w-80 pl-8 sm:pl-10 pr-3 py-2 text-sm border border-gray-600 rounded-md leading-5 bg-dark-bg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-solana-purple focus:border-solana-purple"
               />
             </div>
 
-            {/* Filters removed per request */}
+            {/* Control Buttons */}
+            <div className="flex items-center justify-center space-x-2">
+              {/* Refresh Button */}
+              <button
+                onClick={onRefresh}
+                disabled={isLoading}
+                className={`p-2 rounded-md border border-gray-600 text-gray-400 hover:text-white hover:border-gray-500 transition-colors ${
+                  isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                title="Refresh data"
+              >
+                <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+              </button>
 
+              {/* Watchlist Button */}
+              <button
+                onClick={onWatchlistClick}
+                className="p-2 rounded-md border border-gray-600 text-gray-400 hover:text-yellow-400 hover:border-yellow-500 transition-colors"
+                title="View Watchlist"
+              >
+                <Star size={16} />
+              </button>
 
-
-            {/* Refresh Button */}
-            <button
-              onClick={onRefresh}
-              disabled={isLoading}
-              className={`p-2 rounded-md border border-gray-600 text-gray-400 hover:text-white hover:border-gray-500 transition-colors ${
-                isLoading ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
-            >
-              <RefreshCw size={20} className={isLoading ? 'animate-spin' : ''} />
-            </button>
-
-            {/* Watchlist Button */}
-            <button
-              onClick={onWatchlistClick}
-              className="p-2 rounded-md border border-gray-600 text-gray-400 hover:text-yellow-400 hover:border-yellow-500 transition-colors"
-              title="View Watchlist"
-            >
-              <Star size={20} />
-            </button>
-
-            {/* Rocket button removed per request */}
-
-
-
-            {/* Settings button removed per request */}
-
-            {/* Authentication Button */}
-            {authButton}
+              {/* Authentication Button */}
+              <div className="flex-shrink-0">
+                {authButton}
+              </div>
+            </div>
           </div>
         </div>
 

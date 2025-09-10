@@ -567,25 +567,25 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
   }, [aggregatedTweets]);
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2">
-      <div className="bg-dark-bg border border-gray-700 rounded-xl max-w-4xl w-full max-h-[80vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-1 sm:p-2">
+      <div className="bg-dark-bg border border-gray-700 rounded-xl max-w-4xl w-full max-h-[95vh] sm:max-h-[80vh] overflow-y-auto">
           {/* Header */}
-        <div className="sticky top-0 bg-dark-bg border-b border-gray-700 p-3 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+        <div className="sticky top-0 bg-dark-bg border-b border-gray-700 p-2 sm:p-3 flex items-center justify-between">
+          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
             {(token?.image || token?.jupiterData?.icon) && (
-              <img src={token?.jupiterData?.icon || token?.image} alt={token.name} className="w-16 h-16 rounded-full border-2 border-blue-500" />
+              <img src={token?.jupiterData?.icon || token?.image} alt={token.name} className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 border-blue-500 flex-shrink-0" />
               )}
-              <div>
-              <div className="flex items-center space-x-2">
-                <h2 className="text-xl font-bold text-white">{token?.name || 'Unknown Token'}</h2>
+              <div className="min-w-0 flex-1">
+              <div className="flex items-center space-x-1 sm:space-x-2">
+                <h2 className="text-lg sm:text-xl font-bold text-white truncate">{token?.name || 'Unknown Token'}</h2>
                 {fuelMultiplier && (
-                  <span className="px-1.5 py-0.5 bg-black border border-orange-500 text-orange-400 text-xs font-bold rounded flex items-center space-x-1">
+                  <span className="px-1.5 py-0.5 bg-black border border-orange-500 text-orange-400 text-xs font-bold rounded flex items-center space-x-1 flex-shrink-0">
                     <span className="text-xs">🔥</span>
                     <span>{fuelMultiplier}</span>
                   </span>
                 )}
               </div>
-              <p className="text-gray-400">${token?.symbol || 'UNKNOWN'}</p>
+              <p className="text-gray-400 text-sm sm:text-base">${token?.symbol || 'UNKNOWN'}</p>
               <div className="flex items-center space-x-2 mt-1">
                 <code className="text-xs text-gray-500 font-mono">
                   {token?.contractAddress ? 
