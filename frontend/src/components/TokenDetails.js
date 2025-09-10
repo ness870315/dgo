@@ -497,6 +497,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
   };
 
   const handleConfirmCall = async (callData) => {
+    console.log('🎯 TokenDetails: handleConfirmCall called with data:', callData);
+    
     try {
       const payload = {
         token: {
@@ -509,10 +511,15 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
         tone: callData.tone
       };
       
-      await kolCallsService.addCall(payload);
+      console.log('📤 TokenDetails: Sending payload to kolCallsService:', payload);
+      const result = await kolCallsService.addCall(payload);
+      console.log('✅ TokenDetails: Call added successfully:', result);
+      
       alert('✅ You\'ve made your call with AI thesis and Twitter posting! Let\'s see if you have what it takes to become the next KOL.');
       setCallRecorded(true);
     } catch (err) {
+      console.error('❌ TokenDetails: Call error:', err);
+      
       if (err && err.code === 'already_called') {
         alert('Come on chad! You already called this one!');
         return;

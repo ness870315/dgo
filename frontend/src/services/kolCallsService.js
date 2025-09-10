@@ -5,13 +5,25 @@ class KolCallsService {
 
   async addCall(token) {
     const sessionId = localStorage.getItem('sessionId');
+    console.log('🌐 kolCallsService: Making API call to add call', {
+      sessionId: !!sessionId,
+      token: token?.token?.symbol,
+      thesis: token?.thesis?.substring(0, 50) + '...',
+      twitterEnabled: token?.twitterEnabled,
+      tone: token?.tone
+    });
+    
     const res = await fetch(`${this.API_BASE}/api/user/kol-calls/add`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionId, token })
     });
+    
+    console.log('🌐 kolCallsService: API response status:', res.status);
+    
     if (!res.ok) {
       const text = await res.text().catch(() => '');
+      console.error('🌐 kolCallsService: API error response:', text);
       let payload = {};
       try { payload = JSON.parse(text); } catch (_) {}
       const err = new Error(payload?.message || `HTTP ${res.status}`);
@@ -20,7 +32,10 @@ class KolCallsService {
       err.code = payload?.error || null;
       throw err;
     }
-    return await res.json();
+    
+    const result = await res.json();
+    console.log('🌐 kolCallsService: API success response:', result);
+    return result;
   }
 
   async getCalls() {

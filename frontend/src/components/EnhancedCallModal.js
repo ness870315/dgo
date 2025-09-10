@@ -105,6 +105,13 @@ const EnhancedCallModal = ({
   };
 
   const handleConfirmCall = async () => {
+    console.log('🚀 EnhancedCallModal: handleConfirmCall called', {
+      token: token?.symbol,
+      thesis: thesis?.substring(0, 50) + '...',
+      twitterEnabled,
+      tone: selectedTone
+    });
+    
     setCallLoading(true);
     try {
       await onConfirmCall({
@@ -113,9 +120,11 @@ const EnhancedCallModal = ({
         twitterEnabled,
         tone: selectedTone
       });
+      console.log('✅ EnhancedCallModal: Call confirmed successfully');
       onClose();
     } catch (error) {
-      console.error('Call confirmation error:', error);
+      console.error('❌ EnhancedCallModal: Call confirmation error:', error);
+      alert('Failed to make call: ' + (error.message || 'Unknown error'));
     } finally {
       setCallLoading(false);
     }
