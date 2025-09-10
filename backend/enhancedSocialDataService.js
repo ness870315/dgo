@@ -2,6 +2,7 @@ import axios from 'axios';
 import fs from 'fs/promises';
 import path from 'path';
 // TwitterApiManager will be imported dynamically to handle deployment issues
+import SmartTwitterRefreshService from './smartTwitterRefreshService.js';
 
 class EnhancedSocialDataService {
   constructor() {
@@ -22,6 +23,9 @@ class EnhancedSocialDataService {
     // 🚨 NEW: Twitter API Manager for 15K/month limit protection with fallback
     // Will be initialized asynchronously in initialize() method
     this.twitterApiManager = null;
+    
+    // 🧠 Smart Twitter Refresh Service for deduplication
+    this.smartRefreshService = new SmartTwitterRefreshService();
     
     console.log(`🐦 Twitter microservice configured: ${this.twitterServiceUrl}`);
     
@@ -272,6 +276,36 @@ class EnhancedSocialDataService {
         return cached.data;
       }
     }
+
+    // 🧠 Smart Refresh: Check if we should use smart deduplication
+    const cached = this.twitterMetricsCache.get(cacheKey);
+    if (cached && cached.data && this.smartRefreshService.shouldUseSmartRefresh(cached.data)) {
+      console.log(`🧠 Smart refresh available for ${symbol}, using deduplication approach`);
+      try {
+        const smartRefreshedData = await this.smartRefreshService.refreshTwitterData(
+          symbol, 
+          name, 
+          cached.data, 
+          officialHandle, 
+          socialLinks
+        );
+        
+        // Update cache with smart refreshed data
+        this.twitterMetricsCache.set(cacheKey, {
+          data: smartRefreshedData,
+          timestamp: Date.now()
+        });
+        
+        // Save to persistent storage
+        await this.saveTwitterMetricsToFile();
+        
+        console.log(`✅ Smart refresh completed for ${symbol}: ${smartRefreshedData._newTweetsAdded || 0} new tweets added`);
+        return smartRefreshedData;
+      } catch (error) {
+        console.log(`⚠️ Smart refresh failed for ${symbol}, falling back to regular refresh:`, error.message);
+        // Continue with regular refresh process
+      }
+    }
     
     // 🚨 NEW: Check Twitter API Manager for monthly limits and smart cooldowns (unless admin bypass)
     const tokenForCheck = { 
@@ -410,6 +444,46 @@ class EnhancedSocialDataService {
       delete this._currentJupiterData;
       
       return fallbackData;
+    }
+  }
+
+  /**
+   * Force smart refresh for a specific token (admin function)
+   */
+  async forceSmartRefresh(symbol, name, officialHandle = null, socialLinks = null) {
+    console.log(`🧠 Force smart refresh for ${symbol}`);
+    
+    const cacheKey = `${symbol}_${name}`;
+    const cached = this.twitterMetricsCache.get(cacheKey);
+    
+    if (!cached || !cached.data) {
+      console.log(`⚠️ No cached data found for ${symbol}, cannot perform smart refresh`);
+      return null;
+    }
+    
+    try {
+      const smartRefreshedData = await this.smartRefreshService.refreshTwitterData(
+        symbol, 
+        name, 
+        cached.data, 
+        officialHandle, 
+        socialLinks
+      );
+      
+      // Update cache with smart refreshed data
+      this.twitterMetricsCache.set(cacheKey, {
+        data: smartRefreshedData,
+        timestamp: Date.now()
+      });
+      
+      // Save to persistent storage
+      await this.saveTwitterMetricsToFile();
+      
+      console.log(`✅ Force smart refresh completed for ${symbol}: ${smartRefreshedData._newTweetsAdded || 0} new tweets added`);
+      return smartRefreshedData;
+    } catch (error) {
+      console.error(`❌ Force smart refresh failed for ${symbol}:`, error.message);
+      throw error;
     }
   }
 
