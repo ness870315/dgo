@@ -3367,6 +3367,9 @@ class EnhancedBackend {
         token.overallScore = this.tokenProcessor.calculateEnhancedOverallScore(token);
         token.score = token.overallScore; // Ensure both fields are set
         
+        // Take hype snapshot after score recalculation
+        await this.takeHypeSnapshot(token);
+        
         // Save updated tokens back to raw cache
         const updatedTokens = rawTokens.map(t => (t.symbol && t.symbol.toUpperCase() === (token.symbol || '').toUpperCase()) ? token : t);
         await this.saveTokensToCache(updatedTokens);
@@ -3641,6 +3644,9 @@ class EnhancedBackend {
             token.communityScore = token.communityHealthScore;
             token.overallScore = this.tokenProcessor.calculateEnhancedOverallScore(token);
             token.score = token.overallScore;
+
+            // Take hype snapshot after score recalculation
+            await this.takeHypeSnapshot(token);
 
             // Only apply 24h cooldown if we got fresh data
             const dataFreshness = twitterData._dataFreshness || 'unknown';
@@ -5107,6 +5113,37 @@ class EnhancedBackend {
     } catch (_) {}
   }
 
+  // Centralized function to take hype snapshots after score recalculation
+  async takeHypeSnapshot(token) {
+    try {
+      if (!token.contractAddress) return;
+      
+      const mentions = token.mentions || token.twitterData?.mentions || 0;
+      const followers = token.twitterData?.followers || 0;
+      const engagement = (token.twitterData?.likes || 0) + (token.twitterData?.retweets || 0) + (token.twitterData?.replies || 0);
+      const score = token.overallScore || token.enhancedScore || 0;
+      const label = score >= 8 ? 'Viral' : score >= 5 ? 'Trending' : score >= 3 ? 'Building' : 'Sleeping';
+      
+      await this.hypeService.appendSnapshot(token.contractAddress, {
+        score: score,
+        label: label,
+        mentions: mentions,
+        twitterMentions: mentions,
+        engagement: engagement,
+        followers: followers,
+        organicScore: token.jupiterData?.organicScore || token.organicScore || 0,
+        volume24h: token.jupiterData?.volume24h || token.volume24h || 0,
+        priceChange24h: token.jupiterData?.priceChange24h || token.priceChange24h || 0,
+        communityHealthScore: token.communityHealthScore || 0,
+        overallScore: score
+      });
+      
+      console.log(`📸 Hype snapshot saved for ${token.symbol} (overall score: ${score.toFixed(1)}, community: ${token.communityHealthScore?.toFixed(1) || 'N/A'})`);
+    } catch (snapErr) {
+      console.log(`⚠️ Hype snapshot save failed for ${token.symbol}: ${snapErr.message}`);
+    }
+  }
+
   async getHypeDataForAnalysis(contractAddress, range = '7d') {
     try {
       console.log(`🧠 Getting hype data for analysis: ${contractAddress} (${range})`);
@@ -6156,6 +6193,9 @@ class EnhancedBackend {
                   updatedToken.enhancedScore = newOverallScore;
                   updatedToken.scoringTimestamp = new Date().toISOString();
                   
+                  // Take hype snapshot after score recalculation
+                  await this.takeHypeSnapshot(updatedToken);
+                  
                   console.log(`[🛡️ Enhanced Backend] 🏆 ${updatedToken.priority}: ${updatedToken.symbol} - Community: ${newCommunityScore.toFixed(2)}, Overall: ${newOverallScore.toFixed(2)}`);
                 } else {
                   // Use baseline score for tokens without Twitter data
@@ -6165,6 +6205,9 @@ class EnhancedBackend {
                   updatedToken.overallScore = newOverallScore;
                   updatedToken.enhancedScore = newOverallScore;
                   updatedToken.scoringTimestamp = new Date().toISOString();
+                  
+                  // Take hype snapshot after score recalculation
+                  await this.takeHypeSnapshot(updatedToken);
                   
                   console.log(`[🛡️ Enhanced Backend] 🏆 ${updatedToken.priority}: ${updatedToken.symbol} - No Twitter data, Overall: ${newOverallScore.toFixed(2)}`);
                 }
@@ -6572,6 +6615,9 @@ class EnhancedBackend {
           existingToken.score = newOverallScore; // Keep both for compatibility
           existingToken.lastCalculated = new Date().toISOString();
           
+          // Take hype snapshot after score recalculation
+          await this.takeHypeSnapshot(existingToken);
+          
           // Save updated tokens to cache
           await this.saveTokensToCache(tokens);
           
@@ -6666,6 +6712,9 @@ class EnhancedBackend {
           existingToken.score = newOverallScore;
           existingToken.lastCalculated = new Date().toISOString();
           
+          // Take hype snapshot after score recalculation
+          await this.takeHypeSnapshot(existingToken);
+          
           // Save updated tokens to cache
           await this.saveTokensToCache(tokens);
           
@@ -6722,6 +6771,9 @@ class EnhancedBackend {
             existingToken.overallScore = newOverallScore;
             existingToken.score = newOverallScore;
             existingToken.lastCalculated = new Date().toISOString();
+            
+            // Take hype snapshot after score recalculation
+            await this.takeHypeSnapshot(existingToken);
             
             console.log(`[🛡️ Enhanced Backend] ✅ ${expiredToken.symbol} recalculated: ${newOverallScore.toFixed(2)} (fuel expired)`);
             updatedCount++;
