@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { X, Twitter } from 'lucide-react';
 import { Flame, Rocket, Zap, Gem, ArrowLeft, Search } from 'lucide-react';
 
 const FuelTokenPage = ({ onBack, headerAuth = null }) => {
@@ -9,6 +10,12 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
   const [fueledTokens, setFueledTokens] = useState([]);
   const [contractValidated, setContractValidated] = useState(false);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
+  
+  // Fuel Share states
+  const [showFuelShareModal, setShowFuelShareModal] = useState(false);
+  const [fuelShareMessage, setFuelShareMessage] = useState('');
+  const [appliedFuelType, setAppliedFuelType] = useState(null);
+  const [appliedTokenSymbol, setAppliedTokenSymbol] = useState('');
 
   const fuelOptions = [
     {
@@ -144,6 +151,19 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
     }
   };
 
+  // Generate random fuel share messages
+  const generateFuelShareMessage = (symbol, fuelType) => {
+    const messages = [
+      `I just Fueled #${symbol} for a ${fuelType} on @oracle_degen1 - a new cult is about to form 🔥`,
+      `🚀 Just dropped ${fuelType} fuel on #${symbol} via @oracle_degen1 - this is about to go parabolic!`,
+      `⚡ Fueled #${symbol} with ${fuelType} boost on @oracle_degen1 - the degen army is assembling!`,
+      `🔥 ${fuelType} fuel applied to #${symbol} on @oracle_degen1 - watch this space, it's about to explode!`,
+      `💎 Just fueled #${symbol} for ${fuelType} on @oracle_degen1 - the next alpha is loading...`
+    ];
+    
+    return messages[Math.floor(Math.random() * messages.length)];
+  };
+
   const handleApplyFuel = async () => {
     if (!contractAddress.trim()) {
       setMessage({ text: 'Please enter a contract address', type: 'error' });
@@ -179,6 +199,19 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
 
       if (response.ok) {
         setMessage({ text: `✅ ${result.message}`, type: 'success' });
+        
+        // Get token symbol from the result or use a placeholder
+        const tokenSymbol = result.token?.symbol || 'TOKEN';
+        setAppliedFuelType(fuelType);
+        setAppliedTokenSymbol(tokenSymbol);
+        
+        // Generate share message
+        const shareMessage = generateFuelShareMessage(tokenSymbol, fuelType);
+        setFuelShareMessage(shareMessage);
+        
+        // Show share modal
+        setShowFuelShareModal(true);
+        
         setContractAddress('');
         setSelectedFuel(null);
         setContractValidated(false);
@@ -194,6 +227,26 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFuelShare = () => {
+    if (fuelShareMessage) {
+      // Redirect to X (Twitter) with pre-filled message, just like referral code share
+      const twitterUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
+        text: fuelShareMessage,
+        url: 'https://degen-oracle.com'
+      }).toString()}`;
+      
+      // Open in new tab
+      window.open(twitterUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const handleCloseFuelShare = () => {
+    setShowFuelShareModal(false);
+    setFuelShareMessage('');
+    setAppliedFuelType(null);
+    setAppliedTokenSymbol('');
   };
 
   const formatTimeRemaining = (remainingTime) => {
@@ -447,6 +500,73 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
             </div>
           )}
         </div>
+
+        {/* Fuel Share Modal */}
+        {showFuelShareModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-md w-full mx-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-white flex items-center">
+                  <span className="mr-2">🔥</span>
+                  Fuel Applied Successfully!
+                </h3>
+                <button
+                  onClick={handleCloseFuelShare}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-gray-300 mb-4">
+                  Your {appliedFuelType} fuel has been applied to <strong className="text-white">#{appliedTokenSymbol}</strong>! 
+                  Share your alpha with the community on X:
+                </p>
+                
+                <div className="bg-gray-800 border border-gray-600 rounded-lg p-4 mb-4">
+                  <p className="text-white text-sm leading-relaxed">
+                    "{fuelShareMessage}"
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleFuelShare}
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 flex items-center justify-center"
+                  >
+                    <Twitter size={16} className="mr-2" />
+                    Share on X
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      const newMessage = generateFuelShareMessage(appliedTokenSymbol, appliedFuelType);
+                      setFuelShareMessage(newMessage);
+                    }}
+                    className="px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center justify-center"
+                    title="Generate new message"
+                  >
+                    🔄
+                  </button>
+                </div>
+
+                <p className="text-xs text-gray-400 mt-3 text-center">
+                  Click "Share on X" to open Twitter with your message ready to post
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCloseFuelShare}
+                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

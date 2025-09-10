@@ -73,7 +73,7 @@ class SocialContextAI {
         throw new Error('OpenAI service not available - using enhanced fallback');
       }
 
-      // Fill template with enhanced Jupiter data and varied crypto slang
+      // Fill template with enhanced analytics data and varied crypto slang
       const prompt = fillEnhancedTemplate(ENHANCED_PROMPT_TEMPLATES.SOCIAL_CONTEXT_ANALYSIS, templateVars);
       
       // Generate AI analysis
@@ -158,7 +158,7 @@ class SocialContextAI {
     
     // Debug log the complete data structure
     console.log(`🔍 AI Complete Data Debug for ${tokenData.symbol}:`, {
-      hasJupiterData: !!jupiterData,
+      hasAnalyticsData: !!jupiterData,
       hasTwitterData: !!twitterData,
       jupiterKeys: Object.keys(jupiterData),
       twitterKeys: Object.keys(twitterData),
@@ -190,7 +190,7 @@ class SocialContextAI {
       'isNotNA': officialHandle !== 'N/A'
     });
 
-    // Extract Jupiter stats with safety checks and ensure all fields exist
+    // Extract analytics stats with safety checks and ensure all fields exist
     const stats5m = {
       priceChange: 0,
       holderChange: 0,
@@ -235,12 +235,12 @@ class SocialContextAI {
     return {
       tokenName: tokenData.name || 'Unknown',
       symbol: tokenData.symbol || 'N/A',
-      // Fix: Use correct Jupiter field names
+      // Fix: Use correct analytics field names
       marketCap: this.formatNumber(jupiterData.mcap || jupiterData.marketCap || tokenData.marketCap || 0),
       price: jupiterData.usdPrice || jupiterData.price || tokenData.price || 'N/A',
       priceChange24h: Number(jupiterData.priceChange24h || tokenData.priceChange24h || 0).toFixed(2),
       
-      // Jupiter stats fields with safety checks - format all percentages to 2 decimal places
+      // Analytics stats fields with safety checks - format all percentages to 2 decimal places
       'stats5m.priceChange': Number(stats5m.priceChange || 0).toFixed(2),
       'stats1h.priceChange': Number(stats1h.priceChange || 0).toFixed(2),
       'stats6h.priceChange': Number(stats6h.priceChange || 0).toFixed(2),
@@ -262,7 +262,7 @@ class SocialContextAI {
       'stats24h.numNetBuyers': stats24h.numNetBuyers || 0,
       'stats6h.numNetBuyers': stats6h.numNetBuyers || 0,
       
-      // 🔥 NEW: Jupiter API metrics for enhanced analysis (formatted for display)
+      // 🔥 NEW: Analytics engine metrics for enhanced analysis (formatted for display)
       holderChange: this.formatPercentage(jupiterData.stats24h?.holderChange || jupiterData.holderChange || 0),
       volumeChange: this.formatPercentage(jupiterData.stats24h?.volumeChange || jupiterData.volumeChange || 0),
       priceChange: this.formatPercentage(jupiterData.stats24h?.priceChange || jupiterData.priceChange || jupiterData.priceChange24h || 0),
@@ -297,7 +297,7 @@ class SocialContextAI {
       holderCount: jupiterData.holderCount || 'N/A',
       recentEvents: this.extractRecentEvents(tokenData),
       
-      // Jupiter API Stats (1h, 6h, 24h)
+      // Analytics Engine Stats (1h, 6h, 24h)
       stats1h: this.formatJupiterStats(jupiterData.stats1h),
       stats6h: this.formatJupiterStats(jupiterData.stats6h), 
       stats24h: this.formatJupiterStats(jupiterData.stats24h),
@@ -306,7 +306,7 @@ class SocialContextAI {
       overallScore: tokenData.overallScore || tokenData.score || 0,
       sentimentScore: tokenData.sentimentScore || tokenData.twitterData?.sentimentScore || tokenData.mediasentiment || 5,
 
-      // Volume and trading data - Fix: Use correct Jupiter field names
+      // Volume and trading data - Fix: Use correct analytics field names
       volume24h: this.formatNumber(
         (jupiterData.stats24h?.buyVolume || 0) + (jupiterData.stats24h?.sellVolume || 0) ||
         jupiterData.volume24h || 
@@ -314,12 +314,12 @@ class SocialContextAI {
       ),
       volumeChange24h: Number(jupiterData.stats24h?.volumeChange || jupiterData.volumeChange24h || 0).toFixed(2),
 
-      // Technical indicators - Fix: Use correct Jupiter field names  
+      // Technical indicators - Fix: Use correct analytics field names  
       priceChange1h: Number(jupiterData.stats1h?.priceChange || jupiterData.priceChange1h || 0).toFixed(2),
       priceChange6h: Number(jupiterData.stats6h?.priceChange || jupiterData.priceChange6h || 0).toFixed(2),
       priceChange7d: Number(jupiterData.stats7d?.priceChange || jupiterData.priceChange7d || 0).toFixed(2),
 
-      // === COMPREHENSIVE JUPITER DATA ===
+      // === COMPREHENSIVE ANALYTICS DATA ===
       // Supply & Economics
       totalSupply: this.formatNumber(jupiterData.totalSupply || 0),
       circSupply: this.formatNumber(jupiterData.circSupply || 0),
@@ -388,7 +388,7 @@ class SocialContextAI {
       riskLevel: tokenData.riskLevel || 'Unknown',
       
       // Raw Data for Advanced Analysis
-      rawJupiterData: JSON.stringify(jupiterData),
+      rawAnalyticsData: JSON.stringify(jupiterData),
       rawTwitterData: JSON.stringify(twitterData),
       rawTokenData: JSON.stringify({
         stage: tokenData.stage,
@@ -416,7 +416,7 @@ class SocialContextAI {
   }
 
   /**
-   * Format Jupiter API stats for AI analysis
+   * Format analytics engine stats for AI analysis
    */
   formatJupiterStats(stats) {
     if (!stats) return 'N/A';
@@ -531,7 +531,7 @@ class SocialContextAI {
     const jupiterData = tokenData.jupiterData || {};
     const callHistory = tokenData.callHistory || {};
     
-    // Extract Jupiter stats data with proper fallbacks
+    // Extract analytics stats data with proper fallbacks
     const stats5m = jupiterData.stats5m || {};
     const stats1h = jupiterData.stats1h || {};
     const stats6h = jupiterData.stats6h || {};
@@ -567,7 +567,7 @@ class SocialContextAI {
     let confidence = 0.70;
     let recommendation = 'Hold';
     
-    // Advanced sentiment calculation using Jupiter stats
+    // Advanced sentiment calculation using analytics stats
     let bullishSignals = 0;
     let bearishSignals = 0;
     
@@ -626,7 +626,7 @@ class SocialContextAI {
     // Build comprehensive analysis response using new methods
     return {
       // Match the expected AI response format
-      socialSummary: `${sentiment} sentiment with ${Math.round(confidence * 100)}% confidence based on Jupiter analytics. Community health: ${communityScore.toFixed(1)}/10. Social activity: ${mentions} mentions with ${totalEngagement} total engagement.`,
+      socialSummary: `${sentiment} sentiment with ${Math.round(confidence * 100)}% confidence based on our analytics engine. Community health: ${communityScore.toFixed(1)}/10. Social activity: ${mentions} mentions with ${totalEngagement} total engagement.`,
       thesis: `Based on our analytics engine, ${tokenData.symbol} shows ${sentiment.toLowerCase()} indicators with ${bullishSignals} positive signals vs ${bearishSignals} negative signals. ${recommendation} position recommended.`,
       riskFactors: riskAssessment.factors.join('. '),
       catalysts: catalysts.join('. '),
@@ -650,7 +650,7 @@ class SocialContextAI {
       },
       summary: {
         action: recommendation,
-        reasoning: 'Based on comprehensive Jupiter stats analysis and social metrics from our AI engine',
+        reasoning: 'Based on comprehensive analytics engine analysis and social metrics from our AI tools',
         timeframe: 'Short-term',
         entryStrategy: sentiment === 'Bullish' ? 'DCA on dips and accumulate' : sentiment === 'Bearish' ? 'Avoid until fundamentals improve' : 'Wait for confirmation signals'
       },
@@ -670,11 +670,11 @@ class SocialContextAI {
         confidence: confidence,
         dataFreshness: 'current',
         analysisId: `fallback_${tokenData.symbol}_${Date.now()}`,
-        fallbackReason: errorMessage || 'Enhanced Jupiter stats analysis',
+        fallbackReason: errorMessage || 'Enhanced analytics engine analysis',
         dataQuality: {
           hasTwitterData: !!twitterData && Object.keys(twitterData).length > 0,
-          hasJupiterData: !!jupiterData && Object.keys(jupiterData).length > 0,
-          hasJupiterStats: !!(stats24h && Object.keys(stats24h).length > 0),
+          hasAnalyticsData: !!jupiterData && Object.keys(jupiterData).length > 0,
+          hasAnalyticsStats: !!(stats24h && Object.keys(stats24h).length > 0),
           hasPriceData: priceChange24h !== 0 || priceChange6h !== 0 || priceChange1h !== 0,
           hasVolumeData: (stats24h.buyVolume || 0) + (stats24h.sellVolume || 0) > 0,
           hasHolderData: holderCount > 0
@@ -697,7 +697,7 @@ class SocialContextAI {
   }
 
   /**
-   * Generate Key Insights using Jupiter stats mapping
+   * Generate Key Insights using analytics stats mapping
    */
   generateKeyInsights(stats5m, stats1h, stats6h, stats24h, jupiterData, twitterData) {
     const insights = [];
@@ -798,7 +798,7 @@ class SocialContextAI {
   }
 
   /**
-   * Generate Risk Assessment using Jupiter stats
+   * Generate Risk Assessment using analytics stats
    */
   generateRiskAssessment(stats5m, stats1h, stats6h, stats24h, jupiterData, twitterData) {
     const factors = [];
@@ -873,13 +873,13 @@ class SocialContextAI {
   }
 
   /**
-   * Generate Catalysts and Red Flags using Jupiter stats
+   * Generate Catalysts and Red Flags using analytics stats
    */
   generateCatalystsAndRedFlags(stats5m, stats1h, stats6h, stats24h, jupiterData, twitterData) {
     const catalysts = [];
     const redFlags = [];
     
-    // Catalysts based on Jupiter stats
+    // Catalysts based on analytics stats
     
     // 1. Holder Growth Catalyst
     const holderChange24h = stats24h.holderChange || 0;

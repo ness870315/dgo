@@ -18,6 +18,8 @@ import SocialContextAI from './socialContextAI.js';
 import { createBackupIntegration } from './backupIntegration.js';
 import HypeTrendAnalysis from './hypeTrendAnalysis.js';
 import AIHypePredictionService from './aiHypePredictionService.js';
+import CallThesisGenerator from './callThesisGenerator.js';
+import MilestoneTracker from './milestoneTracker.js';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -109,6 +111,8 @@ class EnhancedBackend {
     this.socialContextAI = new SocialContextAI();
     this.hypeTrendAnalysis = new HypeTrendAnalysis();
     this.aiHypePrediction = new AIHypePredictionService();
+    this.callThesisGenerator = new CallThesisGenerator();
+    this.milestoneTracker = new MilestoneTracker();
     this.backupIntegration = null; // Will be initialized in setupServices()
     // Social Context cache (72h TTL)
     this.socialContextCache = new Map();
@@ -1578,6 +1582,48 @@ class EnhancedBackend {
         const price = Number(jData?.usdPrice || 0) || 0;
         const holderCount = Number(jData?.holderCount || 0) || 0;
 
+        // Generate AI thesis for the call
+        let thesis = null;
+        let twitterPostId = null;
+        try {
+          const tokenData = {
+            symbol: token.symbol,
+            name: token.name,
+            contractAddress: token.contractAddress,
+            jupiterData: jData
+          };
+          
+          const callData = {
+            calledMc: calledMC,
+            calledPrice: price,
+            calledAt: new Date().toISOString()
+          };
+
+          // Generate thesis with random tone
+          const tones = ['bullish', 'cautious', 'technical', 'narrative'];
+          const randomTone = tones[Math.floor(Math.random() * tones.length)];
+          thesis = await this.callThesisGenerator.generateCallThesis(tokenData, callData, { tone: randomTone });
+          
+          console.log(`🧠 Generated ${randomTone} thesis for ${token.symbol}: ${thesis}`);
+        } catch (error) {
+          console.error(`❌ Failed to generate thesis for ${token.symbol}:`, error.message);
+          thesis = `Calling ${token.symbol} based on our analytics engine signals. Track it on degen-oracle.com — let's see where this goes. NFA`;
+        }
+
+        // Check if user has Twitter posting enabled
+        const hasTwitterPosting = await this.oauthXService.hasTwitterPostingEnabled(user.id);
+        
+        // Post to Twitter if enabled
+        if (hasTwitterPosting && thesis) {
+          try {
+            const tweet = await this.oauthXService.postTweet(user.id, thesis);
+            twitterPostId = tweet.id;
+            console.log(`🐦 Posted call tweet for ${token.symbol}: ${twitterPostId}`);
+          } catch (error) {
+            console.error(`❌ Failed to post tweet for ${token.symbol}:`, error.message);
+          }
+        }
+
         const saved = await this.oauthXService.db.addKolCall(user.id, {
           token: {
             symbol: token.symbol,
@@ -1588,7 +1634,10 @@ class EnhancedBackend {
           currentMC: calledMC, // Same as called MC at time of call
           calledPrice: price,
           holderCount: holderCount,
-          calledAt: new Date().toISOString()
+          calledAt: new Date().toISOString(),
+          thesis: thesis,
+          twitterPostId: twitterPostId,
+          twitterEnabled: hasTwitterPosting
         });
 
         // Increment usage counter for free users
@@ -1636,6 +1685,84 @@ class EnhancedBackend {
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Delete KOL call error:', error.message);
         res.status(500).json({ error: 'Failed to delete KOL call' });
+      }
+    });
+
+    // Twitter posting preferences
+    this.app.post('/api/user/twitter-posting', async (req, res) => {
+      try {
+        const { sessionId, enabled } = req.body;
+        if (!sessionId || typeof enabled !== 'boolean') {
+          return res.status(400).json({ error: 'Missing sessionId or enabled flag' });
+        }
+        
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) return res.status(401).json({ error: 'Invalid session' });
+        
+        await this.oauthXService.setTwitterPostingEnabled(user.id, enabled);
+        res.json({ success: true, twitterPostingEnabled: enabled });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Set Twitter posting error:', error.message);
+        res.status(500).json({ error: 'Failed to update Twitter posting preference' });
+      }
+    });
+
+    // Get Twitter posting status
+    this.app.get('/api/user/twitter-posting', async (req, res) => {
+      try {
+        const { sessionId } = req.query;
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) return res.status(401).json({ error: 'Invalid session' });
+        
+        const enabled = await this.oauthXService.hasTwitterPostingEnabled(user.id);
+        res.json({ success: true, twitterPostingEnabled: enabled });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Get Twitter posting error:', error.message);
+        res.status(500).json({ error: 'Failed to get Twitter posting status' });
+      }
+    });
+
+    // Share call manually
+    this.app.post('/api/user/kol-calls/:id/share', async (req, res) => {
+      try {
+        const { sessionId } = req.body;
+        const { id } = req.params;
+        
+        if (!sessionId || !id) {
+          return res.status(400).json({ error: 'Missing sessionId or call id' });
+        }
+        
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) return res.status(401).json({ error: 'Invalid session' });
+        
+        // Get call data
+        const calls = await this.oauthXService.db.getKolCalls(user.id);
+        const call = calls.find(c => c.id === id);
+        if (!call) return res.status(404).json({ error: 'Call not found' });
+        
+        // Check if user has Twitter posting enabled
+        const hasTwitterPosting = await this.oauthXService.hasTwitterPostingEnabled(user.id);
+        if (!hasTwitterPosting) {
+          return res.status(403).json({ error: 'Twitter posting not enabled' });
+        }
+        
+        // Generate share post
+        const currentStats = {
+          currentMC: call.currentMC || call.calledMc,
+          currentPrice: call.currentPrice || call.calledPrice,
+          multiplier: call.currentMultiplier || 1,
+          athMultiplier: call.athMultiplier || 1
+        };
+        
+        const shareText = await this.callThesisGenerator.generateSharePost(call, currentStats);
+        
+        // Post to Twitter
+        const tweet = await this.oauthXService.postTweet(user.id, shareText);
+        
+        res.json({ success: true, tweetId: tweet.id, shareText });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Share call error:', error.message);
+        res.status(500).json({ error: 'Failed to share call' });
       }
     });
 
@@ -6567,6 +6694,26 @@ class EnhancedBackend {
       } catch (error) {
         console.error('❌ Social Context AI failed to initialize:', error.message);
         console.warn('⚠️ Continuing with fallback analysis only...');
+      }
+
+      // Initialize Call Thesis Generator
+      console.log('🧠 Initializing Call Thesis Generator...');
+      try {
+        await this.callThesisGenerator.initialize();
+        console.log('✅ Call Thesis Generator initialized successfully');
+      } catch (error) {
+        console.error('❌ Call Thesis Generator failed to initialize:', error.message);
+        console.warn('⚠️ Continuing with fallback thesis generation...');
+      }
+
+      // Start Milestone Tracker
+      console.log('🎯 Starting Milestone Tracker...');
+      try {
+        this.milestoneTracker.start();
+        console.log('✅ Milestone Tracker started successfully');
+      } catch (error) {
+        console.error('❌ Milestone Tracker failed to start:', error.message);
+        console.warn('⚠️ Continuing without milestone tracking...');
       }
       // Start HTTP server first so /health is immediately available for platform health checks
       const host = '0.0.0.0';

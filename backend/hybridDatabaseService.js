@@ -582,7 +582,19 @@ class HybridDatabaseService {
       athTimestamp: call.calledAt || new Date().toISOString(),
       maxDrawdownPct: 0, // No drawdown at start
       peakMC: call.calledMc || 0, // Rolling peak starts at called MC
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      
+      // Proof of Call fields
+      thesis: call.thesis || null, // AI-generated thesis
+      twitterPostId: call.twitterPostId || null, // Twitter post ID if posted
+      milestones: call.milestones || [], // Array of milestone objects
+      twitterEnabled: call.twitterEnabled || false, // User's Twitter posting preference
+      status: call.status || 'active', // active, closed, stopped
+      
+      // Milestone tracking
+      lastMilestoneCheck: new Date().toISOString(),
+      nextMilestoneThreshold: 5.0, // Next milestone to check for
+      milestonePosts: [] // Array of posted milestone updates
     };
     calls.push(toSave);
     await this.writeJsonFile(file, calls);

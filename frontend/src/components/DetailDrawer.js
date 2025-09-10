@@ -480,22 +480,111 @@ export default function DetailDrawer({ call, onClose }) {
             </div>
           </div>
 
-          {/* Thesis & Proof */}
+          {/* Thesis & Receipts */}
           <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-            <div className="text-sm font-medium mb-2 text-white">Thesis & receipts</div>
-            <div className="text-sm text-white/80">
-              {call.note || "No thesis provided for this call."}
+            <div className="text-sm font-medium mb-3 text-white flex items-center gap-2">
+              <span>🧠</span>
+              Thesis & Receipts
             </div>
-            {call.proof && (
-              <a 
-                href={call.proof} 
-                target="_blank" 
-                rel="noreferrer" 
-                className="text-xs text-emerald-300 underline mt-2 inline-flex items-center gap-1"
-              >
-                View proof on X <ExternalLink size={12} />
-              </a>
+            
+            {/* AI-Generated Thesis */}
+            {call.thesis ? (
+              <div className="mb-4">
+                <div className="text-xs font-medium text-white/70 mb-2">AI-Generated Thesis</div>
+                <div className="p-3 bg-gray-800/50 border border-gray-600/50 rounded-lg">
+                  <p className="text-sm text-white/90 leading-relaxed">{call.thesis}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="mb-4">
+                <div className="text-xs font-medium text-white/70 mb-2">Thesis</div>
+                <div className="p-3 bg-gray-800/50 border border-gray-600/50 rounded-lg">
+                  <p className="text-sm text-white/60 italic">{call.note || "No thesis provided for this call."}</p>
+                </div>
+              </div>
             )}
+
+            {/* Twitter Posts */}
+            <div className="space-y-3">
+              <div className="text-xs font-medium text-white/70">Twitter Posts</div>
+              
+              {/* Initial Call Post */}
+              {call.twitterPostId && (
+                <div className="p-3 bg-blue-900/20 border border-blue-600/30 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-medium text-blue-300">Initial Call</span>
+                    <span className="text-xs text-white/50">
+                      {call.calledAt ? new Date(call.calledAt).toLocaleString() : 'Unknown time'}
+                    </span>
+                  </div>
+                  <div className="text-sm text-white/80 mb-2">{call.thesis || 'Call posted to Twitter'}</div>
+                  <a 
+                    href={`https://twitter.com/i/web/status/${call.twitterPostId}`}
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="text-xs text-blue-300 underline inline-flex items-center gap-1"
+                  >
+                    View on X <ExternalLink size={12} />
+                  </a>
+                </div>
+              )}
+
+              {/* Milestone Posts */}
+              {call.milestonePosts && call.milestonePosts.length > 0 && (
+                <div className="space-y-2">
+                  {call.milestonePosts.map((post, index) => (
+                    <div key={index} className="p-3 bg-green-900/20 border border-green-600/30 rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs font-medium text-green-300">
+                          {post.milestone}× Milestone
+                        </span>
+                        <span className="text-xs text-white/50">
+                          {post.postedAt ? new Date(post.postedAt).toLocaleString() : 'Unknown time'}
+                        </span>
+                      </div>
+                      <div className="text-sm text-white/80 mb-2">{post.postText}</div>
+                      <a 
+                        href={`https://twitter.com/i/web/status/${post.tweetId}`}
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="text-xs text-green-300 underline inline-flex items-center gap-1"
+                      >
+                        View on X <ExternalLink size={12} />
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* No Twitter Posts */}
+              {!call.twitterPostId && (!call.milestonePosts || call.milestonePosts.length === 0) && (
+                <div className="p-3 bg-gray-800/30 border border-gray-600/30 rounded-lg">
+                  <div className="text-sm text-white/60 italic">
+                    No Twitter posts for this call
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Call Status */}
+            <div className="mt-4 pt-3 border-t border-white/10">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-white/60">Status:</span>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  call.status === 'active' ? 'bg-green-900/30 text-green-300' :
+                  call.status === 'closed' ? 'bg-gray-900/30 text-gray-300' :
+                  'bg-yellow-900/30 text-yellow-300'
+                }`}>
+                  {call.status || 'active'}
+                </span>
+              </div>
+              {call.twitterEnabled && (
+                <div className="flex items-center justify-between text-xs mt-1">
+                  <span className="text-white/60">Twitter Posting:</span>
+                  <span className="text-green-300">Enabled</span>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Performance Summary */}

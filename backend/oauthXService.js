@@ -119,6 +119,67 @@ class OAuthXService {
   }
 
   /**
+   * Post a tweet using user's access token
+   */
+  async postTweet(userId, text, options = {}) {
+    try {
+      const user = await this.getUserById(userId);
+      if (!user || !user.accessToken) {
+        throw new Error('User not found or no access token');
+      }
+
+      const response = await axios.post('https://api.twitter.com/2/tweets', {
+        text: text
+      }, {
+        headers: {
+          'Authorization': `Bearer ${user.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log(`🐦 Posted tweet for user ${userId}: ${response.data.data.id}`);
+      return response.data.data;
+    } catch (error) {
+      console.error('❌ Error posting tweet:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if user has Twitter posting enabled
+   */
+  async hasTwitterPostingEnabled(userId) {
+    try {
+      const user = await this.getUserById(userId);
+      return !!(user && user.accessToken && user.twitterPostingEnabled);
+    } catch (error) {
+      console.error('❌ Error checking Twitter posting status:', error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Enable/disable Twitter posting for user
+   */
+  async setTwitterPostingEnabled(userId, enabled) {
+    try {
+      const user = await this.getUserById(userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      user.twitterPostingEnabled = enabled;
+      await this.saveUser(user);
+      
+      console.log(`🐦 Twitter posting ${enabled ? 'enabled' : 'disabled'} for user ${userId}`);
+      return true;
+    } catch (error) {
+      console.error('❌ Error setting Twitter posting status:', error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Create or update user in database
    */
   async createOrUpdateUser(profile, accessToken, refreshToken) {

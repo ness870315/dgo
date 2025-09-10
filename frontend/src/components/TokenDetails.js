@@ -4,6 +4,7 @@ import kolCallsService from '../services/kolCallsService';
 import watchlistService from '../services/watchlistService';
 import priorityService from '../services/priorityService';
 import { useAuth } from '../contexts/AuthContext';
+import EnhancedCallModal from './EnhancedCallModal';
 
 const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }) => {
   const { isAuthenticated } = useAuth();
@@ -21,6 +22,14 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState(null);
+  
+  // Enhanced Call Modal states
+  const [showEnhancedCallModal, setShowEnhancedCallModal] = useState(false);
+  
+  // Fuel Share states
+  const [showFuelShareModal, setShowFuelShareModal] = useState(false);
+  const [fuelShareMessage, setFuelShareMessage] = useState('');
+  const [appliedFuelType, setAppliedFuelType] = useState(null);
 
   // Check if token is fueled and get fuel multiplier
   const getFuelMultiplier = () => {
@@ -128,11 +137,52 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
         primaryColor: '#7C3AED',
         neutralColor: '#5A6578',
         display: 'inline',
-        onSuccess: (e) => console.log('Helio success', e),
-        onError: (e) => console.log('Helio error', e),
-        onPending: (e) => console.log('Helio pending', e),
-        onCancel: () => console.log('Cancelled payment'),
-        onStartPayment: () => console.log('Starting payment')
+        onSuccess: (event) => {
+          console.log('✅ Helio payment success:', event);
+          setPaymentCompleted(true);
+          
+          // Store payment data for fuel application
+          localStorage.setItem('pendingFuelPayment', JSON.stringify({
+            contractAddress: token.contractAddress,
+            fuelType: selectedFuel,
+            paymentId: event.paymentId || `fuel_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            paymentInitiated: new Date().toISOString(),
+            helioEvent: event
+          }));
+          
+          setFuelMessage({ 
+            text: '✅ Payment successful! Click "Apply Fuel Boost" to activate your fuel.', 
+            type: 'success' 
+          });
+        },
+        onError: (event) => {
+          console.error('❌ Helio payment error:', event);
+          setFuelMessage({ 
+            text: '❌ Payment failed. Please try again.', 
+            type: 'error' 
+          });
+        },
+        onPending: (event) => {
+          console.log('⏳ Helio payment pending:', event);
+          setFuelMessage({ 
+            text: '⏳ Payment processing...', 
+            type: 'info' 
+          });
+        },
+        onCancel: () => {
+          console.log('❌ Payment cancelled');
+          setFuelMessage({ 
+            text: 'Payment cancelled', 
+            type: 'info' 
+          });
+        },
+        onStartPayment: () => {
+          console.log('🚀 Starting payment');
+          setFuelMessage({ 
+            text: '🚀 Processing payment...', 
+            type: 'info' 
+          });
+        }
       });
     } catch (err) {
       console.error('Failed to mount Helio widget in TokenDetails:', err);
@@ -295,6 +345,19 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
     setFuelMessage({ text: '', type: '' });
   };
 
+  // Generate random fuel share messages
+  const generateFuelShareMessage = (symbol, fuelType) => {
+    const messages = [
+      `I just Fueled #${symbol} for a ${fuelType} on @oracle_degen1 - a new cult is about to form 🔥`,
+      `🚀 Just dropped ${fuelType} fuel on #${symbol} via @oracle_degen1 - this is about to go parabolic!`,
+      `⚡ Fueled #${symbol} with ${fuelType} boost on @oracle_degen1 - the degen army is assembling!`,
+      `🔥 ${fuelType} fuel applied to #${symbol} on @oracle_degen1 - watch this space, it's about to explode!`,
+      `💎 Just fueled #${symbol} for ${fuelType} on @oracle_degen1 - the next alpha is loading...`
+    ];
+    
+    return messages[Math.floor(Math.random() * messages.length)];
+  };
+
   const handleApplyFuel = async () => {
     setFuelLoading(true);
     setFuelMessage({ text: '', type: '' });
@@ -304,11 +367,25 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
       const pendingData = localStorage.getItem('pendingFuelPayment');
       let fuelType = selectedFuel;
 
+      console.log('🔥 Applying fuel for token:', token.symbol, 'Contract:', token.contractAddress);
+      console.log('Selected fuel:', selectedFuel);
+      console.log('Pending data:', pendingData);
+
       if (pendingData) {
         const pending = JSON.parse(pendingData);
         fuelType = pending.fuelType;
         console.log('Found pending fuel payment:', pending);
       }
+
+      if (!fuelType) {
+        setFuelMessage({ text: '❌ No fuel type selected', type: 'error' });
+        return;
+      }
+
+      console.log('🚀 Sending fuel application request:', {
+        contractAddress: token.contractAddress,
+        fuelType: fuelType
+      });
 
       const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/tokens/fuel`, {
         method: 'POST',
@@ -321,28 +398,53 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
         })
       });
 
+      console.log('📡 Fuel API response status:', response.status);
       const result = await response.json();
+      console.log('📡 Fuel API response data:', result);
 
       if (response.ok) {
         setFuelMessage({ text: `✅ ${result.message}`, type: 'success' });
+        setAppliedFuelType(fuelType);
+        
+        // Generate share message
+        const shareMessage = generateFuelShareMessage(token.symbol, fuelType);
+        setFuelShareMessage(shareMessage);
+        
+        // Show share modal instead of closing immediately
+        setShowFuelShareModal(true);
+        
         setSelectedFuel(null);
         setContractValidated(false);
         setPaymentCompleted(false);
         localStorage.removeItem('pendingFuelPayment');
-        // Close modal after 2 seconds
-        setTimeout(() => {
-          setShowFuelModal(false);
-          setFuelMessage({ text: '', type: '' });
-        }, 2000);
       } else {
         setFuelMessage({ text: `❌ ${result.error}`, type: 'error' });
       }
     } catch (error) {
-      console.error('Error applying fuel:', error);
+      console.error('❌ Error applying fuel:', error);
       setFuelMessage({ text: '❌ Failed to apply fuel. Please try again.', type: 'error' });
     } finally {
       setFuelLoading(false);
     }
+  };
+
+  const handleFuelShare = () => {
+    if (fuelShareMessage) {
+      // Redirect to X (Twitter) with pre-filled message, just like referral code share
+      const twitterUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
+        text: fuelShareMessage,
+        url: 'https://degen-oracle.com'
+      }).toString()}`;
+      
+      // Open in new tab
+      window.open(twitterUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const handleCloseFuelShare = () => {
+    setShowFuelShareModal(false);
+    setShowFuelModal(false);
+    setFuelMessage({ text: '', type: '' });
   };
 
   const formatNumber = (num) => {
@@ -366,7 +468,35 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
     return price.toFixed(2);
   };
 
-
+  const handleConfirmCall = async (callData) => {
+    try {
+      const payload = {
+        symbol: callData.token.symbol,
+        name: callData.token.name,
+        contractAddress: callData.token.contractAddress,
+        thesis: callData.thesis,
+        twitterEnabled: callData.twitterEnabled,
+        tone: callData.tone
+      };
+      
+      await kolCallsService.addCall(payload);
+      alert('✅ You\'ve made your call with AI thesis and Twitter posting! Let\'s see if you have what it takes to become the next KOL.');
+      setCallRecorded(true);
+    } catch (err) {
+      if (err && err.code === 'already_called') {
+        alert('Come on chad! You already called this one!');
+        return;
+      }
+      if (err && err.code === 'limit_exceeded') {
+        const upgrade = window.confirm('🚀 ' + err.message + '\n\nWould you like to upgrade now?');
+        if (upgrade && onNavigateToPremium) {
+          onNavigateToPremium();
+        }
+        return;
+      }
+      throw err;
+    }
+  };
 
   const getHypeLevel = (score) => {
     if (!score || score >= 8) return { level: 'VIRAL', icon: '🚀', color: 'text-purple-400' };
@@ -436,9 +566,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                       }
                     </code>
                 {token?.contractAddress && (
-                  <div className="relative"
-                       onMouseEnter={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'block'; }}
-                       onMouseLeave={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'none'; }}>
+                  <div className="relative group">
                     <button
                       onClick={(event) => {
                         navigator.clipboard.writeText(token.contractAddress);
@@ -453,11 +581,14 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                     >
                       📋
                     </button>
-                    <div className="bubble-tooltip mt-1 left-1/2 -translate-x-1/2" style={{ display: 'none' }}>
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[200px]">
                       <div className="text-xs leading-tight">
                         <span className="font-semibold text-white">Copy:</span>
                         <span className="text-gray-300 ml-1">Copy contract address to clipboard</span>
                       </div>
+                      {/* Arrow */}
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-600"></div>
                     </div>
                   </div>
                 )}
@@ -466,16 +597,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
           </div>
 
             <div className="flex items-center space-x-2">
-            {/* AI Analysis Button with bubble-tooltip */}
-            <div className="relative"
-                 onMouseEnter={(e) => {
-                   const tip = e.currentTarget.querySelector('.bubble-tooltip');
-                   if (tip) tip.style.display = 'block';
-                 }}
-                 onMouseLeave={(e) => {
-                   const tip = e.currentTarget.querySelector('.bubble-tooltip');
-                   if (tip) tip.style.display = 'none';
-                 }}>
+            {/* AI Analysis Button with tooltip */}
+            <div className="relative group">
               <button
                 onClick={isAuthenticated ? fetchAIAnalysis : undefined}
                 disabled={!isAuthenticated || aiLoading}
@@ -494,152 +617,113 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                   </>
                 )}
               </button>
-              <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-[1000] max-w-[280px] whitespace-normal" style={{ display: 'none' }}>
+              {/* Tooltip */}
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[280px]">
                 <div className="text-xs leading-tight">
                   <span className="font-semibold text-white">Oracle AI:</span>
                   <span className="text-gray-300 ml-1">{isAuthenticated ? 'Deep-dive analysis with hype, risks, and plays' : 'Log in to use this feature'}</span>
                 </div>
+                {/* Arrow */}
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-600"></div>
               </div>
             </div>
             
-            {/* Fuel Token Button with bubble-tooltip */}
-            <div className="relative"
-                 onMouseEnter={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'block'; }}
-                 onMouseLeave={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'none'; }}>
+            {/* Fuel Token Button with tooltip */}
+            <div className="relative group">
               <button
                 onClick={handleFuelClick}
                 className="p-2 rounded-lg transition-all duration-200 text-orange-400 hover:text-orange-300 hover:bg-orange-400/10"
               >
                 <Flame size={20} />
               </button>
-              <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-[1000] max-w-[220px]" style={{ display: 'none' }}>
+              {/* Tooltip */}
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[220px]">
                 <div className="text-xs leading-tight">
                   <span className="font-semibold text-white">Fuel:</span>
                   <span className="text-gray-300 ml-1">Boost visibility and priority for this token</span>
                 </div>
+                {/* Arrow */}
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-600"></div>
               </div>
             </div>
 
             {/* Watchlist Star */}
-              <div className="relative"
-                   onMouseEnter={(e) => {
-                     const t = e.currentTarget.querySelector('.bubble-tooltip');
-                     if (t) {
-                       t.style.display = 'block';
-                       const rect = e.currentTarget.getBoundingClientRect();
-                       t.style.position = 'fixed';
-                       t.style.left = `${rect.left + rect.width / 2}px`;
-                       t.style.top = `${rect.top - 8}px`;
-                       t.style.transform = 'translate(-50%, -100%)';
-                       t.style.maxWidth = '300px';
-                       t.style.whiteSpace = 'normal';
-                       t.style.wordBreak = 'break-word';
-                       t.style.zIndex = '3000';
-                       t.style.pointerEvents = 'none';
-                     }
-                   }}
-                   onMouseLeave={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'none'; }}>
-                <button
-                  onClick={isAuthenticated ? toggleWatchlist : undefined}
-                  disabled={!isAuthenticated}
-                  className={`p-2 rounded-lg transition-all duration-200 ${
-                    !isAuthenticated
-                      ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none'
-                      : isInWatchlist 
-                        ? 'text-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20' 
-                        : 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/10'
+            <div className="relative group">
+              <button
+                onClick={isAuthenticated ? toggleWatchlist : undefined}
+                disabled={!isAuthenticated}
+                className={`p-2 rounded-lg transition-all duration-200 ${
+                  !isAuthenticated
+                    ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none'
+                    : isInWatchlist 
+                      ? 'text-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20' 
+                      : 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/10'
+              }`}
+              >
+                <Star 
+                  size={20} 
+                  stroke="currentColor"
+                  fill={isInWatchlist ? 'currentColor' : 'none'} 
+                />
+              </button>
+              {/* Tooltip */}
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[220px]">
+                <div className="text-xs leading-tight">
+                  <span className="font-semibold text-white">Watchlist:</span>
+                  <span className="text-gray-300 ml-1">{isAuthenticated ? (isInWatchlist ? 'Remove from your watchlist' : 'Add to your watchlist') : 'Log in to use this feature'}</span>
+                </div>
+                {/* Arrow */}
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-600"></div>
+              </div>
+            </div>
+
+            {/* Call it! */}
+            <div className="relative group">
+              <button
+                onClick={isAuthenticated ? () => setShowEnhancedCallModal(true) : undefined}
+                disabled={!isAuthenticated}
+                className={`px-2 py-1 ml-1 rounded-lg bg-transparent border border-solana-purple/60 text-xs ${
+                  !isAuthenticated ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none' : 'text-gray-200 hover:bg-gray-700'
                 }`}
-                >
-                    <Star 
-                      size={20} 
-                      stroke="currentColor"
-                      fill={isInWatchlist ? 'currentColor' : 'none'} 
-                    />
-                </button>
-                <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-[1000] max-w-[220px]" style={{ display: 'none' }}>
-                  <div className="text-xs leading-tight">
-                    <span className="font-semibold text-white">Watchlist:</span>
-                    <span className="text-gray-300 ml-1">{isAuthenticated ? (isInWatchlist ? 'Remove from your watchlist' : 'Add to your watchlist') : 'Log in to use this feature'}</span>
-                  </div>
+              >
+                Call it!
+              </button>
+              {/* Tooltip */}
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[300px]">
+                <div className="text-xs leading-tight">
+                  <span className="font-semibold text-white">Call it:</span>
+                  <span className="text-gray-300 ml-1">{isAuthenticated ? 'Make a KOL call with AI thesis and Twitter posting' : 'Log in to use this feature'}</span>
                 </div>
+                {/* Arrow */}
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-600"></div>
               </div>
+            </div>
 
-              {/* Call it! */}
-              <div className="relative"
-                   onMouseEnter={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'block'; }}
-                   onMouseLeave={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'none'; }}>
-                <button
-                  onClick={isAuthenticated ? (async () => {
-                  try {
-                    const payload = {
-                      symbol: token.symbol,
-                      name: token.name,
-                      contractAddress: token.contractAddress
-                    };
-                    try {
-                      await kolCallsService.addCall(payload);
-                      alert('✅ You\'ve made your call... let\'s see if you have what it takes to become the next KOL.');
-                      setCallRecorded(true);
-                    } catch (err) {
-                      // @ts-ignore
-                      if (err && err.code === 'already_called') {
-                        alert('Come on chad! You already called this one!');
-                        return;
-                      }
-                      // @ts-ignore
-                      if (err && err.code === 'limit_exceeded') {
-                        const upgrade = window.confirm('🚀 ' + err.message + '\n\nWould you like to upgrade now?');
-                        if (upgrade && onNavigateToPremium) {
-                          onNavigateToPremium();
-                        }
-                        return;
-                      }
-                      throw err;
-                    }
-                  } catch (e) {
-                    console.error('Call it failed:', e);
-                    alert('❌ Failed to record call');
+            {/* Close Button */}
+            <div className="relative group">
+              <button
+                onClick={() => {
+                try {
+                  if (callRecorded) {
+                    window.dispatchEvent(new CustomEvent('kol-call-added'));
                   }
-                }) : undefined}
-                  disabled={!isAuthenticated}
-                  className={`px-2 py-1 ml-1 rounded-lg bg-transparent border border-solana-purple/60 text-xs ${
-                    !isAuthenticated ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none' : 'text-gray-200 hover:bg-gray-700'
-                  }`}
-                >
-                  Call it!
-                </button>
-                <div className="bubble-tooltip fixed z-[2000] max-w-[300px] whitespace-normal" style={{ display: 'none', bottom: 'calc(100% + 8px)', left: '50%', transform: 'translateX(-50%)' }}>
-                  <div className="text-xs leading-tight">
-                    <span className="font-semibold text-white">Call it:</span>
-                    <span className="text-gray-300 ml-1">{isAuthenticated ? 'Record your play at current MCAP' : 'Log in to use this feature'}</span>
-                  </div>
+                } catch (_) {}
+                onClose && onClose();
+              }}
+              className="p-2 text-gray-400 hover:text-white transition-colors"
+              >
+                <X size={20} />
+              </button>
+              {/* Tooltip */}
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[200px]">
+                <div className="text-xs leading-tight">
+                  <span className="font-semibold text-white">Close:</span>
+                  <span className="text-gray-300 ml-1">Close token details</span>
                 </div>
+                {/* Arrow */}
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-600"></div>
               </div>
-
-              {/* Close Button */}
-              <div className="relative"
-                   onMouseEnter={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'block'; }}
-                   onMouseLeave={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'none'; }}>
-                <button
-                  onClick={() => {
-                  try {
-                    if (callRecorded) {
-                      window.dispatchEvent(new CustomEvent('kol-call-added'));
-                    }
-                  } catch (_) {}
-                  onClose && onClose();
-                }}
-                className="p-2 text-gray-400 hover:text-white transition-colors"
-                >
-                  <X size={20} />
-                </button>
-                <div className="bubble-tooltip mt-1 left-1/2 -translate-x-1/2" style={{ display: 'none' }}>
-                  <div className="text-xs leading-tight">
-                    <span className="font-semibold text-white">Close:</span>
-                    <span className="text-gray-300 ml-1">Close token details</span>
-                  </div>
-                </div>
-              </div>
+            </div>
             </div>
           </div>
 
@@ -1627,6 +1711,23 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
                   </div>
                 )}
 
+                {/* Manual Fuel Application (for testing) */}
+                {!paymentCompleted && selectedFuel && (
+                  <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-4 mb-6">
+                    <h4 className="text-yellow-300 font-medium mb-2">⚠️ Testing Mode</h4>
+                    <p className="text-yellow-200 text-sm mb-4">
+                      For testing purposes, you can apply fuel directly without payment.
+                    </p>
+                    <button
+                      onClick={handleApplyFuel}
+                      disabled={fuelLoading}
+                      className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 disabled:opacity-50"
+                    >
+                      {fuelLoading ? '🔥 Applying Fuel...' : `🔥 Apply ${selectedFuel} Fuel (Test)`}
+                    </button>
+                  </div>
+                )}
+
                 {/* Message Display */}
                 {fuelMessage.text && (
                   <div className={`mb-4 p-3 rounded-lg text-sm ${
@@ -2032,6 +2133,82 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
               >
                 <X size={16} />
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Enhanced Call Modal */}
+        <EnhancedCallModal
+          isOpen={showEnhancedCallModal}
+          onClose={() => setShowEnhancedCallModal(false)}
+          token={token}
+          onConfirmCall={handleConfirmCall}
+          onNavigateToPremium={onNavigateToPremium}
+        />
+
+        {/* Fuel Share Modal */}
+        {showFuelShareModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 max-w-md w-full mx-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-white flex items-center">
+                  <span className="mr-2">🔥</span>
+                  Fuel Applied Successfully!
+                </h3>
+                <button
+                  onClick={handleCloseFuelShare}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-gray-300 mb-4">
+                  Your {appliedFuelType} fuel has been applied to <strong className="text-white">#{token?.symbol}</strong>! 
+                  Share your alpha with the community on X:
+                </p>
+                
+                <div className="bg-gray-800 border border-gray-600 rounded-lg p-4 mb-4">
+                  <p className="text-white text-sm leading-relaxed">
+                    "{fuelShareMessage}"
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleFuelShare}
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 flex items-center justify-center"
+                  >
+                    <Twitter size={16} className="mr-2" />
+                    Share on X
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      const newMessage = generateFuelShareMessage(token?.symbol, appliedFuelType);
+                      setFuelShareMessage(newMessage);
+                    }}
+                    className="px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors flex items-center justify-center"
+                    title="Generate new message"
+                  >
+                    🔄
+                  </button>
+                </div>
+
+                <p className="text-xs text-gray-400 mt-3 text-center">
+                  Click "Share on X" to open Twitter with your message ready to post
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCloseFuelShare}
+                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         )}

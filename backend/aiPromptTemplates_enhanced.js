@@ -1,6 +1,6 @@
 /**
  * DeGen Oracle AI Core Engine - Enhanced Prompts
- * Dynamic AI Analysis with Jupiter API Integration & Crypto Slang Variations
+ * Dynamic AI Analysis with Advanced Analytics Integration & Crypto Slang Variations
  */
 
 // Crypto slang variations for dynamic responses
@@ -38,7 +38,7 @@ function getRandomTone() {
 
 export const ENHANCED_PROMPT_TEMPLATES = {
   /**
-   * Enhanced Social Context Analysis with Jupiter Integration
+   * Enhanced Social Context Analysis with Advanced Analytics Integration
    */
   SOCIAL_CONTEXT_ANALYSIS: `You are DeGen Oracle's AI analyst with a ${getRandomTone()} perspective. Analyze this token's social context for crypto traders.
 
@@ -111,13 +111,13 @@ Respond in this JSON format:
   "thesis": "Buckle up buttercup, this token is either about to moon harder than a SpaceX rocket or get absolutely rekt like a noob on 100x leverage! {{holderChange}}% holder momentum is either showing diamond-handed degens accumulating like there's no tomorrow, or paper-handed plebs dumping bags faster than a house of cards",
   "riskFactors": "Time to channel your inner degen detective - holder change {{holderChange}}% is either "viral traction that would make TikTok jealous" or "red flag energy that screams rug pull", volume change {{volumeChange}}% is either "momentum that would make a freight train look slow" or "dead cat bounce vibes", and price action {{priceChange}}% is either "moon mission fuel" or "correction time, baby"",
   "catalysts": [
-    "HOLDER EXPLOSION ALERT: {{holderChange}}% new wallets in 24h from Jupiter analytics - this is either viral traction that would make a pandemic jealous or a coordinated pump that screams sus energy",
+    "HOLDER EXPLOSION ALERT: {{holderChange}}% new wallets in 24h from our analytics engine - this is either viral traction that would make a pandemic jealous or a coordinated pump that screams sus energy",
     "NET BUYER SURGE: {{stats24h.numNetBuyers}} net buyers showing accumulation pressure that would make a black hole jealous - these degens are either diamond-handing to Valhalla or about to get absolutely rekt",
     "LIQUIDITY INFLOW: {{stats24h.liquidityChange}}% change in 24h indicating capital flow that would make a river look like a puddle - either whale confidence that would make Moby Dick jealous or a liquidity trap that would make a spider web look simple"
   ],
   "redFlags": [
     "VOLATILITY ALERT: {{stats1h.priceChange}}% in 1h with {{stats1h.volumeChange}}% volume change - either whale moves that would make a tsunami look like a ripple or panic selling that would make a fire drill look organized",
-    "VOLUME DISTRIBUTION: Buy/sell ratio analysis from Jupiter data showing market sentiment that would make a mood ring look simple - either organic buying pressure or coordinated selling that screams insider trading",
+    "VOLUME DISTRIBUTION: Buy/sell ratio analysis from our analytics tools showing market sentiment that would make a mood ring look simple - either organic buying pressure or coordinated selling that screams insider trading",
     "HOLDER RETENTION: {{holderChange}}% holder change indicating community confidence that would make a therapist question their career - either diamond hands that would make a diamond look soft or paper hands that would make a tissue look strong"
   ],
   "actionableInsights": "Listen up, degen! This is either the alpha play of the century that would make Warren Buffett FOMO in, or a trap that would make a mousetrap look like a playground. The data doesn't lie, but your interpretation might!",
@@ -208,7 +208,7 @@ Token: {{symbol}} ({{name}})
 Hype Data: {{hypeData}}
 Time Range: {{timeRange}}
 
-Jupiter Context:
+Analytics Context:
 - Holder Change: {{holderChange}}%
 - Volume Change: {{volumeChange}}%  
 - Organic Score: {{organicScore}}/100 ({{organicScoreLabel}})
@@ -220,10 +220,10 @@ Provide trend analysis with confidence intervals and actionable timing insights.
   /**
    * KOL Call Thesis Generation
    */
-  KOL_CALL_THESIS: `Generate a thesis for this KOL call using Jupiter metrics and social context.
+  KOL_CALL_THESIS: `Generate a thesis for this KOL call using our analytics metrics and social context.
 
 Token: {{symbol}} at {{marketCap}} mcap
-Jupiter Metrics: Holder {{holderChange}}%, Volume {{volumeChange}}%, Organic {{organicScore}}/100
+Analytics Metrics: Holder {{holderChange}}%, Volume {{volumeChange}}%, Organic {{organicScore}}/100
 Social: {{mentions}} mentions, {{communityScore}}/10 community score
 
 Create a compelling thesis using varied crypto terminology. Mix technical analysis with social sentiment.
@@ -231,7 +231,7 @@ Use terms like "${getRandomSlang('opportunity')}", "${getRandomSlang('strong')}"
 };
 
 /**
- * Template variable filling with Jupiter integration
+ * Template variable filling with analytics integration
  */
 export function fillEnhancedTemplate(template, variables) {
   let filled = template;
@@ -244,7 +244,7 @@ export function fillEnhancedTemplate(template, variables) {
     filled = filled.replace(regex, value);
   });
   
-  // Add Jupiter-specific enhancements
+  // Add analytics-specific enhancements
   if (variables.holderChange !== undefined) {
     const holderTrend = variables.holderChange > 0 ? getRandomSlang('growth') : getRandomSlang('decline');
     filled = filled.replace(/holder.*change/gi, `holder base is ${holderTrend}`);
