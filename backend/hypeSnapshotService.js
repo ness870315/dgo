@@ -44,11 +44,11 @@ class HypeSnapshotService {
     await fs.writeFile(file, JSON.stringify(snapshots, null, 2));
   }
 
-  // Append with hourly min interval and 30-day retention
+  // Append with 5-minute min interval and 30-day retention
   async appendSnapshot(contractAddress, snapshot) {
     if (!contractAddress) return;
     const now = Date.now();
-    const oneHour = 60 * 60 * 1000;
+    const fiveMinutes = 5 * 60 * 1000; // Reduced from 1 hour to 5 minutes
     const retentionMs = this.maxDays * 24 * 60 * 60 * 1000;
 
     const snapshots = await this.readSnapshots(contractAddress);
@@ -59,11 +59,12 @@ class HypeSnapshotService {
       return isFinite(t) && now - t <= retentionMs;
     });
 
-    // avoid too-frequent writes (min hour)
+    // avoid too-frequent writes (min 5 minutes)
     const last = pruned[pruned.length - 1];
     if (last) {
       const lastTs = new Date(last.timestamp).getTime();
-      if (isFinite(lastTs) && now - lastTs < oneHour) {
+      if (isFinite(lastTs) && now - lastTs < fiveMinutes) {
+        console.log(`⏰ Hype snapshot skipped for ${contractAddress} - too soon (${Math.round((now - lastTs) / 1000)}s ago, min 5min)`);
         return; // too soon
       }
     }
@@ -74,13 +75,22 @@ class HypeSnapshotService {
     });
 
     await this.writeSnapshots(contractAddress, pruned);
+    console.log(`📸 Hype snapshot saved for ${contractAddress}: score=${snapshot.score?.toFixed(1) || 'N/A'}, community=${snapshot.communityHealthScore?.toFixed(1) || 'N/A'} (${pruned.length} total snapshots)`);
   }
 
   // Get snapshots since a certain timestamp
   async getSnapshots(contractAddress, sinceMs) {
     const snaps = await this.readSnapshots(contractAddress);
-    if (!sinceMs) return snaps;
-    return snaps.filter(s => new Date(s.timestamp).getTime() >= sinceMs);
+    console.log(`📊 Retrieved ${snaps.length} total snapshots for ${contractAddress}`);
+    
+    if (!sinceMs) {
+      console.log(`📊 Returning all ${snaps.length} snapshots (no time filter)`);
+      return snaps;
+    }
+    
+    const filtered = snaps.filter(s => new Date(s.timestamp).getTime() >= sinceMs);
+    console.log(`📊 Filtered to ${filtered.length} snapshots since ${new Date(sinceMs).toISOString()}`);
+    return filtered;
   }
 }
 
