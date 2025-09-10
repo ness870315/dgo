@@ -7,7 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import EnhancedCallModal from './EnhancedCallModal';
 import fuelImageGenerator from '../services/fuelImageGenerator';
 
-const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }) => {
+const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, onTokenUpdated }) => {
   const { isAuthenticated } = useAuth();
   const [isInWatchlist, setIsInWatchlist] = useState(false);
   const [showFuelModal, setShowFuelModal] = useState(false);
@@ -430,6 +430,11 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium }
         
         // Show share modal instead of closing immediately
         setShowFuelShareModal(true);
+        
+        // Notify parent component that token was updated (fuel applied)
+        if (onTokenUpdated && token) {
+          onTokenUpdated(token);
+        }
         
         setSelectedFuel(null);
         setContractValidated(false);

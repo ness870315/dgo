@@ -671,9 +671,10 @@ function App() {
     const interval = setInterval(async () => {
       try {
         console.log('🔄 Auto-refreshing token data...');
+        const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
         const [tokenData, fueledData] = await Promise.all([
           tokenService.fetchTokens(settings.useRealTwitterData),
-          fetch('/api/tokens/fuel').then(res => res.ok ? res.json() : { value: [] })
+          fetch(`${apiBase}/api/tokens/fuel`).then(res => res.ok ? res.json() : { value: [] })
         ]);
         
         // Update fueled tokens
@@ -899,6 +900,11 @@ function App() {
       <AuthProvider>
         <FuelTokenPage 
           onBack={() => setShowFuelToken(false)}
+          onFuelApplied={() => {
+            // Refresh fueled tokens when fuel is applied from this page
+            console.log('🔥 App: Fuel applied, refreshing main app data...');
+            loadTokens();
+          }}
           headerAuth={
             <AuthButton 
               onNavigateToListToken={handleListTokenClick} 
@@ -1161,6 +1167,7 @@ function App() {
           token={selectedToken}
           fueledTokens={fueledTokens}
           onClose={() => setSelectedToken(null)}
+          onTokenUpdated={handleTokenUpdated}
         />
       )}
 

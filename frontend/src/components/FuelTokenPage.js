@@ -3,7 +3,7 @@ import { X, Twitter } from 'lucide-react';
 import { Flame, Rocket, Zap, Gem, ArrowLeft, Search } from 'lucide-react';
 import fuelImageGenerator from '../services/fuelImageGenerator';
 
-const FuelTokenPage = ({ onBack, headerAuth = null }) => {
+const FuelTokenPage = ({ onBack, headerAuth = null, onFuelApplied }) => {
   const [selectedFuel, setSelectedFuel] = useState(null);
   const [contractAddress, setContractAddress] = useState('');
   const [loading, setLoading] = useState(false);
@@ -72,6 +72,26 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
     return () => clearInterval(interval);
   }, []);
 
+  // Refresh fueled tokens when component becomes visible (e.g., when navigating from TokenDetails)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('🔥 FuelTokenPage: Page became visible, refreshing fueled tokens...');
+        loadFueledTokens();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Also refresh when component mounts (in case user navigated here from TokenDetails)
+    console.log('🔥 FuelTokenPage: Component mounted, refreshing fueled tokens...');
+    loadFueledTokens();
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   // Remove any stale pending payment; do not auto-show any modal/message on load
   useEffect(() => {
     try { localStorage.removeItem('pendingFuelPayment'); } catch (_) {}
@@ -81,13 +101,21 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
 
   const loadFueledTokens = async () => {
     try {
+      console.log('🔥 FuelTokenPage: Loading fueled tokens...');
       const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/tokens/fuel`);
+      console.log('🔥 FuelTokenPage: API response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
-        setFueledTokens(data.value || data);
+        console.log('🔥 FuelTokenPage: API response data:', data);
+        const fueledArray = data.value || data;
+        console.log('🔥 FuelTokenPage: Setting fueled tokens:', fueledArray);
+        setFueledTokens(fueledArray);
+      } else {
+        console.error('🔥 FuelTokenPage: API error:', response.status, response.statusText);
       }
     } catch (error) {
-      console.error('Error loading fueled tokens:', error);
+      console.error('🔥 FuelTokenPage: Error loading fueled tokens:', error);
     }
   };
 
@@ -229,6 +257,11 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
         setPaymentCompleted(false);
         localStorage.removeItem('pendingFuelPayment');
         loadFueledTokens();
+        
+        // Notify parent component that fuel was applied
+        if (onFuelApplied) {
+          onFuelApplied();
+        }
       } else {
         setMessage({ text: `❌ ${result.error}`, type: 'error' });
       }
@@ -516,6 +549,11 @@ const FuelTokenPage = ({ onBack, headerAuth = null }) => {
             <Flame size={20} />
             Currently Fueled Tokens
           </h3>
+          
+          {/* Debug info */}
+          <div className="text-xs text-gray-500 mb-4">
+            Debug: fueledTokens.length = {fueledTokens.length}, data = {JSON.stringify(fueledTokens, null, 2)}
+          </div>
           
           {fueledTokens.length === 0 ? (
             <div className="text-center text-gray-400 py-12">
