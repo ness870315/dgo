@@ -364,7 +364,10 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
       `💎 Just fueled #${symbol} for ${fuelType} on @degen_oracle1 - the next alpha is loading...`
     ];
     
-    return messages[Math.floor(Math.random() * messages.length)];
+    const baseMessage = messages[Math.floor(Math.random() * messages.length)];
+    const imageUrl = `${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/fuel-image/${fuelType}/${symbol}`;
+    
+    return `${baseMessage} https://degen-oracle.com\n\n🔥 Fuel Image: ${imageUrl}`;
   };
 
   const handleApplyFuel = async () => {
@@ -453,14 +456,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
 
   const handleFuelShare = () => {
     if (fuelShareMessage) {
-      // Add image link to the message
-      const imageUrl = `${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/fuel-image/${appliedFuelType}/${token.symbol}`;
-      const messageWithImage = `${fuelShareMessage}\n\n🔥 Fuel Image: ${imageUrl}`;
-      
-      // Redirect to X (Twitter) with pre-filled message, just like referral code share
+      // Message already includes image link, use it directly
       const twitterUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
-        text: messageWithImage,
-        url: 'https://degen-oracle.com'
+        text: fuelShareMessage
       }).toString()}`;
       
       // Open in new tab
