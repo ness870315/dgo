@@ -1,0 +1,5 @@
+[33m2b0abe7[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m Fix duplicate Twitter refresh issue: Add token-level deduplication and better logging
+[33m6bbddc0[m Fix KOL leaderboard scoring: Remove liquidity penalty, add market cap and volume momentum scoring
+[33m01e0954[m Fix multiple critical issues: thesis recording, market cap formatting, hype charts, Twitter posting, and duplicate logging
+[33m10775b5[m Fix deployment issue by replacing canvas with sharp for fuel image generation
+[33m0c7ff51[m Fix delete button and add fuel image links to share posts

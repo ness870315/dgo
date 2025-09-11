@@ -192,9 +192,9 @@ const FuelTokenPage = ({ onBack, headerAuth = null, onFuelApplied }) => {
     ];
     
     const baseMessage = messages[Math.floor(Math.random() * messages.length)];
-    const imageUrl = `${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/fuel-image/${fuelType}/${symbol}`;
+    const fuelPageUrl = `${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/fuel/${fuelType}/${symbol}`;
     
-    return `${baseMessage} https://degen-oracle.com\n\n🔥 Fuel Image: ${imageUrl}`;
+    return `${baseMessage} ${fuelPageUrl}`;
   };
 
   const handleApplyFuel = async () => {
