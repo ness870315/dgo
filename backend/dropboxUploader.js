@@ -24,38 +24,72 @@ class DropboxUploader {
     let pending = null;
 
     const startSession = async (firstChunk) => {
-      const res = await this.http.post('/files/upload_session/start', firstChunk, {
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-          'Content-Type': 'application/octet-stream',
-          'Dropbox-API-Arg': JSON.stringify({ close: false })
-        }
-      });
-      return res.data.session_id;
+      try {
+        const res = await this.http.post('/files/upload_session/start', firstChunk, {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/octet-stream',
+            'Dropbox-API-Arg': JSON.stringify({ close: false })
+          }
+        });
+        return res.data.session_id;
+      } catch (error) {
+        console.error('❌ Dropbox startSession failed:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          message: error.message
+        });
+        throw error;
+      }
     };
 
     const appendChunk = async (chunk) => {
-      await this.http.post('/files/upload_session/append_v2', chunk, {
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-          'Content-Type': 'application/octet-stream',
-          'Dropbox-API-Arg': JSON.stringify({ cursor: { session_id: sessionId, offset }, close: false })
-        }
-      });
-      offset += chunk.length;
+      try {
+        await this.http.post('/files/upload_session/append_v2', chunk, {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/octet-stream',
+            'Dropbox-API-Arg': JSON.stringify({ cursor: { session_id: sessionId, offset }, close: false })
+          }
+        });
+        offset += chunk.length;
+      } catch (error) {
+        console.error('❌ Dropbox appendChunk failed:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          message: error.message,
+          offset: offset,
+          chunkSize: chunk.length
+        });
+        throw error;
+      }
     };
 
     const finishSession = async (lastChunk) => {
-      await this.http.post('/files/upload_session/finish', lastChunk, {
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-          'Content-Type': 'application/octet-stream',
-          'Dropbox-API-Arg': JSON.stringify({
-            cursor: { session_id: sessionId, offset },
-            commit: { path: normalizedPath, mode: 'add', autorename: true, mute: false }
-          })
-        }
-      });
+      try {
+        await this.http.post('/files/upload_session/finish', lastChunk, {
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/octet-stream',
+            'Dropbox-API-Arg': JSON.stringify({
+              cursor: { session_id: sessionId, offset },
+              commit: { path: normalizedPath, mode: 'add', autorename: true, mute: false }
+            })
+          }
+        });
+      } catch (error) {
+        console.error('❌ Dropbox finishSession failed:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          message: error.message,
+          path: normalizedPath,
+          offset: offset
+        });
+        throw error;
+      }
     };
 
     for await (const chunk of stream) {

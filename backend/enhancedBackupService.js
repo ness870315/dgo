@@ -293,6 +293,14 @@ class EnhancedBackupService {
         }
       } catch (cloudError) {
         console.warn('⚠️ Dropbox upload failed:', cloudError.message);
+        console.warn('⚠️ Dropbox error details:', {
+          type: cloudError.constructor.name,
+          message: cloudError.message,
+          status: cloudError.response?.status,
+          statusText: cloudError.response?.statusText,
+          data: cloudError.response?.data,
+          code: cloudError.code
+        });
       }
 
       return metadata;
