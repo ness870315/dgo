@@ -1631,15 +1631,28 @@ class EnhancedBackend {
         // Use frontend twitterEnabled flag or check user preference
         const hasTwitterPosting = twitterEnabled !== undefined ? twitterEnabled : await this.oauthXService.hasTwitterPostingEnabled(user.id);
         
+        console.log(`🐦 Twitter posting check for ${token.symbol}:`, {
+          twitterEnabled,
+          hasTwitterPosting,
+          hasThesis: !!finalThesis,
+          userId: user.id
+        });
+        
         // Post to Twitter if enabled
         if (hasTwitterPosting && finalThesis) {
           try {
+            console.log(`🐦 Attempting to post tweet for ${token.symbol}...`);
             const tweet = await this.oauthXService.postTweet(user.id, finalThesis);
             twitterPostId = tweet.id;
             console.log(`🐦 Posted call tweet for ${token.symbol}: ${twitterPostId}`);
           } catch (error) {
             console.error(`❌ Failed to post tweet for ${token.symbol}:`, error.message);
+            console.error(`❌ Twitter posting error details:`, error);
           }
+        } else {
+          console.log(`🐦 Skipping Twitter post for ${token.symbol}:`, {
+            reason: !hasTwitterPosting ? 'Twitter posting disabled' : 'No thesis available'
+          });
         }
 
         const saved = await this.oauthXService.db.addKolCall(user.id, {
