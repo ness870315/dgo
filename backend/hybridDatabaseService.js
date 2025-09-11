@@ -571,9 +571,21 @@ class HybridDatabaseService {
    * Add a KOL call
    */
   async addKolCall(userId, call) {
+    console.log(`💾 addKolCall called for user ${userId}:`, {
+      thesis: call.thesis,
+      hasThesis: !!call.thesis,
+      twitterPostId: call.twitterPostId,
+      hasTwitterPost: !!call.twitterPostId,
+      twitterEnabled: call.twitterEnabled,
+      tone: call.tone
+    });
+    
     await this.ensureUserDir(userId);
     const file = this.getUserFile(userId, 'kol-calls.json');
     const calls = await this.readJsonFile(file, []);
+    
+    console.log(`💾 Current calls count for user ${userId}: ${calls.length}`);
+    
     const toSave = {
       id: crypto.randomUUID(),
       ...call,
@@ -596,8 +608,23 @@ class HybridDatabaseService {
       nextMilestoneThreshold: 5.0, // Next milestone to check for
       milestonePosts: [] // Array of posted milestone updates
     };
+    
+    console.log(`💾 Prepared call data to save:`, {
+      id: toSave.id,
+      thesis: toSave.thesis,
+      hasThesis: !!toSave.thesis,
+      twitterPostId: toSave.twitterPostId,
+      hasTwitterPost: !!toSave.twitterPostId,
+      twitterEnabled: toSave.twitterEnabled,
+      tone: toSave.tone
+    });
+    
     calls.push(toSave);
-    await this.writeJsonFile(file, calls);
+    
+    console.log(`💾 Writing ${calls.length} calls to file: ${file}`);
+    const writeResult = await this.writeJsonFile(file, calls);
+    console.log(`💾 Write result: ${writeResult}`);
+    
     return toSave;
   }
 
