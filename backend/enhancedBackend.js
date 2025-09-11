@@ -1740,9 +1740,25 @@ class EnhancedBackend {
         if (!user) return res.status(401).json({ error: 'Invalid session' });
         
         // Prepare call data for thesis generation
+        const jupiterData = tokenData.jupiterData || {};
+        const marketCap = jupiterData.mcap || jupiterData.marketCap || tokenData.marketCap || 0;
+        const price = jupiterData.usdPrice || jupiterData.price || tokenData.price || 0;
+        
+        console.log('[🛡️ Enhanced Backend] 📊 Thesis generation data:', {
+          symbol: tokenData.symbol,
+          jupiterMcap: jupiterData.mcap,
+          jupiterMarketCap: jupiterData.marketCap,
+          tokenMarketCap: tokenData.marketCap,
+          finalMarketCap: marketCap,
+          jupiterPrice: jupiterData.usdPrice,
+          jupiterPriceAlt: jupiterData.price,
+          tokenPrice: tokenData.price,
+          finalPrice: price
+        });
+        
         const callData = {
-          calledMc: tokenData.marketCap || 0,
-          calledPrice: tokenData.price || 0,
+          calledMc: marketCap,
+          calledPrice: price,
           calledAt: new Date().toISOString()
         };
         
