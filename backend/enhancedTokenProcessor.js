@@ -583,19 +583,18 @@ class EnhancedTokenProcessor {
             token.communityHealthScore = this.socialDataService.calculateCommunityHealthScore(twitterData);
             token.stage = 'twitter';
             
-            // 🚨 FIX: Set consistent token-level timestamp to prevent infinite loops
-            token.twitterTimestamp = twitterData.twitterTimestamp || twitterData.lastRefreshed || twitterData.lastUpdated || new Date().toISOString();
+            // 🚨 FIX: Always apply 72h cooldown when Twitter data is successfully fetched
+            const now = new Date().toISOString();
+            token.twitterTimestamp = now;
             
             // Note: Hype snapshots are created during the scoring stage, not here
-
-            // Only apply 72h cooldown if we got fresh data, not rate-limited cached data
+            
+            console.log(`✅ Twitter data for ${symbol}: ${twitterData.mentions} mentions (72h cooldown applied)`);
+            
+            // Log data freshness for debugging but don't use it to skip cooldown
             const dataFreshness = twitterData._dataFreshness || 'unknown';
-            if (dataFreshness === 'fresh') {
-              token.twitterTimestamp = new Date().toISOString();
-              console.log(`✅ Fresh Twitter data for ${symbol}: ${twitterData.mentions} mentions (72h cooldown applied)`);
-            } else {
-              console.log(`⚠️ ${dataFreshness.replace('_', ' ').toUpperCase()} Twitter data for ${symbol}: ${twitterData.mentions} mentions (no cooldown applied)`);
-              // Keep existing timestamp to allow retry soon
+            if (dataFreshness !== 'unknown') {
+              console.log(`📊 Data freshness: ${dataFreshness.replace('_', ' ')}`);
             }
             batchProcessed++;
             
