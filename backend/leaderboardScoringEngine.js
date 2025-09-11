@@ -10,7 +10,6 @@ export default class LeaderboardScoringEngine {
       // Per-call metrics
       halfLife: 30, // days for recency weighting
       ddPenaltyThreshold: 0.30, // 30% drawdown before penalty starts
-      liquidityReference: 100000, // $100k reference liquidity
       volumeK: 25, // K parameter for diminishing returns
       bayesianK: 15, // Bayesian shrinkage strength
 
@@ -69,28 +68,30 @@ export default class LeaderboardScoringEngine {
     const maxDrawdown = call.maxDrawdownPct || 0;
     const ddWeight = 1 - Math.max(0, (maxDrawdown - this.config.ddPenaltyThreshold) / (1 - this.config.ddPenaltyThreshold));
 
-    // Liquidity weight
-    const liquidity = currentData?.liquidity || call.liquidity || 0;
-    const liqWeight = Math.max(0.5, Math.min(1, liquidity / this.config.liquidityReference));
-
+    // Market cap appropriateness weight (reward calls at optimal MC ranges)
+    const mcapWeight = this.calculateMarketCapWeight(calledMC);
+    
+    // Volume momentum weight (reward calls during high volume periods)
+    const volumeWeight = this.calculateVolumeWeight(currentData);
+    
     // Recency weight
     const timeWeight = Math.exp(-ageDays / this.config.halfLife);
 
-    // Per-call score
-    const callScore = logReturn * ddWeight * liqWeight * timeWeight;
+    // Per-call score (removed liquidity penalty)
+    const callScore = logReturn * ddWeight * mcapWeight * volumeWeight * timeWeight;
 
     return {
       callId: call.id,
       xMultiple,
       logReturn,
       ddWeight,
-      liqWeight,
+      mcapWeight,
+      volumeWeight,
       timeWeight,
       callScore,
       ageHours,
       calledMC,
       currentMC,
-      liquidity,
       maxDrawdown
     };
   }
@@ -324,5 +325,70 @@ export default class LeaderboardScoringEngine {
       globalStats: this.globalStats,
       generatedAt: new Date().toISOString()
     };
+  }
+
+  /**
+   * Calculate market cap appropriateness weight
+   * Rewards calls at optimal market cap ranges for alpha generation
+   */
+  calculateMarketCapWeight(calledMC) {
+    if (!calledMC || calledMC <= 0) return 0.5;
+    
+    // Optimal ranges for alpha generation (based on historical data)
+    if (calledMC >= 50000 && calledMC <= 500000) {
+      // Micro-cap sweet spot: 50k-500k MC
+      return 1.2;
+    } else if (calledMC >= 500000 && calledMC <= 2000000) {
+      // Small-cap range: 500k-2M MC
+      return 1.0;
+    } else if (calledMC >= 2000000 && calledMC <= 10000000) {
+      // Mid-cap range: 2M-10M MC
+      return 0.9;
+    } else if (calledMC >= 10000000 && calledMC <= 50000000) {
+      // Large-cap range: 10M-50M MC
+      return 0.8;
+    } else if (calledMC > 50000000) {
+      // Mega-cap: >50M MC (harder to generate alpha)
+      return 0.6;
+    } else {
+      // Ultra micro-cap: <50k MC (high risk, high reward)
+      return 0.7;
+    }
+  }
+
+  /**
+   * Calculate volume momentum weight
+   * Rewards calls made during high volume periods (indicating interest/activity)
+   */
+  calculateVolumeWeight(currentData) {
+    if (!currentData) return 0.8; // Default weight if no data
+    
+    const volume24h = (currentData.stats24h?.buyVolume || 0) + (currentData.stats24h?.sellVolume || 0);
+    const volume1h = (currentData.stats1h?.buyVolume || 0) + (currentData.stats1h?.sellVolume || 0);
+    const mcap = currentData.mcap || currentData.marketCap || 0;
+    
+    if (!mcap || mcap <= 0) return 0.8;
+    
+    // Calculate volume-to-market-cap ratio (turnover)
+    const turnover24h = volume24h / mcap;
+    const turnover1h = volume1h / mcap;
+    
+    // Reward higher turnover (more activity/interest)
+    if (turnover24h > 0.5) {
+      // Very high turnover (>50% of MC in 24h)
+      return 1.3;
+    } else if (turnover24h > 0.2) {
+      // High turnover (>20% of MC in 24h)
+      return 1.1;
+    } else if (turnover24h > 0.1) {
+      // Moderate turnover (>10% of MC in 24h)
+      return 1.0;
+    } else if (turnover24h > 0.05) {
+      // Low turnover (>5% of MC in 24h)
+      return 0.9;
+    } else {
+      // Very low turnover (<5% of MC in 24h)
+      return 0.8;
+    }
   }
 }
