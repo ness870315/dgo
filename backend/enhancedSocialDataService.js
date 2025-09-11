@@ -598,11 +598,19 @@ class EnhancedSocialDataService {
         }
       }
       
+      // 🚨 FIX: Deduplicate tweets before processing to prevent duplicate processing
+      const uniqueTweets = this.deduplicateTweetsByContent(allTweets);
+      const duplicatesRemoved = allTweets.length - uniqueTweets.length;
+      
+      if (duplicatesRemoved > 0) {
+        console.log(`🔧 DUPLICATE PREVENTION: Removed ${duplicatesRemoved} duplicate tweets (${allTweets.length} → ${uniqueTweets.length})`);
+      }
+      
       // Process all collected tweets
-      if (allTweets.length > 0) {
-        console.log(`📊 Processing ${allTweets.length} total tweets collected`);
+      if (uniqueTweets.length > 0) {
+        console.log(`📊 Processing ${uniqueTweets.length} total tweets collected`);
         
-        for (const tweet of allTweets) {
+        for (const tweet of uniqueTweets) {
               // Apply crypto relevance filter for hashtag searches
               let isRelevant = true;
               // Check if this is a hashtag/cashtag search (most common case)
@@ -652,16 +660,16 @@ class EnhancedSocialDataService {
               }
             }
             
-            console.log(`📊 Processed ${allTweets.length} total tweets`);
+            console.log(`📊 Processed ${uniqueTweets.length} total tweets`);
       } else {
         console.log(`⚠️ No tweets found for ${symbol}`);
       }
       
       // 🚨 FALLBACK: If no tweets after filtering, take first few tweets anyway
-      if (recentMentions.length === 0 && allTweets.length > 0) {
-        console.log(`🔄 FALLBACK: No tweets passed crypto filter, taking first ${Math.min(3, allTweets.length)} tweets anyway`);
-        for (let i = 0; i < Math.min(3, allTweets.length); i++) {
-          const tweet = allTweets[i];
+      if (recentMentions.length === 0 && uniqueTweets.length > 0) {
+        console.log(`🔄 FALLBACK: No tweets passed crypto filter, taking first ${Math.min(3, uniqueTweets.length)} tweets anyway`);
+        for (let i = 0; i < Math.min(3, uniqueTweets.length); i++) {
+          const tweet = uniqueTweets[i];
           const likes = tweet.favorite_count || 0;
           const retweets = tweet.retweet_count || 0; 
           const replies = tweet.reply_count || 0;
@@ -751,7 +759,7 @@ class EnhancedSocialDataService {
         hasOfficialAccount: !!officialHandle,
         
         // Community Activity Metrics
-        mentions: mentions72hAvg != null ? mentions72hAvg : totalMentions,
+        mentions: totalMentions, // 🚨 FIX: Always use actual totalMentions for display
         displayMentions: displayMentions, // UI-friendly estimated mentions
         mentions24h: totalMentions,
         mentions72hAvg: mentions72hAvg != null ? mentions72hAvg : null,
@@ -1809,6 +1817,45 @@ class EnhancedSocialDataService {
 
     // Round to 1 decimal place
     return Math.round(averageSentiment * 10) / 10;
+  }
+
+  /**
+   * Deduplicate tweets by content and ID to prevent duplicate processing
+   */
+  deduplicateTweetsByContent(tweets) {
+    if (!tweets || tweets.length === 0) return [];
+    
+    const seen = new Set();
+    const uniqueTweets = [];
+    
+    for (const tweet of tweets) {
+      // Create a unique key based on tweet ID, text content, and author
+      const tweetId = tweet.id || tweet.tweetId || tweet.id_str;
+      const tweetText = (tweet.text || tweet.full_text || '').trim();
+      const author = tweet.user?.screen_name || tweet.user?.username || tweet.author || 'unknown';
+      
+      // Primary deduplication by tweet ID
+      if (tweetId) {
+        const idKey = `id:${tweetId}`;
+        if (seen.has(idKey)) {
+          continue; // Skip duplicate by ID
+        }
+        seen.add(idKey);
+      }
+      
+      // Secondary deduplication by content + author (for cases where ID might be missing)
+      if (tweetText.length > 10) { // Only deduplicate substantial content
+        const contentKey = `content:${author}:${tweetText.substring(0, 100)}`;
+        if (seen.has(contentKey)) {
+          continue; // Skip duplicate by content
+        }
+        seen.add(contentKey);
+      }
+      
+      uniqueTweets.push(tweet);
+    }
+    
+    return uniqueTweets;
   }
 
   // Public API methods for Twitter search endpoints
