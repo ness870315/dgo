@@ -47,7 +47,7 @@ const EnhancedCallModal = ({
     }
   };
 
-  const generateThesis = async () => {
+  const generateThesis = async (forceRegenerate = false) => {
     if (!token) return;
     
     setThesisLoading(true);
@@ -67,7 +67,8 @@ const EnhancedCallModal = ({
       console.log('🧠 EnhancedCallModal: Generating thesis with data:', {
         sessionId: !!sessionId,
         tokenData,
-        tone: selectedTone
+        tone: selectedTone,
+        forceRegenerate
       });
       
       const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/user/generate-thesis`, {
@@ -78,7 +79,8 @@ const EnhancedCallModal = ({
         body: JSON.stringify({
           sessionId,
           tokenData,
-          tone: selectedTone
+          tone: selectedTone,
+          forceRegenerate
         })
       });
       
@@ -223,7 +225,7 @@ const EnhancedCallModal = ({
           )}
 
           <button
-            onClick={generateThesis}
+            onClick={() => generateThesis(true)}
             disabled={thesisLoading}
             className="mt-3 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >

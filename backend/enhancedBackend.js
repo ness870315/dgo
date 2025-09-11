@@ -1757,7 +1757,7 @@ class EnhancedBackend {
     // Generate AI thesis for call
     this.app.post('/api/user/generate-thesis', async (req, res) => {
       try {
-        const { sessionId, tokenData, tone = 'bullish' } = req.body;
+        const { sessionId, tokenData, tone = 'bullish', forceRegenerate = false } = req.body;
         if (!sessionId || !tokenData) {
           return res.status(400).json({ error: 'Missing sessionId or tokenData' });
         }
@@ -1779,7 +1779,9 @@ class EnhancedBackend {
           jupiterPrice: jupiterData.usdPrice,
           jupiterPriceAlt: jupiterData.price,
           tokenPrice: tokenData.price,
-          finalPrice: price
+          finalPrice: price,
+          tone,
+          forceRegenerate
         });
         
         const callData = {
@@ -1788,8 +1790,11 @@ class EnhancedBackend {
           calledAt: new Date().toISOString()
         };
         
-        // Generate thesis with specified tone
-        const thesis = await this.callThesisGenerator.generateCallThesis(tokenData, callData, { tone });
+        // Generate thesis with specified tone and regeneration flag
+        const thesis = await this.callThesisGenerator.generateCallThesis(tokenData, callData, { 
+          tone, 
+          forceRegenerate 
+        });
         
         res.json({ success: true, thesis });
       } catch (error) {

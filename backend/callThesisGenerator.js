@@ -38,7 +38,8 @@ class CallThesisGenerator {
     const {
       tone = 'bullish', // bullish, cautious, technical, narrative
       useCache = true,
-      cacheExpiry = 3600000 // 1 hour
+      cacheExpiry = 300000, // 5 minutes instead of 1 hour
+      forceRegenerate = false // New option to force regeneration
     } = options;
 
     try {
@@ -47,12 +48,12 @@ class CallThesisGenerator {
       // Prepare template variables
       const templateVars = this.prepareTemplateVariables(tokenData, callData);
       
-      // Generate cache key
-      const timeBucket = Date.now() - (Date.now() % cacheExpiry);
+      // Generate cache key with more granular timing for regeneration
+      const timeBucket = forceRegenerate ? Date.now() : (Date.now() - (Date.now() % cacheExpiry));
       const cacheKey = `thesis_${tone}_${tokenData.symbol}_${timeBucket}`;
       
-      // Check cache
-      if (useCache && this.thesisCache.has(cacheKey)) {
+      // Check cache (skip if force regenerate)
+      if (useCache && !forceRegenerate && this.thesisCache.has(cacheKey)) {
         console.log(`💾 Using cached thesis for ${tokenData.symbol}`);
         return this.thesisCache.get(cacheKey);
       }
