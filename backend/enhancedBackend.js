@@ -466,11 +466,16 @@ class EnhancedBackend {
         const base64Data = imageDataURL.split(',')[1];
         const imageBuffer = Buffer.from(base64Data, 'base64');
         
-        // Set appropriate headers
+        // Set appropriate headers for X/Twitter compatibility
         res.set({
           'Content-Type': 'image/png',
           'Content-Length': imageBuffer.length,
-          'Cache-Control': 'public, max-age=3600' // Cache for 1 hour
+          'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
+          'Access-Control-Allow-Origin': '*', // Allow CORS for X scraper
+          'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'X-Content-Type-Options': 'nosniff',
+          'X-Frame-Options': 'SAMEORIGIN'
         });
         
         res.send(imageBuffer);
@@ -480,11 +485,23 @@ class EnhancedBackend {
       }
     });
 
+    // CORS handler for fuel images
+    this.app.options('/api/fuel-image/:fuelType/:symbol', (req, res) => {
+      res.set({
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Max-Age': '86400'
+      });
+      res.status(200).end();
+    });
+
     // Fuel page endpoint for link previews
     this.app.get('/fuel/:fuelType/:symbol', async (req, res) => {
       try {
         const { fuelType, symbol } = req.params;
-        const imageUrl = `${req.protocol}://${req.get('host')}/api/fuel-image/${fuelType}/${symbol}`;
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const imageUrl = `${baseUrl}/api/fuel-image/${fuelType}/${symbol}`;
         
         const html = `
 <!DOCTYPE html>
@@ -496,19 +513,22 @@ class EnhancedBackend {
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="${req.protocol}://${req.get('host')}/fuel/${fuelType}/${symbol}">
+    <meta property="og:url" content="${baseUrl}/fuel/${fuelType}/${symbol}">
     <meta property="og:title" content="🔥 ${symbol} ${fuelType} Fuel - Degen Oracle">
     <meta property="og:description" content="Someone just fueled #${symbol} with ${fuelType} boost on Degen Oracle! The degen army is assembling! 🚀">
     <meta property="og:image" content="${imageUrl}">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:alt" content="${symbol} ${fuelType} Fuel Image">
     
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="${req.protocol}://${req.get('host')}/fuel/${fuelType}/${symbol}">
+    <meta property="twitter:url" content="${baseUrl}/fuel/${fuelType}/${symbol}">
     <meta property="twitter:title" content="🔥 ${symbol} ${fuelType} Fuel - Degen Oracle">
     <meta property="twitter:description" content="Someone just fueled #${symbol} with ${fuelType} boost on Degen Oracle! The degen army is assembling! 🚀">
     <meta property="twitter:image" content="${imageUrl}">
+    <meta property="twitter:image:alt" content="${symbol} ${fuelType} Fuel Image">
     
     <style>
         body {
