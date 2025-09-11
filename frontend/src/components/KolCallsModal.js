@@ -55,11 +55,13 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
   const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
 
   const load = useCallback(async () => {
+    console.log('🔄 KolCallsModal: load() called');
     setLoading(true);
     setError('');
     try {
       const callsRes = await kolCallsService.getCalls();
       const calls = Array.isArray(callsRes.calls) ? callsRes.calls : [];
+      console.log('📊 KolCallsModal: Loaded calls:', calls.length);
 
       const mapped = calls.map(c => {
         const calledAtRaw = c.calledAt || c.calledTs || c.createdAt;
@@ -114,7 +116,13 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
 
   // Refresh after a call is added elsewhere (e.g., TokenDetails)
   useEffect(() => {
-    const handler = () => { if (open || asInline) load(); };
+    const handler = () => { 
+      console.log('🔄 KolCallsModal: Received kol-call-added event', { open, asInline });
+      if (open || asInline) {
+        console.log('🔄 KolCallsModal: Refreshing calls list');
+        load(); 
+      }
+    };
     window.addEventListener('kol-call-added', handler);
     return () => window.removeEventListener('kol-call-added', handler);
   }, [open, asInline, load]);

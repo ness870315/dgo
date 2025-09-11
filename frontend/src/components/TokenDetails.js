@@ -518,7 +518,14 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
       console.log('✅ TokenDetails: Call added successfully:', result);
       
       // Dispatch event to refresh KOL calls list
+      console.log('🔄 TokenDetails: Dispatching kol-call-added event');
       window.dispatchEvent(new CustomEvent('kol-call-added'));
+      
+      // Also try to refresh any open KOL calls modal
+      setTimeout(() => {
+        console.log('🔄 TokenDetails: Dispatching delayed kol-call-added event');
+        window.dispatchEvent(new CustomEvent('kol-call-added'));
+      }, 1000);
       
       alert('✅ You\'ve made your call with AI thesis and Twitter posting! Let\'s see if you have what it takes to become the next KOL.');
       setCallRecorded(true);
