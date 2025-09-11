@@ -8,7 +8,7 @@ class OAuthXService {
     this.clientId = process.env.X_CLIENT_ID || process.env.TWITTER_CLIENT_ID || '';
     this.clientSecret = process.env.X_CLIENT_SECRET || process.env.TWITTER_CLIENT_SECRET || '';
     this.redirectUri = process.env.X_REDIRECT_URI || `${process.env.API_URL || 'https://api.degen-oracle.com'}/auth/callback`;
-    this.scope = process.env.X_SCOPE || 'tweet.read users.read follows.read';
+    this.scope = process.env.X_SCOPE || 'tweet.read tweet.write users.read follows.read';
     
     // Initialize hybrid database service
     this.db = new HybridDatabaseService();
@@ -128,6 +128,14 @@ class OAuthXService {
         throw new Error('User not found or no access token');
       }
 
+      console.log(`🐦 Attempting to post tweet for user ${userId}:`, {
+        userId,
+        hasAccessToken: !!user.accessToken,
+        tokenLength: user.accessToken?.length,
+        textLength: text.length,
+        textPreview: text.substring(0, 50) + '...'
+      });
+
       const response = await axios.post('https://api.twitter.com/2/tweets', {
         text: text
       }, {
@@ -141,6 +149,13 @@ class OAuthXService {
       return response.data.data;
     } catch (error) {
       console.error('❌ Error posting tweet:', error.response?.data || error.message);
+      console.error('❌ Twitter posting error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        userId,
+        hasAccessToken: !!user?.accessToken
+      });
       throw error;
     }
   }
