@@ -6,7 +6,7 @@
 
 class SmartTwitterRefreshService {
   constructor() {
-    this.twitterServiceUrl = process.env.TWITTER_SERVICE_URL || 'http://localhost:8000';
+    this.twitterServiceUrl = process.env.TWITTER_SERVICE_URL || 'https://dgo-2.onrender.com';
   }
 
   /**
@@ -227,7 +227,8 @@ class SmartTwitterRefreshService {
    */
   async makeTwitterApiCall(endpoint, params) {
     try {
-      const axios = require('axios');
+      // Import axios dynamically for ES modules
+      const { default: axios } = await import('axios');
       const response = await axios.get(`${this.twitterServiceUrl}${endpoint}`, {
         params,
         timeout: 30000

@@ -138,17 +138,46 @@
     },
     "jupiterTimestamp": "2025-09-09T17:57:11.739Z",
     "twitterData": {
-      "mentions": 15,
-      "displayMentions": 15,
+      "mentions": 10,
+      "displayMentions": 10,
       "mentions24h": 0,
-      "likes": 30,
-      "retweets": 7,
-      "replies": 4,
+      "likes": 15,
+      "retweets": 3,
+      "replies": 2,
       "followers": 0,
       "engagement": {
-        "total": 45
+        "total": 20
       },
-      "_dataFreshness": "cohort_baseline"
+      "recentMentions": [
+        {
+          "author": "marcos_ca",
+          "authorName": "marcos_ca",
+          "text": "Thank for airdrop #pengu  #JOHNBUBU  #LLM #Bonkyo  #Useless #PENGU",
+          "likes": 1,
+          "retweets": 0,
+          "replies": 0,
+          "createdAt": "2025-09-11T02:51:57.218Z",
+          "tweetId": "pengu_tweet_1",
+          "sentiment": 5,
+          "isRelevant": true,
+          "priority": 2
+        },
+        {
+          "author": "mohantyarpan4",
+          "authorName": "mohantyarpan4",
+          "text": "#PENGU easy drop!     ",
+          "likes": 2,
+          "retweets": 1,
+          "replies": 0,
+          "createdAt": "2025-09-11T02:51:57.220Z",
+          "tweetId": "pengu_tweet_2",
+          "sentiment": 5,
+          "isRelevant": true,
+          "priority": 2
+        }
+      ],
+      "lastUpdated": "2025-09-11T02:51:57.220Z",
+      "_dataFreshness": "fresh_with_content"
     },
     "communityHealthScore": 7.088311688311688,
     "enhancedScore": 8.73090909090909,

@@ -11,17 +11,12 @@
       "username": null,
       "followers": 0,
       "hasOfficialAccount": false,
-      "mentions": 38,
+      "mentions": 10,
       "mentions24h": 0,
-      "likes": 113,
-      "retweets": 77,
-      "replies": 48,
-      "engagement": {
-        "likes": 113,
-        "retweets": 77,
-        "replies": 48,
-        "total": 238
-      },
+      "likes": 61,
+      "retweets": 46,
+      "replies": 14,
+      "engagement": 121,
       "recentMentions": [
         {
           "author": "marcos_ca",
@@ -291,9 +286,12 @@
       "communityHealth": 3,
       "lastUpdated": "2025-09-02T00:34:26.306Z",
       "mentionsYesterday": 0,
-      "mentionsTrend": "stable"
+      "mentionsTrend": "stable",
+      "lastUpdate": "2025-09-11T02:51:39.836Z",
+      "_refreshType": "smart_deduplication",
+      "_newTweetsAdded": 0
     },
-    "timestamp": 1756773266312
+    "timestamp": 1757559099836
   },
   "BONK_Bonk": {
     "data": {
@@ -144298,5 +144296,234 @@
       "mentionsTrend": "stable"
     },
     "timestamp": 1756781682928
+  },
+  "CARDS_Collector Crypt": {
+    "data": {
+      "symbol": "CARDS",
+      "name": "Collector Crypt",
+      "officialHandle": "not found",
+      "username": null,
+      "followers": 0,
+      "hasOfficialAccount": false,
+      "mentions": 0,
+      "displayMentions": 8,
+      "mentions24h": 0,
+      "likes": 0,
+      "retweets": 0,
+      "replies": 0,
+      "engagement": {
+        "likes": 0,
+        "retweets": 0,
+        "replies": 0,
+        "total": 0
+      },
+      "recentMentions": [],
+      "tweets": [],
+      "status": "no_data",
+      "communityHealth": 0,
+      "lastUpdated": "2025-09-11T03:15:12.742Z",
+      "_dataFreshness": "error_fallback",
+      "_jupiterEnhanced": false,
+      "_errorMessage": "",
+      "mentionsYesterday": 0,
+      "mentionsTrend": "stable",
+      "lastRefreshed": "2025-09-11T03:15:12.751Z"
+    },
+    "timestamp": 1757560512752
+  },
+  "TRUMP_OFFICIAL TRUMP": {
+    "data": {
+      "symbol": "TRUMP",
+      "name": "OFFICIAL TRUMP",
+      "officialHandle": "not found",
+      "username": null,
+      "followers": 0,
+      "hasOfficialAccount": false,
+      "mentions": 0,
+      "displayMentions": 0,
+      "mentions24h": 0,
+      "mentions72hAvg": 0,
+      "mentionsWindowHours": 72,
+      "_mentionsSmoothing": "72h_avg",
+      "uniqueMentions": 6,
+      "uniqueAuthors": 6,
+      "likes": 1,
+      "retweets": 3107,
+      "replies": 0,
+      "engagement": {
+        "likes": 1,
+        "retweets": 3107,
+        "replies": 0,
+        "total": 3108
+      },
+      "recentMentions": [
+        {
+          "author": "KathyLynn_1",
+          "authorName": "Kathy Lynn",
+          "text": "RT @piyushmittal: Members of Trump’s current cabinet socialized with Epstein. Which would explain why Republicans are colluding with Trump…",
+          "likes": 0,
+          "retweets": 757,
+          "replies": 0,
+          "createdAt": "2025-09-11T03:22:50.000Z",
+          "tweetId": "1965979318569545956",
+          "sentiment": 5,
+          "isRelevant": true,
+          "priority": 2
+        },
+        {
+          "author": "YoungPoling",
+          "authorName": "Loretta Poling-Young aka Coachpoots",
+          "text": "RT @realkarenjean: I WAS GOING TO WAIT TO POST THIS UNTIL I KNEW @charliekirk11 IS OKAY, BUT SINCE @KatyTurNBC @MSNBC ARE COMPLETE ASSHOLES…",
+          "likes": 0,
+          "retweets": 1710,
+          "replies": 0,
+          "createdAt": "2025-09-11T03:22:48.000Z",
+          "tweetId": "1965979308813595097",
+          "sentiment": 10,
+          "isRelevant": true,
+          "priority": 2
+        },
+        {
+          "author": "tayal_adz",
+          "authorName": "Flying along the coast",
+          "text": "RT @tayal_adz: @RShivshankar Exactly.\nThe world will not be Bullied by #trump rise @BRICSinfo \nRemove coca cola from #india",
+          "likes": 0,
+          "retweets": 1,
+          "replies": 0,
+          "createdAt": "2025-09-11T03:22:46.000Z",
+          "tweetId": "1965979302912209205",
+          "sentiment": 10,
+          "isRelevant": true,
+          "priority": 2
+        },
+        {
+          "author": "coastguard1790",
+          "authorName": "X",
+          "text": "RT @charliekirk11: @realDonaldTrump You speak the truth. As one of the youth I feel you are a visionary, hero, and leader of this country.…",
+          "likes": 0,
+          "retweets": 639,
+          "replies": 0,
+          "createdAt": "2025-09-11T03:22:45.000Z",
+          "tweetId": "1965979296721240368",
+          "sentiment": 5,
+          "isRelevant": true,
+          "priority": 2
+        },
+        {
+          "author": "theindiaa360",
+          "authorName": "theindia.360🇮🇳",
+          "text": "Breaking: Charlie Kirk Shot Dead in Utah 🚨\n\n#CharlieKirk , a top #Trump ally and founder of Turning Point USA, was shot and killed during a public event at Utah Valley University on September 10.\n #BreakingNews #PoliticalViolence #TrumpAlly #JusticeForCharlie #DevelopingStory https://t.co/f5GtcFyql4",
+          "likes": 1,
+          "retweets": 0,
+          "replies": 0,
+          "createdAt": "2025-09-11T03:22:44.000Z",
+          "tweetId": "1965979295442223212",
+          "sentiment": 2.5,
+          "isRelevant": true,
+          "priority": 2
+        },
+        {
+          "author": "Eyeful2006",
+          "authorName": "Eyeful Insights",
+          "text": "The assassination of Charlie Kirk (a prominent political activist and an influencer) has sent shock waves across the US. The US President Donald Trump stated that, his administration will take strong action against the perpetrators.\n\n#US #America #USPresident #DonaldTrump #Trump https://t.co/j8BvjLZPz9",
+          "likes": 0,
+          "retweets": 0,
+          "replies": 0,
+          "createdAt": "2025-09-11T03:22:44.000Z",
+          "tweetId": "1965979293743219009",
+          "sentiment": 10,
+          "isRelevant": true,
+          "priority": 2
+        }
+      ],
+      "tweets": [
+        {
+          "author": "KathyLynn_1",
+          "authorName": "Kathy Lynn",
+          "text": "RT @piyushmittal: Members of Trump’s current cabinet socialized with Epstein. Which would explain why Republicans are colluding with Trump…",
+          "likes": 0,
+          "retweets": 757,
+          "replies": 0,
+          "createdAt": "2025-09-11T03:22:50.000Z",
+          "tweetId": "1965979318569545956",
+          "sentiment": 5,
+          "isRelevant": true,
+          "priority": 2
+        },
+        {
+          "author": "YoungPoling",
+          "authorName": "Loretta Poling-Young aka Coachpoots",
+          "text": "RT @realkarenjean: I WAS GOING TO WAIT TO POST THIS UNTIL I KNEW @charliekirk11 IS OKAY, BUT SINCE @KatyTurNBC @MSNBC ARE COMPLETE ASSHOLES…",
+          "likes": 0,
+          "retweets": 1710,
+          "replies": 0,
+          "createdAt": "2025-09-11T03:22:48.000Z",
+          "tweetId": "1965979308813595097",
+          "sentiment": 10,
+          "isRelevant": true,
+          "priority": 2
+        },
+        {
+          "author": "tayal_adz",
+          "authorName": "Flying along the coast",
+          "text": "RT @tayal_adz: @RShivshankar Exactly.\nThe world will not be Bullied by #trump rise @BRICSinfo \nRemove coca cola from #india",
+          "likes": 0,
+          "retweets": 1,
+          "replies": 0,
+          "createdAt": "2025-09-11T03:22:46.000Z",
+          "tweetId": "1965979302912209205",
+          "sentiment": 10,
+          "isRelevant": true,
+          "priority": 2
+        },
+        {
+          "author": "coastguard1790",
+          "authorName": "X",
+          "text": "RT @charliekirk11: @realDonaldTrump You speak the truth. As one of the youth I feel you are a visionary, hero, and leader of this country.…",
+          "likes": 0,
+          "retweets": 639,
+          "replies": 0,
+          "createdAt": "2025-09-11T03:22:45.000Z",
+          "tweetId": "1965979296721240368",
+          "sentiment": 5,
+          "isRelevant": true,
+          "priority": 2
+        },
+        {
+          "author": "theindiaa360",
+          "authorName": "theindia.360🇮🇳",
+          "text": "Breaking: Charlie Kirk Shot Dead in Utah 🚨\n\n#CharlieKirk , a top #Trump ally and founder of Turning Point USA, was shot and killed during a public event at Utah Valley University on September 10.\n #BreakingNews #PoliticalViolence #TrumpAlly #JusticeForCharlie #DevelopingStory https://t.co/f5GtcFyql4",
+          "likes": 1,
+          "retweets": 0,
+          "replies": 0,
+          "createdAt": "2025-09-11T03:22:44.000Z",
+          "tweetId": "1965979295442223212",
+          "sentiment": 2.5,
+          "isRelevant": true,
+          "priority": 2
+        },
+        {
+          "author": "Eyeful2006",
+          "authorName": "Eyeful Insights",
+          "text": "The assassination of Charlie Kirk (a prominent political activist and an influencer) has sent shock waves across the US. The US President Donald Trump stated that, his administration will take strong action against the perpetrators.\n\n#US #America #USPresident #DonaldTrump #Trump https://t.co/j8BvjLZPz9",
+          "likes": 0,
+          "retweets": 0,
+          "replies": 0,
+          "createdAt": "2025-09-11T03:22:44.000Z",
+          "tweetId": "1965979293743219009",
+          "sentiment": 10,
+          "isRelevant": true,
+          "priority": 2
+        }
+      ],
+      "sentimentScore": 7.1,
+      "status": "active",
+      "communityHealth": 3,
+      "lastUpdated": "2025-09-11T03:23:07.182Z",
+      "mentionsYesterday": 0,
+      "mentionsTrend": "stable",
+      "lastRefreshed": "2025-09-11T03:23:07.194Z"
+    },
+    "timestamp": 1757560987195
   }
 }

@@ -1544,8 +1544,21 @@ class EnhancedBackend {
     // KOL Calls: add a call and fetch list
     this.app.post('/api/user/kol-calls/add', async (req, res) => {
       try {
+        console.log('[🛡️ Enhanced Backend] 📥 KOL call request received:', {
+          sessionId: !!req.body.sessionId,
+          token: req.body.token,
+          thesis: req.body.thesis ? req.body.thesis.substring(0, 50) + '...' : 'none',
+          twitterEnabled: req.body.twitterEnabled,
+          tone: req.body.tone
+        });
+        
         const { sessionId, token, thesis, twitterEnabled, tone } = req.body; // token: { symbol, name, contractAddress }
         if (!sessionId || !token?.contractAddress) {
+          console.log('[🛡️ Enhanced Backend] ❌ Validation failed:', {
+            sessionId: !!sessionId,
+            tokenContractAddress: !!token?.contractAddress,
+            token: token
+          });
           return res.status(400).json({ error: 'Missing sessionId or token.contractAddress' });
         }
         const user = await this.oauthXService.getUserBySession(sessionId);
