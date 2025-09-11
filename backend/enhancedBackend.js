@@ -6490,9 +6490,10 @@ class EnhancedBackend {
 
   async clearCache() {
     try {
-      const cachePath = path.join(__dirname, 'cache', 'tokens-cache.json');
+      // Use the same persistent cache path as the rest of the system
+      const cachePath = this.persistentCachePath || path.join(process.env.DATA_DIR || '/var/data/dgo', 'cache', 'tokens-cache.json');
       await fs.writeFile(cachePath, JSON.stringify([], null, 2));
-      console.log('[🛡️ Enhanced Backend] 🗑️ Cache cleared');
+      console.log(`[🛡️ Enhanced Backend] 🗑️ Cache cleared at: ${cachePath}`);
       
       // Reset processor state
       this.tokenProcessor.processedTokens = [];

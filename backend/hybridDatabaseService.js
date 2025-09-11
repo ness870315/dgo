@@ -160,15 +160,79 @@ class HybridDatabaseService {
   }
 
   /**
-   * Write JSON file with error handling
+   * Write JSON file with atomic locking to prevent corruption
    */
   async writeJsonFile(filePath, data) {
+    const lockFile = `${filePath}.lock`;
+    const tempFile = `${filePath}.tmp.${Date.now()}.${Math.random().toString(36).substr(2, 9)}`;
+    let lockAcquired = false;
+    
     try {
-      await fs.writeFile(filePath, JSON.stringify(data, null, 2));
+      // Attempt to acquire lock with retries
+      for (let attempt = 1; attempt <= 10; attempt++) {
+        try {
+          // Clean up stale locks (older than 30 seconds)
+          try {
+            const lockStats = await fs.stat(lockFile);
+            const lockAge = Date.now() - lockStats.mtime.getTime();
+            if (lockAge > 30000) {
+              console.log(`🧹 Cleaning stale lock: ${lockFile} (age: ${Math.round(lockAge/1000)}s)`);
+              await fs.unlink(lockFile).catch(() => {});
+            }
+          } catch (statError) {
+            // Lock file doesn't exist, which is good
+          }
+          
+          // Try to create lock file (exclusive)
+          await fs.writeFile(lockFile, process.pid.toString(), { flag: 'wx' });
+          lockAcquired = true;
+          break;
+        } catch (lockError) {
+          if (lockError.code === 'EEXIST') {
+            // Lock exists, wait and retry
+            const delay = Math.min(100 * Math.pow(2, attempt - 1), 2000); // Exponential backoff, max 2s
+            console.log(`⏳ Lock exists for ${filePath}, retrying in ${delay}ms (attempt ${attempt}/10)`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          } else {
+            throw lockError;
+          }
+        }
+      }
+      
+      if (!lockAcquired) {
+        throw new Error(`Failed to acquire lock for ${filePath} after 10 attempts`);
+      }
+      
+      // Write to temporary file first (atomic operation)
+      const jsonContent = JSON.stringify(data, null, 2);
+      await fs.writeFile(tempFile, jsonContent);
+      
+      // Atomically move temp file to final location
+      await fs.rename(tempFile, filePath);
+      
       return true;
+      
     } catch (error) {
       console.error(`❌ Error writing ${filePath}:`, error.message);
+      
+      // Clean up temp file if it exists
+      try {
+        await fs.unlink(tempFile);
+      } catch (cleanupError) {
+        // Temp file might not exist, ignore
+      }
+      
       return false;
+      
+    } finally {
+      // Always release lock
+      if (lockAcquired) {
+        try {
+          await fs.unlink(lockFile);
+        } catch (unlockError) {
+          console.warn(`⚠️ Failed to release lock ${lockFile}:`, unlockError.message);
+        }
+      }
     }
   }
 
