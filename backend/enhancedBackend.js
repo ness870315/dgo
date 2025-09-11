@@ -1599,6 +1599,12 @@ class EnhancedBackend {
         let finalThesis = thesis;
         let twitterPostId = null;
         
+        console.log(`🧠 Thesis generation for ${token.symbol}:`, {
+          frontendThesis: thesis,
+          hasFrontendThesis: !!thesis,
+          tone: tone || 'bullish'
+        });
+        
         // If no thesis provided, generate one
         if (!finalThesis) {
           try {
@@ -1617,16 +1623,24 @@ class EnhancedBackend {
 
             // Use provided tone or default to bullish
             const selectedTone = tone || 'bullish';
+            console.log(`🧠 Generating ${selectedTone} thesis for ${token.symbol}...`);
             finalThesis = await this.callThesisGenerator.generateCallThesis(tokenData, callData, { tone: selectedTone });
             
             console.log(`🧠 Generated ${selectedTone} thesis for ${token.symbol}: ${finalThesis}`);
           } catch (error) {
             console.error(`❌ Failed to generate thesis for ${token.symbol}:`, error.message);
             finalThesis = `Calling ${token.symbol} based on our analytics engine signals. Track it on degen-oracle.com — let's see where this goes. NFA`;
+            console.log(`🧠 Using fallback thesis for ${token.symbol}: ${finalThesis}`);
           }
         } else {
           console.log(`📝 Using frontend-generated thesis for ${token.symbol}: ${finalThesis}`);
         }
+        
+        console.log(`🧠 Final thesis for ${token.symbol}:`, {
+          thesis: finalThesis,
+          length: finalThesis?.length || 0,
+          hasThesis: !!finalThesis
+        });
 
         // Use frontend twitterEnabled flag or check user preference
         const hasTwitterPosting = twitterEnabled !== undefined ? twitterEnabled : await this.oauthXService.hasTwitterPostingEnabled(user.id);
@@ -1655,7 +1669,7 @@ class EnhancedBackend {
           });
         }
 
-        const saved = await this.oauthXService.db.addKolCall(user.id, {
+        const callData = {
           token: {
             symbol: token.symbol,
             name: token.name,
@@ -1670,7 +1684,18 @@ class EnhancedBackend {
           twitterPostId: twitterPostId,
           twitterEnabled: hasTwitterPosting,
           tone: tone || 'bullish'
+        };
+        
+        console.log(`💾 Saving call data for ${token.symbol}:`, {
+          thesis: callData.thesis,
+          hasThesis: !!callData.thesis,
+          twitterPostId: callData.twitterPostId,
+          hasTwitterPost: !!callData.twitterPostId,
+          twitterEnabled: callData.twitterEnabled,
+          tone: callData.tone
         });
+        
+        const saved = await this.oauthXService.db.addKolCall(user.id, callData);
 
         // Increment usage counter for free users
         if (!isPremium) {
