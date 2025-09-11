@@ -69,8 +69,8 @@ async function checkWiziProductionHype() {
               const score = point.score || 0;
               const label = point.label || 'Unknown';
               const expectedLabel = score >= 8 ? 'Viral' : 
-                                   score >= 5 ? 'Trending' : 
-                                   score >= 3 ? 'Building' : 'Sleeping';
+                                   score >= 6 ? 'Trending' : 
+                                   score >= 4 ? 'Building' : 'Sleeping';
               
               console.log(`      ${i + 1}. ${date}`);
               console.log(`         Score: ${score.toFixed(2)} | Label: ${label} | Expected: ${expectedLabel}`);
@@ -84,8 +84,8 @@ async function checkWiziProductionHype() {
             const mismatches = dataPoints.filter(point => {
               const score = point.score || 0;
               const expectedLabel = score >= 8 ? 'Viral' : 
-                                   score >= 5 ? 'Trending' : 
-                                   score >= 3 ? 'Building' : 'Sleeping';
+                                   score >= 6 ? 'Trending' : 
+                                   score >= 4 ? 'Building' : 'Sleeping';
               return point.label !== expectedLabel;
             });
             

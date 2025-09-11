@@ -61,8 +61,8 @@ async function checkWiziHypeData() {
             const score = snapshot.score || 0;
             const label = snapshot.label || 'Unknown';
             const expectedLabel = score >= 8 ? 'Viral' : 
-                                 score >= 5 ? 'Trending' : 
-                                 score >= 3 ? 'Building' : 'Sleeping';
+                                 score >= 6 ? 'Trending' : 
+                                 score >= 4 ? 'Building' : 'Sleeping';
             
             console.log(`     ${i + 1}. ${date}`);
             console.log(`        Score: ${score.toFixed(2)} | Label: ${label} | Expected: ${expectedLabel}`);
@@ -77,8 +77,8 @@ async function checkWiziHypeData() {
           const mismatches = hypeData.filter(snapshot => {
             const score = snapshot.score || 0;
             const expectedLabel = score >= 8 ? 'Viral' : 
-                                 score >= 5 ? 'Trending' : 
-                                 score >= 3 ? 'Building' : 'Sleeping';
+                                 score >= 6 ? 'Trending' : 
+                                 score >= 4 ? 'Building' : 'Sleeping';
             return snapshot.label !== expectedLabel;
           });
           
@@ -97,13 +97,13 @@ async function checkWiziHypeData() {
     
     // Check the label calculation logic
     console.log('\n🧮 LABEL CALCULATION LOGIC:');
-    console.log('Current logic: score >= 8 ? "Viral" : score >= 5 ? "Trending" : score >= 3 ? "Building" : "Sleeping"');
+    console.log('Current logic: score >= 8 ? "Viral" : score >= 6 ? "Trending" : score >= 4 ? "Building" : "Sleeping"');
     console.log('\nTest cases:');
     const testScores = [0, 2.9, 3.0, 4.9, 5.0, 7.9, 8.0, 10.0];
     testScores.forEach(score => {
       const label = score >= 8 ? 'Viral' : 
-                   score >= 5 ? 'Trending' : 
-                   score >= 3 ? 'Building' : 'Sleeping';
+                   score >= 6 ? 'Trending' : 
+                   score >= 4 ? 'Building' : 'Sleeping';
       console.log(`   Score ${score.toFixed(1)} → ${label}`);
     });
     

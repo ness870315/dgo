@@ -1290,8 +1290,8 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                     // Get current label based on token's current score
                     const currentScore = selectedHypeToken?.overallScore || selectedHypeToken?.score || 0;
                     const currentLabel = currentScore >= 8 ? 'Viral' : 
-                                       currentScore >= 5 ? 'Trending' : 
-                                       currentScore >= 3 ? 'Building' : 'Sleeping';
+                                       currentScore >= 6 ? 'Trending' : 
+                                       currentScore >= 4 ? 'Building' : 'Sleeping';
                     
                     // Get latest label from hype data for comparison
                     const latestHypeLabel = hypeSeries[hypeSeries.length-1]?.label;
@@ -2034,9 +2034,9 @@ function HypeMiniChart({ data }) {
   // Label bands
   const bands = [
     { y: yScale(8), h: yScale(10) - yScale(8), color: 'rgba(34,197,94,0.10)', label: 'Viral (≥8)' },
-    { y: yScale(5), h: yScale(8) - yScale(5), color: 'rgba(59,130,246,0.10)', label: 'Trending (≥5)' },
-    { y: yScale(3), h: yScale(5) - yScale(3), color: 'rgba(234,179,8,0.10)', label: 'Building (≥3)' },
-    { y: yScale(0), h: yScale(3) - yScale(0), color: 'rgba(148,163,184,0.10)', label: 'Sleeping (<3)' }
+    { y: yScale(6), h: yScale(8) - yScale(6), color: 'rgba(59,130,246,0.10)', label: 'Trending (6.0-7.9)' },
+    { y: yScale(4), h: yScale(6) - yScale(4), color: 'rgba(234,179,8,0.10)', label: 'Building (4.0-5.9)' },
+    { y: yScale(0), h: yScale(4) - yScale(0), color: 'rgba(148,163,184,0.10)', label: 'Sleeping (<4.0)' }
   ];
 
   return (

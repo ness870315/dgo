@@ -62,16 +62,16 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
   // Get score color based on value
   const getScoreColor = (score) => {
     if (score >= 8) return 'text-red-400'; // Viral
-    if (score >= 5) return 'text-orange-400'; // Trending
-    if (score >= 3) return 'text-yellow-400'; // Building
+    if (score >= 6) return 'text-orange-400'; // Trending
+    if (score >= 4) return 'text-yellow-400'; // Building
     return 'text-blue-400'; // Sleeping
   };
 
   // Get score label
   const getScoreLabel = (score) => {
     if (score >= 8) return 'Viral';
-    if (score >= 5) return 'Trending';
-    if (score >= 3) return 'Building';
+    if (score >= 6) return 'Trending';
+    if (score >= 4) return 'Building';
     return 'Sleeping';
   };
 

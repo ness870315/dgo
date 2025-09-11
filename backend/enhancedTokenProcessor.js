@@ -723,7 +723,7 @@ class EnhancedTokenProcessor {
               const followers = token.twitterData?.followers || 0;
               const engagement = (token.twitterData?.likes || 0) + (token.twitterData?.retweets || 0) + (token.twitterData?.replies || 0);
               const score = enhancedScore || 0;
-              const label = score >= 8 ? 'Viral' : score >= 5 ? 'Trending' : score >= 3 ? 'Building' : 'Sleeping';
+              const label = score >= 8 ? 'Viral' : score >= 6 ? 'Trending' : score >= 4 ? 'Building' : 'Sleeping';
               
               await this.hypeService.appendSnapshot(contractAddress, {
                 score: score,
