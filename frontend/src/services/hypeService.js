@@ -6,7 +6,9 @@ class HypeService {
   async getHype(contractAddress, range = '7d') {
     if (!contractAddress) return { contract: '', range, data: [] };
     const sessionId = localStorage.getItem('sessionId');
-    const url = `${this.API_BASE}/api/tokens/${encodeURIComponent(contractAddress)}/hype?range=${encodeURIComponent(range)}&sessionId=${encodeURIComponent(sessionId || '')}`;
+    // Add cache-busting parameter to ensure fresh data
+    const cacheBuster = Date.now();
+    const url = `${this.API_BASE}/api/tokens/${encodeURIComponent(contractAddress)}/hype?range=${encodeURIComponent(range)}&sessionId=${encodeURIComponent(sessionId || '')}&_t=${cacheBuster}`;
     const res = await fetch(url);
     if (!res.ok) {
       const text = await res.text().catch(() => '');

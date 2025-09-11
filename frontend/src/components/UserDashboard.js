@@ -1287,10 +1287,24 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                 <div>Last points: {hypeSeries.length}</div>
                 <div>
                   {(() => {
-                    const latest = hypeSeries[hypeSeries.length-1]?.label;
+                    // Get current label based on token's current score
+                    const currentScore = selectedHypeToken?.overallScore || selectedHypeToken?.score || 0;
+                    const currentLabel = currentScore >= 8 ? 'Viral' : 
+                                       currentScore >= 5 ? 'Trending' : 
+                                       currentScore >= 3 ? 'Building' : 'Sleeping';
+                    
+                    // Get latest label from hype data for comparison
+                    const latestHypeLabel = hypeSeries[hypeSeries.length-1]?.label;
+                    
                     const emojiMap = { Trending: '🔥', Viral: '🚀', Building: '🧱', Sleeping: '💤' };
-                    const emoji = latest ? (emojiMap[latest] || '') : '';
-                    return `Latest label: ${latest || '—'} ${emoji}`;
+                    const emoji = emojiMap[currentLabel] || '';
+                    
+                    // Show current label, and if different from hype data, show both
+                    if (latestHypeLabel && latestHypeLabel !== currentLabel) {
+                      return `Current: ${currentLabel} ${emoji} | Chart: ${latestHypeLabel} ${emojiMap[latestHypeLabel] || ''}`;
+                    } else {
+                      return `Current label: ${currentLabel} ${emoji}`;
+                    }
                   })()}
                 </div>
               </div>
