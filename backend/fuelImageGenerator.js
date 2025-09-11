@@ -1,122 +1,86 @@
-import { createCanvas, loadImage } from 'canvas';
+import sharp from 'sharp';
 
 class FuelImageGenerator {
   constructor() {
-    this.canvas = null;
-    this.ctx = null;
+    // No initialization needed for Sharp
   }
 
-  // Create a dynamic flame image with fuel amount
-  generateFuelImage(fuelType, tokenSymbol) {
-    // Create canvas
-    const canvas = createCanvas(400, 300);
-    const ctx = canvas.getContext('2d');
+  // Create a simple fuel image using SVG and Sharp
+  async generateFuelImage(fuelType, tokenSymbol) {
+    try {
+      // Create SVG content
+      const svg = `
+        <svg width="400" height="300" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:#1a1a1a;stop-opacity:1" />
+              <stop offset="50%" style="stop-color:#2d1b00;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#1a0f00;stop-opacity:1" />
+            </linearGradient>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+              <feMerge> 
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+          
+          <!-- Background -->
+          <rect width="400" height="300" fill="url(#bg)"/>
+          
+          <!-- Flame shapes -->
+          <path d="M200,250 Q170,200 180,150 Q190,100 200,80 Q210,100 220,150 Q230,200 200,250" 
+                fill="#ff4500" opacity="0.8" filter="url(#glow)"/>
+          <path d="M200,250 Q175,210 185,170 Q195,130 200,110 Q205,130 215,170 Q225,210 200,250" 
+                fill="#ff6500" opacity="0.9" filter="url(#glow)"/>
+          <path d="M200,250 Q180,220 188,190 Q196,160 200,140 Q204,160 212,190 Q220,220 200,250" 
+                fill="#ff8500" opacity="1.0" filter="url(#glow)"/>
+          
+          <!-- Sparkles -->
+          <circle cx="150" cy="200" r="2" fill="#ffffff" opacity="0.8"/>
+          <circle cx="250" cy="180" r="1.5" fill="#ffffff" opacity="0.6"/>
+          <circle cx="180" cy="160" r="1" fill="#ffffff" opacity="0.7"/>
+          <circle cx="220" cy="170" r="2.5" fill="#ffffff" opacity="0.5"/>
+          <circle cx="160" cy="220" r="1.2" fill="#ffffff" opacity="0.9"/>
+          <circle cx="240" cy="200" r="1.8" fill="#ffffff" opacity="0.4"/>
+          
+          <!-- Fuel type text -->
+          <text x="200" y="100" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" 
+                font-size="48" font-weight="bold" filter="url(#glow)">${fuelType}</text>
+          
+          <!-- Token symbol -->
+          <text x="200" y="140" text-anchor="middle" fill="#ffcc00" font-family="Arial, sans-serif" 
+                font-size="24" font-weight="bold" filter="url(#glow)">#${tokenSymbol}</text>
+          
+          <!-- FUELED text -->
+          <text x="200" y="180" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" 
+                font-size="20" font-weight="bold" filter="url(#glow)">FUELED</text>
+          
+          <!-- Oracle branding -->
+          <text x="200" y="280" text-anchor="middle" fill="#00bfff" font-family="Arial, sans-serif" 
+                font-size="16" font-weight="bold" filter="url(#glow)">@degen_oracle1</text>
+        </svg>
+      `;
 
-    // Background gradient (dark to orange)
-    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, '#1a1a1a');
-    gradient.addColorStop(0.5, '#2d1b00');
-    gradient.addColorStop(1, '#1a0f00');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Convert SVG to PNG using Sharp
+      const pngBuffer = await sharp(Buffer.from(svg))
+        .png()
+        .toBuffer();
 
-    // Draw multiple flame layers for depth
-    this.drawFlameLayer(ctx, 200, 250, 80, '#ff4500', 0.8); // Outer flame
-    this.drawFlameLayer(ctx, 200, 250, 60, '#ff6500', 0.9); // Middle flame
-    this.drawFlameLayer(ctx, 200, 250, 40, '#ff8500', 1.0); // Inner flame
-
-    // Add sparkles/particles
-    this.drawSparkles(ctx);
-
-    // Add fuel type text with glow effect
-    this.drawTextWithGlow(ctx, fuelType, 200, 100, 'bold 48px Arial', '#ffffff', '#ff4500');
-
-    // Add token symbol
-    this.drawTextWithGlow(ctx, `#${tokenSymbol}`, 200, 140, 'bold 24px Arial', '#ffcc00', '#ff6500');
-
-    // Add "FUELED" text
-    this.drawTextWithGlow(ctx, 'FUELED', 200, 180, 'bold 20px Arial', '#ffffff', '#ff4500');
-
-    // Add oracle branding
-    this.drawTextWithGlow(ctx, '@degen_oracle1', 200, 280, 'bold 16px Arial', '#00bfff', '#0066cc');
-
-    return canvas.toDataURL('image/png');
-  }
-
-  // Draw a single flame layer
-  drawFlameLayer(ctx, x, y, size, color, opacity) {
-    ctx.save();
-    ctx.globalAlpha = opacity;
-    ctx.fillStyle = color;
-    
-    // Create flame shape using bezier curves
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    
-    // Left side of flame
-    ctx.bezierCurveTo(x - size * 0.3, y - size * 0.2, x - size * 0.5, y - size * 0.4, x - size * 0.2, y - size * 0.6);
-    ctx.bezierCurveTo(x - size * 0.1, y - size * 0.7, x - size * 0.2, y - size * 0.8, x, y - size * 0.9);
-    
-    // Right side of flame
-    ctx.bezierCurveTo(x + size * 0.2, y - size * 0.8, x + size * 0.1, y - size * 0.7, x + size * 0.2, y - size * 0.6);
-    ctx.bezierCurveTo(x + size * 0.5, y - size * 0.4, x + size * 0.3, y - size * 0.2, x, y);
-    
-    ctx.closePath();
-    ctx.fill();
-    
-    // Add inner glow
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 20;
-    ctx.fill();
-    
-    ctx.restore();
-  }
-
-  // Draw sparkles/particles around the flame
-  drawSparkles(ctx) {
-    ctx.save();
-    ctx.fillStyle = '#ffffff';
-    
-    for (let i = 0; i < 15; i++) {
-      const x = 200 + (Math.random() - 0.5) * 200;
-      const y = 200 + (Math.random() - 0.5) * 100;
-      const size = Math.random() * 3 + 1;
-      
-      ctx.globalAlpha = Math.random() * 0.8 + 0.2;
-      ctx.beginPath();
-      ctx.arc(x, y, size, 0, Math.PI * 2);
-      ctx.fill();
+      // Convert to data URL
+      const dataURL = `data:image/png;base64,${pngBuffer.toString('base64')}`;
+      return dataURL;
+    } catch (error) {
+      console.error('Error generating fuel image:', error);
+      return null;
     }
-    
-    ctx.restore();
-  }
-
-  // Draw text with glow effect
-  drawTextWithGlow(ctx, text, x, y, font, color, glowColor) {
-    ctx.save();
-    
-    // Set font
-    ctx.font = font;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    
-    // Draw glow effect
-    ctx.shadowColor = glowColor;
-    ctx.shadowBlur = 15;
-    ctx.fillStyle = color;
-    ctx.fillText(text, x, y);
-    
-    // Draw main text
-    ctx.shadowBlur = 0;
-    ctx.fillText(text, x, y);
-    
-    ctx.restore();
   }
 
   // Generate and return image as data URL
   async generateFuelImageDataURL(fuelType, tokenSymbol) {
     try {
-      const dataURL = this.generateFuelImage(fuelType, tokenSymbol);
+      const dataURL = await this.generateFuelImage(fuelType, tokenSymbol);
       return dataURL;
     } catch (error) {
       console.error('Error generating fuel image:', error);
