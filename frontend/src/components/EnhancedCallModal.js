@@ -33,7 +33,7 @@ const EnhancedCallModal = ({
 
   // Regenerate thesis when tone changes
   useEffect(() => {
-    if (isOpen && token && thesis) {
+    if (isOpen && token) {
       generateThesis();
     }
   }, [selectedTone]);
@@ -60,15 +60,20 @@ const EnhancedCallModal = ({
         name: token.name,
         marketCap: token.marketCap || 0,
         price: token.price || 0,
-        jupiterData: token.jupiterData,
-        twitterData: token.twitterData
+        jupiterData: token.jupiterData || {},
+        twitterData: token.twitterData || {}
       };
+      
+      console.log('🧠 EnhancedCallModal: Generating thesis with data:', {
+        sessionId: !!sessionId,
+        tokenData,
+        tone: selectedTone
+      });
       
       const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/user/generate-thesis`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           sessionId,
@@ -77,14 +82,19 @@ const EnhancedCallModal = ({
         })
       });
       
+      console.log('🧠 EnhancedCallModal: Thesis API response status:', response.status);
+      
       if (!response.ok) {
-        throw new Error('Failed to generate thesis');
+        const errorText = await response.text();
+        console.error('🧠 EnhancedCallModal: Thesis API error:', errorText);
+        throw new Error(`Failed to generate thesis: ${response.status}`);
       }
       
       const result = await response.json();
+      console.log('🧠 EnhancedCallModal: Thesis generated successfully:', result);
       setThesis(result.thesis);
     } catch (error) {
-      setThesisError('Failed to generate thesis');
+      setThesisError('Failed to generate thesis: ' + error.message);
       console.error('Thesis generation error:', error);
     } finally {
       setThesisLoading(false);
@@ -202,7 +212,13 @@ const EnhancedCallModal = ({
             </div>
           ) : (
             <div className="bg-gray-800 border border-gray-600 rounded-lg p-4">
-              <p className="text-gray-200 leading-relaxed">{thesis}</p>
+              <textarea
+                value={thesis}
+                onChange={(e) => setThesis(e.target.value)}
+                className="w-full bg-transparent text-gray-200 leading-relaxed resize-none border-none outline-none min-h-[100px]"
+                placeholder="AI-generated thesis will appear here, or write your own..."
+                rows={4}
+              />
             </div>
           )}
 

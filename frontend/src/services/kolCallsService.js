@@ -3,20 +3,26 @@ class KolCallsService {
     this.API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
   }
 
-  async addCall(token) {
+  async addCall(callData) {
     const sessionId = localStorage.getItem('sessionId');
     console.log('🌐 kolCallsService: Making API call to add call', {
       sessionId: !!sessionId,
-      token: token?.token?.symbol,
-      thesis: token?.thesis?.substring(0, 50) + '...',
-      twitterEnabled: token?.twitterEnabled,
-      tone: token?.tone
+      token: callData?.token?.symbol,
+      thesis: callData?.thesis?.substring(0, 50) + '...',
+      twitterEnabled: callData?.twitterEnabled,
+      tone: callData?.tone
     });
     
     const res = await fetch(`${this.API_BASE}/api/user/kol-calls/add`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId, token })
+      body: JSON.stringify({ 
+        sessionId, 
+        token: callData.token,
+        thesis: callData.thesis,
+        twitterEnabled: callData.twitterEnabled,
+        tone: callData.tone
+      })
     });
     
     console.log('🌐 kolCallsService: API response status:', res.status);
