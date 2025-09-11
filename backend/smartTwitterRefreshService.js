@@ -55,17 +55,36 @@ class SmartTwitterRefreshService {
 
   /**
    * Strategy 1: Timestamp-based search (most efficient)
+   * Uses consistent 72-hour window logic to prevent infinite loops
    */
   async tryTimestampBasedSearch(symbol, existingData, officialHandle, socialLinks) {
     try {
-      const lastUpdate = existingData.lastUpdate || existingData.lastUpdated;
-      if (!lastUpdate) {
-        console.log(`🧠 No timestamp available for ${symbol}, skipping timestamp search`);
-        return [];
+      // 🚨 FIX: Use consistent 72-hour window logic
+      const now = Date.now();
+      let startTime;
+      
+      // Check for existing Twitter timestamp (from twitterTimestamp field)
+      const lastTwitterRefresh = existingData.lastRefreshed || existingData.twitterTimestamp || existingData.lastUpdate || existingData.lastUpdated;
+      
+      if (lastTwitterRefresh) {
+        const lastRefreshTime = new Date(lastTwitterRefresh).getTime();
+        const hoursSinceRefresh = (now - lastRefreshTime) / (1000 * 60 * 60);
+        
+        // Only search if it's been more than 72 hours since last refresh
+        if (hoursSinceRefresh < 72) {
+          console.log(`🧠 ${symbol}: Only ${hoursSinceRefresh.toFixed(1)}h since last refresh, skipping (72h cooldown)`);
+          return [];
+        }
+        
+        // Use the last refresh time as start_time to get only new tweets
+        startTime = new Date(lastRefreshTime).toISOString();
+        console.log(`🧠 ${symbol}: Using last refresh time as start_time (${hoursSinceRefresh.toFixed(1)}h ago)`);
+      } else {
+        // No previous refresh data - use 7 days ago as fallback (consistent with EnhancedSocialDataService)
+        startTime = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
+        console.log(`🧠 ${symbol}: No previous refresh data, using 7-day window`);
       }
 
-      // Use start_time parameter for more precise time filtering
-      const startTime = new Date(lastUpdate).toISOString();
       const searchQuery = `#${symbol.toLowerCase()}`;
       
       console.log(`🧠 Timestamp search for ${symbol}: ${searchQuery} since ${startTime}`);
@@ -193,6 +212,8 @@ class SmartTwitterRefreshService {
     const totalRetweets = finalTweets.reduce((sum, tweet) => sum + (tweet.retweets || 0), 0);
     const totalReplies = finalTweets.reduce((sum, tweet) => sum + (tweet.replies || 0), 0);
     
+    const now = new Date().toISOString();
+    
     return {
       ...existingData,
       recentMentions: finalTweets,
@@ -201,7 +222,9 @@ class SmartTwitterRefreshService {
       retweets: totalRetweets,
       replies: totalReplies,
       engagement: totalLikes + totalRetweets + totalReplies,
-      lastUpdate: new Date().toISOString(),
+      lastUpdate: now,
+      lastRefreshed: now, // 🚨 FIX: Set consistent timestamp field
+      twitterTimestamp: now, // 🚨 FIX: Set token-level timestamp field
       _refreshType: 'smart_deduplication',
       _newTweetsAdded: newTweets.length
     };

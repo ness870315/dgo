@@ -583,6 +583,9 @@ class EnhancedTokenProcessor {
             token.communityHealthScore = this.socialDataService.calculateCommunityHealthScore(twitterData);
             token.stage = 'twitter';
             
+            // 🚨 FIX: Set consistent token-level timestamp to prevent infinite loops
+            token.twitterTimestamp = twitterData.twitterTimestamp || twitterData.lastRefreshed || twitterData.lastUpdated || new Date().toISOString();
+            
             // Note: Hype snapshots are created during the scoring stage, not here
 
             // Only apply 72h cooldown if we got fresh data, not rate-limited cached data

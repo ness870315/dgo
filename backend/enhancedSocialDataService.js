@@ -530,9 +530,26 @@ class EnhancedSocialDataService {
       const symbolLower = symbol.toLowerCase();
       const safeName = name || symbol;
       
-      // Single hashtag search strategy - most cost-effective for community sentiment
-      // Get tweets from last 7 days to ensure freshness
-      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      // 🚨 FIX: Use consistent 72-hour window logic to prevent infinite loops
+      const now = Date.now();
+      let startTime;
+      
+      // Check for existing Twitter timestamp to maintain consistency
+      const existingTwitterData = this.twitterMetricsCache.get(`${symbolLower}_${safeName.toLowerCase()}`);
+      const lastTwitterRefresh = existingTwitterData?.data?.lastRefreshed || existingTwitterData?.data?.twitterTimestamp;
+      
+      if (lastTwitterRefresh) {
+        const lastRefreshTime = new Date(lastTwitterRefresh).getTime();
+        const hoursSinceRefresh = (now - lastRefreshTime) / (1000 * 60 * 60);
+        
+        // Use the last refresh time as start_time to get only new tweets
+        startTime = new Date(lastRefreshTime).toISOString();
+        console.log(`🐦 ${symbol}: Using last refresh time as start_time (${hoursSinceRefresh.toFixed(1)}h ago)`);
+      } else {
+        // No previous refresh data - use 7 days ago as fallback
+        startTime = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
+        console.log(`🐦 ${symbol}: No previous refresh data, using 7-day window`);
+      }
       
       const searchStrategies = [
         {
@@ -541,7 +558,7 @@ class EnhancedSocialDataService {
           params: { 
             q: `#${symbolLower}`, 
             count: 6, // Optimal count for coverage
-            start_time: oneWeekAgo // Only get tweets from last 7 days
+            start_time: startTime // Use consistent timestamp logic
           }
         }
       ];
@@ -762,7 +779,9 @@ class EnhancedSocialDataService {
         // Status and Metadata
         status: totalMentions > 0 ? 'active' : 'limited_activity',
         communityHealth: this.calculateCommunityHealthFromMetrics(totalMentions, totalLikes, totalRetweets, followers),
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
+        lastRefreshed: new Date().toISOString(), // 🚨 FIX: Set consistent timestamp field
+        twitterTimestamp: new Date().toISOString() // 🚨 FIX: Set token-level timestamp field
       };
       
     } catch (error) {
