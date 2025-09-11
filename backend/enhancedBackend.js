@@ -496,7 +496,11 @@ class EnhancedBackend {
             userId: c.userId,
             token: c.token,
             calledAt: c.calledAt || c.createdAt,
-            calledMC: c.calledMc || c.calledMC
+            calledMC: c.calledMc || c.calledMC,
+            thesis: c.thesis || null,
+            twitterPostId: c.twitterPostId || null,
+            twitterEnabled: c.twitterEnabled || false,
+            tone: c.tone || null
           }));
 
         res.json({ success: true, totalCalls, users, sample });
