@@ -1630,11 +1630,7 @@ class EnhancedBackend {
         let finalThesis = thesis;
         let twitterPostId = null;
         
-        console.log(`🧠 Thesis generation for ${token.symbol}:`, {
-          frontendThesis: thesis,
-          hasFrontendThesis: !!thesis,
-          tone: tone || 'bullish'
-        });
+        // Note: Thesis generation logging is handled in the generate-thesis endpoint
         
         // If no thesis provided, generate one
         if (!finalThesis) {

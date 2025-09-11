@@ -84,7 +84,13 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
           peakMC: c.peakMC,
           holderCount: c.holderCount,
           liquidity: c.liquidity, // Pass through liquidity if available
-          lastUpdated: c.lastUpdated
+          lastUpdated: c.lastUpdated,
+          // Add missing fields for DetailDrawer
+          thesis: c.thesis,
+          twitterPostId: c.twitterPostId,
+          twitterEnabled: c.twitterEnabled,
+          tone: c.tone,
+          milestones: c.milestones || []
         };
       });
 

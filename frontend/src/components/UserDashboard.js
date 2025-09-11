@@ -1287,17 +1287,27 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                 <div>Last points: {hypeSeries.length}</div>
                 <div>
                   {(() => {
-                    // Get current label based on token's current score
-                    const currentScore = selectedHypeToken?.overallScore || selectedHypeToken?.score || 0;
+                    // Get current label based on token's current score (use same source as backend)
+                    const currentScore = selectedHypeToken?.overallScore || selectedHypeToken?.enhancedScore || selectedHypeToken?.score || 0;
                     const currentLabel = currentScore >= 8 ? 'Viral' : 
                                        currentScore >= 6 ? 'Trending' : 
                                        currentScore >= 4 ? 'Building' : 'Sleeping';
                     
                     // Get latest label from hype data for comparison
                     const latestHypeLabel = hypeSeries[hypeSeries.length-1]?.label;
+                    const latestHypeScore = hypeSeries[hypeSeries.length-1]?.score || 0;
                     
                     const emojiMap = { Trending: '🔥', Viral: '🚀', Building: '🧱', Sleeping: '💤' };
                     const emoji = emojiMap[currentLabel] || '';
+                    
+                    // Debug logging
+                    console.log(`🔍 Hype Chart Debug for ${selectedHypeToken?.symbol}:`, {
+                      currentScore: currentScore,
+                      currentLabel: currentLabel,
+                      latestHypeScore: latestHypeScore,
+                      latestHypeLabel: latestHypeLabel,
+                      scoreDifference: Math.abs(currentScore - latestHypeScore)
+                    });
                     
                     // Show current label, and if different from hype data, show both
                     if (latestHypeLabel && latestHypeLabel !== currentLabel) {

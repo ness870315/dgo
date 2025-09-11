@@ -1,5 +1,8 @@
 import HybridDatabaseService from './hybridDatabaseService.js';
 import CallThesisGenerator from './callThesisGenerator.js';
+import OAuthXService from './oauthXService.js';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * Milestone Tracker - Monitors KOL calls for milestone achievements
@@ -9,6 +12,7 @@ class MilestoneTracker {
   constructor() {
     this.db = new HybridDatabaseService();
     this.thesisGenerator = new CallThesisGenerator();
+    this.oauthXService = new OAuthXService();
     this.isRunning = false;
     this.checkInterval = 5 * 60 * 1000; // Check every 5 minutes
     this.intervalId = null;
@@ -134,23 +138,39 @@ class MilestoneTracker {
    */
   async getCurrentTokenStats(contractAddress) {
     try {
-      // This would integrate with your existing token data service
-      // For now, return mock data - you'll need to implement this
-      // based on your existing token data sources
+      // Load tokens cache to get real token data
+      const tokensCachePath = path.join(process.env.DATA_DIR || path.join(__dirname, 'data'), 'cache', 'tokens-cache.json');
       
-      // TODO: Integrate with actual token data service
-      // const tokenData = await this.tokenDataService.getTokenData(contractAddress);
-      // return {
-      //   currentMC: tokenData.marketCap,
-      //   currentPrice: tokenData.price,
-      //   volume24h: tokenData.volume24h
-      // };
+      if (!fs.existsSync(tokensCachePath)) {
+        console.log(`⚠️ Tokens cache not found at ${tokensCachePath}`);
+        return null;
+      }
 
-      // Mock data for now
+      const tokensCache = JSON.parse(fs.readFileSync(tokensCachePath, 'utf8'));
+      const token = tokensCache.find(t => t.contractAddress === contractAddress);
+      
+      if (!token) {
+        console.log(`⚠️ Token not found in cache for contract ${contractAddress.substring(0, 8)}`);
+        return null;
+      }
+
+      // Extract real market cap data from Jupiter API
+      const currentMC = token.jupiterData?.mcap || token.jupiterData?.marketCap || 0;
+      const currentPrice = token.jupiterData?.usdPrice || token.currentPrice || 0;
+      const volume24h = (token.jupiterData?.stats24h?.buyVolume || 0) + (token.jupiterData?.stats24h?.sellVolume || 0);
+
+      console.log(`📊 Real token stats for ${token.symbol}:`, {
+        contractAddress: contractAddress.substring(0, 8),
+        currentMC: currentMC,
+        currentPrice: currentPrice,
+        volume24h: volume24h,
+        source: 'jupiter_cache'
+      });
+
       return {
-        currentMC: Math.random() * 10000000, // Random MC between 0-10M
-        currentPrice: Math.random() * 100, // Random price
-        volume24h: Math.random() * 1000000 // Random volume
+        currentMC: currentMC,
+        currentPrice: currentPrice,
+        volume24h: volume24h
       };
     } catch (error) {
       console.error(`❌ Error getting token stats for ${contractAddress}:`, error.message);
@@ -208,7 +228,7 @@ class MilestoneTracker {
   async postMilestoneUpdate(userId, call, milestone, currentStats) {
     try {
       // Check if user has Twitter posting enabled
-      const hasTwitter = await this.db.oauthXService?.hasTwitterPostingEnabled?.(userId);
+      const hasTwitter = await this.oauthXService?.hasTwitterPostingEnabled?.(userId);
       if (!hasTwitter) {
         console.log(`🐦 User ${userId} has Twitter posting disabled, skipping milestone post`);
         return;
@@ -218,7 +238,7 @@ class MilestoneTracker {
       const postText = await this.thesisGenerator.generateMilestonePost(call, milestone, currentStats);
       
       // Post to Twitter
-      const tweet = await this.db.oauthXService.postTweet(userId, postText);
+      const tweet = await this.oauthXService.postTweet(userId, postText);
       
       // Record the milestone post
       await this.recordMilestonePost(userId, call.id, milestone, tweet.id, postText);
