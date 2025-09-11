@@ -453,9 +453,13 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
 
   const handleFuelShare = () => {
     if (fuelShareMessage) {
+      // Add image link to the message
+      const imageUrl = `${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/fuel-image/${appliedFuelType}/${token.symbol}`;
+      const messageWithImage = `${fuelShareMessage}\n\n🔥 Fuel Image: ${imageUrl}`;
+      
       // Redirect to X (Twitter) with pre-filled message, just like referral code share
       const twitterUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
-        text: fuelShareMessage,
+        text: messageWithImage,
         url: 'https://degen-oracle.com'
       }).toString()}`;
       

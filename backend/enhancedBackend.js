@@ -453,6 +453,33 @@ class EnhancedBackend {
       }
     });
 
+    // Serve fuel images
+    this.app.get('/api/fuel-image/:fuelType/:symbol', async (req, res) => {
+      try {
+        const { fuelType, symbol } = req.params;
+        
+        // Generate the fuel image
+        const fuelImageGenerator = new (await import('./fuelImageGenerator.js')).default();
+        const imageDataURL = await fuelImageGenerator.generateFuelImageDataURL(fuelType, symbol);
+        
+        // Convert data URL to buffer
+        const base64Data = imageDataURL.split(',')[1];
+        const imageBuffer = Buffer.from(base64Data, 'base64');
+        
+        // Set appropriate headers
+        res.set({
+          'Content-Type': 'image/png',
+          'Content-Length': imageBuffer.length,
+          'Cache-Control': 'public, max-age=3600' // Cache for 1 hour
+        });
+        
+        res.send(imageBuffer);
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Fuel image generation error:', error.message);
+        res.status(500).json({ error: 'Failed to generate fuel image' });
+      }
+    });
+
     // Admin: KOL calls summary/debug endpoint
     this.app.get('/api/admin/kol-calls/summary', async (req, res) => {
       try {

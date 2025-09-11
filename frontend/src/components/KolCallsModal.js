@@ -270,12 +270,16 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
                             }
                           }}>Open</button>
                           <button className="px-2 py-1 text-xs bg-red-700 hover:bg-red-600 rounded" onClick={async () => {
-                            try {
-                              await kolCallsService.deleteCall(r.id);
-                              await load();
-                            } catch (e) {
-                              console.error('Delete failed', e);
-                              alert('Failed to delete');
+                            if (confirm(`Are you sure you want to delete the call for ${r.token.symbol}?`)) {
+                              try {
+                                console.log('🗑️ Deleting call:', r.id, r.token.symbol);
+                                await kolCallsService.deleteCall(r.id);
+                                console.log('✅ Call deleted successfully');
+                                await load();
+                              } catch (e) {
+                                console.error('❌ Delete failed', e);
+                                alert(`Failed to delete call: ${e.message}`);
+                              }
                             }
                           }}>Delete</button>
                         </div>
