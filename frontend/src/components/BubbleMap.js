@@ -17,29 +17,35 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
         
         // Responsive sizing based on screen size
         const screenWidth = window.innerWidth;
+        const screenHeight = window.innerHeight;
         const isMobile = screenWidth < 640; // sm breakpoint
         const isTablet = screenWidth >= 640 && screenWidth < 1024; // lg breakpoint
-        const isDesktop = screenWidth >= 1024 && screenWidth < 1440;
+        const isSmallLaptop = screenWidth >= 1024 && screenWidth < 1366; // 14-inch laptops
+        const isDesktop = screenWidth >= 1366 && screenWidth < 1440;
         const isLargeDesktop = screenWidth >= 1440 && screenWidth < 1920;
         const isUltraWide = screenWidth >= 1920;
         
-        let minHeight = 400; // Mobile default
-        if (isTablet) minHeight = 500;
-        else if (isDesktop) minHeight = 600; // Desktop
-        else if (isLargeDesktop) minHeight = 700; // Large desktop
-        else if (isUltraWide) minHeight = 800; // Ultra-wide
+        // Calculate available height (accounting for header, filters, etc.)
+        const availableHeight = screenHeight - 200; // Reserve space for header and controls
+        
+        let minHeight = 350; // Mobile default (reduced)
+        if (isTablet) minHeight = 400; // Reduced
+        else if (isSmallLaptop) minHeight = 450; // Optimized for 14-inch screens
+        else if (isDesktop) minHeight = 500; // Reduced
+        else if (isLargeDesktop) minHeight = 600; // Reduced
+        else if (isUltraWide) minHeight = 700; // Reduced
         
         // Dynamic height adjustment based on token count
         const tokenCount = tokens?.length || 0;
-        let dynamicHeight = Math.max(minHeight, containerHeight);
+        let dynamicHeight = Math.min(Math.max(minHeight, containerHeight), availableHeight);
         
-        // Increase height for many tokens to prevent cutoff
+        // Increase height for many tokens but cap at available height
         if (tokenCount > 50) {
-          dynamicHeight = Math.max(dynamicHeight, 800); // Minimum 800px for many tokens
+          dynamicHeight = Math.min(Math.max(dynamicHeight, 600), availableHeight); // Reduced max
         } else if (tokenCount > 30) {
-          dynamicHeight = Math.max(dynamicHeight, 700); // Minimum 700px for moderate tokens
+          dynamicHeight = Math.min(Math.max(dynamicHeight, 500), availableHeight); // Reduced max
         } else if (tokenCount > 15) {
-          dynamicHeight = Math.max(dynamicHeight, 600); // Minimum 600px for some tokens
+          dynamicHeight = Math.min(Math.max(dynamicHeight, 450), availableHeight); // Reduced max
         }
         
         setDimensions({
@@ -71,7 +77,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
     svg.selectAll("*").remove();
 
     const { width, height } = dimensions;
-    const margin = { top: 20, right: 20, bottom: 20, left: 20 };
+    const margin = { top: 40, right: 20, bottom: 20, left: 20 }; // Increased top margin for better spacing from header
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
 
@@ -287,24 +293,24 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
         const mouseX = event.clientX;
         const mouseY = event.clientY;
         
-        // Position tooltip near cursor with small offset
-        let tooltipX = mouseX + 10; // Small offset to avoid cursor overlap
-        let tooltipY = mouseY - tooltipHeight - 10; // Position above cursor
+        // Position tooltip very close to cursor
+        let tooltipX = mouseX + 3; // Very small offset to avoid cursor overlap
+        let tooltipY = mouseY - tooltipHeight - 3; // Position above cursor
         
         // Smart positioning to avoid going off-screen
         // If tooltip goes off right edge, position it to the left of cursor
         if (tooltipX + tooltipWidth > window.innerWidth) {
-          tooltipX = mouseX - tooltipWidth - 10;
+          tooltipX = mouseX - tooltipWidth - 3;
         }
         
         // If tooltip goes off top edge, position it below cursor
         if (tooltipY < 0) {
-          tooltipY = mouseY + 10;
+          tooltipY = mouseY + 3;
         }
         
         // If tooltip goes off bottom edge, position it above cursor
         if (tooltipY + tooltipHeight > window.innerHeight) {
-          tooltipY = mouseY - tooltipHeight - 10;
+          tooltipY = mouseY - tooltipHeight - 3;
         }
         
         tooltip.style('display', 'block')
@@ -333,20 +339,20 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
         const mouseX = event.clientX;
         const mouseY = event.clientY;
         
-        let tooltipX = mouseX + 10;
-        let tooltipY = mouseY - tooltipHeight - 10;
+        let tooltipX = mouseX + 3;
+        let tooltipY = mouseY - tooltipHeight - 3;
         
         // Smart positioning to avoid going off-screen
         if (tooltipX + tooltipWidth > window.innerWidth) {
-          tooltipX = mouseX - tooltipWidth - 10;
+          tooltipX = mouseX - tooltipWidth - 3;
         }
         
         if (tooltipY < 0) {
-          tooltipY = mouseY + 10;
+          tooltipY = mouseY + 3;
         }
         
         if (tooltipY + tooltipHeight > window.innerHeight) {
-          tooltipY = mouseY - tooltipHeight - 10;
+          tooltipY = mouseY - tooltipHeight - 3;
         }
         
         tooltip.style('left', tooltipX + 'px')
