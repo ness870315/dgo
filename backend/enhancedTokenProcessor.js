@@ -759,6 +759,53 @@ class EnhancedTokenProcessor {
     }
   }
 
+  /**
+   * Process new tokens imported from Jup-service through full pipeline
+   * This ensures new tokens get Twitter data, social health scores, and overall scores
+   */
+  async processNewTokensFromJupService() {
+    console.log('🚀 Processing new Jup-service tokens through full pipeline...');
+    
+    try {
+      // Get tokens that were recently imported from Jup-service and need processing
+      const tokens = await this.getTokensFromCache();
+      const newJupTokens = tokens.filter(token => 
+        token.source === 'jupiter' && 
+        token.stage === 'jupiter' && 
+        token.hasJupiterData &&
+        token.lastDiscoveredAt && 
+        (Date.now() - new Date(token.lastDiscoveredAt).getTime()) < (5 * 60 * 1000) // Within last 5 minutes
+      );
+      
+      if (newJupTokens.length === 0) {
+        console.log('📊 No new Jup-service tokens found for processing');
+        return;
+      }
+      
+      console.log(`📊 Found ${newJupTokens.length} new Jup-service tokens to process`);
+      
+      // Add to processing queue
+      this.processingQueue = newJupTokens;
+      
+      // Process through Twitter stage
+      console.log('🐦 Processing Jup-service tokens through Twitter stage...');
+      await this.processTwitterStage();
+      
+      // Process through scoring stage
+      console.log('📊 Processing Jup-service tokens through scoring stage...');
+      await this.processScoringStage();
+      
+      // Save final results
+      console.log('💾 Saving processed Jup-service tokens...');
+      await this.saveFinalDatabase();
+      
+      console.log(`✅ Jup-service token processing completed: ${newJupTokens.length} tokens processed`);
+      
+    } catch (error) {
+      console.error('❌ Jup-service token processing failed:', error.message);
+    }
+  }
+
   async processScoringStage() {
     console.log('📊 Stage 4: Calculating Enhanced Scores...');
     

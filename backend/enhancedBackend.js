@@ -2859,6 +2859,25 @@ class EnhancedBackend {
         // Save updated cache if any changes
         if (inserted > 0 || updated > 0) {
           await this.saveTokensToCache(tokens);
+          
+          // 🚀 AUTOMATIC PIPELINE PROCESSING for Jup-service imports
+          console.log(`[🔍 Discovery Import] 🚀 Triggering automatic pipeline processing for ${inserted} new + ${updated} updated tokens`);
+          
+          try {
+            // Trigger processing for new tokens (they need full pipeline)
+            if (inserted > 0) {
+              console.log(`[🔍 Discovery Import] 📊 Processing ${inserted} new tokens through full pipeline (Twitter → Scoring → Saving)`);
+              await this.tokenProcessor.processNewTokensFromJupService();
+            }
+            
+            // For updated tokens, just boost their priority for Twitter/scoring updates
+            if (updated > 0) {
+              console.log(`[🔍 Discovery Import] ⚡ ${updated} existing tokens updated - priority boosted for Twitter/scoring refresh`);
+            }
+          } catch (processingError) {
+            console.error(`[🔍 Discovery Import] ⚠️ Pipeline processing failed:`, processingError.message);
+            // Don't fail the import if processing fails
+          }
         }
         // Persist recent-seen TTL file (prune old)
         try {
