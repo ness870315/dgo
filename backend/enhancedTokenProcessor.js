@@ -1712,14 +1712,14 @@ class EnhancedTokenProcessor {
         } else {
           console.log(`🔁 Merge match by CA: existing ${existing.symbol} (${existing.contractAddress}) with new ${newToken.symbol} (${newToken.contractAddress})`);
         }
-        // Update existing token with new CoinGecko data but preserve Twitter data if recent
+        // 🚨 CRITICAL FIX: Update existing token with new Jupiter data but NEVER wipe Twitter data
         const mergedToken = {
           ...existing,
           ...merged[existingIndex],
-          // Preserve Twitter data if it's less than 24 hours old (using legacy check for merge operation)
-          twitterData: this.legacyShouldRefreshTwitterData(existing) ? undefined : existing.twitterData,
-          twitterTimestamp: this.legacyShouldRefreshTwitterData(existing) ? undefined : existing.twitterTimestamp,
-          communityHealthScore: this.legacyShouldRefreshTwitterData(existing) ? undefined : existing.communityHealthScore,
+          // ALWAYS preserve Twitter data during Jupiter updates - Twitter refresh is handled separately
+          twitterData: existing.twitterData,
+          twitterTimestamp: existing.twitterTimestamp,
+          communityHealthScore: existing.communityHealthScore,
           // Preserve other existing data
           enhancedScore: existing.enhancedScore,
           overallScore: existing.overallScore,
