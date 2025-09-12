@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ExternalLink, TrendingUp, TrendingDown } from 'lucide-react';
+import { X, ExternalLink, TrendingUp, TrendingDown, Twitter } from 'lucide-react';
 import chartService from '../services/chartService';
 import priorityService from '../services/priorityService';
 
