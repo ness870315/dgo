@@ -333,6 +333,30 @@ function App() {
           console.log(`⚠️ Excluding ${token.symbol} from trending: weak socials (community: ${community}, mentions: ${mentions}, score: ${score})`);
           return false;
         }
+        
+        // 7) 🚨 NEW: TRADING ACTIVITY FILTER - Must have actual trading activity
+        const buyVolume = token.jupiterData?.stats24h?.buyVolume || 0;
+        const sellVolume = token.jupiterData?.stats24h?.sellVolume || 0;
+        const totalVolume = buyVolume + sellVolume;
+        
+        // Exclude tokens with no trading activity
+        if (totalVolume === 0) {
+          console.log(`⚠️ Excluding ${token.symbol} from trending: no trading activity (volume: $0)`);
+          return false;
+        }
+        
+        // 8) 🚨 NEW: BUY PRESSURE FILTER - Must have some organic buying
+        const buyPressure = buyVolume / (totalVolume || 1);
+        if (buyPressure < 0.1) { // Less than 10% buy volume
+          console.log(`⚠️ Excluding ${token.symbol} from trending: no organic buying (buy pressure: ${(buyPressure * 100).toFixed(1)}%)`);
+          return false;
+        }
+        
+        // 9) 🚨 NEW: MINIMUM VOLUME FILTER - Must have minimum trading volume
+        if (totalVolume < 1000) { // Less than $1K volume
+          console.log(`⚠️ Excluding ${token.symbol} from trending: insufficient volume ($${totalVolume.toLocaleString()})`);
+          return false;
+        }
 
         return true;
       });

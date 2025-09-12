@@ -108,15 +108,15 @@ class EnhancedScoringAlgorithm {
    * Rewards immediate trading activity
    */
   calculateVolume1hScore(tokenData) {
-    if (!tokenData) return 5.0;
+    if (!tokenData) return 0.0; // No data = no score
     
     const volume1h = tokenData.volume1h || 0;
     
-    // Logarithmic scaling for 1h volume
-    if (volume1h === 0) return 1.0;
+    // 🚨 CRITICAL: Zero volume = zero score (no trading activity)
+    if (volume1h === 0) return 0.0;
     
     const logVolume = Math.log10(volume1h + 1);
-    const score = Math.min(10, Math.max(1, logVolume * 2.5)); // Scale to 1-10
+    const score = Math.min(10, Math.max(0, logVolume * 2.5)); // Scale to 0-10
     
     return score;
   }
@@ -126,15 +126,15 @@ class EnhancedScoringAlgorithm {
    * Rewards sustained trading activity
    */
   calculateVolume24hScore(tokenData) {
-    if (!tokenData) return 5.0;
+    if (!tokenData) return 0.0; // No data = no score
     
     const volume24h = tokenData.volume24h || 0;
     
-    // Logarithmic scaling for 24h volume
-    if (volume24h === 0) return 1.0;
+    // 🚨 CRITICAL: Zero volume = zero score (no trading activity)
+    if (volume24h === 0) return 0.0;
     
     const logVolume = Math.log10(volume24h + 1);
-    const score = Math.min(10, Math.max(1, logVolume * 2.2)); // Scale to 1-10
+    const score = Math.min(10, Math.max(0, logVolume * 2.2)); // Scale to 0-10
     
     return score;
   }
@@ -144,14 +144,20 @@ class EnhancedScoringAlgorithm {
    * Rewards positive price movement
    */
   calculatePriceChange6hScore(tokenData) {
-    if (!tokenData) return 5.0;
+    if (!tokenData) return 0.0; // No data = no score
     
     const priceChange6h = tokenData.priceChange6h || 0;
+    const volumeChange6h = tokenData.volumeChange6h || 0;
+    
+    // 🚨 CRITICAL: Heavy volume decline = severe penalty
+    if (volumeChange6h <= -50) {
+      return 0.0; // -66% volume change = zero score
+    }
     
     // Only reward positive changes, penalize negative
     if (priceChange6h > 0) {
       // Positive changes: 0% = 5, +50% = 10
-      return Math.min(10, Math.max(5, 5 + (priceChange6h / 10)));
+      return Math.min(10, Math.max(0, 5 + (priceChange6h / 10)));
     } else {
       // Negative changes: 0% = 5, -50% = 0
       return Math.max(0, Math.min(5, 5 + (priceChange6h / 10)));
@@ -163,16 +169,17 @@ class EnhancedScoringAlgorithm {
    * Rewards more buying than selling
    */
   calculateOrganicVolumeRatio(tokenData) {
-    if (!tokenData) return 5.0;
+    if (!tokenData) return 0.0; // No data = no score
     
     const buyOrganic = tokenData.buyOrganicVolume24h || 0;
     const sellOrganic = tokenData.sellOrganicVolume24h || 0;
     
-    if (buyOrganic === 0 && sellOrganic === 0) return 5.0;
+    // 🚨 CRITICAL: No organic volume = zero score (no real trading)
+    if (buyOrganic === 0 && sellOrganic === 0) return 0.0;
     
     // Calculate ratio: higher buy volume = higher score
     const totalOrganic = buyOrganic + sellOrganic;
-    if (totalOrganic === 0) return 5.0;
+    if (totalOrganic === 0) return 0.0;
     
     const buyRatio = buyOrganic / totalOrganic;
     
