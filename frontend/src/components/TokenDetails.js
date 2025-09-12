@@ -569,7 +569,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
     try {
       let tweets = [];
       if (token?.twitterData?.tweets) tweets = token.twitterData.tweets;
+      else if (token?.twitterData?.recentMentions) tweets = token.twitterData.recentMentions;
       else if (token?.jupiterData?.twitterData?.tweets) tweets = token.jupiterData.twitterData.tweets;
+      else if (token?.jupiterData?.twitterData?.recentMentions) tweets = token.jupiterData.twitterData.recentMentions;
       else if (token?.recentPosts) tweets = token.recentPosts;
       else if (token?.tweets) tweets = token.tweets;
       return Array.isArray(tweets) ? tweets : [];
@@ -1422,8 +1424,12 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
               // Try different possible sources for tweet data
               if (token?.twitterData?.tweets) {
                 tweets = token.twitterData.tweets;
+              } else if (token?.twitterData?.recentMentions) {
+                tweets = token.twitterData.recentMentions;
               } else if (token?.jupiterData?.twitterData?.tweets) {
                 tweets = token.jupiterData.twitterData.tweets;
+              } else if (token?.jupiterData?.twitterData?.recentMentions) {
+                tweets = token.jupiterData.twitterData.recentMentions;
               } else if (token?.recentPosts) {
                 tweets = token.recentPosts;
               } else if (token?.tweets) {
