@@ -199,6 +199,16 @@ class TwitterDataMergeService {
         const twitterData = this.findMatchingTwitterData(token, twitterMetrics);
         
         if (twitterData) {
+          // 🚨 PRESERVE EXISTING DATA: Only update if we have fresh data or no existing data
+          const hasExistingData = token.twitterData && token.twitterData.mentions !== undefined;
+          const isFreshData = twitterData._dataFreshness === 'fresh' || twitterData._dataFreshness === 'fresh_with_content';
+          
+          if (hasExistingData && !isFreshData) {
+            skipped++;
+            console.log(`⏭️ Preserved existing data for ${token.symbol}: ${token.twitterData.mentions} mentions (not fresh data)`);
+            return token;
+          }
+          
           // Merge Twitter data into token
           const updatedToken = {
             ...token,
@@ -215,7 +225,7 @@ class TwitterDataMergeService {
           }
           
           updated++;
-          console.log(`🔄 Updated ${token.symbol}: ${twitterData.mentions} mentions, ${twitterData.likes} likes`);
+          console.log(`🔄 Updated ${token.symbol}: ${twitterData.mentions} mentions, ${twitterData.likes} likes (freshness: ${twitterData._dataFreshness || 'unknown'})`);
           
           return updatedToken;
         } else {

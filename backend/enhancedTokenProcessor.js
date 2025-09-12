@@ -719,9 +719,13 @@ class EnhancedTokenProcessor {
         tokens.forEach(t => {
           t.stage = 'twitter';
           t.twitterTimestamp = new Date().toISOString();
+          // 🚨 PRESERVE EXISTING DATA: Only set defaults if NO twitterData exists at all
           if (!t.twitterData) {
             t.twitterData = { mentions: 0, mentions24h: 0, likes: 0, retweets: 0, replies: 0, followers: 0 };
             t.communityHealthScore = 2.0; // Lowered from 5.0 to prevent massive jumps when adding social data
+            console.log(`⚠️ No Twitter data for ${t.symbol}, using defaults`);
+          } else {
+            console.log(`✅ Preserving existing Twitter data for ${t.symbol}: ${t.twitterData.mentions} mentions`);
           }
         });
         totalProcessed += tokens.length;
