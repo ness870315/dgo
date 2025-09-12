@@ -77,7 +77,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
     svg.selectAll("*").remove();
 
     const { width, height } = dimensions;
-    const margin = { top: 60, right: 20, bottom: 40, left: 20 }; // Increased margins for better spacing from header and bottom
+    const margin = { top: 80, right: 30, bottom: 60, left: 30 }; // Increased margins for better spacing and natural clustering
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
 
@@ -149,9 +149,9 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
     
     const colorScale = (score) => temperatureColorScale(score || 0);
 
-    // Create force simulation with dynamic strength
-    const chargeStrength = tokenCount <= 10 ? -300 : tokenCount <= 25 ? -150 : tokenCount <= 50 ? -80 : -50;
-    const centerStrength = tokenCount <= 10 ? 0.05 : tokenCount <= 25 ? 0.08 : 0.1;
+    // Create force simulation with dynamic strength - optimized for natural clustering
+    const chargeStrength = tokenCount <= 10 ? -200 : tokenCount <= 25 ? -100 : tokenCount <= 50 ? -60 : -40;
+    const centerStrength = tokenCount <= 10 ? 0.02 : tokenCount <= 25 ? 0.03 : 0.04; // Reduced center force for more natural spread
     
     const simulation = d3.forceSimulation(tokens)
       .force('charge', d3.forceManyBody().strength(chargeStrength))
@@ -159,33 +159,31 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
       .force('collision', d3.forceCollide().radius(d => radiusScale(d.score || d.overallScore || 5) + 2))
       .force('x', d3.forceX(innerWidth / 2).strength(centerStrength))
       .force('y', d3.forceY(innerHeight / 2).strength(centerStrength))
-      // 🚧 BOUNDARY WALLS: Prevent bubbles from going outside header/bottom areas
+      // 🌊 SOFT BOUNDARY: Gentle repulsion from edges for natural clustering
       .force('boundary', function() {
         tokens.forEach(d => {
           const radius = radiusScale(d.score || d.overallScore || 5);
+          const boundaryStrength = 0.1; // Gentle repulsion
+          const boundaryMargin = radius * 2; // Safe distance from edges
           
-          // Top wall (prevent going above header area)
-          if (d.y < radius) {
-            d.y = radius;
-            d.vy = 0;
+          // Top boundary (gentle push down)
+          if (d.y < boundaryMargin) {
+            d.vy += (boundaryMargin - d.y) * boundaryStrength;
           }
           
-          // Bottom wall (prevent going below bottom area)
-          if (d.y > innerHeight - radius) {
-            d.y = innerHeight - radius;
-            d.vy = 0;
+          // Bottom boundary (gentle push up)
+          if (d.y > innerHeight - boundaryMargin) {
+            d.vy -= (d.y - (innerHeight - boundaryMargin)) * boundaryStrength;
           }
           
-          // Left wall
-          if (d.x < radius) {
-            d.x = radius;
-            d.vx = 0;
+          // Left boundary (gentle push right)
+          if (d.x < boundaryMargin) {
+            d.vx += (boundaryMargin - d.x) * boundaryStrength;
           }
           
-          // Right wall
-          if (d.x > innerWidth - radius) {
-            d.x = innerWidth - radius;
-            d.vx = 0;
+          // Right boundary (gentle push left)
+          if (d.x > innerWidth - boundaryMargin) {
+            d.vx -= (d.x - (innerWidth - boundaryMargin)) * boundaryStrength;
           }
         });
       });
@@ -193,18 +191,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
     const g = svg.append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
 
-    // 🚧 VISUAL BOUNDARY INDICATORS (optional - can be removed if not needed)
-    // Add subtle boundary lines to show the "walls"
-    g.append('rect')
-      .attr('x', 0)
-      .attr('y', 0)
-      .attr('width', innerWidth)
-      .attr('height', innerHeight)
-      .attr('fill', 'none')
-      .attr('stroke', 'rgba(153, 69, 255, 0.1)')
-      .attr('stroke-width', 1)
-      .attr('stroke-dasharray', '5,5')
-      .attr('opacity', 0.3);
+    // 🌊 Soft boundaries - no visual indicators needed for natural clustering
 
     // Add zoom functionality for better navigation with many bubbles
     const zoom = d3.zoom()
