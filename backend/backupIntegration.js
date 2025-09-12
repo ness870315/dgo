@@ -177,10 +177,7 @@ class BackupIntegration {
     console.log(`🔄 Restoring with service restart: ${snapshotId}`);
     
     try {
-      // Create emergency backup first
-      await this.createContextualBackup('Pre-restoration emergency backup');
-      
-      // Perform the restoration
+      // Perform the restoration (no automatic backup creation)
       const result = await this.backupService.restoreFromSnapshot(snapshotId);
       
       // Restart database service to reload data

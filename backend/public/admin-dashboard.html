@@ -479,11 +479,23 @@
             <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
                 <h4 style="color: #856404; margin-bottom: 10px;">⚠️ Restore from Snapshot</h4>
                 <p style="color: #856404; font-size: 14px; margin-bottom: 15px;">
-                    <strong>Warning:</strong> This will overwrite all current persistent disk data. An emergency backup will be created first.
+                    <strong>Warning:</strong> This will overwrite all current persistent disk data. No automatic backup will be created.
                 </p>
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <input type="text" id="restoreSnapshotId" placeholder="Enter snapshot ID" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                    <button class="btn btn-danger" onclick="restoreFromSnapshot()">🔄 Restore</button>
+                    <button class="btn btn-danger" onclick="restoreFromSnapshot()">🔄 Full Restore</button>
+                </div>
+            </div>
+
+            <!-- Cache-Only Restore Section -->
+            <div style="background: #d1ecf1; border: 1px solid #bee5eb; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                <h4 style="color: #0c5460; margin-bottom: 10px;">💾 Cache-Only Restore</h4>
+                <p style="color: #0c5460; font-size: 14px; margin-bottom: 15px;">
+                    <strong>Safe Option:</strong> Restores only tokens-cache.json from snapshot. Preserves all other data (users, global, etc.).
+                </p>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="text" id="restoreCacheSnapshotId" placeholder="Enter snapshot ID" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <button class="btn btn-info" onclick="restoreCacheOnly()">💾 Restore Cache Only</button>
                 </div>
             </div>
 
@@ -2601,7 +2613,7 @@
                 return;
             }
 
-            if (!confirm(`⚠️ WARNING: This will overwrite ALL current persistent disk data with the snapshot data.\n\nSnapshot ID: ${snapshotId}\n\nAn emergency backup will be created first. Are you sure you want to continue?`)) {
+            if (!confirm(`⚠️ WARNING: This will overwrite ALL current persistent disk data with the snapshot data.\n\nSnapshot ID: ${snapshotId}\n\nNo automatic backup will be created. Are you sure you want to continue?`)) {
                 return;
             }
 
@@ -2635,6 +2647,51 @@
             } catch (error) {
                 contentDiv.textContent = `❌ Error: ${error.message}`;
                 showAlert('Restoration failed', 'error');
+            }
+        }
+
+        async function restoreCacheOnly() {
+            const snapshotId = document.getElementById('restoreCacheSnapshotId').value.trim();
+            
+            if (!snapshotId) {
+                showAlert('Please enter a snapshot ID', 'error');
+                return;
+            }
+
+            if (!confirm(`💾 CACHE-ONLY RESTORE: This will restore only tokens-cache.json from the snapshot.\n\nSnapshot ID: ${snapshotId}\n\nThis will preserve all other data (users, global, etc.). Are you sure you want to continue?`)) {
+                return;
+            }
+
+            const resultDiv = document.getElementById('backupResults');
+            const contentDiv = document.getElementById('backupResultsContent');
+            
+            resultDiv.style.display = 'block';
+            contentDiv.textContent = 'Restoring cache from snapshot... This may take a few moments.';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/backup/restore-cache`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ snapshotId })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    contentDiv.textContent = `✅ Cache-only restoration completed successfully!\n\nRestored from: ${data.restored.snapshotId}\nTokens restored: ${data.restored.tokensRestored}\nTimestamp: ${data.restored.timestamp}\n\n💾 Only tokens-cache.json was restored. All other data preserved.`;
+                    
+                    showAlert('Cache-only restoration completed successfully!', 'success');
+                    
+                    // Refresh status after restoration
+                    setTimeout(refreshBackupStatus, 3000);
+                } else {
+                    contentDiv.textContent = `❌ Cache-only restoration failed: ${data.error}`;
+                    showAlert('Cache-only restoration failed', 'error');
+                }
+
+            } catch (error) {
+                contentDiv.textContent = `❌ Error: ${error.message}`;
+                showAlert('Cache-only restoration failed', 'error');
             }
         }
 

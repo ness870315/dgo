@@ -5056,6 +5056,70 @@ class EnhancedBackend {
       }
     });
 
+    // Cache-only restore endpoint (restores only tokens-cache.json)
+    this.app.post('/api/admin/backup/restore-cache', async (req, res) => {
+      try {
+        const { snapshotId } = req.body;
+        
+        if (!snapshotId) {
+          return res.status(400).json({
+            success: false,
+            error: 'snapshotId is required'
+          });
+        }
+
+        console.log(`🔄 Admin requested cache-only restoration from snapshot: ${snapshotId}`);
+        
+        // Find the snapshot directory
+        const snapshotDir = path.join(this.backupIntegration.getBackupService().localCacheDir, snapshotId);
+        
+        if (!fsSync.existsSync(snapshotDir)) {
+          return res.status(404).json({
+            success: false,
+            error: `Snapshot not found: ${snapshotId}`
+          });
+        }
+
+        // Find tokens-cache.json in the snapshot
+        const snapshotCachePath = path.join(snapshotDir, 'cache', 'tokens-cache.json');
+        
+        if (!fsSync.existsSync(snapshotCachePath)) {
+          return res.status(404).json({
+            success: false,
+            error: 'tokens-cache.json not found in snapshot'
+          });
+        }
+
+        // Read the snapshot cache data
+        const snapshotCacheData = await fs.readFile(snapshotCachePath, 'utf8');
+        const snapshotTokens = JSON.parse(snapshotCacheData);
+        
+        console.log(`📊 Found ${snapshotTokens.length} tokens in snapshot cache`);
+
+        // Save to current cache (overwrite existing)
+        await this.saveTokensToCache(snapshotTokens);
+        
+        console.log(`✅ Cache-only restore completed: ${snapshotTokens.length} tokens restored`);
+        
+        res.json({
+          success: true,
+          message: 'Cache-only restoration completed successfully',
+          restored: {
+            snapshotId,
+            tokensRestored: snapshotTokens.length,
+            timestamp: new Date().toISOString()
+          }
+        });
+      } catch (error) {
+        console.error('❌ Cache-only restoration failed:', error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
     // Get backup system health
     this.app.get('/api/admin/backup/health', async (req, res) => {
       try {
