@@ -194,16 +194,25 @@ class EnhancedTokenProcessor {
   }
 
   async processCoinGeckoStage() {
-    console.log('🪙 Stage 1: FAST Fetching Solana Meme Coins from CoinGecko...');
+    console.log('🪙 Stage 1: CONTRACT DISCOVERY - Fetching new Solana contracts from CoinGecko...');
     
-    // Always fetch from CoinGecko because tokens change based on volume/market cap
-    console.log('🔄 Fetching latest tokens from CoinGecko (tokens change based on volume/market cap)...');
+    // Get existing contract addresses to avoid duplicates
+    const existingTokens = this.processedTokens.filter(t => t.stage === 'completed');
+    const existingContracts = new Set(
+      existingTokens
+        .filter(t => t.contractAddress)
+        .map(t => t.contractAddress.toLowerCase())
+    );
+    
+    console.log(`🔍 Found ${existingContracts.size} existing contracts in cache`);
+    console.log('🔄 Fetching trending tokens from CoinGecko (contract discovery only)...');
     
     const targetTokens = this.rateLimits.coingecko.maxTokens; // 500 tokens
     const batchSize = this.rateLimits.coingecko.batchSize; // 250 tokens per page
     const delayMs = this.rateLimits.coingecko.delayMs; // 2 seconds
     
     let allTokens = [];
+    let newContractsFound = 0;
     
     // Calculate starting page based on current page set (1-3, 4-6, or 7-9)
     const startPage = (this.coinGeckoPageState.currentPageSet - 1) * 3 + 1;
@@ -214,7 +223,7 @@ class EnhancedTokenProcessor {
     
     // Fetch 3 consecutive pages per cycle
     while (allTokens.length < targetTokens && this.isProcessing && page <= endPage) {
-      console.log(`📄 FAST Fetching page ${page} (target: ${targetTokens} tokens, current: ${allTokens.length})`);
+      console.log(`📄 Fetching page ${page} (target: ${targetTokens} tokens, current: ${allTokens.length}, new contracts: ${newContractsFound})`);
       
       try {
         const batchTokens = await this.fetchCoinGeckoBatch(page, batchSize);
@@ -224,9 +233,20 @@ class EnhancedTokenProcessor {
           break;
         }
         
-        // Tokens are already processed in fetchCoinGeckoBatch - just add them
-        allTokens.push(...batchTokens);
-        console.log(`✅ FAST Fetched ${batchTokens.length} tokens from page ${page} (total: ${allTokens.length})`);
+        // 🚀 OPTIMIZATION: Filter out existing contracts - only add NEW contracts
+        const newTokens = batchTokens.filter(token => {
+          if (!token.contractAddress) return false;
+          const contractLower = token.contractAddress.toLowerCase();
+          if (existingContracts.has(contractLower)) {
+            return false; // Skip existing contract
+          }
+          existingContracts.add(contractLower); // Add to set to avoid duplicates within batch
+          newContractsFound++;
+          return true;
+        });
+        
+        allTokens.push(...newTokens);
+        console.log(`✅ Fetched ${batchTokens.length} tokens from page ${page}, added ${newTokens.length} NEW contracts (total: ${allTokens.length}, new contracts: ${newContractsFound})`);
         
         // Continue if we haven't reached target and got a full batch
         if (allTokens.length < targetTokens && batchTokens.length === batchSize) {
@@ -257,30 +277,47 @@ class EnhancedTokenProcessor {
     const deduplicatedTokens = this.deduplicateTokens(allTokens);
     console.log(`🔄 Deduplicated: ${allTokens.length} → ${deduplicatedTokens.length} tokens (removed ${allTokens.length - deduplicatedTokens.length} duplicates)`);
     
-    // Merge with existing tokens from database
-    const existingTokens = this.processedTokens.filter(t => t.stage === 'completed');
-    const mergedTokens = this.mergeWithExistingTokens(deduplicatedTokens, existingTokens);
+    // 🚀 OPTIMIZATION: NO MERGING - Only add new contract addresses to queue
+    // Existing tokens will be processed by Jupiter API for market data updates
     
     this.stageProgress.coingecko = {
-      total: mergedTokens.length,
-      processed: mergedTokens.length,
+      total: deduplicatedTokens.length,
+      processed: deduplicatedTokens.length,
       status: 'completed'
     };
     
-    console.log(`🎯 CoinGecko Stage Complete: ${mergedTokens.length} unique tokens (${deduplicatedTokens.length} new + ${existingTokens.length} existing)`);
-    this.processingQueue = mergedTokens;
+    console.log(`🎯 CoinGecko Stage Complete: ${deduplicatedTokens.length} NEW contracts discovered (${newContractsFound} total new contracts found)`);
+    console.log(`📊 Existing tokens: ${existingTokens.length} (will be processed by Jupiter for market data updates)`);
+    this.processingQueue = deduplicatedTokens;
     
     // Advance to next page set for next cycle
     this.advanceCoinGeckoPageSet();
   }
 
   async processDexscreenerStage() {
-    console.log('🔍 Stage 1.5: Fetching Trending Tokens from Dexscreener...');
+    console.log('🔍 Stage 1.5: CONTRACT DISCOVERY - Fetching new Solana contracts from Dexscreener...');
 
     try {
+      // Get existing contract addresses to avoid duplicates
+      const existingTokens = this.processedTokens.filter(t => t.stage === 'completed');
+      const existingContracts = new Set(
+        existingTokens
+          .filter(t => t.contractAddress)
+          .map(t => t.contractAddress.toLowerCase())
+      );
+      
+      // Also check contracts from CoinGecko stage (current processing queue)
+      this.processingQueue.forEach(token => {
+        if (token.contractAddress) {
+          existingContracts.add(token.contractAddress.toLowerCase());
+        }
+      });
+      
+      console.log(`🔍 Found ${existingContracts.size} existing contracts (cache + CoinGecko queue)`);
+      
       // Get trending tokens from Dexscreener
       const targetTokens = this.rateLimits.dexscreener.maxTokens;
-      console.log(`🔄 Fetching ${targetTokens} trending tokens from Dexscreener...`);
+      console.log(`🔄 Fetching ${targetTokens} trending tokens from Dexscreener (contract discovery only)...`);
 
       const dexscreenerTokens = await this.dexscreenerService.getTrendingPairs(targetTokens);
 
@@ -296,44 +333,43 @@ class EnhancedTokenProcessor {
 
       console.log(`✅ Retrieved ${dexscreenerTokens.length} tokens from Dexscreener`);
 
-      // Convert Dexscreener tokens to our standard format
-      const processedDexscreenerTokens = dexscreenerTokens.map(token => ({
-        symbol: token.symbol || 'UNKNOWN',
-        name: token.name || 'Unknown Token',
-        contractAddress: token.contractAddress,
-        price: token.price || 0,
-        volume24h: token.volume24h || 0,
-        marketCap: token.marketCap || 0,
-        priceChange24h: token.priceChange24h || 0,
-        image: token.image,
-        source: 'dexscreener',
-        stage: 'dexscreener',
-        pairAddress: token.pairAddress,
-        chainId: token.chainId,
-        dexId: token.dex,
-        liquidity: token.liquidity || 0,
-        fdv: token.fdv || 0
-      }));
-
-      // Filter out tokens that don't have contract addresses
-      const validDexscreenerTokens = processedDexscreenerTokens.filter(token =>
-        token.contractAddress &&
-        token.contractAddress !== 'UNKNOWN' &&
-        token.contractAddress.length > 10 // Basic validation
-      );
-
-      console.log(`🎯 ${validDexscreenerTokens.length} valid Dexscreener tokens with contract addresses`);
-
-      // Merge with existing tokens from processing queue (from Coingecko)
-      const existingTokens = this.processingQueue;
-      const mergedTokens = this.mergeWithExistingTokens(validDexscreenerTokens, existingTokens);
+      // 🚀 OPTIMIZATION: Extract only contract addresses and basic info (no market data)
+      const newContractTokens = [];
+      let newContractsFound = 0;
       
-      // 🚨 CRITICAL FIX: Deduplicate immediately after merge to prevent Twitter API waste
-      const deduplicatedTokens = this.deduplicateTokens(mergedTokens);
-      const duplicatesRemoved = mergedTokens.length - deduplicatedTokens.length;
-      if (duplicatesRemoved > 0) {
-        console.log(`🔧 DEXSCREENER DEDUP: Removed ${duplicatesRemoved} duplicates after merge (${mergedTokens.length} → ${deduplicatedTokens.length})`);
-      }
+      dexscreenerTokens.forEach(token => {
+        if (token.contractAddress && 
+            token.contractAddress !== 'UNKNOWN' && 
+            token.contractAddress.length > 10) {
+          
+          const contractLower = token.contractAddress.toLowerCase();
+          if (!existingContracts.has(contractLower)) {
+            existingContracts.add(contractLower); // Add to set to avoid duplicates
+            newContractsFound++;
+            
+            // Create minimal token object with only contract info
+            newContractTokens.push({
+              symbol: token.symbol || 'UNKNOWN',
+              name: token.name || 'Unknown Token',
+              contractAddress: token.contractAddress,
+              source: 'dexscreener',
+              stage: 'dexscreener',
+              // No market data - Jupiter will fetch this
+              pairAddress: token.pairAddress,
+              chainId: token.chainId,
+              dexId: token.dex
+            });
+          }
+        }
+      });
+
+      console.log(`🎯 ${newContractTokens.length} NEW contracts discovered from Dexscreener (${newContractsFound} total new contracts)`);
+
+      // 🚀 OPTIMIZATION: NO MERGING - Only add new contract addresses to queue
+      // Existing tokens will be processed by Jupiter API for market data updates
+      
+      // Add new contracts to processing queue
+      this.processingQueue.push(...newContractTokens);
 
       this.stageProgress.dexscreener = {
         total: deduplicatedTokens.length,
@@ -355,44 +391,94 @@ class EnhancedTokenProcessor {
   }
 
   async processBirdEyeStage() {
-    console.log('🐦 Stage 1.6: Fetching Trending Tokens from BirdEye...');
+    console.log('🐦 Stage 1.6: CONTRACT DISCOVERY - Fetching new Solana contracts from BirdEye...');
 
     try {
+      // Get existing contract addresses to avoid duplicates
+      const existingTokens = this.processedTokens.filter(t => t.stage === 'completed');
+      const existingContracts = new Set(
+        existingTokens
+          .filter(t => t.contractAddress)
+          .map(t => t.contractAddress.toLowerCase())
+      );
+      
+      // Also check contracts from previous stages (CoinGecko + Dexscreener)
+      this.processingQueue.forEach(token => {
+        if (token.contractAddress) {
+          existingContracts.add(token.contractAddress.toLowerCase());
+        }
+      });
+      
+      console.log(`🔍 Found ${existingContracts.size} existing contracts (cache + previous stages)`);
+      
       const target = this.rateLimits.birdeye.maxTokens;
-      console.log(`🔄 Fetching up to ${target} trending tokens from BirdEye...`);
+      console.log(`🔄 Fetching up to ${target} trending tokens from BirdEye (contract discovery only)...`);
       const birdTokens = await this.birdEyeService.fetchTrending({ limit: target, sort_type: 'desc' });
 
       if (!birdTokens || birdTokens.length === 0) {
         console.log('⚠️ No tokens retrieved from BirdEye');
-        this.stageProgress.birdeye = { total: this.processingQueue.length, processed: this.processingQueue.length, status: 'completed' };
+        this.stageProgress.birdeye = { 
+          total: this.processingQueue.length, 
+          processed: this.processingQueue.length, 
+          status: 'completed' 
+        };
         return;
       }
 
       console.log(`✅ Retrieved ${birdTokens.length} tokens from BirdEye`);
 
-      // Merge with existing tokens from processing queue
-      const existingTokens = this.processingQueue;
-      const mergedTokens = this.mergeWithExistingTokens(birdTokens, existingTokens);
+      // 🚀 OPTIMIZATION: Extract only contract addresses and basic info (no market data)
+      const newContractTokens = [];
+      let newContractsFound = 0;
       
-      // 🚨 CRITICAL FIX: Deduplicate immediately after merge to prevent Twitter API waste
-      const deduplicatedTokens = this.deduplicateTokens(mergedTokens);
-      const duplicatesRemoved = mergedTokens.length - deduplicatedTokens.length;
-      if (duplicatesRemoved > 0) {
-        console.log(`🔧 BIRDEYE DEDUP: Removed ${duplicatesRemoved} duplicates after merge (${mergedTokens.length} → ${deduplicatedTokens.length})`);
-      }
+      birdTokens.forEach(token => {
+        if (token.contractAddress && 
+            token.contractAddress !== 'UNKNOWN' && 
+            token.contractAddress.length > 10) {
+          
+          const contractLower = token.contractAddress.toLowerCase();
+          if (!existingContracts.has(contractLower)) {
+            existingContracts.add(contractLower); // Add to set to avoid duplicates
+            newContractsFound++;
+            
+            // Create minimal token object with only contract info
+            newContractTokens.push({
+              symbol: token.symbol || 'UNKNOWN',
+              name: token.name || 'Unknown Token',
+              contractAddress: token.contractAddress,
+              source: 'birdeye',
+              stage: 'birdeye',
+              // No market data - Jupiter will fetch this
+              birdEyeRaw: token.birdEyeRaw
+            });
+          }
+        }
+      });
+
+      console.log(`🎯 ${newContractTokens.length} NEW contracts discovered from BirdEye (${newContractsFound} total new contracts)`);
+
+      // 🚀 OPTIMIZATION: NO MERGING - Only add new contract addresses to queue
+      // Existing tokens will be processed by Jupiter API for market data updates
+      
+      // Add new contracts to processing queue
+      this.processingQueue.push(...newContractTokens);
 
       this.stageProgress.birdeye = {
-        total: deduplicatedTokens.length,
-        processed: deduplicatedTokens.length,
+        total: newContractTokens.length,
+        processed: newContractTokens.length,
         status: 'completed'
       };
 
-      console.log(`🎯 BirdEye Stage Complete: ${deduplicatedTokens.length} total tokens (${birdTokens.length} new + ${existingTokens.length} existing, ${duplicatesRemoved} duplicates removed)`);
-      this.processingQueue = deduplicatedTokens;
+      console.log(`🎯 BirdEye Stage Complete: ${newContractTokens.length} NEW contracts discovered`);
+      console.log(`📊 Total processing queue: ${this.processingQueue.length} contracts (from all discovery sources)`);
 
     } catch (error) {
       console.error('❌ BirdEye stage failed:', error);
-      this.stageProgress.birdeye = { total: this.processingQueue.length, processed: 0, status: 'failed' };
+      this.stageProgress.birdeye = { 
+        total: this.processingQueue.length, 
+        processed: 0, 
+        status: 'failed' 
+      };
     }
   }
 
