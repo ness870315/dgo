@@ -831,12 +831,14 @@ class EnhancedTokenProcessor {
         console.warn('⚠️ Could not load existing cache, starting fresh:', error.message);
       }
       
-      // Merge existing tokens with newly processed tokens
-      const allTokens = [...existingTokens, ...tokensToSave];
+      // 🚨 CRITICAL FIX: Preserve existing cache tokens, only deduplicate new tokens
+      // First, deduplicate only the newly processed tokens
+      const deduplicatedNewTokens = this.deduplicateTokens(tokensToSave);
+      console.log(`🔄 New tokens deduplication: ${tokensToSave.length} → ${deduplicatedNewTokens.length} tokens (removed ${tokensToSave.length - deduplicatedNewTokens.length} duplicates)`);
       
-      // FINAL DEDUPLICATION: Ensure no duplicates in final database
-      const finalUniqueTokens = this.deduplicateTokens(allTokens);
-      console.log(`🔄 Final deduplication: ${allTokens.length} → ${finalUniqueTokens.length} tokens (removed ${allTokens.length - finalUniqueTokens.length} duplicates)`);
+      // Then merge with existing tokens, preserving existing cache
+      const finalUniqueTokens = this.mergeWithExistingTokens(deduplicatedNewTokens, existingTokens);
+      console.log(`🔄 Final merge: ${existingTokens.length} existing + ${deduplicatedNewTokens.length} new = ${finalUniqueTokens.length} total tokens`);
       
       // Save to cache
       const cachePath = path.join(this.cacheDir, 'tokens-cache.json');
