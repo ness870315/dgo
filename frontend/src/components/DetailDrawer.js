@@ -480,26 +480,40 @@ export default function DetailDrawer({ call, onClose }) {
             </div>
           </div>
 
-          {/* Thesis & Receipts */}
+          {/* Call Tweets & Milestones */}
           <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
             <div className="text-sm font-medium mb-3 text-white flex items-center gap-2">
-              <span>🧠</span>
-              Thesis & Receipts
+              <span>🐦</span>
+              Call Tweets & Milestones
             </div>
             
-            {/* AI-Generated Thesis */}
-            {call.thesis ? (
+            {/* Original Call Tweet */}
+            {call.twitterPostId ? (
               <div className="mb-4">
-                <div className="text-xs font-medium text-white/70 mb-2">AI-Generated Thesis</div>
+                <div className="text-xs font-medium text-white/70 mb-2">Original Call Tweet</div>
                 <div className="p-3 bg-gray-800/50 border border-gray-600/50 rounded-lg">
-                  <p className="text-sm text-white/90 leading-relaxed">{call.thesis}</p>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Twitter size={14} className="text-blue-400" />
+                    <span className="text-xs text-blue-400">Posted to Twitter</span>
+                    <span className="text-xs text-gray-500">•</span>
+                    <span className="text-xs text-gray-500">{new Date(call.calledAt).toLocaleDateString()}</span>
+                  </div>
+                  <p className="text-sm text-white/90 leading-relaxed">
+                    🚀 CALL: ${call.token.symbol} at ${(call.calledMC / 1000000).toFixed(1)}M MC
+                    <br />
+                    {call.thesis || call.note || "Based on our analytics engine signals."}
+                  </p>
                 </div>
               </div>
             ) : (
               <div className="mb-4">
-                <div className="text-xs font-medium text-white/70 mb-2">Thesis</div>
+                <div className="text-xs font-medium text-white/70 mb-2">Call Details</div>
                 <div className="p-3 bg-gray-800/50 border border-gray-600/50 rounded-lg">
-                  <p className="text-sm text-white/60 italic">{call.note || "No thesis provided for this call."}</p>
+                  <p className="text-sm text-white/90 leading-relaxed">
+                    🚀 CALL: ${call.token.symbol} at ${(call.calledMC / 1000000).toFixed(1)}M MC
+                    <br />
+                    {call.thesis || call.note || "Based on our analytics engine signals."}
+                  </p>
                 </div>
               </div>
             )}

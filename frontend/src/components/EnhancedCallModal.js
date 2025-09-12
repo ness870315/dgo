@@ -12,7 +12,7 @@ const EnhancedCallModal = ({
   const [thesis, setThesis] = useState('');
   const [thesisLoading, setThesisLoading] = useState(false);
   const [thesisError, setThesisError] = useState(null);
-  const [twitterEnabled, setTwitterEnabled] = useState(false);
+  const [twitterEnabled, setTwitterEnabled] = useState(true); // Always enabled
   const [twitterLoading, setTwitterLoading] = useState(false);
   const [selectedTone, setSelectedTone] = useState('bullish');
   const [callLoading, setCallLoading] = useState(false);
@@ -40,10 +40,11 @@ const EnhancedCallModal = ({
 
   const loadTwitterStatus = async () => {
     try {
-      const enabled = await twitterService.getTwitterPostingStatus();
-      setTwitterEnabled(enabled);
+      // Always enable Twitter posting - no toggle needed
+      setTwitterEnabled(true);
     } catch (error) {
       console.error('Failed to load Twitter status:', error);
+      setTwitterEnabled(true); // Still enable even if there's an error
     }
   };
 
@@ -241,38 +242,24 @@ const EnhancedCallModal = ({
           </h3>
           
           <div className="bg-gray-800 border border-gray-600 rounded-lg p-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle size={16} className="text-blue-400" />
               <div>
                 <p className="text-gray-200 font-medium">Auto-post to Twitter</p>
                 <p className="text-gray-400 text-sm">
-                  Automatically post your call and milestone updates to Twitter
+                  All calls and milestone updates will be posted to Twitter automatically
                 </p>
               </div>
-              <button
-                onClick={() => handleTwitterToggle(!twitterEnabled)}
-                disabled={twitterLoading}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  twitterEnabled ? 'bg-blue-600' : 'bg-gray-600'
-                } disabled:opacity-50`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    twitterEnabled ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
             </div>
             
-            {twitterEnabled && (
-              <div className="mt-3 p-3 bg-blue-900/20 border border-blue-600/30 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <CheckCircle size={16} className="text-blue-400" />
-                  <span className="text-blue-300 text-sm">
-                    Your call will be posted to Twitter automatically
-                  </span>
-                </div>
+            <div className="mt-3 p-3 bg-blue-900/20 border border-blue-600/30 rounded-lg">
+              <div className="flex items-center gap-2">
+                <CheckCircle size={16} className="text-blue-400" />
+                <span className="text-blue-300 text-sm">
+                  Your call and all milestone updates will be posted to Twitter automatically
+                </span>
               </div>
-            )}
+            </div>
           </div>
         </div>
 
