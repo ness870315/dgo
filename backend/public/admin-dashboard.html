@@ -436,7 +436,7 @@
         <div class="card" style="margin-bottom: 30px;">
             <h2>🔄 Enhanced Backup System</h2>
             <div class="alert alert-info" style="margin-bottom: 20px; padding: 15px; background: rgba(0,123,255,0.1); border: 1px solid rgba(0,123,255,0.3); border-radius: 8px;">
-                <strong>📸 Automated Snapshots:</strong> 5 per day (every 4.8 hours) • <strong>🕐 Retention:</strong> 48 hours (10 snapshots max) • <strong>📂 Coverage:</strong> Complete persistent disk
+                <strong>📸 Automated Snapshots:</strong> 24 per day (every 1 hour) • <strong>🕐 Retention:</strong> 10 snapshots max (10 hours) • <strong>📂 Coverage:</strong> Complete persistent disk
             </div>
             
             <!-- Backup Status -->
@@ -2696,7 +2696,7 @@
         }
 
         async function cleanupSnapshots() {
-            if (!confirm('This will remove old snapshots beyond the 48-hour retention period. Continue?')) {
+            if (!confirm('This will remove old snapshots beyond the 10-snapshot limit. Continue?')) {
                 return;
             }
 

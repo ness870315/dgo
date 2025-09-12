@@ -25,10 +25,10 @@ class EnhancedBackupService {
     this.isRunning = false;
     
     // Backup configuration
-    this.snapshotsPerDay = 5;
-    this.retentionHours = 48;
-    this.maxSnapshots = this.snapshotsPerDay * (this.retentionHours / 24); // 10 snapshots
-    this.backupIntervalMs = (24 * 60 * 60 * 1000) / this.snapshotsPerDay; // 4.8 hours
+    this.snapshotsPerDay = 24; // Every hour
+    this.retentionHours = 10; // Keep only 10 snapshots (10 hours of history)
+    this.maxSnapshots = 10; // Fixed limit of 10 snapshots
+    this.backupIntervalMs = 60 * 60 * 1000; // 1 hour
     
     // Paths
     this.persistentDir = process.env.DATA_DIR || '/var/data/dgo';

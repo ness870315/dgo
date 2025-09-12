@@ -7307,8 +7307,8 @@ class EnhancedBackend {
             this.backupIntegration = await createBackupIntegration(this.oauthXService?.db);
             await this.backupIntegration.start();
             console.log('✅ Enhanced Backup System started successfully');
-            console.log('📸 Automatic snapshots: 5 per day (every 4.8 hours)');
-            console.log('🕐 Retention: 48 hours (10 snapshots max)');
+            console.log('📸 Automatic snapshots: 24 per day (every 1 hour)');
+            console.log('🕐 Retention: 10 snapshots max (10 hours)');
           } catch (error) {
             console.error('❌ Enhanced Backup System failed to start:', error.message);
             console.warn('⚠️ Continuing without enhanced backups...');
