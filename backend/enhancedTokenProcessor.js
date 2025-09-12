@@ -1730,21 +1730,10 @@ class EnhancedTokenProcessor {
         merged[existingIndex] = mergedToken;
         console.log(`🔄 Merged existing token ${existing.symbol} (preserved recent Twitter/Jupiter data when applicable)`);
       } else {
-        // CRITICAL FIX: Don't add existing completed tokens back to processing queue
-        // This prevents unnecessary Twitter API calls for tokens that already have data
-        if (existing.stage !== 'completed') {
-          // Only add incomplete tokens that need processing
-          const key = (existing.contractAddress || existing.symbol || '').toLowerCase();
-          if (!this.alreadyQueuedSet.has(key)) {
-            merged.push(existing);
-            this.alreadyQueuedSet.add(key);
-            this.saveAlreadyQueuedSet(); // Persist to disk
-            console.log(`➕ Added incomplete token ${existing.symbol} to processing queue (stage: ${existing.stage})`);
-          }
-        } else {
-          // Skip completed tokens - they don't need reprocessing
-          console.log(`⏭️ Skipping completed token ${existing.symbol} (no reprocessing needed)`);
-        }
+        // 🚨 CRITICAL FIX: ALWAYS add existing tokens to the final merged result
+        // The stage filtering should only apply to processing queue, not to final result
+        merged.push(existing);
+        console.log(`➕ Added existing token ${existing.symbol} to final result (stage: ${existing.stage})`);
       }
     }
     
