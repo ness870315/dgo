@@ -494,12 +494,13 @@ class EnhancedTokenProcessor {
     }
     
     // Filter out tokens that should NEVER hit Twitter API
+    // NOTE: isValidCandidate is for Jupiter import pipeline, not for existing cache tokens
     let allTokens = this.processingQueue;
     const preFilterCount = allTokens.length;
-    allTokens = allTokens.filter(t => this.isValidCandidate(t) && !this.isSuspiciousToken(t) && !this.isRuggedToken(t) && !this.isExcludedMajorOrStable(t));
+    allTokens = allTokens.filter(t => !this.isSuspiciousToken(t) && !this.isRuggedToken(t) && !this.isExcludedMajorOrStable(t));
     const filteredOut = preFilterCount - allTokens.length;
     if (filteredOut > 0) {
-      console.log(`🧹 FILTER: Skipped ${filteredOut} tokens (invalid/suspicious/rugged) before Twitter stage (${preFilterCount} → ${allTokens.length})`);
+      console.log(`🧹 FILTER: Skipped ${filteredOut} tokens (suspicious/rugged/major) before Twitter stage (${preFilterCount} → ${allTokens.length})`);
     }
     
     // 🚨 CRITICAL FIX: In-flight protection to prevent duplicate processing within same run
