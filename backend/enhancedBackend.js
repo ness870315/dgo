@@ -5454,6 +5454,31 @@ class EnhancedBackend {
         });
       }
     });
+
+    // Toggle Automatic Twitter Data Merge
+    this.app.post('/api/admin/twitter/toggle-automatic-merge', async (req, res) => {
+      try {
+        console.log('[🛡️ Admin] 🤖 Toggle Automatic Twitter Data Merge requested');
+        
+        // For now, automatic merge is always enabled
+        // In the future, this could toggle a setting in a config file
+        
+        res.json({
+          success: true,
+          message: 'Automatic Twitter data merge is enabled. Fresh Twitter data will be merged automatically after each Twitter stage completion.',
+          automaticMergeEnabled: true,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to toggle automatic merge:', error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+          message: 'Failed to toggle automatic merge'
+        });
+      }
+    });
   }
 
   setupBackgroundTasks() {

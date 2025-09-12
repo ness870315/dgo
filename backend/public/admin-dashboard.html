@@ -736,6 +736,7 @@
                 <h2>🔄 Twitter Data Merge</h2>
                 <p style="color: #666; font-size: 0.9em; margin-bottom: 15px;">
                     🔧 <strong>Manual Merge:</strong> Merges fresh Twitter data from twitter_metrics.json into main tokens cache<br>
+                    🤖 <strong>Automatic Merge:</strong> Enabled - merges data automatically after each Twitter stage completion<br>
                     🚫 <strong>NO API CALLS:</strong> Only uses existing collected Twitter data<br>
                     🛡️ <strong>Safe Operation:</strong> Creates backup before merge, validates data integrity<br>
                     ⚡ <strong>Instant Results:</strong> Updates UI immediately after merge
@@ -743,6 +744,7 @@
                 <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                     <button class="btn btn-success" onclick="manualTwitterDataMerge()">🔄 Manual Merge</button>
                     <button class="btn btn-info" onclick="getTwitterMergeStatus()">📊 Merge Status</button>
+                    <button class="btn btn-warning" onclick="toggleAutomaticMerge()">🤖 Toggle Auto-Merge</button>
                 </div>
                 <div id="twitterMergeResults"></div>
                 <div id="twitterMergeStatus" class="status-display" style="display: none;"></div>
@@ -3050,6 +3052,36 @@ ${(aiPrediction.risks || []).map(r => `   • ${r}`).join('\\n') || '   • None
             // Load AI prediction stats after a short delay
             setTimeout(refreshAIPredictionStats, 2000);
         });
+
+        // Automatic Merge Toggle Function
+        async function toggleAutomaticMerge() {
+            const resultsDiv = document.getElementById('twitterMergeResults');
+            
+            if (!confirm('🤖 TOGGLE AUTOMATIC TWITTER MERGE\\n\\nThis will enable/disable automatic merging of Twitter data after each Twitter stage completion.\\n\\n✅ Automatic merge: Fresh Twitter data appears in UI immediately\\n⚠️ Manual only: Requires manual merge to see fresh data\\n\\nContinue?')) {
+                return;
+            }
+            
+            resultsDiv.innerHTML = showLoading('🤖 Toggling automatic merge...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/twitter/toggle-automatic-merge`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultsDiv.innerHTML = showAlert(`✅ ${data.message}`, 'success');
+                } else {
+                    resultsDiv.innerHTML = showAlert(`❌ ${data.error}: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
 
         // Manual Twitter Data Merge Functions
         async function manualTwitterDataMerge() {

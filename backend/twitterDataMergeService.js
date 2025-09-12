@@ -20,6 +20,54 @@ class TwitterDataMergeService {
   }
 
   /**
+   * Automatic merge - triggered after Twitter stage completion
+   * Merges fresh Twitter data without creating backups (faster)
+   */
+  async automaticMerge() {
+    console.log('🔄 Starting AUTOMATIC Twitter Data Merge...');
+    
+    try {
+      // 1. Load existing data
+      const tokens = await this.loadTokensCache();
+      const twitterMetrics = await this.loadTwitterMetrics();
+      
+      if (Object.keys(twitterMetrics).length === 0) {
+        console.log('📊 No Twitter metrics to merge, skipping automatic merge');
+        return { success: true, message: 'No Twitter data to merge' };
+      }
+      
+      console.log(`📊 Auto-merge: ${tokens.length} tokens, ${Object.keys(twitterMetrics).length} Twitter entries`);
+
+      // 2. Perform merge (no backup for automatic merges)
+      const mergeResults = await this.mergeTwitterData(tokens, twitterMetrics);
+      
+      // 3. Atomic save
+      await this.atomicSave(mergeResults.mergedTokens);
+      
+      console.log(`✅ Automatic merge completed: ${mergeResults.updated} tokens updated`);
+      
+      return {
+        success: true,
+        message: 'Automatic Twitter data merge completed',
+        result: {
+          processed: mergeResults.processed,
+          updated: mergeResults.updated,
+          skipped: mergeResults.skipped,
+          errors: mergeResults.errors
+        }
+      };
+      
+    } catch (error) {
+      console.error('❌ Automatic merge failed:', error.message);
+      return {
+        success: false,
+        error: error.message,
+        message: 'Automatic merge failed'
+      };
+    }
+  }
+
+  /**
    * Manual merge - only uses existing Twitter data, no API calls
    */
   async manualMerge() {

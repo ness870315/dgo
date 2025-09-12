@@ -735,6 +735,24 @@ class EnhancedTokenProcessor {
     };
     
     console.log(`✅ Twitter Stage Complete: ${totalProcessed} tokens processed, ${totalSkipped} tokens skipped (72h rule) in ${Math.ceil(allTokens.length / batchSize)} batches`);
+    
+    // 🚀 AUTOMATIC TWITTER DATA MERGE
+    // Merge fresh Twitter data into main cache immediately after Twitter stage
+    try {
+      console.log('🔄 Starting automatic Twitter data merge...');
+      const { default: TwitterDataMergeService } = await import('./twitterDataMergeService.js');
+      const mergeService = new TwitterDataMergeService();
+      const mergeResult = await mergeService.automaticMerge();
+      
+      if (mergeResult.success) {
+        console.log(`✅ Automatic Twitter merge completed: ${mergeResult.result?.updated || 0} tokens updated`);
+      } else {
+        console.log(`⚠️ Automatic Twitter merge failed: ${mergeResult.error}`);
+      }
+    } catch (error) {
+      console.log(`⚠️ Automatic Twitter merge error: ${error.message}`);
+      // Don't fail the entire stage if merge fails
+    }
   }
 
   async processScoringStage() {
