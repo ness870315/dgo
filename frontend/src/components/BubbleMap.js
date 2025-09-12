@@ -333,6 +333,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
       })
       .on('mousemove', function(event, d) {
         // Update tooltip position as mouse moves over bubble
+        const tooltip = d3.select(tooltipRef.current);
         const tooltipWidth = 250;
         const tooltipHeight = 120;
         
