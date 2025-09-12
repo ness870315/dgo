@@ -279,32 +279,32 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
 
         const hypeData = getHypeLevel(d.score || d.overallScore || 0);
         
-        // Position tooltip closer to the bubble using SVG coordinates
-        const svgRect = svg.node().getBoundingClientRect();
-        const bubbleRadius = radiusScale(d.score || d.overallScore || 5);
-        const bubbleScreenX = svgRect.left + d.x + margin.left;
-        const bubbleScreenY = svgRect.top + d.y + margin.top;
-        
-        // Smart positioning to avoid going off-screen - position much closer to bubble
+        // Position tooltip close to the mouse cursor for better UX
         const tooltipWidth = 250; // Estimated tooltip width
         const tooltipHeight = 120; // Estimated tooltip height
         
-        let tooltipX = bubbleScreenX + bubbleRadius + 5; // Reduced gap from 10 to 5
-        let tooltipY = bubbleScreenY - tooltipHeight/2; // Center tooltip vertically with bubble
+        // Get mouse position relative to viewport
+        const mouseX = event.clientX;
+        const mouseY = event.clientY;
         
-        // If tooltip goes off right edge, position it to the left of bubble
+        // Position tooltip near cursor with small offset
+        let tooltipX = mouseX + 10; // Small offset to avoid cursor overlap
+        let tooltipY = mouseY - tooltipHeight - 10; // Position above cursor
+        
+        // Smart positioning to avoid going off-screen
+        // If tooltip goes off right edge, position it to the left of cursor
         if (tooltipX + tooltipWidth > window.innerWidth) {
-          tooltipX = bubbleScreenX - bubbleRadius - tooltipWidth - 5; // Reduced gap
+          tooltipX = mouseX - tooltipWidth - 10;
         }
         
-        // If tooltip goes off top edge, position it below bubble
+        // If tooltip goes off top edge, position it below cursor
         if (tooltipY < 0) {
-          tooltipY = bubbleScreenY + bubbleRadius + 5; // Reduced gap
+          tooltipY = mouseY + 10;
         }
         
-        // If tooltip goes off bottom edge, position it above bubble
+        // If tooltip goes off bottom edge, position it above cursor
         if (tooltipY + tooltipHeight > window.innerHeight) {
-          tooltipY = bubbleScreenY - bubbleRadius - tooltipHeight - 5; // Reduced gap
+          tooltipY = mouseY - tooltipHeight - 10;
         }
         
         tooltip.style('display', 'block')
@@ -324,6 +324,33 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
             <div class="text-sm">Mentions: ${d.twitterData?.mentions || d.mentions || 0}</div>
             <div class="text-sm">Community: ${d.communityScore ? d.communityScore.toFixed(1) : 'N/A'}/10</div>
           `);
+      })
+      .on('mousemove', function(event, d) {
+        // Update tooltip position as mouse moves over bubble
+        const tooltipWidth = 250;
+        const tooltipHeight = 120;
+        
+        const mouseX = event.clientX;
+        const mouseY = event.clientY;
+        
+        let tooltipX = mouseX + 10;
+        let tooltipY = mouseY - tooltipHeight - 10;
+        
+        // Smart positioning to avoid going off-screen
+        if (tooltipX + tooltipWidth > window.innerWidth) {
+          tooltipX = mouseX - tooltipWidth - 10;
+        }
+        
+        if (tooltipY < 0) {
+          tooltipY = mouseY + 10;
+        }
+        
+        if (tooltipY + tooltipHeight > window.innerHeight) {
+          tooltipY = mouseY - tooltipHeight - 10;
+        }
+        
+        tooltip.style('left', tooltipX + 'px')
+          .style('top', tooltipY + 'px');
       })
       .on('mouseout', function(event, d) {
         const circle = d3.select(this).select('circle');
