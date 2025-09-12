@@ -5188,12 +5188,22 @@ class EnhancedBackend {
         }
 
         if (action === 'start') {
-          await this.backupIntegration.start();
-          res.json({
-            success: true,
-            message: 'Enhanced Backup Service started',
-            timestamp: new Date().toISOString()
-          });
+          // 🛡️ PREVENT MULTIPLE STARTS: Check if already running
+          const status = await this.backupIntegration.getStatus();
+          if (status.backup?.isRunning) {
+            res.json({
+              success: true,
+              message: 'Enhanced Backup Service is already running',
+              timestamp: new Date().toISOString()
+            });
+          } else {
+            await this.backupIntegration.start();
+            res.json({
+              success: true,
+              message: 'Enhanced Backup Service started',
+              timestamp: new Date().toISOString()
+            });
+          }
         } else if (action === 'stop') {
           await this.backupIntegration.stop();
           res.json({
@@ -5381,6 +5391,67 @@ class EnhancedBackend {
       } catch (error) {
         console.error('[🛡️ Admin] ❌ Error getting system status:', error);
         res.status(500).json({ error: 'Failed to get system status' });
+      }
+    });
+
+    // Manual Twitter Data Merge endpoint (NO API CALLS)
+    this.app.post('/api/admin/twitter/manual-merge', async (req, res) => {
+      try {
+        console.log('[🛡️ Admin] 🔄 Manual Twitter Data Merge requested');
+        
+        // Import and initialize merge service
+        const { default: TwitterDataMergeService } = await import('./twitterDataMergeService.js');
+        const mergeService = new TwitterDataMergeService();
+        
+        // Perform manual merge (NO API CALLS)
+        const result = await mergeService.manualMerge();
+        
+        console.log(`[🛡️ Admin] ✅ Manual merge completed: ${result.updated} tokens updated`);
+        
+        res.json({
+          success: true,
+          message: 'Manual Twitter data merge completed successfully',
+          result: result,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Manual merge failed:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Manual merge failed',
+          message: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    // Get Twitter Data Merge Status
+    this.app.get('/api/admin/twitter/merge-status', async (req, res) => {
+      try {
+        console.log('[🛡️ Admin] 📊 Twitter Data Merge Status requested');
+        
+        // Import and initialize merge service
+        const { default: TwitterDataMergeService } = await import('./twitterDataMergeService.js');
+        const mergeService = new TwitterDataMergeService();
+        
+        // Get merge status
+        const status = await mergeService.getMergeStatus();
+        
+        res.json({
+          success: true,
+          status: status,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get merge status:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get merge status',
+          message: error.message,
+          timestamp: new Date().toISOString()
+        });
       }
     });
   }
@@ -6032,6 +6103,9 @@ class EnhancedBackend {
   }
 
   async saveTokensToCache(tokens) {
+    const lockPath = this.persistentCachePath + '.lock';
+    let lockFile = null;
+    
     try {
       const cachePath = this.persistentCachePath;
       
@@ -6039,13 +6113,59 @@ class EnhancedBackend {
       const cacheDir = path.dirname(cachePath);
       await fs.mkdir(cacheDir, { recursive: true });
       
-      // Save tokens to cache file
-      await fs.writeFile(cachePath, JSON.stringify(tokens, null, 2), 'utf8');
-      console.log(`[🛡️ Enhanced Backend] ✅ Saved ${tokens.length} tokens to cache`);
+      // 🛡️ FILE LOCKING: Create lock file to prevent concurrent access
+      try {
+        lockFile = await fs.open(lockPath, 'wx'); // Exclusive write lock
+        console.log(`[🛡️ Enhanced Backend] 🔒 Acquired cache lock`);
+      } catch (lockError) {
+        if (lockError.code === 'EEXIST') {
+          console.log(`[🛡️ Enhanced Backend] ⏳ Cache lock exists, waiting...`);
+          // Wait for lock to be released (max 30 seconds)
+          for (let i = 0; i < 30; i++) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            try {
+              lockFile = await fs.open(lockPath, 'wx');
+              break;
+            } catch (_) {
+              if (i === 29) throw new Error('Cache lock timeout - another process is writing');
+            }
+          }
+        } else {
+          throw lockError;
+        }
+      }
+      
+      // 🛡️ ATOMIC WRITE: Write to temporary file first, then rename
+      const tempPath = cachePath + '.tmp';
+      const jsonData = JSON.stringify(tokens, null, 2);
+      
+      // Write to temporary file
+      await fs.writeFile(tempPath, jsonData, 'utf8');
+      
+      // Atomic rename (this is atomic on most file systems)
+      await fs.rename(tempPath, cachePath);
+      
+      console.log(`[🛡️ Enhanced Backend] ✅ Saved ${tokens.length} tokens to cache (atomic write)`);
       
     } catch (error) {
       console.error('[🛡️ Enhanced Backend] ❌ Error saving tokens to cache:', error);
+      
+      // Cleanup temp file if it exists
+      try {
+        const tempPath = this.persistentCachePath + '.tmp';
+        await fs.unlink(tempPath);
+      } catch (_) {}
+      
       throw error;
+    } finally {
+      // 🛡️ RELEASE LOCK: Always release the lock
+      if (lockFile) {
+        try {
+          await lockFile.close();
+          await fs.unlink(lockPath);
+          console.log(`[🛡️ Enhanced Backend] 🔓 Released cache lock`);
+        } catch (_) {}
+      }
     }
   }
 
@@ -6590,9 +6710,35 @@ class EnhancedBackend {
         }
       }
       
-      // Save updated cache
+      // Save updated cache with validation
       if (updated > 0) {
+        // 🛡️ VALIDATE DATA before saving
+        if (!Array.isArray(tokens)) {
+          throw new Error('Tokens data is not an array - corruption detected');
+        }
+        
+        if (tokens.length === 0) {
+          throw new Error('Tokens array is empty - corruption detected');
+        }
+        
+        // Validate token structure
+        for (const token of tokens.slice(0, 10)) { // Check first 10 tokens
+          if (!token.symbol || !token.name || !token.contractAddress) {
+            throw new Error(`Invalid token structure detected: ${JSON.stringify(token)}`);
+          }
+        }
+        
+        console.log(`[🛡️ Enhanced Backend] 🔍 Data validation passed: ${tokens.length} tokens`);
+        
+        // Save with atomic write
         await this.saveTokensToCache(tokens);
+        
+        // 🛡️ VERIFY SAVE: Read back and validate
+        const savedTokens = await this.getTokensFromCache();
+        if (!savedTokens || savedTokens.length !== tokens.length) {
+          throw new Error(`Cache verification failed: expected ${tokens.length}, got ${savedTokens?.length || 0}`);
+        }
+        
         console.log(`[🛡️ Enhanced Backend] ✅ Priority update complete: ${updated} tokens updated, ${errors} errors`);
         
         // Update KOL calls with new market cap data
@@ -7305,10 +7451,17 @@ class EnhancedBackend {
           console.log('🔄 Initializing Enhanced Backup System...');
           try {
             this.backupIntegration = await createBackupIntegration(this.oauthXService?.db);
-            await this.backupIntegration.start();
-            console.log('✅ Enhanced Backup System started successfully');
-            console.log('📸 Automatic snapshots: 24 per day (every 1 hour)');
-            console.log('🕐 Retention: 10 snapshots max (10 hours)');
+            
+            // 🛡️ CHECK IF ALREADY RUNNING: Prevent multiple starts
+            const status = await this.backupIntegration.getStatus();
+            if (!status.backup?.isRunning) {
+              await this.backupIntegration.start();
+              console.log('✅ Enhanced Backup System started successfully');
+              console.log('📸 Automatic snapshots: 24 per day (every 1 hour)');
+              console.log('🕐 Retention: 10 snapshots max (10 hours)');
+            } else {
+              console.log('✅ Enhanced Backup System already running');
+            }
           } catch (error) {
             console.error('❌ Enhanced Backup System failed to start:', error.message);
             console.warn('⚠️ Continuing without enhanced backups...');

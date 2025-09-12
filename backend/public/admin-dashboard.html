@@ -731,6 +731,23 @@
                 <div id="twitterStatusDisplay" class="twitter-status" style="display: none;"></div>
             </div>
 
+            <!-- Twitter Data Merge -->
+            <div class="card" style="background: #f8f9fa; border: 2px solid #28a745;">
+                <h2>🔄 Twitter Data Merge</h2>
+                <p style="color: #666; font-size: 0.9em; margin-bottom: 15px;">
+                    🔧 <strong>Manual Merge:</strong> Merges fresh Twitter data from twitter_metrics.json into main tokens cache<br>
+                    🚫 <strong>NO API CALLS:</strong> Only uses existing collected Twitter data<br>
+                    🛡️ <strong>Safe Operation:</strong> Creates backup before merge, validates data integrity<br>
+                    ⚡ <strong>Instant Results:</strong> Updates UI immediately after merge
+                </p>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button class="btn btn-success" onclick="manualTwitterDataMerge()">🔄 Manual Merge</button>
+                    <button class="btn btn-info" onclick="getTwitterMergeStatus()">📊 Merge Status</button>
+                </div>
+                <div id="twitterMergeResults"></div>
+                <div id="twitterMergeStatus" class="status-display" style="display: none;"></div>
+            </div>
+
             <!-- Twitter API Usage Monitor -->
             <div class="card">
                 <h2>📊 Twitter API Usage Monitor</h2>
@@ -3033,6 +3050,109 @@ ${(aiPrediction.risks || []).map(r => `   • ${r}`).join('\\n') || '   • None
             // Load AI prediction stats after a short delay
             setTimeout(refreshAIPredictionStats, 2000);
         });
+
+        // Manual Twitter Data Merge Functions
+        async function manualTwitterDataMerge() {
+            const resultsDiv = document.getElementById('twitterMergeResults');
+            const statusDiv = document.getElementById('twitterMergeStatus');
+            
+            // Hide status display
+            statusDiv.style.display = 'none';
+            
+            // Show confirmation
+            if (!confirm('🔄 MANUAL TWITTER DATA MERGE\\n\\nThis will merge fresh Twitter data from twitter_metrics.json into the main tokens cache.\\n\\n✅ Safe operation - creates backup before merge\\n🚫 NO API CALLS - only uses existing data\\n⚡ Instant results - updates UI immediately\\n\\nContinue?')) {
+                return;
+            }
+            
+            resultsDiv.innerHTML = showLoading('🔄 Starting manual Twitter data merge...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/twitter/manual-merge`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const result = data.result;
+                    resultsDiv.innerHTML = showAlert(`✅ ${data.message}`, 'success') + `
+                        <div class="status-display">
+                            <div class="status-item">
+                                <span class="status-label">Tokens Processed:</span>
+                                <span class="status-value">${result.processed}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Tokens Updated:</span>
+                                <span class="status-value">${result.updated}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Tokens Skipped:</span>
+                                <span class="status-value">${result.skipped}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Backup Created:</span>
+                                <span class="status-value">✅ ${result.backupPath.split('/').pop()}</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Refresh merge status
+                    setTimeout(getTwitterMergeStatus, 1000);
+                } else {
+                    resultsDiv.innerHTML = showAlert(`❌ ${data.error}: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function getTwitterMergeStatus() {
+            const statusDiv = document.getElementById('twitterMergeStatus');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/twitter/merge-status`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const status = data.status;
+                    statusDiv.innerHTML = `
+                        <h4>📊 Twitter Data Merge Status</h4>
+                        <div class="status-display">
+                            <div class="status-item">
+                                <span class="status-label">Total Tokens:</span>
+                                <span class="status-value">${status.totalTokens}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">With Twitter Data:</span>
+                                <span class="status-value">${status.tokensWithTwitterData}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">With Fresh Data:</span>
+                                <span class="status-value">${status.tokensWithFreshTwitterData}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Twitter Metrics Entries:</span>
+                                <span class="status-value">${status.twitterMetricsEntries}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Last Merge:</span>
+                                <span class="status-value">${status.lastMerge ? new Date(status.lastMerge).toLocaleString() : 'Never'}</span>
+                            </div>
+                        </div>
+                    `;
+                    statusDiv.style.display = 'block';
+                } else {
+                    statusDiv.innerHTML = showAlert(`❌ Failed to get merge status: ${data.message}`, 'error');
+                    statusDiv.style.display = 'block';
+                }
+            } catch (error) {
+                statusDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+                statusDiv.style.display = 'block';
+            }
+        }
     </script>
 </body>
 </html>

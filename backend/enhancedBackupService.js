@@ -139,6 +139,9 @@ class EnhancedBackupService {
       return;
     }
 
+    // 🛡️ FORCE CLEANUP: Stop any existing timers before starting
+    this.forceStop();
+
     this.isRunning = true;
     console.log('🔄 Starting Enhanced Backup Service...');
     
@@ -213,6 +216,29 @@ class EnhancedBackupService {
     }
     
     console.log('🔄 Enhanced Backup Service stopped');
+  }
+
+  /**
+   * Force stop all timers without setting isRunning flag
+   * Used for cleanup before restart
+   */
+  forceStop() {
+    if (this.backupTimer) { 
+      clearInterval(this.backupTimer); 
+      this.backupTimer = null; 
+      console.log('🛑 Cleared backup timer');
+    }
+    if (this.backupTimeout) { 
+      clearTimeout(this.backupTimeout); 
+      this.backupTimeout = null; 
+      console.log('🛑 Cleared backup timeout');
+    }
+    
+    if (this.healthTimer) {
+      clearInterval(this.healthTimer);
+      this.healthTimer = null;
+      console.log('🛑 Cleared health timer');
+    }
   }
 
   /**
