@@ -6433,14 +6433,21 @@ class EnhancedBackend {
               }
             });
             
-            // Update tokens with their corresponding Jupiter data
+            // 🚨 CRITICAL FIX: Update tokens with their corresponding Jupiter data
             const updatedTokensInBatch = [];
             batch.forEach(token => {
               const tokenIndex = tokens.findIndex(t => t.contractAddress === token.contractAddress);
               if (tokenIndex !== -1 && jupiterMap.has(token.contractAddress)) {
                 const freshData = jupiterMap.get(token.contractAddress);
-                tokens[tokenIndex].jupiterData = freshData;
-                tokens[tokenIndex].jupiterTimestamp = new Date().toISOString();
+                
+                // 🚨 CRITICAL FIX: Update the original token but preserve ALL existing data including Twitter
+                const originalToken = tokens[tokenIndex];
+                tokens[tokenIndex] = {
+                  ...originalToken,  // Preserve ALL existing data (including Twitter data)
+                  jupiterData: freshData,
+                  jupiterTimestamp: new Date().toISOString()
+                };
+                
                 updatedTokensInBatch.push(tokens[tokenIndex]);
                 updated++;
                 
