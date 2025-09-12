@@ -77,7 +77,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
     svg.selectAll("*").remove();
 
     const { width, height } = dimensions;
-    const margin = { top: 40, right: 20, bottom: 20, left: 20 }; // Increased top margin for better spacing from header
+    const margin = { top: 60, right: 20, bottom: 40, left: 20 }; // Increased margins for better spacing from header and bottom
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
 
@@ -158,10 +158,53 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
       .force('center', d3.forceCenter(innerWidth / 2, innerHeight / 2))
       .force('collision', d3.forceCollide().radius(d => radiusScale(d.score || d.overallScore || 5) + 2))
       .force('x', d3.forceX(innerWidth / 2).strength(centerStrength))
-      .force('y', d3.forceY(innerHeight / 2).strength(centerStrength));
+      .force('y', d3.forceY(innerHeight / 2).strength(centerStrength))
+      // 🚧 BOUNDARY WALLS: Prevent bubbles from going outside header/bottom areas
+      .force('boundary', function() {
+        tokens.forEach(d => {
+          const radius = radiusScale(d.score || d.overallScore || 5);
+          
+          // Top wall (prevent going above header area)
+          if (d.y < radius) {
+            d.y = radius;
+            d.vy = 0;
+          }
+          
+          // Bottom wall (prevent going below bottom area)
+          if (d.y > innerHeight - radius) {
+            d.y = innerHeight - radius;
+            d.vy = 0;
+          }
+          
+          // Left wall
+          if (d.x < radius) {
+            d.x = radius;
+            d.vx = 0;
+          }
+          
+          // Right wall
+          if (d.x > innerWidth - radius) {
+            d.x = innerWidth - radius;
+            d.vx = 0;
+          }
+        });
+      });
 
     const g = svg.append('g')
       .attr('transform', `translate(${margin.left},${margin.top})`);
+
+    // 🚧 VISUAL BOUNDARY INDICATORS (optional - can be removed if not needed)
+    // Add subtle boundary lines to show the "walls"
+    g.append('rect')
+      .attr('x', 0)
+      .attr('y', 0)
+      .attr('width', innerWidth)
+      .attr('height', innerHeight)
+      .attr('fill', 'none')
+      .attr('stroke', 'rgba(153, 69, 255, 0.1)')
+      .attr('stroke-width', 1)
+      .attr('stroke-dasharray', '5,5')
+      .attr('opacity', 0.3);
 
     // Add zoom functionality for better navigation with many bubbles
     const zoom = d3.zoom()
