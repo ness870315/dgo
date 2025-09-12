@@ -1287,59 +1287,34 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                 <div>Last points: {hypeSeries.length}</div>
                 <div>
                   {(() => {
-                    // Get current label based on token's current score (use same source as backend)
-                    // Priority: overallScore > enhancedScore > score, but also check if hype data is more recent
-                    let currentScore = selectedHypeToken?.overallScore || selectedHypeToken?.enhancedScore || selectedHypeToken?.score || 0;
-                    
-                    // If we have fresh hype data, use that score instead of potentially stale token data
+                    // Show the freshest available status (most recent data from hype series)
                     if (hypeSeries.length > 0) {
                       const latestHypeData = hypeSeries[hypeSeries.length - 1];
-                      const hypeTimestamp = new Date(latestHypeData.timestamp).getTime();
-                      const now = Date.now();
-                      const isRecentHypeData = (now - hypeTimestamp) < (30 * 60 * 1000); // Within last 30 minutes
+                      const latestScore = latestHypeData.score || 0;
+                      const latestLabel = latestHypeData.label || 
+                                        (latestScore >= 8 ? 'Viral' : 
+                                         latestScore >= 6 ? 'Trending' : 
+                                         latestScore >= 4 ? 'Building' : 'Sleeping');
                       
-                      if (isRecentHypeData && latestHypeData.score) {
-                        currentScore = latestHypeData.score;
-                        console.log(`🔄 Using fresh hype data score: ${currentScore} (from ${new Date(latestHypeData.timestamp).toLocaleTimeString()})`);
-                      }
-                    }
-                    
-                    const currentLabel = currentScore >= 8 ? 'Viral' : 
-                                       currentScore >= 6 ? 'Trending' : 
-                                       currentScore >= 4 ? 'Building' : 'Sleeping';
-                    
-                    // Get latest label from hype data for comparison
-                    const latestHypeLabel = hypeSeries[hypeSeries.length-1]?.label;
-                    const latestHypeScore = hypeSeries[hypeSeries.length-1]?.score || 0;
-                    
-                    const emojiMap = { Trending: '🔥', Viral: '🚀', Building: '🧱', Sleeping: '💤' };
-                    const emoji = emojiMap[currentLabel] || '';
-                    
-                    // Enhanced debug logging with more details
-                    console.log(`🔍 Hype Chart Debug for ${selectedHypeToken?.symbol}:`, {
-                      tokenData: {
-                        overallScore: selectedHypeToken?.overallScore,
-                        enhancedScore: selectedHypeToken?.enhancedScore,
-                        score: selectedHypeToken?.score,
-                        hypeLabel: selectedHypeToken?.hypeLabel,
-                        hypeAnalysis: selectedHypeToken?.hypeAnalysis
-                      },
-                      calculated: {
-                        currentScore: currentScore,
-                        currentLabel: currentLabel
-                      },
-                      hypeData: {
-                        latestHypeScore: latestHypeScore,
-                        latestHypeLabel: latestHypeLabel,
-                        scoreDifference: Math.abs(currentScore - latestHypeScore)
-                      }
-                    });
-                    
-                    // Show current label, and if different from hype data, show both
-                    if (latestHypeLabel && latestHypeLabel !== currentLabel) {
-                      return `Current: ${currentLabel} ${emoji} | Chart: ${latestHypeLabel} ${emojiMap[latestHypeLabel] || ''}`;
+                      const emojiMap = { Trending: '🔥', Viral: '🚀', Building: '🧱', Sleeping: '💤' };
+                      const emoji = emojiMap[latestLabel] || '';
+                      
+                      // Show timestamp of when this data was captured
+                      const dataTime = new Date(latestHypeData.timestamp).toLocaleTimeString();
+                      const timeAgo = Math.round((Date.now() - new Date(latestHypeData.timestamp).getTime()) / (1000 * 60)); // minutes ago
+                      
+                      return `Current: ${latestLabel} ${emoji} (${timeAgo}m ago)`;
                     } else {
-                      return `Current: ${currentLabel} ${emoji}`;
+                      // Fallback to token data if no hype series available
+                      const currentScore = selectedHypeToken?.overallScore || selectedHypeToken?.enhancedScore || selectedHypeToken?.score || 0;
+                      const currentLabel = currentScore >= 8 ? 'Viral' : 
+                                         currentScore >= 6 ? 'Trending' : 
+                                         currentScore >= 4 ? 'Building' : 'Sleeping';
+                      
+                      const emojiMap = { Trending: '🔥', Viral: '🚀', Building: '🧱', Sleeping: '💤' };
+                      const emoji = emojiMap[currentLabel] || '';
+                      
+                      return `Current: ${currentLabel} ${emoji} (from token data)`;
                     }
                   })()}
                 </div>
