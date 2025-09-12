@@ -131,9 +131,12 @@ class BackupRecoveryService {
         if (mainTokens.length === 0) {
           needsRecovery = true;
           recoveryReason = 'Main cache is empty (0 tokens)';
-        } else if (mainTokens.length < 50) {
+        } else if (mainTokens.length < 10) {
           needsRecovery = true;
-          recoveryReason = `Main cache has suspiciously few tokens (${mainTokens.length})`;
+          recoveryReason = `Main cache has suspiciously few tokens (${mainTokens.length}) - possible corruption`;
+        } else {
+          // Cache has 10+ tokens - this is acceptable for production
+          console.log(`📊 Cache has ${mainTokens.length} tokens - within acceptable range`);
         }
         
       } catch (error) {
