@@ -158,6 +158,8 @@ class EnhancedBackend {
           'https://degen-oracle.com',
           'https://www.degen-oracle.com',
           'https://api.degen-oracle.com',
+          'http://degen-oracle.com', // HTTP version
+          'http://www.degen-oracle.com', // HTTP www version
           'http://localhost:3000', // for development
           'http://localhost:4000'  // for development
         ];
