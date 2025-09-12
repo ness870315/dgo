@@ -3165,6 +3165,12 @@ class EnhancedBackend {
     // Clear cache completely (for debugging - use with caution!)
     this.app.post('/api/tokens/clear-cache', async (req, res) => {
       try {
+        console.log('[🛡️ Enhanced Backend] 🚨 CACHE CLEAR REQUESTED - INVESTIGATING WHO IS CALLING THIS!');
+        console.log('[🛡️ Enhanced Backend] 📍 Request IP:', req.ip || req.connection.remoteAddress);
+        console.log('[🛡️ Enhanced Backend] 📍 User Agent:', req.get('User-Agent'));
+        console.log('[🛡️ Enhanced Backend] 📍 Referer:', req.get('Referer'));
+        console.log('[🛡️ Enhanced Backend] 📍 Request Headers:', JSON.stringify(req.headers, null, 2));
+        console.log('[🛡️ Enhanced Backend] 📍 Request Body:', JSON.stringify(req.body, null, 2));
         console.log('[🛡️ Enhanced Backend] 🗑️ Complete cache clear requested');
         
         // Clear cache and restart processing
