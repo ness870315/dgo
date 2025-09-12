@@ -372,13 +372,13 @@ class EnhancedTokenProcessor {
       this.processingQueue.push(...newContractTokens);
 
       this.stageProgress.dexscreener = {
-        total: deduplicatedTokens.length,
-        processed: deduplicatedTokens.length,
+        total: newContractTokens.length,
+        processed: newContractTokens.length,
         status: 'completed'
       };
 
-      console.log(`🎯 Dexscreener Stage Complete: ${deduplicatedTokens.length} total tokens (${validDexscreenerTokens.length} new + ${existingTokens.length} existing, ${duplicatesRemoved} duplicates removed)`);
-      this.processingQueue = deduplicatedTokens;
+      console.log(`🎯 Dexscreener Stage Complete: ${newContractTokens.length} NEW contracts discovered`);
+      console.log(`📊 Total processing queue: ${this.processingQueue.length} contracts (from all discovery sources)`);
 
     } catch (error) {
       console.error('❌ Dexscreener stage failed:', error);
