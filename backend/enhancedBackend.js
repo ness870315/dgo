@@ -87,7 +87,7 @@ class EnhancedBackend {
       const symbol = symbolRaw.trim().toUpperCase();
       const name = nameRaw.trim().toUpperCase();
       const bannedSymbols = new Set([
-        'WETH','WBTC','ETH','BTC','SOL','USDC','USDT','DAI','TUSD','FRAX','PYUSD','WBNB','WBCH','WAVAX'
+        'WETH','WBTC','ETH','BTC','SOL','USDC','USDT','DAI','TUSD','FRAX','PYUSD','WBNB','WBCH','WAVAX','BNSOL'
       ]);
       if (bannedSymbols.has(symbol)) return true;
       const bannedFragments = [' STABLE', 'STABLE ', ' STABLECOIN', 'WRAPPED ETH', 'WRAPPED BTC'];
@@ -2741,7 +2741,7 @@ class EnhancedBackend {
           console.log(`[🔍 Discovery Import] Sample tokens: ${sampleSymbols}${candidates.length > 5 ? '...' : ''}`);
         }
 
-        const stableSymbols = new Set(['SOL', 'JUP', 'WETH', 'WSOL', 'WBTC', 'USDC','USDT','DAI','FRAX','PYUSD']);
+        const stableSymbols = new Set(['SOL', 'JUP', 'WETH', 'WSOL', 'WBTC', 'USDC','USDT','DAI','FRAX','PYUSD','BNSOL']);
         // Recently-seen TTL (15m) to avoid spam inserts/logs for same contract
         const recentFile = path.join(this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo', 'cache', 'recent-seen-contracts.json');
         let recentMap = {};

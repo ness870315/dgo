@@ -1619,7 +1619,7 @@ class EnhancedTokenProcessor {
       const symbol = symbolRaw.trim().toUpperCase();
       const name = nameRaw.trim().toUpperCase();
       const bannedSymbols = new Set([
-        'WETH','WBTC','ETH','BTC','SOL','USDC','USDT','DAI','TUSD','FRAX','PYUSD','WBNB','WBCH','WAVAX'
+        'WETH','WBTC','ETH','BTC','SOL','USDC','USDT','DAI','TUSD','FRAX','PYUSD','WBNB','WBCH','WAVAX','BNSOL'
       ]);
       if (bannedSymbols.has(symbol)) return true;
       const bannedFragments = [' STABLE', 'STABLE ', ' STABLECOIN', 'WRAPPED ETH', 'WRAPPED BTC'];
