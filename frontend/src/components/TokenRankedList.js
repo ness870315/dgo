@@ -158,35 +158,45 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
                       </div>
                     </div>
 
-                    {/* Right side - Price, Change, Score */}
-                    <div className="flex items-center space-x-3 flex-shrink-0">
-                      {/* Price */}
-                      <div className="text-right">
-                        <div className="text-white font-semibold text-sm">
-                          {formatPrice(price)}
-                        </div>
-                        <div className={`text-xs font-bold ${priceColor}`}>
-                          {priceChange > 0 ? '+' : ''}{priceChange.toFixed(1)}%
-                        </div>
-                      </div>
-
-                      {/* Score */}
-                      <div className="text-right">
+                    {/* Right side - All Desktop Fields */}
+                    <div className="flex items-center space-x-2 flex-shrink-0">
+                      {/* Overall Score */}
+                      <div className="text-center">
                         <div className={`text-sm font-bold ${scoreColor}`}>
                           {score.toFixed(1)}
                         </div>
                         <div className="text-xs text-gray-400">
-                          {scoreLabel}
+                          Score
                         </div>
                       </div>
 
-                      {/* Market Cap (always show - essential!) */}
-                      <div className="text-right">
+                      {/* Price Change % */}
+                      <div className="text-center">
+                        <div className={`text-sm font-bold ${priceColor}`}>
+                          {priceChange > 0 ? '+' : ''}{priceChange.toFixed(1)}%
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          %
+                        </div>
+                      </div>
+
+                      {/* Market Cap */}
+                      <div className="text-center">
                         <div className="text-white font-semibold text-xs">
                           {formatMarketCap(marketCap)}
                         </div>
                         <div className="text-xs text-gray-400">
                           MC
+                        </div>
+                      </div>
+
+                      {/* Mentions */}
+                      <div className="text-center">
+                        <div className="text-white font-semibold text-xs">
+                          {mentions}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          Mentions
                         </div>
                       </div>
 
