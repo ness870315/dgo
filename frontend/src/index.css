@@ -282,40 +282,76 @@ code {
 
 /* Mobile Filters Optimization */
 @media (max-width: 768px) {
-  /* Compact filters container */
+  /* Ultra-compact filters container */
   .mobile-filters-container {
-    margin-bottom: 8px !important;
-    padding: 4px 0 !important;
+    margin-bottom: 4px !important;
+    padding: 2px 0 !important;
   }
   
   .mobile-filters-label {
-    font-size: 10px !important;
-    margin-bottom: 4px !important;
+    font-size: 8px !important;
+    margin-bottom: 2px !important;
   }
   
   .mobile-filters-buttons {
-    gap: 2px !important;
+    gap: 1px !important;
   }
   
   /* Ultra-compact filter buttons */
   .mobile-filter-button {
-    padding: 4px 6px !important;
-    font-size: 10px !important;
-    line-height: 1.2 !important;
-    min-height: 24px !important;
-    border-radius: 4px !important;
+    padding: 2px 4px !important;
+    font-size: 8px !important;
+    line-height: 1.1 !important;
+    min-height: 18px !important;
+    border-radius: 3px !important;
   }
   
   /* Reduce spacing between filter rows */
   .mobile-filters-buttons .flex-wrap {
-    gap: 2px !important;
+    gap: 1px !important;
   }
   
-  /* Compact login button */
+  /* Ultra-compact filter text and stats */
+  .mobile-filters-container .text-sm {
+    font-size: 8px !important;
+    line-height: 1.1 !important;
+  }
+  
+  .mobile-filters-container .text-xs {
+    font-size: 7px !important;
+    line-height: 1.0 !important;
+  }
+  
+  /* Compact view buttons */
+  .mobile-filters-container button {
+    padding: 2px 4px !important;
+    font-size: 8px !important;
+    min-height: 18px !important;
+  }
+  
+  /* Compact legends and labels */
+  .mobile-filters-container .text-gray-500 {
+    font-size: 7px !important;
+  }
+  
+  .mobile-filters-container .text-gray-600 {
+    font-size: 8px !important;
+  }
+  
+  /* Ultra-compact spacing */
+  .mobile-filters-container .space-y-2 > * + * {
+    margin-top: 2px !important;
+  }
+  
+  .mobile-filters-container .space-y-1 > * + * {
+    margin-top: 1px !important;
+  }
+  
+  /* Ultra-compact login button */
   .mobile-login-button {
-    padding: 6px 8px !important;
-    font-size: 12px !important;
-    min-height: 32px !important;
+    padding: 4px 6px !important;
+    font-size: 10px !important;
+    min-height: 24px !important;
   }
   
   .mobile-login-icon {
