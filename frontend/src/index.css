@@ -284,13 +284,13 @@ code {
 @media (max-width: 768px) {
   /* Ultra-compact filters container */
   .mobile-filters-container {
-    margin-bottom: 4px !important;
-    padding: 2px 0 !important;
+    margin-bottom: 2px !important;
+    padding: 1px 0 !important;
   }
   
   .mobile-filters-label {
-    font-size: 8px !important;
-    margin-bottom: 2px !important;
+    font-size: 7px !important;
+    margin-bottom: 1px !important;
   }
   
   .mobile-filters-buttons {
@@ -299,11 +299,11 @@ code {
   
   /* Ultra-compact filter buttons */
   .mobile-filter-button {
-    padding: 2px 4px !important;
-    font-size: 8px !important;
-    line-height: 1.1 !important;
-    min-height: 18px !important;
-    border-radius: 3px !important;
+    padding: 1px 3px !important;
+    font-size: 7px !important;
+    line-height: 1.0 !important;
+    min-height: 16px !important;
+    border-radius: 2px !important;
   }
   
   /* Reduce spacing between filter rows */
@@ -313,38 +313,68 @@ code {
   
   /* Ultra-compact filter text and stats */
   .mobile-filters-container .text-sm {
-    font-size: 8px !important;
-    line-height: 1.1 !important;
-  }
-  
-  .mobile-filters-container .text-xs {
     font-size: 7px !important;
     line-height: 1.0 !important;
   }
   
-  /* Compact view buttons */
+  .mobile-filters-container .text-xs {
+    font-size: 6px !important;
+    line-height: 1.0 !important;
+  }
+  
+  /* Ultra-compact view buttons */
   .mobile-filters-container button {
-    padding: 2px 4px !important;
-    font-size: 8px !important;
-    min-height: 18px !important;
+    padding: 1px 3px !important;
+    font-size: 7px !important;
+    min-height: 16px !important;
+    width: 24px !important;
+    height: 24px !important;
   }
   
   /* Compact legends and labels */
   .mobile-filters-container .text-gray-500 {
-    font-size: 7px !important;
+    font-size: 6px !important;
   }
   
   .mobile-filters-container .text-gray-600 {
-    font-size: 8px !important;
+    font-size: 7px !important;
   }
   
   /* Ultra-compact spacing */
   .mobile-filters-container .space-y-2 > * + * {
-    margin-top: 2px !important;
+    margin-top: 1px !important;
   }
   
   .mobile-filters-container .space-y-1 > * + * {
-    margin-top: 1px !important;
+    margin-top: 0.5px !important;
+  }
+  
+  /* Make view toggle buttons much smaller */
+  .mobile-filters-container .grid {
+    width: 20px !important;
+    height: 20px !important;
+    padding: 2px !important;
+  }
+  
+  .mobile-filters-container .list {
+    width: 20px !important;
+    height: 20px !important;
+    padding: 2px !important;
+  }
+  
+  /* Compact hype level section */
+  .mobile-filters-container .hype-level {
+    margin-top: 2px !important;
+    margin-bottom: 2px !important;
+  }
+  
+  .mobile-filters-container .hype-bar {
+    height: 8px !important;
+  }
+  
+  .mobile-filters-container .hype-dot {
+    width: 6px !important;
+    height: 6px !important;
   }
   
   /* Ultra-compact login button */

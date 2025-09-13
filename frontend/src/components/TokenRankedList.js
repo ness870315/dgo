@@ -264,7 +264,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
                           {priceChange > 0 ? '+' : ''}{priceChange.toFixed(1)}%
                         </div>
                         <div className="text-xs text-gray-400">
-                          {formatPrice(price)}
+                          %
                         </div>
                       </div>
 
