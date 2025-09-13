@@ -566,15 +566,6 @@ class EnhancedSocialDataService {
           endpoint: '/api/twitter/search',
           params: { 
             q: `#${symbolLower} crypto OR #${symbolLower} token OR #${symbolLower} solana`, // More specific search
-            count: 3,
-            start_time: startTime
-          }
-        },
-        {
-          type: 'phrase_search',
-          endpoint: '/api/twitter/search',
-          params: { 
-            q: `"${name}" crypto OR "${name}" token`, // Exact phrase search
             count: 2,
             start_time: startTime
           }
