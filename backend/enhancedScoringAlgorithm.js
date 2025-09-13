@@ -32,11 +32,11 @@ class EnhancedScoringAlgorithm {
       // Apply weights as specified
       const weights = {
         marketTier: 0.05,        // 5%
-        volume1h: 0.10,          // 10%
-        volume24h: 0.15,         // 15%
+        volume1h: 0.15,          // 15% - Increased
+        volume24h: 0.20,         // 20% - Increased
         priceChange6h: 0.10,     // 10%
         organicVolumeRatio: 0.10, // 10%
-        communityHealth: 0.45,    // 45% - The biggest factor!
+        communityHealth: 0.35,    // 35% - Decreased
         uniquenessFactor: 0.05    // 5%
       };
 
@@ -104,37 +104,71 @@ class EnhancedScoringAlgorithm {
   }
 
   /**
-   * Volume 1hr Score (10% weight)
-   * Rewards immediate trading activity
+   * Volume 1hr Score (15% weight)
+   * Rewards immediate trading activity and penalizes volume drops
    */
   calculateVolume1hScore(tokenData) {
     if (!tokenData) return 0.0; // No data = no score
     
     const volume1h = tokenData.volume1h || 0;
+    const volumeChange1h = tokenData.volumeChange1h || 0;
     
     // 🚨 CRITICAL: Zero volume = zero score (no trading activity)
     if (volume1h === 0) return 0.0;
     
+    // 🚨 CRITICAL: Heavy volume decline = severe penalty
+    if (volumeChange1h <= -50) {
+      return 0.0; // -50%+ volume drop = zero score
+    }
+    
     const logVolume = Math.log10(volume1h + 1);
-    const score = Math.min(10, Math.max(0, logVolume * 2.5)); // Scale to 0-10
+    let score = Math.min(10, Math.max(0, logVolume * 2.5)); // Scale to 0-10
+    
+    // Apply volume change penalty/bonus
+    if (volumeChange1h < 0) {
+      // Volume declining: apply penalty
+      const penalty = Math.abs(volumeChange1h) / 100; // -20% = 0.2 penalty
+      score = Math.max(0, score * (1 - penalty));
+    } else if (volumeChange1h > 0) {
+      // Volume increasing: apply bonus
+      const bonus = Math.min(0.5, volumeChange1h / 200); // +100% = 0.5 bonus
+      score = Math.min(10, score * (1 + bonus));
+    }
     
     return score;
   }
 
   /**
-   * Volume 24hr Score (15% weight)
-   * Rewards sustained trading activity
+   * Volume 24hr Score (20% weight)
+   * Rewards sustained trading activity and penalizes volume drops
    */
   calculateVolume24hScore(tokenData) {
     if (!tokenData) return 0.0; // No data = no score
     
     const volume24h = tokenData.volume24h || 0;
+    const volumeChange24h = tokenData.volumeChange24h || 0;
     
     // 🚨 CRITICAL: Zero volume = zero score (no trading activity)
     if (volume24h === 0) return 0.0;
     
+    // 🚨 CRITICAL: Heavy volume decline = severe penalty
+    if (volumeChange24h <= -50) {
+      return 0.0; // -50%+ volume drop = zero score
+    }
+    
     const logVolume = Math.log10(volume24h + 1);
-    const score = Math.min(10, Math.max(0, logVolume * 2.2)); // Scale to 0-10
+    let score = Math.min(10, Math.max(0, logVolume * 2.2)); // Scale to 0-10
+    
+    // Apply volume change penalty/bonus
+    if (volumeChange24h < 0) {
+      // Volume declining: apply penalty
+      const penalty = Math.abs(volumeChange24h) / 100; // -20% = 0.2 penalty
+      score = Math.max(0, score * (1 - penalty));
+    } else if (volumeChange24h > 0) {
+      // Volume increasing: apply bonus
+      const bonus = Math.min(0.5, volumeChange24h / 200); // +100% = 0.5 bonus
+      score = Math.min(10, score * (1 + bonus));
+    }
     
     return score;
   }
