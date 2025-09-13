@@ -5,7 +5,7 @@ const TemperatureLegend = () => {
   const tooltipRef = useRef();
 
   return (
-    <div className="flex items-center space-x-3">
+    <div className="flex items-center space-x-3 mobile-temperature-legend">
       <span className="text-sm text-gray-400 font-medium">Hype Level:</span>
 
       {/* Temperature Bar */}

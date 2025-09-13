@@ -20,7 +20,7 @@ const ViewToggle = ({ currentView, onViewChange, tokenCount }) => {
   ];
 
   return (
-    <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 mobile-view-toggle">
       <span className="text-xs sm:text-sm text-gray-400">View:</span>
       <div className="flex bg-gray-800 rounded-lg p-1 border border-gray-600">
         {views.map((view) => {

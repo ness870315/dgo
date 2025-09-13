@@ -1109,7 +1109,7 @@ function App() {
         ) : (
           <>
             {/* Stats Bar */}
-            <div className="bg-dark-card border-b border-gray-700 px-2 sm:px-4 lg:px-6 py-3 sm:py-4">
+            <div className="bg-dark-card border-b border-gray-700 px-2 sm:px-4 lg:px-6 py-3 sm:py-4 mobile-stats-section">
               <div className="max-w-7xl mx-auto">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-3 space-y-3 lg:space-y-0">
                   {/* Stats - Responsive Grid */}
@@ -1156,7 +1156,7 @@ function App() {
                 </div>
                 
                 {/* Category Filters and Controls - Responsive */}
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-3 lg:space-y-0">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-3 lg:space-y-0 mobile-filters-controls-section">
                   {/* Category Filters */}
                   <div className="flex-1">
                     <CategoryFilters 
