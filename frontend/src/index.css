@@ -11,6 +11,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #0a0a0a;
   color: #ffffff;
+  /* PWA Mobile Optimizations */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  /* Prevent zoom on input focus */
+  touch-action: manipulation;
 }
 
 code {
@@ -34,4 +44,95 @@ code {
 
 .bubble-map-container {
   background: radial-gradient(circle at center, rgba(153, 69, 255, 0.1) 0%, transparent 70%);
+}
+
+/* PWA Mobile Optimizations */
+@media (max-width: 768px) {
+  /* Prevent horizontal scroll */
+  body {
+    overflow-x: hidden;
+  }
+  
+  /* Mobile-friendly touch targets */
+  button, .btn, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better mobile typography */
+  h1, h2, h3, h4, h5, h6 {
+    line-height: 1.2;
+  }
+  
+  /* Mobile-optimized tooltips */
+  .bubble-tooltip {
+    font-size: 12px;
+    padding: 6px 10px;
+    max-width: 200px;
+    word-wrap: break-word;
+    white-space: normal;
+  }
+  
+  /* Mobile-friendly modals */
+  .modal, .drawer {
+    padding: 16px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  
+  /* Mobile-optimized tables */
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Better mobile spacing */
+  .container, .max-w-7xl {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
+/* PWA-specific styles */
+@media (display-mode: standalone) {
+  /* Hide browser UI when in standalone mode */
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* Add PWA-specific styling */
+  .pwa-header {
+    -webkit-app-region: drag;
+  }
+  
+  .pwa-content {
+    -webkit-app-region: no-drag;
+  }
+}
+
+/* iOS-specific optimizations */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari specific styles */
+  .ios-input {
+    font-size: 16px; /* Prevents zoom on focus */
+  }
+  
+  /* iOS safe area handling */
+  .ios-safe-area {
+    padding-top: constant(safe-area-inset-top);
+    padding-bottom: constant(safe-area-inset-bottom);
+    padding-left: constant(safe-area-inset-left);
+    padding-right: constant(safe-area-inset-right);
+  }
+}
+
+/* Android-specific optimizations */
+@media screen and (-webkit-min-device-pixel-ratio: 0) and (min-resolution: .001dpcm) {
+  /* Android Chrome specific styles */
+  .android-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
 }
