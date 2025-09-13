@@ -136,3 +136,146 @@ code {
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/* Mobile Token List Optimizations - Dexscreener Style */
+@media (max-width: 768px) {
+  /* Compact mobile headers */
+  .mobile-compact-header {
+    font-size: 14px !important;
+    line-height: 1.2 !important;
+    margin-bottom: 4px !important;
+  }
+  
+  .mobile-compact-subheader {
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+  }
+  
+  /* Compact main title */
+  .mobile-compact-title {
+    font-size: 16px !important;
+    line-height: 1.2 !important;
+  }
+  
+  .mobile-compact-subtitle {
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+  }
+  
+  /* Compact header container */
+  .mobile-header-container {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    min-height: 48px !important;
+  }
+  
+  /* Ultra-compact token boxes */
+  .mobile-token-box {
+    padding: 8px 12px !important;
+    margin-bottom: 1px !important;
+    border-radius: 6px !important;
+    min-height: 48px !important;
+  }
+  
+  /* Reduce spacing between token boxes */
+  .mobile-token-box + .mobile-token-box {
+    margin-top: 1px !important;
+  }
+  
+  /* Compact token list container */
+  .mobile-token-list {
+    padding: 8px !important;
+  }
+  
+  /* Reduce overall spacing */
+  .mobile-token-list .space-y-2 > * + * {
+    margin-top: 1px !important;
+  }
+  
+  /* Compact rank numbers */
+  .mobile-token-box .w-5 {
+    width: 18px !important;
+    height: 18px !important;
+  }
+  
+  /* Compact token icons */
+  .mobile-token-box .w-6 {
+    width: 20px !important;
+    height: 20px !important;
+  }
+  
+  /* Compact text sizes */
+  .mobile-token-box h4 {
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+  }
+  
+  .mobile-token-box .text-sm {
+    font-size: 12px !important;
+  }
+  
+  .mobile-token-box .text-xs {
+    font-size: 10px !important;
+  }
+  
+  /* Reduce padding in token boxes */
+  .mobile-token-box .py-2 {
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+  }
+  
+  /* Compact fuel badges */
+  .mobile-token-box .px-1 {
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+  }
+  
+  .mobile-token-box .py-0\.5 {
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+  }
+  
+  /* Compact arrows */
+  .mobile-token-box .w-3 {
+    width: 12px !important;
+    height: 12px !important;
+  }
+  
+  /* Reduce space between elements */
+  .mobile-token-box .space-x-2 > * + * {
+    margin-left: 6px !important;
+  }
+  
+  .mobile-token-box .space-x-3 > * + * {
+    margin-left: 8px !important;
+  }
+  
+  .mobile-token-box .space-x-1 > * + * {
+    margin-left: 2px !important;
+  }
+}
+
+/* Extra small screens (very compact) */
+@media (max-width: 480px) {
+  .mobile-token-box {
+    padding: 6px 8px !important;
+    min-height: 44px !important;
+  }
+  
+  .mobile-token-box h4 {
+    font-size: 12px !important;
+  }
+  
+  .mobile-token-box .text-sm {
+    font-size: 11px !important;
+  }
+  
+  .mobile-token-box .text-xs {
+    font-size: 9px !important;
+  }
+  
+  /* Hide market cap on very small screens */
+  .mobile-token-box .hidden.xs\:block {
+    display: none !important;
+  }
+}

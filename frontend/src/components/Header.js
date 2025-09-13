@@ -40,7 +40,7 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
   return (
     <header className="bg-dark-card border-b border-solana-purple">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between py-3 lg:py-0 lg:h-16 space-y-3 lg:space-y-0">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between py-2 lg:py-0 lg:h-16 space-y-2 lg:space-y-0 mobile-header-container">
           {/* Logo and Title */}
           <div className="flex items-center space-x-2 sm:space-x-4">
             <div className="flex items-center space-x-2">
@@ -55,10 +55,10 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
                 }}
               />
               <div>
-                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-white mobile-compact-title">
                   <span className="text-solana-purple">DeGen</span> Oracle
                 </h1>
-                <p className="text-xs sm:text-sm text-gray-400 -mt-1 hidden sm:block">
+                <p className="text-xs sm:text-sm text-gray-400 -mt-1 hidden sm:block mobile-compact-subtitle">
                   Spot the Next Cult Before it Goes Viral
                 </p>
               </div>

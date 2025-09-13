@@ -81,17 +81,17 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
         {/* Header */}
         <div className="sticky top-0 bg-dark-bg border-b border-gray-700 pb-2 sm:pb-3 mb-2 sm:mb-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-1 sm:space-y-0">
-            <h3 className="text-base sm:text-lg font-semibold text-white">
+            <h3 className="text-sm sm:text-lg font-semibold text-white mobile-compact-header">
               Token Rankings ({sortedTokens.length})
             </h3>
-            <div className="text-xs text-gray-400">
+            <div className="text-xs text-gray-400 mobile-compact-subheader">
               Sorted by Overall Score
             </div>
           </div>
         </div>
 
         {/* Token List */}
-        <div className="space-y-2">
+        <div className="space-y-2 mobile-token-list">
           {sortedTokens.map((token, index) => {
             const rank = index + 1;
             const score = token.overallScore || token.score || 0;
@@ -111,14 +111,14 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
                 className="bg-dark-card border border-gray-700 rounded-lg p-3 sm:p-4 hover:border-solana-purple transition-all duration-200 cursor-pointer group"
                 onClick={() => onTokenSelect(token)}
               >
-                {/* Mobile Layout */}
-                <div className="block sm:hidden">
-                  {/* Top row - Rank, Token Info, Score */}
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-3">
+                {/* Mobile Layout - Dexscreener Style Compact */}
+                <div className="block sm:hidden mobile-token-box">
+                  <div className="flex items-center justify-between py-2">
+                    {/* Left side - Rank, Icon, Symbol */}
+                    <div className="flex items-center space-x-2 flex-1 min-w-0">
                       {/* Rank */}
                       <div className="flex-shrink-0">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
                           rank <= 3 
                             ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-black' 
                             : 'bg-gray-700 text-gray-300'
@@ -127,86 +127,75 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
                         </div>
                       </div>
 
-                      {/* Token Icon & Info */}
-                      <div className="flex items-center space-x-2">
-                        {token.jupiterData?.icon && (
+                      {/* Token Icon */}
+                      <div className="flex-shrink-0">
+                        {token.jupiterData?.icon ? (
                           <img 
                             src={token.jupiterData.icon} 
                             alt={token.symbol} 
-                            className="w-8 h-8 rounded-full border-2 border-gray-600"
+                            className="w-6 h-6 rounded-full"
                           />
-                        )}
-                        <div>
-                          <div className="flex items-center space-x-1">
-                            <h4 className="text-white font-semibold text-sm">
-                              {token.symbol || 'Unknown'}
-                            </h4>
-                            {fuelInfo.isFueled && (
-                              <div className="flex items-center space-x-1 px-1.5 py-0.5 bg-orange-900 border border-orange-500 rounded-full">
-                                <Flame className="w-2.5 h-2.5 text-orange-400" />
-                                <span className="text-orange-400 text-xs font-bold">
-                                  {fuelInfo.multiplier}
-                                </span>
-                              </div>
-                            )}
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center">
+                            <span className="text-xs text-gray-400">?</span>
                           </div>
-                          <p className="text-gray-400 text-xs truncate max-w-[120px]">
-                            {token.name || token.jupiterData?.name || 'Unknown Token'}
-                          </p>
+                        )}
+                      </div>
+
+                      {/* Symbol & Fuel Badge */}
+                      <div className="flex items-center space-x-1 min-w-0 flex-1">
+                        <h4 className="text-white font-semibold text-sm truncate">
+                          {token.symbol || 'Unknown'}
+                        </h4>
+                        {fuelInfo.isFueled && (
+                          <div className="flex items-center space-x-1 px-1 py-0.5 bg-orange-900 border border-orange-500 rounded-full flex-shrink-0">
+                            <Flame className="w-2 h-2 text-orange-400" />
+                            <span className="text-orange-400 text-xs font-bold">
+                              {fuelInfo.multiplier}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right side - Price, Change, Score */}
+                    <div className="flex items-center space-x-3 flex-shrink-0">
+                      {/* Price */}
+                      <div className="text-right">
+                        <div className="text-white font-semibold text-sm">
+                          {formatPrice(price)}
+                        </div>
+                        <div className={`flex items-center justify-end space-x-1 text-xs ${priceColor}`}>
+                          <PriceIcon className="w-2.5 h-2.5" />
+                          <span>
+                            {priceChange > 0 ? '+' : ''}{priceChange.toFixed(1)}%
+                          </span>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Score */}
-                    <div className="text-right">
-                      <div className={`text-xl font-bold ${scoreColor}`}>
-                        {score.toFixed(1)}
+                      {/* Score */}
+                      <div className="text-right">
+                        <div className={`text-sm font-bold ${scoreColor}`}>
+                          {score.toFixed(1)}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {scoreLabel}
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-400">
-                        {scoreLabel}
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Bottom row - Stats grid */}
-                  <div className="grid grid-cols-2 gap-3">
-                    {/* Price Change */}
-                    <div className="text-center">
-                      <div className={`flex items-center justify-center space-x-1 ${priceColor}`}>
-                        <PriceIcon className="w-3 h-3" />
-                        <span className="font-semibold text-sm">
-                          {priceChange > 0 ? '+' : ''}{priceChange.toFixed(2)}%
-                        </span>
+                      {/* Market Cap (compact) */}
+                      <div className="text-right hidden xs:block">
+                        <div className="text-white font-semibold text-xs">
+                          {formatMarketCap(marketCap)}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          MC
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-400">
-                        {formatPrice(price)}
-                      </div>
-                    </div>
 
-                    {/* Market Cap */}
-                    <div className="text-center">
-                      <div className="text-white font-semibold text-sm">
-                        {formatMarketCap(marketCap)}
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        Market Cap
-                      </div>
-                    </div>
-
-                    {/* Mentions */}
-                    <div className="text-center">
-                      <div className="text-white font-semibold text-sm">
-                        {mentions}
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        Mentions
-                      </div>
-                    </div>
-
-                    {/* Arrow indicator */}
-                    <div className="text-center">
+                      {/* Arrow */}
                       <div className="text-gray-400 group-hover:text-solana-purple transition-colors">
-                        <svg className="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                       </div>
