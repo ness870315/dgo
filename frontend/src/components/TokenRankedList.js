@@ -183,8 +183,8 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
                         </div>
                       </div>
 
-                      {/* Market Cap (compact) */}
-                      <div className="text-right hidden xs:block">
+                      {/* Market Cap (always show - essential!) */}
+                      <div className="text-right">
                         <div className="text-white font-semibold text-xs">
                           {formatMarketCap(marketCap)}
                         </div>

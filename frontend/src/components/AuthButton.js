@@ -196,11 +196,11 @@ const AuthButton = ({
       {/* Twitter OAuth Login */}
       <button
         onClick={login}
-        className="flex items-center space-x-2 px-4 py-2 bg-solana-purple hover:bg-purple-700 border border-purple-500 rounded-lg transition-colors"
+        className="flex items-center space-x-2 px-4 py-2 bg-solana-purple hover:bg-purple-700 border border-purple-500 rounded-lg transition-colors mobile-login-button"
         title="Login with Twitter/X"
       >
-        <Twitter size={16} />
-        <span className="text-white font-medium">Login with X</span>
+        <Twitter size={16} className="mobile-login-icon" />
+        <span className="text-white font-medium mobile-login-text">Login with X</span>
       </button>
 
       {/* Quick Login Toggle */}

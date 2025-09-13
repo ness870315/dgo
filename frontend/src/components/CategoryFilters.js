@@ -71,9 +71,9 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
   };
 
   return (
-    <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 relative">
-      <span className="text-xs sm:text-sm text-gray-400 mr-0 sm:mr-2 flex-shrink-0">Categories:</span>
-      <div className="flex flex-wrap gap-1 sm:gap-2">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 relative mobile-filters-container">
+      <span className="text-xs sm:text-sm text-gray-400 mr-0 sm:mr-2 flex-shrink-0 mobile-filters-label">Categories:</span>
+      <div className="flex flex-wrap gap-1 sm:gap-2 mobile-filters-buttons">
         {Object.entries(categories)
           .filter(([key]) => key !== 'volatile' && key !== 'stable')
           .map(([key, value]) => {
@@ -84,7 +84,7 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
                 onClick={() => handleCategoryToggle(key)}
                 onMouseEnter={() => setHoveredFilter(key)}
                 onMouseLeave={() => setHoveredFilter(null)}
-                className={`px-1.5 sm:px-2 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
+                className={`px-1.5 sm:px-2 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap mobile-filter-button ${
                   value
                     ? 'bg-solana-purple text-white'
                     : 'bg-dark-bg text-gray-400 hover:text-white border border-gray-600'

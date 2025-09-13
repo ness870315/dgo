@@ -279,3 +279,116 @@ code {
     display: none !important;
   }
 }
+
+/* Mobile Filters Optimization */
+@media (max-width: 768px) {
+  /* Compact filters container */
+  .mobile-filters-container {
+    margin-bottom: 8px !important;
+    padding: 4px 0 !important;
+  }
+  
+  .mobile-filters-label {
+    font-size: 10px !important;
+    margin-bottom: 4px !important;
+  }
+  
+  .mobile-filters-buttons {
+    gap: 2px !important;
+  }
+  
+  /* Ultra-compact filter buttons */
+  .mobile-filter-button {
+    padding: 4px 6px !important;
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    min-height: 24px !important;
+    border-radius: 4px !important;
+  }
+  
+  /* Reduce spacing between filter rows */
+  .mobile-filters-buttons .flex-wrap {
+    gap: 2px !important;
+  }
+  
+  /* Compact login button */
+  .mobile-login-button {
+    padding: 6px 8px !important;
+    font-size: 12px !important;
+    min-height: 32px !important;
+  }
+  
+  .mobile-login-icon {
+    width: 12px !important;
+    height: 12px !important;
+  }
+  
+  .mobile-login-text {
+    font-size: 11px !important;
+  }
+  
+  /* Mobile Token Detail Modal Optimization */
+  .mobile-modal-header {
+    padding: 8px 12px !important;
+    min-height: 60px !important;
+  }
+  
+  .mobile-token-icon {
+    width: 32px !important;
+    height: 32px !important;
+  }
+  
+  .mobile-token-info {
+    margin-left: 8px !important;
+  }
+  
+  .mobile-token-title-row {
+    margin-bottom: 2px !important;
+  }
+  
+  .mobile-token-name {
+    font-size: 14px !important;
+    line-height: 1.2 !important;
+  }
+  
+  .mobile-token-symbol {
+    font-size: 12px !important;
+    margin-bottom: 2px !important;
+  }
+  
+  .mobile-contract-row {
+    margin-top: 2px !important;
+  }
+  
+  .mobile-contract-address {
+    font-size: 10px !important;
+  }
+  
+  .mobile-copy-button {
+    font-size: 10px !important;
+  }
+  
+  .mobile-fuel-badge {
+    padding: 2px 4px !important;
+    font-size: 10px !important;
+  }
+  
+  .mobile-action-buttons {
+    gap: 4px !important;
+  }
+  
+  .mobile-action-button {
+    padding: 4px 6px !important;
+    font-size: 10px !important;
+    min-height: 24px !important;
+  }
+  
+  .mobile-action-icon {
+    width: 10px !important;
+    height: 10px !important;
+  }
+  
+  .mobile-action-text {
+    font-size: 10px !important;
+  }
+}
