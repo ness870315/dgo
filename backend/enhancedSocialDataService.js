@@ -553,12 +553,30 @@ class EnhancedSocialDataService {
       
       const searchStrategies = [
         {
-          type: 'hashtag_symbol_optimized',
+          type: 'cashtag_primary',
           endpoint: '/api/twitter/search',
           params: { 
-            q: `#${symbolLower}`, 
-            count: 6, // Optimal count for coverage
-            start_time: startTime // Use consistent timestamp logic
+            q: `$${symbol}`, // Cashtag search - more crypto-specific
+            count: 4,
+            start_time: startTime
+          }
+        },
+        {
+          type: 'hashtag_with_crypto_context',
+          endpoint: '/api/twitter/search',
+          params: { 
+            q: `#${symbolLower} crypto OR #${symbolLower} token OR #${symbolLower} solana`, // More specific search
+            count: 3,
+            start_time: startTime
+          }
+        },
+        {
+          type: 'phrase_search',
+          endpoint: '/api/twitter/search',
+          params: { 
+            q: `"${name}" crypto OR "${name}" token`, // Exact phrase search
+            count: 2,
+            start_time: startTime
           }
         }
       ];
@@ -918,6 +936,13 @@ class EnhancedSocialDataService {
       }
     }
     
+    // 🚨 HASHTAG SPAM DETECTION - Filter out hashtag farming tweets
+    const hashtagSpamScore = this.detectHashtagSpam(text, symbolLower, nameLower);
+    if (hashtagSpamScore > 0) {
+      nonCryptoScore += hashtagSpamScore; // Heavy penalty for hashtag spam
+      console.log(`   🚫 HASHTAG SPAM DETECTED: +${hashtagSpamScore} penalty points`);
+    }
+    
     // Special checks for cashtag format ($SYMBOL) and hashtag context
     if (text.includes(`$${symbolLower}`)) {
       cryptoScore += 2; // Cashtags are usually crypto-related
@@ -983,8 +1008,14 @@ class EnhancedSocialDataService {
     }
 
     // APPROVAL: Direct token mentions (official handle or hashtag) - very high confidence
-    if (text.includes(`@${symbolLower}`) || text.includes(`#${symbolLower}`) || text.includes(symbolLower)) {
+    if (text.includes(`@${symbolLower}`) || text.includes(`$${symbolLower}`)) {
       console.log(`   🎯 APPROVED: Direct token mention (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
+      return true;
+    }
+    
+    // APPROVAL: Hashtag with crypto context (not just hashtag farming)
+    if (text.includes(`#${symbolLower}`) && cryptoScore >= 2) {
+      console.log(`   🏷️ APPROVED: Token hashtag + strong crypto context (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
       return true;
     }
 
@@ -1008,10 +1039,88 @@ class EnhancedSocialDataService {
       console.log(`   🚫 REJECTED: Too many non-crypto indicators (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
       return false;
     }
+    
+    // REJECTION: High hashtag spam score (automatic rejection)
+    if (hashtagSpamScore >= 5) {
+      console.log(`   🚫 REJECTED: High hashtag spam score (${hashtagSpamScore}) - likely spam/farming`);
+      return false;
+    }
 
     // DEFAULT APPROVAL: If we get here, it has some crypto relevance
     console.log(`   🤔 APPROVED: Marginal crypto relevance (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
     return true;
+  }
+
+  /**
+   * Detect hashtag spam patterns in tweets
+   * Returns penalty score (higher = more spam-like)
+   */
+  detectHashtagSpam(tweetText, symbolLower, nameLower) {
+    const text = tweetText.toLowerCase();
+    let spamScore = 0;
+    
+    // Pattern 1: Excessive hashtags (more than 10 hashtags = likely spam)
+    const hashtagCount = (text.match(/#\w+/g) || []).length;
+    if (hashtagCount > 10) {
+      spamScore += 5; // Heavy penalty for hashtag overload
+      console.log(`   📊 Hashtag overload: ${hashtagCount} hashtags detected`);
+    } else if (hashtagCount > 5) {
+      spamScore += 2; // Moderate penalty
+    }
+    
+    // Pattern 2: Long list of unrelated hashtags (like the FWOG example)
+    const hashtagListPattern = /#[a-zA-Z0-9]+(\s+#[a-zA-Z0-9]+){5,}/g;
+    if (hashtagListPattern.test(text)) {
+      spamScore += 4; // Heavy penalty for hashtag lists
+      console.log(`   📝 Hashtag list pattern detected`);
+    }
+    
+    // Pattern 3: Token hashtag buried in unrelated content
+    const tokenHashtag = `#${symbolLower}`;
+    if (text.includes(tokenHashtag)) {
+      // Check if the token hashtag is near the end of a long hashtag list
+      const hashtagMatches = text.match(/#\w+/g) || [];
+      const tokenHashtagIndex = hashtagMatches.findIndex(ht => ht === tokenHashtag);
+      
+      if (tokenHashtagIndex > 5) {
+        spamScore += 3; // Penalty for token hashtag buried in spam
+        console.log(`   🏷️ Token hashtag buried in spam list (position ${tokenHashtagIndex + 1})`);
+      }
+    }
+    
+    // Pattern 4: Generic promotion language without specific token context
+    const genericPromoPhrases = [
+      'check out', 'most innovative', 'best project', 'next big thing',
+      'don\'t miss', 'huge potential', 'moon soon', 'to the moon',
+      'breaking news', 'just launched', 'limited time', 'exclusive'
+    ];
+    
+    const hasGenericPromo = genericPromoPhrases.some(phrase => text.includes(phrase));
+    const hasTokenContext = text.includes(symbolLower) || text.includes(nameLower) || 
+                           text.includes(`$${symbolLower}`) || text.includes(`#${symbolLower}`);
+    
+    if (hasGenericPromo && !hasTokenContext) {
+      spamScore += 3; // Penalty for generic promotion without token context
+      console.log(`   🎯 Generic promotion without token context`);
+    }
+    
+    // Pattern 5: Very short tweets with only hashtags (bot-like behavior)
+    const words = text.split(/\s+/).filter(word => word.length > 0);
+    const hashtagWords = words.filter(word => word.startsWith('#'));
+    
+    if (words.length < 10 && hashtagWords.length > words.length * 0.6) {
+      spamScore += 2; // Penalty for hashtag-heavy short tweets
+      console.log(`   🤖 Bot-like hashtag-heavy tweet`);
+    }
+    
+    // Pattern 6: Multiple cashtags for different tokens (promotion spam)
+    const cashtagMatches = text.match(/\$[A-Z0-9]+/g) || [];
+    if (cashtagMatches.length > 3) {
+      spamScore += 2; // Penalty for multiple cashtags
+      console.log(`   💰 Multiple cashtags detected: ${cashtagMatches.join(', ')}`);
+    }
+    
+    return spamScore;
   }
 
   /**
