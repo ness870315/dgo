@@ -165,11 +165,8 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
                         <div className="text-white font-semibold text-sm">
                           {formatPrice(price)}
                         </div>
-                        <div className={`flex items-center justify-end space-x-1 text-xs ${priceColor}`}>
-                          <PriceIcon className="w-2.5 h-2.5" />
-                          <span>
-                            {priceChange > 0 ? '+' : ''}{priceChange.toFixed(1)}%
-                          </span>
+                        <div className={`text-xs font-bold ${priceColor}`}>
+                          {priceChange > 0 ? '+' : ''}{priceChange.toFixed(1)}%
                         </div>
                       </div>
 
@@ -263,11 +260,8 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
 
                       {/* Price Change */}
                       <div className="text-center">
-                        <div className={`flex items-center space-x-1 ${priceColor}`}>
-                          <PriceIcon className="w-4 h-4" />
-                          <span className="font-semibold">
-                            {priceChange > 0 ? '+' : ''}{priceChange.toFixed(2)}%
-                          </span>
+                        <div className={`text-2xl font-bold ${priceColor}`}>
+                          {priceChange > 0 ? '+' : ''}{priceChange.toFixed(1)}%
                         </div>
                         <div className="text-xs text-gray-400">
                           {formatPrice(price)}
