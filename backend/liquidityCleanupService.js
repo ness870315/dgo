@@ -57,6 +57,18 @@ class LiquidityCleanupService {
         return { removed: 0, remaining: tokens.length };
       }
 
+      // Safety check: prevent mass deletion (>50% of tokens)
+      const removalPercentage = (analysis.toRemove.length / tokens.length) * 100;
+      if (removalPercentage > 50) {
+        console.error(`🚨 SAFETY CHECK FAILED: Would remove ${removalPercentage.toFixed(1)}% of tokens (${analysis.toRemove.length}/${tokens.length})`);
+        console.error('❌ Aborting cleanup to prevent mass deletion. Check your thresholds.');
+        return { 
+          removed: 0, 
+          remaining: tokens.length, 
+          error: `Safety check: Would remove ${removalPercentage.toFixed(1)}% of tokens` 
+        };
+      }
+
       // Show examples of tokens to be removed
       this.showRemovalExamples(analysis.toRemove);
 
