@@ -196,11 +196,7 @@ class OAuthXService {
 
     } catch (error) {
       console.error('❌ Error posting tweet:', error.message);
-      console.error('❌ Twitter posting error details:', {
-        userId,
-        hasAccessToken: !!user?.accessToken,
-        errorMessage: error.message
-      });
+      console.error('❌ Failed to post tweet for', { userId, error: error.message });
       throw error;
     }
   }
