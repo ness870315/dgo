@@ -1309,6 +1309,113 @@ class EnhancedBackend {
       }
     });
 
+    // Admin: Enable Twitter posting for all users (migration)
+    this.app.post('/admin/enable-twitter-posting-all', async (req, res) => {
+      try {
+        console.log('🔧 Starting Twitter posting enablement for all users...');
+        
+        // Get all users from the database
+        const users = await this.oauthXService.db.getAllUsers();
+        console.log(`📊 Found ${users.length} users to check`);
+        
+        let updatedCount = 0;
+        let alreadyEnabledCount = 0;
+        let errorCount = 0;
+        
+        for (const user of users) {
+          try {
+            // Check if user has Twitter posting enabled
+            if (user.twitterPostingEnabled === undefined || user.twitterPostingEnabled === null) {
+              // Enable Twitter posting for this user
+              await this.oauthXService.setTwitterPostingEnabled(user.id, true);
+              console.log(`✅ Enabled Twitter posting for user ${user.username} (${user.id})`);
+              updatedCount++;
+            } else if (user.twitterPostingEnabled === true) {
+              console.log(`✓ User ${user.username} already has Twitter posting enabled`);
+              alreadyEnabledCount++;
+            } else {
+              console.log(`⚠️ User ${user.username} has Twitter posting explicitly disabled - skipping`);
+            }
+          } catch (error) {
+            console.error(`❌ Error updating user ${user.id}:`, error.message);
+            errorCount++;
+          }
+        }
+        
+        const summary = {
+          totalUsers: users.length,
+          updated: updatedCount,
+          alreadyEnabled: alreadyEnabledCount,
+          explicitlyDisabled: users.length - updatedCount - alreadyEnabledCount - errorCount,
+          errors: errorCount
+        };
+        
+        console.log('\n🎯 Migration Summary:', summary);
+        
+        res.json({
+          success: true,
+          message: 'Twitter posting enablement completed',
+          summary
+        });
+        
+      } catch (error) {
+        console.error('❌ Migration failed:', error.message);
+        res.status(500).json({ 
+          success: false, 
+          error: 'Migration failed: ' + error.message 
+        });
+      }
+    });
+
+    // Admin: Enable Twitter posting for specific user
+    this.app.post('/admin/enable-twitter-posting/:userId', async (req, res) => {
+      try {
+        const { userId } = req.params;
+        
+        console.log(`🔧 Enabling Twitter posting for user ${userId}...`);
+        
+        // Check current status
+        const currentStatus = await this.oauthXService.hasTwitterPostingEnabled(userId);
+        console.log(`📊 Current Twitter posting status: ${currentStatus}`);
+        
+        if (currentStatus) {
+          return res.json({
+            success: true,
+            message: 'User already has Twitter posting enabled',
+            alreadyEnabled: true
+          });
+        }
+        
+        // Enable Twitter posting
+        await this.oauthXService.setTwitterPostingEnabled(userId, true);
+        
+        // Verify it worked
+        const newStatus = await this.oauthXService.hasTwitterPostingEnabled(userId);
+        
+        if (newStatus) {
+          console.log('✅ Successfully enabled Twitter posting for user!');
+          res.json({
+            success: true,
+            message: 'Successfully enabled Twitter posting for user',
+            enabled: true
+          });
+        } else {
+          console.error('❌ Failed to enable Twitter posting - status still false');
+          res.status(500).json({
+            success: false,
+            error: 'Failed to enable Twitter posting - status still false'
+          });
+        }
+        
+      } catch (error) {
+        console.error('❌ Error:', error.message);
+        res.status(500).json({ 
+          success: false, 
+          error: error.message 
+        });
+      }
+    });
+
     // OAuth X: Validate session
     this.app.get('/auth/validate', async (req, res) => {
       try {
