@@ -87,7 +87,7 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
               <button
                 onClick={onRefresh}
                 disabled={isLoading}
-                className={`p-2 rounded-md border border-gray-600 text-gray-400 hover:text-white hover:border-gray-500 transition-colors ${
+                className={`px-4 py-2 rounded-md border border-gray-600 text-gray-400 hover:text-white hover:border-gray-500 transition-colors ${
                   isLoading ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
                 title="Refresh data"
@@ -98,7 +98,7 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
               {/* Watchlist Button */}
               <button
                 onClick={onWatchlistClick}
-                className="p-2 rounded-md border border-gray-600 text-gray-400 hover:text-yellow-400 hover:border-yellow-500 transition-colors"
+                className="px-4 py-2 rounded-md border border-gray-600 text-gray-400 hover:text-yellow-400 hover:border-yellow-500 transition-colors"
                 title="View Watchlist"
               >
                 <Star size={16} />

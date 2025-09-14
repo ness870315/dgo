@@ -84,7 +84,7 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
                 onClick={() => handleCategoryToggle(key)}
                 onMouseEnter={() => setHoveredFilter(key)}
                 onMouseLeave={() => setHoveredFilter(null)}
-                className={`px-1.5 sm:px-2 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap mobile-filter-button ${
+                className={`px-4 py-2 rounded text-xs font-medium transition-colors whitespace-nowrap mobile-filter-button ${
                   value
                     ? 'bg-solana-purple text-white'
                     : 'bg-dark-bg text-gray-400 hover:text-white border border-gray-600'
