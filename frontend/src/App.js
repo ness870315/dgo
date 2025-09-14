@@ -1132,17 +1132,19 @@ function App() {
                 </div>
                 
                 {/* Category Filters and Controls - Responsive */}
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-3 lg:space-y-0 mobile-filters-controls-section">
-                  {/* Category Filters */}
-                  <div className="flex-1">
-                    <CategoryFilters 
-                      onFiltersChange={handleCategoryFiltersChange} 
-                      currentFilters={categoryFilters} 
-                    />
-                  </div>
-                  
-                  {/* View Toggle and Temperature Legend */}
-                  <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4">
+                <div className="mobile-filters-controls-section">
+                  {/* Desktop Layout */}
+                  <div className="hidden md:flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-3 lg:space-y-0">
+                    {/* Category Filters */}
+                    <div className="flex-1">
+                      <CategoryFilters 
+                        onFiltersChange={handleCategoryFiltersChange} 
+                        currentFilters={categoryFilters} 
+                      />
+                    </div>
+                    
+                    {/* View Toggle and Temperature Legend */}
+                    <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4">
                     {/* View Toggle */}
                     <ViewToggle 
                       currentView={currentView}
@@ -1151,6 +1153,32 @@ function App() {
                     />
                     
                     {/* Temperature Legend */}
+                    <TemperatureLegend />
+                    </div>
+                  </div>
+                  
+                  {/* Mobile Layout - Horizontal */}
+                  <div className="md:hidden flex items-stretch gap-2">
+                    {/* Category Filters - Takes most space */}
+                    <div className="flex-1">
+                      <CategoryFilters 
+                        onFiltersChange={handleCategoryFiltersChange} 
+                        currentFilters={categoryFilters} 
+                      />
+                    </div>
+                    
+                    {/* View Toggle - Compact */}
+                    <div className="flex-shrink-0">
+                      <ViewToggle 
+                        currentView={currentView}
+                        onViewChange={setCurrentView}
+                        tokenCount={filteredTokens.length}
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Temperature Legend - Below on mobile */}
+                  <div className="md:hidden mt-2">
                     <TemperatureLegend />
                   </div>
                 </div>
