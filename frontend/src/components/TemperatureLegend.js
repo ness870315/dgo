@@ -31,8 +31,8 @@ const TemperatureLegend = () => {
               <div className="space-y-0.5">
                 <div><span className="text-purple-400">9.0-10:</span> <span className="text-white">VIRAL</span> 🚀</div>
                 <div><span className="text-red-400">8.0-8.9:</span> <span className="text-white">TRENDING</span> 🔥</div>
-                <div><span className="text-orange-400">7.0-7.9:</span> <span className="text-white">WAKING UP</span> ⚡</div>
-                <div><span className="text-blue-400">5.0-6.9:</span> <span className="text-white">BUILDING</span> 📈</div>
+                <div><span className="text-orange-400">7.0-7.9:</span> <span className="text-white">BUILDING</span> 📈</div>
+                <div><span className="text-blue-400">5.0-6.9:</span> <span className="text-white">WAKING UP</span> ⚡</div>
                 <div><span className="text-gray-400">&lt;5.0:</span> <span className="text-white">SLEEPING</span> 😴</div>
               </div>
             </div>

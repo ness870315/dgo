@@ -307,9 +307,10 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
         
         // Get hype level and color based on score
         const getHypeLevel = (score) => {
-          if (!score || score >= 8) return { level: 'VIRAL', color: '#a855f7', icon: '🚀' };
-          if (score >= 6) return { level: 'TRENDING', color: '#f97316', icon: '🔥' };
-          if (score >= 4) return { level: 'BUILDING', color: '#3b82f6', icon: '📈' };
+          if (!score || score >= 9) return { level: 'VIRAL', color: '#a855f7', icon: '🚀' };
+          if (score >= 8) return { level: 'TRENDING', color: '#ef4444', icon: '🔥' };
+          if (score >= 7) return { level: 'BUILDING', color: '#f97316', icon: '📈' };
+          if (score >= 5) return { level: 'WAKING UP', color: '#3b82f6', icon: '⚡' };
           return { level: 'SLEEPING', color: '#6b7280', icon: '😴' };
         };
 
