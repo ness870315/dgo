@@ -1112,6 +1112,29 @@ function App() {
             <div className="bg-dark-card border-b border-gray-700 px-2 sm:px-4 lg:px-6 py-3 sm:py-4 mobile-stats-section">
               <div className="max-w-7xl mx-auto">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-3 space-y-3 lg:space-y-0">
+                  {/* Stats Display - Desktop Only */}
+                  <div className="hidden lg:flex items-center space-x-6 text-sm">
+                    <div className="text-gray-400">
+                      <span className="font-semibold text-white">{filteredTokens.length}</span> filtered tokens
+                    </div>
+                    <div className="text-gray-400">
+                      Avg Score: <span className="font-semibold text-white">
+                        {filteredTokens.length > 0 
+                          ? (filteredTokens.reduce((sum, token) => sum + (token.score || token.overallScore || 0), 0) / filteredTokens.length).toFixed(2)
+                          : '0.00'
+                        }
+                      </span>
+                    </div>
+                    <div className="text-gray-400">
+                      Last updated: <span className="font-semibold text-white">
+                        {lastUpdated ? new Date(lastUpdated).toLocaleTimeString() : 'Loading...'}
+                      </span>
+                    </div>
+                    <div className="text-gray-400">
+                      Total: <span className="font-semibold text-white">{tokenData.length}</span>
+                    </div>
+                  </div>
+                  
                   {/* Last Updated and Refresh - Responsive */}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
                     {successMessage && (
