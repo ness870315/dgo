@@ -353,6 +353,45 @@ code {
     flex-wrap: wrap !important;
     justify-content: flex-start !important;
   }
+  
+  /* OPTIMIZE VIEW TOGGLE BUTTONS */
+  .mobile-view-toggle {
+    padding: 2px !important;
+    margin: 2px !important;
+  }
+  
+  .mobile-view-toggle button {
+    padding: 3px 6px !important;
+    font-size: 9px !important;
+    min-height: 20px !important;
+    border-radius: 3px !important;
+    margin: 1px !important;
+  }
+  
+  .mobile-view-toggle span {
+    font-size: 9px !important;
+  }
+  
+  /* Compact "View:" label and token count */
+  .mobile-view-toggle .text-xs,
+  .mobile-view-toggle .text-sm {
+    font-size: 8px !important;
+  }
+  
+  /* OPTIMIZE TEMPERATURE BAR */
+  .mobile-temperature-legend {
+    padding: 2px !important;
+    margin: 2px !important;
+  }
+  
+  .mobile-temperature-legend .text-xs {
+    font-size: 8px !important;
+  }
+  
+  .mobile-temperature-legend .hype-dot {
+    width: 6px !important;
+    height: 6px !important;
+  }
 }
 
 /* Mobile Filters Optimization */
