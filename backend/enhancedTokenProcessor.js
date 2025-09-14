@@ -59,7 +59,7 @@ class EnhancedTokenProcessor {
       dexscreener: { batchSize: 50, delayMs: 5000, maxTokens: 70 }, // Conservative: 50 per batch, 5s delay, 70 tokens max
       birdeye: { maxTokens: 20 }, // BirdEye API limit: 1-20
       jupiter: { batchSize: 100, delayMs: 30000, maxTokens: 600 }, // 30 second delay to avoid rate limits
-      twitter: { batchSize: 10, delayMs: 15000, maxTokens: 1000 } // Reduced batch size, increased delay to avoid 429 errors
+      twitter: { batchSize: 5, delayMs: 30000, maxTokens: 1000 } // Much smaller batches, 30s delay to avoid 429 errors
     };
     
     // Processing stages
@@ -711,10 +711,10 @@ class EnhancedTokenProcessor {
         
         console.log(`✅ Twitter batch ${batchNumber} complete: ${batchProcessed} processed, ${batchSkipped} skipped (${totalProcessed + totalSkipped}/${allTokens.length} total)`);
         
-        // Longer delay between batches to respect Twitter API limits
+        // Much longer delay between batches to respect Twitter API limits
         if (i + batchSize < allTokens.length) {
-          console.log(`⏳ Waiting ${delayMs * 2 / 1000} seconds before next Twitter batch...`);
-          await this.delay(delayMs * 2); // Double delay between batches
+          console.log(`⏳ Waiting ${delayMs * 3 / 1000} seconds before next Twitter batch...`);
+          await this.delay(delayMs * 3); // Triple delay between batches (90 seconds)
         }
         
       } catch (error) {

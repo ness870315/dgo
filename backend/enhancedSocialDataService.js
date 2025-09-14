@@ -33,7 +33,7 @@ class EnhancedSocialDataService {
     // Keeping for backward compatibility but will be ignored
     this.rateLimits = {
       maxSearchesPerToken: 1,           // ✅ OPTIMIZED: 1 search per token (was 3-4)
-      delayBetweenSearches: 2000,       // 2 seconds between searches
+      delayBetweenSearches: 10000,      // 10 seconds between searches (increased to avoid 429)
       maxTokensPerHour: 200,            // INCREASED back up (more efficient per token)
       maxTokensPerDay: 500,             // INCREASED back up (75% API reduction allows this)
       maxRequestsPerHour: 200,          // INCREASED back up (1 call per token now)
