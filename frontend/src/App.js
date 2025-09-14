@@ -267,13 +267,13 @@ function App() {
       );
 
       // Viral override set (hype label Viral regardless of cap)
-      const isViralToken = (t) => {
+      const isViralOrTrendingToken = (t) => {
         const hypeLabel = t?.hypeAnalysis?.latestLabel || t?.hypeLabel;
-        if (hypeLabel) return /viral/i.test(hypeLabel);
+        if (hypeLabel) return /viral|trending/i.test(hypeLabel);
         const s = (t.score || t.overallScore || 0);
-        return s >= 8.0; // fallback using score bands
+        return s >= 8.0; // Viral (9.0+) and Trending (8.0-8.9) only
       };
-      const viralCandidates = tokenData.filter(isViralToken);
+      const viralAndTrendingCandidates = tokenData.filter(isViralOrTrendingToken);
 
       // Apply guardrails
       const now = Date.now();
@@ -398,15 +398,14 @@ function App() {
         if (!seen.has(key)) { seen.add(key); arr.push(t); }
       };
       let trendingTokens = [];
-      // Viral tokens (keep same guardrails except cap constraints)
-      viralCandidates.forEach(t => {
+      // Viral and Trending tokens only (scores 8.0+)
+      viralAndTrendingCandidates.forEach(t => {
         // Basic freshness guard only
         const lastUpdated = t.lastUpdated ? Date.parse(t.lastUpdated) : null;
         const isFresh = lastUpdated ? (Date.now() - lastUpdated) <= (30 * 60 * 1000) : true;
         if (isFresh) pushUnique(trendingTokens, t);
       });
-      // Then ranked emerging
-      [...sortedFueledTokens, ...sortedRegularTokens].forEach(t => pushUnique(trendingTokens, t));
+      // No additional emerging tokens - only Viral and Trending
       trendingTokens = trendingTokens.slice(0, 100);
 
       // Safety fallback: never return zero — fall back to base tokens by score
@@ -418,8 +417,8 @@ function App() {
         return fallback;
       }
       
-      console.log(`🚀 NEW Trending filter: Viral override + emerging. Showing top 100 (viral first, then ranked emerging)`);
-      console.log(`   Viral included: ${viralCandidates.length}. Emerging candidates: ${highScoreTokens.length}. Returning: ${trendingTokens.length}`);
+      console.log(`🚀 NEW Trending filter: Viral + Trending only (scores 8.0+). Showing top 100`);
+      console.log(`   Viral + Trending included: ${viralAndTrendingCandidates.length}. Returning: ${trendingTokens.length}`);
       console.log('Category filtering result:', trendingTokens.length, 'tokens out of', tokenData.length);
       return trendingTokens;
     }
@@ -1115,7 +1114,7 @@ function App() {
                   {/* Stats Display - Desktop Only */}
                   <div className="hidden lg:flex items-center space-x-6 text-sm">
                     <div className="text-gray-400">
-                      <span className="font-semibold text-white">{filteredTokens.length}</span> filtered tokens
+                      Total: <span className="font-semibold text-white">{tokens.length}</span>
                     </div>
                     <div className="text-gray-400">
                       Avg Score: <span className="font-semibold text-white">
@@ -1124,19 +1123,6 @@ function App() {
                           : '0.00'
                         }
                       </span>
-                    </div>
-                    <div className="text-gray-400">
-                      Last updated: <span className="font-semibold text-white">
-                        {tokens.length > 0 
-                          ? new Date(Math.max(...tokens.map(token => 
-                              token.lastUpdated ? new Date(token.lastUpdated).getTime() : 0
-                            ))).toLocaleTimeString()
-                          : 'Loading...'
-                        }
-                      </span>
-                    </div>
-                    <div className="text-gray-400">
-                      Total: <span className="font-semibold text-white">{tokens.length}</span>
                     </div>
                   </div>
                   
@@ -1180,8 +1166,27 @@ function App() {
                       tokenCount={filteredTokens.length}
                     />
                     
-                    {/* Temperature Legend */}
-                    <TemperatureLegend />
+                    {/* Temperature Legend with stats above */}
+                    <div className="flex flex-col items-center space-y-1">
+                      {/* Filtered tokens and Last updated above temp bar */}
+                      <div className="flex items-center space-x-4 text-xs text-gray-400">
+                        <div>
+                          <span className="font-semibold text-white">{filteredTokens.length}</span> filtered tokens
+                        </div>
+                        <div>
+                          Last updated: <span className="font-semibold text-white">
+                            {tokens.length > 0 
+                              ? new Date(Math.max(...tokens.map(token => 
+                                  token.lastUpdated ? new Date(token.lastUpdated).getTime() : 0
+                                ))).toLocaleTimeString()
+                              : 'Loading...'
+                            }
+                          </span>
+                        </div>
+                      </div>
+                      {/* Temperature Legend */}
+                      <TemperatureLegend />
+                    </div>
                     </div>
                   </div>
                   
