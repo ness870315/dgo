@@ -372,14 +372,8 @@ code {
     font-size: 9px !important;
   }
   
-  /* Hide token count and make "View:" label smaller */
-  .mobile-view-toggle .text-xs,
-  .mobile-view-toggle .text-sm {
-    display: none !important;
-  }
-  
-  /* Hide "100 tokens" text specifically */
-  .mobile-view-toggle div:contains("tokens") {
+  /* Hide only the token count text */
+  .mobile-view-toggle .text-xs.text-gray-500 {
     display: none !important;
   }
   
