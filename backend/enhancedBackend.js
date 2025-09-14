@@ -1429,7 +1429,7 @@ class EnhancedBackend {
         const cleanupService = new LiquidityCleanupService();
         
         // Run cleanup
-        const result = await cleanupService.cleanupTokens();
+        const result = await cleanupService.cleanupLowLiquidityTokens();
         
         console.log('🧹 Liquidity cleanup completed:', result);
         
