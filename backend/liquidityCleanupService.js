@@ -3,8 +3,8 @@
  * Removes tokens with extremely low liquidity from the database
  */
 
-const fs = require('fs/promises');
-const path = require('path');
+import fs from 'fs/promises';
+import path from 'path';
 
 class LiquidityCleanupService {
   constructor() {
@@ -309,4 +309,4 @@ class LiquidityCleanupService {
   }
 }
 
-module.exports = LiquidityCleanupService;
+export default LiquidityCleanupService;

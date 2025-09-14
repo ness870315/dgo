@@ -1425,7 +1425,7 @@ class EnhancedBackend {
         console.log('🧹 Starting liquidity cleanup...');
         
         // Import and run the cleanup service
-        const LiquidityCleanupService = require('./liquidityCleanupService.js');
+        const { default: LiquidityCleanupService } = await import('./liquidityCleanupService.js');
         const cleanupService = new LiquidityCleanupService();
         
         // Run cleanup
