@@ -111,7 +111,11 @@ class EnhancedScoringAlgorithm {
     if (!tokenData) return 0.0; // No data = no score
     
     const volume1h = tokenData.volume1h || 0;
-    const volumeChange1h = tokenData.volumeChange1h || 0;
+    // 🔧 FIX: Extract volume change from Jupiter data structure
+    const volumeChange1h = tokenData.volumeChange1h || 
+                          tokenData.jupiterData?.stats1h?.volumeChange || 
+                          0;
+    
     
     // 🚨 CRITICAL: Zero volume = zero score (no trading activity)
     if (volume1h === 0) return 0.0;
@@ -146,7 +150,17 @@ class EnhancedScoringAlgorithm {
     if (!tokenData) return 0.0; // No data = no score
     
     const volume24h = tokenData.volume24h || 0;
-    const volumeChange24h = tokenData.volumeChange24h || 0;
+    // 🔧 FIX: Extract volume change from Jupiter data structure
+    // Try 24h first, then fall back to 6h if 24h doesn't exist
+    const volumeChange24h = tokenData.volumeChange24h || 
+                           tokenData.jupiterData?.stats24h?.volumeChange ||
+                           tokenData.jupiterData?.stats6h?.volumeChange || 
+                           0;
+    
+    // 🔧 NEW: Check liquidity change as additional circuit breaker
+    const liquidityChange24h = tokenData.jupiterData?.stats24h?.liquidityChange ||
+                              tokenData.jupiterData?.stats6h?.liquidityChange ||
+                              0;
     
     // 🚨 CRITICAL: Zero volume = zero score (no trading activity)
     if (volume24h === 0) return 0.0;
@@ -154,6 +168,11 @@ class EnhancedScoringAlgorithm {
     // 🚨 CRITICAL: Heavy volume decline = severe penalty
     if (volumeChange24h <= -50) {
       return 0.0; // -50%+ volume drop = zero score
+    }
+    
+    // 🚨 NEW: Heavy liquidity decline = severe penalty
+    if (liquidityChange24h <= -80) {
+      return 0.0; // -80%+ liquidity drop = zero score
     }
     
     const logVolume = Math.log10(volume24h + 1);
