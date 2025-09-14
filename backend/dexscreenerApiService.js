@@ -33,53 +33,45 @@ class DexscreenerApiService {
         return cached.data;
       }
 
-      console.log(`🔍 Dynamically discovering trending Solana memecoins from Dexscreener...`);
+      console.log(`🔍 Fetching trending Solana pairs directly from Dexscreener...`);
 
-      // STRATEGY 1: Reduced trending terms to avoid rate limits (403 errors)
-      const trendingSearchTerms = [
-        'meme', 'pump', 'wif', 'pepe', 'doge'  // Only top 5 most effective terms
-      ];
+      // Use Dexscreener's direct trending endpoint for Solana
+      const response = await axios.get(`${this.baseURL}/latest/dex/tokens/solana`, {
+        params: {
+          limit: limit * 2 // Get more to filter properly
+        },
+        timeout: 15000,
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (compatible; DexscreenerBot/1.0)'
+        }
+      });
 
-      // STRATEGY 2: Reduced DEX terms to avoid rate limits
-      const dexSearchTerms = [
-        'raydium', 'orca', 'jupiter'  // Only top 3 most active DEXes
-      ];
+      if (!response.data || !response.data.pairs) {
+        console.warn('⚠️ No trending pairs data from Dexscreener');
+        return [];
+      }
 
-      const allSearchTerms = [...trendingSearchTerms, ...dexSearchTerms];
       const discoveredTokens = new Map(); // symbol -> pair data
       const processedPairs = new Set(); // pair address deduplication
 
-      // Discover trending tokens dynamically
-      for (const searchTerm of allSearchTerms) {
-        if (discoveredTokens.size >= limit * 1.5) break; // Get 50% more than needed for better selection
+      // Process trending pairs from Dexscreener
+      for (const pair of response.data.pairs) {
+        if (processedPairs.has(pair.pairAddress)) continue;
 
-        try {
-          console.log(`🔍 Searching for: "${searchTerm}"`);
-          const searchResults = await this.searchPairs(searchTerm, 20); // Get more results per search
+        // Only include pairs with reasonable volume
+        if (!pair.volume24h || pair.volume24h < 1000) continue;
+        
+        // Filter out stablecoins and major tokens
+        const symbol = pair.baseToken?.symbol?.toUpperCase();
+        if (!symbol || ['USDC', 'USDT', 'SOL', 'JUP', 'WETH', 'WBTC'].includes(symbol)) continue;
 
-          for (const pair of searchResults) {
-            if (processedPairs.has(pair.pairAddress)) continue;
-
-            // SMART FILTERING: Identify true Solana memecoins
-            const isSolanaMemecoin = this.isSolanaMemecoin(pair);
-
-            if (isSolanaMemecoin && pair.volume24h > 1000) { // Minimum volume threshold
-              discoveredTokens.set(pair.symbol, pair);
-              processedPairs.add(pair.pairAddress);
-              console.log(`🎯 Discovered Solana memecoin: ${pair.symbol} ($${pair.volume24h?.toLocaleString()} vol)`);
-            }
-          }
-
-          // Increased delay to prevent 403 rate limit errors
-          await new Promise(resolve => setTimeout(resolve, 20000)); // 20 seconds between searches
-
-        } catch (error) {
-          console.log(`⚠️ Search failed for "${searchTerm}":`, error.message);
-          continue;
-        }
+        discoveredTokens.set(symbol, pair);
+        processedPairs.add(pair.pairAddress);
+        console.log(`🎯 Discovered trending Solana token: ${symbol} ($${pair.volume24h?.toLocaleString()} vol)`);
       }
 
-      // Convert to array and sort by multiple factors for "trendiness"
+      // Convert to array and sort by volume (trending)
       let trendingPairs = Array.from(discoveredTokens.values())
         .map(pair => ({
           ...pair,
@@ -92,7 +84,7 @@ class DexscreenerApiService {
       // Filter out rugged-looking tokens from trending (collapse or massive drop)
       trendingPairs = trendingPairs.filter(p => !this.isRuggedFromDex(p));
 
-      console.log(`✅ Dynamically discovered ${trendingPairs.length} trending Solana memecoins`);
+      console.log(`✅ Found ${trendingPairs.length} trending Solana pairs from Dexscreener`);
 
       // Cache the results
       this.cache.set(cacheKey, {
