@@ -417,9 +417,9 @@ code {
     display: none !important;
   }
   
-  /* Hide "View:" text on mobile */
-  .mobile-view-toggle .text-xs.text-gray-400,
-  .mobile-view-toggle .text-sm.text-gray-400 {
+  /* Hide "View:" text on mobile - be more specific */
+  .mobile-view-toggle > span.text-xs.text-gray-400,
+  .mobile-view-toggle > span.text-sm.text-gray-400 {
     display: none !important;
   }
   
