@@ -168,7 +168,7 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
               </div>
               
               {/* Filter Options */}
-              <div className="p-4 space-y-3">
+              <div className="p-6 space-y-4">
                 {Object.entries(categories)
                   .filter(([key]) => key !== 'volatile' && key !== 'stable')
                   .map(([key, value]) => {
@@ -177,14 +177,13 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
                       <button
                         key={key}
                         onClick={() => handleMobileFilterSelect(key)}
-                        className={`w-full text-left px-4 py-4 rounded-lg transition-colors border ${
+                        className={`w-full text-center px-6 py-3 rounded-lg transition-colors border font-medium text-base ${
                           value
                             ? 'bg-solana-purple text-white border-solana-purple'
                             : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white border-gray-600'
                         }`}
                       >
-                        <div className="font-semibold text-base mb-2">{tooltipContent.title}</div>
-                        <div className="text-sm text-gray-400 leading-relaxed">{tooltipContent.description}</div>
+                        {tooltipContent.title}
                       </button>
                     );
                   })}

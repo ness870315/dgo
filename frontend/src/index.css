@@ -342,8 +342,8 @@ code {
     align-items: center !important;
     justify-content: center !important;
     gap: 16px !important;
-    padding: 8px !important;
-    margin: 4px 0 !important;
+    padding: 12px 8px !important;
+    margin: 8px 0 !important;
   }
   
   .mobile-filters-container {
