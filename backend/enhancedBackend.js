@@ -1367,6 +1367,35 @@ class EnhancedBackend {
       }
     });
 
+    // Admin: Run liquidity cleanup to remove dead tokens
+    this.app.post('/admin/run-liquidity-cleanup', async (req, res) => {
+      try {
+        console.log('🧹 Starting liquidity cleanup...');
+        
+        // Import and run the cleanup service
+        const LiquidityCleanupService = require('./liquidityCleanupService.js');
+        const cleanupService = new LiquidityCleanupService();
+        
+        // Run cleanup
+        const result = await cleanupService.cleanupTokens();
+        
+        console.log('🧹 Liquidity cleanup completed:', result);
+        
+        res.json({
+          success: true,
+          message: 'Liquidity cleanup completed',
+          result
+        });
+        
+      } catch (error) {
+        console.error('❌ Liquidity cleanup failed:', error.message);
+        res.status(500).json({ 
+          success: false, 
+          error: 'Liquidity cleanup failed: ' + error.message 
+        });
+      }
+    });
+
     // Admin: Enable Twitter posting for specific user
     this.app.post('/admin/enable-twitter-posting/:userId', async (req, res) => {
       try {
