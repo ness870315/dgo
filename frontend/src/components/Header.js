@@ -91,7 +91,7 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
                   isLoading ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
                 title="Refresh data"
-                style={{ fontSize: '10px', minHeight: '24px' }}
+                style={{ fontSize: '11px', minHeight: '24px' }}
               >
                 <RefreshCw size={12} className={isLoading ? 'animate-spin' : ''} />
               </button>
@@ -101,7 +101,7 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
                 onClick={onWatchlistClick}
                 className="px-2 py-1 rounded-md border border-gray-600 text-gray-400 hover:text-yellow-400 hover:border-yellow-500 transition-colors text-xs"
                 title="View Watchlist"
-                style={{ fontSize: '10px', minHeight: '24px' }}
+                style={{ fontSize: '11px', minHeight: '24px' }}
               >
                 <Star size={12} />
               </button>
