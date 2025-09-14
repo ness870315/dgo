@@ -8,8 +8,10 @@ const path = require('path');
 
 class LiquidityCleanupService {
   constructor() {
-    this.cachePath = path.join(process.cwd(), 'cache', 'tokens-cache.json');
-    this.backupPath = path.join(process.cwd(), 'cache', 'tokens-backup-before-cleanup.json');
+    // Use the same cache path as the main backend system
+    const baseDir = process.env.DATA_DIR || '/var/data/dgo';
+    this.cachePath = path.join(baseDir, 'cache', 'tokens-cache.json');
+    this.backupPath = path.join(baseDir, 'cache', 'tokens-backup-before-cleanup.json');
     
     // Cleanup thresholds
     this.config = {
