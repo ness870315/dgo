@@ -1,0 +1,553 @@
+[33mb546c6f[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m FRONTEND: Make entire filters section compact on mobile - clean implementation
+[33mfae8cce[m FRONTEND: Add extensive debugging to test ViewToggle rendering
+[33mab1cc18[m FRONTEND: Add debugging styles to ViewToggle to test visibility
+[33m81ccacf[m FRONTEND: Remove debugging wrapper and fix modal z-index issue
+[33m9939489[m FRONTEND: Remove temperature bar and add debugging for ViewToggle visibility
+[33m43ff964[m FRONTEND: Remove all debugging wrappers, console logs, and visual debugging elements
+[33m2313382[m FRONTEND: Clean up debugging code and finalize working CategoryFilters component
+[33m731079e[m FRONTEND: Restore working filter buttons with simplified structure in CategoryFilters
+[33mfd89558[m FRONTEND: Simplify map function to basic div test in CategoryFilters
+[33m2a26292[m FRONTEND: Simplify button content to debug rendering issue in CategoryFilters
+[33mb0195a3[m FRONTEND: Add aggressive styling to force button visibility in CategoryFilters
+[33ma199936[m FRONTEND: Add visual debugging for mobile users to debug CategoryFilters button rendering
+[33m186cd99[m FRONTEND: Add visual debugging for mobile users to debug CategoryFilters button rendering
+[33m304efce[m FRONTEND: Add error handling to debug button rendering failure in CategoryFilters
+[33m7f03d4d[m FRONTEND: Restore original filter button functionality in CategoryFilters - working version
+[33ma3c373c[m FRONTEND: Test hardcoded buttons inside map function to isolate rendering issue in CategoryFilters
+[33mc4b51c9[m FRONTEND: Fix hardcoded button styling to match working purple buttons in CategoryFilters
+[33m6262266[m FRONTEND: Add error handling to debug hardcoded button click issues in CategoryFilters
+[33mde266ba[m FRONTEND: Add click handlers to test button functionality in CategoryFilters
+[33m5d543c7[m FRONTEND: Add hardcoded buttons to test if CategoryFilters JSX is rendering
+[33m9a71fd5[m FRONTEND: Simplify CategoryFilters map to isolate JSX rendering issue
+[33m5524e82[m FRONTEND: Add error handling to isolate getTooltipContent issue in CategoryFilters map
+[33ma2e50c9[m FRONTEND: Add enhanced debugging to isolate map function failure in CategoryFilters
+[33m3217399[m FRONTEND: Add debugging to CategoryFilters to show categories data and button rendering
+[33mc0f84ab[m FRONTEND: Restore CategoryFilters functionality with working filter buttons (removed problematic useAuth hook)
+[33m62fac0b[m FRONTEND: Simplify CategoryFilters to minimal version to test JavaScript event handling
+[33m27c9d41[m FRONTEND: Add debugging to App.js to track CategoryFilters rendering and identify parent component issues
+[33m248f5ba[m FRONTEND: Add test button and debugging logs to CategoryFilters to diagnose button rendering issue
+[33m6f7f026[m BACKEND: Add CSP headers to allow eval for React development mode and fix CategoryFilters rendering
+[33m539f2e2[m BACKEND: Add missing processNewTokensFromJupService method to fix Jup-service token processing error
+[33m67136f8[m MOBILE: Add error handling and debug text to CategoryFilters to identify rendering issues
+[33m0bc38c7[m MOBILE: Add debugging console.log and bright colors to track CategoryFilters rendering
+[33m1903895[m MOBILE: Add aggressive debugging styles to CategoryFilters component to see if it's rendering
+[33m6a21d42[m MOBILE: Add aggressive CSS to force all buttons in mobile-filters-container to be visible with purple background
+[33me4df42d[m MOBILE: Add aggressive debugging CSS with bright colors to force filter buttons and view toggle visibility
+[33m582ac55[m MOBILE: Fix conflicting CSS rules and add visibility/display properties to ensure filter buttons and view toggle are visible
+[33me6be67d[m MOBILE: Fix - apply mobile classes to filter buttons, view toggle, and temperature legend
+[33m4b5c111[m MOBILE: Fix - hide only stats text, keep filter buttons and toggle view visible
+[33m89ecbb3[m MOBILE: Make filter buttons wider, hide stats section on mobile, reduce section space by 80%
+[33m0750504[m MOBILE: Fix filter buttons width, reduce section space by 70%, optimize User Dashboard for mobile
+[33m4002fca[m MOBILE: Fix Token Detail modal overlapping elements - smaller buttons, better layout
+[33m87b6a5d[m MOBILE: Revert filter buttons to wider size, reduce section space by 50% but keep elements readable
+[33m891c9b4[m MOBILE: Make entire filters/stats section 50% smaller but keep login button font size (10px)
+[33m6b557c8[m MOBILE: Make refresh and favorite buttons same size as login button
+[33m69b2b9b[m MOBILE: Make filter buttons wider for text and entire section 50% smaller
+[33m220b87a[m MOBILE: Make entire filters/stats section ultra-compact - stats, categories, view toggle, temperature legend
+[33m9eba4a5[m REVERT: Mobile filters section back to ultra-compact version
+[33m1212c7f[m SCORING: Adjust weights (Community 35%, Volume24h 20%, Volume1h 15%) and add volume drop penalties
+[33m5940fd4[m MOBILE: Fix filters section height - make it same proportion as search bar
+[33m60c1881[m MOBILE: Add all desktop fields to mobile token list - Score, %, Market Cap, Mentions
+[33m7731a6f[m MOBILE: Replace  with % in token list and make filters section ultra-compact
+[33m71c70df[m MOBILE: Fix token detail modal layout and improve % change display in token list
+[33m76daacf[m MOBILE: Ultra-compact filters section - smaller text, legends, view buttons, and login button
+[33mec6f83c[m MOBILE: Fix all mobile UI issues - market cap display, compact filters, smaller login button, fix modal overlapping
+[33mad68511[m MOBILE: Optimize token boxes and headers for mobile - Dexscreener-style compact design
+[33m6973608[m ADD: PWA support for mobile app functionality - manifest, service worker, mobile optimizations
+[33mc0c246e[m ADD: BNSOL stablecoin filter to all discovery sources (Jup-service, CoinGecko, Dexscreener)
+[33m66302e5[m OPTIMIZE: Reduce Twitter searches to 2 per token (4+2 tweets) to save API calls
+[33mb2b3161[m IMPROVE: Better Twitter tweet quality filtering to avoid hashtag spam and irrelevant content
+[33mfcb87e2[m CRITICAL FIX: Overall score now properly penalizes tokens with no volume, no organic buyers, and declining volume
+[33m9c179c1[m IMPROVE: BubbleMap natural clustering with soft boundaries and larger play area
+[33md79340e[m FIX: Hype over Time chart now shows only freshest status with timestamp
+[33m3cbf334[m FIX: Hype over Time chart status mismatch - use fresh hype data for current status
+[33md1bdc0a[m  FIX BUILD: Add missing Twitter import in DetailDrawer
+[33m2447f99[m  BUBBLE BOUNDARIES: Add walls to prevent bubbles from trespassing header/bottom
+[33m62895bc[m  FIX CORS: Add HTTP degen-oracle.com origins
+[33mc7526a9[m  JUP-SERVICE PIPELINE INTEGRATION
+[33mc1b49fb[m  PRESERVE EXISTING DATA + RESPECT COOLDOWNS
+[33mc4881f2[m  AUTOMATIC TWITTER DATA MERGE SYSTEM
+[33m2aac5a9[m  CRITICAL FIX: Twitter tweets not displaying in UI
+[33mc973801[m  CRITICAL FIX: Dexscreener stage undefined variable error
+[33m75ea37f[m  Optimize Birdeye stage to only fetch new contract addresses
+[33m1a42779[m  CRITICAL FIXES: Cache Corruption & Backup Frequency
+[33m1dc04c8[m  MILESTONE SYSTEM + UI UPDATES: Smaller milestones + Tweet-focused UI
+[33m74645ae[m  FIX: ESLint error - tooltip variable not defined
+[33m33b1b70[m  FIX: Tooltip distance + 14-inch screen bubble positioning
+[33mdff6291[m  FIX: Tooltip positioning now follows cursor closely
+[33ma33a3ed[m  BACKUP SCHEDULE UPDATE: Hourly snapshots + 10-snapshot rotation
+[33m43cfc95[m  NEW FEATURES: Cache-only restore + Remove auto-backup + Fix Dropbox
+[33m1e08063[m  CRITICAL FIX: Stop mergeWithExistingTokens from dropping existing tokens
+[33m602e270[m  CRITICAL FIX: Preserve Twitter data during Priority Batch Update
+[33m2b28c5f[m  CRITICAL FIX: Stop Priority Batch Update from wiping Twitter data
+[33ma29af9e[m  CRITICAL FIX: Preserve existing cache tokens during processing
+[33m05700db[m ADD LOGGING: Catch who is calling /api/tokens/clear-cache endpoint
+[33ma1d1522[m CRITICAL FIX: Remove isValidCandidate filter from Twitter processing stage
+[33mfd1d679[m CRITICAL FIX: Stop backup recovery from clearing cache with 14 tokens
+[33m4bebbc3[m CRITICAL FIX: Always apply 72-hour cooldown after Twitter data fetch
+[33me2da586[m Fix duplicate tweet processing and missing real tweets display
+[33ma9727dc[m Fix infinite Twitter refresh loop with consistent 72-hour timestamp logic
+[33ma1769ba[m Fix X link preview image display
+[33m1e061ee[m Add fuel page endpoint for X link previews
+[33mf475653[m Fix ESLint error: Replace confirm with window.confirm
+[33m67706e6[m Add debugging for KOL calls recording issue
+[33ma563382[m Fix fuel post missing image link
+[33mea3eff9[m Re-implement critical fixes: Atomic JSON locking and persistent cache path
+[33m6bbddc0[m Fix KOL leaderboard scoring: Remove liquidity penalty, add market cap and volume momentum scoring
+[33m01e0954[m Fix multiple critical issues: thesis recording, market cap formatting, hype charts, Twitter posting, and duplicate logging
+[33m10775b5[m Fix deployment issue by replacing canvas with sharp for fuel image generation
+[33m0c7ff51[m Fix delete button and add fuel image links to share posts
+[33m737829e[m Update X handle from @oracle_degen1 to @degen_oracle1
+[33m2849647[m Add debugging to addKolCall method to track database writes
+[33mfa511fc[m Fix admin summary endpoint to include thesis and Twitter data
+[33md3708dd[m Add debugging for call creation thesis and receipts issue
+[33m0346e1a[m Fix hype level thresholds to match correct ranges
+[33m36badb0[m Fix WIZI hype chart label display issue
+[33ma92e7a9[m Fix regenerate thesis and call recording issues
+[33md773e6d[m Fix Twitter posting 401 error - missing tweet.write permission
+[33m971ce57[m Complete Make Your Call modal fixes
+[33mc7bc60f[m Fix Make Your Call modal issues
+[33m7087c10[m Fix KOL call HTTP 400 error - data structure mismatch
+[33m9db279e[m Fix AI-Thesis generator showing 0.00MC - Extract market cap from jupiterData.mcap instead of tokenData.marketCap - Add proper fallback chain: jupiterData.mcap -> jupiterData.marketCap -> tokenData.marketCap - Add debugging logs to track market cap extraction - This fixes the 0.00MC display issue in AI-generated theses
+[33m8187614[m Add Dropbox diagnostic tools and improved error logging - Add test-dropbox-connection.js to diagnose Dropbox API issues - Improve error logging in enhancedBackupService.js with detailed error info - Add comprehensive error handling to dropboxUploader.js - This will help identify why Dropbox uploads stopped working despite correct env vars
+[33md16f996[m Revert filter changes - restore Trending as initial filter - Set trending: true as default category filter - Remove fallback logic that showed all tokens when no filter active - Trending filter will now be active by default on app load
+[33md4b52ff[m Add auto-restart mechanism for token processing - Add autoRestartTokenProcessing() that runs every 2 minutes - Detects stuck processing (no activity for 10+ minutes) - Detects stopped processing and restarts automatically - Preserves existing tokens when restarting - Add health monitoring with isHealthy() method - Add activity tracking throughout processing pipeline - Add better error handling that doesn't crash the system - Token processing will now automatically recover from crashes, timeouts, and errors
+[33m71ca243[m CRITICAL FIX: Prevent token loss during refresh - Add preserveCacheAndRefresh() function to keep existing tokens - Update /api/tokens/refresh-all to preserve tokens instead of clearing - Add /api/tokens/clear-cache for debugging (use with caution) - Fixes issue where tokens disappear when processing stops - Tokens now persist across refreshes and restarts - This was the root cause of only having 25 tokens in persistent disk
+[33m11a450a[m Add diagnostic scripts for token cache issue - Add trigger-token-processing.js to start token processing system - Add check-cache-status.js to diagnose cache state - Persistent disk only has 25 tokens because processing system isn't running - These scripts will help identify and fix the cache population issue
+[33m4e51bb1[m Fix token display issue - show all 1,605 tokens instead of only 20 - Remove restrictive trending filter as default - Set no category filter by default to show all tokens - Update fallback logic to display all tokens sorted by score - Users can now see the full token database and choose their own filters - Trending filter was too restrictive (score 6, mcap , fresh data only)
+[33m4ea0be7[m Add debugging logs to diagnose Make a Call button issue - Add console logs to EnhancedCallModal handleConfirmCall - Add console logs to TokenDetails handleConfirmCall - Add console logs to kolCallsService addCall API call - This will help identify where the call flow is breaking - Logs show token data, thesis, twitterEnabled, tone, and API responses
+[33m825db91[m Fix market cap formatting - distinguish between K and M suffixes - Add proper K/M suffixes to formatNumber function - Remove hardcoded M suffixes from templates - Now correctly shows 248.8K instead of 248.8M for thousands - Fix thesis prompts, fallback templates, milestone posts, and share posts - All market cap displays now use proper K/M formatting
+[33m7c7b1c4[m Fix auto-posting and thesis integration - Backend now accepts frontend-generated thesis, tone, and twitterEnabled flag - Use frontend thesis instead of generating random one - Respect user-selected tone instead of random tone - Properly handle twitterEnabled flag from frontend - Store tone in call data for future reference - Fix payload structure to match backend expectations - Auto-posting now works with user-generated thesis and preferences
+[33m9d6c45e[m Add AI thesis variations and narrative diversity - Add 10 varied call announcement phrases (I am calling, Going long on, etc.) - Add 10 varied ending phrases with degen-oracle.com/@oracle_degen1 - Always include market cap in call announcements - Add milestone narrative variations for 5x, 10x, etc. updates - Add share post narrative variations - Remove static 'let's see where this goes. NFA' ending - All theses now have unique, dynamic content every generation
+[33ma37b596[m Implement real AI thesis generation with tone support - Add /api/user/generate-thesis endpoint to backend - Replace mock thesis with real AI generation using CallThesisGenerator - Add tone-based thesis regeneration when tone changes - Support bullish, cautious, technical, and narrative tones - Thesis now changes dynamically based on selected tone and regenerates properly
+[33m878c24a[m Fix Twitter posting toggle 500 error - Replace non-existent saveUser() with existing updateUser() method - This resolves the 500 Internal Server Error when toggling Twitter posting preference - The toggle should now work properly in the Call it modal
+[33m49382aa[m Fix Twitter posting toggle in Call it modal - Remove accessToken requirement from hasTwitterPostingEnabled check - Add detailed logging to frontend Twitter service - Improve error handling and debugging for toggle functionality - This should resolve the 'Failed to update Twitter posting preference' error
+[33mefc672e[m Make ranked list view mobile/tablet responsive and fix reset zoom button - Mobile layout: 2-column grid with compact design - Tablet layout: responsive sizing and spacing - Desktop layout: original horizontal layout - Fix reset zoom button to use stored zoom reference - Add mobile-specific instructions and styling
+[33m81ccbd8[m Fix hype snapshots not appearing in charts - Reduce minimum interval from 1 hour to 5 minutes - Add debug logging to track snapshot creation and retrieval - This should resolve the issue where snapshots were being filtered out due to frequent score recalculations
+[33m097da68[m Fix hype snapshots - ensure snapshots are taken on EVERY overall score calculation - Add centralized takeHypeSnapshot() function - Call snapshots after Twitter refresh, fuel application, fuel expiration, and manual recalculation - Ensures consistent hype over time data collection across all score updates
+[33m5fcba15[m Add fuel multipliers to ranked list view - Display actual fuel multipliers (10x, 50x, 500x, 1000x) in fueled badges - Show stacked fuel totals when multiple fuels are applied - Use correct fuelType field from backend data structure
+[33m9423a86[m Add ranked list view toggle for tokens - Create TokenRankedList component with score-based ranking - Add ViewToggle component for bubbles vs list view - Integrate view toggle with existing category filters - Show token rank, score, price change, market cap, and mentions - Add fueled token indicators in list view - Responsive design for mobile and desktop
+[33mb0de123[m Fix bubble visibility for small cap/micro cap filters - Add dynamic height adjustment based on token count - Implement zoom and pan functionality for navigation - Add scrollable container for many tokens - Add zoom reset button and user instructions - Prevent bubble cutoff at top and bottom edges
+[33mda9dc0a[m Fix Twitter search count to 6 - Change from 10 back to 6 tweets per search - Maintains optimal coverage without over-fetching
+[33mf210358[m Add time-based Twitter search for fresher tweets - Add start_time, end_time, since_id parameters to Twitter microservice - Update smart refresh to use timestamp-based searches - Filter main search to last 7 days for freshness - Increase tweet count from 5 to 10 for better coverage
+[33m408b127[m Fix Twitter crypto relevance filtering - Add approval for direct token mentions (@symbol, #symbol, symbol) - Prevents rejection of legitimate token tweets - Improves tweet detection for tokens like WIZI
+[33ma2699a5[m Fix ES6 module export for SmartTwitterRefreshService - Change from CommonJS module.exports to ES6 export default - Resolves import error in enhancedSocialDataService.js
+[33me562d64[m Fix fueled tokens persistence - Use persistent DATA_DIR instead of local cache directory - Ensures fueled tokens survive redeploys - Aligns with other persistent data storage patterns
+[33m4633619[m Implement Smart Twitter Refresh System with Deduplication - Add SmartTwitterRefreshService with hybrid approach - Implement tweet ID tracking and timestamp filtering - Add smart tweet selection based on engagement - Integrate with existing Twitter data service - Add admin endpoint for smart refresh testing - Maintain 5-tweet limit while avoiding duplicates
+[33m05b6fe7[m Add debugging to fuel application process - Log fuel application start and file save operations - Track fueled tokens array length during save
+[33m6db07de[m Add debugging to fueled tokens persistence - Add logging to track fueled tokens loading and filtering - Debug expiration filtering logic - Track active vs expired fueled tokens
+[33m952cb73[m Fix hype snapshots to be created during scoring stage, not Twitter stage - Remove duplicate hype snapshot creation from Twitter stage - Enhance hype snapshot data with comprehensive metrics - Ensure snapshots capture final overall score with all cached data - Add better logging for hype snapshot creation
+[33m61dc444[m Add large screen support for BubbleMap - Scale bubbles up to 1.6x on ultra-wide screens (1920px+) - Add 1.3x scaling for large desktop screens (1440px+) - Increase container height on larger screens - Add screen size detection and debugging logs
+[33mc0c86e7[m Add responsive design for mobile and tablet screens - Update App.js layout with responsive grid and spacing - Make Header component mobile-friendly with collapsible layout - Improve BubbleMap sizing for different screen sizes - Update TokenDetails modal for mobile screens - Make CategoryFilters responsive with flex-wrap layout
+[33m5a89e55[m Fix fuel endpoints route conflict - move fuel endpoints before :contract route to prevent 404 errors
+[33m0aa85f4[m Fix fuel UI refresh and Fuel Token page display - Fix API endpoint URL in real-time refresh to use full API base URL - Add onTokenUpdated callback to TokenDetails for immediate refresh - Add onFuelApplied callback to FuelTokenPage for cross-page refresh - Add multiple refresh mechanisms: component mount, visibility change, auto-refresh - Add debug logging to track fueled tokens data loading - Ensure fueled tokens display in both main app and Fuel Token page - Fix fuel application from both TokenDetails modal and Fuel Token page
+[33m3a004bb[m Fix fuel scoring by marking tokens as fueled - Mark tokens as isFueled: true when fuel is applied - Add fuelType, fuelApplied, and fuelExpiry properties to token data - Ensure fuel bonus is properly applied during score recalculation - Fix fuel application to trigger proper score recalculation with fuel bonus - Maintain existing Twitter data during fuel recalculation for performance
+[33m6974f45[m Fix tooltips and remove close button tooltip
+[33me118ff5[m Add fuel share functionality with X redirect
+[33mc868474[m Fix DGO Following modal and add KOL Leaderboard guide
+[33m8a87082[m Fix DGO Following display and enhance KOL profile features
+[33mce81ba2[m Make AI analysis super creative and degen with heavy crypto slang
+[33m7c21490[m Fix username display in DGO followers/following modals
+[33mcf57a7c[m Replace X/Twitter followers with DGO internal system
+[33mecd6ac5[m Fix AI hype prediction cache initialization error
+[33m4c3058f[m Fix AI template Jupiter data mapping and add comprehensive debugging
+[33m75eb61e[m Fix Node.js 18 compatibility: replace dynamic fs imports with static imports
+[33me0d8fe9[m Add new user data, cache files, and TokenDetails updates
+[33ma7ab0aa[m cache: auto-recover tokens-cache.json from latest snapshot when missing/empty\n\n- Adds findLatestSnapshotCacheFile + attemptRestoreCacheFromLatestSnapshot\n- Invoked inside getTokensFromCache() for resilience
+[33m3ee11e6[m backup: add Dropbox uploader and post-snapshot upload (env-gated)\n\n- ENABLE_DROPBOX_UPLOAD=1 to activate\n- DROPBOX_TOKEN required, DROPBOX_FOLDER defaults to /dgo-backups\n- Tar snapshot to /tmp then chunked upload via Dropbox API\n- Keep local snapshots as requested
+[33ma0ff46c[m backup: add permissions fallback to /tmp/dgo_backups when /var/data is not writable\n\n- Avoid crash with EACCES/EPERM on paid instances without mounted persistent disk\n- Continue running with ephemeral backups instead of failing startup
+[33m190b56e[m ai: fix template placeholders; remove JS-style placeholder, keep {{liquidity}} only
+[33m7b02923[m server: bind to 0.0.0.0, add '/' -> '/health' route, log PORT\n\n- Ensure Render internal health check can reach /health on assigned PORT\n- Convert PORT to Number and bind host explicitly
+[33mac6b293[m backup: harden against recursive snapshots\n\n- Auto-relocate BACKUP_DIR outside DATA_DIR if nested (use DATA_DIR_backups)\n- Add hard-stop guard in backupDirectory to prevent target-within-source recursion\n- Reduces risk of ENAMETOOLONG and disk bloat during first snapshot
+[33m2955237[m server: start Express before backups; defer backup init so /health is available immediately\n\n- Move app.listen before backup initialization\n- Defer backup integration start with setTimeout(0)\n- Improves Render health check reliability
+[33mab5277a[m  Fix template syntax error in AI prompts\n\n- Remove JavaScript expression from template variable {{liquidity}}\n- Template variables should be plain placeholders, not expressions\n- Fixes ReferenceError: liquidity is not defined on startup
+[33m31168ea[m  Backups: prevent recursive self-inclusion (skip BACKUP_DIR)\n\n- Skip copying BACKUP_DIR while snapshotting DATA_DIR to stop nested backups\n- Guards against ENAMETOOLONG and disk bloat spikes\n- Safe for current BACKUP_DIR under DATA_DIR/backups and for external BACKUP_DIR
+[33mb4c54b4[m  Startup hardening: delay pipeline auto-start + env kill switch\n\n- Add DISABLE_AUTO_START=1 to skip pipeline during deploys\n- Add START_PIPELINE_DELAY_MS (default 12000) to ensure health passes before heavy work\n- Prevents Render deploy from hanging at Deploying when CPU spikes
+[33ma8c019b[m  Fix Deployment Issue - Add Missing SocialContextAI Initialization
+[33mff73f07[m  Enhanced AI Analysis with Jupiter Stats Mapping
+[33m205f1d6[m KOL Leaderboard: add ATH and Max Drawdown; complete Follow/Unfollow; auto-start pipeline; persistent backup storage\n\n- KolProfile: show followers/following counts; per-call ATH since call and Max Drawdown\n- KolCallsModal: add ATH and MDD% columns, sorting, CSV export\n- Auto-start pipeline on reboot with skipTwitter=true for existing installs\n- Backup: store snapshots under DATA_DIR/backups (or BACKUP_DIR) and migrate legacy cache\n- Lint fixes
+[33m706bbc2[m Add auto-start processing pipeline after backend reboot
+[33m7a8719a[m CRITICAL FIX: Add community health and overall score recalculation to priority system
+[33m05f736f[m CRITICAL FIX: Prevent completed tokens from triggering unnecessary Twitter API calls
+[33mcee6074[m Fix community health score calculation in scoring stage
+[33m1594656[m  RESTORE PROCESSING: Re-enable background refresh with skipTwitter + displayMentions estimation
+[33m9c9718b[m  Leaderboard UX: hide current-month winners banner; compact styling; add Following section with quick profile access
+[33m5ee3721[m  LEADERBOARD ENHANCEMENTS: Complete KOL gamification system
+[33m7c448e1[m  CRITICAL FIX: Prevent duplicate Twitter API calls by deduplicating BEFORE Twitter stage
+[33m0c80cdf[m  CRITICAL FIX: Disable automatic Twitter API calls on backend restart
+[33m5a9a223[m FIX: KOL Leaderboard field name priority and call age filter - Fixed calledMC field priority to check calledMc first (lowercase c as saved in DB) - Reduced minCallAge from 24 hours to 1 hour to include recent calls - This should fix the issue where recent KOL calls were being filtered out - Debug logs will show the actual field values being processed
+[33m60e1a21[m CRITICAL FIX: Stop automatic processing on backend restart to prevent duplicate Twitter API calls - Removed auto-startProcessing from getTokensFromCache fallback logic - Removed auto-startProcessing from startup when existing tokens are found - Only start processing on truly fresh installations (0 tokens) - This prevents the same tokens from being processed again on every restart - Manual processing can still be triggered via admin dashboard or API endpoints
+[33m9a4bab1[m FIX: KOL Leaderboard not finding calls due to contract address field mismatch - Fixed processUserCalls to handle both call.contractAddress and call.token.contractAddress formats - Fixed duplicate calledMC field reference (was call.calledMC || call.calledMC, now call.calledMC || call.calledMc) - Added debugging logs to track call processing and filtering - This should fix the issue where leaderboard shows 0 calls despite users having made calls
+[33m13b9fc0[m IMPROVE: AI Hype Prediction cache persistence and debugging
+[33m96fa82a[m FIX: Prevent duplicate Twitter API calls on backend restart
+[33m85287b0[m EMERGENCY FIX: Stop Twitter API burning - disabled background refresh system and removed admin bypass from manual refresh to respect 72h cooldown
+[33mc55db9a[m Debug: Add more detailed logging to KOL leaderboard fetch to diagnose why no leaderboard data is showing despite premium users with calls
+[33m4ad5c85[m HOTFIX: Fix CARDS duplicate Twitter API processing - persist alreadyQueuedSet to disk, prevent misleading logs, add cleanup mechanism to stop tokens being processed multiple times
+[33meae2188[m HOTFIX: Fix 'mentions is not defined' error in calculateCommunityHealthScore - changed undefined 'mentions' to 'mentionsRaw' variable
+[33md7f1d53[m Debug: Enhanced KOL leaderboard error handling and logging - shows specific errors, retry button, better console logs to diagnose why leaderboard shows no data despite having premium users with calls
+[33m4e9d1b5[m UI: Fix TokenDetail tooltips (Oracle AI wider box, Call it fixed positioning above modal) + Remove On-Chain context section from DetailDrawer
+[33mcf45b72[m Backup: persist scheduler state (lastRunAt/nextRunAt) to survive restarts; catch-up if missed; still 5/day (every ~4.8h)
+[33m86d43dc[m Discovery: enforce real contract + stable list; add 15m recently-seen TTL to suppress repeated 'New token' logs/inserts; fix lingering 24h log to 72h
+[33m4e13938[m Metrics: add uniqueMentions/uniqueAuthors in backend; bind Unique Mentions in TokenService to backend values
+[33m69cb563[m UI: fix Call it tooltip clipping by rendering as fixed, above modal, with larger width and wrapping
+[33m8b783a8[m UI: TokenDetails tooltips  raise z-index, add max-width, and flip 'Call it' tooltip above to prevent clipping
+[33m8ba64d2[m AI Analysis: guarantee 3 Key Insights (silver bullets) by adding turnover, engagement quality, liquidity band, holder trend, theme heat when sparse
+[33m81a7491[m AI Analysis: make Catalysts concrete (holder accel, 6h momentum, volume, mentions, community, reach); align recommendedActions with summary; parse holderChange; keep slang
+[33m7b4b0d8[m Filters: exclude stables/majors (WETH/WBTC/ETH/BTC/SOL/USDC/USDT/DAI/FRAX/etc) at discovery and API output; prevent Twitter stage hits
+[33madc7037[m Trending: include Viral regardless of cap; mix Viral+Emerging; top 100; tooltip update
+[33m71dbf21[m Twitter: stop repeat pulls
+[33md034f12[m AI Analysis: enforce distinct sections post-processing; filter overlap and cap counts; keep slang; fix catalyst/risk bleed
+[33mbacd19f[m AI Analysis: fix 'N/A' formatting for organic score; make Insights/Risks/Catalysts distinct with slang + severity and anti-duplication
+[33m56c475c[m UI: remove Volatile/Stable category filters entirely
+[33mb407efe[m Social Health: adjust for 5-post cap and 72h averaging
+[33md8182eb[m Twitter: tighten budget controls
+[33m5f6bf50[m DetailDrawer: Add Social Context section using 72h-cached backend endpoint (no Twitter calls)
+[33m4402424[m AI: Implement real hype data + AI predictions with 24h caching
+[33mf6f21b3[m UI: Style 'Mixed signals' (and all signal chips) tooltip using bubble-tooltip like others
+[33m0e18ed3[m UX: Remove hashtags from referral Share to X message; keep clean text + link
+[33m0477cfb[m Hype: Make 'stable' regime strength dynamic (avoid constant ~50%); charts already use per-point labels
+[33m63cc402[m Fix: AI analysis crash (identifier is not defined) by passing correct contract identity
+[33m9e7064a[m UI: Show KOL PFP (profileImage) next to handle in leaderboard; Backend: add /api/admin/kol-calls/summary debug endpoint
+[33m503405b[m Fix: Ensure social service initialized for /api/admin/twitter/usage; improve recommendations safety
+[33ma4edaff[m Safety: Skip Twitter API for non-candidates, suspicious (isSus), and rugged tokens before processing stage
+[33mc022e1d[m Chore: Extend Twitter refresh cooldown to 48h (was 24h); update logs and legacy checks
+[33mc949ce8[m Fix admin Twitter usage: await getUsageStats, add fallback methods, and make TwitterApiManager ESM-safe
+[33me25d703[m Add direct file system Twitter counter reset script
+[33m3802a1c[m Add TwitterApiManager with 15K monthly limit tracking and reset functionality
+[33mc1995bc[m CRITICAL: Fix duplicate Twitter API processing burning calls - dedupe queue + in-flight protection
+[33mac0ee02[m Security: Load X (Twitter) OAuth credentials from env vars (X_CLIENT_ID/SECRET/REDIRECT_URI); remove hardcoded values
+[33mbd998e1[m Fix: Correct JSX ternary for Call it button onClick to resolve build error
+[33m20f96b0[m UI: Hide Volatile and Stable category filters for guests (requires login)
+[33m3a96b42[m UX: Disable Oracle AI, Watchlist, and Call it for guests via pointer-events-none + disabled state
+[33m3508f0f[m Fix: /api/tokens const reassignment  let before filtering
+[33m2a5e21c[m Frontend: Gate Oracle AI, Watchlist, and Call it behind login; tooltips prompt login when guest. Fuel remains available.
+[33macc58bb[m UI: Align TokenDetail tooltips with category filter style\nBackend: tier-specific AI cache; robust isSus filter; rugged token filtering (API, Dexscreener, BirdEye); sentiment/template fixes; rename Recommendation->Summary; branding updates
+[33mcb84d81[m  Fix AI Analysis Issues - Clean Separation & Logic
+[33m3b19ee6[m  Adjust Organic Score Penalties - More Balanced Scoring
+[33m14ba4c3[m  Fix Community Score Algorithm - Prevent Inflated Scores
+[33m7eb7a55[m  Add Dynamic Entry Strategies with App Tool Integration
+[33m92073ca[m  Fix AI Analysis Recommendation Contradictions
+[33m646ba72[m  Supercharge AI Analysis with Rich Social Context & Degen Slang
+[33m7f80dd0[m  Enhance AI Analysis with Rich Jupiter Data
+[33m9974a3d[m Fix OpenAI Response Structure - Add missing fields and fix confidence format for frontend compatibility
+[33m02a921e[m Add debugging logs to AI analysis to identify format issues
+[33mb8b7779[m Fix OpenAI Service Fallback - Allow enhanced analysis without API key
+[33m4f7370e[m Fix AI Analysis Confidence Display - Change from 85 to 0.85 format to prevent 8500% display bug
+[33m4d84896[m  Fix AI Analysis Frontend Integration - Add missing sentiment field and ensure proper structure for all analysis sections
+[33md19343f[m  Fix AI Analysis in Token Detail View
+[33md48584f[m  Fix Admin Dashboard Duplicate Tokens Issue
+[33m4d54281[m  Implement Enhanced Token Deduplication System
+[33m4357736[m Enhance Delete Token System with Dropdown Search and Contract Support
+[33m1f25a16[m Add Enhanced Backup Management to Admin Dashboard
+[33m902f606[m Add missing enhanced backup system files
+[33m59b55ea[m Add isSus filter to Jupiter Discovery service
+[33m0788d9f[m fix(retwiit-service): drop SortBy/SortOrder usage; rely on API defaults to avoid undefined enum errors
+[33md9cbb89[m fix(retwiit-service): use plain object filters instead of SearchFilter constructor
+[33ma5ad326[m fix(retwiit-service): use CJS require for rettiwt-api and constructor fallback for RettiwtConfig under Node 18
+[33m5c248ef[m fix(retwiit-service): default import for rettiwt-api (CJS compat on Node 18)
+[33mfb9f97c[m fix(frontend): guard AI analysis catalysts/redFlags mapping\n\n- Normalize catalysts/redFlags to arrays before mapping to avoid runtime TypeError\n- Prevents crash when backend returns string/null for these fields
+[33m985eef1[m feat(retwiit-service): add Rettiwt-API microservice for testing\n\n- Express service with /health, /api/search, /api/user/:username, /api/mentions\n- Render-ready package.json and README\n- Allows toggling backend via TWITTER_SERVICE_URL to compare with twitter-service\n\nRef: Rettiwt-API https://github.com/Rishikant181/Rettiwt-API
+[33m49ac45b[m  FIX: BirdEye API limit error
+[33mb51c5a1[m  CRITICAL FIX: Token processor cache overwrite bug
+[33m9dc3acf[m  CRITICAL FIX: Resolve tokenForCheck scope bug causing data loss
+[33m7b6f5d1[m  FOMO: Add disabled Oracle AI button for Free users
+[33m25e5ec2[m  FIX: TwitterApiManager dynamic import with production fallback
+[33m8ca3715[m  ENHANCE: AI Analysis with Jupiter API Integration & Dynamic Crypto Slang
+[33mea2ce56[m  FIX: Add missing TwitterApiManager.js to resolve production import error
+[33mfa2bb0e[m  ADMIN: Add Twitter API cooldown bypass for emergency refreshes
+[33me4092b3[m  OPTIMIZE: Reduce Twitter API usage by 75% - Single search per token
+[33m62aa1dc[m  UI: Oracle AI buttons + gray/purple edge style\n\n- TokenDetails: Converted AI button to 'Oracle AI' (Brain icon), gray bg with purple border; unified 'Call it' to same gray/purple edge style\n- UserDashboard: Restyled referral 'Share on X' to gray/purple edge; Hype modal AI trigger renamed to 'Oracle AI' and restyled to match\n- Consistent look across app for AI actions
+[33m07d3870[m  EXPLAINER: Add 'Why bearish/bullish?' chips in Hype AI modal\n\n- Computes reasons from EWMA trend, mentions velocity/acceleration, change-point direction, 24h price drop, and liquidity\n- Renders color-coded chips with icons and native tooltips\n- Helps resolve 'mixed signals' by showing exact drivers behind the recommendation
+[33mc06262f[m  ENHANCE: Hype AI Modal with Pro Tips, Tooltips & Visual Polish
+[33m2677f06[m  IMPLEMENT: AI Analysis for Hype over Time Charts
+[33m9fcf2c6[m  CRITICAL FIX: AI Ignoring Official Handle Despite Correct Data
+[33m7e1200f[m  REFINE: AI Analysis Focus on X Mentions & Engagement
+[33m6608c09[m  CRITICAL FIX: Strengthen Trending Guardrails Against Micro-Cap Dumps
+[33m7863509[m  FIX: Trending Algorithm & AI Analysis Consistency Issues
+[33me546b03[m  ENHANCE: AI Analysis with Complete Data Access & Advanced Catalysts
+[33m3def3cc[m  FIX: AI Analysis data accuracy and tool references
+[33m8cb4128[m  FIX: KOL Leaderboard X handle display
+[33m979b032[m  FIX: AI Analysis database method names
+[33m1125b33[m  FIX: AI Analysis premium detection for paid users
+[33m67ebb00[m  IMPLEMENT AUTOMATED BACKUP & RECOVERY SYSTEM
+[33m40f9129[m  EMERGENCY: Add cache restore system to recover lost production tokens
+[33m17346ae[m Add production cache diagnostic endpoint to investigate Render persistent disk data loss issue
+[33mb8bc808[m Fix: Add fallback to serve Jupiter-stage tokens when no completed tokens available
+[33m7fadec3[m Add detailed cache debugging to identify stage mismatch issue
+[33m0b9fe8a[m Add debugging logs for persistent cache path issue
+[33m00a2426[m fix(frontend): relax trending guardrails and add fallback to avoid empty results; keep freshness and dump penalty; refined turnover ranking
+[33m4255b89[m fix(frontend): resolve CI lint error (duplicate key), unify market cap source, and refine trending ranking with guardrails (freshness, dump penalty, social floor, micro-cap turnover); sync Bubble/TokenDetail displays
+[33m14579ed[m chore: redeploy
+[33mdc25cae[m feat(trending): refine trending algorithm with guardrails, turnover weighting, and freshness; unify market cap source; sync Bubble/TokenDetail display
+[33m5336f4c[m fix: enhance AI analysis with proper premium detection, crypto slang, and platform tool recommendations
+[33mcafa2ba[m feat: enhance AI analysis with Jupiter stats, crypto slang, and usage limits
+[33mdf40c44[m feat: improve AI analysis accuracy and add actionable recommendations
+[33mf6f1ebd[m fix: use consistent API base URL environment variable
+[33m0fd9fa0[m fix: update package-lock.json for openai dependency
+[33m06e45b6[m fix: add openai package dependency to backend
+[33mcf6b86b[m fix: resolve crypto import syntax error in openaiService
+[33mf30c479[m feat: implement AI Core Engine Phase 1 - Social Context Analysis
+[33md4d5883[m feat: display X handles in leaderboard instead of user IDs
+[33m14179c5[m feat: implement advanced KOL leaderboard with risk-adjusted scoring
+[33me4cd2de[m fix: watchlist tokens now show complete data in TokenDetails
+[33mbdb60be[m feat: premium upgrade box shows subscription status for premium users
+[33m8e12775[m fix: missing closing brace for try-catch in Twitter refresh worker
+[33mb88f660[m fix: illegal continue statement in Twitter refresh worker
+[33m697302b[m fix: rate-limited tokens no longer get 24h cooldown
+[33m2317b8f[m DetailDrawer: compact tooltips (small bubble, max-width, subtle styling)
+[33m90e5966[m DetailDrawer: Integrate real historical chart data from backend mcap-chart endpoint with fallback to improved mock data
+[33mb45c510[m DetailDrawer: Add comprehensive debugging and improve mock chart data generation with realistic progression
+[33m8655f83[m Fix DetailDrawer data structure: preserve token object, fix calledMc/calledAt fields, add debug logging for stats calculation
+[33m48d0163[m DetailDrawer: Add detailed chart explanation and fix ATH green dot marker visibility
+[33m9e545df[m TokenDetails: compute Unique Mentions from tweets (unique authors) and display it; fallback to backend-provided value if present
+[33mf2668d2[m Twitter: remove cashtag searches (not supported on Basic); sanitize $ queries in microservice to prevent 400 errors
+[33m47a84cf[m Hype chart modal: append emoji for Latest label ( Trending,  Viral,  Building,  Sleeping)
+[33ma40f3f6[m Admin: queue-based Twitter refresh-all with start/status/stop; update dashboard buttons
+[33m964e4a8[m Admin: add Refresh All Twitter Data button and endpoint; fix single-token refresh to accept CA; normalize Jupiter twitter URLs to @handle
+[33mf0ca336[m Fix Twitter health check in social data service - check correct fields
+[33m1a1b784[m Fix Twitter API max_results parameter - enforce minimum of 10 as required by API
+[33mcd72700[m Add detailed error logging for Twitter API failures
+[33m0a82b35[m Fix Twitter API search query format - use simple query instead of complex OR
+[33mced5453[m Add debug endpoint to twitter-service to check Bearer token details
+[33m9da8d00[m fix missing class closing brace in enhancedSocialDataService.js
+[33mbfb3627[m fix syntax error in enhancedSocialDataService.js
+[33mcc9155e[m add Twitter search endpoints to main backend
+[33m00f7872[m update Dockerfile and README for Twitter v2 API
+[33m0c25228[m refactor twitter-service to use only Twitter v2 API
+[33m084f872[m twitter-service: add startup diagnostics, per-request v2 logs, and response counts for /2/tweets/search/recent
+[33m935daf5[m Discovery: increase per-category limit to 90 (DISCOVERY_LIMIT default)
+[33mcf6bbbf[m Hype List: ensure persistence by creating user dir before read/write (get/set)
+[33mc757e9c[m DetailDrawer: switch stat tooltips to bubble-tooltip style to match Categories filter UX
+[33md6442c1[m Discovery: keep limit=50; add 3090s jitter; 5m between categories; 10m post-cycle; retries=2 with 15m cooldown on first 429/503/502
+[33m2322725[m DetailDrawer: pull symbol/name/icon from Jupiter; fix 'Called' invalid date; show liquidity from Jupiter/call
+[33m9b47c86[m UI: add tooltips to X Multiple, ATH since call, Max Drawdown, and PnL in DetailDrawer
+[33md225a62[m KOL Calls: populate liquidity from Jupiter; ensure ATH, max drawdown, PnL/X computed and persisted via regular updates
+[33m189dd8e[m Discovery: run all categories sequentially each cycle (2m between), then sleep 5m before next cycle (no round-robin)
+[33m8a18720[m Backend: add discovery import logs (counts, sample symbols, new token details)
+[33m13f075d[m Discovery: set default interval to 5 minutes (300000ms)
+[33m27859f5[m Discovery: increase frequency to 60min default, jitter to 10-30s to reduce service conflicts
+[33mddfb729[m Discovery: fix token normalization - use 'id' field as contractAddress and 'usdPrice' for price from Jupiter API
+[33mb5202f7[m CoinGecko: increase batch delay from 60s to 120s to avoid rate limiting on later pages
+[33m413c5fc[m CoinGecko: implement page cycling (1-3, 4-6, 7-9) to fetch diverse tokens across cycles instead of repeating same pages
+[33m6052a1d[m Discovery: force lite API, increase jitter (5-15s), reduce frequency (30m default), 5 retries with exponential backoff
+[33md89e922[m Discovery: use api.jup.ag when JUPITER_API_KEY present; support JUP_BASE override
+[33m63681f6[m Discovery: send Authorization Bearer JUPITER_API_KEY to Jupiter category endpoint
+[33m07a28d5[m Discovery: remove graduatedAt filter (accept all candidates except stables/missing CA)
+[33m27bbcd0[m Discovery: switch to round-robin (one category per cycle) + jitter; configurable DISCOVERY_LIMIT
+[33me67666e[m Discovery: add limit=100, Origin/Referer headers; accept graduated_at
+[33m3b6b051[m Discovery: add retries/backoff, UA headers, and pacing between Jupiter category calls
+[33m79e4d71[m Discovery: add internal import endpoint and jup-discovery microservice (toptrending/toporganicscore/toptraded 5m)
+[33ma5eaf63[m Admin Dashboard: add Referrals UI (list/create) using new admin endpoints
+[33m2751676[m Referrals: auto-register user referral codes; add admin endpoints to list/create codes; register code U4PB0XD0 via admin API
+[33ma3c9ffc[m Hype list persistence: add backend endpoints (GET/POST/DELETE), DB methods; frontend sync with backend and localStorage; enforce free-tier 5 cap
+[33mf411686[m Hype over Time: add Manage Hype List modal; show only selected tokens; persist selection locally; update remove to drop from hype list
+[33m8cd42c0[m Hype over Time: replace Remove button with trash can icon
+[33m7de5b63[m Hype over Time: add Remove button per token (optimistic watchlist removal, respects free-tier limit of 5)
+[33me455e97[m FuelTokenPage: prevent ghost payment-completed modal (clear pending on mount, no auto message)
+[33m6f31c8e[m UI: unify Back/Return buttons to gray with purple border across pages (Dashboard, Premium, Fuel, Update, List, Apify Test)
+[33me87028a[m PremiumPage: robust Helio init on first visit (script onload + retries + container guard)
+[33md2b3824[m Fix: pass onNavigateToPremium to TokenDetails and accept prop to handle premium upgrade prompt
+[33md912785[m Minor: add premium features log message to dashboard
+[33mb5ce1a3[m Premium features: enforce limits for free users (1 call/month, 5 hype charts/month, no leaderboard); add premium gates with upgrade prompts
+[33m46d6a0f[m Referral: enforce rules (once per user, not own code, max 30 uses per code); add referral registry and redemption tracking.
+[33m53dea65[m UI: remove Premium from user dropdown. PremiumPage: add referral code redeem (30 days) alongside Helio payment; backend /api/user/premium/redeem.
+[33mb36b8bf[m Earnings: add global earnings store and API (summary, list); record premium payments; add Earnings tab in admin dashboard with totals and breakdown.
+[33me662a70[m Admin Users: add stats and listing endpoints, premium upgrade endpoint; add Users section in admin-dashboard with stats, list and upgrade UI.
+[33md61480d[m Premium: monthly 30-day default; detect yearly via HELIO_YEARLY_PAYLINK_ID or receipt.paylinkId; persist plan type and durationDays.
+[33m6a4bc98[m Premium: integrate Helio checkout on PremiumPage and backend activation endpoint; persist premium status in hybrid DB (premium.json).
+[33m2b97a28[m Fix routing guards: render List/Fuel/Update/Premium pages whenever requested, independent of dashboard flag. Also adjusted handlers to close other views before opening target.
+[33m4e31c5d[m Fix Quick Actions routing from UserDashboard: ensure dashboard is hidden and target pages open reliably (List, Fuel, Update, Premium)
+[33m830ae45[m  Implement Priority Queue System for Near Real-Time Updates
+[33mabd2498[m Cache persistence: read/write tokens-cache.json under DATA_DIR/cache via oauthXService.db.baseDir; avoid local __dirname cache on redeploys
+[33me7c5972[m UserDashboard: fix Quick Actions navigation by invoking App callbacks; add Premium upgrade card click handler; pass callbacks from App
+[33m533ee3d[m Premium nav: add Premium option to user dropdown and handle onNavigateToPremium in header
+[33ma1f3236[m KOL Calls: prevent duplicate calls per user/token (409 already_called), surface friendly message on frontend
+[33m14a16c3[m Premium: add PremiumPage with Free vs Premium perks, wire navigation from header via onNavigateToPremium; payment CTA placeholder
+[33m7646af0[m Your Calls: auto-refresh inline table after Call it! by dispatching kol-call-added on close; handle calledTs/contractAddress in chart
+[33m73b7208[m DetailDrawer: fix Called MC display (handle calledMC vs calledMc) and chart param fallbacks (calledTs, contractAddress)
+[33mc3402a6[m KOL Calls: accurate SVG charts with real market cap snapshots, call/ATH markers, hourly data tracking
+[33me832433[m KOL Calls: fix DetailDrawer to show Called MC, add holder count tracking from Jupiter API snapshots and updates
+[33m35d47eb[m KOL Calls: proper ATH tracking, max drawdown calculation, Jupiter cycle integration for real-time MC updates
+[33meb78f85[m Your Calls: rename header, add per-row Open/Delete; backend delete endpoint and DB method; kolCallsService.deleteCall()
+[33m73587f4[m Add DetailDrawer side modal for KOL calls with rich analytics and performance charts
+[33m9a10294[m KOL Calls: show motivational success message; snapshot calledMC via Jupiter and enrich GET with currentMC
+[33ma0b33c7[m Dashboard: Hype over Time pagination (8 per page) with arrows
+[33md56323b[m Dashboard layout: Hype over Time top-left, KOL Leaderboard top-right, single KOL Calls section below; remove duplicate
+[33mfebb481[m Tokens cache persistence: read/write tokens-cache.json under DATA_DIR/cache; use persistent path on startup and admin ops
+[33m41a3e70[m UI: inline KOL Calls and Hype over Time on dashboard; Call it! button purple
+[33m394cb2c[m Fix build: simplify KolCallsModal calledTs parsing to valid JS; remove overly long union expression
+[33mc54d5ac[m Data persistence: auto-migrate legacy ./backend/data to DATA_DIR on first boot; clarify persistence in /api/status
+[33me066d15[m KOL Calls: backend endpoints + persistent storage; TokenDetails 'Call it!' button; Dashboard KOL Calls modal and table
+[33m27dc260[m Dashboard: Hype over Time moved to its own card under KOL Calls; opens watchlist modal
+[33md78552a[m Persistence: prefer DATA_DIR or /var/data/dgo for user DB; expose dataDir in /api/status; log non-persistent fallback
+[33m7b193e5[m Fix ESM __dirname in HypeSnapshotService (fileURLToPath)
+[33m2d98d3c[m Dashboard: move Hype over Time to modal under KOL Calls; open watchlist list modal -> per-token chart modal
+[33me5c3875[m Dashboard: add Hype over Time modal + per-token chart; frontend hype service
+[33m74f2595[m Hype snapshots: add service, persist hourly per token (30d), API GET /api/tokens/:contract/hype, save during scoring
+[33mb60b443[m Integrate BirdEye into processing pipeline: stage, rate limits, merge into queue
+[33m533b3f3[m BirdEyeTrending: robust response parsing, debug logs, default sort_type=desc
+[33m8bb0071[m Add BirdEyeTrending service and /api/tokens/birdeye-trending test endpoint; exclude JUP/WSOL
+[33m0a1bc11[m Cache: save paid tokens indexed by contract address, not symbol (allow same-symbol tokens)
+[33me199e09[m Dedup: guard against undefined input and correct removed count logging
+[33m37b4b07[m Add detailed logging to deduplication and merge-by-contract; include STUPID traces
+[33md1592ca[m Center Helio widgets and wrap with payment details on Fuel page; center in TokenDetails
+[33mbb70f3a[m Fuel Token: hide duplicate selection/payment/apply blocks; selection only before Helio
+[33m6d2e293[m TokenDetails: replace redirect payment with inline Helio widget; fix script selector typo
+[33mea00486[m TokenDetails: restore Fuel modal on flame click
+[33ma664f8c[m Fuel Token: integrate Helio flow like List/Update\n\n- Remove token modal payment; route to Fuel page\n- Add 3-step flow and Helio widget after validation\n- Paylinks wired for 10x/50x/500x/1000x
+[33mc537fe3[m Fuel Token: gradient greenbluepurple background for pricing box
+[33m10ad94e[m Referral share: put code in tweet text, not embedded in URL
+[33md91305b[m Fuel Token UX: inline user profile without extra header\n\n- Pass AuthButton into FuelTokenPage header\n- Rename header to 'Fuel Token'\n- Purple Back button
+[33mf683f9c[m UI polish: brand-aligned colors and cleanup\n\n- Dashboard: purple CTA buttons and pfp border; referral share fixes with code\n- Remove Quick Login; make Login with X purple\n- Remove Filters, Rocket, and Settings from main header\n- Remove Settings from user dropdown
+[33m4c16057[m Persist hybrid DB across reboots via absolute data dir\n\n- Base data dir on __dirname and support DATA_DIR env\n- Ensures watchlist and profiles persist across backend restarts
+[33mbae5b4f[m Categories update and referral share\n\n- Cults now mcap  ; remove Volatile/Stable filters\n- Update tooltips and filter logic\n- Add Share on X button for referral code in dashboard
+[33mecc0a7c[m Fix dropdown navigation precedence across pages\n\n- Give Dashboard highest priority\n- Prevent other views from intercepting when Dashboard requested
+[33m53b18cd[m Extend session duration to 48 hours (2 days)
+[33m2c5552c[m Watchlist dedupe by contractAddress not symbol\n\n- Backend add/remove/check use contractAddress when provided\n- Frontend passes contractAddress for check/remove\n- Prevents different STUPID tokens from clobbering each other
+[33m1cb90ea[m Show AuthButton (user dropdown) across List/Fuel/Update pages\n\n- Add header bar with AuthButton to each page view\n- Enables navigation to Dashboard/Watchlist without returning to main page
+[33m1e882b1[m UserDashboard: wire onClose to TokenDetails modal so it can close
+[33m0f3234d[m Fix CORS issue on watchlist API calls\n\n- Remove custom X-Session-Id header and credentials\n- Send sessionId via body/query only to satisfy CORS preflight
+[33m8713764[m UserDashboard: pass full watchlist entries to TokenDetails instead of symbols\n\n- Fixes star toggle context so token.symbol/name/contractAddress are present
+[33m0733515[m Ensure user dir creation message only logs when actually created\n\n- Check existence before mkdir in ensureUserDir\n- Avoid misleading logs on repeated logins
+[33m618fea5[m Improve watchlist star UX\n\n- Optimistic toggle for instant fill/unfill\n- Use backend add/remove and revert on failure\n- Ensure Star has stroke so filled state is visible
+[33m1243ca0[m Wire watchlist toggle to backend\n\n- TokenDetails now uses watchlistService add/remove/check\n- Uses session-backed endpoints; updates localStorage as fallback
+[33m14e3357[m Fix watchlist endpoints and session handling on frontend\n\n- Point watchlist service to /api/user/watchlist endpoints\n- Include sessionId in add/remove/check requests\n- Normalize watchlist response to array of symbols\n- Update WatchlistPanel and UserDashboard to compute counts reliably
+[33m72bc514[m Fix async/await syntax errors in backend routes
+[33m51b7418[m Implement hybrid database architecture
+[33m509c097[m Add debugging to user database creation
+[33mc0792ca[m Fix referral code in API endpoints
+[33m161d4e3[m Redesign UserDashboard with new features and layout
+[33mcba4f6d[m Fix UserDashboard loading issues and add debugging
+[33m29c2051[m Fix deployment issues: update backend Node.js engine requirements and clean npm cache
+[33m1a3f942[m Fix X login persistence and add session debugging
+[33m3f9ebc6[m Add debugging and error handling to UserDashboard
+[33mde03d09[m Fix UserDashboard infinite loading loop
+[33mfbadb5e[m Fix OAuth callback redirect to production domain
+[33mbb542b6[m Fix OAuth X callback URL to point to backend
+[33m0228e03[m Optimize Jupiter API calls to use batch processing
+[33m04773c9[m Fix OAuth X authentication redirect issue
+[33mcb4aa96[m Implement OAuth X frontend integration
+[33md4bf856[m Implement OAuth X authentication system
+[33m5b15029[m Increase CoinGecko batch delay to 60 seconds for better rate limit safety
+[33maf6fe0b[m CRITICAL FIX: Deduplication now only checks contract address, not symbol - allows multiple tokens with same symbol
+[33md9e628b[m Remove incorrect score recalculation call - backend handles it automatically
+[33m9deac3d[m Auto-apply social updates after payment, add success modal, and trigger score recalculation
+[33m992a647[m Fix Helio widget initialization timing and move widget to the left
+[33m3496db9[m Add Telegram field to Update Social Links modal and fix Helio widget display
+[33m5d1a683[m Add Helio payment widget to Update Token page with embedded payment flow
+[33mf3626de[m Add Secure Payment modal around Helio widget - step 2 complete
+[33m5707f67[m Delete Token Address Validated modal - step 1 complete
+[33m71469de[m Retry deployment - Single Secure Payment modal v7
+[33m54647b8[m Fix: Single Secure Payment modal around Helio widget - removed duplicate modals
+[33m79bebef[m Force deployment - modals around Helio widget v6
+[33m94d0e31[m Rebuild modals around Helio widget - proper structure with natural widget sizing
+[33m4c9c773[m Retry deployment - fix Helio widget integration v5
+[33mece0943[m Fix Helio widget - remove duplicate modal, keep existing structure with proper widget sizing
+[33m8947cf9[m Retry deployment - network timeout fix v4
+[33mb0141a4[m Force deployment trigger for Secure Payment modal - v3
+[33m1ab65b9[m Create professional Secure Payment modal around Helio widget - original size with proper branding
+[33mb97b7eb[m Improve Helio widget styling - cleaner, more integrated design
+[33m6de3c04[m Fix Wrangler assets-only configuration - remove binding
+[33mc80dce0[m Fix Wrangler configuration for Cloudflare Workers deployment
+[33m08369f9[m Add detailed debugging for token submission failure
+[33mb3d80c7[m Update step 3 text from 'Redirect to Helio' to 'Powered by Helio'
+[33m93de481[m Improve Helio widget styling and layout for better integration
+[33mf05ef7b[m Fix Helio payment data structure for token submission
+[33m83fabd1[m Fix HTML parse error in index.html
+[33m30c74e1[m Trigger frontend deployment for Helio widget
+[33m919de71[m  Implement embedded Helio Pay widget in List Token page
+[33med1ca07[m  CRITICAL FIX: Jupiter service method name error
+[33me3bd48b[m  Fix Twitter API being called before Jupiter API
+[33m80018ef[m  CRITICAL FIX: Manual Jupiter refresh not saving to cache
+[33m09cb9e9[m  Fix Jupiter API data staleness - 8+ hour old data issue
+[33mb1b2bf7[m  Update favicon cache busting for dgo.png logo
+[33m9ab50df[m  Fix broken logo display - use proper React import
+[33m338a665[m  Update logo and favicon to use new dgo.png
+[33mac6ce89[m  Revert payment detection changes - restore simple payment flow
+[33md7d2774[m frontend:  Fix React 19 compatibility - remove HelioCheckout component
+[33mcbecca1[m  Comprehensive payment success detection system
+[33m77b4ead[m frontend:  Remove HelioCheckout React component - fix React 19 compatibility
+[33m2e338f3[m frontend:  Comprehensive fix for Helio payment integration
+[33m314c03b[m frontend:  Fix Helio payment redirect issue - use proper React component
+[33mf5afc0c[m backend:  Fix rate limits for CoinGecko (40 tokens) and DexScreener (20s delays)
+[33me86bd41[m backend:  Fix Jupiter batch data mapping - null reference error
+[33mf81c768[m backend:  CRITICAL FIX - Use proper Jupiter batch API to eliminate 429 errors
+[33m52113a0[m backend:  Reduce Jupiter batch size to fix 429 rate limit errors
+[33mf9c1b2a[m backend:  CRITICAL FIX - Remove duplicate server startup causing EADDRINUSE
+[33m5f7eb9e[m frontend:  Fix arrow design to match original clean zigzag pattern
+[33mb627928[m backend:  Fix DexScreener rate limits + restore proper processing logic
+[33m54f53ee[m backend:  URGENT FIX - Stop aggressive processing causing rate limits
+[33m1f32020[m backend:  CRITICAL FIX - Backend workflow not starting
+[33m5b3a632[m  Fix header arrow and favicon to match zigzag trending design
+[33m84d7e49[m  Fix backend workflow: Stop Twitter processing on every API call
+[33me3571bb[m  Update favicon to stepped trending arrow design
+[33m1069ef7[m  Fix logo: Change to proper trending upward arrow
+[33m3277cd9[m  Fix backend startup - Add server initialization code
+[33m4b1263f[m Force rebuild - version bump to 0.1.1
+[33m97085d0[m  Force Cloudflare Workers deployment with all frontend changes
+[33m817e363[m  Update to Wrangler v4 assets configuration
+[33m5b398d6[m  Add Workers Site configuration for Cloudflare deployment
+[33m85a1864[m Add wrangler.toml for Cloudflare Workers static site deployment
+[33m0977d05[m  Add wrangler.toml for Cloudflare Workers deployment
+[33m66c358e[m[33m ([m[1;31morigin/feature/fuel-token-testing[m[33m, [m[1;32mfeature/fuel-token-testing[m[33m)[m  Replace TrendingUp icon with purple arrow logo in header
+[33mc515584[m  Final fix for Cloudflare Pages build - ESLint CI detection
+[33m3a6a799[m  Fix Cloudflare build with --max-warnings=0
+[33m2a1848b[m Add .nvmrc for Node version specification
+[33m20e3c1b[m  Fix Cloudflare Pages CI build issues
+[33md655b01[m  Fix Windows build script - Remove Unix environment variable syntax
+[33m95693f7[m  Replace React logo favicon with purple arrow icon
+[33m1e43efb[m  Fix Jupiter data mapping in frontend tokenService
+[33md24fed1[m  Fix BubbleMap tooltip to display Jupiter data correctly
+[33m5257951[m  Removed admin panel batch UI
+[33m8f1f2da[m  Jupiter API Batch Processing Restored!
+[33mceb4768[m  Jupiter API Rate Limiting & Retry Logic
+[33medcb04f[m  Enhanced Jupiter API debugging and error handling
+[33m28f02cb[m  Fix null element errors in Jupiter admin dashboard
+[33m625299c[m  Fix Jupiter API method name error
+[33m7063aae[m  Add Jupiter API to Admin Dashboard
+[33m388cb71[m  Enhanced Chrome detection and improved scraping
+[33mcdf3f72[m  Fix Chrome installation and add robust fallback system
+[33mda4a04e[m  Fix deployment: Replace Twint with Selenium for Python 3.13 compatibility
+[33m637c7b7[m  Integrate Twint for advanced Twitter scraping
+[33mc799a51[m Add hybrid Twitter API + enhanced web scraping approach - supports both free/paid API and fallback scraping
+[33m9507daa[m Fix Twitter scraping: Remove failing Nitter/mobile approaches, improve web extraction
+[33mef15dec[m Add debug logging to verify new multi-approach scraping is executing
+[33m75c7b49[m Implement multi-approach Twitter scraping: Nitter + Mobile + Web - better real tweet extraction
+[33ma5b101e[m Simplify Twitter scraping - use Twitter API endpoint + basic web scraping
+[33m465ade4[m Enhance Twitter scraping with robust real tweet extraction - no more mock data fallback
+[33mf8f38c5[m Update README to reflect web scraping implementation without API dependencies
+[33m9044e93[m Fix: Replace Tweepy with pure web scraping to resolve Python 3.13 compatibility issues
+[33mdcac427[m Update README with Tweepy setup instructions and API credentials
+[33mc6ce56b[m Fix: Replace Twikit with Tweepy to resolve Python 3.13 compatibility issues
+[33m6498bc9[m Fix: Update Python dependencies to avoid Rust compilation issues on Render
+[33m9e8b4e1[m Update backend to integrate with Python Twitter microservice
+[33me49c3d1[m Add Python Twitter microservice with Twikit integration
+[33m585cf52[m Fix: Remove rettiwt-api dependency and temporarily disable Twitter service to resolve deployment issues
+[33m2e4e0b5[m Fix: Add missing rettiwt-api dependency for Twitter service
+[33md5d34fa[m Fix: Implement dynamic CORS pattern for Cloudflare Pages subdomains
+[33meaa6645[m Fix: Add Cloudflare Pages subdomain to CORS allowed origins
+[33ma55ee1d[m Fix: Import jupiterApiService as instance instead of constructor
+[33m1fd5747[m Fix: Replace missing enhancedJupiterService import with jupiterApiService
+[33m8c02840[m Fix: Add ES module support to backend package.json for Render deployment
+[33m4a8b933[m Trigger Render deployment for admin dashboard fix
+[33mf5a01c9[m Fix: Improve admin dashboard environment detection for Render deployment
+[33m05b7321[m Fix: Update admin dashboard to use production API URL instead of localhost
+[33m4a00ce9[m Fix: Disable ESLint plugin in CI build to prevent warnings as errors
+[33mde44f68[m Fix: Replace all localhost:4000 URLs with production API URL (api.degen-oracle.com)
+[33me5c5f18[m fix: Update backend logging to show correct production URLs
+[33mf431ad7[m feat: Configure custom domain api.degen-oracle.com
+[33maf2407c[m feat: Switch to enhanced backend with proper CORS and credentials
+[33m6b01aa1[m fix: Replace all hardcoded localhost:4000 with environment variable
+[33m9c41b8d[m feat: Add static file serving for admin dashboard
+[33m962d573[m feat: Connect frontend to Render backend
+[33m19cab2a[m feat: Enable mock data mode for production testing
+[33m1e7eb3a[m fix: Add CommonJS backend for Railway deployment
+[33mb1287c1[m fix: Simplify backend for Railway deployment
+[33m020e059[m fix: Resolve ESLint build issues for deployment
+[33mde4134b[m fix: Multiple ESLint bypass attempts for CI deployment
+[33m5b7016e[m fix: Disable ESLint plugin in build script to prevent CI deployment failures
+[33m1d50dd6[m feat: Implement Update Token functionality with Helio Pay integration
+[33m5872922[m  MAJOR UPDATE: Dexscreener Integration & Tooltip Fixes
+[33m2e5d0ed[m  Major System Improvements & Bug Fixes - Checkpoint
+[33m1124deb[m  Enhanced Performance Overview with colorful gradients and trend indicators
+[33mb19fb70[m Initialize project using Create React App
