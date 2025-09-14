@@ -303,6 +303,27 @@ code {
   }
 }
 
+/* Filter buttons - FORCE MOBILE STYLES */
+@media (max-width: 768px) {
+  .mobile-filter-button,
+  button.mobile-filter-button,
+  .mobile-filters-container button {
+    padding: 4px 16px !important;
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+    min-height: 24px !important;
+    border-radius: 4px !important;
+    min-width: 60px !important;
+    display: inline-block !important;
+    box-sizing: border-box !important;
+  }
+}
+
+.mobile-filters-label {
+  font-size: 11px !important;
+  margin-bottom: 2px !important;
+}
+
 /* Mobile Filters Optimization */
 @media (max-width: 768px) {
   /* Ultra-compact filters container */
@@ -311,23 +332,8 @@ code {
     padding: 1px 0 !important;
   }
   
-  .mobile-filters-label {
-    font-size: 11px !important;
-    margin-bottom: 2px !important;
-  }
-  
   .mobile-filters-buttons {
     gap: 1px !important;
-  }
-  
-  /* Filter buttons - wider with better font size */
-  .mobile-filter-button {
-    padding: 4px 16px !important;
-    font-size: 11px !important;
-    line-height: 1.2 !important;
-    min-height: 24px !important;
-    border-radius: 4px !important;
-    min-width: 40px !important;
   }
   
   /* Reduce spacing between filter rows */
