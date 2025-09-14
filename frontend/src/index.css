@@ -303,6 +303,23 @@ code {
   }
 }
 
+/* DESKTOP FILTER BUTTONS - COMPACT AND PROFESSIONAL */
+.mobile-filter-button {
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+  min-height: 32px !important;
+  border-radius: 6px !important;
+  min-width: auto !important;
+  width: auto !important;
+  display: inline-block !important;
+  box-sizing: border-box !important;
+  margin: 2px !important;
+  white-space: nowrap !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+}
+
 /* MOBILE FILTER BUTTONS - OPTIMIZED PROFESSIONAL DESIGN */
 @media (max-width: 768px) {
   .mobile-filters-container .mobile-filter-button,
@@ -353,10 +370,8 @@ code {
     max-width: 140px !important;
   }
   
-  /* OVERRIDE ANY CONFLICTING STYLES */
-  .mobile-filters-container .md\\:hidden button,
-  .mobile-filters-container button.flex,
-  button.mobile-filter-button {
+  /* MOBILE DROPDOWN BUTTON STYLES ONLY */
+  .mobile-filters-container .md\\:hidden button {
     width: 140px !important;
     height: 52px !important;
     min-width: 140px !important;
