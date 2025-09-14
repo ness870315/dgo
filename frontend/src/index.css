@@ -303,11 +303,13 @@ code {
   }
 }
 
-/* Filter buttons - FORCE MOBILE STYLES */
+/* Filter buttons - FORCE MOBILE STYLES WITH MAXIMUM SPECIFICITY */
 @media (max-width: 768px) {
-  .mobile-filter-button,
+  .mobile-filters-container .mobile-filter-button,
+  .mobile-filters-container button.mobile-filter-button,
+  .mobile-filters-container button,
   button.mobile-filter-button,
-  .mobile-filters-container button {
+  .mobile-filter-button {
     padding: 6px 20px !important;
     font-size: 14px !important;
     line-height: 1.3 !important;
@@ -316,6 +318,11 @@ code {
     min-width: 80px !important;
     display: inline-block !important;
     box-sizing: border-box !important;
+  }
+  
+  /* Force font size with even higher specificity */
+  .mobile-filters-container button * {
+    font-size: 14px !important;
   }
 }
 
