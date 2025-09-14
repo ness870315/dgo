@@ -87,21 +87,23 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
               <button
                 onClick={onRefresh}
                 disabled={isLoading}
-                className={`px-4 py-2 rounded-md border border-gray-600 text-gray-400 hover:text-white hover:border-gray-500 transition-colors ${
+                className={`px-2 py-1 rounded-md border border-gray-600 text-gray-400 hover:text-white hover:border-gray-500 transition-colors text-xs ${
                   isLoading ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
                 title="Refresh data"
+                style={{ fontSize: '10px', minHeight: '24px' }}
               >
-                <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
+                <RefreshCw size={12} className={isLoading ? 'animate-spin' : ''} />
               </button>
 
               {/* Watchlist Button */}
               <button
                 onClick={onWatchlistClick}
-                className="px-4 py-2 rounded-md border border-gray-600 text-gray-400 hover:text-yellow-400 hover:border-yellow-500 transition-colors"
+                className="px-2 py-1 rounded-md border border-gray-600 text-gray-400 hover:text-yellow-400 hover:border-yellow-500 transition-colors text-xs"
                 title="View Watchlist"
+                style={{ fontSize: '10px', minHeight: '24px' }}
               >
-                <Star size={16} />
+                <Star size={12} />
               </button>
 
               {/* Authentication Button */}
