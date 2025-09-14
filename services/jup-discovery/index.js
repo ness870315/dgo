@@ -93,9 +93,15 @@ function filterCandidates(list) {
     if (!n.contractAddress || n.contractAddress.length < 10) continue;
     if (!n.symbol || STABLE_SYMBOLS.has(n.symbol)) continue;
     
-    // 🚀 NEW FILTER: Only include tokens with launchpad present
+    // 🚀 FILTER: Only include tokens with launchpad present
     if (!t.launchpad) {
       console.log(`🚫 Filtering out ${n.symbol} (${n.contractAddress?.substring(0, 8)}) - no launchpad`);
+      continue;
+    }
+    
+    // 🎓 FILTER: Only include tokens that have graduated (graduatedAt present)
+    if (!n.graduatedAt) {
+      console.log(`🚫 Filtering out ${n.symbol} (${n.contractAddress?.substring(0, 8)}) - not graduated`);
       continue;
     }
     
