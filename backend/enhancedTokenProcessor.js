@@ -7,7 +7,7 @@ import jupiterApiService from './jupiterApiService.js';
 import DexscreenerApiService from './dexscreenerApiService.js';
 import HypeSnapshotService from './hypeSnapshotService.js';
 import BirdEyeTrendingService from './birdEyeTrendingService.js';
-import LiquidityCleanupService from './liquidityCleanupService.js';
+const LiquidityCleanupService = require('./liquidityCleanupService.js');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
