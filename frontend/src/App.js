@@ -1227,6 +1227,7 @@ function App() {
                     tokens={filteredTokens}
                     fueledTokens={fueledTokens}
                     onTokenSelect={handleTokenSelect}
+                    currentFilter={categoryFilters}
                   />
                 ) : (
                   <TokenRankedList

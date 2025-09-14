@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
 
-const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
+const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {} }) => {
   const svgRef = useRef();
   const tooltipRef = useRef();
   const zoomRef = useRef();
@@ -90,11 +90,45 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
     const isLargeDesktop = screenWidth >= 1440 && screenWidth < 1920;
     const isUltraWide = screenWidth >= 1920;
     
-    // Base size calculation - increased for better visibility
-    let baseSize = tokenCount <= 10 ? 80 : tokenCount <= 25 ? 60 : tokenCount <= 50 ? 40 : 25;
+    // Determine filter type for adaptive sizing
+    const getActiveFilter = () => {
+      if (currentFilter.trending) return 'trending';
+      if (currentFilter.cults) return 'cults';
+      if (currentFilter.highCap) return 'highCap';
+      if (currentFilter.midCap) return 'midCap';
+      if (currentFilter.smallCap) return 'smallCap';
+      if (currentFilter.microCap) return 'microCap';
+      return 'trending'; // default
+    };
     
-    // Scale based on screen size - increased multipliers for large screens
+    const activeFilter = getActiveFilter();
+    
+    // Base size calculation - adaptive based on filter type
+    let baseSize;
+    if (activeFilter === 'trending' || activeFilter === 'cults') {
+      // Trending and Cults: Fewer tokens, larger bubbles
+      baseSize = tokenCount <= 10 ? 80 : tokenCount <= 25 ? 60 : tokenCount <= 50 ? 40 : 25;
+    } else if (activeFilter === 'highCap') {
+      // High Cap: Medium number of tokens, medium bubbles
+      baseSize = tokenCount <= 15 ? 60 : tokenCount <= 30 ? 45 : tokenCount <= 60 ? 30 : 20;
+    } else if (activeFilter === 'midCap') {
+      // Mid Cap: More tokens, smaller bubbles
+      baseSize = tokenCount <= 20 ? 50 : tokenCount <= 40 ? 35 : tokenCount <= 80 ? 25 : 15;
+    } else if (activeFilter === 'smallCap') {
+      // Small Cap: Many tokens, smaller bubbles
+      baseSize = tokenCount <= 30 ? 40 : tokenCount <= 60 ? 30 : tokenCount <= 120 ? 20 : 12;
+    } else if (activeFilter === 'microCap') {
+      // Micro Cap: Most tokens, smallest bubbles
+      baseSize = tokenCount <= 40 ? 35 : tokenCount <= 80 ? 25 : tokenCount <= 160 ? 18 : 10;
+    } else {
+      // Default fallback
+      baseSize = tokenCount <= 10 ? 60 : tokenCount <= 25 ? 40 : tokenCount <= 50 ? 25 : 15;
+    }
+    
+    // Scale based on screen size - reduced multipliers for high-density filters
     let screenType = 'unknown';
+    const isHighDensityFilter = ['midCap', 'smallCap', 'microCap'].includes(activeFilter);
+    
     if (isMobile) {
       baseSize *= 0.8; // Slightly larger on mobile
       screenType = 'mobile';
@@ -102,35 +136,36 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
       baseSize *= 1.0; // Larger bubbles on tablet
       screenType = 'tablet';
     } else if (isDesktop) {
-      baseSize *= 1.4; // Much larger on desktop
+      baseSize *= isHighDensityFilter ? 1.1 : 1.4; // Smaller for high-density filters
       screenType = 'desktop';
     } else if (isLargeDesktop) {
-      baseSize *= 1.8; // Even larger on large screens
+      baseSize *= isHighDensityFilter ? 1.3 : 1.8; // Smaller for high-density filters
       screenType = 'large-desktop';
     } else if (isUltraWide) {
-      baseSize *= 2.2; // Much larger bubbles on ultra-wide screens
+      baseSize *= isHighDensityFilter ? 1.5 : 2.2; // Smaller for high-density filters
       screenType = 'ultra-wide';
     }
     
-    console.log(`🫧 BubbleMap: Screen detected as ${screenType} (${screenWidth}px), baseSize: ${baseSize.toFixed(1)}`);
+    console.log(`🫧 BubbleMap: ${activeFilter} filter, ${screenType} screen (${screenWidth}px), baseSize: ${baseSize.toFixed(1)}, tokenCount: ${tokenCount}`);
     
-    // Set max and min sizes based on screen size - increased for better visibility
+    // Set max and min sizes based on screen size and filter type
     let maxSize, minSize;
+    
     if (isMobile) {
-      maxSize = 60;
-      minSize = 8;
+      maxSize = isHighDensityFilter ? 45 : 60;
+      minSize = isHighDensityFilter ? 6 : 8;
     } else if (isTablet) {
-      maxSize = 80;
-      minSize = 12;
+      maxSize = isHighDensityFilter ? 60 : 80;
+      minSize = isHighDensityFilter ? 8 : 12;
     } else if (isDesktop) {
-      maxSize = 120;
-      minSize = 16;
+      maxSize = isHighDensityFilter ? 80 : 120;
+      minSize = isHighDensityFilter ? 10 : 16;
     } else if (isLargeDesktop) {
-      maxSize = 150;
-      minSize = 20;
+      maxSize = isHighDensityFilter ? 100 : 150;
+      minSize = isHighDensityFilter ? 12 : 20;
     } else { // Ultra-wide
-      maxSize = 180;
-      minSize = 25;
+      maxSize = isHighDensityFilter ? 120 : 180;
+      minSize = isHighDensityFilter ? 15 : 25;
     }
     
     // Ensure base size fits within bounds
