@@ -1112,32 +1112,8 @@ function App() {
             <div className="bg-dark-card border-b border-gray-700 px-2 sm:px-4 lg:px-6 py-3 sm:py-4 mobile-stats-section">
               <div className="max-w-7xl mx-auto">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-3 space-y-3 lg:space-y-0">
-                  {/* Stats - Responsive Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-6">
-                    <div className="text-xs sm:text-sm">
-                      <span className="text-gray-400">Total: </span>
-                      <span className="text-white font-semibold">{tokens.length}</span>
-                    </div>
-                    <div className="text-xs sm:text-sm">
-                      <span className="text-gray-400">Filtered: </span>
-                      <span className="text-white font-semibold">{filteredTokens.length}</span>
-                    </div>
-                    <div className="text-xs sm:text-sm col-span-2 sm:col-span-1">
-                      <span className="text-gray-400">Avg Score: </span>
-                      <span className="text-solana-purple font-semibold">
-                        {filteredTokens.length > 0 
-                          ? (filteredTokens.reduce((sum, token) => sum + (token.score || token.overallScore || 0), 0) / filteredTokens.length).toFixed(1)
-                          : '0.0'
-                        }
-                      </span>
-                    </div>
-                  </div>
-                  
                   {/* Last Updated and Refresh - Responsive */}
                   <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
-                    <div className="text-xs sm:text-sm text-gray-400">
-                      Last updated: {new Date().toLocaleTimeString()}
-                    </div>
                     {successMessage && (
                       <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
                         <button
