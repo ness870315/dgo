@@ -334,30 +334,48 @@ code {
   }
 }
 
-/* COMPACT MOBILE FILTERS SECTION */
+/* ULTRA-DENSE MOBILE REDESIGN - NO WASTED SPACE */
 @media (max-width: 768px) {
-  .mobile-filters-label {
-    font-size: 9px !important;
-    margin-bottom: 1px !important;
-    margin-right: 2px !important;
+  
+  /* Make everything fit on ONE LINE */
+  .mobile-filters-controls-section {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    padding: 2px !important;
+    margin: 0 !important;
+    gap: 4px !important;
   }
   
   .mobile-filters-container {
-    padding: 1px !important;
-    margin: 0px !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    flex: 1 !important;
+  }
+  
+  .mobile-filters-label {
+    font-size: 8px !important;
+    margin: 0 2px 0 0 !important;
+    white-space: nowrap !important;
   }
   
   .mobile-filters-buttons {
-    gap: 1px !important;
     display: flex !important;
-    flex-wrap: wrap !important;
-    justify-content: flex-start !important;
+    gap: 1px !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
   }
   
-  /* ULTRA-COMPACT VIEW TOGGLE BUTTONS */
+  /* COMPACT VIEW TOGGLE - INLINE */
   .mobile-view-toggle {
-    padding: 1px !important;
-    margin: 1px !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 2px !important;
+    flex-shrink: 0 !important;
   }
   
   .mobile-view-toggle button {
@@ -377,19 +395,24 @@ code {
     display: none !important;
   }
   
-  /* ULTRA-COMPACT TEMPERATURE BAR */
+  /* INLINE TEMPERATURE BAR - PART OF SAME ROW */
   .mobile-temperature-legend {
-    padding: 1px !important;
-    margin: 1px !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 2px !important;
+    flex-shrink: 0 !important;
   }
   
   .mobile-temperature-legend .text-xs {
-    font-size: 7px !important;
+    font-size: 6px !important;
+    margin: 0 !important;
   }
   
   .mobile-temperature-legend .hype-dot {
-    width: 4px !important;
-    height: 4px !important;
+    width: 3px !important;
+    height: 3px !important;
   }
 }
 
