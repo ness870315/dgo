@@ -338,26 +338,26 @@ code {
 @media (max-width: 768px) {
   .mobile-filters-label {
     font-size: 9px !important;
-    margin-bottom: 2px !important;
-    margin-right: 4px !important;
+    margin-bottom: 1px !important;
+    margin-right: 2px !important;
   }
   
   .mobile-filters-container {
-    padding: 3px !important;
-    margin: 1px !important;
+    padding: 1px !important;
+    margin: 0px !important;
   }
   
   .mobile-filters-buttons {
-    gap: 2px !important;
+    gap: 1px !important;
     display: flex !important;
     flex-wrap: wrap !important;
     justify-content: flex-start !important;
   }
   
-  /* OPTIMIZE VIEW TOGGLE BUTTONS */
+  /* ULTRA-COMPACT VIEW TOGGLE BUTTONS */
   .mobile-view-toggle {
-    padding: 2px !important;
-    margin: 2px !important;
+    padding: 1px !important;
+    margin: 1px !important;
   }
   
   .mobile-view-toggle button {
@@ -372,25 +372,30 @@ code {
     font-size: 9px !important;
   }
   
-  /* Compact "View:" label and token count */
+  /* Hide token count and make "View:" label smaller */
   .mobile-view-toggle .text-xs,
   .mobile-view-toggle .text-sm {
-    font-size: 8px !important;
+    display: none !important;
   }
   
-  /* OPTIMIZE TEMPERATURE BAR */
+  /* Hide "100 tokens" text specifically */
+  .mobile-view-toggle div:contains("tokens") {
+    display: none !important;
+  }
+  
+  /* ULTRA-COMPACT TEMPERATURE BAR */
   .mobile-temperature-legend {
-    padding: 2px !important;
-    margin: 2px !important;
+    padding: 1px !important;
+    margin: 1px !important;
   }
   
   .mobile-temperature-legend .text-xs {
-    font-size: 8px !important;
+    font-size: 7px !important;
   }
   
   .mobile-temperature-legend .hype-dot {
-    width: 6px !important;
-    height: 6px !important;
+    width: 4px !important;
+    height: 4px !important;
   }
 }
 
