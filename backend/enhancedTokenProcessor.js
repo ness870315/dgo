@@ -772,7 +772,18 @@ class EnhancedTokenProcessor {
     
     try {
       // Get tokens that were recently imported from Jup-service and need processing
-      const tokens = await this.getTokensFromCache();
+      let tokens = [];
+      try {
+        const cachePath = path.join(this.cacheDir, 'tokens-cache.json');
+        if (await fs.access(cachePath).then(() => true).catch(() => false)) {
+          const cacheData = await fs.readFile(cachePath, 'utf8');
+          tokens = JSON.parse(cacheData);
+          console.log(`📊 Loaded ${tokens.length} tokens from cache for Jup-service processing`);
+        }
+      } catch (error) {
+        console.error('❌ Error loading tokens from cache:', error.message);
+        return;
+      }
       const newJupTokens = tokens.filter(token => 
         token.source === 'jupiter' && 
         token.stage === 'jupiter' && 

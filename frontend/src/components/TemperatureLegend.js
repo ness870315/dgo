@@ -39,21 +39,6 @@ const TemperatureLegend = () => {
           </div>
         )}
         
-        {/* Labels */}
-        <div className="flex items-center space-x-2 ml-2">
-          <div className="flex items-center space-x-1">
-            <div className="w-2 h-2 rounded-full bg-purple-600"></div>
-            <span className="text-xs text-gray-400">Viral</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-            <span className="text-xs text-gray-400">Waking Up</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="w-2 h-2 rounded-full bg-gray-500"></div>
-            <span className="text-xs text-gray-400">Sleeping</span>
-          </div>
-        </div>
       </div>
       
       {/* Score Range Indicator */}
