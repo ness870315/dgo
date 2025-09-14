@@ -671,7 +671,7 @@ class EnhancedTokenProcessor {
             const twitterData = await this.fetchTwitterData(symbol, token.name, officialHandle, token);
             token.twitterData = twitterData;
             await this.ensureSocialDataService();
-            token.communityHealthScore = this.socialDataService.calculateCommunityHealthScore(twitterData);
+            token.communityHealthScore = this.socialDataService.calculateCommunityHealthScore(twitterData, token.socials, token.jupiterData);
             token.stage = 'twitter';
             
             // 🚨 FIX: Always apply 72h cooldown when Twitter data is successfully fetched
@@ -864,7 +864,7 @@ class EnhancedTokenProcessor {
           // CRITICAL: Always recalculate community health score from Twitter data (cached or fresh)
           if (token.twitterData) {
             await this.ensureSocialDataService();
-            token.communityHealthScore = this.socialDataService.calculateCommunityHealthScore(token.twitterData);
+            token.communityHealthScore = this.socialDataService.calculateCommunityHealthScore(token.twitterData, token.socials, token.jupiterData);
             console.log(`🏆 Community Health Score calculated for ${token.symbol}: ${token.communityHealthScore.toFixed(2)}/10`);
           } else {
             token.communityHealthScore = 2.0; // Fallback base score
@@ -2082,7 +2082,7 @@ class EnhancedTokenProcessor {
       
       if (token.twitterData) {
         await this.ensureSocialDataService();
-        finalScore = this.socialDataService.calculateCommunityHealthScore(token.twitterData);
+        finalScore = this.socialDataService.calculateCommunityHealthScore(token.twitterData, token.socials, token.jupiterData);
         console.log(`✅ Community score calculated for ${token.symbol}: ${finalScore.toFixed(2)}/10`);
       } else {
         console.log(`⚠️ No Twitter data for ${token.symbol}, using default score: ${finalScore}/10`);
@@ -2103,7 +2103,7 @@ class EnhancedTokenProcessor {
       // Calculate community health score (if not already done)
       if (token.twitterData && !token.communityScore) {
         await this.ensureSocialDataService();
-        token.communityScore = this.socialDataService.calculateCommunityHealthScore(token.twitterData);
+        token.communityScore = this.socialDataService.calculateCommunityHealthScore(token.twitterData, token.socials, token.jupiterData);
       }
 
       // Save to cache immediately

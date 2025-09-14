@@ -1418,11 +1418,18 @@ class EnhancedSocialDataService {
    * FINAL WEIGHTS: Mentions 55%, Engagement 35%, Followers 5%, Quality 5%
    * (Removed redundant Recent Activity scoring - prioritizes mention volume and engagement quality)
    */
-  calculateCommunityHealthScore(twitterData) {
+  calculateCommunityHealthScore(twitterData, socials = null, jupiterData = null) {
     let score = 2.0; // Base score - lowered to make scoring more dynamic
     
     console.log(`\n🧮 CALCULATING COMMUNITY HEALTH SCORE:`);
     console.log(`   📊 Input Data: mentions=${twitterData.mentions}, likes=${twitterData.likes}, retweets=${twitterData.retweets}, replies=${twitterData.replies}`);
+    
+    // Check for Jupiter organic score penalty
+    const organicScore = jupiterData?.organicScore || this._currentJupiterData?.organicScore;
+    const hasOrganicPenalty = typeof organicScore === 'number' && organicScore < 20;
+    if (hasOrganicPenalty) {
+      console.log(`   🚨 ORGANIC SCORE PENALTY: Jupiter organic score ${organicScore}/100 (< 20) - applying artificial activity penalty`);
+    }
     
     try {
       // 1. MENTIONS SCORING (55% weight) - PRIMARY importance for community buzz
@@ -1448,6 +1455,14 @@ class EnhancedSocialDataService {
       else if (engagementRate >= 2) engagementScore = 1.2; // 2+ engagement = decent
       else if (engagementRate >= 1) engagementScore = 0.8; // 1+ engagement = some
       else if (engagementRate >= 0.5) engagementScore = 0.5; // 0.5+ engagement = minimal
+      
+      // Apply organic score penalty to engagement (artificial activity detection)
+      if (hasOrganicPenalty) {
+        const penaltyFactor = Math.max(0.1, organicScore / 100); // Scale penalty based on organic score
+        engagementScore *= penaltyFactor;
+        console.log(`   🚨 Engagement penalty applied: ${engagementScore.toFixed(2)} (${(penaltyFactor * 100).toFixed(1)}% of original due to low organic score)`);
+      }
+      
       // Boost engagement weight in bootstrap since mentions are capped
       const engagementWeight = isBootstrap ? 0.45 : 0.35;
       const engagementScoreWeighted = engagementScore * (engagementWeight / 0.35);
