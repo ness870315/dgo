@@ -1424,11 +1424,11 @@ class EnhancedSocialDataService {
     console.log(`\n🧮 CALCULATING COMMUNITY HEALTH SCORE:`);
     console.log(`   📊 Input Data: mentions=${twitterData.mentions}, likes=${twitterData.likes}, retweets=${twitterData.retweets}, replies=${twitterData.replies}`);
     
-    // Check for Jupiter organic score penalty
+    // Check for Jupiter organic score penalty (scale 0-10)
     const organicScore = jupiterData?.organicScore || this._currentJupiterData?.organicScore;
-    const hasOrganicPenalty = typeof organicScore === 'number' && organicScore < 20;
+    const hasOrganicPenalty = typeof organicScore === 'number' && organicScore < 2.0;
     if (hasOrganicPenalty) {
-      console.log(`   🚨 ORGANIC SCORE PENALTY: Jupiter organic score ${organicScore}/100 (< 20) - applying artificial activity penalty`);
+      console.log(`   🚨 ORGANIC SCORE PENALTY: Jupiter organic score ${organicScore}/10 (< 2.0) - applying artificial activity penalty`);
     }
     
     try {
@@ -1458,7 +1458,7 @@ class EnhancedSocialDataService {
       
       // Apply organic score penalty to engagement (artificial activity detection)
       if (hasOrganicPenalty) {
-        const penaltyFactor = Math.max(0.1, organicScore / 100); // Scale penalty based on organic score
+        const penaltyFactor = Math.max(0.1, organicScore / 10); // Scale penalty based on organic score (0-10 scale)
         engagementScore *= penaltyFactor;
         console.log(`   🚨 Engagement penalty applied: ${engagementScore.toFixed(2)} (${(penaltyFactor * 100).toFixed(1)}% of original due to low organic score)`);
       }

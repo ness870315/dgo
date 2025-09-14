@@ -5603,7 +5603,7 @@ class EnhancedBackend {
       const followers = token.twitterData?.followers || 0;
       const engagement = (token.twitterData?.likes || 0) + (token.twitterData?.retweets || 0) + (token.twitterData?.replies || 0);
       const score = token.overallScore || token.enhancedScore || 0;
-      const label = score >= 8 ? 'Viral' : score >= 6 ? 'Trending' : score >= 4 ? 'Building' : 'Sleeping';
+      const label = score >= 9 ? 'Viral' : score >= 8 ? 'Trending' : score >= 7 ? 'Waking Up' : score >= 5 ? 'Building' : 'Sleeping';
       
       await this.hypeService.appendSnapshot(token.contractAddress, {
         score: score,
@@ -5738,9 +5738,10 @@ class EnhancedBackend {
   }
 
   getHypeLabel(score) {
-    if (score >= 8) return 'Viral';
-    if (score >= 6) return 'Trending';
-    if (score >= 4) return 'Building';
+    if (score >= 9) return 'Viral';
+    if (score >= 8) return 'Trending';
+    if (score >= 7) return 'Waking Up';
+    if (score >= 5) return 'Building';
     return 'Sleeping';
   }
 
