@@ -72,7 +72,7 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
 
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-1 sm:space-y-0 sm:space-x-2 relative mobile-filters-container">
-      <span className="text-gray-400 mr-0 sm:mr-2 flex-shrink-0 mobile-filters-label" style={{ fontSize: '11px' }}>Categories:</span>
+      <span className="text-gray-400 mr-0 sm:mr-2 flex-shrink-0 mobile-filters-label">Categories:</span>
       <div className="flex flex-wrap gap-1 sm:gap-2 mobile-filters-buttons">
         {Object.entries(categories)
           .filter(([key]) => key !== 'volatile' && key !== 'stable')
@@ -84,12 +84,11 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
                 onClick={() => handleCategoryToggle(key)}
                 onMouseEnter={() => setHoveredFilter(key)}
                 onMouseLeave={() => setHoveredFilter(null)}
-                className={`px-4 py-1 rounded font-medium transition-colors whitespace-nowrap mobile-filter-button ${
+                className={`rounded font-medium transition-colors whitespace-nowrap mobile-filter-button ${
                   value
                     ? 'bg-solana-purple text-white'
                     : 'bg-dark-bg text-gray-400 hover:text-white border border-gray-600'
                 }`}
-                style={{ fontSize: '11px', minHeight: '24px' }}
               >
                 {key === 'trending' && '🔥 Trending'}
                 {key === 'cults' && '🏛️ Cults'}
