@@ -160,6 +160,13 @@ class OAuthXService {
         });
 
         // If token is invalid (401), try to refresh it
+        console.log(`🔍 Debug - User refresh token status:`, {
+          userId,
+          hasRefreshToken: !!user.refreshToken,
+          refreshTokenLength: user.refreshToken?.length,
+          status: apiError.response?.status
+        });
+        
         if (apiError.response?.status === 401 && user.refreshToken) {
           console.log(`🔄 Access token expired for user ${userId}, attempting refresh...`);
           
@@ -188,6 +195,12 @@ class OAuthXService {
             console.error('❌ Token refresh failed:', refreshError.message);
             throw new Error(`Twitter posting failed: Token expired and refresh failed - ${refreshError.message}`);
           }
+        }
+
+        // If no refresh token available for 401 error
+        if (apiError.response?.status === 401 && !user.refreshToken) {
+          console.error(`❌ Access token expired for user ${userId} but no refresh token available`);
+          throw new Error(`Twitter posting failed: Access token expired and no refresh token available. User needs to re-authenticate.`);
         }
 
         // If not a token issue or refresh not available, throw original error
