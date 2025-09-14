@@ -1127,11 +1127,16 @@ function App() {
                     </div>
                     <div className="text-gray-400">
                       Last updated: <span className="font-semibold text-white">
-                        {lastUpdated ? new Date(lastUpdated).toLocaleTimeString() : 'Loading...'}
+                        {tokens.length > 0 
+                          ? new Date(Math.max(...tokens.map(token => 
+                              token.lastUpdated ? new Date(token.lastUpdated).getTime() : 0
+                            ))).toLocaleTimeString()
+                          : 'Loading...'
+                        }
                       </span>
                     </div>
                     <div className="text-gray-400">
-                      Total: <span className="font-semibold text-white">{tokenData.length}</span>
+                      Total: <span className="font-semibold text-white">{tokens.length}</span>
                     </div>
                   </div>
                   
