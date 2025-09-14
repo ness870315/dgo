@@ -334,36 +334,27 @@ code {
   }
 }
 
-/* COMPACT MOBILE LAYOUT - PROPER READABLE DESIGN */
+/* ULTRA-COMPACT MOBILE LAYOUT WITH DROPDOWN */
 @media (max-width: 768px) {
   
   .mobile-filters-controls-section {
-    padding: 3px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 4px !important;
     margin: 2px !important;
   }
   
   .mobile-filters-container {
-    padding: 2px !important;
-    margin: 1px !important;
+    flex-shrink: 0 !important;
   }
   
-  .mobile-filters-label {
-    font-size: 9px !important;
-    margin-bottom: 2px !important;
-    margin-right: 3px !important;
-  }
-  
-  .mobile-filters-buttons {
-    display: flex !important;
-    gap: 2px !important;
-    flex-wrap: wrap !important;
-    margin-bottom: 3px !important;
-  }
-  
-  /* VIEW TOGGLE SECTION */
+  /* VIEW TOGGLE INLINE */
   .mobile-view-toggle {
-    padding: 2px !important;
-    margin: 2px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    flex-shrink: 0 !important;
   }
   
   .mobile-view-toggle button {
