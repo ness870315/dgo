@@ -92,6 +92,13 @@ function filterCandidates(list) {
     const n = normalizeToken(t);
     if (!n.contractAddress || n.contractAddress.length < 10) continue;
     if (!n.symbol || STABLE_SYMBOLS.has(n.symbol)) continue;
+    
+    // 🚀 NEW FILTER: Only include tokens with launchpad present
+    if (!t.launchpad) {
+      console.log(`🚫 Filtering out ${n.symbol} (${n.contractAddress?.substring(0, 8)}) - no launchpad`);
+      continue;
+    }
+    
     out.push({ ...n });
   }
   return out.slice(0, 100);
