@@ -312,21 +312,21 @@ code {
   }
   
   .mobile-filters-label {
-    font-size: 7px !important;
-    margin-bottom: 1px !important;
+    font-size: 11px !important;
+    margin-bottom: 2px !important;
   }
   
   .mobile-filters-buttons {
     gap: 1px !important;
   }
   
-  /* Ultra-compact filter buttons - wider for text */
+  /* Filter buttons - wider with better font size */
   .mobile-filter-button {
-    padding: 2px 6px !important;
-    font-size: 7px !important;
-    line-height: 1.0 !important;
-    min-height: 16px !important;
-    border-radius: 2px !important;
+    padding: 4px 16px !important;
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+    min-height: 24px !important;
+    border-radius: 4px !important;
     min-width: 40px !important;
   }
   
