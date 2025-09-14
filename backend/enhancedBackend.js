@@ -5668,15 +5668,40 @@ class EnhancedBackend {
       const baseScore = token.communityHealthScore || token.score || token.overallScore || 5;
       const baseMentions = token.twitterData?.mentions || token.mentions || 10;
       
-      // Generate historical data with some trend and noise
+      // Generate historical data with token-specific patterns
       for (let i = 0; i < config.points; i++) {
         const timestamp = new Date(now - (config.points - i - 1) * config.interval);
         
-        // Add trend and random variation
-        const trendFactor = Math.sin((i / config.points) * Math.PI * 2) * 0.3; // Sine wave trend
-        const noise = (Math.random() - 0.5) * 1.5; // Random noise
+        // Create token-specific trend based on actual metrics
+        const progress = i / config.points;
+        let trendFactor = 0;
+        
+        // Use token's actual performance to determine trend pattern
+        const priceChange24h = token.jupiterData?.stats24h?.priceChange || token.priceChange24h || 0;
+        const volumeChange24h = token.jupiterData?.stats24h?.volumeChange || token.volumeChange24h || 0;
+        const holderChange = token.jupiterData?.holderChange || 0;
+        
+        // Different patterns based on token performance
+        if (priceChange24h > 20 && volumeChange24h > 50) {
+          // Explosive growth pattern
+          trendFactor = Math.pow(progress, 2) * 2 - 1; // Exponential rise
+        } else if (priceChange24h < -20) {
+          // Decline pattern  
+          trendFactor = -Math.pow(1 - progress, 2) * 1.5; // Exponential decline
+        } else if (holderChange > 10) {
+          // Steady growth pattern
+          trendFactor = progress * 1.2 - 0.6; // Linear uptrend
+        } else if (Math.abs(priceChange24h) < 5) {
+          // Sideways/consolidation pattern
+          trendFactor = Math.sin(progress * Math.PI * 4) * 0.2; // Small oscillations
+        } else {
+          // Volatile pattern
+          trendFactor = Math.sin(progress * Math.PI * 6) * 0.8 + (Math.random() - 0.5) * 0.4;
+        }
+        
+        const noise = (Math.random() - 0.5) * 0.8; // Reduced noise for cleaner patterns
         const score = Math.max(0, Math.min(10, baseScore + trendFactor + noise));
-        const mentions = Math.max(0, baseMentions + Math.floor(trendFactor * 20 + noise * 10));
+        const mentions = Math.max(0, baseMentions + Math.floor(trendFactor * 15 + noise * 8));
         
         hypeData.push({
           timestamp: timestamp.toISOString(),

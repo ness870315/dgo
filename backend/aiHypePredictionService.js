@@ -199,56 +199,43 @@ class AIHypePredictionService {
   }
 
   buildPredictionPrompt(contractAddress, tokenData, recentData, currentMetrics, trendAnalysis, range) {
-    return `You are a crypto hype prediction AI analyzing token momentum and community sentiment.
-
-CONTRACT: ${contractAddress}
-TOKEN: ${tokenData?.symbol || 'Unknown'} (${tokenData?.name || 'Unknown'})
-ANALYSIS RANGE: ${range}
-
-CURRENT METRICS:
-- Current Hype Score: ${currentMetrics.currentScore}/10
-- Recent Mentions: ${currentMetrics.mentions}
-- Community Health: ${tokenData?.communityHealthScore || 'N/A'}/10
-- Twitter Followers: ${tokenData?.twitterData?.followers || 0}
-- Organic Score: ${tokenData?.jupiterData?.organicScore || tokenData?.organicScore || 'N/A'}
-
-TREND ANALYSIS:
-- Direction: ${trendAnalysis.direction} (${trendAnalysis.strength})
-- Momentum: ${trendAnalysis.momentum}
-- Volatility: ${trendAnalysis.volatility}
-- Recent Pattern: ${trendAnalysis.pattern}
-
-RECENT HYPE DATA (last 10 points):
-${recentData.map(d => `${d.timestamp}: Score ${d.score}/10, ${d.mentions} mentions, Label: ${d.label}`).join('\n')}
-
-PREDICTION TASK:
-Analyze the hype trajectory and predict the next 24-48 hours. Consider:
-1. Current momentum and trend direction
-2. Community engagement patterns
-3. Social media buzz and sentiment
-4. Market conditions and token fundamentals
-5. Historical patterns in similar tokens
-
-Respond with a JSON object containing:
-{
-  "prediction": {
-    "direction": "bullish|bearish|sideways",
-    "strength": "weak|moderate|strong",
-    "timeframe": "6h|12h|24h|48h",
-    "targetScore": 7.5,
-    "confidence": 0.85
-  },
-  "reasoning": "Brief explanation of the prediction logic",
-  "catalysts": ["Potential positive factors"],
-  "risks": ["Potential negative factors"],
-  "keyLevels": {
-    "support": 5.2,
-    "resistance": 8.1
-  },
-  "recommendation": "hold|accumulate|caution|avoid"
-}
-
-Use crypto degen language and be specific about timing and levels. Focus on actionable insights.`;
+    // Use the enhanced template with proper variable substitution
+    const { ENHANCED_PROMPT_TEMPLATES } = require('./aiPromptTemplates_enhanced.js');
+    
+    const variables = {
+      symbol: tokenData?.symbol || 'Unknown',
+      name: tokenData?.name || 'Unknown Token',
+      timeRange: range,
+      marketCap: tokenData?.jupiterData?.mcap || tokenData?.marketCap || 'N/A',
+      price: tokenData?.jupiterData?.price || tokenData?.price || 'N/A',
+      hypeData: recentData.map(d => `${new Date(d.timestamp).toLocaleString()}: Score ${d.score}/10, ${d.mentions} mentions, ${d.label}`).join('\n'),
+      holderChange: tokenData?.jupiterData?.holderChange || 0,
+      volumeChange: tokenData?.jupiterData?.stats24h?.volumeChange || 0,
+      priceChange: tokenData?.jupiterData?.stats24h?.priceChange || 0,
+      organicScore: tokenData?.jupiterData?.organicScore || tokenData?.organicScore || 'N/A',
+      organicScoreLabel: this.getOrganicScoreLabel(tokenData?.jupiterData?.organicScore || tokenData?.organicScore),
+      liquidity: tokenData?.jupiterData?.liquidity || tokenData?.liquidity || 'N/A'
+    };
+    
+    return this.fillTemplate(ENHANCED_PROMPT_TEMPLATES.HYPE_TREND_ANALYSIS, variables);
+  }
+  
+  getOrganicScoreLabel(score) {
+    if (!score || score === 'N/A') return 'Unknown';
+    if (score >= 80) return 'Highly Organic';
+    if (score >= 60) return 'Mostly Organic';
+    if (score >= 40) return 'Mixed Activity';
+    if (score >= 20) return 'Suspicious Activity';
+    return 'Likely Artificial';
+  }
+  
+  fillTemplate(template, variables) {
+    let filled = template;
+    for (const [key, value] of Object.entries(variables)) {
+      const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+      filled = filled.replace(regex, String(value));
+    }
+    return filled;
   }
 
   parsePredictionResponse(response) {
