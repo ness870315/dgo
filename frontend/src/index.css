@@ -417,6 +417,12 @@ code {
     display: none !important;
   }
   
+  /* Hide "View:" text on mobile */
+  .mobile-view-toggle .text-xs.text-gray-400,
+  .mobile-view-toggle .text-sm.text-gray-400 {
+    display: none !important;
+  }
+  
   /* COMPACT TEMPERATURE BAR */
   .mobile-temperature-legend {
     padding: 2px !important;
