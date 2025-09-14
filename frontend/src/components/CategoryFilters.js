@@ -155,7 +155,7 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
             />
             
             {/* Modal */}
-            <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-50 w-80 max-w-[90vw]">
+            <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-800 border border-gray-600 rounded-xl shadow-2xl z-50 w-[95vw] max-w-md max-h-[80vh] overflow-y-auto">
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-gray-600">
                 <h3 className="text-lg font-semibold text-white">Select Category</h3>
@@ -168,7 +168,7 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
               </div>
               
               {/* Filter Options */}
-              <div className="p-4 space-y-2">
+              <div className="p-4 space-y-3">
                 {Object.entries(categories)
                   .filter(([key]) => key !== 'volatile' && key !== 'stable')
                   .map(([key, value]) => {
@@ -177,14 +177,14 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
                       <button
                         key={key}
                         onClick={() => handleMobileFilterSelect(key)}
-                        className={`w-full text-left px-4 py-3 rounded-md transition-colors ${
+                        className={`w-full text-left px-4 py-4 rounded-lg transition-colors border ${
                           value
-                            ? 'bg-solana-purple text-white'
-                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
+                            ? 'bg-solana-purple text-white border-solana-purple'
+                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white border-gray-600'
                         }`}
                       >
-                        <div className="font-medium">{tooltipContent.title}</div>
-                        <div className="text-xs text-gray-400 mt-1">{tooltipContent.description}</div>
+                        <div className="font-semibold text-base mb-2">{tooltipContent.title}</div>
+                        <div className="text-sm text-gray-400 leading-relaxed">{tooltipContent.description}</div>
                       </button>
                     );
                   })}
