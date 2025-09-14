@@ -7,6 +7,7 @@ import jupiterApiService from './jupiterApiService.js';
 import DexscreenerApiService from './dexscreenerApiService.js';
 import HypeSnapshotService from './hypeSnapshotService.js';
 import BirdEyeTrendingService from './birdEyeTrendingService.js';
+import LiquidityCleanupService from './liquidityCleanupService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,6 +27,9 @@ class EnhancedTokenProcessor {
       twitter: { total: 0, processed: 0, status: 'pending' },
       scoring: { total: 0, processed: 0, status: 'pending' }
     };
+    
+    // Initialize cleanup service
+    this.liquidityCleanup = new LiquidityCleanupService();
     
     // Initialize API services
     this.jupiterService = jupiterApiService;
