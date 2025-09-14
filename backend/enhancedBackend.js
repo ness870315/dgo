@@ -84,12 +84,28 @@ class EnhancedBackend {
     try {
       const symbolRaw = (token?.symbol || token?.jupiterData?.symbol || '').toString();
       const nameRaw = (token?.name || token?.jupiterData?.name || '').toString();
+      const contractAddress = token?.contractAddress || token?.jupiterData?.contractAddress || '';
+      
       const symbol = symbolRaw.trim().toUpperCase();
       const name = nameRaw.trim().toUpperCase();
+      
+      // Check banned symbols
       const bannedSymbols = new Set([
         'WETH','WBTC','ETH','BTC','SOL','USDC','USDT','DAI','TUSD','FRAX','PYUSD','WBNB','WBCH','WAVAX','BNSOL'
       ]);
       if (bannedSymbols.has(symbol)) return true;
+      
+      // Check banned contract addresses
+      const bannedContracts = new Set([
+        'So11111111111111111111111111111111111111112', // Wrapped SOL
+        'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+        'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT
+        'BNso1VUJnh4zcfpZa6986Ea66P6TCp59hvtNJ8b1X85', // BNSOL (Binance Staked SOL)
+        'pSo1f9nQXWgXibFtKf7NWYxb5enAM4qfP6UJSiXRQfL'  // Additional stablecoin
+      ]);
+      if (bannedContracts.has(contractAddress)) return true;
+      
+      // Check banned name fragments
       const bannedFragments = [' STABLE', 'STABLE ', ' STABLECOIN', 'WRAPPED ETH', 'WRAPPED BTC'];
       const hay = `${symbol} ${name}`;
       return bannedFragments.some(f => hay.includes(f));

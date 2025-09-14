@@ -139,7 +139,8 @@ class DexscreenerApiService {
       'So11111111111111111111111111111111111111112', // Wrapped SOL
       'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
       'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT
-      'BNso1VUJnh4zcfpZa6986Ea66P6TCp59hvtNJ8b1X85'  // BNSOL (Binance Staked SOL)
+      'BNso1VUJnh4zcfpZa6986Ea66P6TCp59hvtNJ8b1X85', // BNSOL (Binance Staked SOL)
+      'pSo1f9nQXWgXibFtKf7NWYxb5enAM4qfP6UJSiXRQfL'  // Additional stablecoin
     ];
 
     const isStableContract = stableContracts.includes(pair.contractAddress);
