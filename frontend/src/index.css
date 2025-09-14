@@ -303,7 +303,7 @@ code {
   }
 }
 
-/* Filter buttons - FORCE MOBILE STYLES WITH MAXIMUM SPECIFICITY */
+/* Filter buttons - FORCE MOBILE STYLES WITH MAXIMUM SPECIFICITY - v2.1 */
 @media (max-width: 768px) {
   .mobile-filters-container .mobile-filter-button,
   .mobile-filters-container button.mobile-filter-button,
@@ -321,7 +321,14 @@ code {
   }
   
   /* Force font size with even higher specificity */
-  .mobile-filters-container button * {
+  .mobile-filters-container button *,
+  .mobile-filters-container button span,
+  .mobile-filters-container button text {
+    font-size: 12px !important;
+  }
+  
+  /* Nuclear option - force all text inside buttons */
+  .mobile-filters-container button {
     font-size: 12px !important;
   }
 }
