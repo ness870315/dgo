@@ -304,6 +304,24 @@ class HybridDatabaseService {
   }
 
   /**
+   * Update user tokens (for token refresh)
+   */
+  async updateUserTokens(userId, accessToken, refreshToken) {
+    const userDir = await this.ensureUserDir(userId);
+    const profileFile = this.getUserFile(userId, 'profile.json');
+    const existingProfile = await this.readJsonFile(profileFile, {});
+    
+    // Update tokens
+    existingProfile.accessToken = accessToken;
+    existingProfile.refreshToken = refreshToken;
+    existingProfile.lastUpdated = new Date().toISOString();
+    
+    await this.writeJsonFile(profileFile, existingProfile);
+    console.log(`🔄 Updated tokens for user ${userId}`);
+    return existingProfile;
+  }
+
+  /**
    * Initialize user files if they don't exist
    */
   async initializeUserFiles(userId) {

@@ -136,26 +136,98 @@ class OAuthXService {
         textPreview: text.substring(0, 50) + '...'
       });
 
-      const response = await axios.post('https://api.twitter.com/2/tweets', {
-        text: text
+      // Try posting with current token
+      let response;
+      try {
+        response = await axios.post('https://api.twitter.com/2/tweets', {
+          text: text
+        }, {
+          headers: {
+            'Authorization': `Bearer ${user.accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        console.log(`🐦 Posted tweet for user ${userId}: ${response.data.data.id}`);
+        return response.data.data;
+
+      } catch (apiError) {
+        console.error('❌ Twitter API error:', {
+          status: apiError.response?.status,
+          statusText: apiError.response?.statusText,
+          data: apiError.response?.data,
+          userId
+        });
+
+        // If token is invalid (401), try to refresh it
+        if (apiError.response?.status === 401 && user.refreshToken) {
+          console.log(`🔄 Access token expired for user ${userId}, attempting refresh...`);
+          
+          try {
+            const newTokens = await this.refreshAccessToken(user.refreshToken);
+            
+            // Update user with new tokens
+            await this.db.updateUserTokens(userId, newTokens.access_token, newTokens.refresh_token);
+            
+            console.log(`✅ Refreshed tokens for user ${userId}, retrying tweet...`);
+            
+            // Retry with new token
+            response = await axios.post('https://api.twitter.com/2/tweets', {
+              text: text
+            }, {
+              headers: {
+                'Authorization': `Bearer ${newTokens.access_token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+
+            console.log(`🐦 Posted tweet with refreshed token for user ${userId}: ${response.data.data.id}`);
+            return response.data.data;
+
+          } catch (refreshError) {
+            console.error('❌ Token refresh failed:', refreshError.message);
+            throw new Error(`Twitter posting failed: Token expired and refresh failed - ${refreshError.message}`);
+          }
+        }
+
+        // If not a token issue or refresh not available, throw original error
+        throw new Error(`Twitter API error: ${apiError.response?.status} - ${JSON.stringify(apiError.response?.data)}`);
+      }
+
+    } catch (error) {
+      console.error('❌ Error posting tweet:', error.message);
+      console.error('❌ Twitter posting error details:', {
+        userId,
+        hasAccessToken: !!user?.accessToken,
+        errorMessage: error.message
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Refresh access token using refresh token
+   */
+  async refreshAccessToken(refreshToken) {
+    try {
+      console.log('🔄 Refreshing Twitter access token...');
+      
+      const response = await axios.post('https://api.twitter.com/2/oauth2/token', {
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: this.clientId
       }, {
         headers: {
-          'Authorization': `Bearer ${user.accessToken}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': `Basic ${Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64')}`
         }
       });
 
-      console.log(`🐦 Posted tweet for user ${userId}: ${response.data.data.id}`);
-      return response.data.data;
+      console.log('✅ Successfully refreshed Twitter access token');
+      return response.data;
+
     } catch (error) {
-      console.error('❌ Error posting tweet:', error.response?.data || error.message);
-      console.error('❌ Twitter posting error details:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        userId,
-        hasAccessToken: !!user?.accessToken
-      });
+      console.error('❌ Failed to refresh Twitter token:', error.response?.data || error.message);
       throw error;
     }
   }
