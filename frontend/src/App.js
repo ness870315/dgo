@@ -1111,16 +1111,34 @@ function App() {
             <div className="bg-dark-card border-b border-gray-700 px-2 sm:px-4 lg:px-6 py-3 sm:py-4 mobile-stats-section">
               <div className="max-w-7xl mx-auto">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-3 space-y-3 lg:space-y-0">
-                  {/* Stats Display - Desktop Only */}
-                  <div className="hidden lg:flex items-center space-x-6 text-sm">
-                    <div className="text-gray-400">
-                      Total: <span className="font-semibold text-white">{tokens.length}</span>
+                  {/* Stats Display - Desktop Only - All on one line */}
+                  <div className="hidden lg:flex items-center justify-between w-full text-sm">
+                    {/* Left side: Total, Filtered, Avg Score */}
+                    <div className="flex items-center space-x-6">
+                      <div className="text-gray-400">
+                        Total: <span className="font-semibold text-white">{tokens.length}</span>
+                      </div>
+                      <div className="text-gray-400">
+                        Filtered: <span className="font-semibold text-white">{filteredTokens.length}</span>
+                      </div>
+                      <div className="text-gray-400">
+                        Avg Score: <span className="font-semibold text-solana-purple">
+                          {filteredTokens.length > 0 
+                            ? (filteredTokens.reduce((sum, token) => sum + (token.score || token.overallScore || 0), 0) / filteredTokens.length).toFixed(1)
+                            : '0.0'
+                          }
+                        </span>
+                      </div>
                     </div>
+                    
+                    {/* Right side: Last updated */}
                     <div className="text-gray-400">
-                      Avg Score: <span className="font-semibold text-white">
-                        {filteredTokens.length > 0 
-                          ? (filteredTokens.reduce((sum, token) => sum + (token.score || token.overallScore || 0), 0) / filteredTokens.length).toFixed(2)
-                          : '0.00'
+                      Last updated: <span className="font-semibold text-white">
+                        {tokens.length > 0 
+                          ? new Date(Math.max(...tokens.map(token => 
+                              token.lastUpdated ? new Date(token.lastUpdated).getTime() : 0
+                            ))).toLocaleTimeString()
+                          : 'Loading...'
                         }
                       </span>
                     </div>
@@ -1166,27 +1184,8 @@ function App() {
                       tokenCount={filteredTokens.length}
                     />
                     
-                    {/* Temperature Legend with stats above */}
-                    <div className="flex flex-col items-center space-y-1">
-                      {/* Filtered tokens and Last updated above temp bar */}
-                      <div className="flex items-center space-x-4 text-xs text-gray-400">
-                        <div>
-                          <span className="font-semibold text-white">{filteredTokens.length}</span> filtered tokens
-                        </div>
-                        <div>
-                          Last updated: <span className="font-semibold text-white">
-                            {tokens.length > 0 
-                              ? new Date(Math.max(...tokens.map(token => 
-                                  token.lastUpdated ? new Date(token.lastUpdated).getTime() : 0
-                                ))).toLocaleTimeString()
-                              : 'Loading...'
-                            }
-                          </span>
-                        </div>
-                      </div>
-                      {/* Temperature Legend */}
-                      <TemperatureLegend />
-                    </div>
+                    {/* Temperature Legend */}
+                    <TemperatureLegend />
                     </div>
                   </div>
                   

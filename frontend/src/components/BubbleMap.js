@@ -90,47 +90,47 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
     const isLargeDesktop = screenWidth >= 1440 && screenWidth < 1920;
     const isUltraWide = screenWidth >= 1920;
     
-    // Base size calculation
-    let baseSize = tokenCount <= 10 ? 60 : tokenCount <= 25 ? 40 : tokenCount <= 50 ? 25 : 15;
+    // Base size calculation - increased for better visibility
+    let baseSize = tokenCount <= 10 ? 80 : tokenCount <= 25 ? 60 : tokenCount <= 50 ? 40 : 25;
     
-    // Scale based on screen size
+    // Scale based on screen size - increased multipliers for large screens
     let screenType = 'unknown';
     if (isMobile) {
-      baseSize *= 0.7; // Smaller bubbles on mobile
+      baseSize *= 0.8; // Slightly larger on mobile
       screenType = 'mobile';
     } else if (isTablet) {
-      baseSize *= 0.85; // Medium bubbles on tablet
+      baseSize *= 1.0; // Larger bubbles on tablet
       screenType = 'tablet';
     } else if (isDesktop) {
-      baseSize *= 1.0; // Normal size on desktop
+      baseSize *= 1.4; // Much larger on desktop
       screenType = 'desktop';
     } else if (isLargeDesktop) {
-      baseSize *= 1.3; // Larger bubbles on large screens
+      baseSize *= 1.8; // Even larger on large screens
       screenType = 'large-desktop';
     } else if (isUltraWide) {
-      baseSize *= 1.6; // Much larger bubbles on ultra-wide screens
+      baseSize *= 2.2; // Much larger bubbles on ultra-wide screens
       screenType = 'ultra-wide';
     }
     
     console.log(`🫧 BubbleMap: Screen detected as ${screenType} (${screenWidth}px), baseSize: ${baseSize.toFixed(1)}`);
     
-    // Set max and min sizes based on screen size
+    // Set max and min sizes based on screen size - increased for better visibility
     let maxSize, minSize;
     if (isMobile) {
-      maxSize = 50;
-      minSize = 6;
-    } else if (isTablet) {
-      maxSize = 65;
+      maxSize = 60;
       minSize = 8;
-    } else if (isDesktop) {
+    } else if (isTablet) {
       maxSize = 80;
-      minSize = 10;
-    } else if (isLargeDesktop) {
-      maxSize = 100;
       minSize = 12;
-    } else { // Ultra-wide
+    } else if (isDesktop) {
       maxSize = 120;
-      minSize = 15;
+      minSize = 16;
+    } else if (isLargeDesktop) {
+      maxSize = 150;
+      minSize = 20;
+    } else { // Ultra-wide
+      maxSize = 180;
+      minSize = 25;
     }
     
     // Ensure base size fits within bounds
@@ -487,7 +487,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect }) => {
       .attr('text-anchor', 'middle')
       .attr('dy', '.3em')
       .style('fill', 'white')
-      .style('font-size', d => Math.min(radiusScale(d.score || d.overallScore || 5) / 3, 14) + 'px')
+      .style('font-size', d => Math.min(radiusScale(d.score || d.overallScore || 5) / 2.5, 18) + 'px')
       .style('font-weight', 'bold')
       .style('pointer-events', 'none')
       .text(d => d.symbol);
