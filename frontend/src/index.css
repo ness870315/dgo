@@ -303,46 +303,55 @@ code {
   }
 }
 
-/* MOBILE FILTER BUTTONS - COMPACT PROFESSIONAL DESIGN */
+/* MOBILE FILTER BUTTONS - OPTIMIZED PROFESSIONAL DESIGN */
 @media (max-width: 768px) {
   .mobile-filters-container .mobile-filter-button,
   .mobile-filters-container button.mobile-filter-button,
   .mobile-filters-container button,
   button.mobile-filter-button,
   .mobile-filter-button {
-    padding: 3px 8px !important;
-    font-size: 10px !important;
-    line-height: 1.2 !important;
-    min-height: 20px !important;
-    border-radius: 3px !important;
-    min-width: 50px !important;
+    padding: 4px 6px !important;
+    font-size: 9px !important;
+    line-height: 1.1 !important;
+    min-height: 22px !important;
+    border-radius: 4px !important;
+    min-width: auto !important;
+    width: auto !important;
     display: inline-block !important;
     box-sizing: border-box !important;
     margin: 1px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
   
-  /* Force compact font size */
+  /* Force compact font size and ensure text fits */
   .mobile-filters-container button *,
   .mobile-filters-container button span,
   .mobile-filters-container button {
-    font-size: 10px !important;
+    font-size: 9px !important;
+    white-space: nowrap !important;
   }
 }
 
 /* COMPACT MOBILE FILTERS SECTION */
 @media (max-width: 768px) {
   .mobile-filters-label {
-    font-size: 10px !important;
-    margin-bottom: 1px !important;
+    font-size: 9px !important;
+    margin-bottom: 2px !important;
+    margin-right: 4px !important;
   }
   
   .mobile-filters-container {
-    padding: 2px !important;
-    margin: 2px !important;
+    padding: 3px !important;
+    margin: 1px !important;
   }
   
   .mobile-filters-buttons {
     gap: 2px !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
   }
 }
 
