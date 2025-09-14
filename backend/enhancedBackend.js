@@ -1367,6 +1367,58 @@ class EnhancedBackend {
       }
     });
 
+    // Admin: Remove specific token by contract address
+    this.app.delete('/admin/remove-token/:contractAddress', async (req, res) => {
+      try {
+        const { contractAddress } = req.params;
+        
+        console.log(`🗑️ Removing token: ${contractAddress}`);
+        
+        // Load tokens from cache
+        const tokens = await this.getTokensFromCache();
+        const initialCount = tokens.length;
+        
+        // Filter out the token
+        const filteredTokens = tokens.filter(token => 
+          token.contractAddress !== contractAddress && 
+          token.jupiterData?.contractAddress !== contractAddress
+        );
+        
+        const removedCount = initialCount - filteredTokens.length;
+        
+        if (removedCount === 0) {
+          return res.json({
+            success: false,
+            message: 'Token not found',
+            contractAddress
+          });
+        }
+        
+        // Save filtered tokens back to cache
+        const cachePath = this.persistentCachePath;
+        await fs.writeFile(cachePath, JSON.stringify(filteredTokens, null, 2));
+        
+        console.log(`✅ Removed ${removedCount} token(s) with contract: ${contractAddress}`);
+        console.log(`📊 Tokens before: ${initialCount}, after: ${filteredTokens.length}`);
+        
+        res.json({
+          success: true,
+          message: `Removed ${removedCount} token(s)`,
+          contractAddress,
+          removedCount,
+          tokensBefore: initialCount,
+          tokensAfter: filteredTokens.length
+        });
+        
+      } catch (error) {
+        console.error('❌ Error removing token:', error.message);
+        res.status(500).json({ 
+          success: false, 
+          error: 'Failed to remove token: ' + error.message 
+        });
+      }
+    });
+
     // Admin: Run liquidity cleanup to remove dead tokens
     this.app.post('/admin/run-liquidity-cleanup', async (req, res) => {
       try {
