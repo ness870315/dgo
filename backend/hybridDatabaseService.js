@@ -269,6 +269,8 @@ class HybridDatabaseService {
         notifications: true,
         defaultView: 'bubble'
       },
+      // Twitter posting enabled by default for authenticated users
+      twitterPostingEnabled: existingProfile.twitterPostingEnabled !== undefined ? existingProfile.twitterPostingEnabled : true,
       // User stats
       stats: existingProfile.stats || {
         tokensListed: 0,
