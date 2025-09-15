@@ -1776,6 +1776,76 @@ class EnhancedBackend {
       }
     });
 
+    // User: Automatically refresh Twitter token
+    this.app.post('/api/twitter/refresh-token', async (req, res) => {
+      try {
+        const { userId } = req.body;
+        
+        if (!userId) {
+          return res.status(400).json({
+            success: false,
+            error: 'User ID required'
+          });
+        }
+
+        // Get user
+        const user = await this.oauthXService.getUserById(userId);
+        if (!user) {
+          return res.status(404).json({
+            success: false,
+            error: 'User not found'
+          });
+        }
+
+        // Check if user has refresh token
+        if (!user.refresh_token) {
+          return res.status(400).json({
+            success: false,
+            error: 'No refresh token available. User needs to re-authenticate.',
+            needsReauth: true
+          });
+        }
+
+        // Attempt to refresh the token
+        try {
+          const newTokens = await this.oauthXService.refreshAccessToken(user.refresh_token);
+          
+          // Update user with new tokens
+          await this.oauthXService.db.updateUserTokens(userId, newTokens.access_token, newTokens.refresh_token);
+          
+          logger.info(`✅ Successfully refreshed Twitter tokens for user ${userId}`);
+          
+          // Retry any failed milestones
+          const retryResult = await this.milestoneTracker.retryFailedMilestones(userId);
+          
+          res.json({
+            success: true,
+            message: 'Twitter token refreshed successfully',
+            tokensRefreshed: true,
+            milestonesRetried: retryResult?.retriedCount || 0
+          });
+          
+        } catch (refreshError) {
+          logger.error(`❌ Token refresh failed for user ${userId}:`, refreshError.message);
+          
+          // If refresh fails, user needs to re-authenticate
+          return res.status(400).json({
+            success: false,
+            error: 'Token refresh failed. User needs to re-authenticate.',
+            needsReauth: true,
+            details: refreshError.message
+          });
+        }
+        
+      } catch (error) {
+        logger.error('❌ Error refreshing Twitter token:', error.message);
+        res.status(500).json({ 
+          success: false, 
+          error: error.message 
+        });
+      }
+    });
+
     // User: Get users with expired Twitter tokens (for admin)
     this.app.get('/api/admin/twitter/expired-tokens', async (req, res) => {
       try {
@@ -1804,6 +1874,60 @@ class EnhancedBackend {
         
       } catch (error) {
         logger.error('❌ Error getting users with expired tokens:', error.message);
+        res.status(500).json({ 
+          success: false, 
+          error: error.message 
+        });
+      }
+    });
+
+    // Admin: Automatically refresh all Twitter tokens
+    this.app.post('/api/admin/twitter/refresh-all-tokens', async (req, res) => {
+      try {
+        const users = await this.oauthXService.db.getAllUsers();
+        const results = {
+          total: users.length,
+          refreshed: 0,
+          failed: 0,
+          needsReauth: 0,
+          errors: []
+        };
+
+        for (const user of users) {
+          try {
+            // Only attempt refresh if user has refresh token
+            if (user.refresh_token) {
+              const newTokens = await this.oauthXService.refreshAccessToken(user.refresh_token);
+              await this.oauthXService.db.updateUserTokens(user.id, newTokens.access_token, newTokens.refresh_token);
+              
+              // Retry failed milestones
+              await this.milestoneTracker.retryFailedMilestones(user.id);
+              
+              results.refreshed++;
+              logger.info(`✅ Refreshed tokens for user ${user.username} (${user.id})`);
+            } else {
+              results.needsReauth++;
+              logger.warn(`⚠️ User ${user.username} (${user.id}) needs re-authentication - no refresh token`);
+            }
+          } catch (error) {
+            results.failed++;
+            results.errors.push({
+              userId: user.id,
+              username: user.username,
+              error: error.message
+            });
+            logger.error(`❌ Failed to refresh tokens for user ${user.username} (${user.id}):`, error.message);
+          }
+        }
+
+        res.json({
+          success: true,
+          message: `Token refresh completed: ${results.refreshed} refreshed, ${results.failed} failed, ${results.needsReauth} need re-auth`,
+          results
+        });
+        
+      } catch (error) {
+        logger.error('❌ Error refreshing all Twitter tokens:', error.message);
         res.status(500).json({ 
           success: false, 
           error: error.message 
