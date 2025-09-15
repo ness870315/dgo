@@ -1409,9 +1409,28 @@ class EnhancedSocialDataService {
         }
       }
       
-      // Save updated tokens cache
-      await fs.writeFile(tokensCachePath, JSON.stringify(tokens, null, 2));
-      console.log(`💾 Updated ${updatedCount} tokens with Twitter data directly in main cache`);
+      // 🛡️ ATOMIC WRITE: Save updated tokens cache with atomic write to prevent corruption
+      const tempPath = tokensCachePath + '.tmp';
+      const jsonData = JSON.stringify(tokens, null, 2);
+      
+      try {
+        // Write to temporary file first
+        await fs.writeFile(tempPath, jsonData, 'utf8');
+        
+        // Atomic rename (this is atomic on most file systems)
+        await fs.rename(tempPath, tokensCachePath);
+        
+        console.log(`💾 Updated ${updatedCount} tokens with Twitter data directly in main cache (atomic write)`);
+      } catch (error) {
+        console.error('❌ Error saving Twitter data to cache:', error);
+        
+        // Cleanup temp file if it exists
+        try {
+          await fs.unlink(tempPath);
+        } catch (_) {}
+        
+        throw error;
+      }
       
       // Also save to separate file for backup/debugging
       const dataToSave = {

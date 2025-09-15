@@ -305,8 +305,18 @@ class OpenAIService {
     try {
       const filePath = path.join(this.cacheDir, `${cacheKey}.json`);
       const cacheData = this.cache.get(cacheKey);
-      await fs.writeFile(filePath, JSON.stringify(cacheData, null, 2));
+      
+      // 🛡️ ATOMIC WRITE: Save cache entry
+      const tempPath = filePath + '.tmp';
+      const jsonData = JSON.stringify(cacheData, null, 2);
+      
+      await fs.writeFile(tempPath, jsonData, 'utf8');
+      await fs.rename(tempPath, filePath);
     } catch (error) {
+      // Cleanup temp file if it exists
+      try {
+        await fs.unlink(path.join(this.cacheDir, `${cacheKey}.json.tmp`));
+      } catch (_) {}
       console.warn('⚠️ Failed to save cache entry:', error.message);
     }
   }

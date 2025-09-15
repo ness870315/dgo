@@ -1149,9 +1149,21 @@ class EnhancedTokenProcessor {
       const finalUniqueTokens = this.mergeWithExistingTokens(deduplicatedNewTokens, existingTokens);
       console.log(`🔄 Final merge: ${existingTokens.length} existing + ${deduplicatedNewTokens.length} new = ${finalUniqueTokens.length} total tokens`);
       
-      // Save to cache
+      // 🛡️ ATOMIC WRITE: Save to cache
       const cachePath = path.join(this.cacheDir, 'tokens-cache.json');
-      await fs.writeFile(cachePath, JSON.stringify(finalUniqueTokens, null, 2));
+      const tempPath = cachePath + '.tmp';
+      const jsonData = JSON.stringify(finalUniqueTokens, null, 2);
+      
+      try {
+        await fs.writeFile(tempPath, jsonData, 'utf8');
+        await fs.rename(tempPath, cachePath);
+      } catch (error) {
+        // Cleanup temp file if it exists
+        try {
+          await fs.unlink(tempPath);
+        } catch (_) {}
+        throw error;
+      }
       
       // Update our internal state with deduplicated tokens
       this.processedTokens = finalUniqueTokens;
@@ -2326,9 +2338,21 @@ class EnhancedTokenProcessor {
         console.log(`➕ Added new paid token ${token.symbol} to cache (CA ${token.contractAddress})`);
       }
 
-      // Save updated cache
-      await fs.writeFile(cachePath, JSON.stringify(tokens, null, 2));
-      console.log(`💾 Paid token ${token.symbol} saved to cache`);
+      // 🛡️ ATOMIC WRITE: Save updated cache
+      const tempPath = cachePath + '.tmp';
+      const jsonData = JSON.stringify(tokens, null, 2);
+      
+      try {
+        await fs.writeFile(tempPath, jsonData, 'utf8');
+        await fs.rename(tempPath, cachePath);
+        console.log(`💾 Paid token ${token.symbol} saved to cache`);
+      } catch (error) {
+        // Cleanup temp file if it exists
+        try {
+          await fs.unlink(tempPath);
+        } catch (_) {}
+        throw error;
+      }
 
     } catch (error) {
       console.error(`❌ Error saving paid token to cache:`, error);

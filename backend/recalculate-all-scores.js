@@ -104,10 +104,23 @@ async function recalculateAllScores() {
       }
     }
     
-    // 4. Save updated tokens back to cache
+    // 🛡️ ATOMIC WRITE: Save updated tokens back to cache
     console.log('\n💾 Step 4: Saving updated scores...');
-    await fs.writeFile('./cache/tokens-cache.json', JSON.stringify(tokens, null, 2));
-    console.log('✅ Updated tokens saved to cache');
+    const cachePath = './cache/tokens-cache.json';
+    const tempPath = cachePath + '.tmp';
+    const jsonData = JSON.stringify(tokens, null, 2);
+    
+    try {
+      await fs.writeFile(tempPath, jsonData, 'utf8');
+      await fs.rename(tempPath, cachePath);
+      console.log('✅ Updated tokens saved to cache');
+    } catch (error) {
+      // Cleanup temp file if it exists
+      try {
+        await fs.unlink(tempPath);
+      } catch (_) {}
+      throw error;
+    }
     
     // 5. Show summary
     console.log('\n📊 RECALCULATION SUMMARY');

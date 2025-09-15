@@ -77,9 +77,19 @@ class AIHypePredictionService {
     try {
       await this.ensureCacheFileExists();
       const cacheObj = Object.fromEntries(this.predictionCache);
-      await fs.writeFile(this.predictionCacheFile, JSON.stringify(cacheObj, null, 2));
+      
+      // 🛡️ ATOMIC WRITE: Save AI hype prediction cache
+      const tempPath = this.predictionCacheFile + '.tmp';
+      const jsonData = JSON.stringify(cacheObj, null, 2);
+      
+      await fs.writeFile(tempPath, jsonData, 'utf8');
+      await fs.rename(tempPath, this.predictionCacheFile);
       console.log(`🧠 Saved ${this.predictionCache.size} AI hype predictions to cache file`);
     } catch (error) {
+      // Cleanup temp file if it exists
+      try {
+        await fs.unlink(this.predictionCacheFile + '.tmp');
+      } catch (_) {}
       console.error('❌ Error saving AI hype prediction cache:', error);
       console.error(`❌ Cache file path: ${this.predictionCacheFile}`);
       console.error(`❌ Cache directory exists: ${await fs.access(this.cacheDir).then(() => true).catch(() => false)}`);

@@ -256,9 +256,18 @@ class LiquidityCleanupService {
    */
   async saveTokens(tokens) {
     try {
-      await fs.writeFile(this.cachePath, JSON.stringify(tokens, null, 2));
+      // 🛡️ ATOMIC WRITE: Save tokens to cache
+      const tempPath = this.cachePath + '.tmp';
+      const jsonData = JSON.stringify(tokens, null, 2);
+      
+      await fs.writeFile(tempPath, jsonData, 'utf8');
+      await fs.rename(tempPath, this.cachePath);
       console.log(`💾 Saved ${tokens.length} tokens to cache`);
     } catch (error) {
+      // Cleanup temp file if it exists
+      try {
+        await fs.unlink(this.cachePath + '.tmp');
+      } catch (_) {}
       console.error('❌ Failed to save tokens:', error.message);
       throw error;
     }

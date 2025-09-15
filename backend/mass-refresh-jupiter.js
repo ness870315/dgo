@@ -127,10 +127,23 @@ async function massRefreshJupiter() {
     
     console.log('\n');
     
-    // Save updated cache
+    // 🛡️ ATOMIC WRITE: Save updated cache
     if (refreshed > 0 || removedCount > 0) {
-      fs.writeFileSync('./cache/tokens-cache.json', JSON.stringify(tokensCache, null, 2));
-      console.log('💾 Cache updated successfully');
+      const cachePath = './cache/tokens-cache.json';
+      const tempPath = cachePath + '.tmp';
+      const jsonData = JSON.stringify(tokensCache, null, 2);
+      
+      try {
+        fs.writeFileSync(tempPath, jsonData, 'utf8');
+        fs.renameSync(tempPath, cachePath);
+        console.log('💾 Cache updated successfully');
+      } catch (error) {
+        // Cleanup temp file if it exists
+        try {
+          fs.unlinkSync(tempPath);
+        } catch (_) {}
+        throw error;
+      }
     }
     
     console.log('\n📈 REFRESH SUMMARY:');

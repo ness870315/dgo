@@ -1540,9 +1540,21 @@ class EnhancedBackend {
           });
         }
         
-        // Save filtered tokens back to cache
+        // 🛡️ ATOMIC WRITE: Save filtered tokens back to cache
         const cachePath = this.persistentCachePath;
-        await fs.writeFile(cachePath, JSON.stringify(filteredTokens, null, 2));
+        const tempPath = cachePath + '.tmp';
+        const jsonData = JSON.stringify(filteredTokens, null, 2);
+        
+        try {
+          await fs.writeFile(tempPath, jsonData, 'utf8');
+          await fs.rename(tempPath, cachePath);
+        } catch (error) {
+          // Cleanup temp file if it exists
+          try {
+            await fs.unlink(tempPath);
+          } catch (_) {}
+          throw error;
+        }
         
         console.log(`✅ Removed ${removedCount} token(s) with contract: ${contractAddress}`);
         console.log(`📊 Tokens before: ${initialCount}, after: ${filteredTokens.length}`);
@@ -4217,8 +4229,20 @@ class EnhancedBackend {
           return res.status(404).json({ error: `Token ${symbol} not found` });
         }
         
-        // Save updated cache
-        await fs.writeFile(cachePath, JSON.stringify(filteredTokens, null, 2));
+        // 🛡️ ATOMIC WRITE: Save updated cache
+        const tempPath = cachePath + '.tmp';
+        const jsonData = JSON.stringify(filteredTokens, null, 2);
+        
+        try {
+          await fs.writeFile(tempPath, jsonData, 'utf8');
+          await fs.rename(tempPath, cachePath);
+        } catch (error) {
+          // Cleanup temp file if it exists
+          try {
+            await fs.unlink(tempPath);
+          } catch (_) {}
+          throw error;
+        }
         
         // Remove from Twitter metrics
         try {
@@ -4287,8 +4311,20 @@ class EnhancedBackend {
         const symbol = tokenToDelete.symbol;
         const filteredTokens = tokens.filter(t => t.contractAddress !== contractAddress);
         
-        // Save updated cache
-        await fs.writeFile(cachePath, JSON.stringify(filteredTokens, null, 2));
+        // 🛡️ ATOMIC WRITE: Save updated cache
+        const tempPath = cachePath + '.tmp';
+        const jsonData = JSON.stringify(filteredTokens, null, 2);
+        
+        try {
+          await fs.writeFile(tempPath, jsonData, 'utf8');
+          await fs.rename(tempPath, cachePath);
+        } catch (error) {
+          // Cleanup temp file if it exists
+          try {
+            await fs.unlink(tempPath);
+          } catch (_) {}
+          throw error;
+        }
         
         // Remove from Twitter metrics
         try {
@@ -4505,8 +4541,20 @@ class EnhancedBackend {
         token.twitterData = twitterData;
         token.twitterTimestamp = new Date().toISOString();
         
-        // Save updated tokens back to cache
-        await fs.writeFile(cachePath, JSON.stringify(rawTokens, null, 2));
+        // 🛡️ ATOMIC WRITE: Save updated tokens back to cache
+        const tempPath = cachePath + '.tmp';
+        const jsonData = JSON.stringify(rawTokens, null, 2);
+        
+        try {
+          await fs.writeFile(tempPath, jsonData, 'utf8');
+          await fs.rename(tempPath, cachePath);
+        } catch (error) {
+          // Cleanup temp file if it exists
+          try {
+            await fs.unlink(tempPath);
+          } catch (_) {}
+          throw error;
+        }
         
         res.json({
           success: true,
@@ -7617,7 +7665,7 @@ class EnhancedBackend {
       
       // Cleanup temp file if it exists
       try {
-        const tempPath = this.persistentCachePath + '.tmp';
+        const tempPath = cachePath + '.tmp';
         await fs.unlink(tempPath);
       } catch (_) {}
       
@@ -7914,11 +7962,23 @@ class EnhancedBackend {
         }
       }
       
-      // Save updated cache
+      // 🛡️ ATOMIC WRITE: Save updated cache
       if (updated > 0) {
         const cachePath = path.join(__dirname, 'cache', 'tokens-cache.json');
-        await fs.writeFile(cachePath, JSON.stringify(tokens, null, 2));
-        console.log(`[🛡️ Enhanced Backend] ✅ Jupiter update complete: ${updated} tokens updated, ${errors} errors`);
+        const tempPath = cachePath + '.tmp';
+        const jsonData = JSON.stringify(tokens, null, 2);
+        
+        try {
+          await fs.writeFile(tempPath, jsonData, 'utf8');
+          await fs.rename(tempPath, cachePath);
+          console.log(`[🛡️ Enhanced Backend] ✅ Jupiter update complete: ${updated} tokens updated, ${errors} errors`);
+        } catch (error) {
+          // Cleanup temp file if it exists
+          try {
+            await fs.unlink(tempPath);
+          } catch (_) {}
+          throw error;
+        }
         
         // Update KOL calls with new market cap data
         await this.updateKolCallsWithJupiterData(tokens);
@@ -8355,10 +8415,22 @@ class EnhancedBackend {
 
   async clearCache() {
     try {
-      // Use the same persistent cache path as the rest of the system
+      // 🛡️ ATOMIC WRITE: Use the same persistent cache path as the rest of the system
       const cachePath = this.persistentCachePath || path.join(process.env.DATA_DIR || '/var/data/dgo', 'cache', 'tokens-cache.json');
-      await fs.writeFile(cachePath, JSON.stringify([], null, 2));
-      console.log(`[🛡️ Enhanced Backend] 🗑️ Cache cleared at: ${cachePath}`);
+      const tempPath = cachePath + '.tmp';
+      const jsonData = JSON.stringify([], null, 2);
+      
+      try {
+        await fs.writeFile(tempPath, jsonData, 'utf8');
+        await fs.rename(tempPath, cachePath);
+        console.log(`[🛡️ Enhanced Backend] 🗑️ Cache cleared at: ${cachePath}`);
+      } catch (error) {
+        // Cleanup temp file if it exists
+        try {
+          await fs.unlink(tempPath);
+        } catch (_) {}
+        throw error;
+      }
       
       // Reset processor state
       this.tokenProcessor.processedTokens = [];
