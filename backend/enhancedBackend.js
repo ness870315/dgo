@@ -8709,21 +8709,53 @@ class EnhancedBackend {
   }
 
   /**
-   * Get recent logs from memory (simplified implementation)
-   * In production, this would read from actual log files
+   * Get recent logs from log files (production-ready implementation)
    */
-  getRecentLogs(lines = 100, level = 'all') {
+  async getRecentLogs(lines = 100, level = 'all') {
     try {
-      // Initialize log storage if not exists
-      if (!this.logStorage) {
-        this.logStorage = [];
-        this.maxLogEntries = 10000; // Keep last 10k log entries in memory
+      // Determine log file path
+      const logDir = process.env.DATA_DIR ? path.join(process.env.DATA_DIR, 'logs') : path.join(__dirname, 'logs');
+      const logFile = path.join(logDir, 'server.log');
+      
+      // Ensure log directory exists
+      await fs.mkdir(logDir, { recursive: true });
+      
+      // Check if log file exists
+      try {
+        await fs.access(logFile);
+      } catch {
+        // Log file doesn't exist, return empty array
+        return [];
       }
-
+      
+      // Read log file
+      const logContent = await fs.readFile(logFile, 'utf8');
+      const logLines = logContent.split('\n').filter(line => line.trim());
+      
+      // Parse log entries
+      const logs = [];
+      for (const line of logLines) {
+        try {
+          // Parse log format: [timestamp] level: message
+          const match = line.match(/^\[([^\]]+)\] (\w+): (.+)$/);
+          if (match) {
+            const [, timestamp, logLevel, message] = match;
+            logs.push({
+              timestamp: timestamp,
+              level: logLevel,
+              message: message
+            });
+          }
+        } catch (parseError) {
+          // Skip malformed log entries
+          continue;
+        }
+      }
+      
       // Filter logs by level
-      let filteredLogs = this.logStorage;
+      let filteredLogs = logs;
       if (level !== 'all') {
-        filteredLogs = this.logStorage.filter(log => {
+        filteredLogs = logs.filter(log => {
           switch (level) {
             case 'error':
               return log.level === 'error' || log.message.includes('❌') || log.message.includes('Error');
@@ -8759,28 +8791,37 @@ class EnhancedBackend {
   }
 
   /**
-   * Add log entry to memory storage
-   * This would be called by a custom logger in production
+   * Add log entry to log file (production-ready implementation)
    */
-  addLogEntry(level, message) {
+  async addLogEntry(level, message) {
     try {
-      if (!this.logStorage) {
-        this.logStorage = [];
-        this.maxLogEntries = 10000;
+      // Determine log file path
+      const logDir = process.env.DATA_DIR ? path.join(process.env.DATA_DIR, 'logs') : path.join(__dirname, 'logs');
+      const logFile = path.join(logDir, 'server.log');
+      
+      // Ensure log directory exists
+      await fs.mkdir(logDir, { recursive: true });
+      
+      // Format log entry
+      const timestamp = new Date().toISOString();
+      const logLine = `[${timestamp}] ${level}: ${message}\n`;
+      
+      // Append to log file
+      await fs.appendFile(logFile, logLine, 'utf8');
+      
+      // Optional: Rotate log file if it gets too large (> 100MB)
+      try {
+        const stats = await fs.stat(logFile);
+        if (stats.size > 100 * 1024 * 1024) { // 100MB
+          const rotatedFile = path.join(logDir, `server-${Date.now()}.log`);
+          await fs.rename(logFile, rotatedFile);
+          console.log(`[🛡️ Enhanced Backend] 📁 Log file rotated: ${rotatedFile}`);
+        }
+      } catch (rotateError) {
+        // Log rotation failed, but don't fail the main operation
+        console.warn('[🛡️ Enhanced Backend] ⚠️ Log rotation failed:', rotateError.message);
       }
-
-      const logEntry = {
-        timestamp: new Date().toISOString(),
-        level: level,
-        message: message
-      };
-
-      this.logStorage.push(logEntry);
-
-      // Keep only the most recent entries
-      if (this.logStorage.length > this.maxLogEntries) {
-        this.logStorage = this.logStorage.slice(-this.maxLogEntries);
-      }
+      
     } catch (error) {
       console.error('[🛡️ Enhanced Backend] ❌ Error adding log entry:', error);
     }
