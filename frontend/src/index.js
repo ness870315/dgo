@@ -26,9 +26,9 @@ if ('serviceWorker' in navigator) {
               console.log('🔄 PWA: New content available, please refresh');
               
               // Show update notification to user
-              if (confirm('🔄 New version available! Refresh to get the latest updates?')) {
-                window.location.reload();
-              }
+      if (window.confirm('🔄 New version available! Refresh to get the latest updates?')) {
+        window.location.reload();
+      }
             }
           });
         });

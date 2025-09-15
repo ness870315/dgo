@@ -198,7 +198,7 @@ class PushNotificationService {
   }
 
   /**
-   * Handle notification click
+   * Handle notification click (for service worker)
    */
   handleNotificationClick(event) {
     console.log('📱 Notification clicked:', event);
@@ -206,7 +206,7 @@ class PushNotificationService {
     if (event.notification.data && event.notification.data.url) {
       // Open the token page
       event.waitUntil(
-        clients.openWindow(event.notification.data.url)
+        self.clients.openWindow(event.notification.data.url)
       );
     }
     
