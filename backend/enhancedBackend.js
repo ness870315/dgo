@@ -265,6 +265,25 @@ class EnhancedBackend {
         const user = await this.oauthXService.getUserBySession(sessionId);
         if (!user) return res.status(401).json({ success: false, error: 'Invalid session' });
 
+        // Validate payment with Helio API
+        console.log('🔐 Validating payment for premium activation...');
+        const paymentId = receipt?.paymentId || receipt?.id || clientPaylinkId;
+        if (!paymentId) {
+          return res.status(400).json({ success: false, error: 'Missing payment ID' });
+        }
+
+        const validationResult = await this.helioService.validatePayment(paymentId, receipt);
+        if (!validationResult.isValid) {
+          console.log('❌ Payment validation failed:', validationResult.error);
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Payment validation failed', 
+            details: validationResult.error 
+          });
+        }
+
+        console.log('✅ Payment validated successfully:', validationResult);
+
         // Determine plan by paylinkId (monthly vs yearly)
         const envMonthly = process.env.HELIO_MONTHLY_PAYLINK_ID || '68b8ed60cf71471addc8adb6';
         const envYearly = process.env.HELIO_YEARLY_PAYLINK_ID || null;
@@ -285,6 +304,8 @@ class EnhancedBackend {
           subscriptionType: `helio_${planType}`,
           receipt: receipt || null,
           paylinkId: receiptPaylinkId || null,
+          paymentId: paymentId,
+          validationData: validationResult,
           updatedAt: now.toISOString(),
           lastActivatedAt: now.toISOString(),
           expiresAt: expiresAt.toISOString(),
