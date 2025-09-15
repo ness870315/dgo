@@ -105,6 +105,13 @@ function filterCandidates(list) {
       continue;
     }
     
+    // 🌱 FILTER: Only include tokens with organic score > 0
+    const organicScore = t.organicScore ?? t.organic_score ?? 0;
+    if (!organicScore || organicScore <= 0) {
+      console.log(`🚫 Filtering out ${n.symbol} (${n.contractAddress?.substring(0, 8)}) - no organic score (${organicScore})`);
+      continue;
+    }
+    
     out.push({ ...n });
   }
   return out.slice(0, 100);

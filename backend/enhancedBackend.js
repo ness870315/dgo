@@ -4248,6 +4248,8 @@ class EnhancedBackend {
         const tokens = JSON.parse(rawData) || [];
 
         const queue = [];
+        const tokensToRemove = [];
+        
         tokens.forEach((t, idx) => {
           if (t?.symbol && t?.name) {
             // 🚨 QUALITY FILTER: Check if token meets quality criteria
@@ -4257,10 +4259,11 @@ class EnhancedBackend {
             
             // Only process if at least ONE quality criteria is present (not all missing)
             if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
-              console.log(`🚫 QUALITY FILTER: ${t.symbol} (${t.contractAddress?.substring(0, 8)}) - Missing ALL quality criteria, skipping Twitter refresh`);
+              console.log(`🗑️ QUALITY FILTER: Removing ${t.symbol} (${t.contractAddress?.substring(0, 8)}) - Missing ALL quality criteria`);
               console.log(`   - Launchpad: ❌ (${t.jupiterData?.launchpad || 'missing'})`);
               console.log(`   - Organic Score: ❌ (${t.jupiterData?.organicScore || 0})`);
               console.log(`   - Graduated At: ❌ (${t.jupiterData?.graduatedAt || 'missing'})`);
+              tokensToRemove.push(t);
               return; // Skip this token
             }
             
@@ -4268,6 +4271,22 @@ class EnhancedBackend {
             queue.push({ symbol: t.symbol, name: t.name, index: idx });
           }
         });
+        
+        // Remove low-quality tokens from cache if any were found
+        if (tokensToRemove.length > 0) {
+          console.log(`[🛡️ Enhanced Backend] 🗑️ Twitter refresh removing ${tokensToRemove.length} low-quality tokens from cache`);
+          
+          const tokensToKeep = tokens.filter(token => 
+            !tokensToRemove.some(removed => removed.contractAddress === token.contractAddress)
+          );
+          
+          // Save the cleaned cache
+          await this.saveTokensToCache(tokensToKeep);
+          console.log(`[🛡️ Enhanced Backend] ✅ Cache cleaned: ${tokens.length} → ${tokensToKeep.length} tokens`);
+          
+          // Update the tokens array for the rest of the function
+          tokens.splice(0, tokens.length, ...tokensToKeep);
+        }
 
         this.twitterRefreshJob = {
           running: true,
@@ -6416,7 +6435,7 @@ class EnhancedBackend {
     }
   }
 
-  async saveTokensToCache(tokens) {
+  async saveTokensToCache(tokens, retryCount = 0) {
     const lockPath = this.persistentCachePath + '.lock';
     let lockFile = null;
     
@@ -6427,21 +6446,46 @@ class EnhancedBackend {
       const cacheDir = path.dirname(cachePath);
       await fs.mkdir(cacheDir, { recursive: true });
       
-      // 🛡️ FILE LOCKING: Create lock file to prevent concurrent access
+      // 🛡️ ENHANCED FILE LOCKING: Create lock file to prevent concurrent access
       try {
         lockFile = await fs.open(lockPath, 'wx'); // Exclusive write lock
         console.log(`[🛡️ Enhanced Backend] 🔒 Acquired cache lock`);
       } catch (lockError) {
         if (lockError.code === 'EEXIST') {
-          console.log(`[🛡️ Enhanced Backend] ⏳ Cache lock exists, waiting...`);
-          // Wait for lock to be released (max 30 seconds)
-          for (let i = 0; i < 30; i++) {
+          console.log(`[🛡️ Enhanced Backend] ⏳ Cache lock exists, waiting... (attempt ${retryCount + 1})`);
+          
+          // Check if lock file is stale (older than 5 minutes)
+          try {
+            const lockStats = await fs.stat(lockPath);
+            const lockAge = Date.now() - lockStats.mtime.getTime();
+            if (lockAge > 5 * 60 * 1000) { // 5 minutes
+              console.log(`[🛡️ Enhanced Backend] 🗑️ Removing stale lock file (${Math.round(lockAge / 1000)}s old)`);
+              await fs.unlink(lockPath);
+              // Retry immediately after removing stale lock
+              return this.saveTokensToCache(tokens, retryCount);
+            }
+          } catch (statError) {
+            // Lock file doesn't exist anymore, retry
+            return this.saveTokensToCache(tokens, retryCount);
+          }
+          
+          // Wait for lock to be released (max 2 minutes with exponential backoff)
+          const maxWaitTime = Math.min(120, 10 + (retryCount * 10)); // 10s, 20s, 30s, etc.
+          for (let i = 0; i < maxWaitTime; i++) {
             await new Promise(resolve => setTimeout(resolve, 1000));
             try {
               lockFile = await fs.open(lockPath, 'wx');
               break;
             } catch (_) {
-              if (i === 29) throw new Error('Cache lock timeout - another process is writing');
+              if (i === maxWaitTime - 1) {
+                if (retryCount < 3) {
+                  console.log(`[🛡️ Enhanced Backend] ⏳ Lock timeout, retrying in 5s... (${retryCount + 1}/3)`);
+                  await new Promise(resolve => setTimeout(resolve, 5000));
+                  return this.saveTokensToCache(tokens, retryCount + 1);
+                } else {
+                  throw new Error('Cache lock timeout - another process is writing');
+                }
+              }
             }
           }
         } else {
@@ -6874,11 +6918,52 @@ class EnhancedBackend {
         console.log('[🛡️ Enhanced Backend] ✅ No tokens need priority updates at this time');
         return;
       }
+
+      // 🚨 QUALITY FILTER: Remove low-quality tokens from the update list AND from the main cache
+      const qualityTokens = [];
+      const removedTokens = [];
       
-      console.log(`[🛡️ Enhanced Backend] 🔄 Priority update: ${tokensToUpdate.length} tokens selected`);
+      tokensToUpdate.forEach(token => {
+        const hasLaunchpad = token.jupiterData?.launchpad && token.jupiterData.launchpad !== '';
+        const hasOrganicScore = token.jupiterData?.organicScore && token.jupiterData.organicScore > 0;
+        const hasGraduatedAt = token.jupiterData?.graduatedAt && token.jupiterData.graduatedAt !== '';
+        
+        if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
+          console.log(`🗑️ QUALITY FILTER: Removing ${token.symbol} (${token.contractAddress?.substring(0, 8)}) - Missing ALL quality criteria`);
+          console.log(`   - Launchpad: ❌ (${token.jupiterData?.launchpad || 'missing'})`);
+          console.log(`   - Organic Score: ❌ (${token.jupiterData?.organicScore || 0})`);
+          console.log(`   - Graduated At: ❌ (${token.jupiterData?.graduatedAt || 'missing'})`);
+          removedTokens.push(token);
+        } else {
+          qualityTokens.push(token);
+        }
+      });
+      
+      if (removedTokens.length > 0) {
+        console.log(`[🛡️ Enhanced Backend] 🗑️ Removed ${removedTokens.length} low-quality tokens from cache`);
+        
+        // Remove these tokens from the main tokens array
+        const tokensToKeep = tokens.filter(token => 
+          !removedTokens.some(removed => removed.contractAddress === token.contractAddress)
+        );
+        
+        // Save the cleaned cache
+        await this.saveTokensToCache(tokensToKeep);
+        console.log(`[🛡️ Enhanced Backend] ✅ Cache cleaned: ${tokens.length} → ${tokensToKeep.length} tokens`);
+        
+        // Update the tokens array for the rest of the function
+        tokens.splice(0, tokens.length, ...tokensToKeep);
+      }
+      
+      if (qualityTokens.length === 0) {
+        console.log('[🛡️ Enhanced Backend] ✅ No quality tokens need priority updates at this time');
+        return;
+      }
+      
+      console.log(`[🛡️ Enhanced Backend] 🔄 Priority update: ${qualityTokens.length} tokens selected`);
       
       // Log priority breakdown
-      const priorityBreakdown = tokensToUpdate.reduce((acc, token) => {
+      const priorityBreakdown = qualityTokens.reduce((acc, token) => {
         acc[token.priority] = (acc[token.priority] || 0) + 1;
         return acc;
       }, {});
@@ -6903,8 +6988,8 @@ class EnhancedBackend {
       
       // Process tokens in batches of 100 (Jupiter API limit)
       const batchSize = 100;
-      for (let i = 0; i < tokensToUpdate.length; i += batchSize) {
-        const batch = tokensToUpdate.slice(i, i + batchSize);
+      for (let i = 0; i < qualityTokens.length; i += batchSize) {
+        const batch = qualityTokens.slice(i, i + batchSize);
         const contractAddresses = batch.map(token => token.contractAddress);
         
         try {
