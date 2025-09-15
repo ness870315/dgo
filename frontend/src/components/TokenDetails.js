@@ -357,11 +357,11 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
   // Generate random fuel share messages
   const generateFuelShareMessage = (symbol, fuelType) => {
     const messages = [
-      `I just Fueled #${symbol} for a ${fuelType} on @degen_oracle1 - a new cult is about to form 🔥`,
-      `🚀 Just dropped ${fuelType} fuel on #${symbol} via @degen_oracle1 - this is about to go parabolic!`,
-      `⚡ Fueled #${symbol} with ${fuelType} boost on @degen_oracle1 - the degen army is assembling!`,
-      `🔥 ${fuelType} fuel applied to #${symbol} on @degen_oracle1 - watch this space, it's about to explode!`,
-      `💎 Just fueled #${symbol} for ${fuelType} on @degen_oracle1 - the next alpha is loading...`
+      `I just Fueled #${symbol} for a ${fuelType} on @dgnoracle - a new cult is about to form 🔥`,
+      `🚀 Just dropped ${fuelType} fuel on #${symbol} via @dgnoracle - this is about to go parabolic!`,
+      `⚡ Fueled #${symbol} with ${fuelType} boost on @dgnoracle - the degen army is assembling!`,
+      `🔥 ${fuelType} fuel applied to #${symbol} on @dgnoracle - watch this space, it's about to explode!`,
+      `💎 Just fueled #${symbol} for ${fuelType} on @dgnoracle - the next alpha is loading...`
     ];
     
     const baseMessage = messages[Math.floor(Math.random() * messages.length)];

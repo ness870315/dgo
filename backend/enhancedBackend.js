@@ -3378,7 +3378,7 @@ class EnhancedBackend {
     // Apply fuel to token
     this.app.post('/api/tokens/fuel', async (req, res) => {
       try {
-        const { contractAddress, fuelType } = req.body;
+        const { contractAddress, fuelType, sessionId } = req.body;
         
         console.log(`[🛡️ Enhanced Backend] 🔥 Applying ${fuelType} fuel to token: ${contractAddress}`);
         
@@ -3386,9 +3386,24 @@ class EnhancedBackend {
           return res.status(400).json({ error: 'Contract address and fuel type are required' });
         }
 
+        // Get user if sessionId provided
+        let user = null;
+        if (sessionId) {
+          user = await this.oauthXService.getUserBySession(sessionId);
+          if (user) {
+            console.log(`[🛡️ Enhanced Backend] 🔥 Fuel request from user: ${user.username} (${user.id})`);
+          }
+        }
+
         const result = await this.applyFuelToToken(contractAddress, fuelType);
         
         if (result.success) {
+          // Update user stats if user is authenticated
+          if (user) {
+            await this.updateUserStats(user.id, 'tokensFueled', 1);
+            console.log(`[🛡️ Enhanced Backend] 📊 Updated tokensFueled stat for user ${user.username}`);
+          }
+          
           res.json({ success: true, message: result.message, token: result.token });
         } else {
           res.status(400).json({ success: false, error: result.error });
@@ -3422,6 +3437,50 @@ class EnhancedBackend {
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Error removing fuel:', error);
         res.status(500).json({ error: 'Failed to remove fuel from token' });
+      }
+    });
+
+    // User token listing endpoint
+    this.app.post('/api/user/tokens/list', async (req, res) => {
+      try {
+        const { sessionId, contractAddress, symbol, name, socialLinks } = req.body;
+        
+        if (!sessionId) {
+          return res.status(401).json({ 
+            success: false, 
+            error: 'Authentication required' 
+          });
+        }
+
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) {
+          return res.status(401).json({
+            success: false,
+            error: 'Invalid session'
+          });
+        }
+
+        console.log(`[🛡️ Enhanced Backend] 📝 Token listing request from user: ${user.username} (${user.id})`);
+        console.log(`[🛡️ Enhanced Backend] 📝 Token: ${symbol} (${contractAddress})`);
+
+        // Update user stats
+        await this.updateUserStats(user.id, 'tokensListed', 1);
+        console.log(`[🛡️ Enhanced Backend] 📊 Updated tokensListed stat for user ${user.username}`);
+
+        res.json({ 
+          success: true, 
+          message: `Token ${symbol} listing request recorded successfully`,
+          userStats: {
+            tokensListed: await this.getUserStat(user.id, 'tokensListed')
+          }
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Error processing token listing:', error);
+        res.status(500).json({ 
+          success: false,
+          error: 'Failed to process token listing' 
+        });
       }
     });
 
@@ -6665,6 +6724,53 @@ class EnhancedBackend {
       console.log(`📊 AI usage tracked for user ${userId}: ${usage[currentMonth]}/5 this month`);
     } catch (error) {
       console.error('Error tracking AI usage:', error);
+    }
+  }
+
+  /**
+   * Update user statistics
+   */
+  async updateUserStats(userId, statName, increment = 1) {
+    try {
+      const profileFile = await this.oauthXService.db.getUserFile(userId, 'profile.json');
+      const profile = await this.oauthXService.db.readJsonFile(profileFile, {});
+      
+      // Initialize stats if they don't exist
+      if (!profile.stats) {
+        profile.stats = {
+          tokensListed: 0,
+          tokensFueled: 0,
+          tokensUpdated: 0,
+          totalSpent: 0
+        };
+      }
+      
+      // Update the specific stat
+      profile.stats[statName] = (profile.stats[statName] || 0) + increment;
+      
+      // Save updated profile
+      await this.oauthXService.db.writeJsonFile(profileFile, profile);
+      
+      console.log(`📊 Updated ${statName} for user ${userId}: ${profile.stats[statName]}`);
+      return profile.stats[statName];
+    } catch (error) {
+      console.error(`Error updating user stats for ${userId}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Get user statistic
+   */
+  async getUserStat(userId, statName) {
+    try {
+      const profileFile = await this.oauthXService.db.getUserFile(userId, 'profile.json');
+      const profile = await this.oauthXService.db.readJsonFile(profileFile, {});
+      
+      return profile.stats?.[statName] || 0;
+    } catch (error) {
+      console.error(`Error getting user stat ${statName} for ${userId}:`, error);
+      return 0;
     }
   }
 

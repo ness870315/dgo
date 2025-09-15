@@ -186,15 +186,15 @@ Respond with ONLY the complete thesis text, no quotes or formatting.`;
   getRandomEndingPhrase() {
     const endings = [
       "Track it on degen-oracle.com — this could be the next 100x gem. NFA",
-      "Follow the alpha on @degen_oracle1 — we're early. NFA",
+      "Follow the alpha on @dgnoracle — we're early. NFA",
       "Check degen-oracle.com for updates — diamond hands only. NFA",
-      "Track on @degen_oracle1 — this narrative is building. NFA",
+      "Track on @dgnoracle — this narrative is building. NFA",
       "Follow the journey on degen-oracle.com — not financial advice. NFA",
-      "Track it on @degen_oracle1 — let's see how this plays out. NFA",
+      "Track it on @dgnoracle — let's see how this plays out. NFA",
       "Check degen-oracle.com — this could be massive. NFA",
-      "Follow on @degen_oracle1 — early but promising. NFA",
+      "Follow on @dgnoracle — early but promising. NFA",
       "Track on degen-oracle.com — high conviction play. NFA",
-      "Follow the alpha on @degen_oracle1 — DYOR but this looks solid. NFA"
+      "Follow the alpha on @dgnoracle — DYOR but this looks solid. NFA"
     ];
     return endings[Math.floor(Math.random() * endings.length)];
   }
@@ -242,7 +242,7 @@ Respond with ONLY the complete thesis text, no quotes or formatting.`;
     
     // The AI should now include the ending phrase in its response
     // If it doesn't, add a fallback ending
-    if (!thesis.includes('degen-oracle.com') && !thesis.includes('@degen_oracle1')) {
+    if (!thesis.includes('degen-oracle.com') && !thesis.includes('@dgnoracle')) {
       thesis += ' ' + this.getRandomEndingPhrase();
     }
     
@@ -300,7 +300,7 @@ Respond with ONLY the complete thesis text, no quotes or formatting.`;
     // Get random milestone narrative
     const milestoneNarrative = this.getRandomMilestoneNarrative(milestone, multiplier, athMultiplier);
     
-    return `🚀 MILESTONE HIT! Called $${symbol} at $${initialMC} MC — now $${currentMC} (${multiplier.toFixed(2)}×). ATH since call: ${athMultiplier.toFixed(2)}× in ${timeSinceCall}. ${milestoneNarrative} Track my calls on @degen_oracle1 : https://degen-oracle.com`;
+    return `🚀 MILESTONE HIT! Called $${symbol} at $${initialMC} MC — now $${currentMC} (${multiplier.toFixed(2)}×). ATH since call: ${athMultiplier.toFixed(2)}× in ${timeSinceCall}. ${milestoneNarrative} Track my calls on @dgnoracle : https://degen-oracle.com`;
   }
 
   /**
@@ -317,7 +317,7 @@ Respond with ONLY the complete thesis text, no quotes or formatting.`;
     // Get random share narrative
     const shareNarrative = this.getRandomShareNarrative(multiplier, athMultiplier);
     
-    return `$${symbol} Update: Called at $${initialMC} MC, now $${currentMC} (${multiplier.toFixed(2)}×). ATH: ${athMultiplier.toFixed(2)}× in ${timeSinceCall}. ${shareNarrative} Track my calls on @degen_oracle1 : https://degen-oracle.com`;
+    return `$${symbol} Update: Called at $${initialMC} MC, now $${currentMC} (${multiplier.toFixed(2)}×). ATH: ${athMultiplier.toFixed(2)}× in ${timeSinceCall}. ${shareNarrative} Track my calls on @dgnoracle : https://degen-oracle.com`;
   }
 
   /**

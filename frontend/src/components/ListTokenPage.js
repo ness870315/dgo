@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, CheckCircle, AlertCircle, Loader, ArrowLeft, Twitter, Globe, MessageCircle, Music, Instagram, ChevronDown, ChevronUp } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 // Professional Success Modal Function
-const showProfessionalSuccessModal = (tokenData) => {
+const showProfessionalSuccessModal = (tokenData, recordTokenListing) => {
   // Create modal overlay
   const overlay = document.createElement('div');
   overlay.style.cssText = `
@@ -115,6 +116,11 @@ const showProfessionalSuccessModal = (tokenData) => {
 
   // Handle OK button click
   document.getElementById('successModalOK').onclick = () => {
+    // Record token listing for user stats
+    if (recordTokenListing) {
+      recordTokenListing(tokenData);
+    }
+    
     document.body.removeChild(overlay);
     document.head.removeChild(style);
 
@@ -213,6 +219,7 @@ const showErrorModal = (message) => {
 };
 
 const ListTokenPage = ({ onBack, onTokenAdded }) => {
+  const { sessionId } = useAuth();
   const [contractAddress, setContractAddress] = useState('');
   const [tokenData, setTokenData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -231,6 +238,40 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   });
   const [helioLoaded, setHelioLoaded] = useState(false);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
+
+  // Call token listing API to update user stats
+  const recordTokenListing = useCallback(async (tokenData) => {
+    if (!sessionId) {
+      console.log('⚠️ No sessionId available, skipping token listing record');
+      return;
+    }
+
+    try {
+      console.log('📝 Recording token listing for user stats:', tokenData.symbol);
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/user/tokens/list`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sessionId: sessionId,
+          contractAddress: tokenData.contractAddress,
+          symbol: tokenData.symbol,
+          name: tokenData.name,
+          socialLinks: tokenData.socialLinks
+        })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        console.log('✅ Token listing recorded successfully:', result.message);
+      } else {
+        console.warn('⚠️ Failed to record token listing:', result.error);
+      }
+    } catch (error) {
+      console.error('❌ Error recording token listing:', error);
+    }
+  }, [sessionId]);
 
   // Submit token to database after successful payment (moved up for useEffect)
   const submitTokenToDatabase = useCallback(async (tokenData, paymentEvent) => {
@@ -407,7 +448,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
 
             // Show success message
             console.log('🎊 Showing success modal...');
-            showProfessionalSuccessModal(tokenData);
+            showProfessionalSuccessModal(tokenData, recordTokenListing);
 
           } catch (error) {
             console.error('❌ Failed to process pending payment:', error);
@@ -483,7 +524,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
               
               // Process the token immediately
               submitTokenToDatabase(tokenData, event).then(() => {
-                showProfessionalSuccessModal(tokenData);
+                showProfessionalSuccessModal(tokenData, recordTokenListing);
                 setPaymentProcessing(false);
                 
                 // Close the modal after success
@@ -1165,7 +1206,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         console.log('Processing successful payment for token:', tokenData);
 
         // Show immediate professional success message
-        showProfessionalSuccessModal(tokenData);
+        showProfessionalSuccessModal(tokenData, recordTokenListing);
         
         // Mark as payment completed
         localStorage.setItem('completedTokenListing', JSON.stringify({

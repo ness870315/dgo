@@ -3,3 +3,13 @@
 [33m01e0954[m Fix multiple critical issues: thesis recording, market cap formatting, hype charts, Twitter posting, and duplicate logging
 [33m10775b5[m Fix deployment issue by replacing canvas with sharp for fuel image generation
 [33m0c7ff51[m Fix delete button and add fuel image links to share posts
+[33m36d3799[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m)[m Add debugging for milestone posts in side modal
+[33mbf684d3[m Fix milestone tweet data calculation and display
+[33m94ab4b3[m[33m ([m[1;31morigin/master[m[33m)[m Fix debug output and OAuth path error
+[33m193f8dd[m Add comprehensive Helio API debugging and fallback validation
+[33m76e51c0[m Fix Helio payment validation 404 errors
+[33m5ca3860[m Fix Twitter authentication errors and implement failed milestone retry system
+[33mf679b5d[m Add mobile responsiveness to TokenDetails and UserDashboard - implement two-row button layout for mobile TokenDetails with smaller buttons
+[33m46015e1[m Fix organic score scale from 0-10 to 0-100 across all components - Community Health penalty, Jupiter API labels, and frontend display
+[33m6713c0e[m CRITICAL FIX: Update processing queue after Jupiter filtering to remove low-quality tokens from subsequent stages
+[33md444f9b[m Add quality filters to score calculation stage to prevent low-quality tokens like LAIKA from being scored

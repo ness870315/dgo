@@ -59,7 +59,7 @@ class FuelImageGenerator {
           
           <!-- Oracle branding (scaled up) -->
           <text x="600" y="588" text-anchor="middle" fill="#00bfff" font-family="Arial, sans-serif" 
-                font-size="48" font-weight="bold" filter="url(#glow)">@degen_oracle1</text>
+                font-size="48" font-weight="bold" filter="url(#glow)">@dgnoracle</text>
         </svg>
       `;
 

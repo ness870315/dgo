@@ -38,7 +38,7 @@ class FuelImageGenerator {
     this.drawTextWithGlow(ctx, 'FUELED', 200, 180, 'bold 20px Arial', '#ffffff', '#ff4500');
 
     // Add oracle branding
-    this.drawTextWithGlow(ctx, '@degen_oracle1', 200, 280, 'bold 16px Arial', '#00bfff', '#0066cc');
+    this.drawTextWithGlow(ctx, '@dgnoracle', 200, 280, 'bold 16px Arial', '#00bfff', '#0066cc');
 
     return canvas.toDataURL('image/png');
   }
