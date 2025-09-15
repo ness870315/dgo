@@ -289,12 +289,33 @@ class EnhancedBackend {
         const envMonthly = process.env.HELIO_MONTHLY_PAYLINK_ID || '68b8ed60cf71471addc8adb6';
         const envYearly = process.env.HELIO_YEARLY_PAYLINK_ID || null;
         const receiptPaylinkId = receipt?.paylinkId || receipt?.paylink?.id || clientPaylinkId || null;
+        
+        console.log('🔍 Payment plan detection:', {
+          envMonthly,
+          envYearly,
+          receiptPaylinkId,
+          clientPaylinkId,
+          receiptAmount: receipt?.amount,
+          paymentDataAmount: paymentData?.amount
+        });
 
         let planType = 'monthly';
         let durationDays = 30;
+        
+        // Check if this is a yearly payment
         if (envYearly && receiptPaylinkId && String(receiptPaylinkId) === String(envYearly)) {
           planType = 'yearly';
           durationDays = 365; // Yearly plan (assumed 20% discount handled by Helio)
+        } else if (validationResult.fallback === true) {
+          // If fallback validation was used, it means yearly payment
+          planType = 'yearly';
+          durationDays = 365;
+          console.log(`📅 Detected yearly payment via fallback validation`);
+        } else {
+          // Monthly payment with PayLink ID
+          planType = 'monthly';
+          durationDays = 30;
+          console.log(`📅 Detected monthly payment via PayLink ID`);
         }
 
         // Persist premium status for the selected duration
