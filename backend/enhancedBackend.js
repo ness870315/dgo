@@ -1301,6 +1301,18 @@ class EnhancedBackend {
 
         console.log(`🐦 OAuth X: Processing callback with code: ${code.substring(0, 10)}...`);
 
+        // Verify OAuth state if provided (for re-authentication)
+        let userId = null;
+        if (state) {
+          try {
+            userId = await this.oauthXService.verifyOAuthState(state);
+            console.log(`🔐 OAuth state verified for user: ${userId}`);
+          } catch (stateError) {
+            console.log(`⚠️ OAuth state verification failed: ${stateError.message}`);
+            // Continue with normal flow if state verification fails
+          }
+        }
+
         // Exchange code for token
         const tokenData = await this.oauthXService.exchangeCodeForToken(code, state);
         
@@ -1318,6 +1330,18 @@ class EnhancedBackend {
         const { sessionId, expiresAt } = await this.oauthXService.createSession(user.id);
         
         console.log(`✅ OAuth X: User ${user.username} authenticated successfully`);
+
+        // If this was a re-authentication (state was provided), retry failed milestones
+        if (userId && userId === user.id) {
+          console.log(`🔄 Re-authentication detected, retrying failed milestones for user ${userId}...`);
+          try {
+            await this.milestoneTracker.retryFailedMilestones(userId);
+            console.log(`✅ Failed milestones retry completed for user ${userId}`);
+          } catch (retryError) {
+            console.error(`❌ Error retrying failed milestones: ${retryError.message}`);
+            // Don't fail the auth flow if milestone retry fails
+          }
+        }
 
         // Redirect to frontend with session
         const frontendUrl = process.env.FRONTEND_URL || 'https://degen-oracle.com';
@@ -1511,6 +1535,92 @@ class EnhancedBackend {
         
       } catch (error) {
         console.error('❌ Error:', error.message);
+        res.status(500).json({ 
+          success: false, 
+          error: error.message 
+        });
+      }
+    });
+
+    // Admin: Get failed milestones for a user
+    this.app.get('/admin/failed-milestones/:userId', async (req, res) => {
+      try {
+        const { userId } = req.params;
+        
+        console.log(`🔍 Getting failed milestones for user ${userId}...`);
+        
+        const failedMilestones = await this.oauthXService.db.getFailedMilestones(userId);
+        
+        res.json({
+          success: true,
+          userId,
+          failedMilestones,
+          count: failedMilestones.length
+        });
+        
+      } catch (error) {
+        console.error('❌ Error getting failed milestones:', error.message);
+        res.status(500).json({ 
+          success: false, 
+          error: error.message 
+        });
+      }
+    });
+
+    // Admin: Retry failed milestones for a user
+    this.app.post('/admin/retry-milestones/:userId', async (req, res) => {
+      try {
+        const { userId } = req.params;
+        
+        console.log(`🔄 Retrying failed milestones for user ${userId}...`);
+        
+        // Retry failed milestones
+        await this.milestoneTracker.retryFailedMilestones(userId);
+        
+        res.json({
+          success: true,
+          message: 'Failed milestones retry completed',
+          userId
+        });
+        
+      } catch (error) {
+        console.error('❌ Error retrying milestones:', error.message);
+        res.status(500).json({ 
+          success: false, 
+          error: error.message 
+        });
+      }
+    });
+
+    // User: Get Twitter re-authentication URL
+    this.app.get('/api/twitter/reauth-url', async (req, res) => {
+      try {
+        const { userId } = req.query;
+        
+        if (!userId) {
+          return res.status(400).json({
+            success: false,
+            error: 'User ID required'
+          });
+        }
+
+        // Generate state for OAuth
+        const state = crypto.randomBytes(32).toString('hex');
+        
+        // Store state with user ID for verification
+        await this.oauthXService.storeOAuthState(state, userId);
+        
+        // Generate authorization URL
+        const authUrl = this.oauthXService.getAuthorizationUrl(state);
+        
+        res.json({
+          success: true,
+          authUrl,
+          message: 'Please visit this URL to re-authenticate with Twitter'
+        });
+        
+      } catch (error) {
+        console.error('❌ Error generating re-auth URL:', error.message);
         res.status(500).json({ 
           success: false, 
           error: error.message 

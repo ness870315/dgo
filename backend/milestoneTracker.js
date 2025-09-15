@@ -16,6 +16,7 @@ class MilestoneTracker {
     this.isRunning = false;
     this.checkInterval = 5 * 60 * 1000; // Check every 5 minutes
     this.intervalId = null;
+    this.authIssues = new Map(); // Track users with auth issues
     
     // Milestone thresholds
     this.milestones = [2, 3, 4, 5, 10, 20, 50, 100, 500, 1000];
@@ -245,7 +246,105 @@ class MilestoneTracker {
       
       console.log(`🐦 Posted milestone ${milestone}x update for ${call.token.symbol}`);
     } catch (error) {
-      console.error(`❌ Error posting milestone update:`, error.message);
+      // Handle different types of errors gracefully
+      if (error.message.includes('Access token expired') || error.message.includes('no refresh token')) {
+        // Store failed milestone for retry when user re-authenticates
+        await this.storeFailedMilestone(userId, call, milestone, currentStats, error);
+        
+        // Track auth issues to avoid spam
+        const now = Date.now();
+        const lastReported = this.authIssues.get(userId);
+        if (!lastReported || now - lastReported > 24 * 60 * 60 * 1000) { // Report once per day
+          console.warn(`⚠️ User ${userId} needs to re-authenticate with Twitter for milestone posting`);
+          console.warn(`   Token expired for milestone: ${call.token.symbol} ${milestone}x`);
+          console.warn(`   Milestone stored for retry when user re-authenticates`);
+          this.authIssues.set(userId, now);
+        }
+        // Don't throw - continue processing other users
+        return;
+      } else if (error.message.includes('Twitter posting disabled')) {
+        console.log(`🐦 User ${userId} has Twitter posting disabled, skipping milestone post`);
+        return;
+      } else {
+        console.error(`❌ Error posting milestone update for user ${userId}:`, error.message);
+        // Don't throw - continue processing other users
+        return;
+      }
+    }
+  }
+
+  /**
+   * Store failed milestone for retry when user re-authenticates
+   */
+  async storeFailedMilestone(userId, call, milestone, currentStats, error) {
+    try {
+      const failedMilestone = {
+        userId,
+        callId: call.id,
+        tokenSymbol: call.token.symbol,
+        milestone,
+        currentStats,
+        error: error.message,
+        timestamp: new Date().toISOString(),
+        retryCount: 0
+      };
+
+      // Store in database for retry
+      await this.db.storeFailedMilestone(failedMilestone);
+      console.log(`💾 Stored failed milestone for retry: ${call.token.symbol} ${milestone}x (User: ${userId})`);
+    } catch (storeError) {
+      console.error(`❌ Error storing failed milestone:`, storeError.message);
+    }
+  }
+
+  /**
+   * Retry failed milestones for a user after re-authentication
+   */
+  async retryFailedMilestones(userId) {
+    try {
+      console.log(`🔄 Retrying failed milestones for user ${userId}...`);
+      
+      const failedMilestones = await this.db.getFailedMilestones(userId);
+      if (!failedMilestones || failedMilestones.length === 0) {
+        console.log(`✅ No failed milestones to retry for user ${userId}`);
+        return;
+      }
+
+      let successCount = 0;
+      for (const failedMilestone of failedMilestones) {
+        try {
+          // Get the call data
+          const call = await this.db.getCall(failedMilestone.callId);
+          if (!call) {
+            console.log(`⚠️ Call ${failedMilestone.callId} not found, skipping milestone retry`);
+            continue;
+          }
+
+          // Generate and post the milestone update
+          const postText = await this.thesisGenerator.generateMilestonePost(call, failedMilestone.milestone, failedMilestone.currentStats);
+          const tweet = await this.oauthXService.postTweet(userId, postText);
+          
+          // Record the successful milestone post
+          await this.recordMilestonePost(userId, call.id, failedMilestone.milestone, tweet.id, postText);
+          
+          // Remove from failed milestones
+          await this.db.removeFailedMilestone(failedMilestone.id);
+          
+          successCount++;
+          console.log(`✅ Retried milestone ${failedMilestone.milestone}x for ${call.token.symbol}`);
+          
+        } catch (retryError) {
+          console.error(`❌ Failed to retry milestone ${failedMilestone.milestone}x:`, retryError.message);
+          
+          // Increment retry count
+          await this.db.incrementFailedMilestoneRetryCount(failedMilestone.id);
+        }
+      }
+
+      console.log(`🎯 Retry complete: ${successCount}/${failedMilestones.length} milestones posted successfully`);
+      
+    } catch (error) {
+      console.error(`❌ Error retrying failed milestones for user ${userId}:`, error.message);
     }
   }
 

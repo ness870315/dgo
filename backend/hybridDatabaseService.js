@@ -1143,6 +1143,76 @@ class HybridDatabaseService {
       console.error('❌ Migration failed:', error.message);
     }
   }
+
+  /**
+   * Store failed milestone for retry
+   */
+  async storeFailedMilestone(failedMilestone) {
+    try {
+      const failedMilestonesFile = path.join(this.globalDir, 'failed-milestones.json');
+      let failedMilestones = await this.readJsonFile(failedMilestonesFile) || [];
+      
+      // Add unique ID
+      failedMilestone.id = crypto.randomUUID();
+      failedMilestones.push(failedMilestone);
+      
+      await this.writeJsonFile(failedMilestonesFile, failedMilestones);
+      return failedMilestone.id;
+    } catch (error) {
+      console.error('❌ Error storing failed milestone:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get failed milestones for a user
+   */
+  async getFailedMilestones(userId) {
+    try {
+      const failedMilestonesFile = path.join(this.globalDir, 'failed-milestones.json');
+      const failedMilestones = await this.readJsonFile(failedMilestonesFile) || [];
+      
+      return failedMilestones.filter(fm => fm.userId === userId);
+    } catch (error) {
+      console.error('❌ Error getting failed milestones:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Remove failed milestone
+   */
+  async removeFailedMilestone(failedMilestoneId) {
+    try {
+      const failedMilestonesFile = path.join(this.globalDir, 'failed-milestones.json');
+      let failedMilestones = await this.readJsonFile(failedMilestonesFile) || [];
+      
+      failedMilestones = failedMilestones.filter(fm => fm.id !== failedMilestoneId);
+      await this.writeJsonFile(failedMilestonesFile, failedMilestones);
+    } catch (error) {
+      console.error('❌ Error removing failed milestone:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Increment retry count for failed milestone
+   */
+  async incrementFailedMilestoneRetryCount(failedMilestoneId) {
+    try {
+      const failedMilestonesFile = path.join(this.globalDir, 'failed-milestones.json');
+      let failedMilestones = await this.readJsonFile(failedMilestonesFile) || [];
+      
+      const milestone = failedMilestones.find(fm => fm.id === failedMilestoneId);
+      if (milestone) {
+        milestone.retryCount = (milestone.retryCount || 0) + 1;
+        await this.writeJsonFile(failedMilestonesFile, failedMilestones);
+      }
+    } catch (error) {
+      console.error('❌ Error incrementing retry count:', error.message);
+      throw error;
+    }
+  }
 }
 
 export default HybridDatabaseService;

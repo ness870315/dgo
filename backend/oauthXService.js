@@ -61,6 +61,56 @@ class OAuthXService {
   }
 
   /**
+   * Store OAuth state for verification
+   */
+  async storeOAuthState(state, userId) {
+    try {
+      const stateFile = path.join(this.db.globalDir, 'oauth-states.json');
+      let states = await this.db.readJsonFile(stateFile) || {};
+      
+      states[state] = {
+        userId,
+        timestamp: Date.now(),
+        expiresAt: Date.now() + (10 * 60 * 1000) // 10 minutes
+      };
+      
+      await this.db.writeJsonFile(stateFile, states);
+      console.log(`🔐 Stored OAuth state for user ${userId}`);
+    } catch (error) {
+      console.error('❌ Error storing OAuth state:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Verify and consume OAuth state
+   */
+  async verifyOAuthState(state) {
+    try {
+      const stateFile = path.join(this.db.globalDir, 'oauth-states.json');
+      const states = await this.db.readJsonFile(stateFile) || {};
+      
+      const stateData = states[state];
+      if (!stateData) {
+        throw new Error('Invalid OAuth state');
+      }
+      
+      if (Date.now() > stateData.expiresAt) {
+        throw new Error('OAuth state expired');
+      }
+      
+      // Remove the used state
+      delete states[state];
+      await this.db.writeJsonFile(stateFile, states);
+      
+      return stateData.userId;
+    } catch (error) {
+      console.error('❌ Error verifying OAuth state:', error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Exchange authorization code for access token
    */
   async exchangeCodeForToken(code, codeVerifier) {
