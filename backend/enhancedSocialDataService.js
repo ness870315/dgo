@@ -1322,24 +1322,80 @@ class EnhancedSocialDataService {
   }
 
   /**
-   * Save Twitter metrics to persistent storage
+   * Save Twitter metrics directly to main tokens cache (more efficient)
    */
   async saveTwitterMetricsToFile() {
     try {
+      if (this.twitterMetricsCache.size <= 1) {
+        console.log('📊 No Twitter metrics to save');
+        return;
+      }
+      
+      // Load main tokens cache
+      const tokensCachePath = process.env.DATA_DIR ? 
+        path.join(process.env.DATA_DIR, 'cache', 'tokens-cache.json') : 
+        path.join(__dirname, 'cache', 'tokens-cache.json');
+      
+      let tokens = [];
+      try {
+        const tokensData = await fs.readFile(tokensCachePath, 'utf8');
+        tokens = JSON.parse(tokensData);
+      } catch (error) {
+        console.error('❌ Failed to load tokens cache:', error.message);
+        return;
+      }
+      
+      // Update tokens with Twitter data directly
+      let updatedCount = 0;
+      for (const [key, twitterData] of this.twitterMetricsCache) {
+        if (key === '_metadata') continue;
+        
+        // Find matching token by trying different key formats
+        const possibleKeys = [
+          key,
+          key.replace('_undefined', ''),
+          key.split('_')[0], // Just the symbol part
+          key.split('_')[1]  // Just the name part
+        ];
+        
+        for (const tokenKey of possibleKeys) {
+          const token = tokens.find(t => 
+            t.symbol === tokenKey || 
+            t.name === tokenKey ||
+            `${t.symbol}_${t.name}` === tokenKey ||
+            `${t.symbol}_${t.name}_undefined` === tokenKey
+          );
+          
+          if (token && twitterData.data) {
+            token.twitterData = twitterData.data;
+            token._twitterDataMerged = true;
+            token._twitterDataMergedAt = new Date().toISOString();
+            updatedCount++;
+            break;
+          }
+        }
+      }
+      
+      // Save updated tokens cache
+      await fs.writeFile(tokensCachePath, JSON.stringify(tokens, null, 2));
+      console.log(`💾 Updated ${updatedCount} tokens with Twitter data directly in main cache`);
+      
+      // Also save to separate file for backup/debugging
       const dataToSave = {
         _metadata: {
           lastRefreshTime: Date.now(),
-          totalTokens: this.twitterMetricsCache.size - 1
+          totalTokens: this.twitterMetricsCache.size - 1,
+          updatedInMainCache: updatedCount
         }
       };
       
-      // Convert Map to object for JSON serialization
       for (const [key, value] of this.twitterMetricsCache) {
         dataToSave[key] = value;
       }
       
       await fs.writeFile(this.twitterMetricsFile, JSON.stringify(dataToSave, null, 2));
-      console.log(`💾 Saved ${this.twitterMetricsCache.size - 1} Twitter metrics to persistent storage`);
+      console.log(`💾 Also saved ${this.twitterMetricsCache.size - 1} Twitter metrics to separate file for backup`);
+      
     } catch (error) {
       console.error('❌ Failed to save Twitter metrics:', error.message);
     }
