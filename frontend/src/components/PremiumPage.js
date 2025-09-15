@@ -105,29 +105,29 @@ export default function PremiumPage({ onBack, headerAuth }) {
   }, [containerRef.current, sessionId]);
   return (
     <div className="min-h-screen bg-dark-bg">
-      <div className="bg-dark-card border-b border-solana-purple px-6 py-4">
+      <div className="bg-dark-card border-b border-solana-purple px-4 sm:px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-white">👑 Premium</h1>
-          <div className="flex items-center gap-3">
+          <h1 className="text-xl sm:text-2xl font-bold text-white">👑 Premium</h1>
+          <div className="flex items-center gap-2 sm:gap-3">
             {headerAuth}
-            <button onClick={onBack} className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg border border-solana-purple/60">
+            <button onClick={onBack} className="px-3 py-2 sm:px-4 sm:py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg border border-solana-purple/60 text-sm sm:text-base">
               ← Back
             </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
-        <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-          <h2 className="text-xl font-semibold text-white mb-2">Premium DeGen Oracle</h2>
-          <p className="text-gray-300">Level up your edge. Track calls with proof, monitor momentum shifts, and showcase your performance.</p>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
+        <div className="bg-dark-card border border-gray-700 rounded-xl p-4 sm:p-6">
+          <h2 className="text-lg sm:text-xl font-semibold text-white mb-2">Premium DeGen Oracle</h2>
+          <p className="text-gray-300 text-sm sm:text-base">Level up your edge. Track calls with proof, monitor momentum shifts, and showcase your performance.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {/* Free Tier */}
-          <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">Free Tier</h3>
-            <ul className="space-y-3 text-gray-300 text-sm">
+          <div className="bg-dark-card border border-gray-700 rounded-xl p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4">Free Tier</h3>
+            <ul className="space-y-2 sm:space-y-3 text-gray-300 text-xs sm:text-sm">
               <li>• Access to Degen Bubbles (real-time bubble map of trending tokens)</li>
               <li>• Personal dashboard</li>
               <li>• Unlimited tokens in Watchlist</li>
@@ -137,12 +137,12 @@ export default function PremiumPage({ onBack, headerAuth }) {
           </div>
 
           {/* Premium Tier */}
-          <div className="bg-dark-card border border-solana-purple rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+          <div className="bg-dark-card border border-solana-purple rounded-xl p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold text-white mb-3 sm:mb-4 flex items-center gap-2">
               <span>Premium Tier</span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-solana-purple/20 text-solana-purple border border-solana-purple/50">Recommended</span>
             </h3>
-            <ul className="space-y-3 text-gray-300 text-sm">
+            <ul className="space-y-2 sm:space-y-3 text-gray-300 text-xs sm:text-sm">
               <li>• Everything in Free, plus:</li>
               <li>• Hype-over-Time: Unlimited coins → spot momentum shifts and time entries better</li>
               <li>• Unlimited Calls with proof links and automatic performance tracking</li>
@@ -152,29 +152,29 @@ export default function PremiumPage({ onBack, headerAuth }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {/* Helio Payment */}
-          <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-white mb-3">Upgrade to Premium</h3>
-            <p className="text-gray-300 text-sm mb-4">Complete your secure payment below. Your account will be upgraded automatically after success.</p>
+          <div className="bg-dark-card border border-gray-700 rounded-xl p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold text-white mb-3">Upgrade to Premium</h3>
+            <p className="text-gray-300 text-xs sm:text-sm mb-4">Complete your secure payment below. Your account will be upgraded automatically after success.</p>
             <div className="flex justify-center">
               <div id="helioCheckoutPremium" ref={containerRef} className="w-full max-w-xl" />
             </div>
             {statusMsg && (
-              <div className="mt-4 text-sm text-gray-300">{statusMsg}</div>
+              <div className="mt-4 text-xs sm:text-sm text-gray-300">{statusMsg}</div>
             )}
           </div>
 
           {/* Referral Code Redeem */}
-          <div className="bg-dark-card border border-gray-700 rounded-xl p-6">
-            <h3 className="text-lg font-semibold text-white mb-3">Have a Referral Code?</h3>
-            <p className="text-gray-300 text-sm mb-4">Redeem a valid code to get 30 days of Premium for free.</p>
-            <div className="flex gap-2">
+          <div className="bg-dark-card border border-gray-700 rounded-xl p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-semibold text-white mb-3">Have a Referral Code?</h3>
+            <p className="text-gray-300 text-xs sm:text-sm mb-4">Redeem a valid code to get 30 days of Premium for free.</p>
+            <div className="flex flex-col sm:flex-row gap-2">
               <input
                 value={referral}
                 onChange={(e) => setReferral(e.target.value.toUpperCase())}
                 placeholder="ENTER CODE"
-                className="flex-1 bg-transparent border border-gray-700 rounded-md px-3 py-2 text-white placeholder-gray-500"
+                className="flex-1 bg-transparent border border-gray-700 rounded-md px-3 py-2 text-white placeholder-gray-500 text-sm"
               />
               <button
                 onClick={async () => {
@@ -193,12 +193,12 @@ export default function PremiumPage({ onBack, headerAuth }) {
                     setRefStatus(`❌ ${e.message}`);
                   }
                 }}
-                className="px-4 py-2 bg-solana-purple hover:bg-purple-700 text-white rounded-md"
+                className="px-4 py-2 bg-solana-purple hover:bg-purple-700 text-white rounded-md text-sm"
               >
                 Redeem
               </button>
             </div>
-            {refStatus && <div className="mt-3 text-sm text-gray-300">{refStatus}</div>}
+            {refStatus && <div className="mt-3 text-xs sm:text-sm text-gray-300">{refStatus}</div>}
           </div>
         </div>
       </div>

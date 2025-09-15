@@ -604,35 +604,35 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
     <div className="min-h-screen bg-dark-bg">
       {/* Header */}
       <div className="bg-dark-card border-b border-gray-700">
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="flex items-center space-x-4">
+        <div className="max-w-4xl mx-auto px-4 py-4 sm:py-6">
+          <div className="flex items-center space-x-3 sm:space-x-4">
             <button
               onClick={onBack}
               className="p-2 rounded-lg border border-solana-purple/60 bg-gray-700 hover:bg-gray-600 text-white transition-colors"
               title="Go back"
             >
-              <ArrowLeft size={20} />
+              <ArrowLeft size={18} className="sm:w-5 sm:h-5" />
             </button>
             <div>
-              <h1 className="text-3xl font-bold text-white">Update Token Socials</h1>
-              <p className="text-gray-400 mt-1">Add or update social media links for better community scoring</p>
+              <h1 className="text-xl sm:text-3xl font-bold text-white">Update Token Socials</h1>
+              <p className="text-gray-400 mt-1 text-sm sm:text-base">Add or update social media links for better community scoring</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Pricing Display */}
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-xl p-6 text-center mb-8">
-          <h2 className="text-2xl font-bold text-white mb-2">Update Token Socials</h2>
-          <div className="text-3xl font-bold text-white">$35</div>
-          <p className="text-green-100 mt-2">One-time social update fee</p>
+      <div className="max-w-4xl mx-auto px-4 py-4 sm:py-6">
+        <div className="bg-gradient-to-r from-green-600 to-blue-600 rounded-xl p-4 sm:p-6 text-center mb-6 sm:mb-8">
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">Update Token Socials</h2>
+          <div className="text-2xl sm:text-3xl font-bold text-white">$35</div>
+          <p className="text-green-100 mt-2 text-sm sm:text-base">One-time social update fee</p>
         </div>
       </div>
 
       {/* Content */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
           {/* Left Column - Token Search & Social Form */}
           <div className="space-y-6">
             {/* Authentication Check */}

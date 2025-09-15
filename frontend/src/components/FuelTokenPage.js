@@ -386,25 +386,26 @@ const FuelTokenPage = ({ onBack, headerAuth = null, onFuelApplied }) => {
 
   return (
     <div className="min-h-screen bg-dark-bg">
-      <div className="bg-dark-card border-b border-solana-purple px-6 py-4">
+      <div className="bg-dark-card border-b border-solana-purple px-4 sm:px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-white">🔥 Fuel Token</h1>
-          <div className="flex items-center gap-3">
+          <h1 className="text-xl sm:text-2xl font-bold text-white">🔥 Fuel Token</h1>
+          <div className="flex items-center gap-2 sm:gap-3">
             {headerAuth}
             <button
               onClick={onBack}
-              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg border border-solana-purple/60 flex items-center gap-2"
+              className="px-3 py-2 sm:px-4 sm:py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg border border-solana-purple/60 flex items-center gap-2 text-sm sm:text-base"
             >
-              <ArrowLeft size={16} />
-              Back to Main App
+              <ArrowLeft size={14} className="sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Back to Main App</span>
+              <span className="sm:hidden">Back</span>
             </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         {/* Steps */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
           <div className={`rounded-lg p-4 border ${selectedFuel ? 'border-green-400 bg-green-900/20' : 'border-gray-700 bg-gray-800/40'}`}>
             <div className="text-sm text-gray-300 mb-1">Step 1</div>
             <div className="text-white font-semibold">Select your Fuel</div>
