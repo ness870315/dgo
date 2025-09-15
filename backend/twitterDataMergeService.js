@@ -275,8 +275,12 @@ class TwitterDataMergeService {
       name.toLowerCase()             // Lowercase name
     ];
     
-    console.log(`🔍 Looking for Twitter data for ${symbol} (${name})`);
-    console.log(`🔍 Trying keys: ${possibleKeys.slice(0, 5).join(', ')}...`);
+    // Debug: Log first few attempts for troubleshooting
+    if (Math.random() < 0.01) { // Log 1% of attempts to avoid spam
+      console.log(`🔍 DEBUG: Looking for token ${symbol} (${name})`);
+      console.log(`🔍 DEBUG: Trying keys: ${possibleKeys.slice(0, 5).join(', ')}...`);
+      console.log(`🔍 DEBUG: Available Twitter keys (first 10): ${Object.keys(twitterMetrics).slice(0, 10).join(', ')}`);
+    }
     
     for (const key of possibleKeys) {
       if (twitterMetrics[key] && twitterMetrics[key].data) {
