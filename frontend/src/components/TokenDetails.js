@@ -599,171 +599,267 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
               <img src={token?.jupiterData?.icon || token?.image} alt={token.name} className="w-10 h-10 sm:w-16 sm:h-16 rounded-full border-2 border-blue-500 flex-shrink-0 mobile-token-icon" />
               )}
               <div className="min-w-0 flex-1 mobile-token-info">
-              <div className="flex items-center space-x-1 sm:space-x-2 mobile-token-title-row">
-                <h2 className="text-base sm:text-xl font-bold text-white truncate mobile-token-name">{token?.name || 'Unknown Token'}</h2>
-                {fuelMultiplier && (
-                  <span className="px-1 py-0.5 bg-black border border-orange-500 text-orange-400 text-xs font-bold rounded flex items-center space-x-1 flex-shrink-0 mobile-fuel-badge">
-                    <span className="text-xs">🔥</span>
-                    <span>{fuelMultiplier}</span>
-                  </span>
-                )}
-              </div>
-              <p className="text-gray-400 text-sm sm:text-base mobile-token-symbol">${token?.symbol || 'UNKNOWN'}</p>
-              <div className="flex items-center space-x-2 mt-1 mobile-contract-row">
-                <code className="text-xs text-gray-500 font-mono mobile-contract-address">
-                  {token?.contractAddress ? 
-                    `${token.contractAddress.slice(0, 6)}...${token.contractAddress.slice(-4)}` : 
-                    'No Contract Address'
-                      }
-                    </code>
-                {token?.contractAddress && (
-                  <div className="relative group">
-                    <button
-                      onClick={(event) => {
-                        navigator.clipboard.writeText(token.contractAddress);
-                        const button = event.currentTarget;
-                        const originalText = button.innerHTML;
-                        button.innerHTML = '✅';
-                        setTimeout(() => {
-                          button.innerHTML = originalText;
-                        }, 2000);
-                      }}
-                      className="text-gray-500 hover:text-gray-300 transition-colors text-xs mobile-copy-button"
-                    >
-                      📋
-                    </button>
-                    {/* Tooltip */}
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[200px]">
-                      <div className="text-xs leading-tight">
-                        <span className="font-semibold text-white">Copy:</span>
-                        <span className="text-gray-300 ml-1">Copy contract address to clipboard</span>
+                {/* Mobile Layout - Two Rows */}
+                <div className="block sm:hidden">
+                  {/* Row 1: Name | Oracle AI | Fuel | Close */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-2 min-w-0 flex-1">
+                      <h2 className="text-sm font-bold text-white truncate mobile-token-name">{token?.name || 'Unknown Token'}</h2>
+                      {fuelMultiplier && (
+                        <span className="px-1 py-0.5 bg-black border border-orange-500 text-orange-400 text-xs font-bold rounded flex items-center space-x-1 flex-shrink-0 mobile-fuel-badge">
+                          <span className="text-xs">🔥</span>
+                          <span>{fuelMultiplier}</span>
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-1 ml-2">
+                      {/* Oracle AI Button */}
+                      <div className="relative group">
+                        <button
+                          onClick={isAuthenticated ? fetchAIAnalysis : undefined}
+                          disabled={!isAuthenticated || aiLoading}
+                          className={`px-2 py-1 rounded border border-solana-purple/60 bg-transparent text-xs flex items-center gap-1 transition-all duration-200 ${
+                            (!isAuthenticated || aiLoading)
+                              ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none' 
+                              : 'text-gray-200 hover:bg-gray-700'
+                          }`}
+                        >
+                          {aiLoading ? (
+                            <div className="animate-spin w-3 h-3 border-2 border-purple-400 border-t-transparent rounded-full"></div>
+                          ) : (
+                            <>
+                              <Brain size={10} />
+                              <span>Oracle AI</span>
+                            </>
+                          )}
+                        </button>
                       </div>
-                      {/* Arrow */}
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-600"></div>
+                      
+                      {/* Fuel Button */}
+                      <div className="relative group">
+                        <button
+                          onClick={isAuthenticated ? () => setShowFuelModal(true) : undefined}
+                          disabled={!isAuthenticated}
+                          className={`px-2 py-1 rounded border border-orange-500/60 bg-transparent text-xs flex items-center gap-1 transition-all duration-200 ${
+                            !isAuthenticated ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none' : 'text-orange-400 hover:bg-gray-700'
+                          }`}
+                        >
+                          <Flame size={10} />
+                          <span>Fuel</span>
+                        </button>
+                      </div>
+                      
+                      {/* Close Button */}
+                      <button
+                        onClick={() => {
+                          try {
+                            onClose();
+                          } catch (error) {
+                            console.error('Error closing modal:', error);
+                          }
+                        }}
+                        className="px-2 py-1 rounded border border-gray-600 bg-transparent text-xs text-gray-400 hover:text-white hover:bg-gray-700 transition-all duration-200"
+                      >
+                        <X size={10} />
+                      </button>
                     </div>
                   </div>
-                )}
+                  
+                  {/* Row 2: Contract | Call it! | Fav */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2 min-w-0 flex-1">
+                      <code className="text-xs text-gray-500 font-mono mobile-contract-address">
+                        {token?.contractAddress ? 
+                          `${token.contractAddress.slice(0, 6)}...${token.contractAddress.slice(-4)}` : 
+                          'No Contract Address'
+                        }
+                      </code>
+                      {token?.contractAddress && (
+                        <button
+                          onClick={(event) => {
+                            navigator.clipboard.writeText(token.contractAddress);
+                            const button = event.currentTarget;
+                            const originalText = button.innerHTML;
+                            button.innerHTML = '✅';
+                            setTimeout(() => {
+                              button.innerHTML = originalText;
+                            }, 2000);
+                          }}
+                          className="text-gray-500 hover:text-gray-300 transition-colors text-xs"
+                        >
+                          📋
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-1 ml-2">
+                      {/* Call it! Button */}
+                      <div className="relative group">
+                        <button
+                          onClick={isAuthenticated ? () => setShowEnhancedCallModal(true) : undefined}
+                          disabled={!isAuthenticated}
+                          className={`px-2 py-1 rounded border border-solana-purple/60 bg-transparent text-xs ${
+                            !isAuthenticated ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none' : 'text-gray-200 hover:bg-gray-700'
+                          }`}
+                        >
+                          <span>Call it!</span>
+                        </button>
+                      </div>
+                      
+                      {/* Fav Button */}
+                      <div className="relative group">
+                        <button
+                          onClick={isAuthenticated ? toggleWatchlist : undefined}
+                          disabled={!isAuthenticated}
+                          className={`px-2 py-1 rounded border border-gray-600 bg-transparent text-xs flex items-center gap-1 transition-all duration-200 ${
+                            !isAuthenticated ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none' : 
+                            isInWatchlist ? 'text-yellow-400 hover:bg-gray-700' : 'text-gray-400 hover:text-yellow-400 hover:bg-gray-700'
+                          }`}
+                        >
+                          <Star 
+                            size={10} 
+                            className="transition-colors duration-200"
+                            stroke="currentColor"
+                            fill={isInWatchlist ? 'currentColor' : 'none'} 
+                          />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Desktop Layout - Original */}
+                <div className="hidden sm:block">
+                  <div className="flex items-center space-x-1 sm:space-x-2 mobile-token-title-row">
+                    <h2 className="text-base sm:text-xl font-bold text-white truncate mobile-token-name">{token?.name || 'Unknown Token'}</h2>
+                    {fuelMultiplier && (
+                      <span className="px-1 py-0.5 bg-black border border-orange-500 text-orange-400 text-xs font-bold rounded flex items-center space-x-1 flex-shrink-0 mobile-fuel-badge">
+                        <span className="text-xs">🔥</span>
+                        <span>{fuelMultiplier}</span>
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-gray-400 text-sm sm:text-base mobile-token-symbol">${token?.symbol || 'UNKNOWN'}</p>
+                  <div className="flex items-center space-x-2 mt-1 mobile-contract-row">
+                    <code className="text-xs text-gray-500 font-mono mobile-contract-address">
+                      {token?.contractAddress ? 
+                        `${token.contractAddress.slice(0, 6)}...${token.contractAddress.slice(-4)}` : 
+                        'No Contract Address'
+                          }
+                        </code>
+                    {token?.contractAddress && (
+                      <div className="relative group">
+                        <button
+                          onClick={(event) => {
+                            navigator.clipboard.writeText(token.contractAddress);
+                            const button = event.currentTarget;
+                            const originalText = button.innerHTML;
+                            button.innerHTML = '✅';
+                            setTimeout(() => {
+                              button.innerHTML = originalText;
+                            }, 2000);
+                          }}
+                          className="text-gray-500 hover:text-gray-300 transition-colors text-xs mobile-copy-button"
+                        >
+                          📋
+                        </button>
+                        {/* Tooltip */}
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[200px]">
+                          <div className="text-xs leading-tight">
+                            <span className="font-semibold text-white">Copy:</span>
+                            <span className="text-gray-300 ml-1">Copy contract address to clipboard</span>
+                          </div>
+                          {/* Arrow */}
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-600"></div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-            <div className="flex items-center space-x-1 sm:space-x-2 mobile-action-buttons">
-            {/* AI Analysis Button with tooltip */}
-            <div className="relative group">
-              <button
-                onClick={isAuthenticated ? fetchAIAnalysis : undefined}
-                disabled={!isAuthenticated || aiLoading}
-                className={`px-1.5 py-1 rounded-lg border border-solana-purple/60 bg-transparent text-xs flex items-center gap-1 transition-all duration-200 mobile-action-button ${
-                  (!isAuthenticated || aiLoading)
-                    ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none' 
-                    : 'text-gray-200 hover:bg-gray-700'
+            {/* Desktop Action Buttons - Hidden on mobile, shown on desktop */}
+            <div className="hidden sm:flex items-center space-x-1 sm:space-x-2">
+              {/* AI Analysis Button */}
+              <div className="relative group">
+                <button
+                  onClick={isAuthenticated ? fetchAIAnalysis : undefined}
+                  disabled={!isAuthenticated || aiLoading}
+                  className={`px-1.5 py-1 rounded-lg border border-solana-purple/60 bg-transparent text-xs flex items-center gap-1 transition-all duration-200 ${
+                    (!isAuthenticated || aiLoading)
+                      ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none' 
+                      : 'text-gray-200 hover:bg-gray-700'
+                  }`}
+                >
+                  {aiLoading ? (
+                    <div className="animate-spin w-3 h-3 border-2 border-purple-400 border-t-transparent rounded-full"></div>
+                  ) : (
+                    <>
+                      <Brain size={12} />
+                      <span>Oracle AI</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              
+              {/* Fuel Button */}
+              <div className="relative group">
+                <button
+                  onClick={handleFuelClick}
+                  className="p-2 rounded-lg transition-all duration-200 text-orange-400 hover:text-orange-300 hover:bg-orange-400/10"
+                >
+                  <Flame size={20} />
+                </button>
+              </div>
+
+              {/* Watchlist Star */}
+              <div className="relative group">
+                <button
+                  onClick={isAuthenticated ? toggleWatchlist : undefined}
+                  disabled={!isAuthenticated}
+                  className={`p-2 rounded-lg transition-all duration-200 ${
+                    !isAuthenticated
+                      ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none'
+                      : isInWatchlist 
+                        ? 'text-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20' 
+                        : 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/10'
                 }`}
-              >
-                {aiLoading ? (
-                  <div className="animate-spin w-3 h-3 border-2 border-purple-400 border-t-transparent rounded-full"></div>
-                ) : (
-                  <>
-                    <Brain size={12} className="mobile-action-icon" />
-                    <span className="mobile-action-text">Oracle AI</span>
-                  </>
-                )}
-              </button>
-              {/* Tooltip */}
-              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[280px]">
-                <div className="text-xs leading-tight">
-                  <span className="font-semibold text-white">Oracle AI:</span>
-                  <span className="text-gray-300 ml-1">{isAuthenticated ? 'Deep-dive analysis with hype, risks, and plays' : 'Log in to use this feature'}</span>
-                </div>
-                {/* Arrow */}
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-600"></div>
+                >
+                  <Star 
+                    size={20} 
+                    stroke="currentColor"
+                    fill={isInWatchlist ? 'currentColor' : 'none'} 
+                  />
+                </button>
               </div>
-            </div>
-            
-            {/* Fuel Token Button with tooltip */}
-            <div className="relative group">
-              <button
-                onClick={handleFuelClick}
-                className="p-2 rounded-lg transition-all duration-200 text-orange-400 hover:text-orange-300 hover:bg-orange-400/10"
-              >
-                <Flame size={20} />
-              </button>
-              {/* Tooltip */}
-              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[220px]">
-                <div className="text-xs leading-tight">
-                  <span className="font-semibold text-white">Fuel:</span>
-                  <span className="text-gray-300 ml-1">Boost visibility and priority for this token</span>
-                </div>
-                {/* Arrow */}
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-600"></div>
-              </div>
-            </div>
 
-            {/* Watchlist Star */}
-            <div className="relative group">
-              <button
-                onClick={isAuthenticated ? toggleWatchlist : undefined}
-                disabled={!isAuthenticated}
-                className={`p-2 rounded-lg transition-all duration-200 ${
-                  !isAuthenticated
-                    ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none'
-                    : isInWatchlist 
-                      ? 'text-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20' 
-                      : 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/10'
-              }`}
-              >
-                <Star 
-                  size={20} 
-                  stroke="currentColor"
-                  fill={isInWatchlist ? 'currentColor' : 'none'} 
-                />
-              </button>
-              {/* Tooltip */}
-              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[220px]">
-                <div className="text-xs leading-tight">
-                  <span className="font-semibold text-white">Watchlist:</span>
-                  <span className="text-gray-300 ml-1">{isAuthenticated ? (isInWatchlist ? 'Remove from your watchlist' : 'Add to your watchlist') : 'Log in to use this feature'}</span>
-                </div>
-                {/* Arrow */}
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-600"></div>
+              {/* Call it! Button */}
+              <div className="relative group">
+                <button
+                  onClick={isAuthenticated ? () => setShowEnhancedCallModal(true) : undefined}
+                  disabled={!isAuthenticated}
+                  className={`px-1.5 py-1 rounded-lg bg-transparent border border-solana-purple/60 text-xs ${
+                    !isAuthenticated ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none' : 'text-gray-200 hover:bg-gray-700'
+                  }`}
+                >
+                  <span>Call it!</span>
+                </button>
               </div>
-            </div>
 
-            {/* Call it! */}
-            <div className="relative group">
+              {/* Close Button */}
               <button
-                onClick={isAuthenticated ? () => setShowEnhancedCallModal(true) : undefined}
-                disabled={!isAuthenticated}
-                className={`px-1.5 py-1 rounded-lg bg-transparent border border-solana-purple/60 text-xs mobile-action-button ${
-                  !isAuthenticated ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none' : 'text-gray-200 hover:bg-gray-700'
-                }`}
+                onClick={() => {
+                  try {
+                    if (callRecorded) {
+                      window.dispatchEvent(new CustomEvent('kol-call-added'));
+                    }
+                  } catch (_) {}
+                  onClose && onClose();
+                }}
+                className="p-2 text-gray-400 hover:text-white transition-colors"
               >
-                <span className="mobile-action-text">Call it!</span>
+                <X size={20} />
               </button>
-              {/* Tooltip */}
-              <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[300px]">
-                <div className="text-xs leading-tight">
-                  <span className="font-semibold text-white">Call it:</span>
-                  <span className="text-gray-300 ml-1">{isAuthenticated ? 'Make a KOL call with AI thesis and Twitter posting' : 'Log in to use this feature'}</span>
-                </div>
-                {/* Arrow */}
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-600"></div>
-              </div>
-            </div>
-
-            {/* Close Button */}
-            <button
-              onClick={() => {
-                try {
-                  if (callRecorded) {
-                    window.dispatchEvent(new CustomEvent('kol-call-added'));
-                  }
-                } catch (_) {}
-                onClose && onClose();
-              }}
-              className="p-2 text-gray-400 hover:text-white transition-colors"
-            >
-              <X size={20} />
-            </button>
             </div>
           </div>
 

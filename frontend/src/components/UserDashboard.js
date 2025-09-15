@@ -503,26 +503,27 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   ];
 
   return (
-    <div className="min-h-screen bg-dark-bg p-6">
+    <div className="min-h-screen bg-dark-bg p-3 sm:p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           {/* Return to Main App Button */}
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 space-y-3 sm:space-y-0">
             <button 
               onClick={() => window.location.href = '/'}
-              className="flex items-center space-x-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg border border-solana-purple/60"
+              className="flex items-center space-x-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg border border-solana-purple/60 text-sm"
             >
-              <ArrowLeft size={20} />
-              <span>Return to Main App</span>
+              <ArrowLeft size={16} />
+              <span className="hidden sm:inline">Return to Main App</span>
+              <span className="sm:hidden">Back</span>
             </button>
             
             {/* Referral Code Display */}
             {dashboardData.referralCode && (
-              <div className="flex items-center space-x-3">
-                <div className="text-right">
-                  <p className="text-gray-400 text-sm">Your Referral Code</p>
-                  <p className="text-white font-mono text-lg">{dashboardData.referralCode}</p>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+                <div className="text-left sm:text-right">
+                  <p className="text-gray-400 text-xs sm:text-sm">Your Referral Code</p>
+                  <p className="text-white font-mono text-sm sm:text-lg">{dashboardData.referralCode}</p>
                 </div>
                 <a
                   href={`https://twitter.com/intent/tweet?${new URLSearchParams({
@@ -531,7 +532,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                   }).toString()}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3 py-2 bg-transparent border border-solana-purple/60 text-gray-200 hover:bg-gray-700 rounded-lg text-sm"
+                  className="px-3 py-2 bg-transparent border border-solana-purple/60 text-gray-200 hover:bg-gray-700 rounded-lg text-xs sm:text-sm"
                   title="Share on X"
                 >
                   Share on X
@@ -540,33 +541,33 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
             )}
           </div>
           
-          <div className="flex items-center space-x-4 mb-4">
+          <div className="flex items-center space-x-3 sm:space-x-4 mb-4">
             {user.profileImage ? (
               <img 
                 src={user.profileImage} 
                 alt={user.displayName}
-                className="w-16 h-16 rounded-full border-2 border-solana-purple"
+                className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 border-solana-purple"
               />
             ) : (
-              <div className="w-16 h-16 bg-solana-purple rounded-full flex items-center justify-center border-2 border-solana-purple">
-                <Users size={24} className="text-white" />
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-solana-purple rounded-full flex items-center justify-center border-2 border-solana-purple">
+                <Users size={20} className="text-white sm:w-6 sm:h-6" />
               </div>
             )}
-            <div>
-              <h1 className="text-3xl font-bold text-white">{user.displayName}</h1>
-              <p className="text-gray-400">@{user.username}</p>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl sm:text-3xl font-bold text-white truncate">{user.displayName}</h1>
+              <p className="text-gray-400 text-sm sm:text-base">@{user.username}</p>
               {user.verified && (
                 <div className="flex items-center space-x-1 mt-1">
-                  <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                  <div className="w-3 h-3 sm:w-4 sm:h-4 bg-blue-500 rounded-full flex items-center justify-center">
                     <span className="text-white text-xs">✓</span>
                   </div>
-                  <span className="text-blue-400 text-sm">Verified</span>
+                  <span className="text-blue-400 text-xs sm:text-sm">Verified</span>
                 </div>
               )}
             </div>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-400">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm text-gray-400">
             <button 
               className="flex items-center space-x-2 hover:text-blue-400 transition-colors"
               onClick={() => setShowFollowersModal(true)}
@@ -595,22 +596,22 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
           {stats.map((stat, index) => (
-            <div key={index} className="bg-dark-card border border-gray-700 rounded-lg p-6">
+            <div key={index} className="bg-dark-card border border-gray-700 rounded-lg p-3 sm:p-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-400 text-sm">{stat.title}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-gray-400 text-xs sm:text-sm truncate">{stat.title}</p>
                   {stat.isButton ? (
-                    <button onClick={stat.onClick} className="text-2xl font-bold text-purple-400 mt-1 hover:text-purple-300 transition-colors">
+                    <button onClick={stat.onClick} className="text-lg sm:text-2xl font-bold text-purple-400 mt-1 hover:text-purple-300 transition-colors">
                       {stat.value}
                     </button>
                   ) : (
-                    <p className="text-2xl font-bold text-white mt-1">{stat.value}</p>
+                    <p className="text-lg sm:text-2xl font-bold text-white mt-1">{stat.value}</p>
                   )}
                 </div>
-                <div className={`p-3 rounded-lg ${stat.bgColor}`}>
-                  <stat.icon size={24} className={stat.color} />
+                <div className={`p-2 sm:p-3 rounded-lg ${stat.bgColor}`}>
+                  <stat.icon size={20} className={`${stat.color} sm:w-6 sm:h-6`} />
                 </div>
               </div>
             </div>
