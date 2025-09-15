@@ -620,6 +620,29 @@ class EnhancedTokenProcessor {
       }
     }
     
+    // 🚨 CRITICAL FIX: Update the main processing queue to remove filtered tokens
+    const allFilteredTokens = [];
+    for (let i = 0; i < allTokens.length; i += batchSize) {
+      const batch = allTokens.slice(i, i + batchSize);
+      // Re-apply Jupiter filtering to get the final filtered tokens
+      const batchFilteredTokens = batch.filter(token => {
+        if (!token.jupiterData) return false;
+        
+        const hasLaunchpad = token.jupiterData.launchpad && token.jupiterData.launchpad !== '';
+        const hasOrganicScore = token.jupiterData.organicScore && token.jupiterData.organicScore > 0;
+        const hasGraduatedAt = token.jupiterData.graduatedAt && token.jupiterData.graduatedAt !== '';
+        
+        return hasLaunchpad || hasOrganicScore || hasGraduatedAt;
+      });
+      
+      allFilteredTokens.push(...batchFilteredTokens);
+    }
+    
+    // Update the main processing queue with only quality tokens
+    this.processingQueue.splice(0, this.processingQueue.length, ...allFilteredTokens);
+    
+    console.log(`🧹 PROCESSING QUEUE UPDATED: ${allTokens.length} → ${allFilteredTokens.length} tokens (removed ${allTokens.length - allFilteredTokens.length} low-quality tokens)`);
+    
     this.stageProgress.jupiter = {
       total: allTokens.length,
       processed: totalProcessed,
