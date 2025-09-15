@@ -33,6 +33,22 @@ async function recalculateAllScores() {
     
     for (let i = 0; i < tokens.length; i++) {
       const token = tokens[i];
+      
+      // 🚨 QUALITY FILTER: Check if token meets quality criteria
+      const hasLaunchpad = token.jupiterData?.launchpad && token.jupiterData.launchpad !== '';
+      const hasOrganicScore = token.jupiterData?.organicScore && token.jupiterData.organicScore > 0;
+      const hasGraduatedAt = token.jupiterData?.graduatedAt && token.jupiterData.graduatedAt !== '';
+      
+      // Only process if at least ONE quality criteria is present (not all missing)
+      if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
+        console.log(`🚫 QUALITY FILTER: ${token.symbol} (${token.contractAddress?.substring(0, 8)}) - Missing ALL quality criteria, skipping score recalculation`);
+        console.log(`   - Launchpad: ❌ (${token.jupiterData?.launchpad || 'missing'})`);
+        console.log(`   - Organic Score: ❌ (${token.jupiterData?.organicScore || 0})`);
+        console.log(`   - Graduated At: ❌ (${token.jupiterData?.graduatedAt || 'missing'})`);
+        continue; // Skip this token
+      }
+      
+      console.log(`✅ QUALITY FILTER: ${token.symbol} - Has at least one quality indicator, recalculating score`);
       console.log(`\n🔄 [${i + 1}/${tokens.length}] Processing ${token.symbol}...`);
       
       try {

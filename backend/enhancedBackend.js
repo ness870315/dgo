@@ -4249,7 +4249,24 @@ class EnhancedBackend {
 
         const queue = [];
         tokens.forEach((t, idx) => {
-          if (t?.symbol && t?.name) queue.push({ symbol: t.symbol, name: t.name, index: idx });
+          if (t?.symbol && t?.name) {
+            // 🚨 QUALITY FILTER: Check if token meets quality criteria
+            const hasLaunchpad = t.jupiterData?.launchpad && t.jupiterData.launchpad !== '';
+            const hasOrganicScore = t.jupiterData?.organicScore && t.jupiterData.organicScore > 0;
+            const hasGraduatedAt = t.jupiterData?.graduatedAt && t.jupiterData.graduatedAt !== '';
+            
+            // Only process if at least ONE quality criteria is present (not all missing)
+            if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
+              console.log(`🚫 QUALITY FILTER: ${t.symbol} (${t.contractAddress?.substring(0, 8)}) - Missing ALL quality criteria, skipping Twitter refresh`);
+              console.log(`   - Launchpad: ❌ (${t.jupiterData?.launchpad || 'missing'})`);
+              console.log(`   - Organic Score: ❌ (${t.jupiterData?.organicScore || 0})`);
+              console.log(`   - Graduated At: ❌ (${t.jupiterData?.graduatedAt || 'missing'})`);
+              return; // Skip this token
+            }
+            
+            console.log(`✅ QUALITY FILTER: ${t.symbol} - Has at least one quality indicator, adding to Twitter refresh queue`);
+            queue.push({ symbol: t.symbol, name: t.name, index: idx });
+          }
         });
 
         this.twitterRefreshJob = {
@@ -6920,6 +6937,22 @@ class EnhancedBackend {
               const tokenIndex = tokens.findIndex(t => t.contractAddress === token.contractAddress);
               if (tokenIndex !== -1 && jupiterMap.has(token.contractAddress)) {
                 const freshData = jupiterMap.get(token.contractAddress);
+                
+                // 🚨 QUALITY FILTER: Check if token meets quality criteria
+                const hasLaunchpad = freshData.launchpad && freshData.launchpad !== '';
+                const hasOrganicScore = freshData.organicScore && freshData.organicScore > 0;
+                const hasGraduatedAt = freshData.graduatedAt && freshData.graduatedAt !== '';
+                
+                // Only update if at least ONE quality criteria is present (not all missing)
+                if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
+                  console.log(`🚫 QUALITY FILTER: ${token.symbol} (${token.contractAddress?.substring(0, 8)}) - Missing ALL quality criteria, skipping priority update`);
+                  console.log(`   - Launchpad: ❌ (${freshData.launchpad || 'missing'})`);
+                  console.log(`   - Organic Score: ❌ (${freshData.organicScore || 0})`);
+                  console.log(`   - Graduated At: ❌ (${freshData.graduatedAt || 'missing'})`);
+                  return; // Skip this token
+                }
+                
+                console.log(`✅ QUALITY FILTER: ${token.symbol} - Has at least one quality indicator, updating priority data`);
                 
                 // 🚨 CRITICAL FIX: Update the original token but preserve ALL existing data including Twitter
                 const originalToken = tokens[tokenIndex];
