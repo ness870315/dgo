@@ -8793,38 +8793,41 @@ class EnhancedBackend {
   /**
    * Add log entry to log file (production-ready implementation)
    */
-  async addLogEntry(level, message) {
-    try {
-      // Determine log file path
-      const logDir = process.env.DATA_DIR ? path.join(process.env.DATA_DIR, 'logs') : path.join(__dirname, 'logs');
-      const logFile = path.join(logDir, 'server.log');
-      
-      // Ensure log directory exists
-      await fs.mkdir(logDir, { recursive: true });
-      
-      // Format log entry
-      const timestamp = new Date().toISOString();
-      const logLine = `[${timestamp}] ${level}: ${message}\n`;
-      
-      // Append to log file
-      await fs.appendFile(logFile, logLine, 'utf8');
-      
-      // Optional: Rotate log file if it gets too large (> 100MB)
+  addLogEntry(level, message) {
+    // Use setImmediate to avoid blocking the main thread
+    setImmediate(async () => {
       try {
-        const stats = await fs.stat(logFile);
-        if (stats.size > 100 * 1024 * 1024) { // 100MB
-          const rotatedFile = path.join(logDir, `server-${Date.now()}.log`);
-          await fs.rename(logFile, rotatedFile);
-          console.log(`[🛡️ Enhanced Backend] 📁 Log file rotated: ${rotatedFile}`);
+        // Determine log file path
+        const logDir = process.env.DATA_DIR ? path.join(process.env.DATA_DIR, 'logs') : path.join(__dirname, 'logs');
+        const logFile = path.join(logDir, 'server.log');
+        
+        // Ensure log directory exists
+        await fs.mkdir(logDir, { recursive: true });
+        
+        // Format log entry
+        const timestamp = new Date().toISOString();
+        const logLine = `[${timestamp}] ${level}: ${message}\n`;
+        
+        // Append to log file
+        await fs.appendFile(logFile, logLine, 'utf8');
+        
+        // Optional: Rotate log file if it gets too large (> 100MB)
+        try {
+          const stats = await fs.stat(logFile);
+          if (stats.size > 100 * 1024 * 1024) { // 100MB
+            const rotatedFile = path.join(logDir, `server-${Date.now()}.log`);
+            await fs.rename(logFile, rotatedFile);
+            console.log(`[🛡️ Enhanced Backend] 📁 Log file rotated: ${rotatedFile}`);
+          }
+        } catch (rotateError) {
+          // Log rotation failed, but don't fail the main operation
+          console.warn('[🛡️ Enhanced Backend] ⚠️ Log rotation failed:', rotateError.message);
         }
-      } catch (rotateError) {
-        // Log rotation failed, but don't fail the main operation
-        console.warn('[🛡️ Enhanced Backend] ⚠️ Log rotation failed:', rotateError.message);
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Error adding log entry:', error);
       }
-      
-    } catch (error) {
-      console.error('[🛡️ Enhanced Backend] ❌ Error adding log entry:', error);
-    }
+    });
   }
 }
 
