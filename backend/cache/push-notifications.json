@@ -1,0 +1,21 @@
+[
+  {
+    "id": "test-call-456",
+    "timestamp": "2025-09-15T08:40:14.175Z",
+    "callData": {
+      "userId": "user-123",
+      "username": "testuser",
+      "tokenSymbol": "PEPE",
+      "tokenContract": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+      "calledMC": 5000000
+    },
+    "results": [
+      {
+        "subscription": "https://fcm.googleapis.com/fcm/send/test-endpoint-123",
+        "success": false
+      }
+    ],
+    "sentCount": 0,
+    "totalCount": 1
+  }
+]

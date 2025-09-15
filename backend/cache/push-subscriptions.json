@@ -1,0 +1,12 @@
+[
+  {
+    "endpoint": "https://fcm.googleapis.com/fcm/send/test-endpoint-123",
+    "keys": {
+      "p256dh": "test-p256dh-key",
+      "auth": "test-auth-key"
+    },
+    "subscribedAt": "2025-09-15T08:40:13.554Z",
+    "lastSeen": "2025-09-15T08:40:13.557Z",
+    "isActive": true
+  }
+]

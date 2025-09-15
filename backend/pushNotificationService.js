@@ -286,11 +286,18 @@ class PushNotificationService {
   }
 
   /**
-   * Check if device is mobile
+   * Check if device is mobile (backend version)
    */
   isMobileDevice(userAgent) {
     const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
     return mobileRegex.test(userAgent);
+  }
+
+  /**
+   * Check if push notifications are supported (always false in backend)
+   */
+  get isSupported() {
+    return false; // Backend doesn't support push notifications directly
   }
 
   /**
