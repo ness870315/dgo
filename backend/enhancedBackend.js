@@ -5108,6 +5108,72 @@ class EnhancedBackend {
         });
       }
     });
+
+    // Better Stack logs query endpoint for troubleshooting
+    this.app.get('/api/admin/logs/betterstack', async (req, res) => {
+      try {
+        const { 
+          sourceId, 
+          startTime, 
+          endTime, 
+          level, 
+          limit = 100,
+          query 
+        } = req.query;
+
+        // Check if Better Stack API token is configured
+        const apiToken = process.env.BETTER_STACK_API_TOKEN;
+        if (!apiToken) {
+          return res.status(400).json({
+            success: false,
+            error: 'Better Stack API token not configured',
+            message: 'Please set BETTER_STACK_API_TOKEN environment variable'
+          });
+        }
+
+        // Build query parameters
+        const queryParams = new URLSearchParams();
+        if (sourceId) queryParams.append('source_id', sourceId);
+        if (startTime) queryParams.append('start_time', startTime);
+        if (endTime) queryParams.append('end_time', endTime);
+        if (level) queryParams.append('level', level);
+        if (limit) queryParams.append('limit', limit);
+        if (query) queryParams.append('query', query);
+
+        // Query Better Stack API
+        const response = await axios.get(`https://logs.betterstack.com/api/v1/logs?${queryParams}`, {
+          headers: {
+            'Authorization': `Bearer ${apiToken}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 10000
+        });
+
+        res.json({
+          success: true,
+          logs: response.data.data || [],
+          meta: response.data.meta || {},
+          query: {
+            sourceId,
+            startTime,
+            endTime,
+            level,
+            limit,
+            query
+          },
+          timestamp: new Date().toISOString()
+        });
+
+      } catch (error) {
+        logger.error('Better Stack logs query failed:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to query Better Stack logs',
+          message: error.response?.data?.message || error.message,
+          details: error.response?.data || null
+        });
+      }
+    });
     
     // Admin: Get error logs only
     this.app.get('/api/admin/logs/errors', async (req, res) => {
