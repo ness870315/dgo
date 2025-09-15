@@ -37,9 +37,29 @@ export default function PremiumPage({ onBack, headerAuth }) {
             try {
               setStatusMsg('Payment successful! Activating Premium...');
               const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+              
+              // Prepare payment data similar to fuel token flow
+              const paymentId = event.paymentId || event.id || `premium_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+              const paymentData = {
+                paymentId: paymentId,
+                amount: 5000, // $50.00 in cents for premium
+                currency: 'USD',
+                status: 'completed',
+                timestamp: new Date().toISOString(),
+                source: 'helio_widget',
+                ...event
+              };
+              
               const resp = await fetch(`${apiBase}/api/user/premium/activate`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sessionId, receipt: event, paylinkId: '68b8ed60cf71471addc8adb6' })
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                  sessionId, 
+                  receipt: event, 
+                  paylinkId: '68b8ed60cf71471addc8adb6',
+                  paymentId: paymentId,
+                  paymentData: paymentData
+                })
               });
               if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
               await resp.json();

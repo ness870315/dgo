@@ -260,25 +260,26 @@ class EnhancedBackend {
     // Activate Premium for the authenticated user
     this.app.post('/api/user/premium/activate', async (req, res) => {
       try {
-        const { sessionId, receipt, paylinkId: clientPaylinkId } = req.body;
+        const { sessionId, receipt, paylinkId: clientPaylinkId, paymentId, paymentData } = req.body;
         if (!sessionId) return res.status(400).json({ success: false, error: 'Missing sessionId' });
         const user = await this.oauthXService.getUserBySession(sessionId);
         if (!user) return res.status(401).json({ success: false, error: 'Invalid session' });
 
-        // Validate payment with Helio API
+        // Validate payment with Helio API (same structure as fuel token flow)
         console.log('🔐 Validating payment for premium activation...');
-        const paymentId = receipt?.paymentId || receipt?.id || clientPaylinkId;
-        if (!paymentId) {
+        const finalPaymentId = paymentId || receipt?.paymentId || receipt?.id || clientPaylinkId;
+        if (!finalPaymentId) {
           return res.status(400).json({ success: false, error: 'Missing payment ID' });
         }
 
-        const validationResult = await this.helioService.validatePayment(paymentId, receipt);
+        // Use the same validation approach as fuel token flow
+        const validationResult = await this.helioService.validatePayment(finalPaymentId, paymentData || receipt);
         if (!validationResult.isValid) {
           console.log('❌ Payment validation failed:', validationResult.error);
           return res.status(400).json({ 
             success: false, 
             error: 'Payment validation failed', 
-            details: validationResult.error 
+            details: validationResult.error
           });
         }
 
