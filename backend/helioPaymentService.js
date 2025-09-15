@@ -193,7 +193,8 @@ class HelioPaymentService {
       // Check if this is a PayLink ID instead of a payment ID
       const isPayLinkId = paymentId === this.paylinkId || 
                          paymentId === process.env.HELIO_MONTHLY_PAYLINK_ID ||
-                         paymentId === process.env.HELIO_YEARLY_PAYLINK_ID;
+                         paymentId === process.env.HELIO_YEARLY_PAYLINK_ID ||
+                         paymentId === '68b8ed60cf71471addc8adb6'; // Premium PayLink ID
 
       if (isPayLinkId) {
         console.log('🔗 Detected PayLink ID, using PayLink validation approach');
@@ -360,10 +361,11 @@ class HelioPaymentService {
    * Fallback validation when API calls fail
    */
   _fallbackValidation(paymentId, paymentData) {
-    // Check if this is a known PayLink ID
+    // Check if this is a known PayLink ID (including premium PayLink)
     const isKnownPayLinkId = paymentId === this.paylinkId || 
                              paymentId === process.env.HELIO_MONTHLY_PAYLINK_ID ||
-                             paymentId === process.env.HELIO_YEARLY_PAYLINK_ID;
+                             paymentId === process.env.HELIO_YEARLY_PAYLINK_ID ||
+                             paymentId === '68b8ed60cf71471addc8adb6'; // Premium PayLink ID
 
     if (isKnownPayLinkId) {
       console.log('⚠️ Using PayLink fallback validation for known PayLink ID');
