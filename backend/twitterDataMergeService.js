@@ -12,7 +12,10 @@ const __dirname = path.dirname(__filename);
  */
 class TwitterDataMergeService {
   constructor() {
-    this.cacheDir = path.join(__dirname, 'cache');
+    // Use production data directory if available, otherwise local cache
+    this.cacheDir = process.env.DATA_DIR ? 
+      path.join(process.env.DATA_DIR, 'cache') : 
+      path.join(__dirname, 'cache');
     this.tokensCachePath = path.join(this.cacheDir, 'tokens-cache.json');
     this.twitterMetricsPath = path.join(this.cacheDir, 'twitter_metrics.json');
     this.backupDir = path.join(this.cacheDir, 'backups');
