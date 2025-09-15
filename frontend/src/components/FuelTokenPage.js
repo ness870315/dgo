@@ -572,11 +572,6 @@ const FuelTokenPage = ({ onBack, headerAuth = null, onFuelApplied }) => {
                   
                   <div className="flex items-center gap-4">
                     <div className="text-center">
-                      <div className="text-sm text-gray-400">Original Score</div>
-                      <div className="text-white">{token.originalScore}</div>
-                    </div>
-                    
-                                         <div className="text-center">
                        <div className="text-sm text-gray-400">Total Boost</div>
                        <div className="text-yellow-400 font-bold">{token.totalBoost || token.boostMultiplier}x</div>
                      </div>
