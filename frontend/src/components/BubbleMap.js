@@ -704,6 +704,15 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
             transition: all 0.2s;
           }
           
+          /* Mobile-specific styling for smaller reset view button */
+          @media (max-width: 768px) {
+            .zoom-button {
+              padding: 4px 8px;
+              font-size: 10px;
+              border-radius: 4px;
+            }
+          }
+          
           .zoom-button:hover {
             background: rgba(0, 0, 0, 0.9);
             border-color: rgba(255, 255, 255, 0.4);
