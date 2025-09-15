@@ -523,18 +523,65 @@ class EnhancedTokenProcessor {
         
         const jupiterResults = await this.fetchJupiterBatch(tokens);
         
-        // Update tokens with Jupiter data
+        // EARLY FILTERING: Remove tokens that don't meet quality criteria
+        const filteredTokens = [];
+        const removedTokens = [];
+        
         for (let j = 0; j < tokens.length; j++) {
-          if (jupiterResults[j]) {
-            tokens[j].jupiterData = jupiterResults[j];
+          const token = tokens[j];
+          const jupiterData = jupiterResults[j];
+          
+          if (jupiterData) {
+            token.jupiterData = jupiterData;
+            
+            // Check quality criteria - ALL THREE must be missing to delete
+            const hasLaunchpad = jupiterData.launchpad && jupiterData.launchpad !== '';
+            const hasOrganicScore = jupiterData.organicScore && jupiterData.organicScore > 0;
+            const hasGraduatedAt = jupiterData.graduatedAt && jupiterData.graduatedAt !== '';
+            
+            // Only delete if ALL THREE criteria are missing (AND condition)
+            if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
+              console.log(`🚫 FILTERING OUT: ${token.symbol} (${token.contractAddress?.substring(0, 8)}) - Missing ALL quality criteria:`);
+              console.log(`   - Launchpad: ❌ (${jupiterData.launchpad || 'missing'})`);
+              console.log(`   - Organic Score: ❌ (${jupiterData.organicScore || 0})`);
+              console.log(`   - Graduated At: ❌ (${jupiterData.graduatedAt || 'missing'})`);
+              
+              removedTokens.push({
+                symbol: token.symbol,
+                contractAddress: token.contractAddress,
+                reason: 'Missing all: launchpad, organicScore, graduatedAt'
+              });
+              continue; // Skip this token
+            }
+            
+            console.log(`✅ KEEPING: ${token.symbol} - Has at least one quality indicator`);
+          } else {
+            // No Jupiter data - also filter out
+            console.log(`🚫 FILTERING OUT: ${token.symbol} (${token.contractAddress?.substring(0, 8)}) - No Jupiter data`);
+            removedTokens.push({
+              symbol: token.symbol,
+              contractAddress: token.contractAddress,
+              reason: 'No Jupiter data'
+            });
+            continue;
           }
-          // Always mark as completed Jupiter stage, even if no data
-          tokens[j].stage = 'jupiter';
-          tokens[j].jupiterTimestamp = new Date().toISOString();
+          
+          // Mark as completed Jupiter stage
+          token.stage = 'jupiter';
+          token.jupiterTimestamp = new Date().toISOString();
+          filteredTokens.push(token);
         }
         
-        totalProcessed += tokens.length;
-        console.log(`✅ Batch ${batchNumber} complete: ${tokens.length} tokens processed (${totalProcessed}/${allTokens.length} total)`);
+        // Update the tokens array to only include filtered tokens
+        tokens.splice(0, tokens.length, ...filteredTokens);
+        
+        console.log(`🔍 Quality Filter Results: ${filteredTokens.length} kept, ${removedTokens.length} removed`);
+        if (removedTokens.length > 0) {
+          console.log(`📋 Removed tokens:`, removedTokens.map(t => `${t.symbol} (${t.reason})`).join(', '));
+        }
+        
+        totalProcessed += filteredTokens.length;
+        console.log(`✅ Batch ${batchNumber} complete: ${filteredTokens.length} tokens kept, ${removedTokens.length} removed (${totalProcessed}/${allTokens.length} total)`);
         
         // Rate limiting delay between batches
         if (i + batchSize < allTokens.length) {
@@ -544,12 +591,32 @@ class EnhancedTokenProcessor {
         
       } catch (error) {
         console.error(`❌ Batch ${batchNumber} failed:`, error.message);
-        // Still mark tokens as completed Jupiter stage even on error
-        tokens.forEach(t => {
-          t.stage = 'jupiter';
-          t.jupiterTimestamp = new Date().toISOString();
-        });
-        totalProcessed += tokens.length;
+        // On error, still try to filter tokens if we have Jupiter data
+        const filteredTokens = [];
+        for (let j = 0; j < tokens.length; j++) {
+          const token = tokens[j];
+          const jupiterData = jupiterResults ? jupiterResults[j] : null;
+          
+          if (jupiterData) {
+            token.jupiterData = jupiterData;
+            
+            // Apply same quality filtering even on error - ALL THREE must be missing to delete
+            const hasLaunchpad = jupiterData.launchpad && jupiterData.launchpad !== '';
+            const hasOrganicScore = jupiterData.organicScore && jupiterData.organicScore > 0;
+            const hasGraduatedAt = jupiterData.graduatedAt && jupiterData.graduatedAt !== '';
+            
+            // Only keep if at least ONE criteria is present (not all missing)
+            if (hasLaunchpad || hasOrganicScore || hasGraduatedAt) {
+              token.stage = 'jupiter';
+              token.jupiterTimestamp = new Date().toISOString();
+              filteredTokens.push(token);
+            }
+          }
+        }
+        
+        // Update tokens array with filtered results
+        tokens.splice(0, tokens.length, ...filteredTokens);
+        totalProcessed += filteredTokens.length;
       }
     }
     
