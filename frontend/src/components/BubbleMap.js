@@ -257,11 +257,9 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
       .attr('opacity', 0.8);
 
     // Add fire icons and pulsing effects for fueled tokens
-    console.log('🔥 Fuel Token Debug: fueledTokens =', fueledTokens);
     bubbles.each(function(d) {
       // Handle the wrapped data structure from the API
       const fueledTokensArray = fueledTokens.value || fueledTokens;
-      console.log('🔥 Fuel Token Debug: fueledTokensArray =', fueledTokensArray);
       
       const isFueled = fueledTokensArray.some(fueled => 
         fueled.symbol?.toLowerCase() === d.symbol?.toLowerCase()

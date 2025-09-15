@@ -552,10 +552,6 @@ const FuelTokenPage = ({ onBack, headerAuth = null, onFuelApplied }) => {
             Currently Fueled Tokens
           </h3>
           
-          {/* Debug info */}
-          <div className="text-xs text-gray-500 mb-4">
-            Debug: fueledTokens.length = {fueledTokens.length}, data = {JSON.stringify(fueledTokens, null, 2)}
-          </div>
           
           {fueledTokens.length === 0 ? (
             <div className="text-center text-gray-400 py-12">
