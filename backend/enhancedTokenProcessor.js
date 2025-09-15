@@ -1086,7 +1086,7 @@ class EnhancedTokenProcessor {
       
       console.log(`✅ Final Database Saved: ${finalUniqueTokens.length} unique tokens`);
       console.log(`📊 New tokens added: ${tokensToSave.length}`);
-      console.log(`📊 Total tokens in database: ${allTokens.length}`);
+      console.log(`📊 Total tokens in database: ${finalUniqueTokens.length}`);
       
     } catch (error) {
       console.error('❌ Failed to save final database:', error);
