@@ -10,8 +10,12 @@ class EnhancedSocialDataService {
     this.cacheTimeout = 15 * 60 * 1000; // 15 minutes cache
     
     // Twitter metrics persistent storage
-    this.twitterMetricsFile = './cache/twitter_metrics.json';
-    this.historicalMetricsFile = './cache/twitter_history.json';
+    this.twitterMetricsFile = process.env.DATA_DIR ? 
+      path.join(process.env.DATA_DIR, 'cache', 'twitter_metrics.json') : 
+      './cache/twitter_metrics.json';
+    this.historicalMetricsFile = process.env.DATA_DIR ? 
+      path.join(process.env.DATA_DIR, 'cache', 'twitter_history.json') : 
+      './cache/twitter_history.json';
     this.twitterMetricsCache = new Map();
     this.lastRefreshTime = 0;
     this.refreshInterval = 72 * 60 * 60 * 1000; // 72 hours
