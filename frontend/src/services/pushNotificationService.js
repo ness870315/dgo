@@ -246,4 +246,5 @@ class PushNotificationService {
   }
 }
 
-export default new PushNotificationService();
+const pushNotificationService = new PushNotificationService();
+export default pushNotificationService;
