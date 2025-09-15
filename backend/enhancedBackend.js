@@ -1729,6 +1729,88 @@ class EnhancedBackend {
       }
     });
 
+    // User: Check Twitter authentication status
+    this.app.get('/api/twitter/auth-status', async (req, res) => {
+      try {
+        const { userId } = req.query;
+        
+        if (!userId) {
+          return res.status(400).json({
+            success: false,
+            error: 'User ID required'
+          });
+        }
+
+        // Get user and check Twitter token status
+        const user = await this.oauthXService.getUserById(userId);
+        if (!user) {
+          return res.status(404).json({
+            success: false,
+            error: 'User not found'
+          });
+        }
+
+        // Check if user has valid Twitter tokens
+        const hasValidTokens = user.access_token && user.refresh_token;
+        const needsReauth = !hasValidTokens;
+
+        // Check for failed milestones that need retry
+        const failedMilestones = await this.milestoneTracker.getFailedMilestones(userId);
+        const hasFailedMilestones = failedMilestones && failedMilestones.length > 0;
+
+        res.json({
+          success: true,
+          needsReauth,
+          hasValidTokens,
+          hasFailedMilestones,
+          failedMilestonesCount: hasFailedMilestones ? failedMilestones.length : 0,
+          message: needsReauth ? 'Twitter authentication expired. Please re-authenticate.' : 'Twitter authentication is valid.'
+        });
+        
+      } catch (error) {
+        logger.error('❌ Error checking Twitter auth status:', error.message);
+        res.status(500).json({ 
+          success: false, 
+          error: error.message 
+        });
+      }
+    });
+
+    // User: Get users with expired Twitter tokens (for admin)
+    this.app.get('/api/admin/twitter/expired-tokens', async (req, res) => {
+      try {
+        const users = await this.oauthXService.db.getAllUsers();
+        const usersWithExpiredTokens = [];
+
+        for (const user of users) {
+          const hasValidTokens = user.access_token && user.refresh_token;
+          if (!hasValidTokens) {
+            const failedMilestones = await this.milestoneTracker.getFailedMilestones(user.id);
+            usersWithExpiredTokens.push({
+              id: user.id,
+              username: user.username,
+              hasFailedMilestones: failedMilestones && failedMilestones.length > 0,
+              failedMilestonesCount: failedMilestones ? failedMilestones.length : 0,
+              lastLogin: user.lastLogin
+            });
+          }
+        }
+
+        res.json({
+          success: true,
+          usersWithExpiredTokens,
+          count: usersWithExpiredTokens.length
+        });
+        
+      } catch (error) {
+        logger.error('❌ Error getting users with expired tokens:', error.message);
+        res.status(500).json({ 
+          success: false, 
+          error: error.message 
+        });
+      }
+    });
+
     // OAuth X: Validate session
     this.app.get('/auth/validate', async (req, res) => {
       try {
