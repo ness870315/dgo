@@ -21,6 +21,7 @@ import AIHypePredictionService from './aiHypePredictionService.js';
 import CallThesisGenerator from './callThesisGenerator.js';
 import MilestoneTracker from './milestoneTracker.js';
 import PushNotificationService from './pushNotificationService.js';
+import logger from './logger.js';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -165,14 +166,10 @@ class EnhancedBackend {
     this.logStorage = [];
     this.maxLogEntries = 10000;
     
-    // Add initial log entries
-    this.addLogEntry('system', '🚀 Enhanced Backend v3.0 starting up...');
-    this.addLogEntry('system', '🔄 Initializing services and middleware...');
-    this.addLogEntry('system', '✅ Enhanced Backend constructor completed');
-    
-    // Test log entry to verify file-based logging is working
-    this.addLogEntry('test', '🧪 File-based logging test entry');
-    this.addLogEntry('debug', '🔍 Constructor completed at ' + new Date().toISOString());
+    // Initialize Winston logger
+    logger.info('🚀 Enhanced Backend v3.0 starting up...');
+    logger.info('🔄 Initializing services and middleware...');
+    logger.info('✅ Enhanced Backend constructor completed');
     
     // Enhanced backup system is now initialized in start() method
   }
@@ -238,9 +235,9 @@ class EnhancedBackend {
     // API status
     this.app.get('/api/status', async (req, res) => {
       try {
-    // Test log entry for status endpoint
-    this.addLogEntry('info', '📊 Status endpoint accessed');
-    this.addLogEntry('debug', '🔍 Debug: Status endpoint called at ' + new Date().toISOString());
+    // Log status endpoint access
+    logger.info('📊 Status endpoint accessed');
+    logger.debug('🔍 Debug: Status endpoint called at ' + new Date().toISOString());
         const status = this.tokenProcessor.getProcessingStatus();
         let tokens = await this.getTokensFromCache();
         const priorityStats = this.priorityQueue.getPriorityStats(tokens);
@@ -301,14 +298,14 @@ class EnhancedBackend {
           });
         }
 
-        console.log('✅ Payment validated successfully:', validationResult);
+        logger.info('✅ Payment validated successfully:', validationResult);
 
         // Determine plan by paylinkId (monthly vs yearly)
         const envMonthly = process.env.HELIO_MONTHLY_PAYLINK_ID || '68b8ed60cf71471addc8adb6';
         const envYearly = process.env.HELIO_YEARLY_PAYLINK_ID || null;
         const receiptPaylinkId = receipt?.paylinkId || receipt?.paylink?.id || clientPaylinkId || null;
         
-        console.log('🔍 Payment plan detection:', {
+        logger.info('🔍 Payment plan detection:', {
           envMonthly,
           envYearly,
           receiptPaylinkId,
@@ -328,12 +325,12 @@ class EnhancedBackend {
           // If fallback validation was used, it means yearly payment
           planType = 'yearly';
           durationDays = 365;
-          console.log(`📅 Detected yearly payment via fallback validation`);
+          logger.info(`📅 Detected yearly payment via fallback validation`);
         } else {
           // Monthly payment with PayLink ID
           planType = 'monthly';
           durationDays = 30;
-          console.log(`📅 Detected monthly payment via PayLink ID`);
+          logger.info(`📅 Detected monthly payment via PayLink ID`);
         }
 
         // Persist premium status for the selected duration
@@ -366,12 +363,12 @@ class EnhancedBackend {
             meta: { durationDays }
           });
         } catch (e) {
-          console.error('[🛡️ Enhanced Backend] ⚠️ Failed to record earning:', e.message);
+          logger.error('[🛡️ Enhanced Backend] ⚠️ Failed to record earning:', e.message);
         }
 
         res.json({ success: true, premium: result });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Activate premium failed:', error.message);
+        logger.error('[🛡️ Enhanced Backend] ❌ Activate premium failed:', error.message);
         res.status(500).json({ success: false, error: 'Failed to activate premium' });
       }
     });
@@ -5078,8 +5075,7 @@ class EnhancedBackend {
     // Debug endpoint to check log file path and contents
     this.app.get('/api/admin/logs/debug', async (req, res) => {
       try {
-        const logDir = process.env.DATA_DIR ? path.join(process.env.DATA_DIR, 'logs') : path.join(__dirname, 'logs');
-        const logFile = path.join(logDir, 'server.log');
+        const logFile = '/var/data/logs/app.log';
         
         // Check if log file exists
         let fileExists = false;
@@ -5097,12 +5093,11 @@ class EnhancedBackend {
         
         res.json({
           success: true,
-          logDir: logDir,
           logFile: logFile,
           fileExists: fileExists,
           fileSize: fileSize,
           fileContent: fileContent,
-          dataDir: process.env.DATA_DIR,
+          dataDir: '/var/data',
           timestamp: new Date().toISOString()
         });
       } catch (error) {
@@ -8758,12 +8753,11 @@ class EnhancedBackend {
    */
   async getRecentLogs(lines = 100, level = 'all') {
     try {
-      // Determine log file path
-      const logDir = process.env.DATA_DIR ? path.join(process.env.DATA_DIR, 'logs') : path.join(__dirname, 'logs');
-      const logFile = path.join(logDir, 'server.log');
+      // Winston log file path
+      const logFile = '/var/data/logs/app.log';
       
       // Ensure log directory exists
-      await fs.mkdir(logDir, { recursive: true });
+      await fs.mkdir('/var/data/logs', { recursive: true });
       
       // Check if log file exists
       try {
@@ -8781,16 +8775,13 @@ class EnhancedBackend {
       const logs = [];
       for (const line of logLines) {
         try {
-          // Parse log format: [timestamp] level: message
-          const match = line.match(/^\[([^\]]+)\] (\w+): (.+)$/);
-          if (match) {
-            const [, timestamp, logLevel, message] = match;
-            logs.push({
-              timestamp: timestamp,
-              level: logLevel,
-              message: message
-            });
-          }
+          // Parse Winston JSON log format
+          const logEntry = JSON.parse(line);
+          logs.push({
+            timestamp: logEntry.timestamp,
+            level: logEntry.level,
+            message: logEntry.message
+          });
         } catch (parseError) {
           // Skip malformed log entries
           continue;
@@ -8835,40 +8826,7 @@ class EnhancedBackend {
     }
   }
 
-  /**
-   * Add log entry to log file (production-ready implementation)
-   */
-  addLogEntry(level, message) {
-    try {
-      // Determine log file path
-      const logDir = process.env.DATA_DIR ? path.join(process.env.DATA_DIR, 'logs') : path.join(__dirname, 'logs');
-      const logFile = path.join(logDir, 'server.log');
-      
-      // Format log entry
-      const timestamp = new Date().toISOString();
-      const logLine = `[${timestamp}] ${level}: ${message}\n`;
-      
-      // Use synchronous file operations for immediate logging
-      try {
-        // Ensure log directory exists (synchronous)
-        fsSync.mkdirSync(logDir, { recursive: true });
-        
-        // Append to log file (synchronous)
-        fsSync.appendFileSync(logFile, logLine, 'utf8');
-        
-        // Also log to console for debugging
-        console.log(`[LOG] ${logLine.trim()}`);
-        
-      } catch (fileError) {
-        console.error('[🛡️ Enhanced Backend] ❌ File logging error:', fileError.message);
-        // Fallback to console only
-        console.log(`[FALLBACK] ${logLine.trim()}`);
-      }
-      
-    } catch (error) {
-      console.error('[🛡️ Enhanced Backend] ❌ Error adding log entry:', error);
-    }
-  }
+  // Winston logger is now used instead of custom logging
 }
 
 // Handle graceful shutdown
