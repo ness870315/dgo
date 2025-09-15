@@ -118,7 +118,7 @@ async function testOrganicVolumeCalculation() {
     
     const highOrganicTokens = tokensWithOrganicData.filter(token => {
       const organicScore = processor.calculateOrganicVolumeRatio(token);
-      return organicScore >= 8.0;
+      return organicScore >= 80; // 0-100 scale
     });
     
     console.log(`Tokens with high organic scores (8+): ${highOrganicTokens.length}`);

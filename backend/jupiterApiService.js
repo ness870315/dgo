@@ -345,11 +345,11 @@ class JupiterApiService {
     // Use Jupiter's organic score if available, otherwise calculate our own
     const organicScore = tokenData.organicScore || this.calculateOrganicScore(tokenData);
     
-    if (organicScore >= 8.5) return 'Premium';
-    if (organicScore >= 7.0) return 'High Quality';
-    if (organicScore >= 5.5) return 'Good';
-    if (organicScore >= 4.0) return 'Fair';
-    return 'Basic';
+    if (organicScore >= 85) return 'Premium';      // 85-100: Premium
+    if (organicScore >= 70) return 'High Quality'; // 70-84: High Quality  
+    if (organicScore >= 55) return 'Good';         // 55-69: Good
+    if (organicScore >= 40) return 'Fair';         // 40-54: Fair
+    return 'Basic';                                 // 0-39: Basic
   }
 
   /**

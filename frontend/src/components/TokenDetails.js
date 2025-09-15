@@ -916,7 +916,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                 <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
                   <span className="text-gray-400 text-sm">🎯 Organic Score:</span>
                   <span className="text-white font-semibold text-sm">
-                    {((token?.jupiterData?.organicScore || 0) / 10).toFixed(1)}/10
+                    {(token?.jupiterData?.organicScore || 0).toFixed(1)}/100
                   </span>
               </div>
                 <div className="flex items-center justify-between p-2 bg-dark-bg rounded border border-gray-700">
