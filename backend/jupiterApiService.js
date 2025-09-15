@@ -482,6 +482,26 @@ class JupiterApiService {
         return existingToken;
       }
 
+      // 🚨 QUALITY FILTER: Check if token meets quality criteria
+      const hasLaunchpad = jupiterData.launchpad && jupiterData.launchpad !== '';
+      const hasOrganicScore = jupiterData.organicScore && jupiterData.organicScore > 0;
+      const hasGraduatedAt = jupiterData.graduatedAt && jupiterData.graduatedAt !== '';
+      
+      // Only update if at least ONE quality criteria is present (not all missing)
+      if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
+        console.log(`🚫 QUALITY FILTER: ${existingToken.symbol} (${existingToken.contractAddress?.substring(0, 8)}) - Missing ALL quality criteria:`);
+        console.log(`   - Launchpad: ❌ (${jupiterData.launchpad || 'missing'})`);
+        console.log(`   - Organic Score: ❌ (${jupiterData.organicScore || 0})`);
+        console.log(`   - Graduated At: ❌ (${jupiterData.graduatedAt || 'missing'})`);
+        console.log(`   - Token will be marked for removal`);
+        return null; // Return null to indicate token should be removed
+      }
+      
+      console.log(`✅ QUALITY FILTER: ${existingToken.symbol} - Has at least one quality indicator`);
+      console.log(`   - Launchpad: ${hasLaunchpad ? '✅' : '❌'} (${jupiterData.launchpad || 'missing'})`);
+      console.log(`   - Organic Score: ${hasOrganicScore ? '✅' : '❌'} (${jupiterData.organicScore || 0})`);
+      console.log(`   - Graduated At: ${hasGraduatedAt ? '✅' : '❌'} (${jupiterData.graduatedAt || 'missing'})`);
+
       // Merge Jupiter data with existing token data
       const updatedToken = {
         ...existingToken,

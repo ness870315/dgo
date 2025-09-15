@@ -54,6 +54,33 @@ async function massRefreshJupiter() {
           const oldMcap = token.jupiterData.mcap || 0;
           const newMcap = freshData.mcap || 0;
           
+          // 🚨 QUALITY FILTER: Check if token meets quality criteria
+          const hasLaunchpad = freshData.launchpad && freshData.launchpad !== '';
+          const hasOrganicScore = freshData.organicScore && freshData.organicScore > 0;
+          const hasGraduatedAt = freshData.graduatedAt && freshData.graduatedAt !== '';
+          
+          // Only update if at least ONE quality criteria is present (not all missing)
+          if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
+            console.log(`\n🚫 QUALITY FILTER: ${token.symbol} (${token.contractAddress?.substring(0, 8)}) - Missing ALL quality criteria:`);
+            console.log(`   - Launchpad: ❌ (${freshData.launchpad || 'missing'})`);
+            console.log(`   - Organic Score: ❌ (${freshData.organicScore || 0})`);
+            console.log(`   - Graduated At: ❌ (${freshData.graduatedAt || 'missing'})`);
+            console.log(`   - Token will be marked for removal`);
+            
+            // Mark token for removal by setting a flag
+            const tokenIndex = tokensCache.findIndex(t => t.contractAddress === token.contractAddress);
+            if (tokenIndex !== -1) {
+              tokensCache[tokenIndex]._markedForRemoval = true;
+              tokensCache[tokenIndex]._removalReason = 'Missing all quality criteria: launchpad, organicScore, graduatedAt';
+            }
+            continue;
+          }
+          
+          console.log(`\n✅ QUALITY FILTER: ${token.symbol} - Has at least one quality indicator`);
+          console.log(`   - Launchpad: ${hasLaunchpad ? '✅' : '❌'} (${freshData.launchpad || 'missing'})`);
+          console.log(`   - Organic Score: ${hasOrganicScore ? '✅' : '❌'} (${freshData.organicScore || 0})`);
+          console.log(`   - Graduated At: ${hasGraduatedAt ? '✅' : '❌'} (${freshData.graduatedAt || 'missing'})`);
+          
           // Update token data
           const tokenIndex = tokensCache.findIndex(t => t.contractAddress === token.contractAddress);
           if (tokenIndex !== -1) {
@@ -88,10 +115,20 @@ async function massRefreshJupiter() {
       }
     }
     
+    // 🧹 CLEANUP: Remove tokens marked for removal
+    const originalCount = tokensCache.length;
+    const filteredTokens = tokensCache.filter(token => !token._markedForRemoval);
+    const removedCount = originalCount - filteredTokens.length;
+    
+    if (removedCount > 0) {
+      console.log(`\n🧹 CLEANUP: Removing ${removedCount} tokens that failed quality filters`);
+      tokensCache.splice(0, tokensCache.length, ...filteredTokens);
+    }
+    
     console.log('\n');
     
     // Save updated cache
-    if (refreshed > 0) {
+    if (refreshed > 0 || removedCount > 0) {
       fs.writeFileSync('./cache/tokens-cache.json', JSON.stringify(tokensCache, null, 2));
       console.log('💾 Cache updated successfully');
     }
@@ -99,6 +136,7 @@ async function massRefreshJupiter() {
     console.log('\n📈 REFRESH SUMMARY:');
     console.log(`   ✅ Successfully refreshed: ${refreshed} tokens`);
     console.log(`   ❌ Errors: ${errors} tokens`);
+    console.log(`   🧹 Removed: ${removedCount} tokens (quality filter)`);
     console.log(`   ⏳ Remaining tokens: ${tokensToRefresh.length - 100} (run again for more)`);
     
     // Show some updated high-value tokens
