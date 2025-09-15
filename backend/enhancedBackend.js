@@ -5109,11 +5109,11 @@ class EnhancedBackend {
       }
     });
 
-    // Better Stack logs query endpoint for troubleshooting
+    // Better Stack logs query endpoint for troubleshooting (ClickHouse HTTP API)
     this.app.get('/api/admin/logs/betterstack', async (req, res) => {
       try {
         const { 
-          sourceId, 
+          sourceId = 't123456_your_source', 
           startTime, 
           endTime, 
           level, 
@@ -5121,45 +5121,74 @@ class EnhancedBackend {
           query 
         } = req.query;
 
-        // Check if Better Stack API token is configured
-        const apiToken = process.env.BETTER_STACK_API_TOKEN;
-        if (!apiToken) {
+        const username = process.env.BETTER_STACK_USERNAME;
+        const password = process.env.BETTER_STACK_PASSWORD;
+        
+        if (!username || !password) {
           return res.status(400).json({
             success: false,
-            error: 'Better Stack API token not configured',
-            message: 'Please set BETTER_STACK_API_TOKEN environment variable'
+            error: 'Better Stack credentials not configured',
+            message: 'Please set BETTER_STACK_USERNAME and BETTER_STACK_PASSWORD environment variables'
           });
         }
 
-        // Build query parameters
-        const queryParams = new URLSearchParams();
-        if (sourceId) queryParams.append('source_id', sourceId);
-        if (startTime) queryParams.append('start_time', startTime);
-        if (endTime) queryParams.append('end_time', endTime);
-        if (level) queryParams.append('level', level);
-        if (limit) queryParams.append('limit', limit);
-        if (query) queryParams.append('query', query);
+        // Build ClickHouse SQL query
+        let sqlQuery = `SELECT dt, raw FROM (
+          SELECT dt, raw FROM remote(${sourceId}_logs)
+          UNION ALL 
+          SELECT dt, raw FROM s3Cluster(primary, ${sourceId}_s3)
+            WHERE _row_type = 1
+        )`;
 
-        // Query Better Stack API
-        const response = await axios.get(`https://logs.betterstack.com/api/v1/logs?${queryParams}`, {
+        // Add filters
+        const conditions = [];
+        if (level) {
+          conditions.push(`JSONExtract(raw, 'level', 'Nullable(String)') = '${level.toUpperCase()}'`);
+        }
+        if (query) {
+          conditions.push(`raw LIKE '%${query}%'`);
+        }
+        if (startTime && endTime) {
+          conditions.push(`dt BETWEEN toDateTime64(${startTime}, 0, 'UTC') AND toDateTime64(${endTime}, 0, 'UTC')`);
+        }
+
+        if (conditions.length > 0) {
+          sqlQuery += ` WHERE ${conditions.join(' AND ')}`;
+        }
+
+        sqlQuery += ` ORDER BY dt DESC LIMIT ${limit} FORMAT JSONEachRow`;
+
+        const response = await axios.post('https://eu-nbg-2-connect.betterstackdata.com?output_format_pretty_row_numbers=0', sqlQuery, {
           headers: {
-            'Authorization': `Bearer ${apiToken}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'plain/text'
           },
-          timeout: 10000
+          auth: {
+            username: username,
+            password: password
+          },
+          timeout: 30000
+        });
+
+        // Parse JSONEachRow format (one JSON object per line)
+        const logs = response.data.trim().split('\n').map(line => {
+          try {
+            return JSON.parse(line);
+          } catch (e) {
+            return { raw: line, dt: new Date().toISOString() };
+          }
         });
 
         res.json({
           success: true,
-          logs: response.data.data || [],
-          meta: response.data.meta || {},
+          logs: logs,
           query: {
             sourceId,
             startTime,
             endTime,
             level,
             limit,
-            query
+            query,
+            sqlQuery
           },
           timestamp: new Date().toISOString()
         });
@@ -5169,8 +5198,61 @@ class EnhancedBackend {
         res.status(500).json({
           success: false,
           error: 'Failed to query Better Stack logs',
-          message: error.response?.data?.message || error.message,
-          details: error.response?.data || null
+          message: error.response?.data || error.message,
+          details: error.response?.status || null
+        });
+      }
+    });
+
+    // Better Stack sources endpoint
+    this.app.get('/api/admin/logs/betterstack/sources', async (req, res) => {
+      try {
+        const username = process.env.BETTER_STACK_USERNAME;
+        const password = process.env.BETTER_STACK_PASSWORD;
+        
+        if (!username || !password) {
+          return res.status(400).json({
+            success: false,
+            error: 'Better Stack credentials not configured',
+            message: 'Please set BETTER_STACK_USERNAME and BETTER_STACK_PASSWORD environment variables'
+          });
+        }
+
+        // Query to get available sources
+        const sqlQuery = `SELECT DISTINCT table FROM system.tables WHERE database LIKE 't%' FORMAT JSONEachRow`;
+
+        const response = await axios.post('https://eu-nbg-2-connect.betterstackdata.com?output_format_pretty_row_numbers=0', sqlQuery, {
+          headers: {
+            'Content-Type': 'plain/text'
+          },
+          auth: {
+            username: username,
+            password: password
+          },
+          timeout: 10000
+        });
+
+        // Parse JSONEachRow format
+        const sources = response.data.trim().split('\n').map(line => {
+          try {
+            return JSON.parse(line);
+          } catch (e) {
+            return { table: line };
+          }
+        });
+
+        res.json({
+          success: true,
+          sources: sources,
+          timestamp: new Date().toISOString()
+        });
+
+      } catch (error) {
+        logger.error('Better Stack sources query failed:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to query Better Stack sources',
+          message: error.response?.data || error.message
         });
       }
     });
