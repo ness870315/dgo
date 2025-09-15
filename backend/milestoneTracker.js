@@ -409,10 +409,15 @@ class MilestoneTracker {
    */
   async recordMilestonePost(userId, callId, milestone, tweetId, postText) {
     try {
+      console.log(`📝 Recording milestone post for user ${userId}, call ${callId}, milestone ${milestone}x`);
+      
       const calls = await this.db.getKolCalls(userId);
       const callIndex = calls.findIndex(c => c.id === callId);
       
-      if (callIndex === -1) return;
+      if (callIndex === -1) {
+        console.log(`❌ Call ${callId} not found for user ${userId}`);
+        return;
+      }
 
       // Add milestone post record
       const milestonePost = {
@@ -427,11 +432,16 @@ class MilestoneTracker {
       }
       calls[callIndex].milestonePosts.push(milestonePost);
 
+      console.log(`📊 Call ${callId} now has ${calls[callIndex].milestonePosts.length} milestone posts:`, 
+        calls[callIndex].milestonePosts.map(p => `${p.milestone}x`));
+
       // Save updated calls
       await this.db.writeJsonFile(
         this.db.getUserFile(userId, 'kol-calls.json'),
         calls
       );
+      
+      console.log(`✅ Milestone post recorded successfully for call ${callId}`);
     } catch (error) {
       console.error(`❌ Error recording milestone post:`, error.message);
     }

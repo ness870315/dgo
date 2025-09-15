@@ -2213,6 +2213,20 @@ class EnhancedBackend {
         const user = await this.oauthXService.getUserBySession(sessionId);
         if (!user) return res.status(401).json({ error: 'Invalid session' });
         const calls = await this.oauthXService.db.getKolCalls(user.id);
+        
+        // Debug milestone posts
+        const callsWithMilestones = calls.filter(c => c.milestonePosts && c.milestonePosts.length > 0);
+        if (callsWithMilestones.length > 0) {
+          console.log(`📊 Found ${callsWithMilestones.length} calls with milestone posts:`, 
+            callsWithMilestones.map(c => ({
+              id: c.id,
+              symbol: c.token?.symbol,
+              milestoneCount: c.milestonePosts.length,
+              milestones: c.milestonePosts.map(p => `${p.milestone}x`)
+            }))
+          );
+        }
+        
         res.json({ success: true, calls: calls || [] });
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Get KOL calls error:', error.message);

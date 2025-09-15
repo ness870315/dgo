@@ -62,6 +62,19 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
       const callsRes = await kolCallsService.getCalls();
       const calls = Array.isArray(callsRes.calls) ? callsRes.calls : [];
       console.log('📊 KolCallsModal: Loaded calls:', calls.length);
+      
+      // Debug milestone posts
+      const callsWithMilestones = calls.filter(c => c.milestonePosts && c.milestonePosts.length > 0);
+      if (callsWithMilestones.length > 0) {
+        console.log('🎯 KolCallsModal: Found calls with milestone posts:', 
+          callsWithMilestones.map(c => ({
+            id: c.id,
+            symbol: c.token?.symbol,
+            milestoneCount: c.milestonePosts.length,
+            milestones: c.milestonePosts.map(p => `${p.milestone}x`)
+          }))
+        );
+      }
 
       const mapped = calls.map(c => {
         const calledAtRaw = c.calledAt || c.calledTs || c.createdAt;
