@@ -11,10 +11,10 @@ class EnhancedSocialDataService {
     
     // Twitter metrics persistent storage
     this.twitterMetricsFile = process.env.DATA_DIR ? 
-      path.join(process.env.DATA_DIR, 'cache', 'twitter_metrics.json') : 
+      path.join(process.env.DATA_DIR, 'cache', 'cache', 'twitter_metrics.json') : 
       './cache/twitter_metrics.json';
     this.historicalMetricsFile = process.env.DATA_DIR ? 
-      path.join(process.env.DATA_DIR, 'cache', 'twitter_history.json') : 
+      path.join(process.env.DATA_DIR, 'cache', 'cache', 'twitter_history.json') : 
       './cache/twitter_history.json';
     this.twitterMetricsCache = new Map();
     this.lastRefreshTime = 0;

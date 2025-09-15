@@ -17,7 +17,10 @@ class TwitterDataMergeService {
       path.join(process.env.DATA_DIR, 'cache') : 
       path.join(__dirname, 'cache');
     this.tokensCachePath = path.join(this.cacheDir, 'tokens-cache.json');
-    this.twitterMetricsPath = path.join(this.cacheDir, 'twitter_metrics.json');
+    // Twitter metrics is in cache/cache subdirectory in production
+    this.twitterMetricsPath = process.env.DATA_DIR ? 
+      path.join(process.env.DATA_DIR, 'cache', 'cache', 'twitter_metrics.json') : 
+      path.join(this.cacheDir, 'twitter_metrics.json');
     this.backupDir = path.join(this.cacheDir, 'backups');
     this.maxBackups = 5;
   }
