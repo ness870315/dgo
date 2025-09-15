@@ -198,23 +198,7 @@ class PushNotificationService {
   }
 
   /**
-   * Handle notification click (for service worker)
-   */
-  handleNotificationClick(event) {
-    console.log('📱 Notification clicked:', event);
-    
-    if (event.notification.data && event.notification.data.url) {
-      // Open the token page
-      event.waitUntil(
-        self.clients.openWindow(event.notification.data.url)
-      );
-    }
-    
-    event.notification.close();
-  }
-
-  /**
-   * Handle notification close
+   * Handle notification close (frontend only)
    */
   handleNotificationClose(event) {
     console.log('📱 Notification closed:', event);
