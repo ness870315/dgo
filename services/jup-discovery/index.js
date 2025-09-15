@@ -106,7 +106,9 @@ function filterCandidates(list) {
     }
     
     // 🌱 FILTER: Only include tokens with organic score > 0
-    const organicScore = t.organicScore ?? t.organic_score ?? 0;
+    const organicScore = t.organicScore ?? t.organic_score ?? t.organicScoreValue ?? 0;
+    console.log(`🔍 Debug ${n.symbol}: organicScore=${t.organicScore}, organic_score=${t.organic_score}, organicScoreValue=${t.organicScoreValue}, final=${organicScore}`);
+    
     if (!organicScore || organicScore <= 0) {
       console.log(`🚫 Filtering out ${n.symbol} (${n.contractAddress?.substring(0, 8)}) - no organic score (${organicScore})`);
       continue;
