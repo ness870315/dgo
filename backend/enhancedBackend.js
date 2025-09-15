@@ -172,6 +172,7 @@ class EnhancedBackend {
     
     // Test log entry to verify file-based logging is working
     this.addLogEntry('test', '🧪 File-based logging test entry');
+    this.addLogEntry('debug', '🔍 Constructor completed at ' + new Date().toISOString());
     
     // Enhanced backup system is now initialized in start() method
   }
@@ -237,8 +238,9 @@ class EnhancedBackend {
     // API status
     this.app.get('/api/status', async (req, res) => {
       try {
-        // Test log entry for status endpoint
-        this.addLogEntry('info', '📊 Status endpoint accessed');
+    // Test log entry for status endpoint
+    this.addLogEntry('info', '📊 Status endpoint accessed');
+    this.addLogEntry('debug', '🔍 Debug: Status endpoint called at ' + new Date().toISOString());
         const status = this.tokenProcessor.getProcessingStatus();
         let tokens = await this.getTokensFromCache();
         const priorityStats = this.priorityQueue.getPriorityStats(tokens);
