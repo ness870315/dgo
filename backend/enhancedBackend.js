@@ -1303,12 +1303,18 @@ class EnhancedBackend {
 
         // Verify OAuth state if provided (for re-authentication)
         let userId = null;
+        let isReAuthentication = false;
         if (state) {
           try {
             userId = await this.oauthXService.verifyOAuthState(state);
             console.log(`🔐 OAuth state verified for user: ${userId}`);
+            isReAuthentication = true;
           } catch (stateError) {
-            console.log(`⚠️ OAuth state verification failed: ${stateError.message}`);
+            if (stateError.message === 'Invalid OAuth state') {
+              console.log(`ℹ️ Regular OAuth flow (no re-authentication state)`);
+            } else {
+              console.log(`⚠️ OAuth state verification failed: ${stateError.message}`);
+            }
             // Continue with normal flow if state verification fails
           }
         }
@@ -1331,8 +1337,8 @@ class EnhancedBackend {
         
         console.log(`✅ OAuth X: User ${user.username} authenticated successfully`);
 
-        // If this was a re-authentication (state was provided), retry failed milestones
-        if (userId && userId === user.id) {
+        // If this was a re-authentication (state was provided and verified), retry failed milestones
+        if (isReAuthentication && userId && userId === user.id) {
           console.log(`🔄 Re-authentication detected, retrying failed milestones for user ${userId}...`);
           try {
             await this.milestoneTracker.retryFailedMilestones(userId);

@@ -121,7 +121,14 @@ class MilestoneTracker {
         
         // Post milestone updates
         for (const milestone of newMilestones) {
-          await this.postMilestoneUpdate(userId, call, milestone, currentStats);
+          // Create enhanced stats object with calculated multipliers
+          const enhancedStats = {
+            ...currentStats,
+            multiplier: currentMultiplier,
+            athMultiplier: athMultiplier,
+            timeSinceCall: this.getTimeSinceCall(call.calledAt)
+          };
+          await this.postMilestoneUpdate(userId, call, milestone, enhancedStats);
         }
         
         return true;
@@ -155,17 +162,46 @@ class MilestoneTracker {
         return null;
       }
 
-      // Extract real market cap data from Jupiter API
-      const currentMC = token.jupiterData?.mcap || token.jupiterData?.marketCap || token.marketCap || 0;
-      const currentPrice = token.jupiterData?.usdPrice || token.currentPrice || token.price || 0;
-      const volume24h = (token.jupiterData?.stats24h?.buyVolume || 0) + (token.jupiterData?.stats24h?.sellVolume || 0) || token.volume24h || 0;
+      // Extract real market cap data from Jupiter API - try multiple field names
+      const currentMC = token.jupiterData?.mcap || 
+                       token.jupiterData?.marketCap || 
+                       token.jupiterData?.market_cap ||
+                       token.jupiterData?.mc ||
+                       token.marketCap || 
+                       token.market_cap ||
+                       token.mcap ||
+                       0;
+      
+      const currentPrice = token.jupiterData?.usdPrice || 
+                          token.jupiterData?.price || 
+                          token.jupiterData?.usd_price ||
+                          token.currentPrice || 
+                          token.price || 
+                          0;
+      
+      const volume24h = (token.jupiterData?.stats24h?.buyVolume || 0) + 
+                       (token.jupiterData?.stats24h?.sellVolume || 0) || 
+                       token.jupiterData?.volume24h ||
+                       token.jupiterData?.volume_24h ||
+                       token.volume24h || 
+                       token.volume_24h ||
+                       0;
 
       console.log(`📊 Real token stats for ${token.symbol}:`, {
         contractAddress: contractAddress.substring(0, 8),
         currentMC: currentMC,
         currentPrice: currentPrice,
         volume24h: volume24h,
-        source: 'jupiter_cache'
+        source: 'jupiter_cache',
+        jupiterFields: {
+          mcap: token.jupiterData?.mcap,
+          marketCap: token.jupiterData?.marketCap,
+          market_cap: token.jupiterData?.market_cap,
+          mc: token.jupiterData?.mc,
+          usdPrice: token.jupiterData?.usdPrice,
+          price: token.jupiterData?.price,
+          usd_price: token.jupiterData?.usd_price
+        }
       });
 
       return {
@@ -203,6 +239,26 @@ class MilestoneTracker {
       );
     } catch (error) {
       console.error(`❌ Error updating call stats:`, error.message);
+    }
+  }
+
+  /**
+   * Get time since call in human-readable format
+   */
+  getTimeSinceCall(calledAt) {
+    const now = new Date();
+    const called = new Date(calledAt);
+    const diffMs = now - called;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffDays > 0) {
+      return `${diffDays}d`;
+    } else if (diffHours > 0) {
+      return `${diffHours}h`;
+    } else {
+      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      return `${diffMinutes}m`;
     }
   }
 

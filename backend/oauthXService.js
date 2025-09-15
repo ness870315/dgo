@@ -91,12 +91,23 @@ class OAuthXService {
       const stateFile = path.join(this.db.globalDir, 'oauth-states.json');
       const states = await this.db.readJsonFile(stateFile) || {};
       
+      console.log(`🔍 Verifying OAuth state: ${state.substring(0, 8)}...`);
+      console.log(`📊 Stored states count: ${Object.keys(states).length}`);
+      
       const stateData = states[state];
       if (!stateData) {
+        console.log(`❌ State not found in stored states`);
         throw new Error('Invalid OAuth state');
       }
       
-      if (Date.now() > stateData.expiresAt) {
+      const now = Date.now();
+      const expiresAt = stateData.expiresAt;
+      const timeLeft = expiresAt - now;
+      
+      console.log(`⏰ State expires in: ${Math.round(timeLeft / 1000)}s`);
+      
+      if (now > expiresAt) {
+        console.log(`❌ State expired (${Math.round((now - expiresAt) / 1000)}s ago)`);
         throw new Error('OAuth state expired');
       }
       
@@ -104,6 +115,7 @@ class OAuthXService {
       delete states[state];
       await this.db.writeJsonFile(stateFile, states);
       
+      console.log(`✅ OAuth state verified for user: ${stateData.userId}`);
       return stateData.userId;
     } catch (error) {
       console.error('❌ Error verifying OAuth state:', error.message);

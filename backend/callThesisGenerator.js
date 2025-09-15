@@ -286,7 +286,16 @@ Respond with ONLY the complete thesis text, no quotes or formatting.`;
     const currentMC = this.formatNumber(currentStats.currentMC || 0);
     const multiplier = currentStats.multiplier || 0;
     const athMultiplier = currentStats.athMultiplier || 0;
-    const timeSinceCall = this.getTimeSinceCall(callData.calledAt);
+    const timeSinceCall = currentStats.timeSinceCall || this.getTimeSinceCall(callData.calledAt);
+    
+    console.log(`📊 Milestone post data for ${symbol}:`, {
+      initialMC,
+      currentMC,
+      multiplier,
+      athMultiplier,
+      timeSinceCall,
+      milestone
+    });
     
     // Get random milestone narrative
     const milestoneNarrative = this.getRandomMilestoneNarrative(milestone, multiplier, athMultiplier);
