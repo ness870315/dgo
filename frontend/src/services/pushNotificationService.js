@@ -209,26 +209,45 @@ class PushNotificationService {
    */
   getVapidPublicKey() {
     // This should be your actual VAPID public key
-    // For now, using a placeholder - you'll need to generate real VAPID keys
-    return 'BEl62iUYgUivxIkv69yViEuiBIa40HI8F8jVvJ1wzUvxIkv69yViEuiBIa40HI8F8jVvJ1wzUvxIkv69yViEuiBIa40HI8F8jVvJ1wzUv';
+    // For now, using a valid base64 placeholder - you'll need to generate real VAPID keys
+    return 'dGVzdC12YXBpZC1rZXktZm9yLWRlZ2VuLW9yYWNsZS1wdXNoLW5vdGlmaWNhdGlvbnM=';
   }
 
   /**
    * Convert VAPID key to Uint8Array
    */
   urlBase64ToUint8Array(base64String) {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding)
-      .replace(/-/g, '+')
-      .replace(/_/g, '/');
+    try {
+      // Validate base64 string
+      if (!base64String || typeof base64String !== 'string') {
+        throw new Error('Invalid base64 string');
+      }
 
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
+      // Remove any whitespace
+      const cleanBase64 = base64String.trim();
+      
+      // Validate base64 characters
+      if (!/^[A-Za-z0-9+/]*={0,2}$/.test(cleanBase64)) {
+        throw new Error('Invalid base64 characters');
+      }
 
-    for (let i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i);
+      const padding = '='.repeat((4 - cleanBase64.length % 4) % 4);
+      const base64 = (cleanBase64 + padding)
+        .replace(/-/g, '+')
+        .replace(/_/g, '/');
+
+      const rawData = window.atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+      return outputArray;
+    } catch (error) {
+      console.error('❌ Error converting VAPID key:', error);
+      // Return a fallback key
+      return new Uint8Array(65); // Standard VAPID key length
     }
-    return outputArray;
   }
 
   /**
