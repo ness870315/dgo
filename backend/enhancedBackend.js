@@ -425,6 +425,64 @@ class EnhancedBackend {
       }
     });
 
+    // Admin: Set user as free (non-premium)
+    this.app.post('/api/admin/users/:username/set-free', async (req, res) => {
+      try {
+        const { username } = req.params;
+        console.log(`🔍 Admin: Setting user '${username}' as free`);
+        
+        // Get all users to find the user by username
+        const users = await this.oauthXService.db.getAllUsers();
+        const user = users.find(u => u.username === username);
+        
+        if (!user) {
+          console.log(`❌ User '${username}' not found`);
+          return res.status(404).json({ 
+            success: false, 
+            error: `User '${username}' not found`,
+            availableUsers: users.map(u => u.username).slice(0, 10)
+          });
+        }
+        
+        console.log(`✅ Found user: ${user.username} (ID: ${user.id})`);
+        
+        // Get current premium status
+        const currentPremium = await this.oauthXService.db.getPremiumStatus(user.id);
+        console.log(`📊 Current premium status:`, currentPremium);
+        
+        // Set user as free (non-premium)
+        const freeStatus = {
+          isPremium: false,
+          subscriptionType: null,
+          expiresAt: null,
+          features: [],
+          updatedAt: new Date().toISOString(),
+          lastActivatedAt: null,
+          durationDays: 0,
+          reason: 'Manually set to free by admin'
+        };
+        
+        await this.oauthXService.db.setPremiumStatus(user.id, freeStatus);
+        
+        console.log(`✅ Successfully set user '${username}' as free`);
+        
+        // Get updated status
+        const updatedPremium = await this.oauthXService.db.getPremiumStatus(user.id);
+        
+        res.json({ 
+          success: true, 
+          message: `User '${username}' set as free`,
+          userId: user.id,
+          previousStatus: currentPremium,
+          newStatus: updatedPremium
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Set user free failed:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to set user as free' });
+      }
+    });
+
     this.app.get('/api/admin/users', async (req, res) => {
       try {
         const users = await this.oauthXService.db.getAllUsers();
