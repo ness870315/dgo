@@ -1693,6 +1693,60 @@ class EnhancedBackend {
       }
     });
 
+    // Admin: Get failed call tweets for a user
+    this.app.get('/admin/failed-call-tweets/:userId', async (req, res) => {
+      try {
+        const { userId } = req.params;
+        
+        console.log(`🔍 Getting failed call tweets for user ${userId}...`);
+        
+        const failedCallTweetService = new (await import('./failedCallTweetService.js')).default();
+        const failedCallTweets = await failedCallTweetService.getFailedCallTweets(userId);
+        
+        res.json({
+          success: true,
+          userId,
+          failedCallTweets,
+          count: failedCallTweets.length
+        });
+        
+      } catch (error) {
+        console.error('❌ Error getting failed call tweets:', error.message);
+        res.status(500).json({ 
+          success: false, 
+          error: error.message 
+        });
+      }
+    });
+
+    // Admin: Retry failed call tweets for a user
+    this.app.post('/admin/retry-call-tweets/:userId', async (req, res) => {
+      try {
+        const { userId } = req.params;
+        
+        console.log(`🔄 Retrying failed call tweets for user ${userId}...`);
+        
+        const failedCallTweetService = new (await import('./failedCallTweetService.js')).default();
+        const retryResult = await failedCallTweetService.retryFailedCallTweets(userId);
+        
+        res.json({
+          success: true,
+          message: 'Failed call tweets retry completed',
+          userId,
+          retried: retryResult.retried || 0,
+          errors: retryResult.errors || 0,
+          total: retryResult.total || 0
+        });
+        
+      } catch (error) {
+        console.error('❌ Error retrying call tweets:', error.message);
+        res.status(500).json({ 
+          success: false, 
+          error: error.message 
+        });
+      }
+    });
+
     // User: Get Twitter re-authentication URL
     this.app.get('/api/twitter/reauth-url', async (req, res) => {
       try {
@@ -1818,11 +1872,16 @@ class EnhancedBackend {
           // Retry any failed milestones
           const retryResult = await this.milestoneTracker.retryFailedMilestones(userId);
           
+          // 🚨 NEW: Retry any failed call tweets
+          const failedCallTweetService = new (await import('./failedCallTweetService.js')).default();
+          const callTweetRetryResult = await failedCallTweetService.retryFailedCallTweets(userId);
+          
           res.json({
             success: true,
             message: 'Twitter token refreshed successfully',
             tokensRefreshed: true,
-            milestonesRetried: retryResult?.retriedCount || 0
+            milestonesRetried: retryResult?.retriedCount || 0,
+            callTweetsRetried: callTweetRetryResult?.retried || 0
           });
           
         } catch (refreshError) {
@@ -1902,6 +1961,10 @@ class EnhancedBackend {
               
               // Retry failed milestones
               await this.milestoneTracker.retryFailedMilestones(user.id);
+              
+              // 🚨 NEW: Retry failed call tweets
+              const failedCallTweetService = new (await import('./failedCallTweetService.js')).default();
+              await failedCallTweetService.retryFailedCallTweets(user.id);
               
               results.refreshed++;
               logger.info(`✅ Refreshed tokens for user ${user.username} (${user.id})`);
@@ -2453,6 +2516,12 @@ class EnhancedBackend {
           } catch (error) {
             console.error(`❌ Failed to post tweet for ${token.symbol}:`, error.message);
             console.error(`❌ Twitter posting error details:`, error);
+            
+            // 🚨 NEW: Store failed call tweet for retry when user re-authenticates
+            if (error.message.includes('Access token expired') || error.message.includes('no refresh token')) {
+              console.log(`💾 Storing failed call tweet for retry when user re-authenticates...`);
+              // We'll store this after we create the call data
+            }
           }
         } else {
           console.log(`🐦 Skipping Twitter post for ${token.symbol}:`, {
@@ -2487,6 +2556,18 @@ class EnhancedBackend {
         });
         
         const saved = await this.oauthXService.db.addKolCall(user.id, callData);
+
+        // 🚨 NEW: Store failed call tweet for retry if Twitter posting failed due to auth issues
+        if (hasTwitterPosting && finalThesis && !twitterPostId) {
+          try {
+            // Check if we had a Twitter auth error
+            const failedCallTweetService = new (await import('./failedCallTweetService.js')).default();
+            await failedCallTweetService.storeFailedCallTweet(user.id, saved, new Error('Twitter authentication expired'));
+            console.log(`💾 Stored failed call tweet for ${token.symbol} - will retry when user re-authenticates`);
+          } catch (storeError) {
+            console.error(`❌ Failed to store failed call tweet:`, storeError.message);
+          }
+        }
 
         // Increment usage counter for free users
         if (!isPremium) {

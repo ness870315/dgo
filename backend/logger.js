@@ -1,7 +1,17 @@
 import winston from "winston";
 import path from "path";
+import fs from "fs";
+import axios from "axios";
 
-const logPath = path.join("/var/data", "logs", "app.log");
+// Ensure log directory exists
+const logDir = "/var/data/logs";
+const logPath = path.join(logDir, "app.log");
+
+try {
+  fs.mkdirSync(logDir, { recursive: true });
+} catch (error) {
+  console.warn('Could not create log directory:', error.message);
+}
 
 const logger = winston.createLogger({
   level: "info",
@@ -11,7 +21,11 @@ const logger = winston.createLogger({
   ),
   transports: [
     // Logs to file (persistent)
-    new winston.transports.File({ filename: logPath }),
+    new winston.transports.File({ 
+      filename: logPath,
+      maxsize: 10 * 1024 * 1024, // 10MB
+      maxFiles: 5
+    }),
     // Also log to console (Render captures this in dashboard logs)
     new winston.transports.Console(),
   ],

@@ -31,6 +31,7 @@
     "openai": "^4.28.0",
     "sentiment": "^5.0.2",
     "sharp": "^0.33.0",
-    "winston": "^3.17.0"
+    "winston": "^3.17.0",
+    "winston-transport": "^4.9.0"
   }
 }

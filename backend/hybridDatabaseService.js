@@ -1213,6 +1213,80 @@ class HybridDatabaseService {
       throw error;
     }
   }
+
+  // ================================
+  // FAILED CALL TWEETS (First Call Posts)
+  // ================================
+
+  /**
+   * Store failed call tweet for retry
+   */
+  async storeFailedCallTweet(failedCallTweet) {
+    try {
+      const failedCallTweetsFile = path.join(this.globalDir, 'failed-call-tweets.json');
+      let failedCallTweets = await this.readJsonFile(failedCallTweetsFile) || [];
+      
+      // Add unique ID
+      failedCallTweet.id = crypto.randomUUID();
+      failedCallTweets.push(failedCallTweet);
+      
+      await this.writeJsonFile(failedCallTweetsFile, failedCallTweets);
+      return failedCallTweet.id;
+    } catch (error) {
+      console.error('❌ Error storing failed call tweet:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Get failed call tweets for a user
+   */
+  async getFailedCallTweets(userId) {
+    try {
+      const failedCallTweetsFile = path.join(this.globalDir, 'failed-call-tweets.json');
+      const failedCallTweets = await this.readJsonFile(failedCallTweetsFile) || [];
+      
+      return failedCallTweets.filter(fct => fct.userId === userId);
+    } catch (error) {
+      console.error('❌ Error getting failed call tweets:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Remove failed call tweet
+   */
+  async removeFailedCallTweet(failedCallTweetId) {
+    try {
+      const failedCallTweetsFile = path.join(this.globalDir, 'failed-call-tweets.json');
+      let failedCallTweets = await this.readJsonFile(failedCallTweetsFile) || [];
+      
+      failedCallTweets = failedCallTweets.filter(fct => fct.id !== failedCallTweetId);
+      await this.writeJsonFile(failedCallTweetsFile, failedCallTweets);
+    } catch (error) {
+      console.error('❌ Error removing failed call tweet:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Increment retry count for failed call tweet
+   */
+  async incrementFailedCallTweetRetryCount(failedCallTweetId) {
+    try {
+      const failedCallTweetsFile = path.join(this.globalDir, 'failed-call-tweets.json');
+      let failedCallTweets = await this.readJsonFile(failedCallTweetsFile) || [];
+      
+      const callTweet = failedCallTweets.find(fct => fct.id === failedCallTweetId);
+      if (callTweet) {
+        callTweet.retryCount = (callTweet.retryCount || 0) + 1;
+        await this.writeJsonFile(failedCallTweetsFile, failedCallTweets);
+      }
+    } catch (error) {
+      console.error('❌ Error incrementing call tweet retry count:', error.message);
+      throw error;
+    }
+  }
 }
 
 export default HybridDatabaseService;

@@ -834,6 +834,21 @@ class EnhancedTokenProcessor {
     
     console.log(`✅ Twitter Stage Complete: ${totalProcessed} tokens processed, ${totalSkipped} tokens skipped (72h rule) in ${Math.ceil(allTokens.length / batchSize)} batches`);
     
+    // 🚨 CRITICAL FIX: Update processing queue to remove processed tokens
+    // Mark all processed tokens as completed and remove them from queue
+    const processedTokens = allTokens.filter(token => {
+      // Keep tokens that have been processed through Twitter stage
+      return token.stage === 'twitter' || token.twitterTimestamp;
+    });
+    
+    // Update the main processing queue with only unprocessed tokens
+    this.processingQueue = this.processingQueue.filter(token => {
+      // Remove tokens that have been processed through Twitter stage
+      return !(token.stage === 'twitter' || token.twitterTimestamp);
+    });
+    
+    console.log(`🧹 PROCESSING QUEUE UPDATED: ${allTokens.length} → ${this.processingQueue.length} tokens (removed ${allTokens.length - this.processingQueue.length} processed tokens)`);
+    
     // 🚀 AUTOMATIC TWITTER DATA MERGE
     // Merge fresh Twitter data into main cache immediately after Twitter stage
     try {
@@ -1042,6 +1057,21 @@ class EnhancedTokenProcessor {
       
       console.log(`✅ Scoring Stage Complete: ${tokens.length} tokens scored`);
       
+      // 🚨 CRITICAL FIX: Update processing queue to remove processed tokens
+      // Mark all processed tokens as completed and remove them from queue
+      const processedTokens = tokens.filter(token => {
+        // Keep tokens that have been processed through scoring stage
+        return token.stage === 'scoring' || token.scoringTimestamp;
+      });
+      
+      // Update the main processing queue with only unprocessed tokens
+      this.processingQueue = this.processingQueue.filter(token => {
+        // Remove tokens that have been processed through scoring stage
+        return !(token.stage === 'scoring' || token.scoringTimestamp);
+      });
+      
+      console.log(`🧹 PROCESSING QUEUE UPDATED: ${tokens.length} → ${this.processingQueue.length} tokens (removed ${tokens.length - this.processingQueue.length} processed tokens)`);
+      
     } catch (error) {
       console.error('❌ Scoring failed:', error);
       this.stageProgress.scoring.status = 'failed';
@@ -1054,6 +1084,11 @@ class EnhancedTokenProcessor {
           t.enhancedScore = 5.0;
           t.overallScore = 5.0;
         }
+      });
+      
+      // 🚨 CRITICAL FIX: Update processing queue even on error
+      this.processingQueue = this.processingQueue.filter(token => {
+        return !(token.stage === 'scoring' || token.scoringTimestamp);
       });
     }
   }
@@ -1125,10 +1160,20 @@ class EnhancedTokenProcessor {
       console.log(`📊 New tokens added: ${tokensToSave.length}`);
       console.log(`📊 Total tokens in database: ${finalUniqueTokens.length}`);
       
+      // 🚨 CRITICAL FIX: Clear the processing queue after successful save
+      const originalQueueLength = this.processingQueue.length;
+      this.processingQueue = [];
+      console.log(`🧹 PROCESSING QUEUE CLEARED: ${originalQueueLength} → 0 tokens (all processed and saved)`);
+      
     } catch (error) {
       console.error('❌ Failed to save final database:', error);
       console.error('Error details:', error.message);
       console.error('Stack trace:', error.stack);
+      
+      // 🚨 CRITICAL FIX: Clear processing queue even on error to prevent accumulation
+      const originalQueueLength = this.processingQueue.length;
+      this.processingQueue = [];
+      console.log(`🧹 PROCESSING QUEUE CLEARED (after error): ${originalQueueLength} → 0 tokens`);
     }
   }
 
