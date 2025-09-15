@@ -678,33 +678,55 @@ class EnhancedSocialDataService {
         console.log(`⚠️ No tweets found for ${symbol}`);
       }
       
-      // 🚨 FALLBACK: If no tweets after filtering, take first few tweets anyway
+      // 🧠 SMART FALLBACK: Only apply when tweets are filtered for minor reasons, not spam
       if (recentMentions.length === 0 && uniqueTweets.length > 0) {
-        console.log(`🔄 FALLBACK: No tweets passed crypto filter, taking first ${Math.min(3, uniqueTweets.length)} tweets anyway`);
-        for (let i = 0; i < Math.min(3, uniqueTweets.length); i++) {
-          const tweet = uniqueTweets[i];
-          const likes = tweet.favorite_count || 0;
-          const retweets = tweet.retweet_count || 0; 
-          const replies = tweet.reply_count || 0;
+        console.log(`🔍 Checking if fallback should be applied...`);
+        
+        // Check if tweets were filtered due to spam vs minor filtering
+        let hasHighSpamTweets = false;
+        let spamTweetCount = 0;
+        
+        for (const tweet of uniqueTweets.slice(0, 5)) { // Check first 5 tweets
+          const spamScore = this.detectHashtagSpam(tweet.text, symbolLower, nameLower);
+          if (spamScore >= 3) { // High spam threshold
+            hasHighSpamTweets = true;
+            spamTweetCount++;
+            console.log(`🚫 High spam tweet detected (score: ${spamScore}): "${tweet.text.substring(0, 50)}..."`);
+          }
+        }
+        
+        if (hasHighSpamTweets) {
+          console.log(`🚫 SMART FALLBACK BLOCKED: ${spamTweetCount} high-spam tweets detected, not using fallback`);
+          console.log(`📊 This prevents spam tweets like hashtag farming from getting through`);
+        } else {
+          console.log(`✅ SMART FALLBACK: No high-spam tweets detected, taking first ${Math.min(3, uniqueTweets.length)} tweets`);
           
-          totalLikes += likes;
-          totalRetweets += retweets;
-          totalReplies += replies;
-          totalMentions += 1;
-          
-          recentMentions.push({
-            author: tweet.user?.screen_name || 'Unknown',
-            authorName: tweet.user?.name || 'Unknown',
-            text: tweet.text,
-            likes: likes,
-            retweets: retweets,
-            replies: replies,
-            createdAt: tweet.created_at,
-            tweetId: tweet.id,
-            sentiment: this.analyzeTweetSentiment(tweet.text),
-            isRelevant: false, // Mark as not crypto-relevant but keep for display
-            priority: 0 // Lowest priority
-          });
+          for (let i = 0; i < Math.min(3, uniqueTweets.length); i++) {
+            const tweet = uniqueTweets[i];
+            const likes = tweet.favorite_count || 0;
+            const retweets = tweet.retweet_count || 0; 
+            const replies = tweet.reply_count || 0;
+            
+            totalLikes += likes;
+            totalRetweets += retweets;
+            totalReplies += replies;
+            totalMentions += 1;
+            
+            recentMentions.push({
+              author: tweet.user?.screen_name || 'Unknown',
+              authorName: tweet.user?.name || 'Unknown',
+              text: tweet.text,
+              likes: likes,
+              retweets: retweets,
+              replies: replies,
+              createdAt: tweet.created_at,
+              tweetId: tweet.id,
+              sentiment: this.analyzeTweetSentiment(tweet.text),
+              isRelevant: false, // Mark as not crypto-relevant but keep for display
+              priority: 0 // Lowest priority
+            });
+          }
+          console.log(`✅ SMART FALLBACK: Added ${recentMentions.length} tweets (no spam detected)`);
         }
       }
       
@@ -1087,7 +1109,9 @@ class EnhancedSocialDataService {
     const genericPromoPhrases = [
       'check out', 'most innovative', 'best project', 'next big thing',
       'don\'t miss', 'huge potential', 'moon soon', 'to the moon',
-      'breaking news', 'just launched', 'limited time', 'exclusive'
+      'breaking news', 'just launched', 'limited time', 'exclusive',
+      'not just another token', 'future of', 'post → earn', 'instantly',
+      'meme monetization', 'earn sol', 'earn instantly'
     ];
     
     const hasGenericPromo = genericPromoPhrases.some(phrase => text.includes(phrase));
@@ -1097,6 +1121,15 @@ class EnhancedSocialDataService {
     if (hasGenericPromo && !hasTokenContext) {
       spamScore += 3; // Penalty for generic promotion without token context
       console.log(`   🎯 Generic promotion without token context`);
+    }
+    
+    // Pattern 5: MGF-style promotional tweets with multiple unrelated crypto hashtags
+    const unrelatedCryptoHashtags = ['#doge', '#pepe', '#wif', '#eth', '#trump', '#pnut', '#fartcoin'];
+    const unrelatedHashtagCount = unrelatedCryptoHashtags.filter(hashtag => text.includes(hashtag)).length;
+    
+    if (unrelatedHashtagCount >= 3) {
+      spamScore += 4; // Heavy penalty for unrelated crypto hashtag farming
+      console.log(`   🚫 Unrelated crypto hashtag farming: ${unrelatedHashtagCount} unrelated hashtags`);
     }
     
     // Pattern 5: Very short tweets with only hashtags (bot-like behavior)
