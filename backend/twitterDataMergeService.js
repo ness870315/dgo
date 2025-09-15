@@ -255,13 +255,22 @@ class TwitterDataMergeService {
     const symbol = token.symbol;
     const name = token.name;
     
-    // Try different cache key formats
+    // Try different cache key formats based on actual Twitter data storage patterns
     const possibleKeys = [
-      `${symbol}_${name}`,
-      `${symbol}_${symbol}`,
-      symbol,
-      name
+      `${symbol}_${name}_undefined`,  // Most common format from twitter_history.json
+      `${symbol}_${name}`,            // Standard format
+      `${symbol}_${symbol}_undefined`, // Symbol only with undefined
+      `${symbol}_${symbol}`,          // Symbol only
+      `${symbol.toLowerCase()}_${name.toLowerCase()}`, // Lowercase format
+      `${symbol.toLowerCase()}_${name.toLowerCase()}_undefined`, // Lowercase with undefined
+      symbol,                         // Just symbol
+      name,                          // Just name
+      symbol.toLowerCase(),          // Lowercase symbol
+      name.toLowerCase()             // Lowercase name
     ];
+    
+    console.log(`🔍 Looking for Twitter data for ${symbol} (${name})`);
+    console.log(`🔍 Trying keys: ${possibleKeys.slice(0, 5).join(', ')}...`);
     
     for (const key of possibleKeys) {
       if (twitterMetrics[key] && twitterMetrics[key].data) {
@@ -269,11 +278,13 @@ class TwitterDataMergeService {
         
         // Validate Twitter data structure
         if (this.isValidTwitterData(twitterData)) {
+          console.log(`✅ Found Twitter data for ${symbol} using key: ${key}`);
           return twitterData;
         }
       }
     }
     
+    console.log(`❌ No Twitter data found for ${symbol} (${name})`);
     return null;
   }
 
