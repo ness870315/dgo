@@ -277,31 +277,70 @@ async function doBackgroundSync() {
   // Add any pending operations here
 }
 
-// Push notification handling (for future use)
+// Push notification handling for KOL calls
 self.addEventListener('push', (event) => {
+  console.log('📱 Push notification received:', event);
+  
   if (event.data) {
     const data = event.data.json();
+    console.log('📱 Push data:', data);
+    
     const options = {
       body: data.body,
-      icon: '/icon-192x192.png',
-      badge: '/icon-192x192.png',
-      vibrate: [200, 100, 200],
-      data: data.data || {}
+      icon: data.icon || '/icon-192x192.png',
+      badge: data.badge || '/icon-192x192.png',
+      image: data.image,
+      vibrate: data.vibrate || [200, 100, 200],
+      data: data.data || {},
+      actions: data.actions || [],
+      requireInteraction: data.requireInteraction || true,
+      tag: data.tag || 'kol_call',
+      renotify: data.renotify || true
     };
     
     event.waitUntil(
       self.registration.showNotification(data.title || 'Degen Oracle', options)
+    );
+  } else {
+    // Fallback notification if no data
+    event.waitUntil(
+      self.registration.showNotification('Degen Oracle', {
+        body: 'New KOL call available!',
+        icon: '/icon-192x192.png',
+        badge: '/icon-192x192.png',
+        vibrate: [200, 100, 200],
+        tag: 'kol_call_fallback'
+      })
     );
   }
 });
 
 // Notification click handling
 self.addEventListener('notificationclick', (event) => {
+  console.log('📱 Notification clicked:', event);
+  
   event.notification.close();
   
-  event.waitUntil(
-    clients.openWindow('/')
-  );
+  // Handle different actions
+  if (event.action === 'view' && event.notification.data && event.notification.data.url) {
+    // Open the specific token page
+    event.waitUntil(
+      clients.openWindow(event.notification.data.url)
+    );
+  } else if (event.action === 'dismiss') {
+    // Just close the notification
+    console.log('📱 Notification dismissed');
+  } else {
+    // Default action - open main page
+    event.waitUntil(
+      clients.openWindow('/')
+    );
+  }
+});
+
+// Notification close handling
+self.addEventListener('notificationclose', (event) => {
+  console.log('📱 Notification closed:', event);
 });
 
 console.log('🔧 Degen Oracle PWA Service Worker loaded');

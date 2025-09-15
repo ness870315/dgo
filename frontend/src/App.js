@@ -15,8 +15,10 @@ import UpdateTokenPage from './components/UpdateTokenPage';
 import UserDashboard from './components/UserDashboard';
 import ApifyTestPage from './components/ApifyTestPage';
 import PremiumPage from './components/PremiumPage';
+import MobilePushNotification from './components/MobilePushNotification';
 import { AuthProvider } from './contexts/AuthContext';
 import tokenService from './services/tokenService';
+import pushNotificationService from './services/pushNotificationService';
 import './App.css';
 
 // Professional Success Modal Function
@@ -205,6 +207,7 @@ function App() {
   const [showUserDashboard, setShowUserDashboard] = useState(false);
   const [showApifyTest, setShowApifyTest] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
+  const [showPushNotification, setShowPushNotification] = useState(false);
   const [fueledTokens, setFueledTokens] = useState([]);
   const [viewMode, setViewMode] = useState('bubbles'); // 'bubbles' or 'cards'
   const [settings, setSettings] = useState({
@@ -863,6 +866,37 @@ function App() {
     loadTokens();
   }, [loadTokens]);
 
+  // Check for push notification support and show request
+  useEffect(() => {
+    const checkPushNotifications = async () => {
+      try {
+        const isMobile = pushNotificationService.isMobileDevice();
+        const isSupported = pushNotificationService.isSupported;
+        
+        if (isMobile && isSupported) {
+          const status = await pushNotificationService.checkSubscriptionStatus();
+          
+          // Show request if not subscribed and user hasn't dismissed it recently
+          if (!status.subscribed) {
+            const lastDismissed = localStorage.getItem('pushNotificationDismissed');
+            const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+            
+            if (!lastDismissed || parseInt(lastDismissed) < oneDayAgo) {
+              // Wait a bit before showing to avoid interrupting initial load
+              setTimeout(() => {
+                setShowPushNotification(true);
+              }, 3000);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error checking push notification support:', error);
+      }
+    };
+
+    checkPushNotifications();
+  }, []);
+
   // Set up real-time updates
   useEffect(() => {
     if (!settings.enableRealTimeUpdates) return;
@@ -1274,6 +1308,16 @@ function App() {
         onTokenSelect={(token) => setSelectedToken(token)}
         allTokensData={tokens}
       />
+
+      {/* Mobile Push Notification Request */}
+      {showPushNotification && (
+        <MobilePushNotification
+          onClose={() => {
+            setShowPushNotification(false);
+            localStorage.setItem('pushNotificationDismissed', Date.now().toString());
+          }}
+        />
+      )}
     </div>
     </AuthProvider>
   );

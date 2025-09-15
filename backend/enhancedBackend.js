@@ -20,6 +20,7 @@ import HypeTrendAnalysis from './hypeTrendAnalysis.js';
 import AIHypePredictionService from './aiHypePredictionService.js';
 import CallThesisGenerator from './callThesisGenerator.js';
 import MilestoneTracker from './milestoneTracker.js';
+import PushNotificationService from './pushNotificationService.js';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -129,6 +130,7 @@ class EnhancedBackend {
     this.aiHypePrediction = new AIHypePredictionService();
     this.callThesisGenerator = new CallThesisGenerator();
     this.milestoneTracker = new MilestoneTracker();
+    this.pushNotificationService = new PushNotificationService();
     this.backupIntegration = null; // Will be initialized in setupServices()
     // Social Context cache (72h TTL)
     this.socialContextCache = new Map();
@@ -2280,6 +2282,31 @@ class EnhancedBackend {
           console.error('[🛡️ Enhanced Backend] ⚠️ Failed to boost priority after KOL call:', error.message);
         }
 
+        // Send push notifications to mobile users
+        try {
+          const notificationData = {
+            id: saved.id,
+            user: {
+              id: user.id,
+              username: user.username,
+              displayName: user.displayName
+            },
+            token: {
+              symbol: token.symbol,
+              name: token.name,
+              contractAddress: token.contractAddress,
+              icon: token.icon
+            },
+            calledMC: callData.calledMC,
+            thesis: callData.thesis
+          };
+          
+          const notificationResult = await this.pushNotificationService.sendKolCallNotification(notificationData);
+          console.log(`[🛡️ Enhanced Backend] 📱 Push notifications sent: ${notificationResult.sent}/${notificationResult.total} devices`);
+        } catch (error) {
+          console.error('[🛡️ Enhanced Backend] ⚠️ Failed to send push notifications:', error.message);
+        }
+
         res.json({ success: true, call: saved });
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Add KOL call error:', error.message);
@@ -3480,6 +3507,88 @@ class EnhancedBackend {
         res.status(500).json({ 
           success: false,
           error: 'Failed to process token listing' 
+        });
+      }
+    });
+
+    // Push Notification Subscription Endpoints
+    this.app.post('/api/push/subscribe', async (req, res) => {
+      try {
+        const { subscription, userAgent } = req.body;
+        
+        if (!subscription || !subscription.endpoint) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Invalid subscription data' 
+          });
+        }
+
+        // Check if device is mobile
+        const isMobile = this.pushNotificationService.isMobileDevice(userAgent || req.headers['user-agent'] || '');
+        
+        if (!isMobile) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Push notifications are only available for mobile devices' 
+          });
+        }
+
+        console.log(`[🛡️ Enhanced Backend] 📱 Mobile push subscription request from: ${userAgent?.substring(0, 50)}...`);
+
+        const result = await this.pushNotificationService.subscribeDevice(subscription);
+        
+        if (result.success) {
+          res.json({ 
+            success: true, 
+            message: 'Mobile device subscribed to push notifications successfully' 
+          });
+        } else {
+          res.status(400).json(result);
+        }
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Error subscribing to push notifications:', error);
+        res.status(500).json({ 
+          success: false,
+          error: 'Failed to subscribe to push notifications' 
+        });
+      }
+    });
+
+    this.app.post('/api/push/unsubscribe', async (req, res) => {
+      try {
+        const { endpoint } = req.body;
+        
+        if (!endpoint) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Endpoint is required' 
+          });
+        }
+
+        console.log(`[🛡️ Enhanced Backend] 📱 Mobile push unsubscription request`);
+
+        const result = await this.pushNotificationService.unsubscribeDevice(endpoint);
+        res.json(result);
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Error unsubscribing from push notifications:', error);
+        res.status(500).json({ 
+          success: false,
+          error: 'Failed to unsubscribe from push notifications' 
+        });
+      }
+    });
+
+    this.app.get('/api/push/stats', async (req, res) => {
+      try {
+        const stats = await this.pushNotificationService.getStats();
+        res.json({ success: true, stats });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Error getting push notification stats:', error);
+        res.status(500).json({ 
+          success: false,
+          error: 'Failed to get push notification stats' 
         });
       }
     });
