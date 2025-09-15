@@ -1,16 +1,21 @@
 // Degen Oracle PWA Service Worker
-const CACHE_NAME = 'degen-oracle-v1.0.0';
-const STATIC_CACHE = 'degen-oracle-static-v1.0.0';
-const DYNAMIC_CACHE = 'degen-oracle-dynamic-v1.0.0';
+const CACHE_VERSION = 'v1.2.0'; // Update this when deploying new versions
+const CACHE_NAME = `degen-oracle-${CACHE_VERSION}`;
+const STATIC_CACHE = `degen-oracle-static-${CACHE_VERSION}`;
+const DYNAMIC_CACHE = `degen-oracle-dynamic-${CACHE_VERSION}`;
 
-// Files to cache for offline use
+// Files to cache for offline use (with cache busting)
 const STATIC_FILES = [
   '/',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
   '/manifest.json',
   '/icon-192x192.png',
   '/icon-512x512.png'
+];
+
+// Dynamic static files that change with each build
+const DYNAMIC_STATIC_FILES = [
+  '/static/js/bundle.js',
+  '/static/css/main.css'
 ];
 
 // API endpoints to cache (with shorter TTL)
@@ -161,7 +166,17 @@ async function handleApiRequest(request) {
 }
 
 async function handleStaticRequest(request) {
-  // Cache-first strategy for static files
+  const url = new URL(request.url);
+  
+  // Check if this is a dynamic static file (JS/CSS bundles)
+  const isDynamicFile = DYNAMIC_STATIC_FILES.some(file => url.pathname.includes(file.split('/').pop()));
+  
+  if (isDynamicFile) {
+    // Network-first strategy for dynamic files (JS/CSS bundles)
+    return handleDynamicStaticRequest(request);
+  }
+  
+  // Cache-first strategy for truly static files (images, manifest, etc.)
   const cachedResponse = await caches.match(request);
   
   if (cachedResponse) {
@@ -214,6 +229,34 @@ async function handleStaticRequest(request) {
       `, {
         headers: { 'Content-Type': 'text/html' }
       });
+    }
+    
+    throw error;
+  }
+}
+
+async function handleDynamicStaticRequest(request) {
+  try {
+    // Always try network first for dynamic files
+    const networkResponse = await fetch(request);
+    
+    if (networkResponse.ok) {
+      // Cache the new version
+      const cache = await caches.open(STATIC_CACHE);
+      cache.put(request, networkResponse.clone());
+      console.log('🔄 Updated dynamic file in cache:', request.url);
+    }
+    
+    return networkResponse;
+    
+  } catch (error) {
+    console.log('🌐 Network failed for dynamic file, trying cache:', request.url);
+    
+    // Fallback to cache if network fails
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) {
+      console.log('📦 Serving cached dynamic file:', request.url);
+      return cachedResponse;
     }
     
     throw error;

@@ -24,7 +24,11 @@ if ('serviceWorker' in navigator) {
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
               console.log('🔄 PWA: New content available, please refresh');
-              // You could show a notification to the user here
+              
+              // Show update notification to user
+              if (confirm('🔄 New version available! Refresh to get the latest updates?')) {
+                window.location.reload();
+              }
             }
           });
         });
@@ -34,6 +38,29 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
+
+// Add global function to clear PWA cache (for debugging)
+window.clearPWACache = async () => {
+  if ('serviceWorker' in navigator) {
+    try {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (let registration of registrations) {
+        await registration.unregister();
+      }
+      
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
+      }
+      
+      console.log('🧹 PWA cache cleared successfully');
+      alert('PWA cache cleared! The app will reload.');
+      window.location.reload();
+    } catch (error) {
+      console.error('❌ Failed to clear PWA cache:', error);
+    }
+  }
+};
 
 // If you want to start measuring performance in your app, pass a function
 // to log results (for example: reportWebVitals(console.log))
