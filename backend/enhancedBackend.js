@@ -21,7 +21,7 @@ import AIHypePredictionService from './aiHypePredictionService.js';
 import CallThesisGenerator from './callThesisGenerator.js';
 import MilestoneTracker from './milestoneTracker.js';
 import PushNotificationService from './pushNotificationService.js';
-import MoralisPriceService from './moralisPriceService.js';
+import HybridPriceService from './hybridPriceService.js';
 import logger from './logger.js';
 import { fileURLToPath } from 'url';
 
@@ -6875,8 +6875,8 @@ class EnhancedBackend {
     // 📈 PRICE CHART ENDPOINTS
     // ========================================
 
-    // Initialize Moralis Price Service
-    this.moralisPriceService = new MoralisPriceService();
+    // Initialize Hybrid Price Service
+    this.hybridPriceService = new HybridPriceService();
 
     // Get historical price data for a token
     this.app.get('/api/tokens/:contract/price-chart', async (req, res) => {
@@ -6893,17 +6893,8 @@ class EnhancedBackend {
 
         console.log(`[🛡️ Enhanced Backend] 📈 Price chart request for ${contract.substring(0, 8)} (${timeframe})`);
 
-        // Check if Moralis is configured
-        if (!this.moralisPriceService.isConfigured()) {
-          return res.status(503).json({
-            success: false,
-            error: 'Price chart service not configured',
-            message: 'Moralis API key is required for price charts'
-          });
-        }
-
-        // Get historical price data
-        const chartData = await this.moralisPriceService.getHistoricalPrices(
+        // Get historical price data using hybrid service
+        const chartData = await this.hybridPriceService.getHistoricalPrices(
           contract, 
           timeframe, 
           parseInt(limit)
@@ -6942,17 +6933,8 @@ class EnhancedBackend {
 
         console.log(`[🛡️ Enhanced Backend] 💰 Current price request for ${contract.substring(0, 8)}`);
 
-        // Check if Moralis is configured
-        if (!this.moralisPriceService.isConfigured()) {
-          return res.status(503).json({
-            success: false,
-            error: 'Price service not configured',
-            message: 'Moralis API key is required for current price data'
-          });
-        }
-
-        // Get current price
-        const priceData = await this.moralisPriceService.getCurrentPrice(contract);
+        // Get current price using hybrid service
+        const priceData = await this.hybridPriceService.getCurrentPrice(contract);
 
         res.json({
           success: true,
@@ -6975,7 +6957,7 @@ class EnhancedBackend {
     // Get available timeframes for price charts
     this.app.get('/api/tokens/price-chart/timeframes', async (req, res) => {
       try {
-        const timeframes = this.moralisPriceService.getAvailableTimeframes();
+        const timeframes = this.hybridPriceService.getAvailableTimeframes();
         
         res.json({
           success: true,
@@ -6996,11 +6978,11 @@ class EnhancedBackend {
     // Get Moralis service status
     this.app.get('/api/tokens/price-chart/status', async (req, res) => {
       try {
-        const status = this.moralisPriceService.getStatus();
+        const status = this.hybridPriceService.getStatus();
         
         res.json({
           success: true,
-          service: 'Moralis Price Service',
+          service: 'Hybrid Price Service',
           status: status,
           timestamp: new Date().toISOString()
         });

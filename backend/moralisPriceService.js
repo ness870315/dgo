@@ -41,6 +41,7 @@ class MoralisPriceService {
       const fromDate = timeRange.from;
       const toDate = timeRange.to;
 
+      // Try the correct Moralis Solana API endpoint
       const response = await axios.get(`${this.baseURL}/token/${contractAddress}/price/history`, {
         params: {
           chain: 'solana',
