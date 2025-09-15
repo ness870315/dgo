@@ -3085,6 +3085,29 @@ class EnhancedBackend {
 
         // Save updated cache if any changes
         if (inserted > 0 || updated > 0) {
+          // Debug: Check if any target tokens were imported
+          const targetTokens = [
+            'HyvavV2Cs387fCEHv6CELe7RZ1NnHT8ADSsBZwS3XTML',
+            '9SkYDKwdYDF4cRCgKVivBne8u8RoAV9RycsrL69D1s2X',
+            'B1NYxvHT9XM11zLRKWykUApLev2a5Uo6sT8ykFKSzDd3',
+            '4QTAvmonFdYBsC797WWkQLPr67pfBGy4ia3arnt9SEd1',
+            'EMZGT8niJdNcNrSFHXExUrGKvAuVQ2KWi1oyrY4XMnH6'
+          ];
+          
+          const foundTargets = tokens.filter(t => targetTokens.includes(t.contractAddress));
+          if (foundTargets.length > 0) {
+            console.log(`🚨 [DISCOVERY IMPORT] TARGET TOKENS FOUND IN CACHE:`, foundTargets.map(t => ({
+              symbol: t.symbol,
+              address: t.contractAddress,
+              source: t._source || 'unknown',
+              category: t._category || 'unknown',
+              interval: t._interval || 'unknown',
+              launchpad: t.jupiterData?.launchpad,
+              graduatedAt: t.jupiterData?.graduatedAt,
+              organicScore: t.jupiterData?.organicScore
+            })));
+          }
+          
           await this.saveTokensToCache(tokens);
           
           // 🚀 AUTOMATIC PIPELINE PROCESSING for Jup-service imports

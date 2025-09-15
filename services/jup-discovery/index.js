@@ -151,6 +151,15 @@ async function runOnce() {
   let totalImported = 0;
   let totalBoosted = 0;
 
+  // Track specific tokens we're looking for
+  const targetTokens = [
+    'HyvavV2Cs387fCEHv6CELe7RZ1NnHT8ADSsBZwS3XTML',
+    '9SkYDKwdYDF4cRCgKVivBne8u8RoAV9RycsrL69D1s2X',
+    'B1NYxvHT9XM11zLRKWykUApLev2a5Uo6sT8ykFKSzDd3',
+    '4QTAvmonFdYBsC797WWkQLPr67pfBGy4ia3arnt9SEd1',
+    'EMZGT8niJdNcNrSFHXExUrGKvAuVQ2KWi1oyrY4XMnH6'
+  ];
+
   // aggressive jitter 30-90s to avoid backend collisions
   const jitter = 30000 + Math.floor(Math.random() * 60000);
   await sleep(jitter);
@@ -158,13 +167,57 @@ async function runOnce() {
   for (let i = 0; i < SEARCHES.length; i++) {
     const s = SEARCHES[i];
     try {
+      console.log(`🔍 [${s.key}] Fetching ${s.category}/${s.interval}...`);
       const raw = await fetchJupiterCategory(s.category, s.interval);
       const fetched = Array.isArray(raw) ? raw.length : 0;
       totalFetched += fetched;
+      
+      // Check if any target tokens are in the raw data
+      const foundTargets = raw.filter(t => {
+        const addr = t.id || t.contractAddress || t.address || t.mint;
+        return targetTokens.includes(addr);
+      });
+      
+      if (foundTargets.length > 0) {
+        console.log(`🎯 [${s.key}] FOUND TARGET TOKENS in raw data:`, foundTargets.map(t => ({
+          symbol: t.symbol,
+          address: t.id || t.contractAddress || t.address || t.mint,
+          launchpad: t.launchpad,
+          graduatedAt: t.graduatedAt || t.graduated_at,
+          organicScore: t.organicScore || t.organic_score || t.organicScoreValue
+        })));
+      }
+      
       const filtered = filterCandidates(raw);
       const candidates = filtered.length;
       totalCandidates += candidates;
+      
+      // Check if any target tokens made it through filtering
+      const filteredTargets = filtered.filter(t => targetTokens.includes(t.contractAddress));
+      if (filteredTargets.length > 0) {
+        console.log(`🚨 [${s.key}] TARGET TOKENS PASSED FILTERS:`, filteredTargets.map(t => ({
+          symbol: t.symbol,
+          address: t.contractAddress,
+          launchpad: 'N/A (filtered)',
+          graduatedAt: t.graduatedAt,
+          organicScore: 'N/A (filtered)'
+        })));
+      }
+      
       const deduped = dedupeByAddress(filtered);
+      
+      // Check if any target tokens made it to final import
+      const finalTargets = deduped.filter(t => targetTokens.includes(t.contractAddress));
+      if (finalTargets.length > 0) {
+        console.log(`🚀 [${s.key}] TARGET TOKENS BEING IMPORTED:`, finalTargets.map(t => ({
+          symbol: t.symbol,
+          address: t.contractAddress,
+          source: 'jup-discovery',
+          category: s.category,
+          interval: s.interval
+        })));
+      }
+      
       const result = await importToBackend({ source: 'jup-discovery', category: s.category, interval: s.interval, tokens: deduped });
       if (result?.success) {
         const imported = (result.stats?.inserted || 0) + (result.stats?.updated || 0);
