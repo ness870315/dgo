@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import CacheLockService from './cacheLockService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -369,26 +370,17 @@ class TwitterDataMergeService {
   }
 
   /**
-   * Atomic save with rollback capability
+   * Atomic save with rollback capability and lock protection
    */
   async atomicSave(tokens) {
     console.log('💾 Saving merged data...');
     
+    const cacheLock = new CacheLockService(this.tokensCachePath);
+    
     try {
-      // Write to temporary file first
-      const tempPath = this.tokensCachePath + '.tmp';
-      await fs.writeFile(tempPath, JSON.stringify(tokens, null, 2), 'utf8');
-      
-      // Atomic move
-      await fs.rename(tempPath, this.tokensCachePath);
-      
-      console.log('✅ Data saved successfully');
+      await cacheLock.atomicWrite(tokens);
+      console.log('✅ Data saved successfully with lock protection');
     } catch (error) {
-      // Cleanup temp file if it exists
-      try {
-        await fs.unlink(this.tokensCachePath + '.tmp');
-      } catch (_) {}
-      
       throw new Error(`Failed to save merged data: ${error.message}`);
     }
   }
