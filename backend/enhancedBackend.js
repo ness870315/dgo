@@ -21,6 +21,7 @@ import AIHypePredictionService from './aiHypePredictionService.js';
 import CallThesisGenerator from './callThesisGenerator.js';
 import MilestoneTracker from './milestoneTracker.js';
 import PushNotificationService from './pushNotificationService.js';
+import MoralisPriceService from './moralisPriceService.js';
 import logger from './logger.js';
 import { fileURLToPath } from 'url';
 
@@ -6866,6 +6867,150 @@ class EnhancedBackend {
           success: false,
           error: error.message,
           message: 'Failed to toggle automatic merge'
+        });
+      }
+    });
+
+    // ========================================
+    // 📈 PRICE CHART ENDPOINTS
+    // ========================================
+
+    // Initialize Moralis Price Service
+    this.moralisPriceService = new MoralisPriceService();
+
+    // Get historical price data for a token
+    this.app.get('/api/tokens/:contract/price-chart', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        const { timeframe = '1D', limit = 1000 } = req.query;
+
+        if (!contract) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Contract address is required' 
+          });
+        }
+
+        console.log(`[🛡️ Enhanced Backend] 📈 Price chart request for ${contract.substring(0, 8)} (${timeframe})`);
+
+        // Check if Moralis is configured
+        if (!this.moralisPriceService.isConfigured()) {
+          return res.status(503).json({
+            success: false,
+            error: 'Price chart service not configured',
+            message: 'Moralis API key is required for price charts'
+          });
+        }
+
+        // Get historical price data
+        const chartData = await this.moralisPriceService.getHistoricalPrices(
+          contract, 
+          timeframe, 
+          parseInt(limit)
+        );
+
+        res.json({
+          success: true,
+          contract: contract,
+          timeframe: timeframe,
+          data: chartData,
+          count: chartData.length,
+          timestamp: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Price chart error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch price chart data',
+          message: error.message
+        });
+      }
+    });
+
+    // Get current price for a token
+    this.app.get('/api/tokens/:contract/current-price', async (req, res) => {
+      try {
+        const { contract } = req.params;
+
+        if (!contract) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Contract address is required' 
+          });
+        }
+
+        console.log(`[🛡️ Enhanced Backend] 💰 Current price request for ${contract.substring(0, 8)}`);
+
+        // Check if Moralis is configured
+        if (!this.moralisPriceService.isConfigured()) {
+          return res.status(503).json({
+            success: false,
+            error: 'Price service not configured',
+            message: 'Moralis API key is required for current price data'
+          });
+        }
+
+        // Get current price
+        const priceData = await this.moralisPriceService.getCurrentPrice(contract);
+
+        res.json({
+          success: true,
+          contract: contract,
+          price: priceData.price,
+          timestamp: priceData.timestamp,
+          fetchedAt: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Current price error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch current price',
+          message: error.message
+        });
+      }
+    });
+
+    // Get available timeframes for price charts
+    this.app.get('/api/tokens/price-chart/timeframes', async (req, res) => {
+      try {
+        const timeframes = this.moralisPriceService.getAvailableTimeframes();
+        
+        res.json({
+          success: true,
+          timeframes: timeframes,
+          timestamp: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Timeframes error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch timeframes',
+          message: error.message
+        });
+      }
+    });
+
+    // Get Moralis service status
+    this.app.get('/api/tokens/price-chart/status', async (req, res) => {
+      try {
+        const status = this.moralisPriceService.getStatus();
+        
+        res.json({
+          success: true,
+          service: 'Moralis Price Service',
+          status: status,
+          timestamp: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Price service status error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch service status',
+          message: error.message
         });
       }
     });

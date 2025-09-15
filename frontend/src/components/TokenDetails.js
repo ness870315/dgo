@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Twitter, MessageCircle, ExternalLink, Star, Flame, Brain } from 'lucide-react';
+import { X, Twitter, MessageCircle, ExternalLink, Star, Flame, Brain, BarChart3 } from 'lucide-react';
 import kolCallsService from '../services/kolCallsService';
 import watchlistService from '../services/watchlistService';
 import priorityService from '../services/priorityService';
 import { useAuth } from '../contexts/AuthContext';
 import EnhancedCallModal from './EnhancedCallModal';
+import PriceChartModal from './PriceChartModal';
 import fuelImageGenerator from '../services/fuelImageGenerator';
 
 const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, onTokenUpdated }) => {
@@ -26,6 +27,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
   
   // Enhanced Call Modal states
   const [showEnhancedCallModal, setShowEnhancedCallModal] = useState(false);
+  
+  // Price Chart Modal states
+  const [showPriceChartModal, setShowPriceChartModal] = useState(false);
   
   // Fuel Share states
   const [showFuelShareModal, setShowFuelShareModal] = useState(false);
@@ -873,9 +877,15 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Left Section - Market Data (2x2 Square Grid) */}
               <div className="grid grid-cols-2 gap-3">
-                {/* Market Cap - Blue Gradient */}
-                <div className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-600/20 to-cyan-600/20 rounded border border-blue-500/30 aspect-square relative overflow-hidden">
+                {/* Market Cap - Blue Gradient - Clickable for Price Chart */}
+                <button
+                  onClick={() => setShowPriceChartModal(true)}
+                  className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-600/20 to-cyan-600/20 rounded border border-blue-500/30 aspect-square relative overflow-hidden hover:from-blue-600/30 hover:to-cyan-600/30 transition-all duration-200 group"
+                >
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent"></div>
+                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <BarChart3 size={16} className="text-blue-300" />
+                  </div>
                   <span className="text-blue-200 text-sm mb-1 relative z-10">🏦 Market Cap</span>
                   <span className="text-white font-bold text-base text-center relative z-10">
                     ${formatNumber(token?.jupiterData?.mcap || token?.marketCap)}
@@ -887,8 +897,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                       {(token?.jupiterData?.stats24h?.priceChange || 0) >= 0 ? '↗' : '↘'} 
                       {formatPercentage(token?.jupiterData?.stats24h?.priceChange || 0)}
                     </span>
-              </div>
-              </div>
+                  </div>
+                </button>
 
                 {/* Price - Green Gradient */}
                 <div className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-green-600/20 to-emerald-600/20 rounded border border-green-500/30 aspect-square relative overflow-hidden">
@@ -2340,6 +2350,14 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
               </div>
             </div>
           </div>
+        )}
+
+        {/* Price Chart Modal */}
+        {showPriceChartModal && (
+          <PriceChartModal
+            token={token}
+            onClose={() => setShowPriceChartModal(false)}
+          />
         )}
 
       </div>
