@@ -155,9 +155,9 @@ class MilestoneTracker {
       }
 
       // Extract real market cap data from Jupiter API
-      const currentMC = token.jupiterData?.mcap || token.jupiterData?.marketCap || 0;
-      const currentPrice = token.jupiterData?.usdPrice || token.currentPrice || 0;
-      const volume24h = (token.jupiterData?.stats24h?.buyVolume || 0) + (token.jupiterData?.stats24h?.sellVolume || 0);
+      const currentMC = token.jupiterData?.mcap || token.jupiterData?.marketCap || token.marketCap || 0;
+      const currentPrice = token.jupiterData?.usdPrice || token.currentPrice || token.price || 0;
+      const volume24h = (token.jupiterData?.stats24h?.buyVolume || 0) + (token.jupiterData?.stats24h?.sellVolume || 0) || token.volume24h || 0;
 
       console.log(`📊 Real token stats for ${token.symbol}:`, {
         contractAddress: contractAddress.substring(0, 8),
