@@ -5053,9 +5053,8 @@ class EnhancedBackend {
         const { lines = 100, level = 'all' } = req.query;
         const logLines = parseInt(lines);
         
-        // Get recent console logs (this is a simplified implementation)
-        // In a real production environment, you'd want to read from actual log files
-        const logs = this.getRecentLogs(logLines, level);
+        // Get recent logs from file system
+        const logs = await this.getRecentLogs(logLines, level);
         
         res.json({
           success: true,
@@ -5072,6 +5071,45 @@ class EnhancedBackend {
           success: false,
           error: 'Failed to get recent logs',
           details: error.message
+        });
+      }
+    });
+    
+    // Debug endpoint to check log file path and contents
+    this.app.get('/api/admin/logs/debug', async (req, res) => {
+      try {
+        const logDir = process.env.DATA_DIR ? path.join(process.env.DATA_DIR, 'logs') : path.join(__dirname, 'logs');
+        const logFile = path.join(logDir, 'server.log');
+        
+        // Check if log file exists
+        let fileExists = false;
+        let fileSize = 0;
+        let fileContent = '';
+        
+        try {
+          const stats = await fs.stat(logFile);
+          fileExists = true;
+          fileSize = stats.size;
+          fileContent = await fs.readFile(logFile, 'utf8');
+        } catch (error) {
+          fileExists = false;
+        }
+        
+        res.json({
+          success: true,
+          logDir: logDir,
+          logFile: logFile,
+          fileExists: fileExists,
+          fileSize: fileSize,
+          fileContent: fileContent,
+          dataDir: process.env.DATA_DIR,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: 'Failed to debug logs',
+          message: error.message
         });
       }
     });
