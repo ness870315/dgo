@@ -161,6 +161,15 @@ class EnhancedBackend {
     this.setupRoutes();
     this.setupBackgroundTasks();
     
+    // Initialize log storage
+    this.logStorage = [];
+    this.maxLogEntries = 10000;
+    
+    // Add initial log entries
+    this.addLogEntry('system', '🚀 Enhanced Backend v3.0 starting up...');
+    this.addLogEntry('system', '🔄 Initializing services and middleware...');
+    this.addLogEntry('system', '✅ Enhanced Backend constructor completed');
+    
     // Enhanced backup system is now initialized in start() method
   }
 
@@ -5028,6 +5037,181 @@ class EnhancedBackend {
     });
 
     // Admin: Get comprehensive system status
+    
+    // === LOG ACCESS ENDPOINTS ===
+    
+    // Admin: Get recent server logs
+    this.app.get('/api/admin/logs/recent', async (req, res) => {
+      try {
+        const { lines = 100, level = 'all' } = req.query;
+        const logLines = parseInt(lines);
+        
+        // Get recent console logs (this is a simplified implementation)
+        // In a real production environment, you'd want to read from actual log files
+        const logs = this.getRecentLogs(logLines, level);
+        
+        res.json({
+          success: true,
+          logs: logs,
+          count: logs.length,
+          requestedLines: logLines,
+          level: level,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Error getting recent logs:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get recent logs',
+          details: error.message
+        });
+      }
+    });
+    
+    // Admin: Get error logs only
+    this.app.get('/api/admin/logs/errors', async (req, res) => {
+      try {
+        const { lines = 50 } = req.query;
+        const logLines = parseInt(lines);
+        
+        const errorLogs = this.getRecentLogs(logLines, 'error');
+        
+        res.json({
+          success: true,
+          logs: errorLogs,
+          count: errorLogs.length,
+          requestedLines: logLines,
+          level: 'error',
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Error getting error logs:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get error logs',
+          details: error.message
+        });
+      }
+    });
+    
+    // Admin: Get system logs (startup, deployment, etc.)
+    this.app.get('/api/admin/logs/system', async (req, res) => {
+      try {
+        const { lines = 100 } = req.query;
+        const logLines = parseInt(lines);
+        
+        const systemLogs = this.getRecentLogs(logLines, 'system');
+        
+        res.json({
+          success: true,
+          logs: systemLogs,
+          count: systemLogs.length,
+          requestedLines: logLines,
+          level: 'system',
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Error getting system logs:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get system logs',
+          details: error.message
+        });
+      }
+    });
+    
+    // Admin: Get processing logs
+    this.app.get('/api/admin/logs/processing', async (req, res) => {
+      try {
+        const { lines = 100 } = req.query;
+        const logLines = parseInt(lines);
+        
+        const processingLogs = this.getRecentLogs(logLines, 'processing');
+        
+        res.json({
+          success: true,
+          logs: processingLogs,
+          count: processingLogs.length,
+          requestedLines: logLines,
+          level: 'processing',
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Error getting processing logs:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get processing logs',
+          details: error.message
+        });
+      }
+    });
+    
+    // Admin: Get database logs
+    this.app.get('/api/admin/logs/database', async (req, res) => {
+      try {
+        const { lines = 100 } = req.query;
+        const logLines = parseInt(lines);
+        
+        const databaseLogs = this.getRecentLogs(logLines, 'database');
+        
+        res.json({
+          success: true,
+          logs: databaseLogs,
+          count: databaseLogs.length,
+          requestedLines: logLines,
+          level: 'database',
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Error getting database logs:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get database logs',
+          details: error.message
+        });
+      }
+    });
+    
+    // Admin: Export logs to file
+    this.app.get('/api/admin/logs/export', async (req, res) => {
+      try {
+        const { lines = 1000, level = 'all', format = 'json' } = req.query;
+        const logLines = parseInt(lines);
+        
+        const logs = this.getRecentLogs(logLines, level);
+        
+        if (format === 'txt') {
+          const logText = logs.map(log => `[${log.timestamp}] ${log.level}: ${log.message}`).join('\n');
+          res.setHeader('Content-Type', 'text/plain');
+          res.setHeader('Content-Disposition', `attachment; filename="server-logs-${new Date().toISOString().split('T')[0]}.txt"`);
+          res.send(logText);
+        } else {
+          res.json({
+            success: true,
+            logs: logs,
+            count: logs.length,
+            requestedLines: logLines,
+            level: level,
+            format: format,
+            timestamp: new Date().toISOString()
+          });
+        }
+        
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Error exporting logs:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to export logs',
+          details: error.message
+        });
+      }
+    });
+    
     // Jupiter API Endpoints
     this.app.get('/api/jupiter/health', async (req, res) => {
       try {
@@ -8522,6 +8706,84 @@ class EnhancedBackend {
     }
     
     return recommendations;
+  }
+
+  /**
+   * Get recent logs from memory (simplified implementation)
+   * In production, this would read from actual log files
+   */
+  getRecentLogs(lines = 100, level = 'all') {
+    try {
+      // Initialize log storage if not exists
+      if (!this.logStorage) {
+        this.logStorage = [];
+        this.maxLogEntries = 10000; // Keep last 10k log entries in memory
+      }
+
+      // Filter logs by level
+      let filteredLogs = this.logStorage;
+      if (level !== 'all') {
+        filteredLogs = this.logStorage.filter(log => {
+          switch (level) {
+            case 'error':
+              return log.level === 'error' || log.message.includes('❌') || log.message.includes('Error');
+            case 'system':
+              return log.message.includes('🚀') || log.message.includes('🔄') || log.message.includes('✅') || 
+                     log.message.includes('Initializing') || log.message.includes('Starting') || 
+                     log.message.includes('Backend') || log.message.includes('Service');
+            case 'processing':
+              return log.message.includes('Processing') || log.message.includes('Token') || 
+                     log.message.includes('Jupiter') || log.message.includes('Twitter') ||
+                     log.message.includes('Stage') || log.message.includes('Queue');
+            case 'database':
+              return log.message.includes('Database') || log.message.includes('Cache') || 
+                     log.message.includes('Save') || log.message.includes('Load') ||
+                     log.message.includes('🗄️') || log.message.includes('💾');
+            default:
+              return true;
+          }
+        });
+      }
+
+      // Return the most recent logs
+      return filteredLogs.slice(-lines);
+      
+    } catch (error) {
+      console.error('[🛡️ Enhanced Backend] ❌ Error getting recent logs:', error);
+      return [{
+        timestamp: new Date().toISOString(),
+        level: 'error',
+        message: `Failed to get logs: ${error.message}`
+      }];
+    }
+  }
+
+  /**
+   * Add log entry to memory storage
+   * This would be called by a custom logger in production
+   */
+  addLogEntry(level, message) {
+    try {
+      if (!this.logStorage) {
+        this.logStorage = [];
+        this.maxLogEntries = 10000;
+      }
+
+      const logEntry = {
+        timestamp: new Date().toISOString(),
+        level: level,
+        message: message
+      };
+
+      this.logStorage.push(logEntry);
+
+      // Keep only the most recent entries
+      if (this.logStorage.length > this.maxLogEntries) {
+        this.logStorage = this.logStorage.slice(-this.maxLogEntries);
+      }
+    } catch (error) {
+      console.error('[🛡️ Enhanced Backend] ❌ Error adding log entry:', error);
+    }
   }
 }
 
