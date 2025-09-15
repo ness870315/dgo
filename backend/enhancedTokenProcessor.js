@@ -904,6 +904,20 @@ class EnhancedTokenProcessor {
         if (!this.isProcessing) break;
         
         const token = tokens[i];
+        
+        // 🚨 QUALITY FILTER: Skip scoring for low-quality tokens
+        const hasLaunchpad = token.jupiterData?.launchpad && token.jupiterData.launchpad !== '';
+        const hasOrganicScore = token.jupiterData?.organicScore && token.jupiterData.organicScore > 0;
+        const hasGraduatedAt = token.jupiterData?.graduatedAt && token.jupiterData.graduatedAt !== '';
+        
+        if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
+          console.log(`🚫 QUALITY FILTER: Skipping score calculation for ${token.symbol} (${token.contractAddress?.substring(0, 8)}) - Missing ALL quality criteria`);
+          console.log(`   - Launchpad: ❌ (${token.jupiterData?.launchpad || 'missing'})`);
+          console.log(`   - Organic Score: ❌ (${token.jupiterData?.organicScore || 0})`);
+          console.log(`   - Graduated At: ❌ (${token.jupiterData?.graduatedAt || 'missing'})`);
+          continue; // Skip this token
+        }
+        
         console.log(`📊 Calculating score for ${token.symbol} (${i + 1}/${tokens.length})`);
         
         try {
