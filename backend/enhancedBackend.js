@@ -146,14 +146,14 @@ class EnhancedBackend {
     try {
       const baseDir = this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo';
       this.persistentCachePath = path.join(baseDir, 'cache', 'tokens-cache.json');
-      console.log(`[🛡️ Enhanced Backend] 🔧 Persistent cache path set to: ${this.persistentCachePath}`);
-      console.log(`[🛡️ Enhanced Backend] 🔧 Base directory: ${baseDir}`);
-      console.log(`[🛡️ Enhanced Backend] 🔧 DATA_DIR env: ${process.env.DATA_DIR}`);
+      this.addLogEntry('system', `🔧 Persistent cache path set to: ${this.persistentCachePath}`);
+      this.addLogEntry('system', `🔧 Base directory: ${baseDir}`);
+      this.addLogEntry('system', `🔧 DATA_DIR env: ${process.env.DATA_DIR}`);
     } catch (error) {
       // Fallback to local (non-persistent) path only if necessary
       this.persistentCachePath = path.join(__dirname, 'cache', 'tokens-cache.json');
-      console.log(`[🛡️ Enhanced Backend] ⚠️ Fallback to local cache path: ${this.persistentCachePath}`);
-      console.log(`[🛡️ Enhanced Backend] ⚠️ Fallback reason:`, error.message);
+      this.addLogEntry('warning', `⚠️ Fallback to local cache path: ${this.persistentCachePath}`);
+      this.addLogEntry('warning', `⚠️ Fallback reason: ${error.message}`);
     }
     this.isRunning = false;
     
@@ -197,7 +197,7 @@ class EnhancedBackend {
         if (allowedOrigins.includes(origin) || cloudflarePattern.test(origin)) {
           callback(null, true);
         } else {
-          console.log('🚫 CORS blocked origin:', origin);
+          this.addLogEntry('warning', `🚫 CORS blocked origin: ${origin}`);
           callback(new Error('Not allowed by CORS'));
         }
       },
@@ -259,7 +259,7 @@ class EnhancedBackend {
           notes: 'Priority queue provides near real-time updates for high-priority tokens while respecting rate limits.'
         });
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Status endpoint error:', error);
+        this.addLogEntry('error', `❌ Status endpoint error: ${error.message}`);
         res.status(500).json({
           success: false,
           error: 'Failed to get status',
@@ -277,7 +277,7 @@ class EnhancedBackend {
         if (!user) return res.status(401).json({ success: false, error: 'Invalid session' });
 
         // Validate payment with Helio API (same structure as fuel token flow)
-        console.log('🔐 Validating payment for premium activation...');
+        this.addLogEntry('info', '🔐 Validating payment for premium activation...');
         const finalPaymentId = paymentId || receipt?.paymentId || receipt?.id || clientPaylinkId;
         if (!finalPaymentId) {
           return res.status(400).json({ success: false, error: 'Missing payment ID' });
@@ -286,7 +286,7 @@ class EnhancedBackend {
         // Use the same validation approach as fuel token flow
         const validationResult = await this.helioService.validatePayment(finalPaymentId, paymentData || receipt);
         if (!validationResult.isValid) {
-          console.log('❌ Payment validation failed:', validationResult.error);
+          this.addLogEntry('error', `❌ Payment validation failed: ${validationResult.error}`);
           return res.status(400).json({ 
             success: false, 
             error: 'Payment validation failed', 
