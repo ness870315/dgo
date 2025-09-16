@@ -154,33 +154,18 @@ class HybridPriceService {
 
   /**
    * Get price data from Moralis (if configured)
+   * Note: Moralis Solana API requires pair addresses, not token addresses
+   * For now, we'll skip Moralis and use other sources
    */
   async getMoralisPriceData(contractAddress, timeframe) {
     if (!this.moralisApiKey) {
       throw new Error('Moralis API key not configured');
     }
 
-    try {
-      const timeRange = this.calculateTimeRange(timeframe);
-      
-      const response = await axios.get(`https://solana-gateway.moralis.io/token/mainnet/price/${contractAddress}`, {
-        headers: {
-          'X-API-Key': this.moralisApiKey,
-          'Accept': 'application/json'
-        },
-        timeout: 10000
-      });
-
-      if (!response.data?.usdPrice) {
-        throw new Error('No price data from Moralis');
-      }
-
-      const currentPrice = parseFloat(response.data.usdPrice);
-      return this.generatePriceDataFromCurrent(currentPrice, timeframe);
-
-    } catch (error) {
-      throw new Error(`Moralis error: ${error.message}`);
-    }
+    // Moralis Solana API requires pair addresses, not token addresses
+    // This would require additional logic to find trading pairs for the token
+    // For now, we'll skip Moralis and use other sources
+    throw new Error('Moralis Solana API requires pair addresses - not implemented yet');
   }
 
   /**
@@ -316,36 +301,8 @@ class HybridPriceService {
 
       console.log(`🔍 Fetching current price for ${contractAddress.substring(0, 8)}`);
 
-      // Try Moralis first (primary source)
-      try {
-        const response = await axios.get(`https://solana-gateway.moralis.io/token/mainnet/price/${contractAddress}`, {
-          headers: {
-            'X-API-Key': this.moralisApiKey,
-            'Accept': 'application/json'
-          },
-          timeout: 10000
-        });
-
-        if (response.data?.usdPrice) {
-          const price = parseFloat(response.data.usdPrice);
-          const priceData = {
-            price: price,
-            timestamp: new Date().toISOString(),
-            contractAddress: contractAddress,
-            source: 'moralis'
-          };
-
-          this.cache.set(cacheKey, {
-            data: priceData,
-            timestamp: Date.now()
-          });
-
-          console.log(`✅ Current price from Moralis: $${price}`);
-          return priceData;
-        }
-      } catch (error) {
-        console.log(`⚠️ Moralis current price failed: ${error.message}`);
-      }
+      // Skip Moralis for now - requires pair addresses, not token addresses
+      // TODO: Implement pair address lookup for Moralis Solana API
 
       // Fallback to Jupiter API
       try {
@@ -478,10 +435,10 @@ class HybridPriceService {
     return {
       configured: true,
       cacheSize: this.cache.size,
-      sources: ['moralis', 'dexscreener', 'jupiter', 'mock'],
+      sources: ['dexscreener', 'jupiter', 'mock'],
       moralisConfigured: !!this.moralisApiKey,
-      primarySource: 'moralis',
-      moralisStatus: 'corrected_endpoints'
+      primarySource: 'dexscreener',
+      moralisStatus: 'requires_pair_addresses'
     };
   }
 }
