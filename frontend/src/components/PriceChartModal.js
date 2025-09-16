@@ -4,7 +4,7 @@ import chartService from '../services/chartService';
 import TradingViewChart from './TradingViewChart';
 
 const PriceChartModal = ({ token, onClose }) => {
-  const [timeframe, setTimeframe] = useState('1M');
+  const [timeframe, setTimeframe] = useState('1MIN');
   const [timeframes, setTimeframes] = useState([]);
   const [currentPrice, setCurrentPrice] = useState(null);
   const [priceChange, setPriceChange] = useState(0);

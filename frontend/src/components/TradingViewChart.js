@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createChart, ColorType } from 'lightweight-charts';
 import chartService from '../services/chartService';
 
-const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
+const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
   const chartContainerRef = useRef();
   const chartRef = useRef();
   const [chartData, setChartData] = useState([]);

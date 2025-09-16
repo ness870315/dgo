@@ -12,17 +12,17 @@ class HybridPriceService {
     
     // Timeframe-based cache duration
     this.cacheTimes = {
-      '1M': 1 * 60 * 1000,      // 1 minute
-      '5M': 5 * 60 * 1000,      // 5 minutes  
-      '15M': 15 * 60 * 1000,    // 15 minutes
-      '1H': 15 * 60 * 1000,     // 15 minutes
-      '4H': 30 * 60 * 1000,     // 30 minutes
-      '1D': 60 * 60 * 1000,     // 1 hour
-      '1W': 4 * 60 * 60 * 1000, // 4 hours
-      '1M': 24 * 60 * 60 * 1000, // 24 hours
-      '3M': 24 * 60 * 60 * 1000, // 24 hours
-      '1Y': 24 * 60 * 60 * 1000, // 24 hours
-      'ALL': 24 * 60 * 60 * 1000 // 24 hours
+      '1MIN': 1 * 60 * 1000,      // 1 minute
+      '5MIN': 5 * 60 * 1000,      // 5 minutes  
+      '15MIN': 15 * 60 * 1000,    // 15 minutes
+      '1H': 15 * 60 * 1000,       // 15 minutes
+      '4H': 30 * 60 * 1000,       // 30 minutes
+      '1D': 60 * 60 * 1000,       // 1 hour
+      '1W': 4 * 60 * 60 * 1000,   // 4 hours
+      '1M': 24 * 60 * 60 * 1000,  // 24 hours (1 month)
+      '3M': 24 * 60 * 60 * 1000,  // 24 hours
+      '1Y': 24 * 60 * 60 * 1000,  // 24 hours
+      'ALL': 24 * 60 * 60 * 1000  // 24 hours
     };
     
     // Persistent pair address storage
@@ -474,13 +474,14 @@ class HybridPriceService {
    */
   convertTimeframeToMoralis(timeframe) {
     const timeframeMap = {
-      '1M': '1min',
-      '5M': '5min',
-      '15M': '15min',
+      '1MIN': '1min',
+      '5MIN': '5min',
+      '15MIN': '15min',
       '1H': '1h',
       '4H': '4h',
       '1D': '1d',
-      '1W': '1w'
+      '1W': '1w',
+      '1M': '1d'  // 1 month uses daily data
     };
     return timeframeMap[timeframe] || '1h';
   }
@@ -727,9 +728,9 @@ class HybridPriceService {
    */
   getAvailableTimeframes() {
     return [
-      { value: '1M', label: '1 Minute', days: 0.0007 },
-      { value: '5M', label: '5 Minutes', days: 0.0035 },
-      { value: '15M', label: '15 Minutes', days: 0.0104 },
+      { value: '1MIN', label: '1 Minute', days: 0.0007 },
+      { value: '5MIN', label: '5 Minutes', days: 0.0035 },
+      { value: '15MIN', label: '15 Minutes', days: 0.0104 },
       { value: '1H', label: '1 Hour', days: 0.0417 },
       { value: '4H', label: '4 Hours', days: 0.167 },
       { value: '1D', label: '1 Day', days: 1 },
