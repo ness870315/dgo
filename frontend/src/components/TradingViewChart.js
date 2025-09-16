@@ -23,9 +23,13 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
 
   // Initialize chart
   useEffect(() => {
-    if (!chartContainerRef.current) return;
+    if (!chartContainerRef.current) {
+      console.log('Chart container ref not available');
+      return;
+    }
 
-    const chart = createChart(chartContainerRef.current, {
+    try {
+      const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       height: 400,
       layout: {
@@ -58,25 +62,30 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
       },
     });
 
-    chartRef.current = chart;
+      chartRef.current = chart;
+      console.log('Chart initialized successfully');
 
-    // Handle resize
-    const handleResize = () => {
-      if (chartContainerRef.current && chartRef.current) {
-        chartRef.current.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-        });
-      }
-    };
+      // Handle resize
+      const handleResize = () => {
+        if (chartContainerRef.current && chartRef.current) {
+          chartRef.current.applyOptions({
+            width: chartContainerRef.current.clientWidth,
+          });
+        }
+      };
 
-    window.addEventListener('resize', handleResize);
+      window.addEventListener('resize', handleResize);
 
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (chartRef.current) {
-        chartRef.current.remove();
-      }
-    };
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        if (chartRef.current) {
+          chartRef.current.remove();
+        }
+      };
+    } catch (error) {
+      console.error('Failed to initialize chart:', error);
+      setError('Failed to initialize chart: ' + error.message);
+    }
   }, []);
 
   // Load timeframes
@@ -133,10 +142,10 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
       if (response.success && response.data) {
         const formattedData = response.data.map(item => ({
           time: item.time,
-          open: item.open,
-          high: item.high,
-          low: item.low,
-          close: item.value,
+          open: item.open || item.value,
+          high: item.high || item.value,
+          low: item.low || item.value,
+          close: item.close || item.value,
           volume: item.volume || 0
         }));
 
@@ -230,40 +239,69 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
   };
 
   const updateChart = () => {
-    if (!chartRef.current || chartData.length === 0) return;
+    if (!chartRef.current || chartData.length === 0) {
+      console.log('Chart update skipped - no chart ref or data');
+      return;
+    }
 
-    // Remove existing series
-    chartRef.current.removeAllSeries();
+    try {
+      console.log('Updating chart with', chartData.length, 'data points');
+      
+      // Remove existing series
+      chartRef.current.removeAllSeries();
 
-    // Create candlestick series
-    const candlestickSeries = chartRef.current.addCandlestickSeries({
-      upColor: '#26a69a',
-      downColor: '#ef5350',
-      borderDownColor: '#ef5350',
-      borderUpColor: '#26a69a',
-      wickDownColor: '#ef5350',
-      wickUpColor: '#26a69a',
-    });
+    // Check if we have proper OHLCV data or just price data
+    const hasOHLCV = chartData.every(item => 
+      item.open !== undefined && item.high !== undefined && 
+      item.low !== undefined && item.close !== undefined
+    );
 
-    // Create volume series
-    const volumeSeries = chartRef.current.addHistogramSeries({
-      color: '#26a69a',
-      priceFormat: {
-        type: 'volume',
-      },
-      priceScaleId: 'volume',
-    });
+    if (hasOHLCV) {
+      // Create candlestick series
+      const candlestickSeries = chartRef.current.addCandlestickSeries({
+        upColor: '#26a69a',
+        downColor: '#ef5350',
+        borderDownColor: '#ef5350',
+        borderUpColor: '#26a69a',
+        wickDownColor: '#ef5350',
+        wickUpColor: '#26a69a',
+      });
 
-    // Set data
-    candlestickSeries.setData(chartData);
-    
-    // Add volume data if available
-    const volumeData = chartData.map(item => ({
-      time: item.time,
-      value: item.volume,
-      color: item.close >= item.open ? '#26a69a' : '#ef5350'
-    }));
-    volumeSeries.setData(volumeData);
+      // Create volume series
+      const volumeSeries = chartRef.current.addHistogramSeries({
+        color: '#26a69a',
+        priceFormat: {
+          type: 'volume',
+        },
+        priceScaleId: 'volume',
+      });
+
+      // Set data
+      candlestickSeries.setData(chartData);
+      
+      // Add volume data if available
+      const volumeData = chartData.map(item => ({
+        time: item.time,
+        value: item.volume,
+        color: item.close >= item.open ? '#26a69a' : '#ef5350'
+      }));
+      volumeSeries.setData(volumeData);
+    } else {
+      // Create line series for price data only
+      const lineSeries = chartRef.current.addLineSeries({
+        color: '#26a69a',
+        lineWidth: 2,
+        title: 'Price'
+      });
+
+      const lineData = chartData.map(item => ({
+        time: item.time,
+        value: item.close || item.value
+      }));
+      
+      lineSeries.setData(lineData);
+      console.log('Using line chart for price data');
+    }
 
     // Add technical indicators
     if (indicators.sma.enabled) {
@@ -309,8 +347,13 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
       lowerBand.setData(bbData.map(item => ({ time: item.time, value: item.lower })));
     }
 
-    // Fit content
-    chartRef.current.timeScale().fitContent();
+      // Fit content
+      chartRef.current.timeScale().fitContent();
+      console.log('Chart updated successfully');
+    } catch (error) {
+      console.error('Failed to update chart:', error);
+      setError('Failed to update chart: ' + error.message);
+    }
   };
 
   const formatPrice = (price) => {
