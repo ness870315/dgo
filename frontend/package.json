@@ -27,7 +27,7 @@
     "express-session": "^1.18.2",
     "jsdom": "^26.1.0",
     "jsonwebtoken": "^9.0.2",
-    "lightweight-charts": "^5.0.8",
+    "lightweight-charts": "^4.2.0",
     "lucide-react": "^0.541.0",
     "mongodb": "^6.19.0",
     "mongoose": "^8.18.0",

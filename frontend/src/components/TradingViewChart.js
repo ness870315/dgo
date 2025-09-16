@@ -139,6 +139,10 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
           height: containerHeight,
         });
 
+        console.log('Chart created successfully:', !!chart);
+        console.log('Chart methods:', Object.getOwnPropertyNames(chart));
+        console.log('Has addCandlestickSeries?', typeof chart.addCandlestickSeries);
+
         // Create candlestick series
         const series = chart.addCandlestickSeries({
           upColor: '#089981',
