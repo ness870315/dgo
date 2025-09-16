@@ -22,7 +22,9 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
   useEffect(() => {
     const initializeChart = () => {
       if (!chartContainerRef.current) {
-        console.log('Chart container ref not available');
+        console.log('Chart container ref not available, retrying...');
+        // Retry after a short delay
+        setTimeout(initializeChart, 100);
         return;
       }
 
@@ -118,7 +120,10 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
   // Update chart when data changes
   useEffect(() => {
     if (chartRef.current && chartData.length > 0) {
+      console.log('Updating chart with data length:', chartData.length);
       updateChart();
+    } else if (chartData.length > 0) {
+      console.log('Chart ref not ready, data available:', chartData.length);
     }
   }, [chartData, indicators]);
 
@@ -140,6 +145,8 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
       
       if (response.success && response.data) {
         console.log('Raw chart data:', response.data);
+        console.log('Raw data sample:', response.data.slice(0, 2));
+        
         const formattedData = response.data.map(item => ({
           time: Math.floor(item.time), // Ensure time is integer seconds
           open: item.open || item.value,
