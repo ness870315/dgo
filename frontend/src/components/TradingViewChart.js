@@ -49,6 +49,18 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
         }));
         
         console.log('Formatted chart data:', formattedData);
+        console.log('Data quality check:', {
+          totalPoints: formattedData.length,
+          validPrices: formattedData.filter(d => d.close > 0).length,
+          priceRange: {
+            min: Math.min(...formattedData.map(d => d.close)),
+            max: Math.max(...formattedData.map(d => d.close))
+          },
+          timeRange: {
+            start: new Date(Math.min(...formattedData.map(d => d.time * 1000))).toISOString(),
+            end: new Date(Math.max(...formattedData.map(d => d.time * 1000))).toISOString()
+          }
+        });
         setChartData(formattedData);
       } else {
         throw new Error('No data received from chart service');
@@ -207,17 +219,25 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
           priceFormat: priceFormat
         });
         
-        // Check for flat data
+        // Check for flat data and data quality
         const flatCandles = transformedCandles.filter(c => c.open === c.high && c.high === c.low && c.low === c.close);
-        console.log(`Data analysis: ${transformedCandles.length} total, ${flatCandles.length} flat (${((flatCandles.length/transformedCandles.length)*100).toFixed(1)}%)`);
+        const validCandles = transformedCandles.filter(c => c.open > 0 && c.high > 0 && c.low > 0 && c.close > 0);
+        console.log(`Data analysis: ${transformedCandles.length} total, ${flatCandles.length} flat (${((flatCandles.length/transformedCandles.length)*100).toFixed(1)}%), ${validCandles.length} valid`);
         
         if (flatCandles.length > transformedCandles.length * 0.8) {
           console.warn('⚠️ Most candles are flat (no price movement) - chart may appear empty');
         }
         
-        chartRef.current.candlestickSeries.setData(transformedCandles);
+        if (validCandles.length < transformedCandles.length * 0.5) {
+          console.warn('⚠️ More than 50% of data points are invalid - chart may appear incomplete');
+        }
+        
+        // Use valid candles only
+        const finalCandles = validCandles.length > 0 ? validCandles : transformedCandles;
+        
+        chartRef.current.candlestickSeries.setData(finalCandles);
         chartRef.current.chart.timeScale().fitContent();
-        console.log('Data applied successfully');
+        console.log(`Data applied successfully: ${finalCandles.length} candles`);
       }
     }
 
@@ -284,7 +304,7 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
         
         {/* Token Symbol Display */}
         <div className="text-white font-medium">
-          {token?.symbol || 'Token'} / USD
+          {token?.symbol || 'Token'} / {displayMode === 'mcap' ? 'MCap' : 'USD'}
         </div>
       </div>
 
