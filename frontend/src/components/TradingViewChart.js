@@ -1,14 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createChart } from 'lightweight-charts';
 import chartService from '../services/chartService';
 
 const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
-  const svgRef = useRef(null);
+  const chartContainerRef = useRef(null);
+  const chartRef = useRef(null);
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [hoveredPoint, setHoveredPoint] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [chartDimensions, setChartDimensions] = useState({ width: 800, height: 400 });
+  const [chartInitialized, setChartInitialized] = useState(false);
   
   // Use timeframe prop directly instead of local state
   const [indicators, setIndicators] = useState({
@@ -20,25 +20,96 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
   });
   const [showIndicators, setShowIndicators] = useState(false);
 
-  // Handle resize
+  // Initialize chart
   useEffect(() => {
-    const handleResize = () => {
-      if (svgRef.current) {
-        const container = svgRef.current.parentElement;
-        if (container) {
-          setChartDimensions({
-            width: container.clientWidth,
-            height: 400
-          });
+    const initializeChart = () => {
+      if (!chartContainerRef.current) {
+        console.log('Chart container ref not available, retrying...');
+        setTimeout(initializeChart, 100);
+        return;
+      }
+
+      // Clean up any existing chart
+      if (chartRef.current) {
+        try {
+          chartRef.current.remove();
+        } catch (error) {
+          console.log('Error removing existing chart:', error);
         }
+        chartRef.current = null;
+      }
+
+      try {
+        const chart = createChart(chartContainerRef.current, {
+          width: chartContainerRef.current.clientWidth,
+          height: 400,
+          layout: {
+            background: { color: '#1a1a1a' },
+            textColor: '#d1d4dc',
+          },
+          grid: {
+            vertLines: { color: '#2B2B43' },
+            horzLines: { color: '#2B2B43' },
+          },
+          crosshair: {
+            mode: 1,
+          },
+          rightPriceScale: {
+            borderColor: '#485c7b',
+          },
+          timeScale: {
+            borderColor: '#485c7b',
+            timeVisible: true,
+            secondsVisible: false,
+          },
+          handleScroll: {
+            mouseWheel: true,
+            pressedMouseMove: true,
+          },
+          handleScale: {
+            axisPressedMouseMove: true,
+            mouseWheel: true,
+            pinch: true,
+          },
+        });
+
+        chartRef.current = chart;
+        setChartInitialized(true);
+        console.log('Chart initialized successfully');
+
+        // Handle resize
+        const handleResize = () => {
+          if (chartContainerRef.current && chartRef.current) {
+            chartRef.current.applyOptions({
+              width: chartContainerRef.current.clientWidth,
+            });
+          }
+        };
+
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+          window.removeEventListener('resize', handleResize);
+          if (chartRef.current) {
+            chartRef.current.remove();
+          }
+          setChartInitialized(false);
+        };
+      } catch (error) {
+        console.error('Failed to initialize chart:', error);
+        setError('Failed to initialize chart: ' + error.message);
       }
     };
 
-    window.addEventListener('resize', handleResize);
-    handleResize(); // Initial size
+    // Add a small delay to ensure DOM is ready
+    const timeoutId = setTimeout(initializeChart, 100);
 
     return () => {
-      window.removeEventListener('resize', handleResize);
+      clearTimeout(timeoutId);
+      if (chartRef.current) {
+        chartRef.current.remove();
+      }
+      setChartInitialized(false);
     };
   }, []);
 
@@ -52,11 +123,18 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
 
   // Update chart when data changes
   useEffect(() => {
-    if (chartData.length > 0) {
+    if (chartInitialized && chartRef.current && chartData.length > 0) {
       console.log('Updating chart with data length:', chartData.length);
-      renderChart();
+      // Add a small delay to ensure chart is fully ready
+      setTimeout(() => {
+        if (chartRef.current && chartData.length > 0) {
+          updateChart();
+        }
+      }, 100);
+    } else if (chartData.length > 0) {
+      console.log('Chart not ready, data available:', chartData.length, 'initialized:', chartInitialized);
     }
-  }, [chartData, indicators, chartDimensions]);
+  }, [chartData, indicators, chartInitialized]);
 
 
 
@@ -196,152 +274,134 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
     return result;
   };
 
-  const getTimeScale = (data, width) => {
-    if (data.length === 0) return { min: 0, max: 0, scale: () => 0 };
+  const updateChart = () => {
+    if (!chartRef.current) {
+      console.log('Chart update skipped - no chart ref');
+      return;
+    }
     
-    const times = data.map(d => d.time);
-    const minTime = Math.min(...times);
-    const maxTime = Math.max(...times);
-    
-    return {
-      min: minTime,
-      max: maxTime,
-      scale: (time) => ((time - minTime) / (maxTime - minTime)) * width
-    };
-  };
-
-  const getPriceScale = (data, height) => {
-    if (data.length === 0) return { min: 0, max: 0, scale: () => 0 };
-    
-    const prices = data.flatMap(d => [d.open, d.high, d.low, d.close].filter(p => p !== undefined));
-    const minPrice = Math.min(...prices);
-    const maxPrice = Math.max(...prices);
-    const padding = (maxPrice - minPrice) * 0.1; // 10% padding
-    
-    return {
-      min: minPrice - padding,
-      max: maxPrice + padding,
-      scale: (price) => height - ((price - (minPrice - padding)) / ((maxPrice + padding) - (minPrice - padding))) * height
-    };
-  };
-
-  const generateChartSVG = (data, timeScale, priceScale, padding, width, height) => {
-    const chartWidth = width - padding.left - padding.right;
-    const chartHeight = height - padding.top - padding.bottom;
-
-    // Sample data for better performance (show every nth point based on data density)
-    const maxCandles = Math.min(200, data.length);
-    const step = Math.max(1, Math.floor(data.length / maxCandles));
-    const sampledData = data.filter((_, index) => index % step === 0);
-
-    // Generate candlestick paths with improved rendering
-    const candlesticks = sampledData.map((d, index) => {
-      const x = padding.left + timeScale.scale(d.time);
-      const openY = padding.top + priceScale.scale(d.open);
-      const highY = padding.top + priceScale.scale(d.high);
-      const lowY = padding.top + priceScale.scale(d.low);
-      const closeY = padding.top + priceScale.scale(d.close);
-      
-      const isUp = d.close >= d.open;
-      const color = isUp ? '#26a69a' : '#ef5350';
-      const bodyHeight = Math.max(1, Math.abs(closeY - openY)); // Minimum 1px height
-      
-      return `
-        <g class="candlestick" data-index="${index}">
-          <!-- Wick (high-low line) -->
-          <line x1="${x}" y1="${highY}" x2="${x}" y2="${lowY}" 
-                stroke="${color}" stroke-width="1" opacity="0.8"/>
-          <!-- Body (open-close rectangle) -->
-          <rect x="${x - 2}" y="${Math.min(openY, closeY)}" 
-                width="4" height="${bodyHeight}" 
-                fill="${color}" opacity="0.9"/>
-        </g>
-      `;
-    }).join('');
-
-    // Generate horizontal grid lines (price levels)
-    const priceLevels = 5;
-    const gridLines = Array.from({ length: priceLevels }, (_, i) => {
-      const y = padding.top + (chartHeight / (priceLevels - 1)) * i;
-      const price = priceScale.min + (priceScale.max - priceScale.min) * (1 - i / (priceLevels - 1));
-      return `
-        <g>
-          <line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" 
-                stroke="#2B2B43" stroke-width="1" opacity="0.3"/>
-          <text x="${padding.left - 10}" y="${y + 4}" fill="#666" font-size="12" text-anchor="end">
-            ${price.toFixed(6)}
-          </text>
-        </g>
-      `;
-    }).join('');
-
-    // Generate vertical grid lines (time levels)
-    const timeLevels = 6;
-    const timeGridLines = Array.from({ length: timeLevels }, (_, i) => {
-      const x = padding.left + (chartWidth / (timeLevels - 1)) * i;
-      const time = timeScale.min + (timeScale.max - timeScale.min) * (i / (timeLevels - 1));
-      const date = new Date(time * 1000);
-      return `
-        <g>
-          <line x1="${x}" y1="${padding.top}" x2="${x}" y2="${height - padding.bottom}" 
-                stroke="#2B2B43" stroke-width="1" opacity="0.3"/>
-          <text x="${x}" y="${height - padding.bottom + 20}" fill="#666" font-size="12" text-anchor="middle">
-            ${date.toLocaleTimeString()}
-          </text>
-        </g>
-      `;
-    }).join('');
-
-    return `
-      <defs>
-        <linearGradient id="upGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" style="stop-color:#26a69a;stop-opacity:1" />
-          <stop offset="100%" style="stop-color:#1e7d6b;stop-opacity:0.8" />
-        </linearGradient>
-        <linearGradient id="downGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" style="stop-color:#ef5350;stop-opacity:1" />
-          <stop offset="100%" style="stop-color:#c62828;stop-opacity:0.8" />
-        </linearGradient>
-      </defs>
-      <!-- Background -->
-      <rect width="${width}" height="${height}" fill="#1a1a1a"/>
-      <!-- Grid lines -->
-      ${gridLines}
-      ${timeGridLines}
-      <!-- Candlesticks -->
-      <g class="candlesticks">
-        ${candlesticks}
-      </g>
-    `;
-  };
-
-  const renderChart = () => {
-    if (!svgRef.current || chartData.length === 0) {
+    if (chartData.length === 0) {
+      console.log('Chart update skipped - no data');
       return;
     }
 
     try {
-      console.log('Rendering custom chart with', chartData.length, 'data points');
+      console.log('Updating chart with', chartData.length, 'data points');
+      console.log('Chart data sample:', chartData.slice(0, 3));
       
-      const { width, height } = chartDimensions;
-      const padding = { top: 20, right: 60, bottom: 40, left: 60 };
-      const chartWidth = width - padding.left - padding.right;
-      const chartHeight = height - padding.top - padding.bottom;
+      // Check if chart is properly initialized
+      if (typeof chartRef.current.removeAllSeries !== 'function') {
+        console.error('Chart instance is corrupted, skipping update');
+        setError('Chart instance corrupted - please refresh the page');
+        return;
+      }
+      
+      // Remove existing series
+      chartRef.current.removeAllSeries();
 
-      // Calculate scales
-      const timeScale = getTimeScale(chartData, chartWidth);
-      const priceScale = getPriceScale(chartData, chartHeight);
+      // Check if we have proper OHLCV data or just price data
+      const hasOHLCV = chartData.every(item => 
+        item.open !== undefined && item.high !== undefined && 
+        item.low !== undefined && item.close !== undefined
+      );
 
-      // Generate SVG content
-      const svgContent = generateChartSVG(chartData, timeScale, priceScale, padding, width, height);
-      
-      // Update SVG
-      svgRef.current.innerHTML = svgContent;
-      
-      console.log('Chart rendered successfully');
+      if (hasOHLCV) {
+        // Create candlestick series
+        const candlestickSeries = chartRef.current.addCandlestickSeries({
+          upColor: '#26a69a',
+          downColor: '#ef5350',
+          borderDownColor: '#ef5350',
+          borderUpColor: '#26a69a',
+          wickDownColor: '#ef5350',
+          wickUpColor: '#26a69a',
+        });
+
+        // Set data
+        candlestickSeries.setData(chartData);
+        
+        // Create volume series
+        const volumeSeries = chartRef.current.addHistogramSeries({
+          color: '#26a69a',
+          priceFormat: {
+            type: 'volume',
+          },
+          priceScaleId: 'volume',
+        });
+
+        // Add volume data if available
+        const volumeData = chartData.map(item => ({
+          time: item.time,
+          value: item.volume,
+          color: item.close >= item.open ? '#26a69a' : '#ef5350'
+        }));
+        volumeSeries.setData(volumeData);
+      } else {
+        // Create line series for price data only
+        const lineSeries = chartRef.current.addLineSeries({
+          color: '#26a69a',
+          lineWidth: 2,
+          title: 'Price'
+        });
+
+        const lineData = chartData.map(item => ({
+          time: item.time,
+          value: item.close || item.value
+        }));
+        
+        lineSeries.setData(lineData);
+        console.log('Using line chart for price data');
+      }
+
+      // Add technical indicators
+      if (indicators.sma.enabled) {
+        const smaData = calculateSMA(chartData, indicators.sma.period);
+        const smaSeries = chartRef.current.addLineSeries({
+          color: '#ff9800',
+          lineWidth: 2,
+          title: `SMA(${indicators.sma.period})`
+        });
+        smaSeries.setData(smaData);
+      }
+
+      if (indicators.ema.enabled) {
+        const emaData = calculateEMA(chartData, indicators.ema.period);
+        const emaSeries = chartRef.current.addLineSeries({
+          color: '#9c27b0',
+          lineWidth: 2,
+          title: `EMA(${indicators.ema.period})`
+        });
+        emaSeries.setData(emaData);
+      }
+
+      if (indicators.bollinger.enabled) {
+        const bbData = calculateBollingerBands(chartData, indicators.bollinger.period, indicators.bollinger.stdDev);
+        const upperBand = chartRef.current.addLineSeries({
+          color: '#2196f3',
+          lineWidth: 1,
+          title: 'BB Upper'
+        });
+        const middleBand = chartRef.current.addLineSeries({
+          color: '#2196f3',
+          lineWidth: 1,
+          title: 'BB Middle'
+        });
+        const lowerBand = chartRef.current.addLineSeries({
+          color: '#2196f3',
+          lineWidth: 1,
+          title: 'BB Lower'
+        });
+        
+        upperBand.setData(bbData.map(item => ({ time: item.time, value: item.upper })));
+        middleBand.setData(bbData.map(item => ({ time: item.time, value: item.middle })));
+        lowerBand.setData(bbData.map(item => ({ time: item.time, value: item.lower })));
+      }
+
+      // Fit content
+      chartRef.current.timeScale().fitContent();
+      console.log('Chart updated successfully');
     } catch (error) {
-      console.error('Failed to render chart:', error);
-      setError('Failed to render chart: ' + error.message);
+      console.error('Failed to update chart:', error);
+      setError('Failed to update chart: ' + error.message);
     }
   };
 
@@ -365,6 +425,11 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
               onClick={() => {
                 setError(null);
                 setChartData([]);
+                setChartInitialized(false);
+                if (chartRef.current) {
+                  chartRef.current.remove();
+                  chartRef.current = null;
+                }
                 // Trigger re-initialization
                 setTimeout(() => {
                   if (token?.contractAddress) {
@@ -378,16 +443,11 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
             </button>
           </div>
         ) : (
-          <div className="w-full bg-gray-800 rounded-lg" style={{ height: '500px', minHeight: '400px' }}>
-            <svg
-              ref={svgRef}
-              width="100%"
-              height="100%"
-              viewBox={`0 0 ${chartDimensions.width} ${chartDimensions.height}`}
-              className="w-full h-full"
-              style={{ background: '#1a1a1a' }}
-            />
-          </div>
+          <div
+            ref={chartContainerRef}
+            className="w-full bg-gray-800 rounded-lg"
+            style={{ height: '500px', minHeight: '400px' }}
+          />
         )}
       </div>
 
