@@ -127,6 +127,14 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
     }
   }, [chartData, indicators]);
 
+  // Update chart when chart is initialized and data is available
+  useEffect(() => {
+    if (chartRef.current && chartData.length > 0) {
+      console.log('Chart ready, updating with existing data...');
+      updateChart();
+    }
+  }, [chartRef.current]);
+
 
 
   const loadChartData = async () => {
@@ -257,47 +265,9 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
       
       // Check if chart is properly initialized
       if (typeof chartRef.current.removeAllSeries !== 'function') {
-        console.error('Chart instance is corrupted, reinitializing...');
-        // Reinitialize the chart
-        if (chartContainerRef.current) {
-          chartRef.current.remove();
-          const newChart = createChart(chartContainerRef.current, {
-            width: chartContainerRef.current.clientWidth,
-            height: 400,
-            layout: {
-              background: { color: '#1a1a1a' },
-              textColor: '#d1d4dc',
-            },
-            grid: {
-              vertLines: { color: '#2B2B43' },
-              horzLines: { color: '#2B2B43' },
-            },
-            crosshair: {
-              mode: 1,
-            },
-            rightPriceScale: {
-              borderColor: '#485c7b',
-            },
-            timeScale: {
-              borderColor: '#485c7b',
-              timeVisible: true,
-              secondsVisible: false,
-            },
-            handleScroll: {
-              mouseWheel: true,
-              pressedMouseMove: true,
-            },
-            handleScale: {
-              axisPressedMouseMove: true,
-              mouseWheel: true,
-              pinch: true,
-            },
-          });
-          chartRef.current = newChart;
-          console.log('Chart reinitialized successfully');
-        } else {
-          throw new Error('Chart container not available for reinitialization');
-        }
+        console.error('Chart instance is corrupted, skipping update');
+        setError('Chart instance corrupted - please refresh the page');
+        return;
       }
       
       // Remove existing series
