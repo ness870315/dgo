@@ -78,14 +78,39 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
         console.log('Raw chart data:', response.data);
         console.log('Raw data sample:', response.data.slice(0, 2));
         
-        const formattedData = response.data.map(item => ({
-          time: Math.floor(item.time), // Ensure time is integer seconds
-          open: item.open || item.value,
-          high: item.high || item.value,
-          low: item.low || item.value,
-          close: item.close || item.value,
-          volume: item.volume || 0
-        }));
+        // Validate and format OHLCV data
+        const formattedData = response.data
+          .filter(item => {
+            // Validate required fields
+            const hasValidTime = item.time && !isNaN(item.time);
+            const hasValidPrice = (item.open || item.value) && 
+                                 (item.high || item.value) && 
+                                 (item.low || item.value) && 
+                                 (item.close || item.value);
+            return hasValidTime && hasValidPrice;
+          })
+          .map(item => {
+            const open = parseFloat(item.open || item.value);
+            const high = parseFloat(item.high || item.value);
+            const low = parseFloat(item.low || item.value);
+            const close = parseFloat(item.close || item.value);
+            
+            // Ensure OHLC values are valid numbers
+            if (isNaN(open) || isNaN(high) || isNaN(low) || isNaN(close)) {
+              return null;
+            }
+            
+            return {
+              time: Math.floor(item.time), // Ensure time is integer seconds
+              open: open,
+              high: Math.max(open, high, low, close), // Ensure high is highest
+              low: Math.min(open, high, low, close),  // Ensure low is lowest
+              close: close,
+              volume: parseFloat(item.volume || 0)
+            };
+          })
+          .filter(item => item !== null) // Remove invalid entries
+          .sort((a, b) => a.time - b.time); // Sort by time
 
         console.log('Formatted chart data:', formattedData);
         console.log('Data sample for chart:', formattedData.slice(0, 2));
@@ -204,8 +229,13 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
     const chartWidth = width - padding.left - padding.right;
     const chartHeight = height - padding.top - padding.bottom;
 
-    // Generate candlestick paths
-    const candlesticks = data.map(d => {
+    // Sample data for better performance (show every nth point based on data density)
+    const maxCandles = Math.min(200, data.length);
+    const step = Math.max(1, Math.floor(data.length / maxCandles));
+    const sampledData = data.filter((_, index) => index % step === 0);
+
+    // Generate candlestick paths with improved rendering
+    const candlesticks = sampledData.map((d, index) => {
       const x = padding.left + timeScale.scale(d.time);
       const openY = padding.top + priceScale.scale(d.open);
       const highY = padding.top + priceScale.scale(d.high);
@@ -214,28 +244,72 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
       
       const isUp = d.close >= d.open;
       const color = isUp ? '#26a69a' : '#ef5350';
+      const bodyHeight = Math.max(1, Math.abs(closeY - openY)); // Minimum 1px height
       
       return `
-        <g>
-          <line x1="${x}" y1="${highY}" x2="${x}" y2="${lowY}" stroke="${color}" stroke-width="1"/>
-          <rect x="${x - 2}" y="${Math.min(openY, closeY)}" width="4" height="${Math.abs(closeY - openY)}" fill="${color}"/>
+        <g class="candlestick" data-index="${index}">
+          <!-- Wick (high-low line) -->
+          <line x1="${x}" y1="${highY}" x2="${x}" y2="${lowY}" 
+                stroke="${color}" stroke-width="1" opacity="0.8"/>
+          <!-- Body (open-close rectangle) -->
+          <rect x="${x - 2}" y="${Math.min(openY, closeY)}" 
+                width="4" height="${bodyHeight}" 
+                fill="${color}" opacity="0.9"/>
         </g>
       `;
     }).join('');
 
-    // Generate grid lines
-    const gridLines = `
-      <defs>
-        <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#2B2B43" stroke-width="1"/>
-        </pattern>
-      </defs>
-      <rect width="${width}" height="${height}" fill="url(#grid)"/>
-    `;
+    // Generate horizontal grid lines (price levels)
+    const priceLevels = 5;
+    const gridLines = Array.from({ length: priceLevels }, (_, i) => {
+      const y = padding.top + (chartHeight / (priceLevels - 1)) * i;
+      const price = priceScale.min + (priceScale.max - priceScale.min) * (1 - i / (priceLevels - 1));
+      return `
+        <g>
+          <line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" 
+                stroke="#2B2B43" stroke-width="1" opacity="0.3"/>
+          <text x="${padding.left - 10}" y="${y + 4}" fill="#666" font-size="12" text-anchor="end">
+            ${price.toFixed(6)}
+          </text>
+        </g>
+      `;
+    }).join('');
+
+    // Generate vertical grid lines (time levels)
+    const timeLevels = 6;
+    const timeGridLines = Array.from({ length: timeLevels }, (_, i) => {
+      const x = padding.left + (chartWidth / (timeLevels - 1)) * i;
+      const time = timeScale.min + (timeScale.max - timeScale.min) * (i / (timeLevels - 1));
+      const date = new Date(time * 1000);
+      return `
+        <g>
+          <line x1="${x}" y1="${padding.top}" x2="${x}" y2="${height - padding.bottom}" 
+                stroke="#2B2B43" stroke-width="1" opacity="0.3"/>
+          <text x="${x}" y="${height - padding.bottom + 20}" fill="#666" font-size="12" text-anchor="middle">
+            ${date.toLocaleTimeString()}
+          </text>
+        </g>
+      `;
+    }).join('');
 
     return `
+      <defs>
+        <linearGradient id="upGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#26a69a;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#1e7d6b;stop-opacity:0.8" />
+        </linearGradient>
+        <linearGradient id="downGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#ef5350;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#c62828;stop-opacity:0.8" />
+        </linearGradient>
+      </defs>
+      <!-- Background -->
+      <rect width="${width}" height="${height}" fill="#1a1a1a"/>
+      <!-- Grid lines -->
       ${gridLines}
-      <g>
+      ${timeGridLines}
+      <!-- Candlesticks -->
+      <g class="candlesticks">
         ${candlesticks}
       </g>
     `;
