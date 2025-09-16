@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createChart } from 'lightweight-charts';
+import { createChart, ColorType } from 'lightweight-charts';
 import chartService from '../services/chartService';
 
 const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
@@ -84,7 +84,7 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
         width: chartContainerRef.current.offsetWidth || 800,
         height: 400,
         layout: {
-          backgroundColor: "#000000", // Pure black background
+          background: { type: ColorType.Solid, color: "#000000" }, // Pure black background
           textColor: "#ffffff",       // White text
           fontSize: 12,
           fontFamily: 'Trebuchet MS, sans-serif',
