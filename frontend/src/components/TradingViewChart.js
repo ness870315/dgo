@@ -74,16 +74,6 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
 
         chartRef.current = chart;
         console.log('Chart initialized successfully');
-        
-        // Trigger chart update if data is already available
-        if (chartData.length > 0) {
-          console.log('Chart initialized with existing data, triggering update...');
-          setTimeout(() => {
-            if (chartRef.current && chartData.length > 0) {
-              updateChart();
-            }
-          }, 100);
-        }
 
         // Handle resize
         const handleResize = () => {
@@ -136,14 +126,6 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
       console.log('Chart ref not ready, data available:', chartData.length);
     }
   }, [chartData, indicators]);
-
-  // Update chart when chart is initialized and data is available
-  useEffect(() => {
-    if (chartRef.current && chartData.length > 0) {
-      console.log('Chart ready, updating with existing data...');
-      updateChart();
-    }
-  }, [chartRef.current]);
 
 
 
@@ -403,8 +385,27 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
             <div className="text-gray-400">Loading chart data...</div>
           </div>
         ) : error ? (
-          <div className="flex items-center justify-center h-96 bg-gray-800 rounded-lg">
-            <div className="text-red-400">Error: {error}</div>
+          <div className="flex flex-col items-center justify-center h-96 bg-gray-800 rounded-lg">
+            <div className="text-red-400 mb-4">Error: {error}</div>
+            <button 
+              onClick={() => {
+                setError(null);
+                setChartData([]);
+                if (chartRef.current) {
+                  chartRef.current.remove();
+                  chartRef.current = null;
+                }
+                // Trigger re-initialization
+                setTimeout(() => {
+                  if (token?.contractAddress) {
+                    loadChartData();
+                  }
+                }, 100);
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Retry Chart
+            </button>
           </div>
         ) : (
           <div
