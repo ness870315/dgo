@@ -79,21 +79,69 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
     if (!chartRef.current) {
       console.log('Creating new chart...');
       
-      // Create chart
+      // Create chart with professional dark theme
       const chart = createChart(chartContainerRef.current, {
         width: chartContainerRef.current.offsetWidth || 800,
         height: 400,
         layout: {
-          backgroundColor: "#131722",
-          textColor: "#d1d4dc",
+          backgroundColor: "#000000", // Pure black background
+          textColor: "#ffffff",       // White text
+          fontSize: 12,
+          fontFamily: 'Trebuchet MS, sans-serif',
         },
         grid: {
-          vertLines: { color: "#363c4e" },
-          horzLines: { color: "#363c4e" },
+          vertLines: { 
+            color: "#1e1e1e",         // Dark grid lines
+            style: 2,
+            visible: true 
+          },
+          horzLines: { 
+            color: "#1e1e1e",         // Dark grid lines
+            style: 2,
+            visible: true 
+          },
+        },
+        rightPriceScale: {
+          borderColor: "#333333",
+          textColor: "#ffffff",
+          scaleMargins: { top: 0.1, bottom: 0.1 },
         },
         timeScale: {
+          borderColor: "#333333",
+          textColor: "#ffffff",
           timeVisible: true,
-          borderVisible: true,
+          secondsVisible: false,
+          rightOffset: 12,
+          barSpacing: 6,
+        },
+        crosshair: {
+          mode: 1,
+          vertLine: { 
+            color: '#758696', 
+            width: 1, 
+            style: 3, 
+            visible: true, 
+            labelVisible: true 
+          },
+          horzLine: { 
+            color: '#758696', 
+            width: 1, 
+            style: 3, 
+            visible: true, 
+            labelVisible: true 
+          },
+        },
+        handleScroll: { 
+          mouseWheel: true, 
+          pressedMouseMove: true, 
+          horzTouchDrag: true, 
+          vertTouchDrag: true 
+        },
+        handleScale: { 
+          axisPressedMouseMove: true, 
+          mouseWheel: true, 
+          pinch: true, 
+          axisDoubleClickReset: true 
         },
       });
 
@@ -140,7 +188,7 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96 bg-gray-800 rounded-lg">
+      <div className="flex items-center justify-center h-96 bg-black rounded-lg border border-gray-700">
         <div className="text-white">Loading chart data...</div>
       </div>
     );
@@ -148,7 +196,7 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-96 bg-gray-800 rounded-lg">
+      <div className="flex flex-col items-center justify-center h-96 bg-black rounded-lg border border-gray-700">
         <div className="text-red-400 mb-4">Error: {error}</div>
         <button 
           onClick={loadChartData}
@@ -165,7 +213,7 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
       {/* Chart Container */}
       <div
         ref={chartContainerRef}
-        className="w-full bg-gray-800 rounded-lg"
+        className="w-full bg-black rounded-lg border border-gray-700"
         style={{ width: "100%", height: "400px", position: "relative" }}
       />
     </div>
