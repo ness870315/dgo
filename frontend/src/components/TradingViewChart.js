@@ -193,6 +193,20 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
         resizeObsRef.current = ro;
 
         console.log('Chart initialized successfully');
+        
+        // Trigger data application after successful initialization
+        setTimeout(() => {
+          if (chartData.length > 0 && seriesRef.current) {
+            console.log('Triggering data application after chart init');
+            const candles = normalizeCandles(chartData);
+            if (candles.length > 0) {
+              seriesRef.current.setData(candles);
+              chartRef.current?.timeScale().fitContent();
+              console.log('Post-init data applied successfully');
+            }
+          }
+        }, 100);
+        
       } catch (error) {
         console.error('Failed to initialize chart:', error);
         setError('Failed to initialize chart: ' + error.message);
@@ -232,8 +246,8 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
       dataLength: chartData.length
     });
 
-    if (!seriesRef.current) {
-      console.log('Series not ready yet, waiting...');
+    if (!seriesRef.current || !chartRef.current) {
+      console.log('Chart or series not ready yet, waiting...');
       return; // not ready yet
     }
     
@@ -246,16 +260,16 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
       return;
     }
 
-    console.log('Applying', candles.length, 'normalized candles to chart');
+    console.log('Applying', candles.length, 'normalized candles to chart via data effect');
 
     try {
       // Set whole dataset atomically
       seriesRef.current.setData(candles);
-      console.log('Data set successfully');
+      console.log('Data set successfully via data effect');
 
       // Optional: fit content
-      chartRef.current?.timeScale().fitContent();
-      console.log('Chart fitted to content');
+      chartRef.current.timeScale().fitContent();
+      console.log('Chart fitted to content via data effect');
     } catch (error) {
       console.error('Error setting chart data:', error);
       setError('Failed to set chart data: ' + error.message);
