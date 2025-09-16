@@ -128,21 +128,19 @@ class HybridPriceService {
   }
 
   /**
-   * Get price data from Jupiter API
+   * Get price data from Jupiter API using existing service
    */
   async getJupiterPriceData(contractAddress, timeframe) {
     try {
-      // Jupiter doesn't have historical data API, so we'll use current price
-      const response = await axios.get(`https://price.jup.ag/v4/price?ids=${contractAddress}`, {
-        timeout: 10000
-      });
+      // Use the existing Jupiter service
+      const { default: jupiterApiService } = await import('./jupiterApiService.js');
+      const jupiterData = await jupiterApiService.getTokenDetails(contractAddress);
 
-      if (!response.data?.data || !response.data.data[contractAddress]) {
+      if (!jupiterData?.price && !jupiterData?.usdPrice) {
         throw new Error('Token not found on Jupiter');
       }
 
-      const priceData = response.data.data[contractAddress];
-      const currentPrice = priceData.price || 0;
+      const currentPrice = jupiterData.price || jupiterData.usdPrice || 0;
 
       // Generate price data based on current price
       return this.generatePriceDataFromCurrent(currentPrice, timeframe);
@@ -162,19 +160,15 @@ class HybridPriceService {
     }
 
     try {
-      // First, get the pair address from Jupiter
-      const jupiterResponse = await axios.get(`https://api.jup.ag/price/v1`, {
-        params: {
-          ids: contractAddress
-        },
-        timeout: 10000
-      });
+      // First, get the pair address from Jupiter using the existing service
+      const { default: jupiterApiService } = await import('./jupiterApiService.js');
+      const jupiterData = await jupiterApiService.getTokenDetails(contractAddress);
 
-      if (!jupiterResponse.data?.data?.[contractAddress]?.firstPool) {
+      if (!jupiterData?.firstPool) {
         throw new Error('No pair address found from Jupiter');
       }
 
-      const pairAddress = jupiterResponse.data.data[contractAddress].firstPool;
+      const pairAddress = jupiterData.firstPool;
       console.log(`🔗 Found pair address for ${contractAddress.substring(0, 8)}: ${pairAddress.substring(0, 8)}`);
 
       // Now get OHLCV data from Moralis using the pair address
@@ -369,20 +363,16 @@ class HybridPriceService {
 
       // Try Moralis first (using Jupiter to get pair address)
       try {
-        // First, get the pair address from Jupiter
-        const jupiterResponse = await axios.get(`https://api.jup.ag/price/v1`, {
-          params: {
-            ids: contractAddress
-          },
-          timeout: 10000
-        });
+        // First, get the pair address from Jupiter using the existing service
+        const { default: jupiterApiService } = await import('./jupiterApiService.js');
+        const jupiterData = await jupiterApiService.getTokenDetails(contractAddress);
 
-        if (jupiterResponse.data?.data?.[contractAddress]?.firstPool) {
-          const pairAddress = jupiterResponse.data.data[contractAddress].firstPool;
+        if (jupiterData?.firstPool) {
+          const pairAddress = jupiterData.firstPool;
           console.log(`🔗 Found pair address for ${contractAddress.substring(0, 8)}: ${pairAddress.substring(0, 8)}`);
 
           // Get current price from Jupiter (since Moralis OHLCV is for historical data)
-          const price = jupiterResponse.data.data[contractAddress].price;
+          const price = jupiterData.price || jupiterData.usdPrice;
           const priceData = {
             price: price,
             timestamp: new Date().toISOString(),
@@ -402,17 +392,13 @@ class HybridPriceService {
         console.log(`⚠️ Moralis current price failed: ${error.message}`);
       }
 
-      // Fallback to Jupiter API
+      // Fallback to Jupiter API using existing service
       try {
-        const response = await axios.get(`https://api.jup.ag/price/v1`, {
-          params: {
-            ids: contractAddress
-          },
-          timeout: 10000
-        });
+        const { default: jupiterApiService } = await import('./jupiterApiService.js');
+        const jupiterData = await jupiterApiService.getTokenDetails(contractAddress);
 
-        if (response.data?.data?.[contractAddress]) {
-          const price = response.data.data[contractAddress].price;
+        if (jupiterData?.price || jupiterData?.usdPrice) {
+          const price = jupiterData.price || jupiterData.usdPrice;
           const priceData = {
             price: price,
             timestamp: new Date().toISOString(),
@@ -431,32 +417,7 @@ class HybridPriceService {
       } catch (error) {
         console.log(`⚠️ Jupiter current price failed: ${error.message}`);
         
-        // Try alternative Jupiter endpoint
-        try {
-          const altResponse = await axios.get(`https://price.jup.ag/v4/price?ids=${contractAddress}`, {
-            timeout: 10000
-          });
-
-          if (altResponse.data?.data?.[contractAddress]) {
-            const price = altResponse.data.data[contractAddress].price;
-            const priceData = {
-              price: price,
-              timestamp: new Date().toISOString(),
-              contractAddress: contractAddress,
-              source: 'jupiter'
-            };
-
-            this.cache.set(cacheKey, {
-              data: priceData,
-              timestamp: Date.now()
-            });
-
-            console.log(`✅ Current price from Jupiter (alt): $${price}`);
-            return priceData;
-          }
-        } catch (altError) {
-          console.log(`⚠️ Jupiter alternative endpoint failed: ${altError.message}`);
-        }
+        // The existing jupiterApiService handles retries and fallbacks internally
       }
 
       // Fallback to DexScreener
