@@ -225,8 +225,7 @@ class HybridPriceService {
     
     // Get raw Jupiter data directly from API to access graduatedPool
     try {
-      const response = await axios.get(`https://lite-api.jup.ag/tokens/v2`, {
-        params: { ids: contractAddress },
+      const response = await axios.get(`https://lite-api.jup.ag/tokens/v2/search?query=${contractAddress}`, {
         timeout: 10000
       });
       
