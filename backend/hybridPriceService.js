@@ -34,17 +34,29 @@ class HybridPriceService {
       // Try multiple data sources in order of preference
       let chartData = null;
 
-      // 1. Try DexScreener first (most reliable for Solana)
+      // 1. Try Moralis first (primary source for historical data)
       try {
-        chartData = await this.getDexScreenerPriceData(contractAddress, timeframe);
+        chartData = await this.getMoralisPriceData(contractAddress, timeframe);
         if (chartData && chartData.length > 0) {
-          console.log(`✅ Got ${chartData.length} data points from DexScreener`);
+          console.log(`✅ Got ${chartData.length} data points from Moralis`);
         }
       } catch (error) {
-        console.log(`⚠️ DexScreener failed: ${error.message}`);
+        console.log(`⚠️ Moralis failed: ${error.message}`);
       }
 
-      // 2. Try Jupiter API as fallback
+      // 2. Try DexScreener as fallback
+      if (!chartData || chartData.length === 0) {
+        try {
+          chartData = await this.getDexScreenerPriceData(contractAddress, timeframe);
+          if (chartData && chartData.length > 0) {
+            console.log(`✅ Got ${chartData.length} data points from DexScreener`);
+          }
+        } catch (error) {
+          console.log(`⚠️ DexScreener failed: ${error.message}`);
+        }
+      }
+
+      // 3. Try Jupiter API as last resort
       if (!chartData || chartData.length === 0) {
         try {
           chartData = await this.getJupiterPriceData(contractAddress, timeframe);
@@ -53,18 +65,6 @@ class HybridPriceService {
           }
         } catch (error) {
           console.log(`⚠️ Jupiter failed: ${error.message}`);
-        }
-      }
-
-      // 3. Try Moralis as last resort
-      if (!chartData || chartData.length === 0) {
-        try {
-          chartData = await this.getMoralisPriceData(contractAddress, timeframe);
-          if (chartData && chartData.length > 0) {
-            console.log(`✅ Got ${chartData.length} data points from Moralis`);
-          }
-        } catch (error) {
-          console.log(`⚠️ Moralis failed: ${error.message}`);
         }
       }
 
@@ -320,7 +320,42 @@ class HybridPriceService {
 
       console.log(`🔍 Fetching current price for ${contractAddress.substring(0, 8)}`);
 
-      // Try Jupiter API first (most reliable for Solana)
+      // Try Moralis first (primary source)
+      try {
+        const response = await axios.get('https://solana-gateway.moralis.io/token/price', {
+          params: {
+            chain: 'solana',
+            address: contractAddress
+          },
+          headers: {
+            'X-API-Key': this.moralisApiKey,
+            'Accept': 'application/json'
+          },
+          timeout: 10000
+        });
+
+        if (response.data?.usdPrice) {
+          const price = parseFloat(response.data.usdPrice);
+          const priceData = {
+            price: price,
+            timestamp: new Date().toISOString(),
+            contractAddress: contractAddress,
+            source: 'moralis'
+          };
+
+          this.cache.set(cacheKey, {
+            data: priceData,
+            timestamp: Date.now()
+          });
+
+          console.log(`✅ Current price from Moralis: $${price}`);
+          return priceData;
+        }
+      } catch (error) {
+        console.log(`⚠️ Moralis current price failed: ${error.message}`);
+      }
+
+      // Fallback to Jupiter API
       try {
         const response = await axios.get(`https://price.jup.ag/v4/price?ids=${contractAddress}`, {
           timeout: 10000
@@ -421,8 +456,9 @@ class HybridPriceService {
     return {
       configured: true,
       cacheSize: this.cache.size,
-      sources: ['jupiter', 'dexscreener', 'moralis', 'mock'],
-      moralisConfigured: !!this.moralisApiKey
+      sources: ['moralis', 'dexscreener', 'jupiter', 'mock'],
+      moralisConfigured: !!this.moralisApiKey,
+      primarySource: 'moralis'
     };
   }
 }
