@@ -165,8 +165,8 @@ class HybridPriceService {
       const jupiterData = await jupiterApiService.getTokenDetails(contractAddress);
 
       // Use graduatedPool as the pair address for Moralis (actual DEX pair)
-      // firstPool.id is the token address, not the pair address
-      const pairAddress = jupiterData.graduatedPool;
+      // If graduatedPool is not available, fallback to firstPool.id
+      const pairAddress = jupiterData.graduatedPool || jupiterData.firstPool?.id;
       
       if (!pairAddress) {
         throw new Error('No pair address found from Jupiter');
@@ -370,8 +370,8 @@ class HybridPriceService {
         const jupiterData = await jupiterApiService.getTokenDetails(contractAddress);
 
         // Use graduatedPool as the pair address for Moralis (actual DEX pair)
-        // firstPool.id is the token address, not the pair address
-        const pairAddress = jupiterData.graduatedPool;
+        // If graduatedPool is not available, fallback to firstPool.id
+        const pairAddress = jupiterData.graduatedPool || jupiterData.firstPool?.id;
         
         if (pairAddress) {
           console.log(`🔗 Found pair address for ${contractAddress.substring(0, 8)}: ${pairAddress.substring(0, 8)}`);
