@@ -165,11 +165,38 @@ class HybridPriceService {
       const jupiterData = await jupiterApiService.getTokenDetails(contractAddress);
 
       // Use graduatedPool as the pair address for Moralis (actual DEX pair)
-      // If graduatedPool is not available, fallback to firstPool.id
-      const pairAddress = jupiterData.graduatedPool || jupiterData.firstPool?.id;
+      let pairAddress = jupiterData.graduatedPool;
+      
+      // If graduatedPool is not available, try to get pairs from Moralis API
+      if (!pairAddress) {
+        console.log(`🔍 graduatedPool not found, fetching pairs from Moralis for ${contractAddress.substring(0, 8)}`);
+        try {
+          const pairsResponse = await axios.get(`https://solana-gateway.moralis.io/token/mainnet/${contractAddress}/pairs`, {
+            headers: {
+              'X-API-Key': this.moralisApiKey,
+              'Accept': 'application/json'
+            },
+            timeout: 10000
+          });
+          
+          if (pairsResponse.data?.result && pairsResponse.data.result.length > 0) {
+            // Get the pair with highest liquidity
+            const sortedPairs = pairsResponse.data.result.sort((a, b) => (b.liquidity_usd || 0) - (a.liquidity_usd || 0));
+            pairAddress = sortedPairs[0].pairAddress;
+            console.log(`✅ Found pair address from Moralis: ${pairAddress.substring(0, 8)}`);
+          }
+        } catch (error) {
+          console.log(`⚠️ Failed to get pairs from Moralis: ${error.message}`);
+        }
+      }
+      
+      // Final fallback to firstPool.id
+      if (!pairAddress) {
+        pairAddress = jupiterData.firstPool?.id;
+      }
       
       if (!pairAddress) {
-        throw new Error('No pair address found from Jupiter');
+        throw new Error('No pair address found from Jupiter or Moralis');
       }
       console.log(`🔗 Found pair address for ${contractAddress.substring(0, 8)}: ${pairAddress.substring(0, 8)}`);
 
@@ -370,8 +397,35 @@ class HybridPriceService {
         const jupiterData = await jupiterApiService.getTokenDetails(contractAddress);
 
         // Use graduatedPool as the pair address for Moralis (actual DEX pair)
-        // If graduatedPool is not available, fallback to firstPool.id
-        const pairAddress = jupiterData.graduatedPool || jupiterData.firstPool?.id;
+        let pairAddress = jupiterData.graduatedPool;
+        
+        // If graduatedPool is not available, try to get pairs from Moralis API
+        if (!pairAddress) {
+          console.log(`🔍 graduatedPool not found, fetching pairs from Moralis for ${contractAddress.substring(0, 8)}`);
+          try {
+            const pairsResponse = await axios.get(`https://solana-gateway.moralis.io/token/mainnet/${contractAddress}/pairs`, {
+              headers: {
+                'X-API-Key': this.moralisApiKey,
+                'Accept': 'application/json'
+              },
+              timeout: 10000
+            });
+            
+            if (pairsResponse.data?.result && pairsResponse.data.result.length > 0) {
+              // Get the pair with highest liquidity
+              const sortedPairs = pairsResponse.data.result.sort((a, b) => (b.liquidity_usd || 0) - (a.liquidity_usd || 0));
+              pairAddress = sortedPairs[0].pairAddress;
+              console.log(`✅ Found pair address from Moralis: ${pairAddress.substring(0, 8)}`);
+            }
+          } catch (error) {
+            console.log(`⚠️ Failed to get pairs from Moralis: ${error.message}`);
+          }
+        }
+        
+        // Final fallback to firstPool.id
+        if (!pairAddress) {
+          pairAddress = jupiterData.firstPool?.id;
+        }
         
         if (pairAddress) {
           console.log(`🔗 Found pair address for ${contractAddress.substring(0, 8)}: ${pairAddress.substring(0, 8)}`);
