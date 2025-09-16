@@ -5,6 +5,8 @@ import chartService from '../services/chartService';
 const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
   const chartContainerRef = useRef(null);
   const chartRef = useRef(null);
+  const seriesRef = useRef(null); // Store reference to the main series
+  const volumeSeriesRef = useRef(null); // Store reference to volume series
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -171,6 +173,10 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
           if (chartRef.current) {
             chartRef.current.remove();
           }
+          // Reset all references
+          chartRef.current = null;
+          seriesRef.current = null;
+          volumeSeriesRef.current = null;
           setChartInitialized(false);
         };
       } catch (error) {
@@ -367,15 +373,27 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
       console.log('Updating chart with', chartData.length, 'data points');
       console.log('Chart data sample:', chartData.slice(0, 3));
       
+      // Validate data format before proceeding
+      const isValidData = chartData.every(item => 
+        item && 
+        typeof item.time === 'number' && 
+        !isNaN(item.time) &&
+        ((item.open !== undefined && item.high !== undefined && item.low !== undefined && item.close !== undefined) ||
+         (item.value !== undefined))
+      );
+
+      if (!isValidData) {
+        console.error('Invalid data format detected');
+        setError('Invalid chart data format');
+        return;
+      }
+
       // Check if chart is properly initialized
-      if (typeof chartRef.current.removeAllSeries !== 'function') {
+      if (typeof chartRef.current.addCandlestickSeries !== 'function') {
         console.error('Chart instance is corrupted, skipping update');
         setError('Chart instance corrupted - please refresh the page');
         return;
       }
-      
-      // Remove existing series
-      chartRef.current.removeAllSeries();
 
       // Check if we have proper OHLCV data or just price data
       const hasOHLCV = chartData.every(item => 
@@ -383,166 +401,105 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
         item.low !== undefined && item.close !== undefined
       );
 
-      if (hasOHLCV) {
-        // Create candlestick series with professional TradingView styling
-        const candlestickSeries = chartRef.current.addCandlestickSeries({
-          upColor: '#089981', // TradingView green
-          downColor: '#f23645', // TradingView red
-          borderDownColor: '#f23645',
-          borderUpColor: '#089981',
-          wickDownColor: '#f23645',
-          wickUpColor: '#089981',
-          priceFormat: {
-            type: 'price',
-            precision: 6,
-            minMove: 0.000001,
-          },
-          priceLineVisible: true,
-          lastValueVisible: true,
-          title: token?.symbol || 'Price',
-        });
+      // Create series only if they don't exist
+      if (!seriesRef.current) {
+        if (hasOHLCV) {
+          // Create candlestick series
+          seriesRef.current = chartRef.current.addCandlestickSeries({
+            upColor: '#089981', // TradingView green
+            downColor: '#f23645', // TradingView red
+            borderDownColor: '#f23645',
+            borderUpColor: '#089981',
+            wickDownColor: '#f23645',
+            wickUpColor: '#089981',
+            priceFormat: {
+              type: 'price',
+              precision: 6,
+              minMove: 0.000001,
+            },
+            priceLineVisible: true,
+            lastValueVisible: true,
+            title: token?.symbol || 'Price',
+          });
 
-        // Set data with proper formatting
-        const formattedCandleData = chartData.map(item => ({
-          time: item.time,
-          open: parseFloat(item.open),
-          high: parseFloat(item.high),
-          low: parseFloat(item.low),
-          close: parseFloat(item.close),
-        }));
-        candlestickSeries.setData(formattedCandleData);
-        
-        // Create volume series with professional styling
-        const volumeSeries = chartRef.current.addHistogramSeries({
-          color: '#26a69a',
-          priceFormat: {
-            type: 'volume',
-          },
-          priceScaleId: 'volume',
-          scaleMargins: {
-            top: 0.7, // Volume takes bottom 30% of chart
-            bottom: 0,
-          },
-          title: 'Volume',
-          lastValueVisible: false,
-          priceLineVisible: false,
-        });
+          // Create volume series if we have volume data
+          const hasVolume = chartData.some(item => item.volume > 0);
+          if (hasVolume && !volumeSeriesRef.current) {
+            volumeSeriesRef.current = chartRef.current.addHistogramSeries({
+              color: '#26a69a',
+              priceFormat: {
+                type: 'volume',
+              },
+              priceScaleId: 'volume',
+              scaleMargins: {
+                top: 0.7, // Volume takes bottom 30% of chart
+                bottom: 0,
+              },
+              title: 'Volume',
+              lastValueVisible: false,
+              priceLineVisible: false,
+            });
 
-        // Configure volume price scale
-        chartRef.current.priceScale('volume').applyOptions({
-          scaleMargins: {
-            top: 0.7,
-            bottom: 0,
-          },
-        });
-
-        // Add volume data with proper coloring
-        const volumeData = chartData
-          .filter(item => item.volume > 0) // Only show non-zero volume
-          .map(item => ({
-            time: item.time,
-            value: parseFloat(item.volume),
-            color: item.close >= item.open ? '#089981' : '#f23645'
-          }));
-        
-        if (volumeData.length > 0) {
-          volumeSeries.setData(volumeData);
+            // Configure volume price scale
+            chartRef.current.priceScale('volume').applyOptions({
+              scaleMargins: {
+                top: 0.7,
+                bottom: 0,
+              },
+            });
+          }
+        } else {
+          // Create line series for price data only
+          seriesRef.current = chartRef.current.addLineSeries({
+            color: '#089981',
+            lineWidth: 2,
+            title: token?.symbol || 'Price',
+            priceFormat: {
+              type: 'price',
+              precision: 6,
+              minMove: 0.000001,
+            },
+            priceLineVisible: true,
+            lastValueVisible: true,
+          });
         }
-      } else {
-        // Create line series for price data only
-        const lineSeries = chartRef.current.addLineSeries({
-          color: '#26a69a',
-          lineWidth: 2,
-          title: 'Price'
-        });
-
-        const lineData = chartData.map(item => ({
-          time: item.time,
-          value: item.close || item.value
-        }));
-        
-        lineSeries.setData(lineData);
-        console.log('Using line chart for price data');
       }
 
-      // Add technical indicators with professional styling
-      if (indicators.sma.enabled && chartData.length >= indicators.sma.period) {
-        const smaData = calculateSMA(chartData, indicators.sma.period);
-        const smaSeries = chartRef.current.addLineSeries({
-          color: '#ff6d00', // TradingView orange
-          lineWidth: 2,
-          lineStyle: 0, // solid
-          crosshairMarkerVisible: true,
-          lastValueVisible: true,
-          priceLineVisible: false,
-          title: `SMA(${indicators.sma.period})`,
-          priceFormat: {
-            type: 'price',
-            precision: 6,
-            minMove: 0.000001,
-          },
-        });
-        smaSeries.setData(smaData);
-      }
+      // Update data for existing series
+      if (seriesRef.current) {
+        if (hasOHLCV) {
+          // Format candlestick data
+          const formattedCandleData = chartData.map(item => ({
+            time: item.time,
+            open: parseFloat(item.open),
+            high: parseFloat(item.high),
+            low: parseFloat(item.low),
+            close: parseFloat(item.close),
+          }));
+          seriesRef.current.setData(formattedCandleData);
 
-      if (indicators.ema.enabled && chartData.length >= indicators.ema.period) {
-        const emaData = calculateEMA(chartData, indicators.ema.period);
-        const emaSeries = chartRef.current.addLineSeries({
-          color: '#2962ff', // TradingView blue
-          lineWidth: 2,
-          lineStyle: 0, // solid
-          crosshairMarkerVisible: true,
-          lastValueVisible: true,
-          priceLineVisible: false,
-          title: `EMA(${indicators.ema.period})`,
-          priceFormat: {
-            type: 'price',
-            precision: 6,
-            minMove: 0.000001,
-          },
-        });
-        emaSeries.setData(emaData);
-      }
-
-      if (indicators.bollinger.enabled && chartData.length >= indicators.bollinger.period) {
-        const bbData = calculateBollingerBands(chartData, indicators.bollinger.period, indicators.bollinger.stdDev);
-        
-        // Upper band
-        const upperBand = chartRef.current.addLineSeries({
-          color: '#787b86', // TradingView gray
-          lineWidth: 1,
-          lineStyle: 2, // dotted
-          crosshairMarkerVisible: false,
-          lastValueVisible: false,
-          priceLineVisible: false,
-          title: `BB Upper(${indicators.bollinger.period}, ${indicators.bollinger.stdDev})`,
-        });
-        
-        // Middle band (SMA)
-        const middleBand = chartRef.current.addLineSeries({
-          color: '#787b86',
-          lineWidth: 1,
-          lineStyle: 1, // dashed
-          crosshairMarkerVisible: true,
-          lastValueVisible: true,
-          priceLineVisible: false,
-          title: `BB Middle(${indicators.bollinger.period})`,
-        });
-        
-        // Lower band
-        const lowerBand = chartRef.current.addLineSeries({
-          color: '#787b86',
-          lineWidth: 1,
-          lineStyle: 2, // dotted
-          crosshairMarkerVisible: false,
-          lastValueVisible: false,
-          priceLineVisible: false,
-          title: `BB Lower(${indicators.bollinger.period}, ${indicators.bollinger.stdDev})`,
-        });
-        
-        upperBand.setData(bbData.map(item => ({ time: item.time, value: item.upper })));
-        middleBand.setData(bbData.map(item => ({ time: item.time, value: item.middle })));
-        lowerBand.setData(bbData.map(item => ({ time: item.time, value: item.lower })));
+          // Update volume data if series exists
+          if (volumeSeriesRef.current) {
+            const volumeData = chartData
+              .filter(item => item.volume > 0)
+              .map(item => ({
+                time: item.time,
+                value: parseFloat(item.volume),
+                color: item.close >= item.open ? '#089981' : '#f23645'
+              }));
+            
+            if (volumeData.length > 0) {
+              volumeSeriesRef.current.setData(volumeData);
+            }
+          }
+        } else {
+          // Format line data
+          const lineData = chartData.map(item => ({
+            time: item.time,
+            value: item.close || item.value
+          }));
+          seriesRef.current.setData(lineData);
+        }
       }
 
       // Fit content
@@ -577,8 +534,11 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
                 setChartInitialized(false);
                 if (chartRef.current) {
                   chartRef.current.remove();
-                  chartRef.current = null;
                 }
+                // Reset all references
+                chartRef.current = null;
+                seriesRef.current = null;
+                volumeSeriesRef.current = null;
                 // Trigger re-initialization
                 setTimeout(() => {
                   if (token?.contractAddress) {
