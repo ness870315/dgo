@@ -27,21 +27,21 @@ class HybridPriceService {
     
     // Persistent pair address storage
     this.pairAddressCache = new Map();
-    this.loadPairAddressCache();
+    this.loadPairAddressCache().catch(err => console.log('Cache load error:', err));
     
     // Persistent OHLCV cache storage
     this.ohlcvCache = new Map();
-    this.loadOHLCVCache();
+    this.loadOHLCVCache().catch(err => console.log('OHLCV cache load error:', err));
   }
 
   /**
    * Load persistent pair address cache from file
    */
-  loadPairAddressCache() {
+  async loadPairAddressCache() {
     try {
-      const fs = require('fs');
-      const path = require('path');
-      const cacheFile = path.join(__dirname, 'cache', 'pair-addresses.json');
+      const fs = await import('fs');
+      const path = await import('path');
+      const cacheFile = path.join(process.cwd(), 'backend', 'cache', 'pair-addresses.json');
       
       if (fs.existsSync(cacheFile)) {
         const data = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
@@ -56,11 +56,11 @@ class HybridPriceService {
   /**
    * Save persistent pair address cache to file (atomic write)
    */
-  savePairAddressCache() {
+  async savePairAddressCache() {
     try {
-      const fs = require('fs');
-      const path = require('path');
-      const cacheDir = path.join(__dirname, 'cache');
+      const fs = await import('fs');
+      const path = await import('path');
+      const cacheDir = path.join(process.cwd(), 'backend', 'cache');
       
       // Ensure cache directory exists
       if (!fs.existsSync(cacheDir)) {
@@ -84,11 +84,11 @@ class HybridPriceService {
   /**
    * Load persistent OHLCV cache from file
    */
-  loadOHLCVCache() {
+  async loadOHLCVCache() {
     try {
-      const fs = require('fs');
-      const path = require('path');
-      const cacheFile = path.join(__dirname, 'cache', 'ohlcv-data.json');
+      const fs = await import('fs');
+      const path = await import('path');
+      const cacheFile = path.join(process.cwd(), 'backend', 'cache', 'ohlcv-data.json');
       
       if (fs.existsSync(cacheFile)) {
         const data = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
@@ -103,11 +103,11 @@ class HybridPriceService {
   /**
    * Save persistent OHLCV cache to file (atomic write)
    */
-  saveOHLCVCache() {
+  async saveOHLCVCache() {
     try {
-      const fs = require('fs');
-      const path = require('path');
-      const cacheDir = path.join(__dirname, 'cache');
+      const fs = await import('fs');
+      const path = await import('path');
+      const cacheDir = path.join(process.cwd(), 'backend', 'cache');
       
       // Ensure cache directory exists
       if (!fs.existsSync(cacheDir)) {
@@ -199,7 +199,7 @@ class HybridPriceService {
         data: freshData,
         timestamp: Date.now()
       });
-      this.saveOHLCVCache();
+      await this.saveOHLCVCache();
       
       console.log(`✅ Cached ${freshData.length} OHLCV data points for ${contractAddress.substring(0, 8)} (${timeframe})`);
       return freshData;
@@ -223,50 +223,64 @@ class HybridPriceService {
 
     console.log(`🔍 Fetching pair address for ${contractAddress.substring(0, 8)}...`);
     
-    // Get Jupiter data
-    const { default: jupiterApiService } = await import('./jupiterApiService.js');
-    const jupiterData = await jupiterApiService.getTokenDetails(contractAddress);
-
-    let pairAddress = jupiterData.graduatedPool;
-    
-    // If graduatedPool is not available, try to get pairs from Moralis API
-    if (!pairAddress) {
-      console.log(`🔍 graduatedPool not found, fetching pairs from Moralis for ${contractAddress.substring(0, 8)}`);
-      try {
-        const pairsResponse = await axios.get(`https://solana-gateway.moralis.io/token/mainnet/${contractAddress}/pairs`, {
-          headers: {
-            'X-API-Key': this.moralisApiKey,
-            'Accept': 'application/json'
-          },
-          timeout: 10000
+    // Get raw Jupiter data directly from API to access graduatedPool
+    try {
+      const response = await axios.get(`https://lite-api.jup.ag/tokens/v2/${contractAddress}`, {
+        timeout: 10000
+      });
+      
+      if (response.data) {
+        const rawJupiterData = response.data;
+        let pairAddress = rawJupiterData.graduatedPool;
+        
+        console.log(`🔍 Raw Jupiter data for ${contractAddress.substring(0, 8)}:`, {
+          graduatedPool: rawJupiterData.graduatedPool,
+          firstPool: rawJupiterData.firstPool?.id
         });
         
-        if (pairsResponse.data?.result && pairsResponse.data.result.length > 0) {
-          // Get the pair with highest liquidity
-          const sortedPairs = pairsResponse.data.result.sort((a, b) => (b.liquidity_usd || 0) - (a.liquidity_usd || 0));
-          pairAddress = sortedPairs[0].pairAddress;
-          console.log(`✅ Found pair address from Moralis: ${pairAddress.substring(0, 8)}`);
+        // If graduatedPool is not available, try to get pairs from Moralis API
+        if (!pairAddress) {
+          console.log(`🔍 graduatedPool not found, fetching pairs from Moralis for ${contractAddress.substring(0, 8)}`);
+          try {
+            const pairsResponse = await axios.get(`https://solana-gateway.moralis.io/token/mainnet/${contractAddress}/pairs`, {
+              headers: {
+                'X-API-Key': this.moralisApiKey,
+                'Accept': 'application/json'
+              },
+              timeout: 10000
+            });
+            
+            if (pairsResponse.data?.result && pairsResponse.data.result.length > 0) {
+              // Get the pair with highest liquidity
+              const sortedPairs = pairsResponse.data.result.sort((a, b) => (b.liquidity_usd || 0) - (a.liquidity_usd || 0));
+              pairAddress = sortedPairs[0].pairAddress;
+              console.log(`✅ Found pair address from Moralis: ${pairAddress.substring(0, 8)}`);
+            }
+          } catch (error) {
+            console.log(`⚠️ Failed to get pairs from Moralis: ${error.message}`);
+          }
         }
-      } catch (error) {
-        console.log(`⚠️ Failed to get pairs from Moralis: ${error.message}`);
-      }
-    }
-    
-    // Final fallback to firstPool.id
-    if (!pairAddress) {
-      pairAddress = jupiterData.firstPool?.id;
-    }
-    
-    if (!pairAddress) {
-      throw new Error('No pair address found from Jupiter or Moralis');
-    }
+        
+        // Final fallback to firstPool.id
+        if (!pairAddress) {
+          pairAddress = rawJupiterData.firstPool?.id;
+        }
+        
+        if (!pairAddress) {
+          throw new Error('No pair address found from Jupiter or Moralis');
+        }
 
-    // Cache the pair address permanently
-    this.pairAddressCache.set(contractAddress, pairAddress);
-    this.savePairAddressCache();
-    
-    console.log(`🔗 Found and cached pair address for ${contractAddress.substring(0, 8)}: ${pairAddress.substring(0, 8)}`);
-    return pairAddress;
+        // Cache the pair address permanently
+        this.pairAddressCache.set(contractAddress, pairAddress);
+        await this.savePairAddressCache();
+        
+        console.log(`🔗 Found and cached pair address for ${contractAddress.substring(0, 8)}: ${pairAddress.substring(0, 8)}`);
+        return pairAddress;
+      }
+    } catch (error) {
+      console.log(`⚠️ Failed to get raw Jupiter data: ${error.message}`);
+      throw new Error(`Failed to get pair address: ${error.message}`);
+    }
   }
 
   /**
