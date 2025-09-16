@@ -336,6 +336,7 @@ class HybridPriceService {
       }
 
       console.log(`✅ Retrieved ${chartData.length} price data points for ${contractAddress.substring(0, 8)}`);
+      console.log(`📊 Sample data:`, chartData.slice(0, 2));
       return chartData;
 
     } catch (error) {
@@ -413,6 +414,8 @@ class HybridPriceService {
     if (!this.moralisApiKey) {
       throw new Error('Moralis API key not configured');
     }
+    
+    console.log(`🔑 Moralis API key configured: ${this.moralisApiKey ? 'Yes' : 'No'}`);
 
     try {
       // Get pair address (with persistent caching)
@@ -421,6 +424,10 @@ class HybridPriceService {
       // Now get OHLCV data from Moralis using the pair address
       const timeRange = this.calculateTimeRange(timeframe);
       const moralisTimeframe = this.convertTimeframeToMoralis(timeframe);
+      
+      console.log(`🔍 Calling Moralis API with pair address: ${pairAddress}`);
+      console.log(`📅 Time range: ${timeRange.from} to ${timeRange.to}`);
+      console.log(`⏰ Moralis timeframe: ${moralisTimeframe}`);
       
       const response = await axios.get(`https://solana-gateway.moralis.io/token/mainnet/pairs/${pairAddress}/ohlcv`, {
         params: {
@@ -436,6 +443,9 @@ class HybridPriceService {
         },
         timeout: 15000
       });
+      
+      console.log(`📊 Moralis response status: ${response.status}`);
+      console.log(`📊 Moralis response data:`, response.data);
 
       if (!response.data?.result || response.data.result.length === 0) {
         throw new Error('No OHLCV data from Moralis');

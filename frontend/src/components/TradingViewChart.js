@@ -141,7 +141,7 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
       if (response.success && response.data) {
         console.log('Raw chart data:', response.data);
         const formattedData = response.data.map(item => ({
-          time: item.time,
+          time: Math.floor(item.time), // Ensure time is integer seconds
           open: item.open || item.value,
           high: item.high || item.value,
           low: item.low || item.value,
@@ -150,6 +150,7 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
         }));
 
         console.log('Formatted chart data:', formattedData);
+        console.log('Data sample for chart:', formattedData.slice(0, 2));
         setChartData(formattedData);
       } else {
         console.error('Chart service failed:', response);
