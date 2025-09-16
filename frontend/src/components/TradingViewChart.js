@@ -8,9 +8,6 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [currentPrice, setCurrentPrice] = useState(null);
-  const [priceChange, setPriceChange] = useState(0);
-  const [timeframes, setTimeframes] = useState([]);
   const [selectedTimeframe, setSelectedTimeframe] = useState(timeframe);
   const [indicators, setIndicators] = useState({
     sma: { enabled: false, period: 20 },
@@ -110,16 +107,11 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
     };
   }, []);
 
-  // Load timeframes
-  useEffect(() => {
-    loadTimeframes();
-  }, []);
 
   // Load chart data when token or timeframe changes
   useEffect(() => {
     if (token?.contractAddress) {
       loadChartData();
-      loadCurrentPrice();
     }
   }, [token?.contractAddress, selectedTimeframe]);
 
@@ -137,27 +129,7 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
     }
   }, [chartData, indicators]);
 
-  const loadTimeframes = async () => {
-    try {
-      const response = await chartService.getTimeframes();
-      if (response.success) {
-        setTimeframes(response.timeframes);
-      }
-    } catch (error) {
-      console.error('Failed to load timeframes:', error);
-    }
-  };
 
-  const loadCurrentPrice = async () => {
-    try {
-      const response = await chartService.getCurrentPrice(token.contractAddress);
-      if (response.success) {
-        setCurrentPrice(response.price);
-      }
-    } catch (error) {
-      console.error('Failed to load current price:', error);
-    }
-  };
 
   const loadChartData = async () => {
     if (!token?.contractAddress) return;
@@ -179,14 +151,6 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
         }));
 
         setChartData(formattedData);
-        
-        // Calculate price change
-        if (formattedData.length >= 2) {
-          const firstPrice = formattedData[0].close;
-          const lastPrice = formattedData[formattedData.length - 1].close;
-          const change = ((lastPrice - firstPrice) / firstPrice) * 100;
-          setPriceChange(change);
-        }
       } else {
         throw new Error(response.message || 'Failed to load chart data');
       }
@@ -430,87 +394,12 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
     }
   };
 
-  const formatPrice = (price) => {
-    if (price === null || price === undefined) return 'N/A';
-    if (price < 0.01) return `$${price.toFixed(6)}`;
-    if (price < 1) return `$${price.toFixed(4)}`;
-    if (price < 100) return `$${price.toFixed(2)}`;
-    return `$${price.toFixed(2)}`;
-  };
-
-  const formatNumber = (num) => {
-    if (num >= 1e9) return `${(num / 1e9).toFixed(1)}B`;
-    if (num >= 1e6) return `${(num / 1e6).toFixed(1)}M`;
-    if (num >= 1e3) return `${(num / 1e3).toFixed(1)}K`;
-    return num.toString();
-  };
 
   if (!token) return null;
 
   return (
     <div className="bg-gray-900 rounded-lg border border-gray-700 p-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          {/* Token Icon */}
-          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-            {token.jupiterData?.icon ? (
-              <img 
-                src={token.jupiterData.icon} 
-                alt={token.symbol}
-                className="w-8 h-8 rounded-full"
-              />
-            ) : (
-              <span className="text-white font-bold text-sm">
-                {token.symbol?.charAt(0) || '?'}
-              </span>
-            )}
-          </div>
-          
-          <div>
-            <h3 className="text-xl font-bold text-white">{token.symbol}</h3>
-            <p className="text-gray-400 text-sm">{token.name}</p>
-          </div>
-        </div>
 
-        {/* Timeframe Selector */}
-        <div className="flex space-x-2">
-          {timeframes.map((tf) => (
-            <button
-              key={tf.value}
-              onClick={() => setSelectedTimeframe(tf.value)}
-              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                selectedTimeframe === tf.value
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              {tf.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Price Info */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-6">
-          <div>
-            <div className="text-2xl font-bold text-white">
-              {currentPrice ? formatPrice(currentPrice) : 'Loading...'}
-            </div>
-            <div className={`text-sm font-medium ${
-              priceChange >= 0 ? 'text-green-400' : 'text-red-400'
-            }`}>
-              {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
-            </div>
-          </div>
-          
-          <div className="text-sm text-gray-400">
-            <div>Market Cap: {formatNumber(token.jupiterData?.mcap || token.marketCap || 0)}</div>
-            <div>Volume: {formatNumber(token.jupiterData?.volume24h || 0)}</div>
-          </div>
-        </div>
-      </div>
 
       {/* Chart Container */}
       <div className="relative">
