@@ -59,14 +59,28 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
 
   // INIT (once) - Client-only initialization
   useEffect(() => {
+    console.log('Chart initialization useEffect triggered');
     let destroyed = false;
 
     const init = async () => {
-      if (typeof window === "undefined") return;               // SSR guard
-      if (!containerRef.current || chartRef.current) return;   // container ready & not already init
+      console.log('Init function called');
+      console.log('Window check:', typeof window !== "undefined");
+      console.log('Container ref current:', !!containerRef.current);
+      console.log('Chart ref current:', !!chartRef.current);
+      
+      if (typeof window === "undefined") {
+        console.log('SSR guard triggered, returning');
+        return;               // SSR guard
+      }
+      if (!containerRef.current || chartRef.current) {
+        console.log('Container not ready or chart already exists, returning');
+        return;   // container ready & not already init
+      }
 
       try {
+        console.log('Attempting to import lightweight-charts...');
         const { createChart, ColorType } = await import("lightweight-charts");
+        console.log('Successfully imported lightweight-charts');
 
         // Get container dimensions safely
         const container = containerRef.current;
@@ -157,9 +171,11 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
     };
 
     // Add a small delay to ensure DOM is fully rendered
+    console.log('Setting timeout for init function...');
     const timeoutId = setTimeout(init, 100);
 
     return () => {
+      console.log('Chart useEffect cleanup called');
       clearTimeout(timeoutId);
       destroyed = true;
       try { resizeObsRef.current?.disconnect(); } catch {}
