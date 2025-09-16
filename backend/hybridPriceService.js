@@ -603,6 +603,8 @@ class HybridPriceService {
         const { default: jupiterApiService } = await import('./jupiterApiService.js');
         const jupiterData = await jupiterApiService.getTokenDetails(contractAddress);
         const price = jupiterData.price || jupiterData.usdPrice;
+        
+        if (price) {
           const priceData = {
             price: price,
             timestamp: new Date().toISOString(),
