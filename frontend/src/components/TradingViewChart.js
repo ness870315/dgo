@@ -1,16 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createChart } from 'lightweight-charts';
 import chartService from '../services/chartService';
 
 const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
-  const chartContainerRef = useRef(null);
+  const containerRef = useRef(null);
   const chartRef = useRef(null);
-  const seriesRef = useRef(null); // Store reference to the main series
-  const volumeSeriesRef = useRef(null); // Store reference to volume series
+  const seriesRef = useRef(null);
+  const volumeSeriesRef = useRef(null);
+  const resizeObsRef = useRef(null);
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [chartInitialized, setChartInitialized] = useState(false);
   
   // Use timeframe prop directly instead of local state
   const [indicators, setIndicators] = useState({
@@ -22,178 +21,114 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
   });
   const [showIndicators, setShowIndicators] = useState(false);
 
-  // Initialize chart
-  useEffect(() => {
-    const initializeChart = () => {
-      if (!chartContainerRef.current) {
-        console.log('Chart container ref not available, retrying...');
-        setTimeout(initializeChart, 100);
-        return;
-      }
+  // Helper: ensure seconds & sorted ascending
+  const normalizeCandles = (rows) => {
+    if (!Array.isArray(rows)) return [];
+    const toSec = (t) => (t > 1e12 ? Math.floor(t / 1000) : t); // ms -> s
+    const out = rows.map((d) => ({
+      time: toSec(d.time ?? d.t),
+      open: +d.open ?? +d.o ?? +d.value,
+      high: +d.high ?? +d.h ?? +d.value,
+      low: +d.low ?? +d.l ?? +d.value,
+      close: +d.close ?? +d.c ?? +d.value,
+      volume: +d.volume ?? 0,
+    })).filter(c => Number.isFinite(c.time) && Number.isFinite(c.close));
+    out.sort((a, b) => a.time - b.time); // Always ascending
+    return out;
+  };
 
-      // Clean up any existing chart
-      if (chartRef.current) {
-        try {
-          chartRef.current.remove();
-        } catch (error) {
-          console.log('Error removing existing chart:', error);
-        }
-        chartRef.current = null;
-      }
+  // INIT (once) - Client-only initialization
+  useEffect(() => {
+    let destroyed = false;
+
+    const init = async () => {
+      if (typeof window === "undefined") return;               // SSR guard
+      if (!containerRef.current || chartRef.current) return;   // container ready & not already init
 
       try {
-        const chart = createChart(chartContainerRef.current, {
-          width: chartContainerRef.current.clientWidth,
-          height: 400,
-          layout: {
-            background: { type: 'solid', color: '#131722' },
-            textColor: '#d1d4dc',
+        const { createChart, ColorType } = await import("lightweight-charts");
+
+        const chart = createChart(containerRef.current, {
+          layout: { 
+            background: { type: ColorType.Solid, color: "#131722" }, 
+            textColor: "#d1d4dc",
             fontSize: 12,
             fontFamily: 'Trebuchet MS, sans-serif',
           },
-          grid: {
-            vertLines: { 
-              color: '#363c4e',
-              style: 2, // dotted
-              visible: true,
-            },
-            horzLines: { 
-              color: '#363c4e',
-              style: 2, // dotted
-              visible: true,
-            },
+          grid: { 
+            vertLines: { color: "#363c4e", style: 2, visible: true }, 
+            horzLines: { color: "#363c4e", style: 2, visible: true } 
           },
-          crosshair: {
-            mode: 1, // normal crosshair
-            vertLine: {
-              color: '#758696',
-              width: 1,
-              style: 3, // dashed
-              visible: true,
-              labelVisible: true,
-            },
-            horzLine: {
-              color: '#758696',
-              width: 1,
-              style: 3, // dashed
-              visible: true,
-              labelVisible: true,
-            },
-          },
-          rightPriceScale: {
-            borderColor: '#485c7b',
+          rightPriceScale: { 
+            borderColor: "#485c7b",
             textColor: '#b2b5be',
-            entireTextOnly: false,
-            visible: true,
-            borderVisible: true,
-            scaleMargins: {
-              top: 0.1,
-              bottom: 0.1,
-            },
+            scaleMargins: { top: 0.1, bottom: 0.1 },
           },
-          leftPriceScale: {
-            visible: false,
-          },
-          timeScale: {
-            borderColor: '#485c7b',
+          timeScale: { 
+            borderColor: "#485c7b",
             textColor: '#b2b5be',
             timeVisible: true,
             secondsVisible: false,
-            borderVisible: true,
             rightOffset: 12,
             barSpacing: 6,
-            fixLeftEdge: false,
-            lockVisibleTimeRangeOnResize: true,
           },
-          handleScroll: {
-            mouseWheel: true,
-            pressedMouseMove: true,
-            horzTouchDrag: true,
-            vertTouchDrag: true,
+          crosshair: { 
+            mode: 1,
+            vertLine: { color: '#758696', width: 1, style: 3, visible: true, labelVisible: true },
+            horzLine: { color: '#758696', width: 1, style: 3, visible: true, labelVisible: true },
           },
-          handleScale: {
-            axisPressedMouseMove: true,
-            mouseWheel: true,
-            pinch: true,
-            axisDoubleClickReset: true,
-          },
-          kineticScroll: {
-            touch: true,
-            mouse: false,
-          },
+          handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
+          handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true, axisDoubleClickReset: true },
+          kineticScroll: { touch: true, mouse: false },
+          width: containerRef.current.clientWidth,
+          height: containerRef.current.clientHeight || 400,
+        });
+
+        // Create candlestick series
+        const series = chart.addCandlestickSeries({
+          upColor: '#089981',
+          downColor: '#f23645',
+          borderDownColor: '#f23645',
+          borderUpColor: '#089981',
+          wickDownColor: '#f23645',
+          wickUpColor: '#089981',
+          priceFormat: { type: "price", precision: 6, minMove: 1e-6 }, // High precision for crypto
+          priceLineVisible: true,
+          lastValueVisible: true,
+          title: token?.symbol || 'Price',
         });
 
         chartRef.current = chart;
-        setChartInitialized(true);
-        console.log('Chart initialized successfully');
+        seriesRef.current = series;
 
-        // Add crosshair move handler for tooltip functionality
-        chart.subscribeCrosshairMove(param => {
-          if (param.point === undefined || !param.time || param.point.x < 0 || param.point.y < 0) {
-            return;
-          }
-
-          // Get data for the current crosshair position
-          const data = param.seriesData;
-          if (data && data.size > 0) {
-            // Find candlestick data
-            for (const [series, seriesData] of data.entries()) {
-              if (seriesData && typeof seriesData === 'object' && 'open' in seriesData) {
-                // This is candlestick data
-                const candleData = seriesData;
-                const time = new Date(param.time * 1000);
-                
-                // You can add custom tooltip logic here
-                console.log('Crosshair data:', {
-                  time: time.toLocaleString(),
-                  open: candleData.open,
-                  high: candleData.high,
-                  low: candleData.low,
-                  close: candleData.close,
-                });
-                break;
-              }
-            }
-          }
+        // Responsive resize
+        const ro = new ResizeObserver(() => {
+          if (!containerRef.current || !chartRef.current) return;
+          chartRef.current.applyOptions({
+            width: containerRef.current.clientWidth,
+            height: containerRef.current.clientHeight || 400,
+          });
         });
+        ro.observe(containerRef.current);
+        resizeObsRef.current = ro;
 
-        // Handle resize
-        const handleResize = () => {
-          if (chartContainerRef.current && chartRef.current) {
-            chartRef.current.applyOptions({
-              width: chartContainerRef.current.clientWidth,
-            });
-          }
-        };
-
-        window.addEventListener('resize', handleResize);
-
-        return () => {
-          window.removeEventListener('resize', handleResize);
-          if (chartRef.current) {
-            chartRef.current.remove();
-          }
-          // Reset all references
-          chartRef.current = null;
-          seriesRef.current = null;
-          volumeSeriesRef.current = null;
-          setChartInitialized(false);
-        };
+        console.log('Chart initialized successfully');
       } catch (error) {
         console.error('Failed to initialize chart:', error);
         setError('Failed to initialize chart: ' + error.message);
       }
     };
 
-    // Add a small delay to ensure DOM is ready
-    const timeoutId = setTimeout(initializeChart, 100);
+    init();
 
     return () => {
-      clearTimeout(timeoutId);
-      if (chartRef.current) {
-        chartRef.current.remove();
-      }
-      setChartInitialized(false);
+      destroyed = true;
+      try { resizeObsRef.current?.disconnect(); } catch {}
+      try { chartRef.current?.remove(); } catch {}
+      chartRef.current = null;
+      seriesRef.current = null;
+      volumeSeriesRef.current = null;
+      resizeObsRef.current = null;
     };
   }, []);
 
@@ -205,20 +140,21 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
     }
   }, [token?.contractAddress, timeframe]);
 
-  // Update chart when data changes
+  // APPLY DATA (whenever data changes)
   useEffect(() => {
-    if (chartInitialized && chartRef.current && chartData.length > 0) {
-      console.log('Updating chart with data length:', chartData.length);
-      // Add a small delay to ensure chart is fully ready
-      setTimeout(() => {
-        if (chartRef.current && chartData.length > 0) {
-          updateChart();
-        }
-      }, 100);
-    } else if (chartData.length > 0) {
-      console.log('Chart not ready, data available:', chartData.length, 'initialized:', chartInitialized);
-    }
-  }, [chartData, indicators, chartInitialized]);
+    if (!seriesRef.current) return; // not ready yet
+    const candles = normalizeCandles(chartData);
+    if (candles.length === 0) return;
+
+    console.log('Applying', candles.length, 'normalized candles to chart');
+    console.log('Sample candle:', candles[0]);
+
+    // Set whole dataset atomically
+    seriesRef.current.setData(candles);
+
+    // Optional: fit content
+    chartRef.current?.timeScale().fitContent();
+  }, [chartData, timeframe]);
 
 
 
@@ -289,227 +225,6 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
     }
   };
 
-  // Technical indicator calculations
-  const calculateSMA = (data, period) => {
-    const result = [];
-    for (let i = period - 1; i < data.length; i++) {
-      const sum = data.slice(i - period + 1, i + 1).reduce((acc, item) => acc + item.close, 0);
-      result.push({
-        time: data[i].time,
-        value: sum / period
-      });
-    }
-    return result;
-  };
-
-  const calculateEMA = (data, period) => {
-    const result = [];
-    const multiplier = 2 / (period + 1);
-    
-    // First value is SMA
-    const firstSMA = data.slice(0, period).reduce((acc, item) => acc + item.close, 0) / period;
-    result.push({ time: data[period - 1].time, value: firstSMA });
-    
-    for (let i = period; i < data.length; i++) {
-      const ema = (data[i].close * multiplier) + (result[result.length - 1].value * (1 - multiplier));
-      result.push({ time: data[i].time, value: ema });
-    }
-    return result;
-  };
-
-  const calculateRSI = (data, period) => {
-    const result = [];
-    const gains = [];
-    const losses = [];
-    
-    for (let i = 1; i < data.length; i++) {
-      const change = data[i].close - data[i - 1].close;
-      gains.push(change > 0 ? change : 0);
-      losses.push(change < 0 ? Math.abs(change) : 0);
-    }
-    
-    for (let i = period - 1; i < gains.length; i++) {
-      const avgGain = gains.slice(i - period + 1, i + 1).reduce((acc, gain) => acc + gain, 0) / period;
-      const avgLoss = losses.slice(i - period + 1, i + 1).reduce((acc, loss) => acc + loss, 0) / period;
-      const rs = avgGain / (avgLoss || 0.0001);
-      const rsi = 100 - (100 / (1 + rs));
-      result.push({ time: data[i + 1].time, value: rsi });
-    }
-    return result;
-  };
-
-  const calculateBollingerBands = (data, period, stdDev) => {
-    const sma = calculateSMA(data, period);
-    const result = [];
-    
-    for (let i = period - 1; i < data.length; i++) {
-      const slice = data.slice(i - period + 1, i + 1);
-      const mean = slice.reduce((acc, item) => acc + item.close, 0) / period;
-      const variance = slice.reduce((acc, item) => acc + Math.pow(item.close - mean, 2), 0) / period;
-      const standardDeviation = Math.sqrt(variance);
-      
-      result.push({
-        time: data[i].time,
-        upper: mean + (standardDeviation * stdDev),
-        middle: mean,
-        lower: mean - (standardDeviation * stdDev)
-      });
-    }
-    return result;
-  };
-
-  const updateChart = () => {
-    if (!chartRef.current) {
-      console.log('Chart update skipped - no chart ref');
-      return;
-    }
-    
-    if (chartData.length === 0) {
-      console.log('Chart update skipped - no data');
-      return;
-    }
-
-    try {
-      console.log('Updating chart with', chartData.length, 'data points');
-      console.log('Chart data sample:', chartData.slice(0, 3));
-      
-      // Validate data format before proceeding
-      const isValidData = chartData.every(item => 
-        item && 
-        typeof item.time === 'number' && 
-        !isNaN(item.time) &&
-        ((item.open !== undefined && item.high !== undefined && item.low !== undefined && item.close !== undefined) ||
-         (item.value !== undefined))
-      );
-
-      if (!isValidData) {
-        console.error('Invalid data format detected');
-        setError('Invalid chart data format');
-        return;
-      }
-
-      // Check if chart is properly initialized
-      if (typeof chartRef.current.addCandlestickSeries !== 'function') {
-        console.error('Chart instance is corrupted, skipping update');
-        setError('Chart instance corrupted - please refresh the page');
-        return;
-      }
-
-      // Check if we have proper OHLCV data or just price data
-      const hasOHLCV = chartData.every(item => 
-        item.open !== undefined && item.high !== undefined && 
-        item.low !== undefined && item.close !== undefined
-      );
-
-      // Create series only if they don't exist
-      if (!seriesRef.current) {
-        if (hasOHLCV) {
-          // Create candlestick series
-          seriesRef.current = chartRef.current.addCandlestickSeries({
-            upColor: '#089981', // TradingView green
-            downColor: '#f23645', // TradingView red
-            borderDownColor: '#f23645',
-            borderUpColor: '#089981',
-            wickDownColor: '#f23645',
-            wickUpColor: '#089981',
-            priceFormat: {
-              type: 'price',
-              precision: 6,
-              minMove: 0.000001,
-            },
-            priceLineVisible: true,
-            lastValueVisible: true,
-            title: token?.symbol || 'Price',
-          });
-
-          // Create volume series if we have volume data
-          const hasVolume = chartData.some(item => item.volume > 0);
-          if (hasVolume && !volumeSeriesRef.current) {
-            volumeSeriesRef.current = chartRef.current.addHistogramSeries({
-              color: '#26a69a',
-              priceFormat: {
-                type: 'volume',
-              },
-              priceScaleId: 'volume',
-              scaleMargins: {
-                top: 0.7, // Volume takes bottom 30% of chart
-                bottom: 0,
-              },
-              title: 'Volume',
-              lastValueVisible: false,
-              priceLineVisible: false,
-            });
-
-            // Configure volume price scale
-            chartRef.current.priceScale('volume').applyOptions({
-              scaleMargins: {
-                top: 0.7,
-                bottom: 0,
-              },
-            });
-          }
-        } else {
-          // Create line series for price data only
-          seriesRef.current = chartRef.current.addLineSeries({
-            color: '#089981',
-            lineWidth: 2,
-            title: token?.symbol || 'Price',
-            priceFormat: {
-              type: 'price',
-              precision: 6,
-              minMove: 0.000001,
-            },
-            priceLineVisible: true,
-            lastValueVisible: true,
-          });
-        }
-      }
-
-      // Update data for existing series
-      if (seriesRef.current) {
-        if (hasOHLCV) {
-          // Format candlestick data
-          const formattedCandleData = chartData.map(item => ({
-            time: item.time,
-            open: parseFloat(item.open),
-            high: parseFloat(item.high),
-            low: parseFloat(item.low),
-            close: parseFloat(item.close),
-          }));
-          seriesRef.current.setData(formattedCandleData);
-
-          // Update volume data if series exists
-          if (volumeSeriesRef.current) {
-            const volumeData = chartData
-              .filter(item => item.volume > 0)
-              .map(item => ({
-                time: item.time,
-                value: parseFloat(item.volume),
-                color: item.close >= item.open ? '#089981' : '#f23645'
-              }));
-            
-            if (volumeData.length > 0) {
-              volumeSeriesRef.current.setData(volumeData);
-            }
-          }
-        } else {
-          // Format line data
-          const lineData = chartData.map(item => ({
-            time: item.time,
-            value: item.close || item.value
-          }));
-          seriesRef.current.setData(lineData);
-        }
-      }
-
-      // Fit content
-      chartRef.current.timeScale().fitContent();
-      console.log('Chart updated successfully');
-    } catch (error) {
-      console.error('Failed to update chart:', error);
-      setError('Failed to update chart: ' + error.message);
-    }
-  };
 
 
   if (!token) return null;
@@ -531,14 +246,13 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
               onClick={() => {
                 setError(null);
                 setChartData([]);
-                setChartInitialized(false);
-                if (chartRef.current) {
-                  chartRef.current.remove();
-                }
-                // Reset all references
+                // Clean up chart
+                try { resizeObsRef.current?.disconnect(); } catch {}
+                try { chartRef.current?.remove(); } catch {}
                 chartRef.current = null;
                 seriesRef.current = null;
                 volumeSeriesRef.current = null;
+                resizeObsRef.current = null;
                 // Trigger re-initialization
                 setTimeout(() => {
                   if (token?.contractAddress) {
@@ -553,9 +267,9 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
           </div>
         ) : (
           <div
-            ref={chartContainerRef}
+            ref={containerRef}
             className="w-full bg-gray-800 rounded-lg"
-            style={{ height: '500px', minHeight: '400px' }}
+            style={{ width: "100%", height: "400px", position: "relative" }}
           />
         )}
       </div>
