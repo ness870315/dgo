@@ -9,11 +9,29 @@ class HybridPriceService {
   constructor() {
     this.moralisApiKey = process.env.MORALIS_API_KEY;
     this.cache = new Map();
-    this.cacheTimeout = 5 * 60 * 1000; // 5 minutes cache
+    
+    // Timeframe-based cache duration
+    this.cacheTimes = {
+      '1M': 1 * 60 * 1000,      // 1 minute
+      '5M': 5 * 60 * 1000,      // 5 minutes  
+      '15M': 15 * 60 * 1000,    // 15 minutes
+      '1H': 15 * 60 * 1000,     // 15 minutes
+      '4H': 30 * 60 * 1000,     // 30 minutes
+      '1D': 60 * 60 * 1000,     // 1 hour
+      '1W': 4 * 60 * 60 * 1000, // 4 hours
+      '1M': 24 * 60 * 60 * 1000, // 24 hours
+      '3M': 24 * 60 * 60 * 1000, // 24 hours
+      '1Y': 24 * 60 * 60 * 1000, // 24 hours
+      'ALL': 24 * 60 * 60 * 1000 // 24 hours
+    };
     
     // Persistent pair address storage
     this.pairAddressCache = new Map();
     this.loadPairAddressCache();
+    
+    // Persistent OHLCV cache storage
+    this.ohlcvCache = new Map();
+    this.loadOHLCVCache();
   }
 
   /**
@@ -61,6 +79,133 @@ class HybridPriceService {
     } catch (error) {
       console.log(`⚠️ Failed to save pair address cache: ${error.message}`);
     }
+  }
+
+  /**
+   * Load persistent OHLCV cache from file
+   */
+  loadOHLCVCache() {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const cacheFile = path.join(__dirname, 'cache', 'ohlcv-data.json');
+      
+      if (fs.existsSync(cacheFile)) {
+        const data = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+        this.ohlcvCache = new Map(Object.entries(data));
+        console.log(`📁 Loaded ${this.ohlcvCache.size} OHLCV cache entries`);
+      }
+    } catch (error) {
+      console.log(`⚠️ Failed to load OHLCV cache: ${error.message}`);
+    }
+  }
+
+  /**
+   * Save persistent OHLCV cache to file (atomic write)
+   */
+  saveOHLCVCache() {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const cacheDir = path.join(__dirname, 'cache');
+      
+      // Ensure cache directory exists
+      if (!fs.existsSync(cacheDir)) {
+        fs.mkdirSync(cacheDir, { recursive: true });
+      }
+      
+      const cacheFile = path.join(cacheDir, 'ohlcv-data.json');
+      const tempFile = `${cacheFile}.tmp`;
+      const data = Object.fromEntries(this.ohlcvCache);
+      
+      // Atomic write: write to temp file first, then rename
+      fs.writeFileSync(tempFile, JSON.stringify(data, null, 2));
+      fs.renameSync(tempFile, cacheFile);
+      
+      console.log(`💾 Saved ${this.ohlcvCache.size} OHLCV cache entries (atomic write)`);
+    } catch (error) {
+      console.log(`⚠️ Failed to save OHLCV cache: ${error.message}`);
+    }
+  }
+
+  /**
+   * Check if OHLCV data is stale based on timeframe
+   * @param {Object} cached - Cached data with timestamp
+   * @param {string} timeframe - Timeframe
+   * @returns {boolean} True if data is stale
+   */
+  isOHLCVStale(cached, timeframe) {
+    const now = Date.now();
+    const cacheTime = this.cacheTimes[timeframe] || this.cacheTimes['1H'];
+    const dataAge = now - cached.timestamp;
+    
+    // For intraday timeframes, check if we're in a new period
+    if (['1M', '5M', '15M', '1H'].includes(timeframe)) {
+      const periodMs = this.getPeriodMs(timeframe);
+      const periodsSinceUpdate = Math.floor(dataAge / periodMs);
+      return periodsSinceUpdate > 0;
+    }
+    
+    return dataAge > cacheTime;
+  }
+
+  /**
+   * Get period duration in milliseconds
+   * @param {string} timeframe - Timeframe
+   * @returns {number} Period duration in ms
+   */
+  getPeriodMs(timeframe) {
+    const periodMap = {
+      '1M': 60 * 1000,           // 1 minute
+      '5M': 5 * 60 * 1000,       // 5 minutes
+      '15M': 15 * 60 * 1000,     // 15 minutes
+      '1H': 60 * 60 * 1000,      // 1 hour
+      '4H': 4 * 60 * 60 * 1000,  // 4 hours
+      '1D': 24 * 60 * 60 * 1000, // 1 day
+      '1W': 7 * 24 * 60 * 60 * 1000 // 1 week
+    };
+    return periodMap[timeframe] || periodMap['1H'];
+  }
+
+  /**
+   * Get cached OHLCV data or fetch and cache it
+   * @param {string} contractAddress - Token contract address
+   * @param {string} timeframe - Timeframe
+   * @param {number} limit - Number of data points
+   * @returns {Promise<Array>} OHLCV data
+   */
+  async getCachedOHLCV(contractAddress, timeframe, limit) {
+    const cacheKey = `ohlcv_${contractAddress}_${timeframe}_${limit}`;
+    
+    // Check persistent cache first
+    if (this.ohlcvCache.has(cacheKey)) {
+      const cached = this.ohlcvCache.get(cacheKey);
+      
+      if (!this.isOHLCVStale(cached, timeframe)) {
+        console.log(`🟢 Using cached OHLCV data for ${contractAddress.substring(0, 8)} (${timeframe})`);
+        return cached.data;
+      } else {
+        console.log(`🔄 OHLCV data is stale for ${contractAddress.substring(0, 8)} (${timeframe}), refreshing...`);
+      }
+    }
+
+    // Fetch fresh data
+    console.log(`🔍 Fetching fresh OHLCV data for ${contractAddress.substring(0, 8)} (${timeframe})`);
+    const freshData = await this.getMoralisPriceData(contractAddress, timeframe);
+    
+    if (freshData && freshData.length > 0) {
+      // Cache the fresh data
+      this.ohlcvCache.set(cacheKey, {
+        data: freshData,
+        timestamp: Date.now()
+      });
+      this.saveOHLCVCache();
+      
+      console.log(`✅ Cached ${freshData.length} OHLCV data points for ${contractAddress.substring(0, 8)} (${timeframe})`);
+      return freshData;
+    }
+    
+    throw new Error('No OHLCV data available');
   }
 
   /**
@@ -133,24 +278,14 @@ class HybridPriceService {
    */
   async getHistoricalPrices(contractAddress, timeframe = '1D', limit = 1000) {
     try {
-      const cacheKey = `price_${contractAddress}_${timeframe}_${limit}`;
-      const cached = this.cache.get(cacheKey);
-
-      if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
-        console.log(`🟢 Using cached price data for ${contractAddress.substring(0, 8)}`);
-        return cached.data;
-      }
-
-      console.log(`🔍 Fetching historical price data for ${contractAddress.substring(0, 8)} (${timeframe})`);
-
       // Try multiple data sources in order of preference
       let chartData = null;
 
-      // 1. Try Moralis first (primary source for historical data)
+      // 1. Try Moralis first (primary source for historical data) with enhanced caching
       try {
-        chartData = await this.getMoralisPriceData(contractAddress, timeframe);
+        chartData = await this.getCachedOHLCV(contractAddress, timeframe, limit);
         if (chartData && chartData.length > 0) {
-          console.log(`✅ Got ${chartData.length} data points from Moralis`);
+          console.log(`✅ Got ${chartData.length} data points from Moralis (cached)`);
         }
       } catch (error) {
         console.log(`⚠️ Moralis failed: ${error.message}`);
@@ -185,12 +320,6 @@ class HybridPriceService {
         console.log(`⚠️ All price sources failed, generating mock data for ${contractAddress.substring(0, 8)}`);
         chartData = this.generateMockPriceData(timeframe);
       }
-
-      // Cache the results
-      this.cache.set(cacheKey, {
-        data: chartData,
-        timestamp: Date.now()
-      });
 
       console.log(`✅ Retrieved ${chartData.length} price data points for ${contractAddress.substring(0, 8)}`);
       return chartData;
