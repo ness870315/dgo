@@ -23,17 +23,37 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
 
   // Helper: ensure seconds & sorted ascending
   const normalizeCandles = (rows) => {
-    if (!Array.isArray(rows)) return [];
+    console.log('Normalizing candles, input:', rows.length, 'rows');
+    console.log('Sample input row:', rows[0]);
+    
+    if (!Array.isArray(rows)) {
+      console.log('Input is not an array');
+      return [];
+    }
+    
     const toSec = (t) => (t > 1e12 ? Math.floor(t / 1000) : t); // ms -> s
-    const out = rows.map((d) => ({
-      time: toSec(d.time ?? d.t),
-      open: +d.open ?? +d.o ?? +d.value,
-      high: +d.high ?? +d.h ?? +d.value,
-      low: +d.low ?? +d.l ?? +d.value,
-      close: +d.close ?? +d.c ?? +d.value,
-      volume: +d.volume ?? 0,
-    })).filter(c => Number.isFinite(c.time) && Number.isFinite(c.close));
+    const out = rows.map((d, index) => {
+      const normalized = {
+        time: toSec(d.time ?? d.t),
+        open: +d.open ?? +d.o ?? +d.value,
+        high: +d.high ?? +d.h ?? +d.value,
+        low: +d.low ?? +d.l ?? +d.value,
+        close: +d.close ?? +d.c ?? +d.value,
+        volume: +d.volume ?? 0,
+      };
+      
+      if (index === 0) {
+        console.log('Sample normalized candle:', normalized);
+        console.log('Time finite?', Number.isFinite(normalized.time));
+        console.log('Close finite?', Number.isFinite(normalized.close));
+      }
+      
+      return normalized;
+    }).filter(c => Number.isFinite(c.time) && Number.isFinite(c.close));
+    
+    console.log('After filtering:', out.length, 'valid candles');
     out.sort((a, b) => a.time - b.time); // Always ascending
+    console.log('After sorting, first candle time:', out[0]?.time, 'last candle time:', out[out.length - 1]?.time);
     return out;
   };
 
@@ -108,6 +128,13 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
         chartRef.current = chart;
         seriesRef.current = series;
 
+        console.log('Chart and series created successfully:', {
+          chart: !!chart,
+          series: !!series,
+          chartRef: !!chartRef.current,
+          seriesRef: !!seriesRef.current
+        });
+
         // Responsive resize
         const ro = new ResizeObserver(() => {
           if (!containerRef.current || !chartRef.current) return;
@@ -154,18 +181,40 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
 
   // APPLY DATA (whenever data changes)
   useEffect(() => {
-    if (!seriesRef.current) return; // not ready yet
+    console.log('Data effect triggered:', {
+      seriesReady: !!seriesRef.current,
+      chartReady: !!chartRef.current,
+      dataLength: chartData.length
+    });
+
+    if (!seriesRef.current) {
+      console.log('Series not ready yet, waiting...');
+      return; // not ready yet
+    }
+    
     const candles = normalizeCandles(chartData);
-    if (candles.length === 0) return;
+    console.log('Normalized candles:', candles.length);
+    console.log('Sample normalized candle:', candles[0]);
+    
+    if (candles.length === 0) {
+      console.log('No valid candles after normalization');
+      return;
+    }
 
     console.log('Applying', candles.length, 'normalized candles to chart');
-    console.log('Sample candle:', candles[0]);
 
-    // Set whole dataset atomically
-    seriesRef.current.setData(candles);
+    try {
+      // Set whole dataset atomically
+      seriesRef.current.setData(candles);
+      console.log('Data set successfully');
 
-    // Optional: fit content
-    chartRef.current?.timeScale().fitContent();
+      // Optional: fit content
+      chartRef.current?.timeScale().fitContent();
+      console.log('Chart fitted to content');
+    } catch (error) {
+      console.error('Error setting chart data:', error);
+      setError('Failed to set chart data: ' + error.message);
+    }
   }, [chartData, timeframe]);
 
 
