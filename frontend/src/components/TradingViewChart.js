@@ -132,15 +132,21 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
 
 
   const loadChartData = async () => {
-    if (!token?.contractAddress) return;
+    if (!token?.contractAddress) {
+      console.log('No token contract address');
+      return;
+    }
 
+    console.log('Loading chart data for:', token.contractAddress, 'timeframe:', selectedTimeframe);
     setLoading(true);
     setError(null);
 
     try {
       const response = await chartService.getPriceChart(token.contractAddress, selectedTimeframe, 1000);
+      console.log('Chart service response:', response);
       
       if (response.success && response.data) {
+        console.log('Raw chart data:', response.data);
         const formattedData = response.data.map(item => ({
           time: item.time,
           open: item.open || item.value,
@@ -150,8 +156,10 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
           volume: item.volume || 0
         }));
 
+        console.log('Formatted chart data:', formattedData);
         setChartData(formattedData);
       } else {
+        console.error('Chart service failed:', response);
         throw new Error(response.message || 'Failed to load chart data');
       }
     } catch (error) {
@@ -232,13 +240,19 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
   };
 
   const updateChart = () => {
-    if (!chartRef.current || chartData.length === 0) {
-      console.log('Chart update skipped - no chart ref or data');
+    if (!chartRef.current) {
+      console.log('Chart update skipped - no chart ref');
+      return;
+    }
+    
+    if (chartData.length === 0) {
+      console.log('Chart update skipped - no data');
       return;
     }
 
     try {
       console.log('Updating chart with', chartData.length, 'data points');
+      console.log('Chart data sample:', chartData.slice(0, 3));
       
       // Check if chart is properly initialized
       if (typeof chartRef.current.removeAllSeries !== 'function') {
@@ -414,8 +428,8 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
         ) : (
           <div
             ref={chartContainerRef}
-            className="w-full h-96 bg-gray-800 rounded-lg"
-            style={{ minHeight: '400px' }}
+            className="w-full bg-gray-800 rounded-lg"
+            style={{ height: '500px', minHeight: '400px' }}
           />
         )}
       </div>
