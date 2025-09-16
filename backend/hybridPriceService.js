@@ -163,10 +163,9 @@ class HybridPriceService {
     try {
       const timeRange = this.calculateTimeRange(timeframe);
       
-      const response = await axios.get('https://solana-gateway.moralis.io/token/price', {
+      const response = await axios.get(`https://solana-gateway.moralis.io/token/${contractAddress}/price`, {
         params: {
-          chain: 'solana',
-          address: contractAddress
+          chain: 'solana'
         },
         headers: {
           'X-API-Key': this.moralisApiKey,
@@ -322,10 +321,9 @@ class HybridPriceService {
 
       // Try Moralis first (primary source)
       try {
-        const response = await axios.get('https://solana-gateway.moralis.io/token/price', {
+        const response = await axios.get(`https://solana-gateway.moralis.io/token/${contractAddress}/price`, {
           params: {
-            chain: 'solana',
-            address: contractAddress
+            chain: 'solana'
           },
           headers: {
             'X-API-Key': this.moralisApiKey,
@@ -357,7 +355,10 @@ class HybridPriceService {
 
       // Fallback to Jupiter API
       try {
-        const response = await axios.get(`https://price.jup.ag/v4/price?ids=${contractAddress}`, {
+        const response = await axios.get(`https://api.jup.ag/price/v1`, {
+          params: {
+            ids: contractAddress
+          },
           timeout: 10000
         });
 
@@ -380,6 +381,33 @@ class HybridPriceService {
         }
       } catch (error) {
         console.log(`⚠️ Jupiter current price failed: ${error.message}`);
+        
+        // Try alternative Jupiter endpoint
+        try {
+          const altResponse = await axios.get(`https://price.jup.ag/v4/price?ids=${contractAddress}`, {
+            timeout: 10000
+          });
+
+          if (altResponse.data?.data?.[contractAddress]) {
+            const price = altResponse.data.data[contractAddress].price;
+            const priceData = {
+              price: price,
+              timestamp: new Date().toISOString(),
+              contractAddress: contractAddress,
+              source: 'jupiter'
+            };
+
+            this.cache.set(cacheKey, {
+              data: priceData,
+              timestamp: Date.now()
+            });
+
+            console.log(`✅ Current price from Jupiter (alt): $${price}`);
+            return priceData;
+          }
+        } catch (altError) {
+          console.log(`⚠️ Jupiter alternative endpoint failed: ${altError.message}`);
+        }
       }
 
       // Fallback to DexScreener
