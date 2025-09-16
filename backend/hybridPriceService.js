@@ -10,6 +10,118 @@ class HybridPriceService {
     this.moralisApiKey = process.env.MORALIS_API_KEY;
     this.cache = new Map();
     this.cacheTimeout = 5 * 60 * 1000; // 5 minutes cache
+    
+    // Persistent pair address storage
+    this.pairAddressCache = new Map();
+    this.loadPairAddressCache();
+  }
+
+  /**
+   * Load persistent pair address cache from file
+   */
+  loadPairAddressCache() {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const cacheFile = path.join(__dirname, 'cache', 'pair-addresses.json');
+      
+      if (fs.existsSync(cacheFile)) {
+        const data = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+        this.pairAddressCache = new Map(Object.entries(data));
+        console.log(`📁 Loaded ${this.pairAddressCache.size} pair addresses from cache`);
+      }
+    } catch (error) {
+      console.log(`⚠️ Failed to load pair address cache: ${error.message}`);
+    }
+  }
+
+  /**
+   * Save persistent pair address cache to file (atomic write)
+   */
+  savePairAddressCache() {
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const cacheDir = path.join(__dirname, 'cache');
+      
+      // Ensure cache directory exists
+      if (!fs.existsSync(cacheDir)) {
+        fs.mkdirSync(cacheDir, { recursive: true });
+      }
+      
+      const cacheFile = path.join(cacheDir, 'pair-addresses.json');
+      const tempFile = `${cacheFile}.tmp`;
+      const data = Object.fromEntries(this.pairAddressCache);
+      
+      // Atomic write: write to temp file first, then rename
+      fs.writeFileSync(tempFile, JSON.stringify(data, null, 2));
+      fs.renameSync(tempFile, cacheFile);
+      
+      console.log(`💾 Saved ${this.pairAddressCache.size} pair addresses to cache (atomic write)`);
+    } catch (error) {
+      console.log(`⚠️ Failed to save pair address cache: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get cached pair address or fetch and cache it
+   * @param {string} contractAddress - Token contract address
+   * @returns {Promise<string>} Pair address
+   */
+  async getPairAddress(contractAddress) {
+    // Check persistent cache first
+    if (this.pairAddressCache.has(contractAddress)) {
+      const cached = this.pairAddressCache.get(contractAddress);
+      console.log(`🟢 Using cached pair address for ${contractAddress.substring(0, 8)}: ${cached.substring(0, 8)}`);
+      return cached;
+    }
+
+    console.log(`🔍 Fetching pair address for ${contractAddress.substring(0, 8)}...`);
+    
+    // Get Jupiter data
+    const { default: jupiterApiService } = await import('./jupiterApiService.js');
+    const jupiterData = await jupiterApiService.getTokenDetails(contractAddress);
+
+    let pairAddress = jupiterData.graduatedPool;
+    
+    // If graduatedPool is not available, try to get pairs from Moralis API
+    if (!pairAddress) {
+      console.log(`🔍 graduatedPool not found, fetching pairs from Moralis for ${contractAddress.substring(0, 8)}`);
+      try {
+        const pairsResponse = await axios.get(`https://solana-gateway.moralis.io/token/mainnet/${contractAddress}/pairs`, {
+          headers: {
+            'X-API-Key': this.moralisApiKey,
+            'Accept': 'application/json'
+          },
+          timeout: 10000
+        });
+        
+        if (pairsResponse.data?.result && pairsResponse.data.result.length > 0) {
+          // Get the pair with highest liquidity
+          const sortedPairs = pairsResponse.data.result.sort((a, b) => (b.liquidity_usd || 0) - (a.liquidity_usd || 0));
+          pairAddress = sortedPairs[0].pairAddress;
+          console.log(`✅ Found pair address from Moralis: ${pairAddress.substring(0, 8)}`);
+        }
+      } catch (error) {
+        console.log(`⚠️ Failed to get pairs from Moralis: ${error.message}`);
+      }
+    }
+    
+    // Final fallback to firstPool.id
+    if (!pairAddress) {
+      pairAddress = jupiterData.firstPool?.id;
+    }
+    
+    if (!pairAddress) {
+      throw new Error('No pair address found from Jupiter or Moralis');
+    }
+
+    // Cache the pair address permanently
+    this.pairAddressCache.set(contractAddress, pairAddress);
+    this.savePairAddressCache();
+    
+    console.log(`🔗 Found and cached pair address for ${contractAddress.substring(0, 8)}: ${pairAddress.substring(0, 8)}`);
+    return pairAddress;
   }
 
   /**
@@ -160,45 +272,8 @@ class HybridPriceService {
     }
 
     try {
-      // First, get the pair address from Jupiter using the existing service
-      const { default: jupiterApiService } = await import('./jupiterApiService.js');
-      const jupiterData = await jupiterApiService.getTokenDetails(contractAddress);
-
-      // Use graduatedPool as the pair address for Moralis (actual DEX pair)
-      let pairAddress = jupiterData.graduatedPool;
-      
-      // If graduatedPool is not available, try to get pairs from Moralis API
-      if (!pairAddress) {
-        console.log(`🔍 graduatedPool not found, fetching pairs from Moralis for ${contractAddress.substring(0, 8)}`);
-        try {
-          const pairsResponse = await axios.get(`https://solana-gateway.moralis.io/token/mainnet/${contractAddress}/pairs`, {
-            headers: {
-              'X-API-Key': this.moralisApiKey,
-              'Accept': 'application/json'
-            },
-            timeout: 10000
-          });
-          
-          if (pairsResponse.data?.result && pairsResponse.data.result.length > 0) {
-            // Get the pair with highest liquidity
-            const sortedPairs = pairsResponse.data.result.sort((a, b) => (b.liquidity_usd || 0) - (a.liquidity_usd || 0));
-            pairAddress = sortedPairs[0].pairAddress;
-            console.log(`✅ Found pair address from Moralis: ${pairAddress.substring(0, 8)}`);
-          }
-        } catch (error) {
-          console.log(`⚠️ Failed to get pairs from Moralis: ${error.message}`);
-        }
-      }
-      
-      // Final fallback to firstPool.id
-      if (!pairAddress) {
-        pairAddress = jupiterData.firstPool?.id;
-      }
-      
-      if (!pairAddress) {
-        throw new Error('No pair address found from Jupiter or Moralis');
-      }
-      console.log(`🔗 Found pair address for ${contractAddress.substring(0, 8)}: ${pairAddress.substring(0, 8)}`);
+      // Get pair address (with persistent caching)
+      const pairAddress = await this.getPairAddress(contractAddress);
 
       // Now get OHLCV data from Moralis using the pair address
       const timeRange = this.calculateTimeRange(timeframe);
@@ -392,46 +467,13 @@ class HybridPriceService {
 
       // Try Moralis first (using Jupiter to get pair address)
       try {
-        // First, get the pair address from Jupiter using the existing service
+        // Get pair address (with persistent caching)
+        const pairAddress = await this.getPairAddress(contractAddress);
+        
+        // Get current price from Jupiter (since Moralis OHLCV is for historical data)
         const { default: jupiterApiService } = await import('./jupiterApiService.js');
         const jupiterData = await jupiterApiService.getTokenDetails(contractAddress);
-
-        // Use graduatedPool as the pair address for Moralis (actual DEX pair)
-        let pairAddress = jupiterData.graduatedPool;
-        
-        // If graduatedPool is not available, try to get pairs from Moralis API
-        if (!pairAddress) {
-          console.log(`🔍 graduatedPool not found, fetching pairs from Moralis for ${contractAddress.substring(0, 8)}`);
-          try {
-            const pairsResponse = await axios.get(`https://solana-gateway.moralis.io/token/mainnet/${contractAddress}/pairs`, {
-              headers: {
-                'X-API-Key': this.moralisApiKey,
-                'Accept': 'application/json'
-              },
-              timeout: 10000
-            });
-            
-            if (pairsResponse.data?.result && pairsResponse.data.result.length > 0) {
-              // Get the pair with highest liquidity
-              const sortedPairs = pairsResponse.data.result.sort((a, b) => (b.liquidity_usd || 0) - (a.liquidity_usd || 0));
-              pairAddress = sortedPairs[0].pairAddress;
-              console.log(`✅ Found pair address from Moralis: ${pairAddress.substring(0, 8)}`);
-            }
-          } catch (error) {
-            console.log(`⚠️ Failed to get pairs from Moralis: ${error.message}`);
-          }
-        }
-        
-        // Final fallback to firstPool.id
-        if (!pairAddress) {
-          pairAddress = jupiterData.firstPool?.id;
-        }
-        
-        if (pairAddress) {
-          console.log(`🔗 Found pair address for ${contractAddress.substring(0, 8)}: ${pairAddress.substring(0, 8)}`);
-
-          // Get current price from Jupiter (since Moralis OHLCV is for historical data)
-          const price = jupiterData.price || jupiterData.usdPrice;
+        const price = jupiterData.price || jupiterData.usdPrice;
           const priceData = {
             price: price,
             timestamp: new Date().toISOString(),
