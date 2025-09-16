@@ -74,6 +74,16 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
 
         chartRef.current = chart;
         console.log('Chart initialized successfully');
+        
+        // Trigger chart update if data is already available
+        if (chartData.length > 0) {
+          console.log('Chart initialized with existing data, triggering update...');
+          setTimeout(() => {
+            if (chartRef.current && chartData.length > 0) {
+              updateChart();
+            }
+          }, 100);
+        }
 
         // Handle resize
         const handleResize = () => {
