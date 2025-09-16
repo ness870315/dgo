@@ -116,15 +116,12 @@ const PriceChartModal = ({ token, onClose }) => {
               )}
             </div>
 
-            {/* Chart Type Toggle - Only TradingView */}
+            {/* Chart Type - TradingView Only */}
             <div className="flex bg-gray-800 rounded-lg p-1">
-              <button
-                onClick={() => setChartType('tradingview')}
-                className="flex items-center space-x-2 px-3 py-2 rounded-md transition-colors bg-blue-600 text-white"
-              >
+              <div className="flex items-center space-x-2 px-3 py-2 rounded-md bg-blue-600 text-white">
                 <TrendingUp size={16} />
                 <span>TradingView</span>
-              </button>
+              </div>
             </div>
 
 
