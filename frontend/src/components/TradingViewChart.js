@@ -23,13 +23,24 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
 
   // Initialize chart
   useEffect(() => {
-    if (!chartContainerRef.current) {
-      console.log('Chart container ref not available');
-      return;
-    }
+    const initializeChart = () => {
+      if (!chartContainerRef.current) {
+        console.log('Chart container ref not available');
+        return;
+      }
 
-    try {
-      const chart = createChart(chartContainerRef.current, {
+      // Clean up any existing chart
+      if (chartRef.current) {
+        try {
+          chartRef.current.remove();
+        } catch (error) {
+          console.log('Error removing existing chart:', error);
+        }
+        chartRef.current = null;
+      }
+
+      try {
+        const chart = createChart(chartContainerRef.current, {
       width: chartContainerRef.current.clientWidth,
       height: 400,
       layout: {
@@ -62,30 +73,41 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
       },
     });
 
-      chartRef.current = chart;
-      console.log('Chart initialized successfully');
+        chartRef.current = chart;
+        console.log('Chart initialized successfully');
 
-      // Handle resize
-      const handleResize = () => {
-        if (chartContainerRef.current && chartRef.current) {
-          chartRef.current.applyOptions({
-            width: chartContainerRef.current.clientWidth,
-          });
-        }
-      };
+        // Handle resize
+        const handleResize = () => {
+          if (chartContainerRef.current && chartRef.current) {
+            chartRef.current.applyOptions({
+              width: chartContainerRef.current.clientWidth,
+            });
+          }
+        };
 
-      window.addEventListener('resize', handleResize);
+        window.addEventListener('resize', handleResize);
 
-      return () => {
-        window.removeEventListener('resize', handleResize);
-        if (chartRef.current) {
-          chartRef.current.remove();
-        }
-      };
-    } catch (error) {
-      console.error('Failed to initialize chart:', error);
-      setError('Failed to initialize chart: ' + error.message);
-    }
+        return () => {
+          window.removeEventListener('resize', handleResize);
+          if (chartRef.current) {
+            chartRef.current.remove();
+          }
+        };
+      } catch (error) {
+        console.error('Failed to initialize chart:', error);
+        setError('Failed to initialize chart: ' + error.message);
+      }
+    };
+
+    // Add a small delay to ensure DOM is ready
+    const timeoutId = setTimeout(initializeChart, 100);
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (chartRef.current) {
+        chartRef.current.remove();
+      }
+    };
   }, []);
 
   // Load timeframes
@@ -246,6 +268,51 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
 
     try {
       console.log('Updating chart with', chartData.length, 'data points');
+      
+      // Check if chart is properly initialized
+      if (typeof chartRef.current.removeAllSeries !== 'function') {
+        console.error('Chart instance is corrupted, reinitializing...');
+        // Reinitialize the chart
+        if (chartContainerRef.current) {
+          chartRef.current.remove();
+          const newChart = createChart(chartContainerRef.current, {
+            width: chartContainerRef.current.clientWidth,
+            height: 400,
+            layout: {
+              background: { color: '#1a1a1a' },
+              textColor: '#d1d4dc',
+            },
+            grid: {
+              vertLines: { color: '#2B2B43' },
+              horzLines: { color: '#2B2B43' },
+            },
+            crosshair: {
+              mode: 1,
+            },
+            rightPriceScale: {
+              borderColor: '#485c7b',
+            },
+            timeScale: {
+              borderColor: '#485c7b',
+              timeVisible: true,
+              secondsVisible: false,
+            },
+            handleScroll: {
+              mouseWheel: true,
+              pressedMouseMove: true,
+            },
+            handleScale: {
+              axisPressedMouseMove: true,
+              mouseWheel: true,
+              pinch: true,
+            },
+          });
+          chartRef.current = newChart;
+          console.log('Chart reinitialized successfully');
+        } else {
+          throw new Error('Chart container not available for reinitialization');
+        }
+      }
       
       // Remove existing series
       chartRef.current.removeAllSeries();
