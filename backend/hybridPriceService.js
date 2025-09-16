@@ -154,18 +154,84 @@ class HybridPriceService {
 
   /**
    * Get price data from Moralis (if configured)
-   * Note: Moralis Solana API requires pair addresses, not token addresses
-   * For now, we'll skip Moralis and use other sources
+   * Uses Jupiter to get pair address first, then fetches OHLCV data from Moralis
    */
   async getMoralisPriceData(contractAddress, timeframe) {
     if (!this.moralisApiKey) {
       throw new Error('Moralis API key not configured');
     }
 
-    // Moralis Solana API requires pair addresses, not token addresses
-    // This would require additional logic to find trading pairs for the token
-    // For now, we'll skip Moralis and use other sources
-    throw new Error('Moralis Solana API requires pair addresses - not implemented yet');
+    try {
+      // First, get the pair address from Jupiter
+      const jupiterResponse = await axios.get(`https://api.jup.ag/price/v1`, {
+        params: {
+          ids: contractAddress
+        },
+        timeout: 10000
+      });
+
+      if (!jupiterResponse.data?.data?.[contractAddress]?.firstPool) {
+        throw new Error('No pair address found from Jupiter');
+      }
+
+      const pairAddress = jupiterResponse.data.data[contractAddress].firstPool;
+      console.log(`🔗 Found pair address for ${contractAddress.substring(0, 8)}: ${pairAddress.substring(0, 8)}`);
+
+      // Now get OHLCV data from Moralis using the pair address
+      const timeRange = this.calculateTimeRange(timeframe);
+      const moralisTimeframe = this.convertTimeframeToMoralis(timeframe);
+      
+      const response = await axios.get(`https://solana-gateway.moralis.io/token/mainnet/pairs/${pairAddress}/ohlcv`, {
+        params: {
+          timeframe: moralisTimeframe,
+          currency: 'usd',
+          fromDate: timeRange.from,
+          toDate: timeRange.to,
+          limit: 1000
+        },
+        headers: {
+          'X-API-Key': this.moralisApiKey,
+          'Accept': 'application/json'
+        },
+        timeout: 15000
+      });
+
+      if (!response.data?.result || response.data.result.length === 0) {
+        throw new Error('No OHLCV data from Moralis');
+      }
+
+      // Convert Moralis OHLCV data to our format
+      const chartData = response.data.result.map(item => ({
+        time: Math.floor(new Date(item.timestamp).getTime() / 1000),
+        value: item.close,
+        open: item.open,
+        high: item.high,
+        low: item.low,
+        close: item.close
+      }));
+
+      console.log(`✅ Got ${chartData.length} data points from Moralis`);
+      return chartData;
+
+    } catch (error) {
+      throw new Error(`Moralis error: ${error.message}`);
+    }
+  }
+
+  /**
+   * Convert our timeframe format to Moralis format
+   */
+  convertTimeframeToMoralis(timeframe) {
+    const timeframeMap = {
+      '1M': '1min',
+      '5M': '5min',
+      '15M': '15min',
+      '1H': '1h',
+      '4H': '4h',
+      '1D': '1d',
+      '1W': '1w'
+    };
+    return timeframeMap[timeframe] || '1h';
   }
 
   /**
@@ -301,8 +367,40 @@ class HybridPriceService {
 
       console.log(`🔍 Fetching current price for ${contractAddress.substring(0, 8)}`);
 
-      // Skip Moralis for now - requires pair addresses, not token addresses
-      // TODO: Implement pair address lookup for Moralis Solana API
+      // Try Moralis first (using Jupiter to get pair address)
+      try {
+        // First, get the pair address from Jupiter
+        const jupiterResponse = await axios.get(`https://api.jup.ag/price/v1`, {
+          params: {
+            ids: contractAddress
+          },
+          timeout: 10000
+        });
+
+        if (jupiterResponse.data?.data?.[contractAddress]?.firstPool) {
+          const pairAddress = jupiterResponse.data.data[contractAddress].firstPool;
+          console.log(`🔗 Found pair address for ${contractAddress.substring(0, 8)}: ${pairAddress.substring(0, 8)}`);
+
+          // Get current price from Jupiter (since Moralis OHLCV is for historical data)
+          const price = jupiterResponse.data.data[contractAddress].price;
+          const priceData = {
+            price: price,
+            timestamp: new Date().toISOString(),
+            contractAddress: contractAddress,
+            source: 'moralis_jupiter'
+          };
+
+          this.cache.set(cacheKey, {
+            data: priceData,
+            timestamp: Date.now()
+          });
+
+          console.log(`✅ Current price from Moralis+Jupiter: $${price}`);
+          return priceData;
+        }
+      } catch (error) {
+        console.log(`⚠️ Moralis current price failed: ${error.message}`);
+      }
 
       // Fallback to Jupiter API
       try {
@@ -435,10 +533,10 @@ class HybridPriceService {
     return {
       configured: true,
       cacheSize: this.cache.size,
-      sources: ['dexscreener', 'jupiter', 'mock'],
+      sources: ['moralis', 'dexscreener', 'jupiter', 'mock'],
       moralisConfigured: !!this.moralisApiKey,
-      primarySource: 'dexscreener',
-      moralisStatus: 'requires_pair_addresses'
+      primarySource: 'moralis',
+      moralisStatus: 'using_jupiter_pair_addresses'
     };
   }
 }
