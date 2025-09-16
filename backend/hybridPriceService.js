@@ -471,6 +471,11 @@ class HybridPriceService {
    */
   getAvailableTimeframes() {
     return [
+      { value: '1M', label: '1 Minute', days: 0.0007 },
+      { value: '5M', label: '5 Minutes', days: 0.0035 },
+      { value: '15M', label: '15 Minutes', days: 0.0104 },
+      { value: '1H', label: '1 Hour', days: 0.0417 },
+      { value: '4H', label: '4 Hours', days: 0.167 },
       { value: '1D', label: '1 Day', days: 1 },
       { value: '1W', label: '1 Week', days: 7 },
       { value: '1M', label: '1 Month', days: 30 },
