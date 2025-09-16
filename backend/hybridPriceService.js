@@ -177,7 +177,7 @@ class HybridPriceService {
       const timeRange = this.calculateTimeRange(timeframe);
       const moralisTimeframe = this.convertTimeframeToMoralis(timeframe);
       
-      const response = await axios.get(`https://solana-gateway.moralis.io/token/mainnet/pairs/${pairAddress}/ohlcv`, {
+      const response = await axios.get(`https://solana-gateway.moralis.io/token/mainnet/pairs/:${pairAddress}/ohlcv`, {
         params: {
           timeframe: moralisTimeframe,
           currency: 'usd',
