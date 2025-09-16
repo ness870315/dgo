@@ -8,6 +8,7 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [displayMode, setDisplayMode] = useState('price'); // 'price' or 'mcap'
 
   // Helper: normalize candles data
   const normalizeCandles = (rows) => {
@@ -105,6 +106,10 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
           borderColor: "#333333",
           textColor: "#ffffff",
           scaleMargins: { top: 0.1, bottom: 0.1 },
+          autoScale: true,
+          alignLabels: true,
+          borderVisible: true,
+          entireTextOnly: false,
         },
         timeScale: {
           borderColor: "#333333",
@@ -113,20 +118,22 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
           secondsVisible: false,
           rightOffset: 12,
           barSpacing: 6,
+          fixLeftEdge: false,
+          fixRightEdge: false,
         },
         crosshair: {
-          mode: 1,
+          mode: 0, // Normal crosshair mode (user controlled)
           vertLine: { 
             color: '#758696', 
             width: 1, 
-            style: 3, 
+            style: 2, // Dashed line
             visible: true, 
             labelVisible: true 
           },
           horzLine: { 
             color: '#758696', 
             width: 1, 
-            style: 3, 
+            style: 2, // Dashed line
             visible: true, 
             labelVisible: true 
           },
@@ -151,6 +158,14 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
         borderVisible: false,
         wickUpColor: "#089981",
         wickDownColor: "#f23645",
+        priceFormat: {
+          type: 'price',
+          precision: 6,
+          minMove: 0.000001,
+        },
+        title: token?.symbol || 'Price',
+        priceLineVisible: true,
+        lastValueVisible: true,
       });
 
       chartRef.current = { chart, candlestickSeries };
@@ -163,15 +178,44 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
       const candles = normalizeCandles(chartData);
       
       if (candles.length > 0) {
-        // Check for flat data
-        const flatCandles = candles.filter(c => c.open === c.high && c.high === c.low && c.low === c.close);
-        console.log(`Data analysis: ${candles.length} total, ${flatCandles.length} flat (${((flatCandles.length/candles.length)*100).toFixed(1)}%)`);
+        // Transform data based on display mode
+        const transformedCandles = candles.map(candle => {
+          if (displayMode === 'mcap' && token?.marketCap) {
+            // Calculate market cap based on price ratio
+            const priceRatio = candle.close / candles[candles.length - 1].close;
+            const baseMcap = token.marketCap;
+            
+            return {
+              ...candle,
+              open: (candle.open / candles[candles.length - 1].close) * baseMcap,
+              high: (candle.high / candles[candles.length - 1].close) * baseMcap,
+              low: (candle.low / candles[candles.length - 1].close) * baseMcap,
+              close: (candle.close / candles[candles.length - 1].close) * baseMcap,
+            };
+          }
+          return candle;
+        });
         
-        if (flatCandles.length > candles.length * 0.8) {
+        // Update series title and price format based on display mode
+        const title = displayMode === 'mcap' ? `${token?.symbol || 'Token'} Market Cap` : `${token?.symbol || 'Token'} Price`;
+        const priceFormat = displayMode === 'mcap' 
+          ? { type: 'price', precision: 0, minMove: 1 }
+          : { type: 'price', precision: 6, minMove: 0.000001 };
+        
+        chartRef.current.candlestickSeries.applyOptions({
+          title: title,
+          priceFormat: priceFormat
+        });
+        
+        // Check for flat data
+        const flatCandles = transformedCandles.filter(c => c.open === c.high && c.high === c.low && c.low === c.close);
+        console.log(`Data analysis: ${transformedCandles.length} total, ${flatCandles.length} flat (${((flatCandles.length/transformedCandles.length)*100).toFixed(1)}%)`);
+        
+        if (flatCandles.length > transformedCandles.length * 0.8) {
           console.warn('⚠️ Most candles are flat (no price movement) - chart may appear empty');
         }
         
-        chartRef.current.candlestickSeries.setData(candles);
+        chartRef.current.candlestickSeries.setData(transformedCandles);
         chartRef.current.chart.timeScale().fitContent();
         console.log('Data applied successfully');
       }
@@ -184,7 +228,7 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
         chartRef.current = null;
       }
     };
-  }, [chartData, timeframe]);
+  }, [chartData, timeframe, displayMode]);
 
   if (loading) {
     return (
@@ -210,6 +254,40 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
 
   return (
     <div className="w-full">
+      {/* Price/Market Cap Toggle */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-2">
+          <span className="text-gray-400 text-sm">Display:</span>
+          <div className="flex bg-gray-800 rounded-lg p-1">
+            <button
+              onClick={() => setDisplayMode('price')}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                displayMode === 'price'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Price
+            </button>
+            <button
+              onClick={() => setDisplayMode('mcap')}
+              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                displayMode === 'mcap'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Market Cap
+            </button>
+          </div>
+        </div>
+        
+        {/* Token Symbol Display */}
+        <div className="text-white font-medium">
+          {token?.symbol || 'Token'} / USD
+        </div>
+      </div>
+
       {/* Chart Container */}
       <div
         ref={chartContainerRef}
