@@ -123,6 +123,13 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
     }
   }, [token?.contractAddress, selectedTimeframe]);
 
+  // Update selectedTimeframe when timeframe prop changes
+  useEffect(() => {
+    if (timeframe && timeframe !== selectedTimeframe) {
+      setSelectedTimeframe(timeframe);
+    }
+  }, [timeframe]);
+
   // Update chart when data changes
   useEffect(() => {
     if (chartRef.current && chartData.length > 0) {
