@@ -44,38 +44,116 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
           width: chartContainerRef.current.clientWidth,
           height: 400,
           layout: {
-            background: { color: '#1a1a1a' },
+            background: { type: 'solid', color: '#131722' },
             textColor: '#d1d4dc',
+            fontSize: 12,
+            fontFamily: 'Trebuchet MS, sans-serif',
           },
           grid: {
-            vertLines: { color: '#2B2B43' },
-            horzLines: { color: '#2B2B43' },
+            vertLines: { 
+              color: '#363c4e',
+              style: 2, // dotted
+              visible: true,
+            },
+            horzLines: { 
+              color: '#363c4e',
+              style: 2, // dotted
+              visible: true,
+            },
           },
           crosshair: {
-            mode: 1,
+            mode: 1, // normal crosshair
+            vertLine: {
+              color: '#758696',
+              width: 1,
+              style: 3, // dashed
+              visible: true,
+              labelVisible: true,
+            },
+            horzLine: {
+              color: '#758696',
+              width: 1,
+              style: 3, // dashed
+              visible: true,
+              labelVisible: true,
+            },
           },
           rightPriceScale: {
             borderColor: '#485c7b',
+            textColor: '#b2b5be',
+            entireTextOnly: false,
+            visible: true,
+            borderVisible: true,
+            scaleMargins: {
+              top: 0.1,
+              bottom: 0.1,
+            },
+          },
+          leftPriceScale: {
+            visible: false,
           },
           timeScale: {
             borderColor: '#485c7b',
+            textColor: '#b2b5be',
             timeVisible: true,
             secondsVisible: false,
+            borderVisible: true,
+            rightOffset: 12,
+            barSpacing: 6,
+            fixLeftEdge: false,
+            lockVisibleTimeRangeOnResize: true,
           },
           handleScroll: {
             mouseWheel: true,
             pressedMouseMove: true,
+            horzTouchDrag: true,
+            vertTouchDrag: true,
           },
           handleScale: {
             axisPressedMouseMove: true,
             mouseWheel: true,
             pinch: true,
+            axisDoubleClickReset: true,
+          },
+          kineticScroll: {
+            touch: true,
+            mouse: false,
           },
         });
 
         chartRef.current = chart;
         setChartInitialized(true);
         console.log('Chart initialized successfully');
+
+        // Add crosshair move handler for tooltip functionality
+        chart.subscribeCrosshairMove(param => {
+          if (param.point === undefined || !param.time || param.point.x < 0 || param.point.y < 0) {
+            return;
+          }
+
+          // Get data for the current crosshair position
+          const data = param.seriesData;
+          if (data && data.size > 0) {
+            // Find candlestick data
+            for (const [series, seriesData] of data.entries()) {
+              if (seriesData && typeof seriesData === 'object' && 'open' in seriesData) {
+                // This is candlestick data
+                const candleData = seriesData;
+                const time = new Date(param.time * 1000);
+                
+                // You can add custom tooltip logic here
+                console.log('Crosshair data:', {
+                  time: time.toLocaleString(),
+                  open: candleData.open,
+                  high: candleData.high,
+                  low: candleData.low,
+                  close: candleData.close,
+                });
+                break;
+              }
+            }
+          }
+        });
 
         // Handle resize
         const handleResize = () => {
@@ -306,35 +384,70 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
       );
 
       if (hasOHLCV) {
-        // Create candlestick series
+        // Create candlestick series with professional TradingView styling
         const candlestickSeries = chartRef.current.addCandlestickSeries({
-          upColor: '#26a69a',
-          downColor: '#ef5350',
-          borderDownColor: '#ef5350',
-          borderUpColor: '#26a69a',
-          wickDownColor: '#ef5350',
-          wickUpColor: '#26a69a',
+          upColor: '#089981', // TradingView green
+          downColor: '#f23645', // TradingView red
+          borderDownColor: '#f23645',
+          borderUpColor: '#089981',
+          wickDownColor: '#f23645',
+          wickUpColor: '#089981',
+          priceFormat: {
+            type: 'price',
+            precision: 6,
+            minMove: 0.000001,
+          },
+          priceLineVisible: true,
+          lastValueVisible: true,
+          title: token?.symbol || 'Price',
         });
 
-        // Set data
-        candlestickSeries.setData(chartData);
+        // Set data with proper formatting
+        const formattedCandleData = chartData.map(item => ({
+          time: item.time,
+          open: parseFloat(item.open),
+          high: parseFloat(item.high),
+          low: parseFloat(item.low),
+          close: parseFloat(item.close),
+        }));
+        candlestickSeries.setData(formattedCandleData);
         
-        // Create volume series
+        // Create volume series with professional styling
         const volumeSeries = chartRef.current.addHistogramSeries({
           color: '#26a69a',
           priceFormat: {
             type: 'volume',
           },
           priceScaleId: 'volume',
+          scaleMargins: {
+            top: 0.7, // Volume takes bottom 30% of chart
+            bottom: 0,
+          },
+          title: 'Volume',
+          lastValueVisible: false,
+          priceLineVisible: false,
         });
 
-        // Add volume data if available
-        const volumeData = chartData.map(item => ({
-          time: item.time,
-          value: item.volume,
-          color: item.close >= item.open ? '#26a69a' : '#ef5350'
-        }));
-        volumeSeries.setData(volumeData);
+        // Configure volume price scale
+        chartRef.current.priceScale('volume').applyOptions({
+          scaleMargins: {
+            top: 0.7,
+            bottom: 0,
+          },
+        });
+
+        // Add volume data with proper coloring
+        const volumeData = chartData
+          .filter(item => item.volume > 0) // Only show non-zero volume
+          .map(item => ({
+            time: item.time,
+            value: parseFloat(item.volume),
+            color: item.close >= item.open ? '#089981' : '#f23645'
+          }));
+        
+        if (volumeData.length > 0) {
+          volumeSeries.setData(volumeData);
+        }
       } else {
         // Create line series for price data only
         const lineSeries = chartRef.current.addLineSeries({
@@ -352,43 +465,79 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
         console.log('Using line chart for price data');
       }
 
-      // Add technical indicators
-      if (indicators.sma.enabled) {
+      // Add technical indicators with professional styling
+      if (indicators.sma.enabled && chartData.length >= indicators.sma.period) {
         const smaData = calculateSMA(chartData, indicators.sma.period);
         const smaSeries = chartRef.current.addLineSeries({
-          color: '#ff9800',
+          color: '#ff6d00', // TradingView orange
           lineWidth: 2,
-          title: `SMA(${indicators.sma.period})`
+          lineStyle: 0, // solid
+          crosshairMarkerVisible: true,
+          lastValueVisible: true,
+          priceLineVisible: false,
+          title: `SMA(${indicators.sma.period})`,
+          priceFormat: {
+            type: 'price',
+            precision: 6,
+            minMove: 0.000001,
+          },
         });
         smaSeries.setData(smaData);
       }
 
-      if (indicators.ema.enabled) {
+      if (indicators.ema.enabled && chartData.length >= indicators.ema.period) {
         const emaData = calculateEMA(chartData, indicators.ema.period);
         const emaSeries = chartRef.current.addLineSeries({
-          color: '#9c27b0',
+          color: '#2962ff', // TradingView blue
           lineWidth: 2,
-          title: `EMA(${indicators.ema.period})`
+          lineStyle: 0, // solid
+          crosshairMarkerVisible: true,
+          lastValueVisible: true,
+          priceLineVisible: false,
+          title: `EMA(${indicators.ema.period})`,
+          priceFormat: {
+            type: 'price',
+            precision: 6,
+            minMove: 0.000001,
+          },
         });
         emaSeries.setData(emaData);
       }
 
-      if (indicators.bollinger.enabled) {
+      if (indicators.bollinger.enabled && chartData.length >= indicators.bollinger.period) {
         const bbData = calculateBollingerBands(chartData, indicators.bollinger.period, indicators.bollinger.stdDev);
+        
+        // Upper band
         const upperBand = chartRef.current.addLineSeries({
-          color: '#2196f3',
+          color: '#787b86', // TradingView gray
           lineWidth: 1,
-          title: 'BB Upper'
+          lineStyle: 2, // dotted
+          crosshairMarkerVisible: false,
+          lastValueVisible: false,
+          priceLineVisible: false,
+          title: `BB Upper(${indicators.bollinger.period}, ${indicators.bollinger.stdDev})`,
         });
+        
+        // Middle band (SMA)
         const middleBand = chartRef.current.addLineSeries({
-          color: '#2196f3',
+          color: '#787b86',
           lineWidth: 1,
-          title: 'BB Middle'
+          lineStyle: 1, // dashed
+          crosshairMarkerVisible: true,
+          lastValueVisible: true,
+          priceLineVisible: false,
+          title: `BB Middle(${indicators.bollinger.period})`,
         });
+        
+        // Lower band
         const lowerBand = chartRef.current.addLineSeries({
-          color: '#2196f3',
+          color: '#787b86',
           lineWidth: 1,
-          title: 'BB Lower'
+          lineStyle: 2, // dotted
+          crosshairMarkerVisible: false,
+          lastValueVisible: false,
+          priceLineVisible: false,
+          title: `BB Lower(${indicators.bollinger.period}, ${indicators.bollinger.stdDev})`,
         });
         
         upperBand.setData(bbData.map(item => ({ time: item.time, value: item.upper })));
