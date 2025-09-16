@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, ChevronDown, Maximize2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { X, ChevronDown, Maximize2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, BarChart3, TrendingUp } from 'lucide-react';
 import chartService from '../services/chartService';
+import TradingViewChart from './TradingViewChart';
 
 const PriceChartModal = ({ token, onClose }) => {
   const [chartData, setChartData] = useState([]);
@@ -14,6 +15,7 @@ const PriceChartModal = ({ token, onClose }) => {
   const [isLogScale, setIsLogScale] = useState(false);
   const [hoveredPoint, setHoveredPoint] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [chartType, setChartType] = useState('tradingview'); // 'tradingview' or 'custom'
   
   const svgRef = useRef(null);
   const chartContainerRef = useRef(null);
@@ -324,17 +326,45 @@ const PriceChartModal = ({ token, onClose }) => {
               )}
             </div>
 
-            {/* Log Scale Toggle */}
-            <button
-              onClick={() => setIsLogScale(!isLogScale)}
-              className={`px-4 py-2 rounded-lg border transition-colors ${
-                isLogScale 
-                  ? 'bg-blue-600 border-blue-500 text-white' 
-                  : 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700'
-              }`}
-            >
-              LOG
-            </button>
+            {/* Chart Type Toggle */}
+            <div className="flex bg-gray-800 rounded-lg p-1">
+              <button
+                onClick={() => setChartType('tradingview')}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md transition-colors ${
+                  chartType === 'tradingview'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-300 hover:bg-gray-700'
+                }`}
+              >
+                <TrendingUp size={16} />
+                <span>TradingView</span>
+              </button>
+              <button
+                onClick={() => setChartType('custom')}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md transition-colors ${
+                  chartType === 'custom'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-300 hover:bg-gray-700'
+                }`}
+              >
+                <BarChart3 size={16} />
+                <span>Custom</span>
+              </button>
+            </div>
+
+            {/* Log Scale Toggle (only for custom chart) */}
+            {chartType === 'custom' && (
+              <button
+                onClick={() => setIsLogScale(!isLogScale)}
+                className={`px-4 py-2 rounded-lg border transition-colors ${
+                  isLogScale 
+                    ? 'bg-blue-600 border-blue-500 text-white' 
+                    : 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700'
+                }`}
+              >
+                LOG
+              </button>
+            )}
 
             {/* Close Button */}
             <button
@@ -387,141 +417,149 @@ const PriceChartModal = ({ token, onClose }) => {
 
         {/* Chart Container */}
         <div className="p-6">
-          <div 
-            ref={chartContainerRef}
-            className="relative bg-gray-800 rounded-lg border border-gray-700"
-            style={{ height: chartDimensions.height }}
-          >
-            {loading ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-gray-400">Loading chart data...</div>
-              </div>
-            ) : error ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-red-400">Error: {error}</div>
-              </div>
-            ) : chartData.length === 0 ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-gray-400">No chart data available</div>
-              </div>
-            ) : (
-              <svg
-                ref={svgRef}
-                width={chartDimensions.width}
-                height={chartDimensions.height}
-                className="w-full h-full"
-                onMouseMove={handleMouseMove}
-                onMouseLeave={handleMouseLeave}
-              >
-                {/* Grid Lines */}
-                <defs>
-                  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#374151" strokeWidth="1"/>
-                  </pattern>
-                </defs>
-                <rect width="100%" height="100%" fill="url(#grid)" opacity="0.3"/>
+          {chartType === 'tradingview' ? (
+            <TradingViewChart 
+              token={token} 
+              timeframe={timeframe}
+              onClose={onClose}
+            />
+          ) : (
+            <div 
+              ref={chartContainerRef}
+              className="relative bg-gray-800 rounded-lg border border-gray-700"
+              style={{ height: chartDimensions.height }}
+            >
+              {loading ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-gray-400">Loading chart data...</div>
+                </div>
+              ) : error ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-red-400">Error: {error}</div>
+                </div>
+              ) : chartData.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-gray-400">No chart data available</div>
+                </div>
+              ) : (
+                <svg
+                  ref={svgRef}
+                  width={chartDimensions.width}
+                  height={chartDimensions.height}
+                  className="w-full h-full"
+                  onMouseMove={handleMouseMove}
+                  onMouseLeave={handleMouseLeave}
+                >
+                  {/* Grid Lines */}
+                  <defs>
+                    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#374151" strokeWidth="1"/>
+                    </pattern>
+                  </defs>
+                  <rect width="100%" height="100%" fill="url(#grid)" opacity="0.3"/>
 
-                {/* Y-axis labels */}
-                {generateYAxisLabels().map((label, index) => (
-                  <g key={index}>
-                    <line
-                      x1={margin.left}
-                      y1={label.y}
-                      x2={chartDimensions.width - margin.right}
-                      y2={label.y}
-                      stroke="#374151"
-                      strokeWidth="1"
-                    />
+                  {/* Y-axis labels */}
+                  {generateYAxisLabels().map((label, index) => (
+                    <g key={index}>
+                      <line
+                        x1={margin.left}
+                        y1={label.y}
+                        x2={chartDimensions.width - margin.right}
+                        y2={label.y}
+                        stroke="#374151"
+                        strokeWidth="1"
+                      />
+                      <text
+                        x={margin.left - 10}
+                        y={label.y + 4}
+                        textAnchor="end"
+                        className="text-xs fill-gray-400"
+                      >
+                        {formatPrice(label.value)}
+                      </text>
+                    </g>
+                  ))}
+
+                  {/* X-axis labels */}
+                  {generateXAxisLabels().map((label, index) => (
                     <text
-                      x={margin.left - 10}
-                      y={label.y + 4}
-                      textAnchor="end"
+                      key={index}
+                      x={label.x}
+                      y={chartDimensions.height - margin.bottom + 20}
+                      textAnchor="middle"
                       className="text-xs fill-gray-400"
                     >
-                      {formatPrice(label.value)}
+                      {label.label}
                     </text>
-                  </g>
-                ))}
+                  ))}
 
-                {/* X-axis labels */}
-                {generateXAxisLabels().map((label, index) => (
-                  <text
-                    key={index}
-                    x={label.x}
-                    y={chartDimensions.height - margin.bottom + 20}
-                    textAnchor="middle"
-                    className="text-xs fill-gray-400"
-                  >
-                    {label.label}
-                  </text>
-                ))}
+                  {/* Area Chart */}
+                  <path
+                    d={generateAreaPath()}
+                    fill="url(#areaGradient)"
+                    opacity="0.3"
+                  />
 
-                {/* Area Chart */}
-                <path
-                  d={generateAreaPath()}
-                  fill="url(#areaGradient)"
-                  opacity="0.3"
-                />
+                  {/* Line Chart */}
+                  <path
+                    d={generatePath()}
+                    fill="none"
+                    stroke="#e91e63"
+                    strokeWidth="2"
+                  />
 
-                {/* Line Chart */}
-                <path
-                  d={generatePath()}
-                  fill="none"
-                  stroke="#e91e63"
-                  strokeWidth="2"
-                />
+                  {/* Hovered Point */}
+                  {hoveredPoint && (
+                    <g>
+                      <line
+                        x1={hoveredPoint.x}
+                        y1={margin.top}
+                        x2={hoveredPoint.x}
+                        y2={margin.top + chartHeight}
+                        stroke="#ffffff"
+                        strokeWidth="1"
+                        strokeDasharray="4,4"
+                      />
+                      <circle
+                        cx={hoveredPoint.x}
+                        cy={hoveredPoint.y}
+                        r="4"
+                        fill="#e91e63"
+                        stroke="#ffffff"
+                        strokeWidth="2"
+                      />
+                    </g>
+                  )}
 
-                {/* Hovered Point */}
-                {hoveredPoint && (
-                  <g>
-                    <line
-                      x1={hoveredPoint.x}
-                      y1={margin.top}
-                      x2={hoveredPoint.x}
-                      y2={margin.top + chartHeight}
-                      stroke="#ffffff"
-                      strokeWidth="1"
-                      strokeDasharray="4,4"
-                    />
-                    <circle
-                      cx={hoveredPoint.x}
-                      cy={hoveredPoint.y}
-                      r="4"
-                      fill="#e91e63"
-                      stroke="#ffffff"
-                      strokeWidth="2"
-                    />
-                  </g>
-                )}
+                  {/* Gradients */}
+                  <defs>
+                    <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="#e91e63" stopOpacity="0.6"/>
+                      <stop offset="100%" stopColor="#e91e63" stopOpacity="0"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
+              )}
 
-                {/* Gradients */}
-                <defs>
-                  <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stopColor="#e91e63" stopOpacity="0.6"/>
-                    <stop offset="100%" stopColor="#e91e63" stopOpacity="0"/>
-                  </linearGradient>
-                </defs>
-              </svg>
-            )}
-
-            {/* Tooltip */}
-            {hoveredPoint && (
-              <div
-                className="absolute bg-gray-800 border border-gray-600 rounded-lg p-3 shadow-xl pointer-events-none"
-                style={{
-                  left: Math.min(hoveredPoint.x + 10, chartDimensions.width - 200),
-                  top: Math.max(10, hoveredPoint.y - 60)
-                }}
-              >
-                <div className="text-sm text-white font-medium">
-                  {formatPrice(hoveredPoint.data.value)}
+              {/* Tooltip */}
+              {hoveredPoint && (
+                <div
+                  className="absolute bg-gray-800 border border-gray-600 rounded-lg p-3 shadow-xl pointer-events-none"
+                  style={{
+                    left: Math.min(hoveredPoint.x + 10, chartDimensions.width - 200),
+                    top: Math.max(10, hoveredPoint.y - 60)
+                  }}
+                >
+                  <div className="text-sm text-white font-medium">
+                    {formatPrice(hoveredPoint.data.value)}
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    {formatDate(hoveredPoint.data.time)} • {formatTime(hoveredPoint.data.time)}
+                  </div>
                 </div>
-                <div className="text-xs text-gray-400">
-                  {formatDate(hoveredPoint.data.time)} • {formatTime(hoveredPoint.data.time)}
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
