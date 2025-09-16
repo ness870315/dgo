@@ -164,11 +164,12 @@ class HybridPriceService {
       const { default: jupiterApiService } = await import('./jupiterApiService.js');
       const jupiterData = await jupiterApiService.getTokenDetails(contractAddress);
 
-      if (!jupiterData?.firstPool?.id) {
+      // Try graduatedPool first (actual DEX pair), then firstPool.id as fallback
+      const pairAddress = jupiterData.graduatedPool || jupiterData.firstPool?.id;
+      
+      if (!pairAddress) {
         throw new Error('No pair address found from Jupiter');
       }
-
-      const pairAddress = jupiterData.firstPool.id;
       console.log(`🔗 Found pair address for ${contractAddress.substring(0, 8)}: ${pairAddress.substring(0, 8)}`);
 
       // Now get OHLCV data from Moralis using the pair address
@@ -367,8 +368,10 @@ class HybridPriceService {
         const { default: jupiterApiService } = await import('./jupiterApiService.js');
         const jupiterData = await jupiterApiService.getTokenDetails(contractAddress);
 
-        if (jupiterData?.firstPool?.id) {
-          const pairAddress = jupiterData.firstPool.id;
+        // Try graduatedPool first (actual DEX pair), then firstPool.id as fallback
+        const pairAddress = jupiterData.graduatedPool || jupiterData.firstPool?.id;
+        
+        if (pairAddress) {
           console.log(`🔗 Found pair address for ${contractAddress.substring(0, 8)}: ${pairAddress.substring(0, 8)}`);
 
           // Get current price from Jupiter (since Moralis OHLCV is for historical data)
