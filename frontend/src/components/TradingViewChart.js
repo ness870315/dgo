@@ -200,6 +200,10 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
             console.log('Triggering data application after chart init');
             const candles = normalizeCandles(chartData);
             if (candles.length > 0) {
+              // Check for flat data (all OHLC values same)
+              const flatCandles = candles.filter(c => c.open === c.high && c.high === c.low && c.low === c.close);
+              console.log(`Data analysis: ${candles.length} total candles, ${flatCandles.length} flat candles (${((flatCandles.length/candles.length)*100).toFixed(1)}%)`);
+              
               seriesRef.current.setData(candles);
               chartRef.current?.timeScale().fitContent();
               console.log('Post-init data applied successfully');
@@ -261,6 +265,14 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
     }
 
     console.log('Applying', candles.length, 'normalized candles to chart via data effect');
+
+    // Check for flat data (all OHLC values same)
+    const flatCandles = candles.filter(c => c.open === c.high && c.high === c.low && c.low === c.close);
+    console.log(`Data analysis: ${candles.length} total candles, ${flatCandles.length} flat candles (${((flatCandles.length/candles.length)*100).toFixed(1)}%)`);
+    
+    if (flatCandles.length > candles.length * 0.8) {
+      console.warn('⚠️ Most candles are flat (no price movement) - chart may appear empty');
+    }
 
     try {
       // Set whole dataset atomically
