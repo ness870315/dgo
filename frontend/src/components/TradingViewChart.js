@@ -8,7 +8,7 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedTimeframe, setSelectedTimeframe] = useState(timeframe);
+  // Use timeframe prop directly instead of local state
   const [indicators, setIndicators] = useState({
     sma: { enabled: false, period: 20 },
     ema: { enabled: false, period: 20 },
@@ -113,14 +113,7 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
     if (token?.contractAddress) {
       loadChartData();
     }
-  }, [token?.contractAddress, selectedTimeframe]);
-
-  // Update selectedTimeframe when timeframe prop changes
-  useEffect(() => {
-    if (timeframe && timeframe !== selectedTimeframe) {
-      setSelectedTimeframe(timeframe);
-    }
-  }, [timeframe]);
+  }, [token?.contractAddress, timeframe]);
 
   // Update chart when data changes
   useEffect(() => {
@@ -137,12 +130,12 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
       return;
     }
 
-    console.log('Loading chart data for:', token.contractAddress, 'timeframe:', selectedTimeframe);
+    console.log('Loading chart data for:', token.contractAddress, 'timeframe:', timeframe);
     setLoading(true);
     setError(null);
 
     try {
-      const response = await chartService.getPriceChart(token.contractAddress, selectedTimeframe, 1000);
+      const response = await chartService.getPriceChart(token.contractAddress, timeframe, 1000);
       console.log('Chart service response:', response);
       
       if (response.success && response.data) {
