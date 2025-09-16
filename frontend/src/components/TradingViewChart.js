@@ -8,6 +8,7 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [chartInitialized, setChartInitialized] = useState(false);
   // Use timeframe prop directly instead of local state
   const [indicators, setIndicators] = useState({
     sma: { enabled: false, period: 20 },
@@ -73,6 +74,7 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
     });
 
         chartRef.current = chart;
+        setChartInitialized(true);
         console.log('Chart initialized successfully');
 
         // Handle resize
@@ -91,6 +93,7 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
           if (chartRef.current) {
             chartRef.current.remove();
           }
+          setChartInitialized(false);
         };
       } catch (error) {
         console.error('Failed to initialize chart:', error);
@@ -106,6 +109,7 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
       if (chartRef.current) {
         chartRef.current.remove();
       }
+      setChartInitialized(false);
     };
   }, []);
 
@@ -119,13 +123,13 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
 
   // Update chart when data changes
   useEffect(() => {
-    if (chartRef.current && chartData.length > 0) {
+    if (chartInitialized && chartRef.current && chartData.length > 0) {
       console.log('Updating chart with data length:', chartData.length);
       updateChart();
     } else if (chartData.length > 0) {
-      console.log('Chart ref not ready, data available:', chartData.length);
+      console.log('Chart not ready, data available:', chartData.length, 'initialized:', chartInitialized);
     }
-  }, [chartData, indicators]);
+  }, [chartData, indicators, chartInitialized]);
 
 
 
@@ -391,6 +395,7 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
               onClick={() => {
                 setError(null);
                 setChartData([]);
+                setChartInitialized(false);
                 if (chartRef.current) {
                   chartRef.current.remove();
                   chartRef.current = null;
