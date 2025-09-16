@@ -48,7 +48,14 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
       try {
         const { createChart, ColorType } = await import("lightweight-charts");
 
-        const chart = createChart(containerRef.current, {
+        // Get container dimensions safely
+        const container = containerRef.current;
+        const containerWidth = container.clientWidth || container.offsetWidth || 800;
+        const containerHeight = container.clientHeight || container.offsetHeight || 400;
+
+        console.log('Creating chart with dimensions:', containerWidth, 'x', containerHeight);
+
+        const chart = createChart(container, {
           layout: { 
             background: { type: ColorType.Solid, color: "#131722" }, 
             textColor: "#d1d4dc",
@@ -80,8 +87,8 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
           handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true },
           handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true, axisDoubleClickReset: true },
           kineticScroll: { touch: true, mouse: false },
-          width: containerRef.current.clientWidth,
-          height: containerRef.current.clientHeight || 400,
+          width: containerWidth,
+          height: containerHeight,
         });
 
         // Create candlestick series
@@ -104,9 +111,12 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
         // Responsive resize
         const ro = new ResizeObserver(() => {
           if (!containerRef.current || !chartRef.current) return;
+          const container = containerRef.current;
+          const newWidth = container.clientWidth || container.offsetWidth || 800;
+          const newHeight = container.clientHeight || container.offsetHeight || 400;
           chartRef.current.applyOptions({
-            width: containerRef.current.clientWidth,
-            height: containerRef.current.clientHeight || 400,
+            width: newWidth,
+            height: newHeight,
           });
         });
         ro.observe(containerRef.current);
@@ -119,9 +129,11 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
       }
     };
 
-    init();
+    // Add a small delay to ensure DOM is fully rendered
+    const timeoutId = setTimeout(init, 100);
 
     return () => {
+      clearTimeout(timeoutId);
       destroyed = true;
       try { resizeObsRef.current?.disconnect(); } catch {}
       try { chartRef.current?.remove(); } catch {}
