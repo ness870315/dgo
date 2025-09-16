@@ -125,7 +125,12 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
   useEffect(() => {
     if (chartInitialized && chartRef.current && chartData.length > 0) {
       console.log('Updating chart with data length:', chartData.length);
-      updateChart();
+      // Add a small delay to ensure chart is fully ready
+      setTimeout(() => {
+        if (chartRef.current && chartData.length > 0) {
+          updateChart();
+        }
+      }, 100);
     } else if (chartData.length > 0) {
       console.log('Chart not ready, data available:', chartData.length, 'initialized:', chartInitialized);
     }
@@ -266,6 +271,13 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
         return;
       }
       
+      // Check if chart is still valid before removing series
+      if (!chartRef.current || typeof chartRef.current.removeAllSeries !== 'function') {
+        console.error('Chart became invalid during update');
+        setError('Chart became invalid during update - please refresh the page');
+        return;
+      }
+      
       // Remove existing series
       chartRef.current.removeAllSeries();
 
@@ -286,25 +298,27 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
         wickUpColor: '#26a69a',
       });
 
-      // Create volume series
-      const volumeSeries = chartRef.current.addHistogramSeries({
-        color: '#26a69a',
-        priceFormat: {
-          type: 'volume',
-        },
-        priceScaleId: 'volume',
-      });
-
       // Set data
       candlestickSeries.setData(chartData);
       
-      // Add volume data if available
-      const volumeData = chartData.map(item => ({
-        time: item.time,
-        value: item.volume,
-        color: item.close >= item.open ? '#26a69a' : '#ef5350'
-      }));
-      volumeSeries.setData(volumeData);
+      // Create volume series only if chart is still valid
+      if (chartRef.current && typeof chartRef.current.addHistogramSeries === 'function') {
+        const volumeSeries = chartRef.current.addHistogramSeries({
+          color: '#26a69a',
+          priceFormat: {
+            type: 'volume',
+          },
+          priceScaleId: 'volume',
+        });
+
+        // Add volume data if available
+        const volumeData = chartData.map(item => ({
+          time: item.time,
+          value: item.volume,
+          color: item.close >= item.open ? '#26a69a' : '#ef5350'
+        }));
+        volumeSeries.setData(volumeData);
+      }
     } else {
       // Create line series for price data only
       const lineSeries = chartRef.current.addLineSeries({
@@ -322,52 +336,56 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
       console.log('Using line chart for price data');
     }
 
-    // Add technical indicators
-    if (indicators.sma.enabled) {
-      const smaData = calculateSMA(chartData, indicators.sma.period);
-      const smaSeries = chartRef.current.addLineSeries({
-        color: '#ff9800',
-        lineWidth: 2,
-        title: `SMA(${indicators.sma.period})`
-      });
-      smaSeries.setData(smaData);
+    // Add technical indicators only if chart is still valid
+    if (chartRef.current && typeof chartRef.current.addLineSeries === 'function') {
+      if (indicators.sma.enabled) {
+        const smaData = calculateSMA(chartData, indicators.sma.period);
+        const smaSeries = chartRef.current.addLineSeries({
+          color: '#ff9800',
+          lineWidth: 2,
+          title: `SMA(${indicators.sma.period})`
+        });
+        smaSeries.setData(smaData);
+      }
+
+      if (indicators.ema.enabled) {
+        const emaData = calculateEMA(chartData, indicators.ema.period);
+        const emaSeries = chartRef.current.addLineSeries({
+          color: '#9c27b0',
+          lineWidth: 2,
+          title: `EMA(${indicators.ema.period})`
+        });
+        emaSeries.setData(emaData);
+      }
+
+      if (indicators.bollinger.enabled) {
+        const bbData = calculateBollingerBands(chartData, indicators.bollinger.period, indicators.bollinger.stdDev);
+        const upperBand = chartRef.current.addLineSeries({
+          color: '#2196f3',
+          lineWidth: 1,
+          title: 'BB Upper'
+        });
+        const middleBand = chartRef.current.addLineSeries({
+          color: '#2196f3',
+          lineWidth: 1,
+          title: 'BB Middle'
+        });
+        const lowerBand = chartRef.current.addLineSeries({
+          color: '#2196f3',
+          lineWidth: 1,
+          title: 'BB Lower'
+        });
+        
+        upperBand.setData(bbData.map(item => ({ time: item.time, value: item.upper })));
+        middleBand.setData(bbData.map(item => ({ time: item.time, value: item.middle })));
+        lowerBand.setData(bbData.map(item => ({ time: item.time, value: item.lower })));
+      }
     }
 
-    if (indicators.ema.enabled) {
-      const emaData = calculateEMA(chartData, indicators.ema.period);
-      const emaSeries = chartRef.current.addLineSeries({
-        color: '#9c27b0',
-        lineWidth: 2,
-        title: `EMA(${indicators.ema.period})`
-      });
-      emaSeries.setData(emaData);
-    }
-
-    if (indicators.bollinger.enabled) {
-      const bbData = calculateBollingerBands(chartData, indicators.bollinger.period, indicators.bollinger.stdDev);
-      const upperBand = chartRef.current.addLineSeries({
-        color: '#2196f3',
-        lineWidth: 1,
-        title: 'BB Upper'
-      });
-      const middleBand = chartRef.current.addLineSeries({
-        color: '#2196f3',
-        lineWidth: 1,
-        title: 'BB Middle'
-      });
-      const lowerBand = chartRef.current.addLineSeries({
-        color: '#2196f3',
-        lineWidth: 1,
-        title: 'BB Lower'
-      });
-      
-      upperBand.setData(bbData.map(item => ({ time: item.time, value: item.upper })));
-      middleBand.setData(bbData.map(item => ({ time: item.time, value: item.middle })));
-      lowerBand.setData(bbData.map(item => ({ time: item.time, value: item.lower })));
-    }
-
-      // Fit content
-      chartRef.current.timeScale().fitContent();
+      // Fit content only if chart is still valid
+      if (chartRef.current && typeof chartRef.current.timeScale === 'function') {
+        chartRef.current.timeScale().fitContent();
+      }
       console.log('Chart updated successfully');
     } catch (error) {
       console.error('Failed to update chart:', error);
