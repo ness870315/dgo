@@ -62,8 +62,8 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
     console.log('Chart initialization useEffect triggered');
     let destroyed = false;
 
-    const init = async () => {
-      console.log('Init function called');
+    const init = async (retryCount = 0) => {
+      console.log('Init function called, retry:', retryCount);
       console.log('Window check:', typeof window !== "undefined");
       console.log('Container ref current:', !!containerRef.current);
       console.log('Chart ref current:', !!chartRef.current);
@@ -72,9 +72,23 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
         console.log('SSR guard triggered, returning');
         return;               // SSR guard
       }
-      if (!containerRef.current || chartRef.current) {
-        console.log('Container not ready or chart already exists, returning');
-        return;   // container ready & not already init
+      
+      if (chartRef.current) {
+        console.log('Chart already exists, returning');
+        return;   // already created
+      }
+      
+      if (!containerRef.current) {
+        console.log('Container not ready, retry count:', retryCount);
+        if (retryCount < 10) { // Retry up to 10 times
+          console.log('Retrying init in 200ms...');
+          setTimeout(() => init(retryCount + 1), 200);
+          return;
+        } else {
+          console.error('Container ref never became ready after 10 retries');
+          setError('Chart container failed to initialize');
+          return;
+        }
       }
 
       try {
