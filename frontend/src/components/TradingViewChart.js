@@ -167,6 +167,17 @@ const TradingViewChart = ({ token, timeframe = '1D', onClose }) => {
           seriesRef: !!seriesRef.current
         });
 
+        // Apply any existing data immediately after chart creation
+        if (chartData.length > 0) {
+          console.log('Applying existing data to newly created chart');
+          const candles = normalizeCandles(chartData);
+          if (candles.length > 0) {
+            series.setData(candles);
+            chart.timeScale().fitContent();
+            console.log('Initial data applied successfully');
+          }
+        }
+
         // Responsive resize
         const ro = new ResizeObserver(() => {
           if (!containerRef.current || !chartRef.current) return;
