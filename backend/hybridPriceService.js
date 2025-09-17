@@ -292,23 +292,26 @@ class HybridPriceService {
 
   /**
    * Get optimal number of candles per timeframe for snappy charts
-   * Based on TradingView best practices: ~150-300 visible bars, 3-5x for smooth zooming
+   * Based on TradingView best practices: MV/RD/MP system
+   * All tokens are memecoins - optimized for memecoin trading
    */
-  getOptimalCandleCount(timeframe) {
+  getOptimalCandleCount(timeframe, tier = 'RD') {
     const candleCounts = {
-      '1MIN': 1440,  // ~24 hours (RD: good default)
-      '5MIN': 1000,  // ~3.5 days
-      '15MIN': 1000, // ~10.4 days  
-      '1H': 1000,    // ~41.7 days
-      '4H': 800,     // ~133 days
-      '1D': 750,     // ~2.1 years
-      '1W': 260,     // ~5 years
-      '1M': 120,     // ~10 years
-      '3M': 120,     // ~30 years
-      '1Y': 120,     // ~120 years
-      'ALL': 240     // All time
+      '1MIN': { MV: 300, RD: 1440, MP: 5000 },  // ~24 hours
+      '5MIN': { MV: 300, RD: 1000, MP: 3000 },  // ~3.5 days  
+      '15MIN': { MV: 300, RD: 1000, MP: 3000 }, // ~10.4 days
+      '1H': { MV: 300, RD: 1000, MP: 2000 },    // ~41.7 days
+      '4H': { MV: 300, RD: 800, MP: 2000 },     // ~133 days
+      '1D': { MV: 300, RD: 750, MP: 1500 },     // ~2.1 years
+      '1W': { MV: 300, RD: 260, MP: 520 },      // ~5 years
+      '1M': { MV: 300, RD: 120, MP: 240 },      // ~10 years
+      '3M': { MV: 300, RD: 120, MP: 240 },      // ~30 years
+      '1Y': { MV: 300, RD: 120, MP: 240 },      // ~120 years
+      'ALL': { MV: 300, RD: 240, MP: 480 }      // All time
     };
-    return candleCounts[timeframe] || 750; // Default to 1D count
+    
+    const timeframeCounts = candleCounts[timeframe] || candleCounts['1D'];
+    return timeframeCounts[tier] || timeframeCounts.RD;
   }
 
   /**
@@ -318,19 +321,21 @@ class HybridPriceService {
    * @param {number} limit - Number of data points (auto-optimized if not specified)
    * @param {number} beforeTime - Load data before this timestamp (for lazy loading)
    * @param {number} afterTime - Load data after this timestamp (for diff-append)
+   * @param {string} tier - MV/RD/MP tier for memecoin optimization
    * @returns {Object} Chart data in TradingView format
    */
-  async getHistoricalPrices(contractAddress, timeframe = '1D', limit = null, beforeTime = null, afterTime = null) {
-    // Use optimal candle count if limit not specified
-    const optimalLimit = limit || this.getOptimalCandleCount(timeframe);
+  async getHistoricalPrices(contractAddress, timeframe = '1D', limit = null, beforeTime = null, afterTime = null, tier = 'RD') {
+    // Use optimal candle count if limit not specified (memecoin optimized)
+    const optimalLimit = limit || this.getOptimalCandleCount(timeframe, tier);
     
     const logParams = { 
       candles: optimalLimit, 
       timeframe,
+      tier: tier,
       before: beforeTime ? new Date(beforeTime * 1000).toISOString() : null,
       after: afterTime ? new Date(afterTime * 1000).toISOString() : null
     };
-    console.log(`📊 Loading chart data:`, logParams);
+    console.log(`📊 Loading chart data (${tier} tier):`, logParams);
     
     try {
       // Try multiple data sources in order of preference

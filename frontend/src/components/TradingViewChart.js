@@ -164,21 +164,20 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
         },
       });
 
-      // Dynamic precision for memecoin prices
+      // Memecoin precision - all tokens are memecoins, use maximum precision
       const samplePrice = chartData[0]?.close || token?.price || 1;
-      let precision = 2;
-      let minMove = 0.01;
+      let precision = 9;      // Maximum precision for memecoins
+      let minMove = 1e-9;     // Maximum precision for tiny price movements
       
-      if (samplePrice < 0.001) {
-        precision = 9;
-        minMove = 1e-9;
-      } else if (samplePrice < 0.01) {
+      // Adjust precision based on price range for better display
+      if (samplePrice >= 1) {
         precision = 6;
         minMove = 0.000001;
-      } else if (samplePrice < 1) {
-        precision = 4;
-        minMove = 0.0001;
+      } else if (samplePrice >= 0.01) {
+        precision = 8;
+        minMove = 1e-8;
       }
+      // else: keep maximum precision (9) for very small prices
 
       const candlestickSeries = chart.addCandlestickSeries({
         upColor: "#089981",

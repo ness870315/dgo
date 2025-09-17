@@ -6882,7 +6882,7 @@ class EnhancedBackend {
     this.app.get('/api/tokens/:contract/price-chart', async (req, res) => {
       try {
         const { contract } = req.params;
-        const { timeframe = '1D', limit, before, after } = req.query;
+        const { timeframe = '1D', limit, before, after, tier = 'RD' } = req.query;
 
         if (!contract) {
           return res.status(400).json({ 
@@ -6897,17 +6897,19 @@ class EnhancedBackend {
 
         console.log(`[🛡️ Enhanced Backend] 📈 Price chart request for ${contract.substring(0, 8)} (${timeframe})`, {
           limit: parsedLimit,
+          tier: tier,
           before: beforeTime ? new Date(beforeTime * 1000).toISOString() : null,
           after: afterTime ? new Date(afterTime * 1000).toISOString() : null
         });
 
-        // Get historical price data using hybrid service
+        // Get historical price data using hybrid service with tier support
         const chartData = await this.hybridPriceService.getHistoricalPrices(
           contract, 
           timeframe, 
           parsedLimit,
           beforeTime,
-          afterTime
+          afterTime,
+          tier
         );
 
         res.json({

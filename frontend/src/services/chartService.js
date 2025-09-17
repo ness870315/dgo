@@ -2,9 +2,75 @@ class ChartService {
   constructor() {
     this.API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
     
-    // In-memory cache for chart data (per timeframe)
+    // Persistent cache for chart data (per timeframe) using localStorage
     this.chartCache = new Map();
     this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
+    this.cacheKey = 'xtrend_chart_cache';
+    
+    // Load persistent cache on initialization
+    this.loadPersistentCache();
+  }
+
+  /**
+   * Load persistent cache from localStorage (atomic read)
+   */
+  loadPersistentCache() {
+    try {
+      const cached = localStorage.getItem(this.cacheKey);
+      if (cached) {
+        const data = JSON.parse(cached);
+        
+        // Restore Map from stored object
+        if (data.entries && Array.isArray(data.entries)) {
+          this.chartCache = new Map(data.entries);
+          console.log(`📦 Loaded ${this.chartCache.size} cached chart entries from persistent storage`);
+        }
+      }
+    } catch (error) {
+      console.warn(`⚠️ Failed to load persistent chart cache: ${error.message}`);
+      this.chartCache = new Map(); // Reset to empty cache
+    }
+  }
+
+  /**
+   * Save cache to localStorage (atomic write)
+   */
+  savePersistentCache() {
+    try {
+      const data = {
+        entries: Array.from(this.chartCache.entries()),
+        timestamp: Date.now(),
+        version: '1.0'
+      };
+      
+      // Atomic write to localStorage
+      localStorage.setItem(this.cacheKey, JSON.stringify(data));
+      console.log(`💾 Saved ${this.chartCache.size} chart entries to persistent storage (atomic)`);
+    } catch (error) {
+      console.warn(`⚠️ Failed to save persistent chart cache: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get optimal limit for MV/RD/MP tier system (memecoin optimized)
+   */
+  getOptimalLimitForTier(timeframe, tier = 'RD') {
+    const limits = {
+      '1MIN': { MV: 300, RD: 1440, MP: 5000 },  // ~24 hours
+      '5MIN': { MV: 300, RD: 1000, MP: 3000 },  // ~3.5 days  
+      '15MIN': { MV: 300, RD: 1000, MP: 3000 }, // ~10.4 days
+      '1H': { MV: 300, RD: 1000, MP: 2000 },    // ~41.7 days
+      '4H': { MV: 300, RD: 800, MP: 2000 },     // ~133 days
+      '1D': { MV: 300, RD: 750, MP: 1500 },     // ~2.1 years
+      '1W': { MV: 300, RD: 260, MP: 520 },      // ~5 years
+      '1M': { MV: 300, RD: 120, MP: 240 },      // ~10 years
+      '3M': { MV: 300, RD: 120, MP: 240 },      // ~30 years
+      '1Y': { MV: 300, RD: 120, MP: 240 },      // ~120 years
+      'ALL': { MV: 300, RD: 240, MP: 480 }      // All time
+    };
+    
+    const timeframeLimits = limits[timeframe] || limits['1D'];
+    return timeframeLimits[tier] || timeframeLimits.RD;
   }
 
   /**
@@ -37,7 +103,7 @@ class ChartService {
   }
 
   /**
-   * Cache chart data
+   * Cache chart data (atomic and persistent)
    */
   setCachedChart(contractAddress, timeframe, data) {
     const cacheKey = this.getCacheKey(contractAddress, timeframe);
@@ -47,22 +113,29 @@ class ChartService {
       oldestTime: data?.data?.[0]?.time || null,
       newestTime: data?.data?.[data?.data?.length - 1]?.time || null
     });
-    console.log(`💾 Cached chart data for ${timeframe} (${data?.data?.length || 0} candles)`);
+    
+    // Atomic write to persistent storage
+    this.savePersistentCache();
+    
+    console.log(`💾 Cached chart data for ${timeframe} (${data?.data?.length || 0} candles) - persistent`);
   }
 
   /**
-   * Lazy load older bars when user scrolls left
+   * Lazy load older bars when user scrolls left (MP tier for extended history)
    * @param {string} contractAddress - Token contract address
    * @param {string} timeframe - Current timeframe
    * @param {number} beforeTime - Load bars before this timestamp
-   * @param {number} limit - Number of older bars to load
+   * @param {string} tier - MV/RD/MP tier ('MP' for lazy loading)
    */
-  async loadOlderBars(contractAddress, timeframe, beforeTime, limit = 500) {
+  async loadOlderBars(contractAddress, timeframe, beforeTime, tier = 'MP') {
     try {
-      console.log(`📜 Loading ${limit} older bars for ${timeframe} before ${new Date(beforeTime * 1000).toISOString()}`);
+      // Get optimal limit for the tier (MP = max prefetch for lazy loading)
+      const optimalLimit = this.getOptimalLimitForTier(timeframe, tier);
+      
+      console.log(`📜 Loading ${optimalLimit} older bars (${tier} tier) for ${timeframe} before ${new Date(beforeTime * 1000).toISOString()}`);
       
       const response = await fetch(
-        `${this.API_BASE}/api/tokens/${contractAddress}/price-chart?timeframe=${timeframe}&limit=${limit}&before=${beforeTime}`
+        `${this.API_BASE}/api/tokens/${contractAddress}/price-chart?timeframe=${timeframe}&limit=${optimalLimit}&before=${beforeTime}&tier=${tier}`
       );
       
       if (!response.ok) {
@@ -83,7 +156,7 @@ class ChartService {
           count: existing.data.count + olderData.data.length
         };
         
-        // Update cache with merged data
+        // Update cache with merged data (atomic and persistent)
         this.chartCache.set(cacheKey, {
           data: mergedData,
           timestamp: existing.timestamp,
@@ -91,7 +164,10 @@ class ChartService {
           newestTime: existing.newestTime
         });
         
-        console.log(`🔄 Merged ${olderData.data.length} older bars. Total: ${mergedData.data.length} candles`);
+        // Atomic write to persistent storage
+        this.savePersistentCache();
+        
+        console.log(`🔄 Merged ${olderData.data.length} older bars. Total: ${mergedData.data.length} candles - persistent`);
         return mergedData;
       }
       
@@ -137,7 +213,7 @@ class ChartService {
           count: existing.data.count + newData.data.length
         };
         
-        // Update cache with merged data
+        // Update cache with merged data (atomic and persistent)
         this.chartCache.set(cacheKey, {
           data: mergedData,
           timestamp: Date.now(), // Update timestamp for fresh data
@@ -145,7 +221,10 @@ class ChartService {
           newestTime: newData.data[newData.data.length - 1]?.time || existing.newestTime
         });
         
-        console.log(`➕ Appended ${newData.data.length} new candles. Total: ${mergedData.data.length} candles`);
+        // Atomic write to persistent storage
+        this.savePersistentCache();
+        
+        console.log(`➕ Appended ${newData.data.length} new candles. Total: ${mergedData.data.length} candles - persistent`);
         return mergedData;
       }
       
