@@ -130,8 +130,6 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
         rightPriceScale: { borderColor: '#374151', scaleMargins: { top: 0.1, bottom: 0.15 } },
         timeScale: { borderColor: '#374151', timeVisible: true },
         crosshair: { mode: 1 },
-        width: el.clientWidth,
-        height: el.clientHeight || 400,
         autoSize: true, // Let the chart auto-size to container
       });
 
@@ -149,6 +147,15 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
         width: el.clientWidth,
         height: el.clientHeight || 400,
       });
+
+      // Force resize after a small delay to ensure DOM is ready
+      setTimeout(() => {
+        chart.applyOptions({
+          width: el.clientWidth,
+          height: el.clientHeight || 400,
+        });
+        console.log('🔄 Forced chart resize to:', el.clientWidth, el.clientHeight);
+      }, 100);
 
       // keep chart sized to container
       ro = new ResizeObserver(() => {
