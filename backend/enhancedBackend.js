@@ -3194,6 +3194,21 @@ class EnhancedBackend {
           });
         }
         
+        // Get token data first
+        const tokens = await this.getTokensFromCache();
+        const token = tokens.find(t => 
+          t.contractAddress?.toLowerCase() === contract.toLowerCase() ||
+          t.symbol?.toLowerCase() === contract.toLowerCase()
+        );
+        
+        if (!token) {
+          return res.json({
+            success: false,
+            error: 'Token not found',
+            message: 'Token not found in our database'
+          });
+        }
+        
         // Get hype data for the token
         const hypeData = await this.getHypeDataForAnalysis(contract, range);
         
