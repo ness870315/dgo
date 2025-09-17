@@ -128,13 +128,12 @@ Respond in this JSON format:
   },
   "catalysts": [
     "HOLDER EXPLOSION: {holderChange24h}% new wallets in 24h - either viral traction that would make a pandemic jealous or coordinated pump energy",
-    "SOCIAL MOMENTUM: {totalMentions} mentions with {tweetSentiments} sentiment - community either absolutely sending it or getting rekt harder than a noob on leverage",
-    "INFLUENCER HYPE: {influencerMentions} influencer mentions building {topHashtags} hashtag trends - either organic moon mission or forced pump attempt"
+    "SOCIAL MOMENTUM: {totalMentions} mentions with {tweetSentiments} sentiment - community either absolutely sending it or getting rekt harder than a noob on leverage"
   ],
   "redFlags": [
     "ORGANIC SCORE ALERT: {organicScore}/100 organic score suggests bot activity or authentic community vibes - either red flag city or based community",
     "VOLUME DISTRIBUTION: {sellVolume24h} sell volume vs {buyVolume24h} buy volume - either paper hands dumping faster than a house of cards or diamond hands accumulating like there's no tomorrow",
-    "SOCIAL ACTIVITY: {tweetFrequency} tweets/day with {engagementRate}% engagement - either dead community vibes or active degen energy"
+    "SOCIAL ACTIVITY: {tweetsPerDay} tweets/day with {engagementRate}% engagement - either dead community vibes or active degen energy"
   ],
   "recommendedActions": ["Add to Watchlist", "Hype over Time", "Call it"]
 }

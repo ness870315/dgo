@@ -305,6 +305,10 @@ async initialize() {
       tweetFrequency: twitterData.tweetFrequency || (twitterData.mentions > 0 ? 'Active' : 'Low'),
       followerGrowth: twitterData.followerGrowth || (twitterData.followers > 1000 ? 'Growing' : 'Stable'),
       influencerMentions: twitterData.influencerMentions || (twitterData.mentions > 10 ? 'Some' : 'None'),
+      
+      // Fix social activity calculations
+      tweetsPerDay: twitterData.tweetFrequency || (twitterData.mentions > 0 ? Math.round(twitterData.mentions / 24) : 0),
+      engagementRate: this.calculateEngagementRate(twitterData) || '0.00',
       // Fix: Check ALL sources that TokenDetails checks for official handle
       officialHandle: tokenData.socials?.twitter ||
                       jupiterData.twitter ||
@@ -331,7 +335,7 @@ async initialize() {
       stats6h: this.formatJupiterStats(jupiterData.stats6h), 
       stats24h: this.formatJupiterStats(jupiterData.stats24h),
       
-      // Individual stats for template variables (simplified names)
+      // Individual stats for template variables (simplified names) - all 2 decimal places
       priceChange24h: Number(stats24h.priceChange || 0).toFixed(2),
       volumeChange24h: Number(stats24h.volumeChange || 0).toFixed(2),
       holderChange24h: Number(stats24h.holderChange || 0).toFixed(2),
@@ -340,11 +344,11 @@ async initialize() {
       sellVolume24h: this.formatNumber(stats24h.sellVolume || 0),
       
       // Fix organic score to 2 decimal places
-      organicScore: Math.round((jupiterData.organicScore || 0) * 100) / 100,
+      organicScore: Number((jupiterData.organicScore || 0)).toFixed(2),
       
-      // Enhanced scoring data
-      overallScore: tokenData.overallScore || tokenData.score || 0,
-      sentimentScore: tokenData.sentimentScore || tokenData.twitterData?.sentimentScore || tokenData.mediasentiment || 5,
+      // Enhanced scoring data - all 2 decimal places
+      overallScore: Number(tokenData.overallScore || tokenData.score || 0).toFixed(2),
+      sentimentScore: Number(tokenData.sentimentScore || tokenData.twitterData?.sentimentScore || tokenData.mediasentiment || 5).toFixed(2),
 
       // Volume and trading data - Fix: Use correct analytics field names
       volume24h: this.formatNumber(
