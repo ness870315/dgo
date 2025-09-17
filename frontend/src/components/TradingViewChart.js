@@ -178,7 +178,7 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
             el.style.height = `${containerHeight}px`;
             
             // Force a layout recalculation
-            el.offsetHeight;
+            const _ = el.offsetHeight; // Force layout recalculation
             
             console.log('🔍 Container dimensions before recreation:', el.clientWidth, el.clientHeight);
             
