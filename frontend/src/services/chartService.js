@@ -74,10 +74,10 @@ class ChartService {
   }
 
   /**
-   * Get cache key for chart data
+   * Get cache key for chart data (include tier to prevent collisions)
    */
-  getCacheKey(contractAddress, timeframe) {
-    return `${contractAddress}_${timeframe}`;
+  getCacheKey(contractAddress, timeframe, tier = 'RD') {
+    return `${contractAddress}_${timeframe}_${tier}`;
   }
 
   /**
@@ -90,12 +90,12 @@ class ChartService {
   /**
    * Get cached chart data if available and valid
    */
-  getCachedChart(contractAddress, timeframe) {
-    const cacheKey = this.getCacheKey(contractAddress, timeframe);
+  getCachedChart(contractAddress, timeframe, tier = 'RD') {
+    const cacheKey = this.getCacheKey(contractAddress, timeframe, tier);
     const cached = this.chartCache.get(cacheKey);
     
     if (this.isCacheValid(cached)) {
-      console.log(`📦 Using cached chart data for ${timeframe}`);
+      console.log(`📦 Using cached chart data for ${timeframe} (${tier} tier)`);
       return cached.data;
     }
     
@@ -105,8 +105,8 @@ class ChartService {
   /**
    * Cache chart data (atomic and persistent)
    */
-  setCachedChart(contractAddress, timeframe, data) {
-    const cacheKey = this.getCacheKey(contractAddress, timeframe);
+  setCachedChart(contractAddress, timeframe, data, tier = 'RD') {
+    const cacheKey = this.getCacheKey(contractAddress, timeframe, tier);
     this.chartCache.set(cacheKey, {
       data: data,
       timestamp: Date.now(),
@@ -117,7 +117,7 @@ class ChartService {
     // Atomic write to persistent storage
     this.savePersistentCache();
     
-    console.log(`💾 Cached chart data for ${timeframe} (${data?.data?.length || 0} candles) - persistent`);
+    console.log(`💾 Cached chart data for ${timeframe} (${tier} tier, ${data?.data?.length || 0} candles) - persistent`);
   }
 
   /**
@@ -259,22 +259,28 @@ class ChartService {
    * @param {string} contractAddress - Token contract address
    * @param {string} timeframe - Timeframe: '1MIN', '5MIN', '15MIN', '1H', '4H', '1D', '1W', '1M'
    * @param {number} limit - Number of data points (auto-optimized if not specified)
+   * @param {string} tier - MV/RD/MP tier for memecoin optimization
    * @returns {Promise<Object>} Chart data response
    */
-  async getPriceChart(contractAddress, timeframe = '1D', limit = null) {
+  async getPriceChart(contractAddress, timeframe = '1D', limit = null, tier = 'RD') {
     try {
-      // Check cache first
-      const cached = this.getCachedChart(contractAddress, timeframe);
+      // Check cache first (tier-specific)
+      const cached = this.getCachedChart(contractAddress, timeframe, tier);
       if (cached) {
         return cached;
       }
 
-      // Fetch from API (limit is auto-optimized on backend if null)
-      const url = limit 
-        ? `${this.API_BASE}/api/tokens/${contractAddress}/price-chart?timeframe=${timeframe}&limit=${limit}`
-        : `${this.API_BASE}/api/tokens/${contractAddress}/price-chart?timeframe=${timeframe}`;
+      // Fetch from API with tier parameter
+      const params = new URLSearchParams({
+        timeframe: timeframe,
+        tier: tier
+      });
+      
+      if (limit) {
+        params.append('limit', limit.toString());
+      }
         
-      const response = await fetch(url);
+      const response = await fetch(`${this.API_BASE}/api/tokens/${contractAddress}/price-chart?${params}`);
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -282,8 +288,8 @@ class ChartService {
       
       const data = await response.json();
       
-      // Cache the result
-      this.setCachedChart(contractAddress, timeframe, data);
+      // Cache the result with tier
+      this.setCachedChart(contractAddress, timeframe, data, tier);
       
       return data;
     } catch (error) {
