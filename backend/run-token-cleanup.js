@@ -62,10 +62,19 @@ class TokenCleanupRunner {
 
   async confirmDelete(severityFilter = null) {
     console.log('🗑️ CONFIRMING Token Deletion...\n');
+    console.log('🔍 Severity filter received:', severityFilter);
     
     try {
       // Analyze tokens first
+      console.log('🔍 Analyzing tokens for cleanup...');
       const analysis = await this.cleanupService.analyzeTokensForCleanup();
+      
+      console.log('🔍 Analysis result:', {
+        hasAnalysis: !!analysis,
+        totalTokens: analysis?.total || 0,
+        tokensToDelete: analysis?.toDelete?.length || 0,
+        severityBreakdown: analysis?.stats || {}
+      });
       
       if (!analysis || analysis.toDelete.length === 0) {
         console.log('✅ No tokens need to be deleted.');
@@ -123,17 +132,24 @@ class TokenCleanupRunner {
 const args = process.argv.slice(2);
 const runner = new TokenCleanupRunner();
 
+console.log('🚀 Starting token cleanup script...');
+console.log('🔍 Command line args:', args);
+
 // Check for severity filter
 const severityArg = args.find(arg => arg.startsWith('--severity='));
 const severityFilter = severityArg ? severityArg.split('=')[1] : null;
 
-console.log('🔍 Command line args:', args);
 console.log('🎯 Severity filter:', severityFilter);
+console.log('🔍 Has --delete:', args.includes('--delete'));
+console.log('🔍 Has --confirm:', args.includes('--confirm'));
 
 if (args.includes('--delete') && args.includes('--confirm')) {
+  console.log('🎯 Running confirmDelete with filter:', severityFilter);
   runner.confirmDelete(severityFilter).catch(console.error);
 } else if (args.includes('--delete')) {
+  console.log('🎯 Running deleteTokens');
   runner.deleteTokens().catch(console.error);
 } else {
+  console.log('🎯 Running runAnalysis');
   runner.runAnalysis().catch(console.error);
 }
