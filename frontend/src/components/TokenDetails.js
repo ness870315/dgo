@@ -279,7 +279,6 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
     setAiError(null);
     setAiProgress('Preparing analysis...');
     setShowAILoadingModal(true);
-    console.log('🧠 AI Loading Modal should be visible now:', true);
     
     try {
       const sessionId = localStorage.getItem('sessionId');
@@ -2324,7 +2323,6 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
         )}
 
         {/* AI Loading Modal with Pseudo-Code Animation */}
-        {console.log('🧠 Rendering AI Loading Modal:', showAILoadingModal)}
         {showAILoadingModal && (
           <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 backdrop-blur-sm">
             <div className="bg-gradient-to-br from-purple-900/90 to-blue-900/90 border border-purple-500/50 rounded-2xl p-8 max-w-2xl w-full mx-4 shadow-2xl">
