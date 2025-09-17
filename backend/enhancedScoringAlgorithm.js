@@ -29,15 +29,15 @@ class EnhancedScoringAlgorithm {
         uniquenessFactor: this.calculateUniquenessFactor(symbol, tokenData)
       };
 
-      // Apply weights as specified
+      // Apply weights as specified - REBALANCED TO FIX VOLUME ISSUES
       const weights = {
-        marketTier: 0.05,        // 5%
-        volume1h: 0.15,          // 15% - Increased
-        volume24h: 0.20,         // 20% - Increased
+        marketTier: 0.10,        // 10% - Increased from 5%
+        volume1h: 0.25,          // 25% - Increased from 15%
+        volume24h: 0.30,         // 30% - Increased from 20%
         priceChange6h: 0.10,     // 10%
         organicVolumeRatio: 0.10, // 10%
-        communityHealth: 0.35,    // 35% - Decreased
-        uniquenessFactor: 0.05    // 5%
+        communityHealth: 0.15,    // 15% - Decreased from 35% (MAJOR FIX)
+        uniquenessFactor: 0.00    // 0% - Removed to focus on fundamentals
       };
 
       // Calculate weighted base score
@@ -121,8 +121,18 @@ class EnhancedScoringAlgorithm {
     if (volume1h === 0) return 0.0;
     
     // 🚨 CRITICAL: Heavy volume decline = severe penalty
+    if (volumeChange1h <= -90) {
+      return 0.0; // -90%+ volume drop = zero score (MORE SEVERE)
+    }
+    
+    // 🚨 CRITICAL: Severe volume decline = very low score
+    if (volumeChange1h <= -70) {
+      return 0.5; // -70%+ volume drop = minimal score
+    }
+    
+    // 🚨 CRITICAL: Heavy volume decline = low score
     if (volumeChange1h <= -50) {
-      return 0.0; // -50%+ volume drop = zero score
+      return 1.0; // -50%+ volume drop = very low score
     }
     
     const logVolume = Math.log10(volume1h + 1);
@@ -166,8 +176,18 @@ class EnhancedScoringAlgorithm {
     if (volume24h === 0) return 0.0;
     
     // 🚨 CRITICAL: Heavy volume decline = severe penalty
+    if (volumeChange24h <= -90) {
+      return 0.0; // -90%+ volume drop = zero score (MORE SEVERE)
+    }
+    
+    // 🚨 CRITICAL: Severe volume decline = very low score
+    if (volumeChange24h <= -70) {
+      return 0.5; // -70%+ volume drop = minimal score
+    }
+    
+    // 🚨 CRITICAL: Heavy volume decline = low score
     if (volumeChange24h <= -50) {
-      return 0.0; // -50%+ volume drop = zero score
+      return 1.0; // -50%+ volume drop = very low score
     }
     
     // 🚨 NEW: Heavy liquidity decline = severe penalty
