@@ -95,6 +95,7 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
       roRef.current = ro;
 
       // If data already loaded while hidden, apply it now
+      console.log('🔄 Checking for existing data to apply...');
       applyData();
     };
 
@@ -204,7 +205,10 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
     console.log('✅ Data applied successfully:', candles.length, 'candles');
   };
 
-  useEffect(() => { applyData(); }, [chartData, timeframe, displayMode]);
+  useEffect(() => { 
+    console.log('🔄 applyData effect triggered:', { chartDataLength: chartData?.length, timeframe, displayMode });
+    applyData(); 
+  }, [chartData, timeframe, displayMode]);
 
   // Load chart data
   useEffect(() => {
@@ -222,6 +226,7 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
           console.log('Chart service response:', response);
           setChartData(response.data);
           console.log('Formatted chart data:', response.data);
+          console.log('📊 Data loaded, will trigger applyData effect...');
           console.log('Data quality check:', {
             totalPoints: response.data.length,
             validPrices: response.data.filter(d => d.close && !isNaN(d.close) && d.close > 0).length,
