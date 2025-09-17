@@ -1,278 +1,77 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType } from 'lightweight-charts';
 import chartService from '../services/chartService';
 
 const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
   const containerRef = useRef(null);
-  const chartRef = useRef(null); // { chart, series }
-  const roRef = useRef(null);
+  const chartRef = useRef(null);     // { chart, series }
+  const roRef = useRef(null);        // ResizeObserver
+  const ioRef = useRef(null);        // IntersectionObserver
+  const pendingInitRef = useRef(false);
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [displayMode, setDisplayMode] = useState('price'); // 'price' or 'mcap'
 
-  // Helper: normalize candles data with timeframe bucketing
-  const TF_SEC = { '1MIN':60, '5MIN':300, '15MIN':900, '1H':3600, '4H':14400, '1D':86400, '1W':604800, '1M':2592000 };
-
-  const toSecBucket = (t, timeframe) => {
-    if (t == null) return null;
-    const s = t > 1e12 ? t / 1000 : t;          // ms -> s if needed
-    const sec = Math.floor(s);                  // <- integer seconds
-    const step = TF_SEC[timeframe] || 60;
-    return Math.floor(sec / step) * step;       // align to candle boundary
-  };
-
-  const normalizeCandles = (rows = [], timeframe) => {
-    const pick  = (...xs) => xs.find(v => v != null);
-    const toNum = v => v == null ? null : Number(v);
-
-    // build by time to de-dup if backend sends multiple points per bucket
-    const byTime = new Map();
-
-    for (const d of rows) {
-      const time = toSecBucket(pick(d.time, d.t, d.timestamp), timeframe);
-      const o = toNum(pick(d.open, d.o, d.value));
-      const h = toNum(pick(d.high, d.h, d.value));
-      const l = toNum(pick(d.low , d.l, d.value));
-      const c = toNum(pick(d.close, d.c, d.value));
-      const v = toNum(pick(d.volume, d.v)) ?? 0;
-      if (![time,o,h,l,c].every(Number.isFinite)) continue;
-      byTime.set(time, { time, open:o, high:h, low:l, close:c, volume:v });
-    }
-
-    const out = [...byTime.values()].sort((a,b) => a.time - b.time);
-    return out;
-  };
-
-  // Load chart data
-  const loadChartData = async () => {
-    if (!token?.contractAddress) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      console.log('Loading chart data for:', token.contractAddress, 'timeframe:', timeframe);
-      const response = await chartService.getPriceChart(token.contractAddress, timeframe);
-      
-      if (response.success && response.data) {
-        console.log('Chart service response:', response);
-        const formattedData = response.data.map(item => ({
-          time: item.time,
-          open: item.open,
-          high: item.high,
-          low: item.low,
-          close: item.close,
-          volume: item.volume || 0
-        }));
-        
-        console.log('Formatted chart data:', formattedData);
-        console.log('Data quality check:', {
-          totalPoints: formattedData.length,
-          validPrices: formattedData.filter(d => d.close > 0).length,
-          priceRange: {
-            min: Math.min(...formattedData.map(d => d.close)),
-            max: Math.max(...formattedData.map(d => d.close))
-          },
-          timeRange: {
-            start: new Date(Math.min(...formattedData.map(d => d.time * 1000))).toISOString(),
-            end: new Date(Math.max(...formattedData.map(d => d.time * 1000))).toISOString()
-          }
-        });
-        setChartData(formattedData);
-      } else {
-        throw new Error('No data received from chart service');
-      }
-    } catch (error) {
-      console.error('Failed to load chart data:', error);
-      setError('Failed to load chart data: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Load data when token or timeframe changes
+  // ---- A) WAIT UNTIL VISIBLE + MEASURABLE, THEN INIT ONCE
   useEffect(() => {
-    if (token?.contractAddress) {
-      loadChartData();
-    }
-  }, [token?.contractAddress, timeframe]);
+    const el = containerRef.current;
+    if (!el) return;
 
-  // INIT ONCE - Chart initialization (run once, never destroy on data changes)
-  useEffect(() => {
-    let ro;
+    // If already initialized, do nothing
+    if (chartRef.current) return;
 
-    (async () => {
-      const el = containerRef.current;
-      if (!el) return;
+    // Guard to avoid double init races
+    if (pendingInitRef.current) return;
 
-      // 🛑 wait until the container is visible & measurable
-      if (el.clientWidth === 0 || (el.clientHeight || 0) === 0) {
-        console.log('⏳ Container not measurable, skipping init');
-        return;
-      }
+    // If the tab/panel is hidden OR has no size yet, use IntersectionObserver
+    const isMeasurable = () => el.clientWidth > 0 && el.clientHeight > 0;
+    const tryInit = async () => {
+      if (chartRef.current || pendingInitRef.current) return;
+      if (!isMeasurable()) return;
 
-      console.log('🔍 Container diagnostic:', {
-        width: el.clientWidth,
-        height: el.clientHeight,
-        display: getComputedStyle(el).display,
-        position: getComputedStyle(el).position,
-      });
+      pendingInitRef.current = true;
+      console.log('🚀 Initializing chart when visible and measurable...');
       
-      // Quick size check right before chart creation
-      console.log('size', el?.clientWidth, el?.clientHeight, getComputedStyle(el).display);
-
-      const { createChart, ColorType } = await import('lightweight-charts');
+      const { createChart, ColorType } = await import("lightweight-charts");
 
       const chart = createChart(el, {
-        layout: { background: { type: ColorType.Solid, color: '#0b0f17' }, textColor: '#cbd5e1' },
-        grid: { vertLines: { color: '#2e3a4a' }, horzLines: { color: '#2e3a4a' } }, // brighter so you SEE it
-        rightPriceScale: { borderColor: '#374151', scaleMargins: { top: 0.1, bottom: 0.15 } },
-        timeScale: { borderColor: '#374151', timeVisible: true },
+        layout: { 
+          background: { type: ColorType.Solid, color: "#0b0f17" }, 
+          textColor: "#cbd5e1" 
+        },
+        grid: { 
+          vertLines: { color: "#2e3a4a" }, 
+          horzLines: { color: "#2e3a4a" } 
+        },
+        rightPriceScale: { 
+          borderColor: "#374151", 
+          scaleMargins: { top: 0.1, bottom: 0.15 } 
+        },
+        timeScale: { 
+          borderColor: "#374151", 
+          timeVisible: true 
+        },
         crosshair: { mode: 1 },
-        autoSize: true, // Let the chart auto-size to container
+        width: el.clientWidth,
+        height: el.clientHeight || 400,
       });
 
       const series = chart.addCandlestickSeries({
-        upColor: '#10b981', downColor: '#ef4444',
-        wickUpColor: '#10b981', wickDownColor: '#ef4444',
+        upColor: "#10b981", 
+        downColor: "#ef4444",
+        wickUpColor: "#10b981", 
+        wickDownColor: "#ef4444",
         borderVisible: false,
-        priceFormat: { type: 'price', precision: 9, minMove: 1e-9 },
+        priceFormat: { type: "price", precision: 9, minMove: 1e-9 },
       });
 
       chartRef.current = { chart, series };
+      pendingInitRef.current = false;
 
-      // Capture dimensions at creation time
-      const containerWidth = el.clientWidth;
-      const containerHeight = el.clientHeight || 400;
-      
-      // Force initial resize to ensure proper dimensions
-      chart.applyOptions({
-        width: containerWidth,
-        height: containerHeight,
-      });
+      console.log('✅ Chart initialized with dimensions:', el.clientWidth, el.clientHeight);
 
-      // Force resize after a small delay to ensure DOM is ready
-      setTimeout(() => {
-        // If canvas dimensions are still wrong, recreate the chart
-        const canvases = el.querySelectorAll('canvas');
-        const canvasDimensions = [...canvases].map(c => [c.width, c.height]);
-        const hasWrongDimensions = [...canvases].some(c => c.width < 500 || c.height < 200);
-        
-        console.log('🔍 Canvas dimensions check:', canvasDimensions);
-        console.log('🔍 Has wrong dimensions:', hasWrongDimensions);
-        
-        if (hasWrongDimensions) {
-          console.log('🔄 Canvas dimensions still wrong, recreating chart...');
-          
-          // Destroy current chart
-          chart.remove();
-          
-          // Clear container
-          el.innerHTML = '';
-          
-          // Wait a bit longer for DOM to be ready
-          setTimeout(() => {
-            // Force container to have correct dimensions before recreation
-            el.style.width = `${containerWidth}px`;
-            el.style.height = `${containerHeight}px`;
-            
-            // Force a layout recalculation
-            const _ = el.offsetHeight; // Force layout recalculation
-            
-            console.log('🔍 Container dimensions before recreation:', el.clientWidth, el.clientHeight);
-            
-            // Recreate chart with correct dimensions
-            const newChart = createChart(el, {
-              layout: {
-                background: { type: ColorType.Solid, color: '#000' },
-                textColor: '#fff',
-              },
-              grid: {
-                vertLines: { color: '#1e1e1e' },
-                horzLines: { color: '#1e1e1e' },
-              },
-              crosshair: { mode: 1 },
-              width: containerWidth,
-              height: containerHeight,
-              autoSize: false, // Force explicit dimensions
-            });
-            
-            const newSeries = newChart.addCandlestickSeries({
-              upColor: '#089981',
-              downColor: '#f23645',
-              wickUpColor: '#089981',
-              wickDownColor: '#f23645',
-              borderVisible: false,
-              priceFormat: { type: 'price', precision: 9, minMove: 1e-9 },
-            });
-            
-            // Update refs
-            chartRef.current = { chart: newChart, series: newSeries };
-            
-            console.log('✅ Chart recreated with dimensions:', containerWidth, containerHeight);
-            console.log('🖼️ New canvas check:', 
-              el.querySelectorAll('canvas').length,
-              [...el.querySelectorAll('canvas')].map(c => [c.width, c.height]));
-          }, 200); // Wait 200ms for DOM to be ready
-        } else {
-          // Even if detection didn't work, try one more resize
-          chart.applyOptions({
-            width: containerWidth,
-            height: containerHeight,
-          });
-          chart.timeScale().fitContent();
-          console.log('🔄 Forced chart resize to:', containerWidth, containerHeight);
-          
-          // Check again after resize
-          setTimeout(() => {
-            const finalCanvases = el.querySelectorAll('canvas');
-            const finalDimensions = [...finalCanvases].map(c => [c.width, c.height]);
-            console.log('🔍 Final canvas dimensions after resize:', finalDimensions);
-            
-            // If still wrong, force recreation
-            if ([...finalCanvases].some(c => c.width < 500 || c.height < 200)) {
-              console.log('🚨 Final check: Still wrong dimensions, forcing recreation...');
-              chart.remove();
-              el.innerHTML = '';
-              
-              // Force container dimensions before recreation
-              el.style.width = `${containerWidth}px`;
-              el.style.height = `${containerHeight}px`;
-              
-              const newChart = createChart(el, {
-                layout: {
-                  background: { type: ColorType.Solid, color: '#000' },
-                  textColor: '#fff',
-                },
-                grid: {
-                  vertLines: { color: '#1e1e1e' },
-                  horzLines: { color: '#1e1e1e' },
-                },
-                crosshair: { mode: 1 },
-                width: containerWidth,
-                height: containerHeight,
-                autoSize: false, // Force explicit dimensions
-              });
-              
-              const newSeries = newChart.addCandlestickSeries({
-                upColor: '#089981',
-                downColor: '#f23645',
-                wickUpColor: '#089981',
-                wickDownColor: '#f23645',
-                borderVisible: false,
-                priceFormat: { type: 'price', precision: 9, minMove: 1e-9 },
-              });
-              
-              chartRef.current = { chart: newChart, series: newSeries };
-              console.log('✅ Final recreation complete');
-            }
-          }, 50);
-        }
-      }, 100);
-
-      // keep chart sized to container
-      ro = new ResizeObserver(() => {
+      // Keep chart in sync with container size
+      const ro = new ResizeObserver(() => {
         if (!chartRef.current || !containerRef.current) return;
         chartRef.current.chart.applyOptions({
           width: containerRef.current.clientWidth,
@@ -280,123 +79,223 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
         });
       });
       ro.observe(el);
+      roRef.current = ro;
 
-      // quick viz that canvas exists
-      console.log('🖼️ canvases:',
-        el.querySelectorAll('canvas').length,
-        [...el.querySelectorAll('canvas')].map(c => [c.width, c.height, getComputedStyle(c).zIndex]));
-    })();
+      // If data already loaded while hidden, apply it now
+      applyData();
+    };
+
+    // If already visible and measurable → init now
+    if (isMeasurable() && el.offsetParent !== null) {
+      tryInit();
+    } else {
+      console.log('👁️ Panel not visible yet, waiting with IntersectionObserver...');
+      // Wait until the panel is actually visible
+      const io = new IntersectionObserver((entries) => {
+        const entry = entries[0];
+        if (entry?.isIntersecting) {
+          console.log('👁️ Panel became visible, initializing chart...');
+          // rAF + setTimeout: give layout a tick to compute final size
+          requestAnimationFrame(() => setTimeout(tryInit, 0));
+        }
+      }, { root: null, threshold: 0.01 });
+      io.observe(el);
+      ioRef.current = io;
+    }
 
     return () => {
-      try { ro?.disconnect(); } catch {}
+      try { ioRef.current?.disconnect(); } catch {}
+      try { roRef.current?.disconnect(); } catch {}
       try { chartRef.current?.chart.remove(); } catch {}
       chartRef.current = null;
       roRef.current = null;
+      ioRef.current = null;
+      pendingInitRef.current = false;
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // INIT ONCE
 
-  // APPLY DATA - Update chart data (separate effect, doesn't destroy chart)
-  useEffect(() => {
+  // ---- B) APPLY/UPDATE DATA (safe even if tab was hidden earlier)
+  const normalizeCandles = (rows = [], tf = "1MIN") => {
+    const TF_SEC = { "1MIN":60, "5MIN":300, "15MIN":900, "1H":3600, "4H":14400, "1D":86400, "1W":604800, "1M":2592000 };
+    const step = TF_SEC[tf] || 60;
+    const pick  = (...xs) => xs.find(v => v != null);
+    const toNum = v => v == null ? null : Number(v);
+    const toSecBucket = (t) => {
+      if (t == null) return null;
+      const s = t > 1e12 ? t / 1000 : t;
+      return Math.floor(Math.floor(s) / step) * step; // integer seconds, bucketed
+    };
+    const map = new Map();
+    for (const d of rows) {
+      const time = toSecBucket(pick(d.time, d.t, d.timestamp));
+      const o = toNum(pick(d.open, d.o, d.value));
+      const h = toNum(pick(d.high, d.h, d.value));
+      const l = toNum(pick(d.low , d.l, d.value));
+      const c = toNum(pick(d.close, d.c, d.value));
+      const v = toNum(pick(d.volume, d.v)) ?? 0;
+      if (![time,o,h,l,c].every(Number.isFinite)) continue;
+      map.set(time, { time, open:o, high:h, low:l, close:c, volume:v });
+    }
+    const out = [...map.values()].sort((a,b) => a.time - b.time);
+    return out;
+  };
+
+  const applyData = () => {
     const ref = chartRef.current;
     if (!ref || !chartData?.length) return;
 
+    console.log('📊 Applying data to chart...');
     const candles = normalizeCandles(chartData, timeframe);
     if (!candles.length) return;
 
-    // Bullet-proof data application sequence
-    ref.series.applyOptions({
-      priceFormat: (()=>{
-        const last = candles.at(-1).close;
-        if (displayMode === 'mcap') return { type:'price', precision:0, minMove:1 };
-        if (last >= 1) return { type:'price', precision:6, minMove:1e-6 };
-        if (last >= 0.01) return { type:'price', precision:8, minMove:1e-8 };
-        return { type:'price', precision:9, minMove:1e-9 };
-      })(),
-      title: `${token?.symbol || 'Token'} ${displayMode==='mcap'?'MCap':'Price'}`
-    });
+    // precision from last close
+    const last = candles.at(-1).close;
+    const fmt = last >= 1 ? { type:"price", precision:6, minMove:1e-6 }
+            : last >= 0.01 ? { type:"price", precision:8, minMove:1e-8 }
+                           : { type:"price", precision:9, minMove:1e-9 };
 
+    ref.series.applyOptions({ priceFormat: fmt });
     ref.series.setData(candles);
 
-    const small = candles.length < 60;
-    ref.chart.applyOptions({ timeScale: { rightOffset: small ? 2 : 8, barSpacing: small ? 2 : 6 } });
-
+    // keep bars in view (handles previous scroll/rightOffset state)
     const from = candles[0].time, to = candles.at(-1).time;
+    ref.chart.applyOptions({ 
+      timeScale: { 
+        rightOffset: candles.length < 60 ? 2 : 8, 
+        barSpacing: candles.length < 60 ? 2 : 6 
+      } 
+    });
     ref.chart.timeScale().setVisibleRange({ from, to });
     ref.chart.timeScale().fitContent();
-    
-    console.log(`✅ Data applied successfully: ${candles.length} candles`);
-  }, [chartData, displayMode, timeframe]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96 bg-black rounded-lg border border-gray-700">
-        <div className="text-white">Loading chart data...</div>
-      </div>
-    );
-  }
+    // one more tick to ensure canvases pick up final size
+    requestAnimationFrame(() => {
+      const el = containerRef.current;
+      if (el) {
+        ref.chart.applyOptions({ width: el.clientWidth, height: el.clientHeight || 400 });
+        
+        // Sanity check: verify canvas dimensions
+        const cvs = [...el.querySelectorAll('canvas')];
+        console.log('🖼️ Final canvas check:', cvs.map(c => [c.width, c.height]));
+      }
+    });
 
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center h-96 bg-black rounded-lg border border-gray-700">
-        <div className="text-red-400 mb-4">Error: {error}</div>
-        <button 
-          onClick={loadChartData}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
+    console.log('✅ Data applied successfully:', candles.length, 'candles');
+  };
+
+  useEffect(() => { applyData(); }, [chartData, timeframe, displayMode]);
+
+  // Load chart data
+  useEffect(() => {
+    if (!token?.contract) return;
+
+    const loadChartData = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        console.log(`Loading chart data for: ${token.contract} timeframe: ${timeframe}`);
+        const response = await chartService.getChartData(token.contract, timeframe);
+        
+        if (response.success) {
+          console.log('Chart service response:', response);
+          setChartData(response.data);
+          console.log('Formatted chart data:', response.data);
+          
+          // Data quality check
+          const validPrices = response.data.filter(d => 
+            d.close && !isNaN(d.close) && d.close > 0
+          ).length;
+          
+          const priceRange = response.data.reduce((acc, d) => ({
+            min: Math.min(acc.min, d.close || Infinity),
+            max: Math.max(acc.max, d.close || 0)
+          }), { min: Infinity, max: 0 });
+          
+          const timeRange = response.data.length > 0 ? {
+            start: new Date(response.data[0].time * 1000).toISOString(),
+            end: new Date(response.data[response.data.length - 1].time * 1000).toISOString()
+          } : { start: null, end: null };
+          
+          console.log('Data quality check:', {
+            totalPoints: response.data.length,
+            validPrices,
+            priceRange,
+            timeRange
+          });
+        } else {
+          setError('Failed to load chart data');
+        }
+      } catch (err) {
+        console.error('Chart data loading error:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadChartData();
+  }, [token?.contract, timeframe]);
 
   return (
-    <div className="w-full">
-      {/* Price/Market Cap Toggle */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-2">
-          <span className="text-gray-400 text-sm">Display:</span>
-          <div className="flex bg-gray-800 rounded-lg p-1">
+    <div className="w-full bg-black rounded-lg border border-gray-700 p-4">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex items-center space-x-4">
+          <h3 className="text-white text-lg font-semibold">
+            {token?.symbol || 'Token'} Chart
+          </h3>
+          <div className="flex space-x-2">
             <button
               onClick={() => setDisplayMode('price')}
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                displayMode === 'price'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-400 hover:text-white'
+              className={`px-3 py-1 rounded text-sm ${
+                displayMode === 'price' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
             >
               Price
             </button>
             <button
               onClick={() => setDisplayMode('mcap')}
-              className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                displayMode === 'mcap'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-400 hover:text-white'
+              className={`px-3 py-1 rounded text-sm ${
+                displayMode === 'mcap' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
             >
               Market Cap
             </button>
           </div>
         </div>
-        
-        {/* Token Symbol Display */}
-        <div className="text-white font-medium">
-          {token?.symbol || 'Token'} / {displayMode === 'mcap' ? 'MCap' : 'USD'}
-        </div>
+        <button
+          onClick={onClose}
+          className="text-gray-400 hover:text-white transition-colors"
+        >
+          ✕
+        </button>
       </div>
 
       {/* Chart Container */}
       <div
         ref={containerRef}
-        className="w-full bg-black rounded-lg border border-gray-700"
-        style={{ 
-          width: "100%", 
-          height: "400px", 
-          position: "relative",
-          minWidth: "400px",
-          minHeight: "400px"
-        }}
+        style={{ width: "100%", height: 400, position: "relative" }}
+        className="bg-black rounded-lg border border-gray-700"
       />
+
+      {/* Loading/Error States */}
+      {loading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75">
+          <div className="text-white">Loading chart data...</div>
+        </div>
+      )}
+      
+      {error && (
+        <div className="mt-4 p-3 bg-red-900 border border-red-700 rounded text-red-200">
+          Error: {error}
+        </div>
+      )}
     </div>
   );
 };
