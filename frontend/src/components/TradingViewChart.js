@@ -135,6 +135,9 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
       
       console.log('📊 Creating chart with dimensions:', { containerWidth, containerHeight });
 
+      // Clear any existing content
+      el.innerHTML = '';
+      
       const chart = createChart(el, {
         layout: { 
           background: { type: ColorType.Solid, color: '#000000' }, 
@@ -195,26 +198,31 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
 
       chartRef.current = { chart, series };
       
-      // Check if canvas elements are created
-      const canvasElements = el.querySelectorAll('canvas');
-      console.log('✅ Chart created successfully:', {
-        hasChart: !!chart,
-        hasSeries: !!series,
-        chartWidth: chart.options().width,
-        chartHeight: chart.options().height,
-        containerElement: el.tagName,
-        containerClasses: el.className,
-        containerStyle: el.style.cssText,
-        canvasCount: canvasElements.length,
-        canvasElements: Array.from(canvasElements).map(canvas => ({
-          width: canvas.width,
-          height: canvas.height,
-          style: canvas.style.cssText,
-          display: getComputedStyle(canvas).display,
-          visibility: getComputedStyle(canvas).visibility,
-          opacity: getComputedStyle(canvas).opacity
-        }))
-      });
+      // Force chart to render by calling fitContent
+      chart.timeScale().fitContent();
+      
+      // Wait a bit for canvas elements to be created, then check
+      setTimeout(() => {
+        const canvasElements = el.querySelectorAll('canvas');
+        console.log('✅ Chart created successfully:', {
+          hasChart: !!chart,
+          hasSeries: !!series,
+          chartWidth: chart.options().width,
+          chartHeight: chart.options().height,
+          containerElement: el.tagName,
+          containerClasses: el.className,
+          containerStyle: el.style.cssText,
+          canvasCount: canvasElements.length,
+          canvasElements: Array.from(canvasElements).map(canvas => ({
+            width: canvas.width,
+            height: canvas.height,
+            style: canvas.style.cssText,
+            display: getComputedStyle(canvas).display,
+            visibility: getComputedStyle(canvas).visibility,
+            opacity: getComputedStyle(canvas).opacity
+          }))
+        });
+      }, 100);
 
       // Resize observer
       const ro = new ResizeObserver(() => {
