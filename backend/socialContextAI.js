@@ -309,6 +309,15 @@ async initialize() {
       // Fix social activity calculations
       tweetsPerDay: twitterData.tweetFrequency || (twitterData.mentions > 0 ? Math.round(twitterData.mentions / 24) : 0),
       engagementRate: this.calculateEngagementRate(twitterData) || '0.00',
+      
+      // Hype trend data for creative analysis
+      hypeRegime: tokenData.hypeTrend?.regime?.type || 'unknown',
+      hypeStrength: tokenData.hypeTrend?.regime?.strength || 0,
+      hypeDescription: tokenData.hypeTrend?.regime?.description || 'No hype data available',
+      hypeEmoji: tokenData.hypeTrend?.regime?.emoji || '❓',
+      hypeTrend: tokenData.hypeTrend?.analysis?.trend || 'unknown',
+      hypeDirection: tokenData.hypeTrend?.analysis?.direction || '→',
+      hypeConfidence: tokenData.hypeTrend?.analysis?.confidence || 0,
       // Fix: Check ALL sources that TokenDetails checks for official handle
       officialHandle: tokenData.socials?.twitter ||
                       jupiterData.twitter ||
