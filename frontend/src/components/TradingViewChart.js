@@ -253,8 +253,10 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
 
   // Load chart data
   useEffect(() => {
-    console.log('🔄 Data loading effect triggered:', { contract: token?.contract, timeframe });
-    if (!token?.contract) {
+    const contract = token?.contract || token?.contractAddress || token?.mint || token?.address;
+    console.log('🔄 Data loading effect triggered:', { contract, timeframe });
+    console.log('Fetching chart for contract:', contract, 'timeframe:', timeframe);
+    if (!contract) {
       console.log('❌ No token contract, skipping data load');
       return;
     }
@@ -264,8 +266,8 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
       setError(null);
       
       try {
-        console.log(`Loading chart data for: ${token.contract} timeframe: ${timeframe}`);
-        const response = await chartService.getChartData(token.contract, timeframe);
+        console.log(`Loading chart data for: ${contract} timeframe: ${timeframe}`);
+        const response = await chartService.getChartData(contract, timeframe);
         
         if (response.success) {
           console.log('Chart service response:', response);
@@ -296,7 +298,7 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
     };
 
     loadChartData();
-  }, [token?.contract, timeframe]);
+  }, [token?.contract, token?.contractAddress, token?.mint, token?.address, timeframe]);
 
   return (
     <div className="w-full bg-black rounded-lg border border-gray-700 p-4 relative">
