@@ -1433,8 +1433,8 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                       <Brain size={20} className="text-purple-300" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-white">AI Prediction</h3>
-                      <p className="text-purple-300 text-sm">Enhanced analysis with technical indicators</p>
+                      <h3 className="text-lg font-semibold text-white">AI Hype Trend Prediction</h3>
+                      <p className="text-purple-300 text-sm">EWMA derivatives + Bayesian change points analysis</p>
                     </div>
                     {hypeAIData.aiPrediction.fallback && (
                       <div className="px-2 py-1 bg-yellow-900/30 border border-yellow-700/50 rounded text-xs text-yellow-300">
@@ -1563,21 +1563,21 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                     <div className="p-2 bg-yellow-700/50 rounded-full">
                       <Brain size={20} className="text-yellow-300" />
                     </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-white">AI Prediction</h3>
-                      <p className="text-yellow-300 text-sm">AI analysis not available</p>
-                    </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-white">AI Hype Trend Prediction</h3>
+                    <p className="text-yellow-300 text-sm">Trend analysis not available</p>
                   </div>
-                  <div className="p-3 bg-gray-800/50 rounded border border-gray-600/50">
-                    <p className="text-gray-300 text-sm">
-                      AI prediction data is not available for this token. This could be due to:
-                    </p>
-                    <ul className="mt-2 text-gray-400 text-xs space-y-1">
-                      <li>• Insufficient hype data for analysis</li>
-                      <li>• AI service temporarily unavailable</li>
-                      <li>• Token not found in our database</li>
-                    </ul>
-                  </div>
+                </div>
+                <div className="p-3 bg-gray-800/50 rounded border border-gray-600/50">
+                  <p className="text-gray-300 text-sm">
+                    AI hype trend prediction is not available for this token. This could be due to:
+                  </p>
+                  <ul className="mt-2 text-gray-400 text-xs space-y-1">
+                    <li>• Insufficient hype data for EWMA/derivative analysis</li>
+                    <li>• AI trend prediction service temporarily unavailable</li>
+                    <li>• Token not found in our database</li>
+                  </ul>
+                </div>
                 </div>
               )}
 
