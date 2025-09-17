@@ -1848,27 +1848,27 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                 <div className="p-4 bg-gradient-to-br from-gray-800/50 to-gray-800/30 rounded-lg border border-gray-700 shadow-lg">
                   <div className="flex items-center gap-2 mb-3">
                     <div className="p-2 bg-gray-700/50 rounded-full">
-                      {hypeAIData.recommendation.action === 'BULLISH' && <CheckCircle size={20} className="text-green-400" />}
-                      {hypeAIData.recommendation.action === 'BEARISH' && <AlertTriangle size={20} className="text-red-400" />}
-                      {hypeAIData.recommendation.action === 'NEUTRAL' && <Info size={20} className="text-gray-400" />}
+                      {hypeAIData.analysis?.recommendation?.action === 'BULLISH' && <CheckCircle size={20} className="text-green-400" />}
+                      {hypeAIData.analysis?.recommendation?.action === 'BEARISH' && <AlertTriangle size={20} className="text-red-400" />}
+                      {hypeAIData.analysis?.recommendation?.action === 'NEUTRAL' && <Info size={20} className="text-gray-400" />}
                     </div>
                     <h3 className="text-lg font-semibold text-white">Recommendation</h3>
                   </div>
                   <div className="space-y-3 text-sm">
                     <div className="flex items-center gap-2">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium shadow-sm ${
-                        hypeAIData.recommendation.action === 'BULLISH' ? 'bg-green-600 text-white shadow-green-600/20' :
-                        hypeAIData.recommendation.action === 'BEARISH' ? 'bg-red-600 text-white shadow-red-600/20' :
+                        hypeAIData.analysis?.recommendation?.action === 'BULLISH' ? 'bg-green-600 text-white shadow-green-600/20' :
+                        hypeAIData.analysis?.recommendation?.action === 'BEARISH' ? 'bg-red-600 text-white shadow-red-600/20' :
                         'bg-gray-600 text-white shadow-gray-600/20'
                       }`}>
-                        {hypeAIData.recommendation.action}
+                        {hypeAIData.analysis?.recommendation?.action || 'NEUTRAL'}
                       </span>
-                      <span className="text-gray-400 text-xs">Risk: <span className="text-white">{hypeAIData.recommendation.riskLevel}</span></span>
+                      <span className="text-gray-400 text-xs">Risk: <span className="text-white">{hypeAIData.analysis?.recommendation?.riskLevel || 'medium'}</span></span>
                     </div>
                     <div className="p-2 bg-gray-700/30 rounded border-l-2 border-blue-500">
-                      <p className="text-gray-300 text-sm">{hypeAIData.recommendation.message}</p>
+                      <p className="text-gray-300 text-sm">{hypeAIData.analysis?.recommendation?.message || 'No recommendation message available'}</p>
                     </div>
-                    <p className="text-gray-400 text-xs italic">{hypeAIData.recommendation.reasoning}</p>
+                    <p className="text-gray-400 text-xs italic">{hypeAIData.analysis?.recommendation?.reasoning || 'No reasoning available'}</p>
                   </div>
                 </div>
               </div>
