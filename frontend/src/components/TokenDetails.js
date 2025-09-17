@@ -701,7 +701,14 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                       {/* Oracle AI Button */}
                       <div className="relative group">
                         <button
-                          onClick={isAuthenticated ? fetchAIAnalysis : undefined}
+                          onClick={() => {
+                            console.log('🧠 Oracle AI button clicked in TokenDetails');
+                            console.log('🧠 isAuthenticated:', isAuthenticated);
+                            console.log('🧠 aiLoading:', aiLoading);
+                            if (isAuthenticated && !aiLoading) {
+                              fetchAIAnalysis();
+                            }
+                          }}
                           disabled={!isAuthenticated || aiLoading}
                           className={`px-2 py-1 rounded border border-solana-purple/60 bg-transparent text-xs flex items-center gap-1 transition-all duration-200 ${
                             (!isAuthenticated || aiLoading)
@@ -872,7 +879,14 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
               {/* AI Analysis Button */}
               <div className="relative group">
                 <button
-                  onClick={isAuthenticated ? fetchAIAnalysis : undefined}
+                  onClick={() => {
+                    console.log('🧠 Oracle AI button clicked in TokenDetails (desktop)');
+                    console.log('🧠 isAuthenticated:', isAuthenticated);
+                    console.log('🧠 aiLoading:', aiLoading);
+                    if (isAuthenticated && !aiLoading) {
+                      fetchAIAnalysis();
+                    }
+                  }}
                   disabled={!isAuthenticated || aiLoading}
                   className={`px-1.5 py-1 rounded-lg border border-solana-purple/60 bg-transparent text-xs flex items-center gap-1 transition-all duration-200 ${
                     (!isAuthenticated || aiLoading)
