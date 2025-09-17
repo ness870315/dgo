@@ -3227,7 +3227,7 @@ class EnhancedBackend {
         let aiPrediction = null;
         try {
           console.log(`🧠 Calling AI prediction for ${contract} with ${hypeData.length} data points`);
-          aiPrediction = await this.aiHypePrediction.getPrediction(contract, token, hypeData, range);
+          aiPrediction = await this.aiHypePrediction.getPrediction(contract, token, hypeData, range, analysis);
           console.log(`🧠 AI Prediction for ${contract}: ${aiPrediction.cached ? 'CACHED' : 'FRESH'} (${aiPrediction.prediction?.direction}/${aiPrediction.prediction?.strength})`);
           console.log(`🧠 AI Prediction details:`, {
             fallback: aiPrediction.fallback,
@@ -5325,6 +5325,38 @@ class EnhancedBackend {
         res.status(500).json({
           success: false,
           error: 'Failed to clean AI prediction cache',
+          details: error.message
+        });
+      }
+    });
+
+    // Admin endpoint to clear ALL AI prediction cache (force fresh predictions)
+    this.app.post('/api/admin/ai-predictions/clear-all', async (req, res) => {
+      try {
+        // Clear the in-memory cache
+        this.aiHypePrediction.predictionCache.clear();
+        
+        // Clear the cache file
+        try {
+          await fs.unlink(this.aiHypePrediction.predictionCacheFile);
+          console.log('[🛡️ Enhanced Backend] 🗑️ Cleared AI prediction cache file');
+        } catch (fileError) {
+          console.log('[🛡️ Enhanced Backend] ⚠️ Cache file not found or already cleared');
+        }
+        
+        const stats = this.aiHypePrediction.getCacheStats();
+        
+        res.json({
+          success: true,
+          message: 'ALL AI prediction cache cleared - next predictions will be fresh',
+          stats,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Error clearing AI prediction cache:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to clear AI prediction cache',
           details: error.message
         });
       }

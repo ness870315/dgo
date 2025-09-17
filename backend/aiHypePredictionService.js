@@ -119,7 +119,7 @@ class AIHypePredictionService {
     return Math.abs(hash).toString(36);
   }
 
-  async getPrediction(contractAddress, tokenData, hypeData, range = '7d') {
+  async getPrediction(contractAddress, tokenData, hypeData, range = '7d', trendAnalysis = null) {
     try {
       console.log(`🧠 Getting AI hype prediction for ${contractAddress} (${range})`);
       
@@ -140,7 +140,7 @@ class AIHypePredictionService {
 
       // Generate new prediction using AI
       console.log(`🔄 Cache miss for ${contractAddress}, generating new AI prediction`);
-      const prediction = await this.generateAIPrediction(contractAddress, tokenData, hypeData, range);
+      const prediction = await this.generateAIPrediction(contractAddress, tokenData, hypeData, range, trendAnalysis);
       console.log(`✅ Generated AI prediction for ${contractAddress}:`, JSON.stringify(prediction, null, 2));
       
       // Cache the result
@@ -179,19 +179,21 @@ class AIHypePredictionService {
     }
   }
 
-  async generateAIPrediction(contractAddress, tokenData, hypeData, range) {
+  async generateAIPrediction(contractAddress, tokenData, hypeData, range, trendAnalysis = null) {
     try {
       // Prepare data for AI analysis
       const recentData = hypeData.slice(-10); // Last 10 data points
       const currentMetrics = this.calculateCurrentMetrics(hypeData);
-      const trendAnalysis = this.analyzeTrend(hypeData);
       
-      const prompt = await this.buildPredictionPrompt(
+      // Use provided trendAnalysis or fallback to simple analysis
+      const analysisData = trendAnalysis || this.analyzeTrend(hypeData);
+      
+      const prompt = this.buildPredictionPrompt(
         contractAddress,
         tokenData,
         recentData,
         currentMetrics,
-        trendAnalysis,
+        analysisData,
         range
       );
 
@@ -235,8 +237,14 @@ class AIHypePredictionService {
   buildPredictionPrompt(contractAddress, tokenData, recentData, currentMetrics, trendAnalysis, range) {
     console.log(`🧠 Building prediction prompt for ${contractAddress}`);
     
-    // Create a simple, working template for hype trend analysis
-    const template = `You are DeGen Oracle's trend prediction AI. Analyze this token's hype trajectory with crypto energy!
+    // Extract technical analysis data from trendAnalysis
+    const technicalData = trendAnalysis?.analysis?.technicalIndicators || {};
+    const regime = trendAnalysis?.analysis?.regime || 'unknown';
+    const signals = trendAnalysis?.analysis?.signals || [];
+    const confidence = trendAnalysis?.analysis?.confidence || 0.5;
+    
+    // Create enhanced template with actual technical analysis data
+    const template = `You are DeGen Oracle's AI trend prediction engine. Use the technical analysis data to make accurate forecasts!
 
 🚀 TOKEN ANALYSIS TARGET:
 Symbol: {symbol} ({name})
@@ -247,6 +255,18 @@ Current Price: {price}
 📊 HYPE DATA TIMELINE:
 {hypeData}
 
+🔥 TECHNICAL ANALYSIS DATA (EWMA + Derivative + Bayesian):
+- Current Regime: {regime}
+- EWMA Score: {ewmaScore} (trend smoothing)
+- EWMA Mentions: {ewmaMentions} (mention momentum)
+- Score Derivative: {scoreDerivative} (rate of change)
+- Mention Derivative: {mentionDerivative} (mention acceleration)
+- Change Points: {changePoints} (regime shifts detected)
+- Confidence Level: {confidence}% (analysis reliability)
+
+🎯 SIGNALS DETECTED:
+{signals}
+
 🔥 ANALYTICS ENGINE METRICS:
 - Holder Change: {holderChange}% (community growth/decline indicator)
 - Volume Change: {volumeChange}% (momentum and interest tracker)  
@@ -255,22 +275,31 @@ Current Price: {price}
 - Liquidity: {liquidity} (market depth and slippage risk)
 
 🎯 ANALYSIS INSTRUCTIONS:
-You are a LEGENDARY crypto trend analyst - be absolutely WILD, CREATIVE, and ENTERTAINING! 
+You are a LEGENDARY crypto trend analyst with access to advanced technical analysis! Use the EWMA, derivative, and Bayesian data to make PRECISE predictions.
 
-📈 Pattern Recognition: Identify if this is "diamond hands accumulation", "paper hands exodus", "whale manipulation", "organic growth", "pump and dump", or "consolidation vibes"
+📈 Technical Pattern Recognition: 
+- EWMA shows {ewmaScore} trend (smoothing out noise)
+- Derivative indicates {scoreDerivative} momentum (rate of change)
+- Bayesian detected {changePoints} regime shifts
+- Current regime is {regime}
 
-🚀 Momentum Analysis: Is this gaining momentum or losing steam? Use actual hype score progression to determine if we're seeing bullish continuation or bearish reversal
+🚀 Momentum Analysis: 
+- Score derivative: {scoreDerivative} (positive = accelerating, negative = decelerating)
+- Mention derivative: {mentionDerivative} (social momentum direction)
+- EWMA trend: {ewmaScore} (smoothed trend direction)
 
-💎 Community Sentiment: Based on mentions and engagement, are these degens strong or showing weak commitment?
+💎 Signal Interpretation:
+- Signals: {signals}
+- Confidence: {confidence}% (higher = more reliable)
 
-⚡ Timing Insights: When should degens make their move? Is this an opportunity or time to wait?
+⚡ AI Enhancement: Use the technical data to provide MORE ACCURATE predictions than basic trend analysis alone!
 
-🎪 CREATIVE FREEDOM: Use wild analogies, crypto culture references, and epic storytelling that would make even the most jaded degen laugh while providing actionable alpha!
+🎪 CREATIVE FREEDOM: Use wild analogies, crypto culture references, and epic storytelling while being TECHNICALLY ACCURATE!
 
 Respond in this JSON format:
 {
-  "trendSummary": "Epic one-liner about the trend using heavy crypto slang",
-  "patternAnalysis": "Detailed pattern identification with degen terminology",
+  "trendSummary": "Epic one-liner about the trend using heavy crypto slang + technical data",
+  "patternAnalysis": "Detailed pattern identification using EWMA, derivative, and Bayesian data",
   "momentumDirection": "Bullish|Bearish|Sideways",
   "momentumStrength": "Weak|Moderate|Strong|Explosive",
   "keyLevels": {
@@ -278,23 +307,23 @@ Respond in this JSON format:
     "resistance": "Score level where paper hands sell"
   },
   "prediction": {
-    "nextMove": "Detailed prediction with timing",
+    "nextMove": "Detailed prediction with timing based on technical analysis",
     "timeframe": "6h|12h|24h|48h|7d",
     "confidence": 0.85,
     "targetScore": 7.5
   },
   "catalysts": [
-    "Specific upcoming events or factors that could pump this",
-    "Community momentum indicators",
-    "Technical breakout signals"
+    "Technical breakout signals from analysis",
+    "EWMA trend continuation factors",
+    "Derivative momentum indicators"
   ],
   "risks": [
-    "Potential red flags or concerns",
-    "Market conditions that could dump this",
-    "Technical weakness signals"
+    "Technical weakness signals",
+    "EWMA trend reversal risks",
+    "Derivative momentum concerns"
   ],
   "recommendation": "hold|buy|sell|wait",
-  "reasoning": "Detailed explanation of your recommendation with crypto slang"
+  "reasoning": "Detailed explanation using technical analysis data with crypto slang"
 }`;
     
     const variables = {
@@ -309,7 +338,16 @@ Respond in this JSON format:
       priceChange: tokenData?.jupiterData?.stats24h?.priceChange || 0,
       organicScore: tokenData?.jupiterData?.organicScore || tokenData?.organicScore || 'N/A',
       organicScoreLabel: this.getOrganicScoreLabel(tokenData?.jupiterData?.organicScore || tokenData?.organicScore),
-      liquidity: tokenData?.jupiterData?.liquidity || tokenData?.liquidity || 'N/A'
+      liquidity: tokenData?.jupiterData?.liquidity || tokenData?.liquidity || 'N/A',
+      // Technical analysis data
+      regime: regime,
+      ewmaScore: technicalData.ewma?.currentScoreEWMA?.toFixed(2) || 'N/A',
+      ewmaMentions: technicalData.ewma?.currentMentionEWMA?.toFixed(2) || 'N/A',
+      scoreDerivative: technicalData.derivative?.scoreDerivative?.toFixed(3) || 'N/A',
+      mentionDerivative: technicalData.derivative?.mentionDerivative?.toFixed(3) || 'N/A',
+      changePoints: technicalData.changePoints?.length || 0,
+      confidence: (confidence * 100).toFixed(1),
+      signals: signals.join(', ') || 'No signals detected'
     };
     
     return this.fillTemplate(template, variables);
