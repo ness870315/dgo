@@ -78,8 +78,40 @@ class TokenCleanupService {
     try {
       console.log('🔍 Analyzing tokens for cleanup...');
       
-      const cachePath = path.join(this.cacheDir, 'tokens.json');
-      const tokensData = await fs.readFile(cachePath, 'utf8');
+      const cachePath = path.join(this.cacheDir, 'tokens-cache.json');
+      
+      // Check if file exists, if not try alternative paths
+      let tokensData;
+      try {
+        tokensData = await fs.readFile(cachePath, 'utf8');
+      } catch (fileError) {
+        console.log(`⚠️ Primary cache not found: ${cachePath}`);
+        
+        // Try alternative paths
+        const alternativePaths = [
+          path.join(this.dataDir, 'cache', 'tokens-cache.json'),
+          path.join(process.cwd(), 'backend', 'cache', 'tokens-cache.json'),
+          path.join(process.cwd(), 'cache', 'tokens-cache.json')
+        ];
+        
+        let found = false;
+        for (const altPath of alternativePaths) {
+          try {
+            console.log(`🔍 Trying alternative path: ${altPath}`);
+            tokensData = await fs.readFile(altPath, 'utf8');
+            console.log(`✅ Found tokens cache at: ${altPath}`);
+            found = true;
+            break;
+          } catch (altError) {
+            console.log(`❌ Not found: ${altPath}`);
+          }
+        }
+        
+        if (!found) {
+          throw new Error(`Tokens cache not found in any expected location. Checked: ${[cachePath, ...alternativePaths].join(', ')}`);
+        }
+      }
+      
       const tokens = JSON.parse(tokensData);
       
       const analysis = {
@@ -138,7 +170,7 @@ class TokenCleanupService {
     try {
       console.log(`🗑️ Deleting ${tokensToDelete.length} tokens...`);
       
-      const cachePath = path.join(this.cacheDir, 'tokens.json');
+      const cachePath = path.join(this.cacheDir, 'tokens-cache.json');
       const tokensData = await fs.readFile(cachePath, 'utf8');
       const tokens = JSON.parse(tokensData);
       
