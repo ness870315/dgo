@@ -1,4 +1,5 @@
 import OpenAIService from './openaiService.js';
+import { PROMPT_TEMPLATES } from './aiPromptTemplates.js';
 import { ENHANCED_PROMPT_TEMPLATES, fillEnhancedTemplate, validateEnhancedAIResponse, extractEnhancedConfidence, formatForDisplay } from './aiPromptTemplates_enhanced.js';
 
 /**
@@ -19,9 +20,21 @@ class SocialContextAI {
   }
 
   /**
+   * Fill template with variables (simple string replacement)
+   */
+  fillTemplate(template, variables) {
+    let result = template;
+    for (const [key, value] of Object.entries(variables)) {
+      const placeholder = `{${key}}`;
+      result = result.replace(new RegExp(placeholder, 'g'), value || 'N/A');
+    }
+    return result;
+  }
+
+  /**
    * Initialize the Social Context AI service
    */
-  async initialize() {
+async initialize() {
     try {
       await this.openaiService.initialize();
       this.isInitialized = true;
@@ -73,14 +86,14 @@ class SocialContextAI {
         throw new Error('OpenAI service not available - using enhanced fallback');
       }
 
-      // Fill template with enhanced analytics data and varied crypto slang
-      const prompt = fillEnhancedTemplate(ENHANCED_PROMPT_TEMPLATES.SOCIAL_CONTEXT_ANALYSIS, templateVars);
+      // Fill template with original prompt (faster processing)
+      const prompt = this.fillTemplate(PROMPT_TEMPLATES.SOCIAL_CONTEXT_ANALYSIS, templateVars);
       
       // Generate AI analysis
       const rawResponse = await this.openaiService.generateCompletion(prompt, {
         model,
         temperature,
-        maxTokens: 1500,
+        maxTokens: 800, // Reduced for faster processing
         useCache,
         cacheExpiry
       });

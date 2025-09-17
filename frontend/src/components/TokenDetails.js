@@ -297,7 +297,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
       
       // Add timeout to prevent hanging
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 second timeout
       
       // Progress updates
       const progressUpdates = [
@@ -355,7 +355,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
     } catch (error) {
       console.error('🧠 AI Analysis error:', error);
       if (error.name === 'AbortError') {
-        setAiError('AI analysis timed out after 45 seconds. Please try again.');
+        setAiError('AI analysis timed out after 90 seconds. The analysis is taking longer than expected. Please try again.');
       } else {
         setAiError(error.message || 'Failed to get AI analysis');
       }
