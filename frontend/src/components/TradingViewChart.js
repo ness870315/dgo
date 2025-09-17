@@ -142,19 +142,30 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
 
       chartRef.current = { chart, series };
 
+      // Capture dimensions at creation time
+      const containerWidth = el.clientWidth;
+      const containerHeight = el.clientHeight || 400;
+      
       // Force initial resize to ensure proper dimensions
       chart.applyOptions({
-        width: el.clientWidth,
-        height: el.clientHeight || 400,
+        width: containerWidth,
+        height: containerHeight,
       });
 
       // Force resize after a small delay to ensure DOM is ready
       setTimeout(() => {
         chart.applyOptions({
-          width: el.clientWidth,
-          height: el.clientHeight || 400,
+          width: containerWidth,
+          height: containerHeight,
         });
-        console.log('🔄 Forced chart resize to:', el.clientWidth, el.clientHeight);
+        
+        // Force chart to redraw with correct dimensions
+        chart.timeScale().fitContent();
+        
+        console.log('🔄 Forced chart resize to:', containerWidth, containerHeight);
+        console.log('🖼️ Canvas check after resize:', 
+          el.querySelectorAll('canvas').length,
+          [...el.querySelectorAll('canvas')].map(c => [c.width, c.height]));
       }, 100);
 
       // keep chart sized to container
