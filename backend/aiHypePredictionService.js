@@ -138,7 +138,9 @@ class AIHypePredictionService {
       }
 
       // Generate new prediction using AI
+      console.log(`🔄 Cache miss for ${contractAddress}, generating new AI prediction`);
       const prediction = await this.generateAIPrediction(contractAddress, tokenData, hypeData, range);
+      console.log(`✅ Generated AI prediction for ${contractAddress}:`, JSON.stringify(prediction, null, 2));
       
       // Cache the result
       this.predictionCache.set(cacheKey, {
@@ -194,6 +196,8 @@ class AIHypePredictionService {
 
       // Call OpenAI
       console.log(`🧠 Calling OpenAI for hype prediction with prompt length: ${prompt.length}`);
+      console.log(`🧠 Prompt preview: ${prompt.substring(0, 300)}...`);
+      
       const response = await this.openaiService.generateCompletion(prompt, {
         model: 'gpt-4',
         temperature: 0.3,
@@ -201,10 +205,11 @@ class AIHypePredictionService {
       });
 
       console.log(`🤖 OpenAI response for hype prediction: ${response.substring(0, 200)}...`);
+      console.log(`🤖 Full OpenAI response length: ${response.length}`);
 
       // Parse and validate response
       const prediction = this.parsePredictionResponse(response);
-      console.log(`📊 Parsed prediction:`, prediction);
+      console.log(`📊 Parsed prediction:`, JSON.stringify(prediction, null, 2));
       
       return {
         ...prediction,
@@ -215,16 +220,32 @@ class AIHypePredictionService {
       
     } catch (error) {
       console.error('❌ Error generating AI prediction:', error);
+      console.error('❌ AI prediction error details:', {
+        message: error.message,
+        stack: error.stack,
+        contractAddress,
+        range,
+        hypeDataLength: hypeData?.length
+      });
       throw error;
     }
   }
 
   buildPredictionPrompt(contractAddress, tokenData, recentData, currentMetrics, trendAnalysis, range) {
     // Use the enhanced template with proper variable substitution
-    const { ENHANCED_PROMPT_TEMPLATES } = require('./aiPromptTemplates_enhanced.js');
-    
-    console.log(`🧠 Building prediction prompt for ${contractAddress}`);
-    console.log(`🧠 Template available:`, !!ENHANCED_PROMPT_TEMPLATES?.HYPE_TREND_ANALYSIS);
+    try {
+      const { ENHANCED_PROMPT_TEMPLATES } = require('./aiPromptTemplates_enhanced.js');
+      
+      console.log(`🧠 Building prediction prompt for ${contractAddress}`);
+      console.log(`🧠 Template available:`, !!ENHANCED_PROMPT_TEMPLATES?.HYPE_TREND_ANALYSIS);
+      
+      if (!ENHANCED_PROMPT_TEMPLATES?.HYPE_TREND_ANALYSIS) {
+        throw new Error('HYPE_TREND_ANALYSIS template not found');
+      }
+    } catch (error) {
+      console.error('❌ Error loading template:', error);
+      throw error;
+    }
     
     const variables = {
       symbol: tokenData?.symbol || 'Unknown',
