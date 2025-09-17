@@ -10,19 +10,25 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
   const [error, setError] = useState(null);
   const [displayMode, setDisplayMode] = useState('price'); // 'price' or 'mcap'
 
-  // Helper: normalize candles data
+  // Helper: normalize candles data (fixed NaN propagation)
   const normalizeCandles = (rows) => {
     if (!Array.isArray(rows)) return [];
-    const toSec = (t) => (t > 1e12 ? Math.floor(t / 1000) : t); // ms -> s
-    const out = rows.map((d) => ({
-      time: toSec(d.time ?? d.t),
-      open: +d.open ?? +d.o ?? +d.value,
-      high: +d.high ?? +d.h ?? +d.value,
-      low: +d.low ?? +d.l ?? +d.value,
-      close: +d.close ?? +d.c ?? +d.value,
-      volume: +d.volume ?? 0,
-    })).filter(c => Number.isFinite(c.time) && Number.isFinite(c.close));
-    out.sort((a, b) => a.time - b.time); // Always ascending
+    const pick = (...xs) => xs.find(v => v != null);
+    const toNum = (v) => v == null ? null : Number(v);
+    const toSec = (t) => (t > 1e12 ? Math.floor(t / 1000) : t);
+
+    const out = rows.map((d) => {
+      const time = toSec(pick(d.time, d.t));
+      const o = toNum(pick(d.open, d.o, d.value));
+      const h = toNum(pick(d.high, d.h, d.value));
+      const l = toNum(pick(d.low, d.l, d.value));
+      const c = toNum(pick(d.close, d.c, d.value));
+      const v = toNum(pick(d.volume, d.v)) ?? 0;
+      if (![time, o, h, l, c].every(Number.isFinite)) return null;
+      return { time, open: o, high: h, low: l, close: c, volume: v };
+    }).filter(Boolean);
+
+    out.sort((a, b) => a.time - b.time);
     return out;
   };
 
@@ -80,39 +86,26 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
     }
   }, [token?.contractAddress, timeframe]);
 
-  // Chart creation and data application - following the clean structure
+  // Chart initialization (separate effect to avoid race conditions)
   useEffect(() => {
-    console.log('Chart useEffect triggered - data length:', chartData.length);
+    let ro, chart, series, mounted = true;
     
-    if (!chartContainerRef.current) {
-      console.log('Container not ready yet');
-      return;
-    }
-
-    if (!chartRef.current) {
-      console.log('Creating new chart...');
+    (async () => {
+      if (!chartContainerRef.current || chartRef.current) return;
       
-      // Create chart with professional dark theme
-      const chart = createChart(chartContainerRef.current, {
-        width: chartContainerRef.current.offsetWidth || 800,
-        height: 400,
-        layout: {
-          background: { type: ColorType.Solid, color: "#000000" }, // Pure black background
-          textColor: "#ffffff",       // White text
+      // Dynamic import for better performance
+      const { createChart, ColorType } = await import('lightweight-charts');
+
+      chart = createChart(chartContainerRef.current, {
+        layout: { 
+          background: { type: ColorType.Solid, color: '#000000' }, 
+          textColor: '#ffffff',
           fontSize: 12,
           fontFamily: 'Trebuchet MS, sans-serif',
         },
-        grid: {
-          vertLines: { 
-            color: "#1e1e1e",         // Dark grid lines
-            style: 2,
-            visible: true 
-          },
-          horzLines: { 
-            color: "#1e1e1e",         // Dark grid lines
-            style: 2,
-            visible: true 
-          },
+        grid: { 
+          vertLines: { color: '#1e1e1e', style: 2, visible: true }, 
+          horzLines: { color: '#1e1e1e', style: 2, visible: true } 
         },
         rightPriceScale: {
           borderColor: "#333333",
@@ -133,23 +126,7 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
           fixLeftEdge: false,
           fixRightEdge: false,
         },
-        crosshair: {
-          mode: 0, // Normal crosshair mode (user controlled)
-          vertLine: { 
-            color: '#758696', 
-            width: 1, 
-            style: 2, // Dashed line
-            visible: true, 
-            labelVisible: true 
-          },
-          horzLine: { 
-            color: '#758696', 
-            width: 1, 
-            style: 2, // Dashed line
-            visible: true, 
-            labelVisible: true 
-          },
-        },
+        crosshair: { mode: 1 }, // Normal crosshair mode
         handleScroll: { 
           mouseWheel: true, 
           pressedMouseMove: true, 
@@ -162,108 +139,89 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
           pinch: true, 
           axisDoubleClickReset: true 
         },
+        width: chartContainerRef.current.clientWidth,
+        height: chartContainerRef.current.clientHeight || 400,
       });
-
-      // Memecoin precision - all tokens are memecoins, use maximum precision
-      const samplePrice = chartData[0]?.close || token?.price || 1;
-      let precision = 9;      // Maximum precision for memecoins
-      let minMove = 1e-9;     // Maximum precision for tiny price movements
       
-      // Adjust precision based on price range for better display
-      if (samplePrice >= 1) {
-        precision = 6;
-        minMove = 0.000001;
-      } else if (samplePrice >= 0.01) {
-        precision = 8;
-        minMove = 1e-8;
-      }
-      // else: keep maximum precision (9) for very small prices
-
-      const candlestickSeries = chart.addCandlestickSeries({
+      series = chart.addCandlestickSeries({ 
         upColor: "#089981",
         downColor: "#f23645",
         borderVisible: false,
         wickUpColor: "#089981",
         wickDownColor: "#f23645",
-        priceFormat: {
-          type: 'price',
-          precision: precision,
-          minMove: minMove,
-        },
-        title: token?.symbol || 'Price',
+        priceFormat: { type: 'price', precision: 9, minMove: 1e-9 },
         priceLineVisible: true,
         lastValueVisible: true,
       });
-
-      chartRef.current = { chart, candlestickSeries };
-      console.log('Chart created successfully');
-    }
-
-    // Apply data if available
-    if (chartData.length > 0) {
-      console.log('Applying data to chart...');
-      const candles = normalizeCandles(chartData);
       
-      if (candles.length > 0) {
-        // Transform data based on display mode
-        const transformedCandles = candles.map(candle => {
-          if (displayMode === 'mcap' && token?.marketCap) {
-            // Calculate market cap based on price ratio
-            const priceRatio = candle.close / candles[candles.length - 1].close;
-            const baseMcap = token.marketCap;
-            
-            return {
-              ...candle,
-              open: (candle.open / candles[candles.length - 1].close) * baseMcap,
-              high: (candle.high / candles[candles.length - 1].close) * baseMcap,
-              low: (candle.low / candles[candles.length - 1].close) * baseMcap,
-              close: (candle.close / candles[candles.length - 1].close) * baseMcap,
-            };
-          }
-          return candle;
-        });
-        
-        // Update series title and price format based on display mode
-        const title = displayMode === 'mcap' ? `${token?.symbol || 'Token'} Market Cap` : `${token?.symbol || 'Token'} Price`;
-        const priceFormat = displayMode === 'mcap' 
-          ? { type: 'price', precision: 0, minMove: 1 }
-          : { type: 'price', precision: 6, minMove: 0.000001 };
-        
-        chartRef.current.candlestickSeries.applyOptions({
-          title: title,
-          priceFormat: priceFormat
-        });
-        
-        // Check for flat data and data quality
-        const flatCandles = transformedCandles.filter(c => c.open === c.high && c.high === c.low && c.low === c.close);
-        const validCandles = transformedCandles.filter(c => c.open > 0 && c.high > 0 && c.low > 0 && c.close > 0);
-        console.log(`Data analysis: ${transformedCandles.length} total, ${flatCandles.length} flat (${((flatCandles.length/transformedCandles.length)*100).toFixed(1)}%), ${validCandles.length} valid`);
-        
-        if (flatCandles.length > transformedCandles.length * 0.8) {
-          console.warn('⚠️ Most candles are flat (no price movement) - chart may appear empty');
+      chartRef.current = { chart, candlestickSeries: series };
+
+      // ResizeObserver for responsive charts
+      ro = new ResizeObserver(() => {
+        const el = chartContainerRef.current;
+        if (el && chartRef.current) {
+          chartRef.current.chart.applyOptions({
+            width: el.clientWidth, 
+            height: el.clientHeight || 400
+          });
         }
-        
-        if (validCandles.length < transformedCandles.length * 0.5) {
-          console.warn('⚠️ More than 50% of data points are invalid - chart may appear incomplete');
-        }
-        
-        // Use valid candles only
-        const finalCandles = validCandles.length > 0 ? validCandles : transformedCandles;
-        
-        chartRef.current.candlestickSeries.setData(finalCandles);
-        chartRef.current.chart.timeScale().fitContent();
-        console.log(`Data applied successfully: ${finalCandles.length} candles`);
-      }
-    }
+      });
+      ro.observe(chartContainerRef.current);
+    })();
 
     return () => {
-      if (chartRef.current) {
-        console.log('Cleaning up chart');
-        chartRef.current.chart.remove();
-        chartRef.current = null;
-      }
+      try { ro?.disconnect(); } catch {}
+      try { chartRef.current?.chart.remove(); } catch {}
+      chartRef.current = null;
     };
-  }, [chartData, timeframe, displayMode]);
+  }, []);
+
+  // Apply data (separate effect to avoid race conditions)
+  useEffect(() => {
+    const ref = chartRef.current;
+    if (!ref || !chartData?.length) return;
+    
+    const candles = normalizeCandles(chartData);
+    if (!candles.length) return;
+
+    // Transform data based on display mode (improved mcap calculation)
+    const transformedCandles = candles.map(candle => {
+      if (displayMode === 'mcap' && token?.circulatingSupply) {
+        // Use circulating supply for more accurate mcap calculation
+        const supply = token.circulatingSupply;
+        return {
+          ...candle,
+          open: candle.open * supply,
+          high: candle.high * supply,
+          low: candle.low * supply,
+          close: candle.close * supply,
+        };
+      }
+      return candle;
+    });
+
+    // Compute precision based on actual data (not sample price)
+    const lastClose = transformedCandles.at(-1)?.close ?? 1;
+    const format = displayMode === 'mcap'
+      ? { type: 'price', precision: 0, minMove: 1 }
+      : lastClose >= 1
+        ? { type: 'price', precision: 6, minMove: 1e-6 }
+        : lastClose >= 0.01
+          ? { type: 'price', precision: 8, minMove: 1e-8 }
+          : { type: 'price', precision: 9, minMove: 1e-9 };
+
+    const title = `${token?.symbol || 'Token'} ${displayMode === 'mcap' ? 'Market Cap' : 'Price'}`;
+    
+    ref.candlestickSeries.applyOptions({ 
+      priceFormat: format, 
+      title: title 
+    });
+    
+    ref.candlestickSeries.setData(transformedCandles);
+    ref.chart.timeScale().fitContent();
+    
+    console.log(`Data applied successfully: ${transformedCandles.length} candles with precision ${format.precision}`);
+  }, [chartData, displayMode, timeframe]);
 
   if (loading) {
     return (
