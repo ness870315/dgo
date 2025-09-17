@@ -93,8 +93,32 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
     (async () => {
       if (!chartContainerRef.current || chartRef.current) return;
       
+      console.log('🎯 Chart container dimensions:', {
+        clientWidth: chartContainerRef.current.clientWidth,
+        clientHeight: chartContainerRef.current.clientHeight,
+        offsetWidth: chartContainerRef.current.offsetWidth,
+        offsetHeight: chartContainerRef.current.offsetHeight
+      });
+      
+      // Wait for container to have proper dimensions with retry
+      let retries = 0;
+      while (chartContainerRef.current.clientWidth === 0 && retries < 10) {
+        console.log(`⏳ Container has no width, retry ${retries + 1}/10...`);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retries++;
+      }
+      
+      if (chartContainerRef.current.clientWidth === 0) {
+        console.log('❌ Container still has no width after retries, using fallback dimensions');
+      }
+      
       // Dynamic import for better performance
       const { createChart, ColorType } = await import('lightweight-charts');
+
+      const containerWidth = chartContainerRef.current.clientWidth || 800;
+      const containerHeight = chartContainerRef.current.clientHeight || 400;
+      
+      console.log('📊 Creating chart with dimensions:', { containerWidth, containerHeight });
 
       chart = createChart(chartContainerRef.current, {
         layout: { 
@@ -139,8 +163,8 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
           pinch: true, 
           axisDoubleClickReset: true 
         },
-        width: chartContainerRef.current.clientWidth,
-        height: chartContainerRef.current.clientHeight || 400,
+        width: containerWidth,
+        height: containerHeight,
       });
       
       series = chart.addCandlestickSeries({ 
@@ -155,14 +179,18 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
       });
       
       chartRef.current = { chart, candlestickSeries: series };
+      console.log('✅ Chart created successfully');
 
       // ResizeObserver for responsive charts
       ro = new ResizeObserver(() => {
         const el = chartContainerRef.current;
         if (el && chartRef.current) {
+          const newWidth = el.clientWidth;
+          const newHeight = el.clientHeight || 400;
+          console.log('📏 Chart resizing to:', { newWidth, newHeight });
           chartRef.current.chart.applyOptions({
-            width: el.clientWidth, 
-            height: el.clientHeight || 400
+            width: newWidth, 
+            height: newHeight
           });
         }
       });
@@ -179,10 +207,31 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
   // Apply data (separate effect to avoid race conditions)
   useEffect(() => {
     const ref = chartRef.current;
-    if (!ref || !chartData?.length) return;
+    if (!ref || !chartData?.length) {
+      console.log('📊 Data application skipped:', { 
+        hasRef: !!ref, 
+        hasData: !!chartData?.length,
+        dataLength: chartData?.length || 0 
+      });
+      return;
+    }
     
+    console.log('📊 Applying data to chart...');
     const candles = normalizeCandles(chartData);
-    if (!candles.length) return;
+    if (!candles.length) {
+      console.log('❌ No valid candles after normalization');
+      return;
+    }
+
+    console.log('📊 Normalized candles:', {
+      count: candles.length,
+      firstCandle: candles[0],
+      lastCandle: candles[candles.length - 1],
+      priceRange: {
+        min: Math.min(...candles.map(c => c.close)),
+        max: Math.max(...candles.map(c => c.close))
+      }
+    });
 
     // Transform data based on display mode (improved mcap calculation)
     const transformedCandles = candles.map(candle => {
@@ -212,15 +261,18 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
 
     const title = `${token?.symbol || 'Token'} ${displayMode === 'mcap' ? 'Market Cap' : 'Price'}`;
     
+    console.log('📊 Setting chart options:', { title, format, lastClose });
+    
     ref.candlestickSeries.applyOptions({ 
       priceFormat: format, 
       title: title 
     });
     
+    console.log('📊 Setting chart data...');
     ref.candlestickSeries.setData(transformedCandles);
     ref.chart.timeScale().fitContent();
     
-    console.log(`Data applied successfully: ${transformedCandles.length} candles with precision ${format.precision}`);
+    console.log(`✅ Data applied successfully: ${transformedCandles.length} candles with precision ${format.precision}`);
   }, [chartData, displayMode, timeframe]);
 
   if (loading) {
@@ -285,7 +337,13 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
       <div
         ref={chartContainerRef}
         className="w-full bg-black rounded-lg border border-gray-700"
-        style={{ width: "100%", height: "400px", position: "relative" }}
+        style={{ 
+          width: "100%", 
+          height: "400px", 
+          position: "relative",
+          minWidth: "400px",
+          minHeight: "400px"
+        }}
       />
     </div>
   );
