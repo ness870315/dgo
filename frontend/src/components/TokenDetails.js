@@ -4,33 +4,20 @@ import { X, Twitter, MessageCircle, ExternalLink, Star, Flame, Brain, BarChart3 
 // AI Code Line Animation Component
 const AICodeLine = ({ text, delay }) => {
   const [visible, setVisible] = useState(false);
-  const [typed, setTyped] = useState('');
   
   useEffect(() => {
     const timer = setTimeout(() => {
       setVisible(true);
-      let currentIndex = 0;
-      const typeInterval = setInterval(() => {
-        if (currentIndex <= text.length) {
-          setTyped(text.slice(0, currentIndex));
-          currentIndex++;
-        } else {
-          clearInterval(typeInterval);
-        }
-      }, 30); // Typing speed
-      
-      return () => clearInterval(typeInterval);
     }, delay);
     
     return () => clearTimeout(timer);
-  }, [text, delay]);
+  }, [delay]);
   
   if (!visible) return <div className="h-5"></div>; // Placeholder height
   
   return (
-    <div className="text-green-400 opacity-80">
-      {typed}
-      {typed.length < text.length && <span className="animate-pulse">|</span>}
+    <div className="text-green-400 opacity-80 animate-pulse">
+      {text}
     </div>
   );
 };
@@ -292,6 +279,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
     setAiError(null);
     setAiProgress('Preparing analysis...');
     setShowAILoadingModal(true);
+    console.log('🧠 AI Loading Modal should be visible now:', true);
     
     try {
       const sessionId = localStorage.getItem('sessionId');
@@ -2336,19 +2324,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
         )}
 
         {/* AI Loading Modal with Pseudo-Code Animation */}
+        {console.log('🧠 Rendering AI Loading Modal:', showAILoadingModal)}
         {showAILoadingModal && (
           <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 backdrop-blur-sm">
-            <style jsx>{`
-              @keyframes progress {
-                0% { width: 0%; }
-                50% { width: 70%; }
-                100% { width: 100%; }
-              }
-              @keyframes matrix {
-                0% { transform: translateY(0); opacity: 1; }
-                100% { transform: translateY(-10px); opacity: 0.7; }
-              }
-            `}</style>
             <div className="bg-gradient-to-br from-purple-900/90 to-blue-900/90 border border-purple-500/50 rounded-2xl p-8 max-w-2xl w-full mx-4 shadow-2xl">
               {/* Header */}
               <div className="text-center mb-8">
@@ -2393,8 +2371,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                   <span>Processing...</span>
                 </div>
                 <div className="w-full bg-purple-900/50 rounded-full h-2">
-                  <div className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full animate-pulse" 
-                       style={{width: '100%', animation: 'progress 30s linear infinite'}}></div>
+                  <div className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full animate-pulse w-full"></div>
                 </div>
               </div>
 
