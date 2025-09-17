@@ -25,17 +25,32 @@ class TokenCleanupService {
                            token.volumeChange24h || 
                            0;
     
-    // Extract volume from multiple possible sources
-    const volume1h = token.jupiterData?.volume1h || 
-                    token.jupiterData?.stats1h?.volume || 
+    // Extract volume from multiple possible sources (buyVolume + sellVolume)
+    const volume1h = (token.jupiterData?.stats1h?.buyVolume || 0) + 
+                    (token.jupiterData?.stats1h?.sellVolume || 0) ||
+                    token.jupiterData?.volume1h || 
                     token.volume1h || 
                     0;
-    const volume24h = token.jupiterData?.volume24h || 
-                     token.jupiterData?.stats24h?.volume || 
+    const volume24h = (token.jupiterData?.stats24h?.buyVolume || 0) + 
+                     (token.jupiterData?.stats24h?.sellVolume || 0) ||
+                     token.jupiterData?.volume24h || 
                      token.volume24h || 
                      0;
 
     // 🗑️ CRITICAL DELETION CRITERIA
+    
+    // Debug logging for problematic tokens
+    if (token.symbol === 'GOAT' || token.symbol === 'BELIEVE' || token.symbol === 'OSTRICH') {
+      console.log(`🔍 DEBUG ${token.symbol}:`, {
+        volume1h,
+        volume24h,
+        volumeChange1h,
+        volumeChange24h,
+        jupiterData: token.jupiterData ? 'exists' : 'missing',
+        stats1h: token.jupiterData?.stats1h ? 'exists' : 'missing',
+        stats24h: token.jupiterData?.stats24h ? 'exists' : 'missing'
+      });
+    }
     
     // 1. Zero volume for 24+ hours
     if (volume24h === 0 && volume1h === 0) {
