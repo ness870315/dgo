@@ -267,9 +267,9 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
       
       try {
         console.log(`Loading chart data for: ${contract} timeframe: ${timeframe}`);
-        const response = await chartService.getChartData(contract, timeframe);
+        const response = await chartService.getPriceChart(contract, timeframe);
         
-        if (response.success) {
+        if (response && response.data && Array.isArray(response.data)) {
           console.log('Chart service response:', response);
           setChartData(response.data);
           console.log('Formatted chart data:', response.data);
@@ -287,7 +287,7 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
             } : { start: null, end: null }
           });
         } else {
-          setError('Failed to load chart data');
+          setError('Failed to load chart data - invalid response format');
         }
       } catch (err) {
         console.error('Chart data loading error:', err);
