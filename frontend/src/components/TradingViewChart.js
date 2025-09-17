@@ -156,7 +156,11 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
       setTimeout(() => {
         // If canvas dimensions are still wrong, recreate the chart
         const canvases = el.querySelectorAll('canvas');
+        const canvasDimensions = [...canvases].map(c => [c.width, c.height]);
         const hasWrongDimensions = [...canvases].some(c => c.width === 300 && c.height === 150);
+        
+        console.log('🔍 Canvas dimensions check:', canvasDimensions);
+        console.log('🔍 Has wrong dimensions:', hasWrongDimensions);
         
         if (hasWrongDimensions) {
           console.log('🔄 Canvas dimensions still wrong, recreating chart...');
@@ -199,12 +203,53 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
             el.querySelectorAll('canvas').length,
             [...el.querySelectorAll('canvas')].map(c => [c.width, c.height]));
         } else {
+          // Even if detection didn't work, try one more resize
           chart.applyOptions({
             width: containerWidth,
             height: containerHeight,
           });
           chart.timeScale().fitContent();
           console.log('🔄 Forced chart resize to:', containerWidth, containerHeight);
+          
+          // Check again after resize
+          setTimeout(() => {
+            const finalCanvases = el.querySelectorAll('canvas');
+            const finalDimensions = [...finalCanvases].map(c => [c.width, c.height]);
+            console.log('🔍 Final canvas dimensions after resize:', finalDimensions);
+            
+            // If still wrong, force recreation
+            if ([...finalCanvases].some(c => c.width === 300 && c.height === 150)) {
+              console.log('🚨 Final check: Still wrong dimensions, forcing recreation...');
+              chart.remove();
+              el.innerHTML = '';
+              
+              const newChart = createChart(el, {
+                layout: {
+                  background: { type: ColorType.Solid, color: '#000' },
+                  textColor: '#fff',
+                },
+                grid: {
+                  vertLines: { color: '#1e1e1e' },
+                  horzLines: { color: '#1e1e1e' },
+                },
+                crosshair: { mode: 1 },
+                width: containerWidth,
+                height: containerHeight,
+              });
+              
+              const newSeries = newChart.addCandlestickSeries({
+                upColor: '#089981',
+                downColor: '#f23645',
+                wickUpColor: '#089981',
+                wickDownColor: '#f23645',
+                borderVisible: false,
+                priceFormat: { type: 'price', precision: 9, minMove: 1e-9 },
+              });
+              
+              chartRef.current = { chart: newChart, series: newSeries };
+              console.log('✅ Final recreation complete');
+            }
+          }, 50);
         }
       }, 100);
 
