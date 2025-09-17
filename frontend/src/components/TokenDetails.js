@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { X, Twitter, MessageCircle, ExternalLink, Star, Flame, Brain, BarChart3 } from 'lucide-react';
+import kolCallsService from '../services/kolCallsService';
+import watchlistService from '../services/watchlistService';
+import priorityService from '../services/priorityService';
+import { useAuth } from '../contexts/AuthContext';
+import EnhancedCallModal from './EnhancedCallModal';
+import PriceChartModal from './PriceChartModal';
+import fuelImageGenerator from '../services/fuelImageGenerator';
 
 // AI Code Line Animation Component
 const AICodeLine = ({ text, delay }) => {
@@ -21,13 +28,6 @@ const AICodeLine = ({ text, delay }) => {
     </div>
   );
 };
-import kolCallsService from '../services/kolCallsService';
-import watchlistService from '../services/watchlistService';
-import priorityService from '../services/priorityService';
-import { useAuth } from '../contexts/AuthContext';
-import EnhancedCallModal from './EnhancedCallModal';
-import PriceChartModal from './PriceChartModal';
-import fuelImageGenerator from '../services/fuelImageGenerator';
 
 const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, onTokenUpdated }) => {
   const { isAuthenticated } = useAuth();
