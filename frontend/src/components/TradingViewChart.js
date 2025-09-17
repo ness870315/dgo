@@ -89,10 +89,15 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
 
   // INIT ONCE - Chart initialization (run once, never destroy on data changes)
   useEffect(() => {
+    console.log('🚀 Chart initialization effect starting...');
     let mounted = true;
 
     const init = async () => {
-      if (!containerRef.current) return;
+      console.log('🔧 Init function called, containerRef.current:', !!containerRef.current);
+      if (!containerRef.current) {
+        console.log('❌ No container ref, skipping init');
+        return;
+      }
       
       const el = containerRef.current;
       
@@ -189,7 +194,12 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
       });
 
       chartRef.current = { chart, series };
-      console.log('✅ Chart created successfully');
+      console.log('✅ Chart created successfully:', {
+        hasChart: !!chart,
+        hasSeries: !!series,
+        chartWidth: chart.options().width,
+        chartHeight: chart.options().height
+      });
 
       // Resize observer
       const ro = new ResizeObserver(() => {
@@ -208,6 +218,7 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
     init();
 
     return () => {
+      console.log('🧹 Chart initialization cleanup running...');
       try { roRef.current?.disconnect(); } catch {}
       try { chartRef.current?.chart.remove(); } catch {}
       chartRef.current = null;
