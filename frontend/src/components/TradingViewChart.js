@@ -94,22 +94,41 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
     const init = async () => {
       if (!containerRef.current) return;
       
-      // Wait until container has size
       const el = containerRef.current;
-      if (el.clientWidth === 0 || (el.clientHeight || 0) === 0) {
-        console.log('⏳ Container has no size, skipping init');
-        return;
-      }
-
-      console.log('🎯 Chart container dimensions:', {
+      
+      // Quick diagnostic - check container state
+      const computedStyle = getComputedStyle(el);
+      console.log('🔍 Container diagnostic:', {
         clientWidth: el.clientWidth,
         clientHeight: el.clientHeight,
         offsetWidth: el.offsetWidth,
-        offsetHeight: el.offsetHeight
+        offsetHeight: el.offsetHeight,
+        display: computedStyle.display,
+        visibility: computedStyle.visibility,
+        position: computedStyle.position,
+        zIndex: computedStyle.zIndex
       });
+      
+      // Wait until container has size with retry mechanism
+      let retries = 0;
+      while ((el.clientWidth === 0 || (el.clientHeight || 0) === 0) && retries < 10) {
+        console.log(`⏳ Container has no size, retry ${retries + 1}/10...`);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retries++;
+      }
+      
+      if (el.clientWidth === 0 || (el.clientHeight || 0) === 0) {
+        console.log('❌ Container still has no size after retries, using fallback dimensions');
+        // Use fallback dimensions but still try to create chart
+      }
 
       // Dynamic import to avoid SSR/ESM issues
       const { createChart, ColorType } = await import('lightweight-charts');
+
+      const containerWidth = el.clientWidth || 800;
+      const containerHeight = el.clientHeight || 400;
+      
+      console.log('📊 Creating chart with dimensions:', { containerWidth, containerHeight });
 
       const chart = createChart(el, {
         layout: { 
@@ -154,8 +173,8 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
           pinch: true, 
           axisDoubleClickReset: true 
         },
-        width: el.clientWidth,
-        height: el.clientHeight || 400,
+        width: containerWidth,
+        height: containerHeight,
       });
 
       const series = chart.addCandlestickSeries({
@@ -241,6 +260,20 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
       title: `${token?.symbol || 'Token'} ${displayMode==='mcap'?'MCap':'Price'}` 
     });
     ref.series.setData(final);
+    
+    // For small datasets, reduce padding to prevent off-screen rendering
+    if (final.length < 50) {
+      ref.chart.applyOptions({ 
+        timeScale: { 
+          rightOffset: 2, 
+          barSpacing: 2,
+          fixLeftEdge: false,
+          fixRightEdge: false
+        } 
+      });
+      console.log(`📊 Small dataset (${final.length} bars) - reduced padding`);
+    }
+    
     ref.chart.timeScale().fitContent();
     
     console.log(`✅ Data applied successfully: ${final.length} candles with precision ${fmt.precision}`);
@@ -313,7 +346,8 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
           height: "400px", 
           position: "relative",
           minWidth: "400px",
-          minHeight: "400px"
+          minHeight: "400px",
+          border: "2px dashed #f00" // Temporary debug border
         }}
       />
     </div>
