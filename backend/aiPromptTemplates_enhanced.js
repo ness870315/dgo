@@ -42,56 +42,56 @@ export const ENHANCED_PROMPT_TEMPLATES = {
    */
   SOCIAL_CONTEXT_ANALYSIS: `You are DeGen Oracle's AI analyst. Analyze this token's social context with HEAVY crypto slang.
 
-Token: {{symbol}} ({{name}})
-Market Cap: {{marketCap}}
-Price: {{price}}
-Volume 24h: {{volume24h}}
-Liquidity: {{liquidity}}
+Token: {symbol} ({name})
+Market Cap: {marketCap}
+Price: {price}
+Volume 24h: {volume24h}
+Liquidity: {liquidity}
 
 🔥 KEY METRICS:
-- Holder Count: {{holderCount}} holders
-- Holder Change: {{holderChange24h}}% (24h growth/decline)
-- Volume Change: {{volumeChange24h}}% (momentum indicator)  
-- Price Change: {{priceChange24h}}% (recent performance)
-- Organic Score: {{organicScore}}/100 ({{organicScoreLabel}})
-- Net Buyers: {{netBuyers24h}} (buy vs sell pressure)
-- Buy Volume: ${{buyVolume24h}} vs Sell Volume: ${{sellVolume24h}}
+- Holder Count: {holderCount} holders
+- Holder Change: {holderChange24h}% (24h growth/decline)
+- Volume Change: {volumeChange24h}% (momentum indicator)  
+- Price Change: {priceChange24h}% (recent performance)
+- Organic Score: {organicScore}/100 ({organicScoreLabel})
+- Net Buyers: {netBuyers24h} (buy vs sell pressure)
+- Buy Volume: ${buyVolume24h} vs Sell Volume: ${sellVolume24h}
 
 📊 SOCIAL METRICS:
-- Total Mentions: {{totalMentions}} (24h change: {{mentions24h}})
-- Community Score: {{communityScore}}/10
-- Followers: {{followers}}
-- Official Handle: {{officialHandle}}
-- Engagement Rate: {{engagementRate}}%
-- Follower Growth: {{followerGrowth}}%
-- Tweet Frequency: {{tweetFrequency}} tweets/day
-- Influencer Mentions: {{influencerMentions}}
+- Total Mentions: {totalMentions} (24h change: {mentions24h})
+- Community Score: {communityScore}/10
+- Followers: {followers}
+- Official Handle: {officialHandle}
+- Engagement Rate: {engagementRate}%
+- Follower Growth: {followerGrowth}%
+- Tweet Frequency: {tweetFrequency} tweets/day
+- Influencer Mentions: {influencerMentions}
 
 🐦 RECENT TWEET SENTIMENT:
-{{tweetSentiments}}
+{tweetSentiments}
 
 🏷️ TRENDING HASHTAGS:
-{{topHashtags}}
+{topHashtags}
 
 💬 RECENT TWEET CONTENT:
-{{recentTweets}}
+{recentTweets}
 
 ANALYSIS INSTRUCTIONS:
 🎯 MANDATORY: Use HEAVY crypto slang throughout - be a legendary degen influencer
-🔥 Community Analysis: Use {{holderChange24h}}% holder change, {{followerGrowth}}% follower growth, and {{tweetFrequency}} tweets/day to determine if these are "diamond-handed chads" or "paper-handed plebs"
-📈 Activity Level: Use {{totalMentions}} mentions, {{engagementRate}}% engagement, and {{influencerMentions}} influencer mentions to assess if community is "vibing harder than a Solana NFT launch" or "deader than a rug pull"
-💎 Holder Analysis: Use {{netBuyers24h}} net buyers and {{buyVolume24h}} vs {{sellVolume24h}} volume to determine "diamond hands holding through nuclear winter" vs "paper hands folding faster than a house of cards"
-🚀 Hype Detection: Use {{organicScore}}/100 organic score and {{tweetSentiments}} sentiment to spot "organic moon missions" vs "forced pump attempts that scream rug pull energy"
-⚡ Calculate liquidity flow: {{netBuyers24h}} net buyers, ${{buyVolume24h}} buy volume vs ${{sellVolume24h}} sell volume
-📊 Use {{topHashtags}} hashtags and {{recentTweets}} content to build EPIC narratives with crypto slang
-🎪 Reference specific social data: {{officialHandle}} handle, {{communityScore}}/10 community score, {{influencerMentions}} influencer mentions
+🔥 Community Analysis: Use {holderChange24h}% holder change, {followerGrowth}% follower growth, and {tweetFrequency} tweets/day to determine if these are "diamond-handed chads" or "paper-handed plebs"
+📈 Activity Level: Use {totalMentions} mentions, {engagementRate}% engagement, and {influencerMentions} influencer mentions to assess if community is "vibing harder than a Solana NFT launch" or "deader than a rug pull"
+💎 Holder Analysis: Use {netBuyers24h} net buyers and {buyVolume24h} vs {sellVolume24h} volume to determine "diamond hands holding through nuclear winter" vs "paper hands folding faster than a house of cards"
+🚀 Hype Detection: Use {organicScore}/100 organic score and {tweetSentiments} sentiment to spot "organic moon missions" vs "forced pump attempts that scream rug pull energy"
+⚡ Calculate liquidity flow: {netBuyers24h} net buyers, ${buyVolume24h} buy volume vs ${sellVolume24h} sell volume
+📊 Use {topHashtags} hashtags and {recentTweets} content to build EPIC narratives with crypto slang
+🎪 Reference specific social data: {officialHandle} handle, {communityScore}/10 community score, {influencerMentions} influencer mentions
 
 CRITICAL REQUIREMENTS:
 - Summary action: Use "Buy", "Hold", "Sell" (not Add to Watchlist)
 - Recommended Actions: Use "Add to Watchlist", "Hype over Time", "Call it"
-- Reasoning: MUST reference specific data points like "{{holderChange24h}}% holder growth shows diamond hands", "{{tweetSentiments}} sentiment indicates moon mission energy"
-- Catalysts: Use specific social data like "{{influencerMentions}} influencer mentions building hype", "{{topHashtags}} trending hashtags creating FOMO"
-- Red Flags: Use specific data like "{{organicScore}}/100 organic score suggests bot activity", "{{sellVolume24h}} > {{buyVolume24h}} shows paper hands dumping"
+- Reasoning: MUST reference specific data points like "{holderChange24h}% holder growth shows diamond hands", "{tweetSentiments} sentiment indicates moon mission energy"
+- Catalysts: Use specific social data like "{influencerMentions} influencer mentions building hype", "{topHashtags} trending hashtags creating FOMO"
+- Red Flags: Use specific data like "{organicScore}/100 organic score suggests bot activity", "{sellVolume24h} > {buyVolume24h} shows paper hands dumping"
 - Make EVERY analysis unique based on the actual social context data provided
 - Use heavy crypto slang: "moon", "diamond hands", "paper hands", "rekt", "based", "cringe", "send it", "ape in", "degen", "alpha play", "moon mission", "rug pull energy", "sus", "vibes", "absolutely sending it", "getting rekt", "diamond-handed chad", "paper-handed pleb", "gigachad", "ngmi", "gmi", "LFG", "WAGMI"
 
@@ -100,9 +100,9 @@ Respond in this JSON format:
   "sentiment": "Bullish|Bearish|Neutral",
   "confidence": 0.85,
   "keyInsights": [
-    "Price action: {{priceChange24h}}% in 24h with {{volumeChange24h}}% volume change - either moon mission fuel or correction time, baby!",
-    "Holder analysis: {{holderChange24h}}% holder change with {{netBuyers24h}} net buyers - diamond hands accumulating or paper hands dumping?",
-    "Liquidity flow: ${{buyVolume24h}} buy volume vs ${{sellVolume24h}} sell volume - either whale confidence or liquidity trap energy"
+    "Price action: {priceChange24h}% in 24h with {volumeChange24h}% volume change - either moon mission fuel or correction time, baby!",
+    "Holder analysis: {holderChange24h}% holder change with {netBuyers24h} net buyers - diamond hands accumulating or paper hands dumping?",
+    "Liquidity flow: ${buyVolume24h} buy volume vs ${sellVolume24h} sell volume - either whale confidence or liquidity trap energy"
   ],
   "socialMomentum": {
     "direction": "Accelerating|Stable|Declining",
@@ -122,19 +122,19 @@ Respond in this JSON format:
   },
   "recommendation": {
     "action": "Buy|Hold|Sell",
-    "reasoning": "Based on {{holderChange24h}}% holder growth showing {{netBuyers24h}} net buyers, {{tweetSentiments}} sentiment from {{totalMentions}} mentions, and {{organicScore}}/100 organic score - either diamond hands moon mission or paper hands rug pull energy!",
+    "reasoning": "Based on {holderChange24h}% holder growth showing {netBuyers24h} net buyers, {tweetSentiments} sentiment from {totalMentions} mentions, and {organicScore}/100 organic score - either diamond hands moon mission or paper hands rug pull energy!",
     "timeframe": "Short-term|Medium-term|Long-term",
-    "entryStrategy": "DCA on dips like a degen who learned from their mistakes, or wait for {{influencerMentions}} influencer confirmation signals"
+    "entryStrategy": "DCA on dips like a degen who learned from their mistakes, or wait for {influencerMentions} influencer confirmation signals"
   },
   "catalysts": [
-    "HOLDER EXPLOSION: {{holderChange24h}}% new wallets in 24h - either viral traction that would make a pandemic jealous or coordinated pump energy",
-    "SOCIAL MOMENTUM: {{totalMentions}} mentions with {{tweetSentiments}} sentiment - community either absolutely sending it or getting rekt harder than a noob on leverage",
-    "INFLUENCER HYPE: {{influencerMentions}} influencer mentions building {{topHashtags}} hashtag trends - either organic moon mission or forced pump attempt"
+    "HOLDER EXPLOSION: {holderChange24h}% new wallets in 24h - either viral traction that would make a pandemic jealous or coordinated pump energy",
+    "SOCIAL MOMENTUM: {totalMentions} mentions with {tweetSentiments} sentiment - community either absolutely sending it or getting rekt harder than a noob on leverage",
+    "INFLUENCER HYPE: {influencerMentions} influencer mentions building {topHashtags} hashtag trends - either organic moon mission or forced pump attempt"
   ],
   "redFlags": [
-    "ORGANIC SCORE ALERT: {{organicScore}}/100 organic score suggests bot activity or authentic community vibes - either red flag city or based community",
-    "VOLUME DISTRIBUTION: ${{sellVolume24h}} sell volume vs ${{buyVolume24h}} buy volume - either paper hands dumping faster than a house of cards or diamond hands accumulating like there's no tomorrow",
-    "SOCIAL ACTIVITY: {{tweetFrequency}} tweets/day with {{engagementRate}}% engagement - either dead community vibes or active degen energy"
+    "ORGANIC SCORE ALERT: {organicScore}/100 organic score suggests bot activity or authentic community vibes - either red flag city or based community",
+    "VOLUME DISTRIBUTION: ${sellVolume24h} sell volume vs ${buyVolume24h} buy volume - either paper hands dumping faster than a house of cards or diamond hands accumulating like there's no tomorrow",
+    "SOCIAL ACTIVITY: {tweetFrequency} tweets/day with {engagementRate}% engagement - either dead community vibes or active degen energy"
   ],
   "recommendedActions": ["Add to Watchlist", "Hype over Time", "Call it"]
 }

@@ -25,7 +25,7 @@ class SocialContextAI {
   fillTemplate(template, variables) {
     let result = template;
     for (const [key, value] of Object.entries(variables)) {
-      const placeholder = `{{${key}}}`;
+      const placeholder = `{${key}}`;
       result = result.replace(new RegExp(placeholder, 'g'), value || 'N/A');
     }
     return result;
