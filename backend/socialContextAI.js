@@ -315,6 +315,14 @@ async initialize() {
       stats6h: this.formatJupiterStats(jupiterData.stats6h), 
       stats24h: this.formatJupiterStats(jupiterData.stats24h),
       
+      // Individual stats for template variables
+      'stats24h.priceChange': Number(stats24h.priceChange || 0).toFixed(2),
+      'stats24h.volumeChange': Number(stats24h.volumeChange || 0).toFixed(2),
+      'stats24h.holderChange': Number(stats24h.holderChange || 0).toFixed(2),
+      'stats24h.numNetBuyers': stats24h.numNetBuyers || 0,
+      'stats24h.buyVolume': this.formatNumber(stats24h.buyVolume || 0),
+      'stats24h.sellVolume': this.formatNumber(stats24h.sellVolume || 0),
+      
       // Enhanced scoring data
       overallScore: tokenData.overallScore || tokenData.score || 0,
       sentimentScore: tokenData.sentimentScore || tokenData.twitterData?.sentimentScore || tokenData.mediasentiment || 5,

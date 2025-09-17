@@ -53,7 +53,7 @@ Liquidity: {{liquidity}}
 - Holder Change: {{stats24h.holderChange}}% (24h growth/decline)
 - Volume Change: {{stats24h.volumeChange}}% (momentum indicator)  
 - Price Change: {{stats24h.priceChange}}% (recent performance)
-- Organic Score: {{organicScore}}/100 ({{organicLabel}})
+- Organic Score: {{organicScore}}/100 ({{organicScoreLabel}})
 - Net Buyers: {{stats24h.numNetBuyers}} (buy vs sell pressure)
 - Buy Volume: ${{stats24h.buyVolume}} vs Sell Volume: ${{stats24h.sellVolume}}
 
@@ -132,7 +132,7 @@ Respond in this JSON format:
     "INFLUENCER HYPE: {{influencerMentions}} influencer mentions building {{topHashtags}} hashtag trends - either organic moon mission or forced pump attempt"
   ],
   "redFlags": [
-    "ORGANIC SCORE ALERT: {{organicScore}}/100 organic score suggests {{organicScore < 50 ? 'bot activity and rug pull energy' : 'authentic community vibes'}} - either red flag city or based community",
+    "ORGANIC SCORE ALERT: {{organicScore}}/100 organic score suggests bot activity or authentic community vibes - either red flag city or based community",
     "VOLUME DISTRIBUTION: ${{stats24h.sellVolume}} sell volume vs ${{stats24h.buyVolume}} buy volume - either paper hands dumping faster than a house of cards or diamond hands accumulating like there's no tomorrow",
     "SOCIAL ACTIVITY: {{tweetFrequency}} tweets/day with {{engagementRate}}% engagement - either dead community vibes or active degen energy"
   ],
