@@ -1676,7 +1676,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                           </div>
                         )}
                       </div>
-                      <span className="text-white font-medium">{(hypeAIData.confidence * 100).toFixed(0)}%</span>
+                      <span className="text-white font-medium">{((hypeAIData.analysis?.confidence || 0) * 100).toFixed(0)}%</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-1">
@@ -1716,14 +1716,14 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                 </div>
               </div>
 
-              {/* Forecast */}
-              {hypeAIData.forecast && hypeAIData.forecast.length > 0 && (
+              {/* Forecast Section */}
+              {hypeAIData.analysis?.forecast && hypeAIData.analysis.forecast.length > 0 && (
                 <div className="mb-6 p-4 bg-gradient-to-r from-gray-800/50 to-gray-800/30 rounded-lg border border-gray-700 shadow-lg">
                   <div className="flex items-center gap-2 mb-3 relative">
                     <div className="p-2 bg-gray-700/50 rounded-full">
                       <Clock size={18} className="text-blue-400" />
                     </div>
-                    <h3 className="text-lg font-semibold text-white">6-12h Forecast</h3>
+                    <h3 className="text-lg font-semibold text-white">6-12h Hype Score Forecast</h3>
                     <Info 
                       size={14} 
                       className="text-gray-500 cursor-help"
@@ -1740,7 +1740,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                     )}
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                    {hypeAIData.forecast.map((point, index) => (
+                    {hypeAIData.analysis.forecast.map((point, index) => (
                       <div key={index} className="text-center p-3 bg-gradient-to-b from-gray-700/50 to-gray-700/30 rounded-lg border border-gray-600/50 shadow-sm">
                         <div className="text-xs text-gray-400 mb-1 flex items-center justify-center gap-1">
                           <Clock size={10} />
@@ -1755,11 +1755,11 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
               )}
 
               {/* Signals */}
-              {hypeAIData.signals && hypeAIData.signals.length > 0 && (
+              {hypeAIData.analysis?.signals && hypeAIData.analysis.signals.length > 0 && (
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold text-white mb-3">Signals</h3>
                   <div className="space-y-2">
-                    {hypeAIData.signals.map((signal, index) => (
+                    {hypeAIData.analysis.signals.map((signal, index) => (
                       <div key={index} className={`p-3 rounded-lg border ${
                         signal.type === 'bullish' ? 'bg-green-900/20 border-green-700' :
                         signal.type === 'bearish' ? 'bg-red-900/20 border-red-700' :
@@ -1784,126 +1784,6 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                 </div>
               )}
 
-              {/* Technical Indicators */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div className="p-4 bg-gradient-to-br from-gray-800/40 to-gray-800/20 rounded-lg border border-gray-700 shadow-sm">
-                  <div className="flex items-center gap-2 mb-3 relative">
-                    <BarChart3 size={16} className="text-blue-400" />
-                    <h4 className="text-white font-medium">EWMA</h4>
-                    <Info 
-                      size={12} 
-                      className="text-gray-500 cursor-help"
-                      onMouseEnter={() => setHoveredTooltip('ewma')}
-                      onMouseLeave={() => setHoveredTooltip(null)}
-                    />
-                    {hoveredTooltip === 'ewma' && (
-                      <div className="bubble-tooltip absolute top-full left-0 mt-2 z-50">
-                        <div className="text-xs leading-tight">
-                          <span className="font-semibold text-white">{getTooltipContent('ewma').title}:</span>
-                          <span className="text-gray-300 ml-1">{getTooltipContent('ewma').description}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Momentum:</span>
-                      <span className="text-white font-mono">{hypeAIData.technicalIndicators?.ewma?.momentum?.toFixed(2) || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Trend:</span>
-                      <span className={`font-medium ${
-                        hypeAIData.technicalIndicators?.ewma?.trend === 'rising' ? 'text-green-400' :
-                        hypeAIData.technicalIndicators?.ewma?.trend === 'falling' ? 'text-red-400' : 'text-gray-400'
-                      }`}>
-                        {hypeAIData.technicalIndicators?.ewma?.trend || 'N/A'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="p-4 bg-gradient-to-br from-gray-800/40 to-gray-800/20 rounded-lg border border-gray-700 shadow-sm">
-                  <div className="flex items-center gap-2 mb-3 relative">
-                    <TrendingUp size={16} className="text-green-400" />
-                    <h4 className="text-white font-medium">Derivative</h4>
-                    <Info 
-                      size={12} 
-                      className="text-gray-500 cursor-help"
-                      onMouseEnter={() => setHoveredTooltip('derivative')}
-                      onMouseLeave={() => setHoveredTooltip(null)}
-                    />
-                    {hoveredTooltip === 'derivative' && (
-                      <div className="bubble-tooltip absolute top-full left-0 mt-2 z-50">
-                        <div className="text-xs leading-tight">
-                          <span className="font-semibold text-white">{getTooltipContent('derivative').title}:</span>
-                          <span className="text-gray-300 ml-1">{getTooltipContent('derivative').description}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Velocity:</span>
-                      <span className="text-white font-mono">{hypeAIData.technicalIndicators?.derivative?.velocity?.toFixed(2) || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Acceleration:</span>
-                      <span className={`font-mono ${
-                        (hypeAIData.technicalIndicators?.derivative?.acceleration || 0) > 0 ? 'text-green-400' :
-                        (hypeAIData.technicalIndicators?.derivative?.acceleration || 0) < 0 ? 'text-red-400' : 'text-gray-400'
-                      }`}>
-                        {hypeAIData.technicalIndicators?.derivative?.acceleration?.toFixed(2) || 'N/A'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="p-4 bg-gradient-to-br from-gray-800/40 to-gray-800/20 rounded-lg border border-gray-700 shadow-sm">
-                  <div className="flex items-center gap-2 mb-3 relative">
-                    <Target size={16} className="text-purple-400" />
-                    <h4 className="text-white font-medium">Change Points</h4>
-                    <Info 
-                      size={12} 
-                      className="text-gray-500 cursor-help"
-                      onMouseEnter={() => setHoveredTooltip('changepoints')}
-                      onMouseLeave={() => setHoveredTooltip(null)}
-                    />
-                    {hoveredTooltip === 'changepoints' && (
-                      <div className="bubble-tooltip absolute top-full left-0 mt-2 z-50">
-                        <div className="text-xs leading-tight">
-                          <span className="font-semibold text-white">{getTooltipContent('changepoints').title}:</span>
-                          <span className="text-gray-300 ml-1">{getTooltipContent('changepoints').description}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Recent Change:</span>
-                      <span className={`font-medium ${
-                        hypeAIData.technicalIndicators?.changePoints?.hasRecentChange ? 'text-yellow-400' : 'text-gray-400'
-                      }`}>
-                        {hypeAIData.technicalIndicators?.changePoints?.hasRecentChange ? 'Yes' : 'No'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-400">Direction:</span>
-                      <span className={`font-medium ${
-                        hypeAIData.technicalIndicators?.changePoints?.changeDirection === 'upturn' ? 'text-green-400' :
-                        hypeAIData.technicalIndicators?.changePoints?.changeDirection === 'downturn' ? 'text-red-400' : 'text-gray-400'
-                      }`}>
-                        {hypeAIData.technicalIndicators?.changePoints?.changeDirection || 'stable'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6 text-center">
-                <p className="text-xs text-gray-500">
-                  Analysis based on EWMA + derivative and Bayesian change-point detection
-                </p>
-              </div>
             </div>
           </div>
         )}
