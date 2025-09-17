@@ -11,25 +11,37 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
   const [error, setError] = useState(null);
   const [displayMode, setDisplayMode] = useState('price'); // 'price' or 'mcap'
 
-  // Helper: normalize candles data (safe version)
-  const normalizeCandles = (rows=[]) => {
-    const pick = (...xs) => xs.find(v => v != null);
-    const toNum = (v) => v == null ? null : Number(v);
-    const toSec = (t) => (t > 1e12 ? Math.floor(t/1000) : t);
+  // Helper: normalize candles data (safe version with integer timestamps)
+  const normalizeCandles = (rows = []) => {
+    const pick  = (...xs) => xs.find(v => v != null);
+    const toNum = v => v == null ? null : Number(v);
+    const toSecInt = (t) => {
+      if (t == null) return null;
+      const s = t > 1e12 ? t / 1000 : t;   // ms → s if needed
+      return Math.floor(s);                // <-- important: integer seconds
+    };
 
     const out = rows.map(d => {
-      const time = toSec(pick(d.time, d.t));
-      const o = toNum(pick(d.open, d.o, d.value));
-      const h = toNum(pick(d.high, d.h, d.value));
-      const l = toNum(pick(d.low , d.l, d.value));
+      const time = toSecInt(pick(d.time, d.t, d.timestamp));
+      const o = toNum(pick(d.open,  d.o, d.value));
+      const h = toNum(pick(d.high,  d.h, d.value));
+      const l = toNum(pick(d.low,   d.l, d.value));
       const c = toNum(pick(d.close, d.c, d.value));
       const v = toNum(pick(d.volume, d.v)) ?? 0;
-      if (![time,o,h,l,c].every(Number.isFinite)) return null;
+      if (![time, o, h, l, c].every(Number.isFinite)) return null;
       return { time, open:o, high:h, low:l, close:c, volume:v };
     }).filter(Boolean);
 
+    // sort ascending and remove duplicates
     out.sort((a,b) => a.time - b.time);
-    return out;
+    const dedup = [];
+    let prev = -Infinity;
+    for (const bar of out) {
+      if (bar.time === prev) continue;     // skip duplicates
+      dedup.push(bar);
+      prev = bar.time;
+    }
+    return dedup;
   };
 
   // Load chart data
@@ -161,23 +173,25 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
     if (!candles.length) return;
 
     // precision from last close (don't force 6 for micro prices)
-    const last = candles.at(-1)?.close ?? 1;
+    const lastClose = candles.at(-1)?.close ?? 1;
     const priceFmt =
       displayMode === 'mcap' ? { type: 'price', precision: 0, minMove: 1 }
-    : last >= 1          ? { type: 'price', precision: 6, minMove: 1e-6 }
-    : last >= 0.01       ? { type: 'price', precision: 8, minMove: 1e-8 }
+    : lastClose >= 1          ? { type: 'price', precision: 6, minMove: 1e-6 }
+    : lastClose >= 0.01       ? { type: 'price', precision: 8, minMove: 1e-8 }
                          : { type: 'price', precision: 9, minMove: 1e-9 };
 
     ref.series.applyOptions({ priceFormat: priceFmt, title: `${token?.symbol || 'Token'} ${displayMode==='mcap'?'MCap':'Price'}` });
     ref.series.setData(candles);
 
-    // protect small datasets (e.g., your 15MIN=24 bars) from looking like giant crosses
-    const small = candles.length < 60;
-    ref.chart.applyOptions({ timeScale: { rightOffset: small ? 2 : 8, barSpacing: small ? 2 : 6 } });
-
-    // ensure bars are actually in-frame
-    ref.chart.timeScale().setVisibleRange({ from: candles[0].time, to: candles.at(-1).time });
+    // force the visible range so small datasets don't sit off-screen
+    const first = candles[0].time, last = candles.at(-1).time;
+    ref.chart.timeScale().setVisibleRange({ from: first, to: last });
     ref.chart.timeScale().fitContent();
+
+    // if a frame returns very few bars (e.g., 24 on 15MIN), reduce spacing
+    ref.chart.applyOptions({
+      timeScale: { rightOffset: candles.length < 60 ? 2 : 8, barSpacing: candles.length < 60 ? 2 : 6 }
+    });
     
     console.log(`✅ Data applied successfully: ${candles.length} candles with precision ${priceFmt.precision}`);
   }, [chartData, displayMode, timeframe]);
