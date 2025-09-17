@@ -60,7 +60,7 @@ class TokenCleanupRunner {
     }
   }
 
-  async confirmDelete() {
+  async confirmDelete(severityFilter = null) {
     console.log('🗑️ CONFIRMING Token Deletion...\n');
     
     try {
@@ -72,13 +72,27 @@ class TokenCleanupRunner {
         return;
       }
       
-      console.log(`🚨 DELETING ${analysis.toDelete.length} tokens:`);
-      analysis.toDelete.forEach(token => {
-        console.log(`   • ${token.symbol}: ${token.reason}`);
+      // Filter by severity if specified
+      let tokensToDelete = analysis.toDelete;
+      if (severityFilter) {
+        tokensToDelete = analysis.toDelete.filter(token => 
+          token.severity.toUpperCase() === severityFilter.toUpperCase()
+        );
+        console.log(`🎯 Filtering to ${severityFilter} severity only: ${tokensToDelete.length} tokens`);
+      }
+      
+      if (tokensToDelete.length === 0) {
+        console.log(`✅ No ${severityFilter || 'tokens'} to delete.`);
+        return;
+      }
+      
+      console.log(`🚨 DELETING ${tokensToDelete.length} tokens:`);
+      tokensToDelete.forEach(token => {
+        console.log(`   • ${token.symbol} (${token.severity}): ${token.reason}`);
       });
       
       // Delete the tokens
-      const result = await this.cleanupService.deleteTokens(analysis.toDelete);
+      const result = await this.cleanupService.deleteTokens(tokensToDelete);
       
       if (result) {
         console.log(`\n✅ Successfully deleted ${result.deleted} tokens`);
@@ -103,8 +117,12 @@ class TokenCleanupRunner {
 const args = process.argv.slice(2);
 const runner = new TokenCleanupRunner();
 
+// Check for severity filter
+const severityArg = args.find(arg => arg.startsWith('--severity='));
+const severityFilter = severityArg ? severityArg.split('=')[1] : null;
+
 if (args.includes('--delete') && args.includes('--confirm')) {
-  runner.confirmDelete().catch(console.error);
+  runner.confirmDelete(severityFilter).catch(console.error);
 } else if (args.includes('--delete')) {
   runner.deleteTokens().catch(console.error);
 } else {
