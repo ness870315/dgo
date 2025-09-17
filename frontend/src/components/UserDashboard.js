@@ -1419,6 +1419,282 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                 </div>
               </div>
 
+              {/* AI Prediction Section */}
+              {hypeAIData.aiPrediction && (
+                <div className="mb-6 p-4 bg-gradient-to-r from-purple-900/30 to-purple-800/20 rounded-lg border border-purple-700/50 shadow-lg">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-purple-700/50 rounded-full">
+                      <Brain size={20} className="text-purple-300" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-white">AI Prediction</h3>
+                      <p className="text-purple-300 text-sm">Enhanced analysis with technical indicators</p>
+                    </div>
+                    {hypeAIData.aiPrediction.fallback && (
+                      <div className="px-2 py-1 bg-yellow-900/30 border border-yellow-700/50 rounded text-xs text-yellow-300">
+                        Fallback
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* AI Reasoning */}
+                  {hypeAIData.aiPrediction.reasoning && (
+                    <div className="mb-4 p-3 bg-gray-800/50 rounded border border-gray-600/50">
+                      <div className="flex items-start gap-2">
+                        <div className="text-purple-400 mt-0.5">💭</div>
+                        <div className="flex-1">
+                          <p className="text-gray-200 text-sm leading-relaxed">
+                            {hypeAIData.aiPrediction.reasoning}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Prediction Details */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Direction & Strength */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-400 text-sm">Direction:</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                            hypeAIData.aiPrediction.prediction?.direction === 'bullish' ? 'bg-green-900/50 text-green-300 border border-green-700/50' :
+                            hypeAIData.aiPrediction.prediction?.direction === 'bearish' ? 'bg-red-900/50 text-red-300 border border-red-700/50' :
+                            'bg-gray-700/50 text-gray-300 border border-gray-600/50'
+                          }`}>
+                            {hypeAIData.aiPrediction.prediction?.direction || 'Unknown'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-400 text-sm">Strength:</span>
+                        <span className="text-white font-medium">
+                          {hypeAIData.aiPrediction.prediction?.strength || 'Unknown'}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-400 text-sm">Confidence:</span>
+                        <span className="text-white font-medium">
+                          {hypeAIData.aiPrediction.prediction?.confidence ? 
+                            `${(hypeAIData.aiPrediction.prediction.confidence * 100).toFixed(0)}%` : 
+                            'Unknown'
+                          }
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Recommendation */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-400 text-sm">Recommendation:</span>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          hypeAIData.aiPrediction.recommendation === 'buy' ? 'bg-green-900/50 text-green-300 border border-green-700/50' :
+                          hypeAIData.aiPrediction.recommendation === 'sell' ? 'bg-red-900/50 text-red-300 border border-red-700/50' :
+                          hypeAIData.aiPrediction.recommendation === 'hold' ? 'bg-blue-900/50 text-blue-300 border border-blue-700/50' :
+                          'bg-gray-700/50 text-gray-300 border border-gray-600/50'
+                        }`}>
+                          {hypeAIData.aiPrediction.recommendation?.toUpperCase() || 'UNKNOWN'}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-400 text-sm">Timeframe:</span>
+                        <span className="text-white font-medium">
+                          {hypeAIData.aiPrediction.prediction?.timeframe || 'Unknown'}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-400 text-sm">Target Score:</span>
+                        <span className="text-white font-medium">
+                          {hypeAIData.aiPrediction.prediction?.targetScore || 'Unknown'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Catalysts & Risks */}
+                  {(hypeAIData.aiPrediction.catalysts?.length > 0 || hypeAIData.aiPrediction.risks?.length > 0) && (
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Catalysts */}
+                      {hypeAIData.aiPrediction.catalysts?.length > 0 && (
+                        <div>
+                          <h4 className="text-green-400 text-sm font-medium mb-2">🚀 Catalysts</h4>
+                          <ul className="space-y-1">
+                            {hypeAIData.aiPrediction.catalysts.slice(0, 3).map((catalyst, index) => (
+                              <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                <span className="text-green-400 mt-0.5">•</span>
+                                <span>{catalyst}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Risks */}
+                      {hypeAIData.aiPrediction.risks?.length > 0 && (
+                        <div>
+                          <h4 className="text-red-400 text-sm font-medium mb-2">⚠️ Risks</h4>
+                          <ul className="space-y-1">
+                            {hypeAIData.aiPrediction.risks.slice(0, 3).map((risk, index) => (
+                              <li key={index} className="text-gray-300 text-xs flex items-start gap-2">
+                                <span className="text-red-400 mt-0.5">•</span>
+                                <span>{risk}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Technical Analysis Section */}
+              {hypeAIData.technicalIndicators && (
+                <div className="mb-6 p-4 bg-gradient-to-r from-blue-900/30 to-blue-800/20 rounded-lg border border-blue-700/50 shadow-lg">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-blue-700/50 rounded-full">
+                      <Gauge size={20} className="text-blue-300" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-white">Technical Analysis</h3>
+                      <p className="text-blue-300 text-sm">EWMA + Derivative + Bayesian Analysis</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* EWMA Analysis */}
+                    {hypeAIData.technicalIndicators.ewma && (
+                      <div className="p-3 bg-gray-800/50 rounded border border-gray-600/50">
+                        <h4 className="text-blue-400 text-sm font-medium mb-2">📈 EWMA (Trend Smoothing)</h4>
+                        <div className="space-y-2 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Score EWMA:</span>
+                            <span className="text-white font-medium">
+                              {hypeAIData.technicalIndicators.ewma.currentScoreEWMA?.toFixed(2) || 'N/A'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Mention EWMA:</span>
+                            <span className="text-white font-medium">
+                              {hypeAIData.technicalIndicators.ewma.currentMentionEWMA?.toFixed(2) || 'N/A'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Trend:</span>
+                            <span className={`font-medium ${
+                              hypeAIData.technicalIndicators.ewma.trend === 'rising' ? 'text-green-400' :
+                              hypeAIData.technicalIndicators.ewma.trend === 'falling' ? 'text-red-400' :
+                              'text-gray-400'
+                            }`}>
+                              {hypeAIData.technicalIndicators.ewma.trend || 'Unknown'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Momentum:</span>
+                            <span className="text-white font-medium">
+                              {hypeAIData.technicalIndicators.ewma.momentum?.toFixed(3) || 'N/A'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Derivative Analysis */}
+                    {hypeAIData.technicalIndicators.derivative && (
+                      <div className="p-3 bg-gray-800/50 rounded border border-gray-600/50">
+                        <h4 className="text-green-400 text-sm font-medium mb-2">⚡ Derivative (Rate of Change)</h4>
+                        <div className="space-y-2 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Score Derivative:</span>
+                            <span className={`font-medium ${
+                              (hypeAIData.technicalIndicators.derivative.scoreDerivative || 0) > 0 ? 'text-green-400' :
+                              (hypeAIData.technicalIndicators.derivative.scoreDerivative || 0) < 0 ? 'text-red-400' :
+                              'text-gray-400'
+                            }`}>
+                              {hypeAIData.technicalIndicators.derivative.scoreDerivative?.toFixed(3) || 'N/A'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Mention Derivative:</span>
+                            <span className={`font-medium ${
+                              (hypeAIData.technicalIndicators.derivative.mentionDerivative || 0) > 0 ? 'text-green-400' :
+                              (hypeAIData.technicalIndicators.derivative.mentionDerivative || 0) < 0 ? 'text-red-400' :
+                              'text-gray-400'
+                            }`}>
+                              {hypeAIData.technicalIndicators.derivative.mentionDerivative?.toFixed(3) || 'N/A'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Velocity:</span>
+                            <span className={`font-medium ${
+                              (hypeAIData.technicalIndicators.derivative.velocity || 0) > 0 ? 'text-green-400' :
+                              (hypeAIData.technicalIndicators.derivative.velocity || 0) < 0 ? 'text-red-400' :
+                              'text-gray-400'
+                            }`}>
+                              {hypeAIData.technicalIndicators.derivative.velocity?.toFixed(3) || 'N/A'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Accelerating:</span>
+                            <span className={`font-medium ${
+                              hypeAIData.technicalIndicators.derivative.isAccelerating ? 'text-green-400' : 'text-red-400'
+                            }`}>
+                              {hypeAIData.technicalIndicators.derivative.isAccelerating ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Bayesian Change Points */}
+                    {hypeAIData.technicalIndicators.changePoints && (
+                      <div className="p-3 bg-gray-800/50 rounded border border-gray-600/50">
+                        <h4 className="text-purple-400 text-sm font-medium mb-2">🎯 Bayesian Change Points</h4>
+                        <div className="space-y-2 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Change Points:</span>
+                            <span className="text-white font-medium">
+                              {hypeAIData.technicalIndicators.changePoints.length || 0}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Recent Change:</span>
+                            <span className={`font-medium ${
+                              hypeAIData.technicalIndicators.changePoints.hasRecentChange ? 'text-yellow-400' : 'text-gray-400'
+                            }`}>
+                              {hypeAIData.technicalIndicators.changePoints.hasRecentChange ? 'Yes' : 'No'}
+                            </span>
+                          </div>
+                          {hypeAIData.technicalIndicators.changePoints.hasRecentChange && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">Direction:</span>
+                              <span className={`font-medium ${
+                                hypeAIData.technicalIndicators.changePoints.changeDirection === 'upturn' ? 'text-green-400' :
+                                hypeAIData.technicalIndicators.changePoints.changeDirection === 'downturn' ? 'text-red-400' :
+                                'text-gray-400'
+                              }`}>
+                                {hypeAIData.technicalIndicators.changePoints.changeDirection || 'Unknown'}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Confidence:</span>
+                            <span className="text-white font-medium">
+                              {hypeAIData.confidence ? `${(hypeAIData.confidence * 100).toFixed(1)}%` : 'N/A'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Why Bearish/Bullish? Explainer */}
               <div className="mb-6">
                 <div className="flex items-center gap-2 mb-2">
