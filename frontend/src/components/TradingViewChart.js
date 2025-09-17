@@ -87,14 +87,15 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
 
   // INIT ONCE - Chart initialization (run once, never destroy on data changes)
   useEffect(() => {
-    let ro;
+    let alive = true;
+
     (async () => {
       const el = containerRef.current;
       if (!el) return;
-      
-      // Wait until visible/measurable
-      if (!el.clientWidth || !el.clientHeight) {
-        console.log('⏳ Container has no size, skipping init');
+
+      // wait until measurable (fixes black box)
+      if (el.clientWidth === 0) {
+        console.log('⏳ Container has no width, skipping init');
         return;
       }
 
@@ -105,33 +106,45 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
       });
 
       const { createChart, ColorType } = await import('lightweight-charts');
+
       const chart = createChart(el, {
-        layout: { background: { type: ColorType.Solid, color: '#000' }, textColor: '#fff' },
-        grid: { vertLines: { color: '#2e3a4a' }, horzLines: { color: '#2e3a4a' } },
+        layout: { background: { type: ColorType.Solid, color: '#0b0f17' }, textColor: '#cbd5e1' },
+        grid: { vertLines: { color: '#1f2937' }, horzLines: { color: '#1f2937' } },
         width: el.clientWidth,
         height: el.clientHeight || 400,
         crosshair: { mode: 1 },
+        rightPriceScale: { borderColor: '#374151' },
+        timeScale: { borderColor: '#374151' },
       });
+
       const series = chart.addCandlestickSeries({
-        upColor:'#089981', downColor:'#f23645', wickUpColor:'#089981', wickDownColor:'#f23645', borderVisible:false,
-        priceFormat: { type:'price', precision:9, minMove:1e-9 },
+        upColor: '#10b981', downColor: '#ef4444',
+        wickUpColor: '#10b981', wickDownColor: '#ef4444',
+        borderVisible: false,
+        priceFormat: { type: 'price', precision: 9, minMove: 1e-9 },
       });
+
       chartRef.current = { chart, series };
 
-      // Keep chart sized with container
-      ro = new ResizeObserver(() => {
-        const w = el.clientWidth, h = el.clientHeight || 400;
-        chart.applyOptions({ width:w, height:h });
+      // keep it sized to the container
+      const ro = new ResizeObserver(() => {
+        if (!chartRef.current || !containerRef.current) return;
+        chartRef.current.chart.applyOptions({
+          width: containerRef.current.clientWidth,
+          height: containerRef.current.clientHeight || 400,
+        });
       });
       ro.observe(el);
+      roRef.current = ro;
       
       console.log('✅ Chart created successfully');
     })();
 
-    return () => { 
-      try{ro?.disconnect()}catch{}; 
-      try{chartRef.current?.chart.remove()}catch{}; 
-      chartRef.current = null; 
+    return () => {
+      try { roRef.current?.disconnect(); } catch {}
+      try { chartRef.current?.chart.remove(); } catch {}
+      chartRef.current = null;
+      roRef.current = null;
     };
   }, []);
 
@@ -143,27 +156,26 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
     const candles = normalizeCandles(chartData);
     if (!candles.length) return;
 
+    // precision from last close (don't hard-force 6)
     const last = candles.at(-1)?.close ?? 1;
-    const format =
+    const priceFmt =
       displayMode === 'mcap' ? { type:'price', precision:0, minMove:1 }
-      : last >= 1          ? { type:'price', precision:6, minMove:1e-6 }
-      : last >= 0.01       ? { type:'price', precision:8, minMove:1e-8 }
-                            : { type:'price', precision:9, minMove:1e-9 };
+    : last >= 1          ? { type:'price', precision:6, minMove:1e-6 }
+    : last >= 0.01       ? { type:'price', precision:8, minMove:1e-8 }
+                         : { type:'price', precision:9, minMove:1e-9 };
 
-    ref.series.applyOptions({ priceFormat: format, title: `${token?.symbol||'Token'} ${displayMode==='mcap'?'MCap':'Price'}` });
+    ref.series.applyOptions({ priceFormat: priceFmt, title: `${token?.symbol || 'Token'} ${displayMode==='mcap'?'MCap':'Price'}` });
     ref.series.setData(candles);
 
-    // Force into view (protect against offsets/barSpacing pushing data off-screen)
+    // small datasets (like your 24-bar 15MIN): reduce padding so it doesn't look like giant plus signs
+    const small = candles.length < 60;
+    ref.chart.applyOptions({ timeScale: { rightOffset: small ? 2 : 8, barSpacing: small ? 2 : 6 } });
+
+    // ensure data is in-frame even after spikes
     ref.chart.timeScale().setVisibleRange({ from: candles[0].time, to: candles.at(-1).time });
     ref.chart.timeScale().fitContent();
-
-    // Tiny datasets: reduce padding/spacing
-    if (candles.length < 50) {
-      ref.chart.applyOptions({ timeScale: { rightOffset: 2, barSpacing: 2 } });
-      ref.chart.timeScale().fitContent();
-    }
     
-    console.log(`✅ Data applied successfully: ${candles.length} candles with precision ${format.precision}`);
+    console.log(`✅ Data applied successfully: ${candles.length} candles with precision ${priceFmt.precision}`);
   }, [chartData, displayMode, timeframe]);
 
   if (loading) {
@@ -233,10 +245,7 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
           height: "400px", 
           position: "relative",
           minWidth: "400px",
-          minHeight: "400px",
-          border: "2px dashed #f00", // Temporary debug border
-          overflow: "visible", // Ensure canvas isn't clipped
-          zIndex: 1 // Ensure chart is above other elements
+          minHeight: "400px"
         }}
       />
     </div>
