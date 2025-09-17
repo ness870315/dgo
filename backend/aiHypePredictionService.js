@@ -235,7 +235,7 @@ class AIHypePredictionService {
   }
 
   buildPredictionPrompt(contractAddress, tokenData, recentData, currentMetrics, trendAnalysis, range) {
-    console.log(`🧠 Building prediction prompt for ${contractAddress}`);
+    console.log(`🧠 Building TREND PREDICTION prompt for ${contractAddress}`);
     
     // Extract technical analysis data from trendAnalysis
     const technicalData = trendAnalysis?.analysis?.technicalIndicators || {};
@@ -243,111 +243,109 @@ class AIHypePredictionService {
     const signals = trendAnalysis?.analysis?.signals || [];
     const confidence = trendAnalysis?.analysis?.confidence || 0.5;
     
-    // Create enhanced template with actual technical analysis data
-    const template = `You are DeGen Oracle's AI trend prediction engine. Use the technical analysis data to make accurate forecasts!
+    // Create TREND-FOCUSED template with technical analysis data
+    const template = `You are DeGen Oracle's AI HYPE TREND PREDICTION ENGINE. Your ONLY job is to predict the HYPE TREND direction using EWMA derivatives and Bayesian change points!
 
-🚀 TOKEN ANALYSIS TARGET:
+🎯 HYPE TREND PREDICTION MISSION:
 Symbol: {symbol} ({name})
-Time Range: {timeRange}
-Market Cap: {marketCap}
-Current Price: {price}
+Analysis Period: {timeRange}
+Current Hype Score: {currentScore}/10
 
-📊 HYPE DATA TIMELINE:
+📊 HYPE DATA TIMELINE (Last 10 points):
 {hypeData}
 
-🔥 TECHNICAL ANALYSIS DATA (EWMA + Derivative + Bayesian):
-- Current Regime: {regime}
-- EWMA Score: {ewmaScore} (trend smoothing)
+🔥 TECHNICAL TREND ANALYSIS (EWMA + Derivative + Bayesian):
+- Current Regime: {regime} (stable/volatile/trending)
+- EWMA Score: {ewmaScore} (smoothed trend direction)
 - EWMA Mentions: {ewmaMentions} (mention momentum)
-- Score Derivative: {scoreDerivative} (rate of change)
+- Score Derivative: {scoreDerivative} (rate of change - POSITIVE = accelerating, NEGATIVE = decelerating)
 - Mention Derivative: {mentionDerivative} (mention acceleration)
-- Change Points: {changePoints} (regime shifts detected)
+- Change Points: {changePoints} (regime shifts detected by Bayesian analysis)
 - Confidence Level: {confidence}% (analysis reliability)
 
-🎯 SIGNALS DETECTED:
+🎯 TREND SIGNALS DETECTED:
 {signals}
 
-🔥 ANALYTICS ENGINE METRICS:
-- Holder Change: {holderChange}% (community growth/decline indicator)
-- Volume Change: {volumeChange}% (momentum and interest tracker)  
-- Price Change: {priceChange}% (recent performance context)
-- Organic Score: {organicScore}/100 ({organicScoreLabel}) (authenticity from our AI tools)
-- Liquidity: {liquidity} (market depth and slippage risk)
+🚀 TREND PREDICTION INSTRUCTIONS:
+You are a LEGENDARY hype trend analyst! Use ONLY the EWMA, derivative, and Bayesian data to predict the HYPE TREND direction.
 
-🎯 ANALYSIS INSTRUCTIONS:
-You are a LEGENDARY crypto trend analyst with access to advanced technical analysis! Use the EWMA, derivative, and Bayesian data to make PRECISE predictions.
+📈 Technical Pattern Analysis: 
+- EWMA Score {ewmaScore} shows {ewmaTrend} trend (smoothed direction)
+- Score Derivative {scoreDerivative} indicates {derivativeMomentum} momentum (rate of change)
+- Mention Derivative {mentionDerivative} shows {mentionMomentum} social momentum
+- Bayesian detected {changePoints} regime shifts (more = more volatile)
+- Current regime is {regime} (stable/volatile/trending)
 
-📈 Technical Pattern Recognition: 
-- EWMA shows {ewmaScore} trend (smoothing out noise)
-- Derivative indicates {scoreDerivative} momentum (rate of change)
-- Bayesian detected {changePoints} regime shifts
-- Current regime is {regime}
+🎯 TREND FORECASTING:
+Based on the technical data, predict:
+1. HYPE TREND DIRECTION (Bullish/Bearish/Sideways)
+2. TREND STRENGTH (Weak/Moderate/Strong/Explosive)
+3. TIMEFRAME for trend continuation
+4. TARGET HYPE SCORE
+5. CONFIDENCE LEVEL
 
-🚀 Momentum Analysis: 
-- Score derivative: {scoreDerivative} (positive = accelerating, negative = decelerating)
-- Mention derivative: {mentionDerivative} (social momentum direction)
-- EWMA trend: {ewmaScore} (smoothed trend direction)
+⚡ FOCUS ON TREND PREDICTION: Use the technical data to predict WHERE the hype trend is heading, not generic token analysis!
 
-💎 Signal Interpretation:
-- Signals: {signals}
-- Confidence: {confidence}% (higher = more reliable)
-
-⚡ AI Enhancement: Use the technical data to provide MORE ACCURATE predictions than basic trend analysis alone!
-
-🎪 CREATIVE FREEDOM: Use wild analogies, crypto culture references, and epic storytelling while being TECHNICALLY ACCURATE!
+🎪 Use heavy crypto slang and be TECHNICALLY ACCURATE about trend direction!
 
 Respond in this JSON format:
 {
-  "trendSummary": "Epic one-liner about the trend using heavy crypto slang + technical data",
-  "patternAnalysis": "Detailed pattern identification using EWMA, derivative, and Bayesian data",
+  "trendSummary": "Epic one-liner about the HYPE TREND direction using technical data + crypto slang",
+  "patternAnalysis": "Detailed trend pattern using EWMA, derivative, and Bayesian data",
   "momentumDirection": "Bullish|Bearish|Sideways",
   "momentumStrength": "Weak|Moderate|Strong|Explosive",
   "keyLevels": {
-    "support": "Score level where diamond hands emerge",
-    "resistance": "Score level where paper hands sell"
+    "support": "Hype score level where trend bounces",
+    "resistance": "Hype score level where trend stalls"
   },
   "prediction": {
-    "nextMove": "Detailed prediction with timing based on technical analysis",
+    "nextMove": "Detailed HYPE TREND prediction with timing based on technical analysis",
     "timeframe": "6h|12h|24h|48h|7d",
     "confidence": 0.85,
     "targetScore": 7.5
   },
   "catalysts": [
-    "Technical breakout signals from analysis",
-    "EWMA trend continuation factors",
-    "Derivative momentum indicators"
+    "Technical breakout signals from EWMA/derivative analysis",
+    "Trend continuation factors",
+    "Momentum indicators"
   ],
   "risks": [
     "Technical weakness signals",
-    "EWMA trend reversal risks",
-    "Derivative momentum concerns"
+    "Trend reversal risks",
+    "Momentum concerns"
   ],
   "recommendation": "hold|buy|sell|wait",
-  "reasoning": "Detailed explanation using technical analysis data with crypto slang"
+  "reasoning": "Detailed HYPE TREND explanation using technical analysis data with crypto slang"
 }`;
+    
+    // Calculate trend analysis variables
+    const ewmaScore = technicalData.ewma?.currentScoreEWMA || 0;
+    const scoreDerivative = technicalData.derivative?.scoreDerivative || 0;
+    const mentionDerivative = technicalData.derivative?.mentionDerivative || 0;
+    
+    const ewmaTrend = ewmaScore > 5 ? 'bullish' : ewmaScore < 3 ? 'bearish' : 'sideways';
+    const derivativeMomentum = scoreDerivative > 0.1 ? 'accelerating' : scoreDerivative < -0.1 ? 'decelerating' : 'stable';
+    const mentionMomentum = mentionDerivative > 0.1 ? 'growing' : mentionDerivative < -0.1 ? 'declining' : 'stable';
     
     const variables = {
       symbol: tokenData?.symbol || 'Unknown',
       name: tokenData?.name || 'Unknown Token',
       timeRange: range,
-      marketCap: tokenData?.jupiterData?.mcap || tokenData?.marketCap || 'N/A',
-      price: tokenData?.jupiterData?.price || tokenData?.price || 'N/A',
+      currentScore: currentMetrics.currentScore.toFixed(1),
       hypeData: recentData.map(d => `${new Date(d.timestamp).toLocaleString()}: Score ${d.score}/10, ${d.mentions} mentions, ${d.label}`).join('\n'),
-      holderChange: tokenData?.jupiterData?.holderChange || 0,
-      volumeChange: tokenData?.jupiterData?.stats24h?.volumeChange || 0,
-      priceChange: tokenData?.jupiterData?.stats24h?.priceChange || 0,
-      organicScore: tokenData?.jupiterData?.organicScore || tokenData?.organicScore || 'N/A',
-      organicScoreLabel: this.getOrganicScoreLabel(tokenData?.jupiterData?.organicScore || tokenData?.organicScore),
-      liquidity: tokenData?.jupiterData?.liquidity || tokenData?.liquidity || 'N/A',
       // Technical analysis data
       regime: regime,
-      ewmaScore: technicalData.ewma?.currentScoreEWMA?.toFixed(2) || 'N/A',
+      ewmaScore: ewmaScore.toFixed(2),
       ewmaMentions: technicalData.ewma?.currentMentionEWMA?.toFixed(2) || 'N/A',
-      scoreDerivative: technicalData.derivative?.scoreDerivative?.toFixed(3) || 'N/A',
-      mentionDerivative: technicalData.derivative?.mentionDerivative?.toFixed(3) || 'N/A',
+      scoreDerivative: scoreDerivative.toFixed(3),
+      mentionDerivative: mentionDerivative.toFixed(3),
       changePoints: technicalData.changePoints?.length || 0,
       confidence: (confidence * 100).toFixed(1),
-      signals: signals.join(', ') || 'No signals detected'
+      signals: signals.join(', ') || 'No signals detected',
+      // Trend analysis variables
+      ewmaTrend: ewmaTrend,
+      derivativeMomentum: derivativeMomentum,
+      mentionMomentum: mentionMomentum
     };
     
     return this.fillTemplate(template, variables);
@@ -500,30 +498,30 @@ Respond in this JSON format:
     const currentMetrics = this.calculateCurrentMetrics(hypeData);
     const trendAnalysis = this.analyzeTrend(hypeData);
     
-    // Generate unique fallback based on actual data
+    // Generate trend-focused fallback based on actual data
     const score = currentMetrics.currentScore;
     const direction = trendAnalysis.direction === 'unknown' ? 'sideways' : trendAnalysis.direction;
     
     let trendSummary, patternAnalysis, recommendation, catalysts, risks;
     
     if (score > 7) {
-      trendSummary = 'High hype score detected - either moon mission energy or pump and dump incoming!';
-      patternAnalysis = 'Strong momentum with potential for explosive moves - diamond hands or paper hands?';
+      trendSummary = 'High hype score detected - trend momentum building for explosive moves!';
+      patternAnalysis = 'Strong EWMA trend with accelerating derivatives - either moon mission or pump incoming!';
       recommendation = 'monitor';
-      catalysts = ['High hype momentum', 'Potential breakout incoming'];
-      risks = ['Pump and dump risk', 'High volatility expected'];
+      catalysts = ['High trend momentum', 'EWMA breakout potential', 'Derivative acceleration'];
+      risks = ['Trend reversal risk', 'High volatility expected', 'Pump and dump potential'];
     } else if (score > 4) {
-      trendSummary = 'Moderate hype building - consolidation vibes before the next move';
-      patternAnalysis = 'Steady accumulation phase - degens either accumulating or waiting for signals';
+      trendSummary = 'Moderate hype trend - consolidation phase before next move';
+      patternAnalysis = 'Steady EWMA trend with stable derivatives - degens accumulating for breakout';
       recommendation = 'hold';
-      catalysts = ['Building momentum', 'Community growth'];
-      risks = ['Consolidation phase', 'Waiting for catalyst'];
+      catalysts = ['Building trend momentum', 'EWMA continuation', 'Derivative stability'];
+      risks = ['Trend consolidation', 'Waiting for catalyst', 'Derivative weakness'];
     } else {
-      trendSummary = 'Low hype energy - either sleeping giant or dead project vibes';
-      patternAnalysis = 'Weak momentum - needs catalyst to wake up the community';
+      trendSummary = 'Low hype trend energy - sleeping giant or dead trend vibes';
+      patternAnalysis = 'Weak EWMA trend with declining derivatives - needs catalyst to wake up';
       recommendation = 'wait';
-      catalysts = ['Potential awakening', 'Low entry opportunity'];
-      risks = ['Dead project risk', 'No community interest'];
+      catalysts = ['Potential trend awakening', 'Low entry opportunity', 'Derivative reversal potential'];
+      risks = ['Dead trend risk', 'No community interest', 'EWMA decline'];
     }
     
     return {
