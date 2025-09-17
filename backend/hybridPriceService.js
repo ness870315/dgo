@@ -358,6 +358,28 @@ class HybridPriceService {
         }
       }
 
+      // 2.5. Smart fallback for new tokens with insufficient higher timeframe data
+      if (chartData && chartData.length > 0 && chartData.length < 10) {
+        const isHigherTimeframe = ['1H', '4H', '1D', '1W', '1M', '3M', '1Y'].includes(timeframe);
+        
+        if (isHigherTimeframe) {
+          console.log(`⚠️ Insufficient data for ${timeframe} (${chartData.length} candles). Trying lower timeframe fallback...`);
+          
+          try {
+            // Try to get more granular data and aggregate it
+            const fallbackTimeframe = this.getFallbackTimeframe(timeframe);
+            const fallbackData = await this.getCachedOHLCV(contractAddress, fallbackTimeframe, optimalLimit * 4, beforeTime, afterTime);
+            
+            if (fallbackData && fallbackData.length > chartData.length) {
+              console.log(`✅ Using ${fallbackTimeframe} data (${fallbackData.length} candles) aggregated to ${timeframe}`);
+              chartData = this.aggregateToTimeframe(fallbackData, timeframe);
+            }
+          } catch (error) {
+            console.log(`⚠️ Fallback aggregation failed: ${error.message}`);
+          }
+        }
+      }
+
       // 3. Try Jupiter API as last resort
       if (!chartData || chartData.length === 0) {
         try {
@@ -527,7 +549,10 @@ class HybridPriceService {
       '4H': '4h',
       '1D': '1d',
       '1W': '1w',
-      '1M': '1d'  // 1 month uses daily data
+      '1M': '1d',   // 1 month uses daily data
+      '3M': '1d',   // 3 months uses daily data  
+      '1Y': '1d',   // 1 year uses daily data
+      'ALL': '1d'   // All time uses daily data
     };
     return timeframeMap[timeframe] || '1h';
   }
@@ -615,26 +640,37 @@ class HybridPriceService {
 
     let fromDate;
     switch (timeframe) {
+      case '1MIN':
+      case '5MIN':
+      case '15MIN':
+        fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days for minutes
+        break;
+      case '1H':
+        fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days for hours
+        break;
+      case '4H':
+        fromDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString(); // 90 days for 4H
+        break;
       case '1D':
-        fromDate = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+        fromDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString(); // 1 year for daily
         break;
       case '1W':
-        fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        fromDate = new Date(now.getTime() - 5 * 365 * 24 * 60 * 60 * 1000).toISOString(); // 5 years for weekly
         break;
       case '1M':
-        fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        fromDate = new Date(now.getTime() - 10 * 365 * 24 * 60 * 60 * 1000).toISOString(); // 10 years for monthly
         break;
       case '3M':
-        fromDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
+        fromDate = new Date(now.getTime() - 30 * 365 * 24 * 60 * 60 * 1000).toISOString(); // 30 years
         break;
       case '1Y':
-        fromDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString();
+        fromDate = new Date(now.getTime() - 120 * 365 * 24 * 60 * 60 * 1000).toISOString(); // 120 years
         break;
       case 'ALL':
-        fromDate = new Date(now.getTime() - 2 * 365 * 24 * 60 * 60 * 1000).toISOString();
+        fromDate = new Date(now.getTime() - 200 * 365 * 24 * 60 * 60 * 1000).toISOString(); // 200 years
         break;
       default:
-        fromDate = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+        fromDate = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString(); // Default to 1 day
     }
 
     return { from: fromDate, to: toDate };
