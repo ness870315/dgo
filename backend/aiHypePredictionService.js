@@ -185,7 +185,7 @@ class AIHypePredictionService {
       const currentMetrics = this.calculateCurrentMetrics(hypeData);
       const trendAnalysis = this.analyzeTrend(hypeData);
       
-      const prompt = this.buildPredictionPrompt(
+      const prompt = await this.buildPredictionPrompt(
         contractAddress,
         tokenData,
         recentData,
@@ -231,10 +231,10 @@ class AIHypePredictionService {
     }
   }
 
-  buildPredictionPrompt(contractAddress, tokenData, recentData, currentMetrics, trendAnalysis, range) {
+  async buildPredictionPrompt(contractAddress, tokenData, recentData, currentMetrics, trendAnalysis, range) {
     // Use the enhanced template with proper variable substitution
     try {
-      const { ENHANCED_PROMPT_TEMPLATES } = require('./aiPromptTemplates_enhanced.js');
+      const { ENHANCED_PROMPT_TEMPLATES } = await import('./aiPromptTemplates_enhanced.js');
       
       console.log(`🧠 Building prediction prompt for ${contractAddress}`);
       console.log(`🧠 Template available:`, !!ENHANCED_PROMPT_TEMPLATES?.HYPE_TREND_ANALYSIS);
