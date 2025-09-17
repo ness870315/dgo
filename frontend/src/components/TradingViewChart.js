@@ -25,6 +25,23 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
 
     // If the tab/panel is hidden OR has no size yet, use IntersectionObserver
     const isMeasurable = () => el.clientWidth > 0 && el.clientHeight > 0;
+    const waitForStableSize = async (el, tries = 20) => {
+      const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+      let w1=0,h1=0,w2=0,h2=0;
+      for (let i=0; i<tries; i++) {
+        await sleep(16); // ~1 frame
+        w1 = el.clientWidth;  h1 = el.clientHeight;
+        await sleep(16);
+        w2 = el.clientWidth;  h2 = el.clientHeight;
+        if (w1>50 && h1>50 && w1===w2 && h1===h2) {
+          console.log('✅ Size stable:', w2, 'x', h2);
+          return {w:w2, h:h2};
+        }
+      }
+      console.log('⚠️ Size not stable after', tries, 'tries, using best effort');
+      return { w: el.clientWidth, h: el.clientHeight }; // best effort
+    };
+
     const tryInit = async () => {
       if (chartRef.current || pendingInitRef.current) return;
       if (!isMeasurable()) return;
@@ -38,6 +55,9 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
         width: el.clientWidth
       });
       console.log('size', el.clientWidth, el.clientHeight, getComputedStyle(el).display);
+      
+      // Wait for stable size before creating chart
+      await waitForStableSize(el);
       
       const { createChart, ColorType } = await import("lightweight-charts");
 
@@ -81,6 +101,19 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
       setTimeout(() => {
         const canvases = el.querySelectorAll('canvas');
         console.log('🖼️ canvases:', [...canvases].map(c => [c.width, c.height, c.style.zIndex]));
+        
+        // Validate canvas dimensions - if any are tiny, force resize
+        const bad = [...canvases].some(c => c.width <= 1 || c.height <= 1);
+        if (bad) {
+          console.log('🚨 Tiny canvas detected, forcing resize...');
+          chart.applyOptions({ width: el.clientWidth, height: el.clientHeight });
+          
+          // Check again after resize
+          setTimeout(() => {
+            const canvasesAfter = el.querySelectorAll('canvas');
+            console.log('🖼️ canvases after resize:', [...canvasesAfter].map(c => [c.width, c.height, c.style.zIndex]));
+          }, 50);
+        }
       }, 100);
 
       // Keep chart in sync with container size
@@ -195,10 +228,18 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
       if (el) {
         ref.chart.applyOptions({ width: el.clientWidth, height: el.clientHeight || 400 });
         
-        // Sanity check: verify canvas dimensions
+        // Enhanced canvas validation
         const cvs = [...el.querySelectorAll('canvas')];
-        console.log('🖼️ Final canvas check:', cvs.map(c => [c.width, c.height]));
+        console.log('🖼️ Final canvas check:', cvs.map(c => [c.width, c.height, getComputedStyle(c).zIndex]));
         console.log('🖼️ Canvas count:', cvs.length, 'Container size:', el.clientWidth, 'x', el.clientHeight);
+        console.log('🖼️ Container display:', getComputedStyle(el).display);
+        
+        // Check for tiny canvases after data application
+        const bad = cvs.some(c => c.width <= 1 || c.height <= 1);
+        if (bad) {
+          console.log('🚨 Tiny canvas after data application, forcing final resize...');
+          ref.chart.applyOptions({ width: el.clientWidth, height: el.clientHeight || 400 });
+        }
       }
     });
 
@@ -212,7 +253,11 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
 
   // Load chart data
   useEffect(() => {
-    if (!token?.contract) return;
+    console.log('🔄 Data loading effect triggered:', { contract: token?.contract, timeframe });
+    if (!token?.contract) {
+      console.log('❌ No token contract, skipping data load');
+      return;
+    }
 
     const loadChartData = async () => {
       setLoading(true);
@@ -254,7 +299,7 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
   }, [token?.contract, timeframe]);
 
   return (
-    <div className="w-full bg-black rounded-lg border border-gray-700 p-4">
+    <div className="w-full bg-black rounded-lg border border-gray-700 p-4 relative">
       {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex items-center space-x-4">
@@ -301,7 +346,7 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
 
       {/* Loading/Error States */}
       {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75">
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70">
           <div className="text-white">Loading chart data...</div>
         </div>
       )}
