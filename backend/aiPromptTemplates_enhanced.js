@@ -262,7 +262,7 @@ export function validateEnhancedAIResponse(response, type = 'SOCIAL_CONTEXT') {
     const parsed = JSON.parse(response);
     
     if (type === 'SOCIAL_CONTEXT') {
-      const required = ['socialSummary', 'thesis', 'riskFactors', 'catalysts', 'redFlags', 'actionableInsights', 'confidence', 'sentiment', 'keyInsights', 'socialMomentum', 'riskAssessment', 'summary', 'recommendedActions'];
+      const required = ['sentiment', 'confidence', 'keyInsights', 'socialMomentum', 'riskAssessment', 'communityAnalysis', 'recommendation', 'catalysts', 'redFlags', 'recommendedActions'];
       return required.every(field => parsed.hasOwnProperty(field));
     }
     
