@@ -55,7 +55,7 @@ Liquidity: {liquidity}
 - Price Change: {priceChange24h}% (recent performance)
 - Organic Score: {organicScore}/100 ({organicScoreLabel})
 - Net Buyers: {netBuyers24h} (buy vs sell pressure)
-- Buy Volume: ${buyVolume24h} vs Sell Volume: ${sellVolume24h}
+- Buy Volume: {buyVolume24h} vs Sell Volume: {sellVolume24h}
 
 📊 SOCIAL METRICS:
 - Total Mentions: {totalMentions} (24h change: {mentions24h})
@@ -82,7 +82,7 @@ ANALYSIS INSTRUCTIONS:
 📈 Activity Level: Use {totalMentions} mentions, {engagementRate}% engagement, and {influencerMentions} influencer mentions to assess if community is "vibing harder than a Solana NFT launch" or "deader than a rug pull"
 💎 Holder Analysis: Use {netBuyers24h} net buyers and {buyVolume24h} vs {sellVolume24h} volume to determine "diamond hands holding through nuclear winter" vs "paper hands folding faster than a house of cards"
 🚀 Hype Detection: Use {organicScore}/100 organic score and {tweetSentiments} sentiment to spot "organic moon missions" vs "forced pump attempts that scream rug pull energy"
-⚡ Calculate liquidity flow: {netBuyers24h} net buyers, ${buyVolume24h} buy volume vs ${sellVolume24h} sell volume
+⚡ Calculate liquidity flow: {netBuyers24h} net buyers, {buyVolume24h} buy volume vs {sellVolume24h} sell volume
 📊 Use {topHashtags} hashtags and {recentTweets} content to build EPIC narratives with crypto slang
 🎪 Reference specific social data: {officialHandle} handle, {communityScore}/10 community score, {influencerMentions} influencer mentions
 
@@ -102,7 +102,7 @@ Respond in this JSON format:
   "keyInsights": [
     "Price action: {priceChange24h}% in 24h with {volumeChange24h}% volume change - either moon mission fuel or correction time, baby!",
     "Holder analysis: {holderChange24h}% holder change with {netBuyers24h} net buyers - diamond hands accumulating or paper hands dumping?",
-    "Liquidity flow: ${buyVolume24h} buy volume vs ${sellVolume24h} sell volume - either whale confidence or liquidity trap energy"
+    "Liquidity flow: {buyVolume24h} buy volume vs {sellVolume24h} sell volume - either whale confidence or liquidity trap energy"
   ],
   "socialMomentum": {
     "direction": "Accelerating|Stable|Declining",
@@ -133,7 +133,7 @@ Respond in this JSON format:
   ],
   "redFlags": [
     "ORGANIC SCORE ALERT: {organicScore}/100 organic score suggests bot activity or authentic community vibes - either red flag city or based community",
-    "VOLUME DISTRIBUTION: ${sellVolume24h} sell volume vs ${buyVolume24h} buy volume - either paper hands dumping faster than a house of cards or diamond hands accumulating like there's no tomorrow",
+    "VOLUME DISTRIBUTION: {sellVolume24h} sell volume vs {buyVolume24h} buy volume - either paper hands dumping faster than a house of cards or diamond hands accumulating like there's no tomorrow",
     "SOCIAL ACTIVITY: {tweetFrequency} tweets/day with {engagementRate}% engagement - either dead community vibes or active degen energy"
   ],
   "recommendedActions": ["Add to Watchlist", "Hype over Time", "Call it"]
