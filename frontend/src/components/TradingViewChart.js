@@ -15,19 +15,20 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
   const normalizeCandles = (rows=[]) => {
     const pick = (...xs) => xs.find(v => v != null);
     const toNum = (v) => v == null ? null : Number(v);
-    const toSec = (t) => (t > 1e12 ? Math.floor(t / 1000) : t);
+    const toSec = (t) => (t > 1e12 ? Math.floor(t/1000) : t);
 
     const out = rows.map(d => {
       const time = toSec(pick(d.time, d.t));
       const o = toNum(pick(d.open, d.o, d.value));
       const h = toNum(pick(d.high, d.h, d.value));
-      const l = toNum(pick(d.low, d.l, d.value));
+      const l = toNum(pick(d.low , d.l, d.value));
       const c = toNum(pick(d.close, d.c, d.value));
       const v = toNum(pick(d.volume, d.v)) ?? 0;
-      if (![time, o, h, l, c].every(Number.isFinite)) return null;
-      return { time, open: o, high: h, low: l, close: c, volume: v };
+      if (![time,o,h,l,c].every(Number.isFinite)) return null;
+      return { time, open:o, high:h, low:l, close:c, volume:v };
     }).filter(Boolean);
-    out.sort((a, b) => a.time - b.time);
+
+    out.sort((a,b) => a.time - b.time);
     return out;
   };
 
@@ -87,34 +88,35 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
 
   // INIT ONCE - Chart initialization (run once, never destroy on data changes)
   useEffect(() => {
-    let alive = true;
+    let ro;
 
     (async () => {
       const el = containerRef.current;
       if (!el) return;
 
-      // wait until measurable (fixes black box)
-      if (el.clientWidth === 0) {
-        console.log('⏳ Container has no width, skipping init');
+      // 🛑 wait until the container is visible & measurable
+      if (el.clientWidth === 0 || (el.clientHeight || 0) === 0) {
+        console.log('⏳ Container not measurable, skipping init');
         return;
       }
 
       console.log('🔍 Container diagnostic:', {
-        clientWidth: el.clientWidth,
-        clientHeight: el.clientHeight,
-        display: getComputedStyle(el).display
+        width: el.clientWidth,
+        height: el.clientHeight,
+        display: getComputedStyle(el).display,
+        position: getComputedStyle(el).position,
       });
 
       const { createChart, ColorType } = await import('lightweight-charts');
 
       const chart = createChart(el, {
         layout: { background: { type: ColorType.Solid, color: '#0b0f17' }, textColor: '#cbd5e1' },
-        grid: { vertLines: { color: '#1f2937' }, horzLines: { color: '#1f2937' } },
+        grid: { vertLines: { color: '#2e3a4a' }, horzLines: { color: '#2e3a4a' } }, // brighter so you SEE it
+        rightPriceScale: { borderColor: '#374151', scaleMargins: { top: 0.1, bottom: 0.15 } },
+        timeScale: { borderColor: '#374151', timeVisible: true },
+        crosshair: { mode: 1 },
         width: el.clientWidth,
         height: el.clientHeight || 400,
-        crosshair: { mode: 1 },
-        rightPriceScale: { borderColor: '#374151' },
-        timeScale: { borderColor: '#374151' },
       });
 
       const series = chart.addCandlestickSeries({
@@ -126,8 +128,8 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
 
       chartRef.current = { chart, series };
 
-      // keep it sized to the container
-      const ro = new ResizeObserver(() => {
+      // keep chart sized to container
+      ro = new ResizeObserver(() => {
         if (!chartRef.current || !containerRef.current) return;
         chartRef.current.chart.applyOptions({
           width: containerRef.current.clientWidth,
@@ -135,13 +137,15 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
         });
       });
       ro.observe(el);
-      roRef.current = ro;
-      
-      console.log('✅ Chart created successfully');
+
+      // quick viz that canvas exists
+      console.log('🖼️ canvases:',
+        el.querySelectorAll('canvas').length,
+        [...el.querySelectorAll('canvas')].map(c => [c.width, c.height, getComputedStyle(c).zIndex]));
     })();
 
     return () => {
-      try { roRef.current?.disconnect(); } catch {}
+      try { ro?.disconnect(); } catch {}
       try { chartRef.current?.chart.remove(); } catch {}
       chartRef.current = null;
       roRef.current = null;
@@ -156,22 +160,22 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
     const candles = normalizeCandles(chartData);
     if (!candles.length) return;
 
-    // precision from last close (don't hard-force 6)
+    // precision from last close (don't force 6 for micro prices)
     const last = candles.at(-1)?.close ?? 1;
     const priceFmt =
-      displayMode === 'mcap' ? { type:'price', precision:0, minMove:1 }
-    : last >= 1          ? { type:'price', precision:6, minMove:1e-6 }
-    : last >= 0.01       ? { type:'price', precision:8, minMove:1e-8 }
-                         : { type:'price', precision:9, minMove:1e-9 };
+      displayMode === 'mcap' ? { type: 'price', precision: 0, minMove: 1 }
+    : last >= 1          ? { type: 'price', precision: 6, minMove: 1e-6 }
+    : last >= 0.01       ? { type: 'price', precision: 8, minMove: 1e-8 }
+                         : { type: 'price', precision: 9, minMove: 1e-9 };
 
     ref.series.applyOptions({ priceFormat: priceFmt, title: `${token?.symbol || 'Token'} ${displayMode==='mcap'?'MCap':'Price'}` });
     ref.series.setData(candles);
 
-    // small datasets (like your 24-bar 15MIN): reduce padding so it doesn't look like giant plus signs
+    // protect small datasets (e.g., your 15MIN=24 bars) from looking like giant crosses
     const small = candles.length < 60;
     ref.chart.applyOptions({ timeScale: { rightOffset: small ? 2 : 8, barSpacing: small ? 2 : 6 } });
 
-    // ensure data is in-frame even after spikes
+    // ensure bars are actually in-frame
     ref.chart.timeScale().setVisibleRange({ from: candles[0].time, to: candles.at(-1).time });
     ref.chart.timeScale().fitContent();
     
