@@ -171,6 +171,10 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
           // Clear container
           el.innerHTML = '';
           
+          // Force container to have correct dimensions before recreation
+          el.style.width = `${containerWidth}px`;
+          el.style.height = `${containerHeight}px`;
+          
           // Recreate chart with correct dimensions
           const newChart = createChart(el, {
             layout: {
@@ -184,6 +188,7 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
             crosshair: { mode: 1 },
             width: containerWidth,
             height: containerHeight,
+            autoSize: false, // Force explicit dimensions
           });
           
           const newSeries = newChart.addCandlestickSeries({
@@ -223,6 +228,10 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
               chart.remove();
               el.innerHTML = '';
               
+              // Force container dimensions before recreation
+              el.style.width = `${containerWidth}px`;
+              el.style.height = `${containerHeight}px`;
+              
               const newChart = createChart(el, {
                 layout: {
                   background: { type: ColorType.Solid, color: '#000' },
@@ -235,6 +244,7 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
                 crosshair: { mode: 1 },
                 width: containerWidth,
                 height: containerHeight,
+                autoSize: false, // Force explicit dimensions
               });
               
               const newSeries = newChart.addCandlestickSeries({
