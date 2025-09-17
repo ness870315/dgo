@@ -1209,9 +1209,9 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                   {dashboardData.isPremium ? (
                     <button
                       onClick={async () => {
-                        console.log('📊 Trend Analysis button clicked!');
-                        console.log('📊 Selected token:', selectedHypeToken);
-                        console.log('📊 Contract address:', selectedHypeToken.contractAddress);
+                        console.log('🧠 Oracle AI button clicked!');
+                        console.log('🧠 Selected token:', selectedHypeToken);
+                        console.log('🧠 Contract address:', selectedHypeToken.contractAddress);
                         setHypeAILoading(true);
                         try {
                           const response = await fetch(`${API_BASE}/api/hype-trend/${selectedHypeToken.contractAddress}?range=${hypeRange}`);
@@ -1233,10 +1233,10 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                       }}
                       disabled={hypeAILoading}
                       className="flex items-center gap-1 px-3 py-1 bg-transparent border border-solana-purple/60 text-gray-200 hover:bg-gray-700 rounded text-sm disabled:opacity-50"
-                      title="Trend Analysis"
+                      title="Oracle AI"
                     >
-                      <Gauge size={16} />
-                      {hypeAILoading ? 'Analyzing...' : 'Trend Analysis'}
+                      <Brain size={16} />
+                      {hypeAILoading ? 'Analyzing...' : 'Oracle AI'}
                     </button>
                   ) : (
                     <button
