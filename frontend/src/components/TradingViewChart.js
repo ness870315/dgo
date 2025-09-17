@@ -194,11 +194,26 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
       });
 
       chartRef.current = { chart, series };
+      
+      // Check if canvas elements are created
+      const canvasElements = el.querySelectorAll('canvas');
       console.log('✅ Chart created successfully:', {
         hasChart: !!chart,
         hasSeries: !!series,
         chartWidth: chart.options().width,
-        chartHeight: chart.options().height
+        chartHeight: chart.options().height,
+        containerElement: el.tagName,
+        containerClasses: el.className,
+        containerStyle: el.style.cssText,
+        canvasCount: canvasElements.length,
+        canvasElements: Array.from(canvasElements).map(canvas => ({
+          width: canvas.width,
+          height: canvas.height,
+          style: canvas.style.cssText,
+          display: getComputedStyle(canvas).display,
+          visibility: getComputedStyle(canvas).visibility,
+          opacity: getComputedStyle(canvas).opacity
+        }))
       });
 
       // Resize observer
@@ -287,7 +302,16 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
     
     ref.chart.timeScale().fitContent();
     
-    console.log(`✅ Data applied successfully: ${final.length} candles with precision ${fmt.precision}`);
+    // Check canvas state after data application
+    const canvasElements = containerRef.current?.querySelectorAll('canvas');
+    console.log(`✅ Data applied successfully: ${final.length} candles with precision ${fmt.precision}`, {
+      canvasCount: canvasElements?.length || 0,
+      canvasVisible: canvasElements ? Array.from(canvasElements).every(canvas => 
+        getComputedStyle(canvas).display !== 'none' && 
+        getComputedStyle(canvas).visibility !== 'hidden' &&
+        getComputedStyle(canvas).opacity !== '0'
+      ) : false
+    });
   }, [chartData, displayMode, timeframe]);
 
   if (loading) {
@@ -358,7 +382,9 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
           position: "relative",
           minWidth: "400px",
           minHeight: "400px",
-          border: "2px dashed #f00" // Temporary debug border
+          border: "2px dashed #f00", // Temporary debug border
+          overflow: "visible", // Ensure canvas isn't clipped
+          zIndex: 1 // Ensure chart is above other elements
         }}
       />
     </div>
