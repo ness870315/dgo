@@ -171,42 +171,50 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
           // Clear container
           el.innerHTML = '';
           
-          // Force container to have correct dimensions before recreation
-          el.style.width = `${containerWidth}px`;
-          el.style.height = `${containerHeight}px`;
-          
-          // Recreate chart with correct dimensions
-          const newChart = createChart(el, {
-            layout: {
-              background: { type: ColorType.Solid, color: '#000' },
-              textColor: '#fff',
-            },
-            grid: {
-              vertLines: { color: '#1e1e1e' },
-              horzLines: { color: '#1e1e1e' },
-            },
-            crosshair: { mode: 1 },
-            width: containerWidth,
-            height: containerHeight,
-            autoSize: false, // Force explicit dimensions
-          });
-          
-          const newSeries = newChart.addCandlestickSeries({
-            upColor: '#089981',
-            downColor: '#f23645',
-            wickUpColor: '#089981',
-            wickDownColor: '#f23645',
-            borderVisible: false,
-            priceFormat: { type: 'price', precision: 9, minMove: 1e-9 },
-          });
-          
-          // Update refs
-          chartRef.current = { chart: newChart, series: newSeries };
-          
-          console.log('✅ Chart recreated with dimensions:', containerWidth, containerHeight);
-          console.log('🖼️ New canvas check:', 
-            el.querySelectorAll('canvas').length,
-            [...el.querySelectorAll('canvas')].map(c => [c.width, c.height]));
+          // Wait a bit longer for DOM to be ready
+          setTimeout(() => {
+            // Force container to have correct dimensions before recreation
+            el.style.width = `${containerWidth}px`;
+            el.style.height = `${containerHeight}px`;
+            
+            // Force a layout recalculation
+            el.offsetHeight;
+            
+            console.log('🔍 Container dimensions before recreation:', el.clientWidth, el.clientHeight);
+            
+            // Recreate chart with correct dimensions
+            const newChart = createChart(el, {
+              layout: {
+                background: { type: ColorType.Solid, color: '#000' },
+                textColor: '#fff',
+              },
+              grid: {
+                vertLines: { color: '#1e1e1e' },
+                horzLines: { color: '#1e1e1e' },
+              },
+              crosshair: { mode: 1 },
+              width: containerWidth,
+              height: containerHeight,
+              autoSize: false, // Force explicit dimensions
+            });
+            
+            const newSeries = newChart.addCandlestickSeries({
+              upColor: '#089981',
+              downColor: '#f23645',
+              wickUpColor: '#089981',
+              wickDownColor: '#f23645',
+              borderVisible: false,
+              priceFormat: { type: 'price', precision: 9, minMove: 1e-9 },
+            });
+            
+            // Update refs
+            chartRef.current = { chart: newChart, series: newSeries };
+            
+            console.log('✅ Chart recreated with dimensions:', containerWidth, containerHeight);
+            console.log('🖼️ New canvas check:', 
+              el.querySelectorAll('canvas').length,
+              [...el.querySelectorAll('canvas')].map(c => [c.width, c.height]));
+          }, 200); // Wait 200ms for DOM to be ready
         } else {
           // Even if detection didn't work, try one more resize
           chart.applyOptions({
