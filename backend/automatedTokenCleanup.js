@@ -7,7 +7,7 @@ class AutomatedTokenCleanup {
     this.cleanupService = new TokenCleanupService();
     this.isRunning = false;
     this.lastCleanup = null;
-    this.cleanupInterval = 12 * 60 * 60 * 1000; // 12 hours
+    this.cleanupInterval = 4 * 60 * 60 * 1000; // 4 hours
     this.logFile = path.join(process.env.DATA_DIR || '/var/data/dgo', 'logs', 'automated-cleanup.log');
   }
 

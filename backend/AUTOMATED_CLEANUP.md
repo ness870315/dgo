@@ -6,7 +6,7 @@ The Automated Token Cleanup System automatically identifies and deletes CRITICAL
 ## How It Works
 
 ### 🎯 **Automatic Detection**
-The system runs every **12 hours** and automatically identifies tokens that meet CRITICAL deletion criteria:
+The system runs every **4 hours** and automatically identifies tokens that meet CRITICAL deletion criteria:
 
 - **Zero volume for 24+ hours** - Dead tokens with no trading activity
 - **-95% volume drop with <$10K market cap** - Severely declining tokens with tiny market caps
@@ -45,7 +45,7 @@ Content-Type: application/json
   "hours": 12
 }
 ```
-Changes the cleanup interval (default: 12 hours).
+Changes the cleanup interval (default: 4 hours).
 
 ## Configuration
 
