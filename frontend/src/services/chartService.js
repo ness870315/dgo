@@ -43,9 +43,119 @@ class ChartService {
     const cacheKey = this.getCacheKey(contractAddress, timeframe);
     this.chartCache.set(cacheKey, {
       data: data,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      oldestTime: data?.data?.[0]?.time || null,
+      newestTime: data?.data?.[data?.data?.length - 1]?.time || null
     });
     console.log(`💾 Cached chart data for ${timeframe} (${data?.data?.length || 0} candles)`);
+  }
+
+  /**
+   * Lazy load older bars when user scrolls left
+   * @param {string} contractAddress - Token contract address
+   * @param {string} timeframe - Current timeframe
+   * @param {number} beforeTime - Load bars before this timestamp
+   * @param {number} limit - Number of older bars to load
+   */
+  async loadOlderBars(contractAddress, timeframe, beforeTime, limit = 500) {
+    try {
+      console.log(`📜 Loading ${limit} older bars for ${timeframe} before ${new Date(beforeTime * 1000).toISOString()}`);
+      
+      const response = await fetch(
+        `${this.API_BASE}/api/tokens/${contractAddress}/price-chart?timeframe=${timeframe}&limit=${limit}&before=${beforeTime}`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const olderData = await response.json();
+      
+      // Merge with existing cached data
+      const cacheKey = this.getCacheKey(contractAddress, timeframe);
+      const existing = this.chartCache.get(cacheKey);
+      
+      if (existing && olderData?.data?.length > 0) {
+        // Prepend older data (maintain ascending time order)
+        const mergedData = {
+          ...existing.data,
+          data: [...olderData.data, ...existing.data.data],
+          count: existing.data.count + olderData.data.length
+        };
+        
+        // Update cache with merged data
+        this.chartCache.set(cacheKey, {
+          data: mergedData,
+          timestamp: existing.timestamp,
+          oldestTime: olderData.data[0]?.time || existing.oldestTime,
+          newestTime: existing.newestTime
+        });
+        
+        console.log(`🔄 Merged ${olderData.data.length} older bars. Total: ${mergedData.data.length} candles`);
+        return mergedData;
+      }
+      
+      return olderData;
+    } catch (error) {
+      console.error('Failed to load older bars:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Diff-append new candles instead of refetching entire dataset
+   * @param {string} contractAddress - Token contract address  
+   * @param {string} timeframe - Current timeframe
+   */
+  async appendNewCandles(contractAddress, timeframe) {
+    try {
+      const cacheKey = this.getCacheKey(contractAddress, timeframe);
+      const existing = this.chartCache.get(cacheKey);
+      
+      if (!existing || !existing.newestTime) {
+        // No existing data, fetch normally
+        return await this.getPriceChart(contractAddress, timeframe);
+      }
+      
+      console.log(`🔄 Fetching new candles for ${timeframe} after ${new Date(existing.newestTime * 1000).toISOString()}`);
+      
+      const response = await fetch(
+        `${this.API_BASE}/api/tokens/${contractAddress}/price-chart?timeframe=${timeframe}&after=${existing.newestTime}&limit=100`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const newData = await response.json();
+      
+      if (newData?.data?.length > 0) {
+        // Append new data (maintain ascending time order)
+        const mergedData = {
+          ...existing.data,
+          data: [...existing.data.data, ...newData.data],
+          count: existing.data.count + newData.data.length
+        };
+        
+        // Update cache with merged data
+        this.chartCache.set(cacheKey, {
+          data: mergedData,
+          timestamp: Date.now(), // Update timestamp for fresh data
+          oldestTime: existing.oldestTime,
+          newestTime: newData.data[newData.data.length - 1]?.time || existing.newestTime
+        });
+        
+        console.log(`➕ Appended ${newData.data.length} new candles. Total: ${mergedData.data.length} candles`);
+        return mergedData;
+      }
+      
+      // No new data, return existing
+      return existing.data;
+    } catch (error) {
+      console.error('Failed to append new candles:', error);
+      // Fallback to full refresh
+      return await this.getPriceChart(contractAddress, timeframe);
+    }
   }
 
   async getMcapChart(contractAddress, calledAt) {

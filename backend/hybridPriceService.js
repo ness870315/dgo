@@ -168,13 +168,20 @@ class HybridPriceService {
   }
 
   /**
-   * Get cached OHLCV data or fetch and cache it
+   * Get cached OHLCV data or fetch and cache it (with time filtering support)
    * @param {string} contractAddress - Token contract address
    * @param {string} timeframe - Timeframe
    * @param {number} limit - Number of data points
+   * @param {number} beforeTime - Load data before this timestamp
+   * @param {number} afterTime - Load data after this timestamp
    * @returns {Promise<Array>} OHLCV data
    */
-  async getCachedOHLCV(contractAddress, timeframe, limit) {
+  async getCachedOHLCV(contractAddress, timeframe, limit, beforeTime = null, afterTime = null) {
+    // For time-filtered requests, skip cache and fetch directly
+    if (beforeTime || afterTime) {
+      console.log(`🎯 Time-filtered request, fetching directly from Moralis`);
+      return await this.getMoralisPriceData(contractAddress, timeframe, limit, beforeTime, afterTime);
+    }
     const cacheKey = `ohlcv_${contractAddress}_${timeframe}_${limit}`;
     
     // Check persistent cache first
@@ -309,13 +316,21 @@ class HybridPriceService {
    * @param {string} contractAddress - Token contract address
    * @param {string} timeframe - Timeframe: '1MIN', '5MIN', '15MIN', '1H', '4H', '1D', '1W', '1M'
    * @param {number} limit - Number of data points (auto-optimized if not specified)
+   * @param {number} beforeTime - Load data before this timestamp (for lazy loading)
+   * @param {number} afterTime - Load data after this timestamp (for diff-append)
    * @returns {Object} Chart data in TradingView format
    */
-  async getHistoricalPrices(contractAddress, timeframe = '1D', limit = null) {
+  async getHistoricalPrices(contractAddress, timeframe = '1D', limit = null, beforeTime = null, afterTime = null) {
     // Use optimal candle count if limit not specified
     const optimalLimit = limit || this.getOptimalCandleCount(timeframe);
     
-    console.log(`📊 Loading ${optimalLimit} candles for ${timeframe} timeframe (optimized for performance)`);
+    const logParams = { 
+      candles: optimalLimit, 
+      timeframe,
+      before: beforeTime ? new Date(beforeTime * 1000).toISOString() : null,
+      after: afterTime ? new Date(afterTime * 1000).toISOString() : null
+    };
+    console.log(`📊 Loading chart data:`, logParams);
     
     try {
       // Try multiple data sources in order of preference
@@ -323,7 +338,7 @@ class HybridPriceService {
 
       // 1. Try Moralis first (primary source for historical data) with enhanced caching
       try {
-        chartData = await this.getCachedOHLCV(contractAddress, timeframe, optimalLimit);
+        chartData = await this.getCachedOHLCV(contractAddress, timeframe, optimalLimit, beforeTime, afterTime);
         if (chartData && chartData.length > 0) {
           console.log(`✅ Got ${chartData.length} data points from Moralis (cached)`);
         }
@@ -435,8 +450,13 @@ class HybridPriceService {
   /**
    * Get price data from Moralis (if configured)
    * Uses Jupiter to get pair address first, then fetches OHLCV data from Moralis
+   * @param {string} contractAddress - Token contract address
+   * @param {string} timeframe - Timeframe
+   * @param {number} limit - Number of data points
+   * @param {number} beforeTime - Load data before this timestamp
+   * @param {number} afterTime - Load data after this timestamp
    */
-  async getMoralisPriceData(contractAddress, timeframe) {
+  async getMoralisPriceData(contractAddress, timeframe, limit = 1000, beforeTime = null, afterTime = null) {
     if (!this.moralisApiKey) {
       throw new Error('Moralis API key not configured');
     }
@@ -448,7 +468,7 @@ class HybridPriceService {
       const pairAddress = await this.getPairAddress(contractAddress);
 
       // Now get OHLCV data from Moralis using the pair address
-      const timeRange = this.calculateTimeRange(timeframe);
+      const timeRange = this.calculateTimeRange(timeframe, beforeTime, afterTime);
       const moralisTimeframe = this.convertTimeframeToMoralis(timeframe);
       
       console.log(`🔍 Calling Moralis API with pair address: ${pairAddress}`);
@@ -570,7 +590,26 @@ class HybridPriceService {
   /**
    * Calculate time range based on timeframe
    */
-  calculateTimeRange(timeframe) {
+  calculateTimeRange(timeframe, beforeTime = null, afterTime = null) {
+    // Handle time-filtered requests
+    if (beforeTime || afterTime) {
+      let fromDate, toDate;
+      
+      if (afterTime) {
+        // Loading newer data after a specific time
+        fromDate = new Date(afterTime * 1000).toISOString();
+        toDate = new Date().toISOString();
+      } else if (beforeTime) {
+        // Loading older data before a specific time
+        toDate = new Date(beforeTime * 1000).toISOString();
+        
+        // Calculate appropriate lookback based on timeframe
+        const lookbackMs = this.getTimeframeLookback(timeframe);
+        fromDate = new Date(beforeTime * 1000 - lookbackMs).toISOString();
+      }
+      
+      return { from: fromDate, to: toDate };
+    }
     const now = new Date();
     const toDate = now.toISOString();
 
@@ -599,6 +638,23 @@ class HybridPriceService {
     }
 
     return { from: fromDate, to: toDate };
+  }
+
+  /**
+   * Get appropriate lookback time for lazy loading based on timeframe
+   */
+  getTimeframeLookback(timeframe) {
+    const lookbacks = {
+      '1MIN': 24 * 60 * 60 * 1000,      // 1 day
+      '5MIN': 5 * 24 * 60 * 60 * 1000,  // 5 days
+      '15MIN': 10 * 24 * 60 * 60 * 1000, // 10 days
+      '1H': 30 * 24 * 60 * 60 * 1000,   // 30 days
+      '4H': 90 * 24 * 60 * 60 * 1000,   // 90 days
+      '1D': 365 * 24 * 60 * 60 * 1000,  // 1 year
+      '1W': 5 * 365 * 24 * 60 * 60 * 1000, // 5 years
+      '1M': 10 * 365 * 24 * 60 * 60 * 1000 // 10 years
+    };
+    return lookbacks[timeframe] || lookbacks['1D'];
   }
 
   /**
