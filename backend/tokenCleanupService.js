@@ -11,11 +11,29 @@ class TokenCleanupService {
    * Check if a token should be deleted based on performance criteria
    */
   shouldDeleteToken(token) {
-    const marketCap = token.marketCap || 0;
-    const volumeChange1h = token.volumeChange1h || 0;
-    const volumeChange24h = token.volumeChange24h || 0;
-    const volume1h = token.volume1h || 0;
-    const volume24h = token.volume24h || 0;
+    // Extract market cap from multiple possible sources
+    const marketCap = token.jupiterData?.mcap || 
+                     token.marketCap || 
+                     (typeof token.marketCap === 'string' ? parseFloat(token.marketCap) : 0) || 
+                     0;
+    
+    // Extract volume change from Jupiter data structure
+    const volumeChange1h = token.jupiterData?.stats1h?.volumeChange || 
+                          token.volumeChange1h || 
+                          0;
+    const volumeChange24h = token.jupiterData?.stats24h?.volumeChange || 
+                           token.volumeChange24h || 
+                           0;
+    
+    // Extract volume from multiple possible sources
+    const volume1h = token.jupiterData?.volume1h || 
+                    token.jupiterData?.stats1h?.volume || 
+                    token.volume1h || 
+                    0;
+    const volume24h = token.jupiterData?.volume24h || 
+                     token.jupiterData?.stats24h?.volume || 
+                     token.volume24h || 
+                     0;
 
     // 🗑️ CRITICAL DELETION CRITERIA
     
@@ -130,14 +148,20 @@ class TokenCleanupService {
         const deletionCheck = this.shouldDeleteToken(token);
         
         if (deletionCheck.shouldDelete) {
+          // Extract data for reporting
+          const marketCap = token.jupiterData?.mcap || token.marketCap || 0;
+          const volumeChange1h = token.jupiterData?.stats1h?.volumeChange || token.volumeChange1h || 0;
+          const volumeChange24h = token.jupiterData?.stats24h?.volumeChange || token.volumeChange24h || 0;
+          const overallScore = token.overallScore || token.score || token.enhancedScore?.overallScore || 0;
+          
           analysis.toDelete.push({
             symbol: token.symbol,
             name: token.name,
             contractAddress: token.contractAddress,
-            marketCap: token.marketCap,
-            volumeChange1h: token.volumeChange1h,
-            volumeChange24h: token.volumeChange24h,
-            overallScore: token.overallScore,
+            marketCap: marketCap,
+            volumeChange1h: volumeChange1h,
+            volumeChange24h: volumeChange24h,
+            overallScore: overallScore,
             reason: deletionCheck.reason,
             severity: deletionCheck.severity
           });
@@ -145,10 +169,13 @@ class TokenCleanupService {
           analysis.stats[deletionCheck.severity.toLowerCase()]++;
         } else {
           // Check for warnings (not deletion but concerning)
-          if (token.volumeChange24h <= -70 && token.marketCap < 100000) {
+          const marketCap = token.jupiterData?.mcap || token.marketCap || 0;
+          const volumeChange24h = token.jupiterData?.stats24h?.volumeChange || token.volumeChange24h || 0;
+          
+          if (volumeChange24h <= -70 && marketCap < 100000) {
             analysis.warnings.push({
               symbol: token.symbol,
-              reason: `Concerning: -${Math.abs(token.volumeChange24h)}% volume with $${token.marketCap?.toLocaleString()} mcap`,
+              reason: `Concerning: -${Math.abs(volumeChange24h)}% volume with $${marketCap?.toLocaleString()} mcap`,
               severity: 'WARNING'
             });
           }
