@@ -1,30 +1,61 @@
 {
-  "short_name": "DeGen Oracle",
-  "name": "DeGen Oracle - Spot the Next Cult Before it Goes Viral",
+  "name": "Degen Oracle - Crypto Token Analytics",
+  "short_name": "DegenOracle",
+  "description": "Real-time crypto token analytics, trending detection, and community insights",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#6366f1",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["finance", "productivity", "utilities"],
   "icons": [
     {
-      "src": "dgo.png",
-      "sizes": "any",
-      "type": "image/png"
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
     },
     {
-      "src": "dgo.png",
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
       "type": "image/png",
-      "sizes": "32x32"
-    },
-    {
-      "src": "dgo.png",
-      "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "dgo.png",
-      "type": "image/png",
-      "sizes": "512x512"
+      "purpose": "maskable any"
     }
   ],
-  "start_url": ".",
-  "display": "standalone",
-  "theme_color": "#9333ea",
-  "background_color": "#000000"
+  "screenshots": [
+    {
+      "src": "/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Trending Tokens",
+      "short_name": "Trending",
+      "description": "View trending crypto tokens",
+      "url": "/?filter=trending",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "My Dashboard",
+      "short_name": "Dashboard",
+      "description": "View your personal dashboard",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
 }
