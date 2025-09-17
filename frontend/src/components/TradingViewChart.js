@@ -31,6 +31,13 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
 
       pendingInitRef.current = true;
       console.log('🚀 Initializing chart when visible and measurable...');
+      console.log('🔍 Container diagnostic:', {
+        display: getComputedStyle(el).display,
+        height: el.clientHeight,
+        position: getComputedStyle(el).position,
+        width: el.clientWidth
+      });
+      console.log('size', el.clientWidth, el.clientHeight, getComputedStyle(el).display);
       
       const { createChart, ColorType } = await import("lightweight-charts");
 
@@ -69,6 +76,12 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
       pendingInitRef.current = false;
 
       console.log('✅ Chart initialized with dimensions:', el.clientWidth, el.clientHeight);
+      
+      // Check canvas dimensions after creation
+      setTimeout(() => {
+        const canvases = el.querySelectorAll('canvas');
+        console.log('🖼️ canvases:', [...canvases].map(c => [c.width, c.height, c.style.zIndex]));
+      }, 100);
 
       // Keep chart in sync with container size
       const ro = new ResizeObserver(() => {
@@ -143,11 +156,17 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
 
   const applyData = () => {
     const ref = chartRef.current;
-    if (!ref || !chartData?.length) return;
+    if (!ref || !chartData?.length) {
+      console.log('📊 Data application skipped:', { hasRef: !!ref, dataLength: chartData?.length });
+      return;
+    }
 
     console.log('📊 Applying data to chart...');
     const candles = normalizeCandles(chartData, timeframe);
-    if (!candles.length) return;
+    if (!candles.length) {
+      console.log('📊 No valid candles after normalization');
+      return;
+    }
 
     // precision from last close
     const last = candles.at(-1).close;
@@ -178,6 +197,7 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
         // Sanity check: verify canvas dimensions
         const cvs = [...el.querySelectorAll('canvas')];
         console.log('🖼️ Final canvas check:', cvs.map(c => [c.width, c.height]));
+        console.log('🖼️ Canvas count:', cvs.length, 'Container size:', el.clientWidth, 'x', el.clientHeight);
       }
     });
 
@@ -202,27 +222,17 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
           console.log('Chart service response:', response);
           setChartData(response.data);
           console.log('Formatted chart data:', response.data);
-          
-          // Data quality check
-          const validPrices = response.data.filter(d => 
-            d.close && !isNaN(d.close) && d.close > 0
-          ).length;
-          
-          const priceRange = response.data.reduce((acc, d) => ({
-            min: Math.min(acc.min, d.close || Infinity),
-            max: Math.max(acc.max, d.close || 0)
-          }), { min: Infinity, max: 0 });
-          
-          const timeRange = response.data.length > 0 ? {
-            start: new Date(response.data[0].time * 1000).toISOString(),
-            end: new Date(response.data[response.data.length - 1].time * 1000).toISOString()
-          } : { start: null, end: null };
-          
           console.log('Data quality check:', {
             totalPoints: response.data.length,
-            validPrices,
-            priceRange,
-            timeRange
+            validPrices: response.data.filter(d => d.close && !isNaN(d.close) && d.close > 0).length,
+            priceRange: response.data.reduce((acc, d) => ({
+              min: Math.min(acc.min, d.close || Infinity),
+              max: Math.max(acc.max, d.close || 0)
+            }), { min: Infinity, max: 0 }),
+            timeRange: response.data.length > 0 ? {
+              start: new Date(response.data[0].time * 1000).toISOString(),
+              end: new Date(response.data[response.data.length - 1].time * 1000).toISOString()
+            } : { start: null, end: null }
           });
         } else {
           setError('Failed to load chart data');
