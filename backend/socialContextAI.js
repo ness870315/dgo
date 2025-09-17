@@ -86,14 +86,14 @@ async initialize() {
         throw new Error('OpenAI service not available - using enhanced fallback');
       }
 
-      // Fill template with original prompt (faster processing)
-      const prompt = this.fillTemplate(PROMPT_TEMPLATES.SOCIAL_CONTEXT_ANALYSIS, templateVars);
+      // Use enhanced template but with optimized processing
+      const prompt = this.fillTemplate(ENHANCED_PROMPT_TEMPLATES.SOCIAL_CONTEXT_ANALYSIS, templateVars);
       
       // Generate AI analysis
       const rawResponse = await this.openaiService.generateCompletion(prompt, {
         model,
         temperature,
-        maxTokens: 800, // Reduced for faster processing
+        maxTokens: 1200, // Balanced for quality and speed
         useCache,
         cacheExpiry
       });
