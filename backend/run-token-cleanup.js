@@ -75,10 +75,16 @@ class TokenCleanupRunner {
       // Filter by severity if specified
       let tokensToDelete = analysis.toDelete;
       if (severityFilter) {
-        tokensToDelete = analysis.toDelete.filter(token => 
-          token.severity.toUpperCase() === severityFilter.toUpperCase()
-        );
-        console.log(`🎯 Filtering to ${severityFilter} severity only: ${tokensToDelete.length} tokens`);
+        console.log(`🔍 Before filtering: ${analysis.toDelete.length} tokens`);
+        console.log(`🔍 Severity filter: "${severityFilter}"`);
+        
+        tokensToDelete = analysis.toDelete.filter(token => {
+          const matches = token.severity.toUpperCase() === severityFilter.toUpperCase();
+          console.log(`   ${token.symbol}: ${token.severity} ${matches ? '✅' : '❌'}`);
+          return matches;
+        });
+        
+        console.log(`🎯 After filtering to ${severityFilter} severity: ${tokensToDelete.length} tokens`);
       }
       
       if (tokensToDelete.length === 0) {
@@ -120,6 +126,9 @@ const runner = new TokenCleanupRunner();
 // Check for severity filter
 const severityArg = args.find(arg => arg.startsWith('--severity='));
 const severityFilter = severityArg ? severityArg.split('=')[1] : null;
+
+console.log('🔍 Command line args:', args);
+console.log('🎯 Severity filter:', severityFilter);
 
 if (args.includes('--delete') && args.includes('--confirm')) {
   runner.confirmDelete(severityFilter).catch(console.error);
