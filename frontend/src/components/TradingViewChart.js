@@ -11,33 +11,37 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
   const [error, setError] = useState(null);
   const [displayMode, setDisplayMode] = useState('price'); // 'price' or 'mcap'
 
-  // Helper: normalize candles data (safe version with integer timestamps)
-  const normalizeCandles = (rows = []) => {
+  // Helper: normalize candles data with timeframe bucketing
+  const TF_SEC = { '1MIN':60, '5MIN':300, '15MIN':900, '1H':3600, '4H':14400, '1D':86400, '1W':604800, '1M':2592000 };
+
+  const toSecBucket = (t, timeframe) => {
+    if (t == null) return null;
+    const s = t > 1e12 ? t / 1000 : t;          // ms -> s if needed
+    const sec = Math.floor(s);                  // <- integer seconds
+    const step = TF_SEC[timeframe] || 60;
+    return Math.floor(sec / step) * step;       // align to candle boundary
+  };
+
+  const normalizeCandles = (rows = [], timeframe) => {
     const pick  = (...xs) => xs.find(v => v != null);
     const toNum = v => v == null ? null : Number(v);
-    const toSecInt = (t) => Math.floor((t > 1e12 ? t/1000 : t) || 0);
 
-    const out = rows.map(d => {
-      const time = toSecInt(pick(d.time, d.t, d.timestamp));
-      const o = toNum(pick(d.open,  d.o, d.value));
-      const h = toNum(pick(d.high,  d.h, d.value));
-      const l = toNum(pick(d.low,   d.l, d.value));
+    // build by time to de-dup if backend sends multiple points per bucket
+    const byTime = new Map();
+
+    for (const d of rows) {
+      const time = toSecBucket(pick(d.time, d.t, d.timestamp), timeframe);
+      const o = toNum(pick(d.open, d.o, d.value));
+      const h = toNum(pick(d.high, d.h, d.value));
+      const l = toNum(pick(d.low , d.l, d.value));
       const c = toNum(pick(d.close, d.c, d.value));
       const v = toNum(pick(d.volume, d.v)) ?? 0;
-      if (![time, o, h, l, c].every(Number.isFinite)) return null;
-      return { time, open:o, high:h, low:l, close:c, volume:v };
-    }).filter(Boolean);
-
-    // sort ascending and remove duplicates
-    out.sort((a,b) => a.time - b.time);
-    const dedup = [];
-    let prev = -Infinity;
-    for (const bar of out) {
-      if (bar.time === prev) continue;     // skip duplicates
-      dedup.push(bar);
-      prev = bar.time;
+      if (![time,o,h,l,c].every(Number.isFinite)) continue;
+      byTime.set(time, { time, open:o, high:h, low:l, close:c, volume:v });
     }
-    return dedup;
+
+    const out = [...byTime.values()].sort((a,b) => a.time - b.time);
+    return out;
   };
 
   // Load chart data
@@ -168,7 +172,7 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
     const ref = chartRef.current;
     if (!ref || !chartData?.length) return;
 
-    const candles = normalizeCandles(chartData);
+    const candles = normalizeCandles(chartData, timeframe);
     if (!candles.length) return;
 
     // Bullet-proof data application sequence
