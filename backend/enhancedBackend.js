@@ -3185,13 +3185,14 @@ class EnhancedBackend {
           }
         }
         
-        // Premium feature gate
+        // Premium feature gate - TEMPORARILY DISABLED FOR TESTING
         if (!isPremium) {
-          return res.status(403).json({
-            success: false,
-            error: 'Premium feature required',
-            message: 'Hype trend analysis is available for Premium users only'
-          });
+          console.log(`🧠 AI Hype Analysis - Premium check bypassed for testing (user: ${user?.id || 'anonymous'})`);
+          // return res.status(403).json({
+          //   success: false,
+          //   error: 'Premium feature required',
+          //   message: 'Hype trend analysis is available for Premium users only'
+          // });
         }
         
         // Get token data first
