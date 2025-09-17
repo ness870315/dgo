@@ -1215,7 +1215,9 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                           const data = await response.json();
                           
                           if (data.success) {
-                            setHypeAIData(data.analysis);
+                            console.log('🧠 Hype AI Data received:', data);
+                            console.log('🧠 AI Prediction data:', data.aiPrediction);
+                            setHypeAIData(data);
                             setShowHypeAI(true);
                           } else {
                             alert(data.message || 'Failed to analyze hype trend');
@@ -1358,7 +1360,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
               <div className="mb-6 p-4 bg-gradient-to-r from-gray-800/50 to-gray-800/30 rounded-lg border border-gray-700 shadow-lg">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="p-2 bg-gray-700/50 rounded-full">
-                    <span className="text-2xl">{hypeAIData.regime.emoji}</span>
+                    <span className="text-2xl">{hypeAIData.analysis?.regime?.emoji}</span>
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
@@ -1420,7 +1422,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
               </div>
 
               {/* AI Prediction Section */}
-              {hypeAIData.aiPrediction && (
+              {hypeAIData.aiPrediction ? (
                 <div className="mb-6 p-4 bg-gradient-to-r from-purple-900/30 to-purple-800/20 rounded-lg border border-purple-700/50 shadow-lg">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="p-2 bg-purple-700/50 rounded-full">
@@ -1550,6 +1552,28 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                       )}
                     </div>
                   )}
+                </div>
+              ) : (
+                <div className="mb-6 p-4 bg-gradient-to-r from-yellow-900/30 to-yellow-800/20 rounded-lg border border-yellow-700/50 shadow-lg">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-yellow-700/50 rounded-full">
+                      <Brain size={20} className="text-yellow-300" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-white">AI Prediction</h3>
+                      <p className="text-yellow-300 text-sm">AI analysis not available</p>
+                    </div>
+                  </div>
+                  <div className="p-3 bg-gray-800/50 rounded border border-gray-600/50">
+                    <p className="text-gray-300 text-sm">
+                      AI prediction data is not available for this token. This could be due to:
+                    </p>
+                    <ul className="mt-2 text-gray-400 text-xs space-y-1">
+                      <li>• Insufficient hype data for analysis</li>
+                      <li>• AI service temporarily unavailable</li>
+                      <li>• Token not found in our database</li>
+                    </ul>
+                  </div>
                 </div>
               )}
 
