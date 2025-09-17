@@ -3211,10 +3211,23 @@ class EnhancedBackend {
         // Get AI predictions (with 24h caching)
         let aiPrediction = null;
         try {
+          console.log(`🧠 Calling AI prediction for ${contract} with ${hypeData.length} data points`);
           aiPrediction = await this.aiHypePrediction.getPrediction(contract, token, hypeData, range);
           console.log(`🧠 AI Prediction for ${contract}: ${aiPrediction.cached ? 'CACHED' : 'FRESH'} (${aiPrediction.prediction?.direction}/${aiPrediction.prediction?.strength})`);
+          console.log(`🧠 AI Prediction details:`, {
+            fallback: aiPrediction.fallback,
+            recommendation: aiPrediction.recommendation,
+            reasoning: aiPrediction.reasoning
+          });
         } catch (error) {
           console.error('❌ AI prediction failed:', error);
+          console.error('❌ AI prediction error details:', {
+            message: error.message,
+            stack: error.stack,
+            contract,
+            range,
+            hypeDataLength: hypeData?.length
+          });
         }
         
         // Combine analysis with AI predictions

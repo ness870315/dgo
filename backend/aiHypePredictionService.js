@@ -165,6 +165,13 @@ class AIHypePredictionService {
       
     } catch (error) {
       console.error('❌ Error getting AI hype prediction:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        stack: error.stack,
+        contractAddress,
+        range,
+        hypeDataLength: hypeData?.length
+      });
       return this.getFallbackPrediction(hypeData, range);
     }
   }
@@ -215,6 +222,9 @@ class AIHypePredictionService {
   buildPredictionPrompt(contractAddress, tokenData, recentData, currentMetrics, trendAnalysis, range) {
     // Use the enhanced template with proper variable substitution
     const { ENHANCED_PROMPT_TEMPLATES } = require('./aiPromptTemplates_enhanced.js');
+    
+    console.log(`🧠 Building prediction prompt for ${contractAddress}`);
+    console.log(`🧠 Template available:`, !!ENHANCED_PROMPT_TEMPLATES?.HYPE_TREND_ANALYSIS);
     
     const variables = {
       symbol: tokenData?.symbol || 'Unknown',
