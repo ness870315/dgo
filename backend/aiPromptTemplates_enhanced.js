@@ -139,7 +139,9 @@ Respond in this JSON format:
   "recommendedActions": ["Add to Watchlist", "Hype over Time", "Call it"]
 }
 
-Focus on actionable insights with heavy crypto slang and specific calculations.`,
+Focus on actionable insights with heavy crypto slang and specific calculations.
+
+Template variables are now using single brace format for proper parsing.`,
 
   /**
    * Hype Trend Analysis - For Hype over Time modal
