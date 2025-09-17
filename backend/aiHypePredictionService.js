@@ -2,6 +2,7 @@ import OpenAIService from './openaiService.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { ENHANCED_PROMPT_TEMPLATES } from './aiPromptTemplates_enhanced.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -231,21 +232,70 @@ class AIHypePredictionService {
     }
   }
 
-  async buildPredictionPrompt(contractAddress, tokenData, recentData, currentMetrics, trendAnalysis, range) {
-    // Use the enhanced template with proper variable substitution
-    try {
-      const { ENHANCED_PROMPT_TEMPLATES } = await import('./aiPromptTemplates_enhanced.js');
-      
-      console.log(`🧠 Building prediction prompt for ${contractAddress}`);
-      console.log(`🧠 Template available:`, !!ENHANCED_PROMPT_TEMPLATES?.HYPE_TREND_ANALYSIS);
-      
-      if (!ENHANCED_PROMPT_TEMPLATES?.HYPE_TREND_ANALYSIS) {
-        throw new Error('HYPE_TREND_ANALYSIS template not found');
-      }
-    } catch (error) {
-      console.error('❌ Error loading template:', error);
-      throw error;
-    }
+  buildPredictionPrompt(contractAddress, tokenData, recentData, currentMetrics, trendAnalysis, range) {
+    console.log(`🧠 Building prediction prompt for ${contractAddress}`);
+    
+    // Create a simple, working template for hype trend analysis
+    const template = `You are DeGen Oracle's trend prediction AI. Analyze this token's hype trajectory with crypto energy!
+
+🚀 TOKEN ANALYSIS TARGET:
+Symbol: {symbol} ({name})
+Time Range: {timeRange}
+Market Cap: {marketCap}
+Current Price: {price}
+
+📊 HYPE DATA TIMELINE:
+{hypeData}
+
+🔥 ANALYTICS ENGINE METRICS:
+- Holder Change: {holderChange}% (community growth/decline indicator)
+- Volume Change: {volumeChange}% (momentum and interest tracker)  
+- Price Change: {priceChange}% (recent performance context)
+- Organic Score: {organicScore}/100 ({organicScoreLabel}) (authenticity from our AI tools)
+- Liquidity: {liquidity} (market depth and slippage risk)
+
+🎯 ANALYSIS INSTRUCTIONS:
+You are a LEGENDARY crypto trend analyst - be absolutely WILD, CREATIVE, and ENTERTAINING! 
+
+📈 Pattern Recognition: Identify if this is "diamond hands accumulation", "paper hands exodus", "whale manipulation", "organic growth", "pump and dump", or "consolidation vibes"
+
+🚀 Momentum Analysis: Is this gaining momentum or losing steam? Use actual hype score progression to determine if we're seeing bullish continuation or bearish reversal
+
+💎 Community Sentiment: Based on mentions and engagement, are these degens strong or showing weak commitment?
+
+⚡ Timing Insights: When should degens make their move? Is this an opportunity or time to wait?
+
+🎪 CREATIVE FREEDOM: Use wild analogies, crypto culture references, and epic storytelling that would make even the most jaded degen laugh while providing actionable alpha!
+
+Respond in this JSON format:
+{
+  "trendSummary": "Epic one-liner about the trend using heavy crypto slang",
+  "patternAnalysis": "Detailed pattern identification with degen terminology",
+  "momentumDirection": "Bullish|Bearish|Sideways",
+  "momentumStrength": "Weak|Moderate|Strong|Explosive",
+  "keyLevels": {
+    "support": "Score level where diamond hands emerge",
+    "resistance": "Score level where paper hands sell"
+  },
+  "prediction": {
+    "nextMove": "Detailed prediction with timing",
+    "timeframe": "6h|12h|24h|48h|7d",
+    "confidence": 0.85,
+    "targetScore": 7.5
+  },
+  "catalysts": [
+    "Specific upcoming events or factors that could pump this",
+    "Community momentum indicators",
+    "Technical breakout signals"
+  ],
+  "risks": [
+    "Potential red flags or concerns",
+    "Market conditions that could dump this",
+    "Technical weakness signals"
+  ],
+  "recommendation": "hold|buy|sell|wait",
+  "reasoning": "Detailed explanation of your recommendation with crypto slang"
+}`;
     
     const variables = {
       symbol: tokenData?.symbol || 'Unknown',
@@ -262,7 +312,7 @@ class AIHypePredictionService {
       liquidity: tokenData?.jupiterData?.liquidity || tokenData?.liquidity || 'N/A'
     };
     
-    return this.fillTemplate(ENHANCED_PROMPT_TEMPLATES.HYPE_TREND_ANALYSIS, variables);
+    return this.fillTemplate(template, variables);
   }
   
   getOrganicScoreLabel(score) {
@@ -300,13 +350,13 @@ class AIHypePredictionService {
       
       return {
         prediction: {
-          direction: parsed.prediction.direction || 'sideways',
-          strength: parsed.prediction.strength || 'moderate',
-          timeframe: parsed.prediction.timeframe || '24h',
-          targetScore: parsed.prediction.targetScore || 5.0,
-          confidence: Math.min(1.0, Math.max(0.1, parsed.prediction.confidence || 0.7))
+          direction: parsed.momentumDirection || parsed.prediction?.direction || 'sideways',
+          strength: parsed.momentumStrength || parsed.prediction?.strength || 'moderate',
+          timeframe: parsed.prediction?.timeframe || '24h',
+          targetScore: parsed.prediction?.targetScore || 5.0,
+          confidence: Math.min(1.0, Math.max(0.1, parsed.prediction?.confidence || 0.7))
         },
-        reasoning: parsed.reasoning,
+        reasoning: parsed.trendSummary || parsed.reasoning,
         catalysts: parsed.catalysts || [],
         risks: parsed.risks || [],
         keyLevels: parsed.keyLevels || { support: 0, resistance: 10 },
