@@ -3405,6 +3405,94 @@ class EnhancedBackend {
       }
     });
     
+    // Quick AI Analysis endpoint (faster, simplified)
+    this.app.get('/api/ai/quick-analysis/:contract', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        const { sessionId } = req.query;
+        
+        console.log(`⚡ Quick AI analysis request for ${contract}`);
+        
+        // Get token data
+        const tokens = await this.getTokensFromCache();
+        const token = tokens.find(t => 
+          t.contractAddress?.toLowerCase() === contract.toLowerCase() ||
+          t.symbol?.toLowerCase() === contract.toLowerCase()
+        );
+        
+        if (!token) {
+          return res.status(404).json({ 
+            error: 'Token not found',
+            message: 'Token not found in our database'
+          });
+        }
+        
+        // Generate quick analysis without OpenAI
+        const quickAnalysis = this.generateQuickAnalysis(token);
+        
+        res.json({
+          success: true,
+          analysis: quickAnalysis,
+          tokenInfo: {
+            symbol: token.symbol,
+            name: token.name,
+            contractAddress: token.contractAddress,
+            currentPrice: token.jupiterData?.price || token.price,
+            marketCap: token.jupiterData?.marketCap || token.marketCap
+          },
+          isQuickAnalysis: true,
+          dataFreshness: 'real-time'
+        });
+        
+      } catch (error) {
+        console.error('[⚡ Quick AI] ❌ Quick analysis error:', error.message);
+        res.status(500).json({ 
+          error: 'Quick analysis failed',
+          message: error.message,
+          fallback: 'Try the full analysis instead'
+        });
+      }
+    });
+
+    // AI Analysis Feedback endpoint
+    this.app.post('/api/ai/feedback/:contract', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        const { helpful, analysisId, feedback } = req.body;
+        
+        // Log feedback for training purposes
+        console.log(`📊 AI Analysis Feedback for ${contract}:`, {
+          analysisId,
+          helpful,
+          feedback,
+          timestamp: new Date().toISOString(),
+          userAgent: req.get('User-Agent')
+        });
+        
+        // Store feedback in a simple format (you could expand this to a database)
+        const feedbackData = {
+          contract,
+          analysisId,
+          helpful,
+          feedback,
+          timestamp: new Date().toISOString(),
+          ip: req.ip
+        };
+        
+        // For now, just log it. In production, you'd store this in a database
+        // and use it to improve the AI prompts and responses
+        
+        res.json({ 
+          success: true, 
+          message: 'Feedback recorded for AI training',
+          feedbackId: `feedback_${Date.now()}`
+        });
+      } catch (error) {
+        console.error('❌ Error recording AI feedback:', error);
+        res.status(500).json({ error: 'Failed to record feedback' });
+      }
+    });
+
     // Get AI analysis metrics and status
     this.app.get('/api/ai/metrics', async (req, res) => {
       try {

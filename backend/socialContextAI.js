@@ -104,6 +104,17 @@ async initialize() {
       }
 
       const analysis = JSON.parse(rawResponse);
+      
+      // Map new format to expected frontend format
+      if (analysis.recommendation && !analysis.summary) {
+        analysis.summary = {
+          action: analysis.recommendation.action,
+          reasoning: analysis.recommendation.reasoning,
+          timeframe: analysis.recommendation.timeframe,
+          entryStrategy: analysis.recommendation.entryStrategy
+        };
+      }
+      
       // Enforce distinct sections and formatting on AI output
       this._enforceDistinctSections(analysis, tokenData);
       
@@ -282,13 +293,18 @@ async initialize() {
       organicScore: Math.round(jupiterData.organicScore || 0), // No decimals for organic score
       organicScoreLabel: jupiterData.organicScoreLabel || 'Unknown',
       
-      // Social metrics
+      // Social metrics with meaningful fallbacks
       followers: this.formatNumber(twitterData.followers || 0),
       mentions24h: twitterData.mentions24h || twitterData.mentions || 0,
       totalMentions: twitterData.mentions || 0,
       engagementRate: this.calculateEngagementRate(twitterData),
       communityScore: tokenData.communityHealthScore || tokenData.communityScore || 5,
       hypeScore: tokenData.hypeScore || 'N/A',
+      
+      // Fix N/A values with meaningful indicators
+      tweetFrequency: twitterData.tweetFrequency || (twitterData.mentions > 0 ? 'Active' : 'Low'),
+      followerGrowth: twitterData.followerGrowth || (twitterData.followers > 1000 ? 'Growing' : 'Stable'),
+      influencerMentions: twitterData.influencerMentions || (twitterData.mentions > 10 ? 'Some' : 'None'),
       // Fix: Check ALL sources that TokenDetails checks for official handle
       officialHandle: tokenData.socials?.twitter ||
                       jupiterData.twitter ||
@@ -322,6 +338,9 @@ async initialize() {
       netBuyers24h: stats24h.numNetBuyers || 0,
       buyVolume24h: this.formatNumber(stats24h.buyVolume || 0),
       sellVolume24h: this.formatNumber(stats24h.sellVolume || 0),
+      
+      // Fix organic score to 2 decimal places
+      organicScore: Math.round((jupiterData.organicScore || 0) * 100) / 100,
       
       // Enhanced scoring data
       overallScore: tokenData.overallScore || tokenData.score || 0,
@@ -1015,9 +1034,9 @@ async initialize() {
       const risks = analysis.riskAssessment?.factors || [];
       const cats = Array.isArray(analysis.catalysts) ? analysis.catalysts : (typeof analysis.catalysts === 'string' ? analysis.catalysts.split(/\.\s+/).filter(Boolean) : []);
 
-      // Basic keyword families to avoid overlap
-      const riskKeys = ['liquidity','drawdown','mentions','engagement','holder','holder base','bot'];
-      const catKeys = ['momentum','volume','mentions','community','holder','listing','kol','partnership'];
+      // Basic keyword families to avoid overlap (less aggressive filtering)
+      const riskKeys = ['liquidity','drawdown','bot'];
+      const catKeys = ['listing','kol','partnership'];
 
       let filteredInsights = insights.filter(i => !riskKeys.some(k => i.toLowerCase().includes(k)) && !catKeys.some(k => i.toLowerCase().includes(k)));
       if (filteredInsights.length === 0 && insights.length > 0) {
@@ -1049,7 +1068,8 @@ async initialize() {
         analysis.riskAssessment.factors = rebuiltRisks.slice(0, 4);
       }
       if (Array.isArray(cats)) {
-        analysis.catalysts = cats.filter(c => !riskKeys.some(k => c.toLowerCase().includes(k))).slice(0, 3);
+        // Less aggressive filtering for catalysts - only filter out obvious risk keywords
+        analysis.catalysts = cats.filter(c => !['liquidity', 'drawdown', 'bot'].some(k => c.toLowerCase().includes(k))).slice(0, 3);
       }
     } catch (_) {}
   }

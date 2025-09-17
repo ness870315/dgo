@@ -369,14 +369,15 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
   const submitAIFeedback = async (analysisId, feedback) => {
     try {
       const sessionId = localStorage.getItem('sessionId');
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/ai/feedback`, {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/ai/feedback/${token.contractAddress}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           analysisId,
-          feedback,
+          helpful: feedback === 'positive',
+          feedback: feedback,
           sessionId
         })
       });
