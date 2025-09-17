@@ -11,14 +11,13 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
   const [error, setError] = useState(null);
   const [displayMode, setDisplayMode] = useState('price'); // 'price' or 'mcap'
 
-  // Helper: normalize candles data (fixed NaN propagation)
-  const normalizeCandles = (rows) => {
-    if (!Array.isArray(rows)) return [];
+  // Helper: normalize candles data (safe version)
+  const normalizeCandles = (rows=[]) => {
     const pick = (...xs) => xs.find(v => v != null);
     const toNum = (v) => v == null ? null : Number(v);
     const toSec = (t) => (t > 1e12 ? Math.floor(t / 1000) : t);
 
-    const out = rows.map((d) => {
+    const out = rows.map(d => {
       const time = toSec(pick(d.time, d.t));
       const o = toNum(pick(d.open, d.o, d.value));
       const h = toNum(pick(d.high, d.h, d.value));
@@ -28,7 +27,6 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
       if (![time, o, h, l, c].every(Number.isFinite)) return null;
       return { time, open: o, high: h, low: l, close: c, volume: v };
     }).filter(Boolean);
-
     out.sort((a, b) => a.time - b.time);
     return out;
   };
@@ -89,237 +87,83 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
 
   // INIT ONCE - Chart initialization (run once, never destroy on data changes)
   useEffect(() => {
-    console.log('🚀 Chart initialization effect starting...');
-    let mounted = true;
-
-    const init = async () => {
-      console.log('🔧 Init function called, containerRef.current:', !!containerRef.current);
-      if (!containerRef.current) {
-        console.log('❌ No container ref, skipping init');
+    let ro;
+    (async () => {
+      const el = containerRef.current;
+      if (!el) return;
+      
+      // Wait until visible/measurable
+      if (!el.clientWidth || !el.clientHeight) {
+        console.log('⏳ Container has no size, skipping init');
         return;
       }
-      
-      const el = containerRef.current;
-      
-      // Quick diagnostic - check container state
-      const computedStyle = getComputedStyle(el);
+
       console.log('🔍 Container diagnostic:', {
         clientWidth: el.clientWidth,
         clientHeight: el.clientHeight,
-        offsetWidth: el.offsetWidth,
-        offsetHeight: el.offsetHeight,
-        display: computedStyle.display,
-        visibility: computedStyle.visibility,
-        position: computedStyle.position,
-        zIndex: computedStyle.zIndex
+        display: getComputedStyle(el).display
       });
-      
-      // Wait until container has size with retry mechanism
-      let retries = 0;
-      while ((el.clientWidth === 0 || (el.clientHeight || 0) === 0) && retries < 10) {
-        console.log(`⏳ Container has no size, retry ${retries + 1}/10...`);
-        await new Promise(resolve => setTimeout(resolve, 100));
-        retries++;
-      }
-      
-      if (el.clientWidth === 0 || (el.clientHeight || 0) === 0) {
-        console.log('❌ Container still has no size after retries, using fallback dimensions');
-        // Use fallback dimensions but still try to create chart
-      }
 
-      // Dynamic import to avoid SSR/ESM issues
       const { createChart, ColorType } = await import('lightweight-charts');
-
-      const containerWidth = el.clientWidth || 800;
-      const containerHeight = el.clientHeight || 400;
-      
-      console.log('📊 Creating chart with dimensions:', { containerWidth, containerHeight });
-
-      // Clear any existing content
-      el.innerHTML = '';
-      
       const chart = createChart(el, {
-        layout: { 
-          background: { type: ColorType.Solid, color: '#000000' }, 
-          textColor: '#ffffff',
-          fontSize: 12,
-          fontFamily: 'Trebuchet MS, sans-serif',
-        },
-        grid: { 
-          vertLines: { color: '#1e1e1e', style: 2, visible: true }, 
-          horzLines: { color: '#1e1e1e', style: 2, visible: true } 
-        },
-        rightPriceScale: {
-          borderColor: "#333333",
-          textColor: "#ffffff",
-          scaleMargins: { top: 0.1, bottom: 0.1 },
-          autoScale: true,
-          alignLabels: true,
-          borderVisible: true,
-          entireTextOnly: false,
-        },
-        timeScale: {
-          borderColor: "#333333",
-          textColor: "#ffffff",
-          timeVisible: true,
-          secondsVisible: false,
-          rightOffset: 12,
-          barSpacing: 6,
-          fixLeftEdge: false,
-          fixRightEdge: false,
-        },
+        layout: { background: { type: ColorType.Solid, color: '#000' }, textColor: '#fff' },
+        grid: { vertLines: { color: '#2e3a4a' }, horzLines: { color: '#2e3a4a' } },
+        width: el.clientWidth,
+        height: el.clientHeight || 400,
         crosshair: { mode: 1 },
-        handleScroll: { 
-          mouseWheel: true, 
-          pressedMouseMove: true, 
-          horzTouchDrag: true, 
-          vertTouchDrag: true 
-        },
-        handleScale: { 
-          axisPressedMouseMove: true, 
-          mouseWheel: true, 
-          pinch: true, 
-          axisDoubleClickReset: true 
-        },
-        width: containerWidth,
-        height: containerHeight,
       });
-
       const series = chart.addCandlestickSeries({
-        priceFormat: { type: 'price', precision: 9, minMove: 1e-9 },
-        upColor: '#089981', 
-        downColor: '#f23645', 
-        wickUpColor: '#089981', 
-        wickDownColor: '#f23645', 
-        borderVisible: false,
-        priceLineVisible: true,
-        lastValueVisible: true,
+        upColor:'#089981', downColor:'#f23645', wickUpColor:'#089981', wickDownColor:'#f23645', borderVisible:false,
+        priceFormat: { type:'price', precision:9, minMove:1e-9 },
       });
-
       chartRef.current = { chart, series };
-      
-      // Force chart to render by calling fitContent
-      chart.timeScale().fitContent();
-      
-      // Wait a bit for canvas elements to be created, then check
-      setTimeout(() => {
-        const canvasElements = el.querySelectorAll('canvas');
-        console.log('✅ Chart created successfully:', {
-          hasChart: !!chart,
-          hasSeries: !!series,
-          chartWidth: chart.options().width,
-          chartHeight: chart.options().height,
-          containerElement: el.tagName,
-          containerClasses: el.className,
-          containerStyle: el.style.cssText,
-          canvasCount: canvasElements.length,
-          canvasElements: Array.from(canvasElements).map(canvas => ({
-            width: canvas.width,
-            height: canvas.height,
-            style: canvas.style.cssText,
-            display: getComputedStyle(canvas).display,
-            visibility: getComputedStyle(canvas).visibility,
-            opacity: getComputedStyle(canvas).opacity
-          }))
-        });
-      }, 100);
 
-      // Resize observer
-      const ro = new ResizeObserver(() => {
-        if (!chartRef.current || !containerRef.current) return;
-        const el = containerRef.current;
-        chartRef.current.chart.applyOptions({
-          width: el.clientWidth,
-          height: el.clientHeight || 400,
-        });
-        console.log('📏 Chart resized to:', { width: el.clientWidth, height: el.clientHeight });
+      // Keep chart sized with container
+      ro = new ResizeObserver(() => {
+        const w = el.clientWidth, h = el.clientHeight || 400;
+        chart.applyOptions({ width:w, height:h });
       });
       ro.observe(el);
-      roRef.current = ro;
-    };
+      
+      console.log('✅ Chart created successfully');
+    })();
 
-    init();
-
-    return () => {
-      console.log('🧹 Chart initialization cleanup running...');
-      try { roRef.current?.disconnect(); } catch {}
-      try { chartRef.current?.chart.remove(); } catch {}
-      chartRef.current = null;
-      roRef.current = null;
+    return () => { 
+      try{ro?.disconnect()}catch{}; 
+      try{chartRef.current?.chart.remove()}catch{}; 
+      chartRef.current = null; 
     };
   }, []);
 
   // APPLY DATA - Update chart data (separate effect, doesn't destroy chart)
   useEffect(() => {
     const ref = chartRef.current;
-    if (!ref || !chartData?.length) {
-      console.log('📊 Data application skipped:', { 
-        hasRef: !!ref, 
-        hasData: !!chartData?.length,
-        dataLength: chartData?.length || 0 
-      });
-      return;
-    }
-    
-    console.log('📊 Applying data to chart...');
+    if (!ref || !chartData?.length) return;
+
     const candles = normalizeCandles(chartData);
-    if (!candles.length) {
-      console.log('❌ No valid candles after normalization');
-      return;
-    }
+    if (!candles.length) return;
 
-    // mcap transform (optional): prefer price * circulatingSupply
-    let final = candles;
-    if (displayMode === 'mcap' && Number.isFinite(token?.circulatingSupply)) {
-      const s = token.circulatingSupply;
-      final = candles.map(c => ({ 
-        ...c, 
-        open: c.open * s, 
-        high: c.high * s, 
-        low: c.low * s, 
-        close: c.close * s 
-      }));
-    }
+    const last = candles.at(-1)?.close ?? 1;
+    const format =
+      displayMode === 'mcap' ? { type:'price', precision:0, minMove:1 }
+      : last >= 1          ? { type:'price', precision:6, minMove:1e-6 }
+      : last >= 0.01       ? { type:'price', precision:8, minMove:1e-8 }
+                            : { type:'price', precision:9, minMove:1e-9 };
 
-    // precision from last close
-    const last = final.at(-1)?.close ?? 1;
-    const fmt = displayMode === 'mcap'
-      ? { type: 'price', precision: 0, minMove: 1 }
-      : (last >= 1    ? { type:'price', precision:6, minMove:1e-6 }
-        : last >= 0.01? { type:'price', precision:8, minMove:1e-8 }
-                      : { type:'price', precision:9, minMove:1e-9 });
+    ref.series.applyOptions({ priceFormat: format, title: `${token?.symbol||'Token'} ${displayMode==='mcap'?'MCap':'Price'}` });
+    ref.series.setData(candles);
 
-    ref.series.applyOptions({ 
-      priceFormat: fmt, 
-      title: `${token?.symbol || 'Token'} ${displayMode==='mcap'?'MCap':'Price'}` 
-    });
-    ref.series.setData(final);
-    
-    // For small datasets, reduce padding to prevent off-screen rendering
-    if (final.length < 50) {
-      ref.chart.applyOptions({ 
-        timeScale: { 
-          rightOffset: 2, 
-          barSpacing: 2,
-          fixLeftEdge: false,
-          fixRightEdge: false
-        } 
-      });
-      console.log(`📊 Small dataset (${final.length} bars) - reduced padding`);
-    }
-    
+    // Force into view (protect against offsets/barSpacing pushing data off-screen)
+    ref.chart.timeScale().setVisibleRange({ from: candles[0].time, to: candles.at(-1).time });
     ref.chart.timeScale().fitContent();
+
+    // Tiny datasets: reduce padding/spacing
+    if (candles.length < 50) {
+      ref.chart.applyOptions({ timeScale: { rightOffset: 2, barSpacing: 2 } });
+      ref.chart.timeScale().fitContent();
+    }
     
-    // Check canvas state after data application
-    const canvasElements = containerRef.current?.querySelectorAll('canvas');
-    console.log(`✅ Data applied successfully: ${final.length} candles with precision ${fmt.precision}`, {
-      canvasCount: canvasElements?.length || 0,
-      canvasVisible: canvasElements ? Array.from(canvasElements).every(canvas => 
-        getComputedStyle(canvas).display !== 'none' && 
-        getComputedStyle(canvas).visibility !== 'hidden' &&
-        getComputedStyle(canvas).opacity !== '0'
-      ) : false
-    });
+    console.log(`✅ Data applied successfully: ${candles.length} candles with precision ${format.precision}`);
   }, [chartData, displayMode, timeframe]);
 
   if (loading) {
