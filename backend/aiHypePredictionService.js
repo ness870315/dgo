@@ -186,14 +186,18 @@ class AIHypePredictionService {
       );
 
       // Call OpenAI
+      console.log(`🧠 Calling OpenAI for hype prediction with prompt length: ${prompt.length}`);
       const response = await this.openaiService.generateCompletion(prompt, {
         model: 'gpt-4',
         temperature: 0.3,
         max_tokens: 1000
       });
 
+      console.log(`🤖 OpenAI response for hype prediction: ${response.substring(0, 200)}...`);
+
       // Parse and validate response
       const prediction = this.parsePredictionResponse(response);
+      console.log(`📊 Parsed prediction:`, prediction);
       
       return {
         ...prediction,
@@ -242,7 +246,7 @@ class AIHypePredictionService {
   fillTemplate(template, variables) {
     let filled = template;
     for (const [key, value] of Object.entries(variables)) {
-      const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+      const regex = new RegExp(`\\{${key}\\}`, 'g');
       filled = filled.replace(regex, String(value));
     }
     return filled;
@@ -377,22 +381,48 @@ class AIHypePredictionService {
     const currentMetrics = this.calculateCurrentMetrics(hypeData);
     const trendAnalysis = this.analyzeTrend(hypeData);
     
+    // Generate unique fallback based on actual data
+    const score = currentMetrics.currentScore;
+    const direction = trendAnalysis.direction === 'unknown' ? 'sideways' : trendAnalysis.direction;
+    
+    let trendSummary, patternAnalysis, recommendation, catalysts, risks;
+    
+    if (score > 7) {
+      trendSummary = 'High hype score detected - either moon mission energy or pump and dump incoming!';
+      patternAnalysis = 'Strong momentum with potential for explosive moves - diamond hands or paper hands?';
+      recommendation = 'monitor';
+      catalysts = ['High hype momentum', 'Potential breakout incoming'];
+      risks = ['Pump and dump risk', 'High volatility expected'];
+    } else if (score > 4) {
+      trendSummary = 'Moderate hype building - consolidation vibes before the next move';
+      patternAnalysis = 'Steady accumulation phase - degens either accumulating or waiting for signals';
+      recommendation = 'hold';
+      catalysts = ['Building momentum', 'Community growth'];
+      risks = ['Consolidation phase', 'Waiting for catalyst'];
+    } else {
+      trendSummary = 'Low hype energy - either sleeping giant or dead project vibes';
+      patternAnalysis = 'Weak momentum - needs catalyst to wake up the community';
+      recommendation = 'wait';
+      catalysts = ['Potential awakening', 'Low entry opportunity'];
+      risks = ['Dead project risk', 'No community interest'];
+    }
+    
     return {
       prediction: {
-        direction: trendAnalysis.direction === 'unknown' ? 'sideways' : trendAnalysis.direction,
+        direction: direction,
         strength: trendAnalysis.strength,
         timeframe: '24h',
-        targetScore: currentMetrics.currentScore,
+        targetScore: score,
         confidence: 0.5
       },
-      reasoning: 'Fallback analysis based on technical indicators due to AI service unavailability',
-      catalysts: ['Technical momentum', 'Community activity'],
-      risks: ['Market volatility', 'Limited data'],
+      reasoning: trendSummary,
+      catalysts: catalysts,
+      risks: risks,
       keyLevels: {
-        support: Math.max(0, currentMetrics.currentScore - 2),
-        resistance: Math.min(10, currentMetrics.currentScore + 2)
+        support: Math.max(0, score - 2),
+        resistance: Math.min(10, score + 2)
       },
-      recommendation: 'hold',
+      recommendation: recommendation,
       cached: false,
       cacheAge: 0,
       fallback: true
