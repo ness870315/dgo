@@ -100,40 +100,40 @@ Respond in this JSON format:
   "sentiment": "Bullish|Bearish|Neutral",
   "confidence": 0.85,
   "keyInsights": [
-    "Price action: {priceChange24h}% in 24h with {volumeChange24h}% volume change - either moon mission fuel or correction time, baby!",
-    "Holder analysis: {holderChange24h}% holder change with {netBuyers24h} net buyers - diamond hands accumulating or paper hands dumping?",
-    "Liquidity flow: {buyVolume24h} buy volume vs {sellVolume24h} sell volume - either whale confidence or liquidity trap energy"
+    "Price action: Either moon mission energy with strong volume or rug pull incoming with weak hands - vibes are either diamond hands accumulating or paper hands panic selling",
+    "Holder analysis: Either viral traction that would make a pandemic jealous or coordinated pump energy - community either absolutely sending it or getting rekt harder than a noob on leverage",
+    "Liquidity flow: Either whale confidence with diamond hands energy or liquidity trap with paper hands dumping - vibes are either moon mission ready or rug pull incoming"
   ],
   "socialMomentum": {
-    "direction": "Accelerating|Stable|Declining",
-    "strength": "Strong|Moderate|Weak",
-    "sustainability": "High|Medium|Low"
+    "direction": "Moon Mission|Stable Vibes|Declining Energy",
+    "strength": "Diamond Hands|Moderate Degen|Weak Paper Hands",
+    "sustainability": "Long Term HODL|Medium Term Play|Short Term Pump"
   },
   "riskAssessment": {
-    "level": "Low|Medium|High",
-    "factors": ["Specific risk factors with crypto slang", "Liquidity analysis with actual numbers"],
-    "mitigants": ["Positive factors with degen terminology"]
+    "level": "Low Risk|Medium Risk|High Risk",
+    "factors": ["Either authentic degen energy or bot activity red flags", "Either diamond hands accumulating or paper hands dumping"],
+    "mitigants": ["Either moon mission ready or rug pull incoming", "Either viral traction or coordinated pump energy"]
   },
   "communityAnalysis": {
-    "organicGrowth": "Strong|Moderate|Weak",
-    "engagementQuality": "High|Medium|Low", 
-    "influencerSupport": "Strong|Moderate|Weak",
-    "botActivity": "Low|Medium|High"
+    "organicGrowth": "Viral Traction|Moderate Degen|Weak Paper Hands",
+    "engagementQuality": "Diamond Hands|Moderate Energy|Weak Vibes", 
+    "influencerSupport": "Moon Mission|Moderate Hype|Weak Signals",
+    "botActivity": "Authentic Degen|Moderate Bot|High Bot Activity"
   },
   "recommendation": {
     "action": "Buy|Hold|Sell",
-    "reasoning": "Based on {holderChange24h}% holder growth showing {netBuyers24h} net buyers, {tweetSentiments} sentiment from {totalMentions} mentions, and {organicScore}/100 organic score - either diamond hands moon mission or paper hands rug pull energy!",
+    "reasoning": "Based on holder growth showing strong accumulation energy, community sentiment either absolutely sending it or getting rekt, and organic score suggesting either authentic degen vibes or bot activity - either diamond hands moon mission or paper hands rug pull energy!",
     "timeframe": "Short-term|Medium-term|Long-term",
-    "entryStrategy": "DCA on dips like a degen who learned from their mistakes, or wait for {influencerMentions} influencer confirmation signals"
+    "entryStrategy": "DCA on dips like a degen who learned from their mistakes, or wait for influencer confirmation signals like a smart degen"
   },
   "catalysts": [
     "HOLDER EXPLOSION: {holderChange24h}% new wallets in 24h - either viral traction that would make a pandemic jealous or coordinated pump energy",
-    "SOCIAL MOMENTUM: {totalMentions} mentions with {tweetSentiments} sentiment - community either absolutely sending it or getting rekt harder than a noob on leverage"
+    "SOCIAL MOMENTUM: Community either absolutely sending it with diamond hands energy or getting rekt harder than a noob on leverage - vibes are either moon mission ready or paper hands panic selling"
   ],
   "redFlags": [
-    "ORGANIC SCORE ALERT: {organicScore}/100 organic score suggests bot activity or authentic community vibes - either red flag city or based community",
+    "ORGANIC SCORE ALERT: {organicScore} organic score suggests bot activity or authentic community vibes - either red flag city or based community",
     "VOLUME DISTRIBUTION: {sellVolume24h} sell volume vs {buyVolume24h} buy volume - either paper hands dumping faster than a house of cards or diamond hands accumulating like there's no tomorrow",
-    "SOCIAL ACTIVITY: {tweetsPerDay} tweets/day with {engagementRate}% engagement - either dead community vibes or active degen energy"
+    "SOCIAL ACTIVITY: Community either absolutely sending it with authentic degen energy or getting botted harder than a noob's first leverage trade - vibes are either moon mission ready or rug pull incoming"
   ],
   "recommendedActions": ["Add to Watchlist", "Hype over Time", "Call it"]
 }
