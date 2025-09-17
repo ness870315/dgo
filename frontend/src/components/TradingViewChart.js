@@ -15,11 +15,7 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
   const normalizeCandles = (rows = []) => {
     const pick  = (...xs) => xs.find(v => v != null);
     const toNum = v => v == null ? null : Number(v);
-    const toSecInt = (t) => {
-      if (t == null) return null;
-      const s = t > 1e12 ? t / 1000 : t;   // ms → s if needed
-      return Math.floor(s);                // <-- important: integer seconds
-    };
+    const toSecInt = (t) => Math.floor((t > 1e12 ? t/1000 : t) || 0);
 
     const out = rows.map(d => {
       const time = toSecInt(pick(d.time, d.t, d.timestamp));
@@ -118,6 +114,9 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
         display: getComputedStyle(el).display,
         position: getComputedStyle(el).position,
       });
+      
+      // Quick size check right before chart creation
+      console.log('size', el?.clientWidth, el?.clientHeight, getComputedStyle(el).display);
 
       const { createChart, ColorType } = await import('lightweight-charts');
 
@@ -172,28 +171,28 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
     const candles = normalizeCandles(chartData);
     if (!candles.length) return;
 
-    // precision from last close (don't force 6 for micro prices)
-    const lastClose = candles.at(-1)?.close ?? 1;
-    const priceFmt =
-      displayMode === 'mcap' ? { type: 'price', precision: 0, minMove: 1 }
-    : lastClose >= 1          ? { type: 'price', precision: 6, minMove: 1e-6 }
-    : lastClose >= 0.01       ? { type: 'price', precision: 8, minMove: 1e-8 }
-                         : { type: 'price', precision: 9, minMove: 1e-9 };
+    // Bullet-proof data application sequence
+    ref.series.applyOptions({
+      priceFormat: (()=>{
+        const last = candles.at(-1).close;
+        if (displayMode === 'mcap') return { type:'price', precision:0, minMove:1 };
+        if (last >= 1) return { type:'price', precision:6, minMove:1e-6 };
+        if (last >= 0.01) return { type:'price', precision:8, minMove:1e-8 };
+        return { type:'price', precision:9, minMove:1e-9 };
+      })(),
+      title: `${token?.symbol || 'Token'} ${displayMode==='mcap'?'MCap':'Price'}`
+    });
 
-    ref.series.applyOptions({ priceFormat: priceFmt, title: `${token?.symbol || 'Token'} ${displayMode==='mcap'?'MCap':'Price'}` });
     ref.series.setData(candles);
 
-    // force the visible range so small datasets don't sit off-screen
-    const first = candles[0].time, last = candles.at(-1).time;
-    ref.chart.timeScale().setVisibleRange({ from: first, to: last });
-    ref.chart.timeScale().fitContent();
+    const small = candles.length < 60;
+    ref.chart.applyOptions({ timeScale: { rightOffset: small ? 2 : 8, barSpacing: small ? 2 : 6 } });
 
-    // if a frame returns very few bars (e.g., 24 on 15MIN), reduce spacing
-    ref.chart.applyOptions({
-      timeScale: { rightOffset: candles.length < 60 ? 2 : 8, barSpacing: candles.length < 60 ? 2 : 6 }
-    });
+    const from = candles[0].time, to = candles.at(-1).time;
+    ref.chart.timeScale().setVisibleRange({ from, to });
+    ref.chart.timeScale().fitContent();
     
-    console.log(`✅ Data applied successfully: ${candles.length} candles with precision ${priceFmt.precision}`);
+    console.log(`✅ Data applied successfully: ${candles.length} candles`);
   }, [chartData, displayMode, timeframe]);
 
   if (loading) {
