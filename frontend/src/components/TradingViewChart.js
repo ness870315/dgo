@@ -266,8 +266,8 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
       setError(null);
       
       try {
-        console.log(`Loading chart data for: ${contract} timeframe: ${timeframe}`);
-        const response = await chartService.getPriceChart(contract, timeframe);
+        console.log(`Loading chart data for: ${contract} timeframe: ${timeframe} (RD tier)`);
+        const response = await chartService.getPriceChartRD(contract, timeframe);
         
         if (response && response.data && Array.isArray(response.data)) {
           console.log('Chart service response:', response);

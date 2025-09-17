@@ -52,6 +52,43 @@ class ChartService {
   }
 
   /**
+   * Returns the recommended RD bar count for a timeframe
+   */
+  getRDLimit(timeframe) {
+    return this.getOptimalLimitForTier(timeframe, 'RD');
+  }
+
+  /**
+   * Get price chart with RD limit and auto-top-up if server returns too few bars
+   */
+  async getPriceChartRD(contractAddress, timeframe) {
+    const desired = this.getRDLimit(timeframe); // e.g., 1000 for 15MIN
+    console.log(`🎯 Requesting ${desired} bars for ${timeframe} (RD tier)`);
+    
+    const base = await this.getPriceChart(contractAddress, timeframe, desired, 'RD');
+
+    // If server gave us way less (e.g., only 24 bars), try backfilling older bars
+    if (Array.isArray(base?.data) && base.data.length < Math.min(200, desired)) {
+      console.log(`⚠️ Only got ${base.data.length} bars, trying to load older bars...`);
+      const oldest = base.data[0]?.time;
+      if (oldest) {
+        try {
+          const older = await this.loadOlderBars(contractAddress, timeframe, oldest, 'MP');
+          if (older?.data?.length > base.data.length) {
+            console.log(`✅ Loaded ${older.data.length} bars from older data`);
+            return older; // merged in loadOlderBars
+          }
+        } catch (e) {
+          console.warn('Failed to load older bars:', e.message);
+        }
+      }
+    }
+    
+    console.log(`📊 Final result: ${base?.data?.length || 0} bars for ${timeframe}`);
+    return base;
+  }
+
+  /**
    * Get optimal limit for MV/RD/MP tier system (memecoin optimized)
    */
   getOptimalLimitForTier(timeframe, tier = 'RD') {
@@ -270,15 +307,15 @@ class ChartService {
         return cached;
       }
 
+      // If limit not provided, use RD for this timeframe
+      const effLimit = Number.isFinite(limit) ? limit : this.getRDLimit(timeframe);
+
       // Fetch from API with tier parameter
       const params = new URLSearchParams({
         timeframe: timeframe,
-        tier: tier
+        tier: tier,
+        limit: String(effLimit)  // ensure server gets the count
       });
-      
-      if (limit) {
-        params.append('limit', limit.toString());
-      }
         
       const response = await fetch(`${this.API_BASE}/api/tokens/${contractAddress}/price-chart?${params}`);
       
