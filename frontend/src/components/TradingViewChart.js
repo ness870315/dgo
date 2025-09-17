@@ -127,6 +127,11 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
           width: containerRef.current.clientWidth,
           height: containerRef.current.clientHeight || 400,
         });
+        
+        // Reapply close view after resize
+        if (chartData?.length) {
+          ensureCloseView(chartRef.current.chart, containerRef.current, timeframe, chartData);
+        }
       });
       ro.observe(el);
       roRef.current = ro;
@@ -167,6 +172,43 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
   }, []); // INIT ONCE
 
   // ---- B) APPLY/UPDATE DATA (safe even if tab was hidden earlier)
+  const TF_SEC = { '1MIN':60, '5MIN':300, '15MIN':900, '1H':3600, '4H':14400, '1D':86400, '1W':604800, '1M':2592000 };
+
+  const VIEW_BARS = {
+    '1MIN': 180,   // ~3h
+    '5MIN': 144,   // ~12h
+    '15MIN': 96,   // ~1 day
+    '1H': 240,     // ~10 days
+    '4H': 180,     // ~30 days
+    '1D': 120,     // ~4 months
+    '1W': 156,     // ~3 years
+    '1M': 120,     // ~10 years
+  };
+
+  function ensureCloseView(chart, containerEl, timeframe, candles) {
+    if (!candles?.length) return;
+    const step = TF_SEC[timeframe] || 60;
+    const n = VIEW_BARS[timeframe] || 200;
+    const last = candles[candles.length - 1].time;
+    const from = last - step * Math.max(1, n - 1);
+
+    // Bar width target ~6–8px
+    const width = containerEl?.clientWidth || 800;
+    const barSpacing = Math.max(2, Math.min(12, Math.floor((width / n) * 0.7)));
+
+    chart.applyOptions({
+      timeScale: {
+        rightOffset: 1.5,   // small gap to the right
+        barSpacing,
+        fixRightEdge: true, // keep last bar against the right edge
+      },
+    });
+
+    chart.timeScale().setVisibleRange({ from, to: last });
+
+    // ⛔ Do NOT call fitContent() here, it will zoom back out.
+  }
+
   const normalizeCandles = (rows = [], tf = "1MIN") => {
     const TF_SEC = { "1MIN":60, "5MIN":300, "15MIN":900, "1H":3600, "4H":14400, "1D":86400, "1W":604800, "1M":2592000 };
     const step = TF_SEC[tf] || 60;
@@ -231,21 +273,12 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
                        : { type:"price", precision:9, minMove:1e-9 };
 
     ref.series.applyOptions({ 
-      priceFormat: fmt,
-      title: yAxisTitle
+      priceFormat: fmt
     });
     ref.series.setData(finalCandles);
 
-    // keep bars in view (handles previous scroll/rightOffset state)
-    const from = candles[0].time, to = candles.at(-1).time;
-    ref.chart.applyOptions({ 
-      timeScale: { 
-        rightOffset: candles.length < 60 ? 2 : 8, 
-        barSpacing: candles.length < 60 ? 2 : 6 
-      } 
-    });
-    ref.chart.timeScale().setVisibleRange({ from, to });
-    ref.chart.timeScale().fitContent();
+    // Use close view helper instead of fitContent
+    ensureCloseView(ref.chart, containerRef.current, timeframe, finalCandles);
 
     // one more tick to ensure canvases pick up final size
     requestAnimationFrame(() => {
@@ -333,6 +366,9 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
           <h3 className="text-white text-lg font-semibold">
             {token?.symbol || 'Token'} Chart
           </h3>
+          <div className="text-sm text-gray-400">
+            {displayMode === 'mcap' ? `${token?.symbol || 'Token'}/MCap` : `${token?.symbol || 'Token'}/USD`}
+          </div>
           <div className="flex space-x-2">
             <button
               onClick={() => setDisplayMode('price')}
