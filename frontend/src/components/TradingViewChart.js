@@ -154,18 +154,58 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
 
       // Force resize after a small delay to ensure DOM is ready
       setTimeout(() => {
-        chart.applyOptions({
-          width: containerWidth,
-          height: containerHeight,
-        });
+        // If canvas dimensions are still wrong, recreate the chart
+        const canvases = el.querySelectorAll('canvas');
+        const hasWrongDimensions = [...canvases].some(c => c.width === 300 && c.height === 150);
         
-        // Force chart to redraw with correct dimensions
-        chart.timeScale().fitContent();
-        
-        console.log('🔄 Forced chart resize to:', containerWidth, containerHeight);
-        console.log('🖼️ Canvas check after resize:', 
-          el.querySelectorAll('canvas').length,
-          [...el.querySelectorAll('canvas')].map(c => [c.width, c.height]));
+        if (hasWrongDimensions) {
+          console.log('🔄 Canvas dimensions still wrong, recreating chart...');
+          
+          // Destroy current chart
+          chart.remove();
+          
+          // Clear container
+          el.innerHTML = '';
+          
+          // Recreate chart with correct dimensions
+          const newChart = createChart(el, {
+            layout: {
+              background: { type: ColorType.Solid, color: '#000' },
+              textColor: '#fff',
+            },
+            grid: {
+              vertLines: { color: '#1e1e1e' },
+              horzLines: { color: '#1e1e1e' },
+            },
+            crosshair: { mode: 1 },
+            width: containerWidth,
+            height: containerHeight,
+          });
+          
+          const newSeries = newChart.addCandlestickSeries({
+            upColor: '#089981',
+            downColor: '#f23645',
+            wickUpColor: '#089981',
+            wickDownColor: '#f23645',
+            borderVisible: false,
+            priceFormat: { type: 'price', precision: 9, minMove: 1e-9 },
+          });
+          
+          // Update refs
+          chartRef.current = { chart: newChart, series: newSeries };
+          
+          console.log('✅ Chart recreated with dimensions:', containerWidth, containerHeight);
+          console.log('🖼️ New canvas check:', 
+            el.querySelectorAll('canvas').length,
+            [...el.querySelectorAll('canvas')].map(c => [c.width, c.height]));
+        } else {
+          chart.applyOptions({
+            width: containerWidth,
+            height: containerHeight,
+          });
+          chart.timeScale().fitContent();
+          console.log('🔄 Forced chart resize to:', containerWidth, containerHeight);
+        }
       }, 100);
 
       // keep chart sized to container
