@@ -1205,9 +1205,13 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-white">{selectedHypeToken.symbol} • Hype over Time</h2>
                 <div className="flex items-center gap-2">
+                  {console.log('🧠 Dashboard premium status:', dashboardData.isPremium)}
                   {dashboardData.isPremium ? (
                     <button
                       onClick={async () => {
+                        console.log('🧠 Oracle AI button clicked!');
+                        console.log('🧠 Selected token:', selectedHypeToken);
+                        console.log('🧠 Contract address:', selectedHypeToken.contractAddress);
                         setHypeAILoading(true);
                         try {
                           const sessionId = localStorage.getItem('sessionId');
