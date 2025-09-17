@@ -3160,40 +3160,13 @@ class EnhancedBackend {
 
     // === AI ANALYSIS ENDPOINTS ===
     
-    // Hype Trend Analysis endpoint
-    this.app.get('/api/ai/hype-analysis/:contract', async (req, res) => {
+    // Hype Trend Analysis endpoint (NO AI - just technical analysis)
+    this.app.get('/api/hype-trend/:contract', async (req, res) => {
       try {
         const { contract } = req.params;
-        const { range = '7d', sessionId } = req.query;
+        const { range = '7d' } = req.query;
         
-        console.log(`🧠 Hype Analysis request for ${contract} (${range})`);
-        
-        // Get user for premium check
-        let user = null;
-        let isPremium = false;
-        
-        if (sessionId) {
-          try {
-            user = await this.oauthXService.getUserBySession(sessionId);
-            if (user) {
-              const premiumStatus = await this.oauthXService.db.getPremiumStatus(user.id);
-              isPremium = premiumStatus?.isPremium &&
-                (!premiumStatus.expiresAt || new Date(premiumStatus.expiresAt) > new Date());
-            }
-          } catch (err) {
-            console.log(`🧠 Hype Analysis - Failed to get user: ${err.message}`);
-          }
-        }
-        
-        // Premium feature gate - TEMPORARILY DISABLED FOR TESTING
-        if (!isPremium) {
-          console.log(`🧠 AI Hype Analysis - Premium check bypassed for testing (user: ${user?.id || 'anonymous'})`);
-          // return res.status(403).json({
-          //   success: false,
-          //   error: 'Premium feature required',
-          //   message: 'Hype trend analysis is available for Premium users only'
-          // });
-        }
+        console.log(`📊 Hype trend analysis request for ${contract} (${range})`);
         
         // Get token data first
         const tokens = await this.getTokensFromCache();
@@ -3221,45 +3194,22 @@ class EnhancedBackend {
           });
         }
         
-        // Perform hype trend analysis
+        // Perform ONLY hype trend analysis (NO AI)
         const analysis = this.hypeTrendAnalysis.analyzeHypeTrend(hypeData, range);
         
-        // Get AI predictions (with 24h caching)
-        let aiPrediction = null;
-        try {
-          console.log(`🧠 Calling AI prediction for ${contract} with ${hypeData.length} data points`);
-          aiPrediction = await this.aiHypePrediction.getPrediction(contract, token, hypeData, range, analysis);
-          console.log(`🧠 AI Prediction for ${contract}: ${aiPrediction.cached ? 'CACHED' : 'FRESH'} (${aiPrediction.prediction?.direction}/${aiPrediction.prediction?.strength})`);
-          console.log(`🧠 AI Prediction details:`, {
-            fallback: aiPrediction.fallback,
-            recommendation: aiPrediction.recommendation,
-            reasoning: aiPrediction.reasoning
-          });
-        } catch (error) {
-          console.error('❌ AI prediction failed:', error);
-          console.error('❌ AI prediction error details:', {
-            message: error.message,
-            stack: error.stack,
-            contract,
-            range,
-            hypeDataLength: hypeData?.length
-          });
-        }
-        
-        // Combine analysis with AI predictions
-        const enhancedAnalysis = {
+        // Return just the technical analysis
+        const trendAnalysis = {
           ...analysis,
-          aiPrediction,
           dataSource: hypeData.length > 0 && !hypeData[0].synthetic ? 'real_snapshots' : 'synthetic_data',
           dataPoints: hypeData.length
         };
         
-        console.log(`🧠 Enhanced Hype Analysis completed for ${contract}: ${analysis.success ? 'SUCCESS' : 'FAILED'}`);
+        console.log(`📊 Hype Trend Analysis completed for ${contract}: ${analysis.success ? 'SUCCESS' : 'FAILED'}`);
         
-        res.json(enhancedAnalysis);
+        res.json(trendAnalysis);
         
       } catch (error) {
-        console.error('❌ Hype analysis error:', error);
+        console.error('❌ Hype trend analysis error:', error);
         res.status(500).json({
           success: false,
           error: 'Internal server error',
@@ -3267,6 +3217,7 @@ class EnhancedBackend {
         });
       }
     });
+
     
     // Get AI social context analysis for a token
     this.app.get('/api/ai/social-context/:contract', async (req, res) => {
