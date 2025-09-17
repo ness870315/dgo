@@ -1425,7 +1425,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
 
 
               {/* Technical Analysis Section */}
-              {hypeAIData.technicalIndicators && (
+              {hypeAIData.analysis?.technicalIndicators && (
                 <div className="mb-6 p-4 bg-gradient-to-r from-blue-900/30 to-blue-800/20 rounded-lg border border-blue-700/50 shadow-lg">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="p-2 bg-blue-700/50 rounded-full">
@@ -1439,36 +1439,36 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* EWMA Analysis */}
-                    {hypeAIData.technicalIndicators.ewma && (
+                    {hypeAIData.analysis?.technicalIndicators?.ewma && (
                       <div className="p-3 bg-gray-800/50 rounded border border-gray-600/50">
                         <h4 className="text-blue-400 text-sm font-medium mb-2">📈 EWMA (Trend Smoothing)</h4>
                         <div className="space-y-2 text-xs">
                           <div className="flex justify-between">
                             <span className="text-gray-400">Score EWMA:</span>
                             <span className="text-white font-medium">
-                              {hypeAIData.technicalIndicators.ewma.currentScoreEWMA?.toFixed(2) || 'N/A'}
+                              {hypeAIData.analysis?.technicalIndicators?.ewma?.currentScore?.toFixed(2) || 'N/A'}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-400">Mention EWMA:</span>
                             <span className="text-white font-medium">
-                              {hypeAIData.technicalIndicators.ewma.currentMentionEWMA?.toFixed(2) || 'N/A'}
+                              {hypeAIData.analysis?.technicalIndicators?.ewma?.currentMentions?.toFixed(2) || 'N/A'}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-400">Trend:</span>
                             <span className={`font-medium ${
-                              hypeAIData.technicalIndicators.ewma.trend === 'rising' ? 'text-green-400' :
-                              hypeAIData.technicalIndicators.ewma.trend === 'falling' ? 'text-red-400' :
+                              hypeAIData.analysis?.technicalIndicators?.ewma?.trend === 'rising' ? 'text-green-400' :
+                              hypeAIData.analysis?.technicalIndicators?.ewma?.trend === 'falling' ? 'text-red-400' :
                               'text-gray-400'
                             }`}>
-                              {hypeAIData.technicalIndicators.ewma.trend || 'Unknown'}
+                              {hypeAIData.analysis?.technicalIndicators?.ewma?.trend || 'Unknown'}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-400">Momentum:</span>
                             <span className="text-white font-medium">
-                              {hypeAIData.technicalIndicators.ewma.momentum?.toFixed(3) || 'N/A'}
+                              {hypeAIData.analysis?.technicalIndicators?.ewma?.momentum?.toFixed(3) || 'N/A'}
                             </span>
                           </div>
                         </div>
@@ -1476,46 +1476,46 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                     )}
 
                     {/* Derivative Analysis */}
-                    {hypeAIData.technicalIndicators.derivative && (
+                    {hypeAIData.analysis?.technicalIndicators?.derivative && (
                       <div className="p-3 bg-gray-800/50 rounded border border-gray-600/50">
                         <h4 className="text-green-400 text-sm font-medium mb-2">⚡ Derivative (Rate of Change)</h4>
                         <div className="space-y-2 text-xs">
                           <div className="flex justify-between">
                             <span className="text-gray-400">Score Derivative:</span>
                             <span className={`font-medium ${
-                              (hypeAIData.technicalIndicators.derivative.scoreDerivative || 0) > 0 ? 'text-green-400' :
-                              (hypeAIData.technicalIndicators.derivative.scoreDerivative || 0) < 0 ? 'text-red-400' :
+                              (hypeAIData.analysis?.technicalIndicators?.derivative?.scoreDerivative || 0) > 0 ? 'text-green-400' :
+                              (hypeAIData.analysis?.technicalIndicators?.derivative?.scoreDerivative || 0) < 0 ? 'text-red-400' :
                               'text-gray-400'
                             }`}>
-                              {hypeAIData.technicalIndicators.derivative.scoreDerivative?.toFixed(3) || 'N/A'}
+                              {hypeAIData.analysis?.technicalIndicators?.derivative?.scoreDerivative?.toFixed(3) || 'N/A'}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-400">Mention Derivative:</span>
                             <span className={`font-medium ${
-                              (hypeAIData.technicalIndicators.derivative.mentionDerivative || 0) > 0 ? 'text-green-400' :
-                              (hypeAIData.technicalIndicators.derivative.mentionDerivative || 0) < 0 ? 'text-red-400' :
+                              (hypeAIData.analysis?.technicalIndicators?.derivative?.mentionDerivative || 0) > 0 ? 'text-green-400' :
+                              (hypeAIData.analysis?.technicalIndicators?.derivative?.mentionDerivative || 0) < 0 ? 'text-red-400' :
                               'text-gray-400'
                             }`}>
-                              {hypeAIData.technicalIndicators.derivative.mentionDerivative?.toFixed(3) || 'N/A'}
+                              {hypeAIData.analysis?.technicalIndicators?.derivative?.mentionDerivative?.toFixed(3) || 'N/A'}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-400">Velocity:</span>
                             <span className={`font-medium ${
-                              (hypeAIData.technicalIndicators.derivative.velocity || 0) > 0 ? 'text-green-400' :
-                              (hypeAIData.technicalIndicators.derivative.velocity || 0) < 0 ? 'text-red-400' :
+                              (hypeAIData.analysis?.technicalIndicators?.derivative?.velocity || 0) > 0 ? 'text-green-400' :
+                              (hypeAIData.analysis?.technicalIndicators?.derivative?.velocity || 0) < 0 ? 'text-red-400' :
                               'text-gray-400'
                             }`}>
-                              {hypeAIData.technicalIndicators.derivative.velocity?.toFixed(3) || 'N/A'}
+                              {hypeAIData.analysis?.technicalIndicators?.derivative?.velocity?.toFixed(3) || 'N/A'}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-400">Accelerating:</span>
                             <span className={`font-medium ${
-                              hypeAIData.technicalIndicators.derivative.isAccelerating ? 'text-green-400' : 'text-red-400'
+                              hypeAIData.analysis?.technicalIndicators?.derivative?.isAccelerating ? 'text-green-400' : 'text-red-400'
                             }`}>
-                              {hypeAIData.technicalIndicators.derivative.isAccelerating ? 'Yes' : 'No'}
+                              {hypeAIData.analysis?.technicalIndicators?.derivative?.isAccelerating ? 'Yes' : 'No'}
                             </span>
                           </div>
                         </div>
@@ -1523,33 +1523,33 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                     )}
 
                     {/* Bayesian Change Points */}
-                    {hypeAIData.technicalIndicators.changePoints && (
+                    {hypeAIData.analysis?.technicalIndicators?.changePoints && (
                       <div className="p-3 bg-gray-800/50 rounded border border-gray-600/50">
                         <h4 className="text-purple-400 text-sm font-medium mb-2">🎯 Bayesian Change Points</h4>
                         <div className="space-y-2 text-xs">
                           <div className="flex justify-between">
                             <span className="text-gray-400">Change Points:</span>
                             <span className="text-white font-medium">
-                              {hypeAIData.technicalIndicators.changePoints.length || 0}
+                              {hypeAIData.analysis?.technicalIndicators?.changePoints?.length || 0}
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-400">Recent Change:</span>
                             <span className={`font-medium ${
-                              hypeAIData.technicalIndicators.changePoints.hasRecentChange ? 'text-yellow-400' : 'text-gray-400'
+                              hypeAIData.analysis?.technicalIndicators?.changePoints?.hasRecentChange ? 'text-yellow-400' : 'text-gray-400'
                             }`}>
-                              {hypeAIData.technicalIndicators.changePoints.hasRecentChange ? 'Yes' : 'No'}
+                              {hypeAIData.analysis?.technicalIndicators?.changePoints?.hasRecentChange ? 'Yes' : 'No'}
                             </span>
                           </div>
-                          {hypeAIData.technicalIndicators.changePoints.hasRecentChange && (
+                          {hypeAIData.analysis?.technicalIndicators?.changePoints?.hasRecentChange && (
                             <div className="flex justify-between">
                               <span className="text-gray-400">Direction:</span>
                               <span className={`font-medium ${
-                                hypeAIData.technicalIndicators.changePoints.changeDirection === 'upturn' ? 'text-green-400' :
-                                hypeAIData.technicalIndicators.changePoints.changeDirection === 'downturn' ? 'text-red-400' :
+                                hypeAIData.analysis?.technicalIndicators?.changePoints?.changeDirection === 'upturn' ? 'text-green-400' :
+                                hypeAIData.analysis?.technicalIndicators?.changePoints?.changeDirection === 'downturn' ? 'text-red-400' :
                                 'text-gray-400'
                               }`}>
-                                {hypeAIData.technicalIndicators.changePoints.changeDirection || 'Unknown'}
+                                {hypeAIData.analysis?.technicalIndicators?.changePoints?.changeDirection || 'Unknown'}
                               </span>
                             </div>
                           )}
@@ -1575,9 +1575,9 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                 <div className="flex flex-wrap gap-2">
                   {(() => {
                     const chips = [];
-                    const ewma = hypeAIData.technicalIndicators?.ewma || {};
-                    const deriv = hypeAIData.technicalIndicators?.derivative || {};
-                    const cp = hypeAIData.technicalIndicators?.changePoints || {};
+                    const ewma = hypeAIData.analysis?.technicalIndicators?.ewma || {};
+                    const deriv = hypeAIData.analysis?.technicalIndicators?.derivative || {};
+                    const cp = hypeAIData.analysis?.technicalIndicators?.changePoints || {};
                     const liquidity = selectedHypeToken?.jupiterData?.liquidity || 0;
                     const price24h = selectedHypeToken?.jupiterData?.stats24h?.priceChange ?? selectedHypeToken?.priceChange24h ?? null;
 
