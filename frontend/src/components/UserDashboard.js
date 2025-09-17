@@ -1368,10 +1368,10 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-semibold text-white capitalize">{hypeAIData.regime.type} Regime</h3>
+                      <h3 className="text-lg font-semibold text-white capitalize">{hypeAIData.analysis?.regime?.type || 'Unknown'} Regime</h3>
                       <Gauge size={16} className="text-gray-400" />
                     </div>
-                    <p className="text-gray-400 text-sm">{hypeAIData.regime.description}</p>
+                    <p className="text-gray-400 text-sm">{hypeAIData.analysis?.regime?.description || 'No description available'}</p>
                   </div>
                 </div>
                 
@@ -1401,13 +1401,13 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                       <div 
                         className="h-3 rounded-full transition-all duration-500 shadow-sm"
                         style={{ 
-                          width: `${hypeAIData.regime.strength * 100}%`,
-                          backgroundColor: hypeAIData.regime.color,
-                          boxShadow: `0 0 8px ${hypeAIData.regime.color}40`
+                          width: `${(hypeAIData.analysis?.regime?.strength || 0.5) * 100}%`,
+                          backgroundColor: hypeAIData.analysis?.regime?.color || '#6b7280',
+                          boxShadow: `0 0 8px ${hypeAIData.analysis?.regime?.color || '#6b7280'}40`
                         }}
                       ></div>
                     </div>
-                    <span className="text-white font-medium">{(hypeAIData.regime.strength * 100).toFixed(0)}%</span>
+                    <span className="text-white font-medium">{((hypeAIData.analysis?.regime?.strength || 0.5) * 100).toFixed(0)}%</span>
                   </div>
                   
                   {/* Pro Tip */}
@@ -1418,8 +1418,8 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                     </div>
                     <p className="text-gray-300">
                       Look for <span className="text-green-400 font-medium">70%+ strength</span> for high-confidence signals. 
-                      At <span className="text-yellow-400 font-medium">{(hypeAIData.regime.strength * 100).toFixed(0)}%</span>, the AI is saying 
-                      <span className="text-white font-medium"> "I think it's {hypeAIData.regime.type}, but {hypeAIData.regime.strength >= 0.7 ? 'I\'m confident!' : 'be cautious!'}"</span>
+                      At <span className="text-yellow-400 font-medium">{((hypeAIData.analysis?.regime?.strength || 0.5) * 100).toFixed(0)}%</span>, the AI is saying 
+                      <span className="text-white font-medium"> "I think it's {hypeAIData.analysis?.regime?.type || 'unknown'}, but {(hypeAIData.analysis?.regime?.strength || 0.5) >= 0.7 ? 'I\'m confident!' : 'be cautious!'}"</span>
                     </p>
                   </div>
                 </div>
@@ -1727,7 +1727,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
               <div className="mb-6">
                 <div className="flex items-center gap-2 mb-2">
                   <Target size={16} className="text-purple-400" />
-                  <h3 className="text-lg font-semibold text-white">Why {hypeAIData.trend === 'bearish' ? 'Bearish' : hypeAIData.trend === 'bullish' ? 'Bullish' : 'Neutral'}?</h3>
+                  <h3 className="text-lg font-semibold text-white">Why {hypeAIData.analysis?.trend === 'bearish' ? 'Bearish' : hypeAIData.analysis?.trend === 'bullish' ? 'Bullish' : 'Neutral'}?</h3>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {(() => {
@@ -1739,7 +1739,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                     const price24h = selectedHypeToken?.jupiterData?.stats24h?.priceChange ?? selectedHypeToken?.priceChange24h ?? null;
 
                     // Bearish drivers
-                    if (hypeAIData.trend === 'bearish') {
+                    if (hypeAIData.analysis?.trend === 'bearish') {
                       if (deriv.velocity < 0) chips.push({ type: 'bearish', text: 'Mentions velocity falling', tip: 'Rate of change is negative; momentum is decelerating' });
                       if (deriv.acceleration < 0) chips.push({ type: 'bearish', text: 'Acceleration negative', tip: 'Momentum weakening over time (second derivative < 0)' });
                       if (ewma.trend === 'falling') chips.push({ type: 'bearish', text: 'EWMA trend down', tip: 'EWMA shows recent momentum below historical' });
@@ -1749,7 +1749,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                     }
 
                     // Bullish drivers
-                    if (hypeAIData.trend === 'bullish') {
+                    if (hypeAIData.analysis?.trend === 'bullish') {
                       if (deriv.velocity > 0) chips.push({ type: 'bullish', text: 'Mentions velocity rising', tip: 'Momentum increasing (rate of change > 0)' });
                       if (deriv.acceleration > 0) chips.push({ type: 'bullish', text: 'Acceleration positive', tip: 'Momentum strengthening (second derivative > 0)' });
                       if (ewma.trend === 'rising') chips.push({ type: 'bullish', text: 'EWMA trend up', tip: 'Recent momentum above historical baseline' });
@@ -1795,24 +1795,24 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                 <div className="p-4 bg-gradient-to-br from-gray-800/50 to-gray-800/30 rounded-lg border border-gray-700 shadow-lg">
                   <div className="flex items-center gap-2 mb-3">
                     <div className="p-2 bg-gray-700/50 rounded-full">
-                      <span className="text-2xl">{hypeAIData.direction}</span>
+                      <span className="text-2xl">{hypeAIData.analysis?.direction || '➡️'}</span>
                     </div>
                     <h3 className="text-lg font-semibold text-white">Prediction</h3>
-                    {hypeAIData.trend === 'bullish' && <TrendingUp size={16} className="text-green-400" />}
-                    {hypeAIData.trend === 'bearish' && <TrendingDown size={16} className="text-red-400" />}
-                    {hypeAIData.trend === 'sideways' && <Activity size={16} className="text-gray-400" />}
+                    {hypeAIData.analysis?.trend === 'bullish' && <TrendingUp size={16} className="text-green-400" />}
+                    {hypeAIData.analysis?.trend === 'bearish' && <TrendingDown size={16} className="text-red-400" />}
+                    {hypeAIData.analysis?.trend === 'sideways' && <Activity size={16} className="text-gray-400" />}
                   </div>
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between items-center">
                       <span className="text-gray-400">Trend:</span>
                       <span className={`font-medium flex items-center gap-1 ${
-                        hypeAIData.trend === 'bullish' ? 'text-green-400' :
-                        hypeAIData.trend === 'bearish' ? 'text-red-400' : 'text-gray-400'
+                        hypeAIData.analysis?.trend === 'bullish' ? 'text-green-400' :
+                        hypeAIData.analysis?.trend === 'bearish' ? 'text-red-400' : 'text-gray-400'
                       }`}>
-                        {hypeAIData.trend}
-                        {hypeAIData.trend === 'bullish' && '📈'}
-                        {hypeAIData.trend === 'bearish' && '📉'}
-                        {hypeAIData.trend === 'sideways' && '➡️'}
+                        {hypeAIData.analysis?.trend || 'sideways'}
+                        {hypeAIData.analysis?.trend === 'bullish' && '📈'}
+                        {hypeAIData.analysis?.trend === 'bearish' && '📉'}
+                        {hypeAIData.analysis?.trend === 'sideways' && '➡️'}
                       </span>
                     </div>
                     <div className="flex justify-between items-center relative">
