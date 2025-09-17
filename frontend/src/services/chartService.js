@@ -1,6 +1,51 @@
 class ChartService {
   constructor() {
     this.API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+    
+    // In-memory cache for chart data (per timeframe)
+    this.chartCache = new Map();
+    this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
+  }
+
+  /**
+   * Get cache key for chart data
+   */
+  getCacheKey(contractAddress, timeframe) {
+    return `${contractAddress}_${timeframe}`;
+  }
+
+  /**
+   * Check if cached data is still valid
+   */
+  isCacheValid(cacheEntry) {
+    return cacheEntry && (Date.now() - cacheEntry.timestamp) < this.cacheTimeout;
+  }
+
+  /**
+   * Get cached chart data if available and valid
+   */
+  getCachedChart(contractAddress, timeframe) {
+    const cacheKey = this.getCacheKey(contractAddress, timeframe);
+    const cached = this.chartCache.get(cacheKey);
+    
+    if (this.isCacheValid(cached)) {
+      console.log(`📦 Using cached chart data for ${timeframe}`);
+      return cached.data;
+    }
+    
+    return null;
+  }
+
+  /**
+   * Cache chart data
+   */
+  setCachedChart(contractAddress, timeframe, data) {
+    const cacheKey = this.getCacheKey(contractAddress, timeframe);
+    this.chartCache.set(cacheKey, {
+      data: data,
+      timestamp: Date.now()
+    });
+    console.log(`💾 Cached chart data for ${timeframe} (${data?.data?.length || 0} candles)`);
   }
 
   async getMcapChart(contractAddress, calledAt) {
@@ -21,23 +66,37 @@ class ChartService {
   }
 
   /**
-   * Get historical price data for a token
+   * Get historical price data for a token (with caching)
    * @param {string} contractAddress - Token contract address
-   * @param {string} timeframe - Timeframe: '1D', '1W', '1M', '3M', '1Y', 'ALL'
-   * @param {number} limit - Number of data points (max 2000)
+   * @param {string} timeframe - Timeframe: '1MIN', '5MIN', '15MIN', '1H', '4H', '1D', '1W', '1M'
+   * @param {number} limit - Number of data points (auto-optimized if not specified)
    * @returns {Promise<Object>} Chart data response
    */
-  async getPriceChart(contractAddress, timeframe = '1D', limit = 1000) {
+  async getPriceChart(contractAddress, timeframe = '1D', limit = null) {
     try {
-      const response = await fetch(
-        `${this.API_BASE}/api/tokens/${contractAddress}/price-chart?timeframe=${timeframe}&limit=${limit}`
-      );
+      // Check cache first
+      const cached = this.getCachedChart(contractAddress, timeframe);
+      if (cached) {
+        return cached;
+      }
+
+      // Fetch from API (limit is auto-optimized on backend if null)
+      const url = limit 
+        ? `${this.API_BASE}/api/tokens/${contractAddress}/price-chart?timeframe=${timeframe}&limit=${limit}`
+        : `${this.API_BASE}/api/tokens/${contractAddress}/price-chart?timeframe=${timeframe}`;
+        
+      const response = await fetch(url);
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
       
-      return await response.json();
+      const data = await response.json();
+      
+      // Cache the result
+      this.setCachedChart(contractAddress, timeframe, data);
+      
+      return data;
     } catch (error) {
       console.error('Failed to fetch price chart:', error);
       throw error;

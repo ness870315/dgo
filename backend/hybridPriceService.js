@@ -284,20 +284,46 @@ class HybridPriceService {
   }
 
   /**
+   * Get optimal number of candles per timeframe for snappy charts
+   * Based on TradingView best practices: ~150-300 visible bars, 3-5x for smooth zooming
+   */
+  getOptimalCandleCount(timeframe) {
+    const candleCounts = {
+      '1MIN': 1440,  // ~24 hours (RD: good default)
+      '5MIN': 1000,  // ~3.5 days
+      '15MIN': 1000, // ~10.4 days  
+      '1H': 1000,    // ~41.7 days
+      '4H': 800,     // ~133 days
+      '1D': 750,     // ~2.1 years
+      '1W': 260,     // ~5 years
+      '1M': 120,     // ~10 years
+      '3M': 120,     // ~30 years
+      '1Y': 120,     // ~120 years
+      'ALL': 240     // All time
+    };
+    return candleCounts[timeframe] || 750; // Default to 1D count
+  }
+
+  /**
    * Get historical price data for a Solana token
    * @param {string} contractAddress - Token contract address
-   * @param {string} timeframe - Timeframe: '1D', '1W', '1M', '3M', '1Y', 'ALL'
-   * @param {number} limit - Number of data points (max 2000)
+   * @param {string} timeframe - Timeframe: '1MIN', '5MIN', '15MIN', '1H', '4H', '1D', '1W', '1M'
+   * @param {number} limit - Number of data points (auto-optimized if not specified)
    * @returns {Object} Chart data in TradingView format
    */
-  async getHistoricalPrices(contractAddress, timeframe = '1D', limit = 1000) {
+  async getHistoricalPrices(contractAddress, timeframe = '1D', limit = null) {
+    // Use optimal candle count if limit not specified
+    const optimalLimit = limit || this.getOptimalCandleCount(timeframe);
+    
+    console.log(`📊 Loading ${optimalLimit} candles for ${timeframe} timeframe (optimized for performance)`);
+    
     try {
       // Try multiple data sources in order of preference
       let chartData = null;
 
       // 1. Try Moralis first (primary source for historical data) with enhanced caching
       try {
-        chartData = await this.getCachedOHLCV(contractAddress, timeframe, limit);
+        chartData = await this.getCachedOHLCV(contractAddress, timeframe, optimalLimit);
         if (chartData && chartData.length > 0) {
           console.log(`✅ Got ${chartData.length} data points from Moralis (cached)`);
         }
@@ -435,7 +461,7 @@ class HybridPriceService {
           currency: 'usd',
           fromDate: timeRange.from,
           toDate: timeRange.to,
-          limit: 1000
+          limit: limit
         },
         headers: {
           'X-API-Key': this.moralisApiKey,
