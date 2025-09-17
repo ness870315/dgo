@@ -132,6 +132,7 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
         crosshair: { mode: 1 },
         width: el.clientWidth,
         height: el.clientHeight || 400,
+        autoSize: true, // Let the chart auto-size to container
       });
 
       const series = chart.addCandlestickSeries({
@@ -142,6 +143,12 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
       });
 
       chartRef.current = { chart, series };
+
+      // Force initial resize to ensure proper dimensions
+      chart.applyOptions({
+        width: el.clientWidth,
+        height: el.clientHeight || 400,
+      });
 
       // keep chart sized to container
       ro = new ResizeObserver(() => {
