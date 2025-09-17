@@ -11,6 +11,10 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [displayMode, setDisplayMode] = useState('price'); // 'price' or 'mcap'
+  const [selectedIndicators, setSelectedIndicators] = useState([]);
+  const [showIndicators, setShowIndicators] = useState(false);
+  const [drawingMode, setDrawingMode] = useState(null);
+  const [showDrawingTools, setShowDrawingTools] = useState(false);
 
   // ---- A) WAIT UNTIL VISIBLE + MEASURABLE, THEN INIT ONCE
   useEffect(() => {
@@ -202,14 +206,35 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
       return;
     }
 
-    // precision from last close
-    const last = candles.at(-1).close;
-    const fmt = last >= 1 ? { type:"price", precision:6, minMove:1e-6 }
-            : last >= 0.01 ? { type:"price", precision:8, minMove:1e-8 }
-                           : { type:"price", precision:9, minMove:1e-9 };
+    // Transform data for market cap if needed
+    let finalCandles = candles;
+    let yAxisTitle = `${token?.symbol || 'Token'}/USD`;
+    
+    if (displayMode === 'mcap' && token?.circulatingSupply) {
+      const supply = token.circulatingSupply;
+      finalCandles = candles.map(c => ({
+        ...c,
+        open: c.open * supply,
+        high: c.high * supply,
+        low: c.low * supply,
+        close: c.close * supply
+      }));
+      yAxisTitle = `${token?.symbol || 'Token'}/MCap`;
+    }
 
-    ref.series.applyOptions({ priceFormat: fmt });
-    ref.series.setData(candles);
+    // precision from last close
+    const last = finalCandles.at(-1).close;
+    const fmt = displayMode === 'mcap' 
+      ? { type:"price", precision:0, minMove:1 }  // Market cap in whole numbers
+      : last >= 1 ? { type:"price", precision:6, minMove:1e-6 }
+        : last >= 0.01 ? { type:"price", precision:8, minMove:1e-8 }
+                       : { type:"price", precision:9, minMove:1e-9 };
+
+    ref.series.applyOptions({ 
+      priceFormat: fmt,
+      title: yAxisTitle
+    });
+    ref.series.setData(finalCandles);
 
     // keep bars in view (handles previous scroll/rightOffset state)
     const from = candles[0].time, to = candles.at(-1).time;
@@ -330,13 +355,101 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
               Market Cap
             </button>
           </div>
+          
+          {/* Indicators Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowIndicators(!showIndicators)}
+              className="px-3 py-1 rounded text-sm bg-gray-700 text-gray-300 hover:bg-gray-600 flex items-center space-x-1"
+            >
+              <span>Indicators</span>
+              <span className="text-xs">▼</span>
+            </button>
+            
+            {showIndicators && (
+              <div className="absolute right-0 top-full mt-1 bg-gray-800 border border-gray-600 rounded shadow-lg z-30 min-w-48">
+                <div className="p-2">
+                  <div className="text-xs text-gray-400 mb-2">Technical Indicators</div>
+                  {[
+                    { id: 'rsi', name: 'RSI (14)', description: 'Relative Strength Index' },
+                    { id: 'bb', name: 'Bollinger Bands', description: 'Price volatility bands' },
+                    { id: 'volume', name: 'Volume', description: 'Trading volume overlay' },
+                    { id: 'sma20', name: 'SMA (20)', description: 'Simple Moving Average' },
+                    { id: 'ema12', name: 'EMA (12)', description: 'Exponential Moving Average' },
+                    { id: 'macd', name: 'MACD', description: 'Moving Average Convergence Divergence' },
+                    { id: 'stoch', name: 'Stochastic', description: 'Stochastic Oscillator' }
+                  ].map(indicator => (
+                    <label key={indicator.id} className="flex items-center space-x-2 py-1 hover:bg-gray-700 rounded px-1 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedIndicators.includes(indicator.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedIndicators([...selectedIndicators, indicator.id]);
+                          } else {
+                            setSelectedIndicators(selectedIndicators.filter(id => id !== indicator.id));
+                          }
+                        }}
+                        className="rounded"
+                      />
+                      <div>
+                        <div className="text-sm text-white">{indicator.name}</div>
+                        <div className="text-xs text-gray-400">{indicator.description}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Drawing Tools */}
+          <div className="relative">
+            <button
+              onClick={() => setShowDrawingTools(!showDrawingTools)}
+              className="px-3 py-1 rounded text-sm bg-gray-700 text-gray-300 hover:bg-gray-600 flex items-center space-x-1"
+            >
+              <span>Drawing</span>
+              <span className="text-xs">▼</span>
+            </button>
+            
+            {showDrawingTools && (
+              <div className="absolute right-0 top-full mt-1 bg-gray-800 border border-gray-600 rounded shadow-lg z-30 min-w-48">
+                <div className="p-2">
+                  <div className="text-xs text-gray-400 mb-2">Drawing Tools</div>
+                  {[
+                    { id: 'line', name: 'Trend Line', description: 'Draw trend lines' },
+                    { id: 'horizontal', name: 'Horizontal Line', description: 'Support/Resistance levels' },
+                    { id: 'vertical', name: 'Vertical Line', description: 'Time markers' },
+                    { id: 'rectangle', name: 'Rectangle', description: 'Highlight areas' },
+                    { id: 'fibonacci', name: 'Fibonacci', description: 'Retracement levels' },
+                    { id: 'text', name: 'Text Note', description: 'Add annotations' },
+                    { id: 'clear', name: 'Clear All', description: 'Remove all drawings' }
+                  ].map(tool => (
+                    <button
+                      key={tool.id}
+                      onClick={() => {
+                        if (tool.id === 'clear') {
+                          setDrawingMode(null);
+                          // TODO: Clear all drawings from chart
+                        } else {
+                          setDrawingMode(drawingMode === tool.id ? null : tool.id);
+                        }
+                        setShowDrawingTools(false);
+                      }}
+                      className={`w-full text-left py-2 px-2 rounded hover:bg-gray-700 ${
+                        drawingMode === tool.id ? 'bg-blue-600 text-white' : 'text-white'
+                      }`}
+                    >
+                      <div className="text-sm">{tool.name}</div>
+                      <div className="text-xs text-gray-400">{tool.description}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-        <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-white transition-colors"
-        >
-          ✕
-        </button>
       </div>
 
       {/* Chart Container */}
