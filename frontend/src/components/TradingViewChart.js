@@ -157,7 +157,7 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
         // If canvas dimensions are still wrong, recreate the chart
         const canvases = el.querySelectorAll('canvas');
         const canvasDimensions = [...canvases].map(c => [c.width, c.height]);
-        const hasWrongDimensions = [...canvases].some(c => c.width === 300 && c.height === 150);
+        const hasWrongDimensions = [...canvases].some(c => c.width < 500 || c.height < 200);
         
         console.log('🔍 Canvas dimensions check:', canvasDimensions);
         console.log('🔍 Has wrong dimensions:', hasWrongDimensions);
@@ -218,7 +218,7 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
             console.log('🔍 Final canvas dimensions after resize:', finalDimensions);
             
             // If still wrong, force recreation
-            if ([...finalCanvases].some(c => c.width === 300 && c.height === 150)) {
+            if ([...finalCanvases].some(c => c.width < 500 || c.height < 200)) {
               console.log('🚨 Final check: Still wrong dimensions, forcing recreation...');
               chart.remove();
               el.innerHTML = '';
