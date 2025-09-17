@@ -21,6 +21,7 @@ import AIHypePredictionService from './aiHypePredictionService.js';
 import CallThesisGenerator from './callThesisGenerator.js';
 import MilestoneTracker from './milestoneTracker.js';
 import PushNotificationService from './pushNotificationService.js';
+import AutomatedTokenCleanup from './automatedTokenCleanup.js';
 import HybridPriceService from './hybridPriceService.js';
 import logger from './logger.js';
 import { fileURLToPath } from 'url';
@@ -133,6 +134,7 @@ class EnhancedBackend {
     this.callThesisGenerator = new CallThesisGenerator();
     this.milestoneTracker = new MilestoneTracker();
     this.pushNotificationService = new PushNotificationService();
+    this.automatedCleanup = new AutomatedTokenCleanup();
     this.backupIntegration = null; // Will be initialized in setupServices()
     // Social Context cache (72h TTL)
     this.socialContextCache = new Map();
@@ -7108,6 +7110,84 @@ class EnhancedBackend {
         });
       }
     });
+
+    // Automated Token Cleanup Management Endpoints
+    
+    // Get automated cleanup status
+    this.app.get('/api/cleanup/status', async (req, res) => {
+      try {
+        const status = await this.automatedCleanup.getStatus();
+        
+        res.json({
+          success: true,
+          service: 'Automated Token Cleanup',
+          status: status,
+          timestamp: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Cleanup status error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get cleanup status',
+          message: error.message
+        });
+      }
+    });
+
+    // Force immediate cleanup
+    this.app.post('/api/cleanup/force', async (req, res) => {
+      try {
+        console.log('[🛡️ Enhanced Backend] 🔧 Force cleanup requested');
+        
+        await this.automatedCleanup.forceCleanup();
+        
+        res.json({
+          success: true,
+          message: 'Force cleanup completed',
+          timestamp: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Force cleanup error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to run force cleanup',
+          message: error.message
+        });
+      }
+    });
+
+    // Update cleanup interval
+    this.app.post('/api/cleanup/interval', async (req, res) => {
+      try {
+        const { hours } = req.body;
+        
+        if (!hours || typeof hours !== 'number' || hours < 1) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid hours parameter. Must be a number >= 1'
+          });
+        }
+
+        this.automatedCleanup.setCleanupInterval(hours);
+        
+        res.json({
+          success: true,
+          message: `Cleanup interval updated to ${hours} hours`,
+          interval: hours,
+          timestamp: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Update interval error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to update cleanup interval',
+          message: error.message
+        });
+      }
+    });
   }
 
   setupBackgroundTasks() {
@@ -9340,6 +9420,16 @@ class EnhancedBackend {
       } catch (error) {
         console.error('❌ Milestone Tracker failed to start:', error.message);
         console.warn('⚠️ Continuing without milestone tracking...');
+      }
+
+      // Initialize Automated Token Cleanup
+      console.log('🤖 Initializing Automated Token Cleanup...');
+      try {
+        await this.automatedCleanup.initialize();
+        console.log('✅ Automated Token Cleanup initialized successfully');
+      } catch (error) {
+        console.error('❌ Automated Token Cleanup failed to initialize:', error.message);
+        console.warn('⚠️ Continuing without automated cleanup...');
       }
       // Start HTTP server first so /health is immediately available for platform health checks
       const host = '0.0.0.0';
