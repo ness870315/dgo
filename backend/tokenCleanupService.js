@@ -40,12 +40,13 @@ class TokenCleanupService {
     // 🗑️ CRITICAL DELETION CRITERIA
     
     // Debug logging for problematic tokens
-    if (token.symbol === 'GOAT' || token.symbol === 'BELIEVE' || token.symbol === 'OSTRICH') {
+    if (token.symbol === 'GOAT' || token.symbol === 'BELIEVE' || token.symbol === 'OSTRICH' || token.symbol === 'HOMELESS') {
       console.log(`🔍 DEBUG ${token.symbol}:`, {
         volume1h,
         volume24h,
         volumeChange1h,
         volumeChange24h,
+        marketCap,
         jupiterData: token.jupiterData ? 'exists' : 'missing',
         stats1h: token.jupiterData?.stats1h ? 'exists' : 'missing',
         stats24h: token.jupiterData?.stats24h ? 'exists' : 'missing'
@@ -63,6 +64,9 @@ class TokenCleanupService {
 
     // 2. Massive volume drops with tiny market cap
     if (volumeChange24h <= -95 && marketCap < 10000) { // -95% volume, <$10K mcap
+      if (token.symbol === 'HOMELESS') {
+        console.log(`🔍 HOMELESS matched CRITICAL criteria: ${volumeChange24h}% <= -95 && ${marketCap} < 10000`);
+      }
       return {
         shouldDelete: true,
         reason: `-95% volume drop with $${marketCap.toLocaleString()} market cap`,
@@ -72,6 +76,9 @@ class TokenCleanupService {
 
     // 3. Extreme volume drops with small market cap
     if (volumeChange24h <= -90 && marketCap < 50000) { // -90% volume, <$50K mcap
+      if (token.symbol === 'HOMELESS') {
+        console.log(`🔍 HOMELESS matched HIGH criteria: ${volumeChange24h}% <= -90 && ${marketCap} < 50000`);
+      }
       return {
         shouldDelete: true,
         reason: `-90% volume drop with $${marketCap.toLocaleString()} market cap`,
@@ -81,6 +88,9 @@ class TokenCleanupService {
 
     // 4. Severe volume drops with micro market cap
     if (volumeChange24h <= -80 && marketCap < 100000) { // -80% volume, <$100K mcap
+      if (token.symbol === 'HOMELESS') {
+        console.log(`🔍 HOMELESS matched MEDIUM criteria: ${volumeChange24h}% <= -80 && ${marketCap} < 100000`);
+      }
       return {
         shouldDelete: true,
         reason: `-80% volume drop with $${marketCap.toLocaleString()} market cap`,
