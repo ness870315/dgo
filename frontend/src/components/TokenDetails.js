@@ -264,8 +264,14 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
       if (sessionId) params.append('sessionId', sessionId);
       params.append('useCache', 'true');
       
+      console.log('🧠 Fetching AI analysis for:', identifier);
+      console.log('🧠 API URL:', `${url}?${params.toString()}`);
+      console.log('🧠 Session ID:', sessionId ? 'Present' : 'Missing');
+      
       const response = await fetch(`${url}?${params.toString()}`);
       const data = await response.json();
+      
+      console.log('🧠 API Response:', { status: response.status, data });
       
       if (!response.ok) {
         if (response.status === 429) {
@@ -275,11 +281,16 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
         throw new Error(data.message || data.error || 'AI analysis failed');
       }
       
+      if (!data.analysis) {
+        throw new Error('Invalid response: Missing analysis data');
+      }
+      
       setAiAnalysis(data);
       setShowAIAnalysis(true);
+      console.log('🧠 AI Analysis modal should now be visible');
       
     } catch (error) {
-      console.error('AI Analysis error:', error);
+      console.error('🧠 AI Analysis error:', error);
       setAiError(error.message || 'Failed to get AI analysis');
     } finally {
       setAiLoading(false);
