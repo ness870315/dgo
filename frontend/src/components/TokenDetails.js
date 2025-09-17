@@ -1,5 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { X, Twitter, MessageCircle, ExternalLink, Star, Flame, Brain, BarChart3 } from 'lucide-react';
+
+// AI Code Line Animation Component
+const AICodeLine = ({ text, delay }) => {
+  const [visible, setVisible] = useState(false);
+  const [typed, setTyped] = useState('');
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setVisible(true);
+      let currentIndex = 0;
+      const typeInterval = setInterval(() => {
+        if (currentIndex <= text.length) {
+          setTyped(text.slice(0, currentIndex));
+          currentIndex++;
+        } else {
+          clearInterval(typeInterval);
+        }
+      }, 30); // Typing speed
+      
+      return () => clearInterval(typeInterval);
+    }, delay);
+    
+    return () => clearTimeout(timer);
+  }, [text, delay]);
+  
+  if (!visible) return <div className="h-5"></div>; // Placeholder height
+  
+  return (
+    <div className="text-green-400 opacity-80">
+      {typed}
+      {typed.length < text.length && <span className="animate-pulse">|</span>}
+    </div>
+  );
+};
 import kolCallsService from '../services/kolCallsService';
 import watchlistService from '../services/watchlistService';
 import priorityService from '../services/priorityService';
@@ -24,6 +58,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState(null);
+  const [aiProgress, setAiProgress] = useState('');
+  const [showAILoadingModal, setShowAILoadingModal] = useState(false);
   
   // Enhanced Call Modal states
   const [showEnhancedCallModal, setShowEnhancedCallModal] = useState(false);
@@ -254,6 +290,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
 
     setAiLoading(true);
     setAiError(null);
+    setAiProgress('Preparing analysis...');
+    setShowAILoadingModal(true);
     
     try {
       const sessionId = localStorage.getItem('sessionId');
@@ -268,8 +306,37 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
       console.log('🧠 API URL:', `${url}?${params.toString()}`);
       console.log('🧠 Session ID:', sessionId ? 'Present' : 'Missing');
       
-      const response = await fetch(`${url}?${params.toString()}`);
-      const data = await response.json();
+      setAiProgress('Analyzing social data...');
+      
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
+      
+      // Progress updates
+      const progressUpdates = [
+        { delay: 2000, message: 'Processing social metrics...' },
+        { delay: 5000, message: 'Analyzing sentiment patterns...' },
+        { delay: 8000, message: 'Calculating risk factors...' },
+        { delay: 12000, message: 'Identifying market catalysts...' },
+        { delay: 16000, message: 'Generating recommendations...' },
+        { delay: 20000, message: 'Finalizing analysis...' }
+      ];
+      
+      progressUpdates.forEach(({ delay, message }) => {
+        setTimeout(() => {
+          if (aiLoading) setAiProgress(message);
+        }, delay);
+      });
+      
+      try {
+        const response = await fetch(`${url}?${params.toString()}`, {
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        clearTimeout(timeoutId);
+        const data = await response.json();
       
       console.log('🧠 API Response:', { status: response.status, data });
       
@@ -286,14 +353,29 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
       }
       
       setAiAnalysis(data);
+      setShowAILoadingModal(false);
       setShowAIAnalysis(true);
       console.log('🧠 AI Analysis modal should now be visible');
       
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('AI analysis timed out. Please try again.');
+        }
+        throw fetchError;
+      }
+      
     } catch (error) {
       console.error('🧠 AI Analysis error:', error);
-      setAiError(error.message || 'Failed to get AI analysis');
+      if (error.name === 'AbortError') {
+        setAiError('AI analysis timed out after 45 seconds. Please try again.');
+      } else {
+        setAiError(error.message || 'Failed to get AI analysis');
+      }
     } finally {
       setAiLoading(false);
+      setShowAILoadingModal(false);
+      setAiProgress('');
     }
   };
 
@@ -638,9 +720,13 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                               ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none' 
                               : 'text-gray-200 hover:bg-gray-700'
                           }`}
+                          title={aiLoading ? 'Analyzing token with AI... This may take 10-30 seconds' : 'Get AI-powered social sentiment analysis'}
                         >
                           {aiLoading ? (
-                            <div className="animate-spin w-3 h-3 border-2 border-purple-400 border-t-transparent rounded-full"></div>
+                            <>
+                              <div className="animate-spin w-3 h-3 border-2 border-purple-400 border-t-transparent rounded-full"></div>
+                              <span>Analyzing...</span>
+                            </>
                           ) : (
                             <>
                               <Brain size={10} />
@@ -2244,6 +2330,80 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                     Close
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* AI Loading Modal with Pseudo-Code Animation */}
+        {showAILoadingModal && (
+          <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 backdrop-blur-sm">
+            <style jsx>{`
+              @keyframes progress {
+                0% { width: 0%; }
+                50% { width: 70%; }
+                100% { width: 100%; }
+              }
+              @keyframes matrix {
+                0% { transform: translateY(0); opacity: 1; }
+                100% { transform: translateY(-10px); opacity: 0.7; }
+              }
+            `}</style>
+            <div className="bg-gradient-to-br from-purple-900/90 to-blue-900/90 border border-purple-500/50 rounded-2xl p-8 max-w-2xl w-full mx-4 shadow-2xl">
+              {/* Header */}
+              <div className="text-center mb-8">
+                <div className="flex items-center justify-center mb-4">
+                  <div className="relative">
+                    <Brain className="text-purple-400 animate-pulse" size={48} />
+                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full animate-ping"></div>
+                  </div>
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-2">Oracle AI Analyzing</h2>
+                <p className="text-purple-200">{aiProgress}</p>
+              </div>
+
+              {/* Pseudo-Code Animation */}
+              <div className="bg-black/50 rounded-lg p-6 font-mono text-sm overflow-hidden">
+                <div className="space-y-2">
+                  <AICodeLine text="// Initializing DeGen Oracle AI Engine..." delay={0} />
+                  <AICodeLine text="const tokenData = await fetchSocialMetrics();" delay={500} />
+                  <AICodeLine text="const sentiment = analyzeTweetSentiment(tokenData);" delay={1000} />
+                  <AICodeLine text="const momentum = calculateSocialMomentum();" delay={1500} />
+                  <AICodeLine text="const riskFactors = assessMarketRisks();" delay={2000} />
+                  <AICodeLine text="const catalysts = identifyUpcomingCatalysts();" delay={2500} />
+                  <AICodeLine text="const recommendation = generateTradeSignal();" delay={3000} />
+                  <AICodeLine text="// Processing community engagement patterns..." delay={3500} />
+                  <AICodeLine text="const influencerImpact = analyzeKOLMentions();" delay={4000} />
+                  <AICodeLine text="const hypeScore = calculateViralPotential();" delay={4500} />
+                  <AICodeLine text="// Finalizing comprehensive analysis..." delay={5000} />
+                </div>
+                
+                {/* Blinking Cursor */}
+                <div className="flex items-center mt-4">
+                  <span className="text-green-400">$</span>
+                  <span className="text-white ml-2">oracle_ai --analyze --deep-scan</span>
+                  <span className="text-green-400 animate-pulse ml-1">|</span>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="mt-6">
+                <div className="flex justify-between text-sm text-purple-200 mb-2">
+                  <span>Analysis Progress</span>
+                  <span>Processing...</span>
+                </div>
+                <div className="w-full bg-purple-900/50 rounded-full h-2">
+                  <div className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full animate-pulse" 
+                       style={{width: '100%', animation: 'progress 30s linear infinite'}}></div>
+                </div>
+              </div>
+
+              {/* Warning */}
+              <div className="mt-6 text-center">
+                <p className="text-yellow-300 text-sm flex items-center justify-center">
+                  <span className="mr-2">⚠️</span>
+                  Please don't close this window. Analysis typically takes 15-45 seconds.
+                </p>
               </div>
             </div>
           </div>

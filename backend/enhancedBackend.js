@@ -3329,7 +3329,7 @@ class EnhancedBackend {
         // Generate AI analysis
         const analysisOptions = {
           useCache: useCache === 'true',
-          cacheExpiry: isPremium ? 900000 : 1800000, // Premium: 15min, Free: 30min
+          cacheExpiry: isPremium ? 3600000 : 7200000, // Premium: 1hr, Free: 2hr (much longer cache)
           model: isPremium ? 'gpt-4' : 'gpt-3.5-turbo',
           temperature: 0.7,
           identity: { contract, symbol: token?.symbol }
