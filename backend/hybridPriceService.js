@@ -736,22 +736,22 @@ class HybridPriceService {
     let fromDate;
     switch (timeframe) {
       case '1MIN':
-        fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days for 1min (was 1 day)
+        fromDate = new Date(now.getTime() - 4 * 60 * 60 * 1000).toISOString(); // 4 hours for 1min (was 7 days)
         break;
       case '5MIN':
-        fromDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString(); // 14 days for 5min (was 2 days)
+        fromDate = new Date(now.getTime() - 8 * 60 * 60 * 1000).toISOString(); // 8 hours for 5min (was 14 days)
         break;
       case '15MIN':
-        fromDate = new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000).toISOString(); // 21 days for 15min (was 30 days)
+        fromDate = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(); // 1 day for 15min (was 21 days)
         break;
       case '1H':
-        fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days for hours
+        fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days for 1h (was 30 days)
         break;
       case '4H':
-        fromDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString(); // 90 days for 4H
+        fromDate = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000).toISOString(); // 15 days for 4h (was 90 days)
         break;
       case '1D':
-        fromDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString(); // 1 year for daily
+        fromDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString(); // 90 days for 1d (was 365 days)
         break;
       case '1W':
         fromDate = new Date(now.getTime() - 5 * 365 * 24 * 60 * 60 * 1000).toISOString(); // 5 years for weekly
@@ -780,12 +780,12 @@ class HybridPriceService {
    */
   getTimeframeLookback(timeframe) {
     const lookbacks = {
-      '1MIN': 7 * 24 * 60 * 60 * 1000,      // 7 days (was 1 day)
-      '5MIN': 14 * 24 * 60 * 60 * 1000,  // 14 days (was 5 days)
-      '15MIN': 21 * 24 * 60 * 60 * 1000, // 21 days (was 30 days)
-      '1H': 30 * 24 * 60 * 60 * 1000,   // 30 days
-      '4H': 90 * 24 * 60 * 60 * 1000,   // 90 days
-      '1D': 365 * 24 * 60 * 60 * 1000,  // 1 year
+      '1MIN': 4 * 60 * 60 * 1000,      // 4 hours (was 7 days)
+      '5MIN': 8 * 60 * 60 * 1000,  // 8 hours (was 14 days)
+      '15MIN': 1 * 24 * 60 * 60 * 1000, // 1 day (was 21 days)
+      '1H': 7 * 24 * 60 * 60 * 1000,   // 7 days (was 30 days)
+      '4H': 15 * 24 * 60 * 60 * 1000,   // 15 days (was 90 days)
+      '1D': 90 * 24 * 60 * 60 * 1000,  // 90 days (was 1 year)
       '1W': 5 * 365 * 24 * 60 * 60 * 1000, // 5 years
       '1M': 10 * 365 * 24 * 60 * 60 * 1000 // 10 years
     };
