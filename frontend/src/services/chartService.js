@@ -342,10 +342,11 @@ class ChartService {
    * @param {number} beforeTime - Load bars before this timestamp
    * @param {string} tier - MV/RD/MP tier ('MP' for lazy loading)
    */
-  async loadOlderBars(contractAddress, timeframe, beforeTime, tier = 'MP') {
+  async loadOlderBars(contractAddress, timeframe, beforeTime, tier = 'MP', chunkSize = null) {
     try {
       // Get optimal limit for the tier (MP = max prefetch for lazy loading)
-      const optimalLimit = this.getOptimalLimitForTier(timeframe, tier);
+      // Use chunkSize if provided, otherwise use tier-based limit
+      const optimalLimit = chunkSize || this.getOptimalLimitForTier(timeframe, tier);
       
       console.log(`📜 Loading ${optimalLimit} older bars (${tier} tier) for ${timeframe} before ${new Date(beforeTime * 1000).toISOString()}`);
       

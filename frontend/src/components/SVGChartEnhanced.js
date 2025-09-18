@@ -241,6 +241,18 @@ function SvgOHLCVArea({
   const [err, setErr] = useState(null);
   const [mousePos, setMousePos] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Dynamic loading states
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMoreData, setHasMoreData] = useState(true);
+  const [totalLoadedBars, setTotalLoadedBars] = useState(0);
+  
+  // Pan and zoom states
+  const [panOffset, setPanOffset] = useState(0);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState(null);
+  const [viewWindow, setViewWindow] = useState({ start: 0, end: 1 });
 
   // Responsive width
   useEffect(() => {
@@ -251,6 +263,36 @@ function SvgOHLCVArea({
     if (wrapRef.current) ro.observe(wrapRef.current);
     return () => ro.disconnect();
   }, []);
+
+  // Global mouse event listeners for better pan experience
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      setIsDragging(false);
+      setDragStart(null);
+    };
+
+    const handleGlobalMouseMove = (event) => {
+      if (isDragging && dragStart && wrapRef.current) {
+        const rect = wrapRef.current.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const deltaX = mouseX - dragStart.x;
+        const currentPlotW = Math.max(10, width - 60 - 16); // padding.left - padding.right
+        const panDelta = deltaX / currentPlotW;
+        setPanOffset(prev => Math.max(-0.5, Math.min(0.5, prev + panDelta)));
+        setDragStart({ x: mouseX, y: event.clientY - rect.top });
+      }
+    };
+
+    if (isDragging) {
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+    }
+
+    return () => {
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+    };
+  }, [isDragging, dragStart, width]);
 
   // Enhanced data fetching with aggregation fallback
   useEffect(() => {
@@ -325,6 +367,7 @@ function SvgOHLCVArea({
 
         if (!alive) return;
         setRawData(data);
+        setTotalLoadedBars(data.length);
       } catch (e) {
         if (alive) setErr(e.message || "Failed to load chart data");
       } finally {
@@ -335,6 +378,51 @@ function SvgOHLCVArea({
     fetchWithFallback();
     return () => { alive = false; };
   }, [contract, timeframe, displayMode, token]);
+
+  // Dynamic loading function for more historical data
+  const loadMoreHistoricalData = async () => {
+    if (!contract || isLoadingMore || !hasMoreData || rawData.length === 0) return;
+    
+    setIsLoadingMore(true);
+    console.log(`📈 Loading more ${timeframe} data...`);
+    
+    try {
+      const oldestTime = rawData[0]?.time;
+      if (!oldestTime) return;
+      
+      // Load more data before the oldest timestamp (use smaller chunks for dynamic loading)
+      const chunkSize = Math.min(WINDOW_BY_TF[timeframe] || 100, 200); // Dynamic chunk size
+      const moreData = await chartService.loadOlderBars(contract, timeframe, oldestTime, 'RD', chunkSize);
+      
+      if (Array.isArray(moreData?.data) && moreData.data.length > 0) {
+        console.log(`✅ Loaded ${moreData.data.length} more bars`);
+        
+        // Merge new data with existing (prepend older data)
+        const mergedData = [...moreData.data, ...rawData];
+        
+        // Remove duplicates based on timestamp
+        const uniqueData = mergedData.filter((item, index, arr) => 
+          index === 0 || item.time !== arr[index - 1].time
+        );
+        
+        setRawData(uniqueData);
+        setTotalLoadedBars(uniqueData.length);
+        
+        // Check if we've reached the limit or no more data available
+        if (moreData.data.length < 50) {
+          setHasMoreData(false);
+          console.log(`📊 Reached end of available data (${uniqueData.length} total bars)`);
+        }
+      } else {
+        setHasMoreData(false);
+        console.log(`📊 No more historical data available`);
+      }
+    } catch (error) {
+      console.error('Failed to load more historical data:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   // Process data: normalize, window, and transform
   const processedData = useMemo(() => {
@@ -454,7 +542,7 @@ function SvgOHLCVArea({
     };
   }, [processedData, width, displayMode, timeframe]);
 
-  // Mouse interaction handlers
+  // Enhanced mouse interaction handlers with pan, zoom, and scroll detection
   const handleMouseMove = (event) => {
     if (!processedData.length) return;
     
@@ -462,7 +550,22 @@ function SvgOHLCVArea({
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
     
-    // Find closest data point
+    // Handle dragging for pan
+    if (isDragging && dragStart) {
+      const deltaX = mouseX - dragStart.x;
+      const panDelta = deltaX / plotW;
+      setPanOffset(prev => Math.max(-0.5, Math.min(0.5, prev + panDelta)));
+      setDragStart({ x: mouseX, y: mouseY });
+      
+      // Check if we're panning to the left edge (need more historical data)
+      if (panOffset < -0.3 && hasMoreData && !isLoadingMore) {
+        console.log(`🔄 Pan threshold reached, loading more historical data...`);
+        loadMoreHistoricalData();
+      }
+      return;
+    }
+    
+    // Find closest data point for crosshair
     const timeAtMouse = ((mouseX - padding.left) / plotW) * (tMax - tMin) + tMin;
     
     let closestPoint = processedData[0];
@@ -484,8 +587,46 @@ function SvgOHLCVArea({
     });
   };
 
+  const handleMouseDown = (event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+    
+    setIsDragging(true);
+    setDragStart({ x: mouseX, y: mouseY });
+    event.preventDefault();
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    setDragStart(null);
+  };
+
   const handleMouseLeave = () => {
     setMousePos(null);
+    setIsDragging(false);
+    setDragStart(null);
+  };
+
+  const handleWheel = (event) => {
+    event.preventDefault();
+    
+    const rect = event.currentTarget.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const isInPlotArea = mouseX >= padding.left && mouseX <= width - padding.right;
+    
+    if (!isInPlotArea) return;
+    
+    const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
+    const newZoomLevel = Math.max(0.1, Math.min(5, zoomLevel * zoomFactor));
+    
+    setZoomLevel(newZoomLevel);
+    
+    // If zooming out significantly and we have more data available, load it
+    if (newZoomLevel < 0.5 && hasMoreData && !isLoadingMore) {
+      console.log(`🔍 Zoom out detected (${newZoomLevel.toFixed(2)}x), loading more data...`);
+      loadMoreHistoricalData();
+    }
   };
 
   // Render
@@ -535,13 +676,44 @@ function SvgOHLCVArea({
   const timeFormatter = formatTimeLabel(timeframe, timezone === 'local');
 
   return (
-    <div ref={wrapRef} className="w-full">
+    <div ref={wrapRef} className="w-full relative">
+      {/* Loading indicators */}
+      {isLoadingMore && (
+        <div className="absolute top-2 left-2 z-10 bg-blue-500 text-white px-3 py-1 rounded-lg shadow-lg flex items-center space-x-2">
+          <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+          <span className="text-sm">📈 Loading more history...</span>
+        </div>
+      )}
+      
+      {/* Progress indicator */}
+      {totalLoadedBars > 0 && (
+        <div className="absolute top-2 right-2 z-10 bg-gray-800 text-gray-300 px-3 py-1 rounded-lg shadow-lg">
+          <span className="text-xs">
+            📊 {totalLoadedBars} bars loaded
+            {hasMoreData && !isLoadingMore && (
+              <span className="text-blue-400 ml-1">• More available</span>
+            )}
+          </span>
+        </div>
+      )}
+      
+      {/* Pan/Zoom instructions */}
+      {!isLoadingMore && hasMoreData && (
+        <div className="absolute bottom-2 left-2 z-10 bg-gray-800 bg-opacity-80 text-gray-400 px-2 py-1 rounded text-xs">
+          🖱️ Drag to pan • Scroll to zoom • Auto-loads more data
+        </div>
+      )}
+      
       <svg 
         width={width} 
         height={height} 
         className="bg-gray-900 rounded-lg border border-gray-700"
         onMouseMove={handleMouseMove}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
+        onWheel={handleWheel}
+        style={{ cursor: isDragging ? 'grabbing' : 'crosshair' }}
       >
         {/* Gradient definition */}
         <defs>
