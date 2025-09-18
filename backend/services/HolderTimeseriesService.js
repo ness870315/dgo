@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 class HolderTimeseriesService {
   constructor() {
@@ -352,4 +352,4 @@ class HolderTimeseriesService {
   }
 }
 
-module.exports = HolderTimeseriesService;
+export default HolderTimeseriesService;

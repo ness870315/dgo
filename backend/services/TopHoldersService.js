@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 class TopHoldersService {
   constructor() {
@@ -174,4 +174,4 @@ class TopHoldersService {
   }
 }
 
-module.exports = TopHoldersService;
+export default TopHoldersService;

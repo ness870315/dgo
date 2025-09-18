@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 class HolderStatsService {
   constructor() {
@@ -261,4 +261,4 @@ class HolderStatsService {
   }
 }
 
-module.exports = HolderStatsService;
+export default HolderStatsService;
