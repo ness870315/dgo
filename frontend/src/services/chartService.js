@@ -255,17 +255,17 @@ class ChartService {
    */
   getOptimalLimitForTier(timeframe, tier = 'RD') {
     const limits = {
-      '1MIN': { MV: 300, RD: 1440, MP: 5000 },  // ~24 hours
-      '5MIN': { MV: 300, RD: 1000, MP: 3000 },  // ~3.5 days  
-      '15MIN': { MV: 300, RD: 1000, MP: 3000 }, // ~10.4 days
-      '1H': { MV: 300, RD: 1000, MP: 2000 },    // ~41.7 days
-      '4H': { MV: 300, RD: 800, MP: 2000 },     // ~133 days
-      '1D': { MV: 300, RD: 750, MP: 1500 },     // ~2.1 years
-      '1W': { MV: 300, RD: 260, MP: 520 },      // ~5 years
-      '1M': { MV: 300, RD: 120, MP: 240 },      // ~10 years
-      '3M': { MV: 300, RD: 120, MP: 240 },      // ~30 years
-      '1Y': { MV: 300, RD: 120, MP: 240 },      // ~120 years
-      'ALL': { MV: 300, RD: 240, MP: 480 }      // All time
+      '1MIN': { MV: 150, RD: 240, MP: 1000 },   // 4 hours (240 bars)
+      '5MIN': { MV: 150, RD: 96, MP: 500 },    // 8 hours (96 bars)  
+      '15MIN': { MV: 150, RD: 96, MP: 500 },   // 1 day (96 bars)
+      '1H': { MV: 200, RD: 168, MP: 800 },     // 7 days (168 bars)
+      '4H': { MV: 200, RD: 90, MP: 400 },      // 15 days (90 bars)
+      '1D': { MV: 200, RD: 90, MP: 300 },      // 90 days (90 bars)
+      '1W': { MV: 300, RD: 260, MP: 520 },     // ~5 years
+      '1M': { MV: 300, RD: 120, MP: 240 },     // ~10 years
+      '3M': { MV: 300, RD: 120, MP: 240 },     // ~30 years
+      '1Y': { MV: 300, RD: 120, MP: 240 },     // ~120 years
+      'ALL': { MV: 300, RD: 240, MP: 480 }     // All time
     };
     
     const timeframeLimits = limits[timeframe] || limits['1D'];
