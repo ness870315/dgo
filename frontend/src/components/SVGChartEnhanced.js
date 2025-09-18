@@ -718,17 +718,6 @@ function SvgOHLCVArea({
         </div>
       )}
       
-      {/* Progress indicator */}
-      {totalLoadedBars > 0 && (
-        <div className="absolute top-2 right-2 z-10 bg-gray-800 text-gray-300 px-3 py-1 rounded-lg shadow-lg">
-          <span className="text-xs">
-            📊 {totalLoadedBars} bars loaded
-            {hasMoreData && !isLoadingMore && (
-              <span className="text-blue-400 ml-1">• More available</span>
-            )}
-          </span>
-        </div>
-      )}
       
       {/* Pan/Zoom instructions - positioned to avoid X-axis */}
       {!isLoadingMore && hasMoreData && (
