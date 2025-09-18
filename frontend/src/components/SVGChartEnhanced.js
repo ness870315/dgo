@@ -137,27 +137,23 @@ function formatTimeLabel(timeframe, useLocal = false) {
       (fmt) => new Intl.DateTimeFormat('en-US', fmt) :
       (fmt) => new Intl.DateTimeFormat('en-US', { ...fmt, timeZone: 'UTC' });
 
-    // Adaptive formatting based on timeframe and data span
+    // Adaptive formatting based on timeframe - optimized for readability
     switch (timeframe) {
       case '1MIN':
-        // 1MIN: Show HH:mm (4 hours of data)
+        // 1MIN: Show HH:mm only (4 hours of data, same day)
         return formatter({ hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
       
       case '5MIN':
-        // 5MIN: Show HH:mm (8 hours of data)
+        // 5MIN: Show HH:mm only (8 hours of data, likely same day)
         return formatter({ hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
       
       case '15MIN':
-        // 15MIN: Show MMM DD HH:mm (12 hours of data)
-        const dayFormat15 = formatter({ month: 'short', day: 'numeric' }).format(date);
-        const timeFormat15 = formatter({ hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
-        return `${dayFormat15} ${timeFormat15}`;
+        // 15MIN: Show HH:mm only for cleaner look (12 hours of data)
+        return formatter({ hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
       
       case '1H':
-        // 1H: Show MMM DD HH:mm (7 days of data)
-        const dayFormat1H = formatter({ month: 'short', day: 'numeric' }).format(date);
-        const timeFormat1H = formatter({ hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
-        return `${dayFormat1H} ${timeFormat1H}`;
+        // 1H: Show MMM DD for daily marks (7 days of data)
+        return formatter({ month: 'short', day: 'numeric' }).format(date);
       
       case '4H':
         // 4H: Show MMM DD (15 days of data)
@@ -188,21 +184,21 @@ function generateTimeTicks(tMin, tMax, timeframe, containerWidth) {
   
   switch (timeframe) {
     case '1MIN':
-      // 4 hours of data: show every hour
+      // 4 hours of data: show every hour for clean spacing
       tickInterval = 60 * 60; // 1 hour in seconds
-      targetTicks = Math.max(3, Math.min(6, Math.floor(containerWidth / 100)));
+      targetTicks = Math.max(3, Math.min(5, Math.floor(containerWidth / 120)));
       break;
       
     case '5MIN':
-      // 8 hours of data: show every 2 hours
+      // 8 hours of data: show every 2 hours for better readability
       tickInterval = 2 * 60 * 60; // 2 hours in seconds
-      targetTicks = Math.max(3, Math.min(6, Math.floor(containerWidth / 100)));
+      targetTicks = Math.max(3, Math.min(5, Math.floor(containerWidth / 120)));
       break;
       
     case '15MIN':
-      // 12 hours of data: show every 3 hours
-      tickInterval = 3 * 60 * 60; // 3 hours in seconds
-      targetTicks = Math.max(3, Math.min(5, Math.floor(containerWidth / 120)));
+      // 12 hours of data: show every 4 hours for cleaner look
+      tickInterval = 4 * 60 * 60; // 4 hours in seconds
+      targetTicks = Math.max(3, Math.min(4, Math.floor(containerWidth / 150)));
       break;
       
     case '1H':
