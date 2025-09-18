@@ -204,7 +204,7 @@ function generateYTicks(yMin, yMax, count = 5) {
 // Enhanced SVG Chart Component
 function SvgOHLCVArea({ 
   contract, 
-  timeframe = '15MIN', 
+  timeframe = '5MIN', 
   displayMode = 'price', 
   circulatingSupply = 0,
   timezone = 'UTC'
@@ -295,8 +295,23 @@ function SvgOHLCVArea({
   }, [rawData, timeframe, displayMode, circulatingSupply]);
 
   // Enhanced scaling and formatting
-  const { x, y, yTicks, xTicks, priceFormat, yFormatter } = useMemo(() => {
-    if (!processedData.length) return { x: () => 0, y: () => 0, yTicks: [], xTicks: [], priceFormat: { decimals: 6 }, yFormatter: (v) => v };
+  const { x, y, yTicks, xTicks, priceFormat, yFormatter, height, padding, plotW, plotH, tMin, tMax, yDomainMin, yDomainMax } = useMemo(() => {
+    if (!processedData.length) return { 
+      x: () => 0, 
+      y: () => 0, 
+      yTicks: [], 
+      xTicks: [], 
+      priceFormat: { decimals: 6 }, 
+      yFormatter: (v) => v,
+      height: 400,
+      padding: { left: 60, right: 16, top: 12, bottom: 40 },
+      plotW: 100,
+      plotH: 100,
+      tMin: 0,
+      tMax: 1,
+      yDomainMin: 0,
+      yDomainMax: 1
+    };
 
     const times = processedData.map(d => d.time);
     const closes = processedData.map(d => d.close);
@@ -362,7 +377,7 @@ function SvgOHLCVArea({
     const mouseY = event.clientY - rect.top;
     
     // Find closest data point
-    const timeAtMouse = ((mouseX - y.padding.left) / y.plotW) * (y.tMax - y.tMin) + y.tMin;
+    const timeAtMouse = ((mouseX - padding.left) / plotW) * (tMax - tMin) + tMin;
     
     let closestPoint = processedData[0];
     let minDistance = Math.abs(closestPoint.time - timeAtMouse);
@@ -427,8 +442,8 @@ function SvgOHLCVArea({
   ).join(' ');
 
   const areaPath = linePath + 
-    ` L ${x(processedData[processedData.length - 1].time)} ${y.height - y.padding.bottom}` +
-    ` L ${x(processedData[0].time)} ${y.height - y.padding.bottom} Z`;
+    ` L ${x(processedData[processedData.length - 1].time)} ${height - padding.bottom}` +
+    ` L ${x(processedData[0].time)} ${height - padding.bottom} Z`;
 
   const gradientId = `gradient-${contract}-${timeframe}`;
   const timeFormatter = formatTimeLabel(timeframe, timezone === 'local');
@@ -437,7 +452,7 @@ function SvgOHLCVArea({
     <div ref={wrapRef} className="w-full">
       <svg 
         width={width} 
-        height={y.height} 
+        height={height} 
         className="bg-gray-900 rounded-lg border border-gray-700"
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
@@ -451,25 +466,25 @@ function SvgOHLCVArea({
         </defs>
 
         {/* Grid lines */}
-        {y.yTicks.map(tick => (
+        {yTicks.map(tick => (
           <line
             key={tick}
-            x1={y.padding.left}
+            x1={padding.left}
             y1={y(tick)}
-            x2={width - y.padding.right}
+            x2={width - padding.right}
             y2={y(tick)}
             stroke="rgba(255,255,255,0.1)"
             strokeWidth="1"
           />
         ))}
         
-        {y.xTicks.map(tick => (
+        {xTicks.map(tick => (
           <line
             key={tick}
             x1={x(tick)}
-            y1={y.padding.top}
+            y1={padding.top}
             x2={x(tick)}
-            y2={y.height - y.padding.bottom}
+            y2={height - padding.bottom}
             stroke="rgba(255,255,255,0.1)"
             strokeWidth="1"
           />
@@ -490,26 +505,26 @@ function SvgOHLCVArea({
         />
 
         {/* Y-axis labels */}
-        {y.yTicks.map(tick => (
+        {yTicks.map(tick => (
           <text
             key={tick}
-            x={y.padding.left - 8}
+            x={padding.left - 8}
             y={y(tick) + 4}
             fill="rgba(255,255,255,0.7)"
             fontSize="11"
             textAnchor="end"
             fontFamily="system-ui,sans-serif"
           >
-            {y.yFormatter(tick)}
+            {yFormatter(tick)}
           </text>
         ))}
 
         {/* X-axis labels */}
-        {y.xTicks.map(tick => (
+        {xTicks.map(tick => (
           <text
             key={tick}
             x={x(tick)}
-            y={y.height - y.padding.bottom + 15}
+            y={height - padding.bottom + 15}
             fill="rgba(255,255,255,0.7)"
             fontSize="10"
             textAnchor="middle"
@@ -525,9 +540,9 @@ function SvgOHLCVArea({
             {/* Vertical crosshair */}
             <line
               x1={mousePos.x}
-              y1={y.padding.top}
+              y1={padding.top}
               x2={mousePos.x}
-              y2={y.height - y.padding.bottom}
+              y2={height - padding.bottom}
               stroke="rgba(255,255,255,0.3)"
               strokeWidth="1"
               strokeDasharray="2,2"
@@ -535,9 +550,9 @@ function SvgOHLCVArea({
             
             {/* Horizontal crosshair */}
             <line
-              x1={y.padding.left}
+              x1={padding.left}
               y1={mousePos.y}
-              x2={width - y.padding.right}
+              x2={width - padding.right}
               y2={mousePos.y}
               stroke="rgba(255,255,255,0.3)"
               strokeWidth="1"
@@ -583,7 +598,7 @@ function SvgOHLCVArea({
                 fontFamily="system-ui,sans-serif"
                 fontWeight="bold"
               >
-                {y.yFormatter(mousePos.price)}
+                {yFormatter(mousePos.price)}
               </text>
             </g>
           </>
@@ -595,7 +610,7 @@ function SvgOHLCVArea({
 
 // Main SVGChart wrapper component
 export default function SVGChart({ token, onClose }) {
-  const [timeframe, setTimeframe] = useState('15MIN');
+  const [timeframe, setTimeframe] = useState('5MIN');
   const [displayMode, setDisplayMode] = useState('price');
   const [timezone, setTimezone] = useState('UTC');
 
@@ -620,7 +635,7 @@ export default function SVGChart({ token, onClose }) {
         <div className="flex items-center space-x-2">
           <span className="text-sm text-gray-400">Timeframe:</span>
           <div className="flex bg-gray-700 rounded-lg p-1">
-            {['1MIN', '5MIN', '15MIN', '1H', '4H', '1D'].map(tf => (
+            {['5MIN', '15MIN', '1MIN', '1H', '4H', '1D'].map(tf => (
               <button
                 key={tf}
                 onClick={() => setTimeframe(tf)}
