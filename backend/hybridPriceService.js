@@ -742,7 +742,7 @@ class HybridPriceService {
         fromDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString(); // 14 days for 5min (was 2 days)
         break;
       case '15MIN':
-        fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days for 15min (was 3 days)
+        fromDate = new Date(now.getTime() - 21 * 24 * 60 * 60 * 1000).toISOString(); // 21 days for 15min (was 30 days)
         break;
       case '1H':
         fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days for hours
@@ -782,7 +782,7 @@ class HybridPriceService {
     const lookbacks = {
       '1MIN': 7 * 24 * 60 * 60 * 1000,      // 7 days (was 1 day)
       '5MIN': 14 * 24 * 60 * 60 * 1000,  // 14 days (was 5 days)
-      '15MIN': 30 * 24 * 60 * 60 * 1000, // 30 days (was 10 days)
+      '15MIN': 21 * 24 * 60 * 60 * 1000, // 21 days (was 30 days)
       '1H': 30 * 24 * 60 * 60 * 1000,   // 30 days
       '4H': 90 * 24 * 60 * 60 * 1000,   // 90 days
       '1D': 365 * 24 * 60 * 60 * 1000,  // 1 year
