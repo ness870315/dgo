@@ -522,7 +522,45 @@ class HybridPriceService {
       console.log(`📊 Moralis response data:`, response.data);
 
       if (!response.data?.result || response.data.result.length === 0) {
-        throw new Error('No OHLCV data from Moralis');
+        console.log(`⚠️ No ${moralisTimeframe} data available from Moralis for this token pair`);
+        
+        // For 1MIN timeframe, try 5MIN as immediate fallback
+        if (timeframe === '1MIN') {
+          console.log(`🔄 1MIN data not available, trying 5MIN fallback...`);
+          try {
+            const fallbackResponse = await axios.get(`https://solana-gateway.moralis.io/token/mainnet/pairs/${pairAddress}/ohlcv`, {
+              params: {
+                timeframe: '5min',
+                currency: 'usd',
+                fromDate: timeRange.from,
+                toDate: timeRange.to,
+                limit: limit
+              },
+              headers: {
+                'X-API-Key': this.moralisApiKey,
+                'Accept': 'application/json'
+              },
+              timeout: 15000
+            });
+            
+            if (fallbackResponse.data?.result && fallbackResponse.data.result.length > 0) {
+              console.log(`✅ Using 5MIN data as fallback for 1MIN request (${fallbackResponse.data.result.length} points)`);
+              const chartData = fallbackResponse.data.result.map(item => ({
+                time: Math.floor(new Date(item.timestamp).getTime() / 1000),
+                value: item.close,
+                open: item.open,
+                high: item.high,
+                low: item.low,
+                close: item.close
+              }));
+              return chartData;
+            }
+          } catch (fallbackError) {
+            console.log(`⚠️ 5MIN fallback also failed: ${fallbackError.message}`);
+          }
+        }
+        
+        throw new Error(`No OHLCV data from Moralis for ${timeframe} timeframe`);
       }
 
       // Convert Moralis OHLCV data to our format
