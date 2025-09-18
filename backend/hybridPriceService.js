@@ -501,6 +501,7 @@ class HybridPriceService {
       console.log(`🔍 Calling Moralis API with pair address: ${pairAddress}`);
       console.log(`📅 Time range: ${timeRange.from} to ${timeRange.to}`);
       console.log(`⏰ Moralis timeframe: ${moralisTimeframe}`);
+      console.log(`🔍 Request params:`, { timeframe: moralisTimeframe, currency: 'usd', fromDate: timeRange.from, toDate: timeRange.to, limit });
       
       const response = await axios.get(`https://solana-gateway.moralis.io/token/mainnet/pairs/${pairAddress}/ohlcv`, {
         params: {
@@ -621,6 +622,8 @@ class HybridPriceService {
    * Calculate time range based on timeframe
    */
   calculateTimeRange(timeframe, beforeTime = null, afterTime = null) {
+    console.log(`🔍 calculateTimeRange called with:`, { timeframe, beforeTime, afterTime });
+    
     // Handle time-filtered requests
     if (beforeTime || afterTime) {
       let fromDate, toDate;
