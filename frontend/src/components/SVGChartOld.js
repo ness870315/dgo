@@ -57,6 +57,80 @@ function sliceWindow(candles, tf) {
   return candles.slice(-n);
 }
 
+function chooseTimeStepSec(tf, pxWidth, targetPx = 100) {
+  // how many ticks can we fit?
+  const bars = Math.max(1, pxWidth / 6); // ~6px per bar rough
+  const sec = TF_SEC[tf] || 60;
+  
+  // Adaptive target spacing based on timeframe for better readability
+  let adaptiveTargetPx = targetPx;
+  if (tf === '1MIN') {
+    adaptiveTargetPx = 60; // Closer spacing for 1min charts
+  } else if (tf === '5MIN') {
+    adaptiveTargetPx = 80; // Medium spacing for 5min charts
+  } else if (tf === '15MIN') {
+    adaptiveTargetPx = 100; // Standard spacing for 15min charts
+  } else if (tf === '1H' || tf === '4H') {
+    adaptiveTargetPx = 120; // Wider spacing for hourly charts
+  } else {
+    adaptiveTargetPx = 150; // Even wider for daily+ charts
+  }
+  
+  const approxTicks = Math.max(2, Math.round(pxWidth / adaptiveTargetPx));
+
+  // candidate multiples of the base step
+  const mults = [1, 2, 3, 5, 10, 15, 20, 30, 60, 120, 180, 240, 360, 480, 720, 960];
+  // For higher TFs, allow day/week/month sized steps too:
+  const extra = [24*3600, 7*24*3600, 30*24*3600];
+  const candidates = [...mults.map(m=>m*sec), ...extra];
+
+  // pick the first step that yields ≤ approxTicks labels
+  return candidates.find(step => (bars * sec) / step <= approxTicks) || candidates[candidates.length-1];
+}
+
+function* timeTicks(tMin, tMax, stepSec) {
+  if (!(tMax > tMin) || stepSec <= 0) return;
+  const start = Math.ceil(tMin / stepSec) * stepSec;
+  for (let t = start; t <= tMax + 1e-9; t += stepSec) yield t;
+}
+
+function timeLabelFormatter(tf, useLocal = false) {
+  const opt = (o) => new Intl.DateTimeFormat(undefined, o);
+  const Z = useLocal ? undefined : "UTC";
+
+  // pick a formatter by timeframe with better readability
+  if (tf === '1MIN') {
+    // For 1min charts, show every 5-10 minutes to avoid clutter
+    const f = opt({ hour:'2-digit', minute:'2-digit', timeZone:Z });
+    return (t)=> f.format(new Date(t*1000));
+  }
+  if (tf === '5MIN') {
+    // For 5min charts, show every 15-30 minutes
+    const f = opt({ hour:'2-digit', minute:'2-digit', timeZone:Z });
+    return (t)=> f.format(new Date(t*1000));
+  }
+  if (tf === '15MIN') {
+    // For 15min charts, show every hour
+    const f = opt({ hour:'2-digit', minute:'2-digit', timeZone:Z });
+    return (t)=> f.format(new Date(t*1000));
+  }
+  if (tf === '1H' || tf === '4H') {
+    const f = opt({ month:'short', day:'2-digit', hour:'2-digit', timeZone:Z });
+    return (t)=> f.format(new Date(t*1000));
+  }
+  if (tf === '1D') {
+    const f = opt({ month:'short', day:'2-digit', timeZone:Z });
+    return (t)=> f.format(new Date(t*1000));
+  }
+  if (tf === '1W' || tf === '1M') {
+    const f = opt({ month:'short', year:'2-digit', timeZone:Z });
+    return (t)=> f.format(new Date(t*1000));
+  }
+  // fallback
+  const f = opt({ month:'short', day:'2-digit', timeZone:Z });
+  return (t)=> f.format(new Date(t*1000));
+}
+
 // Build SVG scales with correct X by time domain
 function makeScales(points, w, h, pad = {l:56,r:24,t:16,b:28}) {
   const plotW = w - pad.l - pad.r;
@@ -118,17 +192,17 @@ function SvgOHLCVArea({
   displayMode = "price",         // "price" | "mcap"
   circulatingSupply = null,      // required for mcap mode
   timezone = "UTC",             // "UTC" | "local"
-  stroke = "#ff2ea1",
-  fillFrom = "rgba(255,46,161,0.35)",
-  fillTo   = "rgba(255,46,161,0.05)",
+  stroke = "#ff2fb9",
+  fillFrom = "rgba(255,47,185,0.35)",
+  fillTo   = "rgba(255,47,185,0.05)",
   height = 280,
   maxPoints = 1000,
 }) {
   const wrapRef = useRef(null);
   const [width, setWidth] = useState(800);
-  const [rawData, setRawData] = useState([]);
+  const [rows, setRows] = useState([]);
   const [err, setErr] = useState(null);
-  const [mousePos, setMousePos] = useState(null);
+  const [mousePos, setMousePos] = useState(null); // {x, y, time, price}
 
   // responsive width
   useEffect(() => {
@@ -137,7 +211,7 @@ function SvgOHLCVArea({
     return () => ro.disconnect();
   }, []);
 
-  // fetch from ChartService
+  // fetch from your ChartService (RD limit)
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -148,82 +222,80 @@ function SvgOHLCVArea({
         const data = Array.isArray(res?.data) ? res.data : [];
         if (!alive) return;
 
-        setRawData(data);
+        // normalize to {t, y}
+        const norm = data
+          .map(d => ({ t: d.time > 1e12 ? Math.floor(d.time/1000) : d.time,
+                       y: +d.close }))
+          .filter(p => Number.isFinite(p.t) && Number.isFinite(p.y))
+          .sort((a,b) => a.t - b.t);
+
+        setRows(norm.slice(-maxPoints)); // cap points
       } catch (e) {
         if (alive) setErr(e.message || "Failed to load chart data");
       }
     })();
     return () => { alive = false; };
-  }, [contract, timeframe]);
+  }, [contract, timeframe, maxPoints]);
 
-  // Process data: normalize, window, and transform
-  const processedData = useMemo(() => {
-    if (!rawData.length) return [];
-    
-    // Normalize OHLC data with proper bucketing
-    const normalized = normalizeOHLC(rawData, timeframe);
-    
-    // Window to last N bars per timeframe
-    const windowed = sliceWindow(normalized, timeframe);
-    
-    // Transform to market cap if needed
-    if (displayMode === 'mcap' && circulatingSupply) {
-      const supply = Number(circulatingSupply) || 0;
-      return windowed.map(c => ({ ...c, close: c.close * supply }));
-    }
-    
-    return windowed;
-  }, [rawData, timeframe, displayMode, circulatingSupply]);
+  // market cap transform
+  const points = useMemo(() => {
+    if (displayMode !== "mcap" || !circulatingSupply) return rows;
+    const s = Number(circulatingSupply) || 0;
+    return rows.map(p => ({ t: p.t, y: p.y * s }));
+  }, [rows, displayMode, circulatingSupply]);
 
-  // Build scales and paths
-  const { x, y, pad, plotW, plotH, tMin, tMax, yMin, yMax } = useMemo(() => {
-    if (!processedData.length) return { x: () => 0, y: () => 0, pad: {}, plotW: 0, plotH: 0, tMin: 0, tMax: 0, yMin: 0, yMax: 0 };
-    return makeScales(processedData, width, height);
-  }, [processedData, width, height]);
+  // domains & scales
+  const padding = { left: 56, right: 16, top: 12, bottom: 22 };
+  const innerW = Math.max(10, width - padding.left - padding.right);
+  const innerH = Math.max(10, height - padding.top - padding.bottom);
 
-  // Build SVG path
-  const path = useMemo(() => {
-    if (!processedData.length) return '';
-    return processedData.map((p, i) => `${i?'L':'M'} ${x(p.time*1000)} ${y(p.close)}`).join(' ');
-  }, [processedData, x, y]);
+  const [tMin, tMax, yMin, yMax] = useMemo(() => {
+    if (!points.length) return [0, 1, 0, 1];
+    const t0 = points[0].t, t1 = points[points.length-1].t;
+    let lo = +Infinity, hi = -Infinity;
+    for (const p of points) { if (p.y < lo) lo = p.y; if (p.y > hi) hi = p.y; }
+    // small padding on Y
+    const span = Math.max(1e-18, hi - lo);
+    return [t0, t1, lo - span*0.06, hi + span*0.06];
+  }, [points]);
 
-  // Build area path (closed)
-  const areaPath = useMemo(() => {
-    if (!processedData.length) return '';
-    const minClose = Math.min(...processedData.map(d => d.close));
-    return `${path} L ${x(tMax)} ${y(minClose)} L ${x(tMin)} ${y(minClose)} Z`;
-  }, [path, x, y, tMin, tMax, processedData]);
+  const x = (t) => padding.left + ((t - tMin) / Math.max(1, (tMax - tMin))) * innerW;
+  const y = (v) => padding.top  + (1 - (v - yMin) / Math.max(1e-18, (yMax - yMin))) * innerH;
 
-  // Y-axis ticks
-  const yTicks = useMemo(() => niceTicksY(processedData, 6), [processedData]);
-  
-  // X-axis ticks
-  const xTicks = useMemo(() => niceTicksTime(tMin, tMax, timeframe, 6), [tMin, tMax, timeframe]);
+  // path building (fixes "no gradient visible" by ensuring a CLOSED area path)
+  const { linePath, areaPath } = useMemo(() => {
+    if (!points.length) return { linePath: "", areaPath: "" };
+    let d = `M ${x(points[0].t)} ${y(points[0].y)}`;
+    for (let i = 1; i < points.length; i++) d += ` L ${x(points[i].t)} ${y(points[i].y)}`;
+    const baseY = y(yMin);
+    const area = `${d} L ${x(points[points.length-1].t)} ${baseY} L ${x(points[0].t)} ${baseY} Z`;
+    return { linePath: d, areaPath: area };
+  }, [points, width, height, yMin]);
 
-  // Formatting
-  const fmtY = displayMode === "mcap" ? fmtMcap : fmtPrice;
-  const useUTC = timezone === 'UTC';
+  // y-axis ticks
+  const ticks = useMemo(() => niceTick(yMin, yMax, 6), [yMin, yMax]);
+  const fmtY   = displayMode === "mcap" ? fmtMcap : fmtPrice;
 
   // unique gradient id per instance
   const gid = useMemo(() => `grad-${Math.random().toString(36).slice(2)}`, []);
 
   // Mouse event handlers for crosshair
   const handleMouseMove = (e) => {
-    if (!processedData.length) return;
+    if (!points.length) return;
     
     const rect = e.currentTarget.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
     
     // Convert mouse X to time
-    const timeAtMouse = tMin + ((mouseX - pad.l) / plotW) * (tMax - tMin);
+    const timeAtMouse = tMin + ((mouseX - padding.left) / innerW) * (tMax - tMin);
     
     // Find closest data point
-    let closestPoint = processedData[0];
-    let minDist = Math.abs(processedData[0].time * 1000 - timeAtMouse);
+    let closestPoint = points[0];
+    let minDist = Math.abs(points[0].t - timeAtMouse);
     
-    for (const point of processedData) {
-      const dist = Math.abs(point.time * 1000 - timeAtMouse);
+    for (const point of points) {
+      const dist = Math.abs(point.t - timeAtMouse);
       if (dist < minDist) {
         minDist = dist;
         closestPoint = point;
@@ -233,24 +305,14 @@ function SvgOHLCVArea({
     setMousePos({
       x: mouseX,
       y: mouseY,
-      time: closestPoint.time,
-      price: closestPoint.close
+      time: closestPoint.t,
+      price: closestPoint.y
     });
   };
 
   const handleMouseLeave = () => {
     setMousePos(null);
   };
-
-  if (!processedData.length) {
-    return (
-      <div ref={wrapRef} className="w-full">
-        <div className="flex items-center justify-center h-64 text-gray-400">
-          {err ? `Error: ${err}` : 'Loading chart data...'}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div ref={wrapRef} className="w-full">
@@ -264,43 +326,82 @@ function SvgOHLCVArea({
       >
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={fillFrom}/>
+            <stop offset="0%"  stopColor={fillFrom}/>
             <stop offset="100%" stopColor={fillTo}/>
           </linearGradient>
+          <clipPath id={`${gid}-clip`}>
+            <rect x={padding.left} y={padding.top} width={innerW} height={innerH} rx="6" />
+          </clipPath>
         </defs>
 
         {/* background panel */}
         <rect x="0" y="0" width={width} height={height} fill="#0b0f17" rx="10" />
 
-        {/* plot area */}
-        <rect x={pad.l} y={pad.t} width={plotW} height={plotH} fill="#0b0f17" stroke="#2e3a4a"/>
-
-        {/* Y-axis grid lines */}
-        {yTicks.map((tick, i) => (
+        {/* grid + y-axis */}
+        {ticks.map((v, i) => (
           <g key={i}>
-            <line x1={pad.l} x2={pad.l+plotW} y1={y(tick)} y2={y(tick)} stroke="#1f2734" strokeDasharray="2 6"/>
-            <text x={pad.l-8} y={y(tick)} fill="#93a3b8" fontSize="11" textAnchor="end" dominantBaseline="middle">
-              {fmtY(tick)}
+            <line
+              x1={padding.left} x2={width - padding.right}
+              y1={y(v)} y2={y(v)}
+              stroke="rgba(255,255,255,0.06)" strokeWidth="1"
+            />
+            <text x={padding.left - 8} y={y(v)} textAnchor="end" dominantBaseline="middle"
+                  fill="#93a4b8" fontSize="11" fontFamily="system-ui,sans-serif">
+              {fmtY(v)}{displayMode === "price" ? "" : ""}
             </text>
           </g>
         ))}
 
-        {/* X-axis grid lines */}
-        {xTicks.map((t, i) => (
-          <g key={i}>
-            <line x1={x(t)} x2={x(t)} y1={pad.t} y2={pad.t+plotH} stroke="#1f2734" strokeDasharray="2 6"/>
-            <line x1={x(t)} x2={x(t)} y1={pad.t+plotH} y2={pad.t+plotH+6} stroke="#2e3a4a"/>
-            <text x={x(t)} y={pad.t+plotH+18} fill="#93a3b8" fontSize="11" textAnchor="middle">
-              {formatTickTime(t, timeframe, useUTC)}
-            </text>
-          </g>
-        ))}
+        {/* axis line */}
+        <line x1={padding.left} x2={padding.left} y1={padding.top} y2={height - padding.bottom}
+              stroke="rgba(255,255,255,0.12)" />
 
-        {/* area fill */}
-        <path d={areaPath} fill={`url(#${gid})`} stroke="none"/>
+                   {/* X axis grid + labels */}
+                   {(() => {
+                     const stepSec = chooseTimeStepSec(timeframe, innerW, 100);
+                     const fmtTime = timeLabelFormatter(timeframe, timezone === 'local');
+                     const axisY = height - padding.bottom;
 
-        {/* line */}
-        <path d={path} stroke={stroke} strokeWidth="2.5" fill="none" strokeLinejoin="round" strokeLinecap="round"/>
+          return (
+            <>
+              {/* bottom axis line */}
+              <line x1={padding.left} x2={width - padding.right} y1={axisY} y2={axisY}
+                    stroke="rgba(255,255,255,0.12)" />
+
+              {[...timeTicks(tMin, tMax, stepSec)].map((t, i) => {
+                const px = x(t);
+                // skip labels too close to edges
+                if (px < padding.left + 20 || px > width - padding.right - 20) {
+                  return (
+                    <line key={`g${i}`} x1={px} x2={px} y1={padding.top} y2={axisY}
+                          stroke="rgba(255,255,255,0.06)"/>
+                  );
+                }
+                return (
+                  <g key={i}>
+                    {/* vertical grid line */}
+                    <line x1={px} x2={px} y1={padding.top} y2={axisY}
+                          stroke="rgba(255,255,255,0.06)"/>
+                    {/* tick */}
+                    <line x1={px} x2={px} y1={axisY} y2={axisY+5}
+                          stroke="rgba(255,255,255,0.6)"/>
+                    {/* label */}
+                    <text x={px} y={axisY+16} textAnchor="middle"
+                          fill="#93a4b8" fontSize="11" fontFamily="system-ui,sans-serif">
+                      {fmtTime(t)}
+                    </text>
+                  </g>
+                );
+              })}
+            </>
+          );
+        })()}
+
+        {/* area + line (clipped to inner plot) */}
+        <g clipPath={`url(#${gid}-clip)`}>
+          <path d={areaPath} fill={`url(#${gid})`} />
+          <path d={linePath} fill="none" stroke={stroke} strokeWidth="2.5" strokeLinecap="round"/>
+        </g>
 
         {/* Crosshair */}
         {mousePos && (
@@ -308,18 +409,18 @@ function SvgOHLCVArea({
             {/* Vertical crosshair line */}
             <line
               x1={mousePos.x}
-              y1={pad.t}
+              y1={padding.top}
               x2={mousePos.x}
-              y2={pad.t + plotH}
+              y2={height - padding.bottom}
               stroke="rgba(255,255,255,0.3)"
               strokeWidth="1"
               strokeDasharray="2,2"
             />
             {/* Horizontal crosshair line */}
             <line
-              x1={pad.l}
+              x1={padding.left}
               y1={mousePos.y}
-              x2={pad.l + plotW}
+              x2={width - padding.right}
               y2={mousePos.y}
               stroke="rgba(255,255,255,0.3)"
               strokeWidth="1"
@@ -327,7 +428,7 @@ function SvgOHLCVArea({
             />
             {/* Data point circle */}
             <circle
-              cx={x(mousePos.time * 1000)}
+              cx={x(mousePos.time)}
               cy={y(mousePos.price)}
               r="4"
               fill={stroke}
@@ -355,7 +456,7 @@ function SvgOHLCVArea({
                 fontSize="11"
                 fontFamily="system-ui,sans-serif"
               >
-                {formatTickTime(mousePos.time * 1000, timeframe, useUTC)}
+                {timeLabelFormatter(timeframe, timezone === 'local')(mousePos.time)}
               </text>
               {/* Price label */}
               <text
@@ -469,7 +570,7 @@ const SVGChart = ({ token, onClose }) => {
         </div>
       </div>
 
-      {/* Optimized SVG Chart with proper data processing */}
+      {/* Optimized SVG Chart with Y-axis */}
       <SvgOHLCVArea
         contract={contract}
         timeframe={timeframe}
