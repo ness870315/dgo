@@ -294,6 +294,13 @@ function SvgOHLCVArea({
     };
   }, [isDragging, dragStart, width]);
 
+  // Reset pan/zoom when timeframe changes
+  useEffect(() => {
+    setPanOffset(0);
+    setZoomLevel(1);
+    console.log(`🔄 Timeframe changed to ${timeframe}, resetting pan/zoom`);
+  }, [timeframe]);
+
   // Enhanced data fetching with aggregation fallback
   useEffect(() => {
     let alive = true;
@@ -369,9 +376,12 @@ function SvgOHLCVArea({
         setRawData(data);
         setTotalLoadedBars(data.length);
         
-        // Reset pan and zoom when new timeframe data loads
-        setPanOffset(0);
-        setZoomLevel(1);
+        // Only reset pan/zoom on initial load or timeframe change
+        if (rawData.length === 0) {
+          setPanOffset(0);
+          setZoomLevel(1);
+          console.log(`🔄 Reset pan/zoom for new ${timeframe} data`);
+        }
       } catch (e) {
         if (alive) setErr(e.message || "Failed to load chart data");
       } finally {
@@ -413,10 +423,8 @@ function SvgOHLCVArea({
         setRawData(uniqueData);
         setTotalLoadedBars(uniqueData.length);
         
-        // Reset pan offset to show the newly loaded data
-        if (panOffset < -0.2) {
-          setPanOffset(prev => Math.max(-0.1, prev + 0.2)); // Adjust view to show new data
-        }
+        // Keep current pan position to show historical data
+        console.log(`📊 Keeping current pan position: ${panOffset.toFixed(3)} to show historical data`);
         
         // Check if we've reached the limit or no more data available
         if (moreData.data.length < 50) {
@@ -722,9 +730,9 @@ function SvgOHLCVArea({
         </div>
       )}
       
-      {/* Pan/Zoom instructions */}
+      {/* Pan/Zoom instructions - positioned to avoid X-axis */}
       {!isLoadingMore && hasMoreData && (
-        <div className="absolute bottom-2 left-2 z-10 bg-gray-800 bg-opacity-80 text-gray-400 px-2 py-1 rounded text-xs">
+        <div className="absolute top-12 left-2 z-10 bg-gray-800 bg-opacity-90 text-gray-300 px-3 py-1 rounded-lg shadow-lg text-xs border border-gray-600">
           🖱️ Drag to pan • Scroll to zoom • Auto-loads more data
         </div>
       )}
