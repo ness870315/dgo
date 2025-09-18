@@ -880,7 +880,7 @@ function SvgOHLCVArea({
 
 // Main SVGChart wrapper component
 export default function SVGChart({ token, onClose }) {
-  const [timeframe, setTimeframe] = useState('5MIN');
+  const [timeframe, setTimeframe] = useState('1MIN');
   const [displayMode, setDisplayMode] = useState('price');
   const [timezone, setTimezone] = useState('UTC');
 
@@ -905,7 +905,7 @@ export default function SVGChart({ token, onClose }) {
         <div className="flex items-center space-x-2">
           <span className="text-sm text-gray-400">Timeframe:</span>
           <div className="flex bg-gray-700 rounded-lg p-1">
-            {['5MIN', '15MIN', '1MIN', '1H', '4H', '1D', 'ALL'].map(tf => (
+            {['1MIN', '5MIN', '15MIN', '1H', '4H', '1D', 'ALL'].map(tf => (
               <button
                 key={tf}
                 onClick={() => setTimeframe(tf)}
