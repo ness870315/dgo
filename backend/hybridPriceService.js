@@ -536,9 +536,96 @@ class HybridPriceService {
       }));
 
       console.log(`✅ Got ${chartData.length} data points from Moralis`);
+      
+      // If we got very few data points for short timeframes, try a longer timeframe
+      if (chartData.length < 50 && ['1MIN', '5MIN', '15MIN'].includes(timeframe)) {
+        console.log(`⚠️ Only got ${chartData.length} data points for ${timeframe}, trying fallback to longer timeframe...`);
+        
+        try {
+          // Try 1H timeframe as fallback
+          const fallbackTimeframe = '1H';
+          const fallbackMoralisTimeframe = this.convertTimeframeToMoralis(fallbackTimeframe);
+          const fallbackTimeRange = this.calculateTimeRange(fallbackTimeframe, beforeTime, afterTime);
+          
+          console.log(`🔄 Fallback: Trying ${fallbackTimeframe} timeframe`);
+          console.log(`📅 Fallback time range: ${fallbackTimeRange.from} to ${fallbackTimeRange.to}`);
+          
+          const fallbackResponse = await axios.get(`https://solana-gateway.moralis.io/token/mainnet/pairs/${pairAddress}/ohlcv`, {
+            params: {
+              timeframe: fallbackMoralisTimeframe,
+              currency: 'usd',
+              fromDate: fallbackTimeRange.from,
+              toDate: fallbackTimeRange.to,
+              limit: limit
+            },
+            headers: {
+              'X-API-Key': this.moralisApiKey,
+              'Accept': 'application/json'
+            },
+            timeout: 15000
+          });
+          
+          if (fallbackResponse.data?.result && fallbackResponse.data.result.length > chartData.length) {
+            const fallbackData = fallbackResponse.data.result.map(item => ({
+              time: Math.floor(new Date(item.timestamp).getTime() / 1000),
+              value: item.close,
+              open: item.open,
+              high: item.high,
+              low: item.low,
+              close: item.close
+            }));
+            
+            console.log(`✅ Fallback successful: Got ${fallbackData.length} data points from ${fallbackTimeframe}`);
+            return fallbackData;
+          }
+        } catch (fallbackError) {
+          console.log(`⚠️ Fallback failed: ${fallbackError.message}`);
+        }
+      }
+      
       return chartData;
 
     } catch (error) {
+      // Handle specific 400 errors from Moralis (insufficient historical data)
+      if (error.response?.status === 400) {
+        console.log(`⚠️ Moralis 400 error for ${timeframe}: Insufficient historical data for this timeframe/token pair`);
+        
+        // Try to fall back to daily data if available
+        if (!['1D', '1W', '1M'].includes(timeframe)) {
+          console.log(`🔄 Attempting fallback to daily data for ${contractAddress.substring(0, 8)}`);
+          try {
+            const fallbackResponse = await axios.get(`https://solana-gateway.moralis.io/token/mainnet/pairs/${pairAddress}/ohlcv`, {
+              params: {
+                timeframe: '1d',
+                currency: 'usd',
+                limit: Math.min(limit, 30) // Last 30 days
+              },
+              headers: {
+                'X-API-Key': this.moralisApiKey,
+                'Accept': 'application/json'
+              },
+              timeout: 15000
+            });
+            
+            if (fallbackResponse.data?.result && fallbackResponse.data.result.length > 0) {
+              const fallbackData = fallbackResponse.data.result.map(item => ({
+                time: Math.floor(new Date(item.timestamp).getTime() / 1000),
+                value: item.close,
+                open: item.open,
+                high: item.high,
+                low: item.low,
+                close: item.close
+              }));
+              
+              console.log(`✅ Fallback to daily data successful: Got ${fallbackData.length} data points`);
+              return fallbackData;
+            }
+          } catch (fallbackError) {
+            console.log(`⚠️ Daily data fallback also failed: ${fallbackError.message}`);
+          }
+        }
+      }
+      
       throw new Error(`Moralis error: ${error.message}`);
     }
   }
@@ -661,6 +748,10 @@ class HybridPriceService {
         fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days for hours
         break;
       case '4H':
+        fromDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString(); // 90 days for 4H
+        break;
+      case '1D':
+        fromDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString(); // 1 year for daily
         break;
       case '1W':
         fromDate = new Date(now.getTime() - 5 * 365 * 24 * 60 * 60 * 1000).toISOString(); // 5 years for weekly
@@ -689,9 +780,9 @@ class HybridPriceService {
    */
   getTimeframeLookback(timeframe) {
     const lookbacks = {
-      '1MIN': 24 * 60 * 60 * 1000,      // 1 day
-      '5MIN': 5 * 24 * 60 * 60 * 1000,  // 5 days
-      '15MIN': 10 * 24 * 60 * 60 * 1000, // 10 days
+      '1MIN': 7 * 24 * 60 * 60 * 1000,      // 7 days (was 1 day)
+      '5MIN': 14 * 24 * 60 * 60 * 1000,  // 14 days (was 5 days)
+      '15MIN': 30 * 24 * 60 * 60 * 1000, // 30 days (was 10 days)
       '1H': 30 * 24 * 60 * 60 * 1000,   // 30 days
       '4H': 90 * 24 * 60 * 60 * 1000,   // 90 days
       '1D': 365 * 24 * 60 * 60 * 1000,  // 1 year
