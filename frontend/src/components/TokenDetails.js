@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Twitter, MessageCircle, ExternalLink, Star, Flame, Brain, BarChart3 } from 'lucide-react';
+import { X, Twitter, MessageCircle, ExternalLink, Star, Flame, Brain, BarChart3, Users } from 'lucide-react';
 import kolCallsService from '../services/kolCallsService';
 import watchlistService from '../services/watchlistService';
 import priorityService from '../services/priorityService';
 import { useAuth } from '../contexts/AuthContext';
 import EnhancedCallModal from './EnhancedCallModal';
 import PriceChartModal from './PriceChartModal';
+import HoldersInsightsModal from './HoldersInsightsModal';
 import fuelImageGenerator from '../services/fuelImageGenerator';
 
 // AI Code Line Animation Component
@@ -53,6 +54,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
   
   // Price Chart Modal states
   const [showPriceChartModal, setShowPriceChartModal] = useState(false);
+  
+  // Holders Insights Modal states
+  const [showHoldersInsightsModal, setShowHoldersInsightsModal] = useState(false);
   
   // Fuel Share states
   const [showFuelShareModal, setShowFuelShareModal] = useState(false);
@@ -1033,9 +1037,15 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
               </div>
               </div>
 
-                {/* Holders - Orange Gradient */}
-                <div className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-orange-600/20 to-amber-600/20 rounded border border-orange-500/30 aspect-square relative overflow-hidden">
+                {/* Holders - Orange Gradient - Clickable for Holder Insights */}
+                <button
+                  onClick={() => setShowHoldersInsightsModal(true)}
+                  className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-orange-600/20 to-amber-600/20 rounded border border-orange-500/30 aspect-square relative overflow-hidden hover:from-orange-600/30 hover:to-amber-600/30 transition-all duration-200 group"
+                >
                   <div className="absolute inset-0 bg-gradient-to-br from-orange-600/5 to-transparent"></div>
+                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <Users size={16} className="text-orange-300" />
+                  </div>
                   <span className="text-orange-200 text-sm mb-1 relative z-10">👥 Holders</span>
                   <span className="text-white font-bold text-base text-center relative z-10">
                     {formatNumber(token?.jupiterData?.holderCount)}
@@ -1047,8 +1057,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                       {(token?.jupiterData?.stats24h?.holderChange || 0) >= 0 ? '↗' : '↘'} 
                       {formatPercentage(token?.jupiterData?.stats24h?.holderChange || 0)}
                     </span>
-                </div>
-                </div>
+                  </div>
+                </button>
               </div>
 
               {/* Right Section - Scores & Social (2x2 Grid) */}
@@ -2518,6 +2528,14 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
           <PriceChartModal
             token={token}
             onClose={() => setShowPriceChartModal(false)}
+          />
+        )}
+
+        {/* Holders Insights Modal */}
+        {showHoldersInsightsModal && (
+          <HoldersInsightsModal
+            token={token}
+            onClose={() => setShowHoldersInsightsModal(false)}
           />
         )}
 

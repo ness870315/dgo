@@ -4021,6 +4021,231 @@ class EnhancedBackend {
       }
     });
 
+    // Holder Insights API Endpoints
+    this.app.get('/api/tokens/:contract/holders/top', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        const { limit = 20, supply } = req.query;
+        
+        console.log(`[🛡️ Enhanced Backend] 📊 Fetching top holders for: ${contract}`);
+        
+        const { default: TopHoldersService } = await import('./services/TopHoldersService.js');
+        const topHoldersService = new TopHoldersService();
+        
+        const totalSupply = supply ? parseFloat(supply) : null;
+        const result = await topHoldersService.getFormattedTopHolders(contract, totalSupply, parseInt(limit));
+        
+        if (result.success) {
+          res.json({ success: true, data: result });
+        } else {
+          res.status(400).json({ success: false, error: result.error });
+        }
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Get top holders error:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to fetch top holders data' });
+      }
+    });
+
+    this.app.get('/api/tokens/:contract/holders/stats', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        
+        console.log(`[🛡️ Enhanced Backend] 📈 Fetching holder stats for: ${contract}`);
+        
+        const { default: HolderStatsService } = await import('./services/HolderStatsService.js');
+        const { default: TopHoldersService } = await import('./services/TopHoldersService.js');
+        
+        const holderStatsService = new HolderStatsService();
+        const topHoldersService = new TopHoldersService();
+        
+        // Get top holders data for enhanced analysis
+        const topHoldersResult = await topHoldersService.getFormattedTopHolders(contract, null, 100);
+        const topHoldersData = topHoldersResult.success ? topHoldersResult : null;
+        
+        const result = await holderStatsService.getFormattedHolderStats(contract, topHoldersData);
+        
+        if (result.success) {
+          // Add holder health score
+          const healthScore = holderStatsService.calculateHolderHealth(result);
+          result.healthScore = healthScore;
+          
+          res.json({ success: true, data: result });
+        } else {
+          res.status(400).json({ success: false, error: result.error });
+        }
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Get holder stats error:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to fetch holder stats data' });
+      }
+    });
+
+    this.app.get('/api/tokens/:contract/holders/timeseries', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        const { days = 7 } = req.query;
+        
+        console.log(`[🛡️ Enhanced Backend] 📊 Fetching holder timeseries for: ${contract} (${days}d)`);
+        
+        const { default: HolderTimeseriesService } = await import('./services/HolderTimeseriesService.js');
+        const timeseriesService = new HolderTimeseriesService();
+        
+        // Get holder change analysis (multiple timeframes)
+        const changeAnalysis = await timeseriesService.getHolderChangeAnalysis(contract);
+        
+        // Get holder flow analysis (daily changes over time)
+        const flowAnalysis = await timeseriesService.getHolderFlow(contract, parseInt(days));
+        
+        if (changeAnalysis.success || flowAnalysis.success) {
+          const result = {
+            holderChanges: changeAnalysis.success ? changeAnalysis.holderChanges : null,
+            currentHolders: changeAnalysis.success ? changeAnalysis.currentHolders : null,
+            holderFlow: flowAnalysis.success ? flowAnalysis : null,
+            lastUpdated: new Date().toISOString()
+          };
+          
+          res.json({ success: true, data: result });
+        } else {
+          res.status(400).json({ 
+            success: false, 
+            error: changeAnalysis.error || flowAnalysis.error 
+          });
+        }
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Get holder timeseries error:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to fetch holder timeseries data' });
+      }
+    });
+
+    this.app.get('/api/tokens/:contract/holders/insights', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        const { supply, force } = req.query;
+        
+        console.log(`[🛡️ Enhanced Backend] 🔍 Fetching complete holder insights for: ${contract}`);
+        
+        // Import all holder services and cache service
+        const { default: TopHoldersService } = await import('./services/TopHoldersService.js');
+        const { default: HolderStatsService } = await import('./services/HolderStatsService.js');
+        const { default: HolderTimeseriesService } = await import('./services/HolderTimeseriesService.js');
+        const { default: HolderCacheService } = await import('./services/HolderCacheService.js');
+        
+        const topHoldersService = new TopHoldersService();
+        const holderStatsService = new HolderStatsService();
+        const timeseriesService = new HolderTimeseriesService();
+        const cacheService = new HolderCacheService();
+        
+        const totalSupply = supply ? parseFloat(supply) : null;
+        
+        // Check cache first (unless force refresh is requested)
+        if (!force) {
+          const cachedInsights = await cacheService.getCachedData(contract, 'insights');
+          if (cachedInsights) {
+            console.log(`✅ Returning cached holder insights for ${contract}`);
+            return res.json({ 
+              success: true, 
+              data: cachedInsights.data,
+              cached: true,
+              cachedAt: cachedInsights.cachedAt
+            });
+          }
+        }
+        
+        // Cache miss or force refresh - fetch fresh data
+        console.log(`🔄 Fetching fresh holder insights for ${contract}`);
+        
+        // Fetch all data in parallel for better performance
+        const [topHoldersResult, holderStatsResult, timeseriesResult] = await Promise.allSettled([
+          topHoldersService.getFormattedTopHolders(contract, totalSupply, 20),
+          holderStatsService.getFormattedHolderStats(contract),
+          timeseriesService.getHolderChangeAnalysis(contract)
+        ]);
+        
+        // Process results
+        const insights = {
+          topHolders: topHoldersResult.status === 'fulfilled' && topHoldersResult.value.success ? 
+            topHoldersResult.value : null,
+          holderStats: holderStatsResult.status === 'fulfilled' && holderStatsResult.value.success ? 
+            holderStatsResult.value : null,
+          holderChanges: timeseriesResult.status === 'fulfilled' && timeseriesResult.value.success ? 
+            timeseriesResult.value.holderChanges : null,
+          currentHolders: timeseriesResult.status === 'fulfilled' && timeseriesResult.value.success ? 
+            timeseriesResult.value.currentHolders : null
+        };
+        
+        // Generate mock acquisition data (since Moralis doesn't provide this)
+        if (insights.currentHolders) {
+          insights.holdersByAcquisition = timeseriesService.generateMockAcquisitionData(insights.currentHolders);
+        }
+        
+        // Calculate overall health score if we have stats
+        if (insights.holderStats) {
+          insights.healthScore = holderStatsService.calculateHolderHealth(insights.holderStats);
+        }
+        
+        insights.lastUpdated = new Date().toISOString();
+        
+        // Cache the results for 24 hours
+        await cacheService.setCachedData(contract, 'insights', insights);
+        
+        res.json({ 
+          success: true, 
+          data: insights,
+          cached: false,
+          fetchedAt: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Get holder insights error:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to fetch holder insights data' });
+      }
+    });
+
+    // Holder cache management endpoints
+    this.app.get('/api/tokens/holders/cache/stats', async (req, res) => {
+      try {
+        console.log('[🛡️ Enhanced Backend] 📊 Getting holder cache stats');
+        
+        const { default: HolderCacheService } = await import('./services/HolderCacheService.js');
+        const cacheService = new HolderCacheService();
+        
+        const stats = await cacheService.getCacheStats();
+        res.json({ success: true, data: stats });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Get cache stats error:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to get cache stats' });
+      }
+    });
+
+    this.app.delete('/api/tokens/:contract/holders/cache', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        console.log(`[🛡️ Enhanced Backend] 🗑️ Clearing holder cache for: ${contract}`);
+        
+        const { default: HolderCacheService } = await import('./services/HolderCacheService.js');
+        const cacheService = new HolderCacheService();
+        
+        const deletedCount = await cacheService.clearTokenCache(contract);
+        res.json({ success: true, deletedFiles: deletedCount });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Clear token cache error:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to clear token cache' });
+      }
+    });
+
+    this.app.delete('/api/tokens/holders/cache/expired', async (req, res) => {
+      try {
+        console.log('[🛡️ Enhanced Backend] 🗑️ Clearing expired holder cache');
+        
+        const { default: HolderCacheService } = await import('./services/HolderCacheService.js');
+        const cacheService = new HolderCacheService();
+        
+        const deletedCount = await cacheService.clearExpiredCache();
+        res.json({ success: true, deletedFiles: deletedCount });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Clear expired cache error:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to clear expired cache' });
+      }
+    });
+
     // Add paid token (legacy endpoint)
     this.app.post('/api/tokens/paid', async (req, res) => {
       try {
@@ -9430,6 +9655,34 @@ class EnhancedBackend {
       } catch (error) {
         console.error('❌ Automated Token Cleanup failed to initialize:', error.message);
         console.warn('⚠️ Continuing without automated cleanup...');
+      }
+
+      // Initialize Holder Cache Cleanup
+      console.log('🗂️ Initializing Holder Cache Cleanup...');
+      try {
+        const { default: HolderCacheService } = await import('./services/HolderCacheService.js');
+        const cacheService = new HolderCacheService();
+        
+        // Initial cleanup of expired cache
+        const deletedCount = await cacheService.clearExpiredCache();
+        console.log(`✅ Holder Cache initialized - cleared ${deletedCount} expired files`);
+        
+        // Schedule automatic cleanup every 6 hours
+        setInterval(async () => {
+          try {
+            const deleted = await cacheService.clearExpiredCache();
+            if (deleted > 0) {
+              console.log(`🗑️ Automatic holder cache cleanup: removed ${deleted} expired files`);
+            }
+          } catch (error) {
+            console.error('❌ Automatic holder cache cleanup failed:', error.message);
+          }
+        }, 6 * 60 * 60 * 1000); // Every 6 hours
+        
+        console.log('✅ Holder Cache automatic cleanup scheduled (every 6 hours)');
+      } catch (error) {
+        console.error('❌ Holder Cache initialization failed:', error.message);
+        console.warn('⚠️ Continuing without holder cache cleanup...');
       }
       // Start HTTP server first so /health is immediately available for platform health checks
       const host = '0.0.0.0';
