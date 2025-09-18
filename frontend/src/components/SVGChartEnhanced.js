@@ -368,6 +368,10 @@ function SvgOHLCVArea({
         if (!alive) return;
         setRawData(data);
         setTotalLoadedBars(data.length);
+        
+        // Reset pan and zoom when new timeframe data loads
+        setPanOffset(0);
+        setZoomLevel(1);
       } catch (e) {
         if (alive) setErr(e.message || "Failed to load chart data");
       } finally {
@@ -392,6 +396,7 @@ function SvgOHLCVArea({
       
       // Load more data before the oldest timestamp (use smaller chunks for dynamic loading)
       const chunkSize = Math.min(WINDOW_BY_TF[timeframe] || 100, 200); // Dynamic chunk size
+      console.log(`🔄 Loading ${chunkSize} older bars for ${timeframe} (cache-optimized)`);
       const moreData = await chartService.loadOlderBars(contract, timeframe, oldestTime, 'RD', chunkSize);
       
       if (Array.isArray(moreData?.data) && moreData.data.length > 0) {
@@ -407,6 +412,11 @@ function SvgOHLCVArea({
         
         setRawData(uniqueData);
         setTotalLoadedBars(uniqueData.length);
+        
+        // Reset pan offset to show the newly loaded data
+        if (panOffset < -0.2) {
+          setPanOffset(prev => Math.max(-0.1, prev + 0.2)); // Adjust view to show new data
+        }
         
         // Check if we've reached the limit or no more data available
         if (moreData.data.length < 50) {
@@ -607,6 +617,7 @@ function SvgOHLCVArea({
     setIsDragging(true);
     setDragStart({ x: mouseX, y: mouseY });
     event.preventDefault();
+    event.stopPropagation();
   };
 
   const handleMouseUp = () => {
@@ -621,7 +632,9 @@ function SvgOHLCVArea({
   };
 
   const handleWheel = (event) => {
+    // Prevent event from bubbling up to parent elements
     event.preventDefault();
+    event.stopPropagation();
     
     const rect = event.currentTarget.getBoundingClientRect();
     const mouseX = event.clientX - rect.left;
