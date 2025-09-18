@@ -537,6 +537,11 @@ function SvgOHLCVArea({
     const viewTMin = tMin + panAdjustment + (timeSpan - zoomedTimeSpan) / 2;
     const viewTMax = viewTMin + zoomedTimeSpan;
     
+    // Debug logging for view window
+    console.log(`🔍 View Window: tMin=${new Date(tMin*1000).toISOString().slice(11,19)}, tMax=${new Date(tMax*1000).toISOString().slice(11,19)}`);
+    console.log(`🔍 View Window: viewTMin=${new Date(viewTMin*1000).toISOString().slice(11,19)}, viewTMax=${new Date(viewTMax*1000).toISOString().slice(11,19)}`);
+    console.log(`🔍 Pan: ${panOffset.toFixed(3)}, Zoom: ${zoomLevel.toFixed(2)}, Data points: ${processedData.length}`);
+    
     // Scaling functions with pan and zoom applied
     const xScale = (t) => padding.left + ((t - viewTMin) / (viewTMax - viewTMin)) * plotW;
     const yScale = (price) => padding.top + ((yDomainMax - price) / (yDomainMax - yDomainMin)) * plotH;
@@ -588,8 +593,8 @@ function SvgOHLCVArea({
       setDragStart({ x: mouseX, y: mouseY });
       
       // Check if we're panning to the left edge (need more historical data)
-      if (panOffset < -0.3 && hasMoreData && !isLoadingMore) {
-        console.log(`🔄 Pan threshold reached, loading more historical data...`);
+      if (panOffset < -0.1 && hasMoreData && !isLoadingMore) {
+        console.log(`🔄 Pan threshold reached (${panOffset.toFixed(3)}), loading more historical data...`);
         loadMoreHistoricalData();
       }
       return;
@@ -696,14 +701,17 @@ function SvgOHLCVArea({
     );
   }
 
-  // Generate path data
-  const linePath = processedData.map((d, i) => 
+  // Generate path data - filter for visible data points
+  const visibleData = processedData.filter(d => d.time >= viewTMin && d.time <= viewTMax);
+  console.log(`📊 Rendering: ${visibleData.length}/${processedData.length} data points in view window`);
+  
+  const linePath = visibleData.length > 0 ? visibleData.map((d, i) => 
     `${i === 0 ? 'M' : 'L'} ${x(d.time)} ${y(d.close)}`
-  ).join(' ');
+  ).join(' ') : '';
 
-  const areaPath = linePath + 
-    ` L ${x(processedData[processedData.length - 1].time)} ${height - padding.bottom}` +
-    ` L ${x(processedData[0].time)} ${height - padding.bottom} Z`;
+  const areaPath = visibleData.length > 0 ? linePath + 
+    ` L ${x(visibleData[visibleData.length - 1].time)} ${height - padding.bottom}` +
+    ` L ${x(visibleData[0].time)} ${height - padding.bottom} Z` : '';
 
   const gradientId = `gradient-${contract}-${timeframe}`;
   const timeFormatter = formatTimeLabel(timeframe, timezone === 'local');
