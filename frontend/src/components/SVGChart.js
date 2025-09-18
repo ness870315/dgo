@@ -1,207 +1,289 @@
-import React, { useMemo, useRef, useState, useEffect } from "react";
-import chartService from '../services/chartService';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import chartService from "../services/chartService";
 
-// ---- 1) Utils ---------------------------------------------------------------
-const pad = (min, max, pct=0.05) => {
-  const span = max - min || 1;
-  return [min - span*pct, max + span*pct];
-};
+// ------- helpers
+const TF_SEC = { '1MIN':60,'5MIN':300,'15MIN':900,'1H':3600,'4H':14400,'1D':86400,'1W':604800,'1M':2592000 };
 
-const bisect = (arr, x, getX) => {
-  let lo = 0, hi = arr.length - 1;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (getX(arr[mid]) < x) lo = mid + 1; else hi = mid;
+function chooseTimeStepSec(tf, pxWidth, targetPx = 100) {
+  // how many ticks can we fit?
+  const bars = Math.max(1, pxWidth / 6); // ~6px per bar rough
+  const sec = TF_SEC[tf] || 60;
+  
+  // Adaptive target spacing based on timeframe for better readability
+  let adaptiveTargetPx = targetPx;
+  if (tf === '1MIN') {
+    adaptiveTargetPx = 60; // Closer spacing for 1min charts
+  } else if (tf === '5MIN') {
+    adaptiveTargetPx = 80; // Medium spacing for 5min charts
+  } else if (tf === '15MIN') {
+    adaptiveTargetPx = 100; // Standard spacing for 15min charts
+  } else if (tf === '1H' || tf === '4H') {
+    adaptiveTargetPx = 120; // Wider spacing for hourly charts
+  } else {
+    adaptiveTargetPx = 150; // Even wider for daily+ charts
   }
-  return lo;
-};
+  
+  const approxTicks = Math.max(2, Math.round(pxWidth / adaptiveTargetPx));
 
-// Largest-Triangle-Three-Buckets downsampler (tiny, good quality)
-function lttb(points, threshold, getX, getY) {
-  const n = points.length;
-  if (threshold >= n || threshold === 0) return points;
-  const sampled = [points[0]];
-  const bucketSize = (n - 2) / (threshold - 2);
-  let a = 0;
+  // candidate multiples of the base step
+  const mults = [1, 2, 3, 5, 10, 15, 20, 30, 60, 120, 180, 240, 360, 480, 720, 960];
+  // For higher TFs, allow day/week/month sized steps too:
+  const extra = [24*3600, 7*24*3600, 30*24*3600];
+  const candidates = [...mults.map(m=>m*sec), ...extra];
 
-  for (let i = 0; i < threshold - 2; i++) {
-    const rangeStart = Math.floor((i + 1) * bucketSize) + 1;
-    const rangeEnd = Math.floor((i + 2) * bucketSize) + 1;
-    const range = points.slice(rangeStart, rangeEnd);
-
-    // avg for next bucket
-    let avgX = 0, avgY = 0;
-    for (const p of range) { avgX += getX(p); avgY += getY(p); }
-    avgX /= range.length || 1; avgY /= range.length || 1;
-
-    const rangeOffs = Math.floor(i * bucketSize) + 1;
-    const rangeTo = Math.floor((i + 1) * bucketSize) + 1;
-
-    let maxArea = -1, maxAreaPoint = null, nextA = rangeOffs;
-
-    for (let j = rangeOffs; j < rangeTo; j++) {
-      const ax = getX(points[a]), ay = getY(points[a]);
-      const bx = getX(points[j]), by = getY(points[j]);
-      const area = Math.abs((ax - avgX) * (by - ay) - (ax - bx) * (avgY - ay));
-      if (area > maxArea) { maxArea = area; maxAreaPoint = points[j]; nextA = j; }
-    }
-    sampled.push(maxAreaPoint || points[nextA]);
-    a = nextA;
-  }
-  sampled.push(points[n - 1]);
-  return sampled;
+  // pick the first step that yields ≤ approxTicks labels
+  return candidates.find(step => (bars * sec) / step <= approxTicks) || candidates[candidates.length-1];
 }
 
-// Simple formatter
-const fmtUSD = (v) =>
-  (v >= 1 ? v.toFixed(4) : v >= 0.01 ? v.toFixed(6) : v.toPrecision(6));
+function* timeTicks(tMin, tMax, stepSec) {
+  if (!(tMax > tMin) || stepSec <= 0) return;
+  const start = Math.ceil(tMin / stepSec) * stepSec;
+  for (let t = start; t <= tMax + 1e-9; t += stepSec) yield t;
+}
 
-// ---- 2) Optimized SVG Chart Component -----------------------------------------------------------
-function SvgAreaChart({
-  data = [],
-  height = 400,
-  stroke = "#ec4899",
-  fillFrom = "rgba(236, 72, 153, 0.35)",
-  fillTo = "rgba(236, 72, 153, 0.05)",
-  maxPoints = 600,
-  showGrid = true,
-  className = ""
+function timeLabelFormatter(tf, useLocal = false) {
+  const opt = (o) => new Intl.DateTimeFormat(undefined, o);
+  const Z = useLocal ? undefined : "UTC";
+
+  // pick a formatter by timeframe with better readability
+  if (tf === '1MIN') {
+    // For 1min charts, show every 5-10 minutes to avoid clutter
+    const f = opt({ hour:'2-digit', minute:'2-digit', timeZone:Z });
+    return (t)=> f.format(new Date(t*1000));
+  }
+  if (tf === '5MIN') {
+    // For 5min charts, show every 15-30 minutes
+    const f = opt({ hour:'2-digit', minute:'2-digit', timeZone:Z });
+    return (t)=> f.format(new Date(t*1000));
+  }
+  if (tf === '15MIN') {
+    // For 15min charts, show every hour
+    const f = opt({ hour:'2-digit', minute:'2-digit', timeZone:Z });
+    return (t)=> f.format(new Date(t*1000));
+  }
+  if (tf === '1H' || tf === '4H') {
+    const f = opt({ month:'short', day:'2-digit', hour:'2-digit', timeZone:Z });
+    return (t)=> f.format(new Date(t*1000));
+  }
+  if (tf === '1D') {
+    const f = opt({ month:'short', day:'2-digit', timeZone:Z });
+    return (t)=> f.format(new Date(t*1000));
+  }
+  if (tf === '1W' || tf === '1M') {
+    const f = opt({ month:'short', year:'2-digit', timeZone:Z });
+    return (t)=> f.format(new Date(t*1000));
+  }
+  // fallback
+  const f = opt({ month:'short', day:'2-digit', timeZone:Z });
+  return (t)=> f.format(new Date(t*1000));
+}
+
+const niceTick = (min, max, count=6) => {
+  // "nice number" ticks
+  const span = Math.max(1e-18, max - min);
+  const step = Math.pow(10, Math.floor(Math.log10(span / count)));
+  const err = (span / count) / step;
+  const mult = err >= 7.5 ? 10 : err >= 3 ? 5 : err >= 1.5 ? 2 : 1;
+  const incr = mult * step;
+  const tmin = Math.floor(min / incr) * incr;
+  const tmax = Math.ceil (max / incr) * incr;
+  const ticks = [];
+  for (let v = tmin; v <= tmax + 1e-12; v += incr) ticks.push(+v.toFixed(12));
+  return ticks;
+};
+const fmtPrice = (v) => (v >= 1 ? v.toFixed(4) : v >= 0.01 ? v.toFixed(6) : v.toPrecision(6));
+const fmtMcap  = (v) => {
+  const abs = Math.abs(v);
+  if (abs >= 1e12) return (v/1e12).toFixed(2) + "T";
+  if (abs >= 1e9)  return (v/1e9 ).toFixed(2) + "B";
+  if (abs >= 1e6)  return (v/1e6 ).toFixed(2) + "M";
+  if (abs >= 1e3)  return (v/1e3 ).toFixed(2) + "K";
+  return Math.round(v).toString();
+};
+
+function SvgOHLCVArea({
+  contract,                      // token address
+  timeframe = "1MIN",
+  displayMode = "price",         // "price" | "mcap"
+  circulatingSupply = null,      // required for mcap mode
+  stroke = "#ff2fb9",
+  fillFrom = "rgba(255,47,185,0.35)",
+  fillTo   = "rgba(255,47,185,0.05)",
+  height = 280,
+  maxPoints = 1000,
 }) {
   const wrapRef = useRef(null);
   const [width, setWidth] = useState(800);
+  const [rows, setRows] = useState([]);
+  const [err, setErr] = useState(null);
 
-  // Responsive width
+  // responsive width
   useEffect(() => {
-    const ro = new ResizeObserver(() => {
-      if (wrapRef.current) setWidth(wrapRef.current.clientWidth || 800);
-    });
+    const ro = new ResizeObserver(() => setWidth(wrapRef.current?.clientWidth || 800));
     if (wrapRef.current) ro.observe(wrapRef.current);
     return () => ro.disconnect();
   }, []);
 
-  // ---- Normalize & downsample
+  // fetch from your ChartService (RD limit)
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        setErr(null);
+        if (!contract) return;
+        const res = await chartService.getPriceChartRD(contract, timeframe);
+        const data = Array.isArray(res?.data) ? res.data : [];
+        if (!alive) return;
+
+        // normalize to {t, y}
+        const norm = data
+          .map(d => ({ t: d.time > 1e12 ? Math.floor(d.time/1000) : d.time,
+                       y: +d.close }))
+          .filter(p => Number.isFinite(p.t) && Number.isFinite(p.y))
+          .sort((a,b) => a.t - b.t);
+
+        setRows(norm.slice(-maxPoints)); // cap points
+      } catch (e) {
+        if (alive) setErr(e.message || "Failed to load chart data");
+      }
+    })();
+    return () => { alive = false; };
+  }, [contract, timeframe, maxPoints]);
+
+  // market cap transform
   const points = useMemo(() => {
-    if (!Array.isArray(data)) return [];
-    const rows = data
-      .filter(d => Number.isFinite(d?.time) && Number.isFinite(d?.close))
-      .map(d => ({ t: (d.time > 1e12 ? Math.floor(d.time/1000) : d.time), y: +d.close }))
-      .sort((a,b) => a.t - b.t);
+    if (displayMode !== "mcap" || !circulatingSupply) return rows;
+    const s = Number(circulatingSupply) || 0;
+    return rows.map(p => ({ t: p.t, y: p.y * s }));
+  }, [rows, displayMode, circulatingSupply]);
 
-    // Deduplicate timestamps
-    const uniq = [];
-    for (let i=0;i<rows.length;i++) {
-      if (i === 0 || rows[i].t !== rows[i-1].t) uniq.push(rows[i]);
-      else uniq[uniq.length-1] = rows[i]; // keep last in bucket
-    }
+  // domains & scales
+  const padding = { left: 56, right: 16, top: 12, bottom: 22 };
+  const innerW = Math.max(10, width - padding.left - padding.right);
+  const innerH = Math.max(10, height - padding.top - padding.bottom);
 
-    return uniq.length > maxPoints
-      ? lttb(uniq, maxPoints, p=>p.t, p=>p.y)
-      : uniq;
-  }, [data, maxPoints]);
-
-  // ---- Scales
-  const [minT, maxT, minYRaw, maxYRaw] = useMemo(() => {
+  const [tMin, tMax, yMin, yMax] = useMemo(() => {
     if (!points.length) return [0, 1, 0, 1];
-    let minT = points[0].t, maxT = points[points.length-1].t;
-    let minY = +Infinity, maxY = -Infinity;
-    for (const p of points) { if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y; }
-    const [lo, hi] = pad(minY, maxY, 0.06);
-    return [minT, maxT, lo, hi];
+    const t0 = points[0].t, t1 = points[points.length-1].t;
+    let lo = +Infinity, hi = -Infinity;
+    for (const p of points) { if (p.y < lo) lo = p.y; if (p.y > hi) hi = p.y; }
+    // small padding on Y
+    const span = Math.max(1e-18, hi - lo);
+    return [t0, t1, lo - span*0.06, hi + span*0.06];
   }, [points]);
 
-  const x = (t) => {
-    const span = maxT - minT || 1;
-    return ((t - minT) / span) * (width - 32) + 16; // 16px left/right padding
-  };
-  const y = (v) => {
-    const span = maxYRaw - minYRaw || 1;
-    return height - 24 - ((v - minYRaw) / span) * (height - 48); // 24px top/bot padding
-  };
+  const x = (t) => padding.left + ((t - tMin) / Math.max(1, (tMax - tMin))) * innerW;
+  const y = (v) => padding.top  + (1 - (v - yMin) / Math.max(1e-18, (yMax - yMin))) * innerH;
 
-  // ---- Paths
+  // path building (fixes "no gradient visible" by ensuring a CLOSED area path)
   const { linePath, areaPath } = useMemo(() => {
     if (!points.length) return { linePath: "", areaPath: "" };
     let d = `M ${x(points[0].t)} ${y(points[0].y)}`;
-    for (let i = 1; i < points.length; i++) {
-      d += ` L ${x(points[i].t)} ${y(points[i].y)}`;
-    }
-    const baseY = y(minYRaw);
+    for (let i = 1; i < points.length; i++) d += ` L ${x(points[i].t)} ${y(points[i].y)}`;
+    const baseY = y(yMin);
     const area = `${d} L ${x(points[points.length-1].t)} ${baseY} L ${x(points[0].t)} ${baseY} Z`;
     return { linePath: d, areaPath: area };
-  }, [points, width, height, minYRaw, x, y]);
+  }, [points, width, height, yMin]);
 
-  // ---- Tooltip / crosshair
-  const [hover, setHover] = useState(null); // { i, px }
-  const onMove = (e) => {
-    if (!points.length) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    // invert x -> time
-    const t = minT + ((px - 16) / Math.max(1, (width - 32))) * (maxT - minT);
-    const i = Math.min(points.length - 1, Math.max(0, bisect(points, t, p=>p.t)));
-    setHover({ i, px: x(points[i].t) });
-  };
+  // y-axis ticks
+  const ticks = useMemo(() => niceTick(yMin, yMax, 6), [yMin, yMax]);
+  const fmtY   = displayMode === "mcap" ? fmtMcap : fmtPrice;
+
+  // unique gradient id per instance
+  const gid = useMemo(() => `grad-${Math.random().toString(36).slice(2)}`, []);
 
   return (
-    <div ref={wrapRef} className={className} style={{width: "100%"}}>
+    <div ref={wrapRef} className="w-full">
       <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
         <defs>
-          <linearGradient id="gFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={fillFrom}/>
+          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"  stopColor={fillFrom}/>
             <stop offset="100%" stopColor={fillTo}/>
           </linearGradient>
+          <clipPath id={`${gid}-clip`}>
+            <rect x={padding.left} y={padding.top} width={innerW} height={innerH} rx="6" />
+          </clipPath>
         </defs>
 
-        {/* grid (optional) */}
-        {showGrid && (
-          <>
-            {[0.25,0.5,0.75].map((r,idx)=>(
-              <line key={idx} x1="0" x2={width} y1={height*r} y2={height*r}
-                    stroke="rgba(255,255,255,0.06)" strokeWidth="1"/>
-            ))}
-          </>
-        )}
+        {/* background panel */}
+        <rect x="0" y="0" width={width} height={height} fill="#0b0f17" rx="10" />
 
-        {/* area + line */}
-        <path d={areaPath} fill="url(#gFill)" />
-        <path d={linePath} fill="none" stroke={stroke} strokeWidth="2.5" strokeLinecap="round"/>
+        {/* grid + y-axis */}
+        {ticks.map((v, i) => (
+          <g key={i}>
+            <line
+              x1={padding.left} x2={width - padding.right}
+              y1={y(v)} y2={y(v)}
+              stroke="rgba(255,255,255,0.06)" strokeWidth="1"
+            />
+            <text x={padding.left - 8} y={y(v)} textAnchor="end" dominantBaseline="middle"
+                  fill="#93a4b8" fontSize="11" fontFamily="system-ui,sans-serif">
+              {fmtY(v)}{displayMode === "price" ? "" : ""}
+            </text>
+          </g>
+        ))}
 
-        {/* crosshair + tooltip */}
-        {hover && points[hover.i] && (
-          <>
-            <line x1={hover.px} x2={hover.px} y1="8" y2={height-8}
-                  stroke="rgba(255,255,255,0.25)" strokeDasharray="4 4"/>
-            <circle cx={hover.px} cy={y(points[hover.i].y)} r="3.5" fill={stroke} />
-            {/* tooltip bubble */}
-            <g transform={`translate(${Math.min(width-220, Math.max(8, hover.px-110))}, 12)`}>
-              <rect width="210" height="56" rx="8" fill="rgba(15,23,42,0.95)" stroke="rgba(148,163,184,0.35)"/>
-              <text x="12" y="24" fill="#e2e8f0" fontSize="12" fontFamily="system-ui, sans-serif">
-                {new Date(points[hover.i].t*1000).toLocaleString()}
-              </text>
-              <text x="12" y="44" fill="#94a3b8" fontSize="14" fontFamily="system-ui, sans-serif">
-                {fmtUSD(points[hover.i].y)} $
-              </text>
-            </g>
-          </>
-        )}
+        {/* axis line */}
+        <line x1={padding.left} x2={padding.left} y1={padding.top} y2={height - padding.bottom}
+              stroke="rgba(255,255,255,0.12)" />
 
-        {/* interactive overlay */}
-        <rect x="0" y="0" width={width} height={height}
-              fill="transparent"
-              onMouseMove={onMove}
-              onMouseLeave={()=>setHover(null)}
-        />
+        {/* X axis grid + labels */}
+        {(() => {
+          const stepSec = chooseTimeStepSec(timeframe, innerW, 100);
+          const fmtTime = timeLabelFormatter(timeframe, /*useLocal*/ false);
+          const axisY = height - padding.bottom;
+
+          return (
+            <>
+              {/* bottom axis line */}
+              <line x1={padding.left} x2={width - padding.right} y1={axisY} y2={axisY}
+                    stroke="rgba(255,255,255,0.12)" />
+
+              {[...timeTicks(tMin, tMax, stepSec)].map((t, i) => {
+                const px = x(t);
+                // skip labels too close to edges
+                if (px < padding.left + 20 || px > width - padding.right - 20) {
+                  return (
+                    <line key={`g${i}`} x1={px} x2={px} y1={padding.top} y2={axisY}
+                          stroke="rgba(255,255,255,0.06)"/>
+                  );
+                }
+                return (
+                  <g key={i}>
+                    {/* vertical grid line */}
+                    <line x1={px} x2={px} y1={padding.top} y2={axisY}
+                          stroke="rgba(255,255,255,0.06)"/>
+                    {/* tick */}
+                    <line x1={px} x2={px} y1={axisY} y2={axisY+5}
+                          stroke="rgba(255,255,255,0.6)"/>
+                    {/* label */}
+                    <text x={px} y={axisY+16} textAnchor="middle"
+                          fill="#93a4b8" fontSize="11" fontFamily="system-ui,sans-serif">
+                      {fmtTime(t)}
+                    </text>
+                  </g>
+                );
+              })}
+            </>
+          );
+        })()}
+
+        {/* area + line (clipped to inner plot) */}
+        <g clipPath={`url(#${gid}-clip)`}>
+          <path d={areaPath} fill={`url(#${gid})`} />
+          <path d={linePath} fill="none" stroke={stroke} strokeWidth="2.5" strokeLinecap="round"/>
+        </g>
       </svg>
+
+      {err && <div className="mt-2 text-sm text-red-400">Error: {err}</div>}
     </div>
   );
 }
 
 // ---- 3) Main SVGChart Component -----------------------------------------------------------
 const SVGChart = ({ token, onClose }) => {
-  const [timeframe, setTimeframe] = useState('1D');
+  const [timeframe, setTimeframe] = useState('15MIN'); // Default to 15 minutes
   const [displayMode, setDisplayMode] = useState('price');
-  const [chartData, setChartData] = useState(null);
-  const [loading, setLoading] = useState(false);
 
   // Timeframe options
   const timeframes = [
@@ -215,98 +297,7 @@ const SVGChart = ({ token, onClose }) => {
     { id: '1M', label: '1M' }
   ];
 
-  // Load chart data
-  useEffect(() => {
-    if (!token?.contractAddress && !token?.contract) {
-      return;
-    }
-    
-    const loadData = async () => {
-      setLoading(true);
-      try {
-        const contract = token.contractAddress || token.contract || token.mint || token.address;
-        const response = await chartService.getPriceChartRD(contract, timeframe);
-        setChartData(response);
-      } catch (error) {
-        console.error('Failed to load chart data:', error);
-        setChartData(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [token, timeframe]);
-
-  // Process data for the optimized chart
-  const processedData = useMemo(() => {
-    if (!chartData?.data?.length) return [];
-
-    const candles = chartData.data.map(d => ({
-      time: Math.floor(d.time),
-      open: Number(d.open),
-      high: Number(d.high),
-      low: Number(d.low),
-      close: Number(d.close),
-      volume: Number(d.volume) || 0
-    }));
-
-    // Apply market cap transform if needed
-    if (displayMode === 'mcap' && token?.circulatingSupply) {
-      candles.forEach(candle => {
-        candle.close = candle.close * token.circulatingSupply;
-        candle.open = candle.open * token.circulatingSupply;
-        candle.high = candle.high * token.circulatingSupply;
-        candle.low = candle.low * token.circulatingSupply;
-      });
-    }
-
-    return candles;
-  }, [chartData, displayMode, token]);
-
-  // Format price for display
-  const formatPrice = (price) => {
-    if (!price || typeof price !== 'number' || isNaN(price)) {
-      return '$0.00';
-    }
-    
-    if (displayMode === 'mcap') {
-      if (price >= 1e9) return `$${(price / 1e9).toFixed(1)}B`;
-      if (price >= 1e6) return `$${(price / 1e6).toFixed(1)}M`;
-      if (price >= 1e3) return `$${(price / 1e3).toFixed(1)}K`;
-      return `$${price.toFixed(0)}`;
-    } else {
-      if (price < 0.01) return `$${price.toFixed(6)}`;
-      if (price < 1) return `$${price.toFixed(4)}`;
-      if (price < 100) return `$${price.toFixed(2)}`;
-      return `$${price.toFixed(2)}`;
-    }
-  };
-
-  const currentPrice = processedData.length > 0 ? processedData[processedData.length - 1].close : 0;
-  const minPrice = processedData.length > 0 ? Math.min(...processedData.map(d => d.close)) : 0;
-  const maxPrice = processedData.length > 0 ? Math.max(...processedData.map(d => d.close)) : 0;
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96 bg-gray-900 rounded-lg">
-        <div className="text-white">Loading chart data...</div>
-      </div>
-    );
-  }
-
-  if (!processedData.length) {
-    return (
-      <div className="flex items-center justify-center h-96 bg-gray-900 rounded-lg">
-        <div className="text-white text-center">
-          <div className="text-lg mb-2">No chart data available</div>
-          <div className="text-sm text-gray-400">
-            {token?.symbol || 'Token'} - {timeframe}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const contract = token?.contractAddress || token?.contract || token?.mint || token?.address;
 
   return (
     <div className="bg-gray-900 rounded-lg p-4">
@@ -316,9 +307,6 @@ const SVGChart = ({ token, onClose }) => {
           <h3 className="text-white text-lg font-semibold">
             {token?.symbol || 'Token'} {displayMode === 'mcap' ? 'Market Cap' : 'Price'}
           </h3>
-          <div className="text-white text-sm">
-            {formatPrice(currentPrice)}
-          </div>
         </div>
         {onClose && (
           <button
@@ -372,25 +360,15 @@ const SVGChart = ({ token, onClose }) => {
         </div>
       </div>
 
-      {/* Optimized SVG Chart */}
-      <div className="bg-gray-800 rounded p-2">
-        <SvgAreaChart 
-          data={processedData} 
-          height={400}
-          stroke="#ec4899"
-          fillFrom="rgba(236, 72, 153, 0.35)"
-          fillTo="rgba(236, 72, 153, 0.05)"
-          maxPoints={600}
-          showGrid={true}
-        />
-      </div>
-
-      {/* Price range info */}
-      <div className="flex justify-between text-sm text-gray-400 mt-2">
-        <div>Min: {formatPrice(minPrice)}</div>
-        <div>Max: {formatPrice(maxPrice)}</div>
-        <div>Range: {formatPrice(maxPrice - minPrice)}</div>
-      </div>
+      {/* Optimized SVG Chart with Y-axis */}
+      <SvgOHLCVArea
+        contract={contract}
+        timeframe={timeframe}
+        displayMode={displayMode}
+        circulatingSupply={token?.circulatingSupply}
+        height={400}
+        maxPoints={1000}
+      />
     </div>
   );
 };

@@ -1,0 +1,12 @@
+[33mcommit 7bc57da300071a6a64d2658a4a256801099a99a2[m
+Author: Ernesto Chavez Rodriguez <echavez@extremenetworks.com>
+Date:   Wed Sep 17 17:17:56 2025 -0600
+
+     Update root package-lock.json for monorepo workspace
+    
+    - Updated root package-lock.json to include stoppable dependency
+    - This is a monorepo with workspaces (frontend, backend)
+    - CI should now find the updated lock file at root level
+    - Fixes npm ci sync error for workspace dependencies
+
+package-lock.json
