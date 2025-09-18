@@ -253,6 +253,25 @@ function SvgOHLCVArea({
         setErr(null);
         if (!contract) return;
 
+        // If we don't have Jupiter data and we're in market cap mode, try to fetch it
+        if (displayMode === 'mcap' && !token?.jupiterData && contract) {
+          try {
+            console.log(`🪐 Fetching Jupiter data for market cap calculation...`);
+            const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+            const jupiterRes = await fetch(`${API_BASE}/api/jupiter/raw/${encodeURIComponent(contract)}`);
+            if (jupiterRes.ok) {
+              const jupiterData = await jupiterRes.json();
+              console.log(`🪐 Jupiter data fetched:`, jupiterData);
+              // Update token object with Jupiter data if available
+              if (token && jupiterData?.raw) {
+                token.jupiterData = jupiterData.raw;
+              }
+            }
+          } catch (jupiterError) {
+            console.log(`⚠️ Failed to fetch Jupiter data:`, jupiterError.message);
+          }
+        }
+
         // Try primary timeframe first
         let res = await chartService.getPriceChartRD(contract, timeframe);
         let data = Array.isArray(res?.data) ? res.data : [];
@@ -288,7 +307,7 @@ function SvgOHLCVArea({
 
     fetchWithFallback();
     return () => { alive = false; };
-  }, [contract, timeframe]);
+  }, [contract, timeframe, displayMode, token]);
 
   // Process data: normalize, window, and transform
   const processedData = useMemo(() => {
@@ -299,13 +318,24 @@ function SvgOHLCVArea({
     
     // Transform to market cap if needed
     if (displayMode === 'mcap') {
-      // Try multiple sources for circulating supply
+      // Try multiple sources for circulating supply (Jupiter API first)
       const supply = circulatingSupply || 
-                    (typeof token !== 'undefined' && token?.supply) || 
-                    (typeof token !== 'undefined' && token?.totalSupply) ||
+                    token?.jupiterData?.circSupply || 
+                    token?.jupiterData?.circulatingSupply ||
+                    token?.supply || 
+                    token?.totalSupply ||
+                    token?.jupiterData?.totalSupply ||
                     1000000000; // Default 1B supply for memecoins if no data
       
       console.log(`📊 Market cap mode: Using supply ${supply.toLocaleString()}`);
+      console.log(`📊 Supply sources:`, {
+        circulatingSupply,
+        jupiterCircSupply: token?.jupiterData?.circSupply,
+        jupiterCirculatingSupply: token?.jupiterData?.circulatingSupply,
+        tokenSupply: token?.supply,
+        tokenTotalSupply: token?.totalSupply,
+        jupiterTotalSupply: token?.jupiterData?.totalSupply
+      });
       
       return windowed.map(d => ({
         ...d,
@@ -317,7 +347,7 @@ function SvgOHLCVArea({
     }
     
     return windowed;
-  }, [rawData, timeframe, displayMode, circulatingSupply]);
+  }, [rawData, timeframe, displayMode, circulatingSupply, token]);
 
   // Enhanced scaling and formatting
   const { x, y, yTicks, xTicks, priceFormat, yFormatter, height, padding, plotW, plotH, tMin, tMax, yDomainMin, yDomainMax } = useMemo(() => {
