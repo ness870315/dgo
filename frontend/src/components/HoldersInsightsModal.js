@@ -53,15 +53,19 @@ function AreaLine({ points, width=520, height=160, strokeWidth=3, showDots=false
   const padding = { l: 28, r: 10, t: 10, b: 24 };
   const W = width - padding.l - padding.r;
   const H = height - padding.t - padding.b;
-  if (!points?.length) return null;
+  
+  if (!points?.length || points.length < 2) return null;
+  
   const xs = points.map((p,i)=>i);
   const ys = points.map(p=>p);
   const min = Math.min(...ys);
   const max = Math.max(...ys);
   const y0 = min === max ? 0 : min;
+  const yRange = max - y0 || 1; // Prevent division by zero
+  const xRange = points.length - 1 || 1; // Prevent division by zero
 
-  const x = (i)=> padding.l + (i/(points.length-1))*W;
-  const y = (v)=> padding.t + (1 - (v - y0) / (max - y0 || 1)) * H;
+  const x = (i)=> padding.l + (i / xRange) * W;
+  const y = (v)=> padding.t + (1 - (v - y0) / yRange) * H;
 
   const path = points.map((v,i)=>`${i===0?"M":"L"}${x(i)},${y(v)}`).join(" ");
   const area = `${path} L ${padding.l + W},${padding.t + H} L ${padding.l},${padding.t + H} Z`;
@@ -104,9 +108,11 @@ function HBars({ data, width=520, height=180, barH=18 }) {
   const padding = 12;
   const labelW = 90;
   const innerW = width - labelW - padding*2;
-  const max = Math.max(...entries.map(([,v])=>v));
+  const max = Math.max(...entries.map(([,v])=>v), 1); // Prevent division by zero
   const rows = entries.length;
   const totalH = Math.max(height, rows*(barH+10)+padding*2);
+
+  if (entries.length === 0) return null;
 
   return (
     <svg width={width} height={totalH}>
@@ -132,7 +138,10 @@ function ConcentrationChart({ points, width=520, height=160 }) {
   const padding = { l: 34, r: 10, t: 10, b: 22 };
   const W = width - padding.l - padding.r;
   const H = height - padding.t - padding.b;
-  const maxN = Math.max(...points.map(p=>p.n));
+  
+  if (!points?.length) return null;
+  
+  const maxN = Math.max(...points.map(p=>p.n), 1); // Prevent division by zero
   const path = points.map((p,i)=>{
     const x = padding.l + (p.n/maxN) * W;
     const y = padding.t + (1 - p.p/100) * H;
@@ -279,18 +288,21 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
   const processedData = useMemo(() => {
     if (!data) return null;
 
-    // Holder changes series for area chart
+    // Holder changes series for area chart - filter out invalid values
     const changeSeries = data.holderChanges ? 
-      ["30d","7d","3d","24h","6h","1h","5min"].map(k => data.holderChanges[k]?.change || 0) : [];
+      ["30d","7d","3d","24h","6h","1h","5min"].map(k => {
+        const change = data.holderChanges[k]?.change;
+        return (typeof change === 'number' && !isNaN(change)) ? change : 0;
+      }).filter(v => v !== 0) : [];
 
-    // Supply concentration points for curve
+    // Supply concentration points for curve - filter out invalid values
     const supplyPoints = data.holderStats?.supplyConcentration ? [
       { n: 5, p: data.holderStats.supplyConcentration.top5 },
       { n: 10, p: data.holderStats.supplyConcentration.top10 },
       { n: 25, p: data.holderStats.supplyConcentration.top25 },
       { n: 50, p: data.holderStats.supplyConcentration.top50 },
       { n: 100, p: data.holderStats.supplyConcentration.top100 }
-    ] : [];
+    ].filter(p => typeof p.p === 'number' && !isNaN(p.p) && p.p > 0) : [];
 
     // Acquisition colors
     const acqColors = ["#A78BFA", "#60A5FA", "#34D399"]; // purple, blue, green
