@@ -9,13 +9,13 @@ const RUN_ON_START = (process.env.DISCOVERY_RUN_ON_START || 'true') === 'true';
 const FORCE_LITE_API = (process.env.FORCE_LITE_API || 'true') === 'true';
 const JUP_BASE = process.env.JUP_BASE || (FORCE_LITE_API ? 'https://lite-api.jup.ag/tokens/v2' : (JUPITER_API_KEY ? 'https://api.jup.ag/tokens/v2' : 'https://lite-api.jup.ag/tokens/v2'));
 const SEARCHES = [
-  { key: 'JupTrending5m', category: 'toptrending', interval: '5m' },
-  { key: 'JupOrganic5m', category: 'toporganicscore', interval: '5m' },
-  { key: 'JupTraded5m', category: 'toptraded', interval: '5m' }
+  { key: 'JupTrending6h', category: 'toptrending', interval: '6h' },
+  { key: 'JupOrganic6h', category: 'toporganicscore', interval: '6h' },
+  { key: 'JupTraded6h', category: 'toptraded', interval: '6h' }
 ];
 
 const STABLE_SYMBOLS = new Set(['SOL', 'JUP', 'WETH', 'WSOL', 'WBTC', 'USDC']);
-const DISCOVERY_LIMIT = parseInt(process.env.DISCOVERY_LIMIT || '90', 10);
+const DISCOVERY_LIMIT = parseInt(process.env.DISCOVERY_LIMIT || '20', 10);
 let roundRobinIndex = 0;
 
 function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
@@ -232,10 +232,10 @@ async function runOnce() {
       console.error(`❌ Discovery error for ${s.key}:`, e.message);
     }
 
-    // Wait 5 minutes between categories, except after the last one
+    // Wait 15 minutes between categories, except after the last one
     if (i < SEARCHES.length - 1) {
-      console.log('⏳ Waiting 5 minutes before next category...');
-      await sleep(5 * 60 * 1000);
+      console.log('⏳ Waiting 15 minutes before next category...');
+      await sleep(15 * 60 * 1000);
     }
   }
 
