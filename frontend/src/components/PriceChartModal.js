@@ -4,29 +4,14 @@ import chartService from '../services/chartService';
 import SVGChart from './SVGChart';
 
 const PriceChartModal = ({ token, onClose }) => {
-  const [timeframe, setTimeframe] = useState('1MIN');
-  const [timeframes, setTimeframes] = useState([]);
   const [currentPrice, setCurrentPrice] = useState(null);
   const [priceChange, setPriceChange] = useState(0);
-  const [showTimeframeDropdown, setShowTimeframeDropdown] = useState(false);
 
   useEffect(() => {
     if (token?.contractAddress) {
-      loadTimeframes();
       loadCurrentPrice();
     }
   }, [token?.contractAddress]);
-
-  const loadTimeframes = async () => {
-    try {
-      const response = await chartService.getTimeframes();
-      if (response.success) {
-        setTimeframes(response.timeframes);
-      }
-    } catch (error) {
-      console.error('Failed to load timeframes:', error);
-    }
-  };
 
   const loadCurrentPrice = async () => {
     try {
@@ -86,36 +71,6 @@ const PriceChartModal = ({ token, onClose }) => {
 
           {/* Controls */}
           <div className="flex items-center space-x-4">
-            {/* Timeframe Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setShowTimeframeDropdown(!showTimeframeDropdown)}
-                className="flex items-center space-x-2 px-4 py-2 bg-gray-800 rounded-lg border border-gray-600 hover:bg-gray-700 transition-colors"
-              >
-                <span className="text-white">{timeframe}</span>
-                <ChevronDown size={16} className="text-gray-400" />
-              </button>
-
-              {showTimeframeDropdown && (
-                <div className="absolute top-full left-0 mt-2 bg-gray-800 rounded-lg border border-gray-600 shadow-xl z-10 min-w-[120px]">
-                  {timeframes.map((tf) => (
-                    <button
-                      key={tf.value}
-                      onClick={() => {
-                        setTimeframe(tf.value);
-                        setShowTimeframeDropdown(false);
-                      }}
-                      className={`w-full text-left px-4 py-2 hover:bg-gray-700 transition-colors first:rounded-t-lg last:rounded-b-lg ${
-                        timeframe === tf.value ? 'bg-blue-600 text-white' : 'text-gray-300'
-                      }`}
-                    >
-                      {tf.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Chart Type - SVG Chart */}
             <div className="flex bg-gray-800 rounded-lg p-1">
               <div className="flex items-center space-x-2 px-3 py-2 rounded-md bg-blue-600 text-white">
@@ -123,7 +78,6 @@ const PriceChartModal = ({ token, onClose }) => {
                 <span>SVG Chart</span>
               </div>
             </div>
-
 
             {/* Close Button */}
             <button
@@ -178,7 +132,6 @@ const PriceChartModal = ({ token, onClose }) => {
         <div className="p-6">
           <SVGChart 
             token={token} 
-            timeframe={timeframe}
             onClose={onClose}
           />
         </div>

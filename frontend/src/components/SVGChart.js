@@ -106,6 +106,7 @@ function SvgOHLCVArea({
   timeframe = "1MIN",
   displayMode = "price",         // "price" | "mcap"
   circulatingSupply = null,      // required for mcap mode
+  timezone = "UTC",             // "UTC" | "local"
   stroke = "#ff2fb9",
   fillFrom = "rgba(255,47,185,0.35)",
   fillTo   = "rgba(255,47,185,0.05)",
@@ -116,6 +117,7 @@ function SvgOHLCVArea({
   const [width, setWidth] = useState(800);
   const [rows, setRows] = useState([]);
   const [err, setErr] = useState(null);
+  const [mousePos, setMousePos] = useState(null); // {x, y, time, price}
 
   // responsive width
   useEffect(() => {
@@ -192,9 +194,51 @@ function SvgOHLCVArea({
   // unique gradient id per instance
   const gid = useMemo(() => `grad-${Math.random().toString(36).slice(2)}`, []);
 
+  // Mouse event handlers for crosshair
+  const handleMouseMove = (e) => {
+    if (!points.length) return;
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    
+    // Convert mouse X to time
+    const timeAtMouse = tMin + ((mouseX - padding.left) / innerW) * (tMax - tMin);
+    
+    // Find closest data point
+    let closestPoint = points[0];
+    let minDist = Math.abs(points[0].t - timeAtMouse);
+    
+    for (const point of points) {
+      const dist = Math.abs(point.t - timeAtMouse);
+      if (dist < minDist) {
+        minDist = dist;
+        closestPoint = point;
+      }
+    }
+    
+    setMousePos({
+      x: mouseX,
+      y: mouseY,
+      time: closestPoint.t,
+      price: closestPoint.y
+    });
+  };
+
+  const handleMouseLeave = () => {
+    setMousePos(null);
+  };
+
   return (
     <div ref={wrapRef} className="w-full">
-      <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
+      <svg 
+        width="100%" 
+        height={height} 
+        viewBox={`0 0 ${width} ${height}`}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        style={{ cursor: 'crosshair' }}
+      >
         <defs>
           <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%"  stopColor={fillFrom}/>
@@ -227,11 +271,11 @@ function SvgOHLCVArea({
         <line x1={padding.left} x2={padding.left} y1={padding.top} y2={height - padding.bottom}
               stroke="rgba(255,255,255,0.12)" />
 
-        {/* X axis grid + labels */}
-        {(() => {
-          const stepSec = chooseTimeStepSec(timeframe, innerW, 100);
-          const fmtTime = timeLabelFormatter(timeframe, /*useLocal*/ false);
-          const axisY = height - padding.bottom;
+                   {/* X axis grid + labels */}
+                   {(() => {
+                     const stepSec = chooseTimeStepSec(timeframe, innerW, 100);
+                     const fmtTime = timeLabelFormatter(timeframe, timezone === 'local');
+                     const axisY = height - padding.bottom;
 
           return (
             <>
@@ -273,6 +317,76 @@ function SvgOHLCVArea({
           <path d={areaPath} fill={`url(#${gid})`} />
           <path d={linePath} fill="none" stroke={stroke} strokeWidth="2.5" strokeLinecap="round"/>
         </g>
+
+        {/* Crosshair */}
+        {mousePos && (
+          <>
+            {/* Vertical crosshair line */}
+            <line
+              x1={mousePos.x}
+              y1={padding.top}
+              x2={mousePos.x}
+              y2={height - padding.bottom}
+              stroke="rgba(255,255,255,0.3)"
+              strokeWidth="1"
+              strokeDasharray="2,2"
+            />
+            {/* Horizontal crosshair line */}
+            <line
+              x1={padding.left}
+              y1={mousePos.y}
+              x2={width - padding.right}
+              y2={mousePos.y}
+              stroke="rgba(255,255,255,0.3)"
+              strokeWidth="1"
+              strokeDasharray="2,2"
+            />
+            {/* Data point circle */}
+            <circle
+              cx={x(mousePos.time)}
+              cy={y(mousePos.price)}
+              r="4"
+              fill={stroke}
+              stroke="white"
+              strokeWidth="2"
+            />
+            {/* Tooltip */}
+            <g>
+              {/* Tooltip background */}
+              <rect
+                x={mousePos.x + 10}
+                y={mousePos.y - 30}
+                width="120"
+                height="50"
+                fill="rgba(0,0,0,0.8)"
+                rx="4"
+                stroke="rgba(255,255,255,0.2)"
+                strokeWidth="1"
+              />
+              {/* Time label */}
+              <text
+                x={mousePos.x + 15}
+                y={mousePos.y - 15}
+                fill="white"
+                fontSize="11"
+                fontFamily="system-ui,sans-serif"
+              >
+                {timeLabelFormatter(timeframe, timezone === 'local')(mousePos.time)}
+              </text>
+              {/* Price label */}
+              <text
+                x={mousePos.x + 15}
+                y={mousePos.y - 2}
+                fill="white"
+                fontSize="11"
+                fontFamily="system-ui,sans-serif"
+                fontWeight="bold"
+              >
+                {fmtY(mousePos.price)}
+              </text>
+            </g>
+          </>
+        )}
       </svg>
 
       {err && <div className="mt-2 text-sm text-red-400">Error: {err}</div>}
@@ -284,6 +398,7 @@ function SvgOHLCVArea({
 const SVGChart = ({ token, onClose }) => {
   const [timeframe, setTimeframe] = useState('15MIN'); // Default to 15 minutes
   const [displayMode, setDisplayMode] = useState('price');
+  const [timezone, setTimezone] = useState('UTC'); // UTC or local
 
   // Timeframe options
   const timeframes = [
@@ -357,6 +472,16 @@ const SVGChart = ({ token, onClose }) => {
           >
             Market Cap
           </button>
+          <button
+            onClick={() => setTimezone(timezone === 'UTC' ? 'local' : 'UTC')}
+            className={`px-3 py-1 rounded text-sm transition-colors ${
+              timezone === 'UTC'
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            {timezone === 'UTC' ? 'UTC' : 'Local'}
+          </button>
         </div>
       </div>
 
@@ -366,6 +491,7 @@ const SVGChart = ({ token, onClose }) => {
         timeframe={timeframe}
         displayMode={displayMode}
         circulatingSupply={token?.circulatingSupply}
+        timezone={timezone}
         height={400}
         maxPoints={1000}
       />
