@@ -73,17 +73,23 @@ class HolderStatsService {
       }
 
       const stats = result.data;
+      console.log(`🔍 Raw holder stats from Moralis:`, stats);
       
       // Extract key metrics from Moralis response
-      const totalHolders = stats.total_holders || 0;
-      const uniqueHolders = stats.unique_holders || totalHolders;
+      const totalHolders = stats.totalHolders || 0;
+      const uniqueHolders = stats.uniqueHolders || totalHolders;
       
-      // Calculate holder distribution segments (based on typical DeFi categorization)
-      const holderDistribution = this.calculateHolderDistribution(topHoldersData);
+      // Use holderDistribution directly from Moralis if available
+      const holderDistribution = stats.holderDistribution || this.calculateHolderDistribution(topHoldersData);
       
-      // Calculate supply concentration if top holders data is available
-      const supplyConcentration = topHoldersData ? 
-        this.calculateSupplyConcentration(topHoldersData.holders) : null;
+      // Use holderSupply from Moralis for supply concentration
+      const supplyConcentration = stats.holderSupply ? {
+        top5: 0, // Not provided by Moralis
+        top10: stats.holderSupply.top10?.supplyPercent || 0,
+        top25: stats.holderSupply.top25?.supplyPercent || 0,
+        top50: stats.holderSupply.top50?.supplyPercent || 0,
+        top100: stats.holderSupply.top100?.supplyPercent || 0
+      } : (topHoldersData ? this.calculateSupplyConcentration(topHoldersData.holders) : null);
 
       return {
         success: true,

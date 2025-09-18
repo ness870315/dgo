@@ -36,6 +36,7 @@ class TopHoldersService {
 
       if (response.status === 200 && response.data) {
         console.log(`✅ Successfully fetched ${response.data.result?.length || 0} top holders`);
+        console.log(`🔍 Sample holder data:`, response.data.result?.[0]);
         return {
           success: true,
           data: response.data.result || [],
@@ -80,19 +81,27 @@ class TopHoldersService {
         return result;
       }
 
+      console.log(`🔍 Total supply for percentage calculation:`, totalSupply);
+      console.log(`🔍 Sample holder balance:`, result.data[0]?.balance);
+
       // Calculate percentages and format data
       const formattedHolders = result.data.map((holder, index) => {
         const balance = parseFloat(holder.balance || 0);
-        const percentage = totalSupply ? (balance / totalSupply) * 100 : 0;
+        
+        // Use the percentage directly from Moralis API (percentageRelativeToTotalSupply)
+        const percentage = parseFloat(holder.percentageRelativeToTotalSupply || 0);
+        
+        // Use the correct field name from Moralis API
+        const address = holder.ownerAddress || 'Unknown';
         
         return {
           rank: index + 1,
-          address: holder.owner_address,
+          address: address,
           balance: balance,
           balanceFormatted: this.formatBalance(balance),
           percentage: percentage,
           percentageFormatted: `${percentage.toFixed(4)}%`,
-          isContract: holder.is_contract || false
+          isContract: holder.isContract || false
         };
       });
 

@@ -87,73 +87,66 @@ class HolderTimeseriesService {
     try {
       console.log(`🔄 Analyzing holder changes for token: ${tokenAddress}`);
       
-      // Get current holder count first
-      const currentStats = await this.getCurrentHolderCount(tokenAddress);
-      if (!currentStats.success) {
-        return currentStats;
-      }
-      
-      const currentHolders = currentStats.holderCount;
-      
-      // Define timeframes to analyze
-      const timeframes = [
-        { key: '5min', hours: 0.083, label: '5 minutes' },    // 5 minutes
-        { key: '1h', hours: 1, label: '1 hour' },
-        { key: '6h', hours: 6, label: '6 hours' },
-        { key: '24h', hours: 24, label: '24 hours' },
-        { key: '3d', hours: 72, label: '3 days' },
-        { key: '7d', hours: 168, label: '7 days' },
-        { key: '30d', hours: 720, label: '30 days' }
-      ];
+      // Get current holder stats which includes holderChange data
+      const response = await axios.get(
+        `${this.API_BASE}/token/${this.NETWORK}/holders/${tokenAddress}`,
+        {
+          headers: {
+            'X-API-Key': this.API_KEY,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      const holderChanges = {};
-      
-      // For each timeframe, get historical data and calculate change
-      for (const tf of timeframes) {
-        try {
-          const historicalData = await this.getHistoricalHolderCount(tokenAddress, tf.hours);
-          
-          if (historicalData.success && historicalData.holderCount !== null) {
-            const change = currentHolders - historicalData.holderCount;
-            const changePercent = historicalData.holderCount > 0 ? 
-              (change / historicalData.holderCount) : 0;
-            
-            holderChanges[tf.key] = {
-              change: change,
-              changePercent: changePercent,
-              previous: historicalData.holderCount,
+      if (response.status === 200 && response.data) {
+        const stats = response.data;
+        console.log(`🔍 Raw holder stats with changes:`, stats);
+        
+        const currentHolders = stats.totalHolders || 0;
+        const holderChanges = stats.holderChange || {};
+        
+        // Get historical timeseries data for richer analysis
+        const historicalData = await this.getHolderTimeseries(tokenAddress);
+        let holderFlowData = null;
+        
+        if (historicalData.success && historicalData.data?.result?.length > 0) {
+          holderFlowData = this.processHistoricalFlowData(historicalData.data.result);
+        }
+        
+        // Ensure all expected timeframes are present
+        const expectedTimeframes = ['5min', '1h', '6h', '24h', '3d', '7d', '30d'];
+        const formattedChanges = {};
+        
+        expectedTimeframes.forEach(key => {
+          if (holderChanges[key]) {
+            formattedChanges[key] = {
+              change: holderChanges[key].change || 0,
+              changePercent: holderChanges[key].changePercent || 0,
+              previous: currentHolders - (holderChanges[key].change || 0),
               current: currentHolders,
-              timeframe: tf.label
+              timeframe: this.getTimeframeLabel(key)
             };
           } else {
-            // If no historical data, set to null
-            holderChanges[tf.key] = {
-              change: null,
-              changePercent: null,
-              previous: null,
+            formattedChanges[key] = {
+              change: 0,
+              changePercent: 0,
+              previous: currentHolders,
               current: currentHolders,
-              timeframe: tf.label
+              timeframe: this.getTimeframeLabel(key)
             };
           }
-        } catch (error) {
-          console.warn(`⚠️ Failed to get ${tf.key} data:`, error.message);
-          holderChanges[tf.key] = {
-            change: null,
-            changePercent: null,
-            previous: null,
-            current: currentHolders,
-            timeframe: tf.label,
-            error: error.message
-          };
-        }
-      }
+        });
 
-      return {
-        success: true,
-        currentHolders: currentHolders,
-        holderChanges: holderChanges,
-        lastUpdated: new Date().toISOString()
-      };
+        return {
+          success: true,
+          currentHolders: currentHolders,
+          holderChanges: formattedChanges,
+          holderFlowData: holderFlowData,
+          lastUpdated: new Date().toISOString()
+        };
+      } else {
+        throw new Error(`Unexpected response status: ${response.status}`);
+      }
     } catch (error) {
       console.error('❌ HolderTimeseriesService.getHolderChangeAnalysis failed:', error.message);
       return {
@@ -161,6 +154,81 @@ class HolderTimeseriesService {
         error: error.message
       };
     }
+  }
+
+  /**
+   * Process historical flow data for charts
+   * @param {Array} historicalData - Raw historical data from Moralis
+   * @returns {Object} Processed flow data for charts
+   */
+  processHistoricalFlowData(historicalData) {
+    if (!historicalData || historicalData.length === 0) {
+      return null;
+    }
+
+    // Sort by timestamp (newest first)
+    const sortedData = historicalData.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    // Extract data for charts
+    const netChanges = sortedData.map(d => d.netHolderChange || 0);
+    const totalHolders = sortedData.map(d => d.totalHolders || 0);
+    const timestamps = sortedData.map(d => d.timestamp);
+    
+    // Calculate holder flow by segment
+    const holderFlow = {
+      in: {
+        whales: sortedData.map(d => d.holdersIn?.whales || 0),
+        sharks: sortedData.map(d => d.holdersIn?.sharks || 0),
+        dolphins: sortedData.map(d => d.holdersIn?.dolphins || 0),
+        fish: sortedData.map(d => d.holdersIn?.fish || 0),
+        octopus: sortedData.map(d => d.holdersIn?.octopus || 0),
+        crabs: sortedData.map(d => d.holdersIn?.crabs || 0),
+        shrimps: sortedData.map(d => d.holdersIn?.shrimps || 0)
+      },
+      out: {
+        whales: sortedData.map(d => d.holdersOut?.whales || 0),
+        sharks: sortedData.map(d => d.holdersOut?.sharks || 0),
+        dolphins: sortedData.map(d => d.holdersOut?.dolphins || 0),
+        fish: sortedData.map(d => d.holdersOut?.fish || 0),
+        octopus: sortedData.map(d => d.holdersOut?.octopus || 0),
+        crabs: sortedData.map(d => d.holdersOut?.crabs || 0),
+        shrimps: sortedData.map(d => d.holdersOut?.shrimps || 0)
+      }
+    };
+
+    // Calculate acquisition breakdown
+    const acquisitionData = {
+      swap: sortedData.map(d => d.newHoldersByAcquisition?.swap || 0),
+      transfer: sortedData.map(d => d.newHoldersByAcquisition?.transfer || 0),
+      airdrop: sortedData.map(d => d.newHoldersByAcquisition?.airdrop || 0)
+    };
+
+    return {
+      netChanges,
+      totalHolders,
+      timestamps,
+      holderFlow,
+      acquisitionData,
+      dataPoints: sortedData.length
+    };
+  }
+
+  /**
+   * Get timeframe label for display
+   * @param {string} key - Timeframe key
+   * @returns {string} Human-readable label
+   */
+  getTimeframeLabel(key) {
+    const labels = {
+      '5min': '5 minutes',
+      '1h': '1 hour',
+      '6h': '6 hours',
+      '24h': '24 hours',
+      '3d': '3 days',
+      '7d': '7 days',
+      '30d': '30 days'
+    };
+    return labels[key] || key;
   }
 
   /**

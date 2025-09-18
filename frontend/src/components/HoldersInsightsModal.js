@@ -168,6 +168,95 @@ function ConcentrationChart({ points, width=520, height=160 }) {
   );
 }
 
+// --- Holder Flow Chart (Segment In vs Out) ---
+function HolderFlowChart({ flowData, width=520, height=180 }) {
+  const padding = { l: 40, r: 20, t: 20, b: 40 };
+  const W = width - padding.l - padding.r;
+  const H = height - padding.t - padding.b;
+  
+  if (!flowData?.holderFlow) return null;
+  
+  const segments = ['whales', 'sharks', 'dolphins', 'fish', 'octopus', 'crabs', 'shrimps'];
+  const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff'];
+  
+  const maxValue = Math.max(
+    ...segments.map(s => Math.max(...flowData.holderFlow.in[s], ...flowData.holderFlow.out[s]))
+  );
+  
+  if (maxValue === 0) return null;
+  
+  const barWidth = W / segments.length;
+  
+  return (
+    <svg width={width} height={height}>
+      <text x={2} y={12} className="fill-slate-400 text-[10px]">Holders In/Out by Segment</text>
+      
+      {segments.map((segment, i) => {
+        const inValue = flowData.holderFlow.in[segment].reduce((a, b) => a + b, 0);
+        const outValue = flowData.holderFlow.out[segment].reduce((a, b) => a + b, 0);
+        const x = padding.l + i * barWidth;
+        const inHeight = (inValue / maxValue) * H * 0.4;
+        const outHeight = (outValue / maxValue) * H * 0.4;
+        
+        return (
+          <g key={segment}>
+            {/* In bars (positive) */}
+            <rect 
+              x={x + 2} 
+              y={padding.t + H/2 - inHeight} 
+              width={barWidth/2 - 4} 
+              height={inHeight} 
+              fill={colors[i]} 
+              opacity={0.7}
+            />
+            {/* Out bars (negative) */}
+            <rect 
+              x={x + barWidth/2 + 2} 
+              y={padding.t + H/2} 
+              width={barWidth/2 - 4} 
+              height={outHeight} 
+              fill={colors[i]} 
+              opacity={0.4}
+            />
+            {/* Labels */}
+            <text 
+              x={x + barWidth/2} 
+              y={height - 8} 
+              textAnchor="middle" 
+              className="fill-slate-400 text-[10px]"
+            >
+              {segment}
+            </text>
+            {/* Values */}
+            <text 
+              x={x + 2} 
+              y={padding.t + H/2 - inHeight - 4} 
+              className="fill-slate-300 text-[9px]"
+            >
+              {inValue}
+            </text>
+            <text 
+              x={x + barWidth/2 + 2} 
+              y={padding.t + H/2 + outHeight + 12} 
+              className="fill-slate-300 text-[9px]"
+            >
+              {outValue}
+            </text>
+          </g>
+        );
+      })}
+      
+      {/* Legend */}
+      <g transform={`translate(${padding.l}, ${padding.t + H + 20})`}>
+        <rect x={0} y={0} width={8} height={8} fill="#ff3ea5" opacity={0.7} />
+        <text x={12} y={6} className="fill-slate-300 text-[10px]">In</text>
+        <rect x={40} y={0} width={8} height={8} fill="#ff3ea5" opacity={0.4} />
+        <text x={52} y={6} className="fill-slate-300 text-[10px]">Out</text>
+      </g>
+    </svg>
+  );
+}
+
 // --- Badge Component ---
 function Badge({ children, tone="slate" }) {
   const tones = {
@@ -288,21 +377,27 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
   const processedData = useMemo(() => {
     if (!data) return null;
 
-    // Holder changes series for area chart - filter out invalid values
-    const changeSeries = data.holderChanges ? 
-      ["30d","7d","3d","24h","6h","1h","5min"].map(k => {
+    // Holder changes series for area chart - use historical flow data if available
+    let changeSeries = [];
+    if (data.holderFlowData?.netChanges) {
+      // Use historical timeseries data for smoother chart
+      changeSeries = data.holderFlowData.netChanges.slice(0, 7).reverse(); // Last 7 data points
+    } else if (data.holderChanges) {
+      // Fallback to timeframe data
+      changeSeries = ["30d","7d","3d","24h","6h","1h","5min"].map(k => {
         const change = data.holderChanges[k]?.change;
         return (typeof change === 'number' && !isNaN(change)) ? change : 0;
-      }).filter(v => v !== 0) : [];
+      });
+    }
 
-    // Supply concentration points for curve - filter out invalid values
+    // Supply concentration points for curve - use data from Moralis
     const supplyPoints = data.holderStats?.supplyConcentration ? [
-      { n: 5, p: data.holderStats.supplyConcentration.top5 },
-      { n: 10, p: data.holderStats.supplyConcentration.top10 },
-      { n: 25, p: data.holderStats.supplyConcentration.top25 },
-      { n: 50, p: data.holderStats.supplyConcentration.top50 },
-      { n: 100, p: data.holderStats.supplyConcentration.top100 }
-    ].filter(p => typeof p.p === 'number' && !isNaN(p.p) && p.p > 0) : [];
+      { n: 5, p: data.holderStats.supplyConcentration.top5 || 0 },
+      { n: 10, p: data.holderStats.supplyConcentration.top10 || 0 },
+      { n: 25, p: data.holderStats.supplyConcentration.top25 || 0 },
+      { n: 50, p: data.holderStats.supplyConcentration.top50 || 0 },
+      { n: 100, p: data.holderStats.supplyConcentration.top100 || 0 }
+    ].filter(p => p.p > 0) : [];
 
     // Acquisition colors
     const acqColors = ["#A78BFA", "#60A5FA", "#34D399"]; // purple, blue, green
@@ -476,11 +571,22 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
 
           {/* Supply concentration curve */}
           {processedData.supplyPoints.length > 0 && (
-            <div className="col-span-12 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
+            <div className="col-span-12 lg:col-span-6 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
               <div className="text-slate-300 font-medium mb-2">Supply Concentration Curve</div>
-              <ConcentrationChart points={processedData.supplyPoints} width={1140} />
+              <ConcentrationChart points={processedData.supplyPoints} width={540} />
               <div className="mt-2 text-xs text-slate-400">
-                X: top N holders • Y: % of total supply held (area = concentration risk)
+                X: top N holders • Y: % of total supply held
+              </div>
+            </div>
+          )}
+
+          {/* Holder Flow Chart */}
+          {data.holderFlowData && (
+            <div className="col-span-12 lg:col-span-6 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
+              <div className="text-slate-300 font-medium mb-2">Holder Flow by Segment</div>
+              <HolderFlowChart flowData={data.holderFlowData} width={540} />
+              <div className="mt-2 text-xs text-slate-400">
+                Shows holders entering/leaving by segment over time
               </div>
             </div>
           )}

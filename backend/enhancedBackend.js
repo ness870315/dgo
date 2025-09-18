@@ -4153,17 +4153,18 @@ class EnhancedBackend {
         // Cache miss or force refresh - fetch fresh data
         console.log(`🔄 Fetching fresh holder insights for ${contract}`);
         
-        // Fetch all data in parallel for better performance
-        const [topHoldersResult, holderStatsResult, timeseriesResult] = await Promise.allSettled([
-          topHoldersService.getFormattedTopHolders(contract, totalSupply, 20),
-          holderStatsService.getFormattedHolderStats(contract),
+        // Fetch top holders first, then use that data for stats calculation
+        const topHoldersResult = await topHoldersService.getFormattedTopHolders(contract, totalSupply, 20);
+        
+        // Fetch other data in parallel
+        const [holderStatsResult, timeseriesResult] = await Promise.allSettled([
+          holderStatsService.getFormattedHolderStats(contract, topHoldersResult.success ? topHoldersResult : null),
           timeseriesService.getHolderChangeAnalysis(contract)
         ]);
         
         // Process results
         const insights = {
-          topHolders: topHoldersResult.status === 'fulfilled' && topHoldersResult.value.success ? 
-            topHoldersResult.value : null,
+          topHolders: topHoldersResult.success ? topHoldersResult : null,
           holderStats: holderStatsResult.status === 'fulfilled' && holderStatsResult.value.success ? 
             holderStatsResult.value : null,
           holderChanges: timeseriesResult.status === 'fulfilled' && timeseriesResult.value.success ? 
