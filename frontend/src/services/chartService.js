@@ -9,6 +9,12 @@ class ChartService {
     // Cache size limits to prevent localStorage quota exceeded
     this.MAX_CACHE_ENTRIES = 50; // Maximum number of cache entries
     this.MAX_CACHE_SIZE_MB = 5;  // Maximum cache size in MB
+
+    // Maximum bars per timeframe to prevent unbounded arrays
+    this.MAX_BARS = {
+      '1MIN': 1200, '5MIN': 1200, '15MIN': 1200, '1H': 1200,
+      '4H': 1200, '1D': 1500, '1W': 600, '1M': 300
+    };
     
     // Timeframe-specific cache durations (shorter for frequent updates)
     this.cacheTimeouts = {
@@ -48,26 +54,36 @@ class ChartService {
   }
 
   /**
-   * Clean up old cache entries to prevent quota exceeded
+   * Trim data series to maximum bars per timeframe
+   */
+  trimSeries(timeframe, arr) {
+    if (!Array.isArray(arr)) return arr;
+    const n = this.MAX_BARS[timeframe] ?? 1200;
+    return arr.length > n ? arr.slice(-n) : arr;
+  }
+
+  /**
+   * True LRU cleanup by both count and size
    */
   cleanupCache() {
     if (this.chartCache.size <= this.MAX_CACHE_ENTRIES) {
       return; // No cleanup needed
     }
-    
-    console.log(`🧹 Cache cleanup: ${this.chartCache.size} entries, limit: ${this.MAX_CACHE_ENTRIES}`);
-    
-    // Convert to array and sort by timestamp (oldest first)
-    const entries = Array.from(this.chartCache.entries());
-    entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
-    
-    // Remove oldest entries
-    const toRemove = entries.slice(0, entries.length - this.MAX_CACHE_ENTRIES);
-    toRemove.forEach(([key]) => {
-      this.chartCache.delete(key);
-    });
-    
-    console.log(`🗑️ Removed ${toRemove.length} old cache entries`);
+
+    console.log(`🧹 True LRU cleanup: ${this.chartCache.size} entries, limit: ${this.MAX_CACHE_ENTRIES}`);
+
+    // Sort by timestamp (oldest first) and remove until under entry limit
+    const keys = [...this.chartCache.keys()]
+      .sort((a, b) => (this.chartCache.get(a)?.timestamp ?? 0) - (this.chartCache.get(b)?.timestamp ?? 0));
+
+    while (this.chartCache.size > this.MAX_CACHE_ENTRIES) {
+      const oldestKey = keys.shift();
+      if (oldestKey) {
+        this.chartCache.delete(oldestKey);
+      }
+    }
+
+    console.log(`🗑️ LRU cleanup removed entries, now ${this.chartCache.size} entries`);
   }
 
   /**
@@ -82,50 +98,117 @@ class ChartService {
    */
   savePersistentCache() {
     try {
-      // Clean up cache before saving
-      this.cleanupCache();
-      
-      const data = {
-        entries: Array.from(this.chartCache.entries()),
-        timestamp: Date.now(),
-        version: '1.0'
-      };
-      
-      // Check cache size
-      const dataString = JSON.stringify(data);
-      const sizeMB = new Blob([dataString]).size / (1024 * 1024);
-      
-      if (sizeMB > this.MAX_CACHE_SIZE_MB) {
-        console.warn(`⚠️ Cache size ${sizeMB.toFixed(2)}MB exceeds limit ${this.MAX_CACHE_SIZE_MB}MB, cleaning up...`);
-        this.cleanupCache();
-        
-        // Rebuild data after cleanup
-        const cleanedData = {
-          entries: Array.from(this.chartCache.entries()),
-          timestamp: Date.now(),
-          version: '1.0'
-        };
-        
-        localStorage.setItem(this.cacheKey, JSON.stringify(cleanedData));
-        console.log(`💾 Saved ${this.chartCache.size} chart entries after cleanup (${(new Blob([JSON.stringify(cleanedData)]).size / (1024 * 1024)).toFixed(2)}MB)`);
-      } else {
-        // Atomic write to localStorage
-        localStorage.setItem(this.cacheKey, dataString);
-        console.log(`💾 Saved ${this.chartCache.size} chart entries to persistent storage (${sizeMB.toFixed(2)}MB)`);
+      // First, trim all entries per timeframe to prevent unbounded arrays
+      const trimmed = new Map(
+        [...this.chartCache.entries()].map(([k, v]) => {
+          const tf = v?.timeframe ?? '1D';
+          const arr = Array.isArray(v?.data?.data) ? this.trimSeries(tf, v.data.data) : v?.data?.data;
+          return [k, { ...v, data: { ...v.data, data: arr } }];
+        })
+      );
+      this.chartCache = trimmed;
+
+      // LRU cleanup by entry count (oldest first)
+      if (this.chartCache.size > this.MAX_CACHE_ENTRIES) {
+        const keys = [...this.chartCache.keys()]
+          .sort((a, b) => (this.chartCache.get(a)?.timestamp ?? 0) - (this.chartCache.get(b)?.timestamp ?? 0));
+
+        while (this.chartCache.size > this.MAX_CACHE_ENTRIES && keys.length > 0) {
+          const oldestKey = keys.shift();
+          if (oldestKey) {
+            this.chartCache.delete(oldestKey);
+          }
+        }
       }
+
+      // Prepare data for serialization
+      const snapshot = {
+        entries: [...this.chartCache.entries()],
+        timestamp: Date.now(),
+        version: '1.1'
+      };
+      const json = JSON.stringify(snapshot);
+
+      // Size check with fallback for Safari/private mode
+      let sizeMB = 0;
+      try {
+        sizeMB = new Blob([json]).size / (1024 * 1024);
+      } catch (blobError) {
+        // Fallback for environments where Blob.size throws (Safari private mode, etc.)
+        sizeMB = json.length / (1024 * 1024);
+        console.log(`📊 Using fallback size calculation: ${sizeMB.toFixed(2)}MB`);
+      }
+
+      // LRU cleanup by size if still over limit
+      if (sizeMB > this.MAX_CACHE_SIZE_MB) {
+        console.warn(`⚠️ Cache size ${sizeMB.toFixed(2)}MB exceeds limit ${this.MAX_CACHE_SIZE_MB}MB, LRU cleanup by size...`);
+
+        const keys = [...this.chartCache.keys()]
+          .sort((a, b) => (this.chartCache.get(a)?.timestamp ?? 0) - (this.chartCache.get(b)?.timestamp ?? 0));
+
+        while (keys.length > 0 && sizeMB > this.MAX_CACHE_SIZE_MB) {
+          const oldestKey = keys.shift();
+          if (oldestKey) {
+            this.chartCache.delete(oldestKey);
+
+            // Recalculate size after each removal
+            const snap2 = { entries: [...this.chartCache.entries()], timestamp: Date.now(), version: '1.1' };
+            const json2 = JSON.stringify(snap2);
+            try {
+              sizeMB = new Blob([json2]).size / (1024 * 1024);
+            } catch (blobError) {
+              sizeMB = json2.length / (1024 * 1024);
+            }
+          }
+        }
+
+        console.log(`🗑️ Size-based LRU cleanup complete, cache now ${this.chartCache.size} entries, ${sizeMB.toFixed(2)}MB`);
+      }
+
+      // Final attempt to save
+      localStorage.setItem(this.cacheKey, json);
+      console.log(`💾 Saved ${this.chartCache.size} chart entries (${sizeMB.toFixed(2)}MB, trimmed & LRU cleaned)`);
+
     } catch (error) {
       console.warn(`⚠️ Failed to save persistent chart cache: ${error.message}`);
-      
-      // If quota exceeded, try aggressive cleanup
-      if (error.message.includes('quota')) {
+
+      // Handle different failure scenarios
+      if (error.message.includes('quota') || error.name === 'QuotaExceededError') {
         console.log(`🚨 localStorage quota exceeded, performing aggressive cleanup...`);
-        this.chartCache.clear(); // Clear all cache
+
+        // Try saving with minimal cache (just most recent entries)
         try {
-          localStorage.removeItem(this.cacheKey); // Remove corrupted cache
-          console.log(`✅ Cleared corrupted cache`);
-        } catch (cleanupError) {
-          console.warn(`⚠️ Failed to clear corrupted cache: ${cleanupError.message}`);
+          const keys = [...this.chartCache.keys()]
+            .sort((a, b) => (this.chartCache.get(b)?.timestamp ?? 0) - (this.chartCache.get(a)?.timestamp ?? 0)); // newest first
+
+          // Keep only the 10 most recent entries
+          const minimalCache = new Map();
+          for (let i = 0; i < Math.min(10, keys.length); i++) {
+            const key = keys[i];
+            minimalCache.set(key, this.chartCache.get(key));
+          }
+
+          const minimalSnapshot = { entries: [...minimalCache.entries()], timestamp: Date.now(), version: '1.1' };
+          localStorage.setItem(this.cacheKey, JSON.stringify(minimalSnapshot));
+          console.log(`✅ Saved minimal cache with ${minimalCache.size} entries`);
+
+          // Update our in-memory cache to match
+          this.chartCache = minimalCache;
+
+        } catch (minimalError) {
+          console.log(`🚨 Even minimal cache failed, clearing all cache...`);
+          try {
+            localStorage.removeItem(this.cacheKey);
+            this.chartCache.clear();
+            console.log(`✅ Cleared all cache`);
+          } catch (clearError) {
+            console.warn(`⚠️ Failed to clear cache: ${clearError.message}`);
+          }
         }
+      } else if (error.name === 'SecurityError') {
+        // Safari private mode or other security restrictions
+        console.log(`🔒 localStorage access denied (Safari private mode?), using in-memory cache only`);
+        // Cache continues to work in-memory only
       }
     }
   }
@@ -228,23 +311,28 @@ class ChartService {
   }
 
   /**
-   * Cache chart data (atomic and persistent) with cleanup
+   * Cache chart data (atomic and persistent) with cleanup and trimming
    */
   setCachedChart(contractAddress, timeframe, data, tier = 'RD') {
     const cacheKey = this.getCacheKey(contractAddress, timeframe, tier);
+
+    // Trim data series to prevent unbounded arrays
+    const trimmed = Array.isArray(data?.data) ? this.trimSeries(timeframe, data.data) : data?.data;
+    const trimmedData = { ...data, data: trimmed };
+
     this.chartCache.set(cacheKey, {
-      data: data,
+      data: trimmedData,
       timestamp: Date.now(),
-      oldestTime: data?.data?.[0]?.time || null,
-      newestTime: data?.data?.[data?.data?.length - 1]?.time || null,
+      oldestTime: trimmedData?.data?.[0]?.time || null,
+      newestTime: trimmedData?.data?.[trimmedData?.data?.length - 1]?.time || null,
       timeframe: timeframe,
       tier: tier
     });
-    
+
     // Atomic write to persistent storage (includes cleanup)
     this.savePersistentCache();
-    
-    console.log(`💾 Cached chart data for ${timeframe} (${tier} tier, ${data?.data?.length || 0} candles) - persistent`);
+
+    console.log(`💾 Cached chart data for ${timeframe} (${tier} tier, ${trimmedData?.data?.length || 0} candles, trimmed) - persistent`);
   }
 
   /**
@@ -272,15 +360,17 @@ class ChartService {
       const olderData = await response.json();
       
       // Merge with existing cached data
-      const cacheKey = this.getCacheKey(contractAddress, timeframe);
+      const cacheKey = this.getCacheKey(contractAddress, timeframe, tier);
       const existing = this.chartCache.get(cacheKey);
       
       if (existing && olderData?.data?.length > 0) {
-        // Prepend older data (maintain ascending time order)
+        // Prepend older data (maintain ascending time order) and trim to prevent unbounded growth
+        const mergedCandles = [...olderData.data, ...existing.data.data];
+        const trimmedCandles = this.trimSeries(timeframe, mergedCandles);
         const mergedData = {
           ...existing.data,
-          data: [...olderData.data, ...existing.data.data],
-          count: existing.data.count + olderData.data.length
+          data: trimmedCandles,
+          count: trimmedCandles.length
         };
         
         // Update cache with merged data (atomic and persistent)
@@ -312,7 +402,7 @@ class ChartService {
    */
   async appendNewCandles(contractAddress, timeframe) {
     try {
-      const cacheKey = this.getCacheKey(contractAddress, timeframe);
+      const cacheKey = this.getCacheKey(contractAddress, timeframe, 'RD');
       const existing = this.chartCache.get(cacheKey);
       
       if (!existing || !existing.newestTime) {
@@ -333,11 +423,13 @@ class ChartService {
       const newData = await response.json();
       
       if (newData?.data?.length > 0) {
-        // Append new data (maintain ascending time order)
+        // Append new data (maintain ascending time order) and trim to prevent unbounded growth
+        const mergedCandles = [...existing.data.data, ...newData.data];
+        const trimmedCandles = this.trimSeries(timeframe, mergedCandles);
         const mergedData = {
           ...existing.data,
-          data: [...existing.data.data, ...newData.data],
-          count: existing.data.count + newData.data.length
+          data: trimmedCandles,
+          count: trimmedCandles.length
         };
         
         // Update cache with merged data (atomic and persistent)
