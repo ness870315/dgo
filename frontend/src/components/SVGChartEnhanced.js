@@ -42,7 +42,23 @@ const fmtMcap = (n) => new Intl.NumberFormat('en', {notation:'compact', maximumF
 // Enhanced price formatting
 function fmtPrice(v, format) {
   if (!Number.isFinite(v)) return 'N/A';
-  return v.toFixed(format.decimals);
+  const decimals = format?.decimals || 6;
+  
+  // Handle very small numbers
+  if (v < 0.000001) {
+    return v.toExponential(2);
+  }
+  
+  // Handle different price ranges with appropriate decimals
+  if (v >= 1000) {
+    return v.toFixed(2);
+  } else if (v >= 1) {
+    return v.toFixed(Math.min(decimals, 6));
+  } else if (v >= 0.01) {
+    return v.toFixed(Math.min(decimals, 8));
+  } else {
+    return v.toFixed(Math.min(decimals, 9));
+  }
 }
 
 // OHLCV Aggregation for fallback
@@ -207,7 +223,8 @@ function SvgOHLCVArea({
   timeframe = '5MIN', 
   displayMode = 'price', 
   circulatingSupply = 0,
-  timezone = 'UTC'
+  timezone = 'UTC',
+  token = null
 }) {
   const wrapRef = useRef(null);
   const [width, setWidth] = useState(800);
@@ -281,13 +298,21 @@ function SvgOHLCVArea({
     const windowed = sliceWindow(normalized, timeframe);
     
     // Transform to market cap if needed
-    if (displayMode === 'mcap' && circulatingSupply > 0) {
+    if (displayMode === 'mcap') {
+      // Try multiple sources for circulating supply
+      const supply = circulatingSupply || 
+                    (typeof token !== 'undefined' && token?.supply) || 
+                    (typeof token !== 'undefined' && token?.totalSupply) ||
+                    1000000000; // Default 1B supply for memecoins if no data
+      
+      console.log(`📊 Market cap mode: Using supply ${supply.toLocaleString()}`);
+      
       return windowed.map(d => ({
         ...d,
-        open: d.open * circulatingSupply,
-        high: d.high * circulatingSupply,
-        low: d.low * circulatingSupply,
-        close: d.close * circulatingSupply
+        open: d.open * supply,
+        high: d.high * supply,
+        low: d.low * supply,
+        close: d.close * supply
       }));
     }
     
@@ -348,7 +373,11 @@ function SvgOHLCVArea({
     const xTickValues = generateTimeTicks(tMin, tMax, timeframe, plotW);
     
     // Y-axis formatter
-    const formatter = displayMode === 'mcap' ? fmtMcap : (v) => fmtPrice(v, format);
+    const formatter = displayMode === 'mcap' ? 
+      (v) => fmtMcap(v) : 
+      (v) => fmtPrice(v, format);
+    
+    console.log(`📊 Y-axis formatter: ${displayMode} mode, sample format:`, formatter(closes[closes.length - 1] || 1));
     
     return {
       x: xScale,
@@ -703,8 +732,9 @@ export default function SVGChart({ token, onClose }) {
         contract={contract}
         timeframe={timeframe}
         displayMode={displayMode}
-        circulatingSupply={token.circulatingSupply}
+        circulatingSupply={token?.circulatingSupply}
         timezone={timezone}
+        token={token}
       />
     </div>
   );
