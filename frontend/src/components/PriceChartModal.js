@@ -71,11 +71,11 @@ const PriceChartModal = ({ token, onClose }) => {
 
           {/* Controls */}
           <div className="flex items-center space-x-4">
-            {/* Chart Type - SVG Chart */}
-            <div className="flex bg-gray-800 rounded-lg p-1">
-              <div className="flex items-center space-x-2 px-3 py-2 rounded-md bg-blue-600 text-white">
+            {/* Chart Type - Oracle Chart */}
+            <div className="flex bg-gray-600 rounded-lg p-1 border border-purple-500">
+              <div className="flex items-center space-x-2 px-3 py-2 rounded-md bg-gray-600 text-white">
                 <TrendingUp size={16} />
-                <span>SVG Chart</span>
+                <span>Oracle Chart</span>
               </div>
             </div>
 

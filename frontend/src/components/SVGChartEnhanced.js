@@ -244,10 +244,7 @@ function SvgOHLCVArea({
   
   // Removed dynamic loading states (no longer needed)
   
-  // Zoom states (removed pan)
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState(null);
+  // Removed all zoom/drag states
 
   // Responsive width
   useEffect(() => {
@@ -259,42 +256,7 @@ function SvgOHLCVArea({
     return () => ro.disconnect();
   }, []);
 
-  // Global mouse event listeners for vertical zoom
-  useEffect(() => {
-    const handleGlobalMouseUp = () => {
-      setIsDragging(false);
-      setDragStart(null);
-    };
-
-    const handleGlobalMouseMove = (event) => {
-      if (isDragging && dragStart && wrapRef.current) {
-        const rect = wrapRef.current.getBoundingClientRect();
-        const mouseY = event.clientY - rect.top;
-        const deltaY = dragStart.y - mouseY; // Inverted: drag up = zoom in
-        const zoomDelta = deltaY / 100; // Sensitivity adjustment
-        const newZoomLevel = Math.max(0.1, Math.min(5, zoomLevel + zoomDelta));
-        
-        setZoomLevel(newZoomLevel);
-        setDragStart({ x: event.clientX - rect.left, y: mouseY });
-      }
-    };
-
-    if (isDragging) {
-      document.addEventListener('mouseup', handleGlobalMouseUp);
-      document.addEventListener('mousemove', handleGlobalMouseMove);
-    }
-
-    return () => {
-      document.removeEventListener('mouseup', handleGlobalMouseUp);
-      document.removeEventListener('mousemove', handleGlobalMouseMove);
-    };
-  }, [isDragging, dragStart, zoomLevel]);
-
-  // Reset zoom when timeframe changes
-  useEffect(() => {
-    setZoomLevel(1);
-    console.log(`🔄 Timeframe changed to ${timeframe}, resetting zoom`);
-  }, [timeframe]);
+  // Removed all zoom/drag event listeners
 
   // Enhanced data fetching with aggregation fallback
   useEffect(() => {
@@ -370,11 +332,7 @@ function SvgOHLCVArea({
         if (!alive) return;
         setRawData(data);
         
-        // Only reset zoom on initial load
-        if (rawData.length === 0) {
-          setZoomLevel(1);
-          console.log(`🔄 Reset zoom for new ${timeframe} data`);
-        }
+        // Data loaded successfully
       } catch (e) {
         if (alive) setErr(e.message || "Failed to load chart data");
       } finally {
@@ -429,7 +387,7 @@ function SvgOHLCVArea({
   }, [rawData, timeframe, displayMode, circulatingSupply, token]);
 
   // Enhanced scaling and formatting
-  const { x, y, yTicks, xTicks, priceFormat, yFormatter, height, padding, plotW, plotH, tMin, tMax, viewTMin, viewTMax, yDomainMin, yDomainMax } = useMemo(() => {
+  const { x, y, yTicks, xTicks, priceFormat, yFormatter, height, padding, plotW, plotH, tMin, tMax, yDomainMin, yDomainMax } = useMemo(() => {
     if (!processedData.length) return { 
       x: () => 0, 
       y: () => 0, 
@@ -443,8 +401,6 @@ function SvgOHLCVArea({
       plotH: 100,
       tMin: 0,
       tMax: 1,
-      viewTMin: 0,
-      viewTMax: 1,
       yDomainMin: 0,
       yDomainMax: 1
     };
@@ -475,23 +431,13 @@ function SvgOHLCVArea({
     const plotW = Math.max(10, width - padding.left - padding.right);
     const plotH = Math.max(10, height - padding.top - padding.bottom);
     
-    // Apply zoom to time domain (centered)
-    const timeSpan = tMax - tMin;
-    const zoomedTimeSpan = timeSpan / zoomLevel;
-    
-    const viewTMin = tMin + (timeSpan - zoomedTimeSpan) / 2;
-    const viewTMax = viewTMin + zoomedTimeSpan;
-    
-    // Debug logging for view window
-    console.log(`🔍 Zoom: ${zoomLevel.toFixed(2)}x, Data points: ${processedData.length}`);
-    
-    // Scaling functions with zoom applied
-    const xScale = (t) => padding.left + ((t - viewTMin) / (viewTMax - viewTMin)) * plotW;
+    // Simple scaling functions (no zoom)
+    const xScale = (t) => padding.left + ((t - tMin) / (tMax - tMin)) * plotW;
     const yScale = (price) => padding.top + ((yDomainMax - price) / (yDomainMax - yDomainMin)) * plotH;
     
-    // Generate ticks (use view window for X-axis)
+    // Generate ticks
     const yTickValues = generateYTicks(yDomainMin, yDomainMax, 5);
-    const xTickValues = generateTimeTicks(viewTMin, viewTMax, timeframe, plotW);
+    const xTickValues = generateTimeTicks(tMin, tMax, timeframe, plotW);
     
     // Y-axis formatter
     const formatter = displayMode === 'mcap' ? 
@@ -513,14 +459,12 @@ function SvgOHLCVArea({
       plotH,
       tMin,
       tMax,
-      viewTMin,
-      viewTMax,
       yDomainMin,
       yDomainMax
     };
-  }, [processedData, width, displayMode, timeframe, zoomLevel]);
+  }, [processedData, width, displayMode, timeframe]);
 
-  // Enhanced mouse interaction handlers with vertical drag zoom and scroll detection
+  // Simple mouse interaction for crosshair only
   const handleMouseMove = (event) => {
     if (!processedData.length) return;
     
@@ -528,13 +472,8 @@ function SvgOHLCVArea({
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
     
-    // Handle vertical dragging for zoom (handled in global mouse move)
-    if (isDragging && dragStart) {
-      return; // Zoom handled in global mouse move
-    }
-    
-    // Find closest data point for crosshair (use view window)
-    const timeAtMouse = ((mouseX - padding.left) / plotW) * (viewTMax - viewTMin) + viewTMin;
+    // Find closest data point for crosshair
+    const timeAtMouse = ((mouseX - padding.left) / plotW) * (tMax - tMin) + tMin;
     
     let closestPoint = processedData[0];
     let minDistance = Math.abs(closestPoint.time - timeAtMouse);
@@ -555,44 +494,8 @@ function SvgOHLCVArea({
     });
   };
 
-  const handleMouseDown = (event) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const mouseX = event.clientX - rect.left;
-    const mouseY = event.clientY - rect.top;
-    
-    setIsDragging(true);
-    setDragStart({ x: mouseX, y: mouseY });
-    event.preventDefault();
-    event.stopPropagation();
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-    setDragStart(null);
-  };
-
   const handleMouseLeave = () => {
     setMousePos(null);
-    setIsDragging(false);
-    setDragStart(null);
-  };
-
-  const handleWheel = (event) => {
-    // Prevent event from bubbling up to parent elements
-    event.preventDefault();
-    event.stopPropagation();
-    
-    const rect = event.currentTarget.getBoundingClientRect();
-    const mouseX = event.clientX - rect.left;
-    const isInPlotArea = mouseX >= padding.left && mouseX <= width - padding.right;
-    
-    if (!isInPlotArea) return;
-    
-    const zoomFactor = event.deltaY > 0 ? 0.9 : 1.1;
-    const newZoomLevel = Math.max(0.1, Math.min(5, zoomLevel * zoomFactor));
-    
-    setZoomLevel(newZoomLevel);
-    console.log(`🔍 Mouse wheel zoom: ${newZoomLevel.toFixed(2)}x`);
   };
 
   // Render
@@ -629,17 +532,14 @@ function SvgOHLCVArea({
     );
   }
 
-  // Generate path data - filter for visible data points
-  const visibleData = processedData.filter(d => d.time >= viewTMin && d.time <= viewTMax);
-  console.log(`📊 Rendering: ${visibleData.length}/${processedData.length} data points in view window`);
-  
-  const linePath = visibleData.length > 0 ? visibleData.map((d, i) => 
+  // Generate path data
+  const linePath = processedData.map((d, i) => 
     `${i === 0 ? 'M' : 'L'} ${x(d.time)} ${y(d.close)}`
-  ).join(' ') : '';
+  ).join(' ');
 
-  const areaPath = visibleData.length > 0 ? linePath + 
-    ` L ${x(visibleData[visibleData.length - 1].time)} ${height - padding.bottom}` +
-    ` L ${x(visibleData[0].time)} ${height - padding.bottom} Z` : '';
+  const areaPath = linePath + 
+    ` L ${x(processedData[processedData.length - 1].time)} ${height - padding.bottom}` +
+    ` L ${x(processedData[0].time)} ${height - padding.bottom} Z`;
 
   const gradientId = `gradient-${contract}-${timeframe}`;
   const timeFormatter = formatTimeLabel(timeframe, timezone === 'local');
@@ -648,21 +548,14 @@ function SvgOHLCVArea({
     <div ref={wrapRef} className="w-full relative">
       
       
-      {/* Zoom instructions */}
-      <div className="absolute top-12 left-2 z-10 bg-gray-800 bg-opacity-90 text-gray-300 px-3 py-1 rounded-lg shadow-lg text-xs border border-gray-600">
-        🔍 Scroll to zoom • Drag up/down to zoom
-      </div>
       
       <svg 
         width={width} 
         height={height} 
         className="bg-gray-900 rounded-lg border border-gray-700"
         onMouseMove={handleMouseMove}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
-        onWheel={handleWheel}
-        style={{ cursor: isDragging ? 'grabbing' : 'crosshair' }}
+        style={{ cursor: 'crosshair' }}
       >
         {/* Gradient definition */}
         <defs>
