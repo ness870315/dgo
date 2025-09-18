@@ -7,13 +7,13 @@ const TF_SEC = { '1MIN':60,'5MIN':300,'15MIN':900,'1H':3600,'4H':14400,'1D':8640
 const WINDOW_BY_TF = {
   '1MIN': 240,   // 4h window (matches backend RD: 240)
   '5MIN': 96,    // 8h window (matches backend RD: 96)  
-  '15MIN': 96,   // 1 day window (matches backend RD: 96)
+  '15MIN': 48,   // 12 hours window (matches backend RD: 48)
   '1H': 168,     // 7 days window (matches backend RD: 168)
   '4H': 90,      // 15 days window (matches backend RD: 90)
   '1D': 90,      // 90 days window (matches backend RD: 90)
   '1W': 156,     // ~3 years
   '1M': 120,     // ~10 years
-  'ALL': 500     // All time since token creation
+  'ALL': 1000    // All time since token creation
 };
 
 // Aggregation fallback ladder
