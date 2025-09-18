@@ -129,7 +129,7 @@ function sliceWindow(candles, tf) {
   return candles.slice(-maxBars);
 }
 
-// Enhanced X-axis time formatting
+// Enhanced X-axis time formatting - properly adapted for each timeframe
 function formatTimeLabel(timeframe, useLocal = false) {
   return (timestamp) => {
     const date = new Date(timestamp * 1000);
@@ -137,61 +137,134 @@ function formatTimeLabel(timeframe, useLocal = false) {
       (fmt) => new Intl.DateTimeFormat('en-US', fmt) :
       (fmt) => new Intl.DateTimeFormat('en-US', { ...fmt, timeZone: 'UTC' });
 
-    // Adaptive formatting based on timeframe
+    // Adaptive formatting based on timeframe and data span
     switch (timeframe) {
       case '1MIN':
+        // 1MIN: Show HH:mm (4 hours of data)
+        return formatter({ hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
+      
       case '5MIN':
-        // Show HH:mm for minute charts
+        // 5MIN: Show HH:mm (8 hours of data)
         return formatter({ hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
       
       case '15MIN':
+        // 15MIN: Show MMM DD HH:mm (12 hours of data)
+        const dayFormat15 = formatter({ month: 'short', day: 'numeric' }).format(date);
+        const timeFormat15 = formatter({ hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
+        return `${dayFormat15} ${timeFormat15}`;
+      
       case '1H':
+        // 1H: Show MMM DD HH:mm (7 days of data)
+        const dayFormat1H = formatter({ month: 'short', day: 'numeric' }).format(date);
+        const timeFormat1H = formatter({ hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
+        return `${dayFormat1H} ${timeFormat1H}`;
+      
       case '4H':
-        // Show Day + HH:mm for hourly charts
-        const dayFormat = formatter({ month: 'short', day: 'numeric' }).format(date);
-        const timeFormat = formatter({ hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
-        return `${dayFormat} ${timeFormat}`;
+        // 4H: Show MMM DD (15 days of data)
+        return formatter({ month: 'short', day: 'numeric' }).format(date);
       
       case '1D':
-      case '1W':
+        // 1D: Show MMM DD (90 days of data)
+        return formatter({ month: 'short', day: 'numeric' }).format(date);
+      
       case 'ALL':
+        // ALL: Show MMM YYYY for long-term view (months/years since inception)
+        return formatter({ month: 'short', year: 'numeric' }).format(date);
+      
       default:
-        // Show MMM DD for daily+ charts, MMM YY for all-time
-        if (timeframe === 'ALL') {
-          return formatter({ month: 'short', year: '2-digit' }).format(date);
-        }
         return formatter({ month: 'short', day: 'numeric' }).format(date);
     }
   };
 }
 
-// Enhanced tick generation with adaptive spacing
+// Enhanced tick generation with timeframe-appropriate intervals
 function generateTimeTicks(tMin, tMax, timeframe, containerWidth) {
   const span = tMax - tMin;
-  
-  // Adaptive tick count based on timeframe and container width
-  let targetTicks;
-  switch (timeframe) {
-    case '1MIN':
-    case '5MIN':
-      targetTicks = Math.max(3, Math.min(8, Math.floor(containerWidth / 80)));
-      break;
-    case '15MIN':
-    case '1H':
-      targetTicks = Math.max(3, Math.min(6, Math.floor(containerWidth / 100)));
-      break;
-    case 'ALL':
-      targetTicks = Math.max(4, Math.min(8, Math.floor(containerWidth / 100)));
-      break;
-    default:
-      targetTicks = Math.max(3, Math.min(5, Math.floor(containerWidth / 120)));
-  }
-
-  const step = span / targetTicks;
   const ticks = [];
   
-  for (let i = 0; i <= targetTicks; i++) {
-    ticks.push(tMin + i * step);
+  // Calculate appropriate tick intervals based on timeframe
+  let tickInterval;
+  let targetTicks;
+  
+  switch (timeframe) {
+    case '1MIN':
+      // 4 hours of data: show every hour
+      tickInterval = 60 * 60; // 1 hour in seconds
+      targetTicks = Math.max(3, Math.min(6, Math.floor(containerWidth / 100)));
+      break;
+      
+    case '5MIN':
+      // 8 hours of data: show every 2 hours
+      tickInterval = 2 * 60 * 60; // 2 hours in seconds
+      targetTicks = Math.max(3, Math.min(6, Math.floor(containerWidth / 100)));
+      break;
+      
+    case '15MIN':
+      // 12 hours of data: show every 3 hours
+      tickInterval = 3 * 60 * 60; // 3 hours in seconds
+      targetTicks = Math.max(3, Math.min(5, Math.floor(containerWidth / 120)));
+      break;
+      
+    case '1H':
+      // 7 days of data: show every day
+      tickInterval = 24 * 60 * 60; // 1 day in seconds
+      targetTicks = Math.max(4, Math.min(8, Math.floor(containerWidth / 100)));
+      break;
+      
+    case '4H':
+      // 15 days of data: show every 3 days
+      tickInterval = 3 * 24 * 60 * 60; // 3 days in seconds
+      targetTicks = Math.max(3, Math.min(6, Math.floor(containerWidth / 120)));
+      break;
+      
+    case '1D':
+      // 90 days of data: show every 2 weeks
+      tickInterval = 14 * 24 * 60 * 60; // 2 weeks in seconds
+      targetTicks = Math.max(4, Math.min(7, Math.floor(containerWidth / 100)));
+      break;
+      
+    case 'ALL':
+      // All time data: show every few months based on span
+      const spanMonths = span / (30 * 24 * 60 * 60); // Approximate months
+      if (spanMonths > 24) {
+        tickInterval = 6 * 30 * 24 * 60 * 60; // 6 months
+      } else if (spanMonths > 12) {
+        tickInterval = 3 * 30 * 24 * 60 * 60; // 3 months
+      } else {
+        tickInterval = 30 * 24 * 60 * 60; // 1 month
+      }
+      targetTicks = Math.max(4, Math.min(8, Math.floor(containerWidth / 100)));
+      break;
+      
+    default:
+      // Fallback to simple division
+      targetTicks = Math.max(3, Math.min(5, Math.floor(containerWidth / 120)));
+      tickInterval = span / targetTicks;
+  }
+  
+  // Generate ticks based on interval or target count
+  if (tickInterval && timeframe !== 'default') {
+    // Use meaningful intervals for specific timeframes
+    const startTick = Math.ceil(tMin / tickInterval) * tickInterval;
+    for (let tick = startTick; tick <= tMax && ticks.length < targetTicks; tick += tickInterval) {
+      if (tick >= tMin) {
+        ticks.push(tick);
+      }
+    }
+    
+    // Ensure we have at least start and end ticks
+    if (ticks.length === 0 || ticks[0] > tMin + span * 0.1) {
+      ticks.unshift(tMin);
+    }
+    if (ticks[ticks.length - 1] < tMax - span * 0.1) {
+      ticks.push(tMax);
+    }
+  } else {
+    // Fallback to simple division
+    const step = span / targetTicks;
+    for (let i = 0; i <= targetTicks; i++) {
+      ticks.push(tMin + i * step);
+    }
   }
   
   return ticks;
