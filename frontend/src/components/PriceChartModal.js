@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, TrendingUp } from 'lucide-react';
 import chartService from '../services/chartService';
-import SVGChart from './SVGChart';
+import SVGChart from './SVGChartEnhanced';
 
 const PriceChartModal = ({ token, onClose }) => {
   const [currentPrice, setCurrentPrice] = useState(null);
