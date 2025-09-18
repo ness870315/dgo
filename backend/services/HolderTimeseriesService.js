@@ -12,19 +12,23 @@ class HolderTimeseriesService {
   }
 
   /**
-   * Get historical holder data for a token
+   * Get historical holder data for a token (simplified to 1d timeframe, 24hr lookback)
    * @param {string} tokenAddress - The token contract address
-   * @param {string} timeframe - Timeframe for historical data (default: '24hr')
-   * @param {number} days - Number of days to look back (default: 1)
    * @returns {Promise<Object>} Historical holder data
    */
-  async getHolderTimeseries(tokenAddress, timeframe = '24hr', days = 1) {
+  async getHolderTimeseries(tokenAddress) {
     try {
-      console.log(`📈 Fetching holder timeseries for token: ${tokenAddress} (${timeframe}, ${days}d)`);
+      console.log(`📈 Fetching holder timeseries for token: ${tokenAddress} (1d timeframe, 24hr lookback)`);
       
-      // Calculate date range
+      // Calculate date range - exactly 24 hours ago to now
       const toDate = new Date();
-      const fromDate = new Date(toDate.getTime() - (days * 24 * 60 * 60 * 1000));
+      const fromDate = new Date(toDate.getTime() - (24 * 60 * 60 * 1000)); // 24 hours ago
+      
+      // Format dates as YYYY-MM-DD
+      const fromDateStr = fromDate.toISOString().split('T')[0]; // 2025-09-17
+      const toDateStr = toDate.toISOString().split('T')[0];     // 2025-09-18
+      
+      console.log(`📅 Date range: ${fromDateStr} to ${toDateStr}`);
       
       const response = await axios.get(
         `${this.API_BASE}/token/${this.NETWORK}/holders/${tokenAddress}/historical`,
@@ -34,9 +38,10 @@ class HolderTimeseriesService {
             'Content-Type': 'application/json'
           },
           params: {
-            from_date: fromDate.toISOString(),
-            to_date: toDate.toISOString(),
-            timeframe: timeframe
+            timeFrame: '1d',        // Use timeFrame (not timeframe)
+            fromDate: fromDateStr,  // 2025-09-17 format
+            toDate: toDateStr,      // 2025-09-18 format
+            limit: 100              // Add limit parameter
           }
         }
       );
@@ -47,7 +52,7 @@ class HolderTimeseriesService {
           success: true,
           data: response.data.result || [],
           total: response.data.total || 0,
-          timeframe: timeframe,
+          timeframe: '1d',
           fromDate: fromDate.toISOString(),
           toDate: toDate.toISOString()
         };
@@ -206,6 +211,10 @@ class HolderTimeseriesService {
       const toDate = new Date(Date.now() - (hoursAgo * 60 * 60 * 1000));
       const fromDate = new Date(toDate.getTime() - (60 * 60 * 1000)); // 1 hour window
       
+      // Format dates as YYYY-MM-DD
+      const fromDateStr = fromDate.toISOString().split('T')[0];
+      const toDateStr = toDate.toISOString().split('T')[0];
+      
       const response = await axios.get(
         `${this.API_BASE}/token/${this.NETWORK}/holders/${tokenAddress}/historical`,
         {
@@ -214,9 +223,10 @@ class HolderTimeseriesService {
             'Content-Type': 'application/json'
           },
           params: {
-            from_date: fromDate.toISOString(),
-            to_date: toDate.toISOString(),
-            timeframe: '1hr'
+            timeFrame: '1d',        // Use timeFrame (not timeframe)
+            fromDate: fromDateStr,  // YYYY-MM-DD format
+            toDate: toDateStr,      // YYYY-MM-DD format
+            limit: 100              // Add limit parameter
           }
         }
       );
@@ -259,7 +269,7 @@ class HolderTimeseriesService {
     try {
       console.log(`🌊 Analyzing holder flow for ${days} days: ${tokenAddress}`);
       
-      const timeseries = await this.getHolderTimeseries(tokenAddress, '24hr', days);
+      const timeseries = await this.getHolderTimeseries(tokenAddress);
       
       if (!timeseries.success) {
         return timeseries;
