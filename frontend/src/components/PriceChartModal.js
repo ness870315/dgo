@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, TrendingUp } from 'lucide-react';
 import chartService from '../services/chartService';
-import TradingViewChart from './TradingViewChart';
+import SVGChart from './SVGChart';
 
 const PriceChartModal = ({ token, onClose }) => {
   const [timeframe, setTimeframe] = useState('1MIN');
@@ -116,11 +116,11 @@ const PriceChartModal = ({ token, onClose }) => {
               )}
             </div>
 
-            {/* Chart Type - TradingView Only */}
+            {/* Chart Type - SVG Chart */}
             <div className="flex bg-gray-800 rounded-lg p-1">
               <div className="flex items-center space-x-2 px-3 py-2 rounded-md bg-blue-600 text-white">
                 <TrendingUp size={16} />
-                <span>TradingView</span>
+                <span>SVG Chart</span>
               </div>
             </div>
 
@@ -176,7 +176,7 @@ const PriceChartModal = ({ token, onClose }) => {
 
         {/* Chart Container */}
         <div className="p-6">
-          <TradingViewChart 
+          <SVGChart 
             token={token} 
             timeframe={timeframe}
             onClose={onClose}
