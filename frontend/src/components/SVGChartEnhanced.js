@@ -341,24 +341,7 @@ function SvgOHLCVArea({
         setErr(null);
         if (!contract) return;
 
-        // If we don't have Jupiter data and we're in market cap mode, try to fetch it
-        if (displayMode === 'mcap' && !token?.jupiterData && contract) {
-          try {
-            console.log(`🪐 Fetching Jupiter data for market cap calculation...`);
-            const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-            const jupiterRes = await fetch(`${API_BASE}/api/jupiter/raw/${encodeURIComponent(contract)}`);
-            if (jupiterRes.ok) {
-              const jupiterData = await jupiterRes.json();
-              console.log(`🪐 Jupiter data fetched:`, jupiterData);
-              // Update token object with Jupiter data if available
-              if (token && jupiterData?.raw) {
-                token.jupiterData = jupiterData.raw;
-              }
-            }
-          } catch (jupiterError) {
-            console.log(`⚠️ Failed to fetch Jupiter data:`, jupiterError.message);
-          }
-        }
+        // Main chart data fetching (price/OHLCV data)
 
         // Handle 'ALL' timeframe with Jupiter createdAt
         let res, data;
@@ -415,7 +398,33 @@ function SvgOHLCVArea({
 
     fetchWithFallback();
     return () => { alive = false; };
-  }, [contract, timeframe, displayMode, token]);
+  }, [contract, timeframe, token]); // Removed displayMode - no need to refetch data
+
+  // Separate effect for Jupiter data fetching (only when switching to market cap mode)
+  useEffect(() => {
+    const fetchJupiterData = async () => {
+      // Only fetch Jupiter data if we're in market cap mode and don't have it yet
+      if (displayMode === 'mcap' && !token?.jupiterData && contract) {
+        try {
+          console.log(`🪐 Fetching Jupiter data for market cap calculation...`);
+          const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+          const jupiterRes = await fetch(`${API_BASE}/api/jupiter/raw/${encodeURIComponent(contract)}`);
+          if (jupiterRes.ok) {
+            const jupiterData = await jupiterRes.json();
+            console.log(`🪐 Jupiter data fetched:`, jupiterData);
+            // Update token object with Jupiter data if available
+            if (token && jupiterData?.raw) {
+              token.jupiterData = jupiterData.raw;
+            }
+          }
+        } catch (jupiterError) {
+          console.log(`⚠️ Failed to fetch Jupiter data:`, jupiterError.message);
+        }
+      }
+    };
+
+    fetchJupiterData();
+  }, [displayMode, contract, token?.jupiterData]); // Only runs when switching to mcap mode
 
   // Removed dynamic loading function (no longer needed without pan)
 
