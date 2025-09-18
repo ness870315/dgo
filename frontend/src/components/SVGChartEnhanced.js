@@ -242,17 +242,12 @@ function SvgOHLCVArea({
   const [mousePos, setMousePos] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   
-  // Dynamic loading states
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [hasMoreData, setHasMoreData] = useState(true);
-  const [totalLoadedBars, setTotalLoadedBars] = useState(0);
+  // Removed dynamic loading states (no longer needed)
   
-  // Pan and zoom states
-  const [panOffset, setPanOffset] = useState(0);
+  // Zoom states (removed pan)
   const [zoomLevel, setZoomLevel] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState(null);
-  const [viewWindow, setViewWindow] = useState({ start: 0, end: 1 });
 
   // Responsive width
   useEffect(() => {
@@ -264,7 +259,7 @@ function SvgOHLCVArea({
     return () => ro.disconnect();
   }, []);
 
-  // Global mouse event listeners for better pan experience
+  // Global mouse event listeners for vertical zoom
   useEffect(() => {
     const handleGlobalMouseUp = () => {
       setIsDragging(false);
@@ -274,12 +269,13 @@ function SvgOHLCVArea({
     const handleGlobalMouseMove = (event) => {
       if (isDragging && dragStart && wrapRef.current) {
         const rect = wrapRef.current.getBoundingClientRect();
-        const mouseX = event.clientX - rect.left;
-        const deltaX = mouseX - dragStart.x;
-        const currentPlotW = Math.max(10, width - 60 - 16); // padding.left - padding.right
-        const panDelta = deltaX / currentPlotW;
-        setPanOffset(prev => Math.max(-0.5, Math.min(0.5, prev + panDelta)));
-        setDragStart({ x: mouseX, y: event.clientY - rect.top });
+        const mouseY = event.clientY - rect.top;
+        const deltaY = dragStart.y - mouseY; // Inverted: drag up = zoom in
+        const zoomDelta = deltaY / 100; // Sensitivity adjustment
+        const newZoomLevel = Math.max(0.1, Math.min(5, zoomLevel + zoomDelta));
+        
+        setZoomLevel(newZoomLevel);
+        setDragStart({ x: event.clientX - rect.left, y: mouseY });
       }
     };
 
@@ -292,13 +288,12 @@ function SvgOHLCVArea({
       document.removeEventListener('mouseup', handleGlobalMouseUp);
       document.removeEventListener('mousemove', handleGlobalMouseMove);
     };
-  }, [isDragging, dragStart, width]);
+  }, [isDragging, dragStart, zoomLevel]);
 
-  // Reset pan/zoom when timeframe changes
+  // Reset zoom when timeframe changes
   useEffect(() => {
-    setPanOffset(0);
     setZoomLevel(1);
-    console.log(`🔄 Timeframe changed to ${timeframe}, resetting pan/zoom`);
+    console.log(`🔄 Timeframe changed to ${timeframe}, resetting zoom`);
   }, [timeframe]);
 
   // Enhanced data fetching with aggregation fallback
@@ -374,13 +369,11 @@ function SvgOHLCVArea({
 
         if (!alive) return;
         setRawData(data);
-        setTotalLoadedBars(data.length);
         
-        // Only reset pan/zoom on initial load or timeframe change
+        // Only reset zoom on initial load
         if (rawData.length === 0) {
-          setPanOffset(0);
           setZoomLevel(1);
-          console.log(`🔄 Reset pan/zoom for new ${timeframe} data`);
+          console.log(`🔄 Reset zoom for new ${timeframe} data`);
         }
       } catch (e) {
         if (alive) setErr(e.message || "Failed to load chart data");
@@ -393,54 +386,7 @@ function SvgOHLCVArea({
     return () => { alive = false; };
   }, [contract, timeframe, displayMode, token]);
 
-  // Dynamic loading function for more historical data
-  const loadMoreHistoricalData = async () => {
-    if (!contract || isLoadingMore || !hasMoreData || rawData.length === 0) return;
-    
-    setIsLoadingMore(true);
-    console.log(`📈 Loading more ${timeframe} data...`);
-    
-    try {
-      const oldestTime = rawData[0]?.time;
-      if (!oldestTime) return;
-      
-      // Load more data before the oldest timestamp (use smaller chunks for dynamic loading)
-      const chunkSize = Math.min(WINDOW_BY_TF[timeframe] || 100, 200); // Dynamic chunk size
-      console.log(`🔄 Loading ${chunkSize} older bars for ${timeframe} (cache-optimized)`);
-      const moreData = await chartService.loadOlderBars(contract, timeframe, oldestTime, 'RD', chunkSize);
-      
-      if (Array.isArray(moreData?.data) && moreData.data.length > 0) {
-        console.log(`✅ Loaded ${moreData.data.length} more bars`);
-        
-        // Merge new data with existing (prepend older data)
-        const mergedData = [...moreData.data, ...rawData];
-        
-        // Remove duplicates based on timestamp
-        const uniqueData = mergedData.filter((item, index, arr) => 
-          index === 0 || item.time !== arr[index - 1].time
-        );
-        
-        setRawData(uniqueData);
-        setTotalLoadedBars(uniqueData.length);
-        
-        // Keep current pan position to show historical data
-        console.log(`📊 Keeping current pan position: ${panOffset.toFixed(3)} to show historical data`);
-        
-        // Check if we've reached the limit or no more data available
-        if (moreData.data.length < 50) {
-          setHasMoreData(false);
-          console.log(`📊 Reached end of available data (${uniqueData.length} total bars)`);
-        }
-      } else {
-        setHasMoreData(false);
-        console.log(`📊 No more historical data available`);
-      }
-    } catch (error) {
-      console.error('Failed to load more historical data:', error);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  };
+  // Removed dynamic loading function (no longer needed without pan)
 
   // Process data: normalize, window, and transform
   const processedData = useMemo(() => {
@@ -529,20 +475,17 @@ function SvgOHLCVArea({
     const plotW = Math.max(10, width - padding.left - padding.right);
     const plotH = Math.max(10, height - padding.top - padding.bottom);
     
-    // Apply pan and zoom to time domain
+    // Apply zoom to time domain (centered)
     const timeSpan = tMax - tMin;
     const zoomedTimeSpan = timeSpan / zoomLevel;
-    const panAdjustment = panOffset * timeSpan;
     
-    const viewTMin = tMin + panAdjustment + (timeSpan - zoomedTimeSpan) / 2;
+    const viewTMin = tMin + (timeSpan - zoomedTimeSpan) / 2;
     const viewTMax = viewTMin + zoomedTimeSpan;
     
     // Debug logging for view window
-    console.log(`🔍 View Window: tMin=${new Date(tMin*1000).toISOString().slice(11,19)}, tMax=${new Date(tMax*1000).toISOString().slice(11,19)}`);
-    console.log(`🔍 View Window: viewTMin=${new Date(viewTMin*1000).toISOString().slice(11,19)}, viewTMax=${new Date(viewTMax*1000).toISOString().slice(11,19)}`);
-    console.log(`🔍 Pan: ${panOffset.toFixed(3)}, Zoom: ${zoomLevel.toFixed(2)}, Data points: ${processedData.length}`);
+    console.log(`🔍 Zoom: ${zoomLevel.toFixed(2)}x, Data points: ${processedData.length}`);
     
-    // Scaling functions with pan and zoom applied
+    // Scaling functions with zoom applied
     const xScale = (t) => padding.left + ((t - viewTMin) / (viewTMax - viewTMin)) * plotW;
     const yScale = (price) => padding.top + ((yDomainMax - price) / (yDomainMax - yDomainMin)) * plotH;
     
@@ -575,9 +518,9 @@ function SvgOHLCVArea({
       yDomainMin,
       yDomainMax
     };
-  }, [processedData, width, displayMode, timeframe, panOffset, zoomLevel]);
+  }, [processedData, width, displayMode, timeframe, zoomLevel]);
 
-  // Enhanced mouse interaction handlers with pan, zoom, and scroll detection
+  // Enhanced mouse interaction handlers with vertical drag zoom and scroll detection
   const handleMouseMove = (event) => {
     if (!processedData.length) return;
     
@@ -585,19 +528,9 @@ function SvgOHLCVArea({
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
     
-    // Handle dragging for pan
+    // Handle vertical dragging for zoom (handled in global mouse move)
     if (isDragging && dragStart) {
-      const deltaX = mouseX - dragStart.x;
-      const panDelta = deltaX / plotW;
-      setPanOffset(prev => Math.max(-0.5, Math.min(0.5, prev + panDelta)));
-      setDragStart({ x: mouseX, y: mouseY });
-      
-      // Check if we're panning to the left edge (need more historical data)
-      if (panOffset < -0.1 && hasMoreData && !isLoadingMore) {
-        console.log(`🔄 Pan threshold reached (${panOffset.toFixed(3)}), loading more historical data...`);
-        loadMoreHistoricalData();
-      }
-      return;
+      return; // Zoom handled in global mouse move
     }
     
     // Find closest data point for crosshair (use view window)
@@ -659,12 +592,7 @@ function SvgOHLCVArea({
     const newZoomLevel = Math.max(0.1, Math.min(5, zoomLevel * zoomFactor));
     
     setZoomLevel(newZoomLevel);
-    
-    // If zooming out significantly and we have more data available, load it
-    if (newZoomLevel < 0.5 && hasMoreData && !isLoadingMore) {
-      console.log(`🔍 Zoom out detected (${newZoomLevel.toFixed(2)}x), loading more data...`);
-      loadMoreHistoricalData();
-    }
+    console.log(`🔍 Mouse wheel zoom: ${newZoomLevel.toFixed(2)}x`);
   };
 
   // Render
@@ -718,21 +646,12 @@ function SvgOHLCVArea({
 
   return (
     <div ref={wrapRef} className="w-full relative">
-      {/* Loading indicators */}
-      {isLoadingMore && (
-        <div className="absolute top-2 left-2 z-10 bg-blue-500 text-white px-3 py-1 rounded-lg shadow-lg flex items-center space-x-2">
-          <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
-          <span className="text-sm">📈 Loading more history...</span>
-        </div>
-      )}
       
       
-      {/* Pan/Zoom instructions - positioned to avoid X-axis */}
-      {!isLoadingMore && hasMoreData && (
-        <div className="absolute top-12 left-2 z-10 bg-gray-800 bg-opacity-90 text-gray-300 px-3 py-1 rounded-lg shadow-lg text-xs border border-gray-600">
-          🖱️ Drag to pan • Scroll to zoom • Auto-loads more data
-        </div>
-      )}
+      {/* Zoom instructions */}
+      <div className="absolute top-12 left-2 z-10 bg-gray-800 bg-opacity-90 text-gray-300 px-3 py-1 rounded-lg shadow-lg text-xs border border-gray-600">
+        🔍 Scroll to zoom • Drag up/down to zoom
+      </div>
       
       <svg 
         width={width} 
