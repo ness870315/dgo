@@ -185,7 +185,7 @@ function concentrationRisk(supplyConcentration) {
 
 // --- Top Holders Table ---
 function TopHoldersTable({ holders }) {
-  if (!holders || holders.length === 0) {
+  if (!holders || !Array.isArray(holders) || holders.length === 0) {
     return (
       <div className="text-center py-8 text-slate-400">
         No holder data available
@@ -205,16 +205,23 @@ function TopHoldersTable({ holders }) {
           </tr>
         </thead>
         <tbody>
-          {holders.slice(0, 10).map((holder) => (
-            <tr key={holder.address} className="border-b border-slate-800/40">
-              <td className="py-2 text-slate-300">#{holder.rank}</td>
-              <td className="py-2 text-slate-300 font-mono text-xs">
-                {holder.address.slice(0, 8)}...{holder.address.slice(-6)}
-              </td>
-              <td className="py-2 text-right text-slate-300">{holder.balanceFormatted}</td>
-              <td className="py-2 text-right text-slate-300">{holder.percentageFormatted}</td>
-            </tr>
-          ))}
+          {holders.slice(0, 10).map((holder, index) => {
+            const address = holder.address || holder.contractAddress || 'Unknown';
+            const shortAddress = address && address.length > 14 
+              ? `${address.slice(0, 8)}...${address.slice(-6)}`
+              : address || 'N/A';
+            
+            return (
+              <tr key={address || index} className="border-b border-slate-800/40">
+                <td className="py-2 text-slate-300">#{holder.rank || index + 1}</td>
+                <td className="py-2 text-slate-300 font-mono text-xs">
+                  {shortAddress}
+                </td>
+                <td className="py-2 text-right text-slate-300">{holder.balanceFormatted || 'N/A'}</td>
+                <td className="py-2 text-right text-slate-300">{holder.percentageFormatted || 'N/A'}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
