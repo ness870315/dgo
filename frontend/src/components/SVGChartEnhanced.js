@@ -13,7 +13,7 @@ const WINDOW_BY_TF = {
   '1D': 90,      // 90 days window (matches backend RD: 90)
   '1W': 156,     // ~3 years
   '1M': 120,     // ~10 years
-  'ALL': 1000    // All time since token creation
+  'ALL': 500     // All time since token creation
 };
 
 // Aggregation fallback ladder

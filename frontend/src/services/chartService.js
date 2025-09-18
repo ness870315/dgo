@@ -265,7 +265,7 @@ class ChartService {
       '1M': { MV: 300, RD: 120, MP: 240 },     // ~10 years
       '3M': { MV: 300, RD: 120, MP: 240 },     // ~30 years
       '1Y': { MV: 300, RD: 120, MP: 240 },     // ~120 years
-      'ALL': { MV: 600, RD: 1000, MP: 2000 }   // All time since token creation
+      'ALL': { MV: 300, RD: 500, MP: 1000 }    // All time since token creation
     };
     
     const timeframeLimits = limits[timeframe] || limits['1D'];
