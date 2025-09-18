@@ -265,7 +265,7 @@ class ChartService {
       '1M': { MV: 300, RD: 120, MP: 240 },     // ~10 years
       '3M': { MV: 300, RD: 120, MP: 240 },     // ~30 years
       '1Y': { MV: 300, RD: 120, MP: 240 },     // ~120 years
-      'ALL': { MV: 300, RD: 240, MP: 480 }     // All time
+      'ALL': { MV: 300, RD: 500, MP: 1000 }    // All time since token creation
     };
     
     const timeframeLimits = limits[timeframe] || limits['1D'];
@@ -513,6 +513,41 @@ class ChartService {
       return data;
     } catch (error) {
       console.error('Failed to fetch price chart:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get price chart with specific time range (for ALL timeframe)
+   * @param {string} contractAddress - Token contract address
+   * @param {string} timeframe - Timeframe (e.g., '4H' for all-time view)
+   * @param {number} fromTimestamp - Start timestamp (seconds)
+   * @param {number} toTimestamp - End timestamp (seconds)
+   * @returns {Promise<Object>} Chart data
+   */
+  async getPriceChartWithTimeRange(contractAddress, timeframe, fromTimestamp, toTimestamp) {
+    try {
+      const params = new URLSearchParams({
+        timeframe: timeframe,
+        tier: 'RD',
+        limit: '1000',
+        from: fromTimestamp.toString(),
+        to: toTimestamp.toString()
+      });
+        
+      const response = await fetch(`${this.API_BASE}/api/tokens/${contractAddress}/price-chart?${params}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      console.log(`📊 Time range chart: ${data?.data?.length || 0} points from ${new Date(fromTimestamp * 1000).toISOString()} to ${new Date(toTimestamp * 1000).toISOString()}`);
+      
+      return data;
+    } catch (error) {
+      console.error('Failed to fetch time range chart:', error);
       throw error;
     }
   }

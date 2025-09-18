@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import chartService from "../services/chartService";
 
 // ------- Enhanced helpers with aggregation support
-const TF_SEC = { '1MIN':60,'5MIN':300,'15MIN':900,'1H':3600,'4H':14400,'1D':86400,'1W':604800,'1M':2592000 };
+const TF_SEC = { '1MIN':60,'5MIN':300,'15MIN':900,'1H':3600,'4H':14400,'1D':86400,'1W':604800,'1M':2592000,'ALL':14400 };
 
 const WINDOW_BY_TF = {
   '1MIN': 240,   // 4h window (matches backend RD: 240)
@@ -12,7 +12,8 @@ const WINDOW_BY_TF = {
   '4H': 90,      // 15 days window (matches backend RD: 90)
   '1D': 90,      // 90 days window (matches backend RD: 90)
   '1W': 156,     // ~3 years
-  '1M': 120      // ~10 years
+  '1M': 120,     // ~10 years
+  'ALL': 500     // All time since token creation
 };
 
 // Aggregation fallback ladder
@@ -20,7 +21,8 @@ const FALLBACK_TF = {
   '15MIN': ['5MIN', '1MIN'],
   '1H': ['15MIN', '5MIN', '1MIN'],
   '4H': ['1H', '15MIN', '5MIN'],
-  '1D': ['4H', '1H', '15MIN']
+  '1D': ['4H', '1H', '15MIN'],
+  'ALL': ['1D', '4H', '1H']  // All time can fall back to daily data
 };
 
 // Dynamic Y-axis formatting
@@ -152,8 +154,12 @@ function formatTimeLabel(timeframe, useLocal = false) {
       
       case '1D':
       case '1W':
+      case 'ALL':
       default:
-        // Show MMM DD for daily+ charts
+        // Show MMM DD for daily+ charts, MMM YY for all-time
+        if (timeframe === 'ALL') {
+          return formatter({ month: 'short', year: '2-digit' }).format(date);
+        }
         return formatter({ month: 'short', day: 'numeric' }).format(date);
     }
   };
@@ -173,6 +179,9 @@ function generateTimeTicks(tMin, tMax, timeframe, containerWidth) {
     case '15MIN':
     case '1H':
       targetTicks = Math.max(3, Math.min(6, Math.floor(containerWidth / 100)));
+      break;
+    case 'ALL':
+      targetTicks = Math.max(4, Math.min(8, Math.floor(containerWidth / 100)));
       break;
     default:
       targetTicks = Math.max(3, Math.min(5, Math.floor(containerWidth / 120)));
@@ -272,9 +281,27 @@ function SvgOHLCVArea({
           }
         }
 
-        // Try primary timeframe first
-        let res = await chartService.getPriceChartRD(contract, timeframe);
-        let data = Array.isArray(res?.data) ? res.data : [];
+        // Handle 'ALL' timeframe with Jupiter createdAt
+        let res, data;
+        if (timeframe === 'ALL' && token?.jupiterData?.createdAt) {
+          console.log(`📅 ALL timeframe: Using Jupiter createdAt ${token.jupiterData.createdAt}`);
+          // Convert createdAt to timestamp and use 4H intervals for all-time view
+          const createdAtTimestamp = new Date(token.jupiterData.createdAt).getTime() / 1000;
+          const now = Date.now() / 1000;
+          const daysSinceCreation = (now - createdAtTimestamp) / (24 * 60 * 60);
+          
+          console.log(`📊 Token age: ${daysSinceCreation.toFixed(1)} days since creation`);
+          
+          // Use 4H timeframe for all-time view (good balance of detail vs performance)
+          res = await chartService.getPriceChartWithTimeRange(contract, '4H', createdAtTimestamp, now);
+          data = Array.isArray(res?.data) ? res.data : [];
+          
+          console.log(`📈 ALL timeframe: Got ${data.length} data points from creation to now`);
+        } else {
+          // Try primary timeframe first
+          res = await chartService.getPriceChartRD(contract, timeframe);
+          data = Array.isArray(res?.data) ? res.data : [];
+        }
         
         // If insufficient data and we have fallback options, try aggregation
         if (data.length < 50 && FALLBACK_TF[timeframe]) {
@@ -694,7 +721,7 @@ export default function SVGChart({ token, onClose }) {
         <div className="flex items-center space-x-2">
           <span className="text-sm text-gray-400">Timeframe:</span>
           <div className="flex bg-gray-700 rounded-lg p-1">
-            {['5MIN', '15MIN', '1MIN', '1H', '4H', '1D'].map(tf => (
+            {['5MIN', '15MIN', '1MIN', '1H', '4H', '1D', 'ALL'].map(tf => (
               <button
                 key={tf}
                 onClick={() => setTimeframe(tf)}
