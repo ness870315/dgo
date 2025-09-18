@@ -465,7 +465,7 @@ function SvgOHLCVArea({
   }, [rawData, timeframe, displayMode, circulatingSupply, token]);
 
   // Enhanced scaling and formatting
-  const { x, y, yTicks, xTicks, priceFormat, yFormatter, height, padding, plotW, plotH, tMin, tMax, yDomainMin, yDomainMax } = useMemo(() => {
+  const { x, y, yTicks, xTicks, priceFormat, yFormatter, height, padding, plotW, plotH, tMin, tMax, viewTMin, viewTMax, yDomainMin, yDomainMax } = useMemo(() => {
     if (!processedData.length) return { 
       x: () => 0, 
       y: () => 0, 
@@ -479,6 +479,8 @@ function SvgOHLCVArea({
       plotH: 100,
       tMin: 0,
       tMax: 1,
+      viewTMin: 0,
+      viewTMax: 1,
       yDomainMin: 0,
       yDomainMax: 1
     };
@@ -509,13 +511,21 @@ function SvgOHLCVArea({
     const plotW = Math.max(10, width - padding.left - padding.right);
     const plotH = Math.max(10, height - padding.top - padding.bottom);
     
-    // Scaling functions
-    const xScale = (t) => padding.left + ((t - tMin) / (tMax - tMin)) * plotW;
+    // Apply pan and zoom to time domain
+    const timeSpan = tMax - tMin;
+    const zoomedTimeSpan = timeSpan / zoomLevel;
+    const panAdjustment = panOffset * timeSpan;
+    
+    const viewTMin = tMin + panAdjustment + (timeSpan - zoomedTimeSpan) / 2;
+    const viewTMax = viewTMin + zoomedTimeSpan;
+    
+    // Scaling functions with pan and zoom applied
+    const xScale = (t) => padding.left + ((t - viewTMin) / (viewTMax - viewTMin)) * plotW;
     const yScale = (price) => padding.top + ((yDomainMax - price) / (yDomainMax - yDomainMin)) * plotH;
     
-    // Generate ticks
+    // Generate ticks (use view window for X-axis)
     const yTickValues = generateYTicks(yDomainMin, yDomainMax, 5);
-    const xTickValues = generateTimeTicks(tMin, tMax, timeframe, plotW);
+    const xTickValues = generateTimeTicks(viewTMin, viewTMax, timeframe, plotW);
     
     // Y-axis formatter
     const formatter = displayMode === 'mcap' ? 
@@ -537,10 +547,12 @@ function SvgOHLCVArea({
       plotH,
       tMin,
       tMax,
+      viewTMin,
+      viewTMax,
       yDomainMin,
       yDomainMax
     };
-  }, [processedData, width, displayMode, timeframe]);
+  }, [processedData, width, displayMode, timeframe, panOffset, zoomLevel]);
 
   // Enhanced mouse interaction handlers with pan, zoom, and scroll detection
   const handleMouseMove = (event) => {
@@ -565,8 +577,8 @@ function SvgOHLCVArea({
       return;
     }
     
-    // Find closest data point for crosshair
-    const timeAtMouse = ((mouseX - padding.left) / plotW) * (tMax - tMin) + tMin;
+    // Find closest data point for crosshair (use view window)
+    const timeAtMouse = ((mouseX - padding.left) / plotW) * (viewTMax - viewTMin) + viewTMin;
     
     let closestPoint = processedData[0];
     let minDistance = Math.abs(closestPoint.time - timeAtMouse);
