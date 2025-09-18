@@ -1,16 +1,207 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import chartService from '../services/chartService';
 
+// ---- 1) Utils ---------------------------------------------------------------
+const pad = (min, max, pct=0.05) => {
+  const span = max - min || 1;
+  return [min - span*pct, max + span*pct];
+};
+
+const bisect = (arr, x, getX) => {
+  let lo = 0, hi = arr.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (getX(arr[mid]) < x) lo = mid + 1; else hi = mid;
+  }
+  return lo;
+};
+
+// Largest-Triangle-Three-Buckets downsampler (tiny, good quality)
+function lttb(points, threshold, getX, getY) {
+  const n = points.length;
+  if (threshold >= n || threshold === 0) return points;
+  const sampled = [points[0]];
+  const bucketSize = (n - 2) / (threshold - 2);
+  let a = 0;
+
+  for (let i = 0; i < threshold - 2; i++) {
+    const rangeStart = Math.floor((i + 1) * bucketSize) + 1;
+    const rangeEnd = Math.floor((i + 2) * bucketSize) + 1;
+    const range = points.slice(rangeStart, rangeEnd);
+
+    // avg for next bucket
+    let avgX = 0, avgY = 0;
+    for (const p of range) { avgX += getX(p); avgY += getY(p); }
+    avgX /= range.length || 1; avgY /= range.length || 1;
+
+    const rangeOffs = Math.floor(i * bucketSize) + 1;
+    const rangeTo = Math.floor((i + 1) * bucketSize) + 1;
+
+    let maxArea = -1, maxAreaPoint = null, nextA = rangeOffs;
+
+    for (let j = rangeOffs; j < rangeTo; j++) {
+      const ax = getX(points[a]), ay = getY(points[a]);
+      const bx = getX(points[j]), by = getY(points[j]);
+      const area = Math.abs((ax - avgX) * (by - ay) - (ax - bx) * (avgY - ay));
+      if (area > maxArea) { maxArea = area; maxAreaPoint = points[j]; nextA = j; }
+    }
+    sampled.push(maxAreaPoint || points[nextA]);
+    a = nextA;
+  }
+  sampled.push(points[n - 1]);
+  return sampled;
+}
+
+// Simple formatter
+const fmtUSD = (v) =>
+  (v >= 1 ? v.toFixed(4) : v >= 0.01 ? v.toFixed(6) : v.toPrecision(6));
+
+// ---- 2) Optimized SVG Chart Component -----------------------------------------------------------
+function SvgAreaChart({
+  data = [],
+  height = 400,
+  stroke = "#ec4899",
+  fillFrom = "rgba(236, 72, 153, 0.35)",
+  fillTo = "rgba(236, 72, 153, 0.05)",
+  maxPoints = 600,
+  showGrid = true,
+  className = ""
+}) {
+  const wrapRef = useRef(null);
+  const [width, setWidth] = useState(800);
+
+  // Responsive width
+  useEffect(() => {
+    const ro = new ResizeObserver(() => {
+      if (wrapRef.current) setWidth(wrapRef.current.clientWidth || 800);
+    });
+    if (wrapRef.current) ro.observe(wrapRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  // ---- Normalize & downsample
+  const points = useMemo(() => {
+    if (!Array.isArray(data)) return [];
+    const rows = data
+      .filter(d => Number.isFinite(d?.time) && Number.isFinite(d?.close))
+      .map(d => ({ t: (d.time > 1e12 ? Math.floor(d.time/1000) : d.time), y: +d.close }))
+      .sort((a,b) => a.t - b.t);
+
+    // Deduplicate timestamps
+    const uniq = [];
+    for (let i=0;i<rows.length;i++) {
+      if (i === 0 || rows[i].t !== rows[i-1].t) uniq.push(rows[i]);
+      else uniq[uniq.length-1] = rows[i]; // keep last in bucket
+    }
+
+    return uniq.length > maxPoints
+      ? lttb(uniq, maxPoints, p=>p.t, p=>p.y)
+      : uniq;
+  }, [data, maxPoints]);
+
+  // ---- Scales
+  const [minT, maxT, minYRaw, maxYRaw] = useMemo(() => {
+    if (!points.length) return [0, 1, 0, 1];
+    let minT = points[0].t, maxT = points[points.length-1].t;
+    let minY = +Infinity, maxY = -Infinity;
+    for (const p of points) { if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y; }
+    const [lo, hi] = pad(minY, maxY, 0.06);
+    return [minT, maxT, lo, hi];
+  }, [points]);
+
+  const x = (t) => {
+    const span = maxT - minT || 1;
+    return ((t - minT) / span) * (width - 32) + 16; // 16px left/right padding
+  };
+  const y = (v) => {
+    const span = maxYRaw - minYRaw || 1;
+    return height - 24 - ((v - minYRaw) / span) * (height - 48); // 24px top/bot padding
+  };
+
+  // ---- Paths
+  const { linePath, areaPath } = useMemo(() => {
+    if (!points.length) return { linePath: "", areaPath: "" };
+    let d = `M ${x(points[0].t)} ${y(points[0].y)}`;
+    for (let i = 1; i < points.length; i++) {
+      d += ` L ${x(points[i].t)} ${y(points[i].y)}`;
+    }
+    const baseY = y(minYRaw);
+    const area = `${d} L ${x(points[points.length-1].t)} ${baseY} L ${x(points[0].t)} ${baseY} Z`;
+    return { linePath: d, areaPath: area };
+  }, [points, width, height, minYRaw, x, y]);
+
+  // ---- Tooltip / crosshair
+  const [hover, setHover] = useState(null); // { i, px }
+  const onMove = (e) => {
+    if (!points.length) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    // invert x -> time
+    const t = minT + ((px - 16) / Math.max(1, (width - 32))) * (maxT - minT);
+    const i = Math.min(points.length - 1, Math.max(0, bisect(points, t, p=>p.t)));
+    setHover({ i, px: x(points[i].t) });
+  };
+
+  return (
+    <div ref={wrapRef} className={className} style={{width: "100%"}}>
+      <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
+        <defs>
+          <linearGradient id="gFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={fillFrom}/>
+            <stop offset="100%" stopColor={fillTo}/>
+          </linearGradient>
+        </defs>
+
+        {/* grid (optional) */}
+        {showGrid && (
+          <>
+            {[0.25,0.5,0.75].map((r,idx)=>(
+              <line key={idx} x1="0" x2={width} y1={height*r} y2={height*r}
+                    stroke="rgba(255,255,255,0.06)" strokeWidth="1"/>
+            ))}
+          </>
+        )}
+
+        {/* area + line */}
+        <path d={areaPath} fill="url(#gFill)" />
+        <path d={linePath} fill="none" stroke={stroke} strokeWidth="2.5" strokeLinecap="round"/>
+
+        {/* crosshair + tooltip */}
+        {hover && points[hover.i] && (
+          <>
+            <line x1={hover.px} x2={hover.px} y1="8" y2={height-8}
+                  stroke="rgba(255,255,255,0.25)" strokeDasharray="4 4"/>
+            <circle cx={hover.px} cy={y(points[hover.i].y)} r="3.5" fill={stroke} />
+            {/* tooltip bubble */}
+            <g transform={`translate(${Math.min(width-220, Math.max(8, hover.px-110))}, 12)`}>
+              <rect width="210" height="56" rx="8" fill="rgba(15,23,42,0.95)" stroke="rgba(148,163,184,0.35)"/>
+              <text x="12" y="24" fill="#e2e8f0" fontSize="12" fontFamily="system-ui, sans-serif">
+                {new Date(points[hover.i].t*1000).toLocaleString()}
+              </text>
+              <text x="12" y="44" fill="#94a3b8" fontSize="14" fontFamily="system-ui, sans-serif">
+                {fmtUSD(points[hover.i].y)} $
+              </text>
+            </g>
+          </>
+        )}
+
+        {/* interactive overlay */}
+        <rect x="0" y="0" width={width} height={height}
+              fill="transparent"
+              onMouseMove={onMove}
+              onMouseLeave={()=>setHover(null)}
+        />
+      </svg>
+    </div>
+  );
+}
+
+// ---- 3) Main SVGChart Component -----------------------------------------------------------
 const SVGChart = ({ token, onClose }) => {
-  console.log('📊 SVGChart rendered with token:', token);
-  
   const [timeframe, setTimeframe] = useState('1D');
   const [displayMode, setDisplayMode] = useState('price');
   const [chartData, setChartData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [hoveredPoint, setHoveredPoint] = useState(null);
-  const svgRef = useRef(null);
-  const [dimensions, setDimensions] = useState({ width: 800, height: 400 });
 
   // Timeframe options
   const timeframes = [
@@ -26,17 +217,7 @@ const SVGChart = ({ token, onClose }) => {
 
   // Load chart data
   useEffect(() => {
-    console.log('🔍 SVGChart useEffect triggered with token:', token);
-    console.log('🔍 Current timeframe state:', timeframe);
-    console.log('🔍 Contract address check:', {
-      contractAddress: token?.contractAddress,
-      contract: token?.contract,
-      hasContractAddress: !!token?.contractAddress,
-      hasContract: !!token?.contract
-    });
-    
     if (!token?.contractAddress && !token?.contract) {
-      console.log('❌ No contract address found in token:', token);
       return;
     }
     
@@ -44,11 +225,7 @@ const SVGChart = ({ token, onClose }) => {
       setLoading(true);
       try {
         const contract = token.contractAddress || token.contract || token.mint || token.address;
-        console.log('Loading chart data for contract:', contract, 'timeframe:', timeframe);
         const response = await chartService.getPriceChartRD(contract, timeframe);
-        console.log('Chart data response:', response);
-        console.log('Response success:', response?.success);
-        console.log('Response data length:', response?.data?.length);
         setChartData(response);
       } catch (error) {
         console.error('Failed to load chart data:', error);
@@ -61,26 +238,9 @@ const SVGChart = ({ token, onClose }) => {
     loadData();
   }, [token, timeframe]);
 
-  // Handle resize
-  useEffect(() => {
-    const handleResize = () => {
-      if (svgRef.current) {
-        const rect = svgRef.current.getBoundingClientRect();
-        setDimensions({ width: rect.width, height: rect.height });
-      }
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Process data for SVG rendering
-  const processData = () => {
-    if (!chartData?.data?.length) {
-      console.log('No chart data available:', chartData);
-      return { points: [], min: 0, max: 0, timeRange: 0 };
-    }
+  // Process data for the optimized chart
+  const processedData = useMemo(() => {
+    if (!chartData?.data?.length) return [];
 
     const candles = chartData.data.map(d => ({
       time: Math.floor(d.time),
@@ -101,47 +261,8 @@ const SVGChart = ({ token, onClose }) => {
       });
     }
 
-    const prices = candles.map(c => c.close);
-    const min = Math.min(...prices);
-    const max = Math.max(...prices);
-    const timeRange = candles[candles.length - 1]?.time - candles[0]?.time || 1;
-
-    // Convert to SVG coordinates
-    const points = candles.map((candle, index) => {
-      const x = (index / (candles.length - 1)) * (dimensions.width - 100) + 50;
-      const y = dimensions.height - 50 - ((candle.close - min) / (max - min)) * (dimensions.height - 100);
-      return {
-        x,
-        y,
-        time: candle.time,
-        price: candle.close,
-        volume: candle.volume
-      };
-    });
-
-    return { points, min, max, timeRange };
-  };
-
-  // Create SVG path for the line
-  const createPath = (points) => {
-    if (points.length < 2) return '';
-    
-    const firstPoint = points[0];
-    const lastPoint = points[points.length - 1];
-    const bottomY = dimensions.height - 50; // Bottom padding
-    
-    let path = `M ${firstPoint.x} ${bottomY}`;
-    path += ` L ${firstPoint.x} ${firstPoint.y}`;
-    
-    for (let i = 1; i < points.length; i++) {
-      path += ` L ${points[i].x} ${points[i].y}`;
-    }
-    
-    path += ` L ${lastPoint.x} ${bottomY}`;
-    path += ` Z`;
-    
-    return path;
-  };
+    return candles;
+  }, [chartData, displayMode, token]);
 
   // Format price for display
   const formatPrice = (price) => {
@@ -162,37 +283,9 @@ const SVGChart = ({ token, onClose }) => {
     }
   };
 
-  // Format time for display
-  const formatTime = (timestamp) => {
-    const date = new Date(timestamp * 1000);
-    if (timeframe === '1MIN' || timeframe === '5MIN' || timeframe === '15MIN') {
-      return date.toLocaleTimeString();
-    } else if (timeframe === '1H' || timeframe === '4H') {
-      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-    } else {
-      return date.toLocaleDateString();
-    }
-  };
-
-  // Handle mouse move for tooltip
-  const handleMouseMove = (event) => {
-    if (!chartData?.data?.length) return;
-    
-    const rect = svgRef.current.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    
-    const { points } = processData();
-    const closestPoint = points.reduce((closest, point) => {
-      const distance = Math.abs(point.x - x);
-      const closestDistance = Math.abs(closest.x - x);
-      return distance < closestDistance ? point : closest;
-    });
-    
-    setHoveredPoint(closestPoint);
-  };
-
-  const { points, min, max } = processData();
-  const path = createPath(points);
+  const currentPrice = processedData.length > 0 ? processedData[processedData.length - 1].close : 0;
+  const minPrice = processedData.length > 0 ? Math.min(...processedData.map(d => d.close)) : 0;
+  const maxPrice = processedData.length > 0 ? Math.max(...processedData.map(d => d.close)) : 0;
 
   if (loading) {
     return (
@@ -202,7 +295,7 @@ const SVGChart = ({ token, onClose }) => {
     );
   }
 
-  if (!chartData?.data?.length) {
+  if (!processedData.length) {
     return (
       <div className="flex items-center justify-center h-96 bg-gray-900 rounded-lg">
         <div className="text-white text-center">
@@ -224,7 +317,7 @@ const SVGChart = ({ token, onClose }) => {
             {token?.symbol || 'Token'} {displayMode === 'mcap' ? 'Market Cap' : 'Price'}
           </h3>
           <div className="text-white text-sm">
-            {formatPrice(points[points.length - 1]?.price)}
+            {formatPrice(currentPrice)}
           </div>
         </div>
         {onClose && (
@@ -279,83 +372,24 @@ const SVGChart = ({ token, onClose }) => {
         </div>
       </div>
 
-      {/* Chart */}
-      <div className="relative">
-        <svg
-          ref={svgRef}
-          width="100%"
+      {/* Optimized SVG Chart */}
+      <div className="bg-gray-800 rounded p-2">
+        <SvgAreaChart 
+          data={processedData} 
           height={400}
-          className="bg-gray-800 rounded"
-          onMouseMove={handleMouseMove}
-          onMouseLeave={() => setHoveredPoint(null)}
-        >
-          {/* Grid lines */}
-          <defs>
-            <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
-              <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#374151" strokeWidth="1"/>
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
-          
-          {/* Price line */}
-          <path
-            d={path}
-            fill="none"
-            stroke="#ec4899"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          
-          {/* Hovered point */}
-          {hoveredPoint && (
-            <>
-              <circle
-                cx={hoveredPoint.x}
-                cy={hoveredPoint.y}
-                r="6"
-                fill="#ec4899"
-                stroke="#fff"
-                strokeWidth="2"
-              />
-              <line
-                x1={hoveredPoint.x}
-                y1="0"
-                x2={hoveredPoint.x}
-                y2={dimensions.height}
-                stroke="#ec4899"
-                strokeWidth="1"
-                strokeDasharray="5,5"
-              />
-            </>
-          )}
-        </svg>
-
-        {/* Tooltip */}
-        {hoveredPoint && (
-          <div
-            className="absolute bg-gray-800 border border-gray-600 rounded-lg p-3 text-white text-sm pointer-events-none"
-            style={{
-              left: Math.min(hoveredPoint.x + 10, dimensions.width - 200),
-              top: Math.max(hoveredPoint.y - 50, 10),
-            }}
-          >
-            <div className="font-semibold">{formatTime(hoveredPoint.time)}</div>
-            <div className="text-pink-400">{formatPrice(hoveredPoint.price)}</div>
-            {hoveredPoint.volume > 0 && (
-              <div className="text-gray-400 text-xs">
-                Vol: {hoveredPoint.volume.toLocaleString()}
-              </div>
-            )}
-          </div>
-        )}
+          stroke="#ec4899"
+          fillFrom="rgba(236, 72, 153, 0.35)"
+          fillTo="rgba(236, 72, 153, 0.05)"
+          maxPoints={600}
+          showGrid={true}
+        />
       </div>
 
       {/* Price range info */}
       <div className="flex justify-between text-sm text-gray-400 mt-2">
-        <div>Min: {formatPrice(min)}</div>
-        <div>Max: {formatPrice(max)}</div>
-        <div>Range: {formatPrice(max - min)}</div>
+        <div>Min: {formatPrice(minPrice)}</div>
+        <div>Max: {formatPrice(maxPrice)}</div>
+        <div>Range: {formatPrice(maxPrice - minPrice)}</div>
       </div>
     </div>
   );
