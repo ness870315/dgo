@@ -649,18 +649,18 @@ class HybridPriceService {
     let fromDate;
     switch (timeframe) {
       case '1MIN':
+        fromDate = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(); // 1 day for 1min
+        break;
       case '5MIN':
+        fromDate = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(); // 2 days for 5min
+        break;
       case '15MIN':
-        fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days for minutes
+        fromDate = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(); // 3 days for 15min
         break;
       case '1H':
         fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days for hours
         break;
       case '4H':
-        fromDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString(); // 90 days for 4H
-        break;
-      case '1D':
-        fromDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString(); // 1 year for daily
         break;
       case '1W':
         fromDate = new Date(now.getTime() - 5 * 365 * 24 * 60 * 60 * 1000).toISOString(); // 5 years for weekly
