@@ -4,8 +4,23 @@ class ChartService {
     
     // Persistent cache for chart data (per timeframe) using localStorage
     this.chartCache = new Map();
-    this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
     this.cacheKey = 'xtrend_chart_cache';
+    
+    // Cache size limits to prevent localStorage quota exceeded
+    this.MAX_CACHE_ENTRIES = 50; // Maximum number of cache entries
+    this.MAX_CACHE_SIZE_MB = 5;  // Maximum cache size in MB
+    
+    // Timeframe-specific cache durations (shorter for frequent updates)
+    this.cacheTimeouts = {
+      '1MIN': 30 * 1000,        // 30 seconds
+      '5MIN': 2 * 60 * 1000,    // 2 minutes
+      '15MIN': 5 * 60 * 1000,   // 5 minutes
+      '1H': 10 * 60 * 1000,     // 10 minutes
+      '4H': 30 * 60 * 1000,     // 30 minutes
+      '1D': 60 * 60 * 1000,     // 1 hour
+      '1W': 4 * 60 * 60 * 1000, // 4 hours
+      '1M': 24 * 60 * 60 * 1000 // 24 hours
+    };
     
     // Load persistent cache on initialization
     this.loadPersistentCache();
@@ -33,21 +48,85 @@ class ChartService {
   }
 
   /**
-   * Save cache to localStorage (atomic write)
+   * Clean up old cache entries to prevent quota exceeded
+   */
+  cleanupCache() {
+    if (this.chartCache.size <= this.MAX_CACHE_ENTRIES) {
+      return; // No cleanup needed
+    }
+    
+    console.log(`🧹 Cache cleanup: ${this.chartCache.size} entries, limit: ${this.MAX_CACHE_ENTRIES}`);
+    
+    // Convert to array and sort by timestamp (oldest first)
+    const entries = Array.from(this.chartCache.entries());
+    entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+    
+    // Remove oldest entries
+    const toRemove = entries.slice(0, entries.length - this.MAX_CACHE_ENTRIES);
+    toRemove.forEach(([key]) => {
+      this.chartCache.delete(key);
+    });
+    
+    console.log(`🗑️ Removed ${toRemove.length} old cache entries`);
+  }
+
+  /**
+   * Get cache timeout for a specific timeframe
+   */
+  getCacheTimeout(timeframe) {
+    return this.cacheTimeouts[timeframe] || this.cacheTimeouts['1D'];
+  }
+
+  /**
+   * Save cache to localStorage (atomic write) with size limits
    */
   savePersistentCache() {
     try {
+      // Clean up cache before saving
+      this.cleanupCache();
+      
       const data = {
         entries: Array.from(this.chartCache.entries()),
         timestamp: Date.now(),
         version: '1.0'
       };
       
-      // Atomic write to localStorage
-      localStorage.setItem(this.cacheKey, JSON.stringify(data));
-      console.log(`💾 Saved ${this.chartCache.size} chart entries to persistent storage (atomic)`);
+      // Check cache size
+      const dataString = JSON.stringify(data);
+      const sizeMB = new Blob([dataString]).size / (1024 * 1024);
+      
+      if (sizeMB > this.MAX_CACHE_SIZE_MB) {
+        console.warn(`⚠️ Cache size ${sizeMB.toFixed(2)}MB exceeds limit ${this.MAX_CACHE_SIZE_MB}MB, cleaning up...`);
+        this.cleanupCache();
+        
+        // Rebuild data after cleanup
+        const cleanedData = {
+          entries: Array.from(this.chartCache.entries()),
+          timestamp: Date.now(),
+          version: '1.0'
+        };
+        
+        localStorage.setItem(this.cacheKey, JSON.stringify(cleanedData));
+        console.log(`💾 Saved ${this.chartCache.size} chart entries after cleanup (${(new Blob([JSON.stringify(cleanedData)]).size / (1024 * 1024)).toFixed(2)}MB)`);
+      } else {
+        // Atomic write to localStorage
+        localStorage.setItem(this.cacheKey, dataString);
+        console.log(`💾 Saved ${this.chartCache.size} chart entries to persistent storage (${sizeMB.toFixed(2)}MB)`);
+      }
     } catch (error) {
       console.warn(`⚠️ Failed to save persistent chart cache: ${error.message}`);
+      
+      // If quota exceeded, try aggressive cleanup
+      if (error.message.includes('quota')) {
+        console.log(`🚨 localStorage quota exceeded, performing aggressive cleanup...`);
+        this.chartCache.clear(); // Clear all cache
+        try {
+          localStorage.removeItem(this.cacheKey); // Remove corrupted cache
+          console.log(`✅ Cleared corrupted cache`);
+        } catch (cleanupError) {
+          console.warn(`⚠️ Failed to clear corrupted cache: ${cleanupError.message}`);
+        }
+      }
     }
   }
 
@@ -118,10 +197,19 @@ class ChartService {
   }
 
   /**
-   * Check if cached data is still valid
+   * Check if cached data is still valid for a specific timeframe
    */
-  isCacheValid(cacheEntry) {
-    return cacheEntry && (Date.now() - cacheEntry.timestamp) < this.cacheTimeout;
+  isCacheValid(cacheEntry, timeframe = '1D') {
+    if (!cacheEntry) return false;
+    
+    const timeout = this.getCacheTimeout(timeframe);
+    const isValid = (Date.now() - cacheEntry.timestamp) < timeout;
+    
+    if (!isValid) {
+      console.log(`⏰ Cache expired for ${timeframe} (age: ${Math.round((Date.now() - cacheEntry.timestamp) / 1000)}s, timeout: ${Math.round(timeout / 1000)}s)`);
+    }
+    
+    return isValid;
   }
 
   /**
@@ -131,8 +219,8 @@ class ChartService {
     const cacheKey = this.getCacheKey(contractAddress, timeframe, tier);
     const cached = this.chartCache.get(cacheKey);
     
-    if (this.isCacheValid(cached)) {
-      console.log(`📦 Using cached chart data for ${timeframe} (${tier} tier)`);
+    if (this.isCacheValid(cached, timeframe)) {
+      console.log(`📦 Using cached chart data for ${timeframe} (${tier} tier, ${cached.data?.data?.length || 0} candles)`);
       return cached.data;
     }
     
@@ -140,7 +228,7 @@ class ChartService {
   }
 
   /**
-   * Cache chart data (atomic and persistent)
+   * Cache chart data (atomic and persistent) with cleanup
    */
   setCachedChart(contractAddress, timeframe, data, tier = 'RD') {
     const cacheKey = this.getCacheKey(contractAddress, timeframe, tier);
@@ -148,10 +236,12 @@ class ChartService {
       data: data,
       timestamp: Date.now(),
       oldestTime: data?.data?.[0]?.time || null,
-      newestTime: data?.data?.[data?.data?.length - 1]?.time || null
+      newestTime: data?.data?.[data?.data?.length - 1]?.time || null,
+      timeframe: timeframe,
+      tier: tier
     });
     
-    // Atomic write to persistent storage
+    // Atomic write to persistent storage (includes cleanup)
     this.savePersistentCache();
     
     console.log(`💾 Cached chart data for ${timeframe} (${tier} tier, ${data?.data?.length || 0} candles) - persistent`);
@@ -397,6 +487,50 @@ class ChartService {
       console.error('Failed to fetch price chart status:', error);
       throw error;
     }
+  }
+
+  /**
+   * Get cache statistics for debugging
+   */
+  getCacheStats() {
+    const entries = Array.from(this.chartCache.entries());
+    const now = Date.now();
+    
+    const stats = {
+      totalEntries: this.chartCache.size,
+      maxEntries: this.MAX_CACHE_ENTRIES,
+      maxSizeMB: this.MAX_CACHE_SIZE_MB,
+      timeframes: {},
+      oldestEntry: null,
+      newestEntry: null
+    };
+    
+    // Group by timeframe
+    entries.forEach(([key, entry]) => {
+      const timeframe = entry.timeframe || 'unknown';
+      if (!stats.timeframes[timeframe]) {
+        stats.timeframes[timeframe] = { count: 0, totalCandles: 0 };
+      }
+      stats.timeframes[timeframe].count++;
+      stats.timeframes[timeframe].totalCandles += entry.data?.data?.length || 0;
+    });
+    
+    // Find oldest and newest entries
+    if (entries.length > 0) {
+      const sortedByTime = entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+      stats.oldestEntry = {
+        key: sortedByTime[0][0],
+        age: Math.round((now - sortedByTime[0][1].timestamp) / 1000),
+        timeframe: sortedByTime[0][1].timeframe
+      };
+      stats.newestEntry = {
+        key: sortedByTime[sortedByTime.length - 1][0],
+        age: Math.round((now - sortedByTime[sortedByTime.length - 1][1].timestamp) / 1000),
+        timeframe: sortedByTime[sortedByTime.length - 1][1].timeframe
+      };
+    }
+    
+    return stats;
   }
 }
 
