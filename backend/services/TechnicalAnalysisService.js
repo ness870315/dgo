@@ -163,7 +163,9 @@ class TechnicalAnalysisService {
       technicalIndicators = this.calculateTechnicalIndicators(ohlcvData);
       
       // Detect chart patterns
+      console.log(`🔍 Detecting chart patterns from ${ohlcvData.length} data points...`);
       chartPatterns = this.detectChartPatterns(ohlcvData);
+      console.log(`📊 Chart patterns detected:`, chartPatterns);
       
       // Find support and resistance levels
       supportResistanceLevels = this.findSupportResistanceLevels(ohlcvData);
@@ -325,25 +327,50 @@ class TechnicalAnalysisService {
    * Detect chart patterns in OHLCV data
    */
   detectChartPatterns(ohlcvData) {
-    if (!ohlcvData || ohlcvData.length < 10) return [];
+    if (!ohlcvData || ohlcvData.length < 10) {
+      console.log(`⚠️ Not enough data for pattern detection: ${ohlcvData?.length || 0} points`);
+      return [];
+    }
 
     const patterns = [];
     const closes = ohlcvData.map(d => d.close);
     const highs = ohlcvData.map(d => d.high);
     const lows = ohlcvData.map(d => d.low);
 
+    console.log(`🔍 Pattern detection data: ${ohlcvData.length} points, high range: ${Math.min(...highs).toFixed(8)} - ${Math.max(...highs).toFixed(8)}, low range: ${Math.min(...lows).toFixed(8)} - ${Math.max(...lows).toFixed(8)}`);
+
     // Double Top/Bottom detection
-    if (this.detectDoubleTop(highs)) patterns.push('Double Top');
-    if (this.detectDoubleBottom(lows)) patterns.push('Double Bottom');
+    const doubleTop = this.detectDoubleTop(highs);
+    const doubleBottom = this.detectDoubleBottom(lows);
+    console.log(`🔍 Double Top: ${doubleTop}, Double Bottom: ${doubleBottom}`);
+    if (doubleTop) patterns.push('Double Top');
+    if (doubleBottom) patterns.push('Double Bottom');
 
     // Triangle patterns
-    if (this.detectAscendingTriangle(highs, lows)) patterns.push('Ascending Triangle');
-    if (this.detectDescendingTriangle(highs, lows)) patterns.push('Descending Triangle');
-    if (this.detectSymmetricalTriangle(highs, lows)) patterns.push('Symmetrical Triangle');
+    const ascendingTriangle = this.detectAscendingTriangle(highs, lows);
+    const descendingTriangle = this.detectDescendingTriangle(highs, lows);
+    const symmetricalTriangle = this.detectSymmetricalTriangle(highs, lows);
+    console.log(`🔍 Triangles - Ascending: ${ascendingTriangle}, Descending: ${descendingTriangle}, Symmetrical: ${symmetricalTriangle}`);
+    if (ascendingTriangle) patterns.push('Ascending Triangle');
+    if (descendingTriangle) patterns.push('Descending Triangle');
+    if (symmetricalTriangle) patterns.push('Symmetrical Triangle');
 
     // Head and Shoulders
-    if (this.detectHeadAndShoulders(highs)) patterns.push('Head and Shoulders');
+    const headAndShoulders = this.detectHeadAndShoulders(highs);
+    console.log(`🔍 Head and Shoulders: ${headAndShoulders}`);
+    if (headAndShoulders) patterns.push('Head and Shoulders');
 
+    // Additional simple patterns
+    const supportResistance = this.detectSupportResistancePattern(highs, lows);
+    const trendReversal = this.detectTrendReversal(closes);
+    const consolidation = this.detectConsolidationPattern(highs, lows);
+    
+    console.log(`🔍 Additional patterns - Support/Resistance: ${supportResistance}, Trend Reversal: ${trendReversal}, Consolidation: ${consolidation}`);
+    if (supportResistance) patterns.push('Support/Resistance Bounce');
+    if (trendReversal) patterns.push('Trend Reversal');
+    if (consolidation) patterns.push('Consolidation');
+
+    console.log(`📊 Final patterns detected:`, patterns);
     return patterns;
   }
 
@@ -464,55 +491,57 @@ class TechnicalAnalysisService {
 
   // Pattern detection methods
   detectDoubleTop(highs) {
-    if (highs.length < 10) return false;
-    const recent = highs.slice(-10);
-    const max1 = Math.max(...recent.slice(0, 5));
-    const max2 = Math.max(...recent.slice(5));
-    return Math.abs(max1 - max2) / max1 < 0.02; // Within 2%
+    if (highs.length < 15) return false;
+    const recent = highs.slice(-15);
+    const max1 = Math.max(...recent.slice(0, 7));
+    const max2 = Math.max(...recent.slice(8));
+    const tolerance = Math.max(0.05, max1 * 0.05); // 5% tolerance, minimum 5% of value
+    return Math.abs(max1 - max2) <= tolerance;
   }
 
   detectDoubleBottom(lows) {
-    if (lows.length < 10) return false;
-    const recent = lows.slice(-10);
-    const min1 = Math.min(...recent.slice(0, 5));
-    const min2 = Math.min(...recent.slice(5));
-    return Math.abs(min1 - min2) / min1 < 0.02; // Within 2%
+    if (lows.length < 15) return false;
+    const recent = lows.slice(-15);
+    const min1 = Math.min(...recent.slice(0, 7));
+    const min2 = Math.min(...recent.slice(8));
+    const tolerance = Math.max(0.05, min1 * 0.05); // 5% tolerance, minimum 5% of value
+    return Math.abs(min1 - min2) <= tolerance;
   }
 
   detectAscendingTriangle(highs, lows) {
-    if (highs.length < 10) return false;
-    const recent = highs.slice(-10);
-    const recentLows = lows.slice(-10);
+    if (highs.length < 12) return false;
+    const recent = highs.slice(-12);
+    const recentLows = lows.slice(-12);
     
     // Check if highs are relatively flat and lows are ascending
     const highVariance = this.calculateVariance(recent);
     const lowTrend = this.calculateTrend(recentLows);
     
-    return highVariance < 0.01 && lowTrend > 0.1;
+    return highVariance < 0.05 && lowTrend > 0.03; // More lenient thresholds
   }
 
   detectDescendingTriangle(highs, lows) {
-    if (highs.length < 10) return false;
-    const recent = highs.slice(-10);
-    const recentLows = lows.slice(-10);
+    if (highs.length < 12) return false;
+    const recent = highs.slice(-12);
+    const recentLows = lows.slice(-12);
     
     // Check if lows are relatively flat and highs are descending
     const lowVariance = this.calculateVariance(recentLows);
     const highTrend = this.calculateTrend(recent);
     
-    return lowVariance < 0.01 && highTrend < -0.1;
+    return lowVariance < 0.05 && highTrend < -0.03; // More lenient thresholds
   }
 
   detectSymmetricalTriangle(highs, lows) {
-    if (highs.length < 10) return false;
-    const recent = highs.slice(-10);
-    const recentLows = lows.slice(-10);
+    if (highs.length < 12) return false;
+    const recent = highs.slice(-12);
+    const recentLows = lows.slice(-12);
     
     // Check if both highs and lows are converging
     const highTrend = this.calculateTrend(recent);
     const lowTrend = this.calculateTrend(recentLows);
     
-    return highTrend < -0.05 && lowTrend > 0.05;
+    return highTrend < -0.02 && lowTrend > 0.02; // More lenient thresholds
   }
 
   detectHeadAndShoulders(highs) {
@@ -606,6 +635,45 @@ class TechnicalAnalysisService {
       }
     }
     return peaks;
+  }
+
+  // Additional pattern detection methods
+  detectSupportResistancePattern(highs, lows) {
+    if (highs.length < 8) return false;
+    const recent = highs.slice(-8);
+    const recentLows = lows.slice(-8);
+    
+    // Check if price is bouncing between similar levels
+    const highVariance = this.calculateVariance(recent);
+    const lowVariance = this.calculateVariance(recentLows);
+    
+    return highVariance < 0.1 || lowVariance < 0.1; // Price staying within 10% range
+  }
+
+  detectTrendReversal(closes) {
+    if (closes.length < 8) return false;
+    const recent = closes.slice(-8);
+    const firstHalf = recent.slice(0, 4);
+    const secondHalf = recent.slice(4);
+    
+    const firstTrend = this.calculateTrend(firstHalf);
+    const secondTrend = this.calculateTrend(secondHalf);
+    
+    // Check for trend reversal (opposite directions)
+    return (firstTrend > 0.02 && secondTrend < -0.02) || (firstTrend < -0.02 && secondTrend > 0.02);
+  }
+
+  detectConsolidationPattern(highs, lows) {
+    if (highs.length < 10) return false;
+    const recent = highs.slice(-10);
+    const recentLows = lows.slice(-10);
+    
+    const highRange = Math.max(...recent) - Math.min(...recent);
+    const lowRange = Math.max(...recentLows) - Math.min(...recentLows);
+    const avgPrice = (Math.max(...recent) + Math.min(...recentLows)) / 2;
+    
+    // Check if price is consolidating (small range relative to price)
+    return (highRange / avgPrice < 0.15) && (lowRange / avgPrice < 0.15);
   }
 
   findSignificantLevels(data, type) {
