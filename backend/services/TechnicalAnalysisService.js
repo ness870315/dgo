@@ -59,10 +59,21 @@ class TechnicalAnalysisService {
     }
 
     try {
-      const moralisAnalytics = await this.getMoralisTokenAnalytics(contractAddress);
+      console.log(`🔍 Starting technical analysis for ${contractAddress}`);
+      let moralisAnalytics = null;
+      try {
+        console.log(`🔍 Fetching Moralis analytics for ${contractAddress}`);
+        moralisAnalytics = await this.getMoralisTokenAnalytics(contractAddress);
+        console.log(`✅ Moralis analytics fetched successfully`);
+      } catch (moralisError) {
+        console.warn(`⚠️ Moralis analytics failed for ${contractAddress}:`, moralisError.message);
+        // Continue with fallback analysis using only chart data
+      }
 
       // Prepare data for AI analysis
+      console.log(`🔍 Preparing template variables...`);
       const templateVars = this.prepareTemplateVariables(moralisAnalytics, chartData);
+      console.log(`✅ Template variables prepared`);
 
       let analysisResult;
       if (this.openaiService) {
@@ -83,7 +94,8 @@ class TechnicalAnalysisService {
       return { success: true, data: analysisResult };
 
     } catch (error) {
-      console.error(`❌ Technical analysis failed for ${contractAddress}:`, error.message);
+      console.error(`❌ Technical analysis failed for ${contractAddress}:`, error);
+      console.error(`❌ Error stack:`, error.stack);
       const fallbackAnalysis = this.getFallbackTechnicalAnalysis(null, chartData, error.message);
       return { success: true, data: fallbackAnalysis, error: error.message }; // Still return success with fallback
     }

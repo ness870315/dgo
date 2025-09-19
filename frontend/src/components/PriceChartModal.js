@@ -14,14 +14,6 @@ const PriceChartModal = ({ token, onClose }) => {
   const [timeframe, setTimeframe] = useState('1D');
   
   const isPremiumUser = isAuthenticated && user?.isPremium;
-  
-  // Debug logging
-  console.log('🔍 PriceChartModal Debug:', {
-    isAuthenticated,
-    isPremiumUser,
-    showTechnicalAnalysis,
-    user: user ? { id: user.id, isPremium: user.isPremium } : null
-  });
 
   useEffect(() => {
     if (token?.contractAddress) {
@@ -90,12 +82,6 @@ const PriceChartModal = ({ token, onClose }) => {
             {/* Oracle Chart Button - Premium only for AI Analysis toggle */}
             <button
               onClick={() => {
-                console.log('🔘 Oracle Chart button clicked!', { 
-                  currentState: showTechnicalAnalysis, 
-                  willBecome: !showTechnicalAnalysis,
-                  isPremiumUser,
-                  isAuthenticated 
-                });
                 setShowTechnicalAnalysis(!showTechnicalAnalysis);
               }}
               disabled={!isAuthenticated || !isPremiumUser}
@@ -169,21 +155,12 @@ const PriceChartModal = ({ token, onClose }) => {
         <div className="p-2 sm:p-4">
           {/* Technical Analysis Panel */}
           {showTechnicalAnalysis && isPremiumUser && (
-            <div>
-              <div className="text-white text-sm mb-2">🔍 Debug: Technical Analysis Panel should render here</div>
-              <TechnicalAnalysisPanel
-                contractAddress={token.contractAddress}
-                chartData={chartData}
-                timeframe={timeframe}
-                isVisible={showTechnicalAnalysis}
-              />
-            </div>
-          )}
-          {showTechnicalAnalysis && !isPremiumUser && (
-            <div className="text-red-400 text-sm mb-2">🔍 Debug: User is not premium, panel hidden</div>
-          )}
-          {!showTechnicalAnalysis && (
-            <div className="text-gray-400 text-sm mb-2">🔍 Debug: Technical Analysis is OFF</div>
+            <TechnicalAnalysisPanel
+              contractAddress={token.contractAddress}
+              chartData={chartData}
+              timeframe={timeframe}
+              isVisible={showTechnicalAnalysis}
+            />
           )}
           
           <SVGChart 
