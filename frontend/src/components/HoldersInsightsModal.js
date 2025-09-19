@@ -48,6 +48,59 @@ function Donut({ data, size = 160, stroke = 20, colors }) {
   );
 }
 
+// --- Pie Chart for Holder Segments ---
+function HolderSegmentPie({ data, size = 200, colors }) {
+  const total = Object.values(data).reduce((a, b) => a + b, 0);
+  if (total === 0) return null;
+  
+  const radius = size / 2 - 10;
+  let currentAngle = 0;
+  const entries = Object.entries(data).filter(([_, value]) => value > 0);
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <g transform={`translate(${size / 2}, ${size / 2})`}>
+        {entries.map(([key, value], i) => {
+          const percentage = (value / total) * 100;
+          const angle = (value / total) * 360;
+          const startAngle = currentAngle;
+          const endAngle = currentAngle + angle;
+          
+          const x1 = Math.cos((startAngle - 90) * Math.PI / 180) * radius;
+          const y1 = Math.sin((startAngle - 90) * Math.PI / 180) * radius;
+          const x2 = Math.cos((endAngle - 90) * Math.PI / 180) * radius;
+          const y2 = Math.sin((endAngle - 90) * Math.PI / 180) * radius;
+          
+          const largeArcFlag = angle > 180 ? 1 : 0;
+          const pathData = [
+            `M 0 0`,
+            `L ${x1} ${y1}`,
+            `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`,
+            `Z`
+          ].join(' ');
+          
+          currentAngle += angle;
+          
+          return (
+            <path
+              key={key}
+              d={pathData}
+              fill={colors[i % colors.length]}
+              stroke="#0b0f17"
+              strokeWidth={1}
+            />
+          );
+        })}
+        {/* Center text */}
+        <text x="0" y="-8" textAnchor="middle" className="fill-slate-100 text-lg font-semibold">
+          {fmt.format(total)}
+        </text>
+        <text x="0" y="8" textAnchor="middle" className="fill-slate-400 text-sm">holders</text>
+      </g>
+    </svg>
+  );
+}
+
 // --- Simple Line/Area chart (pure SVG) ---
 function AreaLine({ points, width=520, height=160, strokeWidth=3, showDots=false }) {
   const padding = { l: 28, r: 10, t: 10, b: 24 };
@@ -326,6 +379,65 @@ function TopHoldersTable({ holders }) {
   );
 }
 
+// --- Segment Flow Table ---
+function SegmentFlowTable({ flowData }) {
+  if (!flowData?.holderFlow) {
+    return (
+      <div className="text-center py-8 text-slate-400">
+        No flow data available
+      </div>
+    );
+  }
+
+  const segments = [
+    { key: 'whales', emoji: '🐋', name: 'Whales' },
+    { key: 'sharks', emoji: '🦈', name: 'Sharks' },
+    { key: 'dolphins', emoji: '🐬', name: 'Dolphins' },
+    { key: 'fish', emoji: '🐟', name: 'Fish' },
+    { key: 'octopus', emoji: '🐙', name: 'Octopus' },
+    { key: 'crabs', emoji: '🦀', name: 'Crabs' },
+    { key: 'shrimps', emoji: '🦐', name: 'Shrimps' }
+  ];
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-slate-700/60">
+            <th className="text-left py-2 text-slate-400 font-medium">Segment</th>
+            <th className="text-right py-2 text-slate-400 font-medium">In</th>
+            <th className="text-right py-2 text-slate-400 font-medium">Out</th>
+            <th className="text-right py-2 text-slate-400 font-medium">Net</th>
+          </tr>
+        </thead>
+        <tbody>
+          {segments.map((segment) => {
+            const inValue = flowData.holderFlow.in[segment.key]?.reduce((a, b) => a + b, 0) || 0;
+            const outValue = flowData.holderFlow.out[segment.key]?.reduce((a, b) => a + b, 0) || 0;
+            const net = inValue - outValue;
+            
+            return (
+              <tr key={segment.key} className="border-b border-slate-800/40">
+                <td className="py-2 text-slate-300 flex items-center gap-2">
+                  <span className="text-lg">{segment.emoji}</span>
+                  <span className="capitalize">{segment.name}</span>
+                </td>
+                <td className="py-2 text-right text-slate-300">{fmt.format(inValue)}</td>
+                <td className="py-2 text-right text-slate-300">{fmt.format(outValue)}</td>
+                <td className={`py-2 text-right font-medium ${
+                  net > 0 ? 'text-emerald-400' : net < 0 ? 'text-rose-400' : 'text-slate-300'
+                }`}>
+                  {net > 0 ? '+' : ''}{fmt.format(net)}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // --- Main Modal Component ---
 export default function HoldersInsightsModal({ token, onClose = () => {} }) {
   const [data, setData] = useState(null);
@@ -402,6 +514,9 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
     // Acquisition colors
     const acqColors = ["#A78BFA", "#60A5FA", "#34D399"]; // purple, blue, green
 
+    // Holder segment colors for pie chart
+    const segmentColors = ["#ff6b6b", "#4ecdc4", "#45b7d1", "#96ceb4", "#feca57", "#ff9ff3", "#54a0ff"];
+
     // Risk assessment
     const risk = concentrationRisk(data.holderStats?.supplyConcentration);
 
@@ -409,6 +524,7 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
       changeSeries,
       supplyPoints,
       acqColors,
+      segmentColors,
       risk
     };
   }, [data]);
@@ -529,27 +645,23 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
             </div>
           </div>
 
+          {/* Holder Segments Pie Chart */}
+          {data.holderStats?.holderDistribution && (
+            <div className="col-span-12 lg:col-span-4 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
+              <div className="text-slate-300 font-medium mb-4">Holder Segments Distribution</div>
+              <div className="flex items-center justify-center">
+                <HolderSegmentPie data={data.holderStats.holderDistribution} colors={processedData.segmentColors} />
+              </div>
+            </div>
+          )}
+
           {/* Acquisition donut + legend */}
           {data.holdersByAcquisition && (
-            <div className="col-span-12 lg:col-span-4 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4 grid grid-cols-2 gap-2">
+            <div className="col-span-12 lg:col-span-8 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4 grid grid-cols-2 gap-2">
               <div className="flex items-center justify-center">
                 <Donut data={data.holdersByAcquisition} colors={processedData.acqColors} />
               </div>
               <div className="flex flex-col gap-2 justify-center">{acqLegend}</div>
-            </div>
-          )}
-
-          {/* Holder change area line */}
-          {processedData.changeSeries.length > 0 && (
-            <div className={classNames(
-              "rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4",
-              data.holdersByAcquisition ? "col-span-12 lg:col-span-8" : "col-span-12"
-            )}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-slate-300 font-medium">Net Holder Change (closer → now)</div>
-                <div className="text-slate-400 text-xs">30d → 7d → 3d → 24h → 6h → 1h → 5m</div>
-              </div>
-              <AreaLine points={processedData.changeSeries} width={820} height={180} />
             </div>
           )}
 
@@ -561,11 +673,11 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
             </div>
           )}
 
-          {/* Bucket distribution */}
-          {data.holderStats?.holderDistribution && (
+          {/* Segment Flow Table */}
+          {data.holderFlowData && (
             <div className="col-span-12 lg:col-span-6 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
-              <div className="text-slate-300 font-medium mb-2">Holder Segments</div>
-              <HBars data={data.holderStats.holderDistribution} width={540} />
+              <div className="text-slate-300 font-medium mb-4">Segment Flow (In vs Out)</div>
+              <SegmentFlowTable flowData={data.holderFlowData} />
             </div>
           )}
 
@@ -580,16 +692,6 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
             </div>
           )}
 
-          {/* Holder Flow Chart */}
-          {data.holderFlowData && (
-            <div className="col-span-12 lg:col-span-6 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
-              <div className="text-slate-300 font-medium mb-2">Holder Flow by Segment</div>
-              <HolderFlowChart flowData={data.holderFlowData} width={540} />
-              <div className="mt-2 text-xs text-slate-400">
-                Shows holders entering/leaving by segment over time
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="px-6 pb-5 flex items-center justify-between border-t border-slate-700/60 pt-4">
