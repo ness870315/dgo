@@ -23,8 +23,11 @@ class TechnicalAnalysisFrontendService {
         }
       });
 
+      console.log('🔍 Backend response:', response.data);
+
       if (response.data.success) {
         const analysis = response.data.data;
+        console.log('🔍 Analysis data received:', analysis);
         // Optionally, perform additional client-side calculations or formatting here
         // For example, if chartData is available, you could refine support/resistance based on visible range
         

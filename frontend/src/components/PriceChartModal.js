@@ -55,25 +55,30 @@ const PriceChartModal = ({ token, onClose }) => {
   const updateVolumeForTimeframe = () => {
     if (!tokenAnalytics) return;
 
+    console.log('📊 Token Analytics Data:', tokenAnalytics);
+    console.log('📊 Current timeframe:', timeframe);
+
     let volumeValue = 0;
     switch (timeframe) {
       case '1MIN':
       case '5MIN':
-        volumeValue = tokenAnalytics.totalVolume?.['5m'] || 0;
+        volumeValue = tokenAnalytics.totalVolume?.['5m'] || tokenAnalytics.volume?.['5m'] || 0;
         break;
       case '15MIN':
       case '1H':
-        volumeValue = tokenAnalytics.totalVolume?.['1h'] || 0;
+        volumeValue = tokenAnalytics.totalVolume?.['1h'] || tokenAnalytics.volume?.['1h'] || 0;
         break;
       case '4H':
       case '6H':
-        volumeValue = tokenAnalytics.totalVolume?.['6h'] || 0;
+        volumeValue = tokenAnalytics.totalVolume?.['6h'] || tokenAnalytics.volume?.['6h'] || 0;
         break;
       case '1D':
       default:
-        volumeValue = tokenAnalytics.totalVolume?.['24h'] || 0;
+        volumeValue = tokenAnalytics.totalVolume?.['24h'] || tokenAnalytics.volume?.['24h'] || 0;
         break;
     }
+    
+    console.log('📊 Calculated volume value:', volumeValue);
     setVolume(volumeValue);
   };
 

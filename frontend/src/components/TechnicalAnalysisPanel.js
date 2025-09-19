@@ -25,21 +25,24 @@ const TechnicalAnalysisPanel = ({ contractAddress, chartData, timeframe, isVisib
 
   useEffect(() => {
     if (isVisible && contractAddress) {
+      console.log('🔍 Technical Analysis Panel: Fetching analysis for', { contractAddress, timeframe, chartDataLength: chartData?.length });
       const fetchAnalysis = async () => {
         setIsLoading(true);
         setError(null);
         try {
           const result = await technicalAnalysisService.getTechnicalAnalysis(contractAddress, timeframe, chartData);
+          console.log('🔍 Technical Analysis Panel: Received result:', result);
           setAnalysis(result);
         } catch (err) {
-          setError(err.message || 'Failed to fetch technical analysis');
           console.error('Technical Analysis Panel Error:', err);
+          setError(err.message || 'Failed to fetch technical analysis');
         } finally {
           setIsLoading(false);
         }
       };
       fetchAnalysis();
     } else {
+      console.log('🔍 Technical Analysis Panel: Not visible or no contract address');
       setAnalysis(null); // Clear analysis when not visible
     }
   }, [isVisible, contractAddress, timeframe, chartData]);
