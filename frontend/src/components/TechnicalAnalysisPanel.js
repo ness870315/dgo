@@ -83,7 +83,7 @@ const TechnicalAnalysisPanel = ({ contractAddress, chartData, timeframe, isVisib
         <h3 className="text-xl font-bold text-white flex items-center">
           <BarChart3 size={20} className="mr-2 text-purple-400" /> AI Technical Analysis
         </h3>
-        <p className="text-gray-400 text-sm mt-1">Powered by GPT-5 for {timeframe} timeframe</p>
+        <p className="text-gray-400 text-sm mt-1">Powered by Oracle AI for {timeframe} timeframe</p>
       </div>
 
             <Section title="Market Overview">

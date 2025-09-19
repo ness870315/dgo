@@ -401,6 +401,33 @@ async initialize() {
       // Fix organic score to 2 decimal places
       organicScore: Number((jupiterData.organicScore || 0)).toFixed(2),
       
+      // Moralis Token Analytics data
+      volume5m: this.formatNumber(tokenData.moralisAnalytics?.totalBuyVolume?.['5m'] + tokenData.moralisAnalytics?.totalSellVolume?.['5m'] || 0),
+      volume1h: this.formatNumber(tokenData.moralisAnalytics?.totalBuyVolume?.['1h'] + tokenData.moralisAnalytics?.totalSellVolume?.['1h'] || 0),
+      volume6h: this.formatNumber(tokenData.moralisAnalytics?.totalBuyVolume?.['6h'] + tokenData.moralisAnalytics?.totalSellVolume?.['6h'] || 0),
+      volume24h: this.formatNumber(tokenData.moralisAnalytics?.totalBuyVolume?.['24h'] + tokenData.moralisAnalytics?.totalSellVolume?.['24h'] || 0),
+      buyVolume5m: this.formatNumber(tokenData.moralisAnalytics?.totalBuyVolume?.['5m'] || 0),
+      sellVolume5m: this.formatNumber(tokenData.moralisAnalytics?.totalSellVolume?.['5m'] || 0),
+      buyVolume1h: this.formatNumber(tokenData.moralisAnalytics?.totalBuyVolume?.['1h'] || 0),
+      sellVolume1h: this.formatNumber(tokenData.moralisAnalytics?.totalSellVolume?.['1h'] || 0),
+      buyVolume24h: this.formatNumber(tokenData.moralisAnalytics?.totalBuyVolume?.['24h'] || 0),
+      sellVolume24h: this.formatNumber(tokenData.moralisAnalytics?.totalSellVolume?.['24h'] || 0),
+      buySellRatio5m: this.calculateBuySellRatio(tokenData.moralisAnalytics?.totalBuyVolume?.['5m'], tokenData.moralisAnalytics?.totalSellVolume?.['5m']),
+      buySellRatio1h: this.calculateBuySellRatio(tokenData.moralisAnalytics?.totalBuyVolume?.['1h'], tokenData.moralisAnalytics?.totalSellVolume?.['1h']),
+      buySellRatio24h: this.calculateBuySellRatio(tokenData.moralisAnalytics?.totalBuyVolume?.['24h'], tokenData.moralisAnalytics?.totalSellVolume?.['24h']),
+      
+      // Technical Analysis Integration
+      technicalMarketOverview: tokenData.technicalAnalysis?.marketOverview?.summary || 'N/A',
+      technicalTrend: tokenData.technicalAnalysis?.marketOverview?.trend || 'N/A',
+      technicalMomentum: tokenData.technicalAnalysis?.marketOverview?.momentum || 'N/A',
+      technicalVolatility: tokenData.technicalAnalysis?.marketOverview?.volatility || 'N/A',
+      technicalVolumeAnalysis: tokenData.technicalAnalysis?.volumeAnalysis?.summary || 'N/A',
+      technicalRSI: tokenData.technicalAnalysis?.technicalIndicators?.rsi || 'N/A',
+      technicalMACD: tokenData.technicalAnalysis?.technicalIndicators?.macd || 'N/A',
+      technicalSupport: tokenData.technicalAnalysis?.keyLevels?.support?.join(', ') || 'N/A',
+      technicalResistance: tokenData.technicalAnalysis?.keyLevels?.resistance?.join(', ') || 'N/A',
+      technicalPatterns: tokenData.technicalAnalysis?.chartPatterns?.join(', ') || 'N/A',
+      
       // Enhanced scoring data - all 2 decimal places
       overallScore: Number(tokenData.overallScore || tokenData.score || 0).toFixed(2),
       sentimentScore: Number(tokenData.sentimentScore || tokenData.twitterData?.sentimentScore || tokenData.mediasentiment || 5).toFixed(2),
@@ -527,6 +554,12 @@ async initialize() {
     if (stats.txnChange !== undefined) formatted.push(`Transactions: ${Number(stats.txnChange).toFixed(2)}%`);
     
     return formatted.length > 0 ? formatted.join(', ') : 'N/A';
+  }
+
+  calculateBuySellRatio(buyVolume, sellVolume) {
+    if (!buyVolume || !sellVolume || sellVolume === 0) return 'N/A';
+    const ratio = (buyVolume / sellVolume).toFixed(2);
+    return `${ratio}x`;
   }
 
   /**
