@@ -2124,23 +2124,31 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Action:</span>
                           <span className={`font-semibold px-2 py-1 rounded text-sm ${
-                            aiAnalysis.analysis.summary?.action === 'Strong Buy' || aiAnalysis.analysis.summary?.action === 'Buy' ? 'bg-green-900 text-green-300' :
-                            aiAnalysis.analysis.summary?.action === 'Avoid' ? 'bg-red-900 text-red-300' :
+                            aiAnalysis.analysis.recommendation?.action === 'Call it!' ? 'bg-green-900 text-green-300' :
+                            aiAnalysis.analysis.recommendation?.action === 'Add to Watchlist' ? 'bg-blue-900 text-blue-300' :
+                            aiAnalysis.analysis.recommendation?.action === 'Hype over Time analysis' ? 'bg-purple-900 text-purple-300' :
+                            aiAnalysis.analysis.recommendation?.action === 'Oracle Chart Analysis' ? 'bg-orange-900 text-orange-300' :
                             'bg-yellow-900 text-yellow-300'
                           }`}>
-                            {aiAnalysis.analysis.summary?.action}
-                </span>
-              </div>
+                            {aiAnalysis.analysis.recommendation?.action}
+                          </span>
+                        </div>
                         <div className="text-gray-300 text-sm">
-                          <span className="text-gray-400">Reasoning:</span> {aiAnalysis.analysis.summary?.reasoning}
+                          <span className="text-gray-400">Reasoning:</span> {aiAnalysis.analysis.recommendation?.reasoning}
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Timeframe:</span>
-                          <span className="text-white text-sm">{aiAnalysis.analysis.summary?.timeframe}</span>
+                          <span className="text-white text-sm">{aiAnalysis.analysis.recommendation?.timeframe}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-gray-400">Entry Strategy:</span>
-                          <span className="text-white text-sm">{aiAnalysis.analysis.summary?.entryStrategy}</span>
+                          <span className="text-gray-400">Confidence:</span>
+                          <span className={`text-sm ${
+                            aiAnalysis.analysis.recommendation?.confidence === 'High' ? 'text-green-400' :
+                            aiAnalysis.analysis.recommendation?.confidence === 'Low' ? 'text-red-400' :
+                            'text-yellow-400'
+                          }`}>
+                            {aiAnalysis.analysis.recommendation?.confidence}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -2149,31 +2157,51 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                   {/* Right Column */}
                   <div className="space-y-6">
                     
-                    {/* Social Momentum */}
+                    {/* Holder Insights */}
                     <div className="bg-gray-800/50 rounded-lg p-4">
                       <h5 className="text-white font-semibold mb-3 flex items-center">
-                        📈 Social Momentum
+                        👥 Holder Insights
                       </h5>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-gray-400">Direction:</span>
+                          <span className="text-gray-400">Distribution:</span>
                           <span className={`font-semibold text-sm ${
-                            aiAnalysis.analysis.socialMomentum?.direction === 'Accelerating' ? 'text-green-400' :
-                            aiAnalysis.analysis.socialMomentum?.direction === 'Declining' ? 'text-red-400' :
+                            aiAnalysis.analysis.holderInsights?.distributionHealth === 'Well distributed' ? 'text-green-400' :
+                            aiAnalysis.analysis.holderInsights?.distributionHealth === 'Highly concentrated' ? 'text-red-400' :
                             'text-yellow-400'
                           }`}>
-                            {aiAnalysis.analysis.socialMomentum?.direction}
-                </span>
-              </div>
+                            {aiAnalysis.analysis.holderInsights?.distributionHealth}
+                          </span>
+                        </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-gray-400">Strength:</span>
-                          <span className="text-white text-sm">{aiAnalysis.analysis.socialMomentum?.strength}</span>
-            </div>
+                          <span className="text-gray-400">Concentration Risk:</span>
+                          <span className={`font-semibold text-sm ${
+                            aiAnalysis.analysis.holderInsights?.concentrationRisk === 'Low' ? 'text-green-400' :
+                            aiAnalysis.analysis.holderInsights?.concentrationRisk === 'High' ? 'text-red-400' :
+                            'text-yellow-400'
+                          }`}>
+                            {aiAnalysis.analysis.holderInsights?.concentrationRisk}
+                          </span>
+                        </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-gray-400">Sustainability:</span>
-                          <span className="text-white text-sm">{aiAnalysis.analysis.socialMomentum?.sustainability}</span>
-          </div>
-        </div>
+                          <span className="text-gray-400">Holder Growth:</span>
+                          <span className={`font-semibold text-sm ${
+                            aiAnalysis.analysis.holderInsights?.holderGrowth === 'Accelerating' ? 'text-green-400' :
+                            aiAnalysis.analysis.holderInsights?.holderGrowth === 'Declining' ? 'text-red-400' :
+                            'text-yellow-400'
+                          }`}>
+                            {aiAnalysis.analysis.holderInsights?.holderGrowth}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400">Whale Activity:</span>
+                          <span className="text-white text-sm">{aiAnalysis.analysis.holderInsights?.whaleActivity}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400">Retail Adoption:</span>
+                          <span className="text-white text-sm">{aiAnalysis.analysis.holderInsights?.retailAdoption}</span>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Risk Assessment */}
@@ -2218,6 +2246,75 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                             </div>
                           </div>
                         )}
+                      </div>
+                    </div>
+
+                    {/* Trading Signals */}
+                    <div className="bg-gray-800/50 rounded-lg p-4">
+                      <h5 className="text-white font-semibold mb-3 flex items-center">
+                        📊 Trading Signals
+                      </h5>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400">Buy Pressure:</span>
+                          <span className={`font-semibold text-sm ${
+                            aiAnalysis.analysis.tradingSignals?.buyPressure === 'Strong' ? 'text-green-400' :
+                            aiAnalysis.analysis.tradingSignals?.buyPressure === 'Weak' ? 'text-red-400' :
+                            'text-yellow-400'
+                          }`}>
+                            {aiAnalysis.analysis.tradingSignals?.buyPressure}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400">Sell Pressure:</span>
+                          <span className={`font-semibold text-sm ${
+                            aiAnalysis.analysis.tradingSignals?.sellPressure === 'Strong' ? 'text-red-400' :
+                            aiAnalysis.analysis.tradingSignals?.sellPressure === 'Weak' ? 'text-green-400' :
+                            'text-yellow-400'
+                          }`}>
+                            {aiAnalysis.analysis.tradingSignals?.sellPressure}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400">Volume Trend:</span>
+                          <span className={`font-semibold text-sm ${
+                            aiAnalysis.analysis.tradingSignals?.volumeTrend === 'Increasing' ? 'text-green-400' :
+                            aiAnalysis.analysis.tradingSignals?.volumeTrend === 'Decreasing' ? 'text-red-400' :
+                            'text-yellow-400'
+                          }`}>
+                            {aiAnalysis.analysis.tradingSignals?.volumeTrend}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400">Momentum:</span>
+                          <span className={`font-semibold text-sm ${
+                            aiAnalysis.analysis.tradingSignals?.momentum === 'Bullish' ? 'text-green-400' :
+                            aiAnalysis.analysis.tradingSignals?.momentum === 'Bearish' ? 'text-red-400' :
+                            'text-yellow-400'
+                          }`}>
+                            {aiAnalysis.analysis.tradingSignals?.momentum}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400">Entry Signal:</span>
+                          <span className={`font-semibold text-sm ${
+                            aiAnalysis.analysis.tradingSignals?.entrySignal === 'Strong' ? 'text-green-400' :
+                            aiAnalysis.analysis.tradingSignals?.entrySignal === 'Weak' ? 'text-red-400' :
+                            'text-yellow-400'
+                          }`}>
+                            {aiAnalysis.analysis.tradingSignals?.entrySignal}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400">Exit Signal:</span>
+                          <span className={`font-semibold text-sm ${
+                            aiAnalysis.analysis.tradingSignals?.exitSignal === 'Strong' ? 'text-red-400' :
+                            aiAnalysis.analysis.tradingSignals?.exitSignal === 'Weak' ? 'text-green-400' :
+                            'text-yellow-400'
+                          }`}>
+                            {aiAnalysis.analysis.tradingSignals?.exitSignal}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
