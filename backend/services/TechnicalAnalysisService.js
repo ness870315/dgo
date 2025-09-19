@@ -81,7 +81,28 @@ class TechnicalAnalysisService {
           temperature: 0.7,
           response_format: { type: "json_object" }
         });
-        analysisResult = JSON.parse(rawResponse);
+        
+        // Clean the response to extract valid JSON
+        let cleanedResponse = rawResponse.trim();
+        
+        // Remove markdown code blocks if present
+        if (cleanedResponse.startsWith('```json')) {
+          cleanedResponse = cleanedResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        } else if (cleanedResponse.startsWith('```')) {
+          cleanedResponse = cleanedResponse.replace(/^```\s*/, '').replace(/\s*```$/, '');
+        }
+        
+        console.log(`🔍 Raw AI response:`, rawResponse.substring(0, 200) + '...');
+        console.log(`🔍 Cleaned response:`, cleanedResponse.substring(0, 200) + '...');
+        
+        try {
+          analysisResult = JSON.parse(cleanedResponse);
+        } catch (parseError) {
+          console.error(`❌ JSON parse error:`, parseError.message);
+          console.error(`❌ Raw response:`, rawResponse);
+          console.error(`❌ Cleaned response:`, cleanedResponse);
+          throw new Error(`Failed to parse AI response as JSON: ${parseError.message}`);
+        }
       } else {
         console.log(`🧠 OpenAI not available, using fallback technical analysis for ${contractAddress}`);
         analysisResult = this.getFallbackTechnicalAnalysis(moralisAnalytics, chartData);
@@ -781,6 +802,8 @@ Provide analysis in the following JSON format:
   "summary": "Comprehensive technical analysis summary with actionable insights and crypto slang"
 }
 
-Use heavy crypto slang, provide specific price levels, and give actionable recommendations for traders. Focus on the technical analysis derived from the OHLCV data.`;
+Use heavy crypto slang, provide specific price levels, and give actionable recommendations for traders. Focus on the technical analysis derived from the OHLCV data.
+
+IMPORTANT: Return ONLY valid JSON. Do not include markdown formatting, code blocks, or any other text. Start your response with { and end with }.`;
 
 export default TechnicalAnalysisService;
