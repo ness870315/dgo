@@ -86,7 +86,8 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
     const screenWidth = window.innerWidth;
     const isMobile = screenWidth < 640;
     const isTablet = screenWidth >= 640 && screenWidth < 1024;
-    const isDesktop = screenWidth >= 1024 && screenWidth < 1440;
+    const isSmallLaptop = screenWidth >= 1024 && screenWidth < 1366; // 14-inch laptops
+    const isDesktop = screenWidth >= 1366 && screenWidth < 1440;
     const isLargeDesktop = screenWidth >= 1440 && screenWidth < 1920;
     const isUltraWide = screenWidth >= 1920;
     
