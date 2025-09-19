@@ -4225,7 +4225,7 @@ class EnhancedBackend {
     this.app.get('/api/tokens/:contract/technical-analysis', async (req, res) => {
       try {
         const { contract } = req.params;
-        const { timeframe = '1D', force = false } = req.query;
+        const { timeframe = '1D', force = false, chartData: frontendChartData } = req.query;
         
         console.log(`[🛡️ Enhanced Backend] 📊 Fetching technical analysis for: ${contract}`);
         
@@ -4240,9 +4240,21 @@ class EnhancedBackend {
         const techAnalysisService = new TechnicalAnalysisService();
         
         let chartData = null;
-        if (timeframe !== '1D') {
+        
+        // Use frontend chart data if provided, otherwise fetch from backend
+        if (frontendChartData) {
+          try {
+            chartData = JSON.parse(frontendChartData);
+            console.log(`📊 Using frontend chart data: ${chartData.length} points for pattern detection`);
+          } catch (error) {
+            console.log(`⚠️ Failed to parse frontend chart data: ${error.message}`);
+          }
+        }
+        
+        if (!chartData && timeframe !== '1D') {
           try {
             chartData = await this.hybridPriceService.getPriceChart(contract, timeframe, 100);
+            console.log(`📊 Fetched backend chart data: ${chartData.length} points`);
           } catch (error) {
             console.log(`⚠️ Could not fetch chart data for ${timeframe}, using default: ${error.message}`);
           }

@@ -149,6 +149,9 @@ class TechnicalAnalysisService {
     let candlestickPatterns = [];
     
     if (chartData && chartData.length > 0) {
+      console.log(`📊 Processing chart data: ${chartData.length} points`);
+      console.log(`📊 Sample chart data:`, chartData.slice(0, 3));
+      
       // Extract OHLCV data
       const ohlcvData = chartData.map(d => ({
         time: d.time,
@@ -159,8 +162,17 @@ class TechnicalAnalysisService {
         volume: d.volume || 0
       }));
 
+      console.log(`📊 Processed OHLCV data: ${ohlcvData.length} points`);
+      console.log(`📊 Sample OHLCV:`, ohlcvData.slice(0, 2));
+
       // Calculate technical indicators
       technicalIndicators = this.calculateTechnicalIndicators(ohlcvData);
+      console.log(`📊 Technical indicators calculated:`, {
+        rsi: technicalIndicators.rsi,
+        macd: technicalIndicators.macd,
+        sma20: technicalIndicators.sma20,
+        trend: technicalIndicators.trend
+      });
       
       // Detect chart patterns
       console.log(`🔍 Detecting chart patterns from ${ohlcvData.length} data points...`);
@@ -169,9 +181,13 @@ class TechnicalAnalysisService {
       
       // Find support and resistance levels
       supportResistanceLevels = this.findSupportResistanceLevels(ohlcvData);
+      console.log(`📊 Support/Resistance levels:`, supportResistanceLevels);
       
       // Detect candlestick patterns
       candlestickPatterns = this.detectCandlestickPatterns(ohlcvData);
+      console.log(`📊 Candlestick patterns detected:`, candlestickPatterns);
+    } else {
+      console.log(`⚠️ No chart data available for technical analysis`);
     }
 
     // Basic fallback support/resistance

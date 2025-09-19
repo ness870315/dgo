@@ -15,9 +15,12 @@ class TechnicalAnalysisFrontendService {
     }
 
     try {
-      console.log(`🔍 Fetching technical analysis from backend for ${contractAddress} (${timeframe})`);
+      console.log(`🔍 Fetching technical analysis from backend for ${contractAddress} (${timeframe}) with ${chartData ? chartData.length : 0} chart data points`);
       const response = await axios.get(`${API_BASE}/api/tokens/${contractAddress}/technical-analysis`, {
-        params: { timeframe }
+        params: { 
+          timeframe,
+          chartData: chartData ? JSON.stringify(chartData) : null
+        }
       });
 
       if (response.data.success) {
