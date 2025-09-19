@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as d3 from 'd3';
+import { getStatusFromScore } from '../utils/statusUtils';
 
 const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {} }) => {
   const svgRef = useRef();
@@ -344,9 +345,6 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
           if (numPrice >= 0.01) return `$${numPrice.toFixed(6)}`;
           return `$${numPrice.toExponential(2)}`;
         };
-        
-        // Import centralized status utility
-        const { getStatusFromScore } = await import('../utils/statusUtils.js');
         
         // Get hype level and color based on score using centralized utility
         const getHypeLevel = (score) => {
