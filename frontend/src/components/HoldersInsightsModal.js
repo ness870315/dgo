@@ -616,16 +616,23 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-6xl rounded-2xl bg-[#0b0f17] ring-1 ring-slate-700/60 shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-4xl rounded-2xl bg-[#0b0f17] ring-1 ring-slate-700/60 shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700/60">
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-              <Users size={20} />
-              Holder Insights
-            </h2>
-            <Badge tone={processedData.risk.tone}>{processedData.risk.label}</Badge>
-            {data.holderStats?.supplyConcentration && (
-              <Badge>Top10 hold {pct(data.holderStats.supplyConcentration.top10)}</Badge>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+                <Users size={20} />
+                Holder Insights
+              </h2>
+              <Badge tone={processedData.risk.tone}>{processedData.risk.label}</Badge>
+              {data.holderStats?.supplyConcentration && (
+                <Badge>Top10 hold {pct(data.holderStats.supplyConcentration.top10)}</Badge>
+              )}
+            </div>
+            {token && (
+              <div className="text-slate-400 text-sm font-medium">
+                {token.symbol || token.name || token.contractAddress || 'Unknown Token'}
+              </div>
             )}
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white">
@@ -633,14 +640,14 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
           </button>
         </div>
 
-        <div className="px-6 py-5 grid grid-cols-12 gap-5 max-h-[80vh] overflow-y-auto">
+        <div className="px-4 py-4 grid grid-cols-12 gap-4 max-h-[75vh] overflow-y-auto">
           {/* KPIs */}
           <div className="col-span-12 grid grid-cols-4 gap-4">
-            <div className="rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
+            <div className="rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-3">
               <div className="text-slate-400 text-xs">Total holders</div>
               <div className="text-2xl font-semibold text-white">{fmt.format(data.currentHolders || 0)}</div>
             </div>
-            <div className="rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
+            <div className="rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-3">
               <div className="text-slate-400 text-xs">24h net change</div>
               <div className={classNames(
                 "text-2xl font-semibold flex items-center gap-1",
@@ -653,7 +660,7 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
                 {pct(Math.abs((data.holderChanges?.["24h"]?.changePercent || 0) * 100))} of holders
               </div>
             </div>
-            <div className="rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
+            <div className="rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-3">
               <div className="text-slate-400 text-xs">7d change</div>
               <div className={classNames(
                 "text-2xl font-semibold",
@@ -662,7 +669,7 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
                 {fmt.format(data.holderChanges?.["7d"]?.change || 0)}
               </div>
             </div>
-            <div className="rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
+            <div className="rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-3">
               <div className="text-slate-400 text-xs">30d change</div>
               <div className={classNames(
                 "text-2xl font-semibold",
@@ -677,8 +684,8 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
           {data.holdersByAcquisition && (
             <div className="col-span-12 lg:col-span-8 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
               <div className="text-slate-300 font-medium mb-4">Holders by Acquisition</div>
-              <div className="flex items-center justify-center gap-8">
-                <Donut data={data.holdersByAcquisition} colors={processedData.acqColors} />
+              <div className="flex items-center justify-center gap-6">
+                <Donut data={data.holdersByAcquisition} colors={processedData.acqColors} size={140} />
                 <div className="flex flex-col gap-2">{acqLegend}</div>
               </div>
             </div>
@@ -689,7 +696,7 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
             <div className="col-span-12 lg:col-span-4 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
               <div className="text-slate-300 font-medium mb-4">Holder Segments Distribution</div>
               <div className="flex items-center justify-center">
-                <Donut data={data.holderStats.holderDistribution} colors={processedData.segmentColors} />
+                <Donut data={data.holderStats.holderDistribution} colors={processedData.segmentColors} size={140} />
               </div>
               {/* Legend for holder segments */}
               <div className="mt-4 flex flex-col gap-2">
@@ -716,19 +723,25 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
           )}
 
           {/* Segment Flow Table */}
-          {data.holderFlowData && (
-            <div className="col-span-12 lg:col-span-6 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
-              <div className="text-slate-300 font-medium mb-4">Segment Flow (In vs Out)</div>
+          <div className="col-span-12 lg:col-span-6 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
+            <div className="text-slate-300 font-medium mb-4">Segment Flow (In vs Out)</div>
+            {data.holderFlowData ? (
               <SegmentFlowTable flowData={data.holderFlowData} />
-            </div>
-          )}
+            ) : (
+              <div className="text-center py-8 text-slate-400">
+                No flow data available
+              </div>
+            )}
+          </div>
 
-          {/* Supply concentration curve */}
+          {/* Supply concentration curve - Full width at bottom */}
           {processedData.supplyPoints.length > 0 && (
-            <div className="col-span-12 lg:col-span-6 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
+            <div className="col-span-12 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
               <div className="text-slate-300 font-medium mb-2">Supply Concentration Curve</div>
-              <ConcentrationChart points={processedData.supplyPoints} width={480} />
-              <div className="mt-2 text-xs text-slate-400">
+              <div className="flex justify-center">
+                <ConcentrationChart points={processedData.supplyPoints} width={600} />
+              </div>
+              <div className="mt-2 text-xs text-slate-400 text-center">
                 X: top N holders • Y: % of total supply held
               </div>
             </div>
