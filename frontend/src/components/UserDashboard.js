@@ -8,6 +8,7 @@ import leaderboardService from '../services/leaderboardService';
 import KolCallsModal from './KolCallsModal';
 import watchlistService from '../services/watchlistService';
 import KOLLeaderboardGuide from './KOLLeaderboardGuide';
+import { getStatusFromScore } from '../utils/statusUtils';
 
 const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigateToUpdateToken, onNavigateToPremium }) => {
   const { user, sessionId } = useAuth();
@@ -1296,13 +1297,9 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                     if (hypeSeries.length > 0) {
                       const latestHypeData = hypeSeries[hypeSeries.length - 1];
                       const latestScore = latestHypeData.score || 0;
-                      const latestLabel = latestHypeData.label || 
-                                        (latestScore >= 8 ? 'Viral' : 
-                                         latestScore >= 6 ? 'Trending' : 
-                                         latestScore >= 4 ? 'Building' : 'Sleeping');
                       
-                      const emojiMap = { Trending: '🔥', Viral: '🚀', Building: '🧱', Sleeping: '💤' };
-                      const emoji = emojiMap[latestLabel] || '';
+                      const latestLabel = latestHypeData.label || getStatusFromScore(latestScore).level;
+                      const emoji = getStatusFromScore(latestScore).icon;
                       
                       // Show timestamp of when this data was captured
                       const dataTime = new Date(latestHypeData.timestamp).toLocaleTimeString();
@@ -1312,12 +1309,8 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                     } else {
                       // Fallback to token data if no hype series available
                       const currentScore = selectedHypeToken?.overallScore || selectedHypeToken?.enhancedScore || selectedHypeToken?.score || 0;
-                      const currentLabel = currentScore >= 8 ? 'Viral' : 
-                                         currentScore >= 6 ? 'Trending' : 
-                                         currentScore >= 4 ? 'Building' : 'Sleeping';
-                      
-                      const emojiMap = { Trending: '🔥', Viral: '🚀', Building: '🧱', Sleeping: '💤' };
-                      const emoji = emojiMap[currentLabel] || '';
+                      const currentLabel = getStatusFromScore(currentScore).level;
+                      const emoji = getStatusFromScore(currentScore).icon;
                       
                       return `Current: ${currentLabel} ${emoji} (from token data)`;
                     }

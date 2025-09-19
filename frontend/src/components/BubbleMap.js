@@ -345,13 +345,12 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
           return `$${numPrice.toExponential(2)}`;
         };
         
-        // Get hype level and color based on score
+        // Import centralized status utility
+        const { getStatusFromScore } = await import('../utils/statusUtils.js');
+        
+        // Get hype level and color based on score using centralized utility
         const getHypeLevel = (score) => {
-          if (!score || score >= 9) return { level: 'VIRAL', color: '#a855f7', icon: '🚀' };
-          if (score >= 8) return { level: 'TRENDING', color: '#ef4444', icon: '🔥' };
-          if (score >= 7) return { level: 'BUILDING', color: '#f97316', icon: '📈' };
-          if (score >= 5) return { level: 'WAKING UP', color: '#3b82f6', icon: '⚡' };
-          return { level: 'SLEEPING', color: '#6b7280', icon: '😴' };
+          return getStatusFromScore(score);
         };
 
         const hypeData = getHypeLevel(d.score || d.overallScore || 0);

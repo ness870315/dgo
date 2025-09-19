@@ -1,5 +1,6 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, Minus, Star, Flame } from 'lucide-react';
+import { getStatusFromScore } from '../utils/statusUtils';
 
 const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
   // Sort tokens by overall score (highest first)
@@ -59,20 +60,14 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
     return { icon: Minus, color: 'text-gray-400' };
   };
 
-  // Get score color based on value
+  // Get score color based on value using centralized utility
   const getScoreColor = (score) => {
-    if (score >= 8) return 'text-red-400'; // Viral
-    if (score >= 6) return 'text-orange-400'; // Trending
-    if (score >= 4) return 'text-yellow-400'; // Building
-    return 'text-blue-400'; // Sleeping
+    return getStatusFromScore(score).textColor;
   };
 
-  // Get score label
+  // Get score label using centralized utility
   const getScoreLabel = (score) => {
-    if (score >= 8) return 'Viral';
-    if (score >= 6) return 'Trending';
-    if (score >= 4) return 'Building';
-    return 'Sleeping';
+    return getStatusFromScore(score).level;
   };
 
   return (

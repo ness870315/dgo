@@ -8,6 +8,7 @@ import EnhancedCallModal from './EnhancedCallModal';
 import PriceChartModal from './PriceChartModal';
 import HoldersInsightsModal from './HoldersInsightsModal';
 import fuelImageGenerator from '../services/fuelImageGenerator';
+import { getTokenStatus } from '../utils/statusUtils';
 
 // AI Code Line Animation Component
 const AICodeLine = ({ text, delay }) => {
@@ -637,10 +638,12 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
   };
 
   const getHypeLevel = (score) => {
-    if (!score || score >= 8) return { level: 'VIRAL', icon: '🚀', color: 'text-purple-400' };
-    if (score >= 6) return { level: 'TRENDING', icon: '🔥', color: 'text-orange-400' };
-    if (score >= 4) return { level: 'BUILDING', icon: '📈', color: 'text-blue-400' };
-    return { level: 'SLEEPING', icon: '😴', color: 'text-gray-400' };
+    const status = getTokenStatus({ overallScore: score });
+    return {
+      level: status.level,
+      icon: status.icon,
+      color: status.textColor
+    };
   };
 
   const sentimentEmoji = getSentimentEmoji(token?.sentimentScore || 5);
