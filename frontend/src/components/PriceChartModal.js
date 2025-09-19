@@ -2,10 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { X, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, TrendingUp } from 'lucide-react';
 import chartService from '../services/chartService';
 import SVGChart from './SVGChartEnhanced';
+import TechnicalAnalysisPanel from './TechnicalAnalysisPanel';
+import { useAuth } from '../contexts/AuthContext';
 
 const PriceChartModal = ({ token, onClose }) => {
+  const { user } = useAuth();
   const [currentPrice, setCurrentPrice] = useState(null);
   const [priceChange, setPriceChange] = useState(0);
+  const [showTechnicalAnalysis, setShowTechnicalAnalysis] = useState(false);
+  const [chartData, setChartData] = useState(null);
+  const [timeframe, setTimeframe] = useState('1D');
+  
+  const isPremiumUser = user?.tier === 'MP' || user?.tier === 'VIP';
 
   useEffect(() => {
     if (token?.contractAddress) {
@@ -71,13 +79,33 @@ const PriceChartModal = ({ token, onClose }) => {
 
           {/* Controls */}
           <div className="flex items-center space-x-4">
-            {/* Chart Type - Oracle Chart */}
-            <div className="flex bg-gray-600 rounded-lg p-1 border border-purple-500">
-              <div className="flex items-center space-x-2 px-3 py-2 rounded-md bg-gray-600 text-white">
-                <TrendingUp size={16} />
-                <span>Oracle Chart</span>
-              </div>
-            </div>
+            {/* Oracle Chart Button - Always clickable, AI Analysis toggle for premium only */}
+            <button
+              onClick={() => {
+                if (isPremiumUser) {
+                  setShowTechnicalAnalysis(!showTechnicalAnalysis);
+                }
+                // For non-premium users, the button still works but doesn't toggle AI analysis
+              }}
+              className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors border ${
+                showTechnicalAnalysis && isPremiumUser
+                  ? 'bg-purple-600 text-white border-purple-500' 
+                  : 'bg-gray-600 text-white border-purple-500 hover:bg-gray-500'
+              }`}
+            >
+              <TrendingUp size={16} />
+              <span>Oracle Chart</span>
+              {showTechnicalAnalysis && isPremiumUser && (
+                <span className="text-xs bg-purple-500 px-2 py-0.5 rounded-full">
+                  AI Analysis
+                </span>
+              )}
+              {!isPremiumUser && (
+                <span className="text-xs bg-yellow-500 px-2 py-0.5 rounded-full">
+                  Premium
+                </span>
+              )}
+            </button>
 
             {/* Close Button */}
             <button
@@ -130,9 +158,21 @@ const PriceChartModal = ({ token, onClose }) => {
 
         {/* Chart Container */}
         <div className="p-6">
+          {/* Technical Analysis Panel */}
+          {showTechnicalAnalysis && isPremiumUser && (
+            <TechnicalAnalysisPanel
+              contractAddress={token.contractAddress}
+              chartData={chartData}
+              timeframe={timeframe}
+              isVisible={showTechnicalAnalysis}
+            />
+          )}
+          
           <SVGChart 
             token={token} 
             onClose={onClose}
+            onChartDataChange={setChartData}
+            onTimeframeChange={setTimeframe}
           />
         </div>
       </div>

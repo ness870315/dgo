@@ -302,7 +302,8 @@ function SvgOHLCVArea({
   displayMode = 'price', 
   circulatingSupply = 0,
   timezone = 'UTC',
-  token = null
+  token = null,
+  onChartDataChange = null
 }) {
   const wrapRef = useRef(null);
   const [width, setWidth] = useState(800);
@@ -314,6 +315,13 @@ function SvgOHLCVArea({
   // Removed dynamic loading states (no longer needed)
   
   // Removed all zoom/drag states
+
+  // Notify parent component when chart data changes
+  useEffect(() => {
+    if (rawData && rawData.length > 0 && onChartDataChange) {
+      onChartDataChange(rawData);
+    }
+  }, [rawData, onChartDataChange]);
 
   // Responsive width
   useEffect(() => {
@@ -787,12 +795,19 @@ function SvgOHLCVArea({
 }
 
 // Main SVGChart wrapper component
-export default function SVGChart({ token, onClose }) {
+export default function SVGChart({ token, onClose, onChartDataChange, onTimeframeChange }) {
   const [timeframe, setTimeframe] = useState('1MIN');
   const [displayMode, setDisplayMode] = useState('price');
   const [timezone, setTimezone] = useState('UTC');
 
   const contract = token?.contractAddress || token?.contract || token?.mint || token?.address;
+
+  // Notify parent when timeframe changes
+  useEffect(() => {
+    if (onTimeframeChange) {
+      onTimeframeChange(timeframe);
+    }
+  }, [timeframe, onTimeframeChange]);
 
   if (!token) {
     return (
@@ -884,6 +899,7 @@ export default function SVGChart({ token, onClose }) {
         circulatingSupply={token?.circulatingSupply}
         timezone={timezone}
         token={token}
+        onChartDataChange={onChartDataChange}
       />
     </div>
   );

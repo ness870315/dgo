@@ -4213,6 +4213,54 @@ class EnhancedBackend {
       }
     });
 
+    // Technical Analysis endpoint
+    this.app.get('/api/tokens/:contract/technical-analysis', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        const { timeframe = '1D', force = false } = req.query;
+        
+        console.log(`[🛡️ Enhanced Backend] 📊 Fetching technical analysis for: ${contract}`);
+        
+        if (!contract) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Contract address is required' 
+          });
+        }
+        
+        const { default: TechnicalAnalysisService } = await import('./services/TechnicalAnalysisService.js');
+        const techAnalysisService = new TechnicalAnalysisService();
+        
+        let chartData = null;
+        if (timeframe !== '1D') {
+          try {
+            chartData = await this.hybridPriceService.getPriceChart(contract, timeframe, 100);
+          } catch (error) {
+            console.log(`⚠️ Could not fetch chart data for ${timeframe}, using default: ${error.message}`);
+          }
+        }
+        
+        const analysis = await techAnalysisService.getTechnicalAnalysis(contract, chartData);
+        
+        if (!analysis.success) {
+          return res.status(500).json({
+            success: false,
+            error: analysis.error || 'Failed to generate technical analysis'
+          });
+        }
+        
+        console.log(`✅ Technical analysis completed for ${contract}`);
+        res.json(analysis);
+        
+      } catch (error) {
+        console.error(`❌ Technical analysis error for ${req.params.contract}:`, error);
+        res.status(500).json({
+          success: false,
+          error: error.message || 'Internal server error'
+        });
+      }
+    });
+
     // Holder cache management endpoints
     this.app.get('/api/tokens/holders/cache/stats', async (req, res) => {
       try {
