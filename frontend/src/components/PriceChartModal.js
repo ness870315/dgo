@@ -79,17 +79,19 @@ const PriceChartModal = ({ token, onClose }) => {
 
           {/* Controls */}
           <div className="flex items-center space-x-4">
-            {/* Oracle Chart Button - Always clickable, AI Analysis toggle for premium only */}
+            {/* Oracle Chart Button - Premium only for AI Analysis toggle */}
             <button
               onClick={() => {
                 if (isPremiumUser) {
                   setShowTechnicalAnalysis(!showTechnicalAnalysis);
                 }
-                // For non-premium users, the button still works but doesn't toggle AI analysis
               }}
+              disabled={!isPremiumUser}
               className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors border ${
-                showTechnicalAnalysis && isPremiumUser
-                  ? 'bg-purple-600 text-white border-purple-500' 
+                !isPremiumUser
+                  ? 'bg-gray-600 text-gray-400 border-gray-500 cursor-not-allowed opacity-60'
+                  : showTechnicalAnalysis
+                  ? 'bg-purple-600 text-white border-purple-500 hover:bg-purple-700'
                   : 'bg-gray-600 text-white border-purple-500 hover:bg-gray-500'
               }`}
             >
@@ -98,11 +100,6 @@ const PriceChartModal = ({ token, onClose }) => {
               {showTechnicalAnalysis && isPremiumUser && (
                 <span className="text-xs bg-purple-500 px-2 py-0.5 rounded-full">
                   AI Analysis
-                </span>
-              )}
-              {!isPremiumUser && (
-                <span className="text-xs bg-yellow-500 px-2 py-0.5 rounded-full">
-                  Premium
                 </span>
               )}
             </button>
