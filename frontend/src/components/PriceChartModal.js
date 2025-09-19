@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, TrendingUp } from 'lucide-react';
+import { X, ChevronDown, TrendingUp } from 'lucide-react';
 import chartService from '../services/chartService';
 import SVGChart from './SVGChartEnhanced';
 import TechnicalAnalysisPanel from './TechnicalAnalysisPanel';
@@ -12,14 +12,23 @@ const PriceChartModal = ({ token, onClose }) => {
   const [showTechnicalAnalysis, setShowTechnicalAnalysis] = useState(false);
   const [chartData, setChartData] = useState(null);
   const [timeframe, setTimeframe] = useState('1D');
+  const [volume, setVolume] = useState(0);
+  const [tokenAnalytics, setTokenAnalytics] = useState(null);
   
   const isPremiumUser = isAuthenticated && user?.isPremium;
 
   useEffect(() => {
     if (token?.contractAddress) {
       loadCurrentPrice();
+      loadTokenAnalytics();
     }
   }, [token?.contractAddress]);
+
+  useEffect(() => {
+    if (tokenAnalytics && timeframe) {
+      updateVolumeForTimeframe();
+    }
+  }, [timeframe, tokenAnalytics]);
 
   const loadCurrentPrice = async () => {
     try {
@@ -30,6 +39,42 @@ const PriceChartModal = ({ token, onClose }) => {
     } catch (error) {
       console.error('Failed to load current price:', error);
     }
+  };
+
+  const loadTokenAnalytics = async () => {
+    try {
+      const response = await chartService.getTokenAnalytics(token.contractAddress);
+      if (response.success) {
+        setTokenAnalytics(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to load token analytics:', error);
+    }
+  };
+
+  const updateVolumeForTimeframe = () => {
+    if (!tokenAnalytics) return;
+
+    let volumeValue = 0;
+    switch (timeframe) {
+      case '1MIN':
+      case '5MIN':
+        volumeValue = tokenAnalytics.totalVolume?.['5m'] || 0;
+        break;
+      case '15MIN':
+      case '1H':
+        volumeValue = tokenAnalytics.totalVolume?.['1h'] || 0;
+        break;
+      case '4H':
+      case '6H':
+        volumeValue = tokenAnalytics.totalVolume?.['6h'] || 0;
+        break;
+      case '1D':
+      default:
+        volumeValue = tokenAnalytics.totalVolume?.['24h'] || 0;
+        break;
+    }
+    setVolume(volumeValue);
   };
 
 
@@ -129,24 +174,8 @@ const PriceChartModal = ({ token, onClose }) => {
               
               <div className="text-sm text-gray-400">
                 <div>Market Cap: {formatNumber(token.jupiterData?.mcap || token.marketCap || 0)}</div>
-                <div>Volume: {formatNumber(token.jupiterData?.volume24h || 0)}</div>
+                <div>Volume ({timeframe}): {formatNumber(volume)}</div>
               </div>
-            </div>
-
-            {/* Navigation Controls */}
-            <div className="flex items-center space-x-2">
-              <button className="p-2 text-gray-400 hover:text-white transition-colors">
-                <ChevronsLeft size={16} />
-              </button>
-              <button className="p-2 text-gray-400 hover:text-white transition-colors">
-                <ChevronLeft size={16} />
-              </button>
-              <button className="p-2 text-gray-400 hover:text-white transition-colors">
-                <ChevronRight size={16} />
-              </button>
-              <button className="p-2 text-gray-400 hover:text-white transition-colors">
-                <ChevronsRight size={16} />
-              </button>
             </div>
           </div>
         </div>

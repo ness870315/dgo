@@ -660,6 +660,30 @@ class ChartService {
     
     return stats;
   }
+
+  async getTokenAnalytics(contractAddress) {
+    try {
+      const response = await fetch(
+        `${this.API_BASE}/api/tokens/${contractAddress}/analytics`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Failed to fetch token analytics:', error);
+      return { success: false, error: error.message };
+    }
+  }
 }
 
 const chartService = new ChartService();
