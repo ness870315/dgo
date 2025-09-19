@@ -184,15 +184,15 @@ function generateTimeTicks(tMin, tMax, timeframe, containerWidth) {
   
   switch (timeframe) {
     case '1MIN':
-      // 4 hours of data: show every 2 hours for clean spacing
-      tickInterval = 2 * 60 * 60; // 2 hours in seconds
-      targetTicks = Math.max(2, Math.min(3, Math.floor(containerWidth / 200)));
+      // 4 hours of data: show every hour for better time coverage
+      tickInterval = 60 * 60; // 1 hour in seconds
+      targetTicks = Math.max(3, Math.min(5, Math.floor(containerWidth / 120)));
       break;
       
     case '5MIN':
-      // 8 hours of data: show every 3 hours for better readability
-      tickInterval = 3 * 60 * 60; // 3 hours in seconds
-      targetTicks = Math.max(2, Math.min(4, Math.floor(containerWidth / 180)));
+      // 8 hours of data: show every 2 hours for better readability
+      tickInterval = 2 * 60 * 60; // 2 hours in seconds
+      targetTicks = Math.max(3, Math.min(5, Math.floor(containerWidth / 120)));
       break;
       
     case '15MIN':
@@ -257,7 +257,7 @@ function generateTimeTicks(tMin, tMax, timeframe, containerWidth) {
     }
     
     // Ensure minimum spacing between ticks to prevent overlapping labels
-    const minSpacing = containerWidth / 6; // Minimum 6 labels across the width
+    const minSpacing = containerWidth / 8; // Minimum 8 labels across the width
     const filteredTicks = [];
     for (let i = 0; i < ticks.length; i++) {
       if (i === 0 || (ticks[i] - ticks[i-1]) * (containerWidth / span) >= minSpacing) {
@@ -514,9 +514,10 @@ function SvgOHLCVArea({
     const format = pickPriceFormat(lastPrice);
     const [yDomainMin, yDomainMax] = niceDomain(yMin, yMax, 0.05);
     
-    // Responsive dimensions
+    // Responsive dimensions - optimized for 14-inch screens
     const isMobile = width < 768;
-    const height = isMobile ? 300 : 400;
+    const isSmallLaptop = width >= 1024 && width < 1366; // 14-inch laptops
+    const height = isMobile ? 300 : isSmallLaptop ? 320 : 400;
     const padding = { 
       left: isMobile ? 50 : 60, 
       right: 16, 

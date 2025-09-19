@@ -82,12 +82,8 @@ const PriceChartModal = ({ token, onClose }) => {
             {/* Oracle Chart Button - Premium only for AI Analysis toggle */}
             <button
               onClick={() => {
-                console.log('🔍 Oracle Chart button clicked');
-                console.log('🔍 isPremiumUser:', isPremiumUser);
-                console.log('🔍 showTechnicalAnalysis before:', showTechnicalAnalysis);
                 if (isPremiumUser) {
                   setShowTechnicalAnalysis(!showTechnicalAnalysis);
-                  console.log('🔍 showTechnicalAnalysis after:', !showTechnicalAnalysis);
                 }
               }}
               disabled={!isPremiumUser}
@@ -161,21 +157,12 @@ const PriceChartModal = ({ token, onClose }) => {
         <div className="p-4">
           {/* Technical Analysis Panel */}
           {showTechnicalAnalysis && isPremiumUser && (
-            <div>
-              <div className="text-white mb-2">🔍 Technical Analysis Panel should be visible</div>
-              <TechnicalAnalysisPanel
-                contractAddress={token.contractAddress}
-                chartData={chartData}
-                timeframe={timeframe}
-                isVisible={showTechnicalAnalysis}
-              />
-            </div>
-          )}
-          {!isPremiumUser && (
-            <div className="text-gray-400 mb-2">🔍 Not premium user - technical analysis disabled</div>
-          )}
-          {isPremiumUser && !showTechnicalAnalysis && (
-            <div className="text-gray-400 mb-2">🔍 Premium user but technical analysis not shown</div>
+            <TechnicalAnalysisPanel
+              contractAddress={token.contractAddress}
+              chartData={chartData}
+              timeframe={timeframe}
+              isVisible={showTechnicalAnalysis}
+            />
           )}
           
           <SVGChart 
