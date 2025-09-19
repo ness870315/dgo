@@ -186,31 +186,59 @@ function HBars({ data, width=520, height=180, barH=18 }) {
 }
 
 // --- Supply Concentration Curve ---
-function ConcentrationChart({ points, width=520, height=160 }) {
+function ConcentrationChart({ points, width=480, height=160 }) {
   // points: [{n:10, p:92.47}, ...]
-  const padding = { l: 34, r: 10, t: 10, b: 22 };
+  const padding = { l: 40, r: 20, t: 20, b: 30 };
   const W = width - padding.l - padding.r;
   const H = height - padding.t - padding.b;
   
   if (!points?.length) return null;
   
   const maxN = Math.max(...points.map(p=>p.n), 1); // Prevent division by zero
+  const maxP = Math.max(...points.map(p=>p.p), 1); // Prevent division by zero
   const path = points.map((p,i)=>{
     const x = padding.l + (p.n/maxN) * W;
-    const y = padding.t + (1 - p.p/100) * H;
+    const y = padding.t + (1 - p.p/maxP) * H;
     return `${i?"L":"M"}${x},${y}`;
   }).join(" ");
 
+  // Y-axis labels
+  const yTicks = [0, 25, 50, 75, 100].filter(tick => tick <= maxP);
+  
   return (
     <svg width={width} height={height}>
+      {/* Y-axis label */}
       <text x={2} y={12} className="fill-slate-400 text-[10px]">% supply held</text>
+      
+      {/* Y-axis ticks and labels */}
+      {yTicks.map(tick => {
+        const y = padding.t + (1 - tick/maxP) * H;
+        return (
+          <g key={tick}>
+            <line x1={padding.l - 5} x2={padding.l} y1={y} y2={y} className="stroke-slate-600" />
+            <text x={padding.l - 8} y={y + 3} textAnchor="end" className="fill-slate-400 text-[10px]">{tick}%</text>
+          </g>
+        );
+      })}
+      
+      {/* Grid lines */}
+      {yTicks.map(tick => {
+        const y = padding.t + (1 - tick/maxP) * H;
+        return (
+          <line key={`grid-${tick}`} x1={padding.l} x2={padding.l + W} y1={y} y2={y} className="stroke-slate-700/40" strokeDasharray="2 2" />
+        );
+      })}
+      
+      {/* Chart area */}
       <path d={`M${padding.l},${padding.t+H} ${path}`} fill="none" stroke="#ff3ea5" strokeWidth={3}/>
       <path d={`M${padding.l},${padding.t+H} ${path} L ${padding.l+W},${padding.t+H} Z`} fill="url(#grad2)" />
-      {/* x ticks */}
-      {[10,25,50,100,250,500].map(n=>{
+      
+      {/* X-axis ticks */}
+      {[10,25,50,100,250,500].filter(n => n <= maxN).map(n=>{
         const x = padding.l + (n/maxN)*W;
         return <text key={n} x={x-6} y={height-6} className="fill-slate-400 text-[10px]">{n}</text>
       })}
+      
       <defs>
         <linearGradient id="grad2" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stopColor="#ff3ea5" stopOpacity="0.30" />
@@ -645,23 +673,37 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
             </div>
           </div>
 
-          {/* Holder Segments Pie Chart */}
-          {data.holderStats?.holderDistribution && (
-            <div className="col-span-12 lg:col-span-4 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
-              <div className="text-slate-300 font-medium mb-4">Holder Segments Distribution</div>
-              <div className="flex items-center justify-center">
-                <HolderSegmentPie data={data.holderStats.holderDistribution} colors={processedData.segmentColors} />
+          {/* Acquisition donut + legend (original layout) */}
+          {data.holdersByAcquisition && (
+            <div className="col-span-12 lg:col-span-8 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
+              <div className="text-slate-300 font-medium mb-4">Holders by Acquisition</div>
+              <div className="flex items-center justify-center gap-8">
+                <Donut data={data.holdersByAcquisition} colors={processedData.acqColors} />
+                <div className="flex flex-col gap-2">{acqLegend}</div>
               </div>
             </div>
           )}
 
-          {/* Acquisition donut + legend */}
-          {data.holdersByAcquisition && (
-            <div className="col-span-12 lg:col-span-8 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4 grid grid-cols-2 gap-2">
+          {/* Holder Segments Distribution (moved to right, as acquisition donut) */}
+          {data.holderStats?.holderDistribution && (
+            <div className="col-span-12 lg:col-span-4 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
+              <div className="text-slate-300 font-medium mb-4">Holder Segments Distribution</div>
               <div className="flex items-center justify-center">
-                <Donut data={data.holdersByAcquisition} colors={processedData.acqColors} />
+                <Donut data={data.holderStats.holderDistribution} colors={processedData.segmentColors} />
               </div>
-              <div className="flex flex-col gap-2 justify-center">{acqLegend}</div>
+              {/* Legend for holder segments */}
+              <div className="mt-4 flex flex-col gap-2">
+                {Object.entries(data.holderStats.holderDistribution).map(([key, value], i) => (
+                  <div key={key} className="flex items-center gap-2 text-sm text-slate-300">
+                    <span 
+                      className="inline-block h-3 w-3 rounded-sm" 
+                      style={{ background: processedData.segmentColors[i % processedData.segmentColors.length] }}
+                    />
+                    <span className="capitalize">{key}</span>
+                    <span className="text-slate-400">{fmt.format(value)} ({pct(100 * value / (data.currentHolders || 1))})</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -685,7 +727,7 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
           {processedData.supplyPoints.length > 0 && (
             <div className="col-span-12 lg:col-span-6 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
               <div className="text-slate-300 font-medium mb-2">Supply Concentration Curve</div>
-              <ConcentrationChart points={processedData.supplyPoints} width={540} />
+              <ConcentrationChart points={processedData.supplyPoints} width={480} />
               <div className="mt-2 text-xs text-slate-400">
                 X: top N holders • Y: % of total supply held
               </div>
