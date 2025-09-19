@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, BarChart3, DollarSign, TrendingUp, Zap, AlertTriangle, Lightbulb } from 'lucide-react';
+import { ChevronDown, ChevronUp, BarChart3, DollarSign, TrendingUp, Zap } from 'lucide-react';
 import technicalAnalysisService from '../services/technicalAnalysisService';
 
 const Section = ({ title, children, defaultOpen = true }) => {
@@ -88,7 +88,6 @@ const TechnicalAnalysisPanel = ({ contractAddress, chartData, timeframe, isVisib
                 <li>Momentum: <span className="font-medium text-blue-400">{analysis.marketOverview?.momentum || 'N/A'}</span></li>
                 <li>Volatility: <span className="font-medium text-blue-400">{analysis.marketOverview?.volatility || 'N/A'}</span></li>
                 <li>Liquidity Health: <span className="font-medium text-blue-400">{analysis.marketOverview?.liquidityHealth || 'N/A'}</span></li>
-                <li>FDV: <span className="font-medium text-blue-400">${analysis.marketOverview?.fdv || 'N/A'}</span></li>
                 <li>Technical Score: <span className="font-medium text-purple-400">{analysis.marketOverview?.technicalScore || 'N/A'}/10</span></li>
               </ul>
             </Section>
@@ -143,20 +142,6 @@ const TechnicalAnalysisPanel = ({ contractAddress, chartData, timeframe, isVisib
         </ul>
       </Section>
 
-      <Section title="Risk Factors & Catalysts">
-        <div className="mb-2">
-          <h4 className="font-semibold text-red-400 flex items-center mb-1"><AlertTriangle size={16} className="mr-1" /> Risk Factors:</h4>
-          <ul className="list-disc list-inside space-y-1">
-            {analysis.riskFactors?.map((factor, i) => <li key={i}>{factor}</li>) || <li>No specific risk factors identified.</li>}
-          </ul>
-        </div>
-        <div>
-          <h4 className="font-semibold text-green-400 flex items-center mb-1"><Lightbulb size={16} className="mr-1" /> Potential Catalysts:</h4>
-          <ul className="list-disc list-inside space-y-1">
-            {analysis.catalysts?.map((catalyst, i) => <li key={i}>{catalyst}</li>) || <li>No specific catalysts identified.</li>}
-          </ul>
-        </div>
-      </Section>
     </div>
   );
 };
