@@ -390,11 +390,27 @@ function TopHoldersTable({ holders }) {
               ? `${address.slice(0, 8)}...${address.slice(-6)}`
               : address || 'N/A';
             
+            // Create Solscan link if address is valid
+            const solscanUrl = address && address !== 'Unknown' && address !== 'N/A'
+              ? `https://solscan.io/account/${address}`
+              : null;
+            
             return (
               <tr key={address || index} className="border-b border-slate-800/40">
                 <td className="py-2 text-slate-300">#{holder.rank || index + 1}</td>
                 <td className="py-2 text-slate-300 font-mono text-xs">
-                  {shortAddress}
+                  {solscanUrl ? (
+                    <a
+                      href={solscanUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-300 hover:underline transition-colors"
+                    >
+                      {shortAddress}
+                    </a>
+                  ) : (
+                    shortAddress
+                  )}
                 </td>
                 <td className="py-2 text-right text-slate-300">{holder.balanceFormatted || 'N/A'}</td>
                 <td className="py-2 text-right text-slate-300">{holder.percentageFormatted || 'N/A'}</td>
@@ -682,7 +698,7 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
 
           {/* Acquisition donut + legend (legend below chart) */}
           {data.holdersByAcquisition && (
-            <div className="col-span-12 lg:col-span-8 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-2">
+            <div className="col-span-12 lg:col-span-6 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-2">
               <div className="text-slate-300 font-medium mb-3">Holders by Acquisition</div>
               <div className="flex items-center justify-center mb-3">
                 <Donut data={data.holdersByAcquisition} colors={processedData.acqColors} size={120} />
@@ -693,13 +709,13 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
 
           {/* Holder Segments Distribution (moved to right, as acquisition donut) */}
           {data.holderStats?.holderDistribution && (
-            <div className="col-span-12 lg:col-span-4 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-2">
+            <div className="col-span-12 lg:col-span-6 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-2">
               <div className="text-slate-300 font-medium mb-3">Holder Segments Distribution</div>
-              <div className="flex items-center justify-center">
+              <div className="flex items-center justify-center mb-3">
                 <Donut data={data.holderStats.holderDistribution} colors={processedData.segmentColors} size={120} />
               </div>
               {/* Legend for holder segments - split into two columns */}
-              <div className="mt-3 grid grid-cols-2 gap-1">
+              <div className="grid grid-cols-2 gap-1">
                 {Object.entries(data.holderStats.holderDistribution).map(([key, value], i) => (
                   <div key={key} className="flex items-center gap-1 text-xs text-slate-300">
                     <span 
