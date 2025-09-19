@@ -1,6 +1,4 @@
 import axios from 'axios';
-import { JSDOM } from 'jsdom';
-import { Readability } from '@mozilla/readability';
 import OpenAIService from '../openaiService.js';
 import LRUCache from 'lru-cache';
 
