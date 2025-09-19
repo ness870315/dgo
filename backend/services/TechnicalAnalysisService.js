@@ -184,7 +184,6 @@ class TechnicalAnalysisService {
       tokenAddress: moralisAnalytics?.tokenAddress || 'N/A',
       usdPrice: formatPrice(moralisAnalytics?.usdPrice),
       totalLiquidityUsd: formatVolume(moralisAnalytics?.totalLiquidityUsd),
-      totalFullyDilutedValuation: formatVolume(moralisAnalytics?.totalFullyDilutedValuation),
 
       buyVolume5m: formatVolume(moralisAnalytics?.totalBuyVolume?.['5m']),
       sellVolume5m: formatVolume(moralisAnalytics?.totalSellVolume?.['5m']),
@@ -727,7 +726,7 @@ class TechnicalAnalysisService {
         momentum: moralisAnalytics?.pricePercentChange?.['1h'] > 0 ? 'Increasing' : 'Decreasing',
         volatility: 'Medium',
         liquidityHealth: moralisAnalytics?.totalLiquidityUsd > 1000000 ? 'High' : 'Moderate',
-        fdv: formatVolume(moralisAnalytics?.totalFullyDilutedValuation)
+        technicalScore: '6'
       },
       volumeAnalysis: {
         buyPressure: formatVolume(buyVolume24h),
@@ -755,8 +754,6 @@ class TechnicalAnalysisService {
         breakoutLevel: 'N/A',
         breakdownLevel: 'N/A'
       },
-      riskFactors: ['Market volatility', 'Liquidity fluctuations'],
-      catalysts: ['Potential community growth', 'Increased trading volume'],
       summary: `This token is currently showing a ${moralisAnalytics?.pricePercentChange?.['24h'] > 0 ? 'bullish' : 'bearish'} trend over 24 hours. There's ${volumeTrend} with ${formatVolume(Math.abs(netVolume))} in net volume. Key support is at ${support} and resistance at ${resistance}. Always DYOR. (Fallback Analysis)`
     };
   }
@@ -769,7 +766,6 @@ TOKEN DATA:
 - Address: {tokenAddress}
 - Current Price: {usdPrice}
 - Total Liquidity: {totalLiquidityUsd}
-- FDV: {totalFullyDilutedValuation}
 
 VOLUME ANALYSIS (24h):
 - Buy Volume: {buyVolume24h}
@@ -825,7 +821,6 @@ Provide analysis in the following JSON format:
     "momentum": "Increasing|Decreasing|Stable|Overbought|Oversold",
     "volatility": "Low|Medium|High",
     "liquidityHealth": "Low|Moderate|High",
-    "fdv": "FDV analysis",
     "technicalScore": "1-10 technical strength score"
   },
   "volumeAnalysis": {
@@ -865,8 +860,6 @@ Provide analysis in the following JSON format:
     "breakdownLevel": "Breakdown level and confirmation requirements",
     "fibonacciLevels": "Key Fibonacci retracement levels if applicable"
   },
-  "riskFactors": ["Technical risk factor 1", "Technical risk factor 2", "Market risk factor"],
-  "catalysts": ["Technical catalyst 1", "Technical catalyst 2", "Market catalyst"],
   "summary": "Comprehensive technical analysis summary with actionable insights and crypto slang"
 }
 
