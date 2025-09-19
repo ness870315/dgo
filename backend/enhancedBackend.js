@@ -3308,6 +3308,17 @@ class EnhancedBackend {
         const callHistory = await this.getTokenCallHistory(contract);
         token.callHistory = callHistory;
         
+        // Add holder insights data for enhanced AI analysis
+        try {
+          const holderInsights = await this.getHolderInsights(contract);
+          if (holderInsights.success && holderInsights.data) {
+            token.holderData = holderInsights.data;
+            console.log(`📊 Added holder data to AI analysis for ${token.symbol}`);
+          }
+        } catch (error) {
+          console.log(`⚠️ Could not fetch holder data for AI analysis: ${error.message}`);
+        }
+        
         // Generate AI analysis
         const analysisOptions = {
           useCache: useCache === 'true',
@@ -7843,6 +7854,94 @@ class EnhancedBackend {
       p.on('close', code => code === 0 ? resolve() : reject(new Error(`tar extract exit ${code}`)));
     });
     return tmpOut;
+  }
+
+  /**
+   * Get holder insights data for AI analysis (uses cache)
+   */
+  async getHolderInsights(contractAddress) {
+    try {
+      // Use the existing holder cache service
+      const { default: HolderCacheService } = await import('./services/HolderCacheService.js');
+      const holderCacheService = new HolderCacheService();
+      
+      // Get cached holder insights
+      const cachedInsights = await holderCacheService.getCachedInsights(contractAddress);
+      
+      if (cachedInsights) {
+        console.log(`📊 Using cached holder data for AI analysis: ${contractAddress}`);
+        return {
+          success: true,
+          data: cachedInsights
+        };
+      }
+      
+      // If not cached, fetch fresh data and cache it
+      console.log(`📊 Fetching fresh holder data for AI analysis: ${contractAddress}`);
+      const freshInsights = await this.fetchFreshHolderInsights(contractAddress);
+      
+      if (freshInsights.success) {
+        // Cache the fresh data
+        await holderCacheService.cacheInsights(contractAddress, freshInsights.data);
+        console.log(`📊 Cached fresh holder data for future use: ${contractAddress}`);
+      }
+      
+      return freshInsights;
+    } catch (error) {
+      console.error('Error getting holder insights:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Fetch fresh holder insights data (internal method)
+   */
+  async fetchFreshHolderInsights(contractAddress) {
+    try {
+      // Import holder services
+      const { default: TopHoldersService } = await import('./services/TopHoldersService.js');
+      const { default: HolderStatsService } = await import('./services/HolderStatsService.js');
+      const { default: HolderTimeseriesService } = await import('./services/HolderTimeseriesService.js');
+      
+      const topHoldersService = new TopHoldersService();
+      const holderStatsService = new HolderStatsService();
+      const timeseriesService = new HolderTimeseriesService();
+      
+      // Fetch holder data in parallel
+      const [topHoldersResult, holderStatsResult, timeseriesResult] = await Promise.allSettled([
+        topHoldersService.getFormattedTopHolders(contractAddress, null, 20),
+        holderStatsService.getFormattedHolderStats(contractAddress, null),
+        timeseriesService.getHolderChangeAnalysis(contractAddress)
+      ]);
+      
+      // Process results
+      const holderData = {
+        topHolders: topHoldersResult.status === 'fulfilled' && topHoldersResult.value.success ? 
+          topHoldersResult.value : null,
+        holderStats: holderStatsResult.status === 'fulfilled' && holderStatsResult.value.success ? 
+          holderStatsResult.value : null,
+        holderChanges: timeseriesResult.status === 'fulfilled' && timeseriesResult.value.success ? 
+          timeseriesResult.value.holderChanges : null,
+        currentHolders: timeseriesResult.status === 'fulfilled' && timeseriesResult.value.success ? 
+          timeseriesResult.value.currentHolders : null,
+        holderFlowData: timeseriesResult.status === 'fulfilled' && timeseriesResult.value.success ? 
+          timeseriesResult.value.holderFlowData : null
+      };
+      
+      return {
+        success: true,
+        data: holderData
+      };
+    } catch (error) {
+      console.error('Error fetching fresh holder insights:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
   }
 
   /**

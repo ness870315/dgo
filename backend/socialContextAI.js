@@ -179,6 +179,42 @@ async initialize() {
     const twitterData = tokenData.twitterData || {};
     const jupiterData = tokenData.jupiterData || {};
     const callHistory = tokenData.callHistory || {};
+    const holderData = tokenData.holderData || {};
+    
+    // Process holder distribution data for AI analysis
+    const holderStats = holderData.holderStats || {};
+    const topHolders = holderData.topHolders || {};
+    const holderChanges = holderData.holderChanges || {};
+    
+    // Calculate holder concentration metrics
+    const top10Percentage = topHolders.holders?.slice(0, 10).reduce((sum, holder) => sum + (holder.percentage || 0), 0) || 0;
+    const top20Percentage = topHolders.holders?.slice(0, 20).reduce((sum, holder) => sum + (holder.percentage || 0), 0) || 0;
+    
+    // Determine concentration level
+    let concentrationLevel = 'Unknown';
+    if (top10Percentage > 0) {
+      if (top10Percentage < 20) concentrationLevel = 'Well distributed';
+      else if (top10Percentage < 40) concentrationLevel = 'Moderately concentrated';
+      else concentrationLevel = 'Highly concentrated';
+    }
+    
+    // Calculate holder growth
+    const currentHolders = holderStats.totalHolders || holderChanges.currentHolders || 0;
+    const previousHolders = holderChanges.previousHolders || currentHolders;
+    const holderGrowth = previousHolders > 0 ? ((currentHolders - previousHolders) / previousHolders * 100) : 0;
+    
+    // Process holder segments
+    const segments = holderStats.holderDistribution || {};
+    const holderSegments = Object.entries(segments)
+      .map(([segment, count]) => `${segment}: ${count}`)
+      .join(', ') || 'N/A';
+    
+    // Calculate new vs returning holders
+    const newHolders = holderChanges.newHolders || 0;
+    const returningHolders = holderChanges.returningHolders || 0;
+    const totalNewHolders = newHolders + returningHolders;
+    const newHoldersPercent = totalNewHolders > 0 ? (newHolders / totalNewHolders * 100) : 0;
+    const returningHoldersPercent = totalNewHolders > 0 ? (returningHolders / totalNewHolders * 100) : 0;
     
     // Debug log the complete data structure
     console.log(`🔍 AI Complete Data Debug for ${tokenData.symbol}:`, {
@@ -333,6 +369,16 @@ async initialize() {
       recentCalls: callHistory.recentCalls || 0,
       successRate: callHistory.successRate || 0,
       avgTimeTo2x: callHistory.avgTimeTo2x || 'N/A',
+      
+      // Holder distribution data for risk assessment
+      totalHolders: currentHolders,
+      top10Percentage: top10Percentage.toFixed(2),
+      top20Percentage: top20Percentage.toFixed(2),
+      concentrationLevel: concentrationLevel,
+      holderGrowth: holderGrowth.toFixed(2),
+      newHolders: newHoldersPercent.toFixed(2),
+      returningHolders: returningHoldersPercent.toFixed(2),
+      holderSegments: holderSegments,
       
       // Additional data
       liquidity: this.formatNumber(jupiterData.liquidity || 0),

@@ -51,6 +51,15 @@ CALL HISTORY:
 - Success Rate (2x+): {successRate}%
 - Average Time to 2x: {avgTimeTo2x}
 
+HOLDER DISTRIBUTION DATA:
+- Total Holders: {totalHolders}
+- Top 10 Holders: {top10Percentage}% of supply
+- Top 20 Holders: {top20Percentage}% of supply
+- Holder Concentration: {concentrationLevel}
+- Recent Holder Growth: {holderGrowth}%
+- New vs Returning Holders: {newHolders}% new, {returningHolders}% returning
+- Holder Distribution Segments: {holderSegments}
+
 COMPREHENSIVE JUPITER DATA:
 - Total Supply: {totalSupply}
 - Circulating Supply: {circSupply}
@@ -168,6 +177,13 @@ Analyze ALL available data to identify potential catalysts and opportunities:
 - Risk assessment: Security flags and red flags
 - Market positioning: Competitive advantages and unique value
 
+**HOLDER DISTRIBUTION ANALYSIS:**
+- Analyze holder concentration: Top 10 holders should ideally be <20% of supply
+- Assess distribution health: Well-distributed tokens are more stable
+- Evaluate concentration risk: High concentration = higher volatility risk
+- Consider holder growth patterns: Steady organic growth vs pump patterns
+- Review holder segments: Mix of whale, dolphin, and retail holders is healthy
+
 **ECOSYSTEM CATALYSTS:**
 - Cross-platform integration: Multiple social channels active
 - Community infrastructure: Discord/Telegram activity levels
@@ -193,7 +209,9 @@ Please provide analysis in this EXACT JSON format:
   "riskAssessment": {
     "level": "Low|Medium|High",
     "factors": ["Risk factor 1", "Risk factor 2"],
-    "mitigants": ["Positive factor 1", "Positive factor 2"]
+    "mitigants": ["Positive factor 1", "Positive factor 2"],
+    "holderDistribution": "Well distributed|Moderately concentrated|Highly concentrated",
+    "concentrationRisk": "Low|Medium|High"
   },
   "communityAnalysis": {
     "organicGrowth": "Strong|Moderate|Weak",
