@@ -184,21 +184,21 @@ function generateTimeTicks(tMin, tMax, timeframe, containerWidth) {
   
   switch (timeframe) {
     case '1MIN':
-      // 4 hours of data: show every hour for clean spacing
-      tickInterval = 60 * 60; // 1 hour in seconds
-      targetTicks = Math.max(3, Math.min(5, Math.floor(containerWidth / 120)));
+      // 4 hours of data: show every 2 hours for clean spacing
+      tickInterval = 2 * 60 * 60; // 2 hours in seconds
+      targetTicks = Math.max(2, Math.min(3, Math.floor(containerWidth / 200)));
       break;
       
     case '5MIN':
-      // 8 hours of data: show every 2 hours for better readability
-      tickInterval = 2 * 60 * 60; // 2 hours in seconds
-      targetTicks = Math.max(3, Math.min(5, Math.floor(containerWidth / 120)));
+      // 8 hours of data: show every 3 hours for better readability
+      tickInterval = 3 * 60 * 60; // 3 hours in seconds
+      targetTicks = Math.max(2, Math.min(4, Math.floor(containerWidth / 180)));
       break;
       
     case '15MIN':
       // 12 hours of data: show every 4 hours for cleaner look
       tickInterval = 4 * 60 * 60; // 4 hours in seconds
-      targetTicks = Math.max(3, Math.min(4, Math.floor(containerWidth / 150)));
+      targetTicks = Math.max(2, Math.min(4, Math.floor(containerWidth / 160)));
       break;
       
     case '1H':
@@ -255,6 +255,16 @@ function generateTimeTicks(tMin, tMax, timeframe, containerWidth) {
     if (ticks[ticks.length - 1] < tMax - span * 0.1) {
       ticks.push(tMax);
     }
+    
+    // Ensure minimum spacing between ticks to prevent overlapping labels
+    const minSpacing = containerWidth / 6; // Minimum 6 labels across the width
+    const filteredTicks = [];
+    for (let i = 0; i < ticks.length; i++) {
+      if (i === 0 || (ticks[i] - ticks[i-1]) * (containerWidth / span) >= minSpacing) {
+        filteredTicks.push(ticks[i]);
+      }
+    }
+    ticks = filteredTicks;
   } else {
     // Fallback to simple division
     const step = span / targetTicks;
