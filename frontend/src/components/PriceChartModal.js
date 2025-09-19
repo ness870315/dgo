@@ -52,9 +52,9 @@ const PriceChartModal = ({ token, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2 sm:p-4">
-      <div className="bg-gray-900 rounded-2xl w-full max-w-4xl max-h-[90vh] sm:max-h-[85vh] overflow-hidden">
+      <div className="bg-gray-900 rounded-2xl w-full max-w-4xl max-h-[90vh] sm:max-h-[85vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-700">
+        <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-700 flex-shrink-0">
           <div className="flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1">
             {/* Token Icon */}
             <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
@@ -151,16 +151,18 @@ const PriceChartModal = ({ token, onClose }) => {
           </div>
         </div>
 
-        {/* Chart Container */}
-        <div className="p-2 sm:p-4">
+        {/* Chart Container - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-2 sm:p-4 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 hover:scrollbar-thumb-gray-500">
           {/* Technical Analysis Panel */}
           {showTechnicalAnalysis && isPremiumUser && (
-            <TechnicalAnalysisPanel
-              contractAddress={token.contractAddress}
-              chartData={chartData}
-              timeframe={timeframe}
-              isVisible={showTechnicalAnalysis}
-            />
+            <div className="mb-4">
+              <TechnicalAnalysisPanel
+                contractAddress={token.contractAddress}
+                chartData={chartData}
+                timeframe={timeframe}
+                isVisible={showTechnicalAnalysis}
+              />
+            </div>
           )}
           
           <SVGChart 
