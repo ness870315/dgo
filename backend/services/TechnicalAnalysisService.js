@@ -1,15 +1,14 @@
 import axios from 'axios';
 import OpenAIService from '../openaiService.js';
-import LRUCache from 'lru-cache';
 
 class TechnicalAnalysisService {
   constructor() {
     this.moralisApiKey = process.env.MORALIS_API_KEY;
     this.openaiService = new OpenAIService();
-    this.cache = new LRUCache({
-      max: 100, // Max 100 analyses cached
-      ttl: 1000 * 60 * 5 // 5 minutes cache
-    });
+    this.cache = new Map(); // Simple in-memory cache
+    this.cacheTimestamps = new Map(); // Track cache timestamps
+    this.cacheTtl = 1000 * 60 * 5; // 5 minutes cache
+    this.maxCacheSize = 100;
     this.isInitialized = false;
   }
 
@@ -51,7 +50,7 @@ class TechnicalAnalysisService {
     await this.initialize();
 
     const cacheKey = `tech_analysis_${contractAddress}_${chartData ? chartData.length : 'no_chart'}`;
-    if (this.cache.has(cacheKey)) {
+    if (this.isCacheValid(cacheKey)) {
       console.log(`💾 Using cached technical analysis for ${contractAddress}`);
       return { success: true, data: this.cache.get(cacheKey) };
     }
@@ -88,7 +87,7 @@ class TechnicalAnalysisService {
         analysisResult = this.getFallbackTechnicalAnalysis(moralisAnalytics, chartData);
       }
 
-      this.cache.set(cacheKey, analysisResult);
+      this.setCache(cacheKey, analysisResult);
       return { success: true, data: analysisResult };
 
     } catch (error) {
@@ -97,6 +96,24 @@ class TechnicalAnalysisService {
       const fallbackAnalysis = this.getFallbackTechnicalAnalysis(null, chartData, error.message);
       return { success: true, data: fallbackAnalysis, error: error.message }; // Still return success with fallback
     }
+  }
+
+  isCacheValid(cacheKey) {
+    if (!this.cache.has(cacheKey)) return false;
+    const timestamp = this.cacheTimestamps.get(cacheKey);
+    return timestamp && (Date.now() - timestamp) < this.cacheTtl;
+  }
+
+  setCache(cacheKey, data) {
+    // Clean up old cache entries if we're at max size
+    if (this.cache.size >= this.maxCacheSize) {
+      const oldestKey = this.cache.keys().next().value;
+      this.cache.delete(oldestKey);
+      this.cacheTimestamps.delete(oldestKey);
+    }
+    
+    this.cache.set(cacheKey, data);
+    this.cacheTimestamps.set(cacheKey, Date.now());
   }
 
   prepareTemplateVariables(moralisAnalytics, chartData) {
