@@ -680,7 +680,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-1 sm:p-2">
-      <div className="bg-dark-bg border border-gray-700 rounded-xl max-w-4xl w-full max-h-[95vh] sm:max-h-[80vh] overflow-y-auto">
+      <div className="bg-dark-bg border border-gray-700 rounded-xl max-w-3xl w-full max-h-[90vh] sm:max-h-[75vh] overflow-y-auto">
           {/* Header */}
         <div className="sticky top-0 bg-dark-bg border-b border-gray-700 p-2 sm:p-3 flex items-center justify-between mobile-modal-header">
           <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">

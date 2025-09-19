@@ -52,9 +52,9 @@ const PriceChartModal = ({ token, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden">
+      <div className="bg-gray-900 rounded-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-700">
+        <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <div className="flex items-center space-x-4">
             {/* Token Icon */}
             <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
@@ -158,7 +158,7 @@ const PriceChartModal = ({ token, onClose }) => {
         </div>
 
         {/* Chart Container */}
-        <div className="p-6">
+        <div className="p-4">
           {/* Technical Analysis Panel */}
           {showTechnicalAnalysis && isPremiumUser && (
             <div>

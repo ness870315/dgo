@@ -28,12 +28,12 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
         // Calculate available height (accounting for header, filters, etc.)
         const availableHeight = screenHeight - 200; // Reserve space for header and controls
         
-        let minHeight = 350; // Mobile default (reduced)
-        if (isTablet) minHeight = 400; // Reduced
-        else if (isSmallLaptop) minHeight = 450; // Optimized for 14-inch screens
-        else if (isDesktop) minHeight = 500; // Reduced
-        else if (isLargeDesktop) minHeight = 600; // Reduced
-        else if (isUltraWide) minHeight = 700; // Reduced
+        let minHeight = 300; // Mobile default (further reduced)
+        if (isTablet) minHeight = 350; // Reduced
+        else if (isSmallLaptop) minHeight = 380; // Optimized for 14-inch screens
+        else if (isDesktop) minHeight = 420; // Reduced
+        else if (isLargeDesktop) minHeight = 500; // Reduced
+        else if (isUltraWide) minHeight = 600; // Reduced
         
         // Dynamic height adjustment based on token count
         const tokenCount = tokens?.length || 0;
@@ -103,26 +103,26 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
     
     const activeFilter = getActiveFilter();
     
-    // Base size calculation - adaptive based on filter type
+    // Base size calculation - adaptive based on filter type (reduced for 14-inch screens)
     let baseSize;
     if (activeFilter === 'trending' || activeFilter === 'cults') {
       // Trending and Cults: Fewer tokens, larger bubbles
-      baseSize = tokenCount <= 10 ? 80 : tokenCount <= 25 ? 60 : tokenCount <= 50 ? 40 : 25;
+      baseSize = tokenCount <= 10 ? 60 : tokenCount <= 25 ? 45 : tokenCount <= 50 ? 30 : 18;
     } else if (activeFilter === 'highCap') {
       // High Cap: Medium number of tokens, medium bubbles
-      baseSize = tokenCount <= 15 ? 60 : tokenCount <= 30 ? 45 : tokenCount <= 60 ? 30 : 20;
+      baseSize = tokenCount <= 15 ? 45 : tokenCount <= 30 ? 35 : tokenCount <= 60 ? 22 : 15;
     } else if (activeFilter === 'midCap') {
       // Mid Cap: More tokens, smaller bubbles
-      baseSize = tokenCount <= 20 ? 50 : tokenCount <= 40 ? 35 : tokenCount <= 80 ? 25 : 15;
+      baseSize = tokenCount <= 20 ? 35 : tokenCount <= 40 ? 25 : tokenCount <= 80 ? 18 : 12;
     } else if (activeFilter === 'smallCap') {
       // Small Cap: Many tokens, smaller bubbles
-      baseSize = tokenCount <= 30 ? 40 : tokenCount <= 60 ? 30 : tokenCount <= 120 ? 20 : 12;
+      baseSize = tokenCount <= 30 ? 30 : tokenCount <= 60 ? 22 : tokenCount <= 120 ? 15 : 9;
     } else if (activeFilter === 'microCap') {
       // Micro Cap: Most tokens, smallest bubbles
-      baseSize = tokenCount <= 40 ? 35 : tokenCount <= 80 ? 25 : tokenCount <= 160 ? 18 : 10;
+      baseSize = tokenCount <= 40 ? 25 : tokenCount <= 80 ? 18 : tokenCount <= 160 ? 12 : 7;
     } else {
       // Default fallback
-      baseSize = tokenCount <= 10 ? 60 : tokenCount <= 25 ? 40 : tokenCount <= 50 ? 25 : 15;
+      baseSize = tokenCount <= 10 ? 45 : tokenCount <= 25 ? 30 : tokenCount <= 50 ? 18 : 12;
     }
     
     // Scale based on screen size - reduced multipliers for high-density filters
@@ -130,19 +130,22 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
     const isHighDensityFilter = ['midCap', 'smallCap', 'microCap'].includes(activeFilter);
     
     if (isMobile) {
-      baseSize *= 0.8; // Slightly larger on mobile
+      baseSize *= 0.7; // Reduced for mobile
       screenType = 'mobile';
     } else if (isTablet) {
-      baseSize *= 1.0; // Larger bubbles on tablet
+      baseSize *= 0.8; // Reduced for tablet
       screenType = 'tablet';
+    } else if (isSmallLaptop) {
+      baseSize *= isHighDensityFilter ? 0.9 : 1.0; // Optimized for 14-inch screens
+      screenType = 'small-laptop';
     } else if (isDesktop) {
-      baseSize *= isHighDensityFilter ? 1.1 : 1.4; // Smaller for high-density filters
+      baseSize *= isHighDensityFilter ? 1.0 : 1.2; // Reduced for desktop
       screenType = 'desktop';
     } else if (isLargeDesktop) {
-      baseSize *= isHighDensityFilter ? 1.3 : 1.8; // Smaller for high-density filters
+      baseSize *= isHighDensityFilter ? 1.1 : 1.4; // Reduced for large desktop
       screenType = 'large-desktop';
     } else if (isUltraWide) {
-      baseSize *= isHighDensityFilter ? 1.5 : 2.2; // Smaller for high-density filters
+      baseSize *= isHighDensityFilter ? 1.2 : 1.6; // Reduced for ultra-wide
       screenType = 'ultra-wide';
     }
     
@@ -152,20 +155,23 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
     let maxSize, minSize;
     
     if (isMobile) {
+      maxSize = isHighDensityFilter ? 35 : 45;
+      minSize = isHighDensityFilter ? 5 : 6;
+    } else if (isTablet) {
       maxSize = isHighDensityFilter ? 45 : 60;
       minSize = isHighDensityFilter ? 6 : 8;
-    } else if (isTablet) {
-      maxSize = isHighDensityFilter ? 60 : 80;
-      minSize = isHighDensityFilter ? 8 : 12;
+    } else if (isSmallLaptop) {
+      maxSize = isHighDensityFilter ? 55 : 70; // Optimized for 14-inch screens
+      minSize = isHighDensityFilter ? 7 : 10;
     } else if (isDesktop) {
-      maxSize = isHighDensityFilter ? 80 : 120;
-      minSize = isHighDensityFilter ? 10 : 16;
+      maxSize = isHighDensityFilter ? 65 : 90;
+      minSize = isHighDensityFilter ? 8 : 12;
     } else if (isLargeDesktop) {
-      maxSize = isHighDensityFilter ? 100 : 150;
-      minSize = isHighDensityFilter ? 12 : 20;
+      maxSize = isHighDensityFilter ? 80 : 110;
+      minSize = isHighDensityFilter ? 10 : 15;
     } else { // Ultra-wide
-      maxSize = isHighDensityFilter ? 120 : 180;
-      minSize = isHighDensityFilter ? 15 : 25;
+      maxSize = isHighDensityFilter ? 95 : 130;
+      minSize = isHighDensityFilter ? 12 : 18;
     }
     
     // Ensure base size fits within bounds
