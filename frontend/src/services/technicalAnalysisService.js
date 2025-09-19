@@ -41,4 +41,5 @@ class TechnicalAnalysisFrontendService {
   // e.g., calculateMovingAverages(chartData), detectCandlestickPatterns(chartData)
 }
 
-export default new TechnicalAnalysisFrontendService();
+const technicalAnalysisService = new TechnicalAnalysisFrontendService();
+export default technicalAnalysisService;
