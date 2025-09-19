@@ -516,8 +516,10 @@ function SvgOHLCVArea({
     
     // Responsive dimensions - optimized for 14-inch screens
     const isMobile = width < 768;
+    const isTablet = width >= 768 && width < 1024;
     const isSmallLaptop = width >= 1024 && width < 1366; // 14-inch laptops
-    const height = isMobile ? 300 : isSmallLaptop ? 320 : 400;
+    const isDesktop = width >= 1366 && width < 1440;
+    const height = isMobile ? 250 : isTablet ? 300 : isSmallLaptop ? 280 : isDesktop ? 350 : 400;
     const padding = { 
       left: isMobile ? 50 : 60, 
       right: 16, 

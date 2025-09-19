@@ -6,14 +6,14 @@ import TechnicalAnalysisPanel from './TechnicalAnalysisPanel';
 import { useAuth } from '../contexts/AuthContext';
 
 const PriceChartModal = ({ token, onClose }) => {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [currentPrice, setCurrentPrice] = useState(null);
   const [priceChange, setPriceChange] = useState(0);
   const [showTechnicalAnalysis, setShowTechnicalAnalysis] = useState(false);
   const [chartData, setChartData] = useState(null);
   const [timeframe, setTimeframe] = useState('1D');
   
-  const isPremiumUser = user?.tier === 'MP' || user?.tier === 'VIP';
+  const isPremiumUser = isAuthenticated && (user?.tier === 'MP' || user?.tier === 'VIP');
 
   useEffect(() => {
     if (token?.contractAddress) {
@@ -51,13 +51,13 @@ const PriceChartModal = ({ token, onClose }) => {
   if (!token) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 rounded-2xl w-full max-w-4xl max-h-[85vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-gray-900 rounded-2xl w-full max-w-4xl max-h-[90vh] sm:max-h-[85vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          <div className="flex items-center space-x-4">
+        <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-700">
+          <div className="flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1">
             {/* Token Icon */}
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
               {token.jupiterData?.icon ? (
                 <img 
                   src={token.jupiterData.icon} 
@@ -71,24 +71,24 @@ const PriceChartModal = ({ token, onClose }) => {
               )}
             </div>
             
-            <div>
-              <h2 className="text-2xl font-bold text-white">{token.symbol}</h2>
-              <p className="text-gray-400">{token.name}</p>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg sm:text-xl font-bold text-white truncate">{token.symbol}</h2>
+              <p className="text-gray-400 text-xs sm:text-sm truncate">{token.name}</p>
             </div>
           </div>
 
           {/* Controls */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
             {/* Oracle Chart Button - Premium only for AI Analysis toggle */}
             <button
               onClick={() => {
-                if (isPremiumUser) {
+                if (isAuthenticated && isPremiumUser) {
                   setShowTechnicalAnalysis(!showTechnicalAnalysis);
                 }
               }}
-              disabled={!isPremiumUser}
-              className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors border ${
-                !isPremiumUser
+              disabled={!isAuthenticated || !isPremiumUser}
+              className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-colors border text-xs sm:text-sm ${
+                !isAuthenticated || !isPremiumUser
                   ? 'bg-gray-600 text-gray-400 border-gray-500 cursor-not-allowed opacity-60'
                   : showTechnicalAnalysis
                   ? 'bg-purple-600 text-white border-purple-500 hover:bg-purple-700'
@@ -154,7 +154,7 @@ const PriceChartModal = ({ token, onClose }) => {
         </div>
 
         {/* Chart Container */}
-        <div className="p-4">
+        <div className="p-2 sm:p-4">
           {/* Technical Analysis Panel */}
           {showTechnicalAnalysis && isPremiumUser && (
             <TechnicalAnalysisPanel

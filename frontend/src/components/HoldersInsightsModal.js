@@ -634,8 +634,8 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-2xl rounded-2xl bg-[#0b0f17] ring-1 ring-slate-700/60 shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700/60">
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-2 flex-1 min-w-0">
+            <div className="flex items-center gap-3 flex-wrap">
               <h2 className="text-xl font-semibold text-white flex items-center gap-2">
                 <Users size={20} />
                 Holder Insights
@@ -651,7 +651,7 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
               </div>
             )}
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">
+          <button onClick={onClose} className="text-slate-400 hover:text-white flex-shrink-0 ml-4">
             <X size={20} />
           </button>
         </div>
