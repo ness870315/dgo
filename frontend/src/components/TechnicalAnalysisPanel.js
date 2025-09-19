@@ -58,7 +58,9 @@ const TechnicalAnalysisPanel = ({ contractAddress, chartData, timeframe, isVisib
   if (error) {
     return (
       <div className="p-6 text-center text-red-400">
-        <AlertTriangle className="mx-auto mb-2" size={24} />
+        <div className="mx-auto mb-2 w-6 h-6 bg-red-400 rounded-full flex items-center justify-center">
+          <span className="text-white text-sm font-bold">!</span>
+        </div>
         Error: {error}
       </div>
     );
