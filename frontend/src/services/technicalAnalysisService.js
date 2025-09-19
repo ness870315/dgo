@@ -16,10 +16,14 @@ class TechnicalAnalysisFrontendService {
 
     try {
       console.log(`🔍 Fetching technical analysis from backend for ${contractAddress} (${timeframe}) with ${chartData ? chartData.length : 0} chart data points`);
-      const response = await axios.get(`${API_BASE}/api/tokens/${contractAddress}/technical-analysis`, {
-        params: { 
-          timeframe,
-          chartData: chartData ? JSON.stringify(chartData) : null
+      
+      // Use POST request to send chart data in body instead of URL params
+      const response = await axios.post(`${API_BASE}/api/tokens/${contractAddress}/technical-analysis`, {
+        timeframe,
+        chartData: chartData || null
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
         }
       });
 

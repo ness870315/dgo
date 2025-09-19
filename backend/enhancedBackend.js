@@ -4222,10 +4222,10 @@ class EnhancedBackend {
     });
 
     // Technical Analysis endpoint
-    this.app.get('/api/tokens/:contract/technical-analysis', async (req, res) => {
+    this.app.post('/api/tokens/:contract/technical-analysis', async (req, res) => {
       try {
         const { contract } = req.params;
-        const { timeframe = '1D', force = false, chartData: frontendChartData } = req.query;
+        const { timeframe = '1D', force = false, chartData: frontendChartData } = req.body;
         
         console.log(`[🛡️ Enhanced Backend] 📊 Fetching technical analysis for: ${contract}`);
         
@@ -4244,7 +4244,7 @@ class EnhancedBackend {
         // Use frontend chart data if provided, otherwise fetch from backend
         if (frontendChartData) {
           try {
-            chartData = JSON.parse(frontendChartData);
+            chartData = frontendChartData; // Already parsed from JSON body
             console.log(`📊 Using frontend chart data: ${chartData.length} points for pattern detection`);
           } catch (error) {
             console.log(`⚠️ Failed to parse frontend chart data: ${error.message}`);

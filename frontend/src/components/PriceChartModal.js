@@ -62,19 +62,34 @@ const PriceChartModal = ({ token, onClose }) => {
     switch (timeframe) {
       case '1MIN':
       case '5MIN':
-        volumeValue = tokenAnalytics.totalVolume?.['5m'] || tokenAnalytics.volume?.['5m'] || 0;
+        // For 5m, use 5m data or fallback to 1h if 5m is empty
+        const buyVol5m = parseFloat(tokenAnalytics.totalBuyVolume?.['5m']) || 0;
+        const sellVol5m = parseFloat(tokenAnalytics.totalSellVolume?.['5m']) || 0;
+        volumeValue = buyVol5m + sellVol5m;
+        // If 5m is empty, use 1h data
+        if (volumeValue === 0) {
+          const buyVol1h = parseFloat(tokenAnalytics.totalBuyVolume?.['1h']) || 0;
+          const sellVol1h = parseFloat(tokenAnalytics.totalSellVolume?.['1h']) || 0;
+          volumeValue = buyVol1h + sellVol1h;
+        }
         break;
       case '15MIN':
       case '1H':
-        volumeValue = tokenAnalytics.totalVolume?.['1h'] || tokenAnalytics.volume?.['1h'] || 0;
+        const buyVol1h = parseFloat(tokenAnalytics.totalBuyVolume?.['1h']) || 0;
+        const sellVol1h = parseFloat(tokenAnalytics.totalSellVolume?.['1h']) || 0;
+        volumeValue = buyVol1h + sellVol1h;
         break;
       case '4H':
       case '6H':
-        volumeValue = tokenAnalytics.totalVolume?.['6h'] || tokenAnalytics.volume?.['6h'] || 0;
+        const buyVol6h = parseFloat(tokenAnalytics.totalBuyVolume?.['6h']) || 0;
+        const sellVol6h = parseFloat(tokenAnalytics.totalSellVolume?.['6h']) || 0;
+        volumeValue = buyVol6h + sellVol6h;
         break;
       case '1D':
       default:
-        volumeValue = tokenAnalytics.totalVolume?.['24h'] || tokenAnalytics.volume?.['24h'] || 0;
+        const buyVol24h = parseFloat(tokenAnalytics.totalBuyVolume?.['24h']) || 0;
+        const sellVol24h = parseFloat(tokenAnalytics.totalSellVolume?.['24h']) || 0;
+        volumeValue = buyVol24h + sellVol24h;
         break;
     }
     
