@@ -13,7 +13,7 @@ const PriceChartModal = ({ token, onClose }) => {
   const [chartData, setChartData] = useState(null);
   const [timeframe, setTimeframe] = useState('1D');
   
-  const isPremiumUser = isAuthenticated && (user?.tier === 'MP' || user?.tier === 'VIP');
+  const isPremiumUser = isAuthenticated && user?.isPremium;
 
   useEffect(() => {
     if (token?.contractAddress) {
@@ -82,9 +82,7 @@ const PriceChartModal = ({ token, onClose }) => {
             {/* Oracle Chart Button - Premium only for AI Analysis toggle */}
             <button
               onClick={() => {
-                if (isAuthenticated && isPremiumUser) {
-                  setShowTechnicalAnalysis(!showTechnicalAnalysis);
-                }
+                setShowTechnicalAnalysis(!showTechnicalAnalysis);
               }}
               disabled={!isAuthenticated || !isPremiumUser}
               className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg transition-colors border text-xs sm:text-sm ${

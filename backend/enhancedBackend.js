@@ -2034,6 +2034,11 @@ class EnhancedBackend {
           });
         }
 
+        // Get premium status
+        const premiumStatus = await this.oauthXService.db.getPremiumStatus(user.id);
+        const isPremium = premiumStatus?.isPremium && 
+          (!premiumStatus.expiresAt || new Date(premiumStatus.expiresAt) > new Date());
+
         res.json({
           success: true,
           user: {
@@ -2049,7 +2054,10 @@ class EnhancedBackend {
             lastLogin: user.lastLogin,
             referralCode: user.referralCode,
             preferences: user.preferences,
-            stats: user.stats
+            stats: user.stats,
+            isPremium: isPremium,
+            premiumExpiry: premiumStatus?.expiresAt || null,
+            subscriptionType: premiumStatus?.subscriptionType || null
           }
         });
         
