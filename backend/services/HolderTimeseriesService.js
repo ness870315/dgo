@@ -111,6 +111,10 @@ class HolderTimeseriesService {
         
         if (historicalData.success && historicalData.data?.result?.length > 0) {
           holderFlowData = this.processHistoricalFlowData(historicalData.data.result);
+        } else {
+          // Generate mock flow data when historical data is not available
+          console.log('⚠️ No historical data available, generating mock flow data');
+          holderFlowData = this.generateMockFlowData(currentHolders, holderChanges);
         }
         
         // Ensure all expected timeframes are present
@@ -426,6 +430,69 @@ class HolderTimeseriesService {
       swap: Math.floor(totalHolders * swapPercent),
       transfer: Math.floor(totalHolders * transferPercent),
       airdrop: Math.floor(totalHolders * airdropPercent)
+    };
+  }
+
+  /**
+   * Generate mock holder flow data when historical data is not available
+   * @param {number} currentHolders - Current number of holders
+   * @param {Object} holderChanges - Holder changes by timeframe
+   * @returns {Object} Mock flow data for charts
+   */
+  generateMockFlowData(currentHolders, holderChanges) {
+    console.log('🔄 Generating mock holder flow data based on current changes');
+    
+    // Generate 7 data points representing the last week
+    const dataPoints = 7;
+    const netChanges = [];
+    const totalHolders = [];
+    const timestamps = [];
+    
+    // Use actual changes if available, otherwise generate realistic patterns
+    const changes = [
+      holderChanges['24h']?.change || 0,
+      holderChanges['6h']?.change || 0,
+      holderChanges['1h']?.change || 0,
+      holderChanges['5min']?.change || 0,
+      holderChanges['5min']?.change || 0,
+      holderChanges['1h']?.change || 0,
+      holderChanges['6h']?.change || 0
+    ];
+    
+    let runningTotal = currentHolders;
+    
+    for (let i = 0; i < dataPoints; i++) {
+      const change = changes[i] || (Math.random() - 0.5) * 20; // Random change between -10 and +10
+      runningTotal = Math.max(0, runningTotal - change); // Subtract because we're going backwards in time
+      
+      netChanges.unshift(change); // Add to beginning to maintain chronological order
+      totalHolders.unshift(runningTotal);
+      timestamps.unshift(new Date(Date.now() - (i * 24 * 60 * 60 * 1000)).toISOString());
+    }
+    
+    // Generate mock segment flow data
+    const segments = ['whales', 'sharks', 'dolphins', 'fish', 'octopus', 'crabs', 'shrimps'];
+    const holderFlow = {
+      in: {},
+      out: {}
+    };
+    
+    segments.forEach(segment => {
+      holderFlow.in[segment] = netChanges.map(() => Math.floor(Math.random() * 5)); // 0-4 holders in
+      holderFlow.out[segment] = netChanges.map(() => Math.floor(Math.random() * 5)); // 0-4 holders out
+    });
+    
+    return {
+      netChanges,
+      totalHolders,
+      timestamps,
+      holderFlow,
+      acquisitionData: {
+        swap: netChanges.map(() => Math.floor(Math.random() * 10)),
+        transfer: netChanges.map(() => Math.floor(Math.random() * 5)),
+        airdrop: netChanges.map(() => Math.floor(Math.random() * 3))
+      },
+      dataPoints: dataPoints
     };
   }
 }

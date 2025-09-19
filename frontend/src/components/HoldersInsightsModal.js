@@ -680,14 +680,14 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
             </div>
           </div>
 
-          {/* Acquisition donut + legend (original layout) */}
+          {/* Acquisition donut + legend (legend below chart) */}
           {data.holdersByAcquisition && (
             <div className="col-span-12 lg:col-span-8 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-2">
               <div className="text-slate-300 font-medium mb-3">Holders by Acquisition</div>
-              <div className="flex items-center justify-center gap-4">
+              <div className="flex items-center justify-center mb-3">
                 <Donut data={data.holdersByAcquisition} colors={processedData.acqColors} size={120} />
-                <div className="flex flex-col gap-1">{acqLegend}</div>
               </div>
+              <div className="flex flex-col gap-1">{acqLegend}</div>
             </div>
           )}
 
