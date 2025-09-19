@@ -176,7 +176,7 @@ function formatTimeLabel(timeframe, useLocal = false) {
 // Enhanced tick generation with timeframe-appropriate intervals
 function generateTimeTicks(tMin, tMax, timeframe, containerWidth) {
   const span = tMax - tMin;
-  const ticks = [];
+  let ticks = [];
   
   // Calculate appropriate tick intervals based on timeframe
   let tickInterval;
