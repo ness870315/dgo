@@ -7,7 +7,7 @@ const pct = (v) => `${v.toFixed(2)}%`;
 const classNames = (...xs) => xs.filter(Boolean).join(" ");
 
 // --- Donut Chart (pure SVG) ---
-function Donut({ data, size = 160, stroke = 20, colors }) {
+function Donut({ data, size = 120, stroke = 16, colors }) {
   const total = Object.values(data).reduce((a, b) => a + b, 0);
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -49,7 +49,7 @@ function Donut({ data, size = 160, stroke = 20, colors }) {
 }
 
 // --- Pie Chart for Holder Segments ---
-function HolderSegmentPie({ data, size = 200, colors }) {
+function HolderSegmentPie({ data, size = 120, colors }) {
   const total = Object.values(data).reduce((a, b) => a + b, 0);
   if (total === 0) return null;
   
@@ -616,7 +616,7 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-4xl rounded-2xl bg-[#0b0f17] ring-1 ring-slate-700/60 shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-2xl rounded-2xl bg-[#0b0f17] ring-1 ring-slate-700/60 shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700/60">
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-3">
@@ -640,14 +640,14 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
           </button>
         </div>
 
-        <div className="px-4 py-4 grid grid-cols-12 gap-4 max-h-[75vh] overflow-y-auto">
+        <div className="px-3 py-3 grid grid-cols-12 gap-3 max-h-[70vh] overflow-y-auto">
           {/* KPIs */}
-          <div className="col-span-12 grid grid-cols-4 gap-4">
-            <div className="rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-3">
+          <div className="col-span-12 grid grid-cols-4 gap-3">
+            <div className="rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-2">
               <div className="text-slate-400 text-xs">Total holders</div>
               <div className="text-2xl font-semibold text-white">{fmt.format(data.currentHolders || 0)}</div>
             </div>
-            <div className="rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-3">
+            <div className="rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-2">
               <div className="text-slate-400 text-xs">24h net change</div>
               <div className={classNames(
                 "text-2xl font-semibold flex items-center gap-1",
@@ -660,7 +660,7 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
                 {pct(Math.abs((data.holderChanges?.["24h"]?.changePercent || 0) * 100))} of holders
               </div>
             </div>
-            <div className="rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-3">
+            <div className="rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-2">
               <div className="text-slate-400 text-xs">7d change</div>
               <div className={classNames(
                 "text-2xl font-semibold",
@@ -669,7 +669,7 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
                 {fmt.format(data.holderChanges?.["7d"]?.change || 0)}
               </div>
             </div>
-            <div className="rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-3">
+            <div className="rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-2">
               <div className="text-slate-400 text-xs">30d change</div>
               <div className={classNames(
                 "text-2xl font-semibold",
@@ -682,32 +682,32 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
 
           {/* Acquisition donut + legend (original layout) */}
           {data.holdersByAcquisition && (
-            <div className="col-span-12 lg:col-span-8 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
-              <div className="text-slate-300 font-medium mb-4">Holders by Acquisition</div>
-              <div className="flex items-center justify-center gap-6">
-                <Donut data={data.holdersByAcquisition} colors={processedData.acqColors} size={140} />
-                <div className="flex flex-col gap-2">{acqLegend}</div>
+            <div className="col-span-12 lg:col-span-8 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-2">
+              <div className="text-slate-300 font-medium mb-3">Holders by Acquisition</div>
+              <div className="flex items-center justify-center gap-4">
+                <Donut data={data.holdersByAcquisition} colors={processedData.acqColors} size={120} />
+                <div className="flex flex-col gap-1">{acqLegend}</div>
               </div>
             </div>
           )}
 
           {/* Holder Segments Distribution (moved to right, as acquisition donut) */}
           {data.holderStats?.holderDistribution && (
-            <div className="col-span-12 lg:col-span-4 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
-              <div className="text-slate-300 font-medium mb-4">Holder Segments Distribution</div>
+            <div className="col-span-12 lg:col-span-4 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-2">
+              <div className="text-slate-300 font-medium mb-3">Holder Segments Distribution</div>
               <div className="flex items-center justify-center">
-                <Donut data={data.holderStats.holderDistribution} colors={processedData.segmentColors} size={140} />
+                <Donut data={data.holderStats.holderDistribution} colors={processedData.segmentColors} size={120} />
               </div>
-              {/* Legend for holder segments */}
-              <div className="mt-4 flex flex-col gap-2">
+              {/* Legend for holder segments - split into two columns */}
+              <div className="mt-3 grid grid-cols-2 gap-1">
                 {Object.entries(data.holderStats.holderDistribution).map(([key, value], i) => (
-                  <div key={key} className="flex items-center gap-2 text-sm text-slate-300">
+                  <div key={key} className="flex items-center gap-1 text-xs text-slate-300">
                     <span 
-                      className="inline-block h-3 w-3 rounded-sm" 
+                      className="inline-block h-2 w-2 rounded-sm" 
                       style={{ background: processedData.segmentColors[i % processedData.segmentColors.length] }}
                     />
-                    <span className="capitalize">{key}</span>
-                    <span className="text-slate-400">{fmt.format(value)} ({pct(100 * value / (data.currentHolders || 1))})</span>
+                    <span className="capitalize truncate">{key}</span>
+                    <span className="text-slate-400 text-[10px]">{fmt.format(value)}</span>
                   </div>
                 ))}
               </div>
@@ -716,19 +716,19 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
 
           {/* Top Holders Table */}
           {data.topHolders?.holders && (
-            <div className="col-span-12 lg:col-span-6 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
-              <div className="text-slate-300 font-medium mb-4">Top 10 Holders</div>
+            <div className="col-span-12 lg:col-span-6 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-2">
+              <div className="text-slate-300 font-medium mb-3">Top 10 Holders</div>
               <TopHoldersTable holders={data.topHolders.holders} />
             </div>
           )}
 
           {/* Segment Flow Table */}
-          <div className="col-span-12 lg:col-span-6 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
-            <div className="text-slate-300 font-medium mb-4">Segment Flow (In vs Out)</div>
+          <div className="col-span-12 lg:col-span-6 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-2">
+            <div className="text-slate-300 font-medium mb-3">Segment Flow (In vs Out)</div>
             {data.holderFlowData ? (
               <SegmentFlowTable flowData={data.holderFlowData} />
             ) : (
-              <div className="text-center py-8 text-slate-400">
+              <div className="text-center py-6 text-slate-400">
                 No flow data available
               </div>
             )}
@@ -736,12 +736,12 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
 
           {/* Supply concentration curve - Full width at bottom */}
           {processedData.supplyPoints.length > 0 && (
-            <div className="col-span-12 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-4">
+            <div className="col-span-12 rounded-xl bg-slate-800/40 ring-1 ring-slate-700/60 p-2">
               <div className="text-slate-300 font-medium mb-2">Supply Concentration Curve</div>
               <div className="flex justify-center">
-                <ConcentrationChart points={processedData.supplyPoints} width={600} />
+                <ConcentrationChart points={processedData.supplyPoints} width={500} />
               </div>
-              <div className="mt-2 text-xs text-slate-400 text-center">
+              <div className="mt-1 text-xs text-slate-400 text-center">
                 X: top N holders • Y: % of total supply held
               </div>
             </div>
@@ -749,7 +749,7 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
 
         </div>
 
-        <div className="px-6 pb-5 flex items-center justify-between border-t border-slate-700/60 pt-4">
+        <div className="px-4 pb-4 flex items-center justify-between border-t border-slate-700/60 pt-3">
           <div className="text-[11px] text-slate-400">
             💡 Tip: High concentration + declining holders → watch for distribution risk or whale movements
           </div>

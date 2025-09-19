@@ -4170,7 +4170,9 @@ class EnhancedBackend {
           holderChanges: timeseriesResult.status === 'fulfilled' && timeseriesResult.value.success ? 
             timeseriesResult.value.holderChanges : null,
           currentHolders: timeseriesResult.status === 'fulfilled' && timeseriesResult.value.success ? 
-            timeseriesResult.value.currentHolders : null
+            timeseriesResult.value.currentHolders : null,
+          holderFlowData: timeseriesResult.status === 'fulfilled' && timeseriesResult.value.success ? 
+            timeseriesResult.value.holderFlowData : null
         };
         
         // Generate mock acquisition data (since Moralis doesn't provide this)
