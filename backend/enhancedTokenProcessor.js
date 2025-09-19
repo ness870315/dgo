@@ -22,7 +22,7 @@ class EnhancedTokenProcessor {
     this.stageProgress = {
       coingecko: { total: 0, processed: 0, status: 'pending' },
       dexscreener: { total: 0, processed: 0, status: 'pending' },
-      birdeye: { total: 0, processed: 0, status: 'pending' },
+      // birdeye: { total: 0, processed: 0, status: 'pending' },
       jupiter: { total: 0, processed: 0, status: 'pending' },
       twitter: { total: 0, processed: 0, status: 'pending' },
       scoring: { total: 0, processed: 0, status: 'pending' }
@@ -34,7 +34,7 @@ class EnhancedTokenProcessor {
     // Initialize API services
     this.jupiterService = jupiterApiService;
     this.dexscreenerService = new DexscreenerApiService();
-    this.birdEyeService = new BirdEyeTrendingService();
+    // this.birdEyeService = new BirdEyeTrendingService(); // DISABLED
     this.hypeService = new HypeSnapshotService();
     // Resolve persistent cache directory
     const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -57,13 +57,13 @@ class EnhancedTokenProcessor {
     this.rateLimits = {
       coingecko: { batchSize: 40, delayMs: 120000, maxTokens: 500 }, // 40 tokens per batch, 2min delay to avoid rate limits
       dexscreener: { batchSize: 50, delayMs: 5000, maxTokens: 70 }, // Conservative: 50 per batch, 5s delay, 70 tokens max
-      birdeye: { maxTokens: 20 }, // BirdEye API limit: 1-20
+      // birdeye: { maxTokens: 20 }, // BirdEye API limit: 1-20 - DISABLED
       jupiter: { batchSize: 100, delayMs: 30000, maxTokens: 600 }, // 30 second delay to avoid rate limits
       twitter: { batchSize: 5, delayMs: 30000, maxTokens: 1000 } // Much smaller batches, 30s delay to avoid 429 errors
     };
     
     // Processing stages
-    this.stages = ['coingecko', 'dexscreener', 'birdeye', 'jupiter', 'twitter', 'scoring', 'saving'];
+    this.stages = ['coingecko', 'dexscreener', 'jupiter', 'twitter', 'scoring', 'saving'];
     
     // API endpoints
     this.apis = {
@@ -167,9 +167,9 @@ class EnhancedTokenProcessor {
           case 'dexscreener':
             await this.processDexscreenerStage();
             break;
-          case 'birdeye':
-            await this.processBirdEyeStage();
-            break;
+          // case 'birdeye':
+          //   await this.processBirdEyeStage();
+          //   break;
           case 'jupiter':
             await this.processJupiterStage();
             break;
@@ -1015,7 +1015,7 @@ class EnhancedTokenProcessor {
               const followers = token.twitterData?.followers || 0;
               const engagement = (token.twitterData?.likes || 0) + (token.twitterData?.retweets || 0) + (token.twitterData?.replies || 0);
               const score = enhancedScore || 0;
-              const label = score >= 9 ? 'Viral' : score >= 8 ? 'Trending' : score >= 7 ? 'Building' : score >= 5 ? 'Waking Up' : 'Sleeping';
+              const label = score >= 9 ? 'Viral' : (score >= 8 && score < 9) ? 'Trending' : (score >= 7 && score < 8) ? 'Building' : (score >= 5 && score < 7) ? 'Waking Up' : 'Sleeping';
               
               await this.hypeService.appendSnapshot(contractAddress, {
                 score: score,
@@ -1780,9 +1780,9 @@ class EnhancedTokenProcessor {
 
   getHypeLabel(score) {
     if (score >= 9) return 'Viral';
-    if (score >= 8) return 'Trending';
-    if (score >= 7) return 'Building';
-    if (score >= 5) return 'Waking Up';
+    if (score >= 8 && score < 9) return 'Trending';
+    if (score >= 7 && score < 8) return 'Building';
+    if (score >= 5 && score < 7) return 'Waking Up';
     return 'Sleeping';
   }
 

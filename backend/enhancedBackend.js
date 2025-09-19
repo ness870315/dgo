@@ -123,7 +123,7 @@ class EnhancedBackend {
     this.tokenProcessor = new EnhancedTokenProcessor();
     this.hypeService = new HypeSnapshotService();
     this.mcapService = new McapSnapshotService();
-    this.birdeyeService = new BirdEyeTrendingService();
+    // this.birdeyeService = new BirdEyeTrendingService(); // DISABLED
     this.helioService = new HelioPaymentService();
     this.oauthXService = new OAuthXService();
     this.priorityQueue = new PriorityQueueService();
@@ -1103,36 +1103,36 @@ class EnhancedBackend {
       }
     });
 
-    // Get BirdEye trending tokens (test endpoint)
-    this.app.get('/api/tokens/birdeye-trending', async (req, res) => {
-      try {
-        console.log('[🛡️ Enhanced Backend] 🐦 Getting BirdEye trending tokens...');
-        const { limit, offset, sort_by, sort_type } = req.query;
-        const tokens = await this.birdeyeService.fetchTrending({
-          limit: limit ? Number(limit) : undefined,
-          offset: offset ? Number(offset) : undefined,
-          sort_by,
-          sort_type
-        });
-        // Extra safety: filter suspicious/rugged tokens from BirdEye trending output
-        const filtered = (tokens || []).filter(t => {
-          // Try to map minimal fields into a shape consumable by isRuggedToken
-          const mapped = {
-            jupiterData: {
-              stats24h: { priceChange: typeof t.priceChange24h === 'number' ? t.priceChange24h : undefined },
-              stats6h: { priceChange: typeof t.priceChange6h === 'number' ? t.priceChange6h : undefined },
-              liquidity: typeof t.liquidity === 'number' ? t.liquidity : undefined
-            }
-          };
-          return !this.isSuspiciousToken(t) && !this.isRuggedToken(mapped) && !this.isExcludedMajorOrStable(mapped);
-        });
-        console.log(`[🛡️ Enhanced Backend] ✅ BirdEye trending returned ${tokens.length} tokens → ${filtered.length} after filters`);
-        res.json(filtered);
-      } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ BirdEye trending error:', error);
-        res.status(500).json({ error: 'Failed to fetch BirdEye trending tokens' });
-      }
-    });
+    // Get BirdEye trending tokens (test endpoint) - DISABLED
+    // this.app.get('/api/tokens/birdeye-trending', async (req, res) => {
+    //   try {
+    //     console.log('[🛡️ Enhanced Backend] 🐦 Getting BirdEye trending tokens...');
+    //     const { limit, offset, sort_by, sort_type } = req.query;
+    //     const tokens = await this.birdeyeService.fetchTrending({
+    //       limit: limit ? Number(limit) : undefined,
+    //       offset: offset ? Number(offset) : undefined,
+    //       sort_by,
+    //       sort_type
+    //     });
+    //     // Extra safety: filter suspicious/rugged tokens from BirdEye trending output
+    //     const filtered = (tokens || []).filter(t => {
+    //       // Try to map minimal fields into a shape consumable by isRuggedToken
+    //       const mapped = {
+    //         jupiterData: {
+    //           stats24h: { priceChange: typeof t.priceChange24h === 'number' ? t.priceChange24h : undefined },
+    //           stats6h: { priceChange: typeof t.priceChange6h === 'number' ? t.priceChange6h : undefined },
+    //           liquidity: typeof t.liquidity === 'number' ? t.liquidity : undefined
+    //         }
+    //       };
+    //       return !this.isSuspiciousToken(t) && !this.isRuggedToken(mapped) && !this.isExcludedMajorOrStable(mapped);
+    //     });
+    //     console.log(`[🛡️ Enhanced Backend] ✅ BirdEye trending returned ${tokens.length} tokens → ${filtered.length} after filters`);
+    //     res.json(filtered);
+    //   } catch (error) {
+    //     console.error('[🛡️ Enhanced Backend] ❌ BirdEye trending error:', error);
+    //     res.status(500).json({ error: 'Failed to fetch BirdEye trending tokens' });
+    //   }
+    // });
 
     // ========================================
     // 💳 HELIO PAYMENT ENDPOINTS
@@ -7501,7 +7501,7 @@ class EnhancedBackend {
       const followers = token.twitterData?.followers || 0;
       const engagement = (token.twitterData?.likes || 0) + (token.twitterData?.retweets || 0) + (token.twitterData?.replies || 0);
       const score = token.overallScore || token.enhancedScore || 0;
-      const label = score >= 9 ? 'Viral' : score >= 8 ? 'Trending' : score >= 7 ? 'Building' : score >= 5 ? 'Waking Up' : 'Sleeping';
+      const label = score >= 9 ? 'Viral' : (score >= 8 && score < 9) ? 'Trending' : (score >= 7 && score < 8) ? 'Building' : (score >= 5 && score < 7) ? 'Waking Up' : 'Sleeping';
       
       await this.hypeService.appendSnapshot(token.contractAddress, {
         score: score,
@@ -7637,9 +7637,9 @@ class EnhancedBackend {
 
   getHypeLabel(score) {
     if (score >= 9) return 'Viral';
-    if (score >= 8) return 'Trending';
-    if (score >= 7) return 'Building';
-    if (score >= 5) return 'Waking Up';
+    if (score >= 8 && score < 9) return 'Trending';
+    if (score >= 7 && score < 8) return 'Building';
+    if (score >= 5 && score < 7) return 'Waking Up';
     return 'Sleeping';
   }
 

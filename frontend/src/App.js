@@ -255,10 +255,10 @@ function App() {
     // Since filters are mutually exclusive, find which one is active
     if (categories.trending) {
       // NEW TRENDING (refined + viral override):
-      // - Base: Score ≥ 6 AND Market cap ≤ $10M (emerging)
+      // - Base: Score ≥ 7.5 AND Market cap ≤ $10M (emerging) - INCREASED THRESHOLD
       // - Viral override: include tokens with latest hype label 'Viral' (score ≥8) regardless of cap/CULT
       // - Freshness gate (updated within last 30m)
-      // - Guardrails against recent dumps & weak socials
+      // - STRENGTHENED Guardrails against recent dumps & weak socials
       // Ranking: Viral first, then base ranked by 50% score + 30% turnover + 20% volume
       // Limit: top 100
       const fueledSymbols = new Set(fueledTokens?.map(fuel => fuel.symbol) || []);
