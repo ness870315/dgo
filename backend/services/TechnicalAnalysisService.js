@@ -678,46 +678,46 @@ const TECHNICAL_ANALYSIS_PROMPT_TEMPLATE = `You are an expert cryptocurrency tec
 
 TOKEN DATA:
 - Address: {tokenAddress}
-- Current Price: ${usdPrice}
-- Total Liquidity: ${totalLiquidityUsd}
-- FDV: ${totalFullyDilutedValuation}
+- Current Price: {usdPrice}
+- Total Liquidity: {totalLiquidityUsd}
+- FDV: {totalFullyDilutedValuation}
 
 VOLUME ANALYSIS (24h):
-- Buy Volume: ${buyVolume24h}
-- Sell Volume: ${sellVolume24h}
-- Active Buyers: ${buyers24h}
-- Active Sellers: ${sellers24h}
-- Unique Wallets: ${uniqueWallets24h}
+- Buy Volume: {buyVolume24h}
+- Sell Volume: {sellVolume24h}
+- Active Buyers: {buyers24h}
+- Active Sellers: {sellers24h}
+- Unique Wallets: {uniqueWallets24h}
 
 PRICE MOVEMENTS:
-- 5m Change: ${priceChange5m}%
-- 1h Change: ${priceChange1h}%
-- 6h Change: ${priceChange6h}%
-- 24h Change: ${priceChange24h}%
+- 5m Change: {priceChange5m}%
+- 1h Change: {priceChange1h}%
+- 6h Change: {priceChange6h}%
+- 24h Change: {priceChange24h}%
 
 CHART DATA (OHLCV Analysis):
-- Chart High: ${chartHigh}
-- Chart Low: ${chartLow}
-- Chart Close: ${chartClose}
-- Data Points: ${chartDataPoints}
-- Support Level: ${supportLevel}
-- Resistance Level: ${resistanceLevel}
+- Chart High: {chartHigh}
+- Chart Low: {chartLow}
+- Chart Close: {chartClose}
+- Data Points: {chartDataPoints}
+- Support Level: {supportLevel}
+- Resistance Level: {resistanceLevel}
 
 TECHNICAL INDICATORS:
-- Trend Direction: ${trendDirection}
-- Momentum: ${momentum}
-- Volatility: ${volatility}
-- Volume Analysis: ${volumeAnalysis}
-- RSI: ${technicalIndicators}
+- Trend Direction: {trendDirection}
+- Momentum: {momentum}
+- Volatility: {volatility}
+- Volume Analysis: {volumeAnalysis}
+- RSI: {technicalIndicators}
 - Moving Averages: SMA20, SMA50, EMA12, EMA26
-- MACD: ${technicalIndicators}
+- MACD: {technicalIndicators}
 - Bollinger Bands: Upper, Middle, Lower
 
 CHART PATTERNS DETECTED:
-- Chart Patterns: ${chartPatterns}
-- Candlestick Patterns: ${candlestickPatterns}
-- Support Levels: ${supportLevels}
-- Resistance Levels: ${resistanceLevels}
+- Chart Patterns: {chartPatterns}
+- Candlestick Patterns: {candlestickPatterns}
+- Support Levels: {supportLevels}
+- Resistance Levels: {resistanceLevels}
 
 Provide a comprehensive technical analysis using the OHLCV data and technical indicators. Focus on:
 
