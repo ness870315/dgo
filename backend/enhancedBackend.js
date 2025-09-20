@@ -8000,7 +8000,7 @@ class EnhancedBackend {
       
       if (freshInsights.success) {
         // Cache the fresh data
-        await holderCacheService.cacheInsights(contractAddress, freshInsights.data);
+        await holderCacheService.setCachedData(contractAddress, 'insights', freshInsights.data);
         console.log(`📊 Cached fresh holder data for future use: ${contractAddress}`);
       }
       

@@ -103,8 +103,12 @@ class SocialContextAI {
     const holderChanges = holderData.holderChanges || {};
     
     // Calculate holder concentration metrics
-    const top10Percentage = topHolders.holders?.slice(0, 10).reduce((sum, holder) => sum + (holder.percentage || 0), 0) || 0;
-    const top20Percentage = topHolders.holders?.slice(0, 20).reduce((sum, holder) => sum + (holder.percentage || 0), 0) || 0;
+    const top10Percentage = (topHolders.holders && Array.isArray(topHolders.holders)) 
+      ? topHolders.holders.slice(0, 10).reduce((sum, holder) => sum + (holder.percentage || 0), 0) 
+      : 0;
+    const top20Percentage = (topHolders.holders && Array.isArray(topHolders.holders)) 
+      ? topHolders.holders.slice(0, 20).reduce((sum, holder) => sum + (holder.percentage || 0), 0) 
+      : 0;
     
     // Determine concentration level
     let concentrationLevel = 'Unknown';
