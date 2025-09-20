@@ -48,6 +48,17 @@ class SocialContextAI {
         
         analysis = JSON.parse(cleanedResponse);
         console.log(`✅ Successfully parsed AI analysis response`);
+        console.log(`🔍 AI Response Structure:`, {
+          sentiment: analysis.sentiment,
+          confidence: analysis.confidence,
+          aiAssessment: !!analysis.aiAssessment,
+          keyInsights: analysis.keyInsights?.length || 0,
+          riskAssessment: !!analysis.riskAssessment,
+          catalysts: analysis.catalysts?.length || 0,
+          redFlags: analysis.redFlags?.length || 0,
+          recommendation: !!analysis.recommendation,
+          recommendedActions: analysis.recommendedActions?.length || 0
+        });
       } catch (parseError) {
         console.error(`❌ Failed to parse AI response:`, parseError.message);
         console.log(`Raw response:`, completion.choices[0].message.content);

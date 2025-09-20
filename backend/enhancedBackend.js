@@ -3386,11 +3386,12 @@ class EnhancedBackend {
           sentiment: analysis.sentiment,
           confidence: analysis.confidence,
           keyInsights: analysis.keyInsights?.length || 0,
-          socialMomentum: analysis.socialMomentum,
+          aiAssessment: analysis.aiAssessment,
           riskAssessment: analysis.riskAssessment,
           recommendation: analysis.recommendation,
           catalysts: typeof analysis.catalysts,
-          redFlags: typeof analysis.redFlags
+          redFlags: typeof analysis.redFlags,
+          recommendedActions: analysis.recommendedActions?.length || 0
         });
 
         res.json({
