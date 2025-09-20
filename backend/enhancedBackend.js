@@ -6623,6 +6623,62 @@ class EnhancedBackend {
       }
     });
 
+    // Simple Adaptive Bayesian Test
+    this.app.get('/api/test/adaptive-simple', async (req, res) => {
+      try {
+        const { default: HypeTrendAnalysis } = await import('./hypeTrendAnalysis.js');
+        
+        // Test data - MEMEPUTER-like stable data with upturn
+        const testScores = [
+          7.096, 7.096, 7.096, 7.096, 7.096, 7.096, 7.096, 7.096, 7.096, 7.096,
+          7.096, 7.096, 7.096, 7.096, 7.096, 7.696, 7.696, 7.696, 7.696, 7.696
+        ];
+        const testMentions = new Array(20).fill(16);
+        
+        console.log('🧪 Testing Adaptive Bayesian Change-Point Detection...');
+        
+        const trendAnalysis = new HypeTrendAnalysis();
+        const results = trendAnalysis.detectChangePoints(testScores, testMentions);
+        
+        const testResults = {
+          testData: {
+            scores: testScores,
+            mentions: testMentions,
+            variance: testScores.reduce((acc, val, i, arr) => {
+              const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+              return acc + Math.pow(val - mean, 2);
+            }, 0) / (testScores.length - 1)
+          },
+          adaptiveResults: results,
+          success: results.changePoints && results.changePoints.length > 0,
+          changePointsFound: results.changePoints ? results.changePoints.length : 0,
+          adaptiveThreshold: results.adaptiveThreshold,
+          summary: {
+            oldSystemWouldFind: 0, // Fixed threshold 1.5 would find 0
+            newSystemFound: results.changePoints ? results.changePoints.length : 0,
+            improvement: results.changePoints && results.changePoints.length > 0 ? 'SUCCESS' : 'FAILED'
+          }
+        };
+        
+        res.json({
+          success: true,
+          message: 'Adaptive Bayesian Test completed',
+          results: testResults,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error('❌ Adaptive Bayesian Test failed:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Adaptive Bayesian Test failed',
+          details: error.message,
+          stack: error.stack,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
     // Jupiter API Testing Endpoints
     this.app.get('/api/jupiter/test-known', async (req, res) => {
       try {
