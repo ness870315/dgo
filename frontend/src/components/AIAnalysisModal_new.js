@@ -2,6 +2,13 @@ import React from 'react';
 import { X, Brain, AlertTriangle, Lightbulb, Rocket, Flag, Target } from 'lucide-react';
 
 const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
+  console.log('🔍 AIAnalysisModalNew Debug:', {
+    hasAiAnalysis: !!aiAnalysis,
+    hasAnalysisProperty: !!(aiAnalysis?.analysis),
+    aiAnalysisKeys: aiAnalysis ? Object.keys(aiAnalysis) : null,
+    analysisKeys: aiAnalysis?.analysis ? Object.keys(aiAnalysis.analysis) : null
+  });
+  
   if (!aiAnalysis || !aiAnalysis.analysis) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
