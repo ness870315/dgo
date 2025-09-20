@@ -7946,7 +7946,7 @@ class EnhancedBackend {
       const followers = token.twitterData?.followers || 0;
       const engagement = (token.twitterData?.likes || 0) + (token.twitterData?.retweets || 0) + (token.twitterData?.replies || 0);
       const score = token.overallScore || token.enhancedScore || 0;
-      const label = score >= 9 ? 'Viral' : (score >= 8 && score < 9) ? 'Trending' : (score >= 7 && score < 8) ? 'Building' : (score >= 5 && score < 7) ? 'Waking Up' : 'Sleeping';
+      const label = this.getHypeLabel(score);
       
       await this.hypeService.appendSnapshot(token.contractAddress, {
         score: score,
@@ -8081,11 +8081,14 @@ class EnhancedBackend {
   }
 
   getHypeLabel(score) {
-    if (score >= 9) return 'Viral';
-    if (score >= 8 && score < 9) return 'Trending';
-    if (score >= 7 && score < 8) return 'Building';
-    if (score >= 5 && score < 7) return 'Waking Up';
-    return 'Sleeping';
+    const numScore = parseFloat(score) || 0;
+    
+    // Match frontend statusUtils.js thresholds exactly
+    if (numScore >= 9.0) return 'VIRAL';
+    if (numScore >= 8.0) return 'TRENDING';  
+    if (numScore >= 7.0) return 'BUILDING';
+    if (numScore >= 5.0) return 'WAKING UP';
+    return 'SLEEPING';
   }
 
   async getTokensFromCache() {
