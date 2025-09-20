@@ -86,7 +86,7 @@ const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
                   </span>
                 </div>
                 <div className="text-gray-300 text-sm">
-                  {analysis.marketAnalysis?.organicGrowth ? `Organic Growth: ${analysis.marketAnalysis.organicGrowth}` : 'Analysis complete'}
+                  {analysis.aiAssessment || 'Analysis complete'}
                 </div>
               </div>
             </div>
@@ -118,29 +118,21 @@ const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">Action:</span>
-                  <span className={`font-semibold px-2 py-1 rounded text-sm ${
-                    analysis.recommendation?.action === 'Buy' ? 'bg-green-900 text-green-300' :
-                    analysis.recommendation?.action === 'Sell' ? 'bg-red-900 text-red-300' :
-                    'bg-yellow-900 text-yellow-300'
-                  }`}>
-                    {analysis.recommendation?.action || 'Hold'}
+                  <span className="font-semibold px-2 py-1 rounded text-sm bg-yellow-900 text-yellow-300">
+                    Hold
                   </span>
                 </div>
                 <div className="text-gray-300 text-sm">
-                  {analysis.recommendation?.reasoning || 'No reasoning provided'}
+                  {analysis.recommendation || 'No reasoning provided'}
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">Timeframe:</span>
-                  <span className="text-white text-sm">{analysis.recommendation?.timeframe || 'N/A'}</span>
+                  <span className="text-white text-sm">N/A</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">Confidence:</span>
-                  <span className={`text-sm ${
-                    analysis.recommendation?.confidence === 'High' ? 'text-green-400' :
-                    analysis.recommendation?.confidence === 'Low' ? 'text-red-400' :
-                    'text-yellow-400'
-                  }`}>
-                    {analysis.recommendation?.confidence || 'N/A'}
+                  <span className="text-yellow-400 text-sm">
+                    {Math.round((analysis.confidence || 0) * 100)}%
                   </span>
                 </div>
               </div>
@@ -159,42 +151,14 @@ const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">Risk Level:</span>
-                  <span className={`font-semibold px-2 py-1 rounded text-sm ${
-                    analysis.riskAssessment?.level === 'Low' ? 'bg-green-900 text-green-300' :
-                    analysis.riskAssessment?.level === 'High' ? 'bg-red-900 text-red-300' :
-                    'bg-yellow-900 text-yellow-300'
-                  }`}>
-                    {analysis.riskAssessment?.level || 'Medium'}
+                  <span className="font-semibold px-2 py-1 rounded text-sm bg-yellow-900 text-yellow-300">
+                    Medium
                   </span>
                 </div>
                 
-                {analysis.riskAssessment?.factors && analysis.riskAssessment.factors.length > 0 && (
-                  <div>
-                    <span className="text-red-400 text-sm font-medium">Risk Factors:</span>
-                    <div className="mt-1 space-y-1">
-                      {analysis.riskAssessment.factors.map((factor, index) => (
-                        <div key={index} className="flex items-start space-x-2">
-                          <span className="text-red-400 mt-1">•</span>
-                          <span className="text-gray-300 text-sm">{factor}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {analysis.riskAssessment?.mitigants && analysis.riskAssessment.mitigants.length > 0 && (
-                  <div>
-                    <span className="text-green-400 text-sm font-medium">Mitigants:</span>
-                    <div className="mt-1 space-y-1">
-                      {analysis.riskAssessment.mitigants.map((mitigant, index) => (
-                        <div key={index} className="flex items-start space-x-2">
-                          <span className="text-green-400 mt-1">•</span>
-                          <span className="text-gray-300 text-sm">{mitigant}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <div className="text-gray-300 text-sm">
+                  {analysis.riskAssessment || 'Risk assessment not available'}
+                </div>
               </div>
             </div>
 
