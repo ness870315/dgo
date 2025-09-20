@@ -14,7 +14,7 @@ import McapSnapshotService from './mcapSnapshotService.js';
 import BirdEyeTrendingService from './birdEyeTrendingService.js';
 import PriorityQueueService from './priorityQueueService.js';
 import LeaderboardScoringEngine from './leaderboardScoringEngine.js';
-import SocialContextAI from './socialContextAI.js';
+import SocialContextAI from './socialContextAI_new.js';
 import { createBackupIntegration } from './backupIntegration.js';
 import HypeTrendAnalysis from './hypeTrendAnalysis.js';
 import AIHypePredictionService from './aiHypePredictionService.js';

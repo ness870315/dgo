@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import EnhancedCallModal from './EnhancedCallModal';
 import PriceChartModal from './PriceChartModal';
 import HoldersInsightsModal from './HoldersInsightsModal';
+import AIAnalysisModalNew from './AIAnalysisModal_new';
 import fuelImageGenerator from '../services/fuelImageGenerator';
 import { getTokenStatus } from '../utils/statusUtils';
 
@@ -58,6 +59,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
   
   // Holders Insights Modal states
   const [showHoldersInsightsModal, setShowHoldersInsightsModal] = useState(false);
+  
+  // New AI Analysis Modal state
+  const [showNewAIAnalysis, setShowNewAIAnalysis] = useState(false);
   
   // Fuel Share states
   const [showFuelShareModal, setShowFuelShareModal] = useState(false);
@@ -353,8 +357,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
       
       setAiAnalysis(data);
       setShowAILoadingModal(false);
-      setShowAIAnalysis(true);
-      console.log('🧠 AI Analysis modal should now be visible');
+      setShowNewAIAnalysis(true);
+      console.log('🧠 New AI Analysis modal should now be visible');
       
       } catch (fetchError) {
         clearTimeout(timeoutId);
@@ -2564,6 +2568,15 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
           <HoldersInsightsModal
             token={token}
             onClose={() => setShowHoldersInsightsModal(false)}
+          />
+        )}
+
+        {/* New AI Analysis Modal */}
+        {showNewAIAnalysis && (
+          <AIAnalysisModalNew
+            token={token}
+            aiAnalysis={aiAnalysis}
+            onClose={() => setShowNewAIAnalysis(false)}
           />
         )}
 
