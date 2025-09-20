@@ -105,11 +105,9 @@ class TokenService {
       let tokens;
       
       if (useRealData) {
-        console.log('🔍 Fetching real data from backend...');
         // Fetch real data from alternative sources (CoinGecko, Reddit, GitHub, News)
         tokens = await this.fetchTokensWithRealData();
       } else {
-        console.log('🔍 Using mock data for development');
         // Use mock data for development
         tokens = generateMockTokens();
       }
@@ -125,21 +123,16 @@ class TokenService {
       console.error('🔍 Error fetching tokens:', error);
       console.error('🔍 Error details:', error.message, error.stack);
       // Fallback to mock data if real API fails
-      console.log('🔍 Falling back to mock data due to error');
       return generateMockTokens();
     }
   }
 
   async fetchTokensWithRealData() {
-    console.log('🚀 fetchTokensWithRealData called!');
     try {
       const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-      console.log('🚀 API Base URL:', apiBase);
-      console.log('🚀 Fetching from:', `${apiBase}/api/tokens`);
       const response = await fetch(`${apiBase}/api/tokens`, {
         credentials: 'include'
       });
-      console.log('🚀 Response status:', response.status, response.statusText);
       
       if (!response.ok) {
         console.error('🚀 API Error:', response.status, response.statusText);
@@ -230,7 +223,6 @@ class TokenService {
       console.error('🚀 Error fetching tokens from alternative data sources:', error);
       console.error('🚀 Error details:', error.message, error.stack);
       // Fallback to mock data
-      console.log('🚀 Falling back to mock data due to error');
       return generateMockTokens();
     }
   }
