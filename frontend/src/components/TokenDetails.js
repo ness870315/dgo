@@ -92,7 +92,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
 
   useEffect(() => {
     // Debug: Log token data consistency
-    console.log('🔍 TokenDetails DEBUG - Token data:', {
+
       symbol: token?.symbol,
       name: token?.name,
       contractAddress: token?.contractAddress,
@@ -136,7 +136,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
             setPaymentCompleted(true);
             setContractValidated(true);
             setFuelMessage({ text: '💳 Payment completed! Ready to apply fuel boost.', type: 'success' });
-            console.log('Found pending fuel payment for this token:', pending);
+
           }
         } catch (error) {
           console.error('Error parsing pending fuel payment:', error);
@@ -176,7 +176,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
         neutralColor: '#5A6578',
         display: 'inline',
         onSuccess: async (event) => {
-          console.log('✅ Helio payment success:', event);
+
           setPaymentCompleted(true);
           
           // Store payment data for fuel application
@@ -190,7 +190,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
           
           // Auto-apply fuel after payment success
           try {
-            console.log('🔥 Auto-applying fuel after payment success...');
+
             await handleApplyFuel();
           } catch (error) {
             console.error('❌ Error auto-applying fuel:', error);
@@ -208,21 +208,21 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
           });
         },
         onPending: (event) => {
-          console.log('⏳ Helio payment pending:', event);
+
           setFuelMessage({ 
             text: '⏳ Payment processing...', 
             type: 'info' 
           });
         },
         onCancel: () => {
-          console.log('❌ Payment cancelled');
+
           setFuelMessage({ 
             text: 'Payment cancelled', 
             type: 'info' 
           });
         },
         onStartPayment: () => {
-          console.log('🚀 Starting payment');
+
           setFuelMessage({ 
             text: '🚀 Processing payment...', 
             type: 'info' 
@@ -298,9 +298,6 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
       if (sessionId) params.append('sessionId', sessionId);
       params.append('useCache', 'true');
       
-      console.log('🧠 Fetching AI analysis for:', identifier);
-      console.log('🧠 API URL:', `${url}?${params.toString()}`);
-      console.log('🧠 Session ID:', sessionId ? 'Present' : 'Missing');
       
       setAiProgress('Analyzing social data...');
       
@@ -334,14 +331,6 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
         clearTimeout(timeoutId);
         const data = await response.json();
       
-      console.log('🧠 API Response:', { status: response.status, data });
-      console.log('🧠 Analysis Data:', data.analysis);
-      console.log('🧠 Analysis Keys:', Object.keys(data.analysis || {}));
-      console.log('🧠 Key Insights:', data.analysis.analysis?.keyInsights);
-      console.log('🧠 Holder Insights:', data.analysis.analysis?.holderInsights);
-      console.log('🧠 Trading Signals:', data.analysis.analysis?.tradingSignals);
-      console.log('🧠 Recommendation:', data.analysis.analysis?.recommendation);
-      console.log('🧠 Full Analysis Structure:', JSON.stringify(data.analysis, null, 2));
       
       if (!response.ok) {
         if (response.status === 429) {
@@ -355,12 +344,14 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
         throw new Error('Invalid response: Missing analysis data');
       }
       
-      console.log('🔍 About to set AI Analysis:', data.analysis.analysis);
-      console.log('🔍 AI Analysis keys:', Object.keys(data.analysis.analysis));
-      setAiAnalysis(data.analysis.analysis);
+      // Combine analysis content with metadata for the modal
+      const analysisWithMetadata = {
+        ...data.analysis.analysis,
+        metadata: data.analysis.metadata
+      };
+      setAiAnalysis(analysisWithMetadata);
       setShowAILoadingModal(false);
       setShowNewAIAnalysis(true);
-      console.log('🧠 New AI Analysis modal should now be visible');
       
       } catch (fetchError) {
         clearTimeout(timeoutId);
@@ -401,7 +392,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
       });
       
       if (response.ok) {
-        console.log('AI feedback submitted successfully');
+
       }
     } catch (error) {
       console.error('Failed to submit AI feedback:', error);
@@ -482,14 +473,10 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
       const pendingData = localStorage.getItem('pendingFuelPayment');
       let fuelType = selectedFuel;
 
-      console.log('🔥 Applying fuel for token:', token.symbol, 'Contract:', token.contractAddress);
-      console.log('Selected fuel:', selectedFuel);
-      console.log('Pending data:', pendingData);
 
       if (pendingData) {
         const pending = JSON.parse(pendingData);
         fuelType = pending.fuelType;
-        console.log('Found pending fuel payment:', pending);
       }
 
       if (!fuelType) {
@@ -497,7 +484,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
         return;
       }
 
-      console.log('🚀 Sending fuel application request:', {
+
         contractAddress: token.contractAddress,
         fuelType: fuelType
       });
@@ -513,9 +500,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
         })
       });
 
-      console.log('📡 Fuel API response status:', response.status);
+
       const result = await response.json();
-      console.log('📡 Fuel API response data:', result);
+
 
       if (response.ok) {
         setFuelMessage({ text: `✅ ${result.message}`, type: 'success' });
@@ -602,7 +589,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
   };
 
   const handleConfirmCall = async (callData) => {
-    console.log('🎯 TokenDetails: handleConfirmCall called with data:', callData);
+
     
     try {
       const payload = {
@@ -616,17 +603,17 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
         tone: callData.tone
       };
       
-      console.log('📤 TokenDetails: Sending payload to kolCallsService:', payload);
+
       const result = await kolCallsService.addCall(payload);
-      console.log('✅ TokenDetails: Call added successfully:', result);
+
       
       // Dispatch event to refresh KOL calls list
-      console.log('🔄 TokenDetails: Dispatching kol-call-added event');
+
       window.dispatchEvent(new CustomEvent('kol-call-added'));
       
       // Also try to refresh any open KOL calls modal
       setTimeout(() => {
-        console.log('🔄 TokenDetails: Dispatching delayed kol-call-added event');
+
         window.dispatchEvent(new CustomEvent('kol-call-added'));
       }, 1000);
       
@@ -722,9 +709,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                       <div className="relative group">
                         <button
                           onClick={() => {
-                            console.log('🧠 Oracle AI button clicked in TokenDetails');
-                            console.log('🧠 isAuthenticated:', isAuthenticated);
-                            console.log('🧠 aiLoading:', aiLoading);
+
+
+
                             if (isAuthenticated && !aiLoading) {
                               fetchAIAnalysis();
                             }
@@ -900,9 +887,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
               <div className="relative group">
                 <button
                   onClick={() => {
-                    console.log('🧠 Oracle AI button clicked in TokenDetails (desktop)');
-                    console.log('🧠 isAuthenticated:', isAuthenticated);
-                    console.log('🧠 aiLoading:', aiLoading);
+
+
+
                     if (isAuthenticated && !aiLoading) {
                       fetchAIAnalysis();
                     }
@@ -2101,7 +2088,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                       {(() => {
                         const base = aiAnalysis?.analysis?.analysis || aiAnalysis?.analysis || aiAnalysis || {};
                         let insights = Array.isArray(base.keyInsights) ? base.keyInsights : [];
-                        console.log('🔍 Key Insights Debug:', { base, insights, length: insights.length });
+
                         if (!insights || insights.length === 0) {
                           const bullets = [];
                           const sentiment = base.sentiment;
@@ -2137,7 +2124,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                       <div className="space-y-2">
                         {(() => {
                           const recommendation = aiAnalysis?.analysis?.analysis?.recommendation || aiAnalysis?.analysis?.recommendation;
-                          console.log('🔍 Summary Debug:', { 
+
                             aiAnalysis, 
                             recommendation,
                             action: recommendation?.action 

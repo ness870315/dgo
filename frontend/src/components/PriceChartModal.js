@@ -55,8 +55,8 @@ const PriceChartModal = ({ token, onClose }) => {
   const updateVolumeForTimeframe = () => {
     if (!tokenAnalytics) return;
 
-    console.log('📊 Token Analytics Data:', tokenAnalytics);
-    console.log('📊 Current timeframe:', timeframe);
+
+
 
     let volumeValue = 0;
     switch (timeframe) {
@@ -93,7 +93,7 @@ const PriceChartModal = ({ token, onClose }) => {
         break;
     }
     
-    console.log('📊 Calculated volume value:', volumeValue);
+
     setVolume(volumeValue);
   };
 

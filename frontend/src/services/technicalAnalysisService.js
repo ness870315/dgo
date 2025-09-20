@@ -10,12 +10,12 @@ class TechnicalAnalysisFrontendService {
   async getTechnicalAnalysis(contractAddress, timeframe = '1D', chartData = null) {
     const cacheKey = `${contractAddress}-${timeframe}-${chartData ? chartData.length : 'no_chart'}`;
     if (this.cache.has(cacheKey)) {
-      console.log(`💾 Using cached frontend technical analysis for ${contractAddress} (${timeframe})`);
+
       return this.cache.get(cacheKey);
     }
 
     try {
-      console.log(`🔍 Fetching technical analysis from backend for ${contractAddress} (${timeframe}) with ${chartData ? chartData.length : 0} chart data points`);
+
       
       // Use POST request to send chart data in body instead of URL params
       const response = await axios.post(`${API_BASE}/api/tokens/${contractAddress}/technical-analysis`, {
@@ -27,11 +27,11 @@ class TechnicalAnalysisFrontendService {
         }
       });
 
-      console.log('🔍 Backend response:', response.data);
+
 
       if (response.data.success) {
         const analysis = response.data.data;
-        console.log('🔍 Analysis data received:', analysis);
+
         // Optionally, perform additional client-side calculations or formatting here
         // For example, if chartData is available, you could refine support/resistance based on visible range
         

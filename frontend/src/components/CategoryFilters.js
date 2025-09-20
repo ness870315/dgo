@@ -30,7 +30,7 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
       [category]: true // Enable only the clicked filter
     };
     
-    console.log('Category switched to:', category, newCategories);
+
     onFiltersChange(newCategories);
   };
 

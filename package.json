@@ -32,7 +32,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "apify-client": "^2.16.0"
+    "apify-client": "^2.16.0",
+    "axios": "^1.12.2"
   }
 }
-

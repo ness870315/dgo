@@ -44,7 +44,7 @@ class ChartService {
         // Restore Map from stored object
         if (data.entries && Array.isArray(data.entries)) {
           this.chartCache = new Map(data.entries);
-          console.log(`📦 Loaded ${this.chartCache.size} cached chart entries from persistent storage`);
+
         }
       }
     } catch (error) {
@@ -70,7 +70,7 @@ class ChartService {
       return; // No cleanup needed
     }
 
-    console.log(`🧹 True LRU cleanup: ${this.chartCache.size} entries, limit: ${this.MAX_CACHE_ENTRIES}`);
+
 
     // Sort by timestamp (oldest first) and remove until under entry limit
     const keys = [...this.chartCache.keys()]
@@ -83,7 +83,7 @@ class ChartService {
       }
     }
 
-    console.log(`🗑️ LRU cleanup removed entries, now ${this.chartCache.size} entries`);
+
   }
 
   /**
@@ -136,7 +136,7 @@ class ChartService {
       } catch (blobError) {
         // Fallback for environments where Blob.size throws (Safari private mode, etc.)
         sizeMB = json.length / (1024 * 1024);
-        console.log(`📊 Using fallback size calculation: ${sizeMB.toFixed(2)}MB`);
+
       }
 
       // LRU cleanup by size if still over limit
@@ -162,19 +162,19 @@ class ChartService {
           }
         }
 
-        console.log(`🗑️ Size-based LRU cleanup complete, cache now ${this.chartCache.size} entries, ${sizeMB.toFixed(2)}MB`);
+
       }
 
       // Final attempt to save
       localStorage.setItem(this.cacheKey, json);
-      console.log(`💾 Saved ${this.chartCache.size} chart entries (${sizeMB.toFixed(2)}MB, trimmed & LRU cleaned)`);
+
 
     } catch (error) {
       console.warn(`⚠️ Failed to save persistent chart cache: ${error.message}`);
 
       // Handle different failure scenarios
       if (error.message.includes('quota') || error.name === 'QuotaExceededError') {
-        console.log(`🚨 localStorage quota exceeded, performing aggressive cleanup...`);
+
 
         // Try saving with minimal cache (just most recent entries)
         try {
@@ -190,24 +190,24 @@ class ChartService {
 
           const minimalSnapshot = { entries: [...minimalCache.entries()], timestamp: Date.now(), version: '1.1' };
           localStorage.setItem(this.cacheKey, JSON.stringify(minimalSnapshot));
-          console.log(`✅ Saved minimal cache with ${minimalCache.size} entries`);
+
 
           // Update our in-memory cache to match
           this.chartCache = minimalCache;
 
         } catch (minimalError) {
-          console.log(`🚨 Even minimal cache failed, clearing all cache...`);
+
           try {
             localStorage.removeItem(this.cacheKey);
             this.chartCache.clear();
-            console.log(`✅ Cleared all cache`);
+
           } catch (clearError) {
             console.warn(`⚠️ Failed to clear cache: ${clearError.message}`);
           }
         }
       } else if (error.name === 'SecurityError') {
         // Safari private mode or other security restrictions
-        console.log(`🔒 localStorage access denied (Safari private mode?), using in-memory cache only`);
+
         // Cache continues to work in-memory only
       }
     }
@@ -225,19 +225,19 @@ class ChartService {
    */
   async getPriceChartRD(contractAddress, timeframe) {
     const desired = this.getRDLimit(timeframe); // e.g., 1000 for 15MIN
-    console.log(`🎯 Requesting ${desired} bars for ${timeframe} (RD tier)`);
+
     
     const base = await this.getPriceChart(contractAddress, timeframe, desired, 'RD');
 
     // If server gave us way less (e.g., only 24 bars), try backfilling older bars
     if (Array.isArray(base?.data) && base.data.length < Math.min(200, desired)) {
-      console.log(`⚠️ Only got ${base.data.length} bars, trying to load older bars...`);
+
       const oldest = base.data[0]?.time;
       if (oldest) {
         try {
           const older = await this.loadOlderBars(contractAddress, timeframe, oldest, 'MP');
           if (older?.data?.length > base.data.length) {
-            console.log(`✅ Loaded ${older.data.length} bars from older data`);
+
             return older; // merged in loadOlderBars
           }
         } catch (e) {
@@ -246,7 +246,7 @@ class ChartService {
       }
     }
     
-    console.log(`📊 Final result: ${base?.data?.length || 0} bars for ${timeframe}`);
+
     return base;
   }
 
@@ -289,7 +289,7 @@ class ChartService {
     const isValid = (Date.now() - cacheEntry.timestamp) < timeout;
     
     if (!isValid) {
-      console.log(`⏰ Cache expired for ${timeframe} (age: ${Math.round((Date.now() - cacheEntry.timestamp) / 1000)}s, timeout: ${Math.round(timeout / 1000)}s)`);
+
     }
     
     return isValid;
@@ -303,7 +303,7 @@ class ChartService {
     const cached = this.chartCache.get(cacheKey);
     
     if (this.isCacheValid(cached, timeframe)) {
-      console.log(`📦 Using cached chart data for ${timeframe} (${tier} tier, ${cached.data?.data?.length || 0} candles)`);
+
       return cached.data;
     }
     
@@ -332,7 +332,7 @@ class ChartService {
     // Atomic write to persistent storage (includes cleanup)
     this.savePersistentCache();
 
-    console.log(`💾 Cached chart data for ${timeframe} (${tier} tier, ${trimmedData?.data?.length || 0} candles, trimmed) - persistent`);
+
   }
 
   /**
@@ -348,7 +348,7 @@ class ChartService {
       // Use chunkSize if provided, otherwise use tier-based limit
       const optimalLimit = chunkSize || this.getOptimalLimitForTier(timeframe, tier);
       
-      console.log(`📜 Loading ${optimalLimit} older bars (${tier} tier) for ${timeframe} before ${new Date(beforeTime * 1000).toISOString()}`);
+
       
       const response = await fetch(
         `${this.API_BASE}/api/tokens/${contractAddress}/price-chart?timeframe=${timeframe}&limit=${optimalLimit}&before=${beforeTime}&tier=${tier}`
@@ -385,7 +385,7 @@ class ChartService {
         // Atomic write to persistent storage
         this.savePersistentCache();
         
-        console.log(`🔄 Merged ${olderData.data.length} older bars. Total: ${mergedData.data.length} candles - persistent`);
+
         return mergedData;
       }
       
@@ -411,7 +411,7 @@ class ChartService {
         return await this.getPriceChart(contractAddress, timeframe);
       }
       
-      console.log(`🔄 Fetching new candles for ${timeframe} after ${new Date(existing.newestTime * 1000).toISOString()}`);
+
       
       const response = await fetch(
         `${this.API_BASE}/api/tokens/${contractAddress}/price-chart?timeframe=${timeframe}&after=${existing.newestTime}&limit=100`
@@ -444,7 +444,7 @@ class ChartService {
         // Atomic write to persistent storage
         this.savePersistentCache();
         
-        console.log(`➕ Appended ${newData.data.length} new candles. Total: ${mergedData.data.length} candles - persistent`);
+
         return mergedData;
       }
       
@@ -544,7 +544,7 @@ class ChartService {
       
       const data = await response.json();
       
-      console.log(`📊 Time range chart: ${data?.data?.length || 0} points from ${new Date(fromTimestamp * 1000).toISOString()} to ${new Date(toTimestamp * 1000).toISOString()}`);
+
       
       return data;
     } catch (error) {

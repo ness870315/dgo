@@ -110,12 +110,23 @@ TOOL RECOMMENDATIONS:
 
 🔥 CREATIVE HOLDER FLOW VARIATIONS - MANDATORY:
 
-When analyzing holder segment flow data, use these SPECIFIC creative variations:
-- 🦐 **Shrimps In**: "Retail is buying" or "Retail accumulating"
-- 🐋 **Whales In**: "Smart money accumulating" or "Whales loading up"
-- 💎 **Diamond Hands**: "Diamond hands accumulating" or "HODLers stacking"
-- 🚨 **Whales Out**: "Whale outflow detected" or "Smart money exiting"
-- 📉 **Shrimp Selling**: "Retail selling explains declining price" or "Paper hands are out"
+When analyzing holder segment flow data, use these SPECIFIC creative variations with emojis:
+- 🦐 **Shrimps In**: "Retail is buying 🦐" or "Shrimps accumulating 📈"
+- 🐋 **Whales In**: "Smart money accumulating 🐋" or "Whales loading up 💰"
+- 🐬 **Dolphins In**: "Mid-tier holders stacking 🐬" or "Dolphins accumulating 📊"
+- 💎 **Diamond Hands**: "Diamond hands energy 💎" or "HODLers stacking 🤝"
+- 🚨 **Whales Out**: "Whale outflow detected 🐋📉" or "Smart money exiting 🚨"
+- 📉 **Shrimp Selling**: "Paper hands folding 🦐📉" or "Retail panic selling 😰"
+
+EMOJI GUIDELINES:
+- Use directional emojis for price action: ↗️ ↘️ ➡️ 📈 📉
+- Use segment emojis: 🐋 (whales), 🦐 (shrimps), 🐬 (dolphins), 🦈 (sharks)
+- Use action emojis: 💎 (diamond hands), 📊 (analysis), 🚀 (moon), ⚡ (quick moves)
+- Keep emoji usage balanced - don't overwhelm
+
+API REFERENCE REMOVAL:
+- NEVER mention "Jupiter API", "Moralis API", or any specific APIs
+- Instead use: "based on our analytics", "our data shows", "market analysis indicates"
 
 Use segmentFlowData to determine which segments are flowing in/out and apply these variations accordingly.
 
@@ -159,13 +170,13 @@ Please provide analysis in this EXACT JSON format:
   ],
   "catalysts": [
     "Market catalyst based on price momentum and liquidity health",
-    "Volume catalyst based on Moralis TokenAnalytics data - buy/sell ratios and volume trends",
-    "Holder catalyst based on HolderTimeseriesService segment flow - CREATIVE VARIATIONS: if shrimps/retail in: 'Retail is buying', if whales/sharks in: 'Smart money accumulating', if diamond hands: 'Diamond hands accumulating'"
+    "Volume catalyst based on our analytics - buy/sell ratios and volume trends with emojis 📊",
+    "Holder catalyst based on segment flow analysis - CREATIVE VARIATIONS: if shrimps/retail in: 'Retail is buying 🦐', if whales/sharks in: 'Smart money accumulating 🐋', if diamond hands: 'Diamond hands energy 💎'"
   ],
   "redFlags": [
-    "Market warning based on price action and liquidity concerns",
-    "Volume warning based on Moralis TokenAnalytics buy/sell volume imbalances",
-    "Holder warning based on HolderTimeseriesService segment flow - CREATIVE VARIATIONS: if whales exiting: 'Whale outflow detected', if shrimp selling: 'Retail selling explains declining price, paper hands are out'"
+    "Market warning based on price action and liquidity concerns with directional emojis ↘️",
+    "Volume warning based on our analytics - buy/sell volume imbalances 📉",
+    "Holder warning based on segment flow analysis - CREATIVE VARIATIONS: if whales exiting: 'Whale outflow detected 🐋📉', if shrimp selling: 'Paper hands folding 🦐📉'"
   ],
   "recommendation": "One concise sentence summarizing the key factors and recommendation with crypto slang",
   "recommendedActions": [

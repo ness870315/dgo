@@ -2,12 +2,6 @@ import React from 'react';
 import { X, Brain, AlertTriangle, Lightbulb, Rocket, Flag, Target } from 'lucide-react';
 
 const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
-  console.log('🔍 AIAnalysisModalNew Debug:', {
-    hasAiAnalysis: !!aiAnalysis,
-    aiAnalysisKeys: aiAnalysis ? Object.keys(aiAnalysis) : null,
-    hasSentiment: !!(aiAnalysis?.sentiment),
-    hasKeyInsights: !!(aiAnalysis?.keyInsights)
-  });
   
   if (!aiAnalysis || !aiAnalysis.sentiment) {
     return (
@@ -133,8 +127,24 @@ const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
                   {analysis.recommendation || 'No reasoning provided'}
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-400">Timeframe:</span>
-                  <span className="text-white text-sm">Current Analysis</span>
+                  <span className="text-gray-400">Strategy:</span>
+                  <span className={`font-semibold px-2 py-1 rounded text-sm ${
+                    analysis.sentiment === 'Bullish' ? 'bg-green-900 text-green-300' :
+                    analysis.sentiment === 'Bearish' ? 'bg-red-900 text-red-300' :
+                    'bg-yellow-900 text-yellow-300'
+                  }`}>
+                    {(() => {
+                      const confidence = analysis.confidence || 0;
+                      const sentiment = analysis.sentiment || 'Neutral';
+                      
+                      if (sentiment === 'Bullish' && confidence > 0.8) return '🚀 Conviction Play';
+                      if (sentiment === 'Bullish' && confidence > 0.6) return '📈 Long-term Hold';
+                      if (sentiment === 'Bearish' && confidence > 0.7) return '⚡ Pump & Dump';
+                      if (sentiment === 'Bearish') return '📉 Short-term Risk';
+                      if (confidence > 0.7) return '⏳ Mid-term Hold';
+                      return '👀 Watch & Wait';
+                    })()}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">Confidence:</span>
@@ -265,6 +275,22 @@ const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
             </div>
           </div>
         )}
+
+        {/* Training Loop - User Feedback */}
+        <div className="mt-6 pt-4 border-t border-gray-700">
+          <h4 className="text-white font-semibold mb-3 text-sm">🧠 Help Train Our AI</h4>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-400 text-sm">Was this analysis helpful?</span>
+            <div className="flex space-x-2">
+              <button className="px-3 py-1 bg-green-900/50 hover:bg-green-900 text-green-300 rounded text-sm transition-colors">
+                👍 Yes
+              </button>
+              <button className="px-3 py-1 bg-red-900/50 hover:bg-red-900 text-red-300 rounded text-sm transition-colors">
+                👎 No
+              </button>
+            </div>
+          </div>
+        </div>
 
       </div>
     </div>

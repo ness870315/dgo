@@ -65,7 +65,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
     if (!tokens || tokens.length === 0) return;
 
     // Debug: Log sample token data to check consistency
-    console.log('🫧 BubbleMap Debug - Sample token data:', {
+
       symbol: tokens[0]?.symbol,
       overallScore: tokens[0]?.overallScore,
       score: tokens[0]?.score,
@@ -151,7 +151,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
       screenType = 'ultra-wide';
     }
     
-    console.log(`🫧 BubbleMap: ${activeFilter} filter, ${screenType} screen (${screenWidth}px), baseSize: ${baseSize.toFixed(1)}, tokenCount: ${tokenCount}`);
+
     
     // Set max and min sizes based on screen size and filter type
     let maxSize, minSize;
@@ -273,10 +273,10 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
         fueled.symbol?.toLowerCase() === d.symbol?.toLowerCase()
       );
       
-      console.log(`🔥 Fuel Token Debug: Token ${d.symbol} isFueled =`, isFueled);
+
       
       if (isFueled) {
-        console.log(`🔥 Adding fire icon to ${d.symbol}`);
+
         const bubble = d3.select(this);
         const circle = bubble.select('circle');
         

@@ -70,17 +70,17 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
       const response = await fetch(`${API_BASE}/api/user/followers?sessionId=${encodeURIComponent(sessionId)}`);
       const data = await response.json();
       
-      console.log('DGO Followers data:', data);
-      console.log('Raw followers:', data.followers);
-      console.log('Raw following:', data.following);
+
+
+
       
       if (data.success) {
         // Clean up self-follows (users shouldn't follow themselves)
         const cleanFollowers = (data.followers || []).filter(id => id !== user?.id);
         const cleanFollowing = (data.following || []).filter(id => id !== user?.id);
         
-        console.log('🧹 Cleaned followers:', cleanFollowers);
-        console.log('🧹 Cleaned following:', cleanFollowing);
+
+
         
         setDgoFollowers(cleanFollowers);
         setDgoFollowing(cleanFollowing);
@@ -90,7 +90,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
           try {
             const userPromises = cleanFollowing.map(async (userId) => {
               try {
-                console.log(`🔍 Fetching profile for user ID: ${userId}`);
+
                 
                 // Try multiple methods to get user profile data
                 let userData = null;
@@ -99,7 +99,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                 try {
                   const profile = await leaderboardService.getUserProfile(userId);
                   userData = profile?.user || profile;
-                  console.log(`📋 Leaderboard profile for ${userId}:`, userData);
+
                 } catch (leaderboardError) {
                   console.warn(`⚠️ Leaderboard service failed for ${userId}:`, leaderboardError);
                 }
@@ -111,7 +111,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                     if (directResponse.ok) {
                       const directData = await directResponse.json();
                       userData = directData?.user || directData;
-                      console.log(`📋 Direct API profile for ${userId}:`, userData);
+
                     }
                   } catch (directError) {
                     console.warn(`⚠️ Direct API failed for ${userId}:`, directError);
@@ -134,7 +134,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                 const displayName = userData.displayName || userData.username || `User ${String(userId).slice(-6)}`;
                 const profileImage = userData.profileImage || null;
                 
-                console.log(`✅ Final user ${userId} profile data:`, { username, displayName, profileImage });
+
                 
                 return {
                   id: userData.id || userId,
@@ -155,7 +155,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
             });
             
             const userDetails = await Promise.all(userPromises);
-            console.log('👥 Final user details for following:', userDetails);
+
             setDgoFollowingUsers(userDetails);
           } catch (error) {
             console.error('❌ Failed to fetch following user details:', error);
@@ -269,7 +269,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('🔄 Fetching dashboard data for session:', sessionId, '- Premium features active');
+
       
       // Fetch user profile and watchlist
       const [profileResponse, watchlistResponse] = await Promise.all([
@@ -277,14 +277,14 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         fetch(`${API_BASE}/api/user/watchlist?sessionId=${sessionId}`)
       ]);
 
-      console.log('📊 Profile response status:', profileResponse.status);
-      console.log('📊 Watchlist response status:', watchlistResponse.status);
+
+
 
       if (profileResponse.ok && watchlistResponse.ok) {
         const profileData = await profileResponse.json();
         const watchlistData = await watchlistResponse.json();
         
-        console.log('✅ Dashboard data received:', { profileData, watchlistData });
+
         
         const entries = Array.isArray(watchlistData.watchlist) ? watchlistData.watchlist : [];
 
@@ -292,21 +292,21 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         const isPremium = profileData.user?.isPremium || false;
         const premiumExpiry = profileData.user?.premiumExpiry || null;
         
-        console.log('🏆 Premium status check:', { isPremium, premiumExpiry, userId: profileData.user?.id });
+
 
         // Try to fetch leaderboard (premium feature)
         let leaderboard = [];
         let leaderboardError = null;
 
-        console.log('🏆 About to fetch KOL leaderboard...');
+
         try {
-          console.log('🏆 Fetching KOL leaderboard...');
+
           const leaderboardData = await leaderboardService.getLeaderboard();
-          console.log('🏆 Leaderboard response:', leaderboardData);
+
           
           if (leaderboardData && leaderboardData.success) {
             leaderboard = leaderboardData.leaderboard || [];
-            console.log(`🏆 Loaded ${leaderboard.length} leaderboard entries`);
+
           } else {
             console.warn('🏆 Leaderboard response indicates failure:', leaderboardData);
             leaderboardError = leaderboardData?.error || 'Unknown error';
@@ -317,7 +317,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
           
           // Check if it's a premium-related error
           if (err.code === 'premium_required') {
-            console.log('🏆 Leaderboard requires premium (expected for non-premium users)');
+
             leaderboardError = null; // Don't show error for expected premium restriction
           }
         }
@@ -366,12 +366,12 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   }, [sessionId, API_BASE]);
 
   useEffect(() => {
-    console.log('🔄 UserDashboard useEffect triggered:', { user: !!user, sessionId: !!sessionId });
+
     if (user && sessionId) {
       fetchDashboardData();
       loadDgoFollowers();
     } else {
-      console.log('⚠️ UserDashboard: Missing user or sessionId:', { user: !!user, sessionId: !!sessionId });
+
       setLoading(false);
     }
   }, [user, sessionId, fetchDashboardData, loadDgoFollowers]);
@@ -424,11 +424,11 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         return;
       }
 
-      console.log('🔄 Loading hype data for token:', selectedHypeToken.symbol, selectedHypeToken.contractAddress);
+
       
       try {
         const res = await hypeService.getHype(selectedHypeToken.contractAddress, hypeRange);
-        console.log('📊 Hype data response:', res);
+
         setHypeSeries(res.data || []);
       } catch (e) {
         console.error('❌ Hype fetch error:', e);
@@ -1206,20 +1206,20 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-white">{selectedHypeToken.symbol} • Hype over Time</h2>
                 <div className="flex items-center gap-2">
-                  {console.log('🧠 Dashboard premium status:', dashboardData.isPremium)}
+
                   {dashboardData.isPremium ? (
                     <button
                       onClick={async () => {
-                        console.log('🧠 Oracle AI button clicked!');
-                        console.log('🧠 Selected token:', selectedHypeToken);
-                        console.log('🧠 Contract address:', selectedHypeToken.contractAddress);
+
+
+
                         setHypeAILoading(true);
                         try {
                           const response = await fetch(`${API_BASE}/api/hype-trend/${selectedHypeToken.contractAddress}?range=${hypeRange}`);
                           const data = await response.json();
                           
                           if (data.success) {
-                            console.log('📊 Hype Trend Data received:', data);
+
                             setHypeAIData(data);
                             setShowHypeAI(true);
                           } else {
