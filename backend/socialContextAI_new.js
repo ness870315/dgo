@@ -3,7 +3,7 @@
  * New comprehensive structure with proper data integration
  */
 
-import { OpenAIService } from './services/OpenAIService.js';
+import OpenAIService from './openaiService.js';
 import { NEW_AI_PROMPT_TEMPLATES } from './aiPromptTemplates_new.js';
 
 class SocialContextAI {
