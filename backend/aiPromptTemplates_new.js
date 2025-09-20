@@ -119,6 +119,17 @@ TOOL RECOMMENDATIONS:
   * "Call it!" - for high-confidence plays when signals align
 - Be specific about WHEN and WHY to use each tool based on the token's metrics and trends
 
+🔥 CREATIVE HOLDER FLOW VARIATIONS - MANDATORY:
+
+When analyzing holder segment flow data, use these SPECIFIC creative variations:
+- 🦐 **Shrimps In**: "Retail is buying" or "Retail accumulating"
+- 🐋 **Whales In**: "Smart money accumulating" or "Whales loading up"
+- 💎 **Diamond Hands**: "Diamond hands accumulating" or "HODLers stacking"
+- 🚨 **Whales Out**: "Whale outflow detected" or "Smart money exiting"
+- 📉 **Shrimp Selling**: "Retail selling explains declining price" or "Paper hands are out"
+
+Use segmentFlowData to determine which segments are flowing in/out and apply these variations accordingly.
+
 🔥 TECHNICAL CATALYST DETECTION:
 
 Analyze technical and market data to identify potential catalysts:
@@ -163,18 +174,18 @@ Please provide analysis in this EXACT JSON format:
   },
   "keyInsights": [
     "Technical analysis insight with degen terminology and real patterns",
-    "Holder distribution insight with crypto slang about concentration and growth", 
-    "Trading opportunity insight with authentic crypto language"
+    "Holder distribution insight with crypto slang about concentration and growth - use HolderStatsService data to describe distribution health and concentration levels", 
+    "Trading opportunity insight with authentic crypto language - use Moralis TokenAnalytics buy/sell volume data and holder flow analysis"
   ],
   "catalysts": [
     "Technical catalyst based on patterns and indicators",
-    "Market catalyst based on volume and holder data",
-    "Holder catalyst based on distribution and growth patterns"
+    "Market catalyst based on volume and holder data - use Moralis TokenAnalytics data",
+    "Holder catalyst based on HolderTimeseriesService segment flow - CREATIVE VARIATIONS: if shrimps/retail in: 'Retail is buying', if whales/sharks in: 'Smart money accumulating', if diamond hands: 'Diamond hands accumulating'"
   ],
   "redFlags": [
     "Technical warning based on patterns and indicators",
-    "Market warning based on volume and holder data",
-    "Holder warning based on concentration and distribution"
+    "Market warning based on volume and holder data - use Moralis TokenAnalytics buy/sell volume",
+    "Holder warning based on HolderTimeseriesService segment flow - CREATIVE VARIATIONS: if whales exiting: 'Whale outflow detected', if shrimp selling: 'Retail selling explains declining price, paper hands are out'"
   ],
   "recommendation": {
     "action": "Buy|Hold|Sell",

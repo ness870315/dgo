@@ -3327,6 +3327,19 @@ class EnhancedBackend {
           console.log(`⚠️ Could not fetch holder data for AI analysis: ${error.message}`);
         }
         
+        // Add Moralis TokenAnalytics data for enhanced AI analysis
+        try {
+          const { default: TechnicalAnalysisService } = await import('./services/TechnicalAnalysisService.js');
+          const techAnalysisService = new TechnicalAnalysisService();
+          const moralisAnalytics = await techAnalysisService.getMoralisTokenAnalytics(contract);
+          if (moralisAnalytics) {
+            token.moralisAnalytics = moralisAnalytics;
+            console.log(`📊 Added Moralis TokenAnalytics data to AI analysis for ${token.symbol}`);
+          }
+        } catch (error) {
+          console.log(`⚠️ Could not fetch Moralis TokenAnalytics for AI analysis: ${error.message}`);
+        }
+        
         // Generate AI analysis
         const analysisOptions = {
           useCache: useCache === 'true',
