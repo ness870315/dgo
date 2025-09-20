@@ -4,12 +4,12 @@ import { X, Brain, AlertTriangle, Lightbulb, Rocket, Flag, Target } from 'lucide
 const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
   console.log('🔍 AIAnalysisModalNew Debug:', {
     hasAiAnalysis: !!aiAnalysis,
-    hasAnalysisProperty: !!(aiAnalysis?.analysis),
     aiAnalysisKeys: aiAnalysis ? Object.keys(aiAnalysis) : null,
-    analysisKeys: aiAnalysis?.analysis ? Object.keys(aiAnalysis.analysis) : null
+    hasSentiment: !!(aiAnalysis?.sentiment),
+    hasKeyInsights: !!(aiAnalysis?.keyInsights)
   });
   
-  if (!aiAnalysis || !aiAnalysis.analysis) {
+  if (!aiAnalysis || !aiAnalysis.sentiment) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
         <div className="bg-gray-900 rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -33,7 +33,7 @@ const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
     );
   }
 
-  const analysis = aiAnalysis.analysis;
+  const analysis = aiAnalysis;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
