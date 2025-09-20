@@ -355,9 +355,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
         throw new Error('Invalid response: Missing analysis data');
       }
       
-      console.log('🔍 About to set AI Analysis:', data.analysis);
-      console.log('🔍 AI Analysis keys:', Object.keys(data.analysis));
-      setAiAnalysis(data.analysis);
+      console.log('🔍 About to set AI Analysis:', data.analysis.analysis);
+      console.log('🔍 AI Analysis keys:', Object.keys(data.analysis.analysis));
+      setAiAnalysis(data.analysis.analysis);
       setShowAILoadingModal(false);
       setShowNewAIAnalysis(true);
       console.log('🧠 New AI Analysis modal should now be visible');
