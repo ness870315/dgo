@@ -333,10 +333,11 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
       console.log('🧠 API Response:', { status: response.status, data });
       console.log('🧠 Analysis Data:', data.analysis);
       console.log('🧠 Analysis Keys:', Object.keys(data.analysis || {}));
-      console.log('🧠 Key Insights:', data.analysis.keyInsights);
-      console.log('🧠 Holder Insights:', data.analysis.holderInsights);
-      console.log('🧠 Trading Signals:', data.analysis.tradingSignals);
-      console.log('🧠 Recommendation:', data.analysis.recommendation);
+      console.log('🧠 Key Insights:', data.analysis.analysis?.keyInsights);
+      console.log('🧠 Holder Insights:', data.analysis.analysis?.holderInsights);
+      console.log('🧠 Trading Signals:', data.analysis.analysis?.tradingSignals);
+      console.log('🧠 Recommendation:', data.analysis.analysis?.recommendation);
+      console.log('🧠 Full Analysis Structure:', JSON.stringify(data.analysis, null, 2));
       
       if (!response.ok) {
         if (response.status === 429) {
@@ -2092,7 +2093,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                         💡 Key Insights
                       </h5>
                       {(() => {
-                        const base = aiAnalysis?.analysis || aiAnalysis || {};
+                        const base = aiAnalysis?.analysis?.analysis || aiAnalysis?.analysis || aiAnalysis || {};
                         let insights = Array.isArray(base.keyInsights) ? base.keyInsights : [];
                         console.log('🔍 Key Insights Debug:', { base, insights, length: insights.length });
                         if (!insights || insights.length === 0) {
@@ -2129,40 +2130,41 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                       </h5>
                       <div className="space-y-2">
                         {(() => {
+                          const recommendation = aiAnalysis?.analysis?.analysis?.recommendation || aiAnalysis?.analysis?.recommendation;
                           console.log('🔍 Summary Debug:', { 
                             aiAnalysis, 
-                            recommendation: aiAnalysis?.analysis?.recommendation,
-                            action: aiAnalysis?.analysis?.recommendation?.action 
+                            recommendation,
+                            action: recommendation?.action 
                           });
                           return null;
                         })()}
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Action:</span>
                           <span className={`font-semibold px-2 py-1 rounded text-sm ${
-                            aiAnalysis.analysis.recommendation?.action === 'Call it!' ? 'bg-green-900 text-green-300' :
-                            aiAnalysis.analysis.recommendation?.action === 'Add to Watchlist' ? 'bg-blue-900 text-blue-300' :
-                            aiAnalysis.analysis.recommendation?.action === 'Hype over Time analysis' ? 'bg-purple-900 text-purple-300' :
-                            aiAnalysis.analysis.recommendation?.action === 'Oracle Chart Analysis' ? 'bg-orange-900 text-orange-300' :
+                            (aiAnalysis?.analysis?.analysis?.recommendation?.action || aiAnalysis?.analysis?.recommendation?.action) === 'Call it!' ? 'bg-green-900 text-green-300' :
+                            (aiAnalysis?.analysis?.analysis?.recommendation?.action || aiAnalysis?.analysis?.recommendation?.action) === 'Add to Watchlist' ? 'bg-blue-900 text-blue-300' :
+                            (aiAnalysis?.analysis?.analysis?.recommendation?.action || aiAnalysis?.analysis?.recommendation?.action) === 'Hype over Time analysis' ? 'bg-purple-900 text-purple-300' :
+                            (aiAnalysis?.analysis?.analysis?.recommendation?.action || aiAnalysis?.analysis?.recommendation?.action) === 'Oracle Chart Analysis' ? 'bg-orange-900 text-orange-300' :
                             'bg-yellow-900 text-yellow-300'
                           }`}>
-                            {aiAnalysis.analysis.recommendation?.action || 'N/A'}
+                            {aiAnalysis?.analysis?.analysis?.recommendation?.action || aiAnalysis?.analysis?.recommendation?.action || 'N/A'}
                           </span>
                         </div>
                         <div className="text-gray-300 text-sm">
-                          <span className="text-gray-400">Reasoning:</span> {aiAnalysis.analysis.recommendation?.reasoning}
+                          <span className="text-gray-400">Reasoning:</span> {aiAnalysis?.analysis?.analysis?.recommendation?.reasoning || aiAnalysis?.analysis?.recommendation?.reasoning || 'N/A'}
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Timeframe:</span>
-                          <span className="text-white text-sm">{aiAnalysis.analysis.recommendation?.timeframe}</span>
+                          <span className="text-white text-sm">{aiAnalysis?.analysis?.analysis?.recommendation?.timeframe || aiAnalysis?.analysis?.recommendation?.timeframe || 'N/A'}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Confidence:</span>
                           <span className={`text-sm ${
-                            aiAnalysis.analysis.recommendation?.confidence === 'High' ? 'text-green-400' :
-                            aiAnalysis.analysis.recommendation?.confidence === 'Low' ? 'text-red-400' :
+                            (aiAnalysis?.analysis?.analysis?.recommendation?.confidence || aiAnalysis?.analysis?.recommendation?.confidence) === 'High' ? 'text-green-400' :
+                            (aiAnalysis?.analysis?.analysis?.recommendation?.confidence || aiAnalysis?.analysis?.recommendation?.confidence) === 'Low' ? 'text-red-400' :
                             'text-yellow-400'
                           }`}>
-                            {aiAnalysis.analysis.recommendation?.confidence}
+                            {aiAnalysis?.analysis?.analysis?.recommendation?.confidence || aiAnalysis?.analysis?.recommendation?.confidence || 'N/A'}
                           </span>
                         </div>
                       </div>
@@ -2181,40 +2183,40 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Distribution:</span>
                           <span className={`font-semibold text-sm ${
-                            aiAnalysis.analysis.holderInsights?.distributionHealth === 'Well distributed' ? 'text-green-400' :
-                            aiAnalysis.analysis.holderInsights?.distributionHealth === 'Highly concentrated' ? 'text-red-400' :
+                            (aiAnalysis?.analysis?.analysis?.holderInsights?.distributionHealth || aiAnalysis?.analysis?.holderInsights?.distributionHealth) === 'Well distributed' ? 'text-green-400' :
+                            (aiAnalysis?.analysis?.analysis?.holderInsights?.distributionHealth || aiAnalysis?.analysis?.holderInsights?.distributionHealth) === 'Highly concentrated' ? 'text-red-400' :
                             'text-yellow-400'
                           }`}>
-                            {aiAnalysis.analysis.holderInsights?.distributionHealth || 'N/A'}
+                            {aiAnalysis?.analysis?.analysis?.holderInsights?.distributionHealth || aiAnalysis?.analysis?.holderInsights?.distributionHealth || 'N/A'}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Concentration Risk:</span>
                           <span className={`font-semibold text-sm ${
-                            aiAnalysis.analysis.holderInsights?.concentrationRisk === 'Low' ? 'text-green-400' :
-                            aiAnalysis.analysis.holderInsights?.concentrationRisk === 'High' ? 'text-red-400' :
+                            (aiAnalysis?.analysis?.analysis?.holderInsights?.concentrationRisk || aiAnalysis?.analysis?.holderInsights?.concentrationRisk) === 'Low' ? 'text-green-400' :
+                            (aiAnalysis?.analysis?.analysis?.holderInsights?.concentrationRisk || aiAnalysis?.analysis?.holderInsights?.concentrationRisk) === 'High' ? 'text-red-400' :
                             'text-yellow-400'
                           }`}>
-                            {aiAnalysis.analysis.holderInsights?.concentrationRisk || 'N/A'}
+                            {aiAnalysis?.analysis?.analysis?.holderInsights?.concentrationRisk || aiAnalysis?.analysis?.holderInsights?.concentrationRisk || 'N/A'}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Holder Growth:</span>
                           <span className={`font-semibold text-sm ${
-                            aiAnalysis.analysis.holderInsights?.holderGrowth === 'Accelerating' ? 'text-green-400' :
-                            aiAnalysis.analysis.holderInsights?.holderGrowth === 'Declining' ? 'text-red-400' :
+                            (aiAnalysis?.analysis?.analysis?.holderInsights?.holderGrowth || aiAnalysis?.analysis?.holderInsights?.holderGrowth) === 'Accelerating' ? 'text-green-400' :
+                            (aiAnalysis?.analysis?.analysis?.holderInsights?.holderGrowth || aiAnalysis?.analysis?.holderInsights?.holderGrowth) === 'Declining' ? 'text-red-400' :
                             'text-yellow-400'
                           }`}>
-                            {aiAnalysis.analysis.holderInsights?.holderGrowth || 'N/A'}
+                            {aiAnalysis?.analysis?.analysis?.holderInsights?.holderGrowth || aiAnalysis?.analysis?.holderInsights?.holderGrowth || 'N/A'}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Whale Activity:</span>
-                          <span className="text-white text-sm">{aiAnalysis.analysis.holderInsights?.whaleActivity || 'N/A'}</span>
+                          <span className="text-white text-sm">{aiAnalysis?.analysis?.analysis?.holderInsights?.whaleActivity || aiAnalysis?.analysis?.holderInsights?.whaleActivity || 'N/A'}</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Retail Adoption:</span>
-                          <span className="text-white text-sm">{aiAnalysis.analysis.holderInsights?.retailAdoption || 'N/A'}</span>
+                          <span className="text-white text-sm">{aiAnalysis?.analysis?.analysis?.holderInsights?.retailAdoption || aiAnalysis?.analysis?.holderInsights?.retailAdoption || 'N/A'}</span>
                         </div>
                       </div>
                     </div>
@@ -2273,61 +2275,61 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Buy Pressure:</span>
                           <span className={`font-semibold text-sm ${
-                            aiAnalysis.analysis.tradingSignals?.buyPressure === 'Strong' ? 'text-green-400' :
-                            aiAnalysis.analysis.tradingSignals?.buyPressure === 'Weak' ? 'text-red-400' :
+                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.buyPressure || aiAnalysis?.analysis?.tradingSignals?.buyPressure) === 'Strong' ? 'text-green-400' :
+                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.buyPressure || aiAnalysis?.analysis?.tradingSignals?.buyPressure) === 'Weak' ? 'text-red-400' :
                             'text-yellow-400'
                           }`}>
-                            {aiAnalysis.analysis.tradingSignals?.buyPressure || 'N/A'}
+                            {aiAnalysis?.analysis?.analysis?.tradingSignals?.buyPressure || aiAnalysis?.analysis?.tradingSignals?.buyPressure || 'N/A'}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Sell Pressure:</span>
                           <span className={`font-semibold text-sm ${
-                            aiAnalysis.analysis.tradingSignals?.sellPressure === 'Strong' ? 'text-red-400' :
-                            aiAnalysis.analysis.tradingSignals?.sellPressure === 'Weak' ? 'text-green-400' :
+                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.sellPressure || aiAnalysis?.analysis?.tradingSignals?.sellPressure) === 'Strong' ? 'text-red-400' :
+                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.sellPressure || aiAnalysis?.analysis?.tradingSignals?.sellPressure) === 'Weak' ? 'text-green-400' :
                             'text-yellow-400'
                           }`}>
-                            {aiAnalysis.analysis.tradingSignals?.sellPressure || 'N/A'}
+                            {aiAnalysis?.analysis?.analysis?.tradingSignals?.sellPressure || aiAnalysis?.analysis?.tradingSignals?.sellPressure || 'N/A'}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Volume Trend:</span>
                           <span className={`font-semibold text-sm ${
-                            aiAnalysis.analysis.tradingSignals?.volumeTrend === 'Increasing' ? 'text-green-400' :
-                            aiAnalysis.analysis.tradingSignals?.volumeTrend === 'Decreasing' ? 'text-red-400' :
+                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.volumeTrend || aiAnalysis?.analysis?.tradingSignals?.volumeTrend) === 'Increasing' ? 'text-green-400' :
+                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.volumeTrend || aiAnalysis?.analysis?.tradingSignals?.volumeTrend) === 'Decreasing' ? 'text-red-400' :
                             'text-yellow-400'
                           }`}>
-                            {aiAnalysis.analysis.tradingSignals?.volumeTrend || 'N/A'}
+                            {aiAnalysis?.analysis?.analysis?.tradingSignals?.volumeTrend || aiAnalysis?.analysis?.tradingSignals?.volumeTrend || 'N/A'}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Momentum:</span>
                           <span className={`font-semibold text-sm ${
-                            aiAnalysis.analysis.tradingSignals?.momentum === 'Bullish' ? 'text-green-400' :
-                            aiAnalysis.analysis.tradingSignals?.momentum === 'Bearish' ? 'text-red-400' :
+                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.momentum || aiAnalysis?.analysis?.tradingSignals?.momentum) === 'Bullish' ? 'text-green-400' :
+                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.momentum || aiAnalysis?.analysis?.tradingSignals?.momentum) === 'Bearish' ? 'text-red-400' :
                             'text-yellow-400'
                           }`}>
-                            {aiAnalysis.analysis.tradingSignals?.momentum || 'N/A'}
+                            {aiAnalysis?.analysis?.analysis?.tradingSignals?.momentum || aiAnalysis?.analysis?.tradingSignals?.momentum || 'N/A'}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Entry Signal:</span>
                           <span className={`font-semibold text-sm ${
-                            aiAnalysis.analysis.tradingSignals?.entrySignal === 'Strong' ? 'text-green-400' :
-                            aiAnalysis.analysis.tradingSignals?.entrySignal === 'Weak' ? 'text-red-400' :
+                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.entrySignal || aiAnalysis?.analysis?.tradingSignals?.entrySignal) === 'Strong' ? 'text-green-400' :
+                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.entrySignal || aiAnalysis?.analysis?.tradingSignals?.entrySignal) === 'Weak' ? 'text-red-400' :
                             'text-yellow-400'
                           }`}>
-                            {aiAnalysis.analysis.tradingSignals?.entrySignal || 'N/A'}
+                            {aiAnalysis?.analysis?.analysis?.tradingSignals?.entrySignal || aiAnalysis?.analysis?.tradingSignals?.entrySignal || 'N/A'}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Exit Signal:</span>
                           <span className={`font-semibold text-sm ${
-                            aiAnalysis.analysis.tradingSignals?.exitSignal === 'Strong' ? 'text-red-400' :
-                            aiAnalysis.analysis.tradingSignals?.exitSignal === 'Weak' ? 'text-green-400' :
+                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.exitSignal || aiAnalysis?.analysis?.tradingSignals?.exitSignal) === 'Strong' ? 'text-red-400' :
+                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.exitSignal || aiAnalysis?.analysis?.tradingSignals?.exitSignal) === 'Weak' ? 'text-green-400' :
                             'text-yellow-400'
                           }`}>
-                            {aiAnalysis.analysis.tradingSignals?.exitSignal || 'N/A'}
+                            {aiAnalysis?.analysis?.analysis?.tradingSignals?.exitSignal || aiAnalysis?.analysis?.tradingSignals?.exitSignal || 'N/A'}
                           </span>
                         </div>
                       </div>
