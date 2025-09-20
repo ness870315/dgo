@@ -333,6 +333,10 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
       console.log('🧠 API Response:', { status: response.status, data });
       console.log('🧠 Analysis Data:', data.analysis);
       console.log('🧠 Analysis Keys:', Object.keys(data.analysis || {}));
+      console.log('🧠 Key Insights:', data.analysis.keyInsights);
+      console.log('🧠 Holder Insights:', data.analysis.holderInsights);
+      console.log('🧠 Trading Signals:', data.analysis.tradingSignals);
+      console.log('🧠 Recommendation:', data.analysis.recommendation);
       
       if (!response.ok) {
         if (response.status === 429) {
@@ -2090,6 +2094,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                       {(() => {
                         const base = aiAnalysis?.analysis || aiAnalysis || {};
                         let insights = Array.isArray(base.keyInsights) ? base.keyInsights : [];
+                        console.log('🔍 Key Insights Debug:', { base, insights, length: insights.length });
                         if (!insights || insights.length === 0) {
                           const bullets = [];
                           const sentiment = base.sentiment;
@@ -2123,6 +2128,14 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                         📋 Summary
                       </h5>
                       <div className="space-y-2">
+                        {(() => {
+                          console.log('🔍 Summary Debug:', { 
+                            aiAnalysis, 
+                            recommendation: aiAnalysis?.analysis?.recommendation,
+                            action: aiAnalysis?.analysis?.recommendation?.action 
+                          });
+                          return null;
+                        })()}
                         <div className="flex items-center justify-between">
                           <span className="text-gray-400">Action:</span>
                           <span className={`font-semibold px-2 py-1 rounded text-sm ${
@@ -2132,7 +2145,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                             aiAnalysis.analysis.recommendation?.action === 'Oracle Chart Analysis' ? 'bg-orange-900 text-orange-300' :
                             'bg-yellow-900 text-yellow-300'
                           }`}>
-                            {aiAnalysis.analysis.recommendation?.action}
+                            {aiAnalysis.analysis.recommendation?.action || 'N/A'}
                           </span>
                         </div>
                         <div className="text-gray-300 text-sm">
