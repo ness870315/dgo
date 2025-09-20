@@ -161,8 +161,6 @@ class TokenService {
         jupiterData: t.jupiterData
       })));
       
-      console.log('TokenService Debug - Total tokens received:', tokens.length);
-      console.log('TokenService Debug - Sample token structure:', tokens[0]);
       
       const tokenPromises = tokens.map(async (token, index) => {
         // Skip fetching recent posts to improve performance - use mock data instead
@@ -226,8 +224,6 @@ class TokenService {
       });
       
       const processedTokens = await Promise.all(tokenPromises);
-      console.log('TokenService Debug - Processed tokens sample:', processedTokens[0]);
-      console.log('TokenService Debug - Processed tokens count:', processedTokens.length);
       return processedTokens;
       
     } catch (error) {

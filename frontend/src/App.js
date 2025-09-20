@@ -250,7 +250,6 @@ function App() {
 
   // Apply category filters function (mutually exclusive filters)
   const applyCategoryFilters = useCallback((tokenData, categories) => {
-    console.log('Applying category filters to', tokenData.length, 'tokens with filters:', categories);
     
     // Since filters are mutually exclusive, find which one is active
     if (categories.trending) {
@@ -300,13 +299,11 @@ function App() {
         // Guardrails - STRENGTHENED to prevent crashed micro-caps
         // 1) Freshness - CRITICAL: Exclude stale data from trending
         if (!isFresh) {
-          console.log(`⚠️ Excluding ${token.symbol} from trending: stale data (${Math.round((now - lastUpdated) / 60000)} min old)`);
           return false;
         }
         
         // 2) ABSOLUTE MICRO-CAP FILTER - No tokens under $50k market cap
         if (mcap > 0 && mcap < 50_000) {
-          console.log(`⚠️ Excluding ${token.symbol} from trending: micro-cap ($${mcap.toLocaleString()})`);
           return false;
         }
         
@@ -314,26 +311,22 @@ function App() {
         const priceChange24h = token?.jupiterData?.stats24h?.priceChange ?? token?.priceChange24h ?? 0;
         const priceChange7d = token?.jupiterData?.stats7d?.priceChange ?? 0;
         if (priceChange24h <= -75 || priceChange7d <= -90) {
-          console.log(`⚠️ Excluding ${token.symbol} from trending: price crash (24h: ${priceChange24h.toFixed(1)}%, 7d: ${priceChange7d.toFixed(1)}%)`);
           return false;
         }
         
         // 4) COMBINED RISK FILTER - Exclude small caps with major dumps
         if (mcap > 0 && mcap < 100_000 && priceChange24h <= -50) {
-          console.log(`⚠️ Excluding ${token.symbol} from trending: small-cap dump (mcap: $${mcap.toLocaleString()}, 24h: ${priceChange24h.toFixed(1)}%)`);
           return false;
         }
         
         // 5) Volume dump penalty → exclude if heavy dump across 1h and 6h
         if (volChange1h <= -50 && volChange6h <= -50) {
-          console.log(`⚠️ Excluding ${token.symbol} from trending: volume dump (1h: ${volChange1h.toFixed(1)}%, 6h: ${volChange6h.toFixed(1)}%)`);
           return false;
         }
         
         // 6) Social floor (relaxed) — only exclude if weak socials AND low score
         const score = (token.score || token.overallScore || 0);
         if (community < 4 && mentions < 5 && score < 7) {
-          console.log(`⚠️ Excluding ${token.symbol} from trending: weak socials (community: ${community}, mentions: ${mentions}, score: ${score})`);
           return false;
         }
         
@@ -344,20 +337,17 @@ function App() {
         
         // Exclude tokens with no trading activity
         if (totalVolume === 0) {
-          console.log(`⚠️ Excluding ${token.symbol} from trending: no trading activity (volume: $0)`);
           return false;
         }
         
         // 8) 🚨 NEW: BUY PRESSURE FILTER - Must have some organic buying
         const buyPressure = buyVolume / (totalVolume || 1);
         if (buyPressure < 0.1) { // Less than 10% buy volume
-          console.log(`⚠️ Excluding ${token.symbol} from trending: no organic buying (buy pressure: ${(buyPressure * 100).toFixed(1)}%)`);
           return false;
         }
         
         // 9) 🚨 NEW: MINIMUM VOLUME FILTER - Must have minimum trading volume
         if (totalVolume < 1000) { // Less than $1K volume
-          console.log(`⚠️ Excluding ${token.symbol} from trending: insufficient volume ($${totalVolume.toLocaleString()})`);
           return false;
         }
 
@@ -416,13 +406,9 @@ function App() {
         const fallback = [...baseTokens]
           .sort((a, b) => (b.score || b.overallScore || 0) - (a.score || a.overallScore || 0))
           .slice(0, 100);
-        console.log('⚠️ Trending fallback engaged: returning top-scored base tokens because guardrails filtered all');
         return fallback;
       }
       
-      console.log(`🚀 NEW Trending filter: Viral + Trending only (scores 8.0+). Showing top 100`);
-      console.log(`   Viral + Trending included: ${viralAndTrendingCandidates.length}. Returning: ${trendingTokens.length}`);
-      console.log('Category filtering result:', trendingTokens.length, 'tokens out of', tokenData.length);
       return trendingTokens;
     }
     
@@ -460,8 +446,6 @@ function App() {
       // Combine: fueled tokens first, then regular tokens, total 50
       const cultsTokens = [...sortedFueledTokens, ...sortedRegularTokens].slice(0, 50);
       
-      console.log(`🏛️ Cults filter: Showing top 50 established tokens (${sortedFueledTokens.length} fueled + ${Math.min(sortedRegularTokens.length, 50 - sortedFueledTokens.length)} regular) with score ≥3.0 and market cap ≥$10M`);
-      console.log('Category filtering result:', cultsTokens.length, 'tokens out of', tokenData.length);
       return cultsTokens;
     }
     
@@ -470,8 +454,6 @@ function App() {
         const marketCap = getMarketCap(token);
         return marketCap >= 100000000; // ≥$100M
       });
-      console.log('High Cap filter: Showing tokens ≥$100M market cap');
-      console.log('Category filtering result:', highCapTokens.length, 'tokens out of', tokenData.length);
       return highCapTokens;
     }
     
@@ -480,8 +462,6 @@ function App() {
         const marketCap = getMarketCap(token);
         return marketCap >= 5000000 && marketCap <= 10000000; // ≥$5M to ≤$10M
       });
-      console.log('Mid Cap filter: Showing tokens ≥$5M to ≤$10M market cap');
-      console.log('Category filtering result:', midCapTokens.length, 'tokens out of', tokenData.length);
       return midCapTokens;
     }
     
@@ -490,8 +470,6 @@ function App() {
         const marketCap = getMarketCap(token);
         return marketCap > 500000 && marketCap < 5000000; // >$500K to <$5M
       });
-      console.log('Small Cap filter: Showing tokens >$500K to <$5M market cap');
-      console.log('Category filtering result:', smallCapTokens.length, 'tokens out of', tokenData.length);
       return smallCapTokens;
     }
     
@@ -500,53 +478,39 @@ function App() {
         const marketCap = getMarketCap(token);
         return marketCap >= 30000 && marketCap <= 500000; // $30K to $500K
       });
-      console.log('Micro Cap filter: Showing tokens $30K to $500K market cap');
-      console.log('Category filtering result:', microCapTokens.length, 'tokens out of', tokenData.length);
       return microCapTokens;
     }
     
     if (categories.volatile) {
       const volatileTokens = tokenData.filter(token => Math.abs(token.priceChange24h || 0) > 5);
-      console.log('Volatile filter: Showing tokens with >5% daily change');
-      console.log('Category filtering result:', volatileTokens.length, 'tokens out of', tokenData.length);
       return volatileTokens;
     }
     
     if (categories.stable) {
       const stableTokens = tokenData.filter(token => Math.abs(token.priceChange24h || 0) <= 5);
-      console.log('Stable filter: Showing tokens with ≤5% daily change');
-      console.log('Category filtering result:', stableTokens.length, 'tokens out of', tokenData.length);
       return stableTokens;
     }
     
     // No category filter active - return empty array (should not happen with trending default)
-    console.log('No category filter active - returning empty array');
     return [];
   }, []);
 
   // Apply filters and search
   const applyFiltersAndSearch = useCallback((tokenData, currentFilters, currentSearchTerm) => {
-    console.log('applyFiltersAndSearch called with:', tokenData.length, 'tokens');
-    console.log('Category filters:', categoryFilters);
-    console.log('Search term:', currentSearchTerm);
     
     // If there's a search term, SEARCH OVERRIDES ALL FILTERS
     if (currentSearchTerm && currentSearchTerm.trim()) {
-      console.log('🔍 SEARCH MODE: Search overrides category filters');
       let filtered = tokenService.searchTokens(tokenData, currentSearchTerm);
       filtered = tokenService.filterTokens(filtered, currentFilters);
       filtered = tokenService.sortTokens(filtered, currentFilters.sortBy);
-      console.log('🎯 Search results:', filtered.length, 'tokens found');
       setFilteredTokens(filtered);
       return;
     }
     
     // No search term - apply normal category filtering
-    console.log('📂 FILTER MODE: Applying category filters');
     let filtered = tokenService.filterTokens(tokenData, currentFilters);
     filtered = applyCategoryFilters(filtered, categoryFilters);
     filtered = tokenService.sortTokens(filtered, currentFilters.sortBy);
-    console.log('Final filtered tokens:', filtered.length);
     setFilteredTokens(filtered);
   }, [categoryFilters, applyCategoryFilters]);
 
@@ -561,13 +525,9 @@ function App() {
           fetch(`${apiBase}/api/tokens/fuel`).then(res => res.ok ? res.json() : { value: [] })
         ]);
         
-        console.log('App.js Debug - Loaded tokenData:', tokenData.length, 'tokens');
-        console.log('App.js Debug - First token sample:', tokenData[0]);
-        console.log('App.js Debug - useRealTwitterData setting:', settings.useRealTwitterData);
         
         setTokens(tokenData);
         setFueledTokens(fueledData.value || fueledData);
-        console.log('🔥 Fuel Token Debug: Loaded fueled tokens:', fueledData.value || fueledData);
         applyFiltersAndSearch(tokenData, filters, searchTerm);
     } catch (err) {
       setError('Failed to load token data. Please try again.');
@@ -856,7 +816,6 @@ function App() {
 
 
   const handleCategoryFiltersChange = useCallback((newCategoryFilters) => {
-    console.log('Applying category filters:', newCategoryFilters);
     setCategoryFilters(newCategoryFilters);
     applyFiltersAndSearch(tokens, filters, searchTerm);
   }, [tokens, filters, searchTerm, applyFiltersAndSearch]);
