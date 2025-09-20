@@ -64,16 +64,12 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
-        console.log('🔍 Validating session:', sessionId);
         const response = await fetch(`${API_BASE}/auth/validate?sessionId=${sessionId}`);
-        console.log('📊 Session validation response:', response.status);
 
         if (response.ok) {
           const data = await response.json();
-          console.log('✅ Session valid, user data:', data.user);
           setUser(data.user);
         } else {
-          console.log('❌ Session invalid, clearing session');
           // Session might be invalid
           localStorage.removeItem('sessionId');
           setSessionId(null);

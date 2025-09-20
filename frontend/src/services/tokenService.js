@@ -93,12 +93,10 @@ class TokenService {
   }
 
   async fetchTokens(useRealData = false) {
-    console.log('🔍 fetchTokens called with useRealData:', useRealData);
     try {
       // Check cache first
       const cached = this.cache.get('tokens');
       if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
-        console.log('🔍 Returning cached data');
         return cached.data;
       }
 
