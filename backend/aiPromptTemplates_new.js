@@ -56,17 +56,6 @@ MORALIS TOKEN ANALYTICS:
 - Buy/Sell Ratio 1h: {buySellRatio1h}
 - Buy/Sell Ratio 24h: {buySellRatio24h}
 
-TECHNICAL ANALYSIS INTEGRATION:
-- Market Overview: {technicalMarketOverview}
-- Trend Direction: {technicalTrend}
-- Momentum: {technicalMomentum}
-- Volatility: {technicalVolatility}
-- Volume Analysis: {technicalVolumeAnalysis}
-- RSI: {technicalRSI}
-- MACD: {technicalMACD}
-- Support Levels: {technicalSupport}
-- Resistance Levels: {technicalResistance}
-- Chart Patterns: {technicalPatterns}
 
 JUPITER DATA:
 - Total Supply: {totalSupply}
@@ -130,24 +119,23 @@ When analyzing holder segment flow data, use these SPECIFIC creative variations:
 
 Use segmentFlowData to determine which segments are flowing in/out and apply these variations accordingly.
 
-🔥 TECHNICAL CATALYST DETECTION:
+🔥 MARKET CATALYST DETECTION:
 
-Analyze technical and market data to identify potential catalysts:
+Analyze market and holder data to identify potential catalysts:
 
-**TECHNICAL CATALYSTS:**
+**MARKET CATALYSTS:**
 - Launch timing: Recent creation vs established (creationTime)
 - Audit status: Security credibility (auditStatus, auditDetails)
 - Liquidity health: Market depth analysis (liquidity vs marketCap ratio)
-- Volume patterns: Unusual activity in stats1h/6h/24h
-- Price momentum: Breakouts and trend changes
-- Chart patterns: Support/resistance levels, trend lines, formations
-
-**MARKET CATALYSTS:**
+- Volume patterns: Unusual activity in stats1h/6h/24h using Moralis data
+- Price momentum: Price changes across timeframes
 - Volume quality: Buy/sell ratio analysis and volume trends
+
+**HOLDER CATALYSTS:**
 - Holder distribution: Concentration analysis and growth patterns
+- Holder flow: Segment inflow/outflow using HolderTimeseriesService data
 - Organic score trends: Natural vs artificial growth patterns
-- Tag analysis: Sector trends and narrative alignment
-- Risk assessment: Security flags and red flags
+- Holder growth: New vs returning holder patterns
 
 **HOLDER DISTRIBUTION ANALYSIS:**
 - Analyze holder concentration: Top 10 holders should ideally be <20% of supply
@@ -173,18 +161,18 @@ Please provide analysis in this EXACT JSON format:
     "mitigants": ["Positive technical factor", "Positive market factor", "Positive holder factor"]
   },
   "keyInsights": [
-    "Technical analysis insight with degen terminology and real patterns",
+    "Market insight with degen terminology about price action and volume trends",
     "Holder distribution insight with crypto slang about concentration and growth - use HolderStatsService data to describe distribution health and concentration levels", 
     "Trading opportunity insight with authentic crypto language - use Moralis TokenAnalytics buy/sell volume data and holder flow analysis"
   ],
   "catalysts": [
-    "Technical catalyst based on patterns and indicators",
-    "Market catalyst based on volume and holder data - use Moralis TokenAnalytics data",
+    "Market catalyst based on price momentum and liquidity health",
+    "Volume catalyst based on Moralis TokenAnalytics data - buy/sell ratios and volume trends",
     "Holder catalyst based on HolderTimeseriesService segment flow - CREATIVE VARIATIONS: if shrimps/retail in: 'Retail is buying', if whales/sharks in: 'Smart money accumulating', if diamond hands: 'Diamond hands accumulating'"
   ],
   "redFlags": [
-    "Technical warning based on patterns and indicators",
-    "Market warning based on volume and holder data - use Moralis TokenAnalytics buy/sell volume",
+    "Market warning based on price action and liquidity concerns",
+    "Volume warning based on Moralis TokenAnalytics buy/sell volume imbalances",
     "Holder warning based on HolderTimeseriesService segment flow - CREATIVE VARIATIONS: if whales exiting: 'Whale outflow detected', if shrimp selling: 'Retail selling explains declining price, paper hands are out'"
   ],
   "recommendation": {

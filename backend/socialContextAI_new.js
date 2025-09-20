@@ -95,7 +95,6 @@ class SocialContextAI {
     const jupiterData = tokenData.jupiterData || {};
     const callHistory = tokenData.callHistory || {};
     const holderData = tokenData.holderData || {};
-    const technicalAnalysis = tokenData.technicalAnalysis || {};
     const moralisAnalytics = tokenData.moralisAnalytics || {};
     
     // Process holder distribution data for AI analysis
@@ -241,17 +240,6 @@ class SocialContextAI {
       buySellRatio1h: this.calculateBuySellRatio(moralisAnalytics?.totalBuyVolume?.['1h'], moralisAnalytics?.totalSellVolume?.['1h']),
       buySellRatio24h: this.calculateBuySellRatio(moralisAnalytics?.totalBuyVolume?.['24h'], moralisAnalytics?.totalSellVolume?.['24h']),
       
-      // Technical Analysis Integration
-      technicalMarketOverview: technicalAnalysis?.marketOverview?.summary || 'N/A',
-      technicalTrend: technicalAnalysis?.marketOverview?.trend || 'N/A',
-      technicalMomentum: technicalAnalysis?.marketOverview?.momentum || 'N/A',
-      technicalVolatility: technicalAnalysis?.marketOverview?.volatility || 'N/A',
-      technicalVolumeAnalysis: technicalAnalysis?.volumeAnalysis?.summary || 'N/A',
-      technicalRSI: technicalAnalysis?.technicalIndicators?.rsi || 'N/A',
-      technicalMACD: technicalAnalysis?.technicalIndicators?.macd || 'N/A',
-      technicalSupport: technicalAnalysis?.keyLevels?.support?.join(', ') || 'N/A',
-      technicalResistance: technicalAnalysis?.keyLevels?.resistance?.join(', ') || 'N/A',
-      technicalPatterns: technicalAnalysis?.chartPatterns?.join(', ') || 'N/A',
       
       // Jupiter Data
       totalSupply: this.formatNumber(jupiterData.totalSupply || 0),
