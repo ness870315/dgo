@@ -40,6 +40,8 @@ HOLDER DISTRIBUTION DATA:
 - Recent Holder Growth: {holderGrowth}%
 - New vs Returning Holders: {newHolders}% new, {returningHolders}% returning
 - Holder Distribution Segments: {holderSegments}
+- Holder Flow Analysis: {holderFlowAnalysis}
+- Segment In/Out Flow: {segmentFlowData}
 
 MORALIS TOKEN ANALYTICS:
 - 5m Volume: {volume5m}
@@ -151,30 +153,13 @@ Please provide analysis in this EXACT JSON format:
   "confidence": 0.85,
   "keyInsights": [
     "Technical analysis insight with degen terminology and real patterns",
-    "Holder distribution insight with crypto slang about concentration and growth", 
-    "Trading opportunity insight with authentic crypto language"
+    "Holder distribution insight with crypto slang about concentration and growth - use HolderStatsService data to describe distribution health", 
+    "Trading opportunity insight with authentic crypto language - use Moralis TokenAnalytics buy/sell volume data"
   ],
-  "holderInsights": {
-    "distributionHealth": "Well distributed|Moderately concentrated|Highly concentrated",
-    "concentrationRisk": "Low|Medium|High",
-    "holderGrowth": "Accelerating|Stable|Declining",
-    "whaleActivity": "High|Moderate|Low",
-    "retailAdoption": "Strong|Moderate|Weak"
-  },
-  "tradingSignals": {
-    "buyPressure": "Strong|Moderate|Weak",
-    "sellPressure": "Strong|Moderate|Weak",
-    "volumeTrend": "Increasing|Stable|Decreasing",
-    "momentum": "Bullish|Neutral|Bearish",
-    "entrySignal": "Strong|Moderate|Weak",
-    "exitSignal": "Strong|Moderate|Weak"
-  },
   "riskAssessment": {
     "level": "Low|Medium|High",
-    "factors": ["Technical risk factor", "Market risk factor", "Holder risk factor"],
-    "mitigants": ["Positive technical factor", "Positive market factor", "Positive holder factor"],
-    "liquidityRisk": "Low|Medium|High",
-    "volatilityRisk": "Low|Medium|High"
+    "factors": ["Technical risk factor", "Market risk factor", "Holder risk factor - use HolderTimeseriesService inflow/outflow data"],
+    "mitigants": ["Positive technical factor", "Positive market factor", "Positive holder factor"]
   },
   "marketAnalysis": {
     "organicGrowth": "Strong|Moderate|Weak",
@@ -183,20 +168,20 @@ Please provide analysis in this EXACT JSON format:
     "technicalStrength": "Strong|Moderate|Weak"
   },
   "recommendation": {
-    "action": "Call it!|Add to Watchlist|Oracle Chart Analysis",
-    "reasoning": "Brief explanation of recommendation with crypto slang",
+    "action": "Buy|Hold|Sell",
+    "reasoning": "One concise sentence summarizing the key factors and recommendation with crypto slang",
     "timeframe": "Short-term|Medium-term|Long-term",
     "confidence": "High|Medium|Low"
   },
   "catalysts": [
     "Technical catalyst based on patterns and indicators",
-    "Market catalyst based on volume and holder data",
-    "Holder catalyst based on distribution and growth patterns"
+    "Market catalyst based on volume and holder data - use Moralis TokenAnalytics data",
+    "Holder catalyst based on HolderTimeseriesService segment flow - if shrimps in: 'retail is buying', if whales/sharks in: 'smart money accumulating', if diamond hands: 'diamond hands accumulating'"
   ],
   "redFlags": [
     "Technical warning based on patterns and indicators",
-    "Market warning based on volume and holder data",
-    "Holder warning based on concentration and distribution"
+    "Market warning based on volume and holder data - use Moralis TokenAnalytics buy/sell volume",
+    "Holder warning based on HolderTimeseriesService segment flow - if whales exiting: 'whale outflow detected', if shrimp selling: 'retail selling explains declining price, paper hands are out'"
   ]
 }
 

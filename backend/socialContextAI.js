@@ -151,11 +151,11 @@ class SocialContextAI {
         success: false,
         analysis: this.generateFallbackAnalysis(tokenData),
         metadata: {
-          fallbackReason: error.message,
-          errorType: 'ai_analysis_failed',
-          hasOpenAIKey: !!process.env.OPENAI_API_KEY,
-          modelAttempted: model,
-          fallbackTimestamp: new Date().toISOString()
+        fallbackReason: error.message,
+        errorType: 'ai_analysis_failed',
+        hasOpenAIKey: !!process.env.OPENAI_API_KEY,
+        modelAttempted: model,
+        fallbackTimestamp: new Date().toISOString()
         }
       };
     }
@@ -205,6 +205,32 @@ class SocialContextAI {
     const totalNewHolders = newHolders + returningHolders;
     const newHoldersPercent = totalNewHolders > 0 ? (newHolders / totalNewHolders * 100) : 0;
     const returningHoldersPercent = totalNewHolders > 0 ? (returningHolders / totalNewHolders * 100) : 0;
+    
+    // Process holder flow data for AI analysis
+    const holderFlowData = holderData.holderFlowData || {};
+    const segmentFlowData = holderFlowData.segmentFlow || {};
+    let holderFlowAnalysis = 'No flow data available';
+    let segmentFlowSummary = 'No segment flow data available';
+    
+    if (segmentFlowData && Object.keys(segmentFlowData).length > 0) {
+      const flowEntries = Object.entries(segmentFlowData);
+      const flowSummary = flowEntries.map(([segment, flow]) => {
+        const netFlow = (flow.in || 0) - (flow.out || 0);
+        if (netFlow > 0) return `${segment}: +${netFlow} (accumulating)`;
+        else if (netFlow < 0) return `${segment}: ${netFlow} (exiting)`;
+        else return `${segment}: neutral`;
+      }).join(', ');
+      segmentFlowSummary = flowSummary;
+      
+      // Determine overall flow trend
+      const totalIn = flowEntries.reduce((sum, [, flow]) => sum + (flow.in || 0), 0);
+      const totalOut = flowEntries.reduce((sum, [, flow]) => sum + (flow.out || 0), 0);
+      const netFlow = totalIn - totalOut;
+      
+      if (netFlow > 0) holderFlowAnalysis = `Net inflow: +${netFlow} holders (accumulation phase)`;
+      else if (netFlow < 0) holderFlowAnalysis = `Net outflow: ${netFlow} holders (distribution phase)`;
+      else holderFlowAnalysis = `Balanced flow: ${totalIn} in, ${totalOut} out (consolidation)`;
+    }
 
     return {
       // Basic Token Information
@@ -237,6 +263,8 @@ class SocialContextAI {
       newHolders: newHoldersPercent.toFixed(2),
       returningHolders: returningHoldersPercent.toFixed(2),
       holderSegments: holderSegments,
+      holderFlowAnalysis: holderFlowAnalysis,
+      segmentFlowData: segmentFlowSummary,
 
       // Moralis Token Analytics
       volume5m: this.formatNumber(moralisAnalytics?.totalBuyVolume?.['5m'] + moralisAnalytics?.totalSellVolume?.['5m'] || 0),

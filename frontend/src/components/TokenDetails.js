@@ -2268,46 +2268,70 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                   </div>
                 </div>
 
-                {/* Actionable Recommendations */}
-                {((aiAnalysis?.analysis?.analysis?.actionableRecommendations && aiAnalysis.analysis.analysis.actionableRecommendations.length > 0) || 
-                  (aiAnalysis?.analysis?.actionableRecommendations && aiAnalysis.analysis.actionableRecommendations.length > 0)) && (
-                  <div className="mt-6 bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-lg p-4 border border-purple-500/30">
-                    <h5 className="text-white font-semibold mb-3 flex items-center">
-                      🎯 Recommended Actions
-                    </h5>
-                    <div className="space-y-2">
-                      {(aiAnalysis?.analysis?.analysis?.actionableRecommendations || aiAnalysis?.analysis?.actionableRecommendations || []).map((rec, index) => (
-                        <div key={index} className={`flex items-center justify-between p-3 rounded-lg border ${
-                          rec.priority === 'high' ? 'border-red-500/30 bg-red-900/10' :
-                          rec.priority === 'medium' ? 'border-yellow-500/30 bg-yellow-900/10' :
-                          'border-gray-500/30 bg-gray-900/10'
+                {/* Recommended Actions */}
+                <div className="mt-6 bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-lg p-4 border border-purple-500/30">
+                  <h5 className="text-white font-semibold mb-3 flex items-center">
+                    🎯 Recommended Actions
+                  </h5>
+                  <div className="space-y-3">
+                    {/* Primary Recommendation */}
+                    <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-600/30">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-white font-medium">Primary Action:</span>
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          (aiAnalysis?.analysis?.analysis?.recommendation?.action || aiAnalysis?.analysis?.recommendation?.action) === 'Buy' ? 'bg-green-900 text-green-300' :
+                          (aiAnalysis?.analysis?.analysis?.recommendation?.action || aiAnalysis?.analysis?.recommendation?.action) === 'Sell' ? 'bg-red-900 text-red-300' :
+                          'bg-yellow-900 text-yellow-300'
                         }`}>
-                          <div className="flex items-center space-x-3">
-                            <span className="text-2xl">{rec.icon}</span>
-                            <div>
-                              <div className="text-white font-medium capitalize">
-                                {rec.action.replace(/_/g, ' ')}
-                              </div>
-                              {rec.tool && (
-                                <div className="text-purple-400 text-xs font-medium mb-1">
-                                  🛠️ {rec.tool}
+                          {aiAnalysis?.analysis?.analysis?.recommendation?.action || aiAnalysis?.analysis?.recommendation?.action || 'Hold'}
+                        </span>
+                      </div>
+                      <div className="text-gray-300 text-sm mb-2">
+                        {aiAnalysis?.analysis?.analysis?.recommendation?.reasoning || aiAnalysis?.analysis?.recommendation?.reasoning || 'No reasoning provided'}
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-gray-400">
+                        <span>Timeframe: {aiAnalysis?.analysis?.analysis?.recommendation?.timeframe || aiAnalysis?.analysis?.recommendation?.timeframe || 'N/A'}</span>
+                        <span>Confidence: {aiAnalysis?.analysis?.analysis?.recommendation?.confidence || aiAnalysis?.analysis?.recommendation?.confidence || 'N/A'}</span>
+                      </div>
+                    </div>
+                    
+                    {/* Actionable Recommendations */}
+                    {((aiAnalysis?.analysis?.analysis?.actionableRecommendations && aiAnalysis.analysis.analysis.actionableRecommendations.length > 0) || 
+                      (aiAnalysis?.analysis?.actionableRecommendations && aiAnalysis.analysis.actionableRecommendations.length > 0)) && (
+                      <div className="space-y-2">
+                        {(aiAnalysis?.analysis?.analysis?.actionableRecommendations || aiAnalysis?.analysis?.actionableRecommendations || []).map((rec, index) => (
+                          <div key={index} className={`flex items-center justify-between p-3 rounded-lg border ${
+                            rec.priority === 'high' ? 'border-red-500/30 bg-red-900/10' :
+                            rec.priority === 'medium' ? 'border-yellow-500/30 bg-yellow-900/10' :
+                            'border-gray-500/30 bg-gray-900/10'
+                          }`}>
+                            <div className="flex items-center space-x-3">
+                              <span className="text-2xl">{rec.icon}</span>
+                              <div>
+                                <div className="text-white font-medium capitalize">
+                                  {rec.action.replace(/_/g, ' ')}
                                 </div>
-                              )}
-                              <div className="text-gray-400 text-sm">{rec.reason}</div>
+                                {rec.tool && (
+                                  <div className="text-purple-400 text-xs font-medium mb-1">
+                                    🛠️ {rec.tool}
+                                  </div>
+                                )}
+                                <div className="text-gray-400 text-sm">{rec.reason}</div>
+                              </div>
+                            </div>
+                            <div className={`px-2 py-1 rounded text-xs font-medium ${
+                              rec.priority === 'high' ? 'bg-red-900 text-red-300' :
+                              rec.priority === 'medium' ? 'bg-yellow-900 text-yellow-300' :
+                              'bg-gray-900 text-gray-300'
+                            }`}>
+                              {rec.priority}
                             </div>
                           </div>
-                          <div className={`px-2 py-1 rounded text-xs font-medium ${
-                            rec.priority === 'high' ? 'bg-red-900 text-red-300' :
-                            rec.priority === 'medium' ? 'bg-yellow-900 text-yellow-300' :
-                            'bg-gray-900 text-gray-300'
-                          }`}>
-                            {rec.priority}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
 
                 {/* Feedback & Footer */}
                 <div className="mt-6 pt-4 border-t border-gray-700">
