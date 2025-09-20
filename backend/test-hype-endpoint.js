@@ -19,7 +19,7 @@ export class HypeAnalysisTestEndpoint {
 
   async initialize() {
     if (!this.initialized) {
-      await this.aiPrediction.initialize();
+      await this.aiPrediction.initializeCache();
       this.initialized = true;
     }
   }
