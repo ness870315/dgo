@@ -288,26 +288,26 @@ class HypeTrendAnalysis {
     const { velocity, acceleration, isAccelerating } = derivativeAnalysis;
     const { hasRecentChange, changeDirection } = changePointAnalysis;
     
-    // Rising regime indicators
+    // Rising regime indicators (lowered thresholds for better sensitivity)
     const risingSignals = [
-      momentum > 0.5,
-      velocity > 0.1,
+      momentum > 0.1,  // Lowered from 0.5 to 0.1
+      velocity > 0.05, // Lowered from 0.1 to 0.05
       isAccelerating,
       hasRecentChange && changeDirection === 'upturn',
       trend === 'rising'
     ].filter(Boolean).length;
     
-    // Fading regime indicators
+    // Fading regime indicators (lowered thresholds for better sensitivity)
     const fadingSignals = [
-      momentum < -0.5,
-      velocity < -0.1,
-      acceleration < -0.1,
+      momentum < -0.1,  // Lowered from -0.5 to -0.1
+      velocity < -0.05, // Lowered from -0.1 to -0.05
+      acceleration < -0.05, // Lowered from -0.1 to -0.05
       hasRecentChange && changeDirection === 'downturn',
       trend === 'falling'
     ].filter(Boolean).length;
     
-    // Determine regime
-    if (risingSignals >= 3) {
+    // Determine regime (lowered threshold from 3 to 2 for better sensitivity)
+    if (risingSignals >= 2) {
       return {
         type: 'rising',
         strength: risingSignals / 5,
@@ -315,7 +315,7 @@ class HypeTrendAnalysis {
         emoji: '📈',
         color: '#10b981'
       };
-    } else if (fadingSignals >= 3) {
+    } else if (fadingSignals >= 2) {
       return {
         type: 'fading',
         strength: fadingSignals / 5,
