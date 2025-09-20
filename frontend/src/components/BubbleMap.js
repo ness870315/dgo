@@ -66,14 +66,6 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
 
     // Debug: Log sample token data to check consistency
 
-      symbol: tokens[0]?.symbol,
-      overallScore: tokens[0]?.overallScore,
-      score: tokens[0]?.score,
-      mentions: tokens[0]?.mentions,
-      twitterMentions: tokens[0]?.twitterData?.mentions,
-      communityScore: tokens[0]?.communityScore
-    });
-
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
 
