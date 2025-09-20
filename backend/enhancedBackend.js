@@ -6569,6 +6569,33 @@ class EnhancedBackend {
       }
     });
 
+    // Hype Prediction Service Specific Test
+    this.app.get('/api/test/hype-prediction', async (req, res) => {
+      try {
+        const { HypePredictionTestEndpoint } = await import('./test-hype-prediction-only.js');
+        const testEndpoint = new HypePredictionTestEndpoint();
+        
+        console.log('🤖 Running AI Hype Prediction Service Test...');
+        const results = await testEndpoint.testHypePredictionService();
+        
+        res.json({
+          success: true,
+          message: 'AI Hype Prediction Service Test completed',
+          results,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error('❌ AI Hype Prediction Service Test failed:', error);
+        res.status(500).json({
+          success: false,
+          error: 'AI Hype Prediction Service Test failed',
+          details: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
     // Jupiter API Testing Endpoints
     this.app.get('/api/jupiter/test-known', async (req, res) => {
       try {
