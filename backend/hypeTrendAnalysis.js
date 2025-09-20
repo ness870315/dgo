@@ -148,11 +148,17 @@ class HypeTrendAnalysis {
   }
 
   /**
-   * Bayesian Change-Point Detection (simplified)
+   * Bayesian Change-Point Detection with Adaptive Threshold
    */
   detectChangePoints(scores, mentions) {
     const changePoints = [];
     const windowSize = Math.min(5, Math.floor(scores.length / 3));
+    
+    // Calculate adaptive threshold based on data characteristics
+    const adaptiveThreshold = this.calculateAdaptiveThreshold(scores);
+    
+    // Store all change scores for analysis
+    const allChangeScores = [];
     
     for (let i = windowSize; i < scores.length - windowSize; i++) {
       const beforeWindow = scores.slice(i - windowSize, i);
@@ -164,18 +170,22 @@ class HypeTrendAnalysis {
       const beforeVar = this.calculateVariance(beforeWindow, beforeMean);
       const afterVar = this.calculateVariance(afterWindow, afterMean);
       
-      // Simple change-point score based on mean difference and variance
+      // Enhanced change-point score calculation
       const meanDiff = Math.abs(afterMean - beforeMean);
       const varDiff = Math.abs(afterVar - beforeVar);
       const changeScore = meanDiff + varDiff * 0.5;
       
-      if (changeScore > 1.5) { // Threshold for significant change
+      allChangeScores.push(changeScore);
+      
+      // Use adaptive threshold instead of fixed 1.5
+      if (changeScore > adaptiveThreshold.threshold) {
         changePoints.push({
           index: i,
           score: changeScore,
           beforeMean: beforeMean,
           afterMean: afterMean,
-          type: afterMean > beforeMean ? 'upturn' : 'downturn'
+          type: afterMean > beforeMean ? 'upturn' : 'downturn',
+          significance: changeScore / adaptiveThreshold.threshold // How significant relative to threshold
         });
       }
     }
@@ -187,8 +197,87 @@ class HypeTrendAnalysis {
       changePoints: changePoints,
       recentChangePoint: recentChangePoint,
       hasRecentChange: recentChangePoint && (scores.length - recentChangePoint.index) < 5,
-      changeDirection: recentChangePoint ? recentChangePoint.type : 'stable'
+      changeDirection: recentChangePoint ? recentChangePoint.type : 'stable',
+      // Enhanced metadata for debugging and analysis
+      adaptiveThreshold: adaptiveThreshold,
+      allChangeScores: allChangeScores,
+      maxChangeScore: Math.max(...allChangeScores),
+      avgChangeScore: allChangeScores.reduce((a, b) => a + b, 0) / allChangeScores.length
     };
+  }
+
+  /**
+   * Calculate adaptive threshold based on data characteristics
+   */
+  calculateAdaptiveThreshold(scores) {
+    // Calculate overall data statistics
+    const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
+    const variance = this.calculateVariance(scores, mean);
+    const stdDev = Math.sqrt(variance);
+    const range = Math.max(...scores) - Math.min(...scores);
+    
+    // Base threshold strategies
+    const strategies = {
+      // Strategy 1: Variance-based (works well for stable data)
+      varianceBased: Math.max(0.1, variance * 2),
+      
+      // Strategy 2: Standard deviation based
+      stdDevBased: Math.max(0.1, stdDev * 0.5),
+      
+      // Strategy 3: Range-based (percentage of total range)
+      rangeBased: Math.max(0.1, range * 0.15),
+      
+      // Strategy 4: Adaptive based on data stability
+      stabilityBased: variance < 0.1 ? 0.1 : (variance < 0.5 ? 0.3 : 1.0),
+      
+      // Strategy 5: Hybrid approach
+      hybrid: Math.max(0.1, Math.min(1.5, (variance * 2 + stdDev * 0.5 + range * 0.1) / 3))
+    };
+    
+    // Choose the most appropriate strategy based on data characteristics
+    let selectedThreshold;
+    let strategy;
+    
+    if (variance < 0.1) {
+      // Very stable data - use low threshold
+      selectedThreshold = strategies.stabilityBased;
+      strategy = 'stability-based (low variance)';
+    } else if (variance > 2.0) {
+      // Very volatile data - use higher threshold
+      selectedThreshold = Math.min(1.5, strategies.hybrid);
+      strategy = 'hybrid (high variance)';
+    } else {
+      // Moderate data - use hybrid approach
+      selectedThreshold = strategies.hybrid;
+      strategy = 'hybrid (moderate variance)';
+    }
+    
+    return {
+      threshold: selectedThreshold,
+      strategy: strategy,
+      dataCharacteristics: {
+        mean: mean,
+        variance: variance,
+        stdDev: stdDev,
+        range: range,
+        stability: variance < 0.1 ? 'very stable' : variance < 0.5 ? 'stable' : variance < 2.0 ? 'moderate' : 'volatile'
+      },
+      allStrategies: strategies,
+      reasoning: this.getThresholdReasoning(variance, range, selectedThreshold)
+    };
+  }
+
+  /**
+   * Get human-readable reasoning for threshold selection
+   */
+  getThresholdReasoning(variance, range, threshold) {
+    if (variance < 0.1) {
+      return `Data is very stable (variance: ${variance.toFixed(3)}). Using low threshold (${threshold.toFixed(3)}) to detect subtle changes.`;
+    } else if (variance > 2.0) {
+      return `Data is highly volatile (variance: ${variance.toFixed(3)}). Using higher threshold (${threshold.toFixed(3)}) to avoid false positives.`;
+    } else {
+      return `Data has moderate variance (${variance.toFixed(3)}). Using balanced threshold (${threshold.toFixed(3)}) for optimal detection.`;
+    }
   }
 
   /**

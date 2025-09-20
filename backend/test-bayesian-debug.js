@@ -64,6 +64,10 @@ export class BayesianDebugTestEndpoint {
       const bayesianResults = this.debugBayesianChangePoints(scores, mentions);
       results.analysis.bayesianDetection = bayesianResults;
 
+      // Test new adaptive threshold system
+      const adaptiveBayesianResults = this.trendAnalysis.detectChangePoints(scores, mentions);
+      results.analysis.adaptiveBayesianDetection = adaptiveBayesianResults;
+
       // Compare with different thresholds
       const thresholdTests = {};
       for (const threshold of [0.1, 0.5, 1.0, 1.5, 2.0]) {
@@ -76,6 +80,9 @@ export class BayesianDebugTestEndpoint {
 
       // Test with synthetic data to verify algorithm works
       results.analysis.syntheticTest = this.testWithSyntheticData();
+
+      // Compare old vs new system
+      results.analysis.comparison = this.compareOldVsNewSystem(bayesianResults, adaptiveBayesianResults);
 
       console.log('✅ Bayesian debug analysis completed');
       return results;
@@ -273,6 +280,39 @@ export class BayesianDebugTestEndpoint {
       direction: isIncreasing ? 'increasing' : isDecreasing ? 'decreasing' : 'mixed',
       increasingRatio: increasing / total,
       decreasingRatio: decreasing / total
+    };
+  }
+
+  /**
+   * Compare old fixed threshold vs new adaptive threshold system
+   */
+  compareOldVsNewSystem(oldResults, newResults) {
+    return {
+      oldSystem: {
+        threshold: 1.5,
+        changePointsFound: oldResults.changePoints.length,
+        maxChangeScore: oldResults.maxChangeScore,
+        avgChangeScore: oldResults.avgChangeScore,
+        detected: oldResults.changePoints.length > 0
+      },
+      newSystem: {
+        threshold: newResults.adaptiveThreshold?.threshold || 'N/A',
+        strategy: newResults.adaptiveThreshold?.strategy || 'N/A',
+        changePointsFound: newResults.changePoints?.length || 0,
+        maxChangeScore: newResults.maxChangeScore || 0,
+        avgChangeScore: newResults.avgChangeScore || 0,
+        detected: (newResults.changePoints?.length || 0) > 0,
+        dataCharacteristics: newResults.adaptiveThreshold?.dataCharacteristics || {},
+        reasoning: newResults.adaptiveThreshold?.reasoning || 'N/A'
+      },
+      improvement: {
+        detectionImproved: (newResults.changePoints?.length || 0) > oldResults.changePoints.length,
+        thresholdReduction: newResults.adaptiveThreshold?.threshold ? 
+          ((1.5 - newResults.adaptiveThreshold.threshold) / 1.5 * 100).toFixed(1) + '%' : 'N/A',
+        summary: (newResults.changePoints?.length || 0) > oldResults.changePoints.length ? 
+          '✅ Adaptive system successfully detects change points that fixed threshold missed!' :
+          '⚠️ Both systems show similar results'
+      }
     };
   }
 
