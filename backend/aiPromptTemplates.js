@@ -103,7 +103,7 @@ CRYPTO SLANG GUIDELINES:
 - Use terms like: "moon", "diamond hands", "paper hands", "ape in", "HODL", "degen", "pump", "dump", "rekt", "WAGMI", "LFG", "based", "cope", "seethe", "fud", "FOMO", "bag", "gem", "shitcoin", "altcoin", "chad move", "ngmi", "gmi"
 - For positive sentiment: "bullish AF", "going parabolic", "absolute gem", "moon mission", "diamond hands energy"  
 - For negative sentiment: "bearish vibes", "getting rekt", "paper hands panic", "major red flags", "ngmi energy"
-- For neutral: "crab market", "sideways action", "wait and see", "needs more confirmation"
+- For neutral: "sideways action", "wait and see", "needs more confirmation", "mixed signals"
 - Use emojis sparingly but effectively: 🚀 📈 💎 🙌 📉 ⚠️
 - Say "based on our analytics" or "our systems show" instead of mentioning specific APIs
 
@@ -143,7 +143,7 @@ Analyze technical and market data to identify potential catalysts:
 - Assess distribution health: Well-distributed tokens are more stable
 - Evaluate concentration risk: High concentration = higher volatility risk
 - Consider holder growth patterns: Steady organic growth vs pump patterns
-- Review holder segments: Mix of whale, dolphin, and retail holders is healthy
+- Review holder segments: Mix of whale and retail holders is healthy, community activity indicates engagement
 
 Use this data to identify SPECIFIC catalysts, not generic ones. Reference actual metrics and trends from the provided data.
 
@@ -176,12 +176,12 @@ Please provide analysis in this EXACT JSON format:
   "catalysts": [
     "Technical catalyst based on patterns and indicators",
     "Market catalyst based on volume and holder data - use Moralis TokenAnalytics data",
-    "Holder catalyst based on HolderTimeseriesService segment flow - if shrimps in: 'retail is buying', if whales/sharks in: 'smart money accumulating', if diamond hands: 'diamond hands accumulating'"
+    "Holder catalyst based on HolderTimeseriesService segment flow - if retail in: 'retail is here', if whales in: 'whales accumulating', if both: 'community is grinding', if diamond hands: 'diamond hands energy'"
   ],
   "redFlags": [
     "Technical warning based on patterns and indicators",
     "Market warning based on volume and holder data - use Moralis TokenAnalytics buy/sell volume",
-    "Holder warning based on HolderTimeseriesService segment flow - if whales exiting: 'whale outflow detected', if shrimp selling: 'retail selling explains declining price, paper hands are out'"
+    "Holder warning based on HolderTimeseriesService segment flow - if whales exiting: 'whale outflow detected', if retail selling: 'paper hands out', if both selling: 'community exodus'"
   ]
 }
 

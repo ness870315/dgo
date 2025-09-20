@@ -122,8 +122,8 @@ class CallThesisGenerator {
       holderCount: holderData.totalHolders || jupiterData.holderCount || 0,
       holderChange24h: this.formatPercentage(holderFlow.netFlow || 0),
       whaleFlow: this.formatHolderFlow(segmentFlow.whales || {}),
-      dolphinFlow: this.formatHolderFlow(segmentFlow.dolphins || {}),
-      shrimpFlow: this.formatHolderFlow(segmentFlow.shrimps || {}),
+      retailFlow: this.formatHolderFlow(this.combineRetailFlow(segmentFlow)),
+      communityFlow: this.formatCommunityFlow(segmentFlow),
       
       // Liquidity & Technical
       liquidity: this.formatNumber(jupiterData.liquidity || moralisAnalytics.liquidity || 0),
@@ -166,8 +166,8 @@ HOLDER ANALYTICS:
 - Total Holders: ${templateVars.holderCount}
 - Holder Change 24h: ${templateVars.holderChange24h}%
 - Whale Flow: ${templateVars.whaleFlow}
-- Dolphin Flow: ${templateVars.dolphinFlow}
-- Shrimp Flow: ${templateVars.shrimpFlow}
+- Retail Flow: ${templateVars.retailFlow}
+- Community Activity: ${templateVars.communityFlow}
 
 TECHNICAL METRICS:
 - Liquidity: $${templateVars.liquidity}
@@ -236,16 +236,19 @@ Respond with ONLY the complete thesis text, no quotes or formatting.`;
       bullish: `- Use terms like "mooning", "sending it", "diamond hands", "based AF"
 - Focus on positive momentum and growth from holder flows and buy pressure
 - Be confident and enthusiastic
+- Creative variations: "Whales accumulating", "Retail is here", "Community is grinding", "Paper hands out"
 - Example: "Whales accumulating with 85% buy pressure and +15% holder growth"`,
 
       cautious: `- Use terms like "early play", "high risk high reward", "proceed with caution"
 - Acknowledge risks while highlighting potential from data
 - Be measured but optimistic
+- Creative variations: "Mixed signals", "Retail hesitant", "Whales watching", "Community divided"
 - Example: "Early play with mixed signals - strong buy pressure but whale outflow detected"`,
 
       technical: `- Use terms like "breakout", "accumulation", "distribution", "flow analysis"
 - Focus on holder flows, buy/sell pressure, and volume data
 - Be analytical and data-driven
+- Creative variations: "Smart money accumulating", "Retail distribution", "Community building", "Diamond hands forming"
 - Example: "Technical accumulation phase with 2.3x volume spike and whale inflow"`,
 
       narrative: `- Use terms like "smart money", "retail FOMO", "diamond hands", "paper hands"
@@ -462,6 +465,52 @@ Respond with ONLY the complete thesis text, no quotes or formatting.`;
       return `-${this.formatNumber(Math.abs(outFlow))} out (${this.formatPercentage(Math.abs(netFlow))}% net)`;
     } else {
       return 'Neutral flow';
+    }
+  }
+
+  /**
+   * Combine smaller holder segments into "retail"
+   */
+  combineRetailFlow(segmentFlow) {
+    const retailSegments = ['dolphins', 'fish', 'octopus', 'crabs', 'shrimps'];
+    let totalInFlow = 0;
+    let totalOutFlow = 0;
+    
+    retailSegments.forEach(segment => {
+      if (segmentFlow[segment]) {
+        totalInFlow += segmentFlow[segment].inFlow || 0;
+        totalOutFlow += segmentFlow[segment].outFlow || 0;
+      }
+    });
+    
+    return {
+      inFlow: totalInFlow,
+      outFlow: totalOutFlow,
+      netFlow: totalInFlow - totalOutFlow
+    };
+  }
+
+  /**
+   * Format community flow (whales + retail combined activity)
+   */
+  formatCommunityFlow(segmentFlow) {
+    const whaleFlow = segmentFlow.whales || {};
+    const retailFlow = this.combineRetailFlow(segmentFlow);
+    
+    const whaleNet = whaleFlow.netFlow || 0;
+    const retailNet = retailFlow.netFlow || 0;
+    
+    // Creative variations based on combined activity
+    if (whaleNet > 0 && retailNet > 0) {
+      return 'Community is grinding 🔥';
+    } else if (whaleNet > 0 && retailNet <= 0) {
+      return 'Whales accumulating 🐋';
+    } else if (whaleNet <= 0 && retailNet > 0) {
+      return 'Retail is here 🦐';
+    } else if (whaleNet < 0 && retailNet < 0) {
+      return 'Paper hands out 📉';
+    } else {
+      return 'Sideways action ➡️';
     }
   }
 
