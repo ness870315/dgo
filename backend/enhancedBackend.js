@@ -3215,18 +3215,63 @@ class EnhancedBackend {
         }
         
         // Perform ONLY hype trend analysis (NO AI)
-        const analysis = this.hypeTrendAnalysis.analyzeHypeTrend(hypeData, range);
+        const analysisResult = this.hypeTrendAnalysis.analyzeHypeTrend(hypeData, range);
         
-        // Return just the technical analysis
-        const trendAnalysis = {
-          ...analysis,
-          dataSource: hypeData.length > 0 && !hypeData[0].synthetic ? 'real_snapshots' : 'synthetic_data',
-          dataPoints: hypeData.length
+        // Structure the response to match frontend expectations (same as new endpoint)
+        const response = {
+          success: analysisResult.success,
+          contractAddress: contract,
+          symbol: token.symbol,
+          range: range,
+          timestamp: new Date().toISOString(),
+          dataPoints: hypeData.length,
+          
+          // Core analysis data with fixed structure
+          analysis: {
+            // Technical indicators with adaptive Bayesian data
+            technicalIndicators: {
+              ewma: analysisResult.analysis?.technicalIndicators?.ewma,
+              derivative: analysisResult.analysis?.technicalIndicators?.derivative,
+              
+              // ✅ ADAPTIVE BAYESIAN CHANGE POINTS - Fixed structure!
+              changePoints: {
+                length: analysisResult.analysis?.technicalIndicators?.changePoints?.changePoints?.length || 0,
+                hasRecentChange: analysisResult.analysis?.technicalIndicators?.changePoints?.hasRecentChange || false,
+                changeDirection: analysisResult.analysis?.technicalIndicators?.changePoints?.changeDirection || 'stable',
+                recentChangePoint: analysisResult.analysis?.technicalIndicators?.changePoints?.recentChangePoint,
+                adaptiveThreshold: analysisResult.analysis?.technicalIndicators?.changePoints?.adaptiveThreshold,
+                allChangePoints: analysisResult.analysis?.technicalIndicators?.changePoints?.changePoints || []
+              }
+            },
+            
+            // Current regime and prediction
+            currentRegime: analysisResult.analysis?.regime,
+            prediction: analysisResult.analysis?.prediction,
+            
+            // Forecast data for the 6-12h timeline
+            forecast: analysisResult.analysis?.forecast,
+            
+            // Legacy fields for compatibility
+            regime: analysisResult.analysis?.regime,
+            trend: analysisResult.analysis?.trend,
+            direction: analysisResult.analysis?.direction
+          },
+          
+          // Confidence and metadata
+          confidence: analysisResult.confidence || 0,
+          metadata: {
+            analysisVersion: '2.0-adaptive-bayesian-legacy',
+            generatedAt: new Date().toISOString(),
+            range,
+            dataSource: hypeData.length > 0 && !hypeData[0].synthetic ? 'real_snapshots' : 'synthetic_data',
+            dataQuality: hypeData.length > 20 ? 'excellent' : 
+                        hypeData.length > 10 ? 'good' : 'moderate'
+          }
         };
         
-        console.log(`📊 Hype Trend Analysis completed for ${contract}: ${analysis.success ? 'SUCCESS' : 'FAILED'}`);
+        console.log(`📊 Hype Trend Analysis completed for ${contract}: ${response.analysis.technicalIndicators.changePoints.length} change points, ${response.analysis.forecast?.length || 0} forecast points`);
         
-        res.json(trendAnalysis);
+        res.json(response);
         
       } catch (error) {
         console.error('❌ Hype trend analysis error:', error);
