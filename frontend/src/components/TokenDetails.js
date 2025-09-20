@@ -475,10 +475,6 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
       }
 
 
-        contractAddress: token.contractAddress,
-        fuelType: fuelType
-      });
-
       const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/tokens/fuel`, {
         method: 'POST',
         headers: {
