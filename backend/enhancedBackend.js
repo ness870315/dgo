@@ -6679,6 +6679,152 @@ class EnhancedBackend {
       }
     });
 
+    // ========================================
+    // 🎯 HYPE OVER TIME ORACLE AI ANALYSIS
+    // ========================================
+
+    // Hype Trend Analysis with Adaptive Bayesian Change-Point Detection
+    this.app.get('/api/hype-trend/:contractAddress', async (req, res) => {
+      try {
+        const { contractAddress } = req.params;
+        const { range = '7d', sessionId } = req.query;
+        
+        console.log(`🧠 Hype Trend Analysis requested for ${contractAddress} (${range})`);
+        
+        // Validate session for premium features
+        if (!sessionId) {
+          return res.status(401).json({
+            success: false,
+            error: 'Authentication required'
+          });
+        }
+
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) {
+          return res.status(401).json({
+            success: false,
+            error: 'Invalid session'
+          });
+        }
+
+        // Check premium status
+        const premiumStatus = await this.oauthXService.db.getPremiumStatus(user.id);
+        const isPremium = premiumStatus?.isPremium && new Date(premiumStatus.expiresAt) > new Date();
+        
+        if (!isPremium) {
+          return res.status(403).json({
+            success: false,
+            error: 'premium_required',
+            message: 'Hype Over Time Oracle AI is a Premium feature. Upgrade to access advanced trend analysis.'
+          });
+        }
+
+        // Fetch hype snapshots
+        const since = this.calculateSinceTimestamp(range);
+        const hypeSnapshots = await this.hypeSnapshotService.getSnapshots(contractAddress, since);
+        
+        if (!hypeSnapshots || hypeSnapshots.length < 3) {
+          return res.json({
+            success: false,
+            error: 'insufficient_data',
+            message: `Insufficient hype data for analysis. Need at least 3 data points, got ${hypeSnapshots?.length || 0}.`,
+            analysis: null
+          });
+        }
+
+        // Perform comprehensive hype trend analysis
+        const trendAnalysis = new (await import('./hypeTrendAnalysis.js')).default();
+        const analysisResult = trendAnalysis.analyzeHypeTrend(hypeSnapshots, range);
+        
+        // Get token data for AI prediction
+        const tokens = await this.getTokensFromCache();
+        const tokenData = tokens.find(t => 
+          t.contractAddress?.toLowerCase() === contractAddress.toLowerCase()
+        );
+
+        let aiPrediction = null;
+        
+        // Generate AI prediction if we have sufficient data
+        if (analysisResult.success && tokenData) {
+          try {
+            const aiPredictionService = new (await import('./aiHypePredictionService.js')).default();
+            await aiPredictionService.initializeCache();
+            
+            aiPrediction = await aiPredictionService.getPrediction(
+              contractAddress,
+              tokenData,
+              hypeSnapshots,
+              range,
+              analysisResult
+            );
+          } catch (aiError) {
+            console.error('❌ AI Prediction failed:', aiError);
+            // Continue without AI prediction
+          }
+        }
+
+        // Structure response to match frontend expectations
+        const response = {
+          success: true,
+          contractAddress,
+          symbol: tokenData?.symbol || 'Unknown',
+          range,
+          timestamp: new Date().toISOString(),
+          dataPoints: hypeSnapshots.length,
+          
+          // Core analysis data
+          analysis: {
+            // Technical indicators with adaptive Bayesian data
+            technicalIndicators: {
+              ewma: analysisResult.technicalIndicators?.ewma,
+              derivative: analysisResult.technicalIndicators?.derivative,
+              
+              // ✅ ADAPTIVE BAYESIAN CHANGE POINTS - This is what frontend needs!
+              changePoints: {
+                length: analysisResult.technicalIndicators?.changePoints?.changePoints?.length || 0,
+                hasRecentChange: analysisResult.technicalIndicators?.changePoints?.hasRecentChange || false,
+                changeDirection: analysisResult.technicalIndicators?.changePoints?.changeDirection || 'stable',
+                recentChangePoint: analysisResult.technicalIndicators?.changePoints?.recentChangePoint,
+                adaptiveThreshold: analysisResult.technicalIndicators?.changePoints?.adaptiveThreshold,
+                allChangePoints: analysisResult.technicalIndicators?.changePoints?.changePoints || []
+              }
+            },
+            
+            // Current regime and prediction
+            currentRegime: analysisResult.currentRegime,
+            prediction: analysisResult.prediction,
+            
+            // AI-generated insights (if available)
+            aiInsights: aiPrediction
+          },
+          
+          // Confidence and metadata
+          confidence: analysisResult.confidence || 0,
+          metadata: {
+            analysisVersion: '2.0-adaptive-bayesian',
+            generatedAt: new Date().toISOString(),
+            range,
+            dataQuality: hypeSnapshots.length > 20 ? 'excellent' : 
+                        hypeSnapshots.length > 10 ? 'good' : 'moderate'
+          }
+        };
+
+        console.log(`✅ Hype Trend Analysis completed for ${contractAddress}: ${response.analysis.technicalIndicators.changePoints.length} change points detected`);
+        
+        res.json(response);
+        
+      } catch (error) {
+        console.error('❌ Hype Trend Analysis failed:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Hype trend analysis failed',
+          details: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+
     // Jupiter API Testing Endpoints
     this.app.get('/api/jupiter/test-known', async (req, res) => {
       try {
@@ -10301,6 +10447,19 @@ class EnhancedBackend {
         message: `Failed to get logs: ${error.message}`
       }];
     }
+  }
+
+  // Helper method to calculate since timestamp for different ranges
+  calculateSinceTimestamp(range) {
+    const now = Date.now();
+    const ranges = {
+      '1d': 24 * 60 * 60 * 1000,
+      '3d': 3 * 24 * 60 * 60 * 1000,
+      '7d': 7 * 24 * 60 * 60 * 1000,
+      '15d': 15 * 24 * 60 * 60 * 1000,
+      '30d': 30 * 24 * 60 * 60 * 1000
+    };
+    return now - (ranges[range] || ranges['7d']);
   }
 
   // Winston logger is now used instead of custom logging
