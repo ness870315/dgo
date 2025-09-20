@@ -2733,16 +2733,20 @@ class EnhancedBackend {
         let enhancedTokenData = { ...tokenData };
         
         try {
-          // Fetch Moralis TokenAnalytics data
+          // Fetch Moralis TokenAnalytics data using TechnicalAnalysisService
           if (tokenData.contractAddress) {
-            const moralisAnalytics = await this.moralisService.getTokenAnalytics(tokenData.contractAddress);
+            const { default: TechnicalAnalysisService } = await import('./services/TechnicalAnalysisService.js');
+            const techAnalysisService = new TechnicalAnalysisService();
+            const moralisAnalytics = await techAnalysisService.getMoralisTokenAnalytics(tokenData.contractAddress);
             enhancedTokenData.moralisAnalytics = moralisAnalytics;
+            console.log(`📊 Fetched Moralis TokenAnalytics for thesis: ${tokenData.symbol}`);
           }
           
           // Fetch Holder data
           if (tokenData.contractAddress) {
             const holderData = await this.holderTimeseriesService.getHolderInsights(tokenData.contractAddress);
             enhancedTokenData.holderData = holderData;
+            console.log(`👥 Fetched Holder data for thesis: ${tokenData.symbol}`);
           }
         } catch (error) {
           console.error('[🛡️ Enhanced Backend] ⚠️ Failed to fetch enhanced data for thesis:', error.message);

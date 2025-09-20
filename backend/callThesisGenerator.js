@@ -90,6 +90,15 @@ class CallThesisGenerator {
     const holderFlow = holderData.holderFlow || {};
     const segmentFlow = holderData.segmentFlow || {};
     
+    // Debug data availability
+    console.log(`🔍 Thesis data sources for ${tokenData.symbol}:`, {
+      hasMoralisAnalytics: !!moralisAnalytics && Object.keys(moralisAnalytics).length > 0,
+      hasJupiterData: !!jupiterData && Object.keys(jupiterData).length > 0,
+      hasHolderData: !!holderData && Object.keys(holderData).length > 0,
+      moralisBuyVolume: moralisAnalytics.totalBuyVolume?.['24h'],
+      jupiterBuyVolume: jupiterData.stats24h?.buyVolume
+    });
+    
     return {
       symbol: tokenData.symbol || 'Unknown',
       name: tokenData.name || 'Unknown Token',
@@ -104,10 +113,10 @@ class CallThesisGenerator {
       volumeChange6h: this.formatPercentage(moralisAnalytics.volumeChange?.['6h'] || 0),
       volumeChange24h: this.formatPercentage(moralisAnalytics.volumeChange?.['24h'] || 0),
       
-      // Buy/Sell Pressure (Moralis TokenAnalytics)
-      buyVolume24h: this.formatNumber(moralisAnalytics.totalBuyVolume?.['24h'] || 0),
-      sellVolume24h: this.formatNumber(moralisAnalytics.totalSellVolume?.['24h'] || 0),
-      buyPressure: this.formatPercentage(this.calculateBuyPressure(moralisAnalytics)),
+      // Buy/Sell Pressure (Moralis TokenAnalytics with Jupiter fallback)
+      buyVolume24h: this.formatNumber(moralisAnalytics.totalBuyVolume?.['24h'] || jupiterData.stats24h?.buyVolume || 0),
+      sellVolume24h: this.formatNumber(moralisAnalytics.totalSellVolume?.['24h'] || jupiterData.stats24h?.sellVolume || 0),
+      buyPressure: this.formatPercentage(this.calculateBuyPressure(moralisAnalytics, jupiterData)),
       
       // Holder Analytics (HolderTimeseriesService)
       holderCount: holderData.totalHolders || jupiterData.holderCount || 0,
@@ -278,13 +287,20 @@ Respond with ONLY the complete thesis text, no quotes or formatting.`;
     const callAnnouncement = this.getRandomCallAnnouncement();
     const endingPhrase = this.getRandomEndingPhrase();
     
+    // Try to get some basic data for fallback
+    const jupiterData = tokenData.jupiterData || {};
+    const holderCount = jupiterData.holderCount || 'growing';
+    const priceChange = jupiterData.priceChange24h || 0;
+    const momentum = priceChange > 0 ? 'bullish momentum' : 'accumulation phase';
+    
     const fallbacks = {
-      bullish: `${callAnnouncement} $${symbol} at $${marketCap} MC. Thesis: Strong momentum with growing community and positive analytics signals. ${endingPhrase}`,
-      cautious: `${callAnnouncement} $${symbol} at $${marketCap} MC. Thesis: Early play with potential - high risk, high reward opportunity. ${endingPhrase}`,
-      technical: `${callAnnouncement} $${symbol} at $${marketCap} MC. Thesis: Technical breakout with volume confirmation and strong fundamentals. ${endingPhrase}`,
-      narrative: `${callAnnouncement} $${symbol} at $${marketCap} MC. Thesis: Community narrative building with organic growth and engagement. ${endingPhrase}`
+      bullish: `${callAnnouncement} $${symbol} at $${marketCap} MC. Thesis: ${momentum} with ${holderCount} diamond hands and strong community backing. ${endingPhrase}`,
+      cautious: `${callAnnouncement} $${symbol} at $${marketCap} MC. Thesis: Early accumulation phase with ${holderCount} holders - high risk, high reward setup. ${endingPhrase}`,
+      technical: `${callAnnouncement} $${symbol} at $${marketCap} MC. Thesis: Technical ${momentum} pattern with solid holder base and volume confirmation. ${endingPhrase}`,
+      narrative: `${callAnnouncement} $${symbol} at $${marketCap} MC. Thesis: Community narrative building with ${holderCount} believers and organic growth signals. ${endingPhrase}`
     };
 
+    console.log(`🔄 Using fallback thesis for ${symbol} (${tone} tone)`);
     return fallbacks[tone] || fallbacks.bullish;
   }
 
@@ -394,15 +410,40 @@ Respond with ONLY the complete thesis text, no quotes or formatting.`;
   }
 
   /**
-   * Calculate buy pressure from Moralis analytics
+   * Calculate buy pressure from Moralis analytics with fallbacks
    */
-  calculateBuyPressure(moralisAnalytics) {
-    const buyVolume = moralisAnalytics.totalBuyVolume?.['24h'] || 0;
-    const sellVolume = moralisAnalytics.totalSellVolume?.['24h'] || 0;
+  calculateBuyPressure(moralisAnalytics, jupiterData) {
+    // Try Moralis data first
+    let buyVolume = 0;
+    let sellVolume = 0;
+    
+    if (moralisAnalytics && moralisAnalytics.totalBuyVolume && moralisAnalytics.totalSellVolume) {
+      buyVolume = parseFloat(moralisAnalytics.totalBuyVolume['24h'] || 0);
+      sellVolume = parseFloat(moralisAnalytics.totalSellVolume['24h'] || 0);
+      
+      console.log(`📊 Moralis buy/sell volumes for thesis: Buy=${buyVolume}, Sell=${sellVolume}`);
+    }
+    
+    // Fallback to Jupiter data if Moralis is empty
+    if (buyVolume === 0 && sellVolume === 0 && jupiterData) {
+      buyVolume = parseFloat(jupiterData.stats24h?.buyVolume || 0);
+      sellVolume = parseFloat(jupiterData.stats24h?.sellVolume || 0);
+      
+      console.log(`📊 Jupiter fallback buy/sell volumes for thesis: Buy=${buyVolume}, Sell=${sellVolume}`);
+    }
+    
+    // Calculate total volume
     const totalVolume = buyVolume + sellVolume;
     
-    if (totalVolume === 0) return 0;
-    return (buyVolume / totalVolume) * 100;
+    if (totalVolume === 0) {
+      console.log(`⚠️ No volume data available for buy pressure calculation`);
+      return 50; // Return neutral 50% if no data
+    }
+    
+    const buyPressure = (buyVolume / totalVolume) * 100;
+    console.log(`💹 Calculated buy pressure: ${buyPressure.toFixed(1)}% (${buyVolume}/${totalVolume})`);
+    
+    return buyPressure;
   }
 
   /**
