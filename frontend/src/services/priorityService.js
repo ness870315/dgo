@@ -36,9 +36,6 @@ class PriorityService {
         })
       });
       
-      if (response.ok) {
-        console.log(`🎯 Boosted ${symbol || contractAddress.substring(0, 8)} priority (viewed)`);
-      }
     } catch (error) {
       console.error('Priority boost on view failed:', error);
     }
@@ -68,9 +65,6 @@ class PriorityService {
         })
       });
       
-      if (response.ok) {
-        console.log(`🎯 Boosted ${symbol || contractAddress.substring(0, 8)} priority (watchlisted)`);
-      }
     } catch (error) {
       console.error('Priority boost on watchlist failed:', error);
     }

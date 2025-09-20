@@ -65,12 +65,6 @@ const EnhancedCallModal = ({
         jupiterData: token.jupiterData || {}
       };
       
-      console.log('🧠 EnhancedCallModal: Generating thesis with data:', {
-        sessionId: !!sessionId,
-        tokenData,
-        tone: selectedTone,
-        forceRegenerate
-      });
       
       const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/user/generate-thesis`, {
         method: 'POST',
@@ -85,16 +79,13 @@ const EnhancedCallModal = ({
         })
       });
       
-      console.log('🧠 EnhancedCallModal: Thesis API response status:', response.status);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('🧠 EnhancedCallModal: Thesis API error:', errorText);
         throw new Error(`Failed to generate thesis: ${response.status}`);
       }
       
       const result = await response.json();
-      console.log('🧠 EnhancedCallModal: Thesis generated successfully:', result);
       setThesis(result.thesis);
     } catch (error) {
       setThesisError('Failed to generate thesis: ' + error.message);

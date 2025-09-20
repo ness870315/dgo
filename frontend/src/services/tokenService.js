@@ -141,16 +141,6 @@ class TokenService {
       // Backend now returns tokens array directly (not wrapped in object)
       const tokens = Array.isArray(data) ? data : (data.tokens || []);
       
-      // Debug: Log first few tokens to see contract addresses
-      console.log('TokenService Debug - First 3 tokens:', tokens.slice(0, 3).map(t => ({
-        symbol: t.symbol,
-        contractAddress: t.contractAddress,
-        hasRealContract: t.hasRealContract,
-        score: t.score,
-        overallScore: t.overallScore,
-        enhancedScore: t.enhancedScore,
-        jupiterData: t.jupiterData
-      })));
       
       
       const tokenPromises = tokens.map(async (token, index) => {
