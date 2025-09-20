@@ -6776,23 +6776,26 @@ class EnhancedBackend {
           analysis: {
             // Technical indicators with adaptive Bayesian data
             technicalIndicators: {
-              ewma: analysisResult.technicalIndicators?.ewma,
-              derivative: analysisResult.technicalIndicators?.derivative,
+              ewma: analysisResult.analysis?.technicalIndicators?.ewma,
+              derivative: analysisResult.analysis?.technicalIndicators?.derivative,
               
               // ✅ ADAPTIVE BAYESIAN CHANGE POINTS - This is what frontend needs!
               changePoints: {
-                length: analysisResult.technicalIndicators?.changePoints?.changePoints?.length || 0,
-                hasRecentChange: analysisResult.technicalIndicators?.changePoints?.hasRecentChange || false,
-                changeDirection: analysisResult.technicalIndicators?.changePoints?.changeDirection || 'stable',
-                recentChangePoint: analysisResult.technicalIndicators?.changePoints?.recentChangePoint,
-                adaptiveThreshold: analysisResult.technicalIndicators?.changePoints?.adaptiveThreshold,
-                allChangePoints: analysisResult.technicalIndicators?.changePoints?.changePoints || []
+                length: analysisResult.analysis?.technicalIndicators?.changePoints?.changePoints?.length || 0,
+                hasRecentChange: analysisResult.analysis?.technicalIndicators?.changePoints?.hasRecentChange || false,
+                changeDirection: analysisResult.analysis?.technicalIndicators?.changePoints?.changeDirection || 'stable',
+                recentChangePoint: analysisResult.analysis?.technicalIndicators?.changePoints?.recentChangePoint,
+                adaptiveThreshold: analysisResult.analysis?.technicalIndicators?.changePoints?.adaptiveThreshold,
+                allChangePoints: analysisResult.analysis?.technicalIndicators?.changePoints?.changePoints || []
               }
             },
             
             // Current regime and prediction
-            currentRegime: analysisResult.currentRegime,
-            prediction: analysisResult.prediction,
+            currentRegime: analysisResult.analysis?.regime,
+            prediction: analysisResult.analysis?.prediction,
+            
+            // Forecast data for the 6-12h timeline
+            forecast: analysisResult.analysis?.forecast,
             
             // AI-generated insights (if available)
             aiInsights: aiPrediction
