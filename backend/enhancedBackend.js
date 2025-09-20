@@ -3258,7 +3258,7 @@ class EnhancedBackend {
           },
           
           // Confidence and metadata
-          confidence: analysisResult.confidence || 0,
+          confidence: analysisResult.analysis?.confidence || 0,
           metadata: {
             analysisVersion: '2.0-adaptive-bayesian-legacy',
             generatedAt: new Date().toISOString(),
