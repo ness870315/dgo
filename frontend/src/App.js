@@ -391,14 +391,37 @@ function App() {
         if (!seen.has(key)) { seen.add(key); arr.push(t); }
       };
       let trendingTokens = [];
-      // Viral and Trending tokens only (scores 8.0+)
+      
+      // 1. First add Viral and Trending tokens (scores 8.0+) - these get priority
       viralAndTrendingCandidates.forEach(t => {
         // Basic freshness guard only
         const lastUpdated = t.lastUpdated ? Date.parse(t.lastUpdated) : null;
         const isFresh = lastUpdated ? (Date.now() - lastUpdated) <= (30 * 60 * 1000) : true;
         if (isFresh) pushUnique(trendingTokens, t);
       });
-      // No additional emerging tokens - only Viral and Trending
+      
+      // 2. Fill up to 100 with high-scoring emerging tokens (secondary threshold: >7.8)
+      // First try tokens with score >7.8, then fallback to lower scores if needed
+      const secondaryTokens = [...sortedFueledTokens, ...sortedRegularTokens]
+        .filter(t => (t.score || t.overallScore || 0) > 7.8);
+      
+      // Add secondary tokens (score >7.8) first
+      secondaryTokens.forEach(t => {
+        if (trendingTokens.length < 100) {
+          pushUnique(trendingTokens, t);
+        }
+      });
+      
+      // If still not enough, fill with remaining high-scoring tokens
+      if (trendingTokens.length < 100) {
+        [...sortedFueledTokens, ...sortedRegularTokens].forEach(t => {
+          if (trendingTokens.length < 100) {
+            pushUnique(trendingTokens, t);
+          }
+        });
+      }
+      
+      // Ensure we have exactly 100 (or all available if less)
       trendingTokens = trendingTokens.slice(0, 100);
 
       // Safety fallback: never return zero — fall back to base tokens by score
