@@ -72,21 +72,21 @@ const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">Sentiment:</span>
                   <span className={`font-semibold px-2 py-1 rounded text-sm ${
-                    analysis.aiAssessment?.sentiment === 'Bullish' ? 'bg-green-900 text-green-300' :
-                    analysis.aiAssessment?.sentiment === 'Bearish' ? 'bg-red-900 text-red-300' :
+                    analysis.sentiment === 'Bullish' ? 'bg-green-900 text-green-300' :
+                    analysis.sentiment === 'Bearish' ? 'bg-red-900 text-red-300' :
                     'bg-yellow-900 text-yellow-300'
                   }`}>
-                    {analysis.aiAssessment?.sentiment || analysis.sentiment || 'Neutral'}
+                    {analysis.sentiment || 'Neutral'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">Confidence:</span>
                   <span className="text-white text-sm">
-                    {Math.round((analysis.aiAssessment?.confidence || analysis.confidence || 0) * 100)}%
+                    {Math.round((analysis.confidence || 0) * 100)}%
                   </span>
                 </div>
                 <div className="text-gray-300 text-sm">
-                  {analysis.aiAssessment?.summary || 'No summary available'}
+                  {analysis.marketAnalysis?.organicGrowth ? `Organic Growth: ${analysis.marketAnalysis.organicGrowth}` : 'Analysis complete'}
                 </div>
               </div>
             </div>
@@ -239,14 +239,14 @@ const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
         </div>
 
         {/* Recommended Actions */}
-        {analysis.recommendedActions && analysis.recommendedActions.length > 0 && (
+        {(analysis.recommendedActions && analysis.recommendedActions.length > 0) || aiAnalysis.actionableRecommendations?.length > 0 ? (
           <div className="mt-6 bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-lg p-4 border border-purple-500/30">
             <h3 className="text-white font-semibold mb-3 flex items-center">
               <Target size={18} className="mr-2 text-purple-400" />
               Recommended Actions
             </h3>
             <div className="space-y-2">
-              {analysis.recommendedActions.map((action, index) => (
+              {(analysis.recommendedActions || aiAnalysis.actionableRecommendations || []).map((action, index) => (
                 <div key={index} className={`flex items-center justify-between p-3 rounded-lg border ${
                   action.priority === 'high' ? 'border-red-500/30 bg-red-900/10' :
                   action.priority === 'medium' ? 'border-yellow-500/30 bg-yellow-900/10' :
@@ -270,6 +270,27 @@ const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6 bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-lg p-4 border border-purple-500/30">
+            <h3 className="text-white font-semibold mb-3 flex items-center">
+              <Target size={18} className="mr-2 text-purple-400" />
+              Recommended Actions
+            </h3>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-3 rounded-lg border border-gray-500/30 bg-gray-900/10">
+                <div className="flex items-center space-x-3">
+                  <span className="text-2xl">🔍</span>
+                  <div>
+                    <div className="text-white font-medium">Oracle Chart</div>
+                    <div className="text-gray-400 text-sm">Get deeper technical analysis</div>
+                  </div>
+                </div>
+                <div className="px-2 py-1 rounded text-xs font-medium bg-gray-900 text-gray-300">
+                  high
+                </div>
+              </div>
             </div>
           </div>
         )}
