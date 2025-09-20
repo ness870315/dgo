@@ -6623,6 +6623,33 @@ class EnhancedBackend {
       }
     });
 
+    // EAGLE Hype Analysis Debug Test
+    this.app.get('/api/test/eagle-hype', async (req, res) => {
+      try {
+        const { EagleHypeDebugTest } = await import('./test-eagle-hype.js');
+        const testEndpoint = new EagleHypeDebugTest();
+        
+        console.log('🦅 Running EAGLE Hype Analysis Debug...');
+        const results = await testEndpoint.debugEagleHype();
+        
+        res.json({
+          success: true,
+          message: 'EAGLE Hype Debug Test completed',
+          results,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error('❌ EAGLE Hype Debug Test failed:', error);
+        res.status(500).json({
+          success: false,
+          error: 'EAGLE hype debug test failed',
+          details: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
     // Simple Adaptive Bayesian Test
     this.app.get('/api/test/adaptive-simple', async (req, res) => {
       try {
