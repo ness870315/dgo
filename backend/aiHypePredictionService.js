@@ -236,12 +236,15 @@ class AIHypePredictionService {
 
   buildPredictionPrompt(contractAddress, tokenData, recentData, currentMetrics, trendAnalysis, range) {
     console.log(`🧠 Building TREND PREDICTION prompt for ${contractAddress}`);
+    console.log(`🧠 TrendAnalysis structure:`, JSON.stringify(trendAnalysis, null, 2));
     
     // Extract technical analysis data from trendAnalysis
-    const technicalData = trendAnalysis?.analysis?.technicalIndicators || {};
-    const regime = trendAnalysis?.analysis?.regime || 'unknown';
+    const technicalData = trendAnalysis?.technicalIndicators || trendAnalysis?.analysis?.technicalIndicators || {};
+    const regime = trendAnalysis?.currentRegime?.type || trendAnalysis?.analysis?.regime || 'unknown';
     const signals = trendAnalysis?.analysis?.signals || [];
-    const confidence = trendAnalysis?.analysis?.confidence || 0.5;
+    const confidence = trendAnalysis?.confidence || trendAnalysis?.analysis?.confidence || 0.5;
+    
+    console.log(`🧠 Extracted data: technicalData=${JSON.stringify(technicalData)}, regime=${regime}, confidence=${confidence}`);
     
     // Create TREND-FOCUSED template with technical analysis data
     const template = `You are DeGen Oracle's AI HYPE TREND PREDICTION ENGINE. Your ONLY job is to predict the HYPE TREND direction using EWMA derivatives and Bayesian change points!
@@ -318,14 +321,23 @@ Respond in this JSON format:
   "reasoning": "Detailed HYPE TREND explanation using technical analysis data with crypto slang"
 }`;
     
-    // Calculate trend analysis variables
-    const ewmaScore = technicalData.ewma?.currentScoreEWMA || 0;
+    // Calculate trend analysis variables with enhanced extraction
+    const ewmaScore = technicalData.ewma?.currentScoreEWMA || currentMetrics.currentScore || 0;
     const scoreDerivative = technicalData.derivative?.scoreDerivative || 0;
     const mentionDerivative = technicalData.derivative?.mentionDerivative || 0;
+    const changePointsCount = technicalData.changePoints?.changePoints?.length || technicalData.changePoints?.length || 0;
     
-    const ewmaTrend = ewmaScore > 5 ? 'bullish' : ewmaScore < 3 ? 'bearish' : 'sideways';
-    const derivativeMomentum = scoreDerivative > 0.1 ? 'accelerating' : scoreDerivative < -0.1 ? 'decelerating' : 'stable';
+    // Adaptive trend classification based on score range
+    const scoreRange = Math.max(...recentData.map(d => d.score)) - Math.min(...recentData.map(d => d.score));
+    const adaptiveThreshold = Math.max(0.5, scoreRange * 0.2);
+    
+    const ewmaTrend = ewmaScore > (5 + adaptiveThreshold) ? 'bullish' : 
+                     ewmaScore < (5 - adaptiveThreshold) ? 'bearish' : 'sideways';
+    const derivativeMomentum = scoreDerivative > (adaptiveThreshold * 0.1) ? 'accelerating' : 
+                              scoreDerivative < -(adaptiveThreshold * 0.1) ? 'decelerating' : 'stable';
     const mentionMomentum = mentionDerivative > 0.1 ? 'growing' : mentionDerivative < -0.1 ? 'declining' : 'stable';
+    
+    console.log(`🧠 Trend variables: ewmaScore=${ewmaScore}, scoreDerivative=${scoreDerivative}, changePoints=${changePointsCount}, adaptiveThreshold=${adaptiveThreshold}`);
     
     const variables = {
       symbol: tokenData?.symbol || 'Unknown',
@@ -339,7 +351,7 @@ Respond in this JSON format:
       ewmaMentions: technicalData.ewma?.currentMentionEWMA?.toFixed(2) || 'N/A',
       scoreDerivative: scoreDerivative.toFixed(3),
       mentionDerivative: mentionDerivative.toFixed(3),
-      changePoints: technicalData.changePoints?.length || 0,
+      changePoints: changePointsCount,
       confidence: (confidence * 100).toFixed(1),
       signals: signals.join(', ') || 'No signals detected',
       // Trend analysis variables
@@ -446,25 +458,49 @@ Respond in this JSON format:
     const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
     const volatility = this.calculateVolatility(scores);
     
-    // Determine direction and strength
+    // Determine direction and strength with adaptive thresholds
+    const dataRange = Math.max(...scores) - Math.min(...scores);
+    const adaptiveSlopeThreshold = Math.max(0.02, Math.min(0.1, dataRange * 0.1)); // Adaptive threshold based on data range
+    
+    console.log(`🧠 Trend Analysis: slope=${slope.toFixed(4)}, dataRange=${dataRange.toFixed(3)}, adaptiveThreshold=${adaptiveSlopeThreshold.toFixed(4)}`);
+    
     let direction, strength;
-    if (Math.abs(slope) < 0.1) {
-      direction = 'sideways';
-      strength = 'weak';
+    if (Math.abs(slope) < adaptiveSlopeThreshold) {
+      // For very stable data, check if there's any upward movement in recent points
+      const recentChange = scores[scores.length - 1] - scores[0];
+      if (Math.abs(recentChange) > adaptiveSlopeThreshold) {
+        direction = recentChange > 0 ? 'bullish' : 'bearish';
+        strength = 'weak';
+        console.log(`🧠 Detected subtle ${direction} trend despite low slope (recentChange: ${recentChange.toFixed(3)})`);
+      } else {
+        direction = 'sideways';
+        strength = 'weak';
+      }
     } else if (slope > 0) {
       direction = 'bullish';
-      strength = slope > 0.5 ? 'strong' : 'moderate';
+      strength = slope > (adaptiveSlopeThreshold * 5) ? 'strong' : 'moderate';
     } else {
       direction = 'bearish';
-      strength = slope < -0.5 ? 'strong' : 'moderate';
+      strength = slope < -(adaptiveSlopeThreshold * 5) ? 'strong' : 'moderate';
     }
+    
+    // Adaptive momentum thresholds
+    const momentumThreshold = adaptiveSlopeThreshold * 2;
     
     return {
       direction,
       strength,
-      momentum: slope > 0.2 ? 'positive' : slope < -0.2 ? 'negative' : 'neutral',
-      volatility: volatility > 1.5 ? 'high' : volatility > 0.8 ? 'medium' : 'low',
-      pattern: this.identifyPattern(scores)
+      momentum: slope > momentumThreshold ? 'positive' : slope < -momentumThreshold ? 'negative' : 'neutral',
+      volatility: volatility > (dataRange * 0.5) ? 'high' : volatility > (dataRange * 0.2) ? 'medium' : 'low',
+      pattern: this.identifyPattern(scores),
+      // Enhanced metadata for debugging
+      metadata: {
+        slope: slope.toFixed(4),
+        dataRange: dataRange.toFixed(3),
+        adaptiveSlopeThreshold: adaptiveSlopeThreshold.toFixed(4),
+        momentumThreshold: momentumThreshold.toFixed(4),
+        volatility: volatility.toFixed(3)
+      }
     };
   }
 
