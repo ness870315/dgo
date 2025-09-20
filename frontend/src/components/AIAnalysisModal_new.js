@@ -266,17 +266,6 @@ const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
           </div>
         )}
 
-        {/* Footer */}
-        <div className="mt-6 pt-4 border-t border-gray-700">
-          <div className="flex items-center justify-between">
-            <div className="text-gray-400 text-sm">
-              Analysis ID: {aiAnalysis.metadata?.analysisId || 'N/A'}
-            </div>
-            <div className="text-gray-400 text-sm">
-              Model: {aiAnalysis.metadata?.model || 'N/A'} | Confidence: {Math.round((aiAnalysis.metadata?.confidence || 0) * 100)}%
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
