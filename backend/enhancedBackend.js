@@ -7971,7 +7971,7 @@ class EnhancedBackend {
       const holderCacheService = new HolderCacheService();
       
       // Get cached holder insights
-      const cachedInsights = await holderCacheService.getCachedInsights(contractAddress);
+      const cachedInsights = await holderCacheService.getCachedData(contractAddress, 'insights');
       
       if (cachedInsights) {
         console.log(`📊 Using cached holder data for AI analysis: ${contractAddress}`);

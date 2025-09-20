@@ -2174,52 +2174,6 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                   {/* Right Column */}
                   <div className="space-y-6">
                     
-                    {/* Holder Insights */}
-                    <div className="bg-gray-800/50 rounded-lg p-4">
-                      <h5 className="text-white font-semibold mb-3 flex items-center">
-                        👥 Holder Insights
-                      </h5>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-400">Distribution:</span>
-                          <span className={`font-semibold text-sm ${
-                            (aiAnalysis?.analysis?.analysis?.holderInsights?.distributionHealth || aiAnalysis?.analysis?.holderInsights?.distributionHealth) === 'Well distributed' ? 'text-green-400' :
-                            (aiAnalysis?.analysis?.analysis?.holderInsights?.distributionHealth || aiAnalysis?.analysis?.holderInsights?.distributionHealth) === 'Highly concentrated' ? 'text-red-400' :
-                            'text-yellow-400'
-                          }`}>
-                            {aiAnalysis?.analysis?.analysis?.holderInsights?.distributionHealth || aiAnalysis?.analysis?.holderInsights?.distributionHealth || 'N/A'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-400">Concentration Risk:</span>
-                          <span className={`font-semibold text-sm ${
-                            (aiAnalysis?.analysis?.analysis?.holderInsights?.concentrationRisk || aiAnalysis?.analysis?.holderInsights?.concentrationRisk) === 'Low' ? 'text-green-400' :
-                            (aiAnalysis?.analysis?.analysis?.holderInsights?.concentrationRisk || aiAnalysis?.analysis?.holderInsights?.concentrationRisk) === 'High' ? 'text-red-400' :
-                            'text-yellow-400'
-                          }`}>
-                            {aiAnalysis?.analysis?.analysis?.holderInsights?.concentrationRisk || aiAnalysis?.analysis?.holderInsights?.concentrationRisk || 'N/A'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-400">Holder Growth:</span>
-                          <span className={`font-semibold text-sm ${
-                            (aiAnalysis?.analysis?.analysis?.holderInsights?.holderGrowth || aiAnalysis?.analysis?.holderInsights?.holderGrowth) === 'Accelerating' ? 'text-green-400' :
-                            (aiAnalysis?.analysis?.analysis?.holderInsights?.holderGrowth || aiAnalysis?.analysis?.holderInsights?.holderGrowth) === 'Declining' ? 'text-red-400' :
-                            'text-yellow-400'
-                          }`}>
-                            {aiAnalysis?.analysis?.analysis?.holderInsights?.holderGrowth || aiAnalysis?.analysis?.holderInsights?.holderGrowth || 'N/A'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-400">Whale Activity:</span>
-                          <span className="text-white text-sm">{aiAnalysis?.analysis?.analysis?.holderInsights?.whaleActivity || aiAnalysis?.analysis?.holderInsights?.whaleActivity || 'N/A'}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-400">Retail Adoption:</span>
-                          <span className="text-white text-sm">{aiAnalysis?.analysis?.analysis?.holderInsights?.retailAdoption || aiAnalysis?.analysis?.holderInsights?.retailAdoption || 'N/A'}</span>
-                        </div>
-                      </div>
-                    </div>
 
                     {/* Risk Assessment */}
                     <div className="bg-gray-800/50 rounded-lg p-4">
@@ -2266,74 +2220,6 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                       </div>
                     </div>
 
-                    {/* Trading Signals */}
-                    <div className="bg-gray-800/50 rounded-lg p-4">
-                      <h5 className="text-white font-semibold mb-3 flex items-center">
-                        📊 Trading Signals
-                      </h5>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-400">Buy Pressure:</span>
-                          <span className={`font-semibold text-sm ${
-                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.buyPressure || aiAnalysis?.analysis?.tradingSignals?.buyPressure) === 'Strong' ? 'text-green-400' :
-                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.buyPressure || aiAnalysis?.analysis?.tradingSignals?.buyPressure) === 'Weak' ? 'text-red-400' :
-                            'text-yellow-400'
-                          }`}>
-                            {aiAnalysis?.analysis?.analysis?.tradingSignals?.buyPressure || aiAnalysis?.analysis?.tradingSignals?.buyPressure || 'N/A'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-400">Sell Pressure:</span>
-                          <span className={`font-semibold text-sm ${
-                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.sellPressure || aiAnalysis?.analysis?.tradingSignals?.sellPressure) === 'Strong' ? 'text-red-400' :
-                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.sellPressure || aiAnalysis?.analysis?.tradingSignals?.sellPressure) === 'Weak' ? 'text-green-400' :
-                            'text-yellow-400'
-                          }`}>
-                            {aiAnalysis?.analysis?.analysis?.tradingSignals?.sellPressure || aiAnalysis?.analysis?.tradingSignals?.sellPressure || 'N/A'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-400">Volume Trend:</span>
-                          <span className={`font-semibold text-sm ${
-                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.volumeTrend || aiAnalysis?.analysis?.tradingSignals?.volumeTrend) === 'Increasing' ? 'text-green-400' :
-                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.volumeTrend || aiAnalysis?.analysis?.tradingSignals?.volumeTrend) === 'Decreasing' ? 'text-red-400' :
-                            'text-yellow-400'
-                          }`}>
-                            {aiAnalysis?.analysis?.analysis?.tradingSignals?.volumeTrend || aiAnalysis?.analysis?.tradingSignals?.volumeTrend || 'N/A'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-400">Momentum:</span>
-                          <span className={`font-semibold text-sm ${
-                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.momentum || aiAnalysis?.analysis?.tradingSignals?.momentum) === 'Bullish' ? 'text-green-400' :
-                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.momentum || aiAnalysis?.analysis?.tradingSignals?.momentum) === 'Bearish' ? 'text-red-400' :
-                            'text-yellow-400'
-                          }`}>
-                            {aiAnalysis?.analysis?.analysis?.tradingSignals?.momentum || aiAnalysis?.analysis?.tradingSignals?.momentum || 'N/A'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-400">Entry Signal:</span>
-                          <span className={`font-semibold text-sm ${
-                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.entrySignal || aiAnalysis?.analysis?.tradingSignals?.entrySignal) === 'Strong' ? 'text-green-400' :
-                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.entrySignal || aiAnalysis?.analysis?.tradingSignals?.entrySignal) === 'Weak' ? 'text-red-400' :
-                            'text-yellow-400'
-                          }`}>
-                            {aiAnalysis?.analysis?.analysis?.tradingSignals?.entrySignal || aiAnalysis?.analysis?.tradingSignals?.entrySignal || 'N/A'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-400">Exit Signal:</span>
-                          <span className={`font-semibold text-sm ${
-                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.exitSignal || aiAnalysis?.analysis?.tradingSignals?.exitSignal) === 'Strong' ? 'text-red-400' :
-                            (aiAnalysis?.analysis?.analysis?.tradingSignals?.exitSignal || aiAnalysis?.analysis?.tradingSignals?.exitSignal) === 'Weak' ? 'text-green-400' :
-                            'text-yellow-400'
-                          }`}>
-                            {aiAnalysis?.analysis?.analysis?.tradingSignals?.exitSignal || aiAnalysis?.analysis?.tradingSignals?.exitSignal || 'N/A'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
 
                     {/* Catalysts & Red Flags */}
                     <div className="bg-gray-800/50 rounded-lg p-4">
@@ -2383,13 +2269,14 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                 </div>
 
                 {/* Actionable Recommendations */}
-                {aiAnalysis.analysis.actionableRecommendations && aiAnalysis.analysis.actionableRecommendations.length > 0 && (
+                {((aiAnalysis?.analysis?.analysis?.actionableRecommendations && aiAnalysis.analysis.analysis.actionableRecommendations.length > 0) || 
+                  (aiAnalysis?.analysis?.actionableRecommendations && aiAnalysis.analysis.actionableRecommendations.length > 0)) && (
                   <div className="mt-6 bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-lg p-4 border border-purple-500/30">
                     <h5 className="text-white font-semibold mb-3 flex items-center">
                       🎯 Recommended Actions
                     </h5>
                     <div className="space-y-2">
-                      {aiAnalysis.analysis.actionableRecommendations.map((rec, index) => (
+                      {(aiAnalysis?.analysis?.analysis?.actionableRecommendations || aiAnalysis?.analysis?.actionableRecommendations || []).map((rec, index) => (
                         <div key={index} className={`flex items-center justify-between p-3 rounded-lg border ${
                           rec.priority === 'high' ? 'border-red-500/30 bg-red-900/10' :
                           rec.priority === 'medium' ? 'border-yellow-500/30 bg-yellow-900/10' :
