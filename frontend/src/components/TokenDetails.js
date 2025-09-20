@@ -2110,11 +2110,6 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                       <div className="space-y-2">
                         {(() => {
                           const recommendation = aiAnalysis?.analysis?.analysis?.recommendation || aiAnalysis?.analysis?.recommendation;
-
-                            aiAnalysis, 
-                            recommendation,
-                            action: recommendation?.action 
-                          });
                           return null;
                         })()}
                         <div className="flex items-center justify-between">
