@@ -329,16 +329,8 @@ class SocialContextAI {
     return {
       sentiment: sentiment,
       confidence: 0.6,
-      aiAssessment: {
-        sentiment: sentiment,
-        confidence: 0.6,
-        summary: `Fallback analysis: ${sentiment.toLowerCase()} sentiment based on ${priceChange24h.toFixed(2)}% price change`
-      },
-      riskAssessment: {
-        level: 'Medium',
-        factors: ['Limited data available', 'Fallback analysis'],
-        mitigants: ['Use additional tools for deeper analysis']
-      },
+      aiAssessment: `Fallback analysis: ${sentiment.toLowerCase()} sentiment based on ${priceChange24h.toFixed(2)}% price change. Limited data available for comprehensive analysis.`,
+      riskAssessment: `Medium risk due to limited data availability. Fallback analysis indicates ${sentiment.toLowerCase()} sentiment but requires additional confirmation.`,
       keyInsights: [
         `Price change: ${priceChange24h.toFixed(2)}% in 24h`,
         `Holder count: ${this.formatNumber(holderCount)}`,
@@ -354,12 +346,7 @@ class SocialContextAI {
         'Fallback analysis may not capture all risks',
         'Consider using additional analysis tools'
       ],
-      recommendation: {
-        action: 'Hold',
-        reasoning: 'Insufficient data for confident recommendation',
-        timeframe: 'Short-term',
-        confidence: 'Low'
-      },
+      recommendation: 'Hold position due to insufficient data for confident recommendation. Consider using additional analysis tools.',
       recommendedActions: [
         {
           action: 'Oracle Chart',
