@@ -4237,13 +4237,26 @@ class EnhancedBackend {
 
     // Technical Analysis endpoint
     this.app.post('/api/tokens/:contract/technical-analysis', async (req, res) => {
+      // Set a timeout for the entire request
+      const requestTimeout = setTimeout(() => {
+        if (!res.headersSent) {
+          console.error(`⏰ Technical analysis request timeout for ${req.params.contract}`);
+          res.status(503).json({ 
+            success: false, 
+            error: 'Technical analysis request timeout - service temporarily unavailable' 
+          });
+        }
+      }, 25000); // 25 second timeout
+      
       try {
         const { contract } = req.params;
         const { timeframe = '1D', force = false, chartData: frontendChartData } = req.body;
         
-        console.log(`[🛡️ Enhanced Backend] 📊 Fetching technical analysis for: ${contract}`);
+        console.log(`[🛡️ Enhanced Backend] 📊 Fetching technical analysis for: ${contract} (${timeframe})`);
+        console.log(`[🛡️ Enhanced Backend] 📊 Chart data points: ${frontendChartData ? frontendChartData.length : 0}`);
         
         if (!contract) {
+          clearTimeout(requestTimeout);
           return res.status(400).json({ 
             success: false, 
             error: 'Contract address is required' 
@@ -4277,6 +4290,7 @@ class EnhancedBackend {
         const analysis = await techAnalysisService.getTechnicalAnalysis(contract, chartData);
         
         if (!analysis.success) {
+          clearTimeout(requestTimeout);
           return res.status(500).json({
             success: false,
             error: analysis.error || 'Failed to generate technical analysis'
@@ -4284,14 +4298,20 @@ class EnhancedBackend {
         }
         
         console.log(`✅ Technical analysis completed for ${contract}`);
+        clearTimeout(requestTimeout);
         res.json(analysis);
         
       } catch (error) {
+        clearTimeout(requestTimeout);
         console.error(`❌ Technical analysis error for ${req.params.contract}:`, error);
-        res.status(500).json({
-          success: false,
-          error: error.message || 'Internal server error'
-        });
+        
+        // Don't send response if timeout already sent one
+        if (!res.headersSent) {
+          res.status(500).json({
+            success: false,
+            error: error.message || 'Internal server error'
+          });
+        }
       }
     });
 

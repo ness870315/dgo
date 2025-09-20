@@ -43,6 +43,27 @@ class TechnicalAnalysisFrontendService {
       }
     } catch (error) {
       console.error('Error fetching technical analysis:', error);
+      
+      // Handle specific error cases
+      if (error.response) {
+        const status = error.response.status;
+        console.error(`Technical analysis request failed with status ${status}:`, error.response.data);
+        
+        // For 503 Service Unavailable, we could implement retry logic
+        if (status === 503) {
+          console.warn('🔄 Technical analysis service temporarily unavailable (503). This is usually temporary.');
+          // Could add retry logic here in the future
+        } else if (status === 429) {
+          console.warn('⏳ Rate limit exceeded (429). Please wait before making more requests.');
+        } else if (status >= 500) {
+          console.error('🚨 Server error occurred. The backend service may be experiencing issues.');
+        }
+      } else if (error.request) {
+        console.error('🌐 Network error: No response received from server');
+      } else {
+        console.error('⚠️ Request setup error:', error.message);
+      }
+      
       return null;
     }
   }
