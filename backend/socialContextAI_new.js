@@ -251,7 +251,7 @@ class SocialContextAI {
       tokenName: tokenData.name || 'Unknown',
       symbol: tokenData.symbol || 'N/A',
       marketCap: this.formatNumber(jupiterData.mcap || jupiterData.marketCap || tokenData.marketCap || 0),
-      price: jupiterData.usdPrice || jupiterData.price || tokenData.price || 'N/A',
+      price: jupiterData.usdPrice || jupiterData.price || tokenData.currentPrice || tokenData.price || 'N/A',
       priceChange24h: Number(jupiterData.priceChange24h || tokenData.priceChange24h || 0).toFixed(2),
       priceChange1h: Number(jupiterData.stats1h?.priceChange || jupiterData.priceChange1h || 0).toFixed(2),
       priceChange6h: Number(jupiterData.stats6h?.priceChange || jupiterData.priceChange6h || 0).toFixed(2),

@@ -150,16 +150,8 @@ Please provide analysis in this EXACT JSON format:
 {
   "sentiment": "Bullish|Bearish|Neutral",
   "confidence": 0.85,
-  "aiAssessment": {
-    "sentiment": "Bullish|Bearish|Neutral",
-    "confidence": 0.85,
-    "summary": "Brief AI assessment summary with crypto slang"
-  },
-  "riskAssessment": {
-    "level": "Low|Medium|High",
-    "factors": ["Technical risk factor", "Market risk factor", "Holder risk factor"],
-    "mitigants": ["Positive technical factor", "Positive market factor", "Positive holder factor"]
-  },
+  "aiAssessment": "Brief AI assessment summary with crypto slang - 2-3 sentences describing the overall analysis",
+  "riskAssessment": "Risk assessment summary with crypto slang - describe the main risks and their severity level",
   "keyInsights": [
     "Market insight with degen terminology about price action and volume trends",
     "Holder distribution insight with crypto slang about concentration and growth - use HolderStatsService data to describe distribution health and concentration levels", 
@@ -175,12 +167,7 @@ Please provide analysis in this EXACT JSON format:
     "Volume warning based on Moralis TokenAnalytics buy/sell volume imbalances",
     "Holder warning based on HolderTimeseriesService segment flow - CREATIVE VARIATIONS: if whales exiting: 'Whale outflow detected', if shrimp selling: 'Retail selling explains declining price, paper hands are out'"
   ],
-  "recommendation": {
-    "action": "Buy|Hold|Sell",
-    "reasoning": "One concise sentence summarizing the key factors and recommendation with crypto slang",
-    "timeframe": "Short-term|Medium-term|Long-term",
-    "confidence": "High|Medium|Low"
-  },
+  "recommendation": "One concise sentence summarizing the key factors and recommendation with crypto slang",
   "recommendedActions": [
     {
       "action": "Add to Watchlist|Hype over Time|Oracle Chart|Call it",
