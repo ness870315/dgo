@@ -207,14 +207,45 @@ class HolderTimeseriesService {
       airdrop: sortedData.map(d => d.newHoldersByAcquisition?.airdrop || 0)
     };
 
+    // Calculate segment flow summary for AI analysis
+    const segmentFlow = this.calculateSegmentFlow(holderFlow);
+
     return {
       netChanges,
       totalHolders,
       timestamps,
       holderFlow,
+      segmentFlow,
       acquisitionData,
       dataPoints: sortedData.length
     };
+  }
+
+  /**
+   * Calculate segment flow summary for AI analysis
+   * @param {Object} holderFlow - Holder flow data with in/out arrays
+   * @returns {Object} Segment flow summary with net flows
+   */
+  calculateSegmentFlow(holderFlow) {
+    const segments = ['whales', 'sharks', 'dolphins', 'fish', 'octopus', 'crabs', 'shrimps'];
+    const segmentFlow = {};
+    
+    segments.forEach(segment => {
+      const inFlow = holderFlow.in[segment] || [];
+      const outFlow = holderFlow.out[segment] || [];
+      
+      // Calculate total in/out for the segment (sum of all data points)
+      const totalIn = inFlow.reduce((sum, val) => sum + (val || 0), 0);
+      const totalOut = outFlow.reduce((sum, val) => sum + (val || 0), 0);
+      
+      segmentFlow[segment] = {
+        in: totalIn,
+        out: totalOut,
+        net: totalIn - totalOut
+      };
+    });
+    
+    return segmentFlow;
   }
 
   /**
@@ -482,11 +513,15 @@ class HolderTimeseriesService {
       holderFlow.out[segment] = netChanges.map(() => Math.floor(Math.random() * 5)); // 0-4 holders out
     });
     
+    // Calculate segment flow summary for AI analysis
+    const segmentFlow = this.calculateSegmentFlow(holderFlow);
+
     return {
       netChanges,
       totalHolders,
       timestamps,
       holderFlow,
+      segmentFlow,
       acquisitionData: {
         swap: netChanges.map(() => Math.floor(Math.random() * 10)),
         transfer: netChanges.map(() => Math.floor(Math.random() * 5)),
