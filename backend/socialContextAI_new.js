@@ -21,8 +21,10 @@ class SocialContextAI {
       console.log('🧠 Comprehensive AI Analysis initialized successfully with OpenAI');
       this.isInitialized = true;
     } catch (error) {
-      console.error('❌ Failed to initialize Comprehensive AI Analysis:', error.message);
+      console.warn('⚠️ OpenAI service not available for Token Details AI Analysis:', error.message);
+      console.log('🧠 Token Details AI Analysis will use fallback analysis only');
       this.isInitialized = true; // Still mark as initialized to allow fallback analysis
+      this.openaiService = null; // Clear the service to prevent further attempts
     }
   }
 
@@ -46,6 +48,12 @@ class SocialContextAI {
       
       // Use the new comprehensive template
       const prompt = this.fillTemplate(NEW_AI_PROMPT_TEMPLATES.COMPREHENSIVE_ANALYSIS, templateVars);
+      
+      // Check if OpenAI service is available (same pattern as Technical Analysis)
+      if (!this.openaiService || !this.isInitialized) {
+        console.log(`🧠 OpenAI not available, using fallback analysis for ${tokenData.symbol}`);
+        throw new Error('OpenAI service not available - using fallback analysis');
+      }
       
       console.log(`🧠 Sending comprehensive analysis request to OpenAI...`);
       console.log(`🧠 Prompt length: ${prompt.length} characters`);
