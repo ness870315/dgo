@@ -6596,6 +6596,33 @@ class EnhancedBackend {
       }
     });
 
+    // Bayesian Change-Point Detection Debug Test
+    this.app.get('/api/test/bayesian-debug', async (req, res) => {
+      try {
+        const { BayesianDebugTestEndpoint } = await import('./test-bayesian-debug.js');
+        const testEndpoint = new BayesianDebugTestEndpoint();
+        
+        console.log('🔍 Running Bayesian Change-Point Detection Debug...');
+        const results = await testEndpoint.debugBayesianDetection();
+        
+        res.json({
+          success: true,
+          message: 'Bayesian Debug Test completed',
+          results,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error('❌ Bayesian Debug Test failed:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Bayesian Debug Test failed',
+          details: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
     // Jupiter API Testing Endpoints
     this.app.get('/api/jupiter/test-known', async (req, res) => {
       try {
