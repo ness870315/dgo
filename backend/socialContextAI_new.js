@@ -19,7 +19,15 @@ class SocialContextAI {
       console.log(`🧠 Analyzing comprehensive data for ${tokenData.symbol}...`);
       
       // Prepare template variables with all data sources
-      const templateVars = this.prepareTemplateVariables(tokenData);
+      let templateVars;
+      try {
+        templateVars = this.prepareTemplateVariables(tokenData);
+        console.log(`✅ Successfully prepared template variables`);
+      } catch (prepError) {
+        console.error(`❌ Failed to prepare template variables:`, prepError.message);
+        console.error(`❌ Prep error stack:`, prepError.stack);
+        throw new Error(`Failed to prepare template variables: ${prepError.message}`);
+      }
       
       // Use the new comprehensive template
       const prompt = this.fillTemplate(NEW_AI_PROMPT_TEMPLATES.COMPREHENSIVE_ANALYSIS, templateVars);
@@ -61,7 +69,10 @@ class SocialContextAI {
         });
       } catch (parseError) {
         console.error(`❌ Failed to parse AI response:`, parseError.message);
-        console.log(`Raw response:`, completion.choices[0].message.content);
+        console.error(`❌ Parse error stack:`, parseError.stack);
+        console.log(`❌ Raw AI response (first 500 chars):`, completion.choices[0].message.content.substring(0, 500));
+        console.log(`❌ Raw AI response (last 500 chars):`, completion.choices[0].message.content.substring(completion.choices[0].message.content.length - 500));
+        console.log(`❌ Cleaned response (first 500 chars):`, cleanedResponse.substring(0, 500));
         throw new Error(`Failed to parse AI analysis: ${parseError.message}`);
       }
       
@@ -103,10 +114,16 @@ class SocialContextAI {
    * Prepare comprehensive template variables from all data sources
    */
   prepareTemplateVariables(tokenData) {
+    console.log(`🔍 Preparing template variables for token: ${tokenData.symbol}`);
+    console.log(`🔍 Token data keys:`, Object.keys(tokenData));
+    
     const jupiterData = tokenData.jupiterData || {};
     const callHistory = tokenData.callHistory || {};
     const holderData = tokenData.holderData || {};
     const moralisAnalytics = tokenData.moralisAnalytics || {};
+    
+    console.log(`🔍 Holder data keys:`, Object.keys(holderData));
+    console.log(`🔍 Moralis analytics keys:`, Object.keys(moralisAnalytics));
     
     // Process holder distribution data for AI analysis
     const holderStats = holderData.holderStats || {};
@@ -149,7 +166,11 @@ class SocialContextAI {
     
     // Process holder flow data for AI analysis
     const holderFlowData = holderData.holderFlowData || {};
+    console.log(`🔍 Holder flow data keys:`, Object.keys(holderFlowData));
+    
     const segmentFlowData = holderFlowData.segmentFlow || {};
+    console.log(`🔍 Segment flow data:`, segmentFlowData);
+    
     let holderFlowAnalysis = 'No flow data available';
     let segmentFlowSummary = 'No segment flow data available';
     
