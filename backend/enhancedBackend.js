@@ -3254,7 +3254,8 @@ class EnhancedBackend {
             // Legacy fields for compatibility
             regime: analysisResult.analysis?.regime,
             trend: analysisResult.analysis?.trend,
-            direction: analysisResult.analysis?.direction
+            direction: analysisResult.analysis?.direction,
+            confidence: analysisResult.analysis?.confidence || 0
           },
           
           // Confidence and metadata
