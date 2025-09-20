@@ -134,7 +134,7 @@ const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">Timeframe:</span>
-                  <span className="text-white text-sm">N/A</span>
+                  <span className="text-white text-sm">Current Analysis</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">Confidence:</span>
