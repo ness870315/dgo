@@ -85,7 +85,10 @@ class CallThesisGenerator {
    */
   prepareTemplateVariables(tokenData, callData) {
     const jupiterData = tokenData.jupiterData || {};
-    const twitterData = tokenData.twitterData || {};
+    const moralisAnalytics = tokenData.moralisAnalytics || {};
+    const holderData = tokenData.holderData || {};
+    const holderFlow = holderData.holderFlow || {};
+    const segmentFlow = holderData.segmentFlow || {};
     
     return {
       symbol: tokenData.symbol || 'Unknown',
@@ -93,23 +96,29 @@ class CallThesisGenerator {
       marketCap: this.formatNumber(callData.calledMc || 0),
       price: this.formatNumber(callData.calledPrice || 0),
       
-      // Analytics metrics
-      holderChange: this.formatPercentage(jupiterData.stats24h?.holderChange || 0),
-      volumeChange: this.formatPercentage(jupiterData.stats24h?.volumeChange || 0),
-      priceChange24h: this.formatPercentage(jupiterData.priceChange24h || 0),
-      organicScore: Math.round(jupiterData.organicScore || 0),
-      organicScoreLabel: jupiterData.organicScoreLabel || 'Unknown',
+      // Price & Volume Analytics (Moralis TokenAnalytics)
+      priceChange1h: this.formatPercentage(moralisAnalytics.priceChange?.['1h'] || 0),
+      priceChange6h: this.formatPercentage(moralisAnalytics.priceChange?.['6h'] || 0),
+      priceChange24h: this.formatPercentage(moralisAnalytics.priceChange?.['24h'] || 0),
+      volumeChange1h: this.formatPercentage(moralisAnalytics.volumeChange?.['1h'] || 0),
+      volumeChange6h: this.formatPercentage(moralisAnalytics.volumeChange?.['6h'] || 0),
+      volumeChange24h: this.formatPercentage(moralisAnalytics.volumeChange?.['24h'] || 0),
       
-      // Social metrics
-      mentions: twitterData.totalMentions || 0,
-      mentions24h: twitterData.mentions24h || 0,
-      communityScore: tokenData.communityScore || 0,
-      followers: twitterData.followers || 0,
-      engagementRate: this.formatPercentage(twitterData.engagementRate || 0),
+      // Buy/Sell Pressure (Moralis TokenAnalytics)
+      buyVolume24h: this.formatNumber(moralisAnalytics.totalBuyVolume?.['24h'] || 0),
+      sellVolume24h: this.formatNumber(moralisAnalytics.totalSellVolume?.['24h'] || 0),
+      buyPressure: this.formatPercentage(this.calculateBuyPressure(moralisAnalytics)),
       
-      // Technical indicators
-      liquidity: this.formatNumber(jupiterData.liquidity || 0),
-      holderCount: jupiterData.holderCount || 0,
+      // Holder Analytics (HolderTimeseriesService)
+      holderCount: holderData.totalHolders || jupiterData.holderCount || 0,
+      holderChange24h: this.formatPercentage(holderFlow.netFlow || 0),
+      whaleFlow: this.formatHolderFlow(segmentFlow.whales || {}),
+      dolphinFlow: this.formatHolderFlow(segmentFlow.dolphins || {}),
+      shrimpFlow: this.formatHolderFlow(segmentFlow.shrimps || {}),
+      
+      // Liquidity & Technical
+      liquidity: this.formatNumber(jupiterData.liquidity || moralisAnalytics.liquidity || 0),
+      marketCapRank: moralisAnalytics.marketCapRank || 'Unknown',
       
       // Call context
       calledAt: new Date().toLocaleDateString(),
@@ -131,25 +140,36 @@ TOKEN: ${templateVars.symbol} (${templateVars.name})
 MARKET CAP: $${templateVars.marketCap}
 PRICE: $${templateVars.price}
 
-ANALYTICS METRICS:
-- Holder Change: ${templateVars.holderChange}%
-- Volume Change: ${templateVars.volumeChange}%
+PRICE & VOLUME ANALYTICS:
+- Price Change 1h: ${templateVars.priceChange1h}%
+- Price Change 6h: ${templateVars.priceChange6h}%
 - Price Change 24h: ${templateVars.priceChange24h}%
-- Organic Score: ${templateVars.organicScore}/100 (${templateVars.organicScoreLabel})
-- Liquidity: $${templateVars.liquidity}
+- Volume Change 1h: ${templateVars.volumeChange1h}%
+- Volume Change 6h: ${templateVars.volumeChange6h}%
+- Volume Change 24h: ${templateVars.volumeChange24h}%
 
-SOCIAL METRICS:
-- Mentions: ${templateVars.mentions} (24h: ${templateVars.mentions24h})
-- Community Score: ${templateVars.communityScore}/10
-- Followers: ${templateVars.followers}
-- Engagement Rate: ${templateVars.engagementRate}%
+BUY/SELL PRESSURE:
+- Buy Volume 24h: $${templateVars.buyVolume24h}
+- Sell Volume 24h: $${templateVars.sellVolume24h}
+- Buy Pressure: ${templateVars.buyPressure}%
+
+HOLDER ANALYTICS:
+- Total Holders: ${templateVars.holderCount}
+- Holder Change 24h: ${templateVars.holderChange24h}%
+- Whale Flow: ${templateVars.whaleFlow}
+- Dolphin Flow: ${templateVars.dolphinFlow}
+- Shrimp Flow: ${templateVars.shrimpFlow}
+
+TECHNICAL METRICS:
+- Liquidity: $${templateVars.liquidity}
+- Market Cap Rank: ${templateVars.marketCapRank}
 
 Generate a ${tone} thesis that:
 1. Starts with: "${callAnnouncement} $${templateVars.symbol} at $${templateVars.marketCap} MC"
 2. Follows with: "Thesis: [your AI-generated thesis here]"
 3. Is 1-2 sentences max (for Twitter)
 4. Uses heavy crypto slang and degen terminology
-5. References specific metrics from our analytics
+5. References specific metrics from holder flows, buy pressure, and volume data
 6. Sounds like a confident KOL making a call
 7. Ends with: "${endingPhrase}"
 
@@ -205,24 +225,24 @@ Respond with ONLY the complete thesis text, no quotes or formatting.`;
   getToneGuidelines(tone) {
     const guidelines = {
       bullish: `- Use terms like "mooning", "sending it", "diamond hands", "based AF"
-- Focus on positive momentum and growth
+- Focus on positive momentum and growth from holder flows and buy pressure
 - Be confident and enthusiastic
-- Example: "Narrative ignition with 15% holder growth and 2.3x volume spike"`,
+- Example: "Whales accumulating with 85% buy pressure and +15% holder growth"`,
 
       cautious: `- Use terms like "early play", "high risk high reward", "proceed with caution"
-- Acknowledge risks while highlighting potential
+- Acknowledge risks while highlighting potential from data
 - Be measured but optimistic
-- Example: "Early narrative play with mixed signals - strong social momentum but low liquidity"`,
+- Example: "Early play with mixed signals - strong buy pressure but whale outflow detected"`,
 
-      technical: `- Use terms like "breakout", "resistance", "support", "technical analysis"
-- Focus on chart patterns and technical indicators
+      technical: `- Use terms like "breakout", "accumulation", "distribution", "flow analysis"
+- Focus on holder flows, buy/sell pressure, and volume data
 - Be analytical and data-driven
-- Example: "Technical breakout above key resistance with 2.3x volume spike and 8.5/10 community health"`,
+- Example: "Technical accumulation phase with 2.3x volume spike and whale inflow"`,
 
-      narrative: `- Use terms like "story", "narrative", "community", "vibes"
-- Focus on social momentum and community building
-- Be storytelling-focused
-- Example: "Community narrative building with strong engagement and organic growth signals"`
+      narrative: `- Use terms like "smart money", "retail FOMO", "diamond hands", "paper hands"
+- Focus on holder behavior and market psychology
+- Be storytelling-focused about market dynamics
+- Example: "Smart money accumulating while retail sleeps - classic early narrative setup"`
     };
 
     return guidelines[tone] || guidelines.bullish;
@@ -371,6 +391,37 @@ Respond with ONLY the complete thesis text, no quotes or formatting.`;
   formatPercentage(num) {
     if (num === null || num === undefined || isNaN(num)) return '0.00';
     return Number(num).toFixed(2);
+  }
+
+  /**
+   * Calculate buy pressure from Moralis analytics
+   */
+  calculateBuyPressure(moralisAnalytics) {
+    const buyVolume = moralisAnalytics.totalBuyVolume?.['24h'] || 0;
+    const sellVolume = moralisAnalytics.totalSellVolume?.['24h'] || 0;
+    const totalVolume = buyVolume + sellVolume;
+    
+    if (totalVolume === 0) return 0;
+    return (buyVolume / totalVolume) * 100;
+  }
+
+  /**
+   * Format holder flow data
+   */
+  formatHolderFlow(segmentData) {
+    if (!segmentData || typeof segmentData !== 'object') return 'No data';
+    
+    const netFlow = segmentData.netFlow || 0;
+    const inFlow = segmentData.inFlow || 0;
+    const outFlow = segmentData.outFlow || 0;
+    
+    if (netFlow > 0) {
+      return `+${this.formatNumber(inFlow)} in (${this.formatPercentage(netFlow)}% net)`;
+    } else if (netFlow < 0) {
+      return `-${this.formatNumber(Math.abs(outFlow))} out (${this.formatPercentage(Math.abs(netFlow))}% net)`;
+    } else {
+      return 'Neutral flow';
+    }
   }
 
   getTimeSinceCall(calledAt) {

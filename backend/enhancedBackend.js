@@ -2729,19 +2729,25 @@ class EnhancedBackend {
         const marketCap = jupiterData.mcap || jupiterData.marketCap || tokenData.marketCap || 0;
         const price = jupiterData.usdPrice || jupiterData.price || tokenData.price || 0;
         
-        console.log('[🛡️ Enhanced Backend] 📊 Thesis generation data:', {
-          symbol: tokenData.symbol,
-          jupiterMcap: jupiterData.mcap,
-          jupiterMarketCap: jupiterData.marketCap,
-          tokenMarketCap: tokenData.marketCap,
-          finalMarketCap: marketCap,
-          jupiterPrice: jupiterData.usdPrice,
-          jupiterPriceAlt: jupiterData.price,
-          tokenPrice: tokenData.price,
-          finalPrice: price,
-          tone,
-          forceRegenerate
-        });
+        // Fetch enhanced data for thesis generation
+        let enhancedTokenData = { ...tokenData };
+        
+        try {
+          // Fetch Moralis TokenAnalytics data
+          if (tokenData.contractAddress) {
+            const moralisAnalytics = await this.moralisService.getTokenAnalytics(tokenData.contractAddress);
+            enhancedTokenData.moralisAnalytics = moralisAnalytics;
+          }
+          
+          // Fetch Holder data
+          if (tokenData.contractAddress) {
+            const holderData = await this.holderTimeseriesService.getHolderInsights(tokenData.contractAddress);
+            enhancedTokenData.holderData = holderData;
+          }
+        } catch (error) {
+          console.error('[🛡️ Enhanced Backend] ⚠️ Failed to fetch enhanced data for thesis:', error.message);
+          // Continue with basic data if enhanced data fails
+        }
         
         const callData = {
           calledMc: marketCap,
@@ -2749,8 +2755,8 @@ class EnhancedBackend {
           calledAt: new Date().toISOString()
         };
         
-        // Generate thesis with specified tone and regeneration flag
-        const thesis = await this.callThesisGenerator.generateCallThesis(tokenData, callData, { 
+        // Generate thesis with enhanced data
+        const thesis = await this.callThesisGenerator.generateCallThesis(enhancedTokenData, callData, { 
           tone, 
           forceRegenerate 
         });

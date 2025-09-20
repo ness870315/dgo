@@ -59,10 +59,10 @@ const EnhancedCallModal = ({
       const tokenData = {
         symbol: token.symbol,
         name: token.name,
+        contractAddress: token.contractAddress,
         marketCap: token.marketCap || 0,
         price: token.price || 0,
-        jupiterData: token.jupiterData || {},
-        twitterData: token.twitterData || {}
+        jupiterData: token.jupiterData || {}
       };
       
       console.log('🧠 EnhancedCallModal: Generating thesis with data:', {
