@@ -65,13 +65,14 @@ class SocialContextAI {
         model: 'gpt-4'
       });
       
-      console.log(`🤖 AI completion generated (${completion.usage?.total_tokens || 0} tokens, $${(completion.usage?.total_tokens || 0) * 0.00003})`);
+      console.log(`🤖 AI completion generated successfully`);
       
       // Parse the AI response
       let analysis;
       try {
         // Clean the response to ensure it's valid JSON
-        let cleanedResponse = completion.choices[0].message.content.trim();
+        // Note: openaiService.generateCompletion returns just the content string, not the full response
+        let cleanedResponse = completion.trim();
         
         // Remove markdown code blocks if present
         if (cleanedResponse.startsWith('```json')) {
