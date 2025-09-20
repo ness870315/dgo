@@ -150,13 +150,26 @@ class SocialContextAI {
     const topHolders = holderData.topHolders || {};
     const holderChanges = holderData.holderChanges || {};
     
-    // Calculate holder concentration metrics
-    const top10Percentage = (topHolders.holders && Array.isArray(topHolders.holders)) 
-      ? topHolders.holders.slice(0, 10).reduce((sum, holder) => sum + (holder.percentage || 0), 0) 
-      : 0;
-    const top20Percentage = (topHolders.holders && Array.isArray(topHolders.holders)) 
-      ? topHolders.holders.slice(0, 20).reduce((sum, holder) => sum + (holder.percentage || 0), 0) 
-      : 0;
+    // Calculate holder concentration metrics with enhanced safety checks
+    let top10Percentage = 0;
+    let top20Percentage = 0;
+    
+    try {
+      if (topHolders && topHolders.holders && Array.isArray(topHolders.holders) && topHolders.holders.length > 0) {
+        top10Percentage = topHolders.holders.slice(0, 10).reduce((sum, holder) => {
+          return sum + (holder && typeof holder.percentage === 'number' ? holder.percentage : 0);
+        }, 0);
+        
+        top20Percentage = topHolders.holders.slice(0, 20).reduce((sum, holder) => {
+          return sum + (holder && typeof holder.percentage === 'number' ? holder.percentage : 0);
+        }, 0);
+      }
+      console.log(`🔍 Calculated holder percentages: top10=${top10Percentage}, top20=${top20Percentage}`);
+    } catch (holderError) {
+      console.error(`❌ Error calculating holder percentages:`, holderError.message);
+      top10Percentage = 0;
+      top20Percentage = 0;
+    }
     
     // Determine concentration level
     let concentrationLevel = 'Unknown';

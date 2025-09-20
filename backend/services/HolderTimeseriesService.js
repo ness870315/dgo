@@ -230,13 +230,31 @@ class HolderTimeseriesService {
     const segments = ['whales', 'sharks', 'dolphins', 'fish', 'octopus', 'crabs', 'shrimps'];
     const segmentFlow = {};
     
+    // Safety check for holderFlow structure
+    if (!holderFlow || typeof holderFlow !== 'object') {
+      console.log('⚠️ HolderFlow is invalid:', holderFlow);
+      // Return empty segment flow with zero values
+      segments.forEach(segment => {
+        segmentFlow[segment] = { in: 0, out: 0, net: 0 };
+      });
+      return segmentFlow;
+    }
+    
+    // Safety check for in/out properties
+    const inData = holderFlow.in || {};
+    const outData = holderFlow.out || {};
+    
     segments.forEach(segment => {
-      const inFlow = holderFlow.in[segment] || [];
-      const outFlow = holderFlow.out[segment] || [];
+      const inFlow = inData[segment] || [];
+      const outFlow = outData[segment] || [];
+      
+      // Ensure arrays are valid before calling reduce
+      const safeInFlow = Array.isArray(inFlow) ? inFlow : [];
+      const safeOutFlow = Array.isArray(outFlow) ? outFlow : [];
       
       // Calculate total in/out for the segment (sum of all data points)
-      const totalIn = inFlow.reduce((sum, val) => sum + (val || 0), 0);
-      const totalOut = outFlow.reduce((sum, val) => sum + (val || 0), 0);
+      const totalIn = safeInFlow.reduce((sum, val) => sum + (val || 0), 0);
+      const totalOut = safeOutFlow.reduce((sum, val) => sum + (val || 0), 0);
       
       segmentFlow[segment] = {
         in: totalIn,
