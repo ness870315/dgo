@@ -397,6 +397,9 @@ RESPONSE GUIDELINES:
 - For HYBRID queries: Combine both data sources intelligently
 - Always be specific with numbers and use crypto slang appropriately
 - When using user data, reference specific details from the context below
+- Keep responses concise and focused - NO logos, URLs, or unnecessary technical details
+- For price queries: Just provide the price, percentage change, and brief market context
+- Avoid mentioning external links, logo URLs, or technical identifiers unless specifically asked
 
 ${primarySource === 'user' ? 'FOCUS: This query is primarily about the user\'s personal Degen Oracle data.' :
   primarySource === 'blockchain' ? 'FOCUS: This query is primarily about blockchain/market data. Use your Moralis knowledge.' :
