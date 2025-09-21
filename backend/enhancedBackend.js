@@ -6783,6 +6783,211 @@ class EnhancedBackend {
       }
     });
 
+    // ========================================
+    // 🧠 AI CHAT HISTORY MANAGEMENT ENDPOINTS
+    // ========================================
+
+    // Save chat history
+    this.app.post('/api/ai/chat/save', async (req, res) => {
+      try {
+        const { sessionId, chatHistory, title } = req.body;
+        
+        if (!sessionId || !chatHistory) {
+          return res.status(400).json({
+            success: false,
+            error: 'Missing sessionId or chatHistory'
+          });
+        }
+
+        // Validate user session
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) {
+          return res.status(401).json({
+            success: false,
+            error: 'Invalid session'
+          });
+        }
+
+        console.log(`💾 Saving chat history for user ${user.id}: ${chatHistory.length} messages`);
+
+        // Save chat history
+        const savedHistory = await this.aiChatService.saveChatHistory(user.id, chatHistory, title);
+
+        res.json({
+          success: true,
+          history: savedHistory,
+          message: 'Chat history saved successfully'
+        });
+
+      } catch (error) {
+        console.error('❌ Save chat history error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to save chat history',
+          details: error.message
+        });
+      }
+    });
+
+    // Get chat histories
+    this.app.get('/api/ai/chat/histories', async (req, res) => {
+      try {
+        const { sessionId } = req.query;
+        
+        if (!sessionId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Missing sessionId'
+          });
+        }
+
+        // Validate user session
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) {
+          return res.status(401).json({
+            success: false,
+            error: 'Invalid session'
+          });
+        }
+
+        // Get chat histories
+        const histories = await this.aiChatService.getChatHistories(user.id);
+
+        res.json({
+          success: true,
+          histories: histories
+        });
+
+      } catch (error) {
+        console.error('❌ Get chat histories error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get chat histories',
+          details: error.message
+        });
+      }
+    });
+
+    // Load specific chat history
+    this.app.get('/api/ai/chat/history/:historyId', async (req, res) => {
+      try {
+        const { sessionId } = req.query;
+        const { historyId } = req.params;
+        
+        if (!sessionId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Missing sessionId'
+          });
+        }
+
+        // Validate user session
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) {
+          return res.status(401).json({
+            success: false,
+            error: 'Invalid session'
+          });
+        }
+
+        // Load chat history
+        const history = await this.aiChatService.loadChatHistory(user.id, historyId);
+
+        res.json({
+          success: true,
+          history: history
+        });
+
+      } catch (error) {
+        console.error('❌ Load chat history error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to load chat history',
+          details: error.message
+        });
+      }
+    });
+
+    // Delete chat history
+    this.app.delete('/api/ai/chat/history/:historyId', async (req, res) => {
+      try {
+        const { sessionId } = req.query;
+        const { historyId } = req.params;
+        
+        if (!sessionId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Missing sessionId'
+          });
+        }
+
+        // Validate user session
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) {
+          return res.status(401).json({
+            success: false,
+            error: 'Invalid session'
+          });
+        }
+
+        // Delete chat history
+        const remainingHistories = await this.aiChatService.deleteChatHistory(user.id, historyId);
+
+        res.json({
+          success: true,
+          histories: remainingHistories,
+          message: 'Chat history deleted successfully'
+        });
+
+      } catch (error) {
+        console.error('❌ Delete chat history error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to delete chat history',
+          details: error.message
+        });
+      }
+    });
+
+    // Get personalized suggestions
+    this.app.get('/api/ai/suggestions', async (req, res) => {
+      try {
+        const { sessionId } = req.query;
+        
+        if (!sessionId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Missing sessionId'
+          });
+        }
+
+        // Validate user session
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) {
+          return res.status(401).json({
+            success: false,
+            error: 'Invalid session'
+          });
+        }
+
+        // Get personalized suggestions
+        const suggestions = await this.aiChatService.generatePersonalizedSuggestions(user.id);
+
+        res.json({
+          success: true,
+          suggestions: suggestions
+        });
+
+      } catch (error) {
+        console.error('❌ Get suggestions error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get suggestions',
+          details: error.message
+        });
+      }
+    });
+
     // EAGLE Hype Analysis Debug Test
     this.app.get('/api/test/eagle-hype', async (req, res) => {
       try {

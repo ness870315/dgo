@@ -1,5 +1,6 @@
 import HybridDatabaseService from '../hybridDatabaseService.js';
 import fetch from 'node-fetch';
+import crypto from 'crypto';
 
 /**
  * Moralis AI Chat Service - Integrates Moralis AI with user-specific Degen Oracle data
@@ -17,6 +18,329 @@ class MoralisAIChatService {
     
     if (!this.moralisApiKey) {
       console.warn('⚠️ MORALIS_API_KEY not found in environment variables');
+    }
+  }
+
+  /**
+   * Learn from user conversation to build preferences
+   */
+  async learnFromConversation(userId, userPrompt, aiResponse) {
+    try {
+      console.log(`🧠 Learning from conversation for user ${userId}`);
+      
+      const learningData = this.extractLearningData(userPrompt, aiResponse);
+      
+      if (Object.keys(learningData).length > 0) {
+        await this.updateUserPreferences(userId, learningData);
+        console.log(`✅ Updated user preferences:`, learningData);
+      }
+    } catch (error) {
+      console.error('❌ Error learning from conversation:', error);
+      // Don't throw - learning is optional
+    }
+  }
+
+  /**
+   * Extract learning data from conversation
+   */
+  extractLearningData(userPrompt, aiResponse) {
+    const lowerPrompt = userPrompt.toLowerCase();
+    const learningData = {};
+
+    // Track token interests
+    const tokenMatches = userPrompt.match(/[a-z0-9]{32,}/gi) || [];
+    if (tokenMatches.length > 0) {
+      learningData.tokensDiscussed = tokenMatches;
+    }
+
+    // Track trading preferences
+    if (lowerPrompt.includes('bullish') || lowerPrompt.includes('moon') || lowerPrompt.includes('pump')) {
+      learningData.tradingStyle = 'aggressive';
+    } else if (lowerPrompt.includes('safe') || lowerPrompt.includes('conservative') || lowerPrompt.includes('hold')) {
+      learningData.tradingStyle = 'conservative';
+    }
+
+    // Track interests
+    if (lowerPrompt.includes('price') || lowerPrompt.includes('chart')) {
+      learningData.interests = (learningData.interests || []).concat(['price_analysis']);
+    }
+    if (lowerPrompt.includes('holder') || lowerPrompt.includes('whale')) {
+      learningData.interests = (learningData.interests || []).concat(['holder_analysis']);
+    }
+    if (lowerPrompt.includes('volume') || lowerPrompt.includes('trading')) {
+      learningData.interests = (learningData.interests || []).concat(['volume_analysis']);
+    }
+
+    // Track question types
+    if (lowerPrompt.includes('what') || lowerPrompt.includes('how')) {
+      learningData.questionTypes = (learningData.questionTypes || []).concat(['educational']);
+    }
+    if (lowerPrompt.includes('should i') || lowerPrompt.includes('recommend')) {
+      learningData.questionTypes = (learningData.questionTypes || []).concat(['advice_seeking']);
+    }
+
+    // Track time preferences
+    const now = new Date();
+    learningData.activeHours = now.getHours();
+    learningData.lastInteraction = now.toISOString();
+
+    return learningData;
+  }
+
+  /**
+   * Update user preferences based on learning data
+   */
+  async updateUserPreferences(userId, learningData) {
+    try {
+      // Get existing preferences
+      const preferences = await this.getUserPreferences(userId);
+      
+      // Update token interests
+      if (learningData.tokensDiscussed) {
+        preferences.tokenInterests = preferences.tokenInterests || [];
+        learningData.tokensDiscussed.forEach(token => {
+          const existing = preferences.tokenInterests.find(t => t.address === token);
+          if (existing) {
+            existing.mentions++;
+            existing.lastMentioned = new Date().toISOString();
+          } else {
+            preferences.tokenInterests.push({
+              address: token,
+              mentions: 1,
+              firstMentioned: new Date().toISOString(),
+              lastMentioned: new Date().toISOString()
+            });
+          }
+        });
+        
+        // Keep only top 20 most mentioned tokens
+        preferences.tokenInterests = preferences.tokenInterests
+          .sort((a, b) => b.mentions - a.mentions)
+          .slice(0, 20);
+      }
+
+      // Update trading style
+      if (learningData.tradingStyle) {
+        preferences.tradingStyle = preferences.tradingStyle || {};
+        preferences.tradingStyle[learningData.tradingStyle] = 
+          (preferences.tradingStyle[learningData.tradingStyle] || 0) + 1;
+      }
+
+      // Update interests
+      if (learningData.interests) {
+        preferences.interests = preferences.interests || {};
+        learningData.interests.forEach(interest => {
+          preferences.interests[interest] = (preferences.interests[interest] || 0) + 1;
+        });
+      }
+
+      // Update question types
+      if (learningData.questionTypes) {
+        preferences.questionTypes = preferences.questionTypes || {};
+        learningData.questionTypes.forEach(type => {
+          preferences.questionTypes[type] = (preferences.questionTypes[type] || 0) + 1;
+        });
+      }
+
+      // Update activity patterns
+      if (learningData.activeHours !== undefined) {
+        preferences.activityPattern = preferences.activityPattern || {};
+        const hour = learningData.activeHours;
+        preferences.activityPattern[hour] = (preferences.activityPattern[hour] || 0) + 1;
+      }
+
+      preferences.lastUpdated = new Date().toISOString();
+      preferences.totalInteractions = (preferences.totalInteractions || 0) + 1;
+
+      // Save preferences
+      await this.saveUserPreferences(userId, preferences);
+      
+    } catch (error) {
+      console.error('❌ Error updating user preferences:', error);
+    }
+  }
+
+  /**
+   * Get user preferences for learning
+   */
+  async getUserPreferences(userId) {
+    try {
+      const preferencesFile = this.db.getUserFile(userId, 'ai_preferences.json');
+      return await this.db.readJsonFile(preferencesFile, {
+        tokenInterests: [],
+        tradingStyle: {},
+        interests: {},
+        questionTypes: {},
+        activityPattern: {},
+        totalInteractions: 0,
+        createdAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('❌ Error getting user preferences:', error);
+      return {};
+    }
+  }
+
+  /**
+   * Save user preferences
+   */
+  async saveUserPreferences(userId, preferences) {
+    try {
+      await this.db.ensureUserDir(userId);
+      const preferencesFile = this.db.getUserFile(userId, 'ai_preferences.json');
+      await this.db.writeJsonFile(preferencesFile, preferences);
+    } catch (error) {
+      console.error('❌ Error saving user preferences:', error);
+    }
+  }
+
+  /**
+   * Save chat history (up to 3 histories per user)
+   */
+  async saveChatHistory(userId, chatHistory, title = null) {
+    try {
+      console.log(`💾 Saving chat history for user ${userId}`);
+      
+      await this.db.ensureUserDir(userId);
+      const chatHistoriesFile = this.db.getUserFile(userId, 'chat_histories.json');
+      
+      // Get existing histories
+      const histories = await this.db.readJsonFile(chatHistoriesFile, []);
+      
+      // Create new history entry
+      const newHistory = {
+        id: crypto.randomUUID(),
+        title: title || `Chat ${new Date().toLocaleDateString()}`,
+        messages: chatHistory,
+        createdAt: new Date().toISOString(),
+        messageCount: chatHistory.length
+      };
+      
+      // Add to beginning of array
+      histories.unshift(newHistory);
+      
+      // Keep only the latest 3 histories
+      const limitedHistories = histories.slice(0, 3);
+      
+      await this.db.writeJsonFile(chatHistoriesFile, limitedHistories);
+      
+      console.log(`✅ Saved chat history: ${newHistory.title} (${newHistory.messageCount} messages)`);
+      return newHistory;
+      
+    } catch (error) {
+      console.error('❌ Error saving chat history:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get user's saved chat histories
+   */
+  async getChatHistories(userId) {
+    try {
+      const chatHistoriesFile = this.db.getUserFile(userId, 'chat_histories.json');
+      return await this.db.readJsonFile(chatHistoriesFile, []);
+    } catch (error) {
+      console.error('❌ Error getting chat histories:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Load specific chat history
+   */
+  async loadChatHistory(userId, historyId) {
+    try {
+      const histories = await this.getChatHistories(userId);
+      const history = histories.find(h => h.id === historyId);
+      
+      if (!history) {
+        throw new Error('Chat history not found');
+      }
+      
+      console.log(`📖 Loaded chat history: ${history.title} (${history.messageCount} messages)`);
+      return history;
+      
+    } catch (error) {
+      console.error('❌ Error loading chat history:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete chat history
+   */
+  async deleteChatHistory(userId, historyId) {
+    try {
+      const chatHistoriesFile = this.db.getUserFile(userId, 'chat_histories.json');
+      const histories = await this.db.readJsonFile(chatHistoriesFile, []);
+      
+      const filteredHistories = histories.filter(h => h.id !== historyId);
+      await this.db.writeJsonFile(chatHistoriesFile, filteredHistories);
+      
+      console.log(`🗑️ Deleted chat history: ${historyId}`);
+      return filteredHistories;
+      
+    } catch (error) {
+      console.error('❌ Error deleting chat history:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate personalized suggestions based on user preferences
+   */
+  async generatePersonalizedSuggestions(userId) {
+    try {
+      const preferences = await this.getUserPreferences(userId);
+      const suggestions = [];
+
+      // Suggest based on token interests
+      if (preferences.tokenInterests && preferences.tokenInterests.length > 0) {
+        const topToken = preferences.tokenInterests[0];
+        suggestions.push(`How is ${topToken.address.substring(0, 8)}... performing today?`);
+      }
+
+      // Suggest based on interests
+      if (preferences.interests) {
+        if (preferences.interests.price_analysis > 0) {
+          suggestions.push("Show me price analysis for trending tokens");
+        }
+        if (preferences.interests.holder_analysis > 0) {
+          suggestions.push("What whale movements should I watch?");
+        }
+        if (preferences.interests.volume_analysis > 0) {
+          suggestions.push("Which tokens have unusual volume today?");
+        }
+      }
+
+      // Suggest based on trading style
+      if (preferences.tradingStyle) {
+        if (preferences.tradingStyle.aggressive > preferences.tradingStyle.conservative) {
+          suggestions.push("What are the highest potential moonshots right now?");
+        } else {
+          suggestions.push("Show me safe, stable investment opportunities");
+        }
+      }
+
+      // Default suggestions if no preferences
+      if (suggestions.length === 0) {
+        suggestions.push(
+          "What's my most profitable KOL call?",
+          "Show me trending tokens with high volume",
+          "What tokens should I add to my watchlist?"
+        );
+      }
+
+      return suggestions.slice(0, 6); // Return max 6 suggestions
+      
+    } catch (error) {
+      console.error('❌ Error generating personalized suggestions:', error);
+      return [
+        "What's my most profitable KOL call?",
+        "Show me trending tokens",
+        "Help me analyze my portfolio"
+      ];
     }
   }
 
@@ -253,6 +577,10 @@ class MoralisAIChatService {
       const userContext = await this.gatherUserContext(userId, dataNeeds);
       console.log(`📊 User context gathered: ${Object.keys(userContext).join(', ')}`);
 
+      // Add user preferences for personalization
+      const userPreferences = await this.getUserPreferences(userId);
+      userContext.preferences = userPreferences;
+
       // Add additional token data to context
       if (Object.keys(additionalTokenData).length > 0) {
         userContext.tokenData = additionalTokenData;
@@ -276,6 +604,11 @@ class MoralisAIChatService {
       if (commands.length > 0 || this.shouldSuggestActions(userPrompt)) {
         formattedResponse.actionSuggestions = this.generateActionSuggestions(userPrompt, userContext);
       }
+
+      // Learn from this conversation (async, don't wait)
+      this.learnFromConversation(userId, userPrompt, formattedResponse.content).catch(error => {
+        console.error('❌ Learning failed:', error);
+      });
 
       return {
         success: true,
@@ -698,6 +1031,39 @@ TOP 5 CALLS:`;
           systemContext += `\n❌ ${result.message}`;
         }
       });
+    }
+
+    // Add user preferences for personalization
+    if (userContext.preferences && userContext.preferences.totalInteractions > 0) {
+      systemContext += `\n\nUSER PREFERENCES (LEARNED):`;
+      
+      // Top token interests
+      if (userContext.preferences.tokenInterests && userContext.preferences.tokenInterests.length > 0) {
+        const topTokens = userContext.preferences.tokenInterests.slice(0, 3);
+        systemContext += `\n- Frequently discussed tokens: ${topTokens.map(t => t.address.substring(0, 8) + '...').join(', ')}`;
+      }
+      
+      // Trading style
+      if (userContext.preferences.tradingStyle) {
+        const styles = Object.entries(userContext.preferences.tradingStyle);
+        if (styles.length > 0) {
+          const dominantStyle = styles.reduce((a, b) => a[1] > b[1] ? a : b)[0];
+          systemContext += `\n- Trading style: ${dominantStyle}`;
+        }
+      }
+      
+      // Main interests
+      if (userContext.preferences.interests) {
+        const interests = Object.entries(userContext.preferences.interests)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3)
+          .map(([interest]) => interest.replace('_', ' '));
+        if (interests.length > 0) {
+          systemContext += `\n- Main interests: ${interests.join(', ')}`;
+        }
+      }
+      
+      systemContext += `\n- Total interactions: ${userContext.preferences.totalInteractions}`;
     }
 
     // Add conversation history if available
