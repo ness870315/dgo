@@ -222,7 +222,8 @@ const AIChatModal = ({ isOpen, onClose }) => {
   const handleDeleteChat = async (historyId, event) => {
     event.stopPropagation(); // Prevent triggering load
     
-    if (!confirm('Are you sure you want to delete this chat history?')) {
+    // eslint-disable-next-line no-restricted-globals
+    if (!window.confirm('Are you sure you want to delete this chat history?')) {
       return;
     }
 
