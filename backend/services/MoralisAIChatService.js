@@ -517,7 +517,7 @@ Please provide a helpful, accurate response using the user's data when relevant.
    */
   formatAIResponse(aiResponse, userContext) {
     // The Moralis AI response format may vary, adjust as needed
-    const content = aiResponse.result || aiResponse.content || aiResponse.message || 'No response received';
+    const content = aiResponse.text || aiResponse.result || aiResponse.content || aiResponse.message || 'No response received';
     
     return {
       content: content,
