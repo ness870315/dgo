@@ -288,37 +288,37 @@ class HypeTrendAnalysis {
     const { velocity, acceleration, isAccelerating } = derivativeAnalysis;
     const { hasRecentChange, changeDirection } = changePointAnalysis;
     
-    // Rising regime indicators (lowered thresholds for better sensitivity)
+    // Rising regime indicators (much more sensitive thresholds)
     const risingSignals = [
-      momentum > 0.1,  // Lowered from 0.5 to 0.1
-      velocity > 0.05, // Lowered from 0.1 to 0.05
+      momentum > -0.05,  // Very low threshold - just not strongly negative
+      velocity > 0.01,   // Very low threshold - any positive velocity
       isAccelerating,
       hasRecentChange && changeDirection === 'upturn',
       trend === 'rising'
     ].filter(Boolean).length;
     
-    // Fading regime indicators (lowered thresholds for better sensitivity)
+    // Fading regime indicators (much more sensitive thresholds)
     const fadingSignals = [
-      momentum < -0.1,  // Lowered from -0.5 to -0.1
-      velocity < -0.05, // Lowered from -0.1 to -0.05
-      acceleration < -0.05, // Lowered from -0.1 to -0.05
+      momentum < -0.05,  // Very low threshold - any negative momentum
+      velocity < -0.01,  // Very low threshold - any negative velocity
+      acceleration < -0.01, // Very low threshold - any negative acceleration
       hasRecentChange && changeDirection === 'downturn',
       trend === 'falling'
     ].filter(Boolean).length;
     
-    // Determine regime (lowered threshold from 3 to 2 for better sensitivity)
-    if (risingSignals >= 2) {
+    // Determine regime (very low threshold - just need 1 strong signal)
+    if (risingSignals >= 1) {
       return {
         type: 'rising',
-        strength: risingSignals / 5,
+        strength: Math.max(0.6, risingSignals / 5), // Minimum 60% strength
         description: 'Social momentum is accelerating upward',
         emoji: '📈',
         color: '#10b981'
       };
-    } else if (fadingSignals >= 2) {
+    } else if (fadingSignals >= 1) {
       return {
         type: 'fading',
-        strength: fadingSignals / 5,
+        strength: Math.max(0.6, fadingSignals / 5), // Minimum 60% strength
         description: 'Social momentum is declining',
         emoji: '📉',
         color: '#ef4444'
@@ -352,14 +352,14 @@ class HypeTrendAnalysis {
     let trend = 'sideways';
     let forecast = [];
     
-    if (type === 'rising' && strength > 0.6) {
+    if (type === 'rising' && strength > 0.3) {  // Lowered from 0.6 to 0.3
       direction = '↑';
       trend = 'bullish';
       
       // Generate optimistic forecast
       forecast = this.generateForecast(currentScore, velocity, acceleration, 'up');
       
-    } else if (type === 'fading' && strength > 0.6) {
+    } else if (type === 'fading' && strength > 0.3) {  // Lowered from 0.6 to 0.3
       direction = '↓';
       trend = 'bearish';
       
@@ -487,7 +487,7 @@ class HypeTrendAnalysis {
     const { trend, direction } = prediction;
     const { level } = confidence;
     
-    if (type === 'rising' && strength > 0.6 && level > 0.6) {
+    if (type === 'rising' && strength > 0.3 && level > 0.3) {  // Lowered from 0.6 to 0.3
       return {
         action: 'BULLISH',
         message: `Strong ${direction} momentum with ${(level * 100).toFixed(0)}% confidence`,
@@ -495,7 +495,7 @@ class HypeTrendAnalysis {
         timeframe: '6-12 hours',
         riskLevel: 'medium'
       };
-    } else if (type === 'fading' && strength > 0.6 && level > 0.6) {
+    } else if (type === 'fading' && strength > 0.3 && level > 0.3) {  // Lowered from 0.6 to 0.3
       return {
         action: 'BEARISH',
         message: `Declining ${direction} momentum with ${(level * 100).toFixed(0)}% confidence`,
