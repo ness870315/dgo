@@ -153,14 +153,30 @@ function Sparkline({ data = [], width = 120, height = 32, color = "rgb(52,211,15
 }
 
 // Main DetailDrawer component
-export default function DetailDrawer({ call, onClose }) {
+export default function DetailDrawer({ call, onClose, onRefresh }) {
   const [chartData, setChartData] = useState(null);
   const [loadingChart, setLoadingChart] = useState(false);
   const [jupToken, setJupToken] = useState(null);
   const [loadingJup, setLoadingJup] = useState(false);
   const [socialContext, setSocialContext] = useState(null);
   const [loadingSocial, setLoadingSocial] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+  
+  // Refresh call data to get latest milestone posts
+  const refreshCallData = async () => {
+    if (!onRefresh) return;
+    
+    setRefreshing(true);
+    try {
+      await onRefresh();
+      console.log('🔄 DetailDrawer: Call data refreshed successfully');
+    } catch (error) {
+      console.error('❌ DetailDrawer: Failed to refresh call data:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
   
   // Load chart data when call changes
   useEffect(() => {
@@ -482,9 +498,18 @@ export default function DetailDrawer({ call, onClose }) {
 
           {/* Call Tweets & Milestones */}
           <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-            <div className="text-sm font-medium mb-3 text-white flex items-center gap-2">
-              <span>🐦</span>
-              Call Tweets & Milestones
+            <div className="text-sm font-medium mb-3 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span>🐦</span>
+                Call Tweets & Milestones
+              </div>
+              <button
+                onClick={refreshCallData}
+                disabled={refreshing}
+                className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:opacity-50 rounded text-white transition-colors"
+              >
+                {refreshing ? 'Refreshing...' : 'Refresh'}
+              </button>
             </div>
             
             {/* Original Call Tweet */}
@@ -544,7 +569,7 @@ export default function DetailDrawer({ call, onClose }) {
               )}
 
               {/* Milestone Posts */}
-              {call.milestonePosts && call.milestonePosts.length > 0 && (
+              {call.milestonePosts && call.milestonePosts.length > 0 ? (
                 <div className="space-y-2">
                   {call.milestonePosts.map((post, index) => (
                     <div key={index} className="p-3 bg-green-900/20 border border-green-600/30 rounded-lg">
@@ -568,6 +593,17 @@ export default function DetailDrawer({ call, onClose }) {
                     </div>
                   ))}
                 </div>
+              ) : (
+                <div className="p-3 bg-yellow-900/20 border border-yellow-600/30 rounded-lg">
+                  <div className="text-sm text-yellow-300 mb-2">
+                    Debug: No milestone posts found
+                  </div>
+                  <div className="text-xs text-yellow-200">
+                    Call ID: {call.id}<br/>
+                    Milestone Posts: {call.milestonePosts ? 'exists but empty' : 'undefined'}<br/>
+                    Length: {call.milestonePosts?.length || 0}
+                  </div>
+                </div>
               )}
 
               {/* No Twitter Posts */}
@@ -580,8 +616,8 @@ export default function DetailDrawer({ call, onClose }) {
               )}
             </div>
 
-            {/* Call Status */}
-            <div className="mt-4 pt-3 border-t border-white/10">
+            {/* Call Status - Hidden per user request */}
+            {/* <div className="mt-4 pt-3 border-t border-white/10">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-white/60">Status:</span>
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -598,7 +634,7 @@ export default function DetailDrawer({ call, onClose }) {
                   <span className="text-green-300">Enabled</span>
                 </div>
               )}
-            </div>
+            </div> */}
           </div>
 
           {/* Performance Summary */}

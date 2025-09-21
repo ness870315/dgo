@@ -322,7 +322,8 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
         {/* Detail Drawer */}
         <DetailDrawer 
           call={selectedCall} 
-          onClose={() => setSelectedCall(null)} 
+          onClose={() => setSelectedCall(null)}
+          onRefresh={load}
         />
     </Container>
   );
