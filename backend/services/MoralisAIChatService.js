@@ -637,7 +637,7 @@ class MoralisAIChatService {
       console.log(`🔍 Data needs identified:`, dataNeeds);
 
       // Gather relevant user data based on the prompt
-      const userContext = await this.gatherUserContext(userId, dataNeeds);
+      const userContext = await this.gatherUserContext(userId, dataNeeds, userPrompt);
       console.log(`📊 User context gathered: ${Object.keys(userContext).join(', ')}`);
 
       // Add user preferences for personalization
@@ -830,7 +830,7 @@ class MoralisAIChatService {
   /**
    * Gather relevant user context based on data needs
    */
-  async gatherUserContext(userId, dataNeeds) {
+  async gatherUserContext(userId, dataNeeds, prompt = '') {
     const context = {};
 
     try {
