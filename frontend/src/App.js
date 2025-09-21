@@ -17,7 +17,7 @@ import ApifyTestPage from './components/ApifyTestPage';
 import PremiumPage from './components/PremiumPage';
 import MobilePushNotification from './components/MobilePushNotification';
 import AIChatModal from './components/AIChatModal';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import tokenService from './services/tokenService';
 import pushNotificationService from './services/pushNotificationService';
 import './App.css';
@@ -192,7 +192,8 @@ const submitTokenToDatabase = async (tokenData) => {
   }
 };
 
-function App() {
+function AppContent() {
+  const { user } = useAuth();
   const [tokens, setTokens] = useState([]);
   const [filteredTokens, setFilteredTokens] = useState([]);
   const [selectedToken, setSelectedToken] = useState(null);
@@ -1052,8 +1053,7 @@ function App() {
   }
 
   return (
-    <AuthProvider>
-      <div className="min-h-screen bg-dark-bg">
+    <div className="min-h-screen bg-dark-bg">
         <Header
           onSearch={handleSearch}
           onFilter={handleFilter}
@@ -1062,6 +1062,7 @@ function App() {
           onWatchlistClick={handleWatchlistClick}
           onApifyTestClick={handleApifyTestClick}
           onAIChatClick={handleAIChatClick}
+          user={user}
 
           authButton={<AuthButton 
             onNavigateToListToken={handleListTokenClick} 
@@ -1314,7 +1315,14 @@ function App() {
         isOpen={showAIChat}
         onClose={() => setShowAIChat(false)}
       />
-    </div>
+      </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
     </AuthProvider>
   );
 }

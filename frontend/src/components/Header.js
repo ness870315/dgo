@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Search, Filter, TrendingUp, RefreshCw, Settings, Star, Bot } from 'lucide-react';
 import dgoLogo from '../assets/dgo.png';
 
-const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, authButton, onWatchlistClick, onApifyTestClick, onAIChatClick }) => {
+const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, authButton, onWatchlistClick, onApifyTestClick, onAIChatClick, user }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
@@ -108,12 +108,20 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
 
               {/* AI Chat Button */}
               <button
-                onClick={onAIChatClick}
-                className="px-2 py-1 rounded-md border border-gray-600 text-gray-400 hover:text-purple-400 hover:border-purple-500 transition-colors text-xs"
-                title="AI Assistant"
+                onClick={user?.isPremium ? onAIChatClick : undefined}
+                disabled={!user?.isPremium}
+                className={`px-2 py-1 rounded-md border text-xs transition-colors ${
+                  user?.isPremium 
+                    ? 'border-gray-600 text-gray-400 hover:text-purple-400 hover:border-purple-500 cursor-pointer' 
+                    : 'border-gray-700 text-gray-600 cursor-not-allowed opacity-60'
+                }`}
+                title={user?.isPremium ? "AI Assistant" : "AI Assistant (Premium Only)"}
                 style={{ fontSize: '11px', minHeight: '24px' }}
               >
                 <Bot size={12} />
+                {!user?.isPremium && (
+                  <span className="ml-1 text-xs text-yellow-500">★</span>
+                )}
               </button>
 
               {/* Authentication Button */}
