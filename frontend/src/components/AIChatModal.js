@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Bot, User, Sparkles, MessageCircle } from 'lucide-react';
+import { X, Send, Bot, User, Sparkles, MessageCircle, Star, BarChart3, TrendingUp } from 'lucide-react';
 import aiChatService from '../services/aiChatService';
 
 const AIChatModal = ({ isOpen, onClose }) => {
@@ -66,6 +66,8 @@ const AIChatModal = ({ isOpen, onClose }) => {
         timestamp: response.timestamp || new Date().toISOString(),
         hasUserData: response.hasUserData,
         dataUsed: response.dataUsed,
+        actionSuggestions: response.actionSuggestions || [],
+        commandsExecuted: response.commandsExecuted || [],
         success: response.success
       };
 
@@ -97,6 +99,45 @@ const AIChatModal = ({ isOpen, onClose }) => {
 
   const handleSuggestionClick = (suggestion) => {
     handleSendMessage(suggestion);
+  };
+
+  const handleActionClick = async (action) => {
+    setIsLoading(true);
+    
+    try {
+      console.log(`🎯 Executing action: ${action.type}`);
+      const result = await aiChatService.executeAction(action);
+      
+      // Add result message to chat
+      const resultMessage = {
+        role: 'assistant',
+        content: result.success ? 
+          `✅ ${result.message}` : 
+          `❌ ${result.error}`,
+        timestamp: new Date().toISOString(),
+        hasUserData: false,
+        success: result.success,
+        isActionResult: true
+      };
+      
+      setMessages(prev => [...prev, resultMessage]);
+      
+    } catch (error) {
+      console.error('Error executing action:', error);
+      
+      const errorMessage = {
+        role: 'assistant',
+        content: `❌ Failed to execute action: ${error.message}`,
+        timestamp: new Date().toISOString(),
+        hasUserData: false,
+        success: false,
+        isActionResult: true
+      };
+      
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const clearChat = () => {
@@ -200,6 +241,28 @@ const AIChatModal = ({ isOpen, onClose }) => {
                       <div className="flex items-center gap-1 text-xs text-gray-400">
                         <MessageCircle size={12} />
                         <span>Used: {message.dataUsed.join(', ')}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action suggestions */}
+                  {message.role === 'assistant' && message.actionSuggestions && message.actionSuggestions.length > 0 && (
+                    <div className="mt-3 pt-2 border-t border-gray-600/30">
+                      <div className="text-xs text-gray-400 mb-2">Quick Actions:</div>
+                      <div className="flex flex-wrap gap-2">
+                        {message.actionSuggestions.map((action, actionIndex) => (
+                          <button
+                            key={actionIndex}
+                            onClick={() => handleActionClick(action)}
+                            disabled={isLoading}
+                            className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 rounded-md text-blue-300 transition-colors disabled:opacity-50"
+                          >
+                            {action.type === 'ADD_TO_WATCHLIST' && <Star size={12} />}
+                            {action.type === 'GET_FULL_ANALYSIS' && <BarChart3 size={12} />}
+                            {action.type === 'VIEW_CHART' && <TrendingUp size={12} />}
+                            <span>{action.label}</span>
+                          </button>
+                        ))}
                       </div>
                     </div>
                   )}

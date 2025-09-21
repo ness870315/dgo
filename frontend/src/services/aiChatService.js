@@ -55,6 +55,8 @@ class AIChatService {
         content: data.response.content,
         hasUserData: data.hasUserData,
         dataUsed: data.dataUsed,
+        actionSuggestions: data.response.actionSuggestions || [],
+        commandsExecuted: data.commandsExecuted || [],
         timestamp: data.timestamp
       };
 
@@ -117,6 +119,57 @@ class AIChatService {
       "Which of my calls has the highest ATH multiplier?",
       "What's my win rate on KOL calls?"
     ];
+  }
+
+  /**
+   * Execute an action suggestion
+   */
+  async executeAction(action) {
+    try {
+      const sessionId = localStorage.getItem('sessionId');
+      
+      if (!sessionId) {
+        throw new Error('No session found. Please log in first.');
+      }
+
+      console.log(`🎯 Executing action: ${action.type} for ${action.contractAddress}`);
+
+      if (action.type === 'ADD_TO_WATCHLIST') {
+        // Use the existing watchlist API
+        const response = await fetch(`${this.API_BASE}/api/watchlist/add`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            sessionId,
+            contractAddress: action.contractAddress,
+            symbol: action.symbol || 'Unknown'
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to add to watchlist: ${response.status}`);
+        }
+
+        const result = await response.json();
+        return {
+          success: true,
+          message: `Successfully added to watchlist!`,
+          result
+        };
+      }
+
+      // Add more action types here as needed
+      throw new Error(`Unknown action type: ${action.type}`);
+
+    } catch (error) {
+      console.error('❌ Action execution error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
   }
 
   /**

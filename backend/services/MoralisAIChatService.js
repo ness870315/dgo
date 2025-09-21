@@ -1,8 +1,10 @@
 import HybridDatabaseService from '../hybridDatabaseService.js';
+import fetch from 'node-fetch';
 
 /**
  * Moralis AI Chat Service - Integrates Moralis AI with user-specific Degen Oracle data
  * Provides personalized AI assistance with access to user's KOL calls, watchlist, hype data, etc.
+ * Now includes interactive capabilities: watchlist management, token data fetching, etc.
  */
 class MoralisAIChatService {
   constructor() {
@@ -10,10 +12,152 @@ class MoralisAIChatService {
     this.moralisApiKey = process.env.MORALIS_API_KEY;
     // Back to original endpoint without v1
     this.apiUrl = 'https://cortex-api.moralis.io/chat';
+    this.baseApiUrl = process.env.API_BASE_URL || 'https://api.degen-oracle.com';
     
     if (!this.moralisApiKey) {
       console.warn('⚠️ MORALIS_API_KEY not found in environment variables');
     }
+  }
+
+  /**
+   * Add token to user's watchlist
+   */
+  async addToWatchlist(userId, contractAddress, tokenSymbol) {
+    try {
+      console.log(`🔍 Adding ${tokenSymbol} (${contractAddress}) to user ${userId}'s watchlist`);
+      
+      const response = await fetch(`${this.baseApiUrl}/api/watchlist/add`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId,
+          contractAddress,
+          symbol: tokenSymbol
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to add to watchlist: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log(`✅ Successfully added ${tokenSymbol} to watchlist`);
+      return result;
+    } catch (error) {
+      console.error(`❌ Error adding to watchlist:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get comprehensive token data (price, volume, holders)
+   */
+  async getTokenData(contractAddress) {
+    try {
+      console.log(`📊 Fetching comprehensive data for token: ${contractAddress}`);
+      
+      // Fetch from multiple endpoints in parallel
+      const [analyticsResponse, holdersResponse] = await Promise.all([
+        fetch(`${this.baseApiUrl}/api/token-analytics/${contractAddress}`),
+        fetch(`${this.baseApiUrl}/api/holders/${contractAddress}`)
+      ]);
+
+      const analytics = analyticsResponse.ok ? await analyticsResponse.json() : null;
+      const holders = holdersResponse.ok ? await holdersResponse.json() : null;
+
+      return {
+        analytics,
+        holders,
+        contractAddress
+      };
+    } catch (error) {
+      console.error(`❌ Error fetching token data:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Parse user commands for actions (add to watchlist, get data, etc.)
+   */
+  parseUserCommands(prompt, userId) {
+    const lowerPrompt = prompt.toLowerCase();
+    const commands = [];
+
+    // Check for "add to watchlist" commands
+    const addWatchlistMatch = lowerPrompt.match(/add\s+([a-z0-9]{32,})\s+to\s+(my\s+)?watchlist/i) ||
+                             lowerPrompt.match(/watchlist\s+([a-z0-9]{32,})/i);
+    
+    if (addWatchlistMatch) {
+      commands.push({
+        type: 'ADD_TO_WATCHLIST',
+        contractAddress: addWatchlistMatch[1],
+        userId
+      });
+    }
+
+    // Check for token data requests
+    const tokenDataMatch = lowerPrompt.match(/(?:price|volume|holders?|data).*?([a-z0-9]{32,})/i) ||
+                          lowerPrompt.match(/([a-z0-9]{32,}).*?(?:price|volume|holders?|data)/i);
+    
+    if (tokenDataMatch) {
+      commands.push({
+        type: 'GET_TOKEN_DATA',
+        contractAddress: tokenDataMatch[1]
+      });
+    }
+
+    return commands;
+  }
+
+  /**
+   * Check if we should suggest actions based on the prompt
+   */
+  shouldSuggestActions(prompt) {
+    const lowerPrompt = prompt.toLowerCase();
+    
+    // Suggest actions for token-related queries
+    return lowerPrompt.includes('price') || 
+           lowerPrompt.includes('volume') || 
+           lowerPrompt.includes('holder') ||
+           lowerPrompt.includes('token') ||
+           /[a-z0-9]{32,}/i.test(prompt); // Contains contract address
+  }
+
+  /**
+   * Generate action suggestions based on context
+   */
+  generateActionSuggestions(prompt, userContext) {
+    const suggestions = [];
+    
+    // Extract contract addresses from prompt
+    const contractMatches = prompt.match(/[a-z0-9]{32,}/gi) || [];
+    
+    for (const contractAddress of contractMatches) {
+      suggestions.push({
+        type: 'ADD_TO_WATCHLIST',
+        label: `Add ${contractAddress.substring(0, 8)}... to Watchlist`,
+        contractAddress: contractAddress,
+        icon: '⭐'
+      });
+      
+      suggestions.push({
+        type: 'GET_FULL_ANALYSIS',
+        label: `Get Full Analysis`,
+        contractAddress: contractAddress,
+        icon: '📊'
+      });
+      
+      suggestions.push({
+        type: 'VIEW_CHART',
+        label: `View Price Chart`,
+        contractAddress: contractAddress,
+        icon: '📈'
+      });
+    }
+    
+    return suggestions.slice(0, 3); // Limit to 3 suggestions
   }
 
   /**
@@ -23,6 +167,38 @@ class MoralisAIChatService {
     try {
       console.log(`🤖 AI Chat request from user ${userId}: "${userPrompt.substring(0, 100)}..."`);
 
+      // Parse user commands for actions
+      const commands = this.parseUserCommands(userPrompt, userId);
+      console.log(`🎯 Commands detected:`, commands);
+
+      // Execute commands and gather additional data
+      let commandResults = {};
+      let additionalTokenData = {};
+
+      for (const command of commands) {
+        try {
+          if (command.type === 'ADD_TO_WATCHLIST') {
+            const result = await this.addToWatchlist(userId, command.contractAddress, 'Unknown');
+            commandResults.watchlistAdded = {
+              success: true,
+              contractAddress: command.contractAddress,
+              message: `Successfully added to watchlist!`
+            };
+          } else if (command.type === 'GET_TOKEN_DATA') {
+            const tokenData = await this.getTokenData(command.contractAddress);
+            if (tokenData) {
+              additionalTokenData[command.contractAddress] = tokenData;
+            }
+          }
+        } catch (error) {
+          console.error(`❌ Command execution failed:`, error);
+          commandResults[command.type] = {
+            success: false,
+            error: error.message
+          };
+        }
+      }
+
       // Analyze the prompt to determine what user data to include
       const dataNeeds = this.analyzePromptDataNeeds(userPrompt);
       console.log(`🔍 Data needs identified:`, dataNeeds);
@@ -30,6 +206,16 @@ class MoralisAIChatService {
       // Gather relevant user data based on the prompt
       const userContext = await this.gatherUserContext(userId, dataNeeds);
       console.log(`📊 User context gathered: ${Object.keys(userContext).join(', ')}`);
+
+      // Add additional token data to context
+      if (Object.keys(additionalTokenData).length > 0) {
+        userContext.tokenData = additionalTokenData;
+      }
+
+      // Add command results to context
+      if (Object.keys(commandResults).length > 0) {
+        userContext.commandResults = commandResults;
+      }
 
       // Build the enhanced prompt with user context
       const enhancedPrompt = this.buildEnhancedPrompt(userPrompt, userContext, conversationHistory, dataNeeds);
@@ -40,11 +226,17 @@ class MoralisAIChatService {
       // Process and format the response
       const formattedResponse = this.formatAIResponse(aiResponse, userContext);
 
+      // Add action suggestions if relevant
+      if (commands.length > 0 || this.shouldSuggestActions(userPrompt)) {
+        formattedResponse.actionSuggestions = this.generateActionSuggestions(userPrompt, userContext);
+      }
+
       return {
         success: true,
         response: formattedResponse,
         userContext: userContext,
         dataUsed: Object.keys(userContext),
+        commandsExecuted: commands,
         timestamp: new Date().toISOString()
       };
 
@@ -400,6 +592,12 @@ RESPONSE GUIDELINES:
 - Keep responses concise and focused - NO logos, URLs, or unnecessary technical details
 - For price queries: Just provide the price, percentage change, and brief market context
 - Avoid mentioning external links, logo URLs, or technical identifiers unless specifically asked
+
+INTERACTIVE CAPABILITIES:
+- I can add tokens to your watchlist when you ask
+- I can fetch comprehensive token data (price, volume, holders) in real-time
+- I can execute actions based on your requests
+- When discussing tokens, I'll offer action suggestions like "Add to Watchlist" or "Get Full Analysis"
 
 ${primarySource === 'user' ? 'FOCUS: This query is primarily about the user\'s personal Degen Oracle data.' :
   primarySource === 'blockchain' ? 'FOCUS: This query is primarily about blockchain/market data. Use your Moralis knowledge.' :
