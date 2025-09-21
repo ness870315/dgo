@@ -105,7 +105,8 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
           twitterPostId: c.twitterPostId,
           twitterEnabled: c.twitterEnabled,
           tone: c.tone,
-          milestones: c.milestones || []
+          milestones: c.milestones || [],
+          milestonePosts: c.milestonePosts || [] // Fix: map milestonePosts from backend
         };
       });
 
