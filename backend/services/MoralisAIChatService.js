@@ -327,8 +327,11 @@ class MoralisAIChatService {
       if (suggestions.length === 0) {
         suggestions.push(
           "What's my most profitable KOL call?",
-          "Show me trending tokens with high volume",
-          "What tokens should I add to my watchlist?"
+          "What is trending on my watchlist?",
+          "How many calls I've done so far?",
+          "What's on my watchlist?",
+          "What is trending on Degen Oracle?",
+          "Show me the top trending tokens"
         );
       }
 
@@ -342,6 +345,66 @@ class MoralisAIChatService {
         "Help me analyze my portfolio"
       ];
     }
+  }
+
+  /**
+   * Get trending tokens from the backend
+   */
+  async getTrendingTokens() {
+    try {
+      // Fetch trending tokens from the main backend
+      const response = await fetch('http://localhost:3001/api/tokens/trending', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const tokens = await response.json();
+      
+      // Process and format for AI consumption
+      const trendingData = {
+        count: tokens.length,
+        tokens: tokens.slice(0, 20).map(token => ({
+          symbol: token.symbol,
+          name: token.name,
+          contractAddress: token.contractAddress,
+          marketCap: token.mcap || token.marketCap,
+          price: token.price,
+          priceChange24h: token.priceChange24h,
+          volume24h: token.volume24h,
+          overallScore: token.overallScore,
+          status: token.status || this.getStatusFromScore(token.overallScore),
+          holders: token.holderCount,
+          mentions: token.twitterData?.mentions || 0
+        })),
+        timestamp: new Date().toISOString()
+      };
+
+      console.log(`✅ Fetched ${trendingData.count} trending tokens for AI context`);
+      return trendingData;
+      
+    } catch (error) {
+      console.error('❌ Error fetching trending tokens:', error);
+      return {
+        error: 'Unable to fetch trending tokens',
+        count: 0,
+        tokens: []
+      };
+    }
+  }
+
+  /**
+   * Get status from overall score
+   */
+  getStatusFromScore(score) {
+    if (score >= 8.5) return 'Viral';
+    if (score >= 7.5) return 'Trending';
+    if (score >= 6.5) return 'Building';
+    if (score >= 5.5) return 'Waking Up';
+    return 'Sleeping';
   }
 
   /**
@@ -799,6 +862,18 @@ class MoralisAIChatService {
         context.milestones = this.extractMilestoneData(context.kolCalls);
       }
 
+      // Get trending tokens data (if needed)
+      if (dataNeeds.trending || prompt.toLowerCase().includes('trending')) {
+        try {
+          // Get trending tokens from the backend
+          const trendingTokens = await this.getTrendingTokens();
+          context.trendingTokens = trendingTokens;
+        } catch (error) {
+          console.error('❌ Error fetching trending tokens:', error);
+          context.trendingTokens = { error: 'Unable to fetch trending tokens' };
+        }
+      }
+
       // Get leaderboard data (if needed)
       if (dataNeeds.leaderboard) {
         // This would require implementing a leaderboard service
@@ -956,7 +1031,9 @@ class MoralisAIChatService {
 
     let systemContext = `You are the Degen Oracle AI Assistant, a specialized crypto AI with access to both:
 1. USER'S PERSONAL DEGEN ORACLE DATA (KOL calls, watchlist, hype data, milestones)
-2. REAL-TIME BLOCKCHAIN DATA via Moralis (prices, market caps, transactions, DeFi, NFTs)
+2. REAL-TIME SOLANA BLOCKCHAIN DATA via Moralis (prices, market caps, transactions, DeFi, NFTs)
+
+IMPORTANT: We ONLY support SOLANA blockchain. All token queries, price data, and blockchain information should be from Solana network.
 
 DATA SOURCE PRIORITY FOR THIS QUERY:
 - Primary Source: ${primarySource.toUpperCase()}
@@ -964,13 +1041,15 @@ DATA SOURCE PRIORITY FOR THIS QUERY:
 
 RESPONSE GUIDELINES:
 - For USER DATA queries (my calls, my watchlist): Use the provided Degen Oracle context
-- For BLOCKCHAIN queries (prices, market data): Use your real-time Moralis blockchain knowledge
+- For BLOCKCHAIN queries (prices, market data): Use your real-time Solana blockchain knowledge via Moralis
 - For HYBRID queries: Combine both data sources intelligently
 - Always be specific with numbers and use crypto slang appropriately
 - When using user data, reference specific details from the context below
 - Keep responses concise and focused - NO logos, URLs, or unnecessary technical details
 - For price queries: Just provide the price, percentage change, and brief market context
 - Avoid mentioning external links, logo URLs, or technical identifiers unless specifically asked
+- IMPORTANT: For token queries without contract addresses, always ask for the contract address
+- Never say "my access plan doesn't support that" - instead ask for more specific information
 
 INTERACTIVE CAPABILITIES:
 - I can add tokens to your watchlist when you ask (need contract address)
@@ -1019,6 +1098,16 @@ TOP 5 CALLS:`;
 
     if (userContext.hypeList && userContext.hypeList.length > 0) {
       systemContext += `\n\nHYPE LIST: ${userContext.hypeList.map(token => token.symbol || token).join(', ')}`;
+    }
+
+    // Add trending tokens context
+    if (userContext.trendingTokens && userContext.trendingTokens.count > 0) {
+      systemContext += `\n\nTRENDING TOKENS ON DEGEN ORACLE:
+- Total Trending: ${userContext.trendingTokens.count}
+- Top 10 Trending Tokens:`;
+      userContext.trendingTokens.tokens.slice(0, 10).forEach((token, index) => {
+        systemContext += `\n  ${index + 1}. ${token.symbol} - Score: ${token.overallScore?.toFixed(1)}/10, Status: ${token.status}, MC: $${(token.marketCap/1e6)?.toFixed(1)}M`;
+      });
     }
 
     // Add command results to context

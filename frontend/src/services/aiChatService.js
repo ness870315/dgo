@@ -109,15 +109,15 @@ class AIChatService {
   getSuggestedQuestions() {
     return [
       "What's my most profitable KOL call?",
-      "From my watchlist, what's the most bullish memecoin?",
-      "How many milestones have I hit this month?",
+      "What is trending on my watchlist?",
+      "How many calls I've done so far?",
+      "What's on my watchlist?",
+      "What is trending on Degen Oracle?",
+      "Show me the top trending tokens",
       "What's my average call performance?",
-      "Show me my worst performing calls",
-      "What tokens are trending in my hype list?",
+      "How many milestones have I hit this month?",
       "What's the current price of SOL?",
-      "How's my portfolio performing overall?",
-      "Which of my calls has the highest ATH multiplier?",
-      "What's my win rate on KOL calls?"
+      "Which of my calls has the highest ATH multiplier?"
     ];
   }
 
