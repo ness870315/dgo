@@ -5520,15 +5520,10 @@ class EnhancedBackend {
             
             // Only process if at least ONE quality criteria is present (not all missing)
             if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
-              console.log(`🗑️ QUALITY FILTER: Removing ${t.symbol} (${t.contractAddress?.substring(0, 8)}) - Missing ALL quality criteria`);
-              console.log(`   - Launchpad: ❌ (${t.jupiterData?.launchpad || 'missing'})`);
-              console.log(`   - Organic Score: ❌ (${t.jupiterData?.organicScore || 0})`);
-              console.log(`   - Graduated At: ❌ (${t.jupiterData?.graduatedAt || 'missing'})`);
               tokensToRemove.push(t);
               return; // Skip this token
             }
             
-            console.log(`✅ QUALITY FILTER: ${t.symbol} - Has at least one quality indicator, adding to Twitter refresh queue`);
             queue.push({ symbol: t.symbol, name: t.name, index: idx });
           }
         });
@@ -9570,10 +9565,6 @@ class EnhancedBackend {
         const hasGraduatedAt = token.jupiterData?.graduatedAt && token.jupiterData.graduatedAt !== '';
         
         if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
-          console.log(`🗑️ QUALITY FILTER: Removing ${token.symbol} (${token.contractAddress?.substring(0, 8)}) - Missing ALL quality criteria`);
-          console.log(`   - Launchpad: ❌ (${token.jupiterData?.launchpad || 'missing'})`);
-          console.log(`   - Organic Score: ❌ (${token.jupiterData?.organicScore || 0})`);
-          console.log(`   - Graduated At: ❌ (${token.jupiterData?.graduatedAt || 'missing'})`);
           removedTokens.push(token);
         } else {
           qualityTokens.push(token);
@@ -9671,14 +9662,9 @@ class EnhancedBackend {
                 
                 // Only update if at least ONE quality criteria is present (not all missing)
                 if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
-                  console.log(`🚫 QUALITY FILTER: ${token.symbol} (${token.contractAddress?.substring(0, 8)}) - Missing ALL quality criteria, skipping priority update`);
-                  console.log(`   - Launchpad: ❌ (${freshData.launchpad || 'missing'})`);
-                  console.log(`   - Organic Score: ❌ (${freshData.organicScore || 0})`);
-                  console.log(`   - Graduated At: ❌ (${freshData.graduatedAt || 'missing'})`);
                   return; // Skip this token
                 }
                 
-                console.log(`✅ QUALITY FILTER: ${token.symbol} - Has at least one quality indicator, updating priority data`);
                 
                 // 🚨 CRITICAL FIX: Update the original token but preserve ALL existing data including Twitter
                 const originalToken = tokens[tokenIndex];
@@ -9701,7 +9687,6 @@ class EnhancedBackend {
                   }
                 }
                 
-                console.log(`[🛡️ Enhanced Backend] ✅ ${token.priority}: ${token.symbol} (${token.contractAddress.substring(0, 8)})`);
               } else if (tokenIndex !== -1) {
                 console.log(`[🛡️ Enhanced Backend] ⚠️ No Jupiter data for ${token.symbol} (${token.contractAddress.substring(0, 8)})`);
                 errors++;
@@ -10268,11 +10253,6 @@ class EnhancedBackend {
           
           // Only update if at least ONE quality criteria is present (not all missing)
           if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
-            console.log(`🚫 QUALITY FILTER: ${existingToken.symbol} (${contractAddress?.substring(0, 8)}) - Missing ALL quality criteria:`);
-            console.log(`   - Launchpad: ❌ (${freshJupiterData.launchpad || 'missing'})`);
-            console.log(`   - Organic Score: ❌ (${freshJupiterData.organicScore || 0})`);
-            console.log(`   - Graduated At: ❌ (${freshJupiterData.graduatedAt || 'missing'})`);
-            console.log(`   - Token will be marked for removal`);
             
             return res.status(400).json({
               success: false,
@@ -10286,10 +10266,6 @@ class EnhancedBackend {
             });
           }
           
-          console.log(`✅ QUALITY FILTER: ${existingToken.symbol} - Has at least one quality indicator`);
-          console.log(`   - Launchpad: ${hasLaunchpad ? '✅' : '❌'} (${freshJupiterData.launchpad || 'missing'})`);
-          console.log(`   - Organic Score: ${hasOrganicScore ? '✅' : '❌'} (${freshJupiterData.organicScore || 0})`);
-          console.log(`   - Graduated At: ${hasGraduatedAt ? '✅' : '❌'} (${freshJupiterData.graduatedAt || 'missing'})`);
           
           // Update the token with fresh Jupiter data
           existingToken.jupiterData = freshJupiterData;
@@ -10402,11 +10378,6 @@ class EnhancedBackend {
             
             // Only update if at least ONE quality criteria is present (not all missing)
             if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
-              console.log(`🚫 QUALITY FILTER: ${existingToken.symbol} (${contractAddress?.substring(0, 8)}) - Missing ALL quality criteria:`);
-              console.log(`   - Launchpad: ❌ (${freshJupiterData.launchpad || 'missing'})`);
-              console.log(`   - Organic Score: ❌ (${freshJupiterData.organicScore || 0})`);
-              console.log(`   - Graduated At: ❌ (${freshJupiterData.graduatedAt || 'missing'})`);
-              console.log(`   - Token will be marked for removal`);
               
               // Mark token for removal
               existingToken._markedForRemoval = true;
@@ -10414,10 +10385,6 @@ class EnhancedBackend {
               return; // Skip this token
             }
             
-            console.log(`✅ QUALITY FILTER: ${existingToken.symbol} - Has at least one quality indicator`);
-            console.log(`   - Launchpad: ${hasLaunchpad ? '✅' : '❌'} (${freshJupiterData.launchpad || 'missing'})`);
-            console.log(`   - Organic Score: ${hasOrganicScore ? '✅' : '❌'} (${freshJupiterData.organicScore || 0})`);
-            console.log(`   - Graduated At: ${hasGraduatedAt ? '✅' : '❌'} (${freshJupiterData.graduatedAt || 'missing'})`);
             
             existingToken.jupiterData = freshJupiterData;
             existingToken.jupiterTimestamp = new Date().toISOString();
@@ -10486,11 +10453,6 @@ class EnhancedBackend {
               
               // Only update if at least ONE quality criteria is present (not all missing)
               if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
-                console.log(`🚫 QUALITY FILTER: ${expiredToken.symbol} (${expiredToken.contractAddress?.substring(0, 8)}) - Missing ALL quality criteria:`);
-                console.log(`   - Launchpad: ❌ (${freshJupiterData.launchpad || 'missing'})`);
-                console.log(`   - Organic Score: ❌ (${freshJupiterData.organicScore || 0})`);
-                console.log(`   - Graduated At: ❌ (${freshJupiterData.graduatedAt || 'missing'})`);
-                console.log(`   - Token will be marked for removal`);
                 
                 // Mark token for removal
                 existingToken._markedForRemoval = true;
@@ -10498,10 +10460,6 @@ class EnhancedBackend {
                 continue; // Skip this token
               }
               
-              console.log(`✅ QUALITY FILTER: ${expiredToken.symbol} - Has at least one quality indicator`);
-              console.log(`   - Launchpad: ${hasLaunchpad ? '✅' : '❌'} (${freshJupiterData.launchpad || 'missing'})`);
-              console.log(`   - Organic Score: ${hasOrganicScore ? '✅' : '❌'} (${freshJupiterData.organicScore || 0})`);
-              console.log(`   - Graduated At: ${hasGraduatedAt ? '✅' : '❌'} (${freshJupiterData.graduatedAt || 'missing'})`);
               
               existingToken.jupiterData = freshJupiterData;
               existingToken.jupiterTimestamp = new Date().toISOString();

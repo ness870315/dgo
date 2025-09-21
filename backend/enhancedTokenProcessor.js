@@ -353,14 +353,14 @@ class EnhancedTokenProcessor {
             
             // Create minimal token object with only contract info
             newContractTokens.push({
-              symbol: token.symbol || 'UNKNOWN',
-              name: token.name || 'Unknown Token',
-              contractAddress: token.contractAddress,
-              source: 'dexscreener',
-              stage: 'dexscreener',
+        symbol: token.symbol || 'UNKNOWN',
+        name: token.name || 'Unknown Token',
+        contractAddress: token.contractAddress,
+        source: 'dexscreener',
+        stage: 'dexscreener',
               // No market data - Jupiter will fetch this
-              pairAddress: token.pairAddress,
-              chainId: token.chainId,
+        pairAddress: token.pairAddress,
+        chainId: token.chainId,
               dexId: token.dex
             });
           }
@@ -541,10 +541,6 @@ class EnhancedTokenProcessor {
             
             // Only delete if ALL THREE criteria are missing (AND condition)
             if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
-              console.log(`🚫 FILTERING OUT: ${token.symbol} (${token.contractAddress?.substring(0, 8)}) - Missing ALL quality criteria:`);
-              console.log(`   - Launchpad: ❌ (${jupiterData.launchpad || 'missing'})`);
-              console.log(`   - Organic Score: ❌ (${jupiterData.organicScore || 0})`);
-              console.log(`   - Graduated At: ❌ (${jupiterData.graduatedAt || 'missing'})`);
               
               removedTokens.push({
                 symbol: token.symbol,
@@ -949,10 +945,6 @@ class EnhancedTokenProcessor {
         const hasGraduatedAt = token.jupiterData?.graduatedAt && token.jupiterData.graduatedAt !== '';
         
         if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
-          console.log(`🚫 QUALITY FILTER: Skipping score calculation for ${token.symbol} (${token.contractAddress?.substring(0, 8)}) - Missing ALL quality criteria`);
-          console.log(`   - Launchpad: ❌ (${token.jupiterData?.launchpad || 'missing'})`);
-          console.log(`   - Organic Score: ❌ (${token.jupiterData?.organicScore || 0})`);
-          console.log(`   - Graduated At: ❌ (${token.jupiterData?.graduatedAt || 'missing'})`);
           continue; // Skip this token
         }
         
@@ -1011,10 +1003,10 @@ class EnhancedTokenProcessor {
           try {
             const contractAddress = token.contractAddress;
             if (contractAddress) {
-              const mentions = token.mentions || token.twitterData?.mentions || 0;
-              const followers = token.twitterData?.followers || 0;
-              const engagement = (token.twitterData?.likes || 0) + (token.twitterData?.retweets || 0) + (token.twitterData?.replies || 0);
-              const score = enhancedScore || 0;
+            const mentions = token.mentions || token.twitterData?.mentions || 0;
+            const followers = token.twitterData?.followers || 0;
+            const engagement = (token.twitterData?.likes || 0) + (token.twitterData?.retweets || 0) + (token.twitterData?.replies || 0);
+            const score = enhancedScore || 0;
               const label = this.getHypeLabel(score);
               
               await this.hypeService.appendSnapshot(contractAddress, {
@@ -2082,7 +2074,7 @@ class EnhancedTokenProcessor {
       } else {
         // 🚨 CRITICAL FIX: ALWAYS add existing tokens to the final merged result
         // The stage filtering should only apply to processing queue, not to final result
-        merged.push(existing);
+            merged.push(existing);
         console.log(`➕ Added existing token ${existing.symbol} to final result (stage: ${existing.stage})`);
       }
     }
@@ -2215,18 +2207,9 @@ class EnhancedTokenProcessor {
             
             // Only process if at least ONE quality criteria is present (not all missing)
             if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
-              console.log(`🚫 QUALITY FILTER: ${token.symbol} (${token.contractAddress?.substring(0, 8)}) - Missing ALL quality criteria:`);
-              console.log(`   - Launchpad: ❌ (${jupiterData.launchpad || 'missing'})`);
-              console.log(`   - Organic Score: ❌ (${jupiterData.organicScore || 0})`);
-              console.log(`   - Graduated At: ❌ (${jupiterData.graduatedAt || 'missing'})`);
-              console.log(`   - Token will be marked for removal`);
               return null; // Return null to indicate token should be removed
             }
             
-            console.log(`✅ QUALITY FILTER: ${token.symbol} - Has at least one quality indicator`);
-            console.log(`   - Launchpad: ${hasLaunchpad ? '✅' : '❌'} (${jupiterData.launchpad || 'missing'})`);
-            console.log(`   - Organic Score: ${hasOrganicScore ? '✅' : '❌'} (${jupiterData.organicScore || 0})`);
-            console.log(`   - Graduated At: ${hasGraduatedAt ? '✅' : '❌'} (${jupiterData.graduatedAt || 'missing'})`);
             
             token.jupiterData = jupiterData;
             // Update name and symbol from Jupiter if available
@@ -2347,7 +2330,7 @@ class EnhancedTokenProcessor {
       try {
         await fs.writeFile(tempPath, jsonData, 'utf8');
         await fs.rename(tempPath, cachePath);
-        console.log(`💾 Paid token ${token.symbol} saved to cache`);
+      console.log(`💾 Paid token ${token.symbol} saved to cache`);
       } catch (error) {
         // Cleanup temp file if it exists
         try {

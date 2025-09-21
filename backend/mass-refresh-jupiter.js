@@ -61,11 +61,6 @@ async function massRefreshJupiter() {
           
           // Only update if at least ONE quality criteria is present (not all missing)
           if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
-            console.log(`\n🚫 QUALITY FILTER: ${token.symbol} (${token.contractAddress?.substring(0, 8)}) - Missing ALL quality criteria:`);
-            console.log(`   - Launchpad: ❌ (${freshData.launchpad || 'missing'})`);
-            console.log(`   - Organic Score: ❌ (${freshData.organicScore || 0})`);
-            console.log(`   - Graduated At: ❌ (${freshData.graduatedAt || 'missing'})`);
-            console.log(`   - Token will be marked for removal`);
             
             // Mark token for removal by setting a flag
             const tokenIndex = tokensCache.findIndex(t => t.contractAddress === token.contractAddress);
@@ -76,10 +71,6 @@ async function massRefreshJupiter() {
             continue;
           }
           
-          console.log(`\n✅ QUALITY FILTER: ${token.symbol} - Has at least one quality indicator`);
-          console.log(`   - Launchpad: ${hasLaunchpad ? '✅' : '❌'} (${freshData.launchpad || 'missing'})`);
-          console.log(`   - Organic Score: ${hasOrganicScore ? '✅' : '❌'} (${freshData.organicScore || 0})`);
-          console.log(`   - Graduated At: ${hasGraduatedAt ? '✅' : '❌'} (${freshData.graduatedAt || 'missing'})`);
           
           // Update token data
           const tokenIndex = tokensCache.findIndex(t => t.contractAddress === token.contractAddress);
