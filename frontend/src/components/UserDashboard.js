@@ -12,6 +12,19 @@ import { getStatusFromScore } from '../utils/statusUtils';
 
 const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigateToUpdateToken, onNavigateToPremium }) => {
   const { user, sessionId } = useAuth();
+  
+  // Early return if user is not loaded yet
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center">
+        <div className="text-white text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-solana-purple mx-auto mb-4"></div>
+          <p>Loading user dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+  
   const [dashboardData, setDashboardData] = useState({
     watchlistCount: 0,
     tokensListed: 0,
@@ -543,10 +556,10 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
           </div>
           
           <div className="flex items-center space-x-3 sm:space-x-4 mb-4">
-            {user.profileImage ? (
+            {user?.profileImage ? (
               <img 
                 src={user.profileImage} 
-                alt={user.displayName}
+                alt={user?.displayName || 'User'}
                 className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 border-solana-purple"
               />
             ) : (
@@ -555,9 +568,9 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <h1 className="text-xl sm:text-3xl font-bold text-white truncate">{user.displayName}</h1>
-              <p className="text-gray-400 text-sm sm:text-base">@{user.username}</p>
-              {user.verified && (
+              <h1 className="text-xl sm:text-3xl font-bold text-white truncate">{user?.displayName || 'User'}</h1>
+              <p className="text-gray-400 text-sm sm:text-base">@{user?.username || 'unknown'}</p>
+              {user?.verified && (
                 <div className="flex items-center space-x-1 mt-1">
                   <div className="w-3 h-3 sm:w-4 sm:h-4 bg-blue-500 rounded-full flex items-center justify-center">
                     <span className="text-white text-xs">✓</span>
