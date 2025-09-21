@@ -3248,6 +3248,9 @@ class EnhancedBackend {
             currentRegime: analysisResult.analysis?.regime,
             prediction: analysisResult.analysis?.prediction,
             
+            // Recommendation data
+            recommendation: analysisResult.analysis?.recommendation,
+            
             // Forecast data for the 6-12h timeline
             forecast: analysisResult.analysis?.forecast,
             
