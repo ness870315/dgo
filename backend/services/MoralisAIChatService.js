@@ -49,10 +49,19 @@ class MoralisAIChatService {
 
     } catch (error) {
       console.error('❌ AI Chat error:', error);
+      
+      // Create proper fallback response structure
+      const fallbackContent = this.getFallbackResponse(userPrompt);
+      
       return {
         success: false,
         error: error.message,
-        fallbackResponse: this.getFallbackResponse(userPrompt),
+        response: {
+          content: fallbackContent.content,
+          hasUserData: false,
+          dataSourcesUsed: []
+        },
+        dataUsed: [],
         timestamp: new Date().toISOString()
       };
     }
@@ -449,8 +458,13 @@ Please provide a helpful, accurate response using the user's data when relevant.
    */
   async callMoralisAI(prompt) {
     if (!this.moralisApiKey) {
-      throw new Error('Moralis API key not configured');
+      console.error('❌ MORALIS_API_KEY not found in environment variables');
+      console.log('🔍 Available env vars:', Object.keys(process.env).filter(key => key.includes('MORALIS')));
+      throw new Error('Moralis API key not configured. Please set MORALIS_API_KEY environment variable.');
     }
+
+    console.log(`🔑 Using Moralis API key: ${this.moralisApiKey.substring(0, 8)}...${this.moralisApiKey.slice(-4)}`);
+    console.log(`🌐 Calling Moralis API: ${this.apiUrl}`);
 
     const options = {
       method: 'POST',
@@ -468,11 +482,28 @@ Please provide a helpful, accurate response using the user's data when relevant.
 
     const response = await fetch(this.apiUrl, options);
     
+    console.log(`📡 Moralis API response status: ${response.status} ${response.statusText}`);
+    
     if (!response.ok) {
-      throw new Error(`Moralis AI API error: ${response.status} ${response.statusText}`);
+      let errorDetails = '';
+      try {
+        const errorBody = await response.text();
+        errorDetails = errorBody ? ` - ${errorBody}` : '';
+        console.error(`❌ Moralis API error body:`, errorBody);
+      } catch (e) {
+        console.error('❌ Could not read error response body');
+      }
+      
+      if (response.status === 401) {
+        throw new Error(`Moralis API authentication failed. Please check your MORALIS_API_KEY environment variable.${errorDetails}`);
+      }
+      
+      throw new Error(`Moralis AI API error: ${response.status} ${response.statusText}${errorDetails}`);
     }
 
-    return await response.json();
+    const jsonResponse = await response.json();
+    console.log(`✅ Moralis API response received:`, JSON.stringify(jsonResponse, null, 2));
+    return jsonResponse;
   }
 
   /**
