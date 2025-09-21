@@ -135,32 +135,53 @@ class AIChatService {
       console.log(`🎯 Executing action: ${action.type} for ${action.contractAddress}`);
 
       if (action.type === 'ADD_TO_WATCHLIST') {
-        // Use the existing watchlist API
-        const response = await fetch(`${this.API_BASE}/api/watchlist/add`, {
+        // Use the correct watchlist API endpoint and format
+        const response = await fetch(`${this.API_BASE}/api/user/watchlist/add`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             sessionId,
-            contractAddress: action.contractAddress,
-            symbol: action.symbol || 'Unknown'
+            tokenData: {
+              contractAddress: action.contractAddress,
+              symbol: action.symbol || 'Unknown',
+              name: action.name || 'Unknown Token'
+            }
           })
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to add to watchlist: ${response.status}`);
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `Failed to add to watchlist: ${response.status}`);
         }
 
         const result = await response.json();
         return {
           success: true,
-          message: `Successfully added to watchlist!`,
+          message: `✅ Successfully added to watchlist!`,
           result
         };
       }
 
-      // Add more action types here as needed
+      if (action.type === 'GET_FULL_ANALYSIS') {
+        // For now, suggest using the main app features
+        return {
+          success: true,
+          message: `📊 To get full analysis, click on the token in the main bubble map or search for it in the token list.`,
+          actionType: 'info'
+        };
+      }
+
+      if (action.type === 'VIEW_CHART') {
+        // For now, suggest using the main app features  
+        return {
+          success: true,
+          message: `📈 To view the price chart, click on the token in the main bubble map and select "Oracle Chart".`,
+          actionType: 'info'
+        };
+      }
+
       throw new Error(`Unknown action type: ${action.type}`);
 
     } catch (error) {
