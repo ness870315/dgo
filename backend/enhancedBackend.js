@@ -26,6 +26,7 @@ import HybridPriceService from './hybridPriceService.js';
 import logger from './logger.js';
 import { fileURLToPath } from 'url';
 import { ForecastDebugEndpoint } from './debug-forecast-token.js';
+import { CallMilestonesDebugEndpoint } from './debug-call-milestones.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -6693,6 +6694,33 @@ class EnhancedBackend {
         res.status(500).json({
           success: false,
           error: 'Forecast Debug Test failed',
+          details: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    // Call Milestones Debug Test
+    this.app.get('/api/test/call-milestones/:callId', async (req, res) => {
+      try {
+        const { callId } = req.params;
+        const debugEndpoint = new CallMilestonesDebugEndpoint();
+        
+        console.log(`🔍 Debugging call milestones for ID: ${callId}`);
+        const result = await debugEndpoint.debugCallMilestones(callId);
+        
+        res.json({
+          success: true,
+          message: 'Call Milestones Debug completed',
+          result,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error('❌ Call Milestones Debug failed:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Call Milestones Debug failed',
           details: error.message,
           timestamp: new Date().toISOString()
         });
