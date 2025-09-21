@@ -161,6 +161,8 @@ export default function DetailDrawer({ call, onClose, onRefresh }) {
   const [socialContext, setSocialContext] = useState(null);
   const [loadingSocial, setLoadingSocial] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [milestonePostsPage, setMilestonePostsPage] = useState(1);
+  const MILESTONE_POSTS_PER_PAGE = 3; // Show 3 milestone posts per page
   const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
   
   // Refresh call data to get latest milestone posts
@@ -177,6 +179,18 @@ export default function DetailDrawer({ call, onClose, onRefresh }) {
       setRefreshing(false);
     }
   };
+
+  // Reset pagination when call changes
+  useEffect(() => {
+    setMilestonePostsPage(1);
+  }, [call?.id]);
+
+  // Pagination logic for milestone posts
+  const milestonePosts = call?.milestonePosts || [];
+  const totalMilestonePages = Math.ceil(milestonePosts.length / MILESTONE_POSTS_PER_PAGE);
+  const startIndex = (milestonePostsPage - 1) * MILESTONE_POSTS_PER_PAGE;
+  const endIndex = startIndex + MILESTONE_POSTS_PER_PAGE;
+  const currentMilestonePosts = milestonePosts.slice(startIndex, endIndex);
   
   // Load chart data when call changes
   useEffect(() => {
@@ -571,7 +585,7 @@ export default function DetailDrawer({ call, onClose, onRefresh }) {
               {/* Milestone Posts */}
               {call.milestonePosts && call.milestonePosts.length > 0 ? (
                 <div className="space-y-2">
-                  {call.milestonePosts.map((post, index) => (
+                  {currentMilestonePosts.map((post, index) => (
                     <div key={index} className="p-3 bg-green-900/20 border border-green-600/30 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-xs font-medium text-green-300">
@@ -592,6 +606,34 @@ export default function DetailDrawer({ call, onClose, onRefresh }) {
                       </a>
                     </div>
                   ))}
+                  
+                  {/* Pagination Controls */}
+                  {totalMilestonePages > 1 && (
+                    <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/10">
+                      <div className="text-xs text-white/60">
+                        Showing {startIndex + 1}-{Math.min(endIndex, milestonePosts.length)} of {milestonePosts.length} milestone posts
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setMilestonePostsPage(prev => Math.max(1, prev - 1))}
+                          disabled={milestonePostsPage === 1}
+                          className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white transition-colors"
+                        >
+                          Previous
+                        </button>
+                        <span className="text-xs text-white/60">
+                          {milestonePostsPage} / {totalMilestonePages}
+                        </span>
+                        <button
+                          onClick={() => setMilestonePostsPage(prev => Math.min(totalMilestonePages, prev + 1))}
+                          disabled={milestonePostsPage === totalMilestonePages}
+                          className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed rounded text-white transition-colors"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="p-3 bg-yellow-900/20 border border-yellow-600/30 rounded-lg">
