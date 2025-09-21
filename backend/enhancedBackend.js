@@ -138,7 +138,8 @@ class EnhancedBackend {
     this.milestoneTracker = new MilestoneTracker();
     this.pushNotificationService = new PushNotificationService();
     this.automatedCleanup = new AutomatedTokenCleanup();
-    this.aiChatService = new MoralisAIChatService();
+    // Initialize AI Chat Service with OAuthXService for watchlist operations
+    this.aiChatService = new MoralisAIChatService(this.oauthXService);
     this.backupIntegration = null; // Will be initialized in setupServices()
     // Social Context cache (72h TTL)
     this.socialContextCache = new Map();

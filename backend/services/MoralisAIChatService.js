@@ -7,8 +7,9 @@ import fetch from 'node-fetch';
  * Now includes interactive capabilities: watchlist management, token data fetching, etc.
  */
 class MoralisAIChatService {
-  constructor() {
+  constructor(oauthXService = null) {
     this.db = new HybridDatabaseService();
+    this.oauthXService = oauthXService; // Optional injection for watchlist operations
     this.moralisApiKey = process.env.MORALIS_API_KEY;
     // Back to original endpoint without v1
     this.apiUrl = 'https://cortex-api.moralis.io/chat';
@@ -26,7 +27,6 @@ class MoralisAIChatService {
     try {
       console.log(`🔍 Adding ${tokenSymbol} (${contractAddress}) to user ${userId}'s watchlist`);
       
-      // Use the HybridDatabaseService directly since we're in the backend
       const watchlistData = {
         contractAddress,
         symbol: tokenSymbol,
@@ -34,15 +34,37 @@ class MoralisAIChatService {
         addedAt: new Date().toISOString()
       };
 
-      // For now, we'll use a simple approach - in a real implementation,
-      // you'd want to integrate with the actual watchlist service
-      console.log(`✅ Would add ${tokenSymbol} to watchlist for user ${userId}`);
-      
-      return {
-        success: true,
-        message: `Added ${tokenSymbol} to watchlist`,
-        data: watchlistData
-      };
+      // Use OAuthXService if available, otherwise use database directly
+      if (this.oauthXService) {
+        try {
+          const result = await this.oauthXService.addToWatchlist(userId, watchlistData);
+          console.log(`✅ Successfully added ${tokenSymbol} to watchlist for user ${userId} via OAuthXService`);
+          
+          return {
+            success: true,
+            message: `Added ${tokenSymbol} to watchlist`,
+            data: watchlistData
+          };
+        } catch (oauthError) {
+          console.error(`❌ OAuthXService error adding to watchlist:`, oauthError);
+          // Fall through to database method
+        }
+      }
+
+      // Fallback to direct database access
+      try {
+        await this.db.addToWatchlist(userId, watchlistData);
+        console.log(`✅ Successfully added ${tokenSymbol} to watchlist for user ${userId} via database`);
+        
+        return {
+          success: true,
+          message: `Added ${tokenSymbol} to watchlist`,
+          data: watchlistData
+        };
+      } catch (dbError) {
+        console.error(`❌ Database error adding to watchlist:`, dbError);
+        throw dbError;
+      }
     } catch (error) {
       console.error(`❌ Error adding to watchlist:`, error);
       throw error;
