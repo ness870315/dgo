@@ -138,8 +138,8 @@ class EnhancedBackend {
     this.milestoneTracker = new MilestoneTracker();
     this.pushNotificationService = new PushNotificationService();
     this.automatedCleanup = new AutomatedTokenCleanup();
-    // Initialize AI Chat Service with OAuthXService for watchlist operations
-    this.aiChatService = new MoralisAIChatService(this.oauthXService);
+    // Initialize AI Chat Service with OAuthXService for watchlist operations and backend instance for internal calls
+    this.aiChatService = new MoralisAIChatService(this.oauthXService, this);
     this.backupIntegration = null; // Will be initialized in setupServices()
     // Social Context cache (72h TTL)
     this.socialContextCache = new Map();
@@ -873,6 +873,47 @@ class EnhancedBackend {
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Error fetching tokens:', error);
         res.status(500).json({ error: 'Failed to fetch tokens' });
+      }
+    });
+
+    // Get trending tokens (filtered by status)
+    this.app.get('/api/tokens/trending', async (req, res) => {
+      try {
+        const { limit = 10 } = req.query; // Default to 10, allow custom limit
+        const requestedLimit = Math.min(Math.max(parseInt(limit) || 10, 1), 100); // Between 1-100
+        
+        console.log(`[🛡️ Enhanced Backend] 🔥 API request for trending tokens received (limit: ${requestedLimit})...`);
+
+        let tokens = await this.getTokensFromCache();
+
+        if (tokens.length === 0) {
+          console.log('[🛡️ Enhanced Backend] ⚠️ No tokens found in cache');
+          res.json([]);
+          return;
+        }
+
+        // Filter for trending tokens (Viral and Trending status)
+        const trendingTokens = tokens.filter(token => {
+          const overallScore = token.overallScore || 0;
+          // Viral: >8.5, Trending: >7.8
+          return overallScore > 7.8 && 
+                 !this.isSuspiciousToken(token) && 
+                 !this.isRuggedToken(token) && 
+                 !this.isExcludedMajorOrStable(token);
+        });
+
+        // Sort by overall score (highest first)
+        trendingTokens.sort((a, b) => (b.overallScore || 0) - (a.overallScore || 0));
+
+        // Limit to requested number of trending tokens
+        const limitedTrending = trendingTokens.slice(0, requestedLimit);
+
+        console.log(`[🛡️ Enhanced Backend] ✅ Returning ${limitedTrending.length} trending tokens (score >7.8, limit: ${requestedLimit})`);
+        res.json(limitedTrending);
+
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Trending tokens error:', error);
+        res.status(500).json({ error: 'Failed to fetch trending tokens' });
       }
     });
 
@@ -2259,25 +2300,38 @@ class EnhancedBackend {
     // Add token to watchlist
     this.app.post('/api/user/watchlist/add', async (req, res) => {
       try {
+        console.log('🎯 [WATCHLIST DEBUG] Add to watchlist request received');
+        console.log('🎯 [WATCHLIST DEBUG] Request body:', JSON.stringify(req.body, null, 2));
+        
         const { sessionId, tokenData } = req.body;
         
         if (!sessionId) {
+          console.log('❌ [WATCHLIST DEBUG] Missing sessionId');
           return res.status(401).json({ 
             success: false, 
             error: 'Authentication required' 
           });
         }
 
+        console.log('🎯 [WATCHLIST DEBUG] SessionId provided:', sessionId.substring(0, 8) + '...');
+
         const user = await this.oauthXService.getUserBySession(sessionId);
         
         if (!user) {
+          console.log('❌ [WATCHLIST DEBUG] Invalid session - user not found');
           return res.status(401).json({ 
             success: false, 
             error: 'Invalid session' 
           });
         }
 
+        console.log('✅ [WATCHLIST DEBUG] User found:', user.id, user.username);
+        console.log('🎯 [WATCHLIST DEBUG] Token data to add:', JSON.stringify(tokenData, null, 2));
+
         const watchlist = await this.oauthXService.addToWatchlist(user.id, tokenData);
+        
+        console.log('✅ [WATCHLIST DEBUG] Successfully added to watchlist');
+        console.log('🎯 [WATCHLIST DEBUG] Updated watchlist length:', watchlist?.length || 'unknown');
         
         res.json({
           success: true,
@@ -2286,10 +2340,12 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('❌ Add to watchlist error:', error);
+        console.error('❌ [WATCHLIST DEBUG] Add to watchlist error:', error);
+        console.error('❌ [WATCHLIST DEBUG] Error stack:', error.stack);
         res.status(500).json({ 
           success: false, 
-          error: 'Failed to add to watchlist' 
+          error: 'Failed to add to watchlist',
+          details: error.message
         });
       }
     });

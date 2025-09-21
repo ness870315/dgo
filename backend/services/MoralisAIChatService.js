@@ -8,9 +8,10 @@ import crypto from 'crypto';
  * Now includes interactive capabilities: watchlist management, token data fetching, etc.
  */
 class MoralisAIChatService {
-  constructor(oauthXService = null) {
+  constructor(oauthXService = null, backendInstance = null) {
     this.db = new HybridDatabaseService();
     this.oauthXService = oauthXService; // Optional injection for watchlist operations
+    this.backendInstance = backendInstance; // Optional injection for internal method calls
     this.moralisApiKey = process.env.MORALIS_API_KEY;
     // Back to original endpoint without v1
     this.apiUrl = 'https://cortex-api.moralis.io/chat';
@@ -352,8 +353,50 @@ class MoralisAIChatService {
    */
   async getTrendingTokens() {
     try {
-      // Fetch trending tokens from the main backend
-      const response = await fetch('http://localhost:3001/api/tokens/trending', {
+      // For production efficiency, we'll use internal method if available
+      // Otherwise fall back to HTTP request
+      if (this.backendInstance && typeof this.backendInstance.getTokensFromCache === 'function') {
+        // Internal call - more efficient
+        const allTokens = await this.backendInstance.getTokensFromCache();
+        
+        // Filter for trending tokens (same logic as the API endpoint)
+        const trendingTokens = allTokens.filter(token => {
+          const overallScore = token.overallScore || 0;
+          return overallScore > 7.8 && 
+                 !this.backendInstance.isSuspiciousToken(token) && 
+                 !this.backendInstance.isRuggedToken(token) && 
+                 !this.backendInstance.isExcludedMajorOrStable(token);
+        });
+
+        // Sort by overall score (highest first)
+        trendingTokens.sort((a, b) => (b.overallScore || 0) - (a.overallScore || 0));
+        
+        // Extract requested limit from prompt if specified
+        const limitMatch = prompt.match(/top\s+(\d+)/i);
+        const requestedLimit = limitMatch ? Math.min(parseInt(limitMatch[1]), 50) : 10; // Default 10, max 50 for AI context
+        
+        // Limit to requested number of trending tokens
+        const limitedTrending = trendingTokens.slice(0, requestedLimit);
+        
+        return {
+          success: true,
+          count: trendingTokens.length,
+          tokens: limitedTrending,
+          requestedLimit,
+          summary: `Found ${trendingTokens.length} trending tokens with scores >7.8, showing top ${requestedLimit}`
+        };
+      }
+      
+      // Fallback to HTTP request
+      const apiBaseUrl = process.env.NODE_ENV === 'production' 
+        ? 'https://api.degen-oracle.com'
+        : process.env.API_BASE_URL || 'http://localhost:3001';
+      
+      // Extract requested limit from prompt if specified
+      const limitMatch = prompt.match(/top\s+(\d+)/i);
+      const requestedLimit = limitMatch ? Math.min(parseInt(limitMatch[1]), 50) : 10; // Default 10, max 50 for AI context
+      
+      const response = await fetch(`${apiBaseUrl}/api/tokens/trending?limit=${requestedLimit}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -366,8 +409,10 @@ class MoralisAIChatService {
       
       // Process and format for AI consumption
       const trendingData = {
+        success: true,
         count: tokens.length,
-        tokens: tokens.slice(0, 20).map(token => ({
+        requestedLimit,
+        tokens: tokens.map(token => ({
           symbol: token.symbol,
           name: token.name,
           contractAddress: token.contractAddress,
@@ -380,6 +425,7 @@ class MoralisAIChatService {
           holders: token.holderCount,
           mentions: token.twitterData?.mentions || 0
         })),
+        summary: `Found ${tokens.length} trending tokens with scores >7.8, showing top ${requestedLimit}`,
         timestamp: new Date().toISOString()
       };
 
@@ -412,7 +458,10 @@ class MoralisAIChatService {
    */
   async addToWatchlist(userId, contractAddress, tokenSymbol) {
     try {
-      console.log(`🔍 Adding ${tokenSymbol} (${contractAddress}) to user ${userId}'s watchlist`);
+      console.log(`🎯 [AI WATCHLIST DEBUG] Starting addToWatchlist process`);
+      console.log(`🎯 [AI WATCHLIST DEBUG] UserId: ${userId}`);
+      console.log(`🎯 [AI WATCHLIST DEBUG] Contract: ${contractAddress}`);
+      console.log(`🎯 [AI WATCHLIST DEBUG] Symbol: ${tokenSymbol}`);
       
       const watchlistData = {
         contractAddress,
@@ -420,12 +469,16 @@ class MoralisAIChatService {
         name: tokenSymbol,
         addedAt: new Date().toISOString()
       };
+      
+      console.log(`🎯 [AI WATCHLIST DEBUG] Watchlist data prepared:`, JSON.stringify(watchlistData, null, 2));
 
       // Use OAuthXService if available, otherwise use database directly
       if (this.oauthXService) {
+        console.log(`🎯 [AI WATCHLIST DEBUG] Using OAuthXService for watchlist operation`);
         try {
           const result = await this.oauthXService.addToWatchlist(userId, watchlistData);
-          console.log(`✅ Successfully added ${tokenSymbol} to watchlist for user ${userId} via OAuthXService`);
+          console.log(`✅ [AI WATCHLIST DEBUG] Successfully added ${tokenSymbol} to watchlist for user ${userId} via OAuthXService`);
+          console.log(`🎯 [AI WATCHLIST DEBUG] OAuthXService result:`, JSON.stringify(result, null, 2));
           
           return {
             success: true,
@@ -433,15 +486,19 @@ class MoralisAIChatService {
             data: watchlistData
           };
         } catch (oauthError) {
-          console.error(`❌ OAuthXService error adding to watchlist:`, oauthError);
+          console.error(`❌ [AI WATCHLIST DEBUG] OAuthXService error adding to watchlist:`, oauthError);
+          console.error(`❌ [AI WATCHLIST DEBUG] OAuthXService error stack:`, oauthError.stack);
           // Fall through to database method
         }
+      } else {
+        console.log(`⚠️ [AI WATCHLIST DEBUG] No OAuthXService available, using database directly`);
       }
 
       // Fallback to direct database access
       try {
+        console.log(`🎯 [AI WATCHLIST DEBUG] Attempting database fallback method`);
         await this.db.addToWatchlist(userId, watchlistData);
-        console.log(`✅ Successfully added ${tokenSymbol} to watchlist for user ${userId} via database`);
+        console.log(`✅ [AI WATCHLIST DEBUG] Successfully added ${tokenSymbol} to watchlist for user ${userId} via database`);
         
         return {
           success: true,
@@ -449,11 +506,13 @@ class MoralisAIChatService {
           data: watchlistData
         };
       } catch (dbError) {
-        console.error(`❌ Database error adding to watchlist:`, dbError);
+        console.error(`❌ [AI WATCHLIST DEBUG] Database error adding to watchlist:`, dbError);
+        console.error(`❌ [AI WATCHLIST DEBUG] Database error stack:`, dbError.stack);
         throw dbError;
       }
     } catch (error) {
-      console.error(`❌ Error adding to watchlist:`, error);
+      console.error(`❌ [AI WATCHLIST DEBUG] Overall error adding to watchlist:`, error);
+      console.error(`❌ [AI WATCHLIST DEBUG] Overall error stack:`, error.stack);
       throw error;
     }
   }
@@ -489,6 +548,8 @@ class MoralisAIChatService {
    * Parse user commands for actions (add to watchlist, get data, etc.)
    */
   parseUserCommands(prompt, userId) {
+    console.log(`🎯 [AI PARSE DEBUG] Parsing user commands from prompt: "${prompt}"`);
+    
     const lowerPrompt = prompt.toLowerCase();
     const commands = [];
 
@@ -498,12 +559,17 @@ class MoralisAIChatService {
                              lowerPrompt.match(/add\s+(\w+)\s+to\s+(my\s+)?watchlist/i) ||
                              lowerPrompt.match(/can\s+you\s+add\s+(\w+)\s+to\s+(my\s+)?watchlist/i);
     
+    console.log(`🎯 [AI PARSE DEBUG] Watchlist match result:`, addWatchlistMatch);
+    
     if (addWatchlistMatch) {
-      commands.push({
+      const command = {
         type: 'ADD_TO_WATCHLIST',
         contractAddress: addWatchlistMatch[1],
         userId
-      });
+      };
+      
+      console.log(`✅ [AI PARSE DEBUG] ADD_TO_WATCHLIST command detected:`, JSON.stringify(command, null, 2));
+      commands.push(command);
     }
 
     // Check for token data requests
@@ -517,6 +583,7 @@ class MoralisAIChatService {
       });
     }
 
+    console.log(`🎯 [AI PARSE DEBUG] Final parsed commands (${commands.length}):`, JSON.stringify(commands, null, 2));
     return commands;
   }
 
@@ -594,28 +661,42 @@ class MoralisAIChatService {
       for (const command of commands) {
         try {
           if (command.type === 'ADD_TO_WATCHLIST') {
+            console.log(`🎯 [AI COMMAND DEBUG] Processing ADD_TO_WATCHLIST command`);
+            console.log(`🎯 [AI COMMAND DEBUG] Command details:`, JSON.stringify(command, null, 2));
+            
             const identifier = command.contractAddress;
+            console.log(`🎯 [AI COMMAND DEBUG] Identifier to process: ${identifier}`);
             
             // Check if it's a contract address (32+ chars) or token symbol
             if (identifier.length >= 32) {
+              console.log(`✅ [AI COMMAND DEBUG] Valid contract address detected (length: ${identifier.length})`);
               // It's a contract address
               const tokenData = await this.getTokenData(identifier);
               const tokenSymbol = tokenData?.analytics?.symbol || 'Unknown';
               
+              console.log(`🎯 [AI COMMAND DEBUG] Token data retrieved - Symbol: ${tokenSymbol}`);
+              
               const result = await this.addToWatchlist(userId, identifier, tokenSymbol);
+              console.log(`🎯 [AI COMMAND DEBUG] addToWatchlist result:`, JSON.stringify(result, null, 2));
+              
               commandResults.watchlistAdded = {
                 success: true,
                 contractAddress: identifier,
                 symbol: tokenSymbol,
                 message: `Successfully added ${tokenSymbol} to watchlist!`
               };
+              
+              console.log(`✅ [AI COMMAND DEBUG] Command result prepared:`, JSON.stringify(commandResults.watchlistAdded, null, 2));
             } else {
+              console.log(`⚠️ [AI COMMAND DEBUG] Invalid contract address (length: ${identifier.length}) - requesting user to provide contract address`);
               // It's likely a token symbol - need contract address
               commandResults.needsContractAddress = {
                 success: false,
                 symbol: identifier.toUpperCase(),
                 message: `I'd love to add ${identifier.toUpperCase()} to your watchlist! However, I need the contract address to do that. Can you provide the contract address for ${identifier.toUpperCase()}?`
               };
+              
+              console.log(`🎯 [AI COMMAND DEBUG] Contract address request prepared:`, JSON.stringify(commandResults.needsContractAddress, null, 2));
             }
           } else if (command.type === 'GET_TOKEN_DATA') {
             const tokenData = await this.getTokenData(command.contractAddress);
