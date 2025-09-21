@@ -16,6 +16,7 @@ import UserDashboard from './components/UserDashboard';
 import ApifyTestPage from './components/ApifyTestPage';
 import PremiumPage from './components/PremiumPage';
 import MobilePushNotification from './components/MobilePushNotification';
+import AIChatModal from './components/AIChatModal';
 import { AuthProvider } from './contexts/AuthContext';
 import tokenService from './services/tokenService';
 import pushNotificationService from './services/pushNotificationService';
@@ -208,6 +209,7 @@ function App() {
   const [showApifyTest, setShowApifyTest] = useState(false);
   const [showPremium, setShowPremium] = useState(false);
   const [showPushNotification, setShowPushNotification] = useState(false);
+  const [showAIChat, setShowAIChat] = useState(false);
   const [fueledTokens, setFueledTokens] = useState([]);
   const [viewMode, setViewMode] = useState('bubbles'); // 'bubbles' or 'cards'
   const [settings, setSettings] = useState({
@@ -837,6 +839,11 @@ function App() {
     setShowPremium(true);
   }, []);
 
+  const handleAIChatClick = useCallback(() => {
+    console.log('🤖 Opening AI Chat');
+    setShowAIChat(true);
+  }, []);
+
 
   const handleCategoryFiltersChange = useCallback((newCategoryFilters) => {
     setCategoryFilters(newCategoryFilters);
@@ -1054,6 +1061,7 @@ function App() {
           onSettingsClick={handleSettingsClick}
           onWatchlistClick={handleWatchlistClick}
           onApifyTestClick={handleApifyTestClick}
+          onAIChatClick={handleAIChatClick}
 
           authButton={<AuthButton 
             onNavigateToListToken={handleListTokenClick} 
@@ -1300,6 +1308,12 @@ function App() {
           }}
         />
       )}
+
+      {/* AI Chat Modal */}
+      <AIChatModal
+        isOpen={showAIChat}
+        onClose={() => setShowAIChat(false)}
+      />
     </div>
     </AuthProvider>
   );

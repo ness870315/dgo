@@ -31,7 +31,7 @@ class MoralisAIChatService {
       console.log(`📊 User context gathered: ${Object.keys(userContext).join(', ')}`);
 
       // Build the enhanced prompt with user context
-      const enhancedPrompt = this.buildEnhancedPrompt(userPrompt, userContext, conversationHistory);
+      const enhancedPrompt = this.buildEnhancedPrompt(userPrompt, userContext, conversationHistory, dataNeeds);
 
       // Call Moralis AI
       const aiResponse = await this.callMoralisAI(enhancedPrompt);
@@ -64,13 +64,24 @@ class MoralisAIChatService {
   analyzePromptDataNeeds(prompt) {
     const lowerPrompt = prompt.toLowerCase();
     const needs = {
+      // Degen Oracle User Data
       kolCalls: false,
       watchlist: false,
       hypeData: false,
       milestones: false,
       leaderboard: false,
+      userStats: false,
+      
+      // Moralis Blockchain Data (via Cortex AI)
       tokenPrices: false,
-      userStats: false
+      marketData: false,
+      blockchainAnalysis: false,
+      defiData: false,
+      nftData: false,
+      
+      // Data source priority
+      primarySource: 'general', // 'user', 'blockchain', 'general'
+      confidence: 0.5
     };
 
     // KOL Calls related keywords
@@ -108,17 +119,65 @@ class MoralisAIChatService {
       needs.leaderboard = true;
     }
 
-    // Token prices (always useful for crypto questions)
+    // Moralis Blockchain Data Analysis
+    
+    // Token prices and market data
     if (lowerPrompt.includes('price') || lowerPrompt.includes('$') ||
         lowerPrompt.includes('market cap') || lowerPrompt.includes('mcap') ||
-        lowerPrompt.includes('volume')) {
+        lowerPrompt.includes('volume') || lowerPrompt.includes('liquidity')) {
       needs.tokenPrices = true;
+      needs.marketData = true;
     }
 
-    // User stats
+    // Blockchain analysis keywords
+    if (lowerPrompt.includes('whale') || lowerPrompt.includes('holder') ||
+        lowerPrompt.includes('transaction') || lowerPrompt.includes('transfer') ||
+        lowerPrompt.includes('burn') || lowerPrompt.includes('mint') ||
+        lowerPrompt.includes('supply') || lowerPrompt.includes('circulation')) {
+      needs.blockchainAnalysis = true;
+    }
+
+    // DeFi related keywords
+    if (lowerPrompt.includes('defi') || lowerPrompt.includes('yield') ||
+        lowerPrompt.includes('farming') || lowerPrompt.includes('staking') ||
+        lowerPrompt.includes('pool') || lowerPrompt.includes('swap') ||
+        lowerPrompt.includes('dex') || lowerPrompt.includes('liquidity')) {
+      needs.defiData = true;
+    }
+
+    // NFT related keywords
+    if (lowerPrompt.includes('nft') || lowerPrompt.includes('collection') ||
+        lowerPrompt.includes('opensea') || lowerPrompt.includes('floor price') ||
+        lowerPrompt.includes('mint') || lowerPrompt.includes('rare')) {
+      needs.nftData = true;
+    }
+
+    // User-specific keywords (Degen Oracle data priority)
     if (lowerPrompt.includes('my') || lowerPrompt.includes('i have') ||
         lowerPrompt.includes('how many') || lowerPrompt.includes('total')) {
       needs.userStats = true;
+    }
+
+    // Determine primary data source and confidence
+    const userDataCount = [needs.kolCalls, needs.watchlist, needs.hypeData, 
+                          needs.milestones, needs.userStats].filter(Boolean).length;
+    
+    const blockchainDataCount = [needs.tokenPrices, needs.marketData, 
+                                needs.blockchainAnalysis, needs.defiData, needs.nftData].filter(Boolean).length;
+
+    // Determine primary source based on keyword analysis
+    if (userDataCount > blockchainDataCount) {
+      needs.primarySource = 'user';
+      needs.confidence = Math.min(0.9, 0.6 + (userDataCount * 0.1));
+    } else if (blockchainDataCount > userDataCount) {
+      needs.primarySource = 'blockchain';
+      needs.confidence = Math.min(0.9, 0.6 + (blockchainDataCount * 0.1));
+    } else if (userDataCount === blockchainDataCount && userDataCount > 0) {
+      needs.primarySource = 'hybrid';
+      needs.confidence = 0.8;
+    } else {
+      needs.primarySource = 'general';
+      needs.confidence = 0.5;
     }
 
     return needs;
@@ -310,15 +369,29 @@ class MoralisAIChatService {
   /**
    * Build enhanced prompt with user context
    */
-  buildEnhancedPrompt(userPrompt, userContext, conversationHistory) {
-    let systemContext = `You are the Degen Oracle AI Assistant, a specialized crypto AI with access to this user's personal Degen Oracle data. You can answer questions about their portfolio, calls, watchlist, and performance.
+  buildEnhancedPrompt(userPrompt, userContext, conversationHistory, dataNeeds) {
+    const primarySource = dataNeeds?.primarySource || 'general';
+    const confidence = dataNeeds?.confidence || 0.5;
 
-IMPORTANT GUIDELINES:
-- Always be helpful, accurate, and use crypto slang appropriately
-- When referencing user data, be specific with numbers and details
-- If asked about comparisons with other users, explain that you only have access to this user's data
-- For general crypto questions, use your blockchain knowledge
-- For user-specific questions, use the provided context data
+    let systemContext = `You are the Degen Oracle AI Assistant, a specialized crypto AI with access to both:
+1. USER'S PERSONAL DEGEN ORACLE DATA (KOL calls, watchlist, hype data, milestones)
+2. REAL-TIME BLOCKCHAIN DATA via Moralis (prices, market caps, transactions, DeFi, NFTs)
+
+DATA SOURCE PRIORITY FOR THIS QUERY:
+- Primary Source: ${primarySource.toUpperCase()}
+- Confidence: ${(confidence * 100).toFixed(0)}%
+
+RESPONSE GUIDELINES:
+- For USER DATA queries (my calls, my watchlist): Use the provided Degen Oracle context
+- For BLOCKCHAIN queries (prices, market data): Use your real-time Moralis blockchain knowledge
+- For HYBRID queries: Combine both data sources intelligently
+- Always be specific with numbers and use crypto slang appropriately
+- When using user data, reference specific details from the context below
+
+${primarySource === 'user' ? 'FOCUS: This query is primarily about the user\'s personal Degen Oracle data.' :
+  primarySource === 'blockchain' ? 'FOCUS: This query is primarily about blockchain/market data. Use your Moralis knowledge.' :
+  primarySource === 'hybrid' ? 'FOCUS: This query combines user data with blockchain data.' :
+  'FOCUS: General crypto question. Use your knowledge and any relevant context.'}
 
 USER'S DEGEN ORACLE DATA:`;
 

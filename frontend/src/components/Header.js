@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Search, Filter, TrendingUp, RefreshCw, Settings, Star } from 'lucide-react';
+import { Search, Filter, TrendingUp, RefreshCw, Settings, Star, Bot } from 'lucide-react';
 import dgoLogo from '../assets/dgo.png';
 
-const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, authButton, onWatchlistClick, onApifyTestClick }) => {
+const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, authButton, onWatchlistClick, onApifyTestClick, onAIChatClick }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
@@ -104,6 +104,16 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
                 style={{ fontSize: '11px', minHeight: '24px' }}
               >
                 <Star size={12} />
+              </button>
+
+              {/* AI Chat Button */}
+              <button
+                onClick={onAIChatClick}
+                className="px-2 py-1 rounded-md border border-gray-600 text-gray-400 hover:text-purple-400 hover:border-purple-500 transition-colors text-xs"
+                title="AI Assistant"
+                style={{ fontSize: '11px', minHeight: '24px' }}
+              >
+                <Bot size={12} />
               </button>
 
               {/* Authentication Button */}
