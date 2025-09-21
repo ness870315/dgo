@@ -939,6 +939,9 @@ class MoralisAIChatService {
       defiData: false,
       nftData: false,
       
+      // Platform Information
+      platformInfo: false,
+      
       // Data source priority
       primarySource: 'general', // 'user', 'blockchain', 'general'
       confidence: 0.5
@@ -1010,6 +1013,22 @@ class MoralisAIChatService {
         lowerPrompt.includes('opensea') || lowerPrompt.includes('floor price') ||
         lowerPrompt.includes('mint') || lowerPrompt.includes('rare')) {
       needs.nftData = true;
+    }
+
+    // Platform information keywords
+    if (lowerPrompt.includes('degen oracle') || lowerPrompt.includes('platform') || 
+        lowerPrompt.includes('how does') || lowerPrompt.includes('what is') ||
+        lowerPrompt.includes('trending work') || lowerPrompt.includes('scoring') ||
+        lowerPrompt.includes('features') || lowerPrompt.includes('tools') ||
+        lowerPrompt.includes('premium') || lowerPrompt.includes('subscription') ||
+        lowerPrompt.includes('bubble map') || lowerPrompt.includes('watchlist work') ||
+        lowerPrompt.includes('hype over time') || lowerPrompt.includes('oracle chart') ||
+        lowerPrompt.includes('holder insights') || lowerPrompt.includes('kol calls') ||
+        lowerPrompt.includes('list token') || lowerPrompt.includes('fuel token') ||
+        lowerPrompt.includes('how to use') || lowerPrompt.includes('getting started')) {
+      needs.platformInfo = true;
+      needs.primarySource = 'general';
+      needs.confidence = Math.max(needs.confidence, 0.9);
     }
 
     // User-specific keywords (Degen Oracle data priority)
@@ -1274,6 +1293,80 @@ INTERACTIVE CAPABILITIES:
 - When discussing tokens, I'll offer action suggestions like "Add to Watchlist" or "Get Full Analysis"
 - IMPORTANT: For token queries without contract addresses, always ask for the contract address
 - Never say "my access plan doesn't support that" - instead ask for more specific information
+
+DEGEN ORACLE PLATFORM KNOWLEDGE:
+
+🚀 **WHAT IS DEGEN ORACLE?**
+Degen Oracle is the ultimate Solana memecoin discovery and analysis platform. We're the go-to destination for degens looking to find the next 100x gem before it moons. Our AI-powered analytics engine tracks thousands of Solana tokens in real-time, providing comprehensive insights that help users make informed trading decisions.
+
+🎯 **CORE FEATURES:**
+
+**1. TRENDING DISCOVERY**
+- Real-time trending token detection using advanced algorithms
+- Multi-source data aggregation (Dexscreener, CoinGecko, Jupiter API)
+- Smart filtering to surface only quality opportunities
+- Trending status based on our proprietary scoring system (>7.8 = Trending, >8.5 = Viral)
+
+**2. COMPREHENSIVE TOKEN ANALYTICS**
+- **Overall Score**: 0-10 rating based on multiple factors (liquidity, holders, volume, organic growth)
+- **Holder Analysis**: Distribution, concentration, growth patterns, whale/retail activity
+- **Technical Analysis**: Price action, volume trends, support/resistance levels
+- **Social Context**: Community engagement, mentions, sentiment analysis
+- **Risk Assessment**: Security audits, liquidity risks, holder concentration warnings
+
+**3. ADVANCED TOOLS**
+- **Watchlist**: Track your favorite tokens with price alerts and performance monitoring
+- **KOL Calls**: Make timestamped calls on tokens and track your performance
+- **Hype Over Time**: AI-powered trend prediction and momentum analysis
+- **Oracle Chart Analysis**: Deep technical analysis with pattern recognition
+- **Holder Insights**: Detailed holder distribution and flow analysis
+
+**4. PREMIUM FEATURES (MP/VIP)**
+- Advanced AI analysis and predictions
+- Priority access to trending tokens
+- Enhanced technical analysis tools
+- Exclusive insights and alpha calls
+- Premium support and features
+
+🔥 **HOW TRENDING WORKS:**
+Our trending algorithm analyzes multiple data points:
+- **Volume Surge**: Unusual trading activity and volume spikes
+- **Holder Growth**: New wallet adoption and community expansion  
+- **Price Momentum**: Sustained price action and breakout patterns
+- **Social Buzz**: Mentions, engagement, and community activity
+- **Liquidity Health**: Market depth and trading accessibility
+- **Organic Score**: Authenticity vs artificial pump detection
+
+Tokens are scored 0-10 and categorized:
+- **Viral** (8.5-10): Explosive growth, maximum attention
+- **Trending** (7.8-8.4): Strong momentum, gaining traction
+- **Building** (6.0-7.7): Developing interest, worth watching
+- **Waking Up** (4.0-5.9): Early signs of activity
+- **Sleeping** (0-3.9): Low activity, minimal interest
+
+🛠 **PLATFORM SERVICES:**
+
+**List Token Service**: Add new tokens to our database for tracking and analysis
+**Fuel Token Service**: Boost token visibility and priority in our system  
+**Update Token Service**: Refresh token data and metadata
+**Premium Subscriptions**: Access to advanced features and AI insights
+
+🎪 **USER EXPERIENCE:**
+- **Bubble Map**: Visual representation of trending tokens by market cap and momentum
+- **Token Details**: Comprehensive analysis modals with all relevant data
+- **User Dashboard**: Personal portfolio tracking, call history, and performance metrics
+- **Real-time Updates**: Live data feeds and instant notifications
+- **Mobile Optimized**: Responsive design for trading on the go
+
+💎 **COMMUNITY:**
+Degen Oracle serves the Solana degen community with:
+- Alpha calls and early token discovery
+- Educational content about memecoin trading
+- Community-driven insights and discussions
+- Transparent performance tracking
+- No-BS analysis with authentic crypto slang
+
+When users ask about the platform, trending mechanics, features, or how things work, use this knowledge to provide comprehensive, engaging answers with crypto slang!
 
 ${primarySource === 'user' ? 'FOCUS: This query is primarily about the user\'s personal Degen Oracle data.' :
   primarySource === 'blockchain' ? 'FOCUS: This query is primarily about blockchain/market data. Use your Moralis knowledge.' :
