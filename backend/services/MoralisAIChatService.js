@@ -1203,37 +1203,46 @@ TOP 5 CALLS:`;
       });
     }
 
-    // Add user preferences for personalization
+    // Add user preferences for personalization (INTERNAL USE ONLY - DO NOT MENTION EXPLICITLY)
     if (userContext.preferences && userContext.preferences.totalInteractions > 0) {
-      systemContext += `\n\nUSER PREFERENCES (LEARNED):`;
+      systemContext += `\n\nUSER CONTEXT (FOR PERSONALIZATION - DO NOT REFERENCE DIRECTLY):`;
       
-      // Top token interests
+      // Top token interests (use for relevance, don't mention explicitly)
       if (userContext.preferences.tokenInterests && userContext.preferences.tokenInterests.length > 0) {
         const topTokens = userContext.preferences.tokenInterests.slice(0, 3);
-        systemContext += `\n- Frequently discussed tokens: ${topTokens.map(t => t.address.substring(0, 8) + '...').join(', ')}`;
+        systemContext += `\n- User has shown interest in: ${topTokens.map(t => t.address.substring(0, 8) + '...').join(', ')}`;
+        systemContext += `\n- IMPORTANT: Only mention these tokens if directly relevant to the current query. Do not reference them as "your favs" or similar.`;
       }
       
-      // Trading style
+      // Trading style (use for tone, don't mention explicitly)
       if (userContext.preferences.tradingStyle) {
         const styles = Object.entries(userContext.preferences.tradingStyle);
         if (styles.length > 0) {
           const dominantStyle = styles.reduce((a, b) => a[1] > b[1] ? a : b)[0];
-          systemContext += `\n- Trading style: ${dominantStyle}`;
+          systemContext += `\n- User trading approach: ${dominantStyle} (adapt your language accordingly)`;
         }
       }
       
-      // Main interests
+      // Main interests (use for focus, don't mention explicitly)
       if (userContext.preferences.interests) {
         const interests = Object.entries(userContext.preferences.interests)
           .sort((a, b) => b[1] - a[1])
           .slice(0, 3)
           .map(([interest]) => interest.replace('_', ' '));
         if (interests.length > 0) {
-          systemContext += `\n- Main interests: ${interests.join(', ')}`;
+          systemContext += `\n- User focus areas: ${interests.join(', ')} (prioritize these topics)`;
         }
       }
       
-      systemContext += `\n- Total interactions: ${userContext.preferences.totalInteractions}`;
+      // Experience level
+      systemContext += `\n- User experience level: ${userContext.preferences.totalInteractions > 10 ? 'Experienced' : 'New'} (${userContext.preferences.totalInteractions} interactions)`;
+      
+      systemContext += `\n\nGUIDELINES FOR USING LEARNED DATA:
+- Use preferences to personalize tone and focus, NOT to repeat the same information
+- Only mention previously discussed tokens if they're directly relevant to the current question
+- Avoid phrases like "your favs", "as you know", or referencing past conversations unless specifically asked
+- Focus on providing fresh, current information rather than rehashing learned patterns
+- Don't mention that you "learned" or "remember" things about the user`;
     }
 
     // Add conversation history if available
