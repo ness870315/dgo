@@ -83,9 +83,11 @@ class MoralisAIChatService {
     const lowerPrompt = prompt.toLowerCase();
     const commands = [];
 
-    // Check for "add to watchlist" commands
+    // Check for "add to watchlist" commands - including token symbols
     const addWatchlistMatch = lowerPrompt.match(/add\s+([a-z0-9]{32,})\s+to\s+(my\s+)?watchlist/i) ||
-                             lowerPrompt.match(/watchlist\s+([a-z0-9]{32,})/i);
+                             lowerPrompt.match(/watchlist\s+([a-z0-9]{32,})/i) ||
+                             lowerPrompt.match(/add\s+(\w+)\s+to\s+(my\s+)?watchlist/i) ||
+                             lowerPrompt.match(/can\s+you\s+add\s+(\w+)\s+to\s+(my\s+)?watchlist/i);
     
     if (addWatchlistMatch) {
       commands.push({
@@ -183,17 +185,29 @@ class MoralisAIChatService {
       for (const command of commands) {
         try {
           if (command.type === 'ADD_TO_WATCHLIST') {
-            // Try to get token info first
-            const tokenData = await this.getTokenData(command.contractAddress);
-            const tokenSymbol = tokenData?.analytics?.symbol || 'Unknown';
+            const identifier = command.contractAddress;
             
-            const result = await this.addToWatchlist(userId, command.contractAddress, tokenSymbol);
-            commandResults.watchlistAdded = {
-              success: true,
-              contractAddress: command.contractAddress,
-              symbol: tokenSymbol,
-              message: `Successfully added ${tokenSymbol} to watchlist!`
-            };
+            // Check if it's a contract address (32+ chars) or token symbol
+            if (identifier.length >= 32) {
+              // It's a contract address
+              const tokenData = await this.getTokenData(identifier);
+              const tokenSymbol = tokenData?.analytics?.symbol || 'Unknown';
+              
+              const result = await this.addToWatchlist(userId, identifier, tokenSymbol);
+              commandResults.watchlistAdded = {
+                success: true,
+                contractAddress: identifier,
+                symbol: tokenSymbol,
+                message: `Successfully added ${tokenSymbol} to watchlist!`
+              };
+            } else {
+              // It's likely a token symbol - need contract address
+              commandResults.needsContractAddress = {
+                success: false,
+                symbol: identifier.toUpperCase(),
+                message: `I'd love to add ${identifier.toUpperCase()} to your watchlist! However, I need the contract address to do that. Can you provide the contract address for ${identifier.toUpperCase()}?`
+              };
+            }
           } else if (command.type === 'GET_TOKEN_DATA') {
             const tokenData = await this.getTokenData(command.contractAddress);
             if (tokenData) {
@@ -604,10 +618,12 @@ RESPONSE GUIDELINES:
 - Avoid mentioning external links, logo URLs, or technical identifiers unless specifically asked
 
 INTERACTIVE CAPABILITIES:
-- I can add tokens to your watchlist when you ask
+- I can add tokens to your watchlist when you ask (need contract address)
 - I can fetch comprehensive token data (price, volume, holders) in real-time
 - I can execute actions based on your requests
 - When discussing tokens, I'll offer action suggestions like "Add to Watchlist" or "Get Full Analysis"
+- IMPORTANT: For token queries without contract addresses, always ask for the contract address
+- Never say "my access plan doesn't support that" - instead ask for more specific information
 
 ${primarySource === 'user' ? 'FOCUS: This query is primarily about the user\'s personal Degen Oracle data.' :
   primarySource === 'blockchain' ? 'FOCUS: This query is primarily about blockchain/market data. Use your Moralis knowledge.' :
@@ -648,6 +664,18 @@ TOP 5 CALLS:`;
 
     if (userContext.hypeList && userContext.hypeList.length > 0) {
       systemContext += `\n\nHYPE LIST: ${userContext.hypeList.map(token => token.symbol || token).join(', ')}`;
+    }
+
+    // Add command results to context
+    if (userContext.commandResults) {
+      systemContext += `\n\nCOMMAND RESULTS:`;
+      Object.entries(userContext.commandResults).forEach(([key, result]) => {
+        if (result.success) {
+          systemContext += `\n✅ ${result.message}`;
+        } else {
+          systemContext += `\n❌ ${result.message}`;
+        }
+      });
     }
 
     // Add conversation history if available
