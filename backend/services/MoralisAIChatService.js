@@ -8,8 +8,8 @@ class MoralisAIChatService {
   constructor() {
     this.db = new HybridDatabaseService();
     this.moralisApiKey = process.env.MORALIS_API_KEY;
-    // Try the v1 endpoint which might be the correct one
-    this.apiUrl = 'https://cortex-api.moralis.io/v1/chat';
+    // Back to original endpoint without v1
+    this.apiUrl = 'https://cortex-api.moralis.io/chat';
     
     if (!this.moralisApiKey) {
       console.warn('⚠️ MORALIS_API_KEY not found in environment variables');
@@ -467,9 +467,11 @@ Please provide a helpful, accurate response using the user's data when relevant.
     console.log(`🔑 Using Moralis API key: ${this.moralisApiKey.substring(0, 8)}...${this.moralisApiKey.slice(-4)}`);
     console.log(`🌐 Calling Moralis API: ${this.apiUrl}`);
 
-    // Try minimal request format first
+    // Use exact format from working Moralis example
     const requestBody = {
-      prompt: prompt
+      prompt: prompt,
+      model: 'gpt-4.1-mini',
+      stream: false
     };
 
     console.log(`📝 Request body:`, JSON.stringify(requestBody, null, 2));
@@ -477,7 +479,8 @@ Please provide a helpful, accurate response using the user's data when relevant.
     const options = {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'accept': 'application/json',
+        'content-type': 'application/json',
         'X-API-Key': this.moralisApiKey
       },
       body: JSON.stringify(requestBody)
