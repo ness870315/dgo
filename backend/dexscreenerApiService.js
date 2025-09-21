@@ -33,34 +33,70 @@ class DexscreenerApiService {
         return cached.data;
       }
 
-      console.log(`🔍 Fetching trending Solana pairs directly from Dexscreener...`);
+      console.log(`🔍 Fetching trending Solana pairs from Dexscreener using search approach...`);
 
-      // Use Dexscreener's direct trending endpoint for Solana
-      const response = await axios.get(`${this.baseURL}/latest/dex/tokens/solana`, {
-        params: {
-          limit: limit * 2 // Get more to filter properly
-        },
-        timeout: 15000,
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (compatible; DexscreenerBot/1.0)'
+      // Use multiple search queries to discover trending Solana tokens
+      const searchQueries = [
+        'raydium solana',
+        'orca solana', 
+        'jupiter solana',
+        'pump.fun solana',
+        'meteora solana',
+        'solana meme',
+        'solana token',
+        'trending solana'
+      ];
+
+      const allPairs = [];
+      
+      for (const query of searchQueries) {
+        try {
+          const response = await axios.get(`${this.baseURL}/latest/dex/search`, {
+            params: {
+              q: query
+            },
+            timeout: 10000,
+            headers: {
+              'Accept': 'application/json',
+              'User-Agent': 'Mozilla/5.0 (compatible; DexscreenerBot/1.0)'
+            }
+          });
+
+          if (response.data && response.data.pairs) {
+            // Filter for Solana pairs only
+            const solanaPairs = response.data.pairs.filter(pair => 
+              pair.chainId === 'solana' && 
+              pair.volume && 
+              pair.volume.h24 > 1000 // Minimum volume filter
+            );
+            allPairs.push(...solanaPairs);
+            console.log(`🎯 Found ${solanaPairs.length} Solana pairs from query: "${query}"`);
+          }
+          
+          // Small delay between requests to be respectful
+          await new Promise(resolve => setTimeout(resolve, 200));
+        } catch (error) {
+          console.warn(`⚠️ Search query "${query}" failed:`, error.message);
         }
-      });
+      }
 
-      if (!response.data || !response.data.pairs) {
+      if (!allPairs || allPairs.length === 0) {
         console.warn('⚠️ No trending pairs data from Dexscreener');
         return [];
       }
+
+      console.log(`📊 Total pairs collected: ${allPairs.length}`);
 
       const discoveredTokens = new Map(); // symbol -> pair data
       const processedPairs = new Set(); // pair address deduplication
 
       // Process trending pairs from Dexscreener
-      for (const pair of response.data.pairs) {
+      for (const pair of allPairs) {
         if (processedPairs.has(pair.pairAddress)) continue;
 
         // Only include pairs with reasonable volume
-        if (!pair.volume24h || pair.volume24h < 1000) continue;
+        const volume24h = pair.volume?.h24 || pair.volume24h || 0;
+        if (volume24h < 1000) continue;
         
         // Filter out stablecoins and major tokens
         const symbol = pair.baseToken?.symbol?.toUpperCase();
@@ -68,16 +104,36 @@ class DexscreenerApiService {
 
         discoveredTokens.set(symbol, pair);
         processedPairs.add(pair.pairAddress);
-        console.log(`🎯 Discovered trending Solana token: ${symbol} ($${pair.volume24h?.toLocaleString()} vol)`);
+        console.log(`🎯 Discovered trending Solana token: ${symbol} ($${volume24h?.toLocaleString()} vol)`);
       }
 
       // Convert to array and sort by volume (trending)
       let trendingPairs = Array.from(discoveredTokens.values())
-        .map(pair => ({
-          ...pair,
-          // Calculate trend score: volume + recent price action
-          trendScore: (pair.volume24h || 0) * (Math.abs(pair.priceChange24h || 0) + 1)
-        }))
+        .map(pair => {
+          const volume24h = pair.volume?.h24 || pair.volume24h || 0;
+          const priceChange24h = pair.priceChange?.h24 || pair.priceChange24h || 0;
+          return {
+            // Map to expected structure
+            symbol: pair.baseToken?.symbol || 'UNKNOWN',
+            name: pair.baseToken?.name || 'Unknown Token',
+            contractAddress: pair.baseToken?.address || 'UNKNOWN',
+            pairAddress: pair.pairAddress,
+            chainId: pair.chainId,
+            dex: pair.dexId,
+            price: parseFloat(pair.priceUsd || pair.priceNative || 0),
+            volume24h, // Normalize volume field
+            priceChange24h, // Normalize price change field
+            liquidity: pair.liquidity?.usd || 0,
+            marketCap: pair.fdv || pair.marketCap || 0,
+            // Calculate trend score: volume + recent price action
+            trendScore: volume24h * (Math.abs(priceChange24h) + 1),
+            // Keep original pair data for reference
+            pair: {
+              base: pair.baseToken,
+              target: pair.quoteToken || { symbol: 'SOL', name: 'Solana' }
+            }
+          };
+        })
         .sort((a, b) => b.trendScore - a.trendScore) // Sort by trendiness
         .slice(0, limit); // Take top N
 
