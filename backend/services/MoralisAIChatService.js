@@ -463,26 +463,43 @@ class MoralisAIChatService {
       console.log(`🎯 [AI WATCHLIST DEBUG] Contract: ${contractAddress}`);
       console.log(`🎯 [AI WATCHLIST DEBUG] Symbol: ${tokenSymbol}`);
       
+      // Fetch complete token data to get proper name and symbol
+      let tokenData = null;
+      try {
+        tokenData = await this.getTokenData(contractAddress);
+        console.log(`🎯 [AI WATCHLIST DEBUG] Complete token data fetched:`, JSON.stringify(tokenData?.analytics, null, 2));
+      } catch (error) {
+        console.warn(`⚠️ [AI WATCHLIST DEBUG] Failed to fetch complete token data:`, error.message);
+      }
+      
+      // Use complete token data if available, otherwise fallback to provided symbol
+      const symbol = tokenData?.analytics?.symbol || tokenSymbol || 'Unknown';
+      const name = tokenData?.analytics?.name || tokenData?.analytics?.symbol || tokenSymbol || 'Unknown Token';
+      const price = tokenData?.analytics?.price || null;
+      const marketCap = tokenData?.analytics?.marketCap || tokenData?.analytics?.mcap || null;
+      
       const watchlistData = {
         contractAddress,
-        symbol: tokenSymbol,
-        name: tokenSymbol,
+        symbol,
+        name,
+        price,
+        marketCap,
         addedAt: new Date().toISOString()
       };
       
-      console.log(`🎯 [AI WATCHLIST DEBUG] Watchlist data prepared:`, JSON.stringify(watchlistData, null, 2));
+      console.log(`🎯 [AI WATCHLIST DEBUG] Enhanced watchlist data prepared:`, JSON.stringify(watchlistData, null, 2));
 
       // Use OAuthXService if available, otherwise use database directly
       if (this.oauthXService) {
         console.log(`🎯 [AI WATCHLIST DEBUG] Using OAuthXService for watchlist operation`);
         try {
           const result = await this.oauthXService.addToWatchlist(userId, watchlistData);
-          console.log(`✅ [AI WATCHLIST DEBUG] Successfully added ${tokenSymbol} to watchlist for user ${userId} via OAuthXService`);
+          console.log(`✅ [AI WATCHLIST DEBUG] Successfully added ${symbol} (${name}) to watchlist for user ${userId} via OAuthXService`);
           console.log(`🎯 [AI WATCHLIST DEBUG] OAuthXService result:`, JSON.stringify(result, null, 2));
           
           return {
             success: true,
-            message: `Added ${tokenSymbol} to watchlist`,
+            message: `Added ${name} (${symbol}) to watchlist`,
             data: watchlistData
           };
         } catch (oauthError) {
@@ -498,11 +515,11 @@ class MoralisAIChatService {
       try {
         console.log(`🎯 [AI WATCHLIST DEBUG] Attempting database fallback method`);
         await this.db.addToWatchlist(userId, watchlistData);
-        console.log(`✅ [AI WATCHLIST DEBUG] Successfully added ${tokenSymbol} to watchlist for user ${userId} via database`);
+        console.log(`✅ [AI WATCHLIST DEBUG] Successfully added ${symbol} (${name}) to watchlist for user ${userId} via database`);
         
         return {
           success: true,
-          message: `Added ${tokenSymbol} to watchlist`,
+          message: `Added ${name} (${symbol}) to watchlist`,
           data: watchlistData
         };
       } catch (dbError) {
@@ -679,11 +696,16 @@ class MoralisAIChatService {
               const result = await this.addToWatchlist(userId, identifier, tokenSymbol);
               console.log(`🎯 [AI COMMAND DEBUG] addToWatchlist result:`, JSON.stringify(result, null, 2));
               
+              // Use the enhanced data from the result
+              const addedSymbol = result.data?.symbol || tokenSymbol;
+              const addedName = result.data?.name || tokenSymbol;
+              
               commandResults.watchlistAdded = {
                 success: true,
                 contractAddress: identifier,
-                symbol: tokenSymbol,
-                message: `Successfully added ${tokenSymbol} to watchlist!`
+                symbol: addedSymbol,
+                name: addedName,
+                message: `Successfully added ${addedName} (${addedSymbol}) to watchlist!`
               };
               
               console.log(`✅ [AI COMMAND DEBUG] Command result prepared:`, JSON.stringify(commandResults.watchlistAdded, null, 2));
