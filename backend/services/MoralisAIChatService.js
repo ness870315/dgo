@@ -603,6 +603,65 @@ class MoralisAIChatService {
   }
 
   /**
+   * Search for token by name or symbol in the database
+   */
+  async searchTokenByName(tokenName) {
+    try {
+      console.log(`🔍 [TOKEN SEARCH] Searching for token: "${tokenName}"`);
+      
+      if (!this.backendInstance) {
+        console.log(`⚠️ [TOKEN SEARCH] No backend instance available for database search`);
+        return null;
+      }
+
+      // Get all tokens from cache
+      const allTokens = await this.backendInstance.getTokensFromCache();
+      if (!allTokens || allTokens.length === 0) {
+        console.log(`⚠️ [TOKEN SEARCH] No tokens found in cache`);
+        return null;
+      }
+
+      const searchTerm = tokenName.toLowerCase().trim();
+      console.log(`🔍 [TOKEN SEARCH] Searching ${allTokens.length} tokens for: "${searchTerm}"`);
+
+      // Search by name or symbol (case insensitive)
+      const matchedToken = allTokens.find(token => {
+        const name = (token.name || '').toLowerCase();
+        const symbol = (token.symbol || '').toLowerCase();
+        
+        // Exact matches first
+        if (name === searchTerm || symbol === searchTerm) {
+          return true;
+        }
+        
+        // Partial matches (contains)
+        if (name.includes(searchTerm) || symbol.includes(searchTerm)) {
+          return true;
+        }
+        
+        return false;
+      });
+
+      if (matchedToken) {
+        console.log(`✅ [TOKEN SEARCH] Found token: ${matchedToken.name} (${matchedToken.symbol}) - ${matchedToken.contractAddress}`);
+        return {
+          contractAddress: matchedToken.contractAddress,
+          name: matchedToken.name,
+          symbol: matchedToken.symbol,
+          price: matchedToken.price,
+          marketCap: matchedToken.marketCap
+        };
+      } else {
+        console.log(`❌ [TOKEN SEARCH] No token found for: "${tokenName}"`);
+        return null;
+      }
+    } catch (error) {
+      console.error(`❌ [TOKEN SEARCH] Error searching for token:`, error);
+      return null;
+    }
+  }
+
+  /**
    * Extract token references from conversation history
    */
   extractTokenReferencesFromHistory(conversationHistory) {
@@ -646,7 +705,7 @@ class MoralisAIChatService {
   /**
    * Parse user commands for actions (add to watchlist, get data, etc.)
    */
-  parseUserCommands(prompt, userId, conversationHistory = []) {
+  async parseUserCommands(prompt, userId, conversationHistory = []) {
     console.log(`🎯 [AI PARSE DEBUG] Parsing user commands from prompt: "${prompt}"`);
     
     const lowerPrompt = prompt.toLowerCase();
@@ -660,23 +719,42 @@ class MoralisAIChatService {
     const addWatchlistMatch = lowerPrompt.match(/add\s+([a-z0-9]{32,})\s+to\s+(my\s+)?watchlist/i) ||
                              lowerPrompt.match(/watchlist\s+([a-z0-9]{32,})/i) ||
                              lowerPrompt.match(/add\s+(\w+)\s+to\s+(my\s+)?watchlist/i) ||
-                             lowerPrompt.match(/can\s+you\s+add\s+(\w+)\s+to\s+(my\s+)?watchlist/i);
+                             lowerPrompt.match(/can\s+you\s+add\s+(\w+)\s+to\s+(my\s+)?watchlist/i) ||
+                             lowerPrompt.match(/please\s+add\s+(\w+)\s+to\s+(my\s+)?watchlist/i);
     
     console.log(`🎯 [AI PARSE DEBUG] Watchlist match result:`, addWatchlistMatch);
     
     if (addWatchlistMatch) {
       let identifier = addWatchlistMatch[1];
+      let tokenData = null;
       
-      // If it's a token name and we have it in our conversation history, use the contract address
-      if (identifier.length < 32 && tokenReferences.has(identifier.toLowerCase())) {
-        const contractAddress = tokenReferences.get(identifier.toLowerCase());
-        console.log(`🧠 [AI PARSE DEBUG] Resolved token name "${identifier}" to contract address: ${contractAddress}`);
-        identifier = contractAddress;
+      // If it's already a contract address (32+ chars), use it directly
+      if (identifier.length >= 32) {
+        console.log(`🎯 [AI PARSE DEBUG] Using contract address directly: ${identifier}`);
+      } else {
+        // First check conversation history
+        if (tokenReferences.has(identifier.toLowerCase())) {
+          const contractAddress = tokenReferences.get(identifier.toLowerCase());
+          console.log(`🧠 [AI PARSE DEBUG] Resolved token name "${identifier}" from conversation history: ${contractAddress}`);
+          identifier = contractAddress;
+        } else {
+          // Search in database
+          console.log(`🔍 [AI PARSE DEBUG] Searching database for token: "${identifier}"`);
+          tokenData = await this.searchTokenByName(identifier);
+          
+          if (tokenData) {
+            console.log(`✅ [AI PARSE DEBUG] Found token in database: ${tokenData.name} (${tokenData.symbol}) - ${tokenData.contractAddress}`);
+            identifier = tokenData.contractAddress;
+          } else {
+            console.log(`❌ [AI PARSE DEBUG] Token "${identifier}" not found in database or conversation history`);
+          }
+        }
       }
       
       const command = {
         type: 'ADD_TO_WATCHLIST',
         contractAddress: identifier,
+        tokenData: tokenData, // Include found token data for better success messages
         userId
       };
       
@@ -684,15 +762,52 @@ class MoralisAIChatService {
       commands.push(command);
     }
 
-    // Check for token data requests
-    const tokenDataMatch = lowerPrompt.match(/(?:price|volume|holders?|data).*?([a-z0-9]{32,})/i) ||
-                          lowerPrompt.match(/([a-z0-9]{32,}).*?(?:price|volume|holders?|data)/i);
+    // Check for token data requests (price, volume, holders, etc.)
+    const tokenDataMatch = lowerPrompt.match(/(?:price|volume|holders?|data|analysis).*?([a-z0-9]{32,})/i) ||
+                          lowerPrompt.match(/([a-z0-9]{32,}).*?(?:price|volume|holders?|data|analysis)/i) ||
+                          lowerPrompt.match(/(?:price|volume|holders?|data|analysis).*?(?:of|for)\s+(\w+)/i) ||
+                          lowerPrompt.match(/what.*?(?:price|volume|holders?).*?(?:of|for)\s+(\w+)/i) ||
+                          lowerPrompt.match(/(\w+)\s+(?:price|volume|holders?|data)/i);
     
     if (tokenDataMatch) {
-      commands.push({
+      let identifier = tokenDataMatch[1];
+      let tokenData = null;
+      
+      console.log(`🔍 [AI PARSE DEBUG] Token data request for: "${identifier}"`);
+      
+      // If it's already a contract address (32+ chars), use it directly
+      if (identifier.length >= 32) {
+        console.log(`🎯 [AI PARSE DEBUG] Using contract address directly for data request: ${identifier}`);
+      } else {
+        // First check conversation history
+        if (tokenReferences.has(identifier.toLowerCase())) {
+          const contractAddress = tokenReferences.get(identifier.toLowerCase());
+          console.log(`🧠 [AI PARSE DEBUG] Resolved token name "${identifier}" from conversation history for data request: ${contractAddress}`);
+          identifier = contractAddress;
+        } else {
+          // Search in database
+          console.log(`🔍 [AI PARSE DEBUG] Searching database for token data request: "${identifier}"`);
+          tokenData = await this.searchTokenByName(identifier);
+          
+          if (tokenData) {
+            console.log(`✅ [AI PARSE DEBUG] Found token in database for data request: ${tokenData.name} (${tokenData.symbol}) - ${tokenData.contractAddress}`);
+            identifier = tokenData.contractAddress;
+          } else {
+            console.log(`❌ [AI PARSE DEBUG] Token "${identifier}" not found in database for data request`);
+          }
+        }
+      }
+      
+      const command = {
         type: 'GET_TOKEN_DATA',
-        contractAddress: tokenDataMatch[1]
-      });
+        contractAddress: identifier,
+        tokenData: tokenData, // Include found token data
+        originalQuery: tokenDataMatch[1], // Keep original query for error messages
+        userId
+      };
+      
+      console.log(`✅ [AI PARSE DEBUG] GET_TOKEN_DATA command detected:`, JSON.stringify(command, null, 2));
+      commands.push(command);
     }
 
     console.log(`🎯 [AI PARSE DEBUG] Final parsed commands (${commands.length}):`, JSON.stringify(commands, null, 2));
@@ -763,7 +878,7 @@ class MoralisAIChatService {
       console.log(`🤖 AI Chat request from user ${userId}: "${userPrompt.substring(0, 100)}..."`);
 
       // Parse user commands for actions
-      const commands = this.parseUserCommands(userPrompt, userId, conversationHistory);
+      const commands = await this.parseUserCommands(userPrompt, userId, conversationHistory);
       console.log(`🎯 Commands detected:`, commands);
 
       // Execute commands and gather additional data
@@ -782,19 +897,29 @@ class MoralisAIChatService {
             // Check if it's a contract address (32+ chars) or token symbol
             if (identifier.length >= 32) {
               console.log(`✅ [AI COMMAND DEBUG] Valid contract address detected (length: ${identifier.length})`);
-              // It's a contract address
-              const tokenData = await this.getTokenData(identifier);
-              const tokenSymbol = tokenData?.analytics?.symbol || 'Unknown';
               
-              console.log(`🎯 [AI COMMAND DEBUG] Token data retrieved - Symbol: ${tokenSymbol}`);
+              // Use token data from database search if available, otherwise fetch it
+              let tokenSymbol, tokenName;
+              if (command.tokenData) {
+                console.log(`🎯 [AI COMMAND DEBUG] Using token data from database search`);
+                tokenSymbol = command.tokenData.symbol;
+                tokenName = command.tokenData.name;
+              } else {
+                console.log(`🎯 [AI COMMAND DEBUG] Fetching token data from API`);
+                const tokenData = await this.getTokenData(identifier);
+                tokenSymbol = tokenData?.analytics?.symbol || 'Unknown';
+                tokenName = tokenData?.analytics?.name || tokenSymbol;
+              }
+              
+              console.log(`🎯 [AI COMMAND DEBUG] Token info - Name: ${tokenName}, Symbol: ${tokenSymbol}`);
               
               const result = await this.addToWatchlist(userId, identifier, tokenSymbol);
               console.log(`🎯 [AI COMMAND DEBUG] addToWatchlist result:`, JSON.stringify(result, null, 2));
               
               if (result.success) {
-                // Use the enhanced data from the result
+                // Use the enhanced data from the result or our database search
                 const addedSymbol = result.data?.symbol || tokenSymbol;
-                const addedName = result.data?.name || tokenSymbol;
+                const addedName = result.data?.name || tokenName;
                 
                 commandResults.watchlistAdded = {
                   success: true,
@@ -823,20 +948,50 @@ class MoralisAIChatService {
               
               console.log(`✅ [AI COMMAND DEBUG] Command result prepared:`, JSON.stringify(commandResults.watchlistAdded, null, 2));
             } else {
-              console.log(`⚠️ [AI COMMAND DEBUG] Invalid contract address (length: ${identifier.length}) - requesting user to provide contract address`);
-              // It's likely a token symbol - need contract address
-              commandResults.needsContractAddress = {
+              console.log(`❌ [AI COMMAND DEBUG] Token "${identifier}" not found in database for watchlist`);
+              // Token not found in database - guide to List Token service
+              commandResults.watchlistError = {
                 success: false,
-                symbol: identifier.toUpperCase(),
-                message: `I'd love to add ${identifier.toUpperCase()} to your watchlist! However, I need the contract address to do that. Can you provide the contract address for ${identifier.toUpperCase()}?`
+                error: 'TOKEN_NOT_FOUND',
+                originalQuery: identifier,
+                message: `Token "${identifier}" is not in our database. Please use our List Token service to add it first, or provide the full Solana contract address.`,
+                actionRequired: 'LIST_TOKEN'
               };
               
-              console.log(`🎯 [AI COMMAND DEBUG] Contract address request prepared:`, JSON.stringify(commandResults.needsContractAddress, null, 2));
+              console.log(`🎯 [AI COMMAND DEBUG] Token not found error prepared:`, JSON.stringify(commandResults.watchlistError, null, 2));
             }
           } else if (command.type === 'GET_TOKEN_DATA') {
-            const tokenData = await this.getTokenData(command.contractAddress);
-            if (tokenData) {
-              additionalTokenData[command.contractAddress] = tokenData;
+            console.log(`🎯 [AI COMMAND DEBUG] Processing GET_TOKEN_DATA command`);
+            console.log(`🎯 [AI COMMAND DEBUG] Command details:`, JSON.stringify(command, null, 2));
+            
+            // Check if token was found in database during parsing
+            if (command.contractAddress.length < 32) {
+              console.log(`❌ [AI COMMAND DEBUG] Token "${command.originalQuery}" not found in database`);
+              commandResults.tokenDataError = {
+                success: false,
+                error: 'TOKEN_NOT_FOUND',
+                originalQuery: command.originalQuery,
+                message: `Token "${command.originalQuery}" is not in our database. Please provide the full Solana contract address to get price and data.`
+              };
+            } else {
+              console.log(`🎯 [AI COMMAND DEBUG] Fetching token data for: ${command.contractAddress}`);
+              const tokenData = await this.getTokenData(command.contractAddress);
+              if (tokenData) {
+                console.log(`✅ [AI COMMAND DEBUG] Token data retrieved successfully`);
+                additionalTokenData[command.contractAddress] = {
+                  ...tokenData,
+                  // Include database search results if available
+                  databaseInfo: command.tokenData
+                };
+              } else {
+                console.log(`❌ [AI COMMAND DEBUG] Failed to fetch token data`);
+                commandResults.tokenDataError = {
+                  success: false,
+                  error: 'FETCH_FAILED',
+                  contractAddress: command.contractAddress,
+                  message: `Failed to fetch data for token ${command.contractAddress}`
+                };
+              }
             }
           }
         } catch (error) {
@@ -1431,6 +1586,9 @@ TOP 5 CALLS:`;
           // Add specific guidance for different error types
           if (result.actionRequired === 'LIST_TOKEN') {
             systemContext += `\n💡 IMPORTANT: Guide the user to use our List Token service to add this token to our database first.`;
+          }
+          if (result.error === 'TOKEN_NOT_FOUND') {
+            systemContext += `\n💡 IMPORTANT: The token "${result.originalQuery || 'requested token'}" is not in our database. Ask the user to provide the contract address or use our List Token service.`;
           }
         }
       });
