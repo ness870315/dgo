@@ -1,0 +1,267 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { X, Send, Bot, User, Sparkles, MessageCircle } from 'lucide-react';
+import aiChatService from '../services/aiChatService';
+
+const AIChatModal = ({ isOpen, onClose }) => {
+  const [messages, setMessages] = useState([]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(true);
+  const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
+
+  const suggestedQuestions = aiChatService.getSuggestedQuestions();
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Focus input when modal opens
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [isOpen]);
+
+  // Load conversation history when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const history = aiChatService.getHistory();
+      const formattedHistory = history.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp,
+        hasUserData: false // History doesn't track this
+      }));
+      setMessages(formattedHistory);
+      setShowSuggestions(formattedHistory.length === 0);
+    }
+  }, [isOpen]);
+
+  const handleSendMessage = async (messageText = null) => {
+    const message = messageText || inputMessage.trim();
+    if (!message || isLoading) return;
+
+    setInputMessage('');
+    setShowSuggestions(false);
+    setIsLoading(true);
+
+    // Add user message to UI
+    const userMessage = {
+      role: 'user',
+      content: message,
+      timestamp: new Date().toISOString()
+    };
+    setMessages(prev => [...prev, userMessage]);
+
+    try {
+      // Send to AI
+      const response = await aiChatService.sendMessage(message);
+
+      // Add AI response to UI
+      const aiMessage = {
+        role: 'assistant',
+        content: response.content,
+        timestamp: response.timestamp || new Date().toISOString(),
+        hasUserData: response.hasUserData,
+        dataUsed: response.dataUsed,
+        success: response.success
+      };
+
+      setMessages(prev => [...prev, aiMessage]);
+
+    } catch (error) {
+      console.error('Error sending message:', error);
+      
+      // Add error message
+      const errorMessage = {
+        role: 'assistant',
+        content: "Sorry, I'm having trouble right now. Please try again! 🤖",
+        timestamp: new Date().toISOString(),
+        hasUserData: false,
+        success: false
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const handleSuggestionClick = (suggestion) => {
+    handleSendMessage(suggestion);
+  };
+
+  const clearChat = () => {
+    setMessages([]);
+    aiChatService.clearHistory();
+    setShowSuggestions(true);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-900 rounded-2xl border border-white/10 w-full max-w-2xl h-[80vh] flex flex-col">
+        
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+              <Bot size={20} className="text-white" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold text-white">Degen Oracle AI</h2>
+              <p className="text-sm text-gray-400">Your personalized crypto assistant</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={clearChat}
+              className="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded text-white transition-colors"
+            >
+              Clear Chat
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <X size={20} className="text-gray-400" />
+            </button>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          
+          {/* Welcome Message */}
+          {messages.length === 0 && (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Sparkles size={24} className="text-white" />
+              </div>
+              <h3 className="text-xl font-semibold text-white mb-2">Welcome to Degen Oracle AI!</h3>
+              <p className="text-gray-400 mb-6">
+                I have access to your KOL calls, watchlist, hype data, and more. Ask me anything!
+              </p>
+            </div>
+          )}
+
+          {/* Suggested Questions */}
+          {showSuggestions && (
+            <div className="space-y-2">
+              <p className="text-sm text-gray-400 font-medium">Try asking me:</p>
+              <div className="grid grid-cols-1 gap-2">
+                {suggestedQuestions.slice(0, 6).map((question, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleSuggestionClick(question)}
+                    className="text-left p-3 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border border-gray-700/50 hover:border-gray-600/50 transition-colors"
+                  >
+                    <span className="text-sm text-gray-300">{question}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Chat Messages */}
+          {messages.map((message, index) => (
+            <div key={index} className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              
+              {message.role === 'assistant' && (
+                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Bot size={16} className="text-white" />
+                </div>
+              )}
+
+              <div className={`max-w-[80%] ${message.role === 'user' ? 'order-1' : 'order-2'}`}>
+                <div className={`p-3 rounded-2xl ${
+                  message.role === 'user' 
+                    ? 'bg-blue-600 text-white' 
+                    : message.success === false 
+                      ? 'bg-red-900/30 border border-red-600/30 text-red-200'
+                      : 'bg-gray-800 text-gray-100'
+                }`}>
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                    {message.content}
+                  </div>
+                  
+                  {/* Data sources indicator */}
+                  {message.role === 'assistant' && message.hasUserData && message.dataUsed && (
+                    <div className="mt-2 pt-2 border-t border-gray-600/30">
+                      <div className="flex items-center gap-1 text-xs text-gray-400">
+                        <MessageCircle size={12} />
+                        <span>Used: {message.dataUsed.join(', ')}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="text-xs text-gray-500 mt-1 px-1">
+                  {new Date(message.timestamp).toLocaleTimeString()}
+                </div>
+              </div>
+
+              {message.role === 'user' && (
+                <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  <User size={16} className="text-white" />
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* Loading indicator */}
+          {isLoading && (
+            <div className="flex gap-3 justify-start">
+              <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                <Bot size={16} className="text-white" />
+              </div>
+              <div className="bg-gray-800 p-3 rounded-2xl">
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        <div className="p-4 border-t border-white/10">
+          <div className="flex gap-2">
+            <input
+              ref={inputRef}
+              type="text"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Ask me about your calls, watchlist, or anything crypto..."
+              className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-colors"
+              disabled={isLoading}
+            />
+            <button
+              onClick={() => handleSendMessage()}
+              disabled={!inputMessage.trim() || isLoading}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:opacity-50 rounded-lg text-white transition-colors flex items-center gap-2"
+            >
+              <Send size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AIChatModal;

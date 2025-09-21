@@ -27,6 +27,7 @@ import logger from './logger.js';
 import { fileURLToPath } from 'url';
 import { ForecastDebugEndpoint } from './debug-forecast-token.js';
 import { CallMilestonesDebugEndpoint } from './debug-call-milestones.js';
+import MoralisAIChatService from './services/MoralisAIChatService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -137,6 +138,7 @@ class EnhancedBackend {
     this.milestoneTracker = new MilestoneTracker();
     this.pushNotificationService = new PushNotificationService();
     this.automatedCleanup = new AutomatedTokenCleanup();
+    this.aiChatService = new MoralisAIChatService();
     this.backupIntegration = null; // Will be initialized in setupServices()
     // Social Context cache (72h TTL)
     this.socialContextCache = new Map();
@@ -6723,6 +6725,59 @@ class EnhancedBackend {
           error: 'Call Milestones Debug failed',
           details: error.message,
           timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    // AI Chat Endpoint - Moralis AI with user context
+    this.app.post('/api/ai/chat', async (req, res) => {
+      try {
+        const { sessionId, prompt, conversationHistory } = req.body;
+        
+        if (!sessionId || !prompt) {
+          return res.status(400).json({
+            success: false,
+            error: 'Missing sessionId or prompt'
+          });
+        }
+
+        // Validate user session
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) {
+          return res.status(401).json({
+            success: false,
+            error: 'Invalid session'
+          });
+        }
+
+        console.log(`🤖 AI Chat request from user ${user.id}: "${prompt.substring(0, 100)}..."`);
+
+        // Call AI chat service with user context
+        const aiResponse = await this.aiChatService.chat(
+          user.id,
+          prompt,
+          conversationHistory || []
+        );
+
+        res.json({
+          success: true,
+          response: aiResponse.response,
+          dataUsed: aiResponse.dataUsed,
+          hasUserData: aiResponse.response.hasUserData,
+          timestamp: aiResponse.timestamp
+        });
+
+      } catch (error) {
+        console.error('❌ AI Chat error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'AI Chat failed',
+          details: error.message,
+          fallbackResponse: {
+            content: "I'm having trouble connecting to my AI brain right now 🧠 Please try again in a moment!",
+            hasUserData: false,
+            dataSourcesUsed: []
+          }
         });
       }
     });
