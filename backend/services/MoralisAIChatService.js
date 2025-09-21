@@ -603,13 +603,58 @@ class MoralisAIChatService {
   }
 
   /**
+   * Extract token references from conversation history
+   */
+  extractTokenReferencesFromHistory(conversationHistory) {
+    const tokenReferences = new Map(); // tokenName -> contractAddress
+    
+    conversationHistory.forEach(msg => {
+      if (msg.role === 'assistant' && msg.content) {
+        // Look for patterns like "TokenName (ContractAddress)" or contract addresses mentioned
+        const contractMatches = msg.content.match(/([A-Za-z0-9]{32,})/g);
+        const nameMatches = msg.content.match(/(\w+)\s*\([A-Za-z0-9]{32,}\)/g);
+        
+        if (contractMatches && nameMatches) {
+          nameMatches.forEach(match => {
+            const nameMatch = match.match(/(\w+)\s*\(([A-Za-z0-9]{32,})\)/);
+            if (nameMatch) {
+              const tokenName = nameMatch[1].toLowerCase();
+              const contractAddress = nameMatch[2];
+              tokenReferences.set(tokenName, contractAddress);
+              console.log(`🧠 [CONTEXT] Extracted token reference: ${tokenName} -> ${contractAddress}`);
+            }
+          });
+        }
+        
+        // Also look for direct mentions like "Fartcoin is currently priced" followed by contract
+        const directMatches = msg.content.match(/(\w+)\s+(?:is|has|currently|priced)/gi);
+        if (directMatches && contractMatches) {
+          directMatches.forEach(match => {
+            const tokenName = match.split(/\s+/)[0].toLowerCase();
+            if (contractMatches[0] && contractMatches[0].length >= 32) {
+              tokenReferences.set(tokenName, contractMatches[0]);
+              console.log(`🧠 [CONTEXT] Extracted direct token reference: ${tokenName} -> ${contractMatches[0]}`);
+            }
+          });
+        }
+      }
+    });
+    
+    return tokenReferences;
+  }
+
+  /**
    * Parse user commands for actions (add to watchlist, get data, etc.)
    */
-  parseUserCommands(prompt, userId) {
+  parseUserCommands(prompt, userId, conversationHistory = []) {
     console.log(`🎯 [AI PARSE DEBUG] Parsing user commands from prompt: "${prompt}"`);
     
     const lowerPrompt = prompt.toLowerCase();
     const commands = [];
+    
+    // Extract token references from conversation history for context
+    const tokenReferences = this.extractTokenReferencesFromHistory(conversationHistory);
+    console.log(`🧠 [AI PARSE DEBUG] Token references from history:`, Array.from(tokenReferences.entries()));
 
     // Check for "add to watchlist" commands - including token symbols
     const addWatchlistMatch = lowerPrompt.match(/add\s+([a-z0-9]{32,})\s+to\s+(my\s+)?watchlist/i) ||
@@ -620,9 +665,18 @@ class MoralisAIChatService {
     console.log(`🎯 [AI PARSE DEBUG] Watchlist match result:`, addWatchlistMatch);
     
     if (addWatchlistMatch) {
+      let identifier = addWatchlistMatch[1];
+      
+      // If it's a token name and we have it in our conversation history, use the contract address
+      if (identifier.length < 32 && tokenReferences.has(identifier.toLowerCase())) {
+        const contractAddress = tokenReferences.get(identifier.toLowerCase());
+        console.log(`🧠 [AI PARSE DEBUG] Resolved token name "${identifier}" to contract address: ${contractAddress}`);
+        identifier = contractAddress;
+      }
+      
       const command = {
         type: 'ADD_TO_WATCHLIST',
-        contractAddress: addWatchlistMatch[1],
+        contractAddress: identifier,
         userId
       };
       
@@ -709,7 +763,7 @@ class MoralisAIChatService {
       console.log(`🤖 AI Chat request from user ${userId}: "${userPrompt.substring(0, 100)}..."`);
 
       // Parse user commands for actions
-      const commands = this.parseUserCommands(userPrompt, userId);
+      const commands = this.parseUserCommands(userPrompt, userId, conversationHistory);
       console.log(`🎯 Commands detected:`, commands);
 
       // Execute commands and gather additional data
@@ -1334,9 +1388,26 @@ TOP 5 CALLS:`;
     // Add conversation history if available
     if (conversationHistory.length > 0) {
       systemContext += `\n\nCONVERSATION HISTORY:`;
-      conversationHistory.slice(-3).forEach((msg, index) => { // Last 3 messages for context
+      conversationHistory.slice(-5).forEach((msg, index) => { // Last 5 messages for better context
         systemContext += `\n${msg.role}: ${msg.content}`;
       });
+      
+      // Extract and display token references for easy AI access
+      const tokenReferences = this.extractTokenReferencesFromHistory(conversationHistory);
+      if (tokenReferences.size > 0) {
+        systemContext += `\n\nTOKEN REFERENCES FROM CONVERSATION:`;
+        Array.from(tokenReferences.entries()).forEach(([name, address]) => {
+          systemContext += `\n- ${name.toUpperCase()}: ${address}`;
+        });
+      }
+      
+      systemContext += `\n\nCONTEXT RETENTION GUIDELINES:
+- ALWAYS reference the conversation history above when answering questions
+- If a user mentions a token by name that was discussed earlier, use the contract address from the TOKEN REFERENCES section
+- Remember token names, contract addresses, and data from previous messages in this conversation
+- Don't ask for information that was already provided in the conversation history
+- Maintain context across the entire conversation, not just the current message
+- When a user asks about a token by name (e.g., "Fartcoin"), check if it's in the TOKEN REFERENCES section first`;
     }
 
     systemContext += `\n\nUSER QUESTION: ${userPrompt}
