@@ -220,6 +220,25 @@ class EnhancedBackend {
 
     // Handle preflight requests
     this.app.options('*', cors(corsOptions));
+    
+    // Additional CORS middleware for AI endpoints with debugging
+    this.app.use((req, res, next) => {
+      if (req.path.startsWith('/api/ai')) {
+        console.log(`🔍 AI CORS: ${req.method} ${req.path} from origin: ${req.headers.origin}`);
+        
+        const origin = req.headers.origin;
+        res.header('Access-Control-Allow-Origin', origin || '*');
+        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        res.header('Access-Control-Allow-Credentials', 'true');
+        
+        if (req.method === 'OPTIONS') {
+          console.log(`✅ AI CORS: Handling OPTIONS preflight for ${req.path}`);
+          return res.status(200).end();
+        }
+      }
+      next();
+    });
 
     // Serve static files from public directory (for admin dashboard)
     this.app.use(express.static(path.join(__dirname, 'public')));
