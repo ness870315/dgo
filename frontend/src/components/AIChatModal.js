@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Bot, User, Sparkles, MessageCircle, Star, BarChart3, TrendingUp } from 'lucide-react';
+import { X, Send, Bot, User, Sparkles, MessageCircle, Star, BarChart3, TrendingUp, Save, History, Trash2, FolderOpen } from 'lucide-react';
 import aiChatService from '../services/aiChatService';
 
 const AIChatModal = ({ isOpen, onClose }) => {
@@ -7,6 +7,9 @@ const AIChatModal = ({ isOpen, onClose }) => {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [showHistories, setShowHistories] = useState(false);
+  const [chatHistories, setChatHistories] = useState([]);
+  const [personalizedSuggestions, setPersonalizedSuggestions] = useState([]);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -36,8 +39,26 @@ const AIChatModal = ({ isOpen, onClose }) => {
       }));
       setMessages(formattedHistory);
       setShowSuggestions(formattedHistory.length === 0);
+      
+      // Load personalized suggestions and chat histories
+      loadPersonalizedData();
     }
   }, [isOpen]);
+
+  // Load personalized suggestions and chat histories
+  const loadPersonalizedData = async () => {
+    try {
+      const [suggestions, histories] = await Promise.all([
+        aiChatService.getPersonalizedSuggestions(),
+        aiChatService.getChatHistories()
+      ]);
+      
+      setPersonalizedSuggestions(suggestions);
+      setChatHistories(histories);
+    } catch (error) {
+      console.error('Error loading personalized data:', error);
+    }
+  };
 
   const handleSendMessage = async (messageText = null) => {
     const message = messageText || inputMessage.trim();
@@ -146,6 +167,74 @@ const AIChatModal = ({ isOpen, onClose }) => {
     setShowSuggestions(true);
   };
 
+  const handleSaveChat = async () => {
+    if (messages.length === 0) {
+      alert('No conversation to save!');
+      return;
+    }
+
+    const title = prompt('Enter a title for this chat:', `Chat ${new Date().toLocaleDateString()}`);
+    if (!title) return;
+
+    setIsLoading(true);
+    try {
+      await aiChatService.saveChatHistory(title);
+      
+      // Refresh chat histories
+      const histories = await aiChatService.getChatHistories();
+      setChatHistories(histories);
+      
+      alert('✅ Chat saved successfully!');
+    } catch (error) {
+      console.error('Error saving chat:', error);
+      alert('❌ Failed to save chat: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLoadChat = async (historyId) => {
+    setIsLoading(true);
+    try {
+      const history = await aiChatService.loadChatHistory(historyId);
+      
+      // Convert history messages to display format
+      const formattedHistory = history.messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp,
+        hasUserData: false
+      }));
+      
+      setMessages(formattedHistory);
+      setShowSuggestions(false);
+      setShowHistories(false);
+      
+      console.log(`📖 Loaded: ${history.title}`);
+    } catch (error) {
+      console.error('Error loading chat:', error);
+      alert('❌ Failed to load chat: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteChat = async (historyId, event) => {
+    event.stopPropagation(); // Prevent triggering load
+    
+    if (!confirm('Are you sure you want to delete this chat history?')) {
+      return;
+    }
+
+    try {
+      const remainingHistories = await aiChatService.deleteChatHistory(historyId);
+      setChatHistories(remainingHistories);
+    } catch (error) {
+      console.error('Error deleting chat:', error);
+      alert('❌ Failed to delete chat: ' + error.message);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -165,6 +254,21 @@ const AIChatModal = ({ isOpen, onClose }) => {
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={handleSaveChat}
+              disabled={messages.length === 0 || isLoading}
+              className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:opacity-50 rounded text-white transition-colors flex items-center gap-1"
+            >
+              <Save size={12} />
+              Save Chat
+            </button>
+            <button
+              onClick={() => setShowHistories(!showHistories)}
+              className="px-3 py-1 text-xs bg-purple-600 hover:bg-purple-700 rounded text-white transition-colors flex items-center gap-1"
+            >
+              <History size={12} />
+              History ({chatHistories.length})
+            </button>
+            <button
               onClick={clearChat}
               className="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded text-white transition-colors"
             >
@@ -182,34 +286,90 @@ const AIChatModal = ({ isOpen, onClose }) => {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           
+          {/* Chat Histories Panel */}
+          {showHistories && (
+            <div className="bg-gray-800/50 rounded-lg border border-gray-700/50 p-4 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                  <FolderOpen size={16} />
+                  Saved Chats (Max 3)
+                </h4>
+                <button
+                  onClick={() => setShowHistories(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              
+              {chatHistories.length === 0 ? (
+                <p className="text-gray-400 text-sm">No saved chats yet. Start a conversation and save it!</p>
+              ) : (
+                <div className="space-y-2">
+                  {chatHistories.map((history) => (
+                    <div
+                      key={history.id}
+                      onClick={() => handleLoadChat(history.id)}
+                      className="flex items-center justify-between p-3 bg-gray-700/50 hover:bg-gray-600/50 rounded-lg cursor-pointer transition-colors"
+                    >
+                      <div className="flex-1">
+                        <div className="text-sm font-medium text-white">{history.title}</div>
+                        <div className="text-xs text-gray-400">
+                          {history.messageCount} messages • {new Date(history.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => handleDeleteChat(history.id, e)}
+                        className="p-1 text-gray-400 hover:text-red-400 transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Welcome Message */}
-          {messages.length === 0 && (
+          {messages.length === 0 && !showHistories && (
             <div className="text-center py-8">
               <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Sparkles size={24} className="text-white" />
               </div>
               <h3 className="text-xl font-semibold text-white mb-2">Welcome to Degen Oracle AI!</h3>
               <p className="text-gray-400 mb-6">
-                I have access to your KOL calls, watchlist, hype data, and more. Ask me anything!
+                I have access to your KOL calls, watchlist, hype data, and more. I learn from our conversations to provide personalized insights!
               </p>
             </div>
           )}
 
           {/* Suggested Questions */}
-          {showSuggestions && (
+          {showSuggestions && !showHistories && (
             <div className="space-y-2">
-              <p className="text-sm text-gray-400 font-medium">Try asking me:</p>
+              <p className="text-sm text-gray-400 font-medium">
+                {personalizedSuggestions.length > 0 ? '🧠 Personalized suggestions:' : 'Try asking me:'}
+              </p>
               <div className="grid grid-cols-1 gap-2">
-                {suggestedQuestions.slice(0, 6).map((question, index) => (
+                {(personalizedSuggestions.length > 0 ? personalizedSuggestions : suggestedQuestions).slice(0, 6).map((question, index) => (
                   <button
                     key={index}
                     onClick={() => handleSuggestionClick(question)}
                     className="text-left p-3 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border border-gray-700/50 hover:border-gray-600/50 transition-colors"
                   >
                     <span className="text-sm text-gray-300">{question}</span>
+                    {personalizedSuggestions.length > 0 && (
+                      <span className="ml-2 text-xs text-purple-400">✨</span>
+                    )}
                   </button>
                 ))}
               </div>
+              
+              {personalizedSuggestions.length > 0 && (
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 These suggestions are based on your conversation history and interests
+                </p>
+              )}
             </div>
           )}
 

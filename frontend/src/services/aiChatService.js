@@ -194,6 +194,185 @@ class AIChatService {
   }
 
   /**
+   * Save current chat history
+   */
+  async saveChatHistory(title = null) {
+    try {
+      const sessionId = localStorage.getItem('sessionId');
+      
+      if (!sessionId) {
+        throw new Error('No session found. Please log in first.');
+      }
+
+      if (this.conversationHistory.length === 0) {
+        throw new Error('No conversation to save.');
+      }
+
+      console.log(`💾 Saving chat history: ${this.conversationHistory.length} messages`);
+
+      const response = await fetch(`${this.API_BASE}/api/ai/chat/save`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sessionId,
+          chatHistory: this.conversationHistory,
+          title: title || `Chat ${new Date().toLocaleDateString()}`
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log(`✅ Chat history saved: ${data.history.title}`);
+      
+      return data.history;
+
+    } catch (error) {
+      console.error('❌ Save chat history error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get saved chat histories
+   */
+  async getChatHistories() {
+    try {
+      const sessionId = localStorage.getItem('sessionId');
+      
+      if (!sessionId) {
+        throw new Error('No session found. Please log in first.');
+      }
+
+      const response = await fetch(`${this.API_BASE}/api/ai/chat/histories?sessionId=${sessionId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.histories;
+
+    } catch (error) {
+      console.error('❌ Get chat histories error:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Load specific chat history
+   */
+  async loadChatHistory(historyId) {
+    try {
+      const sessionId = localStorage.getItem('sessionId');
+      
+      if (!sessionId) {
+        throw new Error('No session found. Please log in first.');
+      }
+
+      const response = await fetch(`${this.API_BASE}/api/ai/chat/history/${historyId}?sessionId=${sessionId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Replace current conversation history
+      this.conversationHistory = [...data.history.messages];
+      
+      console.log(`📖 Loaded chat history: ${data.history.title} (${data.history.messageCount} messages)`);
+      return data.history;
+
+    } catch (error) {
+      console.error('❌ Load chat history error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete chat history
+   */
+  async deleteChatHistory(historyId) {
+    try {
+      const sessionId = localStorage.getItem('sessionId');
+      
+      if (!sessionId) {
+        throw new Error('No session found. Please log in first.');
+      }
+
+      const response = await fetch(`${this.API_BASE}/api/ai/chat/history/${historyId}?sessionId=${sessionId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log(`🗑️ Deleted chat history: ${historyId}`);
+      
+      return data.histories;
+
+    } catch (error) {
+      console.error('❌ Delete chat history error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get personalized suggestions
+   */
+  async getPersonalizedSuggestions() {
+    try {
+      const sessionId = localStorage.getItem('sessionId');
+      
+      if (!sessionId) {
+        return this.getSuggestedQuestions(); // Fallback to default
+      }
+
+      const response = await fetch(`${this.API_BASE}/api/ai/suggestions?sessionId=${sessionId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        return this.getSuggestedQuestions(); // Fallback to default
+      }
+
+      const data = await response.json();
+      return data.suggestions;
+
+    } catch (error) {
+      console.error('❌ Get personalized suggestions error:', error);
+      return this.getSuggestedQuestions(); // Fallback to default
+    }
+  }
+
+  /**
    * Check if AI chat is available (has session)
    */
   isAvailable() {
