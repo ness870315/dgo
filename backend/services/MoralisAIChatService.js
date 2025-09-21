@@ -463,13 +463,54 @@ class MoralisAIChatService {
       console.log(`🎯 [AI WATCHLIST DEBUG] Contract: ${contractAddress}`);
       console.log(`🎯 [AI WATCHLIST DEBUG] Symbol: ${tokenSymbol}`);
       
-      // Fetch complete token data to get proper name and symbol
+      // First, verify token exists in our token cache database
+      let tokenExists = false;
       let tokenData = null;
+      
       try {
-        tokenData = await this.getTokenData(contractAddress);
-        console.log(`🎯 [AI WATCHLIST DEBUG] Complete token data fetched:`, JSON.stringify(tokenData?.analytics, null, 2));
+        console.log(`🎯 [AI WATCHLIST DEBUG] Checking if token exists in token cache...`);
+        
+        // Check if backend instance is available for internal cache lookup
+        if (this.backendInstance && typeof this.backendInstance.getTokensFromCache === 'function') {
+          const allTokens = await this.backendInstance.getTokensFromCache();
+          tokenExists = allTokens.some(token => 
+            token.contractAddress === contractAddress || 
+            token.contract === contractAddress
+          );
+          console.log(`🎯 [AI WATCHLIST DEBUG] Token cache check result: ${tokenExists ? 'FOUND' : 'NOT FOUND'}`);
+        } else {
+          // Fallback: try to fetch token data to verify existence
+          tokenData = await this.getTokenData(contractAddress);
+          tokenExists = !!(tokenData?.analytics?.symbol);
+          console.log(`🎯 [AI WATCHLIST DEBUG] Token data fetch result: ${tokenExists ? 'FOUND' : 'NOT FOUND'}`);
+        }
+        
+        // If token doesn't exist in our system, return error message
+        if (!tokenExists) {
+          console.log(`❌ [AI WATCHLIST DEBUG] Token ${contractAddress} not found in our database`);
+          return {
+            success: false,
+            error: 'TOKEN_NOT_FOUND',
+            message: `This token isn't listed in our database yet. Please use our List Token service to add it first, then I can add it to your watchlist!`,
+            contractAddress,
+            actionRequired: 'LIST_TOKEN'
+          };
+        }
+        
+        // If we haven't fetched token data yet, do it now
+        if (!tokenData) {
+          tokenData = await this.getTokenData(contractAddress);
+          console.log(`🎯 [AI WATCHLIST DEBUG] Complete token data fetched:`, JSON.stringify(tokenData?.analytics, null, 2));
+        }
+        
       } catch (error) {
-        console.warn(`⚠️ [AI WATCHLIST DEBUG] Failed to fetch complete token data:`, error.message);
+        console.error(`❌ [AI WATCHLIST DEBUG] Error verifying token existence:`, error);
+        return {
+          success: false,
+          error: 'VERIFICATION_FAILED',
+          message: `I couldn't verify if this token exists in our database. Please try again or use our List Token service to ensure the token is properly added.`,
+          contractAddress
+        };
       }
       
       // Use complete token data if available, otherwise fallback to provided symbol
@@ -696,17 +737,35 @@ class MoralisAIChatService {
               const result = await this.addToWatchlist(userId, identifier, tokenSymbol);
               console.log(`🎯 [AI COMMAND DEBUG] addToWatchlist result:`, JSON.stringify(result, null, 2));
               
-              // Use the enhanced data from the result
-              const addedSymbol = result.data?.symbol || tokenSymbol;
-              const addedName = result.data?.name || tokenSymbol;
-              
-              commandResults.watchlistAdded = {
-                success: true,
-                contractAddress: identifier,
-                symbol: addedSymbol,
-                name: addedName,
-                message: `Successfully added ${addedName} (${addedSymbol}) to watchlist!`
-              };
+              if (result.success) {
+                // Use the enhanced data from the result
+                const addedSymbol = result.data?.symbol || tokenSymbol;
+                const addedName = result.data?.name || tokenSymbol;
+                
+                commandResults.watchlistAdded = {
+                  success: true,
+                  contractAddress: identifier,
+                  symbol: addedSymbol,
+                  name: addedName,
+                  message: `Successfully added ${addedName} (${addedSymbol}) to watchlist!`
+                };
+              } else {
+                // Handle token not found or verification failed
+                if (result.error === 'TOKEN_NOT_FOUND') {
+                  commandResults.tokenNotFound = {
+                    success: false,
+                    contractAddress: identifier,
+                    message: result.message,
+                    actionRequired: 'LIST_TOKEN'
+                  };
+                } else {
+                  commandResults.watchlistError = {
+                    success: false,
+                    contractAddress: identifier,
+                    message: result.message || `Failed to add token to watchlist`
+                  };
+                }
+              }
               
               console.log(`✅ [AI COMMAND DEBUG] Command result prepared:`, JSON.stringify(commandResults.watchlistAdded, null, 2));
             } else {
@@ -1221,6 +1280,11 @@ TOP 5 CALLS:`;
           systemContext += `\n✅ ${result.message}`;
         } else {
           systemContext += `\n❌ ${result.message}`;
+          
+          // Add specific guidance for different error types
+          if (result.actionRequired === 'LIST_TOKEN') {
+            systemContext += `\n💡 IMPORTANT: Guide the user to use our List Token service to add this token to our database first.`;
+          }
         }
       });
     }
