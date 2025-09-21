@@ -25,6 +25,7 @@ import AutomatedTokenCleanup from './automatedTokenCleanup.js';
 import HybridPriceService from './hybridPriceService.js';
 import logger from './logger.js';
 import { fileURLToPath } from 'url';
+import { ForecastDebugEndpoint } from './debug-forecast-token.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -6666,6 +6667,32 @@ class EnhancedBackend {
         res.status(500).json({
           success: false,
           error: 'Bayesian Debug Test failed',
+          details: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
+
+    // Forecast Calculation Debug Test
+    this.app.get('/api/test/forecast-debug', async (req, res) => {
+      try {
+        const testEndpoint = new ForecastDebugEndpoint();
+        
+        console.log('📊 Running Forecast Calculation Debug...');
+        const result = await testEndpoint.debugForecastCalculation();
+        
+        res.json({
+          success: true,
+          message: 'Forecast Debug Test completed',
+          result,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error('❌ Forecast Debug Test failed:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Forecast Debug Test failed',
           details: error.message,
           timestamp: new Date().toISOString()
         });
