@@ -351,7 +351,7 @@ class MoralisAIChatService {
   /**
    * Get trending tokens from the backend
    */
-  async getTrendingTokens() {
+  async getTrendingTokens(prompt = '') {
     try {
       // For production efficiency, we'll use internal method if available
       // Otherwise fall back to HTTP request
@@ -947,7 +947,7 @@ class MoralisAIChatService {
       if (dataNeeds.trending || prompt.toLowerCase().includes('trending')) {
         try {
           // Get trending tokens from the backend
-          const trendingTokens = await this.getTrendingTokens();
+          const trendingTokens = await this.getTrendingTokens(prompt);
           context.trendingTokens = trendingTokens;
         } catch (error) {
           console.error('❌ Error fetching trending tokens:', error);
