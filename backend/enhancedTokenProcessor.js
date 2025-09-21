@@ -1031,7 +1031,6 @@ class EnhancedTokenProcessor {
                 overallScore: enhancedScore || 0
               });
               
-              console.log(`📸 Hype snapshot saved for ${token.symbol} (overall score: ${score.toFixed(1)}, community: ${token.communityHealthScore?.toFixed(1) || 'N/A'})`);
             }
           } catch (snapErr) {
             console.log(`⚠️ Hype snapshot save failed for ${token.symbol}: ${snapErr.message}`);

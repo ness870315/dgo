@@ -5157,7 +5157,6 @@ class EnhancedBackend {
         const updatedTokens = rawTokens.map(t => (t.symbol && t.symbol.toUpperCase() === (token.symbol || '').toUpperCase()) ? token : t);
         await this.saveTokensToCache(updatedTokens);
         
-        console.log(`[🛡️ Admin] ✅ Twitter data updated for ${symbol}: ${twitterData.mentions} mentions, Community Score: ${token.communityHealthScore.toFixed(2)}, Overall Score: ${token.overallScore.toFixed(2)}`);
         
         res.json({
           success: true,
@@ -8357,7 +8356,6 @@ class EnhancedBackend {
         overallScore: score
       });
       
-      console.log(`📸 Hype snapshot saved for ${token.symbol} (overall score: ${score.toFixed(1)}, community: ${token.communityHealthScore?.toFixed(1) || 'N/A'})`);
     } catch (snapErr) {
       console.log(`⚠️ Hype snapshot save failed for ${token.symbol}: ${snapErr.message}`);
     }
@@ -9729,7 +9727,6 @@ class EnhancedBackend {
                   // Take hype snapshot after score recalculation
                   await this.takeHypeSnapshot(updatedToken);
                   
-                  console.log(`[🛡️ Enhanced Backend] 🏆 ${updatedToken.priority}: ${updatedToken.symbol} - Community: ${newCommunityScore.toFixed(2)}, Overall: ${newOverallScore.toFixed(2)}`);
                 } else {
                   // Use baseline score for tokens without Twitter data
                   updatedToken.communityHealthScore = 2.0;

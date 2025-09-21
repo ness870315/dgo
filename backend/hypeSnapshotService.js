@@ -75,7 +75,6 @@ class HypeSnapshotService {
     });
 
     await this.writeSnapshots(contractAddress, pruned);
-    console.log(`📸 Hype snapshot saved for ${contractAddress}: score=${snapshot.score?.toFixed(1) || 'N/A'}, community=${snapshot.communityHealthScore?.toFixed(1) || 'N/A'} (${pruned.length} total snapshots)`);
   }
 
   // Get snapshots since a certain timestamp

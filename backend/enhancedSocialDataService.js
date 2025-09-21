@@ -1522,15 +1522,10 @@ class EnhancedSocialDataService {
   calculateCommunityHealthScore(twitterData, socials = null, jupiterData = null) {
     let score = 2.0; // Base score - lowered to make scoring more dynamic
     
-    console.log(`\n🧮 CALCULATING COMMUNITY HEALTH SCORE:`);
-    console.log(`   📊 Input Data: mentions=${twitterData.mentions}, likes=${twitterData.likes}, retweets=${twitterData.retweets}, replies=${twitterData.replies}`);
     
     // Check for Jupiter organic score penalty (scale 0-100)
     const organicScore = jupiterData?.organicScore || this._currentJupiterData?.organicScore;
     const hasOrganicPenalty = typeof organicScore === 'number' && organicScore < 20; // 20/100 = 20% threshold
-    if (hasOrganicPenalty) {
-      console.log(`   🚨 ORGANIC SCORE PENALTY: Jupiter organic score ${organicScore}/100 (< 20) - applying artificial activity penalty`);
-    }
     
     try {
       // 1. MENTIONS SCORING (55% weight) - PRIMARY importance for community buzz
@@ -1543,7 +1538,6 @@ class EnhancedSocialDataService {
       const mentionsScore = normalizedActivity * (3.5 / 0.55) * mentionsWeight; // keep max ~3.5 when weight=0.55
 
       score += mentionsScore;
-      console.log(`   🐦 Mentions (${mentionsRaw}${has72h ? ' avg72h' : ''}): +${mentionsScore.toFixed(2)} points (${Math.round(mentionsWeight*100)}% weight)`);
       
       // 2. ENGAGEMENT SCORING (35% weight) - Quality of community interaction
       const totalEngagement = (twitterData.likes || 0) + (twitterData.retweets || 0) + (twitterData.replies || 0);
@@ -1561,14 +1555,12 @@ class EnhancedSocialDataService {
       if (hasOrganicPenalty) {
         const penaltyFactor = Math.max(0.1, organicScore / 100); // Scale penalty based on organic score (0-100 scale)
         engagementScore *= penaltyFactor;
-        console.log(`   🚨 Engagement penalty applied: ${engagementScore.toFixed(2)} (${(penaltyFactor * 100).toFixed(1)}% of original due to low organic score)`);
       }
       
       // Boost engagement weight in bootstrap since mentions are capped
       const engagementWeight = isBootstrap ? 0.45 : 0.35;
       const engagementScoreWeighted = engagementScore * (engagementWeight / 0.35);
       score += engagementScoreWeighted;
-      console.log(`   💬 Engagement Rate (${engagementRate.toFixed(2)}): +${engagementScoreWeighted.toFixed(2)} points (${Math.round(engagementWeight*100)}% weight)`);
       
       // 3. FOLLOWER BASE SCORING (5% weight) - Minor importance
       const followers = twitterData.followers || 0;
@@ -1580,7 +1572,6 @@ class EnhancedSocialDataService {
       else if (followers >= 10) followersScore = 0.1;   // 10+ followers = minimal reach
       
       score += followersScore;
-      console.log(`   👥 Followers (${followers}): +${followersScore.toFixed(4)} points (5% weight)`);
       
       // 4. RECENT ACTIVITY SCORING - REMOVED (redundant with mentions)
       // This was counting the same tweets already weighted in mentions scoring
@@ -1596,18 +1587,10 @@ class EnhancedSocialDataService {
         qualityScore += bump;
       }
       score += qualityScore;
-      console.log(`   ✅ Quality (Official=${!!twitterData.username}, Active=${mentionsRaw > 0}${isBootstrap ? ', Bootstrap bump applied' : ''}): +${qualityScore.toFixed(2)} points (5%+ variable)`);
       
       // Ensure score is within 0-10 range
       score = Math.min(9.9, Math.max(0, score));
       
-      console.log(`\n🏆 FINAL COMMUNITY HEALTH SCORE: ${score.toFixed(2)}/10`);
-      console.log(`   📊 Base Score: 2.0`);
-      console.log(`   🐦 Mentions Bonus: +${mentionsScore.toFixed(2)}`);
-      console.log(`   💬 Engagement Bonus: +${engagementScore.toFixed(2)}`);
-      console.log(`   👥 Followers Bonus: +${followersScore.toFixed(4)}`);
-      console.log(`   ✅ Quality Bonus: +${qualityScore.toFixed(2)}`);
-      console.log(`   🎯 Total: ${score.toFixed(2)}/10\n`);
       
       return score;
       
