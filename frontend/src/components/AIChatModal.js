@@ -343,7 +343,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
         shouldShowSuggestions: showSuggestions && !showHistories
       });
     }
-  }, [isOpen, messages.length, showSuggestions, showHistories, chatHistories.length, personalizedSuggestions.length, suggestedQuestions.length, position]);
+  }, [isOpen]); // Simplified dependencies to prevent excessive re-renders
 
   if (!isOpen) return null;
 
@@ -457,7 +457,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
 
           {/* Welcome Message */}
           {messages.length === 0 && !showHistories && (
-            <div className="text-center py-8">
+            <div className="text-center py-8" key="welcome-message">
               <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Sparkles size={24} className="text-white" />
               </div>
@@ -470,33 +470,23 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
 
           {/* Suggested Questions */}
           {showSuggestions && !showHistories && (
-            <div className="space-y-2">
+            <div className="space-y-2" key="suggestions-container">
               <p className="text-sm text-gray-400 font-medium">
                 {personalizedSuggestions.length > 0 ? '🧠 Personalized suggestions:' : 'Try asking me:'}
               </p>
               <div className="grid grid-cols-1 gap-2">
-                {(() => {
-                  const questions = personalizedSuggestions.length > 0 ? personalizedSuggestions : suggestedQuestions;
-                  console.log('🔍 [SUGGESTIONS DEBUG] Rendering suggestions:', {
-                    showSuggestions,
-                    showHistories,
-                    personalizedSuggestions: personalizedSuggestions.length,
-                    suggestedQuestions: suggestedQuestions.length,
-                    questionsToRender: questions.slice(0, 6).length
-                  });
-                  return questions.slice(0, 6).map((question, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleSuggestionClick(question)}
-                      className="text-left p-3 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border border-gray-700/50 hover:border-gray-600/50 transition-colors"
-                    >
-                      <span className="text-sm text-gray-300">{question}</span>
-                      {personalizedSuggestions.length > 0 && (
-                        <span className="ml-2 text-xs text-purple-400">✨</span>
-                      )}
-                    </button>
-                  ));
-                })()}
+                {(personalizedSuggestions.length > 0 ? personalizedSuggestions : suggestedQuestions).slice(0, 6).map((question, index) => (
+                  <button
+                    key={`suggestion-${index}-${question.substring(0, 20)}`}
+                    onClick={() => handleSuggestionClick(question)}
+                    className="text-left p-3 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border border-gray-700/50 hover:border-gray-600/50 transition-colors"
+                  >
+                    <span className="text-sm text-gray-300">{question}</span>
+                    {personalizedSuggestions.length > 0 && (
+                      <span className="ml-2 text-xs text-purple-400">✨</span>
+                    )}
+                  </button>
+                ))}
               </div>
               
               {personalizedSuggestions.length > 0 && (
