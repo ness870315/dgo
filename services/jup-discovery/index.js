@@ -119,7 +119,8 @@ function dedupeByAddress(tokens) {
   const seen = new Set();
   const out = [];
   for (const t of tokens) {
-    const key = t.contractAddress.toLowerCase();
+    const key = (t.contractAddress || t.address || t.mint || '').toLowerCase();
+    if (!key || key.length < 10) continue;
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(t);
@@ -146,6 +147,9 @@ async function runOnce() {
   let totalCandidates = 0;
   let totalImported = 0;
   let totalBoosted = 0;
+  
+  // Cross-category deduplication to prevent same token from multiple categories
+  const globalSeenTokens = new Set();
 
   // Track specific tokens we're looking for
   const targetTokens = [
@@ -167,6 +171,8 @@ async function runOnce() {
       const raw = await fetchJupiterCategory(s.category, s.interval);
       const fetched = Array.isArray(raw) ? raw.length : 0;
       totalFetched += fetched;
+      
+      console.log(`📊 [${s.key}] Raw tokens fetched: ${fetched}`);
       
       // Check if any target tokens are in the raw data
       const foundTargets = raw.filter(t => {
@@ -201,9 +207,23 @@ async function runOnce() {
       }
       
       const deduped = dedupeByAddress(filtered);
+      console.log(`📊 [${s.key}] After deduplication: ${deduped.length} tokens`);
+      
+      // Cross-category deduplication: filter out tokens already seen in this run
+      const crossCategoryFiltered = deduped.filter(t => {
+        const key = (t.contractAddress || t.address || t.mint || '').toLowerCase();
+        if (globalSeenTokens.has(key)) {
+          console.log(`🔄 [${s.key}] Skipping duplicate token across categories: ${t.symbol} (${key})`);
+          return false;
+        }
+        globalSeenTokens.add(key);
+        return true;
+      });
+      
+      console.log(`📊 [${s.key}] After cross-category deduplication: ${crossCategoryFiltered.length} tokens`);
       
       // Check if any target tokens made it to final import
-      const finalTargets = deduped.filter(t => targetTokens.includes(t.contractAddress));
+      const finalTargets = crossCategoryFiltered.filter(t => targetTokens.includes(t.contractAddress));
       if (finalTargets.length > 0) {
         console.log(`🚀 [${s.key}] TARGET TOKENS BEING IMPORTED:`, finalTargets.map(t => ({
           symbol: t.symbol,
@@ -214,7 +234,7 @@ async function runOnce() {
         })));
       }
       
-      const result = await importToBackend({ source: 'jup-discovery', category: s.category, interval: s.interval, tokens: deduped });
+      const result = await importToBackend({ source: 'jup-discovery', category: s.category, interval: s.interval, tokens: crossCategoryFiltered });
       if (result?.success) {
         const imported = (result.stats?.inserted || 0) + (result.stats?.updated || 0);
         const boosted = (result.stats?.boosted || 0);
