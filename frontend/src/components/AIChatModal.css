@@ -3,6 +3,9 @@
   z-index: 9999;
   transition: all 0.2s ease;
   user-select: none;
+  /* Ensure modal is visible */
+  visibility: visible;
+  opacity: 1;
 }
 
 .ai-chat-modal.dragging {

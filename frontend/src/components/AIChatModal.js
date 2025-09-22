@@ -18,8 +18,8 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
   const [position, setPosition] = useState(() => {
     if (initialPosition) return initialPosition;
     return {
-      x: Math.max(0, window.innerWidth - 450), // Default to right side
-      y: Math.max(0, window.innerHeight - 600) // Default to bottom
+      x: Math.max(0, (window.innerWidth - 450) / 2), // Default to center horizontally
+      y: Math.max(0, (window.innerHeight - 600) / 2) // Default to center vertically
     };
   });
   const [isDragging, setIsDragging] = useState(false);
@@ -324,6 +324,17 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
   };
 
   if (!isOpen) return null;
+
+  // Debug logging
+  console.log('🔍 [AI CHAT MODAL DEBUG] Rendering modal:', {
+    isOpen,
+    messages: messages.length,
+    showSuggestions,
+    showHistories,
+    chatHistories: chatHistories.length,
+    position,
+    windowSize: { width: window.innerWidth, height: window.innerHeight }
+  });
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 p-4">
