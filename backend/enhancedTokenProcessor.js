@@ -1861,23 +1861,16 @@ class EnhancedTokenProcessor {
   }
 
   async shouldRefreshTwitterData(token) {
-    // 🚨 NEW: Use Twitter API Manager for smart refresh decisions
+    // 🚨 NEW: Use Twitter API Manager for smart tier-based refresh decisions
     if (this.socialDataService?.twitterApiManager) {
       try {
-        // HARD 72h GATE: short-circuit before manager
-        if (token.twitterTimestamp) {
-          const last = new Date(token.twitterTimestamp).getTime();
-          const hours = (Date.now() - last) / (1000 * 60 * 60);
-          if (hours < 72) {
-            return false;
-          }
-        }
+        console.log(`🔍 [TIER DEBUG] Checking ${token.symbol}: twitterTimestamp=${token.twitterTimestamp}`);
         const canRefresh = await this.socialDataService.twitterApiManager.canRefreshToken(token);
         if (!canRefresh.allowed) {
-          console.log(`🚨 Twitter API Manager blocked refresh for ${token.symbol}: ${canRefresh.reason}`);
+          console.log(`🚨 Twitter API Manager blocked refresh for ${token.symbol} (${canRefresh.tier}): ${canRefresh.reason}`);
           return false;
         }
-        console.log(`✅ Twitter API Manager approved refresh for ${token.symbol} (${canRefresh.tier} tier)`);
+        console.log(`✅ Twitter API Manager approved refresh for ${token.symbol} (${canRefresh.tier} tier): ${canRefresh.reason}`);
         return true;
       } catch (error) {
         console.error(`❌ Error checking Twitter API Manager for ${token.symbol}:`, error);
