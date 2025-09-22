@@ -18,8 +18,8 @@ export default class LeaderboardScoringEngine {
       logisticCenter: 0,
 
       // Hit rate parameters
-      hitRateTarget: 2.0, // 2x multiple for hit rate
-      hitRateWindow: 72, // hours
+      hitRateTarget: 1.0, // 1x multiple for hit rate (profitable calls)
+      hitRateWindow: 720, // hours (30 days)
       wilsonConfidence: 0.95,
 
       // Gates
