@@ -138,7 +138,8 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     updateUser,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
+    isPremium: user?.isPremium || user?.tier === 'premium' || user?.tier === 'vip' || false
   };
 
   return (
