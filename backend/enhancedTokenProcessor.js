@@ -303,7 +303,8 @@ class EnhancedTokenProcessor {
 
     try {
       // Get existing contract addresses to avoid duplicates
-      const existingTokens = this.processedTokens.filter(t => t.stage === 'completed');
+      // 🚨 CRITICAL FIX: Check ALL tokens in database, not just completed ones
+      const existingTokens = this.processedTokens; // Check all tokens, not just completed
       const existingContracts = new Set(
         existingTokens
           .filter(t => t.contractAddress)
@@ -347,23 +348,60 @@ class EnhancedTokenProcessor {
             token.contractAddress.length > 10) {
           
           const contractLower = token.contractAddress.toLowerCase();
-          if (!existingContracts.has(contractLower)) {
-            existingContracts.add(contractLower); // Add to set to avoid duplicates
-            newContractsFound++;
-            
-            // Create minimal token object with only contract info
-            newContractTokens.push({
-        symbol: token.symbol || 'UNKNOWN',
-        name: token.name || 'Unknown Token',
-        contractAddress: token.contractAddress,
-        source: 'dexscreener',
-        stage: 'dexscreener',
-              // No market data - Jupiter will fetch this
-        pairAddress: token.pairAddress,
-        chainId: token.chainId,
-              dexId: token.dex
-            });
+          
+          // 🚨 CRITICAL FIX: Check if token exists in database with Twitter data
+          const existingDbToken = this.processedTokens.find(t => 
+            t.contractAddress && t.contractAddress.toLowerCase() === contractLower
+          );
+          
+          // Skip if token is already in current processing queue or completed
+          if (existingContracts.has(contractLower)) {
+            console.log(`🔍 SKIPPED existing contract: ${token.symbol} (${token.contractAddress})`);
+            return;
           }
+          
+          existingContracts.add(contractLower); // Add to set to avoid duplicates
+          newContractsFound++;
+          
+          // Create minimal token object with only contract info
+          const newToken = {
+            symbol: token.symbol || 'UNKNOWN',
+            name: token.name || 'Unknown Token',
+            contractAddress: token.contractAddress,
+            source: 'dexscreener',
+            stage: 'dexscreener',
+            // No market data - Jupiter will fetch this
+            pairAddress: token.pairAddress,
+            chainId: token.chainId,
+            dexId: token.dex
+          };
+          
+          // 🚨 PRESERVE EXISTING TWITTER DATA: If token exists in database, preserve Twitter data to avoid unnecessary API calls
+          if (existingDbToken) {
+            if (existingDbToken.twitterData) {
+              newToken.twitterData = existingDbToken.twitterData;
+              newToken.twitterTimestamp = existingDbToken.twitterTimestamp;
+              newToken.communityHealthScore = existingDbToken.communityHealthScore;
+              console.log(`📦 PRESERVED Twitter data for re-discovered token ${token.symbol} (${existingDbToken.twitterData?.mentions || 0} mentions, last updated: ${existingDbToken.twitterTimestamp || 'never'})`);
+            }
+            
+            // Also preserve other existing data to avoid re-processing
+            if (existingDbToken.jupiterData) {
+              newToken.jupiterData = existingDbToken.jupiterData;
+              newToken.jupiterTimestamp = existingDbToken.jupiterTimestamp;
+            }
+            
+            if (existingDbToken.overallScore) {
+              newToken.overallScore = existingDbToken.overallScore;
+              newToken.scoringTimestamp = existingDbToken.scoringTimestamp;
+            }
+            
+            console.log(`🔄 RE-DISCOVERED existing token ${token.symbol} with preserved data - will only update market data if needed`);
+          } else {
+            console.log(`🆕 TRULY NEW token discovered: ${token.symbol} (${token.contractAddress})`);
+          }
+          
+          newContractTokens.push(newToken);
         }
       });
 
