@@ -359,12 +359,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
           height: Math.min(600, window.innerHeight - 32)
         }}
       >
-        <div className="bg-gray-900 rounded-2xl border border-white/10 w-full h-full relative overflow-hidden" style={{
-          backgroundColor: 'rgba(0, 255, 255, 0.2)',
-          border: '3px solid red',
-          position: 'relative',
-          zIndex: 1000
-        }}>
+        <div className="bg-gray-900 rounded-2xl border border-white/10 w-full h-full relative overflow-hidden">
           
           {/* Header with drag handle */}
           <div 
@@ -412,12 +407,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
           </div>
 
         {/* Messages */}
-        <div className="absolute top-16 left-0 right-0 bottom-16 overflow-y-auto p-4 space-y-4" style={{ 
-          backgroundColor: 'rgba(255, 0, 0, 0.8)',
-          border: '2px solid yellow',
-          zIndex: 1001,
-          position: 'absolute'
-        }}>
+        <div className="absolute top-16 left-0 right-0 bottom-16 overflow-y-auto p-4 space-y-4">
           
           {/* Chat Histories Panel */}
           {showHistories && (
@@ -619,13 +609,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
         </div>
 
         {/* Input */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10" style={{ 
-          backgroundColor: 'rgba(0, 255, 0, 0.8)',
-          height: '80px',
-          border: '2px solid blue',
-          zIndex: 1001,
-          position: 'absolute'
-        }}>
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10">
           <div className="flex gap-2">
             <input
               ref={inputRef}
