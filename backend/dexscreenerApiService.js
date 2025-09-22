@@ -99,8 +99,34 @@ class DexscreenerApiService {
         if (volume24h < 1000) continue;
         
         // Filter out stablecoins and major tokens
-        const symbol = pair.baseToken?.symbol?.toUpperCase();
-        if (!symbol || ['USDC', 'USDT', 'SOL', 'JUP', 'WETH', 'WBTC', 'JLP', 'JUPSOL'].includes(symbol)) continue;
+        const originalSymbol = pair.baseToken?.symbol;
+        const symbol = originalSymbol?.toUpperCase();
+        const stableTokens = ['USDC', 'USDT', 'SOL', 'JUP', 'WETH', 'WBTC', 'JLP', 'JUPSOL'];
+        
+        // Enhanced debug logging for all tokens to catch variations
+        console.log(`🔍 [DEXSCREENER DEBUG] Processing token: "${originalSymbol}" → "${symbol}" (contract: ${pair.baseToken?.address?.substring(0, 8)}...)`);
+        
+        // Debug logging for JLP and JupSOL specifically (including variations)
+        if (symbol && (symbol.includes('JLP') || symbol.includes('JUPSOL') || symbol.includes('JUP'))) {
+          console.log(`🚫 [DEXSCREENER DEBUG] Potential stable token detected: ${symbol} (original: "${originalSymbol}")`);
+        }
+        
+        if (!symbol || stableTokens.includes(symbol)) {
+          if (symbol && stableTokens.includes(symbol)) {
+            console.log(`🚫 [DEXSCREENER FILTER] ✅ EXCLUDED stable token: ${symbol} (original: "${originalSymbol}")`);
+          }
+          continue;
+        }
+        
+        // Additional check for partial matches (in case of symbol variations)
+        const isStableVariation = stableTokens.some(stable => 
+          symbol.includes(stable) || stable.includes(symbol)
+        );
+        
+        if (isStableVariation) {
+          console.log(`🚫 [DEXSCREENER FILTER] ✅ EXCLUDED stable variation: ${symbol} (original: "${originalSymbol}")`);
+          continue;
+        }
 
         discoveredTokens.set(symbol, pair);
         processedPairs.add(pair.pairAddress);
