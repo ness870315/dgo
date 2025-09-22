@@ -95,22 +95,18 @@ function filterCandidates(list) {
     
     // 🚀 FILTER: Only include tokens with launchpad present
     if (!t.launchpad) {
-      console.log(`🚫 Filtering out ${n.symbol} (${n.contractAddress?.substring(0, 8)}) - no launchpad`);
       continue;
     }
     
     // 🎓 FILTER: Only include tokens that have graduated (graduatedAt present)
     if (!n.graduatedAt) {
-      console.log(`🚫 Filtering out ${n.symbol} (${n.contractAddress?.substring(0, 8)}) - not graduated`);
       continue;
     }
     
     // 🌱 FILTER: Only include tokens with organic score > 0
     const organicScore = t.organicScore ?? t.organic_score ?? t.organicScoreValue ?? 0;
-    console.log(`🔍 Debug ${n.symbol}: organicScore=${t.organicScore}, organic_score=${t.organic_score}, organicScoreValue=${t.organicScoreValue}, final=${organicScore}`);
     
     if (!organicScore || organicScore <= 0) {
-      console.log(`🚫 Filtering out ${n.symbol} (${n.contractAddress?.substring(0, 8)}) - no organic score (${organicScore})`);
       continue;
     }
     
