@@ -1409,8 +1409,23 @@ class MoralisAIChatService {
     try {
       // Get user's KOL calls
       if (dataNeeds.kolCalls || dataNeeds.userStats) {
+        console.log(`🔍 [KOL DEBUG] Fetching KOL calls for user ${userId}`);
         const kolCalls = await this.db.getKolCalls(userId);
+        console.log(`🔍 [KOL DEBUG] Raw KOL calls data:`, {
+          isArray: Array.isArray(kolCalls),
+          length: kolCalls?.length || 0,
+          firstCall: kolCalls?.[0] ? {
+            id: kolCalls[0].id,
+            token: kolCalls[0].token?.symbol,
+            status: kolCalls[0].status,
+            calledAt: kolCalls[0].calledAt
+          } : 'none'
+        });
         context.kolCalls = this.processKolCallsForAI(kolCalls);
+        console.log(`🔍 [KOL DEBUG] Processed KOL calls:`, {
+          count: context.kolCalls.count,
+          hasData: context.kolCalls.count > 0
+        });
       }
 
       // Get user's watchlist
