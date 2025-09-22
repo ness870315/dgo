@@ -177,6 +177,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
+      console.log('🔄 Fetching dashboard data...');
       
       // Fetch user profile and watchlist
       const [profileResponse, watchlistResponse] = await Promise.all([
@@ -184,31 +185,62 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         fetch(`${API_BASE}/api/user/watchlist?sessionId=${sessionId}`)
       ]);
 
-      const profileData = await profileResponse.json();
-      const watchlistData = await watchlistResponse.json();
+      console.log('📊 API responses:', {
+        profileStatus: profileResponse.status,
+        watchlistStatus: watchlistResponse.status
+      });
 
-      if (profileData.success) {
+      if (profileResponse.ok && watchlistResponse.ok) {
+        const profileData = await profileResponse.json();
+        const watchlistData = await watchlistResponse.json();
+
+        console.log('📊 Profile data:', profileData);
+        console.log('📊 Watchlist data:', watchlistData);
+
+        if (profileData.success) {
+          setDashboardData(prev => ({
+            ...prev,
+            watchlistCount: profileData.user?.watchlistCount || 0,
+            tokensListed: profileData.user?.tokensListed || 0,
+            tokensFueled: profileData.user?.tokensFueled || 0,
+            tokensUpdated: profileData.user?.tokensUpdated || 0,
+            referralCode: profileData.user?.referralCode || '',
+            isPremium: profileData.user?.isPremium || false,
+            premiumExpiry: profileData.user?.premiumExpiry || null
+          }));
+        }
+
+        if (watchlistData.success) {
+          setDashboardData(prev => ({
+            ...prev,
+            watchlist: watchlistData.watchlist || []
+          }));
+        }
+      } else {
+        console.error('❌ API calls failed:', {
+          profileStatus: profileResponse.status,
+          watchlistStatus: watchlistResponse.status,
+          profileText: await profileResponse.text(),
+          watchlistText: await watchlistResponse.text()
+        });
+        
+        // Set default data even if API fails
         setDashboardData(prev => ({
           ...prev,
-          watchlistCount: profileData.user?.watchlistCount || 0,
-          tokensListed: profileData.user?.tokensListed || 0,
-          tokensFueled: profileData.user?.tokensFueled || 0,
-          tokensUpdated: profileData.user?.tokensUpdated || 0,
-          referralCode: profileData.user?.referralCode || '',
-          isPremium: profileData.user?.isPremium || false,
-          premiumExpiry: profileData.user?.premiumExpiry || null
-        }));
-      }
-
-      if (watchlistData.success) {
-        setDashboardData(prev => ({
-          ...prev,
-          watchlist: watchlistData.watchlist || []
+          watchlistCount: 0,
+          tokensListed: 0,
+          tokensFueled: 0,
+          tokensUpdated: 0,
+          referralCode: '',
+          isPremium: false,
+          premiumExpiry: null,
+          watchlist: []
         }));
       }
     } catch (error) {
       console.error('❌ Error fetching dashboard data:', error);
     } finally {
+      console.log('✅ Dashboard data fetch completed');
       setLoading(false);
     }
   }, [sessionId, API_BASE]);
