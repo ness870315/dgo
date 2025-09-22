@@ -359,13 +359,13 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
           height: Math.min(600, window.innerHeight - 32)
         }}
       >
-        <div className="bg-gray-900 rounded-2xl border border-white/10 w-full h-full flex flex-col overflow-hidden relative">
+        <div className="bg-gray-900 rounded-2xl border border-white/10 w-full h-full relative overflow-hidden">
           
           {/* Header with drag handle */}
           <div 
-            className="flex items-center justify-between p-4 border-b border-white/10 chat-header flex-shrink-0"
+            className="absolute top-0 left-0 right-0 flex items-center justify-between p-4 border-b border-white/10 chat-header"
             onMouseDown={handleHeaderMouseDown}
-            style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+            style={{ cursor: isDragging ? 'grabbing' : 'grab', height: '60px' }}
           >
             <div className="flex items-center gap-2">
               <Move size={16} className="text-gray-400" />
@@ -405,14 +405,10 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
             </button>
             </div>
           </div>
-        </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 relative" style={{ 
-          minHeight: '200px', 
-          maxHeight: 'calc(100% - 120px)', 
+        <div className="absolute top-16 left-0 right-0 bottom-16 overflow-y-auto p-4 space-y-4" style={{ 
           backgroundColor: 'rgba(255, 0, 0, 0.1)',
-          position: 'relative',
           zIndex: 1
         }}>
           
@@ -616,9 +612,9 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
         </div>
 
         {/* Input */}
-        <div className="p-4 border-t border-white/10 flex-shrink-0 relative" style={{ 
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10" style={{ 
           backgroundColor: 'rgba(0, 255, 0, 0.1)',
-          position: 'relative',
+          height: '80px',
           zIndex: 1
         }}>
           <div className="flex gap-2">
