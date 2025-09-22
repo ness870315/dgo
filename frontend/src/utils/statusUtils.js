@@ -23,11 +23,11 @@ export const getStatusFromScore = (score) => {
   } else if (numScore >= 8.0) {
     return {
       level: 'TRENDING',
-      color: '#ef4444', // red
+      color: '#22c55e', // green
       icon: '🔥',
       emoji: '🔥',
-      textColor: 'text-red-400',
-      bgColor: 'bg-red-900/30'
+      textColor: 'text-green-400',
+      bgColor: 'bg-green-900/30'
     };
   } else if (numScore >= 7.0) {
     return {
