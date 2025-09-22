@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Bot } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import './FloatingChatButton.css';
 
@@ -135,18 +136,7 @@ const FloatingChatButton = ({ onOpenChat }) => {
       title={isPremium ? "Drag to reposition • Click to open AI Chat" : "AI Chat requires premium access"}
     >
       <div className="chat-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          {/* Robot head icon - white on dark background */}
-          <path
-            d="M12 2C13.1 2 14 2.9 14 4V6H16C17.1 6 18 6.9 18 8V18C18 19.1 17.1 20 16 20H8C6.9 20 6 19.1 6 18V8C6 6.9 6.9 6 8 6H10V4C10 2.9 10.9 2 12 2Z"
-            fill="white"
-          />
-          {/* Robot eyes - dark on white background */}
-          <circle cx="9.5" cy="10" r="1" fill="#333"/>
-          <circle cx="14.5" cy="10" r="1" fill="#333"/>
-          {/* Robot mouth - dark horizontal line */}
-          <rect x="9" y="13" width="6" height="1" rx="0.5" fill="#333"/>
-        </svg>
+        <Bot size={20} className="text-white" />
       </div>
       
       {/* Premium indicator - subtle dot instead of star */}

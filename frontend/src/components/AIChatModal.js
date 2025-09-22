@@ -462,7 +462,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
               </div>
               <h3 className="text-xl font-semibold text-white mb-2">Welcome to Degen Oracle AI!</h3>
               <p className="text-gray-400 mb-6">
-                I have access to your KOL calls, watchlist, hype data, and more. I learn from our conversations to provide personalized insights!
+                I have access to the Solana Blockchain, your KOL calls, watchlist, hype data, and more. I learn from our conversations to provide personalized insights!
               </p>
             </div>
           )}
