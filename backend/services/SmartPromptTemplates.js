@@ -299,8 +299,8 @@ EXAMPLE SHORT FORMAT:
         const analytics = data.analytics || data;
         const databaseInfo = data.databaseInfo || {};
         
-        const tokenName = analytics.name || databaseInfo.name || 'Token';
-        const tokenSymbol = analytics.symbol || databaseInfo.symbol || 'UNKNOWN';
+        const tokenName = analytics.name || databaseInfo.name || data.userProvidedName || 'Token';
+        const tokenSymbol = analytics.symbol || databaseInfo.symbol || (data.userProvidedName ? data.userProvidedName.toUpperCase() : 'UNKNOWN');
         
         prompt += `\n📊 ${tokenName} (${tokenSymbol}) - Contract: ${contractAddress}:`;
         
@@ -326,6 +326,11 @@ EXAMPLE SHORT FORMAT:
         }
         if (databaseInfo.symbol && !analytics.symbol) {
           prompt += `\n   - Database Symbol: ${databaseInfo.symbol}`;
+        }
+        
+        // Special note if user provided name but no API data
+        if (data.userProvidedName && !analytics.price && !analytics.marketCap) {
+          prompt += `\n   - NOTE: User called this token "${data.userProvidedName}" - use Moralis to get real-time data`;
         }
       });
     }

@@ -893,6 +893,35 @@ class MoralisAIChatService {
       }
     }
 
+    // Check for "tell me about [TokenName] [ContractAddress]" patterns
+    const nameAndAddressMatch = lowerPrompt.match(/(?:tell me about|about)\s+(\w+)\s+([a-z0-9]{32,})/i) ||
+                               lowerPrompt.match(/(\w+)\s+([a-z0-9]{32,})/i);
+    
+    console.log(`🔍 [AI PARSE DEBUG] Name and address match result:`, nameAndAddressMatch);
+    
+    if (nameAndAddressMatch && !tokenDataMatch) {
+      const tokenName = nameAndAddressMatch[1];
+      const contractAddress = nameAndAddressMatch[2];
+      
+      console.log(`📝 [AI PARSE DEBUG] User provided token name "${tokenName}" with contract: ${contractAddress}`);
+      
+      const command = {
+        type: 'GET_TOKEN_DATA',
+        contractAddress: contractAddress,
+        tokenData: {
+          name: tokenName,
+          symbol: tokenName.toUpperCase(),
+          contractAddress: contractAddress
+        },
+        originalQuery: `${tokenName} ${contractAddress}`,
+        userId: userId,
+        userProvidedName: tokenName
+      };
+      
+      console.log(`✅ [AI PARSE DEBUG] NAME_AND_ADDRESS command detected:`, JSON.stringify(command, null, 2));
+      commands.push(command);
+    }
+
     console.log(`🎯 [AI PARSE DEBUG] Final parsed commands (${commands.length}):`, JSON.stringify(commands, null, 2));
     return commands;
   }
@@ -1107,7 +1136,9 @@ class MoralisAIChatService {
                 additionalTokenData[command.contractAddress] = {
                   ...tokenData,
                   // Include database search results if available
-                  databaseInfo: command.tokenData
+                  databaseInfo: command.tokenData,
+                  // Include user-provided name if available
+                  userProvidedName: command.userProvidedName
                 };
               } else {
                 console.log(`❌ [AI COMMAND DEBUG] Failed to fetch token data`);
