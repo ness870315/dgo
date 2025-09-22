@@ -2,16 +2,16 @@
   position: fixed;
   width: 50px;
   height: 50px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: rgba(0, 0, 0, 0.8);
   border-radius: 50%;
-  box-shadow: 0 6px 24px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9998;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   user-select: none;
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   will-change: transform;
 }
 

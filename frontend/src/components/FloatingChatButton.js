@@ -116,6 +116,14 @@ const FloatingChatButton = ({ onOpenChat }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Debug logging
+  console.log('🔍 [FLOATING CHAT DEBUG] Rendering button:', {
+    position,
+    isPremium,
+    user: !!user,
+    isDragging
+  });
+
   return (
     <div
       ref={buttonRef}
@@ -131,16 +139,16 @@ const FloatingChatButton = ({ onOpenChat }) => {
     >
       <div className="chat-icon">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          {/* Robot head icon - more rounded design */}
+          {/* Robot head icon - white on dark background */}
           <path
             d="M12 2C13.1 2 14 2.9 14 4V6H16C17.1 6 18 6.9 18 8V18C18 19.1 17.1 20 16 20H8C6.9 20 6 19.1 6 18V8C6 6.9 6.9 6 8 6H10V4C10 2.9 10.9 2 12 2Z"
-            fill="currentColor"
+            fill="white"
           />
-          {/* Robot eyes - smaller and more defined */}
-          <circle cx="9.5" cy="10" r="1" fill="white"/>
-          <circle cx="14.5" cy="10" r="1" fill="white"/>
-          {/* Robot mouth - horizontal line */}
-          <rect x="9" y="13" width="6" height="1" rx="0.5" fill="white"/>
+          {/* Robot eyes - dark on white background */}
+          <circle cx="9.5" cy="10" r="1" fill="#333"/>
+          <circle cx="14.5" cy="10" r="1" fill="#333"/>
+          {/* Robot mouth - dark horizontal line */}
+          <rect x="9" y="13" width="6" height="1" rx="0.5" fill="#333"/>
         </svg>
       </div>
       

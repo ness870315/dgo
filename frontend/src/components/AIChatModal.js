@@ -94,8 +94,8 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
     const newY = e.clientY - dragStart.y;
 
     // Constrain to viewport bounds
-    const modalWidth = 400; // Approximate modal width
-    const modalHeight = 500; // Approximate modal height
+    const modalWidth = 450; // Approximate modal width
+    const modalHeight = 600; // Approximate modal height
     const maxX = window.innerWidth - modalWidth;
     const maxY = window.innerHeight - modalHeight;
 
@@ -132,8 +132,8 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
   // Handle window resize to keep modal in bounds
   useEffect(() => {
     const handleResize = () => {
-      const modalWidth = 400;
-      const modalHeight = 500;
+      const modalWidth = 450;
+      const modalHeight = 600;
       const maxX = window.innerWidth - modalWidth;
       const maxY = window.innerHeight - modalHeight;
       
@@ -333,8 +333,8 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
         style={{
           left: `${position.x}px`,
           top: `${position.y}px`,
-          width: '400px',
-          height: '500px'
+          width: '450px',
+          height: '600px'
         }}
       >
         <div className="bg-gray-900 rounded-2xl border border-white/10 w-full h-full flex flex-col">
