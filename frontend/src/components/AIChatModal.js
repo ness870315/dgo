@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Send, Bot, User, Sparkles, MessageCircle, Star, BarChart3, TrendingUp, Save, History, Trash2, FolderOpen } from 'lucide-react';
 import aiChatService from '../services/aiChatService';
+import { useAuth } from '../context/AuthContext';
 
 const AIChatModal = ({ isOpen, onClose }) => {
+  const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -435,8 +437,33 @@ const AIChatModal = ({ isOpen, onClose }) => {
               </div>
 
               {message.role === 'user' && (
-                <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <User size={16} className="text-white" />
+                <div className="flex flex-col items-center">
+                  <div 
+                    className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
+                    title={user?.displayName || user?.username || 'User'}
+                  >
+                    {user?.profileImage ? (
+                      <img 
+                        src={user.profileImage} 
+                        alt={user.displayName || user.username || 'User'} 
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div 
+                      className={`w-full h-full bg-gray-600 rounded-full flex items-center justify-center ${user?.profileImage ? 'hidden' : 'flex'}`}
+                    >
+                      <User size={16} className="text-white" />
+                    </div>
+                  </div>
+                  {user?.displayName && (
+                    <div className="text-xs text-gray-400 mt-1 text-center max-w-16 truncate">
+                      {user.displayName.split(' ')[0]}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
