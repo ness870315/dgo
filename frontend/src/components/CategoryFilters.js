@@ -10,7 +10,7 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
   // Use the filters passed from parent (controlled component)
   const categories = currentFilters || {
     trending: true,   // NEW: Score >7 with 60% score + 40% volume (DEFAULT) - FIRST
-    cults: false,     // Established coins (score ≥3.0, market cap ≥$10M)
+    cults: false,     // Established coins (score ≥7.0, market cap ≥$25M)
     highCap: false,   // ≥$100M market cap
     midCap: false,    // ≥$5M to ≤$10M market cap
     smallCap: false,  // >$500K to <$5M market cap
@@ -44,7 +44,7 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
       case 'cults':
         return {
           title: '🏛️ Cults',
-          description: 'MCap ≥$10M + Score ≥3 • Top 50 proven tokens'
+          description: 'MCap ≥$25M + Score ≥7 • Top 50 proven tokens'
         };
       case 'highCap':
         return {

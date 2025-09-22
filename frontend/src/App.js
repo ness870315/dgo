@@ -439,19 +439,19 @@ function AppContent() {
     }
     
     if (categories.cults) {
-      // CULTS: Established coins with market cap ≥ $10M + score ≥ 3.0
+      // CULTS: Established coins with market cap ≥ $25M + score ≥ 7.0
       const fueledSymbols = new Set(fueledTokens?.map(fuel => fuel.symbol) || []);
       
       // First, separate fueled tokens from regular tokens
       const fueledTokensList = tokenData.filter(token => 
-        getMarketCap(token) >= 10000000 && // ≥$10M market cap
-        (token.score || token.overallScore || 0) >= 3.0 && // ≥3.0 score (balanced threshold)
+        getMarketCap(token) >= 25000000 && // ≥$25M market cap
+        (token.score || token.overallScore || 0) >= 7.0 && // ≥7.0 score (high quality threshold)
         fueledSymbols.has(token.symbol) // Is fueled
       );
       
       const regularTokens = tokenData.filter(token => 
-        getMarketCap(token) >= 10000000 && // ≥$10M market cap
-        (token.score || token.overallScore || 0) >= 3.0 && // ≥3.0 score (balanced threshold)
+        getMarketCap(token) >= 25000000 && // ≥$25M market cap
+        (token.score || token.overallScore || 0) >= 7.0 && // ≥7.0 score (high quality threshold)
         !fueledSymbols.has(token.symbol) // Not fueled
       );
       
