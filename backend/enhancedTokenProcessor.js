@@ -1051,6 +1051,8 @@ class EnhancedTokenProcessor {
         const hasGraduatedAt = token.jupiterData?.graduatedAt && token.jupiterData.graduatedAt !== '';
         
         if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
+          console.log(`🚫 [SCORING DEBUG] FILTERED OUT: ${token.symbol} - No quality indicators (launchpad: ${!!hasLaunchpad}, organicScore: ${!!hasOrganicScore}, graduatedAt: ${!!hasGraduatedAt})`);
+          console.log(`🚫 [SCORING DEBUG] This token will NOT be saved to database!`);
           continue; // Skip this token
         }
         
