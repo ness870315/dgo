@@ -69,6 +69,9 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   const [winners, setWinners] = useState([]);
   const [winnersLoading, setWinnersLoading] = useState(false);
   
+  // API Base URL - must be declared before any hooks that use it
+  const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+  
   // Handler for opening chat from floating button
   const handleOpenChat = () => {
     setShowAIChat(true);
@@ -224,8 +227,6 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
       </div>
     );
   }
-
-  const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
 
   // Tooltip content for AI analysis terms
   const getTooltipContent = (key) => {
