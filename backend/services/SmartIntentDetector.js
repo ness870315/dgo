@@ -6,18 +6,35 @@
 class SmartIntentDetector {
   constructor() {
     this.intents = {
-      // Blockchain/Token Data (Moralis Cortex)
+      // Specific Token Data (Moralis Cortex)
       BLOCKCHAIN_QUERY: {
         patterns: [
-          /(?:price|volume|holders?|market cap|liquidity|transactions?)/i,
-          /what.*?(?:price|volume|holders?)/i,
-          /(?:current|latest).*?(?:price|data)/i,
-          /(?:buy|sell).*?(?:volume|pressure)/i,
+          /(?:price|volume|holders?|market cap|liquidity|transactions?) of \w+/i,
+          /\w+ (?:price|volume|holders?|market cap)/i,
+          /what.*?(?:price|volume|holders?) of/i,
+          /(?:current|latest) (?:price|data) (?:of|for) \w+/i,
+          /(?:buy|sell) (?:volume|pressure) (?:of|for) \w+/i,
           /wallet.*?(?:analysis|transactions?|activity)/i,
-          /on-chain.*?(?:data|analysis)/i,
-          /blockchain.*?(?:data|info)/i
+          /on-chain.*?(?:data|analysis)/i
         ],
-        keywords: ['price', 'volume', 'holders', 'market cap', 'liquidity', 'transactions', 'wallet', 'on-chain', 'blockchain'],
+        keywords: ['price of', 'volume of', 'holders of', 'market cap of', 'liquidity of', 'wallet', 'on-chain'],
+        priority: 'high'
+      },
+
+      // General Market/Volume Queries (Moralis Cortex)
+      GENERAL_BLOCKCHAIN: {
+        patterns: [
+          /which tokens? (?:have|with) (?:unusual|high|low) volume/i,
+          /tokens? (?:have|with) (?:unusual|high) volume/i,
+          /(?:unusual|high|abnormal) volume (?:today|now)/i,
+          /market (?:overview|analysis|trends)/i,
+          /volume (?:spikes?|analysis|trends)/i,
+          /solana market/i,
+          /crypto market/i,
+          /show me volume/i,
+          /volume analysis/i
+        ],
+        keywords: ['unusual volume', 'which tokens', 'volume today', 'market overview', 'volume spikes', 'market trends', 'solana market', 'volume analysis'],
         priority: 'high'
       },
 
@@ -52,11 +69,12 @@ class SmartIntentDetector {
       // Watchlist Actions
       WATCHLIST_ACTION: {
         patterns: [
+          /add\s+\w+\s+to\s+(?:my\s+)?watchlist/i,
           /add.*?(?:to|my).*?watchlist/i,
           /watchlist.*?(?:add|remove)/i,
           /(?:track|monitor|follow).*?(?:token|coin)/i
         ],
-        keywords: ['add to watchlist', 'watchlist', 'track', 'monitor'],
+        keywords: ['add to watchlist', 'add', 'track', 'monitor'],
         priority: 'high'
       },
 
@@ -161,6 +179,7 @@ class SmartIntentDetector {
   getDataSourcePriority(intent) {
     const priorities = {
       BLOCKCHAIN_QUERY: 'blockchain',
+      GENERAL_BLOCKCHAIN: 'blockchain',
       PLATFORM_QUERY: 'user',
       PLATFORM_INFO: 'general',
       WATCHLIST_ACTION: 'hybrid',

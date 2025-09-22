@@ -9,11 +9,22 @@ class AIChatService {
   }
 
   /**
+   * Get the current session ID (supports both OAuth X and demo sessions)
+   */
+  getSessionId() {
+    const authType = localStorage.getItem('authType');
+    if (authType === 'demo') {
+      return localStorage.getItem('demoSessionId');
+    }
+    return localStorage.getItem('sessionId');
+  }
+
+  /**
    * Send a message to the AI chat
    */
   async sendMessage(prompt) {
     try {
-      const sessionId = localStorage.getItem('sessionId');
+      const sessionId = this.getSessionId();
       
       if (!sessionId) {
         throw new Error('No session found. Please log in first.');
@@ -126,7 +137,7 @@ class AIChatService {
    */
   async executeAction(action) {
     try {
-      const sessionId = localStorage.getItem('sessionId');
+      const sessionId = this.getSessionId();
       
       if (!sessionId) {
         throw new Error('No session found. Please log in first.');

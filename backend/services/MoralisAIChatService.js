@@ -791,11 +791,36 @@ class MoralisAIChatService {
     // Check for token data requests (price, volume, holders, etc.)
     console.log(`🔍 [AI PARSE DEBUG] Checking for token data requests in: "${lowerPrompt}"`);
     
-    const tokenDataMatch = lowerPrompt.match(/(?:price|volume|holders?|data|analysis).*?([a-z0-9]{32,})/i) ||
-                          lowerPrompt.match(/([a-z0-9]{32,}).*?(?:price|volume|holders?|data|analysis)/i) ||
-                          lowerPrompt.match(/(?:price|volume|holders?|data|analysis).*?(?:of|for)\s+(\w+)/i) ||
+    // Common words that should NOT be treated as token names
+    const commonWords = new Set([
+      'current', 'unusual', 'today', 'which', 'tokens', 'have', 'what', 'show', 'get', 'find',
+      'price', 'volume', 'holders', 'data', 'analysis', 'market', 'trading', 'crypto', 'coin',
+      'solana', 'ethereum', 'bitcoin', 'defi', 'nft', 'pump', 'dump', 'moon', 'gem', 'alpha',
+      'beta', 'degen', 'chad', 'based', 'cringe', 'cope', 'seethe', 'diamond', 'paper', 'hands',
+      'whale', 'retail', 'community', 'trending', 'viral', 'building', 'waking', 'sleeping'
+    ]);
+    
+    // First try to find contract addresses (32+ chars)
+    const contractMatch = lowerPrompt.match(/([a-z0-9]{32,})/i);
+    
+    // Then try specific token name patterns, but exclude common words
+    const tokenNameMatch = lowerPrompt.match(/(?:price|volume|holders?|data|analysis).*?(?:of|for)\s+(\w+)/i) ||
                           lowerPrompt.match(/what.*?(?:price|volume|holders?).*?(?:of|for)\s+(\w+)/i) ||
                           lowerPrompt.match(/(\w+)\s+(?:price|volume|holders?|data)/i);
+    
+    let tokenDataMatch = null;
+    
+    if (contractMatch) {
+      tokenDataMatch = contractMatch;
+    } else if (tokenNameMatch) {
+      const potentialToken = tokenNameMatch[1].toLowerCase();
+      // Only proceed if it's not a common word and looks like a token name
+      if (!commonWords.has(potentialToken) && potentialToken.length >= 2 && potentialToken.length <= 20) {
+        tokenDataMatch = tokenNameMatch;
+      } else {
+        console.log(`🚫 [AI PARSE DEBUG] Skipping common word as token: "${potentialToken}"`);
+      }
+    }
     
     console.log(`🔍 [AI PARSE DEBUG] Token data match result:`, tokenDataMatch);
     
@@ -947,7 +972,8 @@ class MoralisAIChatService {
 
       // 🎯 CONDITIONAL COMMAND PARSING (only if needed for this intent)
       let commands = [];
-      if (this.intentDetector.requiresTokenLookup(primaryIntent)) {
+      if (this.intentDetector.requiresTokenLookup(primaryIntent) || 
+          (primaryIntent === 'PLATFORM_QUERY' && sanitizedPrompt.toLowerCase().includes('watchlist'))) {
         console.log(`🔍 [SMART AI] Intent requires token lookup - parsing commands`);
         commands = await this.parseUserCommands(sanitizedPrompt, userId, conversationHistory);
       } else {
