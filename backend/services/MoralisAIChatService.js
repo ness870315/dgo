@@ -1424,7 +1424,13 @@ class MoralisAIChatService {
         context.kolCalls = this.processKolCallsForAI(kolCalls);
         console.log(`🔍 [KOL DEBUG] Processed KOL calls:`, {
           count: context.kolCalls.count,
-          hasData: context.kolCalls.count > 0
+          hasData: context.kolCalls.count > 0,
+          summary: context.kolCalls.summary,
+          firstCall: context.kolCalls.calls?.[0] ? {
+            token: context.kolCalls.calls[0].token?.symbol,
+            multiplier: context.kolCalls.calls[0].performance?.multiplier,
+            status: context.kolCalls.calls[0].performance?.status
+          } : 'none'
         });
       }
 
@@ -1741,6 +1747,13 @@ USER'S DEGEN ORACLE DATA:`;
     }
 
     if (userContext.kolCalls && userContext.kolCalls.count > 0) {
+      console.log(`🔍 [KOL DEBUG] Adding KOL calls to AI prompt:`, {
+        count: userContext.kolCalls.count,
+        hasSummary: !!userContext.kolCalls.summary,
+        bestCall: userContext.kolCalls.summary?.bestCall?.token?.symbol,
+        bestMultiplier: userContext.kolCalls.summary?.bestCall?.performance?.multiplier
+      });
+      
       systemContext += `\n\nKOL CALLS SUMMARY:
 - Total Calls: ${userContext.kolCalls.count}
 - Best Performing Call: ${userContext.kolCalls.summary.bestCall?.token?.symbol} (${userContext.kolCalls.summary.bestCall?.performance?.multiplier?.toFixed(2)}x)
@@ -1751,6 +1764,11 @@ TOP 5 CALLS:`;
       
       userContext.kolCalls.calls.slice(0, 5).forEach((call, index) => {
         systemContext += `\n${index + 1}. ${call.token.symbol}: ${call.performance.multiplier?.toFixed(2)}x (${call.performance.status})`;
+      });
+    } else {
+      console.log(`🔍 [KOL DEBUG] No KOL calls data for AI prompt:`, {
+        hasKolCalls: !!userContext.kolCalls,
+        count: userContext.kolCalls?.count || 0
       });
     }
 
