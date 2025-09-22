@@ -116,13 +116,14 @@ const FloatingChatButton = ({ onOpenChat }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Debug logging
-  console.log('🔍 [FLOATING CHAT DEBUG] Rendering button:', {
-    position,
-    isPremium,
-    user: !!user,
-    isDragging
-  });
+  // Debug logging (only log once when button mounts)
+  useEffect(() => {
+    console.log('🔍 [FLOATING CHAT DEBUG] Button mounted:', {
+      position,
+      isPremium,
+      user: !!user
+    });
+  }, []);
 
   return (
     <div
@@ -152,18 +153,11 @@ const FloatingChatButton = ({ onOpenChat }) => {
         </svg>
       </div>
       
-      {/* Premium indicator */}
+      {/* Premium indicator - subtle dot instead of star */}
       {isPremium && (
         <div className="premium-indicator">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2L15.09 8.26L22 9L17 14L18.18 21L12 17.77L5.82 21L7 14L2 9L8.91 8.26L12 2Z" fill="#FFD700"/>
-          </svg>
+          <div className="w-2 h-2 bg-green-400 rounded-full"></div>
         </div>
-      )}
-      
-      {/* Pulse animation for premium users */}
-      {isPremium && (
-        <div className="pulse-ring"></div>
       )}
     </div>
   );

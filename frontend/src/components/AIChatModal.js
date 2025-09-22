@@ -325,16 +325,21 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
 
   if (!isOpen) return null;
 
-  // Debug logging
-  console.log('🔍 [AI CHAT MODAL DEBUG] Rendering modal:', {
-    isOpen,
-    messages: messages.length,
-    showSuggestions,
-    showHistories,
-    chatHistories: chatHistories.length,
-    position,
-    windowSize: { width: window.innerWidth, height: window.innerHeight }
-  });
+  // Debug logging (only log once when modal opens)
+  useEffect(() => {
+    if (isOpen) {
+      console.log('🔍 [AI CHAT MODAL DEBUG] Modal opened:', {
+        messages: messages.length,
+        showSuggestions,
+        showHistories,
+        chatHistories: chatHistories.length,
+        personalizedSuggestions: personalizedSuggestions.length,
+        suggestedQuestions: suggestedQuestions.length,
+        position,
+        windowSize: { width: window.innerWidth, height: window.innerHeight }
+      });
+    }
+  }, [isOpen]);
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 p-4">
