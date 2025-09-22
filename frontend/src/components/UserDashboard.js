@@ -52,6 +52,9 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   const [hoveredTooltip, setHoveredTooltip] = useState(null);
   const [showLeaderboardGuide, setShowLeaderboardGuide] = useState(false);
   const [selectedKolUser, setSelectedKolUser] = useState(null);
+  const [selectedUserCalls, setSelectedUserCalls] = useState([]);
+  const [selectedUserStats, setSelectedUserStats] = useState(null);
+  const [selectedUserLoading, setSelectedUserLoading] = useState(false);
   const [kolStats, setKolStats] = useState(null);
   const [kolCalls, setKolCalls] = useState([]);
   const [kolLoading, setKolLoading] = useState(false);
@@ -174,26 +177,55 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
     }
   }, [user?.id, sessionId]);
 
+  // Fetch selected user's KOL calls and stats
+  const fetchSelectedUserData = useCallback(async (userId) => {
+    if (!userId) return;
+    
+    try {
+      setSelectedUserLoading(true);
+      console.log('🔄 Fetching selected user data for:', userId);
+      
+      // Fetch user's KOL calls
+      const callsResponse = await fetch(`${API_BASE}/api/user/kol-calls?sessionId=${sessionId}&userId=${userId}`);
+      const callsData = callsResponse.ok ? await callsResponse.json() : { success: false, calls: [] };
+      
+      // Fetch user's stats (if available)
+      const statsResponse = await fetch(`${API_BASE}/api/user/stats?sessionId=${sessionId}&userId=${userId}`);
+      const statsData = statsResponse.ok ? await statsResponse.json() : { success: false, stats: {} };
+      
+      console.log('📊 Selected user calls:', callsData);
+      console.log('📊 Selected user stats:', statsData);
+      
+      setSelectedUserCalls(callsData.calls || []);
+      setSelectedUserStats(statsData.stats || {});
+      
+    } catch (error) {
+      console.error('❌ Error fetching selected user data:', error);
+      setSelectedUserCalls([]);
+      setSelectedUserStats({});
+    } finally {
+      setSelectedUserLoading(false);
+    }
+  }, [sessionId, API_BASE]);
+
   const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       console.log('🔄 Fetching dashboard data...');
       
-      // Fetch user profile, watchlist, KOL data, and user stats
-      const [profileResponse, watchlistResponse, kolCallsResponse, leaderboardResponse, statsResponse] = await Promise.all([
+      // Fetch user profile, watchlist, and KOL data
+      const [profileResponse, watchlistResponse, kolCallsResponse, leaderboardResponse] = await Promise.all([
         fetch(`${API_BASE}/api/user/profile?sessionId=${sessionId}`),
         fetch(`${API_BASE}/api/user/watchlist?sessionId=${sessionId}`),
         fetch(`${API_BASE}/api/user/kol-calls?sessionId=${sessionId}`),
-        fetch(`${API_BASE}/api/leaderboard?sessionId=${sessionId}`),
-        fetch(`${API_BASE}/api/user/stats?sessionId=${sessionId}`)
+        fetch(`${API_BASE}/api/leaderboard?sessionId=${sessionId}`)
       ]);
 
       console.log('📊 API responses:', {
         profileStatus: profileResponse.status,
         watchlistStatus: watchlistResponse.status,
         kolCallsStatus: kolCallsResponse.status,
-        leaderboardStatus: leaderboardResponse.status,
-        statsStatus: statsResponse.status
+        leaderboardStatus: leaderboardResponse.status
       });
 
       if (profileResponse.ok && watchlistResponse.ok) {
@@ -201,13 +233,11 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         const watchlistData = await watchlistResponse.json();
         const kolCallsData = kolCallsResponse.ok ? await kolCallsResponse.json() : { success: false, calls: [] };
         const leaderboardData = leaderboardResponse.ok ? await leaderboardResponse.json() : { success: false, leaderboard: [] };
-        const statsData = statsResponse.ok ? await statsResponse.json() : { success: false, stats: {} };
 
         console.log('📊 Profile data:', profileData);
         console.log('📊 Watchlist data:', watchlistData);
         console.log('📊 KOL Calls data:', kolCallsData);
         console.log('📊 Leaderboard data:', leaderboardData);
-        console.log('📊 Stats data:', statsData);
 
         if (profileData.success) {
           setDashboardData(prev => ({
@@ -252,15 +282,6 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
           }));
         }
 
-        // Set user stats data (tokens fueled, etc.)
-        if (statsData.success && statsData.stats) {
-          setDashboardData(prev => ({
-            ...prev,
-            tokensFueled: statsData.stats.tokensFueled || 0,
-            tokensListed: statsData.stats.tokensListed || 0,
-            tokensUpdated: statsData.stats.tokensUpdated || 0
-          }));
-        }
       } else {
         console.error('❌ API calls failed:', {
           profileStatus: profileResponse.status,
@@ -351,6 +372,19 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
       return () => clearTimeout(timeout);
     }
   }, [user?.id, sessionId, fetchDashboardData, loadDgoFollowers]);
+
+  // Fetch selected user's data when a user is selected
+  useEffect(() => {
+    if (selectedKolUser) {
+      const userId = selectedKolUser.userId || selectedKolUser.id;
+      console.log('🔄 Selected user changed, fetching data for:', userId);
+      fetchSelectedUserData(userId);
+    } else {
+      // Clear selected user data when no user is selected
+      setSelectedUserCalls([]);
+      setSelectedUserStats(null);
+    }
+  }, [selectedKolUser, fetchSelectedUserData]);
   
   // Early return if user is not loaded yet
   if (!user) {
@@ -939,9 +973,9 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
               <KolProfile
                 kol={selectedKolUser}
                 onClose={() => setSelectedKolUser(null)}
-                stats={kolStats}
-                calls={kolCalls}
-                loading={kolLoading}
+                stats={selectedUserStats}
+                calls={selectedUserCalls}
+                loading={selectedUserLoading}
                 isFollowing={kolIsFollowing}
                 onToggleFollow={async () => {
                   if (!selectedKolUser) return;
