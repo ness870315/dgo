@@ -8,10 +8,21 @@ import leaderboardService from '../services/leaderboardService';
 import KolCallsModal from './KolCallsModal';
 import watchlistService from '../services/watchlistService';
 import KOLLeaderboardGuide from './KOLLeaderboardGuide';
+import AIChatModal from './AIChatModal';
+import FloatingChatButton from './FloatingChatButton';
 import { getStatusFromScore } from '../utils/statusUtils';
 
 const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigateToUpdateToken, onNavigateToPremium }) => {
-  const { user, sessionId } = useAuth();
+  const { user, sessionId, isPremium } = useAuth();
+  
+  // AI Chat state
+  const [showAIChat, setShowAIChat] = useState(false);
+  const [chatPosition, setChatPosition] = useState(null);
+  
+  // Handler for opening chat from floating button
+  const handleOpenChat = () => {
+    setShowAIChat(true);
+  };
   
   // Early return if user is not loaded yet
   if (!user) {
@@ -1962,6 +1973,16 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
             onClose={() => setShowLeaderboardGuide(false)}
           />
         )}
+        
+        {/* AI Chat Modal */}
+        <AIChatModal
+          isOpen={showAIChat}
+          onClose={() => setShowAIChat(false)}
+          initialPosition={chatPosition}
+        />
+        
+        {/* Floating Chat Button */}
+        <FloatingChatButton onOpenChat={handleOpenChat} />
       </div>
     </div>
   );

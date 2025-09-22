@@ -9,9 +9,10 @@
   align-items: center;
   justify-content: center;
   z-index: 9998;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   user-select: none;
   border: 2px solid rgba(255, 255, 255, 0.2);
+  will-change: transform;
 }
 
 .floating-chat-button:hover {
@@ -23,6 +24,7 @@
   transform: scale(1.15);
   box-shadow: 0 16px 48px rgba(102, 126, 234, 0.5);
   z-index: 9999;
+  transition: none; /* Disable transitions during drag for smooth performance */
 }
 
 .floating-chat-button.disabled {

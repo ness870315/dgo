@@ -22,20 +22,23 @@ const FloatingChatButton = ({ onOpenChat }) => {
     e.preventDefault();
   };
 
-  // Handle drag movement
+  // Handle drag movement - optimized for performance
   const handleMouseMove = (e) => {
     if (!isDragging) return;
 
-    const newX = e.clientX - dragStart.x;
-    const newY = e.clientY - dragStart.y;
+    // Use requestAnimationFrame for smooth performance
+    requestAnimationFrame(() => {
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
 
-    // Constrain to viewport bounds
-    const maxX = window.innerWidth - 60; // Button width
-    const maxY = window.innerHeight - 60; // Button height
+      // Constrain to viewport bounds
+      const maxX = window.innerWidth - 60; // Button width
+      const maxY = window.innerHeight - 60; // Button height
 
-    setPosition({
-      x: Math.max(0, Math.min(newX, maxX)),
-      y: Math.max(0, Math.min(newY, maxY))
+      setPosition({
+        x: Math.max(0, Math.min(newX, maxX)),
+        y: Math.max(0, Math.min(newY, maxY))
+      });
     });
   };
 
@@ -74,12 +77,15 @@ const FloatingChatButton = ({ onOpenChat }) => {
       return;
     }
     
-    if (!isPremium) {
+    // 🚨 FIX: Check premium status correctly
+    // isPremium should be true for premium users, false for non-premium
+    if (user && !isPremium) {
       // Show premium prompt for non-premium users
       alert('AI Chat is a premium feature. Upgrade to access the AI assistant!');
       return;
     }
 
+    // If user is logged in and premium, open chat
     onOpenChat();
   };
 
@@ -114,13 +120,18 @@ const FloatingChatButton = ({ onOpenChat }) => {
     >
       <div className="chat-icon">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* Robot head icon */}
           <path
-            d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM20 16H5.17L4 17.17V4H20V16Z"
+            d="M12 2C13.1 2 14 2.9 14 4V6H16C17.1 6 18 6.9 18 8V18C18 19.1 17.1 20 16 20H8C6.9 20 6 19.1 6 18V8C6 6.9 6.9 6 8 6H10V4C10 2.9 10.9 2 12 2Z"
             fill="currentColor"
           />
+          {/* Robot eyes */}
+          <circle cx="9" cy="10" r="1.5" fill="white"/>
+          <circle cx="15" cy="10" r="1.5" fill="white"/>
+          {/* Robot mouth */}
           <path
-            d="M7 9H17V11H7V9ZM7 12H15V14H7V12Z"
-            fill="currentColor"
+            d="M9 14H15C15.6 14 16 13.6 16 13C16 12.4 15.6 12 15 12H9C8.4 12 8 12.4 8 13C8 13.6 8.4 14 9 14Z"
+            fill="white"
           />
         </svg>
       </div>
