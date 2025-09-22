@@ -73,6 +73,142 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   const handleOpenChat = () => {
     setShowAIChat(true);
   };
+
+  // Callback hooks
+  const loadDgoFollowers = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      setDgoFollowersLoading(true);
+      const response = await fetch(`${API_BASE}/api/user/followers?sessionId=${encodeURIComponent(sessionId)}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        // Clean up self-follows (users shouldn't follow themselves)
+        const cleanFollowers = (data.followers || []).filter(id => id !== user?.id);
+        const cleanFollowing = (data.following || []).filter(id => id !== user?.id);
+        
+        setDgoFollowers(cleanFollowers);
+        setDgoFollowing(cleanFollowing);
+        
+        // Fetch user details for following list
+        if (cleanFollowing.length > 0) {
+          try {
+            const userPromises = cleanFollowing.map(async (userId) => {
+              try {
+                // Try multiple methods to get user profile data
+                let userData = null;
+                
+                // Method 1: Try leaderboard service
+                try {
+                  const profile = await leaderboardService.getUserProfile(userId);
+                  userData = profile?.user || profile;
+                } catch (leaderboardError) {
+                  console.warn(`⚠️ Leaderboard service failed for ${userId}:`, leaderboardError);
+                }
+                
+                // Method 2: If no data from leaderboard, try direct API call
+                if (!userData || !userData.username || userData.username.startsWith('user_')) {
+                  try {
+                    const directResponse = await fetch(`${API_BASE}/api/kol/${encodeURIComponent(userId)}/profile`);
+                    if (directResponse.ok) {
+                      const directData = await directResponse.json();
+                      userData = directData?.user || directData;
+                    }
+                  } catch (directError) {
+                    console.warn(`⚠️ Direct API failed for ${userId}:`, directError);
+                  }
+                }
+                
+                // Method 3: If still no real data, use generic fallback
+                if (!userData || !userData.username || userData.username.startsWith('user_')) {
+                  console.warn(`⚠️ No real profile data found for user ${userId}, using generic fallback`);
+                  return {
+                    id: userId,
+                    username: `user_${String(userId).slice(-6)}`,
+                    displayName: `User ${String(userId).slice(-6)}`,
+                    profileImage: null
+                  };
+                }
+                
+                // Use actual X profile data
+                const username = userData.username || `user_${String(userId).slice(-6)}`;
+                const displayName = userData.displayName || userData.username || `User ${String(userId).slice(-6)}`;
+                const profileImage = userData.profileImage || null;
+                
+                return {
+                  id: userData.id || userId,
+                  username: username,
+                  displayName: displayName,
+                  profileImage: profileImage
+                };
+                
+              } catch (error) {
+                console.warn(`❌ All methods failed for user ${userId}:`, error);
+                return {
+                  id: userId,
+                  username: `user_${String(userId).slice(-6)}`,
+                  displayName: `User ${String(userId).slice(-6)}`,
+                  profileImage: null
+                };
+              }
+            });
+            
+            const userDetails = await Promise.all(userPromises);
+            setDgoFollowingUsers(userDetails);
+          } catch (error) {
+            console.error('❌ Failed to fetch following user details:', error);
+            setDgoFollowingUsers([]);
+          }
+        } else {
+          setDgoFollowingUsers([]);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load DGO followers:', error);
+    } finally {
+      setDgoFollowersLoading(false);
+    }
+  }, [user?.id, sessionId]);
+
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch user profile and watchlist
+      const [profileResponse, watchlistResponse] = await Promise.all([
+        fetch(`${API_BASE}/api/user/profile?sessionId=${sessionId}`),
+        fetch(`${API_BASE}/api/user/watchlist?sessionId=${sessionId}`)
+      ]);
+
+      const profileData = await profileResponse.json();
+      const watchlistData = await watchlistResponse.json();
+
+      if (profileData.success) {
+        setDashboardData(prev => ({
+          ...prev,
+          watchlistCount: profileData.user?.watchlistCount || 0,
+          tokensListed: profileData.user?.tokensListed || 0,
+          tokensFueled: profileData.user?.tokensFueled || 0,
+          tokensUpdated: profileData.user?.tokensUpdated || 0,
+          referralCode: profileData.user?.referralCode || '',
+          isPremium: profileData.user?.isPremium || false,
+          premiumExpiry: profileData.user?.premiumExpiry || null
+        }));
+      }
+
+      if (watchlistData.success) {
+        setDashboardData(prev => ({
+          ...prev,
+          watchlist: watchlistData.watchlist || []
+        }));
+      }
+    } catch (error) {
+      console.error('❌ Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [sessionId, API_BASE]);
   
   // Early return if user is not loaded yet
   if (!user) {
@@ -91,8 +227,6 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
 
   const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
 
-  // Load DGO followers/following data
-  const loadDgoFollowers = useCallback(async () => {
     if (!user?.id) return;
     
     try {
