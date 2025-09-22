@@ -119,9 +119,6 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
                 style={{ fontSize: '11px', minHeight: '24px' }}
               >
                 <Bot size={12} />
-                {!user?.isPremium && (
-                  <span className="ml-1 text-xs text-yellow-500">★</span>
-                )}
               </button>
 
               {/* Authentication Button */}
