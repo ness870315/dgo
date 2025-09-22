@@ -2,7 +2,7 @@
   position: fixed;
   width: 50px;
   height: 50px;
-  background: rgba(0, 0, 0, 0.8);
+  background: #374151;
   border-radius: 50%;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   display: flex;
@@ -11,7 +11,7 @@
   z-index: 9998;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   user-select: none;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 2px solid #a855f7;
   will-change: transform;
 }
 
@@ -31,6 +31,7 @@
   background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
   box-shadow: 0 8px 32px rgba(108, 117, 125, 0.3);
   cursor: not-allowed !important;
+  border: 2px solid rgba(168, 85, 247, 0.5);
 }
 
 .floating-chat-button.disabled:hover {
@@ -83,11 +84,12 @@
 @media (prefers-color-scheme: dark) {
   .floating-chat-button {
     background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
-    border-color: rgba(255, 255, 255, 0.1);
+    border: 2px solid #a855f7;
   }
   
   .floating-chat-button.disabled {
     background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+    border: 2px solid rgba(168, 85, 247, 0.5);
   }
 }
 
