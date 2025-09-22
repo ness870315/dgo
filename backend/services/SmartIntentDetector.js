@@ -15,9 +15,13 @@ class SmartIntentDetector {
           /(?:current|latest) (?:price|data) (?:of|for) \w+/i,
           /(?:buy|sell) (?:volume|pressure) (?:of|for) \w+/i,
           /wallet.*?(?:analysis|transactions?|activity)/i,
-          /on-chain.*?(?:data|analysis)/i
+          /on-chain.*?(?:data|analysis)/i,
+          /whale.*?activity.*?for\s+[a-z0-9]{32,}/i,
+          /show.*?(?:whale|activity|transactions?).*?[a-z0-9]{32,}/i,
+          /[a-z0-9]{32,}.*?(?:whale|activity|analysis|data)/i,
+          /(?:whale|activity|analysis|data).*?[a-z0-9]{32,}/i
         ],
-        keywords: ['price of', 'volume of', 'holders of', 'market cap of', 'liquidity of', 'wallet', 'on-chain'],
+        keywords: ['price of', 'volume of', 'holders of', 'market cap of', 'liquidity of', 'wallet', 'on-chain', 'whale activity', 'show me'],
         priority: 'high'
       },
 
@@ -98,6 +102,15 @@ class SmartIntentDetector {
     const lowerPrompt = prompt.toLowerCase();
     const results = [];
 
+    // Special case: If prompt contains a Solana contract address (32+ chars), it's likely a blockchain query
+    const contractAddressPattern = /[a-z0-9]{32,}/i;
+    const hasContractAddress = contractAddressPattern.test(prompt);
+    
+    console.log(`🔍 [INTENT DEBUG] Prompt contains contract address: ${hasContractAddress}`);
+    if (hasContractAddress) {
+      console.log(`🔍 [INTENT DEBUG] Contract address detected, boosting BLOCKCHAIN_QUERY score`);
+    }
+
     // Score each intent
     for (const [intentName, config] of Object.entries(this.intents)) {
       let score = 0;
@@ -118,6 +131,12 @@ class SmartIntentDetector {
           score += 5;
           matchedKeywords.push(keyword);
         }
+      }
+
+      // Special boost for blockchain queries with contract addresses
+      if (intentName === 'BLOCKCHAIN_QUERY' && hasContractAddress) {
+        score += 15; // Strong boost for contract address queries
+        matchedKeywords.push('contract_address_detected');
       }
 
       // Priority boost

@@ -867,6 +867,32 @@ class MoralisAIChatService {
       console.log(`❌ [AI PARSE DEBUG] No token data request pattern matched`);
     }
 
+    // Check for whale activity or contract address analysis requests (if not already matched above)
+    if (!tokenDataMatch) {
+      const whaleActivityMatch = lowerPrompt.match(/(?:whale|activity|analysis|data).*?([a-z0-9]{32,})/i) ||
+                                lowerPrompt.match(/([a-z0-9]{32,}).*?(?:whale|activity|analysis|data)/i) ||
+                                lowerPrompt.match(/show.*?(?:whale|activity|transactions?).*?for\s+([a-z0-9]{32,})/i);
+      
+      console.log(`🔍 [AI PARSE DEBUG] Whale activity match result:`, whaleActivityMatch);
+      
+      if (whaleActivityMatch) {
+        const contractAddress = whaleActivityMatch[1];
+        console.log(`🐋 [AI PARSE DEBUG] Whale activity request for contract: ${contractAddress}`);
+        
+        const command = {
+          type: 'GET_TOKEN_DATA',
+          contractAddress: contractAddress,
+          tokenData: null,
+          originalQuery: contractAddress,
+          userId: userId,
+          analysisType: 'whale_activity'
+        };
+        
+        console.log(`✅ [AI PARSE DEBUG] WHALE_ACTIVITY command detected:`, JSON.stringify(command, null, 2));
+        commands.push(command);
+      }
+    }
+
     console.log(`🎯 [AI PARSE DEBUG] Final parsed commands (${commands.length}):`, JSON.stringify(commands, null, 2));
     return commands;
   }
