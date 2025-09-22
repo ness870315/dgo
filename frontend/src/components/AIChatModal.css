@@ -1,0 +1,74 @@
+.ai-chat-modal {
+  position: fixed;
+  z-index: 9999;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.ai-chat-modal.dragging {
+  transition: none;
+  z-index: 10000;
+}
+
+.chat-header {
+  cursor: grab;
+  user-select: none;
+}
+
+.chat-header:active {
+  cursor: grabbing;
+}
+
+.chat-header-controls {
+  cursor: default;
+  user-select: auto;
+}
+
+.chat-header-controls * {
+  cursor: pointer;
+}
+
+/* Ensure the modal doesn't interfere with other elements */
+.ai-chat-modal .bg-gray-900 {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .ai-chat-modal {
+    width: calc(100vw - 32px) !important;
+    height: calc(100vh - 32px) !important;
+    left: 16px !important;
+    top: 16px !important;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .ai-chat-modal .bg-gray-900 {
+    background-color: #111827;
+  }
+}
+
+/* Smooth animations */
+.ai-chat-modal * {
+  transition: all 0.2s ease;
+}
+
+/* Drag handle styling */
+.chat-header .move-icon {
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.chat-header:hover .move-icon {
+  opacity: 1;
+}
+
+/* Prevent text selection during drag */
+.ai-chat-modal.dragging * {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}

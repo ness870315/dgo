@@ -17,6 +17,7 @@ import ApifyTestPage from './components/ApifyTestPage';
 import PremiumPage from './components/PremiumPage';
 import MobilePushNotification from './components/MobilePushNotification';
 import AIChatModal from './components/AIChatModal';
+import FloatingChatButton from './components/FloatingChatButton';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import tokenService from './services/tokenService';
 import pushNotificationService from './services/pushNotificationService';
@@ -211,7 +212,13 @@ function AppContent() {
   const [showPremium, setShowPremium] = useState(false);
   const [showPushNotification, setShowPushNotification] = useState(false);
   const [showAIChat, setShowAIChat] = useState(false);
+  const [chatPosition, setChatPosition] = useState(null);
   const [fueledTokens, setFueledTokens] = useState([]);
+  
+  // Handler for opening chat from floating button
+  const handleOpenChat = () => {
+    setShowAIChat(true);
+  };
   const [viewMode, setViewMode] = useState('bubbles'); // 'bubbles' or 'cards'
   const [settings, setSettings] = useState({
     useRealTwitterData: true, // Using real backend API data now that backend is deployed
@@ -1314,7 +1321,11 @@ function AppContent() {
       <AIChatModal
         isOpen={showAIChat}
         onClose={() => setShowAIChat(false)}
+        initialPosition={chatPosition}
       />
+      
+      {/* Floating Chat Button */}
+      <FloatingChatButton onOpenChat={handleOpenChat} />
       </div>
   );
 }

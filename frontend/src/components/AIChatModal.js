@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Bot, User, Sparkles, MessageCircle, Star, BarChart3, TrendingUp, Save, History, Trash2, FolderOpen } from 'lucide-react';
+import { X, Send, Bot, User, Sparkles, MessageCircle, Star, BarChart3, TrendingUp, Save, History, Trash2, FolderOpen, Move } from 'lucide-react';
 import aiChatService from '../services/aiChatService';
 import { useAuth } from '../contexts/AuthContext';
+import './AIChatModal.css';
 
-const AIChatModal = ({ isOpen, onClose }) => {
+const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
@@ -12,8 +13,21 @@ const AIChatModal = ({ isOpen, onClose }) => {
   const [showHistories, setShowHistories] = useState(false);
   const [chatHistories, setChatHistories] = useState([]);
   const [personalizedSuggestions, setPersonalizedSuggestions] = useState([]);
+  
+  // Positioning state
+  const [position, setPosition] = useState(() => {
+    if (initialPosition) return initialPosition;
+    return {
+      x: Math.max(0, window.innerWidth - 450), // Default to right side
+      y: Math.max(0, window.innerHeight - 600) // Default to bottom
+    };
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const modalRef = useRef(null);
 
   const suggestedQuestions = aiChatService.getSuggestedQuestions();
 
@@ -59,6 +73,79 @@ const AIChatModal = ({ isOpen, onClose }) => {
       console.error('Error loading chat histories:', error);
     }
   };
+
+  // Drag functionality for modal positioning
+  const handleHeaderMouseDown = (e) => {
+    // Only allow dragging from the header area
+    if (e.target.closest('.chat-header-controls')) return;
+    
+    setIsDragging(true);
+    setDragStart({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    });
+    e.preventDefault();
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+
+    const newX = e.clientX - dragStart.x;
+    const newY = e.clientY - dragStart.y;
+
+    // Constrain to viewport bounds
+    const modalWidth = 400; // Approximate modal width
+    const modalHeight = 500; // Approximate modal height
+    const maxX = window.innerWidth - modalWidth;
+    const maxY = window.innerHeight - modalHeight;
+
+    setPosition({
+      x: Math.max(0, Math.min(newX, maxX)),
+      y: Math.max(0, Math.min(newY, maxY))
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Add global event listeners for drag
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'grabbing';
+      document.body.style.userSelect = 'none';
+    } else {
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
+  }, [isDragging, dragStart]);
+
+  // Handle window resize to keep modal in bounds
+  useEffect(() => {
+    const handleResize = () => {
+      const modalWidth = 400;
+      const modalHeight = 500;
+      const maxX = window.innerWidth - modalWidth;
+      const maxY = window.innerHeight - modalHeight;
+      
+      setPosition(prev => ({
+        x: Math.min(prev.x, maxX),
+        y: Math.min(prev.y, maxY)
+      }));
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleSendMessage = async (messageText = null) => {
     const message = messageText || inputMessage.trim();
@@ -239,21 +326,34 @@ const AIChatModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 rounded-2xl border border-white/10 w-full max-w-2xl h-[80vh] flex flex-col">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-              <Bot size={20} className="text-white" />
+    <div className="fixed inset-0 bg-black/50 z-50 p-4">
+      <div 
+        ref={modalRef}
+        className={`ai-chat-modal ${isDragging ? 'dragging' : ''}`}
+        style={{
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          width: '400px',
+          height: '500px'
+        }}
+      >
+        <div className="bg-gray-900 rounded-2xl border border-white/10 w-full h-full flex flex-col">
+          
+          {/* Header with drag handle */}
+          <div 
+            className="flex items-center justify-between p-4 border-b border-white/10 chat-header"
+            onMouseDown={handleHeaderMouseDown}
+            style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+          >
+            <div className="flex items-center gap-2">
+              <Move size={16} className="text-gray-400" />
+              <div className="flex items-center gap-2">
+                <Bot className="w-5 h-5 text-blue-400" />
+                <span className="font-semibold text-white">Degen Oracle AI</span>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-semibold text-white">Degen Oracle AI</h2>
-              <p className="text-sm text-gray-400">Your personalized crypto assistant</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
+            
+            <div className="chat-header-controls flex items-center gap-2">
             <button
               onClick={handleSaveChat}
               disabled={messages.length === 0 || isLoading}
@@ -281,6 +381,7 @@ const AIChatModal = ({ isOpen, onClose }) => {
             >
               <X size={20} className="text-gray-400" />
             </button>
+            </div>
           </div>
         </div>
 
@@ -507,6 +608,7 @@ const AIChatModal = ({ isOpen, onClose }) => {
               <Send size={16} />
             </button>
           </div>
+        </div>
         </div>
       </div>
     </div>
