@@ -1682,39 +1682,49 @@ class MoralisAIChatService {
       hasAthMultiplier: call.athMultiplier !== undefined && call.athMultiplier !== null
     });
     
-    // Use currentMultiplier if available, otherwise calculate from MC data
-    let multiplier = call.currentMultiplier;
+    // 🚨 CRITICAL FIX: Use ATH multiplier for performance ranking, not current multiplier
+    // ATH multiplier represents the best performance since the call was made
+    let performanceMultiplier = call.athMultiplier;
     
-    // If currentMultiplier is missing or 0, try to calculate from market cap data
-    if (!multiplier && call.calledMc && call.currentMC && call.calledMc > 0) {
-      multiplier = call.currentMC / call.calledMc;
-      console.log(`🔍 [KOL PERFORMANCE DEBUG] Calculated multiplier from MC: ${call.currentMC} / ${call.calledMc} = ${multiplier}`);
+    // If athMultiplier is missing, fall back to currentMultiplier
+    if (!performanceMultiplier && call.currentMultiplier) {
+      performanceMultiplier = call.currentMultiplier;
+      console.log(`🔍 [KOL PERFORMANCE DEBUG] Using currentMultiplier as fallback: ${performanceMultiplier}`);
+    }
+    
+    // If both are missing, try to calculate from MC data
+    if (!performanceMultiplier && call.calledMc && call.currentMC && call.calledMc > 0) {
+      performanceMultiplier = call.currentMC / call.calledMc;
+      console.log(`🔍 [KOL PERFORMANCE DEBUG] Calculated multiplier from MC: ${call.currentMC} / ${call.calledMc} = ${performanceMultiplier}`);
     }
     
     // Fallback to 0 if still no multiplier
-    multiplier = multiplier || 0;
+    performanceMultiplier = performanceMultiplier || 0;
     
+    const currentMultiplier = call.currentMultiplier || 0;
     const athMultiplier = call.athMultiplier || 0;
     const milestonesHit = call.milestonePosts?.length || 0;
     
+    // Status based on ATH performance (best achieved)
     let status = 'Unknown';
-    if (multiplier >= 100) status = 'Legendary (100x+)';
-    else if (multiplier >= 50) status = 'Epic (50x+)';
-    else if (multiplier >= 20) status = 'Great (20x+)';
-    else if (multiplier >= 10) status = 'Good (10x+)';
-    else if (multiplier >= 5) status = 'Decent (5x+)';
-    else if (multiplier >= 2) status = 'Positive (2x+)';
-    else if (multiplier >= 1) status = 'Break Even';
+    if (performanceMultiplier >= 100) status = 'Legendary (100x+)';
+    else if (performanceMultiplier >= 50) status = 'Epic (50x+)';
+    else if (performanceMultiplier >= 20) status = 'Great (20x+)';
+    else if (performanceMultiplier >= 10) status = 'Good (10x+)';
+    else if (performanceMultiplier >= 5) status = 'Decent (5x+)';
+    else if (performanceMultiplier >= 2) status = 'Positive (2x+)';
+    else if (performanceMultiplier >= 1) status = 'Break Even';
     else status = 'Down';
 
-    console.log(`🔍 [KOL PERFORMANCE DEBUG] Final performance for ${call.token?.symbol}: ${multiplier}x (${status})`);
+    console.log(`🔍 [KOL PERFORMANCE DEBUG] Final performance for ${call.token?.symbol}: ATH ${performanceMultiplier}x vs Current ${currentMultiplier}x (Status: ${status})`);
 
     return {
-      multiplier: multiplier,
-      athMultiplier: athMultiplier,
+      multiplier: performanceMultiplier, // Use ATH for ranking/comparison
+      currentMultiplier: currentMultiplier, // Keep current for reference
+      athMultiplier: athMultiplier, // Keep ATH for reference
       milestonesHit: milestonesHit,
       status: status,
-      profitLoss: multiplier >= 1 ? 'Profit' : 'Loss'
+      profitLoss: performanceMultiplier >= 1 ? 'Profit' : 'Loss'
     };
   }
 

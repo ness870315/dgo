@@ -372,9 +372,11 @@ EXAMPLE SHORT FORMAT:
           }
           
           // Add complete call ranking for detailed queries
-          prompt += `\n  * Complete Call Ranking (best to worst):`;
+          prompt += `\n  * Complete Call Ranking (by ATH performance):`;
           calls.forEach((call, index) => {
-            prompt += `\n    ${index + 1}. ${call.token?.symbol || 'Unknown'}: ${call.performance?.multiplier?.toFixed(2) || 0}x (${call.performance?.status || 'Unknown'})`;
+            const athMultiplier = call.performance?.multiplier?.toFixed(2) || 0; // This is now ATH
+            const currentMultiplier = call.performance?.currentMultiplier?.toFixed(2) || 0;
+            prompt += `\n    ${index + 1}. ${call.token?.symbol || 'Unknown'}: ATH ${athMultiplier}x (Current: ${currentMultiplier}x) - ${call.performance?.status || 'Unknown'}`;
           });
         }
       }
@@ -422,9 +424,11 @@ EXAMPLE SHORT FORMAT:
         }
         
         // Add complete call ranking for detailed queries
-        prompt += `\n  * Complete Call Ranking (best to worst):`;
+        prompt += `\n  * Complete Call Ranking (by ATH performance):`;
         calls.forEach((call, index) => {
-          prompt += `\n    ${index + 1}. ${call.token?.symbol || 'Unknown'}: ${call.performance?.multiplier?.toFixed(2) || 0}x (${call.performance?.status || 'Unknown'})`;
+          const athMultiplier = call.performance?.multiplier?.toFixed(2) || 0; // This is now ATH
+          const currentMultiplier = call.performance?.currentMultiplier?.toFixed(2) || 0;
+          prompt += `\n    ${index + 1}. ${call.token?.symbol || 'Unknown'}: ATH ${athMultiplier}x (Current: ${currentMultiplier}x) - ${call.performance?.status || 'Unknown'}`;
         });
       }
     }
