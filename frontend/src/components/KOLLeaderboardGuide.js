@@ -156,8 +156,8 @@ const KOLLeaderboardGuide = ({ onClose }) => {
           </h3>
           <div className="space-y-3">
             <div className="bg-gray-800/50 p-3 rounded-lg">
-              <h4 className="text-blue-400 font-semibold mb-1">Regular Activity</h4>
-              <p className="text-gray-300 text-sm">Make calls regularly to maintain recency weighting</p>
+              <h4 className="text-blue-400 font-semibold mb-1">Long-Term Vision</h4>
+              <p className="text-gray-300 text-sm">Focus on discovering cult tokens and 1000x gems that take time to develop</p>
             </div>
             <div className="bg-gray-800/50 p-3 rounded-lg">
               <h4 className="text-blue-400 font-semibold mb-1">Hit Rate Focus</h4>
@@ -177,8 +177,8 @@ const KOLLeaderboardGuide = ({ onClose }) => {
           <p>• <strong>Volume is King:</strong> Focus on tokens with high 1h and 24h volume (55% of score)</p>
           <p>• <strong>Community Health:</strong> Target tokens with strong social engagement (15% of score)</p>
           <p>• <strong>Market Tier:</strong> Higher market cap tokens get scoring bonuses (10% of score)</p>
-          <p>• <strong>Organic Volume:</strong> Look for tokens with high organic vs total volume ratio</p>
-          <p>• <strong>Price Momentum:</strong> 6-hour price changes are factored into scoring</p>
+          <p>• <strong>No Time Decay:</strong> All calls maintain full weight forever - perfect for cult discovery</p>
+          <p>• <strong>Diamond Hands:</strong> Long-term calls are rewarded equally to short-term ones</p>
         </div>
       </div>
     </div>
@@ -203,14 +203,14 @@ const KOLLeaderboardGuide = ({ onClose }) => {
           </div>
         </div>
 
-        <div className="bg-orange-900/20 border border-orange-500/30 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-orange-400 mb-3">Recency Decay</h3>
+        <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4">
+          <h3 className="text-lg font-semibold text-green-400 mb-3">No Time Decay</h3>
           <div className="space-y-2 text-sm text-gray-300">
-            <p>• <strong>Exponential Decay:</strong> Calls lose weight exponentially over time</p>
-            <p>• <strong>30-Day Half-Life:</strong> Calls retain ~37% weight after 30 days</p>
-            <p>• <strong>Continuous Decay:</strong> Weight decreases every day using exponential formula</p>
-            <p>• <strong>Impact:</strong> Old calls contribute significantly less to your overall score</p>
-            <p>• <strong>Solution:</strong> Keep making new calls to maintain score</p>
+            <p>• <strong>Equal Weight:</strong> All calls maintain full scoring weight forever</p>
+            <p>• <strong>Cult Discovery:</strong> Perfect for finding tokens that take months/years to develop</p>
+            <p>• <strong>1000x Gems:</strong> Long-term diamond hands calls are fully rewarded</p>
+            <p>• <strong>Fair Competition:</strong> No advantage for making frequent vs thoughtful calls</p>
+            <p>• <strong>True Alpha:</strong> Rewards the ability to spot future winners early</p>
           </div>
         </div>
 

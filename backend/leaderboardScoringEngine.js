@@ -8,7 +8,6 @@ export default class LeaderboardScoringEngine {
     // Configuration constants
     this.config = {
       // Per-call metrics
-      halfLife: 30, // days for recency weighting
       ddPenaltyThreshold: 0.30, // 30% drawdown before penalty starts
       volumeK: 25, // K parameter for diminishing returns
       bayesianK: 15, // Bayesian shrinkage strength
@@ -74,11 +73,8 @@ export default class LeaderboardScoringEngine {
     // Volume momentum weight (reward calls during high volume periods)
     const volumeWeight = this.calculateVolumeWeight(currentData);
     
-    // Recency weight
-    const timeWeight = Math.exp(-ageDays / this.config.halfLife);
-
-    // Per-call score (removed liquidity penalty)
-    const callScore = logReturn * ddWeight * mcapWeight * volumeWeight * timeWeight;
+    // Per-call score (removed liquidity penalty and recency decay)
+    const callScore = logReturn * ddWeight * mcapWeight * volumeWeight;
 
     return {
       callId: call.id,
@@ -87,7 +83,6 @@ export default class LeaderboardScoringEngine {
       ddWeight,
       mcapWeight,
       volumeWeight,
-      timeWeight,
       callScore,
       ageHours,
       calledMC,
