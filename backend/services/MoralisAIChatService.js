@@ -2001,6 +2001,13 @@ TOP 5 CALLS:`;
     }
 
     // Add trending tokens context
+    console.log(`🔍 [TRENDING DEBUG] Checking trending tokens in context:`, {
+      hasTrendingTokens: !!userContext.trendingTokens,
+      count: userContext.trendingTokens?.count,
+      tokensLength: userContext.trendingTokens?.tokens?.length,
+      fullStructure: userContext.trendingTokens
+    });
+    
     if (userContext.trendingTokens && userContext.trendingTokens.count > 0) {
       console.log(`🔍 [TRENDING DEBUG] Adding trending tokens to context:`, {
         count: userContext.trendingTokens.count,
