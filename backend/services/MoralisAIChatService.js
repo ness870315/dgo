@@ -2022,6 +2022,13 @@ TOP 5 CALLS:`;
       fullStructure: userContext.trendingTokens
     });
     
+    console.log(`🔍 [TRENDING DEBUG] Condition check:`, {
+      condition1: !!userContext.trendingTokens,
+      condition2: userContext.trendingTokens?.count > 0,
+      count: userContext.trendingTokens?.count,
+      willAdd: !!(userContext.trendingTokens && userContext.trendingTokens.count > 0)
+    });
+    
     if (userContext.trendingTokens && userContext.trendingTokens.count > 0) {
       console.log(`🔍 [TRENDING DEBUG] Adding trending tokens to context:`, {
         count: userContext.trendingTokens.count,
