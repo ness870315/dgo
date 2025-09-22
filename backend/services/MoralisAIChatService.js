@@ -3,6 +3,7 @@ import fetch from 'node-fetch';
 import crypto from 'crypto';
 import SmartIntentDetector from './SmartIntentDetector.js';
 import SmartPromptTemplates from './SmartPromptTemplates.js';
+import PromptSecurityGuard from './PromptSecurityGuard.js';
 
 /**
  * Moralis AI Chat Service - Integrates Moralis AI with user-specific Degen Oracle data
@@ -24,11 +25,15 @@ class MoralisAIChatService {
     this.intentDetector = new SmartIntentDetector();
     this.promptTemplates = new SmartPromptTemplates();
     
+    // Initialize Security Guard
+    this.securityGuard = new PromptSecurityGuard();
+    
     if (!this.moralisApiKey) {
       console.warn('⚠️ MORALIS_API_KEY not found in environment variables');
     }
     
-    console.log('🧠 [SMART AI] Initialized with Intent Detection and Modular Prompts');
+    console.log('🧠 [SMART AI] Initialized with Intent Detection, Modular Prompts, and Security Guard');
+    console.log('🛡️ [SECURITY] Prompt injection protection active');
   }
 
   /**
@@ -904,8 +909,36 @@ class MoralisAIChatService {
     try {
       console.log(`🤖 AI Chat request from user ${userId}: "${userPrompt.substring(0, 100)}..."`);
 
+      // 🛡️ SECURITY VALIDATION (First line of defense)
+      const securityAnalysis = this.securityGuard.analyzePrompt(userPrompt);
+      console.log(`🛡️ [SECURITY] Risk Level: ${securityAnalysis.riskLevel} (Score: ${securityAnalysis.riskScore})`);
+      
+      if (securityAnalysis.recommendation === 'BLOCK') {
+        console.log(`🚨 [SECURITY] BLOCKED malicious prompt from user ${userId}`);
+        console.log(`🚨 [SECURITY] Threats detected: ${securityAnalysis.detectedThreats.map(t => t.type).join(', ')}`);
+        
+        // Log security incident
+        this.securityGuard.logSecurityIncident(userId, userPrompt, securityAnalysis);
+        
+        // Return safe error response
+        return {
+          success: true,
+          response: this.securityGuard.generateSecurityResponse(securityAnalysis),
+          securityBlocked: true,
+          riskLevel: securityAnalysis.riskLevel
+        };
+      }
+      
+      // Sanitize prompt if medium risk
+      let sanitizedPrompt = userPrompt;
+      if (securityAnalysis.recommendation === 'SANITIZE') {
+        console.log(`🛡️ [SECURITY] SANITIZING medium-risk prompt from user ${userId}`);
+        sanitizedPrompt = this.securityGuard.sanitizePrompt(userPrompt);
+        console.log(`🛡️ [SECURITY] Sanitized prompt: "${sanitizedPrompt.substring(0, 100)}..."`);
+      }
+
       // 🧠 SMART INTENT DETECTION
-      const intentResult = this.intentDetector.detectIntent(userPrompt);
+      const intentResult = this.intentDetector.detectIntent(sanitizedPrompt);
       const primaryIntent = intentResult.primary.intent;
       const confidence = (intentResult.primary.confidence * 100).toFixed(1);
       
@@ -916,7 +949,7 @@ class MoralisAIChatService {
       let commands = [];
       if (this.intentDetector.requiresTokenLookup(primaryIntent)) {
         console.log(`🔍 [SMART AI] Intent requires token lookup - parsing commands`);
-        commands = await this.parseUserCommands(userPrompt, userId, conversationHistory);
+        commands = await this.parseUserCommands(sanitizedPrompt, userId, conversationHistory);
       } else {
         console.log(`⚡ [SMART AI] Intent doesn't require token lookup - skipping command parsing`);
       }
@@ -1048,10 +1081,10 @@ class MoralisAIChatService {
       let userContext = {};
       if (this.intentDetector.requiresUserData(primaryIntent)) {
         console.log(`📊 [SMART AI] Intent requires user data - gathering context`);
-        const dataNeeds = this.analyzePromptDataNeeds(userPrompt);
+        const dataNeeds = this.analyzePromptDataNeeds(sanitizedPrompt);
         console.log(`🔍 Data needs identified:`, dataNeeds);
         
-        userContext = await this.gatherUserContext(userId, dataNeeds, userPrompt);
+        userContext = await this.gatherUserContext(userId, dataNeeds, sanitizedPrompt);
         console.log(`📊 User context gathered: ${Object.keys(userContext).join(', ')}`);
 
         // Add user preferences for personalization
@@ -1084,7 +1117,7 @@ class MoralisAIChatService {
 
       const specializedPrompt = this.promptTemplates.getPromptForIntent(
         primaryIntent, 
-        userPrompt, 
+        sanitizedPrompt, 
         promptContext
       );
 
@@ -1102,10 +1135,14 @@ class MoralisAIChatService {
         formattedResponse.actionSuggestions = this.generateActionSuggestions(userPrompt, userContext);
       }
 
-      // Learn from this conversation (async, don't wait)
-      this.learnFromConversation(userId, userPrompt, formattedResponse.content).catch(error => {
-        console.error('❌ Learning failed:', error);
-      });
+      // Learn from this conversation (async, don't wait) - only if safe
+      if (securityAnalysis.riskLevel === 'LOW' || securityAnalysis.recommendation === 'ALLOW') {
+        this.learnFromConversation(userId, sanitizedPrompt, formattedResponse.content).catch(error => {
+          console.error('❌ Learning failed:', error);
+        });
+      } else {
+        console.log(`🛡️ [SECURITY] Skipping learning from potentially malicious prompt`);
+      }
 
       return {
         success: true,
