@@ -184,7 +184,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         fetch(`${API_BASE}/api/user/profile?sessionId=${sessionId}`),
         fetch(`${API_BASE}/api/user/watchlist?sessionId=${sessionId}`),
         fetch(`${API_BASE}/api/user/kol-calls?sessionId=${sessionId}`),
-        fetch(`${API_BASE}/api/leaderboard`)
+        fetch(`${API_BASE}/api/leaderboard?sessionId=${sessionId}`)
       ]);
 
       console.log('📊 API responses:', {
