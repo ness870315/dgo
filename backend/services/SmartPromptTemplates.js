@@ -368,6 +368,7 @@ EXAMPLE SHORT FORMAT:
           if (context.userData.kolCalls.summary) {
             prompt += `\n  * Average Performance: ${context.userData.kolCalls.summary.avgMultiplier?.toFixed(2) || 0}x`;
             prompt += `\n  * Win Rate: ${context.userData.kolCalls.summary.winRate || 0}%`;
+            prompt += `\n  * Profitable Calls: ${context.userData.kolCalls.summary.profitableCalls || 0}/${callCount}`;
           }
           
           // Add complete call ranking for detailed queries
@@ -417,6 +418,7 @@ EXAMPLE SHORT FORMAT:
         if (context.kolCalls.summary) {
           prompt += `\n  * Average Performance: ${context.kolCalls.summary.avgMultiplier?.toFixed(2) || 0}x`;
           prompt += `\n  * Win Rate: ${context.kolCalls.summary.winRate || 0}%`;
+          prompt += `\n  * Profitable Calls: ${context.kolCalls.summary.profitableCalls || 0}/${context.kolCalls.count}`;
         }
         
         // Add complete call ranking for detailed queries

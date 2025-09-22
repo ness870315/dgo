@@ -1672,7 +1672,28 @@ class MoralisAIChatService {
    * Calculate individual call performance
    */
   calculateCallPerformance(call) {
-    const multiplier = call.currentMultiplier || 0;
+    // Debug logging to understand the data structure
+    console.log(`🔍 [KOL PERFORMANCE DEBUG] Calculating performance for ${call.token?.symbol || 'Unknown'}:`, {
+      currentMultiplier: call.currentMultiplier,
+      athMultiplier: call.athMultiplier,
+      calledMc: call.calledMc,
+      currentMC: call.currentMC,
+      hasCurrentMultiplier: call.currentMultiplier !== undefined && call.currentMultiplier !== null,
+      hasAthMultiplier: call.athMultiplier !== undefined && call.athMultiplier !== null
+    });
+    
+    // Use currentMultiplier if available, otherwise calculate from MC data
+    let multiplier = call.currentMultiplier;
+    
+    // If currentMultiplier is missing or 0, try to calculate from market cap data
+    if (!multiplier && call.calledMc && call.currentMC && call.calledMc > 0) {
+      multiplier = call.currentMC / call.calledMc;
+      console.log(`🔍 [KOL PERFORMANCE DEBUG] Calculated multiplier from MC: ${call.currentMC} / ${call.calledMc} = ${multiplier}`);
+    }
+    
+    // Fallback to 0 if still no multiplier
+    multiplier = multiplier || 0;
+    
     const athMultiplier = call.athMultiplier || 0;
     const milestonesHit = call.milestonePosts?.length || 0;
     
@@ -1685,6 +1706,8 @@ class MoralisAIChatService {
     else if (multiplier >= 2) status = 'Positive (2x+)';
     else if (multiplier >= 1) status = 'Break Even';
     else status = 'Down';
+
+    console.log(`🔍 [KOL PERFORMANCE DEBUG] Final performance for ${call.token?.symbol}: ${multiplier}x (${status})`);
 
     return {
       multiplier: multiplier,
@@ -1703,19 +1726,36 @@ class MoralisAIChatService {
       return { totalCalls: 0, avgMultiplier: 0, bestCall: null, totalMilestones: 0 };
     }
 
+    console.log(`🔍 [KOL SUMMARY DEBUG] Generating summary for ${calls.length} calls:`);
+    calls.forEach((call, index) => {
+      console.log(`  ${index + 1}. ${call.token?.symbol}: ${call.performance?.multiplier}x (${call.performance?.status})`);
+    });
+
     const totalMultiplier = calls.reduce((sum, call) => sum + (call.performance.multiplier || 0), 0);
     const avgMultiplier = totalMultiplier / calls.length;
     const bestCall = calls[0]; // Already sorted by performance
+    const worstCall = calls[calls.length - 1]; // Last call is worst
     const totalMilestones = calls.reduce((sum, call) => sum + call.milestonePosts, 0);
     const profitableCalls = calls.filter(call => call.performance.multiplier >= 1).length;
+    const winRate = (profitableCalls / calls.length * 100).toFixed(1);
+
+    console.log(`🔍 [KOL SUMMARY DEBUG] Summary calculated:`, {
+      totalCalls: calls.length,
+      avgMultiplier: avgMultiplier.toFixed(2),
+      bestCall: `${bestCall?.token?.symbol} (${bestCall?.performance?.multiplier}x)`,
+      worstCall: `${worstCall?.token?.symbol} (${worstCall?.performance?.multiplier}x)`,
+      profitableCalls: profitableCalls,
+      winRate: `${winRate}%`
+    });
 
     return {
       totalCalls: calls.length,
       avgMultiplier: avgMultiplier,
       bestCall: bestCall,
+      worstCall: worstCall, // Add worst call to summary
       totalMilestones: totalMilestones,
       profitableCalls: profitableCalls,
-      winRate: (profitableCalls / calls.length * 100).toFixed(1)
+      winRate: winRate
     };
   }
 
