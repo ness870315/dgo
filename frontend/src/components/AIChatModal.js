@@ -646,6 +646,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
             </button>
           </div>
         </div>
+        </div>
       </div>
     </div>
   );
