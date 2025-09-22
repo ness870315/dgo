@@ -1456,15 +1456,15 @@ RESPONSE GUIDELINES:
 - Keep responses concise and focused - NO logos, URLs, or unnecessary technical details
 - For price queries: Just provide the price, percentage change, and brief market context
 - Avoid mentioning external links, logo URLs, or technical identifiers unless specifically asked
-- IMPORTANT: For token queries without contract addresses, always ask for the contract address
+- IMPORTANT: I have access to a comprehensive token database - when users ask about tokens by name, I can look them up automatically
 - Never say "my access plan doesn't support that" - instead ask for more specific information
 
 INTERACTIVE CAPABILITIES:
-- I can add tokens to your watchlist when you ask (need contract address)
-- I can fetch comprehensive token data (price, volume, holders) in real-time
+- I can add tokens to your watchlist when you ask
+- I can fetch comprehensive token data (price, volume, holders) in real-time by token name or contract address
 - I can execute actions based on your requests
 - When discussing tokens, I'll offer action suggestions like "Add to Watchlist" or "Get Full Analysis"
-- IMPORTANT: For token queries without contract addresses, always ask for the contract address
+- IMPORTANT: I have access to Degen Oracle's token database and can look up tokens by name automatically
 - Never say "my access plan doesn't support that" - instead ask for more specific information
 
 DEGEN ORACLE PLATFORM KNOWLEDGE:
@@ -1677,6 +1677,36 @@ TOP 5 CALLS:`;
 - Don't ask for information that was already provided in the conversation history
 - Maintain context across the entire conversation, not just the current message
 - When a user asks about a token by name (e.g., "Fartcoin"), check if it's in the TOKEN REFERENCES section first`;
+    }
+
+    // Add token data if retrieved
+    if (userContext.tokenData && Object.keys(userContext.tokenData).length > 0) {
+      systemContext += `\n\nTOKEN DATA RETRIEVED:`;
+      systemContext += `\nIMPORTANT: I have successfully found and retrieved data for the requested token(s). Use this data to answer the user's question directly.`;
+      
+      Object.entries(userContext.tokenData).forEach(([contractAddress, data]) => {
+        systemContext += `\n📊 ${contractAddress}:`;
+        if (data.analytics) {
+          systemContext += `\n   - Symbol: ${data.analytics.symbol}`;
+          systemContext += `\n   - Name: ${data.analytics.name}`;
+          systemContext += `\n   - Price: $${data.analytics.price}`;
+          if (data.analytics.marketCap) {
+            systemContext += `\n   - Market Cap: $${data.analytics.marketCap.toLocaleString()}`;
+          }
+          if (data.analytics.volume24h) {
+            systemContext += `\n   - Volume 24h: $${data.analytics.volume24h.toLocaleString()}`;
+          }
+          if (data.analytics.priceChange24h) {
+            systemContext += `\n   - Price Change 24h: ${data.analytics.priceChange24h}%`;
+          }
+        }
+        if (data.databaseInfo) {
+          systemContext += `\n   - Database Info: ${data.databaseInfo.name} (${data.databaseInfo.symbol})`;
+          systemContext += `\n   - IMPORTANT: This token was found in our database automatically.`;
+        }
+      });
+      
+      systemContext += `\n\nSince I have retrieved the token data above, provide the requested information directly. Do NOT ask for contract addresses.`;
     }
 
     systemContext += `\n\nUSER QUESTION: ${userPrompt}
