@@ -1274,20 +1274,30 @@ class EnhancedTokenProcessor {
       console.log(`📊 New tokens added: ${tokensToSave.length}`);
       console.log(`📊 Total tokens in database: ${finalUniqueTokens.length}`);
       
-      // 🚨 CRITICAL FIX: Clear the processing queue after successful save
+      // 🚨 CRITICAL FIX: Remove only the tokens that were successfully saved from processing queue
       const originalQueueLength = this.processingQueue.length;
-      this.processingQueue = [];
-      console.log(`🧹 PROCESSING QUEUE CLEARED: ${originalQueueLength} → 0 tokens (all processed and saved)`);
+      const savedTokenContracts = new Set(tokensToSave.map(t => t.contractAddress?.toLowerCase()).filter(Boolean));
+      
+      this.processingQueue = this.processingQueue.filter(token => {
+        const tokenContract = token.contractAddress?.toLowerCase();
+        const wasSaved = tokenContract && savedTokenContracts.has(tokenContract);
+        return !wasSaved; // Keep tokens that were NOT saved
+      });
+      
+      const removedCount = originalQueueLength - this.processingQueue.length;
+      console.log(`🧹 PROCESSING QUEUE UPDATED: ${originalQueueLength} → ${this.processingQueue.length} tokens (removed ${removedCount} saved tokens)`);
       
     } catch (error) {
       console.error('❌ Failed to save final database:', error);
       console.error('Error details:', error.message);
       console.error('Stack trace:', error.stack);
       
-      // 🚨 CRITICAL FIX: Clear processing queue even on error to prevent accumulation
+      // 🚨 CRITICAL FIX: On error, still try to remove any tokens that might have been processed
+      // This prevents accumulation of tokens that might have been partially processed
       const originalQueueLength = this.processingQueue.length;
-      this.processingQueue = [];
-      console.log(`🧹 PROCESSING QUEUE CLEARED (after error): ${originalQueueLength} → 0 tokens`);
+      this.processingQueue = this.processingQueue.filter(token => token.stage !== 'scoring');
+      const removedCount = originalQueueLength - this.processingQueue.length;
+      console.log(`🧹 PROCESSING QUEUE CLEARED (after error): ${originalQueueLength} → ${this.processingQueue.length} tokens (removed ${removedCount} tokens with stage 'scoring')`);
     }
   }
 
