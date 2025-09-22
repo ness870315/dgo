@@ -377,7 +377,26 @@ EXAMPLE SHORT FORMAT:
           });
         }
       }
-      if (context.userData.watchlist) prompt += `\n- Watchlist: ${context.userData.watchlist.length} tokens`;
+      if (context.userData.watchlist) {
+        prompt += `\n- Watchlist: ${context.userData.watchlist.count} tokens`;
+        if (context.userData.watchlist.performance && context.userData.watchlist.tokens.length > 0) {
+          const perf = context.userData.watchlist.performance;
+          const tokens = context.userData.watchlist.tokens;
+          
+          prompt += `\n  * Best Performer: ${perf.bestPerformer?.symbol || 'None'} (${perf.bestPerformer?.multiplier?.toFixed(2) || 0}x)`;
+          prompt += `\n  * Worst Performer: ${perf.worstPerformer?.symbol || 'None'} (${perf.worstPerformer?.multiplier?.toFixed(2) || 0}x)`;
+          prompt += `\n  * Average Performance: ${perf.avgMultiplier?.toFixed(2) || 0}x`;
+          prompt += `\n  * Win Rate: ${perf.winRate || 0}%`;
+          prompt += `\n  * Trending Tokens: ${perf.trendingCount} (${perf.trendingTokens?.map(t => t.symbol).join(', ') || 'None'})`;
+          
+          // Add complete watchlist ranking for detailed queries
+          prompt += `\n  * Complete Watchlist Performance (best to worst):`;
+          tokens.forEach((token, index) => {
+            const multiplierText = token.multiplier ? `${token.multiplier.toFixed(2)}x` : 'No data';
+            prompt += `\n    ${index + 1}. ${token.symbol}: ${multiplierText} (${token.status}) [${token.trending}]`;
+          });
+        }
+      }
       if (context.userData.performance) prompt += `\n- Performance: ${context.userData.performance}`;
     }
 
@@ -412,7 +431,24 @@ EXAMPLE SHORT FORMAT:
       if (!prompt.includes('USER DATA AVAILABLE:')) {
         prompt += `\n\nUSER DATA AVAILABLE:`;
       }
-      prompt += `\n- Watchlist: ${context.watchlist.length} tokens`;
+      prompt += `\n- Watchlist: ${context.watchlist.count} tokens`;
+      if (context.watchlist.performance && context.watchlist.tokens.length > 0) {
+        const perf = context.watchlist.performance;
+        const tokens = context.watchlist.tokens;
+        
+        prompt += `\n  * Best Performer: ${perf.bestPerformer?.symbol || 'None'} (${perf.bestPerformer?.multiplier?.toFixed(2) || 0}x)`;
+        prompt += `\n  * Worst Performer: ${perf.worstPerformer?.symbol || 'None'} (${perf.worstPerformer?.multiplier?.toFixed(2) || 0}x)`;
+        prompt += `\n  * Average Performance: ${perf.avgMultiplier?.toFixed(2) || 0}x`;
+        prompt += `\n  * Win Rate: ${perf.winRate || 0}%`;
+        prompt += `\n  * Trending Tokens: ${perf.trendingCount} (${perf.trendingTokens?.map(t => t.symbol).join(', ') || 'None'})`;
+        
+        // Add complete watchlist ranking for detailed queries
+        prompt += `\n  * Complete Watchlist Performance (best to worst):`;
+        tokens.forEach((token, index) => {
+          const multiplierText = token.multiplier ? `${token.multiplier.toFixed(2)}x` : 'No data';
+          prompt += `\n    ${index + 1}. ${token.symbol}: ${multiplierText} (${token.status}) [${token.trending}]`;
+        });
+      }
     }
 
     if (context.commandResults && Object.keys(context.commandResults).length > 0) {

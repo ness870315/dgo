@@ -1434,10 +1434,10 @@ class MoralisAIChatService {
         });
       }
 
-      // Get user's watchlist
+      // Get user's watchlist with performance analysis
       if (dataNeeds.watchlist) {
         const watchlist = await this.db.getWatchlist(userId);
-        context.watchlist = watchlist || [];
+        context.watchlist = await this.processWatchlistForAI(watchlist || []);
       }
 
       // Get user's hype list
@@ -1514,6 +1514,157 @@ class MoralisAIChatService {
       count: processedCalls.length,
       calls: processedCalls,
       summary: this.generateCallsSummary(processedCalls)
+    };
+  }
+
+  /**
+   * Process watchlist data for AI analysis with performance metrics
+   */
+  async processWatchlistForAI(watchlist) {
+    if (!Array.isArray(watchlist) || watchlist.length === 0) {
+      return { count: 0, tokens: [], performance: null };
+    }
+
+    console.log(`📊 [WATCHLIST DEBUG] Processing ${watchlist.length} watchlist tokens for AI analysis`);
+
+    const processedTokens = [];
+    
+    for (const token of watchlist) {
+      try {
+        // Get current token data for performance calculation
+        let currentData = null;
+        if (token.contractAddress) {
+          currentData = await this.getTokenData(token.contractAddress);
+        }
+
+        const currentPrice = currentData?.analytics?.price || null;
+        const currentMC = currentData?.analytics?.marketCap || currentData?.analytics?.mcap || null;
+        const addedPrice = token.price || null;
+        const addedMC = token.marketCap || null;
+
+        // Calculate performance since added to watchlist
+        let priceChange = null;
+        let mcChange = null;
+        let multiplier = null;
+        let status = 'Unknown';
+
+        if (currentPrice && addedPrice && addedPrice > 0) {
+          priceChange = ((currentPrice - addedPrice) / addedPrice) * 100;
+          multiplier = currentPrice / addedPrice;
+        } else if (currentMC && addedMC && addedMC > 0) {
+          mcChange = ((currentMC - addedMC) / addedMC) * 100;
+          multiplier = currentMC / addedMC;
+        }
+
+        // Determine performance status
+        if (multiplier) {
+          if (multiplier >= 10) status = 'Moon Mission (10x+)';
+          else if (multiplier >= 5) status = 'Sending It (5x+)';
+          else if (multiplier >= 2) status = 'Pumping (2x+)';
+          else if (multiplier >= 1.5) status = 'Green (1.5x+)';
+          else if (multiplier >= 1) status = 'Holding';
+          else if (multiplier >= 0.8) status = 'Slight Dip';
+          else if (multiplier >= 0.5) status = 'Red (-50%)';
+          else status = 'Rekt (-50%+)';
+        }
+
+        // Get trending status from current data
+        const trendingStatus = this.determineTrendingStatus(currentData);
+
+        const processedToken = {
+          symbol: token.symbol || 'Unknown',
+          name: token.name || 'Unknown',
+          contractAddress: token.contractAddress,
+          addedAt: token.addedAt,
+          addedPrice: addedPrice,
+          currentPrice: currentPrice,
+          addedMC: addedMC,
+          currentMC: currentMC,
+          priceChange: priceChange,
+          mcChange: mcChange,
+          multiplier: multiplier,
+          status: status,
+          trending: trendingStatus,
+          daysSinceAdded: token.addedAt ? Math.floor((Date.now() - new Date(token.addedAt).getTime()) / (1000 * 60 * 60 * 24)) : null
+        };
+
+        processedTokens.push(processedToken);
+        
+      } catch (error) {
+        console.error(`❌ [WATCHLIST DEBUG] Error processing token ${token.symbol}:`, error);
+        // Add token with basic info even if processing fails
+        processedTokens.push({
+          symbol: token.symbol || 'Unknown',
+          name: token.name || 'Unknown',
+          contractAddress: token.contractAddress,
+          addedAt: token.addedAt,
+          status: 'Data Unavailable',
+          trending: 'Unknown'
+        });
+      }
+    }
+
+    // Sort by performance (best first)
+    processedTokens.sort((a, b) => (b.multiplier || 0) - (a.multiplier || 0));
+
+    return {
+      count: processedTokens.length,
+      tokens: processedTokens,
+      performance: this.generateWatchlistSummary(processedTokens)
+    };
+  }
+
+  /**
+   * Determine trending status from token data
+   */
+  determineTrendingStatus(tokenData) {
+    if (!tokenData?.analytics) return 'Unknown';
+    
+    const score = tokenData.analytics.overallScore || tokenData.analytics.enhancedScore || 0;
+    
+    if (score >= 8.5) return 'Viral';
+    else if (score >= 7.5) return 'Trending';
+    else if (score >= 6.5) return 'Building';
+    else if (score >= 5.5) return 'Waking Up';
+    else return 'Sleeping';
+  }
+
+  /**
+   * Generate watchlist performance summary
+   */
+  generateWatchlistSummary(tokens) {
+    if (tokens.length === 0) {
+      return { totalTokens: 0, avgMultiplier: 0, bestPerformer: null, worstPerformer: null };
+    }
+
+    const tokensWithMultiplier = tokens.filter(t => t.multiplier !== null);
+    
+    if (tokensWithMultiplier.length === 0) {
+      return { 
+        totalTokens: tokens.length, 
+        avgMultiplier: 0, 
+        bestPerformer: null, 
+        worstPerformer: null,
+        trendingCount: tokens.filter(t => ['Viral', 'Trending'].includes(t.trending)).length
+      };
+    }
+
+    const totalMultiplier = tokensWithMultiplier.reduce((sum, token) => sum + token.multiplier, 0);
+    const avgMultiplier = totalMultiplier / tokensWithMultiplier.length;
+    const bestPerformer = tokensWithMultiplier[0]; // Already sorted by performance
+    const worstPerformer = tokensWithMultiplier[tokensWithMultiplier.length - 1];
+    const profitableTokens = tokensWithMultiplier.filter(t => t.multiplier >= 1).length;
+    const trendingTokens = tokens.filter(t => ['Viral', 'Trending'].includes(t.trending));
+
+    return {
+      totalTokens: tokens.length,
+      avgMultiplier: avgMultiplier,
+      bestPerformer: bestPerformer,
+      worstPerformer: worstPerformer,
+      profitableTokens: profitableTokens,
+      winRate: (profitableTokens / tokensWithMultiplier.length * 100).toFixed(1),
+      trendingCount: trendingTokens.length,
+      trendingTokens: trendingTokens
     };
   }
 
