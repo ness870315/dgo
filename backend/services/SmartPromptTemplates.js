@@ -352,7 +352,21 @@ EXAMPLE SHORT FORMAT:
 
     if (context.userData) {
       prompt += `\n\nUSER DATA AVAILABLE:`;
-      if (context.userData.kolCalls) prompt += `\n- KOL Calls: ${context.userData.kolCalls.length} calls`;
+      if (context.userData.kolCalls) {
+        const callCount = context.userData.kolCalls.count || context.userData.kolCalls.length || 0;
+        prompt += `\n- KOL Calls: ${callCount} calls`;
+        
+        // Add detailed KOL calls information if available
+        if (context.userData.kolCalls.calls && context.userData.kolCalls.calls.length > 0) {
+          const bestCall = context.userData.kolCalls.calls[0]; // First call is best (sorted by performance)
+          prompt += `\n  * Best Call: ${bestCall.token?.symbol || 'Unknown'} (${bestCall.performance?.multiplier?.toFixed(2) || 0}x)`;
+          prompt += `\n  * Total Calls: ${callCount}`;
+          if (context.userData.kolCalls.summary) {
+            prompt += `\n  * Average Performance: ${context.userData.kolCalls.summary.avgMultiplier?.toFixed(2) || 0}x`;
+            prompt += `\n  * Win Rate: ${context.userData.kolCalls.summary.winRate || 0}%`;
+          }
+        }
+      }
       if (context.userData.watchlist) prompt += `\n- Watchlist: ${context.userData.watchlist.length} tokens`;
       if (context.userData.performance) prompt += `\n- Performance: ${context.userData.performance}`;
     }
