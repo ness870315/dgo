@@ -273,6 +273,18 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
   
+  // Main useEffect to fetch dashboard data
+  useEffect(() => {
+    console.log('🔄 useEffect triggered - user:', user, 'sessionId:', sessionId);
+    if (user && sessionId) {
+      console.log('✅ Calling fetchDashboardData and loadDgoFollowers');
+      fetchDashboardData();
+      loadDgoFollowers();
+    } else {
+      console.log('❌ Missing user or sessionId - user:', !!user, 'sessionId:', !!sessionId);
+    }
+  }, [user, sessionId, fetchDashboardData, loadDgoFollowers]);
+  
   // Early return if user is not loaded yet
   if (!user) {
     return (
