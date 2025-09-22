@@ -323,8 +323,6 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
     }
   };
 
-  if (!isOpen) return null;
-
   // Debug logging (only log once when modal opens)
   useEffect(() => {
     if (isOpen) {
@@ -340,6 +338,8 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
       });
     }
   }, [isOpen, messages.length, showSuggestions, showHistories, chatHistories.length, personalizedSuggestions.length, suggestedQuestions.length, position]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 p-4">
