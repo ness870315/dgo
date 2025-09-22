@@ -10129,13 +10129,13 @@ class EnhancedBackend {
       return callDate >= thirtyDaysAgo;
     });
 
-    // Calculate hit rate (calls that achieved 1x or better)
+    // Calculate hit rate (calls that achieved 1x or better - no time window)
     const hitRateCalls = calls.length;
     const hitRateHits = calls.filter(call => {
       const currentMC = call.currentMC || call.currentMc || 0;
       const calledMC = call.calledMc || call.calledMC || 0;
       const multiplier = calledMC > 0 ? currentMC / calledMC : 0;
-      return multiplier >= 1.0;
+      return multiplier >= 1.0; // 1x or better (profitable)
     }).length;
     
     const hitRate = hitRateCalls > 0 ? hitRateHits / hitRateCalls : 0;

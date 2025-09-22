@@ -96,10 +96,10 @@ const KOLLeaderboardGuide = ({ onClose }) => {
             Hit Rate Metrics
           </h3>
           <div className="space-y-2 text-sm text-gray-300">
-            <p>• <strong>Hit Rate:</strong> % of calls that reach 2x within 72 hours</p>
+            <p>• <strong>Hit Rate:</strong> % of calls that reach 1x or better (profitable calls)</p>
             <p>• <strong>Wilson Score:</strong> Confidence interval for hit rate reliability</p>
             <p>• <strong>Median X Multiple:</strong> Middle value of all your X multiples</p>
-            <p>• <strong>Average Time to 2x:</strong> How quickly your calls reach 2x</p>
+            <p>• <strong>Total Calls:</strong> Total number of KOL calls made</p>
           </div>
         </div>
       </div>
@@ -107,10 +107,13 @@ const KOLLeaderboardGuide = ({ onClose }) => {
       <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4">
         <h4 className="text-green-300 font-semibold mb-2">Example Calculation</h4>
         <div className="text-sm text-gray-300 space-y-1">
-          <p>• Call 1: 3.0x return, 5 days old → Weight: 0.85 → Score: 1.10 × 0.85 = 0.94</p>
-          <p>• Call 2: 1.5x return, 1 day old → Weight: 0.98 → Score: 0.41 × 0.98 = 0.40</p>
-          <p>• Call 3: 0.8x return, 10 days old → Weight: 0.75 → Score: -0.22 × 0.75 = -0.17</p>
-          <p className="font-semibold text-green-400">• Efficiency: (0.94 + 0.40 - 0.17) ÷ (0.85 + 0.98 + 0.75) = 0.45</p>
+          <p>• Call 1: 3.0x return → Profitable (1x+) → Hit ✓</p>
+          <p>• Call 2: 1.5x return → Profitable (1x+) → Hit ✓</p>
+          <p>• Call 3: 0.8x return → Not profitable (<1x) → Miss ✗</p>
+          <p>• Call 4: 2.2x return → Profitable (1x+) → Hit ✓</p>
+          <p>• Call 5: 0.5x return → Not profitable (<1x) → Miss ✗</p>
+          <p className="font-semibold text-green-400">• Hit Rate: 3 hits ÷ 5 total calls = 60%</p>
+          <p className="font-semibold text-blue-400">• Median X: [0.5x, 0.8x, 1.5x, 2.2x, 3.0x] = 1.5x</p>
         </div>
       </div>
     </div>
@@ -140,8 +143,8 @@ const KOLLeaderboardGuide = ({ onClose }) => {
               <p className="text-gray-300 text-sm">Call tokens before major moves, not after they've already pumped</p>
             </div>
             <div className="bg-gray-800/50 p-3 rounded-lg">
-              <h4 className="text-green-400 font-semibold mb-1">Liquidity Focus</h4>
-              <p className="text-gray-300 text-sm">Higher liquidity tokens get bonus points in scoring</p>
+              <h4 className="text-green-400 font-semibold mb-1">Volume Focus</h4>
+              <p className="text-gray-300 text-sm">High volume tokens (1h & 24h) get major scoring bonuses</p>
             </div>
           </div>
         </div>
@@ -158,7 +161,7 @@ const KOLLeaderboardGuide = ({ onClose }) => {
             </div>
             <div className="bg-gray-800/50 p-3 rounded-lg">
               <h4 className="text-blue-400 font-semibold mb-1">Hit Rate Focus</h4>
-              <p className="text-gray-300 text-sm">Aim for 50%+ hit rate (calls reaching 2x within 72h)</p>
+              <p className="text-gray-300 text-sm">Aim for 50%+ hit rate (calls reaching 1x or better)</p>
             </div>
             <div className="bg-gray-800/50 p-3 rounded-lg">
               <h4 className="text-blue-400 font-semibold mb-1">Risk Management</h4>
@@ -171,11 +174,11 @@ const KOLLeaderboardGuide = ({ onClose }) => {
       <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-4">
         <h4 className="text-yellow-300 font-semibold mb-2">Pro Strategies</h4>
         <div className="space-y-2 text-sm text-gray-300">
-          <p>• <strong>Quality over Quantity:</strong> 5 great calls beat 20 mediocre ones</p>
-          <p>• <strong>Early Detection:</strong> Use our AI analysis to spot gems before they pump</p>
-          <p>• <strong>Diversification:</strong> Don't put all calls in one sector or timeframe</p>
-          <p>• <strong>Community Health:</strong> Focus on tokens with strong social metrics</p>
-          <p>• <strong>Market Timing:</strong> Consider overall market conditions before calling</p>
+          <p>• <strong>Volume is King:</strong> Focus on tokens with high 1h and 24h volume (55% of score)</p>
+          <p>• <strong>Community Health:</strong> Target tokens with strong social engagement (15% of score)</p>
+          <p>• <strong>Market Tier:</strong> Higher market cap tokens get scoring bonuses (10% of score)</p>
+          <p>• <strong>Organic Volume:</strong> Look for tokens with high organic vs total volume ratio</p>
+          <p>• <strong>Price Momentum:</strong> 6-hour price changes are factored into scoring</p>
         </div>
       </div>
     </div>
@@ -203,17 +206,18 @@ const KOLLeaderboardGuide = ({ onClose }) => {
         <div className="bg-orange-900/20 border border-orange-500/30 rounded-lg p-4">
           <h3 className="text-lg font-semibold text-orange-400 mb-3">Recency Decay</h3>
           <div className="space-y-2 text-sm text-gray-300">
-            <p>• <strong>30-Day Half-Life:</strong> Calls lose 50% weight after 30 days</p>
-            <p>• <strong>Continuous Decay:</strong> Weight decreases every day</p>
-            <p>• <strong>Impact:</strong> Old calls contribute less to your overall score</p>
+            <p>• <strong>Exponential Decay:</strong> Calls lose weight exponentially over time</p>
+            <p>• <strong>30-Day Half-Life:</strong> Calls retain ~37% weight after 30 days</p>
+            <p>• <strong>Continuous Decay:</strong> Weight decreases every day using exponential formula</p>
+            <p>• <strong>Impact:</strong> Old calls contribute significantly less to your overall score</p>
             <p>• <strong>Solution:</strong> Keep making new calls to maintain score</p>
           </div>
         </div>
 
         <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-yellow-400 mb-3">Low Liquidity Penalty</h3>
+          <h3 className="text-lg font-semibold text-yellow-400 mb-3">Low Volume Penalty</h3>
           <div className="space-y-2 text-sm text-gray-300">
-            <p>• <strong>Reference:</strong> $100k liquidity is the baseline</p>
+            <p>• <strong>Volume Impact:</strong> Low volume tokens get significantly lower scores</p>
             <p>• <strong>Below Threshold:</strong> Lower liquidity = lower call score</p>
             <p>• <strong>Impact:</strong> Illiquid tokens get penalized in scoring</p>
             <p>• <strong>Solution:</strong> Focus on tokens with decent liquidity</p>
@@ -223,9 +227,10 @@ const KOLLeaderboardGuide = ({ onClose }) => {
         <div className="bg-purple-900/20 border border-purple-500/30 rounded-lg p-4">
           <h3 className="text-lg font-semibold text-purple-400 mb-3">Anti-Gaming Measures</h3>
           <div className="space-y-2 text-sm text-gray-300">
-            <p>• <strong>Duplicate Prevention:</strong> Same token calls within 7 days are filtered</p>
+            <p>• <strong>One Call Per Token:</strong> Each token can only be called once per user</p>
             <p>• <strong>Minimum Call Age:</strong> 1 hour minimum before scoring begins</p>
             <p>• <strong>Bayesian Shrinkage:</strong> Low sample sizes get pulled toward global mean</p>
+            <p>• <strong>Wilson Score:</strong> Confidence intervals prevent low-sample gaming</p>
             <p>• <strong>Impact:</strong> Prevents manipulation and ensures fair competition</p>
           </div>
         </div>
