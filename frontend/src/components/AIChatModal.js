@@ -47,18 +47,16 @@ const AIChatModal = ({ isOpen, onClose }) => {
     }
   }, [isOpen]);
 
-  // Load personalized suggestions and chat histories
+  // Load chat histories only (personalized suggestions disabled)
   const loadPersonalizedData = async () => {
     try {
-      const [suggestions, histories] = await Promise.all([
-        aiChatService.getPersonalizedSuggestions(),
-        aiChatService.getChatHistories()
-      ]);
+      const histories = await aiChatService.getChatHistories();
       
-      setPersonalizedSuggestions(suggestions);
+      // Disable personalized suggestions - always use default ones
+      setPersonalizedSuggestions([]);
       setChatHistories(histories);
     } catch (error) {
-      console.error('Error loading personalized data:', error);
+      console.error('Error loading chat histories:', error);
     }
   };
 
