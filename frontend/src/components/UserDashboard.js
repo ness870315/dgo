@@ -179,19 +179,21 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
       setLoading(true);
       console.log('🔄 Fetching dashboard data...');
       
-      // Fetch user profile, watchlist, and KOL data
-      const [profileResponse, watchlistResponse, kolCallsResponse, leaderboardResponse] = await Promise.all([
+      // Fetch user profile, watchlist, KOL data, and user stats
+      const [profileResponse, watchlistResponse, kolCallsResponse, leaderboardResponse, statsResponse] = await Promise.all([
         fetch(`${API_BASE}/api/user/profile?sessionId=${sessionId}`),
         fetch(`${API_BASE}/api/user/watchlist?sessionId=${sessionId}`),
         fetch(`${API_BASE}/api/user/kol-calls?sessionId=${sessionId}`),
-        fetch(`${API_BASE}/api/leaderboard?sessionId=${sessionId}`)
+        fetch(`${API_BASE}/api/leaderboard?sessionId=${sessionId}`),
+        fetch(`${API_BASE}/api/user/stats?sessionId=${sessionId}`)
       ]);
 
       console.log('📊 API responses:', {
         profileStatus: profileResponse.status,
         watchlistStatus: watchlistResponse.status,
         kolCallsStatus: kolCallsResponse.status,
-        leaderboardStatus: leaderboardResponse.status
+        leaderboardStatus: leaderboardResponse.status,
+        statsStatus: statsResponse.status
       });
 
       if (profileResponse.ok && watchlistResponse.ok) {
@@ -199,11 +201,13 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         const watchlistData = await watchlistResponse.json();
         const kolCallsData = kolCallsResponse.ok ? await kolCallsResponse.json() : { success: false, calls: [] };
         const leaderboardData = leaderboardResponse.ok ? await leaderboardResponse.json() : { success: false, leaderboard: [] };
+        const statsData = statsResponse.ok ? await statsResponse.json() : { success: false, stats: {} };
 
         console.log('📊 Profile data:', profileData);
         console.log('📊 Watchlist data:', watchlistData);
         console.log('📊 KOL Calls data:', kolCallsData);
         console.log('📊 Leaderboard data:', leaderboardData);
+        console.log('📊 Stats data:', statsData);
 
         if (profileData.success) {
           setDashboardData(prev => ({
@@ -245,6 +249,16 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
             ...prev,
             kolLeaderboard: [],
             leaderboardError: leaderboardData.error || 'Failed to fetch leaderboard'
+          }));
+        }
+
+        // Set user stats data (tokens fueled, etc.)
+        if (statsData.success && statsData.stats) {
+          setDashboardData(prev => ({
+            ...prev,
+            tokensFueled: statsData.stats.tokensFueled || 0,
+            tokensListed: statsData.stats.tokensListed || 0,
+            tokensUpdated: statsData.stats.tokensUpdated || 0
           }));
         }
       } else {
@@ -315,6 +329,28 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
       console.log('❌ Missing user or sessionId - user:', !!user, 'sessionId:', !!sessionId);
     }
   }, [user, sessionId, fetchDashboardData, loadDgoFollowers]);
+
+  // Additional useEffect to handle user loading with timeout
+  useEffect(() => {
+    console.log('🔄 User loading useEffect - user:', user, 'sessionId:', sessionId);
+    if (user && sessionId) {
+      console.log('✅ User loaded, triggering data fetch');
+      fetchDashboardData();
+      loadDgoFollowers();
+    } else if (sessionId && !user) {
+      // If we have sessionId but no user, wait a bit for user to load
+      console.log('⏳ Waiting for user to load...');
+      const timeout = setTimeout(() => {
+        if (sessionId) {
+          console.log('⏰ Timeout reached, fetching data anyway with sessionId');
+          fetchDashboardData();
+          loadDgoFollowers();
+        }
+      }, 2000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [user?.id, sessionId, fetchDashboardData, loadDgoFollowers]);
   
   // Early return if user is not loaded yet
   if (!user) {
