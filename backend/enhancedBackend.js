@@ -2188,6 +2188,19 @@ class EnhancedBackend {
         const isPremium = premiumStatus?.isPremium &&
           (!premiumStatus.expiresAt || new Date(premiumStatus.expiresAt) > new Date());
 
+        // Get user stats for tokens fueled
+        const userStats = user.stats || {};
+        const tokensFueled = userStats.tokensFueled || 0;
+        const tokensListed = userStats.tokensListed || 0;
+        const tokensUpdated = userStats.tokensUpdated || 0;
+        
+        console.log(`[🛡️ Enhanced Backend] 📊 User stats for ${user.username}:`, {
+          tokensFueled,
+          tokensListed,
+          tokensUpdated,
+          userStats
+        });
+
         res.json({
           success: true,
           user: {
@@ -2204,6 +2217,9 @@ class EnhancedBackend {
             referralCode: user.referralCode,
             preferences: user.preferences,
             stats: user.stats,
+            tokensFueled: tokensFueled,
+            tokensListed: tokensListed,
+            tokensUpdated: tokensUpdated,
             isPremium: isPremium,
             premiumExpiry: premiumStatus?.expiresAt || null,
             subscriptionType: premiumStatus?.subscriptionType || null
@@ -2719,10 +2735,13 @@ class EnhancedBackend {
 
     this.app.get('/api/user/kol-calls', async (req, res) => {
       try {
-        const { sessionId } = req.query;
+        const { sessionId, userId } = req.query;
         const user = await this.oauthXService.getUserBySession(sessionId);
         if (!user) return res.status(401).json({ error: 'Invalid session' });
-        const calls = await this.oauthXService.db.getKolCalls(user.id);
+        
+        // Use provided userId or default to current user's ID
+        const targetUserId = userId || user.id;
+        const calls = await this.oauthXService.db.getKolCalls(targetUserId);
         
         // Debug milestone posts
         const callsWithMilestones = calls.filter(c => c.milestonePosts && c.milestonePosts.length > 0);
