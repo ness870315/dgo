@@ -1,11 +1,14 @@
 import HybridDatabaseService from '../hybridDatabaseService.js';
 import fetch from 'node-fetch';
 import crypto from 'crypto';
+import SmartIntentDetector from './SmartIntentDetector.js';
+import SmartPromptTemplates from './SmartPromptTemplates.js';
 
 /**
  * Moralis AI Chat Service - Integrates Moralis AI with user-specific Degen Oracle data
  * Provides personalized AI assistance with access to user's KOL calls, watchlist, hype data, etc.
  * Now includes interactive capabilities: watchlist management, token data fetching, etc.
+ * Enhanced with Smart Intent Detection and Modular Prompts for maximum degen efficiency
  */
 class MoralisAIChatService {
   constructor(oauthXService = null, backendInstance = null) {
@@ -17,9 +20,15 @@ class MoralisAIChatService {
     this.apiUrl = 'https://cortex-api.moralis.io/chat';
     this.baseApiUrl = process.env.API_BASE_URL || 'https://api.degen-oracle.com';
     
+    // Initialize Smart Intent Detection and Modular Prompts
+    this.intentDetector = new SmartIntentDetector();
+    this.promptTemplates = new SmartPromptTemplates();
+    
     if (!this.moralisApiKey) {
       console.warn('⚠️ MORALIS_API_KEY not found in environment variables');
     }
+    
+    console.log('🧠 [SMART AI] Initialized with Intent Detection and Modular Prompts');
   }
 
   /**
@@ -895,9 +904,23 @@ class MoralisAIChatService {
     try {
       console.log(`🤖 AI Chat request from user ${userId}: "${userPrompt.substring(0, 100)}..."`);
 
-      // Parse user commands for actions
-      const commands = await this.parseUserCommands(userPrompt, userId, conversationHistory);
-      console.log(`🎯 Commands detected:`, commands);
+      // 🧠 SMART INTENT DETECTION
+      const intentResult = this.intentDetector.detectIntent(userPrompt);
+      const primaryIntent = intentResult.primary.intent;
+      const confidence = (intentResult.primary.confidence * 100).toFixed(1);
+      
+      console.log(`🧠 [SMART AI] Intent: ${primaryIntent} (${confidence}% confidence)`);
+      console.log(`🧠 [SMART AI] Matched keywords: ${intentResult.primary.matchedKeywords.join(', ')}`);
+
+      // 🎯 CONDITIONAL COMMAND PARSING (only if needed for this intent)
+      let commands = [];
+      if (this.intentDetector.requiresTokenLookup(primaryIntent)) {
+        console.log(`🔍 [SMART AI] Intent requires token lookup - parsing commands`);
+        commands = await this.parseUserCommands(userPrompt, userId, conversationHistory);
+      } else {
+        console.log(`⚡ [SMART AI] Intent doesn't require token lookup - skipping command parsing`);
+      }
+      console.log(`🎯 Commands detected for ${primaryIntent}:`, commands);
 
       // Execute commands and gather additional data
       let commandResults = {};
@@ -1021,17 +1044,25 @@ class MoralisAIChatService {
         }
       }
 
-      // Analyze the prompt to determine what user data to include
-      const dataNeeds = this.analyzePromptDataNeeds(userPrompt);
-      console.log(`🔍 Data needs identified:`, dataNeeds);
+      // 📊 CONDITIONAL DATA GATHERING (only what's needed for this intent)
+      let userContext = {};
+      if (this.intentDetector.requiresUserData(primaryIntent)) {
+        console.log(`📊 [SMART AI] Intent requires user data - gathering context`);
+        const dataNeeds = this.analyzePromptDataNeeds(userPrompt);
+        console.log(`🔍 Data needs identified:`, dataNeeds);
+        
+        userContext = await this.gatherUserContext(userId, dataNeeds, userPrompt);
+        console.log(`📊 User context gathered: ${Object.keys(userContext).join(', ')}`);
 
-      // Gather relevant user data based on the prompt
-      const userContext = await this.gatherUserContext(userId, dataNeeds, userPrompt);
-      console.log(`📊 User context gathered: ${Object.keys(userContext).join(', ')}`);
-
-      // Add user preferences for personalization
-      const userPreferences = await this.getUserPreferences(userId);
-      userContext.preferences = userPreferences;
+        // Add user preferences for personalization
+        const userPreferences = await this.getUserPreferences(userId);
+        userContext.preferences = userPreferences;
+      } else {
+        console.log(`⚡ [SMART AI] Intent doesn't require user data - skipping context gathering`);
+        // Still get basic preferences for personalization
+        const userPreferences = await this.getUserPreferences(userId);
+        userContext.preferences = userPreferences;
+      }
 
       // Add additional token data to context
       if (Object.keys(additionalTokenData).length > 0) {
@@ -1043,11 +1074,25 @@ class MoralisAIChatService {
         userContext.commandResults = commandResults;
       }
 
-      // Build the enhanced prompt with user context
-      const enhancedPrompt = this.buildEnhancedPrompt(userPrompt, userContext, conversationHistory, dataNeeds);
+      // 🎪 BUILD SPECIALIZED PROMPT (instead of generic buildEnhancedPrompt)
+      const promptContext = {
+        tokenData: additionalTokenData,
+        userData: userContext,
+        commandResults: commandResults,
+        conversationHistory: conversationHistory
+      };
 
-      // Call Moralis AI
-      const aiResponse = await this.callMoralisAI(enhancedPrompt);
+      const specializedPrompt = this.promptTemplates.getPromptForIntent(
+        primaryIntent, 
+        userPrompt, 
+        promptContext
+      );
+
+      console.log(`📝 [SMART AI] Using ${primaryIntent} specialized prompt (${specializedPrompt.length} chars)`);
+      console.log(`🎯 [SMART AI] Data source priority: ${this.intentDetector.getDataSourcePriority(primaryIntent)}`);
+
+      // Call Moralis AI with specialized prompt
+      const aiResponse = await this.callMoralisAI(specializedPrompt);
 
       // Process and format the response
       const formattedResponse = this.formatAIResponse(aiResponse, userContext);
