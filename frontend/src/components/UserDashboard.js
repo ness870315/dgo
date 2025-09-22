@@ -15,30 +15,7 @@ import { getStatusFromScore } from '../utils/statusUtils';
 const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigateToUpdateToken, onNavigateToPremium }) => {
   const { user, sessionId, isPremium } = useAuth();
   
-  // AI Chat state
-  const [showAIChat, setShowAIChat] = useState(false);
-  const [chatPosition, setChatPosition] = useState(null);
-  
-  // Handler for opening chat from floating button
-  const handleOpenChat = () => {
-    setShowAIChat(true);
-  };
-  
-  // Early return if user is not loaded yet
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center">
-        <div className="text-white text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-solana-purple mx-auto mb-4"></div>
-          <p>Loading user dashboard...</p>
-        </div>
-        
-        {/* Floating Chat Button - always visible */}
-        <FloatingChatButton onOpenChat={handleOpenChat} />
-      </div>
-    );
-  }
-  
+  // All hooks must be called before any early returns
   const [dashboardData, setDashboardData] = useState({
     watchlistCount: 0,
     tokensListed: 0,
@@ -58,6 +35,12 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   const [showHypeModal, setShowHypeModal] = useState(false);
   const [selectedHypeToken, setSelectedHypeToken] = useState(null);
   const [hypeRange, setHypeRange] = useState('7d');
+  
+  // AI Chat state
+  const [showAIChat, setShowAIChat] = useState(false);
+  const [chatPosition, setChatPosition] = useState(null);
+  
+  // Additional state hooks
   const [hypeSeries, setHypeSeries] = useState([]);
   const [showKolCalls, setShowKolCalls] = useState(false);
   const [hypePage, setHypePage] = useState(0);
@@ -85,6 +68,26 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   const [seasonMonth, setSeasonMonth] = useState(() => new Date().toISOString().slice(0,7)); // YYYY-MM
   const [winners, setWinners] = useState([]);
   const [winnersLoading, setWinnersLoading] = useState(false);
+  
+  // Handler for opening chat from floating button
+  const handleOpenChat = () => {
+    setShowAIChat(true);
+  };
+  
+  // Early return if user is not loaded yet
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center">
+        <div className="text-white text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-solana-purple mx-auto mb-4"></div>
+          <p>Loading user dashboard...</p>
+        </div>
+        
+        {/* Floating Chat Button - always visible */}
+        <FloatingChatButton onOpenChat={handleOpenChat} />
+      </div>
+    );
+  }
 
   const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
 
