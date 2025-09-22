@@ -275,15 +275,45 @@ class SmartPromptTemplates {
 
     // Add context-specific information
     if (context.tokenData) {
+      console.log(`🔍 [TEMPLATE DEBUG] Token data received:`, JSON.stringify(context.tokenData, null, 2));
+      
       prompt += `\n\nTOKEN DATA RETRIEVED:`;
       prompt += `\nIMPORTANT: Use this data to answer directly. Do NOT ask for contract addresses.`;
       
       Object.entries(context.tokenData).forEach(([contractAddress, data]) => {
-        prompt += `\n📊 ${data.analytics?.name || 'Token'} (${data.analytics?.symbol || 'UNKNOWN'}):`;
-        if (data.analytics?.price) prompt += `\n   - Price: $${data.analytics.price}`;
-        if (data.analytics?.marketCap) prompt += `\n   - Market Cap: $${data.analytics.marketCap.toLocaleString()}`;
-        if (data.analytics?.volume24h) prompt += `\n   - Volume 24h: $${data.analytics.volume24h.toLocaleString()}`;
-        if (data.analytics?.priceChange24h) prompt += `\n   - Change 24h: ${data.analytics.priceChange24h}%`;
+        console.log(`🔍 [TEMPLATE DEBUG] Processing token ${contractAddress}:`, JSON.stringify(data, null, 2));
+        // Handle both direct analytics data and nested analytics structure
+        const analytics = data.analytics || data;
+        const databaseInfo = data.databaseInfo || {};
+        
+        const tokenName = analytics.name || databaseInfo.name || 'Token';
+        const tokenSymbol = analytics.symbol || databaseInfo.symbol || 'UNKNOWN';
+        
+        prompt += `\n📊 ${tokenName} (${tokenSymbol}) - Contract: ${contractAddress}:`;
+        
+        if (analytics.price) {
+          prompt += `\n   - Price: $${analytics.price}`;
+        }
+        if (analytics.marketCap) {
+          prompt += `\n   - Market Cap: $${analytics.marketCap.toLocaleString()}`;
+        }
+        if (analytics.volume24h) {
+          prompt += `\n   - Volume 24h: $${analytics.volume24h.toLocaleString()}`;
+        }
+        if (analytics.priceChange24h) {
+          prompt += `\n   - Change 24h: ${analytics.priceChange24h}%`;
+        }
+        if (analytics.holders || analytics.holderCount) {
+          prompt += `\n   - Holders: ${(analytics.holders || analytics.holderCount).toLocaleString()}`;
+        }
+        
+        // Add database info if available
+        if (databaseInfo.name && !analytics.name) {
+          prompt += `\n   - Database Name: ${databaseInfo.name}`;
+        }
+        if (databaseInfo.symbol && !analytics.symbol) {
+          prompt += `\n   - Database Symbol: ${databaseInfo.symbol}`;
+        }
       });
     }
 
