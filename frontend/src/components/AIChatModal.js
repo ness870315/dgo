@@ -326,6 +326,9 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
   // Debug logging (only log once when modal opens)
   useEffect(() => {
     if (isOpen) {
+      const modalWidth = Math.min(450, window.innerWidth - 32);
+      const modalHeight = Math.min(600, window.innerHeight - 32);
+      
       console.log('🔍 [AI CHAT MODAL DEBUG] Modal opened:', {
         messages: messages.length,
         showSuggestions,
@@ -334,7 +337,10 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
         personalizedSuggestions: personalizedSuggestions.length,
         suggestedQuestions: suggestedQuestions.length,
         position,
-        windowSize: { width: window.innerWidth, height: window.innerHeight }
+        windowSize: { width: window.innerWidth, height: window.innerHeight },
+        modalSize: { width: modalWidth, height: modalHeight },
+        shouldShowWelcome: messages.length === 0 && !showHistories,
+        shouldShowSuggestions: showSuggestions && !showHistories
       });
     }
   }, [isOpen, messages.length, showSuggestions, showHistories, chatHistories.length, personalizedSuggestions.length, suggestedQuestions.length, position]);
@@ -469,18 +475,28 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
                 {personalizedSuggestions.length > 0 ? '🧠 Personalized suggestions:' : 'Try asking me:'}
               </p>
               <div className="grid grid-cols-1 gap-2">
-                {(personalizedSuggestions.length > 0 ? personalizedSuggestions : suggestedQuestions).slice(0, 6).map((question, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleSuggestionClick(question)}
-                    className="text-left p-3 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border border-gray-700/50 hover:border-gray-600/50 transition-colors"
-                  >
-                    <span className="text-sm text-gray-300">{question}</span>
-                    {personalizedSuggestions.length > 0 && (
-                      <span className="ml-2 text-xs text-purple-400">✨</span>
-                    )}
-                  </button>
-                ))}
+                {(() => {
+                  const questions = personalizedSuggestions.length > 0 ? personalizedSuggestions : suggestedQuestions;
+                  console.log('🔍 [SUGGESTIONS DEBUG] Rendering suggestions:', {
+                    showSuggestions,
+                    showHistories,
+                    personalizedSuggestions: personalizedSuggestions.length,
+                    suggestedQuestions: suggestedQuestions.length,
+                    questionsToRender: questions.slice(0, 6).length
+                  });
+                  return questions.slice(0, 6).map((question, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSuggestionClick(question)}
+                      className="text-left p-3 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border border-gray-700/50 hover:border-gray-600/50 transition-colors"
+                    >
+                      <span className="text-sm text-gray-300">{question}</span>
+                      {personalizedSuggestions.length > 0 && (
+                        <span className="ml-2 text-xs text-purple-400">✨</span>
+                      )}
+                    </button>
+                  ));
+                })()}
               </div>
               
               {personalizedSuggestions.length > 0 && (
