@@ -357,6 +357,12 @@ class EnhancedTokenProcessor {
             t.contractAddress && t.contractAddress.toLowerCase() === contractLower
           );
           
+          // 🚨 DEBUG: Check if this is a duplicate within the same discovery cycle
+          console.log(`🔍 [DUPE DEBUG] Processing ${token.symbol} (${contractLower.substring(0, 8)}...)`);
+          console.log(`🔍 [DUPE DEBUG] existingContracts.size before: ${existingContracts.size}`);
+          console.log(`🔍 [DUPE DEBUG] existingDbToken found: ${!!existingDbToken}`);
+          console.log(`🔍 [DUPE DEBUG] existingContracts.has(${contractLower.substring(0, 8)}...): ${existingContracts.has(contractLower)}`);
+          
           // Skip if token is already in current processing queue or completed
           if (existingContracts.has(contractLower)) {
             console.log(`🔍 SKIPPED existing contract: ${token.symbol} (${token.contractAddress})`);
@@ -365,6 +371,8 @@ class EnhancedTokenProcessor {
           
           existingContracts.add(contractLower); // Add to set to avoid duplicates
           newContractsFound++;
+          
+          console.log(`🔍 [DUPE DEBUG] existingContracts.size after: ${existingContracts.size}`);
           
           // Create minimal token object with only contract info
           const newToken = {
