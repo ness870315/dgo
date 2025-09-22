@@ -408,7 +408,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ minHeight: '200px', backgroundColor: 'rgba(255, 0, 0, 0.1)' }}>
           
           {/* Chat Histories Panel */}
           {showHistories && (
@@ -610,7 +610,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
         </div>
 
         {/* Input */}
-        <div className="p-4 border-t border-white/10">
+        <div className="p-4 border-t border-white/10" style={{ backgroundColor: 'rgba(0, 255, 0, 0.1)' }}>
           <div className="flex gap-2">
             <input
               ref={inputRef}
