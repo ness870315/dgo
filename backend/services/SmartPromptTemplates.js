@@ -358,13 +358,23 @@ EXAMPLE SHORT FORMAT:
         
         // Add detailed KOL calls information if available
         if (context.userData.kolCalls.calls && context.userData.kolCalls.calls.length > 0) {
-          const bestCall = context.userData.kolCalls.calls[0]; // First call is best (sorted by performance)
+          const calls = context.userData.kolCalls.calls;
+          const bestCall = calls[0]; // First call is best (sorted by performance)
+          const worstCall = calls[calls.length - 1]; // Last call is worst (sorted by performance)
+          
           prompt += `\n  * Best Call: ${bestCall.token?.symbol || 'Unknown'} (${bestCall.performance?.multiplier?.toFixed(2) || 0}x)`;
+          prompt += `\n  * Worst Call: ${worstCall.token?.symbol || 'Unknown'} (${worstCall.performance?.multiplier?.toFixed(2) || 0}x)`;
           prompt += `\n  * Total Calls: ${callCount}`;
           if (context.userData.kolCalls.summary) {
             prompt += `\n  * Average Performance: ${context.userData.kolCalls.summary.avgMultiplier?.toFixed(2) || 0}x`;
             prompt += `\n  * Win Rate: ${context.userData.kolCalls.summary.winRate || 0}%`;
           }
+          
+          // Add complete call ranking for detailed queries
+          prompt += `\n  * Complete Call Ranking (best to worst):`;
+          calls.forEach((call, index) => {
+            prompt += `\n    ${index + 1}. ${call.token?.symbol || 'Unknown'}: ${call.performance?.multiplier?.toFixed(2) || 0}x (${call.performance?.status || 'Unknown'})`;
+          });
         }
       }
       if (context.userData.watchlist) prompt += `\n- Watchlist: ${context.userData.watchlist.length} tokens`;
@@ -378,12 +388,23 @@ EXAMPLE SHORT FORMAT:
       }
       prompt += `\n- KOL Calls: ${context.kolCalls.count} calls`;
       if (context.kolCalls.calls && context.kolCalls.calls.length > 0) {
-        const bestCall = context.kolCalls.calls[0]; // First call is best (sorted by performance)
-        prompt += `\n  * Best Call: ${bestCall.token?.symbol || 'Unknown'} (${bestCall.performance?.multiplier || 0}x)`;
+        const calls = context.kolCalls.calls;
+        const bestCall = calls[0]; // First call is best (sorted by performance)
+        const worstCall = calls[calls.length - 1]; // Last call is worst (sorted by performance)
+        
+        prompt += `\n  * Best Call: ${bestCall.token?.symbol || 'Unknown'} (${bestCall.performance?.multiplier?.toFixed(2) || 0}x)`;
+        prompt += `\n  * Worst Call: ${worstCall.token?.symbol || 'Unknown'} (${worstCall.performance?.multiplier?.toFixed(2) || 0}x)`;
         prompt += `\n  * Total Calls: ${context.kolCalls.count}`;
         if (context.kolCalls.summary) {
-          prompt += `\n  * Summary: ${context.kolCalls.summary}`;
+          prompt += `\n  * Average Performance: ${context.kolCalls.summary.avgMultiplier?.toFixed(2) || 0}x`;
+          prompt += `\n  * Win Rate: ${context.kolCalls.summary.winRate || 0}%`;
         }
+        
+        // Add complete call ranking for detailed queries
+        prompt += `\n  * Complete Call Ranking (best to worst):`;
+        calls.forEach((call, index) => {
+          prompt += `\n    ${index + 1}. ${call.token?.symbol || 'Unknown'}: ${call.performance?.multiplier?.toFixed(2) || 0}x (${call.performance?.status || 'Unknown'})`;
+        });
       }
     }
     
