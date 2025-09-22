@@ -611,11 +611,15 @@ class MoralisAIChatService {
       
       if (!this.backendInstance) {
         console.log(`⚠️ [TOKEN SEARCH] No backend instance available for database search`);
+        console.log(`⚠️ [TOKEN SEARCH] Backend instance type:`, typeof this.backendInstance);
         return null;
       }
 
       // Get all tokens from cache
+      console.log(`🔍 [TOKEN SEARCH] Calling getTokensFromCache()...`);
       const allTokens = await this.backendInstance.getTokensFromCache();
+      console.log(`🔍 [TOKEN SEARCH] Retrieved ${allTokens ? allTokens.length : 0} tokens from cache`);
+      
       if (!allTokens || allTokens.length === 0) {
         console.log(`⚠️ [TOKEN SEARCH] No tokens found in cache`);
         return null;
@@ -623,6 +627,13 @@ class MoralisAIChatService {
 
       const searchTerm = tokenName.toLowerCase().trim();
       console.log(`🔍 [TOKEN SEARCH] Searching ${allTokens.length} tokens for: "${searchTerm}"`);
+
+      // Log first few tokens for debugging
+      console.log(`🔍 [TOKEN SEARCH] Sample tokens:`, allTokens.slice(0, 3).map(t => ({
+        name: t.name,
+        symbol: t.symbol,
+        contractAddress: t.contractAddress?.substring(0, 8) + '...'
+      })));
 
       // Search by name or symbol (case insensitive)
       const matchedToken = allTokens.find(token => {
@@ -653,6 +664,7 @@ class MoralisAIChatService {
         };
       } else {
         console.log(`❌ [TOKEN SEARCH] No token found for: "${tokenName}"`);
+        console.log(`❌ [TOKEN SEARCH] Searched through ${allTokens.length} tokens`);
         return null;
       }
     } catch (error) {
@@ -763,11 +775,15 @@ class MoralisAIChatService {
     }
 
     // Check for token data requests (price, volume, holders, etc.)
+    console.log(`🔍 [AI PARSE DEBUG] Checking for token data requests in: "${lowerPrompt}"`);
+    
     const tokenDataMatch = lowerPrompt.match(/(?:price|volume|holders?|data|analysis).*?([a-z0-9]{32,})/i) ||
                           lowerPrompt.match(/([a-z0-9]{32,}).*?(?:price|volume|holders?|data|analysis)/i) ||
                           lowerPrompt.match(/(?:price|volume|holders?|data|analysis).*?(?:of|for)\s+(\w+)/i) ||
                           lowerPrompt.match(/what.*?(?:price|volume|holders?).*?(?:of|for)\s+(\w+)/i) ||
                           lowerPrompt.match(/(\w+)\s+(?:price|volume|holders?|data)/i);
+    
+    console.log(`🔍 [AI PARSE DEBUG] Token data match result:`, tokenDataMatch);
     
     if (tokenDataMatch) {
       let identifier = tokenDataMatch[1];
@@ -808,6 +824,8 @@ class MoralisAIChatService {
       
       console.log(`✅ [AI PARSE DEBUG] GET_TOKEN_DATA command detected:`, JSON.stringify(command, null, 2));
       commands.push(command);
+    } else {
+      console.log(`❌ [AI PARSE DEBUG] No token data request pattern matched`);
     }
 
     console.log(`🎯 [AI PARSE DEBUG] Final parsed commands (${commands.length}):`, JSON.stringify(commands, null, 2));
