@@ -661,8 +661,27 @@ class EnhancedTokenProcessor {
     
     // 🚨 CRITICAL FIX: Deduplicate processing queue before Twitter stage to prevent duplicate API calls
     const rawTokens = this.processingQueue;
+    
+    // Debug: Check for JLP tokens before deduplication
+    const jlpTokens = rawTokens.filter(t => t.symbol === 'JLP');
+    if (jlpTokens.length > 0) {
+      console.log(`🔍 [JLP DEBUG] Found ${jlpTokens.length} JLP tokens before deduplication:`);
+      jlpTokens.forEach((token, i) => {
+        console.log(`  JLP ${i + 1}: contract=${token.contractAddress}, source=${token.source}, twitterTimestamp=${token.twitterTimestamp}`);
+      });
+    }
+    
     const deduplicatedTokens = this.deduplicateTokens(rawTokens);
     const duplicatesRemoved = rawTokens.length - deduplicatedTokens.length;
+    
+    // Debug: Check for JLP tokens after deduplication
+    const jlpTokensAfter = deduplicatedTokens.filter(t => t.symbol === 'JLP');
+    if (jlpTokensAfter.length > 0) {
+      console.log(`🔍 [JLP DEBUG] Found ${jlpTokensAfter.length} JLP tokens after deduplication:`);
+      jlpTokensAfter.forEach((token, i) => {
+        console.log(`  JLP ${i + 1}: contract=${token.contractAddress}, source=${token.source}, twitterTimestamp=${token.twitterTimestamp}`);
+      });
+    }
     
     if (duplicatesRemoved > 0) {
       console.log(`🔧 DUPLICATE PREVENTION: Removed ${duplicatesRemoved} duplicate tokens from Twitter processing queue (${rawTokens.length} → ${deduplicatedTokens.length})`);
