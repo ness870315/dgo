@@ -226,11 +226,6 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   }
 
   const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-
-    if (!user?.id) return;
-    
-    try {
-      setDgoFollowersLoading(true);
       const response = await fetch(`${API_BASE}/api/user/followers?sessionId=${encodeURIComponent(sessionId)}`);
       const data = await response.json();
       
