@@ -213,6 +213,34 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
     }
   }, [sessionId, API_BASE]);
   
+  // useEffect hooks - must be before early return
+  useEffect(() => {
+    (async () => {
+      const key = `hypeSelected:${user?.id || 'anon'}`;
+      // Try backend first
+      try {
+        const sessionId = localStorage.getItem('sessionId');
+        if (sessionId) {
+          const res = await fetch(`${API_BASE}/api/user/hype?sessionId=${encodeURIComponent(sessionId)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data.list)) {
+              setHypeSelected(data.list);
+              try { localStorage.setItem(key, JSON.stringify(data.list)); } catch (_) {}
+              return;
+            }
+          }
+        }
+      } catch (_) {}
+      // Fallback to local
+      try {
+        const saved = JSON.parse(localStorage.getItem(key) || '[]');
+        if (Array.isArray(saved)) setHypeSelected(saved);
+      } catch (_) {}
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+  
   // Early return if user is not loaded yet
   if (!user) {
     return (
@@ -267,141 +295,6 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   };
 
   // Persisted selection for Hype list per user (sync with backend if available)
-  useEffect(() => {
-    (async () => {
-      const key = `hypeSelected:${user?.id || 'anon'}`;
-      // Try backend first
-      try {
-        const sessionId = localStorage.getItem('sessionId');
-        if (sessionId) {
-          const res = await fetch(`${API_BASE}/api/user/hype?sessionId=${encodeURIComponent(sessionId)}`);
-          if (res.ok) {
-            const data = await res.json();
-            if (Array.isArray(data.list)) {
-              setHypeSelected(data.list);
-              try { localStorage.setItem(key, JSON.stringify(data.list)); } catch (_) {}
-              return;
-            }
-          }
-        }
-      } catch (_) {}
-      // Fallback to local
-      try {
-        const saved = JSON.parse(localStorage.getItem(key) || '[]');
-        if (Array.isArray(saved)) setHypeSelected(saved);
-      } catch (_) {}
-    })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
-
-  useEffect(() => {
-    const key = `hypeSelected:${user?.id || 'anon'}`;
-    try { localStorage.setItem(key, JSON.stringify(hypeSelected)); } catch (_) {}
-    // Push to backend
-    (async () => {
-      try {
-        const sessionId = localStorage.getItem('sessionId');
-        if (!sessionId) return;
-        // Fetch current list to diff and minimize requests
-        const res = await fetch(`${API_BASE}/api/user/hype?sessionId=${encodeURIComponent(sessionId)}`);
-        let serverList = [];
-        if (res.ok) {
-          const data = await res.json();
-          serverList = Array.isArray(data.list) ? data.list : [];
-        }
-        const toAdd = hypeSelected.filter(ca => !serverList.includes(ca));
-        const toRemove = serverList.filter(ca => !hypeSelected.includes(ca));
-        await Promise.all([
-          ...toAdd.map(ca => fetch(`${API_BASE}/api/user/hype`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId, contractAddress: ca })
-          })),
-          ...toRemove.map(ca => fetch(`${API_BASE}/api/user/hype/${encodeURIComponent(ca)}?sessionId=${encodeURIComponent(sessionId)}`, { method: 'DELETE' }))
-        ]);
-      } catch (_) {}
-    })();
-  }, [hypeSelected, user?.id]);
-
-
-  useEffect(() => {
-
-    if (user && sessionId) {
-      fetchDashboardData();
-      loadDgoFollowers();
-    } else {
-
-      setLoading(false);
-    }
-  }, [user, sessionId, fetchDashboardData, loadDgoFollowers]);
-
-  // Load KOL profile data when modal opens
-  useEffect(() => {
-    (async () => {
-      if (!selectedKolUser) return;
-      try {
-        setKolLoading(true);
-        const userId = selectedKolUser.userId || selectedKolUser.id;
-        const [statsRes, callsRes] = await Promise.all([
-          leaderboardService.getUserStats(userId),
-          leaderboardService.getUserCalls(userId)
-        ]);
-        setKolStats(statsRes?.stats || null);
-        setKolIsFollowing(!!statsRes?.isFollowing);
-        setKolCalls(Array.isArray(callsRes?.calls) ? callsRes.calls : []);
-      } catch (e) {
-        console.error('Failed to load KOL profile', e);
-        setKolStats(null);
-        setKolCalls([]);
-      } finally {
-        setKolLoading(false);
-      }
-    })();
-  }, [selectedKolUser]);
-
-  // Load monthly winners from server-side endpoint
-  useEffect(() => {
-    (async () => {
-      try {
-        setWinnersLoading(true);
-        const resp = await leaderboardService.getMonthlyWinners(seasonMonth, 3);
-        setWinners(Array.isArray(resp?.winners) ? resp.winners : []);
-      } catch (e) {
-        console.error('Failed to compute monthly winners', e);
-        setWinners([]);
-      } finally {
-        setWinnersLoading(false);
-      }
-    })();
-  }, [seasonMonth]);
-
-  // Load hype data when a token is selected
-  useEffect(() => {
-    (async () => {
-      if (!selectedHypeToken?.contractAddress) {
-        setHypeSeries([]);
-        return;
-      }
-
-
-      
-      try {
-        const res = await hypeService.getHype(selectedHypeToken.contractAddress, hypeRange);
-
-        setHypeSeries(res.data || []);
-      } catch (e) {
-        console.error('❌ Hype fetch error:', e);
-        // @ts-ignore
-        if (e && e.code === 'limit_exceeded') {
-          const upgrade = window.confirm('🚀 ' + e.message + '\n\nWould you like to upgrade now?');
-          if (upgrade && onNavigateToPremium) {
-            onNavigateToPremium();
-          }
-          return;
-        }
-        setHypeSeries([]);
-      }
-    })();
-  }, [selectedHypeToken, hypeRange, onNavigateToPremium]);
 
   if (loading) {
     return (
