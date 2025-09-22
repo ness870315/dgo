@@ -339,7 +339,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
         windowSize: { width: window.innerWidth, height: window.innerHeight }
       });
     }
-  }, [isOpen]);
+  }, [isOpen, messages.length, showSuggestions, showHistories, chatHistories.length, personalizedSuggestions.length, suggestedQuestions.length, position]);
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 p-4">

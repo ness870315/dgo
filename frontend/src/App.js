@@ -1317,14 +1317,16 @@ function AppContent() {
         />
       )}
 
-      {/* AI Chat Modal */}
-      <AIChatModal
-        isOpen={showAIChat}
-        onClose={() => setShowAIChat(false)}
-        initialPosition={chatPosition}
-      />
+      {/* AI Chat Modal - Only for authenticated users */}
+      {user && (
+        <AIChatModal
+          isOpen={showAIChat}
+          onClose={() => setShowAIChat(false)}
+          initialPosition={chatPosition}
+        />
+      )}
       
-      {/* Floating Chat Button */}
+      {/* Floating Chat Button - Only for authenticated users */}
       <FloatingChatButton onOpenChat={handleOpenChat} />
       </div>
   );

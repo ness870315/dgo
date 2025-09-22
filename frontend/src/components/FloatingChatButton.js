@@ -79,23 +79,14 @@ const FloatingChatButton = ({ onOpenChat }) => {
       userTier: user?.tier
     });
     
-    if (!user) {
-      // Show login prompt for guest users
-      alert('Please log in to access the AI assistant');
-      return;
-    }
-    
-    // 🚨 FIX: Check premium status correctly
-    // Check both isPremium from context and user.isPremium
-    const userIsPremium = isPremium || user?.isPremium || user?.tier === 'premium' || user?.tier === 'vip';
-    
-    if (user && !userIsPremium) {
+    // Check premium status (user is guaranteed to be authenticated)
+    if (!isPremium) {
       // Show premium prompt for non-premium users
       alert('AI Chat is a premium feature. Upgrade to access the AI assistant!');
       return;
     }
 
-    // If user is logged in and premium, open chat
+    // If user is premium, open chat
     console.log('✅ [FLOATING CHAT DEBUG] Opening chat for premium user');
     onOpenChat();
   };
@@ -125,18 +116,23 @@ const FloatingChatButton = ({ onOpenChat }) => {
     });
   }, []);
 
+  // Only render for authenticated users
+  if (!user) {
+    return null;
+  }
+
   return (
     <div
       ref={buttonRef}
-      className={`floating-chat-button ${isDragging ? 'dragging' : ''} ${!isPremium && !user ? 'disabled' : ''}`}
+      className={`floating-chat-button ${isDragging ? 'dragging' : ''} ${!isPremium ? 'disabled' : ''}`}
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
-        cursor: isDragging ? 'grabbing' : (isPremium || user ? 'grab' : 'not-allowed')
+        cursor: isDragging ? 'grabbing' : (isPremium ? 'grab' : 'not-allowed')
       }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
-      title={isPremium || user ? "Drag to reposition • Click to open AI Chat" : "AI Chat requires premium access"}
+      title={isPremium ? "Drag to reposition • Click to open AI Chat" : "AI Chat requires premium access"}
     >
       <div className="chat-icon">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
