@@ -359,7 +359,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
           height: Math.min(600, window.innerHeight - 32)
         }}
       >
-        <div className="bg-gray-900 rounded-2xl border border-white/10 w-full h-full flex flex-col">
+        <div className="bg-gray-900 rounded-2xl border border-white/10 w-full h-full flex flex-col overflow-hidden">
           
           {/* Header with drag handle */}
           <div 
@@ -408,7 +408,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ minHeight: '200px', backgroundColor: 'rgba(255, 0, 0, 0.1)' }}>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ minHeight: '200px', maxHeight: 'calc(100% - 120px)', backgroundColor: 'rgba(255, 0, 0, 0.1)' }}>
           
           {/* Chat Histories Panel */}
           {showHistories && (
@@ -610,7 +610,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
         </div>
 
         {/* Input */}
-        <div className="p-4 border-t border-white/10" style={{ backgroundColor: 'rgba(0, 255, 0, 0.1)' }}>
+        <div className="p-4 border-t border-white/10 flex-shrink-0" style={{ backgroundColor: 'rgba(0, 255, 0, 0.1)' }}>
           <div className="flex gap-2">
             <input
               ref={inputRef}
