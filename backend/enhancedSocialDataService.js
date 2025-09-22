@@ -19,7 +19,7 @@ class EnhancedSocialDataService {
       './cache/twitter_history.json';
     this.twitterMetricsCache = new Map();
     this.lastRefreshTime = 0;
-    this.refreshInterval = 72 * 60 * 60 * 1000; // 72 hours
+    this.refreshInterval = 120 * 60 * 60 * 1000; // 120 hours = 5 days
     
     // Twitter microservice configuration
     this.twitterServiceUrl = process.env.TWITTER_SERVICE_URL || 'https://dgo-2.onrender.com';
@@ -67,7 +67,7 @@ class EnhancedSocialDataService {
     console.log('🔑 Twitter API initialized with authentication - RATE LIMITING ENABLED!');
     console.log('🚨 SAFETY MODE: Max 2 searches per token, 5-second delays, hourly/daily limits');
     console.log('🏷️ OPTIMIZED SEARCH: Using primary hashtags (#TOKEN) and cashtags ($TOKEN) only');
-    console.log('⏰ BACKGROUND REFRESH: 72-hour Twitter metrics refresh system');
+    console.log('⏰ BACKGROUND REFRESH: 5-day Twitter metrics refresh system');
     console.log('💾 PERSISTENT STORAGE: Twitter metrics saved across restarts');
     
     // Don't call async functions in constructor - they'll be called when needed

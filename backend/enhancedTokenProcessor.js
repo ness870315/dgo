@@ -760,13 +760,13 @@ class EnhancedTokenProcessor {
             token.communityHealthScore = this.socialDataService.calculateCommunityHealthScore(twitterData, token.socials, token.jupiterData);
             token.stage = 'twitter';
             
-            // 🚨 FIX: Always apply 72h cooldown when Twitter data is successfully fetched
+            // 🚨 FIX: Always apply 5-day cooldown when Twitter data is successfully fetched
             const now = new Date().toISOString();
             token.twitterTimestamp = now;
             
             // Note: Hype snapshots are created during the scoring stage, not here
             
-            console.log(`✅ Twitter data for ${symbol}: ${twitterData.mentions} mentions (72h cooldown applied)`);
+            console.log(`✅ Twitter data for ${symbol}: ${twitterData.mentions} mentions (5-day cooldown applied)`);
             
             // Log data freshness for debugging but don't use it to skip cooldown
             const dataFreshness = twitterData._dataFreshness || 'unknown';
@@ -828,7 +828,7 @@ class EnhancedTokenProcessor {
       status: 'completed'
     };
     
-    console.log(`✅ Twitter Stage Complete: ${totalProcessed} tokens processed, ${totalSkipped} tokens skipped (72h rule) in ${Math.ceil(allTokens.length / batchSize)} batches`);
+    console.log(`✅ Twitter Stage Complete: ${totalProcessed} tokens processed, ${totalSkipped} tokens skipped (5-day rule) in ${Math.ceil(allTokens.length / batchSize)} batches`);
     
     // 🚨 CRITICAL FIX: Update processing queue to remove processed tokens
     // Mark all processed tokens as completed and remove them from queue
@@ -1883,18 +1883,18 @@ class EnhancedTokenProcessor {
       return true;
     }
     
-    // LEGACY FALLBACK: Check if it's been more than 72 hours since last Twitter update
+    // LEGACY FALLBACK: Check if it's been more than 5 days since last Twitter update
     const lastUpdate = new Date(token.twitterTimestamp);
     const now = new Date();
     const hoursSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60);
     
-    // Refresh if more than 72 hours have passed
-    const needsRefresh = hoursSinceUpdate >= 72;
+    // Refresh if more than 120 hours (5 days) have passed
+    const needsRefresh = hoursSinceUpdate >= 120;
     
     if (needsRefresh) {
-      console.log(`⏰ ${token.symbol}: Last Twitter update was ${hoursSinceUpdate.toFixed(1)} hours ago (72h+ threshold)`);
+      console.log(`⏰ ${token.symbol}: Last Twitter update was ${hoursSinceUpdate.toFixed(1)} hours ago (5-day+ threshold)`);
     } else {
-      console.log(`⏰ ${token.symbol}: Last Twitter update was ${hoursSinceUpdate.toFixed(1)} hours ago (within 72h)`);
+      console.log(`⏰ ${token.symbol}: Last Twitter update was ${hoursSinceUpdate.toFixed(1)} hours ago (within 5 days)`);
     }
     
     return needsRefresh;
@@ -1907,13 +1907,13 @@ class EnhancedTokenProcessor {
       return true;
     }
     
-    // Check if it's been more than 24 hours since last Twitter update
+    // Check if it's been more than 5 days since last Twitter update
     const lastUpdate = new Date(token.twitterTimestamp);
     const now = new Date();
     const hoursSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60);
     
-    // Refresh if more than 72 hours have passed
-    return hoursSinceUpdate >= 72;
+    // Refresh if more than 120 hours (5 days) have passed
+    return hoursSinceUpdate >= 120;
   }
 
   // ENHANCED DEDUPLICATION METHOD: Remove duplicates by CONTRACT ADDRESS with symbol fallback
@@ -2104,7 +2104,7 @@ class EnhancedTokenProcessor {
     try {
       const existingTokens = await this.loadExistingData();
       const now = new Date();
-      const cooldownMs = 72 * 60 * 60 * 1000; // 72 hours
+      const cooldownMs = 120 * 60 * 60 * 1000; // 120 hours = 5 days
       let populated = 0;
 
       for (const token of existingTokens) {

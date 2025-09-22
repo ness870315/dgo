@@ -73,79 +73,42 @@ class TwitterApiManager {
       };
     }
 
-    // Determine tier based on token importance and monthly usage
-    const tier = this.determineTokenTier(token);
-    
-    // Check tier-based cooldown
-    const cooldownCheck = this.checkTierCooldown(token, tier);
+    // Simple 72-hour cooldown check for ALL tokens
+    const cooldownCheck = this.check72HourCooldown(token);
     if (!cooldownCheck.allowed) {
       return cooldownCheck;
     }
 
     return { 
       allowed: true, 
-      tier, 
-      reason: `${this.usage.monthly}/${this.monthlyLimit} monthly (${((this.usage.monthly / this.monthlyLimit) * 100).toFixed(1)}%)` 
+      tier: 'STANDARD', 
+      reason: `Passed 5-day cooldown check` 
     };
   }
 
-  determineTokenTier(token) {
-    // Priority 1: Token importance (watchlist, trending, fueled)
-    if (token.isWatchlisted || token.isTrending || token.isFueled) {
-      return 'CRITICAL';
-    }
-    
-    // Priority 2: Market cap and volume
-    const mcap = token.jupiterData?.mcap || token.marketCap || 0;
-    const volume = token.jupiterData?.volume24h || token.volume24h || 0;
-    
-    if (mcap > 1000000 || volume > 100000) { // >$1M mcap or >$100K volume
-      return 'IMPORTANT';
-    }
-    
-    if (mcap > 100000) { // >$100K mcap
-      return 'STANDARD';
-    }
-    
-    // Priority 3: Monthly usage pressure
-    const monthlyPercent = (this.usage.monthly / this.monthlyLimit) * 100;
-    if (monthlyPercent > 80) return 'ARCHIVE'; // Conserve API calls
-    if (monthlyPercent > 60) return 'STANDARD';
-    if (monthlyPercent > 30) return 'IMPORTANT';
-    
-    return 'STANDARD'; // Default tier
-  }
-
-  checkTierCooldown(token, tier) {
+  check72HourCooldown(token) {
     if (!token.twitterTimestamp) {
-      return { allowed: true, tier, reason: 'No previous refresh timestamp' };
+      return { allowed: true, tier: 'STANDARD', reason: 'No previous refresh timestamp' };
     }
 
     const lastRefresh = new Date(token.twitterTimestamp).getTime();
     const hoursAgo = (Date.now() - lastRefresh) / (1000 * 60 * 60);
     
-    // Tier-based cooldown periods (in hours)
-    const cooldownHours = {
-      'CRITICAL': 72,   // 3 days
-      'IMPORTANT': 168, // 7 days  
-      'STANDARD': 336,  // 14 days
-      'ARCHIVE': 720    // 30 days
-    };
-    
-    const requiredCooldown = cooldownHours[tier] || 336; // Default to 14 days
+    // Universal 5-day cooldown for ALL tokens
+    const requiredCooldown = 120; // 120 hours = 5 days
     
     if (hoursAgo < requiredCooldown) {
       return {
         allowed: false,
-        tier,
-        reason: `${tier} tier cooldown: ${hoursAgo.toFixed(1)}h < ${requiredCooldown}h required`
+        tier: 'COOLDOWN',
+        reason: `5-day cooldown active: ${hoursAgo.toFixed(1)}h < ${requiredCooldown}h required`
       };
     }
     
     return { 
       allowed: true, 
-      tier, 
-      reason: `${tier} tier cooldown passed: ${hoursAgo.toFixed(1)}h >= ${requiredCooldown}h` 
+      tier: 'STANDARD', 
+      reason: `5-day cooldown passed: ${hoursAgo.toFixed(1)}h >= ${requiredCooldown}h` 
     };
   }
 

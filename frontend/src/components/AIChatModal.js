@@ -394,7 +394,7 @@ const AIChatModal = ({ isOpen, onClose }) => {
                       ? 'bg-red-900/30 border border-red-600/30 text-red-200'
                       : 'bg-gray-800 text-gray-100'
                 }`}>
-                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed message-content">
                     {message.content}
                   </div>
                   

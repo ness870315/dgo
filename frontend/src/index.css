@@ -11,16 +11,31 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #0a0a0a;
   color: #ffffff;
-  /* PWA Mobile Optimizations */
+  /* PWA Mobile Optimizations - Only disable selection for UI elements */
   -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  /* Prevent zoom on input focus */
+  touch-action: manipulation;
+}
+
+/* Disable text selection for UI elements only */
+button, .bubble-map, .header, .sidebar, .controls, .filters {
   -webkit-user-select: none;
   -khtml-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
-  -webkit-tap-highlight-color: transparent;
-  /* Prevent zoom on input focus */
-  touch-action: manipulation;
+}
+
+/* Enable text selection for content areas */
+.modal-content, .chat-content, .text-content, .analysis-content, 
+.token-details, .ai-response, .message-content, p, span, div[class*="text"], 
+.technical-analysis, .ai-analysis, .holder-insights {
+  -webkit-user-select: text;
+  -khtml-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
 }
 
 code {

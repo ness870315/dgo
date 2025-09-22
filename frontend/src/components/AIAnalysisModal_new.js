@@ -64,7 +64,7 @@ const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
           <div className="space-y-6">
             
             {/* AI Assessment */}
-            <div className="bg-gray-800/50 rounded-lg p-4">
+            <div className="bg-gray-800/50 rounded-lg p-4 ai-analysis">
               <h3 className="text-white font-semibold mb-3 flex items-center">
                 <Brain size={18} className="mr-2 text-purple-400" />
                 AI Assessment
@@ -86,14 +86,14 @@ const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
                     {Math.round((analysis.confidence || 0) * 100)}%
                   </span>
                 </div>
-                <div className="text-gray-300 text-sm">
+                <div className="text-gray-300 text-sm text-content">
                   {analysis.aiAssessment || 'Analysis complete'}
                 </div>
               </div>
             </div>
 
             {/* Key Insights */}
-            <div className="bg-gray-800/50 rounded-lg p-4">
+            <div className="bg-gray-800/50 rounded-lg p-4 ai-analysis">
               <h3 className="text-white font-semibold mb-3 flex items-center">
                 <Lightbulb size={18} className="mr-2 text-yellow-400" />
                 Key Insights
@@ -102,7 +102,7 @@ const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
                 {analysis.keyInsights?.map((insight, index) => (
                   <div key={index} className="flex items-start space-x-2">
                     <span className="text-purple-400 mt-1">•</span>
-                    <span className="text-gray-300 text-sm">{insight}</span>
+                    <span className="text-gray-300 text-sm text-content">{insight}</span>
                   </div>
                 )) || (
                   <div className="text-gray-400 text-sm">No insights available</div>
@@ -111,7 +111,7 @@ const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
             </div>
 
             {/* Summary */}
-            <div className="bg-gray-800/50 rounded-lg p-4">
+            <div className="bg-gray-800/50 rounded-lg p-4 ai-analysis">
               <h3 className="text-white font-semibold mb-3 flex items-center">
                 <Target size={18} className="mr-2 text-blue-400" />
                 Summary
@@ -123,7 +123,7 @@ const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
                     Hold
                   </span>
                 </div>
-                <div className="text-gray-300 text-sm">
+                <div className="text-gray-300 text-sm text-content">
                   {analysis.recommendation || 'No reasoning provided'}
                 </div>
                 <div className="flex items-center justify-between">
@@ -160,7 +160,7 @@ const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
           <div className="space-y-6">
             
             {/* Risk Assessment */}
-            <div className="bg-gray-800/50 rounded-lg p-4">
+            <div className="bg-gray-800/50 rounded-lg p-4 ai-analysis">
               <h3 className="text-white font-semibold mb-3 flex items-center">
                 <AlertTriangle size={18} className="mr-2 text-yellow-400" />
                 Risk Assessment
@@ -173,14 +173,14 @@ const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
                   </span>
                 </div>
                 
-                <div className="text-gray-300 text-sm">
+                <div className="text-gray-300 text-sm text-content">
                   {analysis.riskAssessment || 'Risk assessment not available'}
                 </div>
               </div>
             </div>
 
             {/* Catalysts & Red Flags */}
-            <div className="bg-gray-800/50 rounded-lg p-4">
+            <div className="bg-gray-800/50 rounded-lg p-4 ai-analysis">
               <h3 className="text-white font-semibold mb-3 flex items-center">
                 <Rocket size={18} className="mr-2 text-green-400" />
                 <Flag size={18} className="mr-2 text-red-400" />
@@ -194,7 +194,7 @@ const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
                       {analysis.catalysts.map((catalyst, index) => (
                         <div key={index} className="flex items-start space-x-2">
                           <span className="text-green-400 mt-1">•</span>
-                          <span className="text-gray-300 text-sm">{catalyst}</span>
+                          <span className="text-gray-300 text-sm text-content">{catalyst}</span>
                         </div>
                       ))}
                     </div>
@@ -208,7 +208,7 @@ const AIAnalysisModalNew = ({ token, aiAnalysis, onClose }) => {
                       {analysis.redFlags.map((flag, index) => (
                         <div key={index} className="flex items-start space-x-2">
                           <span className="text-red-400 mt-1">•</span>
-                          <span className="text-gray-300 text-sm">{flag}</span>
+                          <span className="text-gray-300 text-sm text-content">{flag}</span>
                         </div>
                       ))}
                     </div>
