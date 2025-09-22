@@ -179,23 +179,31 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
       setLoading(true);
       console.log('🔄 Fetching dashboard data...');
       
-      // Fetch user profile and watchlist
-      const [profileResponse, watchlistResponse] = await Promise.all([
+      // Fetch user profile, watchlist, and KOL data
+      const [profileResponse, watchlistResponse, kolCallsResponse, leaderboardResponse] = await Promise.all([
         fetch(`${API_BASE}/api/user/profile?sessionId=${sessionId}`),
-        fetch(`${API_BASE}/api/user/watchlist?sessionId=${sessionId}`)
+        fetch(`${API_BASE}/api/user/watchlist?sessionId=${sessionId}`),
+        fetch(`${API_BASE}/api/user/kol-calls?sessionId=${sessionId}`),
+        fetch(`${API_BASE}/api/leaderboard`)
       ]);
 
       console.log('📊 API responses:', {
         profileStatus: profileResponse.status,
-        watchlistStatus: watchlistResponse.status
+        watchlistStatus: watchlistResponse.status,
+        kolCallsStatus: kolCallsResponse.status,
+        leaderboardStatus: leaderboardResponse.status
       });
 
       if (profileResponse.ok && watchlistResponse.ok) {
         const profileData = await profileResponse.json();
         const watchlistData = await watchlistResponse.json();
+        const kolCallsData = kolCallsResponse.ok ? await kolCallsResponse.json() : { success: false, calls: [] };
+        const leaderboardData = leaderboardResponse.ok ? await leaderboardResponse.json() : { success: false, leaderboard: [] };
 
         console.log('📊 Profile data:', profileData);
         console.log('📊 Watchlist data:', watchlistData);
+        console.log('📊 KOL Calls data:', kolCallsData);
+        console.log('📊 Leaderboard data:', leaderboardData);
 
         if (profileData.success) {
           setDashboardData(prev => ({
@@ -214,6 +222,29 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
           setDashboardData(prev => ({
             ...prev,
             watchlist: watchlistData.watchlist || []
+          }));
+        }
+
+        // Set KOL calls data
+        if (kolCallsData.success) {
+          setDashboardData(prev => ({
+            ...prev,
+            kolCalls: kolCallsData.calls || []
+          }));
+        }
+
+        // Set leaderboard data
+        if (leaderboardData.success) {
+          setDashboardData(prev => ({
+            ...prev,
+            kolLeaderboard: leaderboardData.leaderboard || [],
+            leaderboardError: null
+          }));
+        } else {
+          setDashboardData(prev => ({
+            ...prev,
+            kolLeaderboard: [],
+            leaderboardError: leaderboardData.error || 'Failed to fetch leaderboard'
           }));
         }
       } else {
