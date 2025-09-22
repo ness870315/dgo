@@ -226,6 +226,9 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   }
 
   const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+    
+    try {
+      setDgoFollowersLoading(true);
       const response = await fetch(`${API_BASE}/api/user/followers?sessionId=${encodeURIComponent(sessionId)}`);
       const data = await response.json();
       
@@ -425,104 +428,6 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
     })();
   }, [hypeSelected, user?.id]);
 
-  const fetchDashboardData = useCallback(async () => {
-    try {
-      setLoading(true);
-
-      
-      // Fetch user profile and watchlist
-      const [profileResponse, watchlistResponse] = await Promise.all([
-        fetch(`${API_BASE}/api/user/profile?sessionId=${sessionId}`),
-        fetch(`${API_BASE}/api/user/watchlist?sessionId=${sessionId}`)
-      ]);
-
-
-
-
-      if (profileResponse.ok && watchlistResponse.ok) {
-        const profileData = await profileResponse.json();
-        const watchlistData = await watchlistResponse.json();
-        
-
-        
-        const entries = Array.isArray(watchlistData.watchlist) ? watchlistData.watchlist : [];
-
-        // Get premium status from user profile
-        const isPremium = profileData.user?.isPremium || false;
-        const premiumExpiry = profileData.user?.premiumExpiry || null;
-        
-
-
-        // Try to fetch leaderboard (premium feature)
-        let leaderboard = [];
-        let leaderboardError = null;
-
-
-        try {
-
-          const leaderboardData = await leaderboardService.getLeaderboard();
-
-          
-          if (leaderboardData && leaderboardData.success) {
-            leaderboard = leaderboardData.leaderboard || [];
-
-          } else {
-            console.warn('🏆 Leaderboard response indicates failure:', leaderboardData);
-            leaderboardError = leaderboardData?.error || 'Unknown error';
-          }
-        } catch (err) {
-          console.error('🏆 Leaderboard fetch failed:', err);
-          leaderboardError = err.message || 'Failed to fetch leaderboard';
-          
-          // Check if it's a premium-related error
-          if (err.code === 'premium_required') {
-
-            leaderboardError = null; // Don't show error for expected premium restriction
-          }
-        }
-
-        setDashboardData({
-          watchlistCount: entries.length,
-          tokensListed: profileData.user?.stats?.tokensListed || 0,
-          tokensFueled: profileData.user?.stats?.tokensFueled || 0,
-          tokensUpdated: profileData.user?.stats?.tokensUpdated || 0,
-          referralCode: profileData.user?.referralCode || '',
-          kolCalls: [], // TODO: Implement KOL calls
-          kolLeaderboard: leaderboard,
-          leaderboardError: leaderboardError,
-          watchlist: entries,
-          isPremium: isPremium,
-          premiumExpiry: premiumExpiry
-        });
-      } else {
-        console.error('❌ API calls failed:', {
-          profileStatus: profileResponse.status,
-          watchlistStatus: watchlistResponse.status,
-          profileText: await profileResponse.text(),
-          watchlistText: await watchlistResponse.text()
-        });
-        
-        // Set default data even if API fails
-        setDashboardData({
-          watchlistCount: 0,
-          tokensListed: 0,
-          tokensFueled: 0,
-          tokensUpdated: 0,
-          referralCode: '',
-          kolCalls: [],
-          kolLeaderboard: [],
-          leaderboardError: null,
-          watchlist: [],
-          isPremium: false,
-          premiumExpiry: null
-        });
-      }
-    } catch (error) {
-      console.error('❌ Error fetching dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [sessionId, API_BASE]);
 
   useEffect(() => {
 
