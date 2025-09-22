@@ -1471,6 +1471,12 @@ class MoralisAIChatService {
           // Get trending tokens from the backend
           const trendingTokens = await this.getTrendingTokens(prompt);
           context.trendingTokens = trendingTokens;
+          console.log(`🔍 [TRENDING DEBUG] Trending tokens assigned to context:`, {
+            hasTrendingTokens: !!context.trendingTokens,
+            count: context.trendingTokens?.count,
+            success: context.trendingTokens?.success,
+            tokensLength: context.trendingTokens?.tokens?.length
+          });
         } catch (error) {
           console.error('❌ Error fetching trending tokens:', error);
           context.trendingTokens = { error: 'Unable to fetch trending tokens' };
@@ -1486,6 +1492,14 @@ class MoralisAIChatService {
     } catch (error) {
       console.error('❌ Error gathering user context:', error);
     }
+
+    console.log(`🔍 [TRENDING DEBUG] Final context before return:`, {
+      hasTrendingTokens: !!context.trendingTokens,
+      count: context.trendingTokens?.count,
+      success: context.trendingTokens?.success,
+      tokensLength: context.trendingTokens?.tokens?.length,
+      contextKeys: Object.keys(context)
+    });
 
     return context;
   }
