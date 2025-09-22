@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Send, Bot, User, Sparkles, MessageCircle, Star, BarChart3, TrendingUp, Save, History, Trash2, FolderOpen } from 'lucide-react';
 import aiChatService from '../services/aiChatService';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const AIChatModal = ({ isOpen, onClose }) => {
   const { user } = useAuth();
