@@ -357,6 +357,29 @@ EXAMPLE SHORT FORMAT:
       if (context.userData.performance) prompt += `\n- Performance: ${context.userData.performance}`;
     }
 
+    // Handle direct context properties (new structure)
+    if (context.kolCalls) {
+      if (!prompt.includes('USER DATA AVAILABLE:')) {
+        prompt += `\n\nUSER DATA AVAILABLE:`;
+      }
+      prompt += `\n- KOL Calls: ${context.kolCalls.count} calls`;
+      if (context.kolCalls.calls && context.kolCalls.calls.length > 0) {
+        const bestCall = context.kolCalls.calls[0]; // First call is best (sorted by performance)
+        prompt += `\n  * Best Call: ${bestCall.token?.symbol || 'Unknown'} (${bestCall.performance?.multiplier || 0}x)`;
+        prompt += `\n  * Total Calls: ${context.kolCalls.count}`;
+        if (context.kolCalls.summary) {
+          prompt += `\n  * Summary: ${context.kolCalls.summary}`;
+        }
+      }
+    }
+    
+    if (context.watchlist && !context.userData?.watchlist) {
+      if (!prompt.includes('USER DATA AVAILABLE:')) {
+        prompt += `\n\nUSER DATA AVAILABLE:`;
+      }
+      prompt += `\n- Watchlist: ${context.watchlist.length} tokens`;
+    }
+
     if (context.commandResults && Object.keys(context.commandResults).length > 0) {
       prompt += `\n\nCOMMAND RESULTS:`;
       Object.entries(context.commandResults).forEach(([key, result]) => {
