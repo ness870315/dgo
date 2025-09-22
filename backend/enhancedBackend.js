@@ -2743,6 +2743,9 @@ class EnhancedBackend {
         const targetUserId = userId || user.id;
         const calls = await this.oauthXService.db.getKolCalls(targetUserId);
         
+        // Calculate user stats from KOL calls
+        const userStats = this.calculateUserStatsFromCalls(calls);
+        
         // Debug milestone posts
         const callsWithMilestones = calls.filter(c => c.milestonePosts && c.milestonePosts.length > 0);
         if (callsWithMilestones.length > 0) {
@@ -2756,7 +2759,11 @@ class EnhancedBackend {
           );
         }
         
-        res.json({ success: true, calls: calls || [] });
+        res.json({ 
+          success: true, 
+          calls: calls || [],
+          stats: userStats
+        });
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Get KOL calls error:', error.message);
         res.status(500).json({ error: 'Failed to fetch KOL calls' });
@@ -10102,6 +10109,55 @@ class EnhancedBackend {
   }
 
   // ========================================
+  // Calculate user stats from KOL calls
+  calculateUserStatsFromCalls(calls) {
+    if (!calls || calls.length === 0) {
+      return {
+        totalCalls: 0,
+        recentCalls30d: 0,
+        hitRate: 0,
+        medianX: 0
+      };
+    }
+
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+    
+    // Filter calls from last 30 days
+    const recentCalls = calls.filter(call => {
+      const callDate = new Date(call.calledAt);
+      return callDate >= thirtyDaysAgo;
+    });
+
+    // Calculate hit rate (calls that achieved 1x or better)
+    const hitRateCalls = calls.length;
+    const hitRateHits = calls.filter(call => {
+      const currentMC = call.currentMC || call.currentMc || 0;
+      const calledMC = call.calledMc || call.calledMC || 0;
+      const multiplier = calledMC > 0 ? currentMC / calledMC : 0;
+      return multiplier >= 1.0;
+    }).length;
+    
+    const hitRate = hitRateCalls > 0 ? hitRateHits / hitRateCalls : 0;
+
+    // Calculate median X
+    const xMultiples = calls.map(call => {
+      const currentMC = call.currentMC || call.currentMc || 0;
+      const calledMC = call.calledMc || call.calledMC || 0;
+      return calledMC > 0 ? currentMC / calledMC : 0;
+    }).filter(x => x > 0);
+
+    const sortedX = xMultiples.sort((a, b) => a - b);
+    const medianX = sortedX.length > 0 ? sortedX[Math.floor(sortedX.length / 2)] : 0;
+
+    return {
+      totalCalls: calls.length,
+      recentCalls30d: recentCalls.length,
+      hitRate: hitRate,
+      medianX: medianX
+    };
+  }
+
   // 🔥 FUEL TOKEN HELPER METHODS
   // ========================================
 

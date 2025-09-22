@@ -187,12 +187,13 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
       
       // Fetch user's KOL calls
       const callsResponse = await fetch(`${API_BASE}/api/user/kol-calls?sessionId=${sessionId}&userId=${userId}`);
-      const callsData = callsResponse.ok ? await callsResponse.json() : { success: false, calls: [] };
+      const callsData = callsResponse.ok ? await callsResponse.json() : { success: false, calls: [], stats: {} };
       
       console.log('📊 Selected user calls:', callsData);
+      console.log('📊 Selected user stats:', callsData.stats);
       
       setSelectedUserCalls(callsData.calls || []);
-      setSelectedUserStats({}); // No stats API available
+      setSelectedUserStats(callsData.stats || {});
       
     } catch (error) {
       console.error('❌ Error fetching selected user data:', error);
