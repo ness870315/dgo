@@ -943,13 +943,15 @@ class EnhancedTokenProcessor {
       return token.stage === 'twitter' || token.twitterTimestamp;
     });
     
-    // Update the main processing queue with only unprocessed tokens
-    this.processingQueue = this.processingQueue.filter(token => {
-      // Remove tokens that have been processed through Twitter stage
-      return !(token.stage === 'twitter' || token.twitterTimestamp);
-    });
+    // 🚨 CRITICAL BUG FIX: DO NOT remove Twitter-processed tokens from processing queue!
+    // The scoring stage needs tokens with stage === 'twitter' to be IN the processing queue
+    // Removing them here prevents them from being scored and saved!
     
-    console.log(`🧹 PROCESSING QUEUE UPDATED: ${allTokens.length} → ${this.processingQueue.length} tokens (removed ${allTokens.length - this.processingQueue.length} processed tokens)`);
+    console.log(`🔍 [QUEUE DEBUG] Twitter-processed tokens should remain in processing queue for scoring stage`);
+    console.log(`🔍 [QUEUE DEBUG] Processing queue size: ${this.processingQueue.length} tokens`);
+    console.log(`🔍 [QUEUE DEBUG] Tokens with stage 'twitter': ${this.processingQueue.filter(t => t.stage === 'twitter').length}`);
+    
+    // DO NOT REMOVE TOKENS FROM PROCESSING QUEUE - they need to be scored and saved!
     
     // 🚀 AUTOMATIC TWITTER DATA MERGE
     // Merge fresh Twitter data into main cache immediately after Twitter stage
@@ -1188,10 +1190,11 @@ class EnhancedTokenProcessor {
         }
       });
       
-      // 🚨 CRITICAL FIX: Update processing queue even on error
-      this.processingQueue = this.processingQueue.filter(token => {
-        return !(token.stage === 'scoring' || token.scoringTimestamp);
-      });
+      // 🚨 CRITICAL BUG FIX: DO NOT remove scored tokens from processing queue even on error!
+      // The saving stage still needs to find tokens with stage === 'scoring' to save them
+      // Even if scoring had errors, tokens with stage 'scoring' should still be saved
+      
+      console.log(`🔍 [QUEUE DEBUG] Scoring stage error - tokens with stage 'scoring' remain in queue for saving`);
     }
   }
 
