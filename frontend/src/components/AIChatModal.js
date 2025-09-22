@@ -359,7 +359,12 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
           height: Math.min(600, window.innerHeight - 32)
         }}
       >
-        <div className="bg-gray-900 rounded-2xl border border-white/10 w-full h-full relative overflow-hidden">
+        <div className="bg-gray-900 rounded-2xl border border-white/10 w-full h-full relative overflow-hidden" style={{
+          backgroundColor: 'rgba(0, 255, 255, 0.2)',
+          border: '3px solid red',
+          position: 'relative',
+          zIndex: 1000
+        }}>
           
           {/* Header with drag handle */}
           <div 
@@ -408,8 +413,10 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
 
         {/* Messages */}
         <div className="absolute top-16 left-0 right-0 bottom-16 overflow-y-auto p-4 space-y-4" style={{ 
-          backgroundColor: 'rgba(255, 0, 0, 0.1)',
-          zIndex: 1
+          backgroundColor: 'rgba(255, 0, 0, 0.8)',
+          border: '2px solid yellow',
+          zIndex: 1001,
+          position: 'absolute'
         }}>
           
           {/* Chat Histories Panel */}
@@ -613,9 +620,11 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
 
         {/* Input */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10" style={{ 
-          backgroundColor: 'rgba(0, 255, 0, 0.1)',
+          backgroundColor: 'rgba(0, 255, 0, 0.8)',
           height: '80px',
-          zIndex: 1
+          border: '2px solid blue',
+          zIndex: 1001,
+          position: 'absolute'
         }}>
           <div className="flex gap-2">
             <input
