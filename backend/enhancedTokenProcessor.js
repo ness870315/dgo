@@ -1050,8 +1050,15 @@ class EnhancedTokenProcessor {
         const hasOrganicScore = token.jupiterData?.organicScore && token.jupiterData.organicScore > 0;
         const hasGraduatedAt = token.jupiterData?.graduatedAt && token.jupiterData.graduatedAt !== '';
         
+        // 🔍 DETAILED DEBUG: Show actual values for problematic tokens
+        console.log(`🔍 [QUALITY DEBUG] ${token.symbol} (${token.contractAddress?.substring(0, 8)}...):`);
+        console.log(`   - launchpad: "${token.jupiterData?.launchpad}" (hasLaunchpad: ${hasLaunchpad})`);
+        console.log(`   - organicScore: ${token.jupiterData?.organicScore} (hasOrganicScore: ${hasOrganicScore})`);
+        console.log(`   - graduatedAt: "${token.jupiterData?.graduatedAt}" (hasGraduatedAt: ${hasGraduatedAt})`);
+        console.log(`   - Quality check result: ${hasLaunchpad || hasOrganicScore || hasGraduatedAt ? 'PASS' : 'FAIL'}`);
+        
         if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
-          console.log(`🚫 [SCORING DEBUG] FILTERED OUT: ${token.symbol} - No quality indicators (launchpad: ${!!hasLaunchpad}, organicScore: ${!!hasOrganicScore}, graduatedAt: ${!!hasGraduatedAt})`);
+          console.log(`🚫 [SCORING DEBUG] FILTERED OUT: ${token.symbol} - No quality indicators`);
           console.log(`🚫 [SCORING DEBUG] This token will NOT be saved to database!`);
           continue; // Skip this token
         }
@@ -1137,6 +1144,7 @@ class EnhancedTokenProcessor {
           }
           
           console.log(`✅ Score calculated for ${token.symbol}: ${enhancedScore.toFixed(2)}/10`);
+          console.log(`🔍 [STAGE DEBUG] ${token.symbol} stage set to: '${token.stage}' (should be 'scoring')`);
           
         } catch (error) {
           console.error(`❌ Scoring failed for ${token.symbol}:`, error.message);
@@ -1156,20 +1164,15 @@ class EnhancedTokenProcessor {
       
       console.log(`✅ Scoring Stage Complete: ${tokens.length} tokens scored`);
       
-      // 🚨 CRITICAL FIX: Update processing queue to remove processed tokens
-      // Mark all processed tokens as completed and remove them from queue
-      const processedTokens = tokens.filter(token => {
-        // Keep tokens that have been processed through scoring stage
-        return token.stage === 'scoring' || token.scoringTimestamp;
-      });
+      // 🚨 CRITICAL BUG FIX: DO NOT remove scored tokens from processing queue!
+      // The saving stage needs tokens with stage === 'scoring' to be IN the processing queue
+      // Removing them here prevents them from being saved to database!
       
-      // Update the main processing queue with only unprocessed tokens
-      this.processingQueue = this.processingQueue.filter(token => {
-        // Remove tokens that have been processed through scoring stage
-        return !(token.stage === 'scoring' || token.scoringTimestamp);
-      });
+      console.log(`🔍 [QUEUE DEBUG] Scored tokens should remain in processing queue for saving stage`);
+      console.log(`🔍 [QUEUE DEBUG] Processing queue size: ${this.processingQueue.length} tokens`);
+      console.log(`🔍 [QUEUE DEBUG] Tokens with stage 'scoring': ${this.processingQueue.filter(t => t.stage === 'scoring').length}`);
       
-      console.log(`🧹 PROCESSING QUEUE UPDATED: ${tokens.length} → ${this.processingQueue.length} tokens (removed ${tokens.length - this.processingQueue.length} processed tokens)`);
+      // DO NOT REMOVE TOKENS FROM PROCESSING QUEUE - they need to be saved!
       
     } catch (error) {
       console.error('❌ Scoring failed:', error);
