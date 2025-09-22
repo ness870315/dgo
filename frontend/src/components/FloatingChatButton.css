@@ -2,7 +2,7 @@
   position: fixed;
   width: 50px;
   height: 50px;
-  background: #374151;
+  background: #1f2937;
   border-radius: 50%;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   display: flex;
@@ -83,12 +83,12 @@
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
   .floating-chat-button {
-    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+    background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
     border: 2px solid #a855f7;
   }
   
   .floating-chat-button.disabled {
-    background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+    background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
     border: 2px solid rgba(168, 85, 247, 0.5);
   }
 }
