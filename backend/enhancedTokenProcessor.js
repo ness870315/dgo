@@ -1375,11 +1375,16 @@ class EnhancedTokenProcessor {
       if (response.data && Array.isArray(response.data)) {
         console.log(`📊 CoinGecko returned ${response.data.length} Solana meme coins`);
         
-        // Filter out tokens with missing essential data (like trendingTokenService)
+        // Filter out tokens with missing essential data and stable/infrastructure tokens
         const validTokens = response.data.filter(token => {
           const hasBasicData = token && token.symbol && token.name;
           const hasMarketData = token.current_price !== null && token.market_cap !== null;
-          return hasBasicData && hasMarketData;
+          
+          // Filter out stable/infrastructure tokens
+          const symbol = token.symbol?.toUpperCase();
+          const isStableToken = ['USDC', 'USDT', 'SOL', 'JUP', 'WETH', 'WBTC', 'JLP', 'JUPSOL'].includes(symbol);
+          
+          return hasBasicData && hasMarketData && !isStableToken;
         });
         
         console.log(`🌟 Filtered to ${validTokens.length} valid tokens with complete data`);

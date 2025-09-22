@@ -12,7 +12,7 @@ class BirdEyeTrendingService {
       ui_amount_mode: 'scaled'
     };
     // Exclude base tokens/stables per request
-    this.exclusionSymbols = new Set(['JUP', 'WSOL']);
+    this.exclusionSymbols = new Set(['JUP', 'WSOL', 'JLP', 'JupSOL']);
   }
 
   async fetchTrending(params = {}) {

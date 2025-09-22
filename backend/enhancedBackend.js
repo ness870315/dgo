@@ -3758,7 +3758,7 @@ class EnhancedBackend {
           console.log(`[🔍 Discovery Import] Sample tokens: ${sampleSymbols}${candidates.length > 5 ? '...' : ''}`);
         }
 
-        const stableSymbols = new Set(['SOL', 'JUP', 'WETH', 'WSOL', 'WBTC', 'USDC','USDT','DAI','FRAX','PYUSD','BNSOL']);
+        const stableSymbols = new Set(['SOL', 'JUP', 'WETH', 'WSOL', 'WBTC', 'USDC','USDT','DAI','FRAX','PYUSD','BNSOL', 'JLP', 'JupSOL']);
         // Recently-seen TTL (15m) to avoid spam inserts/logs for same contract
         const recentFile = path.join(this.oauthXService?.db?.baseDir || process.env.DATA_DIR || '/var/data/dgo', 'cache', 'recent-seen-contracts.json');
         let recentMap = {};

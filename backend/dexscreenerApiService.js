@@ -100,7 +100,7 @@ class DexscreenerApiService {
         
         // Filter out stablecoins and major tokens
         const symbol = pair.baseToken?.symbol?.toUpperCase();
-        if (!symbol || ['USDC', 'USDT', 'SOL', 'JUP', 'WETH', 'WBTC'].includes(symbol)) continue;
+        if (!symbol || ['USDC', 'USDT', 'SOL', 'JUP', 'WETH', 'WBTC', 'JLP', 'JUPSOL'].includes(symbol)) continue;
 
         discoveredTokens.set(symbol, pair);
         processedPairs.add(pair.pairAddress);
