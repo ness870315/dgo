@@ -14,47 +14,47 @@ export const getStatusFromScore = (score) => {
   if (numScore >= 9.0) {
     return {
       level: 'VIRAL',
-      color: '#a855f7', // purple
+      color: '#22c55e', // green
       icon: '🚀',
       emoji: '🚀',
-      textColor: 'text-purple-400',
-      bgColor: 'bg-purple-900/30'
+      textColor: 'text-green-400',
+      bgColor: 'bg-green-900/30'
     };
   } else if (numScore >= 8.0) {
     return {
       level: 'TRENDING',
-      color: '#22c55e', // green
+      color: '#84cc16', // light green
       icon: '🔥',
       emoji: '🔥',
-      textColor: 'text-green-400',
-      bgColor: 'bg-green-900/30'
+      textColor: 'text-lime-400',
+      bgColor: 'bg-lime-900/30'
     };
   } else if (numScore >= 7.0) {
     return {
       level: 'BUILDING',
-      color: '#f97316', // orange
+      color: '#eab308', // yellow to orange
       icon: '📈',
       emoji: '📈',
-      textColor: 'text-orange-400',
-      bgColor: 'bg-orange-900/30'
+      textColor: 'text-yellow-400',
+      bgColor: 'bg-yellow-900/30'
     };
   } else if (numScore >= 5.0) {
     return {
       level: 'WAKING UP',
-      color: '#3b82f6', // blue
+      color: '#f97316', // orange to red
       icon: '⚡',
       emoji: '⚡',
-      textColor: 'text-blue-400',
-      bgColor: 'bg-blue-900/30'
+      textColor: 'text-orange-400',
+      bgColor: 'bg-orange-900/30'
     };
   } else {
     return {
       level: 'SLEEPING',
-      color: '#6b7280', // gray
+      color: '#9333ea', // red to purple
       icon: '😴',
       emoji: '😴',
-      textColor: 'text-gray-400',
-      bgColor: 'bg-gray-900/30'
+      textColor: 'text-purple-400',
+      bgColor: 'bg-purple-900/30'
     };
   }
 };
