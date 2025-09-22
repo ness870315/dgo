@@ -993,13 +993,32 @@ class EnhancedTokenProcessor {
         console.error('❌ Error loading tokens from cache:', error.message);
         return;
       }
+      // Filter for new Jupiter tokens AND exclude stable tokens
+      const stableSymbols = new Set(['SOL', 'JUP', 'WETH', 'WSOL', 'WBTC', 'USDC', 'USDT', 'DAI', 'FRAX', 'PYUSD', 'BNSOL', 'JLP', 'JupSOL']);
+      
       const newJupTokens = tokens.filter(token => 
         token.source === 'jupiter' && 
         token.stage === 'jupiter' && 
         token.hasJupiterData &&
         token.lastDiscoveredAt && 
-        (Date.now() - new Date(token.lastDiscoveredAt).getTime()) < (5 * 60 * 1000) // Within last 5 minutes
+        (Date.now() - new Date(token.lastDiscoveredAt).getTime()) < (5 * 60 * 1000) && // Within last 5 minutes
+        !stableSymbols.has(token.symbol?.toUpperCase()) // Exclude stable tokens
       );
+      
+      // Log any filtered stable tokens
+      const filteredStableTokens = tokens.filter(token => 
+        token.source === 'jupiter' && 
+        token.stage === 'jupiter' && 
+        token.hasJupiterData &&
+        token.lastDiscoveredAt && 
+        (Date.now() - new Date(token.lastDiscoveredAt).getTime()) < (5 * 60 * 1000) &&
+        stableSymbols.has(token.symbol?.toUpperCase())
+      );
+      
+      if (filteredStableTokens.length > 0) {
+        console.log(`🚫 [JUP PROCESSING] Filtered out ${filteredStableTokens.length} stable tokens:`, 
+          filteredStableTokens.map(t => t.symbol).join(', '));
+      }
       
       if (newJupTokens.length === 0) {
         console.log('📊 No new Jup-service tokens found for processing');
@@ -1967,6 +1986,22 @@ class EnhancedTokenProcessor {
       const jupAudit = token?.jupiterData?.audit || {};
       const candidates = [audit.isSus, auditInfo.isSus, jupAudit.isSus, token?.isSus];
       return candidates.some(v => this.isTrueish(v));
+    } catch (_) {
+      return false;
+    }
+  }
+
+  isExcludedMajorOrStable(token) {
+    try {
+      const symbol = token?.symbol?.toUpperCase() || '';
+      const stableSymbols = new Set(['SOL', 'JUP', 'WETH', 'WSOL', 'WBTC', 'USDC', 'USDT', 'DAI', 'FRAX', 'PYUSD', 'BNSOL', 'JLP', 'JupSOL']);
+      
+      if (stableSymbols.has(symbol)) {
+        console.log(`🚫 [TWITTER FILTER] Excluding stable token: ${symbol}`);
+        return true;
+      }
+      
+      return false;
     } catch (_) {
       return false;
     }
