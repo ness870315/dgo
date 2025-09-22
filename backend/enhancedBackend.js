@@ -4376,16 +4376,19 @@ class EnhancedBackend {
 
     // Technical Analysis endpoint
     this.app.post('/api/tokens/:contract/technical-analysis', async (req, res) => {
+      let responseSent = false;
+      
       // Set a timeout for the entire request
       const requestTimeout = setTimeout(() => {
-        if (!res.headersSent) {
+        if (!responseSent && !res.headersSent) {
+          responseSent = true;
           console.error(`⏰ Technical analysis request timeout for ${req.params.contract}`);
           res.status(503).json({ 
             success: false, 
             error: 'Technical analysis request timeout - service temporarily unavailable' 
           });
         }
-      }, 25000); // 25 second timeout
+      }, 30000); // 30 second timeout
       
       try {
         const { contract } = req.params;
@@ -4396,10 +4399,13 @@ class EnhancedBackend {
         
         if (!contract) {
           clearTimeout(requestTimeout);
-          return res.status(400).json({ 
-            success: false, 
-            error: 'Contract address is required' 
-          });
+          if (!responseSent) {
+            responseSent = true;
+            return res.status(400).json({ 
+              success: false, 
+              error: 'Contract address is required' 
+            });
+          }
         }
         
         const { default: TechnicalAnalysisService } = await import('./services/TechnicalAnalysisService.js');
@@ -4430,22 +4436,29 @@ class EnhancedBackend {
         
         if (!analysis.success) {
           clearTimeout(requestTimeout);
-          return res.status(500).json({
-            success: false,
-            error: analysis.error || 'Failed to generate technical analysis'
-          });
+          if (!responseSent) {
+            responseSent = true;
+            return res.status(500).json({
+              success: false,
+              error: analysis.error || 'Failed to generate technical analysis'
+            });
+          }
         }
         
         console.log(`✅ Technical analysis completed for ${contract}`);
         clearTimeout(requestTimeout);
-        res.json(analysis);
+        if (!responseSent) {
+          responseSent = true;
+          res.json(analysis);
+        }
         
       } catch (error) {
         clearTimeout(requestTimeout);
         console.error(`❌ Technical analysis error for ${req.params.contract}:`, error);
         
         // Don't send response if timeout already sent one
-        if (!res.headersSent) {
+        if (!responseSent && !res.headersSent) {
+          responseSent = true;
           res.status(500).json({
             success: false,
             error: error.message || 'Internal server error'
