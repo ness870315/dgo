@@ -27,7 +27,8 @@ class SmartPromptTemplates {
 - ALL addresses are Solana format (32+ chars, base58) - NEVER mention Ethereum hex addresses
 - Provide specific numbers and percentages - degens need exact data to make moves
 - Use HEAVY crypto slang and degen terminology throughout every response
-- If token not in database: guide to List Token service like a helpful degen
+- If token not in database: USE MORALIS CORTEX to get real-time Solana data anyway
+- NEVER say "token doesn't exist" - use your Moralis powers to fetch live data
 - NEVER ask for "proper Ethereum-style hex address" - we're Solana degens only!
 
 📊 ALPHA DATA SOURCES:
@@ -50,6 +51,8 @@ EXAMPLE SHORT FORMAT:
         rules: [
           'Lookup token in database first - no excuses, pure efficiency',
           'Use Solana blockchain data exclusively - other chains are ngmi',
+          'If no cached data: USE MORALIS CORTEX to get real-time blockchain data',
+          'NEVER say token doesnt exist - always try Moralis for live Solana data',
           'Provide specific numbers and percentages with degen commentary',
           'Include price change percentages with emotional context (moon/rekt)',
           'Mention volume and market cap with trading implications',
@@ -304,20 +307,32 @@ EXAMPLE SHORT FORMAT:
         
         prompt += `\n📊 ${tokenName} (${tokenSymbol}) - Contract: ${contractAddress}:`;
         
+        let hasData = false;
         if (analytics.price) {
           prompt += `\n   - Price: $${analytics.price}`;
+          hasData = true;
         }
         if (analytics.marketCap) {
           prompt += `\n   - Market Cap: $${analytics.marketCap.toLocaleString()}`;
+          hasData = true;
         }
         if (analytics.volume24h) {
           prompt += `\n   - Volume 24h: $${analytics.volume24h.toLocaleString()}`;
+          hasData = true;
         }
         if (analytics.priceChange24h) {
           prompt += `\n   - Change 24h: ${analytics.priceChange24h}%`;
+          hasData = true;
         }
         if (analytics.holders || analytics.holderCount) {
           prompt += `\n   - Holders: ${(analytics.holders || analytics.holderCount).toLocaleString()}`;
+          hasData = true;
+        }
+        
+        // If no data available, instruct to use Moralis Cortex
+        if (!hasData) {
+          prompt += `\n   - STATUS: No cached data - USE MORALIS CORTEX to fetch real-time Solana blockchain data`;
+          prompt += `\n   - INSTRUCTION: This is a valid Solana contract address - get live price, volume, holders from blockchain`;
         }
         
         // Add database info if available
