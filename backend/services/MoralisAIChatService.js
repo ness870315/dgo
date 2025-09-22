@@ -392,6 +392,11 @@ class MoralisAIChatService {
         // Limit to requested number of trending tokens
         const limitedTrending = trendingTokens.slice(0, requestedLimit);
         
+        console.log(`🔍 [TRENDING DEBUG] Internal trending tokens data:`, {
+          count: trendingTokens.length,
+          tokens: limitedTrending.slice(0, 5).map(t => ({ symbol: t.symbol, score: t.overallScore, status: t.status }))
+        });
+        
         return {
           success: true,
           count: trendingTokens.length,
@@ -444,6 +449,10 @@ class MoralisAIChatService {
       };
 
       console.log(`✅ Fetched ${trendingData.count} trending tokens for AI context`);
+      console.log(`🔍 [TRENDING DEBUG] Trending tokens data:`, {
+        count: trendingData.count,
+        tokens: trendingData.tokens.slice(0, 5).map(t => ({ symbol: t.symbol, score: t.overallScore, status: t.status }))
+      });
       return trendingData;
       
     } catch (error) {
@@ -1993,12 +2002,19 @@ TOP 5 CALLS:`;
 
     // Add trending tokens context
     if (userContext.trendingTokens && userContext.trendingTokens.count > 0) {
+      console.log(`🔍 [TRENDING DEBUG] Adding trending tokens to context:`, {
+        count: userContext.trendingTokens.count,
+        tokens: userContext.trendingTokens.tokens.slice(0, 5).map(t => ({ symbol: t.symbol, score: t.overallScore, status: t.status }))
+      });
+      
       systemContext += `\n\nTRENDING TOKENS ON DEGEN ORACLE:
 - Total Trending: ${userContext.trendingTokens.count}
 - Top 10 Trending Tokens:`;
       userContext.trendingTokens.tokens.slice(0, 10).forEach((token, index) => {
         systemContext += `\n  ${index + 1}. ${token.symbol} - Score: ${token.overallScore?.toFixed(1)}/10, Status: ${token.status}, MC: $${(token.marketCap/1e6)?.toFixed(1)}M`;
       });
+    } else {
+      console.log(`🔍 [TRENDING DEBUG] No trending tokens data available:`, userContext.trendingTokens);
     }
 
     // Add command results to context
