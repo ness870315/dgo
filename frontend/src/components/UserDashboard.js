@@ -32,6 +32,9 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-solana-purple mx-auto mb-4"></div>
           <p>Loading user dashboard...</p>
         </div>
+        
+        {/* Floating Chat Button - always visible */}
+        <FloatingChatButton onOpenChat={handleOpenChat} />
       </div>
     );
   }
