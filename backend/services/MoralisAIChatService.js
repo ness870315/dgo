@@ -1738,13 +1738,23 @@ class MoralisAIChatService {
 
     console.log(`🔍 [KOL SUMMARY DEBUG] Generating summary for ${calls.length} calls:`);
     calls.forEach((call, index) => {
-      console.log(`  ${index + 1}. ${call.token?.symbol}: ${call.performance?.multiplier}x (${call.performance?.status})`);
+      console.log(`  ${index + 1}. ${call.token?.symbol}: ATH ${call.performance?.multiplier}x, Current ${call.performance?.currentMultiplier}x (${call.performance?.status})`);
     });
 
     const totalMultiplier = calls.reduce((sum, call) => sum + (call.performance.multiplier || 0), 0);
     const avgMultiplier = totalMultiplier / calls.length;
-    const bestCall = calls[0]; // Already sorted by performance
-    const worstCall = calls[calls.length - 1]; // Last call is worst
+    
+    // Best call: Highest ATH performance (already sorted by ATH)
+    const bestCall = calls[0];
+    
+    // 🚨 CRITICAL FIX: Worst call should be based on CURRENT performance (current pain)
+    // Sort by current multiplier to find worst current performer
+    const worstCall = calls.reduce((worst, current) => {
+      const worstCurrent = worst.performance?.currentMultiplier || 0;
+      const currentCurrent = current.performance?.currentMultiplier || 0;
+      return currentCurrent < worstCurrent ? current : worst;
+    });
+    
     const totalMilestones = calls.reduce((sum, call) => sum + call.milestonePosts, 0);
     const profitableCalls = calls.filter(call => call.performance.multiplier >= 1).length;
     const winRate = (profitableCalls / calls.length * 100).toFixed(1);
@@ -1752,8 +1762,8 @@ class MoralisAIChatService {
     console.log(`🔍 [KOL SUMMARY DEBUG] Summary calculated:`, {
       totalCalls: calls.length,
       avgMultiplier: avgMultiplier.toFixed(2),
-      bestCall: `${bestCall?.token?.symbol} (${bestCall?.performance?.multiplier}x)`,
-      worstCall: `${worstCall?.token?.symbol} (${worstCall?.performance?.multiplier}x)`,
+      bestCall: `${bestCall?.token?.symbol} (ATH: ${bestCall?.performance?.multiplier}x)`,
+      worstCall: `${worstCall?.token?.symbol} (Current: ${worstCall?.performance?.currentMultiplier}x)`,
       profitableCalls: profitableCalls,
       winRate: `${winRate}%`
     });
@@ -1762,7 +1772,7 @@ class MoralisAIChatService {
       totalCalls: calls.length,
       avgMultiplier: avgMultiplier,
       bestCall: bestCall,
-      worstCall: worstCall, // Add worst call to summary
+      worstCall: worstCall, // Now based on current performance
       totalMilestones: totalMilestones,
       profitableCalls: profitableCalls,
       winRate: winRate

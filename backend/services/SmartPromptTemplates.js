@@ -359,11 +359,11 @@ EXAMPLE SHORT FORMAT:
         // Add detailed KOL calls information if available
         if (context.userData.kolCalls.calls && context.userData.kolCalls.calls.length > 0) {
           const calls = context.userData.kolCalls.calls;
-          const bestCall = calls[0]; // First call is best (sorted by performance)
-          const worstCall = calls[calls.length - 1]; // Last call is worst (sorted by performance)
+          const bestCall = calls[0]; // First call is best (sorted by ATH performance)
+          const worstCall = context.userData.kolCalls.summary.worstCall; // Based on current performance
           
-          prompt += `\n  * Best Call: ${bestCall.token?.symbol || 'Unknown'} (${bestCall.performance?.multiplier?.toFixed(2) || 0}x)`;
-          prompt += `\n  * Worst Call: ${worstCall.token?.symbol || 'Unknown'} (${worstCall.performance?.multiplier?.toFixed(2) || 0}x)`;
+          prompt += `\n  * Best Call: ${bestCall.token?.symbol || 'Unknown'} (ATH: ${bestCall.performance?.multiplier?.toFixed(2) || 0}x)`;
+          prompt += `\n  * Worst Performer: ${worstCall?.token?.symbol || 'Unknown'} (Current: ${worstCall?.performance?.currentMultiplier?.toFixed(2) || 0}x)`;
           prompt += `\n  * Total Calls: ${callCount}`;
           if (context.userData.kolCalls.summary) {
             prompt += `\n  * Average Performance: ${context.userData.kolCalls.summary.avgMultiplier?.toFixed(2) || 0}x`;
@@ -411,11 +411,11 @@ EXAMPLE SHORT FORMAT:
       prompt += `\n- KOL Calls: ${context.kolCalls.count} calls`;
       if (context.kolCalls.calls && context.kolCalls.calls.length > 0) {
         const calls = context.kolCalls.calls;
-        const bestCall = calls[0]; // First call is best (sorted by performance)
-        const worstCall = calls[calls.length - 1]; // Last call is worst (sorted by performance)
+        const bestCall = calls[0]; // First call is best (sorted by ATH performance)
+        const worstCall = context.kolCalls.summary.worstCall; // Based on current performance
         
-        prompt += `\n  * Best Call: ${bestCall.token?.symbol || 'Unknown'} (${bestCall.performance?.multiplier?.toFixed(2) || 0}x)`;
-        prompt += `\n  * Worst Call: ${worstCall.token?.symbol || 'Unknown'} (${worstCall.performance?.multiplier?.toFixed(2) || 0}x)`;
+        prompt += `\n  * Best Call: ${bestCall.token?.symbol || 'Unknown'} (ATH: ${bestCall.performance?.multiplier?.toFixed(2) || 0}x)`;
+        prompt += `\n  * Worst Performer: ${worstCall?.token?.symbol || 'Unknown'} (Current: ${worstCall?.performance?.currentMultiplier?.toFixed(2) || 0}x)`;
         prompt += `\n  * Total Calls: ${context.kolCalls.count}`;
         if (context.kolCalls.summary) {
           prompt += `\n  * Average Performance: ${context.kolCalls.summary.avgMultiplier?.toFixed(2) || 0}x`;
