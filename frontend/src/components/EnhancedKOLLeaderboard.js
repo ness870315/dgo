@@ -87,72 +87,73 @@ const EnhancedKOLLeaderboard = ({ onClose, onUserClick }) => {
       <button
         key={user.userId}
         onClick={() => onUserClick && onUserClick(user)}
-        className="w-full bg-gray-800/50 border border-gray-700 rounded-lg p-4 hover:bg-gray-800/70 transition-colors text-left"
+        className="w-full bg-gray-800/50 border border-gray-700 rounded-lg p-3 sm:p-4 hover:bg-gray-800/70 transition-colors text-left"
         title="View profile"
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+          <div className="flex items-center space-x-2 sm:space-x-3">
             {/* Rank */}
             <div className="flex-shrink-0">
-              <div className="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center text-sm font-semibold text-white">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gray-700 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold text-white">
                 {user[`${activeTab}Rank`] || user.rank || index + 1}
               </div>
             </div>
 
             {/* Profile */}
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-600 rounded-full flex items-center justify-center">
                 {user.profileImage ? (
-                  <img src={user.profileImage} alt={user.displayName} className="w-10 h-10 rounded-full" />
+                  <img src={user.profileImage} alt={user.displayName} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full" />
                 ) : (
-                  <Users className="w-5 h-5 text-gray-400" />
+                  <Users className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                 )}
               </div>
               
               <div>
-                <div className="flex items-center space-x-2">
-                  <h3 className="text-white font-semibold">{user.displayName}</h3>
+                <div className="flex items-center space-x-1 sm:space-x-2">
+                  <h3 className="text-white font-semibold text-sm sm:text-base">{user.displayName}</h3>
                   {getTrustLevelIcon(trustLevel)}
-                  {user.verified && <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                  {user.verified && <div className="w-3 h-3 sm:w-4 sm:h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white rounded-full"></div>
                   </div>}
                 </div>
-                <p className="text-gray-400 text-sm">@{user.username}</p>
+                <p className="text-gray-400 text-xs sm:text-sm">@{user.username}</p>
               </div>
             </div>
           </div>
 
           {/* Stats */}
           <div className="text-right">
-            <div className="flex items-center space-x-4 text-sm">
+            <div className="flex items-center justify-end space-x-2 sm:space-x-4 text-xs sm:text-sm">
               <div className="text-center">
-                <div className="text-green-400 font-semibold text-lg">{trustScore.toFixed(0)}</div>
-                <div className="text-gray-400 text-xs">Trust Score</div>
+                <div className="text-green-400 font-semibold text-sm sm:text-lg">{trustScore.toFixed(0)}</div>
+                <div className="text-gray-400 text-xs">Score</div>
               </div>
               
               <div className="text-center">
-                <div className="text-blue-400 font-semibold">{((user.performance?.hitRate || 0)).toFixed(1)}%</div>
-                <div className="text-gray-400 text-xs">Hit Rate</div>
+                <div className="text-blue-400 font-semibold text-sm sm:text-base">{((user.performance?.hitRate || 0)).toFixed(1)}%</div>
+                <div className="text-gray-400 text-xs">Hit</div>
               </div>
               
               <div className="text-center">
-                <div className="text-purple-400 font-semibold">{(user.performance?.avgCurrentMultiple || 0).toFixed(1)}x</div>
-                <div className="text-gray-400 text-xs">Avg Multiple</div>
+                <div className="text-purple-400 font-semibold text-sm sm:text-base">{(user.performance?.avgCurrentMultiple || 0).toFixed(1)}x</div>
+                <div className="text-gray-400 text-xs">Avg</div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Trust Level Badge */}
-        <div className="mt-3 flex items-center justify-between">
-          <div className={`px-3 py-1 rounded-full text-xs font-medium border ${getTrustLevelColor(trustLevel)}`}>
+        <div className="mt-2 sm:mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
+          <div className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium border ${getTrustLevelColor(trustLevel)}`}>
             {trustLevel}
           </div>
           
-          <div className="flex items-center space-x-4 text-xs text-gray-400">
+          <div className="flex items-center space-x-2 sm:space-x-4 text-xs text-gray-400">
             <span>{user.performance?.totalCalls || 0} calls</span>
-            <span>Consistency: {(user.consistency?.score || 0).toFixed(0)}</span>
-            <span>Risk: {(user.riskManagement?.score || 0).toFixed(0)}</span>
+            <span className="hidden sm:inline">Consistency: {(user.consistency?.score || 0).toFixed(0)}</span>
+            <span className="hidden sm:inline">Risk: {(user.riskManagement?.score || 0).toFixed(0)}</span>
+            <span className="sm:hidden">C: {(user.consistency?.score || 0).toFixed(0)} R: {(user.riskManagement?.score || 0).toFixed(0)}</span>
           </div>
         </div>
       </button>
@@ -189,26 +190,28 @@ const EnhancedKOLLeaderboard = ({ onClose, onUserClick }) => {
     const stats = leaderboardData.boardStats;
     
     return (
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-        <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-3 text-center">
-          <div className="text-yellow-400 font-semibold text-lg">{stats.eliteCount}</div>
-          <div className="text-gray-400 text-xs">Elite KOLs</div>
-        </div>
-        <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-3 text-center">
-          <div className="text-purple-400 font-semibold text-lg">{stats.expertCount}</div>
-          <div className="text-gray-400 text-xs">Expert KOLs</div>
-        </div>
-        <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-3 text-center">
-          <div className="text-blue-400 font-semibold text-lg">{stats.trustedCount}</div>
-          <div className="text-gray-400 text-xs">Trusted KOLs</div>
-        </div>
-        <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-3 text-center">
-          <div className="text-green-400 font-semibold text-lg">{stats.risingCount}</div>
-          <div className="text-gray-400 text-xs">Rising KOLs</div>
-        </div>
-        <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-3 text-center">
-          <div className="text-orange-400 font-semibold text-lg">{stats.developingCount}</div>
-          <div className="text-gray-400 text-xs">Developing KOLs</div>
+      <div className="px-3 sm:px-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-4 mb-4 sm:mb-6">
+          <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-2 sm:p-3 text-center">
+            <div className="text-yellow-400 font-semibold text-sm sm:text-lg">{stats.eliteCount}</div>
+            <div className="text-gray-400 text-xs">Elite KOLs</div>
+          </div>
+          <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-2 sm:p-3 text-center">
+            <div className="text-purple-400 font-semibold text-sm sm:text-lg">{stats.expertCount}</div>
+            <div className="text-gray-400 text-xs">Expert KOLs</div>
+          </div>
+          <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-2 sm:p-3 text-center">
+            <div className="text-blue-400 font-semibold text-sm sm:text-lg">{stats.trustedCount}</div>
+            <div className="text-gray-400 text-xs">Trusted KOLs</div>
+          </div>
+          <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-2 sm:p-3 text-center">
+            <div className="text-green-400 font-semibold text-sm sm:text-lg">{stats.risingCount}</div>
+            <div className="text-gray-400 text-xs">Rising KOLs</div>
+          </div>
+          <div className="bg-gray-800/50 border border-gray-700 rounded-lg p-2 sm:p-3 text-center">
+            <div className="text-orange-400 font-semibold text-sm sm:text-lg">{stats.developingCount}</div>
+            <div className="text-gray-400 text-xs">Developing KOLs</div>
+          </div>
         </div>
       </div>
     );
@@ -250,23 +253,23 @@ const EnhancedKOLLeaderboard = ({ onClose, onUserClick }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-900 rounded-lg max-w-6xl w-full max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-gray-900 rounded-lg w-full max-w-xs sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="bg-gray-800 border-b border-gray-700 p-6">
+        <div className="bg-gray-800 border-b border-gray-700 p-3 sm:p-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Trophy className="w-8 h-8 text-yellow-400" />
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <Trophy className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-400" />
               <div>
-                <h2 className="text-2xl font-bold text-white">KOL Trust Leaderboard</h2>
-                <p className="text-gray-400">Multi-dimensional KOL performance rankings</p>
+                <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-white">KOL Trust Leaderboard</h2>
+                <p className="text-gray-400 text-xs sm:text-sm hidden sm:block">Multi-dimensional KOL performance rankings</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors"
+              className="text-gray-400 hover:text-white transition-colors p-1"
             >
-              <ArrowLeft className="w-6 h-6" />
+              <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
           </div>
         </div>
@@ -275,27 +278,28 @@ const EnhancedKOLLeaderboard = ({ onClose, onUserClick }) => {
         {renderBoardStats()}
 
         {/* Tabs */}
-        <div className="px-6">
-          <div className="flex flex-wrap gap-2 mb-6">
+        <div className="px-3 sm:px-6">
+          <div className="flex flex-wrap gap-1 sm:gap-2 mb-4 sm:mb-6">
             {['main', 'elite', 'expert', 'trusted', 'rising', 'developing', 'performance', 'consistency', 'riskManagement', 'marketTiming'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-1 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
                   activeTab === tab
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 }`}
               >
                 {getTabIcon(tab)}
-                <span>{getTabLabel(tab)}</span>
+                <span className="hidden sm:inline">{getTabLabel(tab)}</span>
+                <span className="sm:hidden">{getTabLabel(tab).split(' ')[0]}</span>
               </button>
             ))}
           </div>
         </div>
 
         {/* Content */}
-        <div className="px-6 pb-6 overflow-y-auto max-h-[60vh] enhanced-leaderboard-scroll enhanced-leaderboard-content">
+        <div className="px-3 sm:px-6 pb-3 sm:pb-6 overflow-y-auto max-h-[50vh] sm:max-h-[60vh] enhanced-leaderboard-scroll enhanced-leaderboard-content">
           {renderTabContent()}
         </div>
       </div>

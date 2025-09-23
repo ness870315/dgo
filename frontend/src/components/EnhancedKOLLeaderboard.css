@@ -6,7 +6,13 @@
 }
 
 .enhanced-leaderboard-scroll::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+}
+
+@media (min-width: 640px) {
+  .enhanced-leaderboard-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
 }
 
 .enhanced-leaderboard-scroll::-webkit-scrollbar-track {
@@ -26,5 +32,11 @@
 
 /* Ensure content is scrollable */
 .enhanced-leaderboard-content {
-  min-height: 400px; /* Force content to be tall enough to scroll */
+  min-height: 300px; /* Force content to be tall enough to scroll on mobile */
+}
+
+@media (min-width: 640px) {
+  .enhanced-leaderboard-content {
+    min-height: 400px; /* Larger min-height on desktop */
+  }
 }
