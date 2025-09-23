@@ -127,9 +127,12 @@ export default class LeaderboardScoringEngine {
 
       // Hit rate tracking (no time window - all calls count)
       hitRateCalls++;
-      if (call.xMultiple >= this.config.hitRateTarget) {
+      const isHit = call.xMultiple >= this.config.hitRateTarget;
+      if (isHit) {
         hitRateHits++;
       }
+      
+      console.log(`🏆 Hit Rate Check: XMultiple=${call.xMultiple?.toFixed(2)}x, Target=${this.config.hitRateTarget}, IsHit=${isHit}`);
 
       // X multiples for median/geomean
       xMultiples.push(call.xMultiple);
@@ -144,6 +147,7 @@ export default class LeaderboardScoringEngine {
 
     // Calculate additional metrics
     const hitRate = hitRateCalls > 0 ? hitRateHits / hitRateCalls : 0;
+    console.log(`🏆 Final Hit Rate: ${hitRateHits} hits / ${hitRateCalls} calls = ${(hitRate * 100).toFixed(1)}%`);
     const wilsonScore = this.calculateWilsonScore(hitRate, hitRateCalls);
 
     const sortedX = xMultiples.sort((a, b) => a - b);
@@ -232,7 +236,11 @@ export default class LeaderboardScoringEngine {
         // Handle both call.contractAddress and call.token.contractAddress formats
         const contractAddress = call.contractAddress || call.token?.contractAddress;
         const tokenData = currentTokenData[contractAddress] || {};
-        console.log(`🏆 Call: ${call.token?.symbol || 'UNKNOWN'}, Contract: ${contractAddress}, CalledMC: ${call.calledMC || call.calledMc}, CurrentMC: ${tokenData?.mcap || tokenData?.marketCap || call.currentMC}`);
+        const calledMC = call.calledMC || call.calledMc;
+        const currentMC = tokenData?.mcap || tokenData?.marketCap || call.currentMC;
+        const xMultiple = currentMC && calledMC ? currentMC / calledMC : 0;
+        
+        console.log(`🏆 Call: ${call.token?.symbol || 'UNKNOWN'}, Contract: ${contractAddress}, CalledMC: ${calledMC}, CurrentMC: ${currentMC}, XMultiple: ${xMultiple?.toFixed(2)}x`);
         return this.calculateCallMetrics(call, tokenData);
       })
       .filter(call => call !== null);
