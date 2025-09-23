@@ -55,13 +55,25 @@ export default class EnhancedKOLTrustSystem {
       (riskManagement.score * this.config.riskManagementWeight) +
       (marketTiming.score * this.config.marketTimingWeight);
 
+    const summary = this.generateTrustSummary(performance, consistency, riskManagement, marketTiming);
+    
+    console.log(`📊 [Enhanced KOL Trust] Final scores:`, {
+      performance: performance.score.toFixed(1),
+      consistency: consistency.score.toFixed(1),
+      riskManagement: riskManagement.score.toFixed(1),
+      marketTiming: marketTiming.score.toFixed(1),
+      trustScore: trustScore.toFixed(1),
+      trustLevel: summary.trustLevel,
+      hitRate: performance.hitRate.toFixed(1) + '%'
+    });
+
     return {
       trustScore: Math.min(100, Math.max(0, trustScore)),
       performance,
       consistency,
       riskManagement,
       marketTiming,
-      summary: this.generateTrustSummary(performance, consistency, riskManagement, marketTiming)
+      summary
     };
   }
 
@@ -204,8 +216,15 @@ export default class EnhancedKOLTrustSystem {
     const maxDrawdown = Math.max(...metrics.map(m => m.drawdown));
     const highDrawdownCalls = metrics.filter(m => m.drawdown > this.config.maxDrawdownPenalty).length;
     
-    // Risk score (lower drawdown = better)
-    const riskScore = Math.max(0, 100 - (avgDrawdown * 200) - (maxDrawdown * 100) - (highDrawdownCalls * 10));
+    // Risk score (lower drawdown = better, but be more forgiving)
+    const riskScore = Math.max(0, 100 - (avgDrawdown * 100) - (maxDrawdown * 50) - (highDrawdownCalls * 5));
+
+    console.log(`🔍 [Enhanced KOL Trust] Risk calculation:`, {
+      avgDrawdown: (avgDrawdown * 100).toFixed(1) + '%',
+      maxDrawdown: (maxDrawdown * 100).toFixed(1) + '%',
+      highDrawdownCalls,
+      riskScore: riskScore.toFixed(1)
+    });
 
     return {
       score: Math.min(100, riskScore),
@@ -302,11 +321,11 @@ export default class EnhancedKOLTrustSystem {
     const overallScore = (performance.score + consistency.score + riskManagement.score + marketTiming.score) / 4;
     
     let trustLevel = 'Novice';
-    if (overallScore >= 80) trustLevel = 'Elite KOL';
-    else if (overallScore >= 70) trustLevel = 'Expert KOL';
-    else if (overallScore >= 60) trustLevel = 'Trusted KOL';
-    else if (overallScore >= 50) trustLevel = 'Rising KOL';
-    else if (overallScore >= 40) trustLevel = 'Developing KOL';
+    if (overallScore >= 70) trustLevel = 'Elite KOL';
+    else if (overallScore >= 60) trustLevel = 'Expert KOL';
+    else if (overallScore >= 50) trustLevel = 'Trusted KOL';
+    else if (overallScore >= 40) trustLevel = 'Rising KOL';
+    else if (overallScore >= 20) trustLevel = 'Developing KOL';
 
     return {
       trustLevel,
