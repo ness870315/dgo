@@ -747,7 +747,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
               <button
                 onClick={() => setShowLeaderboardGuide(true)}
                 className="flex items-center gap-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-sm transition-colors"
-                title="How KOL Leaderboard Works"
+                title="How Enhanced KOL Trust System Works"
               >
                 <HelpCircle size={14} />
                 Help

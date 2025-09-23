@@ -16,27 +16,33 @@ const KOLLeaderboardGuide = ({ onClose }) => {
     <div className="space-y-6">
       <div className="text-center">
         <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-white mb-2">KOL Leaderboard System</h2>
-        <p className="text-gray-300">Compete with other crypto influencers and prove your alpha-calling skills!</p>
+        <h2 className="text-2xl font-bold text-white mb-2">Enhanced KOL Trust System</h2>
+        <p className="text-gray-300">Multi-dimensional scoring that identifies the most reliable and profitable KOLs</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
-          <Users className="w-8 h-8 text-blue-500 mb-2" />
-          <h3 className="text-lg font-semibold text-white mb-2">Premium Only</h3>
-          <p className="text-gray-300 text-sm">Leaderboard access requires Premium subscription</p>
+          <Zap className="w-8 h-8 text-green-500 mb-2" />
+          <h3 className="text-lg font-semibold text-white mb-2">Performance</h3>
+          <p className="text-gray-300 text-sm">35% - Hit rate, profitability tiers, ATH tracking</p>
         </div>
         
         <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
-          <BarChart3 className="w-8 h-8 text-green-500 mb-2" />
-          <h3 className="text-lg font-semibold text-white mb-2">Real-Time Rankings</h3>
-          <p className="text-gray-300 text-sm">Scores update automatically as market data changes</p>
+          <Shield className="w-8 h-8 text-blue-500 mb-2" />
+          <h3 className="text-lg font-semibold text-white mb-2">Consistency</h3>
+          <p className="text-gray-300 text-sm">25% - Reliability and consistent performance</p>
         </div>
         
         <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
-          <Award className="w-8 h-8 text-purple-500 mb-2" />
-          <h3 className="text-lg font-semibold text-white mb-2">Monthly Winners</h3>
-          <p className="text-gray-300 text-sm">Top performers get recognition and rewards</p>
+          <AlertTriangle className="w-8 h-8 text-orange-500 mb-2" />
+          <h3 className="text-lg font-semibold text-white mb-2">Risk Management</h3>
+          <p className="text-gray-300 text-sm">20% - Drawdown control, risk-adjusted returns</p>
+        </div>
+        
+        <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
+          <Clock className="w-8 h-8 text-purple-500 mb-2" />
+          <h3 className="text-lg font-semibold text-white mb-2">Market Timing</h3>
+          <p className="text-gray-300 text-sm">20% - Entry timing, market cap optimization</p>
         </div>
       </div>
 
@@ -44,11 +50,14 @@ const KOLLeaderboardGuide = ({ onClose }) => {
         <div className="flex items-start gap-3">
           <Info className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
           <div>
-            <h4 className="text-blue-300 font-semibold mb-2">What Makes a Good KOL?</h4>
-            <p className="text-gray-300 text-sm">
-              Key Opinion Leaders (KOLs) are crypto influencers who consistently make profitable calls. 
-              The leaderboard ranks users based on their call performance, risk management, and consistency.
-            </p>
+            <h4 className="text-blue-300 font-semibold mb-2">Trust Levels</h4>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm text-gray-300">
+              <div><span className="text-yellow-400">Elite KOL</span> (80+) - Top 1%</div>
+              <div><span className="text-purple-400">Expert KOL</span> (70+) - Consistently excellent</div>
+              <div><span className="text-blue-400">Trusted KOL</span> (60+) - Reliable performers</div>
+              <div><span className="text-green-400">Rising KOL</span> (50+) - Promising newcomers</div>
+              <div><span className="text-orange-400">Developing KOL</span> (40+) - Learning phase</div>
+            </div>
           </div>
         </div>
       </div>
@@ -59,61 +68,71 @@ const KOLLeaderboardGuide = ({ onClose }) => {
     <div className="space-y-6">
       <div className="text-center">
         <Target className="w-16 h-16 text-green-500 mx-auto mb-4" />
-        <h2 className="text-2xl font-bold text-white mb-2">How Scoring Works</h2>
-        <p className="text-gray-300">Advanced algorithm that rewards consistent, profitable calls</p>
+        <h2 className="text-2xl font-bold text-white mb-2">Multi-Dimensional Scoring</h2>
+        <p className="text-gray-300">Four pillars that determine your trust score and KOL level</p>
       </div>
 
       <div className="space-y-4">
         <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
           <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-green-500" />
-            Efficiency Score (Primary Metric)
+            <Zap className="w-5 h-5 text-green-500" />
+            Performance (35% Weight)
           </h3>
           <div className="space-y-2 text-sm text-gray-300">
-            <p>• <strong>Weighted Average Return:</strong> Recent calls weighted more heavily</p>
-            <p>• <strong>Recency Weighting:</strong> 30-day half-life (calls lose weight over time)</p>
-            <p>• <strong>Log Returns:</strong> Uses logarithmic scaling for better distribution</p>
-            <p>• <strong>Formula:</strong> Σ(call_score × time_weight) / Σ(time_weight)</p>
+            <p>• <strong>Hit Rate:</strong> % of calls that reach 1x or better (profitable)</p>
+            <p>• <strong>Profitability Tiers:</strong> Excellent (2x+), Good (1.5x+), Profitable (1x+)</p>
+            <p>• <strong>ATH Tracking:</strong> Uses both current AND peak performance</p>
+            <p>• <strong>Average Multiples:</strong> Current and ATH performance metrics</p>
           </div>
         </div>
 
         <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
           <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-blue-500" />
-            Call Score Calculation
+            <Shield className="w-5 h-5 text-blue-500" />
+            Consistency (25% Weight)
           </h3>
           <div className="space-y-2 text-sm text-gray-300">
-            <p>• <strong>X Multiple:</strong> Current MC ÷ Called MC (e.g., 2.5x = 150% gain)</p>
-            <p>• <strong>Log Score:</strong> ln(X Multiple) for better distribution</p>
-            <p>• <strong>Liquidity Bonus:</strong> Higher liquidity = better score</p>
-            <p>• <strong>Drawdown Penalty:</strong> Max drawdown > 30% = penalty applied</p>
+            <p>• <strong>Reliability Score:</strong> How consistent your performance is</p>
+            <p>• <strong>Coefficient of Variation:</strong> Lower variation = higher consistency</p>
+            <p>• <strong>Performance Stability:</strong> Rewards steady performers over volatile ones</p>
+            <p>• <strong>Long-term Vision:</strong> Consistent strategy over time</p>
           </div>
         </div>
 
         <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
           <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-yellow-500" />
-            Hit Rate Metrics
+            <AlertTriangle className="w-5 h-5 text-orange-500" />
+            Risk Management (20% Weight)
           </h3>
           <div className="space-y-2 text-sm text-gray-300">
-            <p>• <strong>Hit Rate:</strong> % of calls that reach 1x or better (profitable calls)</p>
-            <p>• <strong>Wilson Score:</strong> Confidence interval for hit rate reliability</p>
-            <p>• <strong>Median X Multiple:</strong> Middle value of all your X multiples</p>
-            <p>• <strong>Total Calls:</strong> Total number of KOL calls made</p>
+            <p>• <strong>Drawdown Control:</strong> Penalty for high drawdowns from ATH</p>
+            <p>• <strong>Risk-Adjusted Returns:</strong> Performance relative to risk taken</p>
+            <p>• <strong>Volatility Management:</strong> Lower volatility = better risk score</p>
+            <p>• <strong>Capital Preservation:</strong> Protecting gains vs chasing moonshots</p>
+          </div>
+        </div>
+
+        <div className="bg-gray-800/50 p-4 rounded-lg border border-gray-700">
+          <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+            <Clock className="w-5 h-5 text-purple-500" />
+            Market Timing (20% Weight)
+          </h3>
+          <div className="space-y-2 text-sm text-gray-300">
+            <p>• <strong>Entry Timing:</strong> Calling tokens at optimal market cap levels</p>
+            <p>• <strong>Market Cap Optimization:</strong> Micro-cap bonus, large-cap penalty</p>
+            <p>• <strong>Volume Timing:</strong> Bonus for good volume timing</p>
+            <p>• <strong>Market Awareness:</strong> Understanding market cycles and trends</p>
           </div>
         </div>
       </div>
 
       <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4">
-        <h4 className="text-green-300 font-semibold mb-2">Example Calculation</h4>
+        <h4 className="text-green-300 font-semibold mb-2">Trust Score Calculation</h4>
         <div className="text-sm text-gray-300 space-y-1">
-          <p>• Call 1: 3.0x return → Profitable (1x+) → Hit ✓</p>
-          <p>• Call 2: 1.5x return → Profitable (1x+) → Hit ✓</p>
-          <p>• Call 3: 0.8x return → Not profitable (&lt;1x) → Miss ✗</p>
-          <p>• Call 4: 2.2x return → Profitable (1x+) → Hit ✓</p>
-          <p>• Call 5: 0.5x return → Not profitable (&lt;1x) → Miss ✗</p>
-          <p className="font-semibold text-green-400">• Hit Rate: 3 hits ÷ 5 total calls = 60%</p>
-          <p className="font-semibold text-blue-400">• Median X: [0.5x, 0.8x, 1.5x, 2.2x, 3.0x] = 1.5x</p>
+          <p>• <strong>Final Score:</strong> (Performance × 0.35) + (Consistency × 0.25) + (Risk × 0.20) + (Timing × 0.20)</p>
+          <p>• <strong>Bayesian Shrinkage:</strong> New users pulled toward global mean for fairness</p>
+          <p>• <strong>No Time Decay:</strong> All calls maintain full weight forever</p>
+          <p>• <strong>Minimum Calls:</strong> 1 call required for scoring (no minimum threshold)</p>
         </div>
       </div>
     </div>
@@ -124,7 +143,7 @@ const KOLLeaderboardGuide = ({ onClose }) => {
       <div className="text-center">
         <Crown className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-white mb-2">How to Win</h2>
-        <p className="text-gray-300">Strategies to climb the leaderboard and stay on top</p>
+        <p className="text-gray-300">Strategies to climb the trust levels and become an Elite KOL</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -171,14 +190,36 @@ const KOLLeaderboardGuide = ({ onClose }) => {
         </div>
       </div>
 
-      <div className="bg-yellow-900/20 border border-yellow-500/30 rounded-lg p-4">
-        <h4 className="text-yellow-300 font-semibold mb-2">Pro Strategies</h4>
-        <div className="space-y-2 text-sm text-gray-300">
-          <p>• <strong>Volume is King:</strong> Focus on tokens with high 1h and 24h volume (55% of score)</p>
-          <p>• <strong>Community Health:</strong> Target tokens with strong social engagement (15% of score)</p>
-          <p>• <strong>Market Tier:</strong> Higher market cap tokens get scoring bonuses (10% of score)</p>
-          <p>• <strong>No Time Decay:</strong> All calls maintain full weight forever - perfect for cult discovery</p>
-          <p>• <strong>Diamond Hands:</strong> Long-term calls are rewarded equally to short-term ones</p>
+      <div className="bg-purple-900/20 border border-purple-500/30 rounded-lg p-4">
+        <h4 className="text-purple-300 font-semibold mb-2">Elite KOL Strategies</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-300">
+          <div>
+            <p className="font-semibold text-purple-400 mb-1">Performance Focus (35% weight)</p>
+            <p>Hit rate is king - focus on profitable calls (1x+)</p>
+          </div>
+          <div>
+            <p className="font-semibold text-purple-400 mb-1">Consistency Matters (25% weight)</p>
+            <p>Lower variation = higher consistency score</p>
+          </div>
+          <div>
+            <p className="font-semibold text-purple-400 mb-1">Risk Management (20% weight)</p>
+            <p>Control drawdowns, protect gains, manage volatility</p>
+          </div>
+          <div>
+            <p className="font-semibold text-purple-400 mb-1">Market Timing (20% weight)</p>
+            <p>Call micro-caps early, avoid large-cap entries</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4">
+        <h4 className="text-green-300 font-semibold mb-2">Trust Level Progression</h4>
+        <div className="text-sm text-gray-300 space-y-2">
+          <p>• <strong>Developing KOL (40+):</strong> Start with 1+ profitable call</p>
+          <p>• <strong>Rising KOL (50+):</strong> Consistent profitable performance</p>
+          <p>• <strong>Trusted KOL (60+):</strong> Reliable with good risk management</p>
+          <p>• <strong>Expert KOL (70+):</strong> Consistently excellent performance</p>
+          <p>• <strong>Elite KOL (80+):</strong> Top 1% - exceptional across all metrics</p>
         </div>
       </div>
     </div>
@@ -189,17 +230,17 @@ const KOLLeaderboardGuide = ({ onClose }) => {
       <div className="text-center">
         <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-white mb-2">Penalties & Risks</h2>
-        <p className="text-gray-300">What can hurt your score and how to avoid it</p>
+        <p className="text-gray-300">What can hurt your trust score and how to avoid it</p>
       </div>
 
       <div className="space-y-4">
         <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-red-400 mb-3">Drawdown Penalties</h3>
+          <h3 className="text-lg font-semibold text-red-400 mb-3">Risk Management Penalties</h3>
           <div className="space-y-2 text-sm text-gray-300">
-            <p>• <strong>30%+ Drawdown:</strong> Penalty applied to call score</p>
-            <p>• <strong>Rolling Peak:</strong> Drawdown calculated from highest point since call</p>
-            <p>• <strong>Max Drawdown:</strong> Worst drawdown ever recorded for that call</p>
-            <p>• <strong>Impact:</strong> Can turn profitable calls into negative scores</p>
+            <p>• <strong>High Drawdowns:</strong> Penalty for drawdowns from ATH (20% of score)</p>
+            <p>• <strong>Volatility Penalty:</strong> High volatility reduces risk management score</p>
+            <p>• <strong>Risk-Adjusted Returns:</strong> Performance relative to risk taken matters</p>
+            <p>• <strong>Capital Preservation:</strong> Protecting gains vs chasing moonshots</p>
           </div>
         </div>
 
@@ -243,48 +284,48 @@ const KOLLeaderboardGuide = ({ onClose }) => {
       <div className="text-center">
         <Zap className="w-16 h-16 text-purple-500 mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-white mb-2">Pro Tips</h2>
-        <p className="text-gray-300">Advanced strategies from top performers</p>
+        <p className="text-gray-300">Advanced strategies to maximize your trust score</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-4">
           <h3 className="text-xl font-semibold text-white flex items-center gap-2">
-            <Target className="w-6 h-6 text-green-500" />
-            Call Strategy
+            <Zap className="w-6 h-6 text-green-500" />
+            Performance Strategy
           </h3>
           <div className="space-y-3">
             <div className="bg-gray-800/50 p-3 rounded-lg">
-              <h4 className="text-green-400 font-semibold mb-1">Use AI Analysis</h4>
-              <p className="text-gray-300 text-sm">Our AI provides detailed analysis with risk factors and catalysts</p>
+              <h4 className="text-green-400 font-semibold mb-1">Hit Rate Focus</h4>
+              <p className="text-gray-300 text-sm">35% of your score - prioritize profitable calls (1x+)</p>
             </div>
             <div className="bg-gray-800/50 p-3 rounded-lg">
-              <h4 className="text-green-400 font-semibold mb-1">Community Health</h4>
-              <p className="text-gray-300 text-sm">Focus on tokens with high community health scores (6+ out of 10)</p>
+              <h4 className="text-green-400 font-semibold mb-1">ATH Tracking</h4>
+              <p className="text-gray-300 text-sm">System uses both current AND peak performance</p>
             </div>
             <div className="bg-gray-800/50 p-3 rounded-lg">
-              <h4 className="text-green-400 font-semibold mb-1">Volume Patterns</h4>
-              <p className="text-gray-300 text-sm">Look for increasing volume and organic trading activity</p>
+              <h4 className="text-green-400 font-semibold mb-1">Profitability Tiers</h4>
+              <p className="text-gray-300 text-sm">Excellent (2x+), Good (1.5x+), Profitable (1x+)</p>
             </div>
           </div>
         </div>
 
         <div className="space-y-4">
           <h3 className="text-xl font-semibold text-white flex items-center gap-2">
-            <TrendingUp className="w-6 h-6 text-blue-500" />
-            Risk Management
+            <Shield className="w-6 h-6 text-blue-500" />
+            Consistency & Risk
           </h3>
           <div className="space-y-3">
             <div className="bg-gray-800/50 p-3 rounded-lg">
-              <h4 className="text-blue-400 font-semibold mb-1">Diversify Calls</h4>
-              <p className="text-gray-300 text-sm">Don't put all calls in one sector or timeframe</p>
+              <h4 className="text-blue-400 font-semibold mb-1">Consistency Matters</h4>
+              <p className="text-gray-300 text-sm">25% of score - lower variation = higher consistency</p>
             </div>
             <div className="bg-gray-800/50 p-3 rounded-lg">
-              <h4 className="text-blue-400 font-semibold mb-1">Monitor Drawdowns</h4>
-              <p className="text-gray-300 text-sm">Watch for tokens approaching 30% drawdown threshold</p>
+              <h4 className="text-blue-400 font-semibold mb-1">Risk Management</h4>
+              <p className="text-gray-300 text-sm">20% of score - control drawdowns, protect gains</p>
             </div>
             <div className="bg-gray-800/50 p-3 rounded-lg">
-              <h4 className="text-blue-400 font-semibold mb-1">Liquidity Check</h4>
-              <p className="text-gray-300 text-sm">Ensure tokens have sufficient liquidity for your call size</p>
+              <h4 className="text-blue-400 font-semibold mb-1">Market Timing</h4>
+              <p className="text-gray-300 text-sm">20% of score - call micro-caps early</p>
             </div>
           </div>
         </div>
