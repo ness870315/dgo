@@ -79,10 +79,10 @@ const KOLLeaderboardGuide = ({ onClose }) => {
             Performance (35% Weight)
           </h3>
           <div className="space-y-2 text-sm text-gray-300">
-            <p>• <strong>Hit Rate:</strong> % of calls that reach 1x or better (profitable)</p>
-            <p>• <strong>Profitability Tiers:</strong> Excellent (2x+), Good (1.5x+), Profitable (1x+)</p>
-            <p>• <strong>ATH Tracking:</strong> Uses both current AND peak performance</p>
-            <p>• <strong>Average Multiples:</strong> Current and ATH performance metrics</p>
+            <p>• <strong>PnL Hit Rate:</strong> % of calls that reach 1.5x+ (meaningful profits)</p>
+            <p>• <strong>Profit Tiers:</strong> Excellent (3x+), Good (2x+), Profitable (1.5x+)</p>
+            <p>• <strong>ATH Performance:</strong> Uses peak performance but penalizes current drawdowns</p>
+            <p>• <strong>Mixed Scoring:</strong> Historical success + current risk management</p>
           </div>
         </div>
 
@@ -154,16 +154,16 @@ const KOLLeaderboardGuide = ({ onClose }) => {
           </h3>
           <div className="space-y-3">
             <div className="bg-gray-800/50 p-3 rounded-lg">
-              <h4 className="text-green-400 font-semibold mb-1">High Conviction Calls</h4>
-              <p className="text-gray-300 text-sm">Focus on tokens with strong fundamentals, not just hype</p>
+              <h4 className="text-green-400 font-semibold mb-1">Meaningful Profits</h4>
+              <p className="text-gray-300 text-sm">Only calls that reach 1.5x+ count as "hits" - focus on quality over quantity</p>
             </div>
             <div className="bg-gray-800/50 p-3 rounded-lg">
-              <h4 className="text-green-400 font-semibold mb-1">Timing Matters</h4>
-              <p className="text-gray-300 text-sm">Call tokens before major moves, not after they've already pumped</p>
+              <h4 className="text-green-400 font-semibold mb-1">ATH Performance</h4>
+              <p className="text-gray-300 text-sm">System tracks peak performance but penalizes current drawdowns</p>
             </div>
             <div className="bg-gray-800/50 p-3 rounded-lg">
-              <h4 className="text-green-400 font-semibold mb-1">Volume Focus</h4>
-              <p className="text-gray-300 text-sm">High volume tokens (1h & 24h) get major scoring bonuses</p>
+              <h4 className="text-green-400 font-semibold mb-1">Profit Tiers</h4>
+              <p className="text-gray-300 text-sm">Excellent (3x+), Good (2x+), Profitable (1.5x+) - aim for higher tiers</p>
             </div>
           </div>
         </div>

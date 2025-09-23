@@ -854,7 +854,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                           </div>
                           <div className="text-right">
                             <p className="text-green-400 font-semibold text-lg">{kol.score}</p>
-                            <p className="text-gray-400 text-sm">Hit Rate: {(kol.performance?.hitRate || 0).toFixed(1)}%</p>
+                            <p className="text-gray-400 text-sm">Score: {(kol.trustScore || 0).toFixed(1)}</p>
                           </div>
                         </div>
                       );
@@ -965,7 +965,14 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="text-white text-lg font-semibold">{selectedKolUser.displayName}</h3>
-                      <span className="text-gray-400 text-sm">@{selectedKolUser.username}</span>
+                      <a 
+                        href={`https://x.com/${selectedKolUser.username}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 text-sm hover:text-blue-300 hover:underline cursor-pointer"
+                      >
+                        @{selectedKolUser.username}
+                      </a>
                     </div>
                     <div className="text-xs text-gray-400 flex gap-3 mt-1">
                       <span>Rank #{selectedKolUser.rank || '-'}</span>
