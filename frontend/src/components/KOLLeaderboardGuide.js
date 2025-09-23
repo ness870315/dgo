@@ -109,9 +109,9 @@ const KOLLeaderboardGuide = ({ onClose }) => {
         <div className="text-sm text-gray-300 space-y-1">
           <p>• Call 1: 3.0x return → Profitable (1x+) → Hit ✓</p>
           <p>• Call 2: 1.5x return → Profitable (1x+) → Hit ✓</p>
-          <p>• Call 3: 0.8x return → Not profitable (<1x) → Miss ✗</p>
+          <p>• Call 3: 0.8x return → Not profitable (&lt;1x) → Miss ✗</p>
           <p>• Call 4: 2.2x return → Profitable (1x+) → Hit ✓</p>
-          <p>• Call 5: 0.5x return → Not profitable (<1x) → Miss ✗</p>
+          <p>• Call 5: 0.5x return → Not profitable (&lt;1x) → Miss ✗</p>
           <p className="font-semibold text-green-400">• Hit Rate: 3 hits ÷ 5 total calls = 60%</p>
           <p className="font-semibold text-blue-400">• Median X: [0.5x, 0.8x, 1.5x, 2.2x, 3.0x] = 1.5x</p>
         </div>
