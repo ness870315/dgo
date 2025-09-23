@@ -180,15 +180,26 @@ export default class EnhancedKOLTrustSystem {
     const standardDeviation = Math.sqrt(variance);
     const coefficientOfVariation = mean > 0 ? standardDeviation / mean : 0;
     
-    // Consistency score (lower CV = more consistent)
-    const consistencyScore = Math.max(0, 100 - (coefficientOfVariation * 200));
+    // Consistency score (lower CV = more consistent, but be more forgiving)
+    const consistencyScore = Math.max(0, 100 - (coefficientOfVariation * 100));
     
     // Bonus for consistent profitable performance
     const profitableConsistency = metrics.filter(m => m >= 1.0).length / metrics.length;
     const consistencyBonus = profitableConsistency > 0.7 ? this.config.consistencyBonus * 100 : 0;
+    
+    // Base consistency score (minimum 20 points for having calls)
+    const baseConsistencyScore = 20;
+    
+    console.log(`🔍 [Enhanced KOL Trust] Consistency calculation:`, {
+      coefficientOfVariation: coefficientOfVariation.toFixed(3),
+      consistencyScore: consistencyScore.toFixed(1),
+      profitableConsistency: (profitableConsistency * 100).toFixed(1) + '%',
+      consistencyBonus: consistencyBonus.toFixed(1),
+      finalScore: Math.min(100, Math.max(baseConsistencyScore, consistencyScore + consistencyBonus)).toFixed(1)
+    });
 
     return {
-      score: Math.min(100, consistencyScore + consistencyBonus),
+      score: Math.min(100, Math.max(baseConsistencyScore, consistencyScore + consistencyBonus)),
       coefficientOfVariation,
       standardDeviation,
       profitableConsistency: profitableConsistency * 100,
@@ -227,18 +238,26 @@ export default class EnhancedKOLTrustSystem {
     const maxDrawdown = Math.max(...metrics.map(m => m.drawdown));
     const highDrawdownCalls = metrics.filter(m => m.drawdown > this.config.maxDrawdownPenalty).length;
     
-    // Risk score (lower drawdown = better, but be more forgiving)
-    const riskScore = Math.max(0, 100 - (avgDrawdown * 100) - (maxDrawdown * 50) - (highDrawdownCalls * 5));
+    // Risk score (lower drawdown = better, but be much more forgiving)
+    const riskScore = Math.max(0, 100 - (avgDrawdown * 50) - (maxDrawdown * 25) - (highDrawdownCalls * 2));
+    
+    // Base risk score (minimum 15 points for having calls)
+    const baseRiskScore = 15;
+    
+    // Bonus for good risk management (low drawdowns)
+    const lowDrawdownBonus = avgDrawdown < 0.1 ? 10 : avgDrawdown < 0.2 ? 5 : 0;
 
     console.log(`🔍 [Enhanced KOL Trust] Risk calculation:`, {
       avgDrawdown: (avgDrawdown * 100).toFixed(1) + '%',
       maxDrawdown: (maxDrawdown * 100).toFixed(1) + '%',
       highDrawdownCalls,
-      riskScore: riskScore.toFixed(1)
+      riskScore: riskScore.toFixed(1),
+      lowDrawdownBonus,
+      finalScore: Math.min(100, Math.max(baseRiskScore, riskScore + lowDrawdownBonus)).toFixed(1)
     });
 
     return {
-      score: Math.min(100, riskScore),
+      score: Math.min(100, Math.max(baseRiskScore, riskScore + lowDrawdownBonus)),
       avgDrawdown: avgDrawdown * 100,
       maxDrawdown: maxDrawdown * 100,
       highDrawdownCalls,
