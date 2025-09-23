@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Award, Crown, Star, TrendingUp, Shield, Clock, Target, BarChart3, Users, Trophy, Medal, Zap, ArrowUp, ArrowDown, Info } from 'lucide-react';
+import { Award, Crown, Star, TrendingUp, Shield, Clock, Target, BarChart3, Users, Trophy, Medal, Zap, ArrowUp, ArrowDown, ArrowLeft, Info } from 'lucide-react';
 import leaderboardService from '../services/leaderboardService';
 
 const EnhancedKOLLeaderboard = ({ onClose }) => {
