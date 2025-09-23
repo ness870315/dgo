@@ -8,6 +8,7 @@ import leaderboardService from '../services/leaderboardService';
 import KolCallsModal from './KolCallsModal';
 import watchlistService from '../services/watchlistService';
 import KOLLeaderboardGuide from './KOLLeaderboardGuide';
+import EnhancedKOLLeaderboard from './EnhancedKOLLeaderboard';
 import AIChatModal from './AIChatModal';
 import FloatingChatButton from './FloatingChatButton';
 import { getStatusFromScore } from '../utils/statusUtils';
@@ -51,6 +52,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   const [hypeAILoading, setHypeAILoading] = useState(false);
   const [hoveredTooltip, setHoveredTooltip] = useState(null);
   const [showLeaderboardGuide, setShowLeaderboardGuide] = useState(false);
+  const [showEnhancedLeaderboard, setShowEnhancedLeaderboard] = useState(false);
   const [selectedKolUser, setSelectedKolUser] = useState(null);
   const [selectedUserCalls, setSelectedUserCalls] = useState([]);
   const [selectedUserStats, setSelectedUserStats] = useState(null);
@@ -819,48 +821,56 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                   </button>
                 </div>
               ) : dashboardData.kolLeaderboard.length > 0 ? (
-                dashboardData.kolLeaderboard.slice(0, 10).map((kol, index) => {
-                  const rank = kol.rank || (index + 1);
-                  const trophy = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : null;
-                  const trophyClass = trophy === 'gold' ? 'text-yellow-400' : trophy === 'silver' ? 'text-gray-300' : 'text-amber-700';
-                  return (
-                    <button
-                      key={index}
-                      onClick={() => setSelectedKolUser(kol)}
-                      className="w-full flex items-center justify-between p-3 bg-gray-800/50 rounded-lg hover:bg-gray-800 transition-colors text-left"
-                      title="View profile"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div className="w-9 h-9 bg-gray-700 rounded-full flex items-center justify-center border border-gray-600">
-                          <span className="text-white text-xs font-bold">#{rank}</span>
+                <div className="space-y-4">
+                  {/* Top 3 Preview */}
+                  <div className="space-y-2">
+                    {dashboardData.kolLeaderboard.slice(0, 3).map((kol, index) => {
+                      const rank = kol.rank || (index + 1);
+                      const trophy = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : null;
+                      const trophyClass = trophy === 'gold' ? 'text-yellow-400' : trophy === 'silver' ? 'text-gray-300' : 'text-amber-700';
+                      return (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg"
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center border border-gray-600">
+                              <span className="text-white text-xs font-bold">#{rank}</span>
+                            </div>
+                            {kol.profileImage ? (
+                              <img src={kol.profileImage} alt={kol.displayName || kol.username} className="w-8 h-8 rounded-full object-cover" />
+                            ) : (
+                              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                                <span className="text-white text-sm font-bold">{(kol.displayName || kol.username || '?').slice(0,1).toUpperCase()}</span>
+                              </div>
+                            )}
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="text-white font-medium">{kol.displayName}</p>
+                                {trophy && <Award size={16} className={trophyClass} />}
+                              </div>
+                              <p className="text-blue-400 text-sm font-medium">@{kol.username}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-green-400 font-semibold text-lg">{kol.score}</p>
+                            <p className="text-gray-400 text-sm">Hit Rate: {(kol.metrics?.hitRate * 100 || 0).toFixed(1)}%</p>
+                          </div>
                         </div>
-                        {kol.profileImage ? (
-                          <img src={kol.profileImage} alt={kol.displayName || kol.username} className="w-8 h-8 rounded-full object-cover" />
-                        ) : (
-                          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                            <span className="text-white text-sm font-bold">{(kol.displayName || kol.username || '?').slice(0,1).toUpperCase()}</span>
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="text-white font-medium">{kol.displayName}</p>
-                            {trophy && <Award size={16} className={trophyClass} />}
-                          </div>
-                          <p className="text-blue-400 text-sm font-medium">@{kol.username}</p>
-                          <div className="flex items-center space-x-4 text-xs text-gray-400">
-                            <span>{kol.callCount} calls</span>
-                            <span>Hit Rate: {(kol.metrics?.hitRate * 100 || 0).toFixed(1)}%</span>
-                            <span>Median X: {kol.metrics?.medianX?.toFixed(1) || 'N/A'}x</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-green-400 font-semibold text-lg">{kol.score}</p>
-                        <p className="text-gray-400 text-sm">Efficiency: {kol.efficiency?.toFixed(2) || 'N/A'}</p>
-                      </div>
-                    </button>
-                  );
-                })
+                      );
+                    })}
+                  </div>
+                  
+                  {/* View Full Leaderboard Button */}
+                  <button
+                    onClick={() => setShowEnhancedLeaderboard(true)}
+                    className="w-full flex items-center justify-center space-x-2 p-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg transition-all font-medium"
+                  >
+                    <BarChart3 size={20} />
+                    <span>View Full Trust Leaderboard</span>
+                    <span className="text-blue-200 text-sm">({dashboardData.kolLeaderboard.length} KOLs)</span>
+                  </button>
+                </div>
               ) : (
                 <div className="text-center py-8">
                   <Award size={48} className="text-gray-600 mx-auto mb-4" />
@@ -1939,6 +1949,13 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         {showLeaderboardGuide && (
           <KOLLeaderboardGuide
             onClose={() => setShowLeaderboardGuide(false)}
+          />
+        )}
+
+        {/* Enhanced KOL Leaderboard */}
+        {showEnhancedLeaderboard && (
+          <EnhancedKOLLeaderboard
+            onClose={() => setShowEnhancedLeaderboard(false)}
           />
         )}
         
