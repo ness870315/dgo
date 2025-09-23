@@ -636,14 +636,9 @@ export default function DetailDrawer({ call, onClose, onRefresh }) {
                   )}
                 </div>
               ) : (
-                <div className="p-3 bg-yellow-900/20 border border-yellow-600/30 rounded-lg">
-                  <div className="text-sm text-yellow-300 mb-2">
-                    Debug: No milestone posts found
-                  </div>
-                  <div className="text-xs text-yellow-200">
-                    Call ID: {call.id}<br/>
-                    Milestone Posts: {call.milestonePosts ? 'exists but empty' : 'undefined'}<br/>
-                    Length: {call.milestonePosts?.length || 0}
+                <div className="p-3 bg-gray-800/30 border border-gray-600/30 rounded-lg">
+                  <div className="text-sm text-white/60 italic">
+                    No milestone posts yet
                   </div>
                 </div>
               )}
