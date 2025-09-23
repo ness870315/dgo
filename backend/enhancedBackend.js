@@ -6838,6 +6838,65 @@ class EnhancedBackend {
       }
     });
 
+    // Debug endpoint to check milestone posts for specific calls
+    this.app.get('/api/debug/milestone-posts/:callId', async (req, res) => {
+      try {
+        const { callId } = req.params;
+        console.log(`🔍 Debugging milestone posts for call ${callId}`);
+        
+        // Get all users and search for the call
+        const userIndex = await this.oauthXService.db.readJsonFile(
+          this.oauthXService.db.getGlobalFile('users-index.json'), 
+          {}
+        );
+        
+        let foundCall = null;
+        let foundUserId = null;
+        
+        for (const userId of Object.keys(userIndex)) {
+          try {
+            const calls = await this.oauthXService.db.getKolCalls(userId);
+            const call = calls.find(c => c.id === callId);
+            if (call) {
+              foundCall = call;
+              foundUserId = userId;
+              break;
+            }
+          } catch (error) {
+            console.warn(`Failed to get calls for user ${userId}:`, error.message);
+          }
+        }
+        
+        if (!foundCall) {
+          return res.json({
+            success: false,
+            error: 'Call not found',
+            callId: callId
+          });
+        }
+        
+        res.json({
+          success: true,
+          callId: callId,
+          userId: foundUserId,
+          call: {
+            id: foundCall.id,
+            symbol: foundCall.token?.symbol,
+            currentMultiplier: foundCall.currentMultiplier,
+            athMultiplier: foundCall.athMultiplier,
+            calledAt: foundCall.calledAt,
+            lastUpdated: foundCall.lastUpdated,
+            milestonePosts: foundCall.milestonePosts || [],
+            milestonePostsLength: foundCall.milestonePosts ? foundCall.milestonePosts.length : 0
+          }
+        });
+        
+      } catch (error) {
+        console.error('❌ Debug milestone posts error:', error.message);
+        res.status(500).json({ error: 'Debug failed: ' + error.message });
+      }
+    });
+
     // AI Chat Endpoint - Moralis AI with user context
     this.app.post('/api/ai/chat', async (req, res) => {
       try {
