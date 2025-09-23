@@ -11376,10 +11376,29 @@ class EnhancedBackend {
   }
 
   startMonthlySnapshotChecking() {
-    // Check for snapshots every minute
+    // Check for snapshots every hour (much more efficient)
     setInterval(async () => {
       try {
-        // Get current leaderboard data
+        // Quick check if we're on the last day of month
+        const now = new Date();
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const isLastDay = now.getMonth() !== tomorrow.getMonth();
+        
+        // Only do heavy calculations if we're on the last day
+        if (!isLastDay) {
+          return; // Skip expensive operations
+        }
+        
+        // Check if it's near end of day (23:00-23:59)
+        const isNearEndOfDay = now.getHours() >= 23;
+        if (!isNearEndOfDay) {
+          return; // Skip if not near end of day
+        }
+        
+        console.log('📸 Last day of month detected, checking for snapshot...');
+        
+        // Get current leaderboard data (only when needed)
         const allKolCalls = await this.oauthXService.db.getAllKolCalls();
         const userCalls = {};
         allKolCalls.forEach(call => {
@@ -11406,7 +11425,7 @@ class EnhancedBackend {
       } catch (error) {
         console.error('❌ Monthly snapshot check failed:', error.message);
       }
-    }, 60000); // Check every minute
+    }, 60 * 60 * 1000); // Check every hour instead of every minute
   }
 
   async stop() {
