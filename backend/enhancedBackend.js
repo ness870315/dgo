@@ -2890,7 +2890,7 @@ class EnhancedBackend {
         const calls = await this.oauthXService.db.getKolCalls(targetUserId);
         
         // Calculate user stats from KOL calls
-        const userStats = this.calculateUserStatsFromCalls(calls);
+        const userStats = await this.calculateUserStatsFromCalls(calls);
         
         // Debug milestone posts
         const callsWithMilestones = calls.filter(c => c.milestonePosts && c.milestonePosts.length > 0);
@@ -10314,8 +10314,8 @@ class EnhancedBackend {
   }
 
   // ========================================
-  // Calculate user stats from KOL calls
-  calculateUserStatsFromCalls(calls) {
+  // Calculate user stats from KOL calls using fresh market cap data
+  async calculateUserStatsFromCalls(calls) {
     if (!calls || calls.length === 0) {
       return {
         totalCalls: 0,
@@ -10334,10 +10334,19 @@ class EnhancedBackend {
       return callDate >= thirtyDaysAgo;
     });
 
-    // Calculate hit rate (calls that achieved 1x or better - no time window)
+    // Get fresh token data for accurate calculations
+    const tokens = await this.getTokensFromCache();
+    const currentTokenData = {};
+    tokens.forEach(token => {
+      currentTokenData[token.contractAddress] = token;
+    });
+
+    // Calculate hit rate using fresh market cap data
     const hitRateCalls = calls.length;
     const hitRateHits = calls.filter(call => {
-      const currentMC = call.currentMC || call.currentMc || 0;
+      const contractAddress = call.contractAddress || call.token?.contractAddress;
+      const tokenData = currentTokenData[contractAddress] || {};
+      const currentMC = tokenData?.mcap || tokenData?.marketCap || call.currentMC || call.currentMc || 0;
       const calledMC = call.calledMc || call.calledMC || 0;
       const multiplier = calledMC > 0 ? currentMC / calledMC : 0;
       return multiplier >= 1.0; // 1x or better (profitable)
@@ -10345,15 +10354,19 @@ class EnhancedBackend {
     
     const hitRate = hitRateCalls > 0 ? hitRateHits / hitRateCalls : 0;
 
-    // Calculate median X
+    // Calculate median X using fresh market cap data
     const xMultiples = calls.map(call => {
-      const currentMC = call.currentMC || call.currentMc || 0;
+      const contractAddress = call.contractAddress || call.token?.contractAddress;
+      const tokenData = currentTokenData[contractAddress] || {};
+      const currentMC = tokenData?.mcap || tokenData?.marketCap || call.currentMC || call.currentMc || 0;
       const calledMC = call.calledMc || call.calledMC || 0;
       return calledMC > 0 ? currentMC / calledMC : 0;
     }).filter(x => x > 0);
 
     const sortedX = xMultiples.sort((a, b) => a - b);
     const medianX = sortedX.length > 0 ? sortedX[Math.floor(sortedX.length / 2)] : 0;
+
+    console.log(`📊 User Stats Calculation: ${hitRateHits} hits / ${hitRateCalls} calls = ${(hitRate * 100).toFixed(1)}% hit rate`);
 
     return {
       totalCalls: calls.length,
