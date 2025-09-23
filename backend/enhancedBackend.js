@@ -1852,38 +1852,52 @@ class EnhancedBackend {
           currentTokenData[token.contractAddress] = token;
         });
 
-        // Test enhanced KOL trust system with first user
+        // Test enhanced KOL trust system with all users
         const userIds = Object.keys(userCalls);
         if (userIds.length === 0) {
           return res.json({ success: false, error: 'No users with calls found' });
         }
 
-        const testUserId = userIds[0];
-        const testCalls = userCalls[testUserId];
+        console.log(`🔍 Testing with all ${userIds.length} users:`);
         
-        console.log(`🔍 Testing with user ${testUserId} (${testCalls.length} calls):`);
-        
-        // Show sample call data
-        const sampleCall = testCalls[0];
-        console.log(`🔍 Sample call:`, {
-          contractAddress: sampleCall.contractAddress,
-          tokenContractAddress: sampleCall.token?.contractAddress,
-          calledMC: sampleCall.calledMc || sampleCall.calledMC,
-          currentMC: sampleCall.currentMC,
-          symbol: sampleCall.token?.symbol,
-          hasTokenData: !!currentTokenData[sampleCall.contractAddress || sampleCall.token?.contractAddress]
-        });
-
-        // Test enhanced KOL trust system
-        const trustScore = this.kolTrustSystem.calculateKOLTrustScore(testCalls, currentTokenData);
-        
-        console.log(`📊 Results:`, {
-          trustScore: trustScore.trustScore,
-          hitRate: trustScore.performance?.hitRate,
-          consistency: trustScore.consistency?.score,
-          riskManagement: trustScore.riskManagement?.score,
-          trustLevel: trustScore.summary?.trustLevel
-        });
+        // Test all users
+        const allUserResults = {};
+        for (const userId of userIds) {
+          const userCallsData = userCalls[userId];
+          const trustScore = this.kolTrustSystem.calculateKOLTrustScore(userCallsData, currentTokenData);
+          
+          // Get user info
+          const user = await this.oauthXService.getUserById(userId);
+          
+          allUserResults[userId] = {
+            username: user?.username,
+            displayName: user?.displayName || user?.username,
+            calls: userCallsData.length,
+            trustScore: {
+              trustScore: trustScore.trustScore,
+              hitRate: trustScore.performance?.hitRate,
+              consistency: trustScore.consistency?.score,
+              riskManagement: trustScore.riskManagement?.score,
+              trustLevel: trustScore.summary?.trustLevel
+            },
+            sampleCall: userCallsData.length > 0 ? {
+              contractAddress: userCallsData[0].contractAddress,
+              tokenContractAddress: userCallsData[0].token?.contractAddress,
+              calledMC: userCallsData[0].calledMc || userCallsData[0].calledMC,
+              currentMC: userCallsData[0].currentMC,
+              symbol: userCallsData[0].token?.symbol,
+              hasTokenData: !!currentTokenData[userCallsData[0].contractAddress || userCallsData[0].token?.contractAddress]
+            } : null
+          };
+          
+          console.log(`📊 User ${user?.username || userId}:`, {
+            calls: userCallsData.length,
+            hitRate: trustScore.performance?.hitRate,
+            consistency: trustScore.consistency?.score,
+            riskManagement: trustScore.riskManagement?.score,
+            trustLevel: trustScore.summary?.trustLevel
+          });
+        }
 
         res.json({
           success: true,
@@ -1891,23 +1905,7 @@ class EnhancedBackend {
             totalCalls: allKolCalls.length,
             usersWithCalls: userIds.length,
             tokensInCache: tokens.length,
-            testUser: testUserId,
-            testUserCalls: testCalls.length,
-            sampleCall: {
-              contractAddress: sampleCall.contractAddress,
-              tokenContractAddress: sampleCall.token?.contractAddress,
-              calledMC: sampleCall.calledMc || sampleCall.calledMC,
-              currentMC: sampleCall.currentMC,
-              symbol: sampleCall.token?.symbol,
-              hasTokenData: !!currentTokenData[sampleCall.contractAddress || sampleCall.token?.contractAddress]
-            },
-            trustScore: {
-              trustScore: trustScore.trustScore,
-              hitRate: trustScore.performance?.hitRate,
-              consistency: trustScore.consistency?.score,
-              riskManagement: trustScore.riskManagement?.score,
-              trustLevel: trustScore.summary?.trustLevel
-            }
+            allUsers: allUserResults
           }
         });
       } catch (error) {
