@@ -22,7 +22,7 @@ export default class EnhancedKOLTrustSystem {
       volatilityPenalty: 0.3,    // High volatility = penalty
       
       // Consistency metrics
-      minCallsForTrust: 5,        // Minimum calls for trust score
+      minCallsForTrust: 1,        // Minimum calls for trust score (reduced for testing)
       consistencyBonus: 0.1,      // Bonus for consistent performance
       
       // Market timing
