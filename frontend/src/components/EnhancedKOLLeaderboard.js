@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Award, Crown, Star, TrendingUp, Shield, Clock, Target, BarChart3, Users, Trophy, Medal, Zap, ArrowUp, ArrowDown, ArrowLeft, Info } from 'lucide-react';
 import leaderboardService from '../services/leaderboardService';
+import './EnhancedKOLLeaderboard.css';
 
 const EnhancedKOLLeaderboard = ({ onClose, onUserClick }) => {
   const [activeTab, setActiveTab] = useState('main');
@@ -176,7 +177,7 @@ const EnhancedKOLLeaderboard = ({ onClose, onUserClick }) => {
     }
 
     return (
-      <div className="space-y-3">
+      <div className="space-y-4 pb-4">
         {currentBoard.map((user, index) => renderUserCard(user, index))}
       </div>
     );
@@ -294,7 +295,7 @@ const EnhancedKOLLeaderboard = ({ onClose, onUserClick }) => {
         </div>
 
         {/* Content */}
-        <div className="px-6 pb-6 overflow-y-auto max-h-[60vh]" style={{scrollbarWidth: 'thin', scrollbarColor: '#4B5563 #1F2937'}}>
+        <div className="px-6 pb-6 overflow-y-auto max-h-[60vh] enhanced-leaderboard-scroll enhanced-leaderboard-content">
           {renderTabContent()}
         </div>
       </div>
