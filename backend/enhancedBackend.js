@@ -15,6 +15,7 @@ import BirdEyeTrendingService from './birdEyeTrendingService.js';
 import PriorityQueueService from './priorityQueueService.js';
 import LeaderboardScoringEngine from './leaderboardScoringEngine.js';
 import EnhancedKOLTrustSystem from './enhancedKOLTrustSystem.js';
+import MonthlySnapshotService from './monthlySnapshotService.js';
 import SocialContextAI from './socialContextAI_new.js';
 import { createBackupIntegration } from './backupIntegration.js';
 import HypeTrendAnalysis from './hypeTrendAnalysis.js';
@@ -133,6 +134,7 @@ class EnhancedBackend {
     this.priorityQueue = new PriorityQueueService();
     this.leaderboardEngine = new LeaderboardScoringEngine();
     this.kolTrustSystem = new EnhancedKOLTrustSystem();
+    this.monthlySnapshotService = new MonthlySnapshotService();
     this.socialContextAI = new SocialContextAI();
     this.hypeTrendAnalysis = new HypeTrendAnalysis();
     this.aiHypePrediction = new AIHypePredictionService();
@@ -1819,6 +1821,126 @@ class EnhancedBackend {
           success: false,
           error: 'Cleanup failed: ' + error.message
         });
+      }
+    });
+
+    // Monthly Snapshot Endpoints
+    this.app.get('/api/leaderboard/monthly/:monthKey', async (req, res) => {
+      try {
+        const { monthKey } = req.params;
+        console.log(`📸 Fetching leaderboard for month: ${monthKey}`);
+        
+        // Get current leaderboard data
+        const allKolCalls = await this.oauthXService.db.getAllKolCalls();
+        const userCalls = {};
+        allKolCalls.forEach(call => {
+          if (!userCalls[call.userId]) {
+            userCalls[call.userId] = [];
+          }
+          userCalls[call.userId].push(call);
+        });
+
+        const tokens = await this.getTokensFromCache();
+        const currentTokenData = {};
+        tokens.forEach(token => {
+          currentTokenData[token.contractAddress] = token;
+        });
+
+        const leaderboardResult = await this.generateEnhancedLeaderboard(userCalls, currentTokenData);
+        
+        // Get leaderboard data for the requested month
+        const monthData = await this.monthlySnapshotService.getLeaderboardForMonth(monthKey, leaderboardResult.leaderboard);
+        
+        if (!monthData) {
+          return res.status(404).json({ 
+            success: false, 
+            error: `No data available for month ${monthKey}` 
+          });
+        }
+
+        res.json({
+          success: true,
+          month: monthData.month,
+          isLive: monthData.isLive,
+          timestamp: monthData.timestamp,
+          leaderboard: monthData.leaderboard,
+          boards: monthData.boards || {},
+          boardStats: monthData.boardStats || {},
+          metadata: monthData.metadata
+        });
+      } catch (error) {
+        console.error('❌ Failed to fetch monthly leaderboard:', error);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    this.app.get('/api/leaderboard/months', async (req, res) => {
+      try {
+        console.log('📸 Fetching available months...');
+        
+        // Get current leaderboard data for current month
+        const allKolCalls = await this.oauthXService.db.getAllKolCalls();
+        const userCalls = {};
+        allKolCalls.forEach(call => {
+          if (!userCalls[call.userId]) {
+            userCalls[call.userId] = [];
+          }
+          userCalls[call.userId].push(call);
+        });
+
+        const tokens = await this.getTokensFromCache();
+        const currentTokenData = {};
+        tokens.forEach(token => {
+          currentTokenData[token.contractAddress] = token;
+        });
+
+        const leaderboardResult = await this.generateEnhancedLeaderboard(userCalls, currentTokenData);
+        
+        const availableMonths = await this.monthlySnapshotService.getAvailableMonths(leaderboardResult.leaderboard);
+        
+        res.json({
+          success: true,
+          months: availableMonths,
+          currentMonth: this.monthlySnapshotService.getCurrentMonthKey()
+        });
+      } catch (error) {
+        console.error('❌ Failed to fetch available months:', error);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    this.app.post('/api/admin/take-snapshot', async (req, res) => {
+      try {
+        console.log('📸 Manual snapshot request...');
+        
+        // Get current leaderboard data
+        const allKolCalls = await this.oauthXService.db.getAllKolCalls();
+        const userCalls = {};
+        allKolCalls.forEach(call => {
+          if (!userCalls[call.userId]) {
+            userCalls[call.userId] = [];
+          }
+          userCalls[call.userId].push(call);
+        });
+
+        const tokens = await this.getTokensFromCache();
+        const currentTokenData = {};
+        tokens.forEach(token => {
+          currentTokenData[token.contractAddress] = token;
+        });
+
+        const leaderboardResult = await this.generateEnhancedLeaderboard(userCalls, currentTokenData);
+        
+        const snapshot = await this.monthlySnapshotService.takeSnapshot(leaderboardResult.leaderboard);
+        
+        res.json({
+          success: true,
+          snapshot: snapshot,
+          message: `Snapshot taken for ${snapshot.month}`
+        });
+      } catch (error) {
+        console.error('❌ Failed to take manual snapshot:', error);
+        res.status(500).json({ success: false, error: error.message });
       }
     });
 
@@ -11205,6 +11327,19 @@ class EnhancedBackend {
           }
         }, 0);
 
+        // Start monthly snapshot checking
+        setTimeout(async () => {
+          console.log('📸 Starting Monthly Snapshot Service...');
+          try {
+            this.startMonthlySnapshotChecking();
+            console.log('✅ Monthly Snapshot Service started successfully');
+            console.log('📅 Automatic snapshots: End of each month at 23:59');
+          } catch (error) {
+            console.error('❌ Monthly Snapshot Service failed to start:', error.message);
+            console.warn('⚠️ Continuing without monthly snapshots...');
+          }
+        }, 1000);
+
         // Start token processing workflow after backend is ready
         // Delay more to ensure platform health checks pass before heavy work and allow kill switch via env
         const disableAutoStart = String(process.env.DISABLE_AUTO_START || '').trim() === '1';
@@ -11238,6 +11373,40 @@ class EnhancedBackend {
       console.error('❌ Failed to start Enhanced Backend:', error);
       process.exit(1);
     }
+  }
+
+  startMonthlySnapshotChecking() {
+    // Check for snapshots every minute
+    setInterval(async () => {
+      try {
+        // Get current leaderboard data
+        const allKolCalls = await this.oauthXService.db.getAllKolCalls();
+        const userCalls = {};
+        allKolCalls.forEach(call => {
+          if (!userCalls[call.userId]) {
+            userCalls[call.userId] = [];
+          }
+          userCalls[call.userId].push(call);
+        });
+
+        const tokens = await this.getTokensFromCache();
+        const currentTokenData = {};
+        tokens.forEach(token => {
+          currentTokenData[token.contractAddress] = token;
+        });
+
+        const leaderboardResult = await this.generateEnhancedLeaderboard(userCalls, currentTokenData);
+        
+        // Check if we should take a snapshot
+        const snapshotTaken = await this.monthlySnapshotService.checkAndTakeSnapshot(leaderboardResult.leaderboard);
+        
+        if (snapshotTaken) {
+          console.log('📸 Monthly snapshot taken successfully!');
+        }
+      } catch (error) {
+        console.error('❌ Monthly snapshot check failed:', error.message);
+      }
+    }, 60000); // Check every minute
   }
 
   async stop() {
