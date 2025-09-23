@@ -14,6 +14,7 @@ import McapSnapshotService from './mcapSnapshotService.js';
 import BirdEyeTrendingService from './birdEyeTrendingService.js';
 import PriorityQueueService from './priorityQueueService.js';
 import LeaderboardScoringEngine from './leaderboardScoringEngine.js';
+import EnhancedKOLTrustSystem from './enhancedKOLTrustSystem.js';
 import SocialContextAI from './socialContextAI_new.js';
 import { createBackupIntegration } from './backupIntegration.js';
 import HypeTrendAnalysis from './hypeTrendAnalysis.js';
@@ -131,6 +132,7 @@ class EnhancedBackend {
     this.oauthXService = new OAuthXService();
     this.priorityQueue = new PriorityQueueService();
     this.leaderboardEngine = new LeaderboardScoringEngine();
+    this.kolTrustSystem = new EnhancedKOLTrustSystem();
     this.socialContextAI = new SocialContextAI();
     this.hypeTrendAnalysis = new HypeTrendAnalysis();
     this.aiHypePrediction = new AIHypePredictionService();
@@ -3130,8 +3132,8 @@ class EnhancedBackend {
           currentTokenData[token.contractAddress] = token;
         });
 
-        // Generate leaderboard using advanced scoring
-        const leaderboardResult = this.leaderboardEngine.generateLeaderboard(userCalls, currentTokenData);
+        // Generate leaderboard using enhanced KOL trust system
+        const leaderboardResult = await this.generateEnhancedLeaderboard(userCalls, currentTokenData);
 
         // Enrich with user data
         const enrichedLeaderboard = await Promise.all(
@@ -3162,7 +3164,8 @@ class EnhancedBackend {
         res.json({
           success: true,
           leaderboard: enrichedLeaderboard,
-          globalStats: leaderboardResult.globalStats,
+          boards: leaderboardResult.boards,
+          boardStats: leaderboardResult.boardStats,
           generatedAt: leaderboardResult.generatedAt
         });
       } catch (error) {
@@ -10311,6 +10314,100 @@ class EnhancedBackend {
         console.error('[🛡️ Enhanced Backend] ❌ Simple restart also failed:', restartError);
       }
     }
+  }
+
+  // ========================================
+  // Enhanced KOL Trust System - Multi-Board Leaderboard
+  async generateEnhancedLeaderboard(userCalls, currentTokenData = {}) {
+    console.log('🏆 Generating Enhanced KOL Trust Leaderboard...');
+    
+    // Process all users with enhanced trust scoring
+    const userTrustScores = await Promise.all(
+      Object.entries(userCalls).map(async ([userId, calls]) => {
+        try {
+          const trustScore = this.kolTrustSystem.calculateKOLTrustScore(calls, currentTokenData);
+          
+          // Get user data
+          const user = await this.oauthXService.getUserById(userId);
+          
+          return {
+            userId,
+            username: user?.username,
+            displayName: user?.displayName || user?.username,
+            profileImage: user?.profileImage,
+            verified: user?.verified,
+            followersCount: user?.followersCount,
+            ...trustScore
+          };
+        } catch (error) {
+          console.error(`❌ Error processing user ${userId}:`, error.message);
+          return {
+            userId,
+            username: `User${userId.slice(-4)}`,
+            displayName: `User${userId.slice(-4)}`,
+            ...this.kolTrustSystem.getDefaultScore()
+          };
+        }
+      })
+    );
+
+    // Sort by trust score
+    userTrustScores.sort((a, b) => b.trustScore - a.trustScore);
+    
+    // Add rankings
+    userTrustScores.forEach((user, index) => {
+      user.rank = index + 1;
+    });
+
+    // Generate different board views
+    const boards = {
+      main: userTrustScores, // Overall ranking
+      elite: userTrustScores.filter(u => u.summary.trustLevel === 'Elite KOL'),
+      expert: userTrustScores.filter(u => u.summary.trustLevel === 'Expert KOL'),
+      trusted: userTrustScores.filter(u => u.summary.trustLevel === 'Trusted KOL'),
+      rising: userTrustScores.filter(u => u.summary.trustLevel === 'Rising KOL'),
+      developing: userTrustScores.filter(u => u.summary.trustLevel === 'Developing KOL'),
+      
+      // Specialized boards
+      performance: [...userTrustScores].sort((a, b) => b.performance.score - a.performance.score),
+      consistency: [...userTrustScores].sort((a, b) => b.consistency.score - a.consistency.score),
+      riskManagement: [...userTrustScores].sort((a, b) => b.riskManagement.score - a.riskManagement.score),
+      marketTiming: [...userTrustScores].sort((a, b) => b.marketTiming.score - a.marketTiming.score)
+    };
+
+    // Add board-specific rankings
+    Object.keys(boards).forEach(boardName => {
+      boards[boardName].forEach((user, index) => {
+        user[`${boardName}Rank`] = index + 1;
+      });
+    });
+
+    // Calculate board statistics
+    const boardStats = {
+      totalUsers: userTrustScores.length,
+      eliteCount: boards.elite.length,
+      expertCount: boards.expert.length,
+      trustedCount: boards.trusted.length,
+      risingCount: boards.rising.length,
+      developingCount: boards.developing.length,
+      avgTrustScore: userTrustScores.reduce((sum, u) => sum + u.trustScore, 0) / userTrustScores.length,
+      generatedAt: new Date().toISOString()
+    };
+
+    console.log(`✅ Enhanced Leaderboard Generated:`, {
+      totalUsers: boardStats.totalUsers,
+      eliteKOLs: boardStats.eliteCount,
+      expertKOLs: boardStats.expertCount,
+      trustedKOLs: boardStats.trustedCount,
+      avgTrustScore: boardStats.avgTrustScore.toFixed(1)
+    });
+
+    return {
+      leaderboard: userTrustScores,
+      boards,
+      boardStats,
+      generatedAt: boardStats.generatedAt
+    };
   }
 
   // ========================================
