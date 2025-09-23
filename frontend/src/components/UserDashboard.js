@@ -1956,6 +1956,10 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         {showEnhancedLeaderboard && (
           <EnhancedKOLLeaderboard
             onClose={() => setShowEnhancedLeaderboard(false)}
+            onUserClick={(user) => {
+              setSelectedKolUser(user);
+              setShowEnhancedLeaderboard(false);
+            }}
           />
         )}
         

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Award, Crown, Star, TrendingUp, Shield, Clock, Target, BarChart3, Users, Trophy, Medal, Zap, ArrowUp, ArrowDown, ArrowLeft, Info } from 'lucide-react';
 import leaderboardService from '../services/leaderboardService';
 
-const EnhancedKOLLeaderboard = ({ onClose }) => {
+const EnhancedKOLLeaderboard = ({ onClose, onUserClick }) => {
   const [activeTab, setActiveTab] = useState('main');
   const [leaderboardData, setLeaderboardData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -83,7 +83,12 @@ const EnhancedKOLLeaderboard = ({ onClose }) => {
     const trustScore = user.trustScore || 0;
     
     return (
-      <div key={user.userId} className="bg-gray-800/50 border border-gray-700 rounded-lg p-4 hover:bg-gray-800/70 transition-colors">
+      <button
+        key={user.userId}
+        onClick={() => onUserClick && onUserClick(user)}
+        className="w-full bg-gray-800/50 border border-gray-700 rounded-lg p-4 hover:bg-gray-800/70 transition-colors text-left"
+        title="View profile"
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             {/* Rank */}
@@ -149,7 +154,7 @@ const EnhancedKOLLeaderboard = ({ onClose }) => {
             <span>Risk: {user.riskManagement?.score?.toFixed(0) || 0}</span>
           </div>
         </div>
-      </div>
+      </button>
     );
   };
 
