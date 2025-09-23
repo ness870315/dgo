@@ -81,6 +81,9 @@ export default class EnhancedKOLTrustSystem {
    * Performance Metrics - Overall profitability and alpha generation
    */
   calculatePerformanceMetrics(calls, currentTokenData) {
+    console.log(`🔍 [Performance] Processing ${calls?.length || 0} calls`);
+    console.log(`🔍 [Performance] Available token data: ${Object.keys(currentTokenData).length} tokens`);
+    
     const metrics = calls.map(call => {
       const contractAddress = call.contractAddress || call.token?.contractAddress;
       const tokenData = currentTokenData[contractAddress] || {};
@@ -93,6 +96,14 @@ export default class EnhancedKOLTrustSystem {
       // ATH performance (if available)
       const athMC = call.athMC || call.athMultiplier * calledMC || currentMC;
       const athMultiple = calledMC > 0 ? athMC / calledMC : currentMultiple;
+      
+      console.log(`🔍 [Performance] Call ${call.token?.symbol || 'UNKNOWN'}:`, {
+        contractAddress,
+        calledMC,
+        currentMC,
+        currentMultiple: currentMultiple.toFixed(2),
+        hasTokenData: !!tokenData.mcap || !!tokenData.marketCap
+      });
       
       return {
         currentMultiple,

@@ -10320,12 +10320,27 @@ class EnhancedBackend {
   // Enhanced KOL Trust System - Multi-Board Leaderboard
   async generateEnhancedLeaderboard(userCalls, currentTokenData = {}) {
     console.log('🏆 Generating Enhanced KOL Trust Leaderboard...');
+    console.log(`📊 [Enhanced Leaderboard] Total users: ${Object.keys(userCalls).length}`);
+    console.log(`📊 [Enhanced Leaderboard] Token data available: ${Object.keys(currentTokenData).length} tokens`);
     
     // Process all users with enhanced trust scoring
     const userTrustScores = await Promise.all(
       Object.entries(userCalls).map(async ([userId, calls]) => {
         try {
           console.log(`🔍 [Enhanced Leaderboard] Processing user ${userId} with ${calls?.length || 0} calls`);
+          
+          // Debug: Show sample call data
+          if (calls && calls.length > 0) {
+            const sampleCall = calls[0];
+            console.log(`🔍 [Enhanced Leaderboard] Sample call for ${userId}:`, {
+              contractAddress: sampleCall.contractAddress,
+              tokenContractAddress: sampleCall.token?.contractAddress,
+              calledMC: sampleCall.calledMc || sampleCall.calledMC,
+              currentMC: sampleCall.currentMC,
+              hasTokenData: !!currentTokenData[sampleCall.contractAddress || sampleCall.token?.contractAddress]
+            });
+          }
+          
           const trustScore = this.kolTrustSystem.calculateKOLTrustScore(calls, currentTokenData);
           console.log(`📊 [Enhanced Leaderboard] Trust score for ${userId}:`, {
             trustScore: trustScore.trustScore,
