@@ -1841,8 +1841,8 @@ class EnhancedTokenProcessor {
     const uniqueness = this.calculateUniquenessFactor(token);
     score += uniqueness * 0.05;
     
-    // Fuel Bonus (if applicable)
-    if (token.isPaid || token.isFueled) {
+    // Fuel Bonus (if applicable and still active)
+    if (this.hasActiveFuel(token)) {
       const fuelBonus = Math.min(1.0, score * 0.2); // Max 1.0 bonus
       score += fuelBonus;
       console.log(`🚀 Fuel Bonus: +${fuelBonus.toFixed(2)}`);
@@ -1852,6 +1852,33 @@ class EnhancedTokenProcessor {
   }
 
   // Helper scoring methods
+  hasActiveFuel(token) {
+    // Check if token has active fuel (not expired)
+    if (!token.isPaid && !token.isFueled) return false;
+    
+    // Check fuel expiry time
+    if (token.fuelExpiry) {
+      const expiryTime = new Date(token.fuelExpiry).getTime();
+      const now = Date.now();
+      if (expiryTime <= now) {
+        return false; // Fuel has expired
+      }
+    }
+    
+    // Check fuel applications (newer format)
+    if (token.fuelApplications && Array.isArray(token.fuelApplications)) {
+      const now = Date.now();
+      const activeApplications = token.fuelApplications.filter(app => {
+        const expiryTime = new Date(app.expiresAt).getTime();
+        return expiryTime > now;
+      });
+      return activeApplications.length > 0;
+    }
+    
+    // If no expiry info but marked as fueled, assume it's active
+    return true;
+  }
+
   calculateMarketTier(marketCap) {
     if (!marketCap) return 5.0;
     if (marketCap >= 1000000000) return 10.0; // 1B+

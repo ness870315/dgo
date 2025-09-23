@@ -369,6 +369,9 @@ class EnhancedScoringAlgorithm {
   calculateFuelBonus(tokenData) {
     if (!tokenData) return 0;
     
+    // Check if fuel is still active (not expired)
+    if (!this.hasActiveFuel(tokenData)) return 0;
+    
     let fuelBonus = 0;
     
     // Check for fuel data (if available)
@@ -390,6 +393,33 @@ class EnhancedScoringAlgorithm {
     else if (priceChange6h > 10) fuelBonus += 0.5; // Moderate positive momentum
     
     return Math.min(3, fuelBonus); // Cap at 3 points
+  }
+
+  hasActiveFuel(tokenData) {
+    // Check if token has active fuel (not expired)
+    if (!tokenData.isPaid && !tokenData.isFueled) return false;
+    
+    // Check fuel expiry time
+    if (tokenData.fuelExpiry) {
+      const expiryTime = new Date(tokenData.fuelExpiry).getTime();
+      const now = Date.now();
+      if (expiryTime <= now) {
+        return false; // Fuel has expired
+      }
+    }
+    
+    // Check fuel applications (newer format)
+    if (tokenData.fuelApplications && Array.isArray(tokenData.fuelApplications)) {
+      const now = Date.now();
+      const activeApplications = tokenData.fuelApplications.filter(app => {
+        const expiryTime = new Date(app.expiresAt).getTime();
+        return expiryTime > now;
+      });
+      return activeApplications.length > 0;
+    }
+    
+    // If no expiry info but marked as fueled, assume it's active
+    return true;
   }
 
   /**
