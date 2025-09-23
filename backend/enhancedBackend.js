@@ -1674,6 +1674,152 @@ class EnhancedBackend {
       }
     });
 
+    // Admin: Cleanup expired fuel flags
+    this.app.post('/admin/cleanup-expired-fuel', async (req, res) => {
+      try {
+        console.log('🧹 Starting cleanup of expired fuel flags...');
+        
+        // Load tokens cache
+        const tokensCachePath = path.join(process.env.DATA_DIR || '/var/data/dgo', 'cache', 'tokens-cache.json');
+        const tokens = JSON.parse(await fs.readFile(tokensCachePath, 'utf8'));
+        
+        console.log(`📊 Loaded ${tokens.length} tokens from cache`);
+        
+        let cleanedCount = 0;
+        let expiredFuelTokens = [];
+        
+        for (const token of tokens) {
+          let needsUpdate = false;
+          const updates = {};
+          
+          // Check if token has fuel flags but expired fuel
+          if (token.isPaid || token.isFueled) {
+            const now = Date.now();
+            let hasActiveFuel = false;
+            
+            // Check fuel expiry time
+            if (token.fuelExpiry) {
+              const expiryTime = new Date(token.fuelExpiry).getTime();
+              if (expiryTime > now) {
+                hasActiveFuel = true;
+              }
+            }
+            
+            // Check fuel applications (newer format)
+            if (!hasActiveFuel && token.fuelApplications && Array.isArray(token.fuelApplications)) {
+              const activeApplications = token.fuelApplications.filter(app => {
+                const expiryTime = new Date(app.expiresAt).getTime();
+                return expiryTime > now;
+              });
+              hasActiveFuel = activeApplications.length > 0;
+            }
+            
+            // If no active fuel but still flagged, clean it up
+            if (!hasActiveFuel) {
+              console.log(`🧹 Cleaning expired fuel for ${token.symbol} (${token.contractAddress?.substring(0, 8)}...)`);
+              
+              // Remove fuel flags
+              if (token.isPaid) {
+                updates.isPaid = false;
+                needsUpdate = true;
+              }
+              if (token.isFueled) {
+                updates.isFueled = false;
+                needsUpdate = true;
+              }
+              
+              // Remove fuel-related fields
+              if (token.fuelExpiry) {
+                updates.fuelExpiry = undefined;
+                needsUpdate = true;
+              }
+              if (token.fuelApplications) {
+                updates.fuelApplications = undefined;
+                needsUpdate = true;
+              }
+              if (token.fuelType) {
+                updates.fuelType = undefined;
+                needsUpdate = true;
+              }
+              if (token.boostMultiplier) {
+                updates.boostMultiplier = undefined;
+                needsUpdate = true;
+              }
+              
+              expiredFuelTokens.push({
+                symbol: token.symbol,
+                contractAddress: token.contractAddress,
+                originalScore: token.overallScore || token.score,
+                hadFuelExpiry: !!token.fuelExpiry,
+                hadFuelApplications: !!token.fuelApplications
+              });
+              
+              cleanedCount++;
+            }
+          }
+          
+          // Apply updates if needed
+          if (needsUpdate) {
+            Object.assign(token, updates);
+          }
+        }
+        
+        // Save updated tokens cache
+        if (cleanedCount > 0) {
+          await fs.writeFile(tokensCachePath, JSON.stringify(tokens, null, 2));
+          console.log(`✅ Updated tokens cache with ${cleanedCount} cleaned tokens`);
+        }
+        
+        // Also check fueled-tokens.json file
+        const fueledTokensPath = path.join(process.env.DATA_DIR || '/var/data/dgo', 'fueled-tokens.json');
+        let fueledTokensCleaned = 0;
+        try {
+          const fueledTokens = JSON.parse(await fs.readFile(fueledTokensPath, 'utf8'));
+          const now = Date.now();
+          
+          const activeFueledTokens = fueledTokens.filter(token => {
+            if (token.fuelApplications && Array.isArray(token.fuelApplications)) {
+              const activeApplications = token.fuelApplications.filter(app => {
+                const expiryTime = new Date(app.expiresAt).getTime();
+                return expiryTime > now;
+              });
+              return activeApplications.length > 0;
+            } else if (token.fuelExpiry) {
+              const expiryTime = new Date(token.fuelExpiry).getTime();
+              return expiryTime > now;
+            }
+            return false; // Remove tokens without proper expiry info
+          });
+          
+          if (activeFueledTokens.length !== fueledTokens.length) {
+            await fs.writeFile(fueledTokensPath, JSON.stringify(activeFueledTokens, null, 2));
+            fueledTokensCleaned = fueledTokens.length - activeFueledTokens.length;
+            console.log(`✅ Cleaned fueled-tokens.json: ${fueledTokens.length} → ${activeFueledTokens.length} active tokens`);
+          }
+        } catch (error) {
+          console.log(`⚠️ Could not clean fueled-tokens.json: ${error.message}`);
+        }
+        
+        res.json({
+          success: true,
+          message: 'Expired fuel cleanup completed',
+          summary: {
+            tokensProcessed: tokens.length,
+            tokensCleaned: cleanedCount,
+            fueledTokensCleaned: fueledTokensCleaned,
+            expiredFuelTokens: expiredFuelTokens
+          }
+        });
+        
+      } catch (error) {
+        console.error('❌ Cleanup failed:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Cleanup failed: ' + error.message
+        });
+      }
+    });
+
     // Admin: Enable Twitter posting for specific user
     this.app.post('/admin/enable-twitter-posting/:userId', async (req, res) => {
       try {
