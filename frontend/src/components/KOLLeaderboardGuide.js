@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Trophy, Target, TrendingUp, AlertTriangle, Clock, Users, BarChart3, Zap, Crown, Award, Info } from 'lucide-react';
+import { X, Trophy, Target, TrendingUp, AlertTriangle, Clock, Users, BarChart3, Zap, Crown, Award, Info, Shield } from 'lucide-react';
 
 const KOLLeaderboardGuide = ({ onClose }) => {
   const [activeSection, setActiveSection] = useState('overview');
