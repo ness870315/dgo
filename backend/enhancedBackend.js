@@ -10325,7 +10325,14 @@ class EnhancedBackend {
     const userTrustScores = await Promise.all(
       Object.entries(userCalls).map(async ([userId, calls]) => {
         try {
+          console.log(`🔍 [Enhanced Leaderboard] Processing user ${userId} with ${calls?.length || 0} calls`);
           const trustScore = this.kolTrustSystem.calculateKOLTrustScore(calls, currentTokenData);
+          console.log(`📊 [Enhanced Leaderboard] Trust score for ${userId}:`, {
+            trustScore: trustScore.trustScore,
+            hitRate: trustScore.performance?.hitRate,
+            consistency: trustScore.consistency?.score,
+            riskManagement: trustScore.riskManagement?.score
+          });
           
           // Get user data
           const user = await this.oauthXService.getUserById(userId);

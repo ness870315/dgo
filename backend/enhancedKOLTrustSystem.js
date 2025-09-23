@@ -35,7 +35,10 @@ export default class EnhancedKOLTrustSystem {
    * Calculate comprehensive KOL trust score
    */
   calculateKOLTrustScore(calls, currentTokenData = {}) {
+    console.log(`🔍 [Enhanced KOL Trust] Processing ${calls?.length || 0} calls for user`);
+    
     if (!calls || calls.length < this.config.minCallsForTrust) {
+      console.log(`⚠️ [Enhanced KOL Trust] Insufficient calls (${calls?.length || 0} < ${this.config.minCallsForTrust})`);
       return this.getDefaultScore();
     }
 
@@ -97,6 +100,15 @@ export default class EnhancedKOLTrustSystem {
     const hitRate = profitableCalls.length / metrics.length;
     const goodRate = goodCalls.length / metrics.length;
     const excellentRate = excellentCalls.length / metrics.length;
+    
+    console.log(`📊 [Enhanced KOL Trust] Performance metrics:`, {
+      totalCalls: metrics.length,
+      profitableCalls: profitableCalls.length,
+      goodCalls: goodCalls.length,
+      excellentCalls: excellentCalls.length,
+      hitRate: hitRate,
+      avgCurrentMultiple: metrics.reduce((sum, m) => sum + m.currentMultiple, 0) / metrics.length
+    });
     
     // Average performance
     const avgCurrentMultiple = metrics.reduce((sum, m) => sum + m.currentMultiple, 0) / metrics.length;

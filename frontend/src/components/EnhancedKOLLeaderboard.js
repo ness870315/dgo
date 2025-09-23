@@ -294,7 +294,7 @@ const EnhancedKOLLeaderboard = ({ onClose, onUserClick }) => {
         </div>
 
         {/* Content */}
-        <div className="px-6 pb-6 overflow-y-auto max-h-[60vh]">
+        <div className="px-6 pb-6 overflow-y-auto max-h-[60vh] scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
           {renderTabContent()}
         </div>
       </div>
