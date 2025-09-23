@@ -130,7 +130,7 @@ const EnhancedKOLLeaderboard = ({ onClose, onUserClick }) => {
               </div>
               
               <div className="text-center">
-                <div className="text-blue-400 font-semibold">{((user.performance?.hitRate || 0) * 100).toFixed(1)}%</div>
+                <div className="text-blue-400 font-semibold">{((user.performance?.hitRate || 0)).toFixed(1)}%</div>
                 <div className="text-gray-400 text-xs">Hit Rate</div>
               </div>
               

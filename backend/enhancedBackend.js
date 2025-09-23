@@ -10418,7 +10418,7 @@ class EnhancedBackend {
   }
 
   // ========================================
-  // Calculate user stats from KOL calls using fresh market cap data
+  // Calculate user stats from KOL calls using enhanced KOL trust system
   async calculateUserStatsFromCalls(calls) {
     if (!calls || calls.length === 0) {
       return {
@@ -10445,19 +10445,12 @@ class EnhancedBackend {
       currentTokenData[token.contractAddress] = token;
     });
 
-    // Calculate hit rate using fresh market cap data
-    const hitRateCalls = calls.length;
-    const hitRateHits = calls.filter(call => {
-      const contractAddress = call.contractAddress || call.token?.contractAddress;
-      const tokenData = currentTokenData[contractAddress] || {};
-      const currentMC = tokenData?.mcap || tokenData?.marketCap || call.currentMC || call.currentMc || 0;
-      const calledMC = call.calledMc || call.calledMC || 0;
-      const multiplier = calledMC > 0 ? currentMC / calledMC : 0;
-      return multiplier >= 1.0; // 1x or better (profitable)
-    }).length;
+    // Use enhanced KOL trust system for accurate calculations
+    const trustScore = this.kolTrustSystem.calculateKOLTrustScore(calls, currentTokenData);
     
-    const hitRate = hitRateCalls > 0 ? hitRateHits / hitRateCalls : 0;
-
+    // Extract hit rate from enhanced system (convert from percentage to decimal)
+    const hitRate = trustScore.performance?.hitRate ? trustScore.performance.hitRate / 100 : 0;
+    
     // Calculate median X using fresh market cap data
     const xMultiples = calls.map(call => {
       const contractAddress = call.contractAddress || call.token?.contractAddress;
@@ -10470,7 +10463,7 @@ class EnhancedBackend {
     const sortedX = xMultiples.sort((a, b) => a - b);
     const medianX = sortedX.length > 0 ? sortedX[Math.floor(sortedX.length / 2)] : 0;
 
-    console.log(`📊 User Stats Calculation: ${hitRateHits} hits / ${hitRateCalls} calls = ${(hitRate * 100).toFixed(1)}% hit rate`);
+    console.log(`📊 User Stats Calculation: ${trustScore.performance?.profitableCalls || 0} hits / ${trustScore.performance?.totalCalls || 0} calls = ${(hitRate * 100).toFixed(1)}% hit rate`);
 
     return {
       totalCalls: calls.length,
