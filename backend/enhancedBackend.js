@@ -1876,15 +1876,20 @@ class EnhancedBackend {
             trustScore: {
               trustScore: trustScore.trustScore,
               hitRate: trustScore.performance?.hitRate,
+              currentHitRate: trustScore.performance?.currentHitRate,
               consistency: trustScore.consistency?.score,
               riskManagement: trustScore.riskManagement?.score,
-              trustLevel: trustScore.summary?.trustLevel
+              trustLevel: trustScore.summary?.trustLevel,
+              avgDrawdownFromAth: trustScore.performance?.avgDrawdownFromAth,
+              drawdownPenalty: trustScore.performance?.drawdownPenalty
             },
             sampleCall: userCallsData.length > 0 ? {
               contractAddress: userCallsData[0].contractAddress,
               tokenContractAddress: userCallsData[0].token?.contractAddress,
               calledMC: userCallsData[0].calledMc || userCallsData[0].calledMC,
               currentMC: userCallsData[0].currentMC,
+              athMC: userCallsData[0].athMC,
+              athMultiplier: userCallsData[0].athMultiplier,
               symbol: userCallsData[0].token?.symbol,
               hasTokenData: !!currentTokenData[userCallsData[0].contractAddress || userCallsData[0].token?.contractAddress]
             } : null
