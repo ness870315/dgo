@@ -254,7 +254,7 @@ const EnhancedKOLLeaderboard = ({ onClose, onUserClick }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
-      <div className="bg-gray-900 rounded-lg w-full max-w-xs sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl max-h-[90vh] sm:max-h-[85vh] lg:max-h-[80vh] overflow-hidden">
+      <div className="bg-gray-900 rounded-lg w-full max-w-xs sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="bg-gray-800 border-b border-gray-700 p-3 sm:p-6">
           <div className="flex items-center justify-between">
@@ -299,7 +299,7 @@ const EnhancedKOLLeaderboard = ({ onClose, onUserClick }) => {
         </div>
 
         {/* Content */}
-        <div className="px-3 sm:px-6 pb-3 sm:pb-6 overflow-y-auto max-h-[60vh] sm:max-h-[70vh] lg:max-h-[75vh] enhanced-leaderboard-scroll enhanced-leaderboard-content">
+        <div className="px-3 sm:px-6 pb-3 sm:pb-6 overflow-y-auto flex-1 enhanced-leaderboard-scroll enhanced-leaderboard-content">
           {renderTabContent()}
         </div>
       </div>
