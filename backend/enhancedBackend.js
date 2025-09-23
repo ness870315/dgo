@@ -1822,6 +1822,100 @@ class EnhancedBackend {
       }
     });
 
+    // Debug: Test enhanced KOL trust system scoring
+    this.app.get('/api/debug/scoring-test', async (req, res) => {
+      try {
+        console.log('🔍 DEBUG: Testing Enhanced KOL Trust System Scoring...');
+        
+        // Get all KOL calls
+        const allKolCalls = await this.oauthXService.db.getAllKolCalls();
+        console.log(`📊 Found ${allKolCalls.length} total KOL calls`);
+
+        // Group calls by user
+        const userCalls = {};
+        allKolCalls.forEach(call => {
+          if (!userCalls[call.userId]) {
+            userCalls[call.userId] = [];
+          }
+          userCalls[call.userId].push(call);
+        });
+
+        console.log(`👥 Users with calls: ${Object.keys(userCalls).length}`);
+        
+        // Get token data
+        const tokens = await this.getTokensFromCache();
+        console.log(`📊 Found ${tokens.length} tokens in cache`);
+        
+        // Build current token data
+        const currentTokenData = {};
+        tokens.forEach(token => {
+          currentTokenData[token.contractAddress] = token;
+        });
+
+        // Test enhanced KOL trust system with first user
+        const userIds = Object.keys(userCalls);
+        if (userIds.length === 0) {
+          return res.json({ success: false, error: 'No users with calls found' });
+        }
+
+        const testUserId = userIds[0];
+        const testCalls = userCalls[testUserId];
+        
+        console.log(`🔍 Testing with user ${testUserId} (${testCalls.length} calls):`);
+        
+        // Show sample call data
+        const sampleCall = testCalls[0];
+        console.log(`🔍 Sample call:`, {
+          contractAddress: sampleCall.contractAddress,
+          tokenContractAddress: sampleCall.token?.contractAddress,
+          calledMC: sampleCall.calledMc || sampleCall.calledMC,
+          currentMC: sampleCall.currentMC,
+          symbol: sampleCall.token?.symbol,
+          hasTokenData: !!currentTokenData[sampleCall.contractAddress || sampleCall.token?.contractAddress]
+        });
+
+        // Test enhanced KOL trust system
+        const trustScore = this.kolTrustSystem.calculateKOLTrustScore(testCalls, currentTokenData);
+        
+        console.log(`📊 Results:`, {
+          trustScore: trustScore.trustScore,
+          hitRate: trustScore.performance?.hitRate,
+          consistency: trustScore.consistency?.score,
+          riskManagement: trustScore.riskManagement?.score,
+          trustLevel: trustScore.summary?.trustLevel
+        });
+
+        res.json({
+          success: true,
+          debug: {
+            totalCalls: allKolCalls.length,
+            usersWithCalls: userIds.length,
+            tokensInCache: tokens.length,
+            testUser: testUserId,
+            testUserCalls: testCalls.length,
+            sampleCall: {
+              contractAddress: sampleCall.contractAddress,
+              tokenContractAddress: sampleCall.token?.contractAddress,
+              calledMC: sampleCall.calledMc || sampleCall.calledMC,
+              currentMC: sampleCall.currentMC,
+              symbol: sampleCall.token?.symbol,
+              hasTokenData: !!currentTokenData[sampleCall.contractAddress || sampleCall.token?.contractAddress]
+            },
+            trustScore: {
+              trustScore: trustScore.trustScore,
+              hitRate: trustScore.performance?.hitRate,
+              consistency: trustScore.consistency?.score,
+              riskManagement: trustScore.riskManagement?.score,
+              trustLevel: trustScore.summary?.trustLevel
+            }
+          }
+        });
+      } catch (error) {
+        console.error('❌ Debug test failed:', error);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
     // Admin: Enable Twitter posting for specific user
     this.app.post('/admin/enable-twitter-posting/:userId', async (req, res) => {
       try {
