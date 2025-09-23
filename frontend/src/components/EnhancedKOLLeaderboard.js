@@ -130,12 +130,12 @@ const EnhancedKOLLeaderboard = ({ onClose, onUserClick }) => {
               </div>
               
               <div className="text-center">
-                <div className="text-blue-400 font-semibold">{user.performance?.hitRate?.toFixed(1) || '0.0'}%</div>
+                <div className="text-blue-400 font-semibold">{((user.performance?.hitRate || 0) * 100).toFixed(1)}%</div>
                 <div className="text-gray-400 text-xs">Hit Rate</div>
               </div>
               
               <div className="text-center">
-                <div className="text-purple-400 font-semibold">{user.performance?.avgCurrentMultiple?.toFixed(1) || '0.0'}x</div>
+                <div className="text-purple-400 font-semibold">{(user.performance?.avgCurrentMultiple || 0).toFixed(1)}x</div>
                 <div className="text-gray-400 text-xs">Avg Multiple</div>
               </div>
             </div>
@@ -150,8 +150,8 @@ const EnhancedKOLLeaderboard = ({ onClose, onUserClick }) => {
           
           <div className="flex items-center space-x-4 text-xs text-gray-400">
             <span>{user.performance?.totalCalls || 0} calls</span>
-            <span>Consistency: {user.consistency?.score?.toFixed(0) || 0}</span>
-            <span>Risk: {user.riskManagement?.score?.toFixed(0) || 0}</span>
+            <span>Consistency: {(user.consistency?.score || 0).toFixed(0)}</span>
+            <span>Risk: {(user.riskManagement?.score || 0).toFixed(0)}</span>
           </div>
         </div>
       </button>
@@ -294,7 +294,7 @@ const EnhancedKOLLeaderboard = ({ onClose, onUserClick }) => {
         </div>
 
         {/* Content */}
-        <div className="px-6 pb-6 overflow-y-auto max-h-[60vh] scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+        <div className="px-6 pb-6 overflow-y-auto max-h-[60vh]" style={{scrollbarWidth: 'thin', scrollbarColor: '#4B5563 #1F2937'}}>
           {renderTabContent()}
         </div>
       </div>

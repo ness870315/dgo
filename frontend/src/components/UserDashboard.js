@@ -854,7 +854,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                           </div>
                           <div className="text-right">
                             <p className="text-green-400 font-semibold text-lg">{kol.score}</p>
-                            <p className="text-gray-400 text-sm">Hit Rate: {(kol.metrics?.hitRate * 100 || 0).toFixed(1)}%</p>
+                            <p className="text-gray-400 text-sm">Hit Rate: {(kol.performance?.hitRate * 100 || 0).toFixed(1)}%</p>
                           </div>
                         </div>
                       );
