@@ -76,6 +76,9 @@ export default class LeaderboardScoringEngine {
     // Per-call score (removed liquidity penalty and recency decay)
     const callScore = logReturn * ddWeight * mcapWeight * volumeWeight;
 
+    // Time weight (no decay - all calls weighted equally)
+    const timeWeight = 1.0;
+
     return {
       callId: call.id,
       xMultiple,
@@ -84,6 +87,7 @@ export default class LeaderboardScoringEngine {
       mcapWeight,
       volumeWeight,
       callScore,
+      timeWeight,
       ageHours,
       calledMC,
       currentMC,
@@ -115,17 +119,16 @@ export default class LeaderboardScoringEngine {
     let timeTo2x = [];
 
     validCalls.forEach(call => {
-      const weight = call.timeWeight;
+      // Equal weight for all calls (no time decay)
+      const weight = 1.0;
       weightedSum += call.callScore * weight;
       weightSum += weight;
       totalScore += call.callScore;
 
-      // Hit rate tracking
-      if (call.ageHours <= this.config.hitRateWindow) {
-        hitRateCalls++;
-        if (call.xMultiple >= this.config.hitRateTarget) {
-          hitRateHits++;
-        }
+      // Hit rate tracking (no time window - all calls count)
+      hitRateCalls++;
+      if (call.xMultiple >= this.config.hitRateTarget) {
+        hitRateHits++;
       }
 
       // X multiples for median/geomean
