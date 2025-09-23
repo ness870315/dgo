@@ -12,10 +12,11 @@ export default class EnhancedKOLTrustSystem {
       riskManagementWeight: 0.20, // 20% - Risk-adjusted returns
       marketTimingWeight: 0.20,   // 20% - Entry timing and market awareness
       
-      // Performance thresholds
-      excellentThreshold: 2.0,    // 2x+ = excellent call
-      goodThreshold: 1.5,          // 1.5x+ = good call
-      profitableThreshold: 1.0,   // 1x+ = profitable call
+      // Performance thresholds - PnL-based hit rate
+      excellentThreshold: 3.0,    // 3x+ = excellent call (300%+ profit)
+      goodThreshold: 2.0,          // 2x+ = good call (200%+ profit)
+      profitableThreshold: 1.5,   // 1.5x+ = meaningful profitable call (150%+ profit)
+      breakEvenThreshold: 1.0,    // 1x+ = break even (for reference only)
       
       // Risk management
       maxDrawdownPenalty: 0.5,    // 50% drawdown = heavy penalty
@@ -122,36 +123,44 @@ export default class EnhancedKOLTrustSystem {
       };
     });
 
-    // 🎯 MIXED HIT RATE SYSTEM
-    // Use ATH performance for hit rate calculation (historical success)
+    // 🎯 PnL-BASED HIT RATE SYSTEM
+    // Only count calls that went meaningfully profitable (1.5x+ at ATH)
     const athProfitableCalls = metrics.filter(m => m.athMultiple >= this.config.profitableThreshold);
     const athGoodCalls = metrics.filter(m => m.athMultiple >= this.config.goodThreshold);
     const athExcellentCalls = metrics.filter(m => m.athMultiple >= this.config.excellentThreshold);
+    const athBreakEvenCalls = metrics.filter(m => m.athMultiple >= this.config.breakEvenThreshold);
     
-    // Calculate ATH-based hit rates
-    const athHitRate = athProfitableCalls.length / metrics.length;
-    const athGoodRate = athGoodCalls.length / metrics.length;
-    const athExcellentRate = athExcellentCalls.length / metrics.length;
+    // Calculate PnL-based hit rates (only meaningful profits count)
+    const pnlHitRate = athProfitableCalls.length / metrics.length;
+    const pnlGoodRate = athGoodCalls.length / metrics.length;
+    const pnlExcellentRate = athExcellentCalls.length / metrics.length;
+    const breakEvenRate = athBreakEvenCalls.length / metrics.length;
     
     // Calculate current performance metrics
     const currentProfitableCalls = metrics.filter(m => m.currentMultiple >= this.config.profitableThreshold);
     const currentGoodCalls = metrics.filter(m => m.currentMultiple >= this.config.goodThreshold);
     const currentExcellentCalls = metrics.filter(m => m.currentMultiple >= this.config.excellentThreshold);
+    const currentBreakEvenCalls = metrics.filter(m => m.currentMultiple >= this.config.breakEvenThreshold);
     
     const currentHitRate = currentProfitableCalls.length / metrics.length;
     const currentGoodRate = currentGoodCalls.length / metrics.length;
     const currentExcellentRate = currentExcellentCalls.length / metrics.length;
+    const currentBreakEvenRate = currentBreakEvenCalls.length / metrics.length;
     
     // Calculate average drawdown penalty (penalize if currently down from ATH)
     const avgDrawdownFromAth = metrics.reduce((sum, m) => sum + m.drawdownFromAth, 0) / metrics.length;
     const drawdownPenalty = Math.min(avgDrawdownFromAth * 0.5, 0.3); // Max 30% penalty
     
-    console.log(`📊 [Mixed Hit Rate] Performance metrics:`, {
+    console.log(`📊 [PnL Hit Rate] Performance metrics:`, {
       totalCalls: metrics.length,
       athProfitableCalls: athProfitableCalls.length,
       athGoodCalls: athGoodCalls.length,
       athExcellentCalls: athExcellentCalls.length,
-      athHitRate: (athHitRate * 100).toFixed(1) + '%',
+      athBreakEvenCalls: athBreakEvenCalls.length,
+      pnlHitRate: (pnlHitRate * 100).toFixed(1) + '%',
+      pnlGoodRate: (pnlGoodRate * 100).toFixed(1) + '%',
+      pnlExcellentRate: (pnlExcellentRate * 100).toFixed(1) + '%',
+      breakEvenRate: (breakEvenRate * 100).toFixed(1) + '%',
       currentProfitableCalls: currentProfitableCalls.length,
       currentHitRate: (currentHitRate * 100).toFixed(1) + '%',
       avgDrawdownFromAth: (avgDrawdownFromAth * 100).toFixed(1) + '%',
@@ -162,12 +171,12 @@ export default class EnhancedKOLTrustSystem {
     const avgCurrentMultiple = metrics.reduce((sum, m) => sum + m.currentMultiple, 0) / metrics.length;
     const avgAthMultiple = metrics.reduce((sum, m) => sum + m.athMultiple, 0) / metrics.length;
     
-    // 🎯 MIXED PERFORMANCE SCORE
-    // Use ATH hit rate (historical success) but apply current drawdown penalty
+    // 🎯 PnL-BASED PERFORMANCE SCORE
+    // Use PnL hit rate (meaningful profits) but apply current drawdown penalty
     const basePerformanceScore = 
-      (athHitRate * 30) +           // ATH hit rate weight (historical success)
-      (athGoodRate * 25) +          // ATH good calls weight  
-      (athExcellentRate * 20) +     // ATH excellent calls weight
+      (pnlHitRate * 30) +           // PnL hit rate weight (meaningful profits 1.5x+)
+      (pnlGoodRate * 25) +          // PnL good calls weight (2x+)  
+      (pnlExcellentRate * 20) +     // PnL excellent calls weight (3x+)
       (Math.min(avgAthMultiple * 5, 10)); // ATH average performance
     
     // Apply drawdown penalty
@@ -175,19 +184,27 @@ export default class EnhancedKOLTrustSystem {
 
     return {
       score: Math.min(100, performanceScore),
-      hitRate: athHitRate * 100,  // Return ATH hit rate (historical success)
-      goodRate: athGoodRate * 100,
-      excellentRate: athExcellentRate * 100,
-      currentHitRate: currentHitRate * 100,  // Also provide current hit rate for reference
+      hitRate: pnlHitRate * 100,  // Return PnL hit rate (meaningful profits 1.5x+)
+      goodRate: pnlGoodRate * 100,
+      excellentRate: pnlExcellentRate * 100,
+      breakEvenRate: breakEvenRate * 100,  // Break even rate for reference
+      currentHitRate: currentHitRate * 100,  // Current meaningful hit rate
+      currentGoodRate: currentGoodRate * 100,
+      currentExcellentRate: currentExcellentRate * 100,
+      currentBreakEvenRate: currentBreakEvenRate * 100,
       avgCurrentMultiple,
       avgAthMultiple,
       avgDrawdownFromAth: avgDrawdownFromAth * 100,
       drawdownPenalty: drawdownPenalty * 100,
       totalCalls: metrics.length,
-      profitableCalls: athProfitableCalls.length,  // ATH-based profitable calls
-      goodCalls: athGoodCalls.length,
-      excellentCalls: athExcellentCalls.length,
-      currentProfitableCalls: currentProfitableCalls.length  // Current profitable calls
+      profitableCalls: athProfitableCalls.length,  // ATH-based meaningful profitable calls (1.5x+)
+      goodCalls: athGoodCalls.length,  // ATH-based good calls (2x+)
+      excellentCalls: athExcellentCalls.length,  // ATH-based excellent calls (3x+)
+      breakEvenCalls: athBreakEvenCalls.length,  // ATH-based break even calls (1x+)
+      currentProfitableCalls: currentProfitableCalls.length,  // Current meaningful profitable calls
+      currentGoodCalls: currentGoodCalls.length,
+      currentExcellentCalls: currentExcellentCalls.length,
+      currentBreakEvenCalls: currentBreakEvenCalls.length
     };
   }
 

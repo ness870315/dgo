@@ -1876,7 +1876,13 @@ class EnhancedBackend {
             trustScore: {
               trustScore: trustScore.trustScore,
               hitRate: trustScore.performance?.hitRate,
+              goodRate: trustScore.performance?.goodRate,
+              excellentRate: trustScore.performance?.excellentRate,
+              breakEvenRate: trustScore.performance?.breakEvenRate,
               currentHitRate: trustScore.performance?.currentHitRate,
+              currentGoodRate: trustScore.performance?.currentGoodRate,
+              currentExcellentRate: trustScore.performance?.currentExcellentRate,
+              currentBreakEvenRate: trustScore.performance?.currentBreakEvenRate,
               consistency: trustScore.consistency?.score,
               riskManagement: trustScore.riskManagement?.score,
               trustLevel: trustScore.summary?.trustLevel,
