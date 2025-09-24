@@ -427,6 +427,15 @@ function TopHoldersTable({ holders }) {
               ? `https://solscan.io/account/${address}`
               : null;
             
+            // Debug: Log holder data to see available fields
+            if (index === 0) {
+              console.log('🔍 Holder data structure:', holder);
+            }
+            
+            // Try different field names for balance and percentage
+            const balance = holder.balanceFormatted || holder.balance || holder.tokenBalance || holder.amount || holder.value;
+            const percentage = holder.percentageFormatted || holder.percentage || holder.percent || holder.share;
+            
             return (
               <tr key={address || index} className="border-b border-slate-800/40">
                 <td className="py-2 text-slate-300">#{holder.rank || index + 1}</td>
@@ -444,8 +453,8 @@ function TopHoldersTable({ holders }) {
                     shortAddress
                   )}
                 </td>
-                <td className="py-2 text-right text-slate-300">{formatLargeNumber(holder.balanceFormatted)}</td>
-                <td className="py-2 text-right text-slate-300">{formatPercentage(holder.percentageFormatted)}</td>
+                <td className="py-2 text-right text-slate-300">{formatLargeNumber(balance)}</td>
+                <td className="py-2 text-right text-slate-300">{formatPercentage(percentage)}</td>
               </tr>
             );
           })}
@@ -546,6 +555,10 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
         
         if (result.success && result.data) {
           console.log('✅ Holder insights loaded:', result.data);
+          console.log('🔍 Top holders data:', result.data.topHolders);
+          if (result.data.topHolders?.holders) {
+            console.log('🔍 First holder sample:', result.data.topHolders.holders[0]);
+          }
           setData(result.data);
         } else {
           throw new Error(result.error || 'Failed to fetch holder insights');
