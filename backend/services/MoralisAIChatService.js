@@ -728,6 +728,49 @@ class MoralisAIChatService {
   }
 
   /**
+   * Search for token by contract address in the database
+   */
+  async searchTokenByContract(contractAddress) {
+    try {
+      console.log(`🔍 [TOKEN SEARCH] Searching for contract: "${contractAddress}"`);
+      
+      if (!this.backendInstance) {
+        console.log(`⚠️ [TOKEN SEARCH] No backend instance available for database search`);
+        return null;
+      }
+
+      // Get all tokens from cache
+      const allTokens = await this.backendInstance.getTokensFromCache();
+      console.log(`🔍 [TOKEN SEARCH] Retrieved ${allTokens ? allTokens.length : 0} tokens from cache`);
+      
+      if (!allTokens || allTokens.length === 0) {
+        console.log(`⚠️ [TOKEN SEARCH] No tokens found in cache`);
+        return null;
+      }
+
+      const searchAddress = contractAddress.toLowerCase().trim();
+      console.log(`🔍 [TOKEN SEARCH] Searching ${allTokens.length} tokens for contract: "${searchAddress}"`);
+
+      // Search by contract address
+      const foundToken = allTokens.find(token => 
+        token.contractAddress && 
+        token.contractAddress.toLowerCase() === searchAddress
+      );
+
+      if (foundToken) {
+        console.log(`✅ [TOKEN SEARCH] Found token: ${foundToken.name} (${foundToken.symbol}) - ${foundToken.contractAddress}`);
+        return foundToken;
+      } else {
+        console.log(`❌ [TOKEN SEARCH] No token found for contract: "${contractAddress}"`);
+        return null;
+      }
+    } catch (error) {
+      console.error(`❌ [TOKEN SEARCH] Error searching for contract:`, error);
+      return null;
+    }
+  }
+
+  /**
    * Extract token references from conversation history
    */
   extractTokenReferencesFromHistory(conversationHistory) {
@@ -1019,9 +1062,20 @@ class MoralisAIChatService {
       let symbol = tokenData?.analytics?.symbol || tokenData?.databaseInfo?.symbol;
       let name = tokenData?.analytics?.name || tokenData?.databaseInfo?.name;
       
-      // If no symbol/name found, use fallback
+      // If no symbol/name found, try to search in our token cache
       if (!symbol || !name) {
-        console.log(`🔍 No token data found for ${contractAddress}, using fallback`);
+        console.log(`🔍 No token data found for ${contractAddress}, searching token cache`);
+        try {
+          // Search our token cache for this contract address
+          const cachedToken = await this.searchTokenByContract(contractAddress);
+          if (cachedToken) {
+            symbol = symbol || cachedToken.symbol;
+            name = name || cachedToken.name;
+            console.log(`✅ Found token in cache: ${name} (${symbol})`);
+          }
+        } catch (error) {
+          console.log(`🔍 Could not search token cache: ${error.message}`);
+        }
       }
       
       // Fallback to contract address if still no name/symbol
