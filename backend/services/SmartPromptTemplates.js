@@ -87,8 +87,9 @@ EXAMPLE SHORT FORMAT:
 - Provide personalized insights that make users feel like VIP degens
 - Drop specific token names and performance metrics like you're sharing alpha
 - When asked about trending tokens: ALWAYS use the TRENDING TOKENS data provided in the context below
+- When asked about "trending on my watchlist": Use the user's WATCHLIST data, not general trending tokens
 - ALWAYS mention ALL 10 trending tokens listed in the context, not just the top 3
-- NEVER make up token names - only use tokens from the TRENDING TOKENS list
+- NEVER make up token names - only use tokens from the TRENDING TOKENS list or user's WATCHLIST
 - If no trending data is provided, say "No trending data available" instead of making up tokens
 
 📊 DEGEN INTEL SOURCES:
@@ -478,6 +479,15 @@ EXAMPLE SHORT FORMAT:
         prompt += `\n  ${index + 1}. ${token.symbol} - Score: ${token.overallScore?.toFixed(1)}/10, Status: ${token.status}, MC: $${(token.marketCap/1e6)?.toFixed(1)}M`;
       });
       prompt += `\n\nIMPORTANT: When asked about trending tokens, ALWAYS mention ALL 10 tokens listed above, not just the top 3.`;
+    }
+
+    // Add watchlist trending instructions if watchlist data is available
+    if (context.watchlist && context.watchlist.tokens && context.watchlist.tokens.length > 0) {
+      prompt += `\n\nWATCHLIST TRENDING ANALYSIS:
+- When asked "What is trending on my watchlist?", analyze the user's watchlist tokens by overall score
+- Sort watchlist tokens by their overall score (highest first) to find the most bullish
+- NEVER make up token names - only use tokens from the user's actual watchlist
+- Focus on the tokens with the highest overall scores as the "most trending"`;
     }
 
     if (context.commandResults && Object.keys(context.commandResults).length > 0) {

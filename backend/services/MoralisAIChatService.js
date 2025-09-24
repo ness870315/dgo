@@ -1445,8 +1445,13 @@ class MoralisAIChatService {
 
       // Get user's watchlist with performance analysis
       if (dataNeeds.watchlist) {
-        const watchlist = await this.db.getWatchlist(userId);
-        context.watchlist = await this.processWatchlistForAI(watchlist || []);
+        try {
+          const watchlist = await this.oauthXService.getWatchlist(userId);
+          context.watchlist = await this.processWatchlistForAI(watchlist || []);
+        } catch (error) {
+          console.error('❌ Error fetching watchlist:', error);
+          context.watchlist = { error: 'Unable to fetch watchlist' };
+        }
       }
 
       // Get user's hype list
