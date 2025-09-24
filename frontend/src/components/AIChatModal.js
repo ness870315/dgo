@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Bot, User, Sparkles, MessageCircle, Star, BarChart3, TrendingUp, Save, History, Trash2, FolderOpen, Move } from 'lucide-react';
+import { X, Send, Bot, User, Sparkles, MessageCircle, Star, BarChart3, TrendingUp, Save, History, Trash2, FolderOpen, Move, ArrowLeft } from 'lucide-react';
 import aiChatService from '../services/aiChatService';
 import { useAuth } from '../contexts/AuthContext';
 import './AIChatModal.css';
@@ -13,6 +13,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
   const [showHistories, setShowHistories] = useState(false);
   const [chatHistories, setChatHistories] = useState([]);
   const [personalizedSuggestions, setPersonalizedSuggestions] = useState([]);
+  const [showWelcome, setShowWelcome] = useState(true);
   
   // Positioning state
   const [position, setPosition] = useState(() => {
@@ -153,6 +154,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
 
     setInputMessage('');
     setShowSuggestions(false);
+    setShowWelcome(false); // Hide welcome screen when user starts chatting
     setIsLoading(true);
 
     // Add user message to UI
@@ -207,6 +209,12 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
 
   const handleSuggestionClick = (suggestion) => {
     handleSendMessage(suggestion);
+  };
+
+  const handleBackToWelcome = () => {
+    setShowWelcome(true);
+    setShowSuggestions(true);
+    setShowHistories(false);
   };
 
   const handleActionClick = async (action) => {
@@ -373,6 +381,16 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
                 <Bot className="w-5 h-5 text-blue-400" />
                 <span className="font-semibold text-white">Degen Oracle AI</span>
               </div>
+              {!showWelcome && (
+                <button
+                  onClick={handleBackToWelcome}
+                  className="ml-2 px-2 py-1 text-xs bg-gray-600 hover:bg-gray-700 rounded text-white transition-colors flex items-center gap-1"
+                  title="Back to Welcome"
+                >
+                  <ArrowLeft size={12} />
+                  Back
+                </button>
+              )}
             </div>
             
             <div className="chat-header-controls flex items-center gap-2">
@@ -455,7 +473,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
           )}
 
           {/* Welcome Message */}
-          {messages.length === 0 && !showHistories && (
+          {showWelcome && !showHistories && (
             <div className="text-center py-8" key="welcome-message">
               <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Sparkles size={24} className="text-white" />
@@ -468,7 +486,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
           )}
 
           {/* Suggested Questions */}
-          {showSuggestions && !showHistories && (
+          {showWelcome && showSuggestions && !showHistories && (
             <div className="space-y-2" key="suggestions-container">
               <p className="text-sm text-gray-400 font-medium">
                 {personalizedSuggestions.length > 0 ? '🧠 Personalized suggestions:' : 'Try asking me:'}
