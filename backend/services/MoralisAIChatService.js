@@ -1007,15 +1007,17 @@ class MoralisAIChatService {
     const contractMatches = prompt.match(/[a-z0-9]{32,}/gi) || [];
     
     for (const contractAddress of contractMatches) {
-      // Try to get token symbol from context
+      // Try to get token symbol and name from context
       const tokenData = userContext.tokenData?.[contractAddress];
       const symbol = tokenData?.analytics?.symbol || contractAddress.substring(0, 8) + '...';
+      const name = tokenData?.analytics?.name || tokenData?.databaseInfo?.name || symbol;
       
       suggestions.push({
         type: 'ADD_TO_WATCHLIST',
         label: `Add ${symbol} to Watchlist`,
         contractAddress: contractAddress,
         symbol: symbol,
+        name: name,
         icon: '⭐'
       });
       
