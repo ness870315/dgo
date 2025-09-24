@@ -862,12 +862,21 @@ class MoralisAIChatService {
         }
       }
       
+      // Try to extract token name from user input
+      const tokenNameMatch = lowerPrompt.match(/(?:tell me about|about|more about)\s+(\w+)\s+[a-z0-9]{32,}/i) ||
+                             lowerPrompt.match(/(?:price of|holder.*for|analysis.*for)\s+(\w+)\s+[a-z0-9]{32,}/i) ||
+                             lowerPrompt.match(/(\w+)\s+[a-z0-9]{32,}/i);
+      
+      const extractedTokenName = tokenNameMatch ? tokenNameMatch[1] : null;
+      console.log(`🔍 [AI PARSE DEBUG] Extracted token name: "${extractedTokenName}" from prompt`);
+
       const command = {
         type: 'GET_TOKEN_DATA',
         contractAddress: identifier,
         tokenData: tokenData, // Include found token data
         originalQuery: tokenDataMatch[1], // Keep original query for error messages
-        userId
+        userId,
+        userProvidedName: extractedTokenName // Include extracted token name
       };
       
       console.log(`✅ [AI PARSE DEBUG] GET_TOKEN_DATA command detected:`, JSON.stringify(command, null, 2));
@@ -888,13 +897,21 @@ class MoralisAIChatService {
         const contractAddress = whaleActivityMatch[1];
         console.log(`🐋 [AI PARSE DEBUG] Whale activity request for contract: ${contractAddress}`);
         
+        // Try to extract token name from user input for whale activity
+        const whaleTokenNameMatch = lowerPrompt.match(/(?:whale.*for|activity.*for)\s+(\w+)\s+[a-z0-9]{32,}/i) ||
+                                   lowerPrompt.match(/(\w+)\s+[a-z0-9]{32,}/i);
+        
+        const whaleExtractedTokenName = whaleTokenNameMatch ? whaleTokenNameMatch[1] : null;
+        console.log(`🐋 [AI PARSE DEBUG] Extracted token name for whale activity: "${whaleExtractedTokenName}"`);
+
         const command = {
           type: 'GET_TOKEN_DATA',
           contractAddress: contractAddress,
           tokenData: null,
           originalQuery: contractAddress,
           userId: userId,
-          analysisType: 'whale_activity'
+          analysisType: 'whale_activity',
+          userProvidedName: whaleExtractedTokenName // Include extracted token name
         };
         
         console.log(`✅ [AI PARSE DEBUG] WHALE_ACTIVITY command detected:`, JSON.stringify(command, null, 2));
