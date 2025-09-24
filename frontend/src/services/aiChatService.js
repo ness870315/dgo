@@ -319,6 +319,44 @@ class AIChatService {
   }
 
   /**
+   * Update existing chat history with new messages
+   */
+  async updateChatHistory(historyId, messages) {
+    try {
+      const sessionId = localStorage.getItem('sessionId');
+      
+      if (!sessionId) {
+        throw new Error('No session found. Please log in first.');
+      }
+
+      const response = await fetch(`${this.API_BASE}/api/ai/chat/history/${historyId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sessionId,
+          messages
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log(`💾 Updated chat history: ${historyId} (${messages.length} messages)`);
+      
+      return data.history;
+
+    } catch (error) {
+      console.error('❌ Update chat history error:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Delete chat history
    */
   async deleteChatHistory(historyId) {

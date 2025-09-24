@@ -14,6 +14,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
   const [chatHistories, setChatHistories] = useState([]);
   const [personalizedSuggestions, setPersonalizedSuggestions] = useState([]);
   const [showWelcome, setShowWelcome] = useState(true);
+  const [currentHistoryId, setCurrentHistoryId] = useState(null);
   
   // Positioning state
   const [position, setPosition] = useState(() => {
@@ -183,6 +184,17 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
 
       setMessages(prev => [...prev, aiMessage]);
 
+      // Auto-save if we're in a loaded history chat
+      if (currentHistoryId) {
+        try {
+          await aiChatService.updateChatHistory(currentHistoryId, [...messages, userMessage, aiMessage]);
+          console.log(`💾 Auto-saved history chat: ${currentHistoryId}`);
+        } catch (saveError) {
+          console.error('Auto-save failed:', saveError);
+          // Don't show error to user for auto-save failures
+        }
+      }
+
     } catch (error) {
       console.error('Error sending message:', error);
       
@@ -260,6 +272,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
     setMessages([]);
     aiChatService.clearHistory();
     setShowSuggestions(true);
+    setCurrentHistoryId(null); // Clear current history ID for new chat
   };
 
   const handleSaveChat = async () => {
@@ -304,6 +317,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
       setMessages(formattedHistory);
       setShowSuggestions(false);
       setShowHistories(false);
+      setCurrentHistoryId(historyId); // Track the loaded history ID
       
       console.log(`📖 Loaded: ${history.title}`);
     } catch (error) {

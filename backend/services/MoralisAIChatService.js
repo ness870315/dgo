@@ -283,6 +283,37 @@ class MoralisAIChatService {
   }
 
   /**
+   * Update existing chat history with new messages
+   */
+  async updateChatHistory(userId, historyId, messages) {
+    try {
+      console.log(`💾 Updating chat history ${historyId} for user ${userId}`);
+      
+      const chatHistoriesFile = this.db.getUserFile(userId, 'chat_histories.json');
+      const histories = await this.db.readJsonFile(chatHistoriesFile, []);
+      
+      const historyIndex = histories.findIndex(h => h.id === historyId);
+      if (historyIndex === -1) {
+        throw new Error(`Chat history ${historyId} not found`);
+      }
+      
+      // Update the history with new messages
+      histories[historyIndex].messages = messages;
+      histories[historyIndex].updatedAt = new Date().toISOString();
+      histories[historyIndex].messageCount = messages.length;
+      
+      await this.db.writeJsonFile(chatHistoriesFile, histories);
+      
+      console.log(`✅ Updated chat history: ${historyId} (${messages.length} messages)`);
+      return histories[historyIndex];
+      
+    } catch (error) {
+      console.error('❌ Error updating chat history:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Delete chat history
    */
   async deleteChatHistory(userId, historyId) {

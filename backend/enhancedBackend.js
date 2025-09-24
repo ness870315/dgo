@@ -7449,6 +7449,44 @@ class EnhancedBackend {
       }
     });
 
+    // Update chat history
+    this.app.put('/api/ai/chat/history/:historyId', async (req, res) => {
+      try {
+        const { sessionId, messages } = req.body;
+        const { historyId } = req.params;
+        
+        if (!sessionId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Missing sessionId'
+          });
+        }
+
+        if (!messages || !Array.isArray(messages)) {
+          return res.status(400).json({
+            success: false,
+            error: 'Missing or invalid messages array'
+          });
+        }
+
+        // Update the chat history
+        const updatedHistory = await this.moralisAIChatService.updateChatHistory(sessionId, historyId, messages);
+
+        res.json({
+          success: true,
+          history: updatedHistory
+        });
+
+      } catch (error) {
+        console.error('❌ Update chat history error:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to update chat history',
+          details: error.message
+        });
+      }
+    });
+
     // Delete chat history
     this.app.delete('/api/ai/chat/history/:historyId', async (req, res) => {
       try {
