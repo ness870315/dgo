@@ -19,9 +19,13 @@ class SmartIntentDetector {
           /whale.*?activity.*?for\s+[a-z0-9]{32,}/i,
           /show.*?(?:whale|activity|transactions?).*?[a-z0-9]{32,}/i,
           /[a-z0-9]{32,}.*?(?:whale|activity|analysis|data)/i,
-          /(?:whale|activity|analysis|data).*?[a-z0-9]{32,}/i
+          /(?:whale|activity|analysis|data).*?[a-z0-9]{32,}/i,
+          /(?:holder|market|volume|price|analysis).*?(?:of|on|for) \w+/i,
+          /\w+.*?(?:holder|market|volume|price|analysis)/i,
+          /(?:analysis|data|info).*?(?:of|on|for) \w+/i,
+          /\w+.*?(?:analysis|data|info)/i
         ],
-        keywords: ['price of', 'volume of', 'holders of', 'market cap of', 'liquidity of', 'wallet', 'on-chain', 'whale activity', 'show me'],
+        keywords: ['price of', 'volume of', 'holders of', 'market cap of', 'liquidity of', 'wallet', 'on-chain', 'whale activity', 'show me', 'holder analysis', 'market analysis', 'volume analysis', 'price analysis', 'analysis of', 'data of', 'info of'],
         priority: 'high'
       },
 
