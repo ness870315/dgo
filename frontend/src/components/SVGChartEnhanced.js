@@ -770,35 +770,55 @@ function SvgOHLCVArea({
             
             {/* Tooltip */}
             <g>
-              <rect
-                x={mousePos.x + 10}
-                y={mousePos.y - 30}
-                width="140"
-                height="50"
-                fill="rgba(0,0,0,0.8)"
-                rx="4"
-                stroke="rgba(255,255,255,0.2)"
-                strokeWidth="1"
-              />
-              <text
-                x={mousePos.x + 15}
-                y={mousePos.y - 15}
-                fill="white"
-                fontSize="11"
-                fontFamily="system-ui,sans-serif"
-              >
-                {timeFormatter(mousePos.time)}
-              </text>
-              <text
-                x={mousePos.x + 15}
-                y={mousePos.y - 2}
-                fill="white"
-                fontSize="11"
-                fontFamily="system-ui,sans-serif"
-                fontWeight="bold"
-              >
-                {yFormatter(mousePos.price)}
-              </text>
+              {(() => {
+                const tooltipWidth = 140;
+                const tooltipHeight = 50;
+                const tooltipOffset = 10;
+                
+                // Check if tooltip would go off-screen to the right
+                const wouldGoOffScreen = mousePos.x + tooltipOffset + tooltipWidth > width - padding.right;
+                
+                // Position tooltip to the left if it would go off-screen
+                const tooltipX = wouldGoOffScreen 
+                  ? mousePos.x - tooltipOffset - tooltipWidth 
+                  : mousePos.x + tooltipOffset;
+                
+                const textX = tooltipX + 5;
+                
+                return (
+                  <>
+                    <rect
+                      x={tooltipX}
+                      y={mousePos.y - 30}
+                      width={tooltipWidth}
+                      height={tooltipHeight}
+                      fill="rgba(0,0,0,0.8)"
+                      rx="4"
+                      stroke="rgba(255,255,255,0.2)"
+                      strokeWidth="1"
+                    />
+                    <text
+                      x={textX}
+                      y={mousePos.y - 15}
+                      fill="white"
+                      fontSize="11"
+                      fontFamily="system-ui,sans-serif"
+                    >
+                      {timeFormatter(mousePos.time)}
+                    </text>
+                    <text
+                      x={textX}
+                      y={mousePos.y - 2}
+                      fill="white"
+                      fontSize="11"
+                      fontFamily="system-ui,sans-serif"
+                      fontWeight="bold"
+                    >
+                      {yFormatter(mousePos.price)}
+                    </text>
+                  </>
+                );
+              })()}
             </g>
           </>
         )}
