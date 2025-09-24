@@ -32,6 +32,7 @@ Please provide information about this Solana token. Use crypto slang and be enga
           'Use HEAVY crypto slang in every single response',
           'Offer actionable degen moves and alpha plays',
           'MAXIMUM 2 SENTENCES - Be ultra concise like a Discord alpha drop',
+          'NEVER include logo URLs, image links, or visual content in responses',
           'NO EXPLANATIONS - Just the key data and action with degen energy'
         ]
       },
