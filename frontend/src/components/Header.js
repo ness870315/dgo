@@ -5,6 +5,7 @@ import dgoLogo from '../assets/dgo.png';
 const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, authButton, onWatchlistClick, onApifyTestClick, onAIChatClick, user }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [hoveredTooltip, setHoveredTooltip] = useState(null);
   const [filters, setFilters] = useState({
     minScore: 0,
     maxScore: 10,
@@ -84,42 +85,81 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
             {/* Control Buttons */}
             <div className="flex items-center justify-center space-x-2">
               {/* Refresh Button */}
-              <button
-                onClick={onRefresh}
-                disabled={isLoading}
-                className={`px-2 py-1 rounded-md border border-gray-600 text-gray-400 hover:text-white hover:border-gray-500 transition-colors text-xs ${
-                  isLoading ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-                title="Refresh data"
-                style={{ fontSize: '11px', minHeight: '24px' }}
-              >
-                <RefreshCw size={12} className={isLoading ? 'animate-spin' : ''} />
-              </button>
+              <div className="relative">
+                <button
+                  onClick={onRefresh}
+                  disabled={isLoading}
+                  className={`px-2 py-1 rounded-md border border-gray-600 text-gray-400 hover:text-white hover:border-gray-500 transition-colors text-xs ${
+                    isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  onMouseEnter={() => setHoveredTooltip('refresh')}
+                  onMouseLeave={() => setHoveredTooltip(null)}
+                  style={{ fontSize: '11px', minHeight: '24px' }}
+                >
+                  <RefreshCw size={12} className={isLoading ? 'animate-spin' : ''} />
+                </button>
+                
+                {/* Tooltip */}
+                {hoveredTooltip === 'refresh' && (
+                  <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-50">
+                    <div className="text-xs leading-tight">
+                      <span className="font-semibold text-white">🔄 Refresh:</span>
+                      <span className="text-gray-300 ml-1">Update token data and rankings</span>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Watchlist Button */}
-              <button
-                onClick={onWatchlistClick}
-                className="px-2 py-1 rounded-md border border-gray-600 text-gray-400 hover:text-yellow-400 hover:border-yellow-500 transition-colors text-xs"
-                title="View Watchlist"
-                style={{ fontSize: '11px', minHeight: '24px' }}
-              >
-                <Star size={12} />
-              </button>
+              <div className="relative">
+                <button
+                  onClick={onWatchlistClick}
+                  className="px-2 py-1 rounded-md border border-gray-600 text-gray-400 hover:text-yellow-400 hover:border-yellow-500 transition-colors text-xs"
+                  onMouseEnter={() => setHoveredTooltip('watchlist')}
+                  onMouseLeave={() => setHoveredTooltip(null)}
+                  style={{ fontSize: '11px', minHeight: '24px' }}
+                >
+                  <Star size={12} />
+                </button>
+                
+                {/* Tooltip */}
+                {hoveredTooltip === 'watchlist' && (
+                  <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-50">
+                    <div className="text-xs leading-tight">
+                      <span className="font-semibold text-white">⭐ Watchlist:</span>
+                      <span className="text-gray-300 ml-1">View your saved tokens</span>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* AI Chat Button */}
-              <button
-                onClick={user?.isPremium ? onAIChatClick : undefined}
-                disabled={!user?.isPremium}
-                className={`px-2 py-1 rounded-md border text-xs transition-colors ${
-                  user?.isPremium 
-                    ? 'border-gray-600 text-gray-400 hover:text-purple-400 hover:border-purple-500 cursor-pointer' 
-                    : 'border-gray-700 text-gray-600 cursor-not-allowed opacity-60'
-                }`}
-                title={user?.isPremium ? "AI Assistant" : "AI Assistant (Premium Only)"}
-                style={{ fontSize: '11px', minHeight: '24px' }}
-              >
-                <Bot size={12} />
-              </button>
+              <div className="relative">
+                <button
+                  onClick={user?.isPremium ? onAIChatClick : undefined}
+                  disabled={!user?.isPremium}
+                  className={`px-2 py-1 rounded-md border text-xs transition-colors ${
+                    user?.isPremium 
+                      ? 'border-gray-600 text-gray-400 hover:text-purple-400 hover:border-purple-500 cursor-pointer' 
+                      : 'border-gray-700 text-gray-600 cursor-not-allowed opacity-60'
+                  }`}
+                  onMouseEnter={() => setHoveredTooltip('aichat')}
+                  onMouseLeave={() => setHoveredTooltip(null)}
+                  style={{ fontSize: '11px', minHeight: '24px' }}
+                >
+                  <Bot size={12} />
+                </button>
+                
+                {/* Tooltip */}
+                {hoveredTooltip === 'aichat' && (
+                  <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-50">
+                    <div className="text-xs leading-tight">
+                      <span className="font-semibold text-white">🤖 AI Assistant:</span>
+                      <span className="text-gray-300 ml-1">{user?.isPremium ? "Chat with AI assistant" : "Premium feature - upgrade to access"}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Authentication Button */}
               <div className="flex-shrink-0">

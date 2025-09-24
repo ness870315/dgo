@@ -8,6 +8,7 @@ const FloatingChatButton = ({ onOpenChat }) => {
   const [position, setPosition] = useState({ x: window.innerWidth - 80, y: window.innerHeight / 2 - 30 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [showTooltip, setShowTooltip] = useState(false);
   const buttonRef = useRef(null);
 
   // Handle drag start
@@ -133,7 +134,8 @@ const FloatingChatButton = ({ onOpenChat }) => {
       }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
-      title={isPremium ? "Drag to reposition • Click to open AI Chat" : "AI Chat requires premium access"}
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
     >
       <div className="chat-icon">
         <Bot size={20} className="text-white" />
@@ -143,6 +145,16 @@ const FloatingChatButton = ({ onOpenChat }) => {
       {isPremium && (
         <div className="premium-indicator">
           <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+        </div>
+      )}
+      
+      {/* Tooltip */}
+      {showTooltip && (
+        <div className="bubble-tooltip absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-50">
+          <div className="text-xs leading-tight">
+            <span className="font-semibold text-white">🤖 AI Chat:</span>
+            <span className="text-gray-300 ml-1">{isPremium ? "Drag to reposition • Click to open" : "Premium feature - upgrade to access"}</span>
+          </div>
         </div>
       )}
     </div>

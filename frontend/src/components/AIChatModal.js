@@ -504,7 +504,10 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
               <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Sparkles size={24} className="text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">Welcome to Degen Oracle AI!</h3>
+              <h3 className="text-xl font-semibold text-white mb-2">
+                <div>Degen</div>
+                <div>Oracle AI</div>
+              </h3>
               <p className="text-gray-400 mb-6">
                 I have access to the Solana Blockchain, your KOL calls, watchlist, hype data, and more. I learn from our conversations to provide personalized insights!
               </p>
