@@ -1000,7 +1000,7 @@ class MoralisAIChatService {
   /**
    * Generate action suggestions based on context
    */
-  generateActionSuggestions(prompt, userContext) {
+  async generateActionSuggestions(prompt, userContext) {
     const suggestions = [];
     
     // Extract contract addresses from prompt
@@ -1291,7 +1291,7 @@ class MoralisAIChatService {
 
       // Add action suggestions if relevant
       if (commands.length > 0 || this.shouldSuggestActions(userPrompt)) {
-        formattedResponse.actionSuggestions = this.generateActionSuggestions(userPrompt, userContext);
+        formattedResponse.actionSuggestions = await this.generateActionSuggestions(userPrompt, userContext);
       }
 
       // Learn from this conversation (async, don't wait) - only if safe
