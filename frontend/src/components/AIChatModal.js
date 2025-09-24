@@ -403,7 +403,10 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
               <Move size={16} className="text-gray-400" />
               <div className="flex items-center gap-2">
                 <Bot className="w-5 h-5 text-blue-400" />
-                <span className="font-semibold text-white">Degen Oracle AI</span>
+                <div className="font-semibold text-white text-center">
+                  <div className="block">Degen</div>
+                  <div className="block">Oracle AI</div>
+                </div>
               </div>
               {(!showWelcome || currentHistoryId) && (
                 <button
@@ -504,9 +507,9 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
               <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Sparkles size={24} className="text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">
-                <div>Degen</div>
-                <div>Oracle AI</div>
+              <h3 className="text-xl font-semibold text-white mb-2 text-center">
+                <div className="block">Degen</div>
+                <div className="block">Oracle AI</div>
               </h3>
               <p className="text-gray-400 mb-6">
                 I have access to the Solana Blockchain, your KOL calls, watchlist, hype data, and more. I learn from our conversations to provide personalized insights!
