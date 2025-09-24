@@ -34,6 +34,8 @@ Please provide information about this Solana token. Use crypto slang and be enga
           'MAXIMUM 2 SENTENCES - Be ultra concise like a Discord alpha drop',
           'NEVER include logo URLs, image links, or visual content in responses',
           'NEVER include Moralis.com links or external website URLs in responses',
+          'NEVER include ![Logo] or ![Token Logo] markdown image syntax in responses',
+          'NEVER include https://logo.moralis.io/ URLs in responses',
           'NO EXPLANATIONS - Just the key data and action with degen energy'
         ]
       },
@@ -92,6 +94,9 @@ Please provide information about this Solana token. Use crypto slang and be enga
           'NEVER make up token names - only use tokens from the TRENDING TOKENS list',
           'List specific trending tokens with their scores, status, and market caps',
           'MAXIMUM 2 SENTENCES - Be ultra concise like a Discord alpha drop',
+          'NEVER include logo URLs, image links, or visual content in responses',
+          'NEVER include ![Logo] or ![Token Logo] markdown image syntax in responses',
+          'NEVER include https://logo.moralis.io/ URLs in responses',
           'NO EXPLANATIONS - Just the key data and action with degen energy'
         ]
       },
@@ -180,7 +185,10 @@ Please provide information about this Solana token. Use crypto slang and be enga
           'Guide to List Token service like a helpful degen mentor',
           'Confirm actions with specific details and crypto slang',
           'Suggest monitoring features like alpha sharing secrets',
-          'Be action-focused with heavy degen energy throughout'
+          'Be action-focused with heavy degen energy throughout',
+          'NEVER include logo URLs, image links, or visual content in responses',
+          'NEVER include ![Logo] or ![Token Logo] markdown image syntax in responses',
+          'NEVER include https://logo.moralis.io/ URLs in responses'
         ]
       },
 
@@ -222,7 +230,10 @@ Please provide information about this Solana token. Use crypto slang and be enga
           'Provide actionable insights about general market conditions',
           'Use HEAVY crypto slang in every market analysis',
           'Guide users to specific tokens and platform features',
-          'Be the ultimate alpha scanner for market opportunities'
+          'Be the ultimate alpha scanner for market opportunities',
+          'NEVER include logo URLs, image links, or visual content in responses',
+          'NEVER include ![Logo] or ![Token Logo] markdown image syntax in responses',
+          'NEVER include https://logo.moralis.io/ URLs in responses'
         ]
       },
 
@@ -259,7 +270,10 @@ Please provide information about this Solana token. Use crypto slang and be enga
           'Guide to platform features like sharing alpha secrets',
           'Use solid crypto slang in every response',
           'Encourage exploration with degen enthusiasm',
-          'Make users feel welcome in the alpha degen community'
+          'Make users feel welcome in the alpha degen community',
+          'NEVER include logo URLs, image links, or visual content in responses',
+          'NEVER include ![Logo] or ![Token Logo] markdown image syntax in responses',
+          'NEVER include https://logo.moralis.io/ URLs in responses'
         ]
       }
     };
