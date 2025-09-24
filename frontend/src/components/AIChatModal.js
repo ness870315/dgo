@@ -417,7 +417,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
               )}
             </div>
             
-            <div className="chat-header-controls flex items-center gap-1">
+            <div className="chat-header-controls flex items-center gap-3">
             {!showHistories && !currentHistoryId && (
               <button
                 onClick={handleSaveChat}
