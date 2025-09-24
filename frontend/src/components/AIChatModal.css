@@ -75,3 +75,32 @@
   -moz-user-select: none;
   -ms-user-select: none;
 }
+
+/* Fix long contract addresses breaking chat bubbles */
+.message-content {
+  word-break: break-all;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+/* Ensure chat bubbles expand properly with content */
+.ai-chat-modal .max-w-\[80\%\] {
+  min-width: 0;
+}
+
+/* Specific styling for contract addresses */
+.message-content {
+  font-family: 'Courier New', monospace;
+  min-height: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+/* Ensure chat bubbles expand to fit content */
+.ai-chat-modal .rounded-2xl {
+  min-height: auto;
+  max-height: none;
+  overflow: visible;
+}

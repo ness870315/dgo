@@ -387,7 +387,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
                   className="ml-2 px-2 py-1 text-xs bg-gray-600 hover:bg-gray-700 rounded text-white transition-colors flex items-center gap-1"
                   title="Back to Welcome"
                 >
-                  <ArrowLeft size={12} />
+                  <ArrowLeft size={10} />
                   Back
                 </button>
               )}
@@ -397,21 +397,21 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
             <button
               onClick={handleSaveChat}
               disabled={messages.length === 0 || isLoading}
-              className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:opacity-50 rounded text-white transition-colors flex items-center gap-1"
+              className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:opacity-50 rounded text-white transition-colors flex items-center gap-1"
             >
-              <Save size={12} />
+              <Save size={10} />
               Save Chat
             </button>
             <button
               onClick={() => setShowHistories(!showHistories)}
-              className="px-3 py-1 text-xs bg-purple-600 hover:bg-purple-700 rounded text-white transition-colors flex items-center gap-1"
+              className="px-2 py-1 text-xs bg-purple-600 hover:bg-purple-700 rounded text-white transition-colors flex items-center gap-1"
             >
-              <History size={12} />
+              <History size={10} />
               History ({chatHistories.length})
             </button>
             <button
               onClick={clearChat}
-              className="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded text-white transition-colors"
+              className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded text-white transition-colors"
             >
               Clear Chat
             </button>
