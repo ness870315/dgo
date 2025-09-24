@@ -6,6 +6,28 @@ const fmt = new Intl.NumberFormat();
 const pct = (v) => `${v.toFixed(2)}%`;
 const classNames = (...xs) => xs.filter(Boolean).join(" ");
 
+// Format large numbers with abbreviations (K, M, B, T)
+const formatLargeNumber = (value) => {
+  if (!value || isNaN(value)) return 'N/A';
+  
+  const num = parseFloat(value);
+  if (num === 0) return '0';
+  
+  const absNum = Math.abs(num);
+  
+  if (absNum >= 1e12) {
+    return `${(num / 1e12).toFixed(1)}T`;
+  } else if (absNum >= 1e9) {
+    return `${(num / 1e9).toFixed(1)}B`;
+  } else if (absNum >= 1e6) {
+    return `${(num / 1e6).toFixed(1)}M`;
+  } else if (absNum >= 1e3) {
+    return `${(num / 1e3).toFixed(1)}K`;
+  } else {
+    return num.toFixed(2);
+  }
+};
+
 // --- Donut Chart (pure SVG) ---
 function Donut({ data, size = 120, stroke = 16, colors }) {
   const total = Object.values(data).reduce((a, b) => a + b, 0);
@@ -412,7 +434,7 @@ function TopHoldersTable({ holders }) {
                     shortAddress
                   )}
                 </td>
-                <td className="py-2 text-right text-slate-300">{holder.balanceFormatted || 'N/A'}</td>
+                <td className="py-2 text-right text-slate-300">{formatLargeNumber(holder.balanceFormatted)}</td>
                 <td className="py-2 text-right text-slate-300">{holder.percentageFormatted || 'N/A'}</td>
               </tr>
             );
