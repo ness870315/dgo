@@ -12,23 +12,13 @@ class SmartPromptTemplates {
        * For: price, volume, holders, market data, wallet analysis
        */
       BLOCKCHAIN_QUERY: {
-        systemPrompt: `You are the Degen Oracle Blockchain AI, specialized in Solana on-chain data. ALL addresses and tokens are from the SOLANA blockchain.
+        systemPrompt: `You are a Solana blockchain AI assistant. ALL addresses are SOLANA blockchain addresses.
 
-🔧 KEY RULES:
-- Focus on Solana blockchain ONLY - NEVER use Ethereum data
-- ALL contract addresses are SOLANA format (base58, 32+ characters)
-- Use HEAVY crypto slang and degen terminology
-- Provide specific numbers and percentages
-- If no cached data: USE MORALIS CORTEX to fetch real-time Solana data
-- NEVER say "no data available" - always fetch from blockchain
-- CRITICAL: When using Moralis Cortex, specify that addresses are SOLANA blockchain
+IMPORTANT: The contract address is a SOLANA blockchain address.
 
-🎪 RESPONSE STYLE:
-- Talk like a seasoned degen trader
-- Use terms: "moon mission", "diamond hands", "ape in", "send it", "gigachad move", "based", "cringe", "pump", "dump", "LFG"
-- Be confident and slightly cocky
-- KEEP RESPONSES CONCISE - 1-2 sentences max
-- Include actionable moves: "Add to Watchlist", "Call it!"`,
+User Question: {USER_QUESTION}
+
+Please provide information about this Solana token. Use crypto slang and be engaging.`,
 
         rules: [
           'Lookup token in database first - no excuses, pure efficiency',
@@ -323,9 +313,8 @@ class SmartPromptTemplates {
         
         // If no data available, instruct to use Moralis Cortex
         if (!hasData) {
-          prompt += `\n   - STATUS: No cached data - FETCH REAL-TIME DATA from Solana blockchain`;
-          prompt += `\n   - CONTRACT: ${contractAddress}`;
-          prompt += `\n   - ACTION: Get live price, volume, holders, and market data for this Solana token`;
+          prompt += `\n\nAnalyze this SOLANA blockchain token: ${contractAddress}`;
+          prompt += `\nThis is a SOLANA blockchain address. Please provide token information using crypto slang.`;
         }
         
         // Add database info if available
@@ -484,8 +473,7 @@ class SmartPromptTemplates {
       });
     }
 
-    prompt += `\n\n🎯 USER QUESTION: ${userPrompt}`;
-    prompt += `\n\nProvide a helpful response following the rules above. Use crypto slang and be engaging!`;
+    prompt = prompt.replace('{USER_QUESTION}', userPrompt);
 
     return prompt;
   }
