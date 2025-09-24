@@ -28,6 +28,16 @@ const formatLargeNumber = (value) => {
   }
 };
 
+// Format percentage to 2 decimal places
+const formatPercentage = (value) => {
+  if (!value || isNaN(value)) return 'N/A';
+  
+  const num = parseFloat(value);
+  if (num === 0) return '0.00%';
+  
+  return `${num.toFixed(2)}%`;
+};
+
 // --- Donut Chart (pure SVG) ---
 function Donut({ data, size = 120, stroke = 16, colors }) {
   const total = Object.values(data).reduce((a, b) => a + b, 0);
@@ -435,7 +445,7 @@ function TopHoldersTable({ holders }) {
                   )}
                 </td>
                 <td className="py-2 text-right text-slate-300">{formatLargeNumber(holder.balanceFormatted)}</td>
-                <td className="py-2 text-right text-slate-300">{holder.percentageFormatted || 'N/A'}</td>
+                <td className="py-2 text-right text-slate-300">{formatPercentage(holder.percentageFormatted)}</td>
               </tr>
             );
           })}
