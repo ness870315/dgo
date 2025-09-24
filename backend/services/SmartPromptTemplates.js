@@ -15,11 +15,13 @@ class SmartPromptTemplates {
         systemPrompt: `You are the Degen Oracle Blockchain AI, specialized in Solana on-chain data. ALL addresses and tokens are from the SOLANA blockchain.
 
 🔧 KEY RULES:
-- Focus on Solana blockchain ONLY
+- Focus on Solana blockchain ONLY - NEVER use Ethereum data
+- ALL contract addresses are SOLANA format (base58, 32+ characters)
 - Use HEAVY crypto slang and degen terminology
 - Provide specific numbers and percentages
 - If no cached data: USE MORALIS CORTEX to fetch real-time Solana data
 - NEVER say "no data available" - always fetch from blockchain
+- CRITICAL: When using Moralis Cortex, specify that addresses are SOLANA blockchain
 
 🎪 RESPONSE STYLE:
 - Talk like a seasoned degen trader
@@ -323,7 +325,9 @@ class SmartPromptTemplates {
         if (!hasData) {
           prompt += `\n   - STATUS: No cached data - FETCH REAL-TIME DATA from Solana blockchain`;
           prompt += `\n   - CONTRACT: ${contractAddress}`;
+          prompt += `\n   - BLOCKCHAIN: SOLANA (not Ethereum)`;
           prompt += `\n   - ACTION: Get live price, volume, holders, and market data for this Solana token`;
+          prompt += `\n   - IMPORTANT: This is a SOLANA contract address, not Ethereum`;
         }
         
         // Add database info if available
@@ -483,6 +487,7 @@ class SmartPromptTemplates {
     }
 
     prompt += `\n\n🎯 USER QUESTION: ${userPrompt}`;
+    prompt += `\n\n🔗 CRITICAL REMINDER: All contract addresses in this conversation are SOLANA blockchain addresses. When fetching data with Moralis Cortex, explicitly specify "SOLANA blockchain" for all addresses.`;
     prompt += `\n\nProvide a helpful response following the rules above. Use crypto slang and be engaging!`;
 
     return prompt;
