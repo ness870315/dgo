@@ -395,7 +395,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
                 <Bot className="w-5 h-5 text-blue-400" />
                 <span className="font-semibold text-white">Degen Oracle AI</span>
               </div>
-              {!showWelcome && (
+              {(!showWelcome || currentHistoryId) && (
                 <button
                   onClick={handleBackToWelcome}
                   className="ml-6 px-1.5 py-0.5 text-xs bg-gray-600 hover:bg-gray-700 rounded text-white transition-colors flex items-center gap-1"
