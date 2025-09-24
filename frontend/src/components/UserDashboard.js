@@ -240,7 +240,6 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         if (profileData.success) {
           setDashboardData(prev => ({
             ...prev,
-            watchlistCount: profileData.user?.watchlistCount || 0,
             tokensListed: profileData.user?.tokensListed || 0,
             tokensFueled: profileData.user?.tokensFueled || 0,
             tokensUpdated: profileData.user?.tokensUpdated || 0,
@@ -251,9 +250,11 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         }
 
         if (watchlistData.success) {
+          const watchlist = watchlistData.watchlist || [];
           setDashboardData(prev => ({
             ...prev,
-            watchlist: watchlistData.watchlist || []
+            watchlist: watchlist,
+            watchlistCount: watchlist.length // Use actual watchlist length
           }));
         }
 
