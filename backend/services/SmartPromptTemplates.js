@@ -271,63 +271,19 @@ Please provide information about this Solana token. Use crypto slang and be enga
     
     let prompt = template.systemPrompt;
 
-    // Add context-specific information
+    // Add simple token data if available
     if (context.tokenData) {
       console.log(`🔍 [TEMPLATE DEBUG] Token data received:`, JSON.stringify(context.tokenData, null, 2));
       
-      prompt += `\n\nTOKEN DATA RETRIEVED:`;
-      prompt += `\nIMPORTANT: Use this data to answer directly. Do NOT ask for contract addresses.`;
-      
       Object.entries(context.tokenData).forEach(([contractAddress, data]) => {
         console.log(`🔍 [TEMPLATE DEBUG] Processing token ${contractAddress}:`, JSON.stringify(data, null, 2));
-        // Handle both direct analytics data and nested analytics structure
-        const analytics = data.analytics || data;
-        const databaseInfo = data.databaseInfo || {};
         
-        const tokenName = analytics.name || databaseInfo.name || data.userProvidedName || 'Token';
-        const tokenSymbol = analytics.symbol || databaseInfo.symbol || (data.userProvidedName ? data.userProvidedName.toUpperCase() : 'UNKNOWN');
+        const tokenName = data.userProvidedName || 'Unknown';
         
-        prompt += `\n📊 ${tokenName} (${tokenSymbol}) - Contract: ${contractAddress}:`;
-        
-        let hasData = false;
-        if (analytics.price) {
-          prompt += `\n   - Price: $${analytics.price}`;
-          hasData = true;
-        }
-        if (analytics.marketCap) {
-          prompt += `\n   - Market Cap: $${analytics.marketCap.toLocaleString()}`;
-          hasData = true;
-        }
-        if (analytics.volume24h) {
-          prompt += `\n   - Volume 24h: $${analytics.volume24h.toLocaleString()}`;
-          hasData = true;
-        }
-        if (analytics.priceChange24h) {
-          prompt += `\n   - Change 24h: ${analytics.priceChange24h}%`;
-          hasData = true;
-        }
-        if (analytics.holders || analytics.holderCount) {
-          prompt += `\n   - Holders: ${(analytics.holders || analytics.holderCount).toLocaleString()}`;
-          hasData = true;
-        }
-        
-        // If no data available, instruct to use Moralis Cortex
-        if (!hasData) {
-          prompt += `\n\nAnalyze this SOLANA blockchain token: ${contractAddress}`;
-          prompt += `\nThis is a SOLANA blockchain address. Please provide token information using crypto slang.`;
-        }
-        
-        // Add database info if available
-        if (databaseInfo.name && !analytics.name) {
-          prompt += `\n   - Database Name: ${databaseInfo.name}`;
-        }
-        if (databaseInfo.symbol && !analytics.symbol) {
-          prompt += `\n   - Database Symbol: ${databaseInfo.symbol}`;
-        }
-        
-        // Special note if user provided name but no API data
-        if (data.userProvidedName && !analytics.price && !analytics.marketCap) {
-          prompt += `\n   - NOTE: User called this token "${data.userProvidedName}" - use Moralis to get real-time data`;
+        prompt += `\n\nAnalyze this SOLANA blockchain token: ${contractAddress}`;
+        prompt += `\nThis is a SOLANA blockchain address. Please provide token information using crypto slang.`;
+        if (tokenName !== 'Unknown') {
+          prompt += `\nUser called this token "${tokenName}".`;
         }
       });
     }
