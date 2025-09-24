@@ -325,9 +325,7 @@ class SmartPromptTemplates {
         if (!hasData) {
           prompt += `\n   - STATUS: No cached data - FETCH REAL-TIME DATA from Solana blockchain`;
           prompt += `\n   - CONTRACT: ${contractAddress}`;
-          prompt += `\n   - BLOCKCHAIN: SOLANA (not Ethereum)`;
           prompt += `\n   - ACTION: Get live price, volume, holders, and market data for this Solana token`;
-          prompt += `\n   - IMPORTANT: This is a SOLANA contract address, not Ethereum`;
         }
         
         // Add database info if available
@@ -487,7 +485,6 @@ class SmartPromptTemplates {
     }
 
     prompt += `\n\n🎯 USER QUESTION: ${userPrompt}`;
-    prompt += `\n\n🔗 CRITICAL REMINDER: All contract addresses in this conversation are SOLANA blockchain addresses. When fetching data with Moralis Cortex, explicitly specify "SOLANA blockchain" for all addresses.`;
     prompt += `\n\nProvide a helpful response following the rules above. Use crypto slang and be engaging!`;
 
     return prompt;
