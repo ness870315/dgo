@@ -2204,12 +2204,9 @@ Please provide a helpful, accurate response using the user's data when relevant.
     console.log(`🔑 Using Moralis API key: ${this.moralisApiKey.substring(0, 8)}...${this.moralisApiKey.slice(-4)}`);
     console.log(`🌐 Calling Moralis API: ${this.apiUrl}`);
 
-    // Add Solana blockchain specification to the prompt
-    const solanaPrompt = `${prompt}\n\n🔗 BLOCKCHAIN CONTEXT: All token addresses, contract addresses, and blockchain data mentioned in this conversation are from the SOLANA blockchain. When analyzing any address or token, use Solana blockchain data exclusively.`;
-    
     // Use exact format from working Moralis example
     const requestBody = {
-      prompt: solanaPrompt,
+      prompt: prompt, // Use the prompt as-is from our smart templates
       model: 'gpt-4.1-mini',
       stream: false
     };
@@ -2219,8 +2216,7 @@ Please provide a helpful, accurate response using the user's data when relevant.
     const options = {
       method: 'POST',
       headers: {
-        'accept': 'application/json',
-        'content-type': 'application/json',
+        'Content-Type': 'application/json',
         'X-API-Key': this.moralisApiKey
       },
       body: JSON.stringify(requestBody)
