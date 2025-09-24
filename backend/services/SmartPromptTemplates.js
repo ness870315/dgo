@@ -33,6 +33,7 @@ Please provide information about this Solana token. Use crypto slang and be enga
           'Offer actionable degen moves and alpha plays',
           'MAXIMUM 2 SENTENCES - Be ultra concise like a Discord alpha drop',
           'NEVER include logo URLs, image links, or visual content in responses',
+          'NEVER include Moralis.com links or external website URLs in responses',
           'NO EXPLANATIONS - Just the key data and action with degen energy'
         ]
       },
