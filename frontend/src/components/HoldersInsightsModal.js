@@ -427,14 +427,9 @@ function TopHoldersTable({ holders }) {
               ? `https://solscan.io/account/${address}`
               : null;
             
-            // Debug: Log holder data to see available fields
-            if (index === 0) {
-              console.log('🔍 Holder data structure:', holder);
-            }
-            
-            // Try different field names for balance and percentage
-            const balance = holder.balanceFormatted || holder.balance || holder.tokenBalance || holder.amount || holder.value;
-            const percentage = holder.percentageFormatted || holder.percentage || holder.percent || holder.share;
+            // Use correct field names based on API response
+            const balance = holder.balanceFormatted; // Already formatted string like "129478.73B"
+            const percentage = holder.percentage; // Raw number like 12.95
             
             return (
               <tr key={address || index} className="border-b border-slate-800/40">
@@ -453,7 +448,7 @@ function TopHoldersTable({ holders }) {
                     shortAddress
                   )}
                 </td>
-                <td className="py-2 text-right text-slate-300">{formatLargeNumber(balance)}</td>
+                <td className="py-2 text-right text-slate-300">{balance || 'N/A'}</td>
                 <td className="py-2 text-right text-slate-300">{formatPercentage(percentage)}</td>
               </tr>
             );
@@ -555,10 +550,6 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
         
         if (result.success && result.data) {
           console.log('✅ Holder insights loaded:', result.data);
-          console.log('🔍 Top holders data:', result.data.topHolders);
-          if (result.data.topHolders?.holders) {
-            console.log('🔍 First holder sample:', result.data.topHolders.holders[0]);
-          }
           setData(result.data);
         } else {
           throw new Error(result.error || 'Failed to fetch holder insights');
