@@ -7469,8 +7469,17 @@ class EnhancedBackend {
           });
         }
 
+        // Validate user session
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) {
+          return res.status(401).json({
+            success: false,
+            error: 'Invalid session'
+          });
+        }
+
         // Update the chat history
-        const updatedHistory = await this.aiChatService.updateChatHistory(sessionId, historyId, messages);
+        const updatedHistory = await this.aiChatService.updateChatHistory(user.id, historyId, messages);
 
         res.json({
           success: true,

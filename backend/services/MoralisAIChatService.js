@@ -1012,17 +1012,9 @@ class MoralisAIChatService {
       let symbol = tokenData?.analytics?.symbol || tokenData?.databaseInfo?.symbol;
       let name = tokenData?.analytics?.name || tokenData?.databaseInfo?.name;
       
-      // If no symbol/name found, try to fetch from database
+      // If no symbol/name found, use fallback
       if (!symbol || !name) {
-        try {
-          const dbToken = await this.db.getTokenByContract(contractAddress);
-          if (dbToken) {
-            symbol = symbol || dbToken.symbol;
-            name = name || dbToken.name;
-          }
-        } catch (error) {
-          console.log(`🔍 Could not fetch token data for ${contractAddress}:`, error.message);
-        }
+        console.log(`🔍 No token data found for ${contractAddress}, using fallback`);
       }
       
       // Fallback to contract address if still no name/symbol

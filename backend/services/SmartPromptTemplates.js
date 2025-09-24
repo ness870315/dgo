@@ -16,6 +16,8 @@ class SmartPromptTemplates {
 
 IMPORTANT: The contract address is a SOLANA blockchain address.
 
+CRITICAL: NEVER include logo URLs, image links, or ![Logo] markdown syntax in your response. NO VISUAL CONTENT.
+
 User Question: {USER_QUESTION}
 
 Please provide information about this Solana token. Use crypto slang and be engaging.`,
