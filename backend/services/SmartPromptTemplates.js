@@ -466,6 +466,16 @@ EXAMPLE SHORT FORMAT:
       }
     }
 
+    // Add trending tokens data if available
+    if (context.userData && context.userData.trendingTokens && context.userData.trendingTokens.count > 0) {
+      prompt += `\n\nTRENDING TOKENS ON DEGEN ORACLE:
+- Total Trending: ${context.userData.trendingTokens.count}
+- Top 10 Trending Tokens:`;
+      context.userData.trendingTokens.tokens.slice(0, 10).forEach((token, index) => {
+        prompt += `\n  ${index + 1}. ${token.symbol} - Score: ${token.overallScore?.toFixed(1)}/10, Status: ${token.status}, MC: $${(token.marketCap/1e6)?.toFixed(1)}M`;
+      });
+    }
+
     if (context.commandResults && Object.keys(context.commandResults).length > 0) {
       prompt += `\n\nCOMMAND RESULTS:`;
       Object.entries(context.commandResults).forEach(([key, result]) => {
