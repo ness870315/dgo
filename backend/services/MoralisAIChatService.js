@@ -1009,8 +1009,25 @@ class MoralisAIChatService {
     for (const contractAddress of contractMatches) {
       // Try to get token symbol and name from context
       const tokenData = userContext.tokenData?.[contractAddress];
-      const symbol = tokenData?.analytics?.symbol || contractAddress.substring(0, 8) + '...';
-      const name = tokenData?.analytics?.name || tokenData?.databaseInfo?.name || symbol;
+      let symbol = tokenData?.analytics?.symbol || tokenData?.databaseInfo?.symbol;
+      let name = tokenData?.analytics?.name || tokenData?.databaseInfo?.name;
+      
+      // If no symbol/name found, try to fetch from database
+      if (!symbol || !name) {
+        try {
+          const dbToken = await this.db.getTokenByContract(contractAddress);
+          if (dbToken) {
+            symbol = symbol || dbToken.symbol;
+            name = name || dbToken.name;
+          }
+        } catch (error) {
+          console.log(`🔍 Could not fetch token data for ${contractAddress}:`, error.message);
+        }
+      }
+      
+      // Fallback to contract address if still no name/symbol
+      symbol = symbol || contractAddress.substring(0, 8) + '...';
+      name = name || symbol;
       
       suggestions.push({
         type: 'ADD_TO_WATCHLIST',

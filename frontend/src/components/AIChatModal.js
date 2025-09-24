@@ -182,18 +182,25 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
         success: response.success
       };
 
-      setMessages(prev => [...prev, aiMessage]);
-
-      // Auto-save if we're in a loaded history chat
-      if (currentHistoryId) {
-        try {
-          await aiChatService.updateChatHistory(currentHistoryId, [...messages, userMessage, aiMessage]);
-          console.log(`💾 Auto-saved history chat: ${currentHistoryId}`);
-        } catch (saveError) {
-          console.error('Auto-save failed:', saveError);
-          // Don't show error to user for auto-save failures
+      setMessages(prev => {
+        const updatedMessages = [...prev, aiMessage];
+        
+        // Auto-save if we're in a loaded history chat
+        if (currentHistoryId) {
+          // Use setTimeout to ensure state is updated before saving
+          setTimeout(async () => {
+            try {
+              await aiChatService.updateChatHistory(currentHistoryId, updatedMessages);
+              console.log(`💾 Auto-saved history chat: ${currentHistoryId}`);
+            } catch (saveError) {
+              console.error('Auto-save failed:', saveError);
+              // Don't show error to user for auto-save failures
+            }
+          }, 100);
         }
-      }
+        
+        return updatedMessages;
+      });
 
     } catch (error) {
       console.error('Error sending message:', error);
@@ -317,6 +324,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
       setMessages(formattedHistory);
       setShowSuggestions(false);
       setShowHistories(false);
+      setShowWelcome(false); // Ensure welcome is hidden when viewing history
       setCurrentHistoryId(historyId); // Track the loaded history ID
       
       console.log(`📖 Loaded: ${history.title}`);
