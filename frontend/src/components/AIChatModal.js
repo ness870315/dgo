@@ -408,7 +408,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
               {(!showWelcome || currentHistoryId) && (
                 <button
                   onClick={handleBackToWelcome}
-                  className="ml-8 px-1.5 py-0.5 text-xs bg-gray-600 hover:bg-gray-700 rounded text-white transition-colors flex items-center gap-1"
+                  className="ml-8 mr-4 px-1.5 py-0.5 text-xs bg-gray-600 hover:bg-gray-700 rounded text-white transition-colors flex items-center gap-1"
                   title="Back to Welcome"
                 >
                   <ArrowLeft size={8} />
