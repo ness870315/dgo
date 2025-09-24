@@ -898,7 +898,14 @@ class MoralisAIChatService {
                              lowerPrompt.match(/(?:price of|holder.*for|analysis.*for)\s+(\w+)\s+[a-z0-9]{32,}/i) ||
                              lowerPrompt.match(/(?:for|of|about)\s+([A-Z][a-zA-Z0-9]+)\s+[a-z0-9]{32,}/i);
       
-      const extractedTokenName = tokenNameMatch ? tokenNameMatch[1] : null;
+      let extractedTokenName = tokenNameMatch ? tokenNameMatch[1] : null;
+      
+      // If no token name extracted and we have token data, use the name from database
+      if (!extractedTokenName && tokenData) {
+        extractedTokenName = tokenData.name || tokenData.symbol;
+        console.log(`🔍 [AI PARSE DEBUG] Using token name from database: "${extractedTokenName}"`);
+      }
+      
       console.log(`🔍 [AI PARSE DEBUG] Extracted token name: "${extractedTokenName}" from prompt`);
 
       const command = {

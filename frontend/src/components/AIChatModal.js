@@ -234,6 +234,8 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
     setShowWelcome(true);
     setShowSuggestions(true);
     setShowHistories(false);
+    setCurrentHistoryId(null); // Clear current history ID
+    setMessages([]); // Clear messages to return to welcome screen
   };
 
   const handleActionClick = async (action) => {
@@ -416,7 +418,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
             </div>
             
             <div className="chat-header-controls flex items-center gap-1">
-            {!showHistories && (
+            {!showHistories && !currentHistoryId && (
               <button
                 onClick={handleSaveChat}
                 disabled={messages.length === 0 || isLoading}

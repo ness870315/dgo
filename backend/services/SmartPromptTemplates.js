@@ -38,6 +38,8 @@ Please provide information about this Solana token. Use crypto slang and be enga
           'NEVER include Moralis.com links or external website URLs in responses',
           'NEVER include ![Logo] or ![Token Logo] markdown image syntax in responses',
           'NEVER include https://logo.moralis.io/ URLs in responses',
+          'NEVER mention Moralis, Moralis.com, or suggest visiting Moralis for more details',
+          'NEVER include any external links or references to other websites',
           'NO EXPLANATIONS - Just the key data and action with degen energy'
         ]
       },
@@ -99,6 +101,8 @@ Please provide information about this Solana token. Use crypto slang and be enga
           'NEVER include logo URLs, image links, or visual content in responses',
           'NEVER include ![Logo] or ![Token Logo] markdown image syntax in responses',
           'NEVER include https://logo.moralis.io/ URLs in responses',
+          'NEVER mention Moralis, Moralis.com, or suggest visiting Moralis for more details',
+          'NEVER include any external links or references to other websites',
           'NO EXPLANATIONS - Just the key data and action with degen energy'
         ]
       },
