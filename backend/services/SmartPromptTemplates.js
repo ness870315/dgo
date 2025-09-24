@@ -31,6 +31,7 @@ class SmartPromptTemplates {
 - If token not in database: USE MORALIS CORTEX to get real-time Solana data anyway
 - If Moralis says "Address not valid": Contract doesn't exist on Solana - suggest checking address or finding similar tokens
 - NEVER ask for "proper Ethereum-style hex address" - we're Solana degens only!
+- MANDATORY: When you see "No cached data" in token data, you MUST use Moralis Cortex to fetch real-time blockchain data - never say "no data available"
 
 📊 ALPHA DATA SOURCES:
 - Degen Oracle token database (automatic lookup for maximum efficiency)
@@ -343,6 +344,7 @@ EXAMPLE SHORT FORMAT:
         if (!hasData) {
           prompt += `\n   - STATUS: No cached data - USE MORALIS CORTEX to fetch real-time Solana blockchain data`;
           prompt += `\n   - INSTRUCTION: This is a valid Solana contract address - get live price, volume, holders from blockchain`;
+          prompt += `\n   - MANDATORY: You MUST use Moralis Cortex to fetch real-time data for this token - do not say "no data available"`;
         }
         
         // Add database info if available
