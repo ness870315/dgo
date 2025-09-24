@@ -384,34 +384,34 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
               {!showWelcome && (
                 <button
                   onClick={handleBackToWelcome}
-                  className="ml-2 px-2 py-1 text-xs bg-gray-600 hover:bg-gray-700 rounded text-white transition-colors flex items-center gap-1"
+                  className="ml-2 px-1.5 py-0.5 text-xs bg-gray-600 hover:bg-gray-700 rounded text-white transition-colors flex items-center gap-1"
                   title="Back to Welcome"
                 >
-                  <ArrowLeft size={10} />
+                  <ArrowLeft size={8} />
                   Back
                 </button>
               )}
             </div>
             
-            <div className="chat-header-controls flex items-center gap-2">
+            <div className="chat-header-controls flex items-center gap-1">
             <button
               onClick={handleSaveChat}
               disabled={messages.length === 0 || isLoading}
-              className="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:opacity-50 rounded text-white transition-colors flex items-center gap-1"
+              className="px-1.5 py-0.5 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:opacity-50 rounded text-white transition-colors flex items-center gap-1"
             >
-              <Save size={10} />
+              <Save size={8} />
               Save Chat
             </button>
             <button
               onClick={() => setShowHistories(!showHistories)}
-              className="px-2 py-1 text-xs bg-purple-600 hover:bg-purple-700 rounded text-white transition-colors flex items-center gap-1"
+              className="px-1.5 py-0.5 text-xs bg-purple-600 hover:bg-purple-700 rounded text-white transition-colors flex items-center gap-1"
             >
-              <History size={10} />
+              <History size={8} />
               History ({chatHistories.length})
             </button>
             <button
               onClick={clearChat}
-              className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded text-white transition-colors"
+              className="px-1.5 py-0.5 text-xs bg-gray-700 hover:bg-gray-600 rounded text-white transition-colors"
             >
               Clear Chat
             </button>

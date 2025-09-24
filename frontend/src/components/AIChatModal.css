@@ -78,7 +78,7 @@
 
 /* Fix long contract addresses breaking chat bubbles */
 .message-content {
-  word-break: break-all;
+  word-break: break-word;
   overflow-wrap: break-word;
   hyphens: auto;
   word-wrap: break-word;
@@ -90,12 +90,23 @@
   min-width: 0;
 }
 
-/* Specific styling for contract addresses */
+/* Specific styling for message content */
 .message-content {
-  font-family: 'Courier New', monospace;
+  font-family: inherit; /* Use same font as header */
   min-height: auto;
   max-height: none;
   overflow: visible;
+}
+
+/* Handle text wrapping more intelligently */
+.message-content {
+  /* Use gentle word breaking for normal text */
+  word-break: break-word;
+  overflow-wrap: break-word;
+  /* Allow breaking only for very long unbroken strings */
+  word-break: break-word;
+  /* Prevent breaking short words */
+  hyphens: auto;
 }
 
 /* Ensure chat bubbles expand to fit content */
