@@ -7470,7 +7470,7 @@ class EnhancedBackend {
         }
 
         // Update the chat history
-        const updatedHistory = await this.moralisAIChatService.updateChatHistory(sessionId, historyId, messages);
+        const updatedHistory = await this.aiChatService.updateChatHistory(sessionId, historyId, messages);
 
         res.json({
           success: true,
