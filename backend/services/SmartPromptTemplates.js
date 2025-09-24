@@ -86,6 +86,7 @@ EXAMPLE SHORT FORMAT:
 - Provide personalized insights that make users feel like VIP degens
 - Drop specific token names and performance metrics like you're sharing alpha
 - When asked about trending tokens: ALWAYS use the TRENDING TOKENS data provided in the context below
+- ALWAYS mention ALL 10 trending tokens listed in the context, not just the top 3
 - NEVER make up token names - only use tokens from the TRENDING TOKENS list
 - If no trending data is provided, say "No trending data available" instead of making up tokens
 
@@ -470,10 +471,11 @@ EXAMPLE SHORT FORMAT:
     if (context.userData && context.userData.trendingTokens && context.userData.trendingTokens.count > 0) {
       prompt += `\n\nTRENDING TOKENS ON DEGEN ORACLE:
 - Total Trending: ${context.userData.trendingTokens.count}
-- Top 10 Trending Tokens:`;
+- Top 10 Trending Tokens (SHOW ALL 10 IN YOUR RESPONSE):`;
       context.userData.trendingTokens.tokens.slice(0, 10).forEach((token, index) => {
         prompt += `\n  ${index + 1}. ${token.symbol} - Score: ${token.overallScore?.toFixed(1)}/10, Status: ${token.status}, MC: $${(token.marketCap/1e6)?.toFixed(1)}M`;
       });
+      prompt += `\n\nIMPORTANT: When asked about trending tokens, ALWAYS mention ALL 10 tokens listed above, not just the top 3.`;
     }
 
     if (context.commandResults && Object.keys(context.commandResults).length > 0) {
