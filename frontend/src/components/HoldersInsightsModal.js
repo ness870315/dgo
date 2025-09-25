@@ -427,8 +427,8 @@ function TopHoldersTable({ holders }) {
               ? `https://solscan.io/account/${address}`
               : null;
             
-            // Use raw balance and format it properly (backend balanceFormatted is incorrect)
-            const balance = holder.balance; // Raw number like 13032333855249
+            // Use correct field names from API response
+            const balance = holder.balanceFormatted; // Correctly formatted string from backend
             const percentage = holder.percentage; // Raw number like 12.95
             
             return (
@@ -448,7 +448,7 @@ function TopHoldersTable({ holders }) {
                     shortAddress
                   )}
                 </td>
-                <td className="py-2 text-right text-slate-300">{formatLargeNumber(balance)}</td>
+                <td className="py-2 text-right text-slate-300">{balance || 'N/A'}</td>
                 <td className="py-2 text-right text-slate-300">{formatPercentage(percentage)}</td>
               </tr>
             );
