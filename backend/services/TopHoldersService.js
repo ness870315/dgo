@@ -94,6 +94,10 @@ class TopHoldersService {
         // Use the correct field name from Moralis API
         const address = holder.ownerAddress || 'Unknown';
         
+        // Debug: Check what balanceFormatted field contains
+        console.log(`🔍 Holder ${index + 1} balanceFormatted from Moralis:`, holder.balanceFormatted);
+        console.log(`🔍 Holder ${index + 1} raw balance:`, holder.balance);
+        
         return {
           rank: index + 1,
           address: address,
