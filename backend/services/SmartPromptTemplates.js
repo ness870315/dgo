@@ -307,26 +307,6 @@ Please provide information about this Solana token. Use crypto slang and be enga
         if (tokenName !== 'Unknown') {
           prompt += `\nUser called this token "${tokenName}".`;
         }
-        
-        // Add analytics data if available
-        if (data.analytics && data.analytics.success && data.analytics.data) {
-          const analytics = data.analytics.data;
-          prompt += `\n\nTOKEN ANALYTICS DATA:`;
-          prompt += `\n- Token Address: ${analytics.tokenAddress}`;
-          prompt += `\n- 24h Buy Volume: $${analytics.totalBuyVolume['24h']}`;
-          prompt += `\n- 24h Sell Volume: $${analytics.totalSellVolume['24h']}`;
-          prompt += `\n- 24h Buyers: ${analytics.totalBuyers['24h']}`;
-          prompt += `\n- 24h Sellers: ${analytics.totalSellers['24h']}`;
-          prompt += `\n- 24h Buys: ${analytics.totalBuys['24h']}`;
-          prompt += `\n- 24h Sells: ${analytics.totalSells['24h']}`;
-          prompt += `\n- Unique Wallets (24h): ${analytics.uniqueWallets['24h']}`;
-          prompt += `\n- Price Change (24h): ${analytics.pricePercentChange['24h']}%`;
-          if (analytics.usdPrice) {
-            prompt += `\n- Current Price: $${analytics.usdPrice}`;
-          }
-          prompt += `\n- Total Liquidity: $${analytics.totalLiquidityUsd}`;
-          prompt += `\n- Market Cap: $${analytics.totalFullyDilutedValuation}`;
-        }
       });
     }
 

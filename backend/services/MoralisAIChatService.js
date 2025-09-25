@@ -634,30 +634,28 @@ class MoralisAIChatService {
    */
   async getTokenData(contractAddress) {
     try {
-      // Normalize contract address to lowercase for consistency
-      const normalizedAddress = contractAddress.toLowerCase();
-      console.log(`📊 Fetching comprehensive data for token: ${normalizedAddress}`);
+      console.log(`📊 Fetching comprehensive data for token: ${contractAddress}`);
       
       // Fetch analytics data
-      const analyticsResponse = await fetch(`${this.baseApiUrl}/api/tokens/${normalizedAddress}/analytics`);
+      const analyticsResponse = await fetch(`${this.baseApiUrl}/api/tokens/${contractAddress}/analytics`);
       const analytics = analyticsResponse.ok ? await analyticsResponse.json() : null;
       
       // Try to fetch holders data (optional)
       let holders = null;
       try {
-        const holdersResponse = await fetch(`${this.baseApiUrl}/api/tokens/${normalizedAddress}/holders/top`);
+        const holdersResponse = await fetch(`${this.baseApiUrl}/api/tokens/${contractAddress}/holders/top`);
         holders = holdersResponse.ok ? await holdersResponse.json() : null;
       } catch (holdersError) {
-        console.log(`⚠️ Holders data not available for ${normalizedAddress}:`, holdersError.message);
+        console.log(`⚠️ Holders data not available for ${contractAddress}:`, holdersError.message);
       }
 
       return {
         analytics,
         holders,
-        contractAddress: normalizedAddress
+        contractAddress
       };
     } catch (error) {
-      console.error(`❌ Error fetching token data for ${normalizedAddress}:`, error);
+      console.error(`❌ Error fetching token data for ${contractAddress}:`, error);
       return null;
     }
   }
