@@ -634,12 +634,14 @@ class MoralisAIChatService {
    */
   async getTokenData(contractAddress) {
     try {
-      console.log(`📊 Fetching comprehensive data for token: ${contractAddress}`);
+      // Normalize contract address to lowercase for consistency
+      const normalizedAddress = contractAddress.toLowerCase();
+      console.log(`📊 Fetching comprehensive data for token: ${normalizedAddress}`);
       
       // Fetch from multiple endpoints in parallel
       const [analyticsResponse, holdersResponse] = await Promise.all([
-        fetch(`${this.baseApiUrl}/api/token-analytics/${contractAddress}`),
-        fetch(`${this.baseApiUrl}/api/holders/${contractAddress}`)
+        fetch(`${this.baseApiUrl}/api/token-analytics/${normalizedAddress}`),
+        fetch(`${this.baseApiUrl}/api/holders/${normalizedAddress}`)
       ]);
 
       const analytics = analyticsResponse.ok ? await analyticsResponse.json() : null;
@@ -648,10 +650,10 @@ class MoralisAIChatService {
       return {
         analytics,
         holders,
-        contractAddress
+        contractAddress: normalizedAddress
       };
     } catch (error) {
-      console.error(`❌ Error fetching token data:`, error);
+      console.error(`❌ Error fetching token data for ${normalizedAddress}:`, error);
       return null;
     }
   }
