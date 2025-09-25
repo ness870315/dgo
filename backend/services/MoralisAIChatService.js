@@ -636,22 +636,10 @@ class MoralisAIChatService {
     try {
       console.log(`📊 Fetching comprehensive data for token: ${contractAddress}`);
       
-      // Fetch analytics data
-      const analyticsResponse = await fetch(`${this.baseApiUrl}/api/tokens/${contractAddress}/analytics`);
-      const analytics = analyticsResponse.ok ? await analyticsResponse.json() : null;
-      
-      // Try to fetch holders data (optional)
-      let holders = null;
-      try {
-        const holdersResponse = await fetch(`${this.baseApiUrl}/api/tokens/${contractAddress}/holders/top`);
-        holders = holdersResponse.ok ? await holdersResponse.json() : null;
-      } catch (holdersError) {
-        console.log(`⚠️ Holders data not available for ${contractAddress}:`, holdersError.message);
-      }
-
+      // Just return the contract address - Moralis Cortex will get all the data
       return {
-        analytics,
-        holders,
+        analytics: null,
+        holders: null,
         contractAddress
       };
     } catch (error) {
@@ -887,8 +875,8 @@ class MoralisAIChatService {
       'whale', 'retail', 'community', 'trending', 'viral', 'building', 'waking', 'sleeping'
     ]);
     
-    // First try to find contract addresses (32+ chars)
-    const contractMatch = lowerPrompt.match(/([a-z0-9]{32,})/i);
+    // First try to find contract addresses (32+ chars) - use original prompt to preserve case
+    const contractMatch = userPrompt.match(/([a-zA-Z0-9]{32,})/);
     
     // Then try specific token name patterns, but exclude common words
     const tokenNameMatch = lowerPrompt.match(/(?:price|volume|holders?|data|analysis).*?(?:of|for)\s+(\w+)/i) ||
