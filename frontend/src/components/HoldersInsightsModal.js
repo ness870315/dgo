@@ -431,6 +431,11 @@ function TopHoldersTable({ holders }) {
             const balance = holder.balanceFormatted; // Correctly formatted number like '32031714.909236'
             const percentage = holder.percentage; // Raw number like 20.6
             
+            // Debug: Log the first holder to see what we're getting
+            if (index === 0) {
+              console.log('🔍 Holder balanceFormatted:', balance, 'Type:', typeof balance);
+            }
+            
             return (
               <tr key={address || index} className="border-b border-slate-800/40">
                 <td className="py-2 text-slate-300">#{holder.rank || index + 1}</td>
