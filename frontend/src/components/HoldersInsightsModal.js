@@ -428,7 +428,7 @@ function TopHoldersTable({ holders }) {
               : null;
             
             // Use correct field names from API response
-            const balance = holder.balanceFormatted; // Correctly formatted string like '206045.03B'
+            const balance = holder.balanceFormatted; // Correctly formatted number like '32031714.909236'
             const percentage = holder.percentage; // Raw number like 20.6
             
             return (
@@ -448,7 +448,7 @@ function TopHoldersTable({ holders }) {
                     shortAddress
                   )}
                 </td>
-                <td className="py-2 text-right text-slate-300">{balance || 'N/A'}</td>
+                <td className="py-2 text-right text-slate-300">{formatLargeNumber(balance)}</td>
                 <td className="py-2 text-right text-slate-300">{formatPercentage(percentage)}</td>
               </tr>
             );
