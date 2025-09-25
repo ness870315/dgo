@@ -876,7 +876,7 @@ class MoralisAIChatService {
     ]);
     
     // First try to find contract addresses (32+ chars) - use original prompt to preserve case
-    const contractMatch = userPrompt.match(/([a-zA-Z0-9]{32,})/);
+    const contractMatch = prompt.match(/([a-zA-Z0-9]{32,})/);
     
     // Then try specific token name patterns, but exclude common words
     const tokenNameMatch = lowerPrompt.match(/(?:price|volume|holders?|data|analysis).*?(?:of|for)\s+(\w+)/i) ||
