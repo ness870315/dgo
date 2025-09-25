@@ -638,14 +638,18 @@ class MoralisAIChatService {
       const normalizedAddress = contractAddress.toLowerCase();
       console.log(`📊 Fetching comprehensive data for token: ${normalizedAddress}`);
       
-      // Fetch from multiple endpoints in parallel
-      const [analyticsResponse, holdersResponse] = await Promise.all([
-        fetch(`${this.baseApiUrl}/api/token-analytics/${normalizedAddress}`),
-        fetch(`${this.baseApiUrl}/api/holders/${normalizedAddress}`)
-      ]);
-
+      // Fetch analytics data
+      const analyticsResponse = await fetch(`${this.baseApiUrl}/api/tokens/${normalizedAddress}/analytics`);
       const analytics = analyticsResponse.ok ? await analyticsResponse.json() : null;
-      const holders = holdersResponse.ok ? await holdersResponse.json() : null;
+      
+      // Try to fetch holders data (optional)
+      let holders = null;
+      try {
+        const holdersResponse = await fetch(`${this.baseApiUrl}/api/tokens/${normalizedAddress}/holders/top`);
+        holders = holdersResponse.ok ? await holdersResponse.json() : null;
+      } catch (holdersError) {
+        console.log(`⚠️ Holders data not available for ${normalizedAddress}:`, holdersError.message);
+      }
 
       return {
         analytics,
