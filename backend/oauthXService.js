@@ -9,7 +9,7 @@ class OAuthXService {
     this.clientId = process.env.X_CLIENT_ID || process.env.TWITTER_CLIENT_ID || '';
     this.clientSecret = process.env.X_CLIENT_SECRET || process.env.TWITTER_CLIENT_SECRET || '';
     this.redirectUri = process.env.X_REDIRECT_URI || `${process.env.API_URL || 'https://api.degen-oracle.com'}/auth/callback`;
-    this.scope = process.env.X_SCOPE || 'tweet.read tweet.write users.read follows.read';
+    this.scope = process.env.X_SCOPE || 'tweet.read tweet.write users.read follows.read offline.access';
     
     // Initialize hybrid database service
     this.db = new HybridDatabaseService();
@@ -59,6 +59,26 @@ class OAuthXService {
       .createHash('sha256')
       .update(codeVerifier)
       .digest('base64url');
+  }
+
+  /**
+   * Generate re-authentication URL for users without refresh tokens
+   */
+  generateReAuthUrl(userId) {
+    const state = crypto.randomBytes(32).toString('base64url');
+    this.storeOAuthState(state, userId);
+    
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: this.clientId,
+      redirect_uri: this.redirectUri,
+      scope: this.scope, // Now includes offline.access
+      state: state,
+      code_challenge: this.generateCodeChallenge(this.generateCodeVerifier()),
+      code_challenge_method: 'S256'
+    });
+
+    return `https://twitter.com/i/oauth2/authorize?${params.toString()}`;
   }
 
   /**
@@ -263,7 +283,15 @@ class OAuthXService {
         // If no refresh token available for 401 error
         if (apiError.response?.status === 401 && !user.refreshToken) {
           console.error(`❌ Access token expired for user ${userId} but no refresh token available`);
-          throw new Error(`Twitter posting failed: Access token expired and no refresh token available. User needs to re-authenticate.`);
+          console.error(`🔍 User profile check:`, {
+            userId,
+            hasAccessToken: !!user.accessToken,
+            hasRefreshToken: !!user.refreshToken,
+            accessTokenLength: user.accessToken?.length,
+            refreshTokenLength: user.refreshToken?.length,
+            lastLogin: user.lastLogin
+          });
+          throw new Error(`Twitter posting failed: Access token expired and no refresh token available. User needs to re-authenticate with offline.access scope.`);
         }
 
         // If not a token issue or refresh not available, throw original error
