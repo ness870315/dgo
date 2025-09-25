@@ -428,8 +428,8 @@ function TopHoldersTable({ holders }) {
               : null;
             
             // Use correct field names from API response
-            const balance = holder.balanceFormatted; // Correctly formatted string from backend
-            const percentage = holder.percentage; // Raw number like 12.95
+            const balance = holder.balanceFormatted; // Correctly formatted string like '206045.03B'
+            const percentage = holder.percentage; // Raw number like 20.6
             
             return (
               <tr key={address || index} className="border-b border-slate-800/40">
