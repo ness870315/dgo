@@ -8,9 +8,15 @@ const classNames = (...xs) => xs.filter(Boolean).join(" ");
 
 // Format large numbers with abbreviations (K, M, B, T)
 const formatLargeNumber = (value) => {
-  if (!value || isNaN(value)) return 'N/A';
+  if (!value) return 'N/A';
+  
+  // Check if the value is already formatted with K, M, B, T
+  if (typeof value === 'string' && /[KMBT]$/i.test(value)) {
+    return value; // It's already formatted, return as is
+  }
   
   const num = parseFloat(value);
+  if (isNaN(num)) return 'N/A';
   if (num === 0) return '0';
   
   const absNum = Math.abs(num);
@@ -431,10 +437,6 @@ function TopHoldersTable({ holders }) {
             const balance = holder.balanceFormatted; // Correctly formatted number like '32031714.909236'
             const percentage = holder.percentage; // Raw number like 20.6
             
-            // Debug: Log the first holder to see what we're getting
-            if (index === 0) {
-              console.log('🔍 Holder balanceFormatted:', balance, 'Type:', typeof balance);
-            }
             
             return (
               <tr key={address || index} className="border-b border-slate-800/40">
