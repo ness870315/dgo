@@ -98,7 +98,7 @@ class TopHoldersService {
           rank: index + 1,
           address: address,
           balance: balance,
-          balanceFormatted: this.formatBalance(balance),
+          balanceFormatted: holder.balanceFormatted || this.formatBalance(balance),
           percentage: percentage,
           percentageFormatted: `${percentage.toFixed(4)}%`,
           isContract: holder.isContract || false
