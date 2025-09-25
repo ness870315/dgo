@@ -549,21 +549,10 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
         
         console.log('🔍 Fetching holder insights for:', contract);
         
-        // Use Moralis Solana Gateway for top holders data
-        const MORALIS_API_KEY = process.env.REACT_APP_MORALIS_API_KEY;
-        const url = `https://solana-gateway.moralis.io/token/mainnet/${contract}/top-holders?limit=25`;
+        const API_BASE = process.env.REACT_APP_API_URL || 'https://api.degen-oracle.com';
+        const url = `${API_BASE}/api/tokens/${contract}/holders/insights${supply ? `?supply=${supply}` : ''}`;
         
-        const response = await fetch(url, {
-          headers: {
-            'accept': 'application/json',
-            'X-API-Key': MORALIS_API_KEY
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Moralis API error: ${response.status} ${response.statusText}`);
-        }
-        
+        const response = await fetch(url);
         const result = await response.json();
         
         console.log('🔍 RAW API RESPONSE:', JSON.stringify(result, null, 2));
