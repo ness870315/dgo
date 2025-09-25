@@ -2358,6 +2358,42 @@ class EnhancedBackend {
       }
     });
 
+    // Admin: Check which users have refresh tokens
+    this.app.get('/api/admin/users/refresh-token-status', async (req, res) => {
+      try {
+        const users = await this.db.getAllUsers();
+        const userStatus = [];
+        
+        for (const user of users) {
+          const profile = await this.db.getUserProfile(user.id);
+          userStatus.push({
+            id: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            hasRefreshToken: !!profile.refreshToken,
+            refreshTokenLength: profile.refreshToken?.length || 0,
+            lastLogin: profile.lastLogin,
+            isPremium: user.isPremium
+          });
+        }
+        
+        res.json({
+          success: true,
+          totalUsers: users.length,
+          usersWithRefreshTokens: userStatus.filter(u => u.hasRefreshToken).length,
+          usersWithoutRefreshTokens: userStatus.filter(u => !u.hasRefreshToken).length,
+          userStatus
+        });
+        
+      } catch (error) {
+        console.error('❌ Error checking refresh token status:', error);
+        res.status(500).json({ 
+          success: false, 
+          error: 'Failed to check refresh token status' 
+        });
+      }
+    });
+
     // User: Get users with expired Twitter tokens (for admin)
     this.app.get('/api/admin/twitter/expired-tokens', async (req, res) => {
       try {
