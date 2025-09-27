@@ -521,18 +521,29 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                   <p className="text-gray-400 text-xs sm:text-sm">Your Referral Code</p>
                   <p className="text-white font-mono text-sm sm:text-lg">{dashboardData.referralCode}</p>
                 </div>
-                <a
-                  href={`https://twitter.com/intent/tweet?${new URLSearchParams({
-                    text: `Here is my referral code ${dashboardData.referralCode} for a 1 month Premium subscription for DeGen Oracle. Spot the next cult before it goes viral and become a KOL.`,
-                    url: `https://degen-oracle.com`
-                  }).toString()}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-2 bg-transparent border border-solana-purple/60 text-gray-200 hover:bg-gray-700 rounded-lg text-xs sm:text-sm"
-                  title="Share on X"
-                >
-                  Share on X
-                </a>
+                <div className="relative">
+                  <a
+                    href={`https://twitter.com/intent/tweet?${new URLSearchParams({
+                      text: `Here is my referral code ${dashboardData.referralCode} for a 1 month Premium subscription for DeGen Oracle. Spot the next cult before it goes viral and become a KOL.`,
+                      url: `https://degen-oracle.com`
+                    }).toString()}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-2 bg-transparent border border-solana-purple/60 text-gray-200 hover:bg-gray-700 rounded-lg text-xs sm:text-sm"
+                    onMouseEnter={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'block'; }}
+                    onMouseLeave={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'none'; }}
+                  >
+                    Share on X
+                  </a>
+                  
+                  {/* Tooltip Modal (matching CategoryFilters design) */}
+                  <div className="bubble-tooltip absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-50" style={{ display: 'none' }}>
+                    <div className="text-xs leading-tight">
+                      <span className="font-semibold text-white">Share on X:</span>
+                      <span className="text-gray-300 ml-1">Share your referral code on X (Twitter)</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -745,14 +756,25 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                   <Crown size={16} className="text-yellow-400" title="Premium Feature" />
                 )}
               </div>
-              <button
-                onClick={() => setShowLeaderboardGuide(true)}
-                className="flex items-center gap-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-sm transition-colors"
-                title="How Enhanced KOL Trust System Works"
-              >
-                <HelpCircle size={14} />
-                Help
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowLeaderboardGuide(true)}
+                  className="flex items-center gap-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-sm transition-colors"
+                  onMouseEnter={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'block'; }}
+                  onMouseLeave={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'none'; }}
+                >
+                  <HelpCircle size={14} />
+                  Help
+                </button>
+                
+                {/* Tooltip Modal (matching CategoryFilters design) */}
+                <div className="bubble-tooltip absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-50" style={{ display: 'none' }}>
+                  <div className="text-xs leading-tight">
+                    <span className="font-semibold text-white">Help:</span>
+                    <span className="text-gray-300 ml-1">How Enhanced KOL Trust System Works</span>
+                  </div>
+                </div>
+              </div>
             </div>
             {dashboardData.isPremium && (
               <div className="flex items-center gap-2 mb-4 text-sm">
