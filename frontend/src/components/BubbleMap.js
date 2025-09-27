@@ -733,13 +733,24 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
       {/* Zoom Controls */}
       {tokens.length > 15 && (
         <div className="zoom-controls">
-          <button 
-            className="zoom-button" 
-            onClick={resetZoom}
-            title="Reset zoom to fit all bubbles"
-          >
-            🔍 Reset View
-          </button>
+          <div className="relative">
+            <button 
+              className="zoom-button" 
+              onClick={resetZoom}
+              onMouseEnter={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'block'; }}
+              onMouseLeave={(e) => { const t = e.currentTarget.querySelector('.bubble-tooltip'); if (t) t.style.display = 'none'; }}
+            >
+              🔍 Reset View
+            </button>
+            
+            {/* Tooltip Modal (matching CategoryFilters design) */}
+            <div className="bubble-tooltip absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 z-50" style={{ display: 'none' }}>
+              <div className="text-xs leading-tight">
+                <span className="font-semibold text-white">Reset View:</span>
+                <span className="text-gray-300 ml-1">Reset zoom to fit all bubbles</span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
       

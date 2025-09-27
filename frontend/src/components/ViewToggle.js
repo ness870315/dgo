@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Grid3X3, List, BarChart3 } from 'lucide-react';
 
 const ViewToggle = ({ currentView, onViewChange, tokenCount }) => {
+  const [hoveredView, setHoveredView] = useState(null);
   const views = [
     {
       id: 'bubbles',
@@ -29,24 +30,36 @@ const ViewToggle = ({ currentView, onViewChange, tokenCount }) => {
           const isDisabled = view.disabled;
           
           return (
-            <button
-              key={view.id}
-              onClick={() => !isDisabled && onViewChange(view.id)}
-              disabled={isDisabled}
-              className={`
-                flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-all duration-200
-                ${isActive 
-                  ? 'bg-solana-purple text-white shadow-lg' 
-                  : isDisabled
-                    ? 'text-gray-500 cursor-not-allowed'
-                    : 'text-gray-400 hover:text-white hover:bg-gray-700'
-                }
-              `}
-              title={view.description}
-            >
-              <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">{view.name}</span>
-            </button>
+            <div key={view.id} className="relative">
+              <button
+                onClick={() => !isDisabled && onViewChange(view.id)}
+                disabled={isDisabled}
+                onMouseEnter={() => setHoveredView(view.id)}
+                onMouseLeave={() => setHoveredView(null)}
+                className={`
+                  flex items-center space-x-1 sm:space-x-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition-all duration-200
+                  ${isActive 
+                    ? 'bg-solana-purple text-white shadow-lg' 
+                    : isDisabled
+                      ? 'text-gray-500 cursor-not-allowed'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                  }
+                `}
+              >
+                <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">{view.name}</span>
+              </button>
+              
+              {/* Tooltip Modal (matching CategoryFilters design) */}
+              {hoveredView === view.id && (
+                <div className="bubble-tooltip absolute top-full left-1/2 transform -translate-x-1/2 mt-1 z-50">
+                  <div className="text-xs leading-tight">
+                    <span className="font-semibold text-white">{view.name}:</span>
+                    <span className="text-gray-300 ml-1">{view.description}</span>
+                  </div>
+                </div>
+              )}
+            </div>
           );
         })}
       </div>
