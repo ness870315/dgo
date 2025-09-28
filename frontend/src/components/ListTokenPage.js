@@ -131,6 +131,11 @@ const showProfessionalSuccessModal = (tokenData, recordTokenListing) => {
   // Handle overlay click to close
   overlay.onclick = (e) => {
     if (e.target === overlay) {
+      // Record token listing for user stats
+      if (recordTokenListing) {
+        recordTokenListing(tokenData);
+      }
+      
       document.body.removeChild(overlay);
       document.head.removeChild(style);
 
