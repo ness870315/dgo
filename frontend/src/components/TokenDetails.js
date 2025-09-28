@@ -1946,18 +1946,6 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                 )}
 
 
-                {/* Message Display - Only show when not in share modal */}
-                {fuelMessage.text && !showFuelShareModal && (
-                  <div className={`mb-4 p-3 rounded-lg text-sm ${
-                    fuelMessage.type === 'success'
-                      ? 'bg-green-900/20 border border-green-500 text-green-400'
-                      : fuelMessage.type === 'error'
-                      ? 'bg-red-900/20 border border-red-500 text-red-400'
-                      : 'bg-blue-900/20 border border-blue-500 text-blue-400'
-                  }`}>
-                    {fuelMessage.text}
-                  </div>
-                )}
 
                 {/* Close Button - Only show when not in share modal */}
                 {!showFuelShareModal && (
