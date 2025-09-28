@@ -572,13 +572,22 @@ function AppContent() {
         setTokens(tokenData);
         setFueledTokens(fueledData.value || fueledData);
         applyFiltersAndSearch(tokenData, filters, searchTerm);
+        
+        // Update selectedToken if it exists to reflect any changes
+        if (selectedToken) {
+          const updatedToken = tokenData.find(t => t.contractAddress === selectedToken.contractAddress);
+          if (updatedToken) {
+            setSelectedToken(updatedToken);
+            console.log('🔄 Updated selectedToken with fresh data:', updatedToken.symbol);
+          }
+        }
     } catch (err) {
       setError('Failed to load token data. Please try again.');
       console.error('Error loading tokens:', err);
     } finally {
       setIsLoading(false);
     }
-  }, [filters, searchTerm, settings.useRealTwitterData, applyFiltersAndSearch]);
+  }, [filters, searchTerm, settings.useRealTwitterData, applyFiltersAndSearch, selectedToken]);
 
   // Handle search
   const handleSearch = useCallback((term) => {

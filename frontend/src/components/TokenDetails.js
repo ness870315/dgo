@@ -1602,6 +1602,44 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                   </div>
                       )}
 
+                {/* Instagram Link */}
+                {(token?.socials?.instagram || token?.jupiterData?.instagram) && (
+                  <div className="p-2 bg-dark-bg rounded border border-gray-700">
+                    <a
+                      href={
+                        token?.socials?.instagram?.startsWith('http') 
+                          ? token?.socials?.instagram 
+                          : `https://instagram.com/${token?.socials?.instagram?.replace('@', '')}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center space-x-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white p-2 rounded transition-colors w-full"
+                    >
+                      <span className="text-sm font-bold">📷</span>
+                      <span className="text-sm font-medium">Instagram</span>
+                    </a>
+                  </div>
+                )}
+
+                {/* TikTok Link */}
+                {(token?.socials?.tiktok || token?.jupiterData?.tiktok) && (
+                  <div className="p-2 bg-dark-bg rounded border border-gray-700">
+                    <a
+                      href={
+                        token?.socials?.tiktok?.startsWith('http') 
+                          ? token?.socials?.tiktok 
+                          : `https://tiktok.com/@${token?.socials?.tiktok?.replace('@', '')}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center space-x-2 bg-black hover:bg-gray-900 text-white p-2 rounded transition-colors w-full"
+                    >
+                      <span className="text-sm font-bold">🎵</span>
+                      <span className="text-sm font-medium">TikTok</span>
+                    </a>
+                  </div>
+                )}
+
                     </div>
 
               {/* No Social Links Message */}
@@ -1610,7 +1648,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                !(token?.socials?.telegram || token?.jupiterData?.telegram) &&
                !(token?.socials?.discord || token?.jupiterData?.discord) &&
                !(token?.socials?.coingecko || token?.jupiterData?.coingecko) &&
-               !(token?.socials?.coinmarketcap || token?.jupiterData?.coinmarketcap) && (
+               !(token?.socials?.coinmarketcap || token?.jupiterData?.coinmarketcap) &&
+               !(token?.socials?.instagram || token?.jupiterData?.instagram) &&
+               !(token?.socials?.tiktok || token?.jupiterData?.tiktok) && (
                 <div className="text-center py-4 text-gray-400">
                   <p className="text-sm">📭 No social links available</p>
                   <p className="text-xs mt-1">Links can be added via Token List or Update Token feature</p>
