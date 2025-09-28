@@ -107,6 +107,11 @@ class UpdateTokenService {
       validated.twitter = this.validateTwitterHandle(socials.twitter);
     }
 
+    // Telegram validation
+    if (socials.telegram) {
+      validated.telegram = this.validateTelegramLink(socials.telegram);
+    }
+
     // Discord validation
     if (socials.discord) {
       validated.discord = this.validateDiscordLink(socials.discord);
@@ -142,6 +147,28 @@ class UpdateTokenService {
     }
     
     return cleaned;
+  }
+
+  validateTelegramLink(telegram) {
+    if (!telegram) return null;
+    
+    // Accept t.me links or @username format
+    if (telegram.includes('t.me/') || telegram.includes('telegram.me/')) {
+      return telegram;
+    }
+    
+    // If it's just a username, format it as t.me link
+    const cleaned = telegram.replace(/^@/, '').trim();
+    if (cleaned && /^[a-zA-Z0-9_]{5,32}$/.test(cleaned)) {
+      return `https://t.me/${cleaned}`;
+    }
+    
+    // If it's already a full URL, return as-is
+    if (telegram.startsWith('http')) {
+      return telegram;
+    }
+    
+    return telegram; // Return as-is if we can't validate
   }
 
   validateDiscordLink(discord) {
