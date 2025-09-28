@@ -2888,6 +2888,22 @@ class EnhancedBackend {
         // Update token socials
         const result = await updateService.updateTokenSocials(symbol, socials, userId, paymentData);
         
+        // Update user stats for social update
+        const statsUpdateResult = await this.updateUserStats(userId, 'tokensUpdated', 1);
+        if (statsUpdateResult === null) {
+          console.error(`[🛡️ Enhanced Backend] ❌ Failed to update tokensUpdated stat for user ${userId}`);
+        } else {
+          console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated tokensUpdated stat for user ${userId}: ${statsUpdateResult}`);
+        }
+
+        // Update totalSpent for social update ($4.90)
+        const totalSpentResult = await this.updateUserStats(userId, 'totalSpent', 4.90);
+        if (totalSpentResult === null) {
+          console.error(`[🛡️ Enhanced Backend] ❌ Failed to update totalSpent stat for user ${userId}`);
+        } else {
+          console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated totalSpent stat for user ${userId}: +$4.90 (total: $${totalSpentResult})`);
+        }
+        
         res.json({
           success: true,
           ...result
@@ -4426,6 +4442,24 @@ class EnhancedBackend {
             } else {
               console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated tokensFueled stat for user ${user.username}: ${statsUpdateResult}`);
             }
+
+            // Update totalSpent based on fuel type
+            const fuelPrices = {
+              '10x': 45.00,
+              '50x': 195.00,
+              '500x': 695.00,
+              '1000x': 995.00
+            };
+            
+            const fuelPrice = fuelPrices[fuelType];
+            if (fuelPrice) {
+              const totalSpentResult = await this.updateUserStats(user.id, 'totalSpent', fuelPrice);
+              if (totalSpentResult === null) {
+                console.error(`[🛡️ Enhanced Backend] ❌ Failed to update totalSpent stat for user ${user.username}`);
+              } else {
+                console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated totalSpent stat for user ${user.username}: +$${fuelPrice} (total: $${totalSpentResult})`);
+              }
+            }
           }
           
           res.json({ success: true, message: result.message, token: result.token });
@@ -4506,6 +4540,14 @@ class EnhancedBackend {
           // Don't fail the entire request just because stats update failed
         } else {
           console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated tokensListed stat for user ${user.username}: ${statsUpdateResult}`);
+        }
+
+        // Update totalSpent for token listing ($95.00)
+        const totalSpentResult = await this.updateUserStats(user.id, 'totalSpent', 95.00);
+        if (totalSpentResult === null) {
+          console.error(`[🛡️ Enhanced Backend] ❌ Failed to update totalSpent stat for user ${user.username}`);
+        } else {
+          console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated totalSpent stat for user ${user.username}: +$95.00 (total: $${totalSpentResult})`);
         }
 
         // Get current user stats for response
