@@ -194,7 +194,7 @@ const FuelTokenPage = ({ onBack, headerAuth = null, onFuelApplied }) => {
     ];
     
     const baseMessage = messages[Math.floor(Math.random() * messages.length)];
-    const fuelPageUrl = `https://degen-oracle.com/fuel/${fuelType}/${symbol}`;
+    const fuelPageUrl = `https://degen-oracle.com`;
     
     return `${baseMessage} ${fuelPageUrl}`;
   };
