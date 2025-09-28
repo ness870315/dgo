@@ -300,7 +300,8 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
           discord: data.socials.socials?.discord || '',
           instagram: data.socials.socials?.instagram || '',
           tiktok: data.socials.socials?.tiktok || '',
-          website: data.socials.socials?.website || ''
+          website: data.socials.socials?.website || '',
+          telegram: data.socials.socials?.telegram || ''
         });
       } else {
         setCurrentSocials(null);
@@ -310,7 +311,8 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
           discord: '',
           instagram: '',
           tiktok: '',
-          website: ''
+          website: '',
+          telegram: ''
         });
       }
     } catch (error) {
@@ -411,6 +413,7 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
           `• Discord: ${socials.discord || 'Not set'}\n` +
           `• Instagram: ${socials.instagram ? '@' + socials.instagram : 'Not set'}\n` +
           `• TikTok: ${socials.tiktok ? '@' + socials.tiktok : 'Not set'}\n` +
+          `• Telegram: ${socials.telegram || 'Not set'}\n` +
           `• Website: ${socials.website || 'Not set'}\n\n` +
           `📊 COMMUNITY SCORE IMPACT:\n` +
           `${result.communityScoreImpact?.description || 'No bonus calculated'}\n\n` +
@@ -501,6 +504,7 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
           `• Discord: ${socials.discord || 'Not set'}\n` +
           `• Instagram: ${socials.instagram ? '@' + socials.instagram : 'Not set'}\n` +
           `• TikTok: ${socials.tiktok ? '@' + socials.tiktok : 'Not set'}\n` +
+          `• Telegram: ${socials.telegram || 'Not set'}\n` +
           `• Website: ${socials.website || 'Not set'}\n\n` +
           `📊 COMMUNITY SCORE IMPACT:\n` +
           `${result.communityScoreImpact?.description || 'No bonus calculated'}\n\n` +
