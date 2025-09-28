@@ -3,7 +3,7 @@ import { Search, CheckCircle, AlertCircle, Loader, ArrowLeft, Twitter, Globe, Me
 import { useAuth } from '../contexts/AuthContext';
 
 // Professional Success Modal Function
-const showProfessionalSuccessModal = (tokenData, recordTokenListing) => {
+const showProfessionalSuccessModal = (tokenData) => {
   // Create modal overlay
   const overlay = document.createElement('div');
   overlay.style.cssText = `
@@ -282,7 +282,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         console.log('✅ Current tokensListed:', result.currentTokensListed);
         
         // Show success modal
-        showProfessionalSuccessModal(tokenData, null); // No need for recordTokenListing since we already did it
+        showProfessionalSuccessModal(tokenData);
         setPaymentProcessing(false);
         
         // Close the modal after success
@@ -481,7 +481,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
 
             // Show success message
             console.log('🎊 Showing success modal...');
-            showProfessionalSuccessModal(tokenData, recordTokenListing);
+            showProfessionalSuccessModal(tokenData);
 
           } catch (error) {
             console.error('❌ Failed to process pending payment:', error);
@@ -1067,7 +1067,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         console.log('Processing successful payment for token:', tokenData);
 
         // Show immediate professional success message
-        showProfessionalSuccessModal(tokenData, recordTokenListing);
+        showProfessionalSuccessModal(tokenData);
         
         // Mark as payment completed
         localStorage.setItem('completedTokenListing', JSON.stringify({
