@@ -959,8 +959,21 @@
                     });
                 }
                 
+                // Guest Payments (USD)
+                if (s.guests && s.guests.total > 0) {
+                    html += `<div class="status-item" style="background: rgba(255, 87, 34, 0.1); border-left: 4px solid #ff5722;"><span class="status-label">👤 Guest Payments</span><span class="status-value">$${s.guests.total.toFixed(2)}</span></div>`;
+                    Object.keys(s.guests.breakdown || {}).forEach(k => {
+                        const b = s.guests.breakdown[k];
+                        html += `<div class="status-item"><span class="status-label">  ${k} (guest)</span><span class="status-value">$${b.total.toFixed(2)} (${b.count})</span></div>`;
+                    });
+                }
+                
                 // Overall Summary
                 html += `<div class="status-item" style="background: rgba(102, 126, 234, 0.1); border-left: 4px solid #667eea;"><span class="status-label">📊 Overall</span><span class="status-value">${s.overall.count} transactions</span></div>`;
+                if (s.overall.loggedInCount !== undefined && s.overall.guestCount !== undefined) {
+                    html += `<div class="status-item"><span class="status-label">  Logged-in</span><span class="status-value">${s.overall.loggedInCount} transactions</span></div>`;
+                    html += `<div class="status-item"><span class="status-label">  Guests</span><span class="status-value">${s.overall.guestCount} transactions</span></div>`;
+                }
                 
                 div.innerHTML = html;
             } catch (e) {

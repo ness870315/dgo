@@ -4492,22 +4492,34 @@ class EnhancedBackend {
               } else {
                 console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated totalSpent stat for user ${user.username}: +$${fuelPrice} (total: $${totalSpentResult})`);
               }
+            }
+          }
 
-              // Record earning for admin panel
-              try {
-                await this.oauthXService.db.addEarning({
-                  type: 'fuel',
-                  category: fuelType,
-                  amount: fuelPrice,
-                  currency: 'USD',
-                  userId: user.id,
-                  contractAddress: contractAddress,
-                  createdAt: new Date().toISOString()
-                });
-                console.log(`[🛡️ Enhanced Backend] ✅ Recorded fuel earning: ${fuelType} - $${fuelPrice} from ${user.username}`);
-              } catch (earningError) {
-                console.error(`[🛡️ Enhanced Backend] ❌ Failed to record fuel earning:`, earningError.message);
-              }
+          // ALWAYS record earning for admin panel (both logged-in users and guests)
+          const fuelPrices = {
+            '10x': 45.00,
+            '50x': 195.00,
+            '500x': 695.00,
+            '1000x': 995.00
+          };
+          
+          const fuelPrice = fuelPrices[fuelType];
+          if (fuelPrice) {
+            try {
+              await this.oauthXService.db.addEarning({
+                type: 'fuel',
+                category: fuelType,
+                amount: fuelPrice,
+                currency: 'USD',
+                userId: user ? user.id : 'guest',
+                username: user ? user.username : 'guest',
+                contractAddress: contractAddress,
+                isGuest: !user, // Flag to identify guest payments
+                createdAt: new Date().toISOString()
+              });
+              console.log(`[🛡️ Enhanced Backend] ✅ Recorded fuel earning: ${fuelType} - $${fuelPrice} from ${user ? user.username : 'GUEST'}`);
+            } catch (earningError) {
+              console.error(`[🛡️ Enhanced Backend] ❌ Failed to record fuel earning:`, earningError.message);
             }
           }
           

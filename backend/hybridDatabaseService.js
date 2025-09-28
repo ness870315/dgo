@@ -441,9 +441,10 @@ class HybridDatabaseService {
       return acc;
     }, {});
 
-    // Separate Premium (SOL) from Services (USD)
+    // Separate Premium (SOL) from Services (USD) and track guest vs logged-in
     const premiumSummary = {};
     const servicesSummary = {};
+    const guestSummary = {};
     
     for (const key of Object.keys(byType)) {
       const summary = {
@@ -460,9 +461,30 @@ class HybridDatabaseService {
       }
     }
 
+    // Separate guest payments from logged-in user payments
+    const guestPayments = list.filter(r => r.isGuest === true || r.userId === 'guest');
+    const loggedInPayments = list.filter(r => r.isGuest !== true && r.userId !== 'guest');
+    
+    if (guestPayments.length > 0) {
+      const guestByType = guestPayments.reduce((acc, r) => {
+        const key = r.category || r.type || 'unknown';
+        acc[key] = acc[key] || [];
+        acc[key].push(r);
+        return acc;
+      }, {});
+
+      for (const key of Object.keys(guestByType)) {
+        guestSummary[key] = {
+          count: guestByType[key].length,
+          total: sum(guestByType[key])
+        };
+      }
+    }
+
     // Calculate totals by currency
     const premiumTotal = Object.values(premiumSummary).reduce((acc, s) => acc + s.total, 0);
     const servicesTotal = Object.values(servicesSummary).reduce((acc, s) => acc + s.total, 0);
+    const guestTotal = Object.values(guestSummary).reduce((acc, s) => acc + s.total, 0);
     
     return { 
       premium: {
@@ -475,9 +497,17 @@ class HybridDatabaseService {
         breakdown: servicesSummary,
         currency: 'USD'
       },
+      guests: {
+        total: guestTotal,
+        breakdown: guestSummary,
+        currency: 'USD',
+        count: guestPayments.length
+      },
       overall: {
         total: sum(list),
-        count: list.length
+        count: list.length,
+        loggedInCount: loggedInPayments.length,
+        guestCount: guestPayments.length
       }
     };
   }
