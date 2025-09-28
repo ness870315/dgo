@@ -938,11 +938,30 @@
                 const data = await res.json();
                 if (!data.success) throw new Error(data.error || 'Failed');
                 const s = data.summary;
-                let html = `<div class="status-item"><span class="status-label">Total</span><span class="status-value">$${(s.total||0).toFixed(2)}</span></div>`;
-                Object.keys(s.breakdown || {}).forEach(k => {
-                    const b = s.breakdown[k];
-                    html += `<div class="status-item"><span class="status-label">${k}</span><span class="status-value">$${(b.total||0).toFixed(2)} (${b.count})</span></div>`;
-                });
+                
+                let html = '';
+                
+                // Premium Memberships (SOL)
+                if (s.premium && s.premium.total > 0) {
+                    html += `<div class="status-item" style="background: rgba(255, 193, 7, 0.1); border-left: 4px solid #ffc107;"><span class="status-label">💰 Premium Total</span><span class="status-value">${s.premium.total.toFixed(2)} SOL</span></div>`;
+                    Object.keys(s.premium.breakdown || {}).forEach(k => {
+                        const b = s.premium.breakdown[k];
+                        html += `<div class="status-item"><span class="status-label">  ${k}</span><span class="status-value">${b.total.toFixed(2)} SOL (${b.count})</span></div>`;
+                    });
+                }
+                
+                // Services (USD)
+                if (s.services && s.services.total > 0) {
+                    html += `<div class="status-item" style="background: rgba(34, 197, 94, 0.1); border-left: 4px solid #22c55e;"><span class="status-label">💼 Services Total</span><span class="status-value">$${s.services.total.toFixed(2)}</span></div>`;
+                    Object.keys(s.services.breakdown || {}).forEach(k => {
+                        const b = s.services.breakdown[k];
+                        html += `<div class="status-item"><span class="status-label">  ${k}</span><span class="status-value">$${b.total.toFixed(2)} (${b.count})</span></div>`;
+                    });
+                }
+                
+                // Overall Summary
+                html += `<div class="status-item" style="background: rgba(102, 126, 234, 0.1); border-left: 4px solid #667eea;"><span class="status-label">📊 Overall</span><span class="status-value">${s.overall.count} transactions</span></div>`;
+                
                 div.innerHTML = html;
             } catch (e) {
                 div.innerHTML = showAlert('❌ Failed to load earnings summary: ' + e.message, 'error');

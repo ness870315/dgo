@@ -441,16 +441,45 @@ class HybridDatabaseService {
       return acc;
     }, {});
 
-    const summary = {};
+    // Separate Premium (SOL) from Services (USD)
+    const premiumSummary = {};
+    const servicesSummary = {};
+    
     for (const key of Object.keys(byType)) {
-      summary[key] = {
+      const summary = {
         count: byType[key].length,
         total: sum(byType[key])
       };
+      
+      // Premium subscriptions are in SOL
+      if (key === 'monthly' || key === 'yearly' || key === 'premium') {
+        premiumSummary[key] = summary;
+      } else {
+        // All other services are in USD
+        servicesSummary[key] = summary;
+      }
     }
 
-    const total = sum(list);
-    return { total, breakdown: summary, count: list.length };
+    // Calculate totals by currency
+    const premiumTotal = Object.values(premiumSummary).reduce((acc, s) => acc + s.total, 0);
+    const servicesTotal = Object.values(servicesSummary).reduce((acc, s) => acc + s.total, 0);
+    
+    return { 
+      premium: {
+        total: premiumTotal,
+        breakdown: premiumSummary,
+        currency: 'SOL'
+      },
+      services: {
+        total: servicesTotal,
+        breakdown: servicesSummary,
+        currency: 'USD'
+      },
+      overall: {
+        total: sum(list),
+        count: list.length
+      }
+    };
   }
 
   /**
