@@ -599,80 +599,60 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   // Fetch token metadata from Bitquery with fallback
   const fetchTokenMetadata = async (ca) => {
     try {
-      console.log('🔍 Attempting to fetch token metadata from Bitquery for:', ca);
+      console.log('🔍 Attempting to fetch token metadata from Jupiter API for:', ca);
       
-      const query = `
-        query MyQuery {
-          Solana(dataset: archive) {
-            DEXTradeByTokens(
-              where: {Trade: {Currency: {MintAddress: {is: "${ca}"}}}, Transaction: {Result: {Success: true}}}
-              orderBy: {descending: Block_Time}
-              limit: {count: 1}
-            ) {
-              Trade {
-                Currency {
-                  Uri
-                  UpdateAuthority
-                  Name
-                  Symbol
-                  IsMutable
-                }
-              }
-            }
-          }
-        }
-      `;
-
-      console.log('🔍 Trying Bitquery API...');
-      
-      const response = await fetch('https://streaming.bitquery.io/eap', {
-        method: 'POST',
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/jupiter/test/${ca}`, {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ory_at_gdYmaq9AHhGAwTIFSGzIsS6kas1bFJfJXuBthqzFDx4.StK99y_pGpRxVe91TPwftlfOi-PNOIu05KhQK-WAQiI'
-        },
-        body: JSON.stringify({ query })
+          'Content-Type': 'application/json'
+        }
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Bitquery API HTTP error:', response.status, errorText);
-        throw new Error(`Bitquery API HTTP error: ${response.status} - ${errorText}`);
+        console.error('❌ Jupiter API HTTP error:', response.status, errorText);
+        throw new Error(`Jupiter API HTTP error: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
-      console.log('✅ Bitquery response received:', data);
+      console.log('✅ Jupiter API response received:', data);
 
-      if (data.errors) {
-        console.error('❌ Bitquery GraphQL errors:', data.errors);
-        console.error('❌ Full error details:', JSON.stringify(data.errors, null, 2));
-        throw new Error(`Bitquery GraphQL error: ${data.errors[0].message}`);
+      if (!data.success) {
+        console.error('❌ Jupiter API error:', data.error);
+        throw new Error(`Jupiter API error: ${data.error}`);
       }
 
-      const tokenData = data.data?.Solana?.DEXTradeByTokens?.[0]?.Trade?.Currency;
+      const tokenData = data.tokenData;
       
       if (!tokenData) {
-        console.log('⚠️ No token data found in DEX trades for this address');
-        throw new Error('Token not found in DEX trading data. This token may not have been traded yet.');
+        console.log('⚠️ No token data found in Jupiter API for this address');
+        throw new Error('Token not found in Jupiter API. This token may not exist or may not be tradeable.');
       }
 
-      console.log('✅ Successfully retrieved token metadata:', tokenData);
+      console.log('✅ Successfully retrieved token metadata from Jupiter API:', tokenData);
       
       return {
-        name: tokenData.Name || 'Unknown Token',
-        symbol: tokenData.Symbol || 'UNKNOWN', // Use actual symbol from Bitquery
-        decimals: 9, // Default for Solana tokens
-        totalSupply: 'Unknown',
-        description: `Token: ${tokenData.Name || 'Unknown Token'}`,
-        image: null,
+        name: tokenData.name || 'Unknown Token',
+        symbol: tokenData.symbol || 'UNKNOWN',
+        decimals: tokenData.decimals || 9,
+        totalSupply: tokenData.totalSupply || 0,
+        description: `Token: ${tokenData.name || 'Unknown Token'}`,
+        image: tokenData.image || null,
         contractAddress: ca,
-        updateAuthority: tokenData.UpdateAuthority || null,
-        isMutable: tokenData.IsMutable || false,
-        uri: tokenData.Uri || null,
-        source: 'bitquery'
+        updateAuthority: tokenData.updateAuthority || null,
+        isMutable: tokenData.isMutable || false,
+        uri: tokenData.uri || null,
+        source: 'jupiter_api',
+        // Additional Jupiter API data
+        holderCount: tokenData.holderCount || 0,
+        marketCap: tokenData.marketCap || 0,
+        price: tokenData.price || 0,
+        liquidity: tokenData.liquidity || 0,
+        organicScore: tokenData.organicScore || 0,
+        socials: tokenData.socials || {}
       };
     } catch (error) {
-      console.error('❌ Failed to fetch token metadata:', error);
+      console.error('❌ Failed to fetch token metadata from Jupiter API:', error);
       throw new Error(`Failed to fetch token metadata: ${error.message}`);
     }
   };
@@ -680,94 +660,66 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   // Fetch price data from Bitquery
   const fetchPriceData = async (ca) => {
     try {
-      console.log('🔍 Fetching price data from Bitquery for:', ca);
+      console.log('🔍 Fetching price data from Jupiter API for:', ca);
       
-      const priceQuery = `{
-        Solana {
-          DEXTradeByTokens(
-            orderBy: {descending: Block_Time}
-            where: {Trade: {Currency: {MintAddress: {in: "${ca}"}}, Side: {Currency: {MintAddress: {is: "So11111111111111111111111111111111111111112"}}}}}
-            limitBy: {by:Trade_Currency_MintAddress count: 1}
-          ) {
-            Block{
-              Time
-            }
-            Trade{
-              Currency{
-                Name
-                Symbol
-                MintAddress
-              }
-              PriceInSol: Price
-              PriceInUSD
-              Side{
-                Currency{
-                  Name
-                  MintAddress
-                }
-              }
-            }
-          }
-        }
-      }`;
-
-      console.log('🔍 Price query:', priceQuery);
-      
-      const response = await fetch('https://streaming.bitquery.io/eap', {
-        method: 'POST',
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/jupiter/test/${ca}`, {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ory_at_gdYmaq9AHhGAwTIFSGzIsS6kas1bFJfJXuBthqzFDx4.StK99y_pGpRxVe91TPwftlfOi-PNOIu05KhQK-WAQiI'
-        },
-        body: JSON.stringify({ query: priceQuery })
+          'Content-Type': 'application/json'
+        }
       });
 
       if (!response.ok) {
-        throw new Error(`Price API error: ${response.status}`);
+        throw new Error(`Jupiter API error: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('✅ Price data received:', data);
+      console.log('✅ Jupiter API price data received:', data);
 
-      if (data.errors) {
-        console.error('❌ Price query errors:', data.errors);
-        throw new Error(`Price query error: ${data.errors[0].message}`);
-      }
-
-      const priceData = data.data?.Solana?.DEXTradeByTokens?.[0];
-      
-      if (!priceData) {
-        console.log('⚠️ No price data found');
+      if (!data.success || !data.tokenData) {
+        console.log('⚠️ No price data found in Jupiter API');
         return {
           price: 0,
           priceInSol: 0,
           volume24h: 0,
           marketCap: 0,
           priceChange24h: 0,
-          lastTradeTime: null
+          lastTradeTime: null,
+          symbol: 'UNKNOWN',
+          name: 'Unknown Token'
         };
       }
 
-      console.log('✅ Successfully retrieved price data:', priceData);
+      const tokenData = data.tokenData;
+      console.log('✅ Successfully retrieved price data from Jupiter API:', tokenData);
       
       return {
-        price: priceData.Trade.PriceInUSD || 0,
-        priceInSol: priceData.Trade.PriceInSol || 0,
-        volume24h: 0, // Would need separate query for volume
-        marketCap: 0, // Would need supply data to calculate
-        priceChange24h: 0, // Would need historical comparison
-        lastTradeTime: priceData.Block.Time,
-        source: 'bitquery_price'
+        price: tokenData.price || tokenData.usdPrice || 0,
+        priceInSol: tokenData.priceInSol || 0,
+        volume24h: tokenData.volume24h || 0,
+        marketCap: tokenData.marketCap || tokenData.mcap || 0,
+        priceChange24h: tokenData.priceChange24h || (tokenData.stats24h?.priceChange || 0),
+        lastTradeTime: tokenData.lastTradeTime || new Date().toISOString(),
+        symbol: tokenData.symbol || 'UNKNOWN',
+        name: tokenData.name || 'Unknown Token',
+        // Additional Jupiter API price data
+        fdv: tokenData.fdv || 0,
+        liquidity: tokenData.liquidity || 0,
+        priceChange1h: tokenData.stats1h?.priceChange || 0,
+        priceChange6h: tokenData.stats6h?.priceChange || 0,
+        source: 'jupiter_api'
       };
     } catch (error) {
-      console.error('❌ Failed to fetch price data:', error);
+      console.error('❌ Failed to fetch price data from Jupiter API:', error);
       return {
         price: 0,
         priceInSol: 0,
         volume24h: 0,
         marketCap: 0,
         priceChange24h: 0,
-        lastTradeTime: null
+        lastTradeTime: null,
+        symbol: 'UNKNOWN',
+        name: 'Unknown Token'
       };
     }
   };
@@ -834,70 +786,57 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     }
   };
 
-  // Fetch market cap data from Bitquery
+  // Fetch market cap data from Jupiter API
   const fetchMarketCapData = async (ca) => {
     try {
-      console.log('🔍 Fetching market cap data from Bitquery for:', ca);
+      console.log('🔍 Fetching market cap data from Jupiter API for:', ca);
       
-      // First try simple supply query
-      const simpleSupplyQuery = `{
-        Solana {
-          TokenSupplyUpdates(
-            where: {TokenSupplyUpdate: {Currency: {MintAddress: {is: "${ca}"}}}}
-            orderBy: {descending: Block_Time}
-            limit: {count: 1}
-          ) {
-            TokenSupplyUpdate {
-              PostBalanceInUSD
-              PostBalance
-              Currency {
-                Symbol
-                MintAddress
-                Name
-              }
-            }
-            Block {
-              Time
-            }
-          }
-        }
-      }`;
-
-      console.log('🔍 Trying simple supply query first:', simpleSupplyQuery);
-      
-      let response = await fetch('https://streaming.bitquery.io/eap', {
-        method: 'POST',
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/jupiter/test/${ca}`, {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ory_at_gdYmaq9AHhGAwTIFSGzIsS6kas1bFJfJXuBthqzFDx4.StK99y_pGpRxVe91TPwftlfOi-PNOIu05KhQK-WAQiI'
-        },
-        body: JSON.stringify({ query: simpleSupplyQuery })
+          'Content-Type': 'application/json'
+        }
       });
 
-      if (response.ok) {
-        const simpleData = await response.json();
-        console.log('✅ Simple supply query response:', simpleData);
-        
-        if (!simpleData.errors && simpleData.data?.Solana?.TokenSupplyUpdates?.[0]) {
-          const supplyData = simpleData.data.Solana.TokenSupplyUpdates[0].TokenSupplyUpdate;
-          console.log('✅ Found supply data with simple query:', supplyData);
-          console.log('🔍 Supply data details:');
-          console.log('   PostBalanceInUSD:', supplyData.PostBalanceInUSD);
-          console.log('   PostBalance:', supplyData.PostBalance);
-          console.log('   hasMarketCap:', !!supplyData.PostBalanceInUSD);
-          console.log('   marketCapValue:', supplyData.PostBalanceInUSD);
-          console.log('   typeof PostBalanceInUSD:', typeof supplyData.PostBalanceInUSD);
-          
-          return {
-            marketCap: supplyData.PostBalanceInUSD || 0,
-            totalSupply: supplyData.PostBalance || 0,
-            marketCapSource: 'simple_supply_query',
-            lastSupplyUpdate: simpleData.data.Solana.TokenSupplyUpdates[0].Block.Time
-          };
-        }
+      if (!response.ok) {
+        throw new Error(`Jupiter API error: ${response.status}`);
       }
 
-      console.log('⚠️ Simple query failed, trying complex join query...');
+      const data = await response.json();
+      console.log('✅ Jupiter API market cap data received:', data);
+
+      if (!data.success || !data.tokenData) {
+        console.log('⚠️ No market cap data found in Jupiter API');
+        return {
+          marketCap: 0,
+          totalSupply: 0,
+          marketCapSource: 'no_data'
+        };
+      }
+
+      const tokenData = data.tokenData;
+      console.log('✅ Successfully retrieved market cap data from Jupiter API:', tokenData);
+      
+      return {
+        marketCap: tokenData.marketCap || tokenData.mcap || 0,
+        totalSupply: tokenData.totalSupply || tokenData.circSupply || 0,
+        marketCapSource: 'jupiter_api',
+        lastSupplyUpdate: tokenData.lastUpdated || new Date().toISOString(),
+        // Additional Jupiter API market data
+        fdv: tokenData.fdv || 0,
+        liquidity: tokenData.liquidity || 0,
+        holderCount: tokenData.holderCount || 0
+      };
+
+    } catch (error) {
+      console.error('❌ Failed to fetch market cap data from Jupiter API:', error);
+      return {
+        marketCap: 0,
+        totalSupply: 0,
+        marketCapSource: 'error'
+      };
+    }
+  };
       
       // Get time 15 seconds ago for recent data
       const time15sAgo = new Date(Date.now() - 15000).toISOString();
@@ -1009,21 +948,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         totalSupply: supplyUpdate?.PostBalance
       });
       
-      return {
-        marketCap: supplyUpdate?.PostBalanceInUSD || 0,
-        totalSupply: supplyUpdate?.PostBalance || 0,
-        marketCapSource: 'bitquery_supply',
-        lastSupplyUpdate: marketCapData.joinTokenSupplyUpdates?.[0]?.Block?.Time
-      };
-    } catch (error) {
-      console.error('❌ Failed to fetch market cap data:', error);
-      return {
-        marketCap: 0,
-        totalSupply: 0,
-        marketCapSource: 'error'
-      };
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
