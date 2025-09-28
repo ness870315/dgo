@@ -529,7 +529,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                 
                 // Close the modal after success
                 setTimeout(() => {
-                  if (onTokenAdded) onTokenAdded();
+                  if (onTokenAdded) onTokenAdded(tokenData);
                   if (onBack) onBack();
                 }, 3000);
               }).catch((error) => {
