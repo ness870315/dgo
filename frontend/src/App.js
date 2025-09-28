@@ -24,7 +24,7 @@ import pushNotificationService from './services/pushNotificationService';
 import './App.css';
 
 // Professional Success Modal Function
-const showProfessionalSuccessModal = (tokenData) => {
+const showProfessionalSuccessModal = (tokenData, recordTokenListing) => {
   // Create modal overlay
   const overlay = document.createElement('div');
   overlay.style.cssText = `
@@ -137,6 +137,11 @@ const showProfessionalSuccessModal = (tokenData) => {
 
   // Handle OK button click
   document.getElementById('successModalOK').onclick = () => {
+    // Record token listing for user stats
+    if (recordTokenListing) {
+      recordTokenListing(tokenData);
+    }
+    
     document.body.removeChild(overlay);
     document.head.removeChild(style);
     
@@ -147,6 +152,11 @@ const showProfessionalSuccessModal = (tokenData) => {
   // Handle overlay click to close
   overlay.onclick = (e) => {
     if (e.target === overlay) {
+      // Record token listing for user stats
+      if (recordTokenListing) {
+        recordTokenListing(tokenData);
+      }
+      
       document.body.removeChild(overlay);
       document.head.removeChild(style);
       
@@ -746,8 +756,38 @@ function AppContent() {
           const tokenData = JSON.parse(pendingToken);
           console.log('🎉 Payment successful! Processing token:', tokenData);
           
-          // Show professional success modal
-          showProfessionalSuccessModal(tokenData);
+          // Show professional success modal with recordTokenListing function
+          // Note: We need to get recordTokenListing from the ListTokenPage component
+          // For now, we'll create a temporary recordTokenListing function
+          const tempRecordTokenListing = async (tokenData) => {
+            try {
+              console.log('📝 Recording token listing for user stats:', tokenData.symbol);
+              const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/user/tokens/list`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  sessionId: user?.sessionId,
+                  contractAddress: tokenData.contractAddress,
+                  symbol: tokenData.symbol,
+                  name: tokenData.name,
+                  socialLinks: tokenData.socialLinks
+                })
+              });
+
+              const result = await response.json();
+              if (result.success) {
+                console.log('✅ Token listing recorded successfully:', result.message);
+              } else {
+                console.warn('⚠️ Failed to record token listing:', result.error);
+              }
+            } catch (error) {
+              console.error('❌ Error recording token listing:', error);
+            }
+          };
+          
+          showProfessionalSuccessModal(tokenData, tempRecordTokenListing);
           
           // Submit token to backend
           submitTokenToDatabase(tokenData).catch(error => {
