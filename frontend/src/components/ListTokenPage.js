@@ -509,11 +509,8 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       const initializeHelioWidget = () => {
         const container = document.getElementById('helioCheckoutContainer');
         if (container && window.helioCheckout) {
-          // Check if widget is already initialized
-          if (container.hasChildNodes()) {
-            console.log('⚠️ Helio widget already initialized, skipping...');
-            return;
-          }
+          // Clear any existing content first
+          container.innerHTML = '';
           
           console.log('🎯 Initializing Helio Pay widget...');
           
