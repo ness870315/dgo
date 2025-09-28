@@ -64,7 +64,6 @@ class HypeSnapshotService {
     if (last) {
       const lastTs = new Date(last.timestamp).getTime();
       if (isFinite(lastTs) && now - lastTs < fiveMinutes) {
-        console.log(`⏰ Hype snapshot skipped for ${contractAddress} - too soon (${Math.round((now - lastTs) / 1000)}s ago, min 5min)`);
         return; // too soon
       }
     }
