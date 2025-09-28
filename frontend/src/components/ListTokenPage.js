@@ -116,11 +116,6 @@ const showProfessionalSuccessModal = (tokenData, recordTokenListing) => {
 
   // Handle OK button click
   document.getElementById('successModalOK').onclick = () => {
-    // Record token listing for user stats
-    if (recordTokenListing) {
-      recordTokenListing(tokenData);
-    }
-    
     document.body.removeChild(overlay);
     document.head.removeChild(style);
 
@@ -131,11 +126,6 @@ const showProfessionalSuccessModal = (tokenData, recordTokenListing) => {
   // Handle overlay click to close
   overlay.onclick = (e) => {
     if (e.target === overlay) {
-      // Record token listing for user stats
-      if (recordTokenListing) {
-        recordTokenListing(tokenData);
-      }
-      
       document.body.removeChild(overlay);
       document.head.removeChild(style);
 
@@ -244,15 +234,34 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   const [helioLoaded, setHelioLoaded] = useState(false);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
 
-  // Call token listing API to update user stats
-  const recordTokenListing = useCallback(async (tokenData) => {
-    if (!sessionId) {
-      console.log('⚠️ No sessionId available, skipping token listing record');
+  // Handle token listing (same pattern as handleApplyFuel)
+  const handleTokenListing = useCallback(async () => {
+    if (!contractAddress.trim()) {
+      console.log('⚠️ No contract address available');
       return;
     }
 
     try {
-      console.log('📝 Recording token listing for user stats:', tokenData.symbol);
+      // Check if there's pending payment data
+      const pendingData = localStorage.getItem('pendingTokenListing');
+      let tokenData = null;
+
+      if (pendingData) {
+        tokenData = JSON.parse(pendingData);
+        console.log('Found pending token listing payment:', tokenData);
+      }
+
+      if (!tokenData) {
+        console.log('⚠️ No pending token data found');
+        return;
+      }
+
+      console.log('📝 Processing token listing:', tokenData.symbol);
+
+      // Submit token to database first
+      await submitTokenToDatabase(tokenData, tokenData.helioEvent);
+      
+      // Then update user stats (same as Fuel Tokens)
       const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/user/tokens/list`, {
         method: 'POST',
         headers: {
@@ -269,14 +278,33 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
 
       const result = await response.json();
       if (result.success) {
-        console.log('✅ Token listing recorded successfully:', result.message);
+        console.log('✅ Token listing processed successfully:', result.message);
+        console.log('✅ Current tokensListed:', result.currentTokensListed);
+        
+        // Show success modal
+        showProfessionalSuccessModal(tokenData, null); // No need for recordTokenListing since we already did it
+        setPaymentProcessing(false);
+        
+        // Close the modal after success
+        setTimeout(() => {
+          if (onTokenAdded) onTokenAdded(tokenData);
+          if (onBack) onBack();
+        }, 3000);
+        
+        // Clean up localStorage
+        localStorage.removeItem('pendingTokenListing');
+        
       } else {
-        console.warn('⚠️ Failed to record token listing:', result.error);
+        console.error('❌ Failed to process token listing:', result.error);
+        setPaymentProcessing(false);
+        alert('Payment successful but token listing failed. Please contact support.');
       }
     } catch (error) {
-      console.error('❌ Error recording token listing:', error);
+      console.error('❌ Error processing token listing:', error);
+      setPaymentProcessing(false);
+      alert('Payment successful but token listing failed. Please contact support.');
     }
-  }, [sessionId]);
+  }, [contractAddress, sessionId, submitTokenToDatabase, onTokenAdded, onBack]);
 
   // Submit token to database after successful payment (moved up for useEffect)
   const submitTokenToDatabase = useCallback(async (tokenData, paymentEvent) => {
@@ -526,26 +554,31 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
             neutralColor: "#5A6578",
             display: "inline",
             width: "100%",
-            onSuccess: (event) => {
-              console.log('🎉 Payment successful!', event);
-              setPaymentProcessing(true);
-              
-              // Process the token immediately
-              submitTokenToDatabase(tokenData, event).then(() => {
-                showProfessionalSuccessModal(tokenData, recordTokenListing);
-                setPaymentProcessing(false);
-                
-                // Close the modal after success
-                setTimeout(() => {
-                  if (onTokenAdded) onTokenAdded(tokenData);
-                  if (onBack) onBack();
-                }, 3000);
-              }).catch((error) => {
-                console.error('❌ Token submission failed:', error);
-                setPaymentProcessing(false);
-                alert('Payment successful but token submission failed. Please contact support.');
-              });
-            },
+        onSuccess: async (event) => {
+          console.log('🎉 Payment successful!', event);
+          setPaymentProcessing(true);
+          
+          // Store payment data for token listing (same as Fuel Tokens)
+          localStorage.setItem('pendingTokenListing', JSON.stringify({
+            contractAddress: tokenData.contractAddress,
+            symbol: tokenData.symbol,
+            name: tokenData.name,
+            socialLinks: tokenData.socialLinks,
+            paymentId: event.paymentId || `token_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            paymentInitiated: new Date().toISOString(),
+            helioEvent: event
+          }));
+          
+          // Auto-process token listing after payment success (same as Fuel Tokens)
+          try {
+            console.log('📝 Auto-processing token listing after payment success...');
+            await handleTokenListing();
+          } catch (error) {
+            console.error('❌ Error auto-processing token listing:', error);
+            setPaymentProcessing(false);
+            alert('Payment successful but token listing failed. Please contact support.');
+          }
+        },
             onError: (event) => {
               console.error('❌ Payment error:', event);
               alert('Payment failed. Please try again.');
