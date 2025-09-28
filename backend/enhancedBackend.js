@@ -4418,8 +4418,14 @@ class EnhancedBackend {
         if (result.success) {
           // Update user stats if user is authenticated
           if (user) {
-            await this.updateUserStats(user.id, 'tokensFueled', 1);
-            console.log(`[🛡️ Enhanced Backend] 📊 Updated tokensFueled stat for user ${user.username}`);
+            const statsUpdateResult = await this.updateUserStats(user.id, 'tokensFueled', 1);
+            
+            if (statsUpdateResult === null) {
+              console.error(`[🛡️ Enhanced Backend] ❌ Failed to update tokensFueled stat for user ${user.username}`);
+              // Continue with the response but log the error
+            } else {
+              console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated tokensFueled stat for user ${user.username}: ${statsUpdateResult}`);
+            }
           }
           
           res.json({ success: true, message: result.message, token: result.token });
@@ -4463,7 +4469,16 @@ class EnhancedBackend {
       try {
         const { sessionId, contractAddress, symbol, name, socialLinks } = req.body;
         
+        console.log(`[🛡️ Enhanced Backend] 📝 Token listing request received:`, {
+          sessionId: sessionId ? 'present' : 'missing',
+          contractAddress,
+          symbol,
+          name,
+          socialLinks: socialLinks ? 'present' : 'missing'
+        });
+        
         if (!sessionId) {
+          console.log(`[🛡️ Enhanced Backend] ❌ No sessionId provided`);
           return res.status(401).json({ 
             success: false, 
             error: 'Authentication required' 
@@ -4472,6 +4487,7 @@ class EnhancedBackend {
 
         const user = await this.oauthXService.getUserBySession(sessionId);
         if (!user) {
+          console.log(`[🛡️ Enhanced Backend] ❌ Invalid session: ${sessionId}`);
           return res.status(401).json({
             success: false,
             error: 'Invalid session'
@@ -4481,20 +4497,36 @@ class EnhancedBackend {
         console.log(`[🛡️ Enhanced Backend] 📝 Token listing request from user: ${user.username} (${user.id})`);
         console.log(`[🛡️ Enhanced Backend] 📝 Token: ${symbol} (${contractAddress})`);
 
-        // Update user stats
-        await this.updateUserStats(user.id, 'tokensListed', 1);
-        console.log(`[🛡️ Enhanced Backend] 📊 Updated tokensListed stat for user ${user.username}`);
+        // Update user stats with enhanced error handling
+        const statsUpdateResult = await this.updateUserStats(user.id, 'tokensListed', 1);
+        
+        if (statsUpdateResult === null) {
+          console.error(`[🛡️ Enhanced Backend] ❌ Failed to update tokensListed stat for user ${user.username}`);
+          // Continue with the response but log the error
+          // Don't fail the entire request just because stats update failed
+        } else {
+          console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated tokensListed stat for user ${user.username}: ${statsUpdateResult}`);
+        }
+
+        // Get current user stats for response
+        const currentTokensListed = await this.getUserStat(user.id, 'tokensListed');
+        console.log(`[🛡️ Enhanced Backend] 📊 Current tokensListed for ${user.username}: ${currentTokensListed}`);
 
         res.json({ 
           success: true, 
           message: `Token ${symbol} listing request recorded successfully`,
           userStats: {
-            tokensListed: await this.getUserStat(user.id, 'tokensListed')
+            tokensListed: currentTokensListed || 0
           }
         });
         
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Error processing token listing:', error);
+        console.error('[🛡️ Enhanced Backend] ❌ Error details:', {
+          message: error.message,
+          stack: error.stack,
+          body: req.body
+        });
         res.status(500).json({ 
           success: false,
           error: 'Failed to process token listing' 
@@ -9643,12 +9675,17 @@ class EnhancedBackend {
   }
 
   /**
-   * Update user statistics
+   * Update user statistics with enhanced error handling and logging
    */
   async updateUserStats(userId, statName, increment = 1) {
     try {
+      console.log(`📊 [updateUserStats] Starting update for user ${userId}, stat: ${statName}, increment: ${increment}`);
+      
       const profileFile = await this.oauthXService.db.getUserFile(userId, 'profile.json');
+      console.log(`📁 [updateUserStats] Profile file path: ${profileFile}`);
+      
       const profile = await this.oauthXService.db.readJsonFile(profileFile, {});
+      console.log(`📖 [updateUserStats] Current profile stats:`, profile.stats);
       
       // Initialize stats if they don't exist
       if (!profile.stats) {
@@ -9658,18 +9695,74 @@ class EnhancedBackend {
           tokensUpdated: 0,
           totalSpent: 0
         };
+        console.log(`🆕 [updateUserStats] Initialized new stats object for user ${userId}`);
       }
+      
+      // Store old value for logging
+      const oldValue = profile.stats[statName] || 0;
       
       // Update the specific stat
       profile.stats[statName] = (profile.stats[statName] || 0) + increment;
       
-      // Save updated profile
-      await this.oauthXService.db.writeJsonFile(profileFile, profile);
+      // Update lastUpdated timestamp
+      profile.lastUpdated = new Date().toISOString();
       
-      console.log(`📊 Updated ${statName} for user ${userId}: ${profile.stats[statName]}`);
+      console.log(`🔄 [updateUserStats] Updating ${statName}: ${oldValue} → ${profile.stats[statName]}`);
+      
+      // Save updated profile with retry logic
+      let saveSuccess = false;
+      let lastError = null;
+      
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await this.oauthXService.db.writeJsonFile(profileFile, profile);
+          saveSuccess = true;
+          console.log(`✅ [updateUserStats] Successfully saved profile on attempt ${attempt}`);
+          break;
+        } catch (saveError) {
+          lastError = saveError;
+          console.error(`❌ [updateUserStats] Save attempt ${attempt} failed:`, saveError.message);
+          
+          if (attempt < 3) {
+            const delay = attempt * 1000; // 1s, 2s delays
+            console.log(`⏳ [updateUserStats] Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
+      }
+      
+      if (!saveSuccess) {
+        throw new Error(`Failed to save profile after 3 attempts. Last error: ${lastError?.message}`);
+      }
+      
+      // Verify the save worked by reading back the file
+      try {
+        const verifyProfile = await this.oauthXService.db.readJsonFile(profileFile, {});
+        const verifyValue = verifyProfile.stats?.[statName] || 0;
+        
+        if (verifyValue !== profile.stats[statName]) {
+          console.error(`🚨 [updateUserStats] VERIFICATION FAILED! Expected: ${profile.stats[statName]}, Got: ${verifyValue}`);
+          throw new Error(`Verification failed: expected ${profile.stats[statName]}, got ${verifyValue}`);
+        } else {
+          console.log(`✅ [updateUserStats] Verification successful: ${statName} = ${verifyValue}`);
+        }
+      } catch (verifyError) {
+        console.error(`❌ [updateUserStats] Verification error:`, verifyError.message);
+        // Don't throw here, the save might have worked but verification failed
+      }
+      
+      console.log(`📊 [updateUserStats] Successfully updated ${statName} for user ${userId}: ${profile.stats[statName]}`);
       return profile.stats[statName];
+      
     } catch (error) {
-      console.error(`Error updating user stats for ${userId}:`, error);
+      console.error(`❌ [updateUserStats] Error updating user stats for ${userId}:`, error);
+      console.error(`❌ [updateUserStats] Error details:`, {
+        userId,
+        statName,
+        increment,
+        errorMessage: error.message,
+        errorStack: error.stack
+      });
       return null;
     }
   }
