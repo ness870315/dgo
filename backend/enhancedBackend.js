@@ -393,6 +393,23 @@ class EnhancedBackend {
             userId: user.id,
             meta: { durationDays }
           });
+          
+          // Update user totalSpent for premium subscription
+          let solAmount = 0;
+          if (planType === 'monthly') {
+            solAmount = 0.4; // Monthly: 0.4 SOL
+          } else if (planType === 'yearly') {
+            solAmount = 0.4 * 12 * 0.8; // Yearly: 0.4 SOL × 12 - 20% discount = 3.84 SOL
+          }
+          
+          if (solAmount > 0) {
+            const totalSpentResult = await this.updateUserStats(user.id, 'totalSpent', solAmount);
+            if (totalSpentResult === null) {
+              console.error(`[🛡️ Enhanced Backend] ❌ Failed to update totalSpent stat for user ${user.username}`);
+            } else {
+              console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated totalSpent stat for user ${user.username}: +${solAmount} SOL (total: ${totalSpentResult} SOL)`);
+            }
+          }
         } catch (e) {
           logger.error('[🛡️ Enhanced Backend] ⚠️ Failed to record earning:', e.message);
         }
@@ -2896,12 +2913,12 @@ class EnhancedBackend {
           console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated tokensUpdated stat for user ${userId}: ${statsUpdateResult}`);
         }
 
-        // Update totalSpent for social update ($4.90)
-        const totalSpentResult = await this.updateUserStats(userId, 'totalSpent', 4.90);
+        // Update totalSpent for social update ($35.00)
+        const totalSpentResult = await this.updateUserStats(userId, 'totalSpent', 35.00);
         if (totalSpentResult === null) {
           console.error(`[🛡️ Enhanced Backend] ❌ Failed to update totalSpent stat for user ${userId}`);
         } else {
-          console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated totalSpent stat for user ${userId}: +$4.90 (total: $${totalSpentResult})`);
+          console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated totalSpent stat for user ${userId}: +$35.00 (total: $${totalSpentResult})`);
         }
         
         res.json({
@@ -9735,7 +9752,10 @@ class EnhancedBackend {
           tokensListed: 0,
           tokensFueled: 0,
           tokensUpdated: 0,
-          totalSpent: 0
+          totalSpent: {
+            USD: 0,
+            SOL: 0
+          }
         };
         console.log(`🆕 [updateUserStats] Initialized new stats object for user ${userId}`);
       }
@@ -9744,12 +9764,37 @@ class EnhancedBackend {
       const oldValue = profile.stats[statName] || 0;
       
       // Update the specific stat
-      profile.stats[statName] = (profile.stats[statName] || 0) + increment;
+      if (statName === 'totalSpent') {
+        // Handle totalSpent as an object with USD and SOL
+        if (typeof profile.stats.totalSpent === 'number') {
+          // Migrate old format to new format
+          profile.stats.totalSpent = {
+            USD: profile.stats.totalSpent,
+            SOL: 0
+          };
+        }
+        
+        // Determine currency based on context (premium = SOL, others = USD)
+        const currency = increment <= 10 ? 'SOL' : 'USD'; // SOL amounts are typically < 10, USD amounts > 10
+        
+        if (!profile.stats.totalSpent[currency]) {
+          profile.stats.totalSpent[currency] = 0;
+        }
+        
+        profile.stats.totalSpent[currency] = (profile.stats.totalSpent[currency] || 0) + increment;
+        console.log(`💰 [updateUserStats] Updated totalSpent ${currency}: ${oldValue} → ${profile.stats.totalSpent[currency]}`);
+      } else {
+        profile.stats[statName] = (profile.stats[statName] || 0) + increment;
+      }
       
       // Update lastUpdated timestamp
       profile.lastUpdated = new Date().toISOString();
       
-      console.log(`🔄 [updateUserStats] Updating ${statName}: ${oldValue} → ${profile.stats[statName]}`);
+      if (statName === 'totalSpent') {
+        console.log(`🔄 [updateUserStats] Updated ${statName}:`, profile.stats.totalSpent);
+      } else {
+        console.log(`🔄 [updateUserStats] Updating ${statName}: ${oldValue} → ${profile.stats[statName]}`);
+      }
       
       // Save updated profile with retry logic
       let saveSuccess = false;
@@ -9780,21 +9825,39 @@ class EnhancedBackend {
       // Verify the save worked by reading back the file
       try {
         const verifyProfile = await this.oauthXService.db.readJsonFile(profileFile, {});
-        const verifyValue = verifyProfile.stats?.[statName] || 0;
+        let verifyValue;
         
-        if (verifyValue !== profile.stats[statName]) {
-          console.error(`🚨 [updateUserStats] VERIFICATION FAILED! Expected: ${profile.stats[statName]}, Got: ${verifyValue}`);
-          throw new Error(`Verification failed: expected ${profile.stats[statName]}, got ${verifyValue}`);
+        if (statName === 'totalSpent') {
+          verifyValue = verifyProfile.stats?.totalSpent || { USD: 0, SOL: 0 };
         } else {
-          console.log(`✅ [updateUserStats] Verification successful: ${statName} = ${verifyValue}`);
+          verifyValue = verifyProfile.stats?.[statName] || 0;
+        }
+        
+        let expectedValue;
+        if (statName === 'totalSpent') {
+          expectedValue = profile.stats.totalSpent;
+        } else {
+          expectedValue = profile.stats[statName];
+        }
+        
+        if (JSON.stringify(verifyValue) !== JSON.stringify(expectedValue)) {
+          console.error(`🚨 [updateUserStats] VERIFICATION FAILED! Expected:`, expectedValue, `Got:`, verifyValue);
+          throw new Error(`Verification failed: expected ${JSON.stringify(expectedValue)}, got ${JSON.stringify(verifyValue)}`);
+        } else {
+          console.log(`✅ [updateUserStats] Verification successful: ${statName} =`, verifyValue);
         }
       } catch (verifyError) {
         console.error(`❌ [updateUserStats] Verification error:`, verifyError.message);
         // Don't throw here, the save might have worked but verification failed
       }
       
-      console.log(`📊 [updateUserStats] Successfully updated ${statName} for user ${userId}: ${profile.stats[statName]}`);
-      return profile.stats[statName];
+      if (statName === 'totalSpent') {
+        console.log(`📊 [updateUserStats] Successfully updated ${statName} for user ${userId}:`, profile.stats.totalSpent);
+        return profile.stats.totalSpent;
+      } else {
+        console.log(`📊 [updateUserStats] Successfully updated ${statName} for user ${userId}: ${profile.stats[statName]}`);
+        return profile.stats[statName];
+      }
       
     } catch (error) {
       console.error(`❌ [updateUserStats] Error updating user stats for ${userId}:`, error);
