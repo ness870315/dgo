@@ -234,78 +234,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   const [helioLoaded, setHelioLoaded] = useState(false);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
 
-  // Handle token listing (same pattern as handleApplyFuel)
-  const handleTokenListing = useCallback(async () => {
-    if (!contractAddress.trim()) {
-      console.log('⚠️ No contract address available');
-      return;
-    }
-
-    try {
-      // Check if there's pending payment data
-      const pendingData = localStorage.getItem('pendingTokenListing');
-      let tokenData = null;
-
-      if (pendingData) {
-        tokenData = JSON.parse(pendingData);
-        console.log('Found pending token listing payment:', tokenData);
-      }
-
-      if (!tokenData) {
-        console.log('⚠️ No pending token data found');
-        return;
-      }
-
-      console.log('📝 Processing token listing:', tokenData.symbol);
-
-      // Submit token to database first
-      await submitTokenToDatabase(tokenData, tokenData.helioEvent);
-      
-      // Then update user stats (same as Fuel Tokens)
-      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/user/tokens/list`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          sessionId: sessionId,
-          contractAddress: tokenData.contractAddress,
-          symbol: tokenData.symbol,
-          name: tokenData.name,
-          socialLinks: tokenData.socialLinks
-        })
-      });
-
-      const result = await response.json();
-      if (result.success) {
-        console.log('✅ Token listing processed successfully:', result.message);
-        console.log('✅ Current tokensListed:', result.currentTokensListed);
-        
-        // Show success modal
-        showProfessionalSuccessModal(tokenData);
-        setPaymentProcessing(false);
-        
-        // Close the modal after success
-        setTimeout(() => {
-          if (onTokenAdded) onTokenAdded(tokenData);
-          if (onBack) onBack();
-        }, 3000);
-        
-        // Clean up localStorage
-        localStorage.removeItem('pendingTokenListing');
-        
-      } else {
-        console.error('❌ Failed to process token listing:', result.error);
-        setPaymentProcessing(false);
-        alert('Payment successful but token listing failed. Please contact support.');
-      }
-    } catch (error) {
-      console.error('❌ Error processing token listing:', error);
-      setPaymentProcessing(false);
-      alert('Payment successful but token listing failed. Please contact support.');
-    }
-  }, [contractAddress, sessionId, submitTokenToDatabase, onTokenAdded, onBack]);
-
   // Submit token to database after successful payment (moved up for useEffect)
   const submitTokenToDatabase = useCallback(async (tokenData, paymentEvent) => {
     try {
@@ -432,6 +360,78 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       return false;
     }
   }, [submitTokenToDatabase]);
+
+  // Handle token listing (same pattern as handleApplyFuel)
+  const handleTokenListing = useCallback(async () => {
+    if (!contractAddress.trim()) {
+      console.log('⚠️ No contract address available');
+      return;
+    }
+
+    try {
+      // Check if there's pending payment data
+      const pendingData = localStorage.getItem('pendingTokenListing');
+      let tokenData = null;
+
+      if (pendingData) {
+        tokenData = JSON.parse(pendingData);
+        console.log('Found pending token listing payment:', tokenData);
+      }
+
+      if (!tokenData) {
+        console.log('⚠️ No pending token data found');
+        return;
+      }
+
+      console.log('📝 Processing token listing:', tokenData.symbol);
+
+      // Submit token to database first
+      await submitTokenToDatabase(tokenData, tokenData.helioEvent);
+      
+      // Then update user stats (same as Fuel Tokens)
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/user/tokens/list`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sessionId: sessionId,
+          contractAddress: tokenData.contractAddress,
+          symbol: tokenData.symbol,
+          name: tokenData.name,
+          socialLinks: tokenData.socialLinks
+        })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        console.log('✅ Token listing processed successfully:', result.message);
+        console.log('✅ Current tokensListed:', result.currentTokensListed);
+        
+        // Show success modal
+        showProfessionalSuccessModal(tokenData);
+        setPaymentProcessing(false);
+        
+        // Close the modal after success
+        setTimeout(() => {
+          if (onTokenAdded) onTokenAdded(tokenData);
+          if (onBack) onBack();
+        }, 3000);
+        
+        // Clean up localStorage
+        localStorage.removeItem('pendingTokenListing');
+        
+      } else {
+        console.error('❌ Failed to process token listing:', result.error);
+        setPaymentProcessing(false);
+        alert('Payment successful but token listing failed. Please contact support.');
+      }
+    } catch (error) {
+      console.error('❌ Error processing token listing:', error);
+      setPaymentProcessing(false);
+      alert('Payment successful but token listing failed. Please contact support.');
+    }
+  }, [contractAddress, sessionId, submitTokenToDatabase, onTokenAdded, onBack]);
 
   // Handle payment completion on page load
   useEffect(() => {
