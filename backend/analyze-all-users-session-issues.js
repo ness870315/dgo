@@ -165,8 +165,8 @@ async function analyzeAllUsersSessionIssues() {
       console.log(`   🔧 ${corruptedActivities} users need activity file repair`);
     }
     
-    if (tokensWithoutAttribution > 0) {
-      console.log(`   🔧 ${tokensWithoutAttribution} tokens need attribution fixes`);
+    if (tokensWithoutAttribution && tokensWithoutAttribution.length > 0) {
+      console.log(`   🔧 ${tokensWithoutAttribution.length} tokens need attribution fixes`);
     }
     
     if (usersWithoutSessionId === 0 && corruptedActivities === 0 && tokensWithoutAttribution === 0) {
