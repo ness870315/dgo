@@ -233,6 +233,11 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         const leaderboardData = leaderboardResponse.ok ? await leaderboardResponse.json() : { success: false, leaderboard: [] };
 
         console.log('📊 Profile data:', profileData);
+        console.log('📊 User stats from API:', {
+          tokensListed: profileData.user?.tokensListed,
+          tokensFueled: profileData.user?.tokensFueled,
+          tokensUpdated: profileData.user?.tokensUpdated
+        });
         console.log('📊 Watchlist data:', watchlistData);
         console.log('📊 KOL Calls data:', kolCallsData);
         console.log('📊 Leaderboard data:', leaderboardData);
@@ -338,23 +343,12 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
   
-  // Main useEffect to fetch dashboard data
+  // Consolidated useEffect to fetch dashboard data
   useEffect(() => {
     console.log('🔄 useEffect triggered - user:', user, 'sessionId:', sessionId);
+    
     if (user && sessionId) {
-      console.log('✅ Calling fetchDashboardData and loadDgoFollowers');
-      fetchDashboardData();
-      loadDgoFollowers();
-    } else {
-      console.log('❌ Missing user or sessionId - user:', !!user, 'sessionId:', !!sessionId);
-    }
-  }, [user, sessionId, fetchDashboardData, loadDgoFollowers]);
-
-  // Additional useEffect to handle user loading with timeout
-  useEffect(() => {
-    console.log('🔄 User loading useEffect - user:', user, 'sessionId:', sessionId);
-    if (user && sessionId) {
-      console.log('✅ User loaded, triggering data fetch');
+      console.log('✅ User and sessionId available, fetching dashboard data');
       fetchDashboardData();
       loadDgoFollowers();
     } else if (sessionId && !user) {
@@ -369,6 +363,8 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
       }, 2000);
       
       return () => clearTimeout(timeout);
+    } else {
+      console.log('❌ Missing user or sessionId - user:', !!user, 'sessionId:', !!sessionId);
     }
   }, [user?.id, sessionId, fetchDashboardData, loadDgoFollowers]);
 
