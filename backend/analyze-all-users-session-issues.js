@@ -12,7 +12,9 @@ async function analyzeAllUsersSessionIssues() {
     console.log('=' .repeat(60));
     
     // 1. Get all user directories
-    const usersDir = path.join(db.persistentDir, 'users');
+    const persistentDir = process.env.DATA_DIR || '/var/data/dgo';
+    const usersDir = path.join(persistentDir, 'users');
+    console.log(`📂 Persistent directory: ${persistentDir}`);
     console.log(`📂 Users directory: ${usersDir}`);
     
     let allUsers = [];

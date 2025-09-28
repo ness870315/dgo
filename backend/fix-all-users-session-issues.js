@@ -13,7 +13,8 @@ async function fixAllUsersSessionIssues() {
     console.log('=' .repeat(50));
     
     // 1. Get all user directories
-    const usersDir = path.join(db.persistentDir, 'users');
+    const persistentDir = process.env.DATA_DIR || '/var/data/dgo';
+    const usersDir = path.join(persistentDir, 'users');
     let allUsers = [];
     
     try {
