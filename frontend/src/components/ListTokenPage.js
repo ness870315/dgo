@@ -509,6 +509,12 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       const initializeHelioWidget = () => {
         const container = document.getElementById('helioCheckoutContainer');
         if (container && window.helioCheckout) {
+          // Check if widget is already initialized
+          if (container.hasChildNodes()) {
+            console.log('⚠️ Helio widget already initialized, skipping...');
+            return;
+          }
+          
           console.log('🎯 Initializing Helio Pay widget...');
           
           window.helioCheckout(container, {
@@ -546,8 +552,9 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
               console.log('⏳ Payment pending:', event);
               setPaymentProcessing(true);
             },
-            onCancel: () => {
-              console.log('❌ Payment cancelled');
+            onCancel: (reason) => {
+              console.log('❌ Payment cancelled, reason:', reason);
+              console.log('🔍 Token data at cancellation:', tokenData);
               setPaymentProcessing(false);
             },
             onStartPayment: () => {
@@ -559,7 +566,16 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       };
 
       // Small delay to ensure DOM is ready
-      setTimeout(initializeHelioWidget, 100);
+      const timeoutId = setTimeout(initializeHelioWidget, 100);
+      
+      // Cleanup function to prevent multiple initializations
+      return () => {
+        clearTimeout(timeoutId);
+        const container = document.getElementById('helioCheckoutContainer');
+        if (container) {
+          container.innerHTML = '';
+        }
+      };
     }
   }, [helioLoaded, validationComplete, duplicateCheck, tokenData, submitTokenToDatabase, onTokenAdded, onBack]);
 
