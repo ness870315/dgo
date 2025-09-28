@@ -637,7 +637,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         decimals: tokenData.decimals || 9,
         totalSupply: tokenData.totalSupply || 0,
         description: `Token: ${tokenData.name || 'Unknown Token'}`,
-        image: tokenData.image || null,
+        image: tokenData.icon || null,
         contractAddress: ca,
         updateAuthority: tokenData.updateAuthority || null,
         isMutable: tokenData.isMutable || false,
@@ -646,7 +646,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         // Additional Jupiter API data
         holderCount: tokenData.holderCount || 0,
         marketCap: tokenData.marketCap || 0,
-        price: tokenData.price || 0,
+        price: tokenData.usdPrice || 0,
         liquidity: tokenData.liquidity || 0,
         organicScore: tokenData.organicScore || 0,
         socials: tokenData.socials || {}
@@ -695,7 +695,7 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       
       return {
         price: tokenData.price || tokenData.usdPrice || 0,
-        priceInSol: tokenData.priceInSol || 0,
+        priceInSol: tokenData.priceInSol || 0, // Will be calculated if needed
         volume24h: tokenData.volume24h || 0,
         marketCap: tokenData.marketCap || tokenData.mcap || 0,
         priceChange24h: tokenData.priceChange24h || (tokenData.stats24h?.priceChange || 0),
