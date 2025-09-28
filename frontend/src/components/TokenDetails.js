@@ -319,7 +319,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
           }
         });
         clearTimeout(timeoutId);
-        const data = await response.json();
+      const data = await response.json();
       
       
       if (!response.ok) {
@@ -356,7 +356,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
       if (error.name === 'AbortError') {
         setAiError('AI analysis timed out after 90 seconds. The analysis is taking longer than expected. Please try again.');
       } else {
-        setAiError(error.message || 'Failed to get AI analysis');
+      setAiError(error.message || 'Failed to get AI analysis');
       }
     } finally {
       setAiLoading(false);
@@ -449,7 +449,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
     ];
     
     const baseMessage = messages[Math.floor(Math.random() * messages.length)];
-    const fuelPageUrl = `${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/fuel/${fuelType}/${symbol}`;
+    const fuelPageUrl = `https://degen-oracle.com/fuel/${fuelType}/${symbol}`;
     
     return `${baseMessage} ${fuelPageUrl}`;
   };
@@ -683,13 +683,13 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center space-x-2 min-w-0 flex-1">
                       <h2 className="text-sm font-bold text-white truncate mobile-token-name">{token?.name || 'Unknown Token'}</h2>
-                      {fuelMultiplier && (
+                {fuelMultiplier && (
                         <span className="px-1 py-0.5 bg-black border border-orange-500 text-orange-400 text-xs font-bold rounded flex items-center space-x-1 flex-shrink-0 mobile-fuel-badge">
-                          <span className="text-xs">🔥</span>
-                          <span>{fuelMultiplier}</span>
-                        </span>
-                      )}
-                    </div>
+                    <span className="text-xs">🔥</span>
+                    <span>{fuelMultiplier}</span>
+                  </span>
+                )}
+              </div>
                     <div className="flex items-center space-x-1 ml-2">
                       {/* Oracle AI Button */}
                       <div className="relative group">
@@ -758,26 +758,26 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2 min-w-0 flex-1">
                       <code className="text-xs text-gray-500 font-mono mobile-contract-address">
-                        {token?.contractAddress ? 
+                  {token?.contractAddress ? 
                           `${token.contractAddress.slice(0, 6)}...${token.contractAddress.slice(-4)}` : 
-                          'No Contract Address'
-                        }
-                      </code>
-                      {token?.contractAddress && (
-                        <button
-                          onClick={(event) => {
-                            navigator.clipboard.writeText(token.contractAddress);
-                            const button = event.currentTarget;
-                            const originalText = button.innerHTML;
-                            button.innerHTML = '✅';
-                            setTimeout(() => {
-                              button.innerHTML = originalText;
-                            }, 2000);
-                          }}
-                          className="text-gray-500 hover:text-gray-300 transition-colors text-xs"
-                        >
-                          📋
-                        </button>
+                    'No Contract Address'
+                      }
+                    </code>
+                {token?.contractAddress && (
+                    <button
+                      onClick={(event) => {
+                        navigator.clipboard.writeText(token.contractAddress);
+                        const button = event.currentTarget;
+                        const originalText = button.innerHTML;
+                        button.innerHTML = '✅';
+                        setTimeout(() => {
+                          button.innerHTML = originalText;
+                        }, 2000);
+                      }}
+                      className="text-gray-500 hover:text-gray-300 transition-colors text-xs"
+                    >
+                      📋
+                    </button>
                       )}
                     </div>
                     <div className="flex items-center space-x-1 ml-2">
@@ -853,25 +853,25 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                         </button>
                         {/* Tooltip */}
                         <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[200px]">
-                          <div className="text-xs leading-tight">
-                            <span className="font-semibold text-white">Copy:</span>
-                            <span className="text-gray-300 ml-1">Copy contract address to clipboard</span>
-                          </div>
+                      <div className="text-xs leading-tight">
+                        <span className="font-semibold text-white">Copy:</span>
+                        <span className="text-gray-300 ml-1">Copy contract address to clipboard</span>
+                      </div>
                           {/* Arrow */}
                           <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-600"></div>
-                        </div>
-                      </div>
-                    )}
+                    </div>
                   </div>
-                </div>
+                )}
+                  </div>
               </div>
             </div>
+          </div>
 
             {/* Desktop Action Buttons - Hidden on mobile, shown on desktop */}
             <div className="hidden sm:flex items-center space-x-1 sm:space-x-2">
               {/* AI Analysis Button */}
               <div className="relative group">
-                <button
+              <button
                   onClick={() => {
 
 
@@ -880,35 +880,35 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                       fetchAIAnalysis();
                     }
                   }}
-                  disabled={!isAuthenticated || aiLoading}
+                disabled={!isAuthenticated || aiLoading}
                   className={`px-1.5 py-1 rounded-lg border border-solana-purple/60 bg-transparent text-xs flex items-center gap-1 transition-all duration-200 ${
-                    (!isAuthenticated || aiLoading)
-                      ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none' 
-                      : 'text-gray-200 hover:bg-gray-700'
-                  }`}
-                >
-                  {aiLoading ? (
+                  (!isAuthenticated || aiLoading)
+                    ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none' 
+                    : 'text-gray-200 hover:bg-gray-700'
+                }`}
+              >
+                {aiLoading ? (
                     <div className="animate-spin w-3 h-3 border-2 border-purple-400 border-t-transparent rounded-full"></div>
-                  ) : (
-                    <>
+                ) : (
+                  <>
                       <Brain size={12} />
-                      <span>Oracle AI</span>
-                    </>
-                  )}
-                </button>
-              </div>
-              
+                    <span>Oracle AI</span>
+                  </>
+                )}
+              </button>
+            </div>
+            
               {/* Fuel Button */}
               <div className="relative group">
-                <button
-                  onClick={handleFuelClick}
-                  className="p-2 rounded-lg transition-all duration-200 text-orange-400 hover:text-orange-300 hover:bg-orange-400/10"
-                >
-                  <Flame size={20} />
-                </button>
-              </div>
+              <button
+                onClick={handleFuelClick}
+                className="p-2 rounded-lg transition-all duration-200 text-orange-400 hover:text-orange-300 hover:bg-orange-400/10"
+              >
+                <Flame size={20} />
+              </button>
+            </div>
 
-              {/* Watchlist Star */}
+            {/* Watchlist Star */}
               <div className="relative group">
                 <button
                   onClick={isAuthenticated ? toggleWatchlist : undefined}
@@ -921,11 +921,11 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                         : 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/10'
                 }`}
                 >
-                  <Star 
-                    size={20} 
-                    stroke="currentColor"
-                    fill={isInWatchlist ? 'currentColor' : 'none'} 
-                  />
+                    <Star 
+                      size={20} 
+                      stroke="currentColor"
+                      fill={isInWatchlist ? 'currentColor' : 'none'} 
+                    />
                 </button>
               </div>
 
@@ -943,8 +943,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
               </div>
 
               {/* Close Button */}
-              <button
-                onClick={() => {
+                <button
+                  onClick={() => {
                   try {
                     if (callRecorded) {
                       window.dispatchEvent(new CustomEvent('kol-call-added'));
@@ -953,9 +953,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                   onClose && onClose();
                 }}
                 className="p-2 text-gray-400 hover:text-white transition-colors"
-              >
-                <X size={20} />
-              </button>
+                >
+                  <X size={20} />
+                </button>
             </div>
           </div>
 
@@ -989,7 +989,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                       {(token?.jupiterData?.stats24h?.priceChange || 0) >= 0 ? '↗' : '↘'} 
                       {formatPercentage(token?.jupiterData?.stats24h?.priceChange || 0)}
                     </span>
-                  </div>
+              </div>
                 </button>
 
                 {/* Price - Green Gradient */}
@@ -1046,7 +1046,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                       {(token?.jupiterData?.stats24h?.holderChange || 0) >= 0 ? '↗' : '↘'} 
                       {formatPercentage(token?.jupiterData?.stats24h?.holderChange || 0)}
                     </span>
-                  </div>
+                </div>
                 </button>
               </div>
 
@@ -1958,20 +1958,20 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
 
                 {/* Close Button - Only show when not in share modal */}
                 {!showFuelShareModal && (
-                  <div className="flex justify-end">
-                    <button
-                      onClick={() => {
-                        setShowFuelModal(false);
-                        setSelectedFuel(null);
-                        setContractValidated(false);
-                        setPaymentCompleted(false);
-                        setFuelMessage({ text: '', type: '' });
-                      }}
-                      className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
-                    >
-                      Close
-                    </button>
-                  </div>
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => {
+                      setShowFuelModal(false);
+                      setSelectedFuel(null);
+                      setContractValidated(false);
+                      setPaymentCompleted(false);
+                      setFuelMessage({ text: '', type: '' });
+                    }}
+                    className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
                 )}
               </div>
         </div>
@@ -2122,8 +2122,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                             'bg-yellow-900 text-yellow-300'
                           }`}>
                             {aiAnalysis?.analysis?.analysis?.recommendation?.action || aiAnalysis?.analysis?.recommendation?.action || 'N/A'}
-                          </span>
-                        </div>
+                </span>
+              </div>
                         <div className="text-gray-300 text-sm">
                           <span className="text-gray-400">Reasoning:</span> {aiAnalysis?.analysis?.analysis?.recommendation?.reasoning || aiAnalysis?.analysis?.recommendation?.reasoning || 'N/A'}
                         </div>
@@ -2243,10 +2243,10 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                 </div>
 
                 {/* Recommended Actions */}
-                <div className="mt-6 bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-lg p-4 border border-purple-500/30">
-                  <h5 className="text-white font-semibold mb-3 flex items-center">
-                    🎯 Recommended Actions
-                  </h5>
+                  <div className="mt-6 bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-lg p-4 border border-purple-500/30">
+                    <h5 className="text-white font-semibold mb-3 flex items-center">
+                      🎯 Recommended Actions
+                    </h5>
                   <div className="space-y-3">
                     {/* Primary Recommendation */}
                     <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-600/30">
@@ -2272,38 +2272,38 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                     {/* Actionable Recommendations */}
                     {((aiAnalysis?.analysis?.analysis?.actionableRecommendations && aiAnalysis.analysis.analysis.actionableRecommendations.length > 0) || 
                       (aiAnalysis?.analysis?.actionableRecommendations && aiAnalysis.analysis.actionableRecommendations.length > 0)) && (
-                      <div className="space-y-2">
+                    <div className="space-y-2">
                         {(aiAnalysis?.analysis?.analysis?.actionableRecommendations || aiAnalysis?.analysis?.actionableRecommendations || []).map((rec, index) => (
-                          <div key={index} className={`flex items-center justify-between p-3 rounded-lg border ${
-                            rec.priority === 'high' ? 'border-red-500/30 bg-red-900/10' :
-                            rec.priority === 'medium' ? 'border-yellow-500/30 bg-yellow-900/10' :
-                            'border-gray-500/30 bg-gray-900/10'
-                          }`}>
-                            <div className="flex items-center space-x-3">
-                              <span className="text-2xl">{rec.icon}</span>
-                              <div>
-                                <div className="text-white font-medium capitalize">
-                                  {rec.action.replace(/_/g, ' ')}
-                                </div>
-                                {rec.tool && (
-                                  <div className="text-purple-400 text-xs font-medium mb-1">
-                                    🛠️ {rec.tool}
-                                  </div>
-                                )}
-                                <div className="text-gray-400 text-sm">{rec.reason}</div>
+                        <div key={index} className={`flex items-center justify-between p-3 rounded-lg border ${
+                          rec.priority === 'high' ? 'border-red-500/30 bg-red-900/10' :
+                          rec.priority === 'medium' ? 'border-yellow-500/30 bg-yellow-900/10' :
+                          'border-gray-500/30 bg-gray-900/10'
+                        }`}>
+                          <div className="flex items-center space-x-3">
+                            <span className="text-2xl">{rec.icon}</span>
+                            <div>
+                              <div className="text-white font-medium capitalize">
+                                {rec.action.replace(/_/g, ' ')}
                               </div>
-                            </div>
-                            <div className={`px-2 py-1 rounded text-xs font-medium ${
-                              rec.priority === 'high' ? 'bg-red-900 text-red-300' :
-                              rec.priority === 'medium' ? 'bg-yellow-900 text-yellow-300' :
-                              'bg-gray-900 text-gray-300'
-                            }`}>
-                              {rec.priority}
+                              {rec.tool && (
+                                <div className="text-purple-400 text-xs font-medium mb-1">
+                                  🛠️ {rec.tool}
+                                </div>
+                              )}
+                              <div className="text-gray-400 text-sm">{rec.reason}</div>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
+                          <div className={`px-2 py-1 rounded text-xs font-medium ${
+                            rec.priority === 'high' ? 'bg-red-900 text-red-300' :
+                            rec.priority === 'medium' ? 'bg-yellow-900 text-yellow-300' :
+                            'bg-gray-900 text-gray-300'
+                          }`}>
+                            {rec.priority}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
                   </div>
                 </div>
 
