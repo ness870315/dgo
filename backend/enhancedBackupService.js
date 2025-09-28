@@ -26,8 +26,8 @@ class EnhancedBackupService {
     
     // Backup configuration
     this.snapshotsPerDay = 24; // Every hour
-    this.retentionHours = 10; // Keep only 10 snapshots (10 hours of history)
-    this.maxSnapshots = 10; // Fixed limit of 10 snapshots
+    this.retentionHours = 5; // Keep only 5 snapshots (5 hours of history)
+    this.maxSnapshots = 5; // Fixed limit of 5 snapshots
     this.backupIntervalMs = 60 * 60 * 1000; // 1 hour
     
     // Paths
