@@ -969,11 +969,20 @@
                 }
                 
                 // Overall Summary
-                html += `<div class="status-item" style="background: rgba(102, 126, 234, 0.1); border-left: 4px solid #667eea;"><span class="status-label">📊 Overall</span><span class="status-value">${s.overall.count} transactions</span></div>`;
+                // Note: SOL to USD conversion rate - update this value as needed
+                const SOL_TO_USD_RATE = 200; // Current SOL price in USD
+                const premiumTotalUSD = (s.premium?.total || 0) * SOL_TO_USD_RATE;
+                const servicesTotalUSD = (s.services?.total || 0);
+                const guestsTotalUSD = (s.guests?.total || 0);
+                const totalRevenueUSD = premiumTotalUSD + servicesTotalUSD + guestsTotalUSD;
+                
+                html += `<div class="status-item" style="background: rgba(102, 126, 234, 0.1); border-left: 4px solid #667eea;"><span class="status-label">📊 Overall Revenue</span><span class="status-value">$${totalRevenueUSD.toFixed(2)}</span></div>`;
+                html += `<div class="status-item"><span class="status-label">📊 Total Transactions</span><span class="status-value">${s.overall.count} transactions</span></div>`;
                 if (s.overall.loggedInCount !== undefined && s.overall.guestCount !== undefined) {
                     html += `<div class="status-item"><span class="status-label">  Logged-in</span><span class="status-value">${s.overall.loggedInCount} transactions</span></div>`;
                     html += `<div class="status-item"><span class="status-label">  Guests</span><span class="status-value">${s.overall.guestCount} transactions</span></div>`;
                 }
+                html += `<div class="status-item"><span class="status-label">💱 SOL Rate</span><span class="status-value">$${SOL_TO_USD_RATE}/SOL</span></div>`;
                 
                 div.innerHTML = html;
             } catch (e) {
