@@ -18,8 +18,8 @@ const FloatingChatButton = ({ onOpenChat }) => {
     
     setIsDragging(true);
     setDragStart({
-      x: e.clientX - position.x,
-      y: e.clientY - position.y
+      x: (e.clientX || e.touches?.[0]?.clientX) - position.x,
+      y: (e.clientY || e.touches?.[0]?.clientY) - position.y
     });
     e.preventDefault();
   };
@@ -30,8 +30,11 @@ const FloatingChatButton = ({ onOpenChat }) => {
 
     // Use requestAnimationFrame for smooth performance
     requestAnimationFrame(() => {
-      const newX = e.clientX - dragStart.x;
-      const newY = e.clientY - dragStart.y;
+      const clientX = e.clientX || e.touches?.[0]?.clientX;
+      const clientY = e.clientY || e.touches?.[0]?.clientY;
+      
+      const newX = clientX - dragStart.x;
+      const newY = clientY - dragStart.y;
 
       // Constrain to viewport bounds
       const maxX = window.innerWidth - 60; // Button width
@@ -54,6 +57,8 @@ const FloatingChatButton = ({ onOpenChat }) => {
     if (isDragging) {
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('touchmove', handleMouseMove, { passive: false });
+      document.addEventListener('touchend', handleMouseUp);
       document.body.style.cursor = 'grabbing';
       document.body.style.userSelect = 'none';
     } else {
@@ -64,6 +69,8 @@ const FloatingChatButton = ({ onOpenChat }) => {
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('touchmove', handleMouseMove);
+      document.removeEventListener('touchend', handleMouseUp);
       document.body.style.cursor = 'default';
       document.body.style.userSelect = 'auto';
     };
@@ -133,6 +140,7 @@ const FloatingChatButton = ({ onOpenChat }) => {
         cursor: isDragging ? 'grabbing' : (isPremium ? 'grab' : 'not-allowed')
       }}
       onMouseDown={handleMouseDown}
+      onTouchStart={handleMouseDown}
       onClick={handleClick}
       onMouseEnter={() => setShowTooltip(true)}
       onMouseLeave={() => setShowTooltip(false)}

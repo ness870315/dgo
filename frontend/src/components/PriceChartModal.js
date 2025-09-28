@@ -116,34 +116,34 @@ const PriceChartModal = ({ token, onClose }) => {
   if (!token) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2 sm:p-4">
-      <div className="bg-gray-900 rounded-2xl w-full max-w-4xl max-h-[90vh] sm:max-h-[85vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-1 sm:p-4">
+      <div className="bg-gray-900 rounded-xl sm:rounded-2xl w-full max-w-4xl max-h-[95vh] sm:max-h-[85vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-700 flex-shrink-0">
+        <div className="flex items-center justify-between p-2 sm:p-4 border-b border-gray-700 flex-shrink-0">
           <div className="flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1">
             {/* Token Icon */}
-            <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+            <div className="w-6 h-6 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
               {token.jupiterData?.icon ? (
                 <img 
                   src={token.jupiterData.icon} 
                   alt={token.symbol}
-                  className="w-8 h-8 rounded-full"
+                  className="w-6 h-6 sm:w-8 sm:h-8 rounded-full"
                 />
               ) : (
-                <span className="text-white font-bold text-lg">
+                <span className="text-white font-bold text-sm sm:text-lg">
                   {token.symbol?.charAt(0) || '?'}
                 </span>
               )}
             </div>
             
             <div className="min-w-0 flex-1">
-              <h2 className="text-lg sm:text-xl font-bold text-white truncate">{token.symbol}</h2>
+              <h2 className="text-base sm:text-xl font-bold text-white truncate">{token.symbol}</h2>
               <p className="text-gray-400 text-xs sm:text-sm truncate">{token.name}</p>
             </div>
           </div>
 
           {/* Controls */}
-          <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
+          <div className="flex items-center space-x-1 sm:space-x-4 flex-shrink-0">
             {/* Oracle Chart Button - Premium only for AI Analysis toggle */}
             <button
               onClick={() => {
@@ -178,11 +178,11 @@ const PriceChartModal = ({ token, onClose }) => {
         </div>
 
         {/* Price Info */}
-        <div className="px-6 py-4 border-b border-gray-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-6">
+        <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-700">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-6 space-y-2 sm:space-y-0">
               <div>
-                <div className="text-3xl font-bold text-white">
+                <div className="text-2xl sm:text-3xl font-bold text-white">
                   {currentPrice ? formatPrice(currentPrice) : 'Loading...'}
                 </div>
                 <div className={`text-sm font-medium ${
@@ -192,7 +192,7 @@ const PriceChartModal = ({ token, onClose }) => {
                 </div>
               </div>
               
-              <div className="text-sm text-gray-400">
+              <div className="text-xs sm:text-sm text-gray-400 space-y-1">
                 <div>Market Cap: {formatNumber(token.jupiterData?.mcap || token.marketCap || 0)}</div>
                 <div>Volume ({timeframe}): {formatNumber(volume)}</div>
               </div>

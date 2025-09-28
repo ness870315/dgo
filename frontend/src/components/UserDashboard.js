@@ -603,18 +603,18 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
           {stats.map((stat, index) => (
             <div key={index} className="bg-dark-card border border-gray-700 rounded-lg p-3 sm:p-6">
               <div className="flex items-center justify-between">
                 <div className="min-w-0 flex-1">
                   <p className="text-gray-400 text-xs sm:text-sm truncate">{stat.title}</p>
                   {stat.isButton ? (
-                    <button onClick={stat.onClick} className="text-lg sm:text-2xl font-bold text-purple-400 mt-1 hover:text-purple-300 transition-colors">
+                    <button onClick={stat.onClick} className="text-base sm:text-2xl font-bold text-purple-400 mt-1 hover:text-purple-300 transition-colors">
                       {stat.value}
                     </button>
                   ) : (
-                    <p className="text-lg sm:text-2xl font-bold text-white mt-1">{stat.value}</p>
+                    <p className="text-base sm:text-2xl font-bold text-white mt-1">{stat.value}</p>
                   )}
                 </div>
                 <div className={`p-2 sm:p-3 rounded-lg ${stat.bgColor}`}>
@@ -626,9 +626,9 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
           {/* Hype over Time - TOP LEFT */}
-          <div className="bg-dark-card border border-gray-700 rounded-lg p-6">
+          <div className="bg-dark-card border border-gray-700 rounded-lg p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-2">
                 <BarChart3 size={20} className="text-blue-400" />
@@ -747,7 +747,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
           </div>
 
           {/* KOL Leaderboard - TOP RIGHT */}
-          <div className="bg-dark-card border border-gray-700 rounded-lg p-6">
+          <div className="bg-dark-card border border-gray-700 rounded-lg p-4 sm:p-6">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-2">
                 <BarChart3 size={20} className="text-green-400" />
@@ -905,7 +905,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
           </div>
 
           {/* KOL Calls - BELOW ROW */}
-          <div className="bg-dark-card border border-gray-700 rounded-lg p-6 lg:col-span-2">
+          <div className="bg-dark-card border border-gray-700 rounded-lg p-4 sm:p-6 lg:col-span-2">
             <div className="flex items-center space-x-2 mb-4">
               <Activity size={20} className="text-green-400" />
               <h2 className="text-xl font-semibold text-white">KOL Calls</h2>
@@ -1045,7 +1045,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         )}
 
         {/* Quick Actions */}
-        <div className="bg-dark-card border border-gray-700 rounded-lg p-6 mt-8">
+        <div className="bg-dark-card border border-gray-700 rounded-lg p-4 sm:p-6 mt-6 sm:mt-8">
           <div className="flex items-center space-x-2 mb-4">
             <Wallet size={20} className="text-purple-400" />
             <h2 className="text-xl font-semibold text-white">Quick Actions</h2>
@@ -1115,7 +1115,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         {/* Watchlist Modal */}
         {showWatchlistModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-dark-card border border-gray-700 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="bg-dark-card border border-gray-700 rounded-lg p-4 sm:p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-white">Your Watchlist</h2>
                 <button 
@@ -1174,7 +1174,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         {/* Hype Over Time - Watchlist List Modal */}
         {showHypeModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-dark-card border border-gray-700 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="bg-dark-card border border-gray-700 rounded-lg p-4 sm:p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-white">Hype over Time</h2>
                 <button onClick={() => setShowHypeModal(false)} className="text-gray-400 hover:text-white">✕</button>
@@ -1234,7 +1234,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         {/* Hype Chart Modal */}
         {selectedHypeToken && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-dark-card border border-gray-700 rounded-lg p-6 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="bg-dark-card border border-gray-700 rounded-lg p-4 sm:p-6 max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-white">{selectedHypeToken.symbol} • Hype over Time</h2>
                 <div className="flex items-center gap-2">
@@ -1373,7 +1373,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         {/* Hype AI Analysis Modal */}
         {showHypeAI && hypeAIData && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-dark-card border border-gray-700 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="bg-dark-card border border-gray-700 rounded-lg p-4 sm:p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-2">
                   <Brain size={24} className="text-purple-400" />
@@ -1816,7 +1816,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         {/* Token Details Modal */}
         {selectedToken && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-dark-card border border-gray-700 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="bg-dark-card border border-gray-700 rounded-lg p-4 sm:p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold text-white">Token Details</h2>
                 <button 
