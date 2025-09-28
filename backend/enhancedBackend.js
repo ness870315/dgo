@@ -2920,6 +2920,22 @@ class EnhancedBackend {
         } else {
           console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated totalSpent stat for user ${userId}: +$35.00 (total: $${totalSpentResult})`);
         }
+
+        // Record earning for admin panel
+        try {
+          await this.oauthXService.db.addEarning({
+            type: 'social_update',
+            category: 'social_update',
+            amount: 35.00,
+            currency: 'USD',
+            userId: userId,
+            symbol: symbol,
+            createdAt: new Date().toISOString()
+          });
+          console.log(`[🛡️ Enhanced Backend] ✅ Recorded social update earning: $35.00 from user ${userId} for ${symbol}`);
+        } catch (earningError) {
+          console.error(`[🛡️ Enhanced Backend] ❌ Failed to record social update earning:`, earningError.message);
+        }
         
         res.json({
           success: true,
@@ -4476,6 +4492,22 @@ class EnhancedBackend {
               } else {
                 console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated totalSpent stat for user ${user.username}: +$${fuelPrice} (total: $${totalSpentResult})`);
               }
+
+              // Record earning for admin panel
+              try {
+                await this.oauthXService.db.addEarning({
+                  type: 'fuel',
+                  category: fuelType,
+                  amount: fuelPrice,
+                  currency: 'USD',
+                  userId: user.id,
+                  contractAddress: contractAddress,
+                  createdAt: new Date().toISOString()
+                });
+                console.log(`[🛡️ Enhanced Backend] ✅ Recorded fuel earning: ${fuelType} - $${fuelPrice} from ${user.username}`);
+              } catch (earningError) {
+                console.error(`[🛡️ Enhanced Backend] ❌ Failed to record fuel earning:`, earningError.message);
+              }
             }
           }
           
@@ -4565,6 +4597,23 @@ class EnhancedBackend {
           console.error(`[🛡️ Enhanced Backend] ❌ Failed to update totalSpent stat for user ${user.username}`);
         } else {
           console.log(`[🛡️ Enhanced Backend] ✅ Successfully updated totalSpent stat for user ${user.username}: +$95.00 (total: $${totalSpentResult})`);
+        }
+
+        // Record earning for admin panel
+        try {
+          await this.oauthXService.db.addEarning({
+            type: 'listing',
+            category: 'token_listing',
+            amount: 95.00,
+            currency: 'USD',
+            userId: user.id,
+            contractAddress: contractAddress,
+            symbol: symbol,
+            createdAt: new Date().toISOString()
+          });
+          console.log(`[🛡️ Enhanced Backend] ✅ Recorded token listing earning: $95.00 from ${user.username} for ${symbol}`);
+        } catch (earningError) {
+          console.error(`[🛡️ Enhanced Backend] ❌ Failed to record token listing earning:`, earningError.message);
         }
 
         // Get current user stats for response
