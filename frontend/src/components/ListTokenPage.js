@@ -680,7 +680,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         console.log('⚠️ No price data found in Jupiter API');
         return {
           price: 0,
-          priceInSol: 0,
           volume24h: 0,
           marketCap: 0,
           priceChange24h: 0,
@@ -695,7 +694,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       
       return {
         price: tokenData.price || tokenData.usdPrice || 0,
-        priceInSol: tokenData.priceInSol || 0, // Will be calculated if needed
         volume24h: tokenData.volume24h || 0,
         marketCap: tokenData.marketCap || tokenData.mcap || 0,
         priceChange24h: tokenData.priceChange24h || (tokenData.stats24h?.priceChange || 0),
@@ -713,7 +711,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       console.error('❌ Failed to fetch price data from Jupiter API:', error);
       return {
         price: 0,
-        priceInSol: 0,
         volume24h: 0,
         marketCap: 0,
         priceChange24h: 0,
@@ -1348,12 +1345,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                       <p className="text-xs text-gray-400">Price (USD)</p>
                       <p className="text-lg font-semibold text-white">
                         ${tokenData.price ? tokenData.price.toFixed(8) : 'N/A'}
-                      </p>
-                    </div>
-                    <div className="bg-dark-bg p-3 rounded-lg">
-                      <p className="text-xs text-gray-400">Price (SOL)</p>
-                      <p className="text-lg font-semibold text-white">
-                        {tokenData.priceInSol ? tokenData.priceInSol.toFixed(10) : 'N/A'} SOL
                       </p>
                     </div>
                     <div className="bg-dark-bg p-3 rounded-lg">
