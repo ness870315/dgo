@@ -242,20 +242,6 @@ export default function DetailDrawer({ call, onClose, onRefresh }) {
       .finally(() => setLoadingJup(false));
   }, [call, API_BASE]);
 
-  // Load Social Context (72h cached, no Twitter API triggers)
-  useEffect(() => {
-    const contract = call?.token?.contractAddress || call?.contractAddress;
-    if (!contract) return;
-    setLoadingSocial(true);
-    fetch(`${API_BASE}/api/tokens/${encodeURIComponent(contract)}/social-context`)
-      .then(res => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
-      .then(data => {
-        if (data?.success) setSocialContext(data.data || null);
-        else setSocialContext(null);
-      })
-      .catch(() => setSocialContext(null))
-      .finally(() => setLoadingSocial(false));
-  }, [call, API_BASE]);
   
   if (!call) return null;
   
@@ -461,52 +447,6 @@ export default function DetailDrawer({ call, onClose, onRefresh }) {
             </div>
           </div>
 
-          {/* Social Context */}
-          <div className="grid grid-cols-1 gap-4">
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-              <div className="text-sm font-medium mb-2 text-white">Social context</div>
-              {loadingSocial ? (
-                <div className="text-xs text-gray-400">Loading social context...</div>
-              ) : socialContext ? (
-                <div className="space-y-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    <Stat label="Social Health" value={`${(socialContext.socialHealthScore ?? 0).toFixed(1)}/10`} good={(socialContext.socialHealthScore ?? 0) >= 6} />
-                    <Stat label="Mentions" value={(socialContext.mentions ?? 0).toLocaleString()} />
-                    <Stat label="Engagement" value={(socialContext.engagement ?? 0).toLocaleString()} />
-                    <Stat label="Followers" value={(socialContext.followers ?? 0).toLocaleString()} />
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <Stat label="Positive" value={`${Math.round(socialContext.sentiment?.positive ?? 0)}%`} good={true} />
-                    <Stat label="Neutral" value={`${Math.round(socialContext.sentiment?.neutral ?? 0)}%`} />
-                    <Stat label="Negative" value={`${Math.round(socialContext.sentiment?.negative ?? 0)}%`} good={false} />
-                  </div>
-                  {Array.isArray(socialContext.catalysts) && socialContext.catalysts.length > 0 && (
-                    <div>
-                      <div className="text-xs font-medium text-white/70 mb-1">Catalysts</div>
-                      <div className="flex flex-wrap gap-1">
-                        {socialContext.catalysts.slice(0, 6).map((c, idx) => (
-                          <span key={idx} className="px-2 py-1 rounded-full text-xs bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">{c}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {Array.isArray(socialContext.topHashtags) && socialContext.topHashtags.length > 0 && (
-                    <div>
-                      <div className="text-xs font-medium text-white/70 mb-1">Top Hashtags</div>
-                      <div className="flex flex-wrap gap-1">
-                        {socialContext.topHashtags.slice(0, 6).map((h, idx) => (
-                          <span key={idx} className="px-2 py-1 rounded-full text-[11px] bg-white/10 border border-white/15 text-white/80">#{h}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div className="text-[11px] text-white/50">Updated {socialContext.lastSnapshotAt ? new Date(socialContext.lastSnapshotAt).toLocaleString() : 'recently'}</div>
-                </div>
-              ) : (
-                <div className="text-xs text-gray-400">No social context available</div>
-              )}
-            </div>
-          </div>
 
           {/* Call Tweets & Milestones */}
           <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
