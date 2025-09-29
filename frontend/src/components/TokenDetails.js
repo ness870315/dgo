@@ -538,7 +538,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
       if (fuelShareMessage && appliedFuelType && token?.symbol) {
         try {
           // Use the fuel sharing URL that includes proper meta tags for link previews
-          const fuelPageUrl = `https://degen-oracle.com/fuel/${appliedFuelType}/${token.symbol}`;
+          const fuelPageUrl = `https://api.degen-oracle.com/fuel/${appliedFuelType}/${token.symbol}`;
           
           // Create Twitter URL with the fuel page link
           const twitterUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
