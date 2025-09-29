@@ -13,6 +13,7 @@
   user-select: none;
   border: 2px solid #a855f7;
   will-change: transform;
+  touch-action: none; /* Prevent default touch behaviors */
 }
 
 .floating-chat-button:hover {
@@ -57,14 +58,34 @@
   justify-content: center;
 }
 
+/* Mobile optimizations */
+.floating-chat-button.mobile {
+  /* Remove any fixed positioning conflicts */
+  right: auto !important;
+  bottom: auto !important;
+  
+  /* Enhanced touch feedback */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.floating-chat-button.mobile.dragging {
+  /* Enhanced visual feedback for mobile dragging */
+  transform: scale(1.2);
+  box-shadow: 0 20px 60px rgba(102, 126, 234, 0.6);
+}
 
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .floating-chat-button {
     width: 50px;
     height: 50px;
-    right: 20px;
-    bottom: 20px;
+    /* Remove fixed positioning - let JS handle positioning */
   }
   
   .premium-indicator {
@@ -77,6 +98,11 @@
   .chat-icon svg {
     width: 20px;
     height: 20px;
+  }
+  
+  /* Enhanced mobile touch experience */
+  .floating-chat-button:active {
+    transform: scale(1.05);
   }
 }
 
@@ -102,4 +128,12 @@
 /* Smooth transitions for all interactions */
 .floating-chat-button * {
   transition: all 0.2s ease;
+}
+
+/* Prevent text selection during drag */
+.floating-chat-button.dragging * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
