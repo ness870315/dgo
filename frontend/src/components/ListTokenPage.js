@@ -237,16 +237,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   // Submit token to database after successful payment (moved up for useEffect)
   const submitTokenToDatabase = useCallback(async (tokenData, paymentEvent) => {
     try {
-      console.log('🔥 Submitting paid token to database:', tokenData);
-      console.log('💳 Payment event data:', paymentEvent);
-      console.log('🔍 Token data structure check:', {
-        hasSymbol: !!tokenData?.symbol,
-        hasName: !!tokenData?.name,
-        hasContractAddress: !!tokenData?.contractAddress,
-        symbol: tokenData?.symbol,
-        name: tokenData?.name,
-        contractAddress: tokenData?.contractAddress
-      });
 
       // Generate a payment ID if not provided by Helio
       const paymentId = paymentEvent?.paymentId || `helio_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -276,7 +266,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       });
 
       const validationResult = await paymentValidation.json();
-      console.log('🔍 Payment validation result:', validationResult);
 
       if (!validationResult.success || !validationResult.validation?.isValid) {
         throw new Error('Payment validation failed. Please contact support.');
@@ -315,7 +304,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       });
 
       const result = await response.json();
-      console.log('🔍 Backend response:', result);
 
       if (!result.success) {
         console.error('❌ Backend error details:', result);
@@ -431,15 +419,12 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   // Handle payment completion on page load
   useEffect(() => {
     const handlePaymentCompletion = async () => {
-      console.log('🔍 Checking for payment completion...');
 
       // Check URL parameters for payment success
       const urlParams = new URLSearchParams(window.location.search);
       const paymentStatus = urlParams.get('payment');
       const currentUrl = window.location.href;
 
-      console.log('📍 Current URL:', currentUrl);
-      console.log('💳 Payment status parameter:', paymentStatus);
 
       if (paymentStatus === 'success') {
         console.log('🎉 Payment success detected! Processing pending token...');
@@ -484,7 +469,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
           console.log('💡 This might happen if the page was refreshed before processing or data was cleared');
         }
       } else {
-        console.log('ℹ️ No payment success detected in URL parameters');
       }
     };
 
@@ -493,7 +477,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
 
     // Also run after a short delay to catch any timing issues
     const timeoutId = setTimeout(() => {
-      console.log('⏰ Running delayed payment completion check...');
       handlePaymentCompletion();
     }, 2000);
 
@@ -535,7 +518,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
           // Clear any existing content first
           container.innerHTML = '';
           
-          console.log('🎯 Initializing Helio Pay widget...');
           
           window.helioCheckout(container, {
             paylinkId: "68ae3424a561997f2bc70c7e", // Your paylink ID
@@ -608,7 +590,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     // Excludes: 0, O, I, l (to avoid visual confusion)
     const base58Regex = /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]{32,44}$/;
     const result = base58Regex.test(address);
-    console.log('🔍 Validation check:', { address, length: address.length, result });
     return result;
   };
 
@@ -638,7 +619,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   // Fetch token metadata from Bitquery with fallback
   const fetchTokenMetadata = async (ca) => {
     try {
-      console.log('🔍 Attempting to fetch token metadata from Jupiter API for:', ca);
       
       const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/jupiter/test/${ca}`, {
         method: 'GET',
@@ -697,7 +677,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   // Fetch price data from Bitquery
   const fetchPriceData = async (ca) => {
     try {
-      console.log('🔍 Fetching price data from Jupiter API for:', ca);
       
       const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/jupiter/test/${ca}`, {
         method: 'GET',
@@ -759,7 +738,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   // Check if token already exists in our database/cache
   const checkTokenExists = async (ca, symbol, name) => {
     try {
-      console.log('🔍 Checking if token already exists:', { ca, symbol, name });
       
       // Check by contract address first (most reliable)
       const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/tokens`);
@@ -768,19 +746,11 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       // Convert to array if it's an object with tokens property
       const tokenArray = Array.isArray(tokens) ? tokens : (tokens.tokens || []);
       
-      console.log('🔍 DEBUGGING CONTRACT CHECK:');
-      console.log('   Input CA:', ca);
-      console.log('   Total tokens:', tokenArray.length);
       
       // Debug: Look for memeputer tokens specifically
       const memeputerTokens = tokenArray.filter(token => 
         token.name && token.name.toLowerCase().includes('memeputer')
       );
-      console.log('   Memeputer tokens found:', memeputerTokens.map(t => ({
-        name: t.name,
-        symbol: t.symbol,
-        contractAddress: t.contractAddress
-      })));
       
       // Check for duplicates by contract address (primary)
       const existingByContract = tokenArray.find(token => 
@@ -820,7 +790,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
   // Fetch market cap data from Jupiter API
   const fetchMarketCapData = async (ca) => {
     try {
-      console.log('🔍 Fetching market cap data from Jupiter API for:', ca);
       
       const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/jupiter/test/${ca}`, {
         method: 'GET',
@@ -871,12 +840,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     e.preventDefault();
     
     const trimmedAddress = contractAddress.trim();
-    console.log('🧪 Validation Debug:', {
-      address: trimmedAddress,
-      length: trimmedAddress.length,
-      isValid: isValidSolanaAddress(trimmedAddress),
-      regex: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(trimmedAddress)
-    });
     
     if (!trimmedAddress) {
       setError('Please enter a contract address');
@@ -896,7 +859,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     setValidationComplete(false);
 
     try {
-      console.log('🔍 Fetching token metadata for:', contractAddress);
       
       // Step 1: Get basic metadata from Bitquery
       const metadata = await fetchTokenMetadata(contractAddress);
@@ -935,13 +897,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       score: calculateTokenScore(metadata, priceData, marketCapData)
     };
 
-      console.log('🎯 FINAL TOKEN DATA FOR UI:', {
-        marketCap: combinedData.marketCap,
-        totalSupply: combinedData.totalSupply,
-        price: combinedData.price,
-        marketCapCheck: combinedData.marketCap && combinedData.marketCap > 0,
-        fullCombinedData: combinedData
-      });
       
       setTokenData(combinedData);
       setValidationComplete(true);
@@ -1370,19 +1325,11 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
                         {tokenData.marketCap != null && !isNaN(tokenData.marketCap) && tokenData.marketCap >= 0
                           ? (() => {
                               const marketCap = Number(tokenData.marketCap);
-                              console.log('🎯 UI MARKET CAP DEBUG:', {
-                                rawMarketCap: tokenData.marketCap,
-                                convertedMarketCap: marketCap,
-                                price: tokenData.price,
-                                totalSupply: tokenData.totalSupply,
-                                manualCalc: tokenData.price * tokenData.totalSupply
-                              });
                               
                               // If marketCap is 0 but we have price and supply, calculate it here
                               let finalMarketCap = marketCap;
                               if (finalMarketCap === 0 && tokenData.price && tokenData.totalSupply) {
                                 finalMarketCap = tokenData.price * tokenData.totalSupply;
-                                console.log('💡 UI Fallback calculation:', finalMarketCap);
                               }
                               
                               return finalMarketCap >= 1000000
