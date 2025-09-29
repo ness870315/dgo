@@ -699,8 +699,8 @@ class EnhancedBackend {
         const { fuelType, symbol } = req.params;
         console.log(`[🛡️ Enhanced Backend] 🔥 Fuel sharing page requested: ${fuelType}/${symbol}`);
         const baseUrl = `${req.protocol}://${req.get('host')}`;
-        // Use static logo for testing - if this works, the issue is with fuel image generation
-        const imageUrl = 'https://degen-oracle.com/dgo.png';
+        // Use dynamic fuel image generation
+        const imageUrl = `${baseUrl}/api/fuel-image/${fuelType}/${symbol}`;
         
         const html = `
 <!DOCTYPE html>
