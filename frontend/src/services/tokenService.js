@@ -200,7 +200,12 @@ class TokenService {
           
           // Twitter data from backend (CRITICAL: Preserve this!)
           twitterData: token.twitterData || null,
-          communityHealthScore: token.communityHealthScore || null
+          communityHealthScore: token.communityHealthScore || null,
+          
+          // Social links from backend (CRITICAL: Preserve this!)
+          socials: token.socials || null,
+          socialSources: token.socialSources || null,
+          socialsUpdatedAt: token.socialsUpdatedAt || null
         };
       });
       
