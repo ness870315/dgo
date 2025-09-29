@@ -301,14 +301,16 @@ class UpdateTokenService {
       console.log(`🔧 [updateMainTokensCache] Token index for ${symbol}: ${tokenIndex}`);
       
       if (tokenIndex !== -1) {
-        const oldSocials = tokensData[tokenIndex].socials;
+        const oldSocials = tokensData[tokenIndex].socials || {};
         console.log(`🔧 [updateMainTokensCache] Old socials:`, JSON.stringify(oldSocials, null, 2));
         
-        tokensData[tokenIndex].socials = socials;
-        tokensData[tokenIndex].socialSources = this.determineSocialSources(socials);
+        // Merge new socials with existing ones (preserve existing data)
+        const mergedSocials = { ...oldSocials, ...socials };
+        tokensData[tokenIndex].socials = mergedSocials;
+        tokensData[tokenIndex].socialSources = this.determineSocialSources(mergedSocials);
         tokensData[tokenIndex].socialsUpdatedAt = new Date().toISOString();
         
-        console.log(`🔧 [updateMainTokensCache] New socials:`, JSON.stringify(tokensData[tokenIndex].socials, null, 2));
+        console.log(`🔧 [updateMainTokensCache] Merged socials:`, JSON.stringify(tokensData[tokenIndex].socials, null, 2));
         
         // Update community score with social bonus
         const socialBonus = this.calculateSocialScoreBonus(socials);

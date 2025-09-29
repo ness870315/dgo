@@ -544,9 +544,17 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
   // Submit socials update to backend
   const submitSocialsUpdate = async (socialsData, paymentEvent) => {
     try {
+      // Filter out empty social fields to avoid clearing existing data
+      const filteredSocials = {};
+      Object.keys(socialsData).forEach(key => {
+        if (socialsData[key] && socialsData[key].trim()) {
+          filteredSocials[key] = socialsData[key].trim();
+        }
+      });
+      
       console.log('🔄 Submitting socials update:', {
         symbol: selectedToken.symbol,
-        socials: socialsData,
+        socials: filteredSocials,
         user: user
       });
       
@@ -557,7 +565,7 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
         },
         body: JSON.stringify({
           symbol: selectedToken.symbol,
-          socials: socialsData,
+          socials: filteredSocials,
           userId: user.id,
           paymentData: paymentEvent
         })
