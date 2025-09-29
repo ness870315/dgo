@@ -66,6 +66,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   const [dgoFollowers, setDgoFollowers] = useState([]);
   const [dgoFollowing, setDgoFollowing] = useState([]);
   const [dgoFollowingUsers, setDgoFollowingUsers] = useState([]);
+  const [dgoFollowersUsers, setDgoFollowersUsers] = useState([]);
   const [dgoFollowersLoading, setDgoFollowersLoading] = useState(false);
   const [showFollowersModal, setShowFollowersModal] = useState(false);
   const [showFollowingModal, setShowFollowingModal] = useState(false);
@@ -99,38 +100,61 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         setDgoFollowers(cleanFollowers);
         setDgoFollowing(cleanFollowing);
         
-        // Fetch user details for following list
-        if (cleanFollowing.length > 0) {
-          try {
-            const userPromises = cleanFollowing.map(async (userId) => {
-              try {
-                // Try multiple methods to get user profile data
-                let userData = null;
-                
-                // Method 1: Try leaderboard service
+        // Fetch user details for both followers and following lists
+        const fetchUserDetails = async (userIds, setUserDetails) => {
+          if (userIds.length > 0) {
+            try {
+              const userPromises = userIds.map(async (userId) => {
                 try {
-                  const profile = await leaderboardService.getUserProfile(userId);
-                  userData = profile?.user || profile;
-                } catch (leaderboardError) {
-                  console.warn(`⚠️ Leaderboard service failed for ${userId}:`, leaderboardError);
-                }
-                
-                // Method 2: If no data from leaderboard, try direct API call
-                if (!userData || !userData.username || userData.username.startsWith('user_')) {
+                  // Try multiple methods to get user profile data
+                  let userData = null;
+                  
+                  // Method 1: Try leaderboard service
                   try {
-                    const directResponse = await fetch(`${API_BASE}/api/kol/${encodeURIComponent(userId)}/profile`);
-                    if (directResponse.ok) {
-                      const directData = await directResponse.json();
-                      userData = directData?.user || directData;
-                    }
-                  } catch (directError) {
-                    console.warn(`⚠️ Direct API failed for ${userId}:`, directError);
+                    const profile = await leaderboardService.getUserProfile(userId);
+                    userData = profile?.user || profile;
+                  } catch (leaderboardError) {
+                    console.warn(`⚠️ Leaderboard service failed for ${userId}:`, leaderboardError);
                   }
-                }
-                
-                // Method 3: If still no real data, use generic fallback
-                if (!userData || !userData.username || userData.username.startsWith('user_')) {
-                  console.warn(`⚠️ No real profile data found for user ${userId}, using generic fallback`);
+                  
+                  // Method 2: If no data from leaderboard, try direct API call
+                  if (!userData || !userData.username || userData.username.startsWith('user_')) {
+                    try {
+                      const directResponse = await fetch(`${API_BASE}/api/kol/${encodeURIComponent(userId)}/profile`);
+                      if (directResponse.ok) {
+                        const directData = await directResponse.json();
+                        userData = directData?.user || directData;
+                      }
+                    } catch (directError) {
+                      console.warn(`⚠️ Direct API failed for ${userId}:`, directError);
+                    }
+                  }
+                  
+                  // Method 3: If still no real data, use generic fallback
+                  if (!userData || !userData.username || userData.username.startsWith('user_')) {
+                    console.warn(`⚠️ No real profile data found for user ${userId}, using generic fallback`);
+                    return {
+                      id: userId,
+                      username: `user_${String(userId).slice(-6)}`,
+                      displayName: `User ${String(userId).slice(-6)}`,
+                      profileImage: null
+                    };
+                  }
+                  
+                  // Use actual X profile data
+                  const username = userData.username || `user_${String(userId).slice(-6)}`;
+                  const displayName = userData.displayName || userData.username || `User ${String(userId).slice(-6)}`;
+                  const profileImage = userData.profileImage || null;
+                  
+                  return {
+                    id: userData.id || userId,
+                    username: username,
+                    displayName: displayName,
+                    profileImage: profileImage
+                  };
+                  
+                } catch (error) {
+                  console.warn(`❌ All methods failed for user ${userId}:`, error);
                   return {
                     id: userId,
                     username: `user_${String(userId).slice(-6)}`,
@@ -138,39 +162,24 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                     profileImage: null
                   };
                 }
-                
-                // Use actual X profile data
-                const username = userData.username || `user_${String(userId).slice(-6)}`;
-                const displayName = userData.displayName || userData.username || `User ${String(userId).slice(-6)}`;
-                const profileImage = userData.profileImage || null;
-                
-                return {
-                  id: userData.id || userId,
-                  username: username,
-                  displayName: displayName,
-                  profileImage: profileImage
-                };
-                
-              } catch (error) {
-                console.warn(`❌ All methods failed for user ${userId}:`, error);
-                return {
-                  id: userId,
-                  username: `user_${String(userId).slice(-6)}`,
-                  displayName: `User ${String(userId).slice(-6)}`,
-                  profileImage: null
-                };
-              }
-            });
-            
-            const userDetails = await Promise.all(userPromises);
-            setDgoFollowingUsers(userDetails);
-          } catch (error) {
-            console.error('❌ Failed to fetch following user details:', error);
-            setDgoFollowingUsers([]);
+              });
+              
+              const userDetails = await Promise.all(userPromises);
+              setUserDetails(userDetails);
+            } catch (error) {
+              console.error('❌ Failed to fetch user details:', error);
+              setUserDetails([]);
+            }
+          } else {
+            setUserDetails([]);
           }
-        } else {
-          setDgoFollowingUsers([]);
-        }
+        };
+        
+        // Fetch details for both followers and following
+        await Promise.all([
+          fetchUserDetails(cleanFollowers, setDgoFollowersUsers),
+          fetchUserDetails(cleanFollowing, setDgoFollowingUsers)
+        ]);
       }
     } catch (error) {
       console.error('Failed to load DGO followers:', error);
@@ -291,7 +300,6 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
     } catch (error) {
       console.error('❌ Error fetching dashboard data:', error);
     } finally {
-      console.log('✅ Dashboard data fetch completed');
       setLoading(false);
     }
   }, [sessionId, API_BASE]);
@@ -326,26 +334,19 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   
   // Consolidated useEffect to fetch dashboard data
   useEffect(() => {
-    console.log('🔄 useEffect triggered - user:', user, 'sessionId:', sessionId);
-    
     if (user && sessionId) {
-      console.log('✅ User and sessionId available, fetching dashboard data');
       fetchDashboardData();
       loadDgoFollowers();
     } else if (sessionId && !user) {
       // If we have sessionId but no user, wait a bit for user to load
-      console.log('⏳ Waiting for user to load...');
       const timeout = setTimeout(() => {
         if (sessionId) {
-          console.log('⏰ Timeout reached, fetching data anyway with sessionId');
           fetchDashboardData();
           loadDgoFollowers();
         }
       }, 2000);
       
       return () => clearTimeout(timeout);
-    } else {
-      console.log('❌ Missing user or sessionId - user:', !!user, 'sessionId:', !!sessionId);
     }
   }, [user?.id, sessionId, fetchDashboardData, loadDgoFollowers]);
 
@@ -1824,13 +1825,13 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
               <div className="p-4 max-h-96 overflow-y-auto">
                 {dgoFollowersLoading ? (
                   <div className="text-gray-400 text-center">Loading...</div>
-                ) : dgoFollowers.length > 0 ? (
+                ) : dgoFollowersUsers.length > 0 ? (
                   <div className="space-y-2">
-                    {dgoFollowers.map((follower, index) => {
-                      const userId = follower.id || follower;
-                      const userIdStr = String(userId || 'unknown');
-                      const username = `user_${userIdStr.slice(-6)}`;
-                      const displayName = `User ${userIdStr.slice(-6)}`;
+                    {dgoFollowersUsers.map((follower, index) => {
+                      const userId = follower.id;
+                      const username = follower.username;
+                      const displayName = follower.displayName;
+                      const profileImage = follower.profileImage;
                       
                       return (
                         <button
@@ -1839,17 +1840,13 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                           onClick={async () => {
                             try {
                               const profile = await leaderboardService.getUserProfile(userId);
-                              const basic = profile?.user || { 
-                                id: userId, 
-                                username: username, 
-                                displayName: displayName 
-                              };
+                              const basic = profile?.user || follower;
                               setSelectedKolUser({
                                 id: userId,
                                 userId: userId,
-                                username: basic.username,
-                                displayName: basic.displayName,
-                                profileImage: basic.profileImage || null,
+                                username: basic.username || username,
+                                displayName: basic.displayName || displayName,
+                                profileImage: basic.profileImage || profileImage,
                                 rank: undefined,
                                 score: undefined,
                                 callCount: undefined
@@ -1860,9 +1857,17 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                             }
                           }}
                         >
-                          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                            <span className="text-white text-xs font-bold">{String(userId).slice(-2).toUpperCase()}</span>
-                          </div>
+                          {profileImage ? (
+                            <img 
+                              src={profileImage} 
+                              alt={displayName}
+                              className="w-8 h-8 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                              <span className="text-white text-xs font-bold">{String(userId).slice(-2).toUpperCase()}</span>
+                            </div>
+                          )}
                           <div className="flex-1 text-left">
                             <div className="text-white font-medium">@{username}</div>
                             <div className="text-gray-400 text-sm">{displayName}</div>

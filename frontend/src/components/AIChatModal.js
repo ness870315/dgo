@@ -361,19 +361,6 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
       const modalWidth = Math.min(450, window.innerWidth - 32);
       const modalHeight = Math.min(600, window.innerHeight - 32);
       
-      console.log('🔍 [AI CHAT MODAL DEBUG] Modal opened:', {
-        messages: messages.length,
-        showSuggestions,
-        showHistories,
-        chatHistories: chatHistories.length,
-        personalizedSuggestions: personalizedSuggestions.length,
-        suggestedQuestions: suggestedQuestions.length,
-        position,
-        windowSize: { width: window.innerWidth, height: window.innerHeight },
-        modalSize: { width: modalWidth, height: modalHeight },
-        shouldShowWelcome: messages.length === 0 && !showHistories,
-        shouldShowSuggestions: showSuggestions && !showHistories
-      });
     }
   }, [isOpen]); // Simplified dependencies to prevent excessive re-renders
 

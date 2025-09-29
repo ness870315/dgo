@@ -577,13 +577,7 @@ function AppContent() {
         if (selectedToken) {
           const updatedToken = tokenData.find(t => t.contractAddress === selectedToken.contractAddress);
           if (updatedToken) {
-            console.log('🔄 Updating selectedToken with fresh data:', updatedToken.symbol);
-            console.log('🔄 Old socials:', selectedToken.socials);
-            console.log('🔄 New socials:', updatedToken.socials);
             setSelectedToken(updatedToken);
-            console.log('🔄 Updated selectedToken with fresh data:', updatedToken.symbol);
-          } else {
-            console.log('❌ Could not find updated token for selectedToken:', selectedToken.symbol);
           }
         }
     } catch (err) {
@@ -684,9 +678,6 @@ function AppContent() {
 
   // Handle token socials updated
   const handleTokenUpdated = useCallback(async (updatedToken) => {
-    console.log('🔄 Token socials updated, refreshing data:', updatedToken);
-    console.log('🔄 Current selectedToken before refresh:', selectedToken);
-    
     // Show success message
     setSuccessMessage(`🎉 Social links for "${updatedToken.symbol}" successfully updated! Refreshing data...`);
     setError(null);
@@ -699,8 +690,6 @@ function AppContent() {
       const fueledData = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/tokens/fuel`).then(res => res.ok ? res.json() : { value: [] });
       setFueledTokens(fueledData.value || fueledData);
       
-      console.log('✅ Token data refreshed after socials update!');
-      console.log('🔄 New selectedToken after refresh:', selectedToken);
       setSuccessMessage(`🎉 Social links for "${updatedToken.symbol}" updated and data refreshed!`);
     } catch (error) {
       console.error('❌ Refresh after update failed:', error);
@@ -709,7 +698,7 @@ function AppContent() {
     
     // Clear success message after 15 seconds
     setTimeout(() => setSuccessMessage(null), 15000);
-  }, [loadTokens, selectedToken]);
+  }, [loadTokens]);
 
   // Real-time updates with polling
   useEffect(() => {
@@ -846,7 +835,6 @@ function AppContent() {
   }, []);
 
   const handleWatchlistClick = useCallback(() => {
-    console.log('🎯 Navigating to Watchlist');
     setShowWatchlist(true);
   }, []);
 
@@ -869,7 +857,6 @@ function AppContent() {
   }, []);
 
   const handleUpdateTokenClick = useCallback(() => {
-    console.log('🎯 Navigating to Update Token page');
     // Ensure dashboard is hidden when navigating to Update Token page
     setShowUserDashboard(false);
     setShowListToken(false);
@@ -879,7 +866,6 @@ function AppContent() {
   }, []);
 
   const handleUserDashboardClick = useCallback(() => {
-    console.log('🎯 Navigating to User Dashboard');
     // Close other views when opening dashboard
     setShowListToken(false);
     setShowFuelToken(false);

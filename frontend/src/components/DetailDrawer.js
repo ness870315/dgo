@@ -158,8 +158,6 @@ export default function DetailDrawer({ call, onClose, onRefresh }) {
   const [loadingChart, setLoadingChart] = useState(false);
   const [jupToken, setJupToken] = useState(null);
   const [loadingJup, setLoadingJup] = useState(false);
-  const [socialContext, setSocialContext] = useState(null);
-  const [loadingSocial, setLoadingSocial] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [milestonePostsPage, setMilestonePostsPage] = useState(1);
   const MILESTONE_POSTS_PER_PAGE = 3; // Show 3 milestone posts per page

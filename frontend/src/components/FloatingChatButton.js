@@ -80,13 +80,6 @@ const FloatingChatButton = ({ onOpenChat }) => {
   const handleClick = (e) => {
     if (isDragging) return; // Don't open chat if we were dragging
     
-    // Debug logging
-    console.log('🔍 [FLOATING CHAT DEBUG] Click handler:', {
-      user: !!user,
-      isPremium: isPremium,
-      userPremiumStatus: user?.isPremium,
-      userTier: user?.tier
-    });
     
     // Check premium status (user is guaranteed to be authenticated)
     if (!isPremium) {
@@ -96,7 +89,6 @@ const FloatingChatButton = ({ onOpenChat }) => {
     }
 
     // If user is premium, open chat
-    console.log('✅ [FLOATING CHAT DEBUG] Opening chat for premium user');
     onOpenChat();
   };
 
@@ -116,14 +108,6 @@ const FloatingChatButton = ({ onOpenChat }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Debug logging (only log once when button mounts)
-  useEffect(() => {
-    console.log('🔍 [FLOATING CHAT DEBUG] Button mounted:', {
-      position,
-      isPremium,
-      user: !!user
-    });
-  }, []);
 
   // Only render for authenticated users
   if (!user) {

@@ -30,7 +30,6 @@ class AIChatService {
         throw new Error('No session found. Please log in first.');
       }
 
-      console.log(`🤖 Sending AI chat message: "${prompt.substring(0, 50)}..."`);
 
       const response = await fetch(`${this.API_BASE}/api/ai/chat`, {
         method: 'POST',
@@ -59,7 +58,6 @@ class AIChatService {
       this.addToHistory('user', prompt);
       this.addToHistory('assistant', data.response.content);
 
-      console.log(`✅ AI response received. Data sources used: ${data.dataUsed?.join(', ') || 'none'}`);
 
       return {
         success: true,

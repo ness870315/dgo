@@ -17,7 +17,6 @@ const WatchlistPanel = ({ isOpen, onClose, onTokenSelect, allTokensData = [] }) 
         symbols.includes(token.symbol.toUpperCase())
       );
       
-      console.log(`📋 Watchlist: Found ${watchlistTokens.length} tokens from cache (no API calls made)`);
       setFullTokensData(watchlistTokens);
     } catch (error) {
       console.error('Error filtering watchlist tokens from cache:', error);
