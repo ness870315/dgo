@@ -687,6 +687,12 @@ class EnhancedBackend {
       res.status(200).end();
     });
 
+    // Test endpoint to verify backend deployment
+    this.app.get('/test-fuel-deployment', (req, res) => {
+      console.log('[🛡️ Enhanced Backend] ✅ Test endpoint hit - backend deployment working');
+      res.json({ status: 'working', timestamp: new Date().toISOString() });
+    });
+
     // Fuel page endpoint for link previews
     this.app.get('/fuel/:fuelType/:symbol', async (req, res) => {
       try {
