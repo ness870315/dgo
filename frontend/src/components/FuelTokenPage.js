@@ -197,10 +197,7 @@ const FuelTokenPage = ({ onBack, headerAuth = null, onFuelApplied }) => {
       `💎 Just fueled #${symbol} for ${fuelType} on @dgnoracle - the next alpha is loading...`
     ];
     
-    const baseMessage = messages[Math.floor(Math.random() * messages.length)];
-    const fuelPageUrl = `https://degen-oracle.com`;
-    
-    return `${baseMessage} ${fuelPageUrl}`;
+    return messages[Math.floor(Math.random() * messages.length)];
   };
 
   const handleApplyFuel = async () => {
