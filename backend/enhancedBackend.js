@@ -705,12 +705,15 @@ class EnhancedBackend {
     <meta property="og:image:alt" content="${symbol} ${fuelType} Fuel Image">
     
     <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="${baseUrl}/fuel/${fuelType}/${symbol}">
-    <meta property="twitter:title" content="🔥 ${symbol} ${fuelType} Fuel - Degen Oracle">
-    <meta property="twitter:description" content="Someone just fueled #${symbol} with ${fuelType} boost on Degen Oracle! The degen army is assembling! 🚀">
-    <meta property="twitter:image" content="${imageUrl}">
-    <meta property="twitter:image:alt" content="${symbol} ${fuelType} Fuel Image">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@dgnoracle">
+    <meta name="twitter:creator" content="@dgnoracle">
+    <meta name="twitter:url" content="${baseUrl}/fuel/${fuelType}/${symbol}">
+    <meta name="twitter:title" content="🔥 ${symbol} ${fuelType} Fuel - Degen Oracle">
+    <meta name="twitter:description" content="Someone just fueled #${symbol} with ${fuelType} boost on Degen Oracle! The degen army is assembling! 🚀">
+    <meta name="twitter:image" content="${imageUrl}">
+    <meta name="twitter:image:alt" content="${symbol} ${fuelType} Fuel Image">
+    <meta name="twitter:domain" content="degen-oracle.com">
     
     <style>
         body {
