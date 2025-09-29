@@ -577,8 +577,13 @@ function AppContent() {
         if (selectedToken) {
           const updatedToken = tokenData.find(t => t.contractAddress === selectedToken.contractAddress);
           if (updatedToken) {
+            console.log('🔄 Updating selectedToken with fresh data:', updatedToken.symbol);
+            console.log('🔄 Old socials:', selectedToken.socials);
+            console.log('🔄 New socials:', updatedToken.socials);
             setSelectedToken(updatedToken);
             console.log('🔄 Updated selectedToken with fresh data:', updatedToken.symbol);
+          } else {
+            console.log('❌ Could not find updated token for selectedToken:', selectedToken.symbol);
           }
         }
     } catch (err) {
@@ -680,6 +685,7 @@ function AppContent() {
   // Handle token socials updated
   const handleTokenUpdated = useCallback(async (updatedToken) => {
     console.log('🔄 Token socials updated, refreshing data:', updatedToken);
+    console.log('🔄 Current selectedToken before refresh:', selectedToken);
     
     // Show success message
     setSuccessMessage(`🎉 Social links for "${updatedToken.symbol}" successfully updated! Refreshing data...`);
@@ -694,6 +700,7 @@ function AppContent() {
       setFueledTokens(fueledData.value || fueledData);
       
       console.log('✅ Token data refreshed after socials update!');
+      console.log('🔄 New selectedToken after refresh:', selectedToken);
       setSuccessMessage(`🎉 Social links for "${updatedToken.symbol}" updated and data refreshed!`);
     } catch (error) {
       console.error('❌ Refresh after update failed:', error);
@@ -702,7 +709,7 @@ function AppContent() {
     
     // Clear success message after 15 seconds
     setTimeout(() => setSuccessMessage(null), 15000);
-  }, [loadTokens]);
+  }, [loadTokens, selectedToken]);
 
   // Real-time updates with polling
   useEffect(() => {
