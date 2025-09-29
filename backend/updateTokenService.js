@@ -8,7 +8,9 @@ const __dirname = path.dirname(__filename);
 class UpdateTokenService {
   constructor() {
     this.socialsCachePath = path.join(__dirname, 'cache', 'token-socials.json');
-    this.tokensCachePath = path.join(__dirname, 'cache', 'tokens-cache.json');
+    // Use the same cache path as the main tokens API
+    const baseDir = process.env.DATA_DIR || '/var/data/dgo';
+    this.tokensCachePath = path.join(baseDir, 'cache', 'tokens-cache.json');
     this.twitterCachePath = path.join(__dirname, 'cache', 'twitter_metrics.json');
     
     // Initialize socials cache if it doesn't exist
