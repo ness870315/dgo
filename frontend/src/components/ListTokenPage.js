@@ -282,7 +282,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         throw new Error('Payment validation failed. Please contact support.');
       }
 
-      console.log('✅ Payment validated successfully');
 
       // Validate social links if provided
       const socialValidationErrors = validateSocials();
@@ -334,7 +333,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
 
   // Manual payment completion helper for debugging
   const processPendingPayment = useCallback(async () => {
-    console.log('🔧 Manual payment processing triggered...');
 
     const pendingData = localStorage.getItem('pendingTokenListing');
     if (!pendingData) {
@@ -353,7 +351,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       });
 
       localStorage.removeItem('pendingTokenListing');
-      console.log('✅ Manual payment processing completed!');
       return true;
     } catch (error) {
       console.error('❌ Manual payment processing failed:', error);
@@ -405,8 +402,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
 
       const result = await response.json();
       if (result.success) {
-        console.log('✅ Token listing processed successfully:', result.message);
-        console.log('✅ Current tokensListed:', result.currentTokensListed);
         
         // Show success modal
         showProfessionalSuccessModal(tokenData);
@@ -469,18 +464,14 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
               status: 'completed',
               timestamp: new Date().toISOString()
             });
-            console.log('✅ Token submission completed successfully!');
 
             // Clear the pending data
             localStorage.removeItem('pendingTokenListing');
-            console.log('🧹 Cleared pending data from localStorage');
 
             // Clear URL parameters
             window.history.replaceState({}, document.title, window.location.pathname);
-            console.log('🔄 Cleared URL parameters');
 
             // Show success message
-            console.log('🎊 Showing success modal...');
             showProfessionalSuccessModal(tokenData);
 
           } catch (error) {
@@ -524,7 +515,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       script.crossOrigin = 'anonymous';
       script.src = 'https://embed.hel.io/assets/index-v1.js';
       script.onload = () => {
-        console.log('✅ Helio Pay script loaded');
         setHelioLoaded(true);
       };
       script.onerror = () => {
@@ -588,8 +578,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
               setPaymentProcessing(true);
             },
             onCancel: (reason) => {
-              console.log('❌ Payment cancelled, reason:', reason);
-              console.log('🔍 Token data at cancellation:', tokenData);
               setPaymentProcessing(false);
             },
             onStartPayment: () => {
@@ -666,7 +654,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }
 
       const data = await response.json();
-      console.log('✅ Jupiter API response received:', data);
 
       if (!data.success) {
         console.error('❌ Jupiter API error:', data.error);
@@ -680,7 +667,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
         throw new Error('Token not found in Jupiter API. This token may not exist or may not be tradeable.');
       }
 
-      console.log('✅ Successfully retrieved token metadata from Jupiter API:', tokenData);
       
       return {
         name: tokenData.name || 'Unknown Token',
@@ -725,7 +711,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }
 
       const data = await response.json();
-      console.log('✅ Jupiter API price data received:', data);
 
       if (!data.success || !data.tokenData) {
         console.log('⚠️ No price data found in Jupiter API');
@@ -741,7 +726,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }
 
       const tokenData = data.tokenData;
-      console.log('✅ Successfully retrieved price data from Jupiter API:', tokenData);
       
       return {
         price: tokenData.price || tokenData.usdPrice || 0,
@@ -818,7 +802,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       // REMOVED: Symbol/name checking to avoid false positives
       // Only contract address checking is reliable for Solana tokens
       
-      console.log('✅ Token is not in database - safe to list');
       return {
         exists: false,
         message: 'Token is not in our database. Safe to proceed with listing.'
@@ -851,7 +834,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }
 
       const data = await response.json();
-      console.log('✅ Jupiter API market cap data received:', data);
 
       if (!data.success || !data.tokenData) {
         console.log('⚠️ No market cap data found in Jupiter API');
@@ -863,7 +845,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }
 
       const tokenData = data.tokenData;
-      console.log('✅ Successfully retrieved market cap data from Jupiter API:', tokenData);
       
       return {
         marketCap: tokenData.marketCap || tokenData.mcap || 0,
@@ -905,7 +886,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     // Validate Solana address format
     if (!isValidSolanaAddress(trimmedAddress)) {
       const errorMsg = getValidationError(trimmedAddress);
-      console.log('❌ Validation failed:', errorMsg);
       setError(errorMsg);
       return;
     }
@@ -939,19 +919,9 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
           // Calculate market cap manually if not available from Bitquery
     let finalMarketCap = marketCapData?.marketCap || 0;
     
-    console.log('🔍 Market cap calculation check:');
-    console.log('   finalMarketCap:', finalMarketCap);
-    console.log('   priceData?.price:', priceData?.price);
-    console.log('   marketCapData?.totalSupply:', marketCapData?.totalSupply);
     
     if (!finalMarketCap && priceData?.price && marketCapData?.totalSupply) {
       finalMarketCap = priceData.price * marketCapData.totalSupply;
-      console.log('💡 Calculated market cap manually:');
-      console.log('   price:', priceData.price);
-      console.log('   totalSupply:', marketCapData.totalSupply);
-      console.log('   calculatedMarketCap:', finalMarketCap);
-    } else {
-      console.log('❌ Manual calculation skipped - missing data or already have market cap');
     }
 
     // Combine all data
@@ -1058,13 +1028,11 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
     neutralColor: "#5A6578",
     display: "inline",
     onSuccess: event => {
-      console.log('✅ Payment successful:', event);
       
       // Get pending token data
       const pendingToken = localStorage.getItem('pendingTokenListing');
       if (pendingToken) {
         const tokenData = JSON.parse(pendingToken);
-        console.log('Processing successful payment for token:', tokenData);
 
         // Show immediate professional success message
         showProfessionalSuccessModal(tokenData);
@@ -1094,7 +1062,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }
     },
     onError: event => {
-      console.log('❌ Payment error:', event);
       
       // Redirect back with error message
       window.location.href = `${window.location.origin}/?payment=error&reason=${event?.error || 'unknown'}`;
@@ -1114,7 +1081,6 @@ const ListTokenPage = ({ onBack, onTokenAdded }) => {
       }
     },
     onCancel: () => {
-      console.log("❌ Payment cancelled");
       
       // Redirect back with cancellation message
       window.location.href = `${window.location.origin}/?payment=cancelled`;

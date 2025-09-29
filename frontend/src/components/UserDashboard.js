@@ -185,14 +185,11 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
     
     try {
       setSelectedUserLoading(true);
-      console.log('🔄 Fetching selected user data for:', userId);
       
       // Fetch user's KOL calls
       const callsResponse = await fetch(`${API_BASE}/api/user/kol-calls?sessionId=${sessionId}&userId=${userId}`);
       const callsData = callsResponse.ok ? await callsResponse.json() : { success: false, calls: [], stats: {} };
       
-      console.log('📊 Selected user calls:', callsData);
-      console.log('📊 Selected user stats:', callsData.stats);
       
       setSelectedUserCalls(callsData.calls || []);
       setSelectedUserStats(callsData.stats || {});
@@ -209,7 +206,6 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
   const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('🔄 Fetching dashboard data...');
       
       // Fetch user profile, watchlist, and KOL data
       const [profileResponse, watchlistResponse, kolCallsResponse, leaderboardResponse] = await Promise.all([
@@ -219,12 +215,6 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         fetch(`${API_BASE}/api/leaderboard?sessionId=${sessionId}`)
       ]);
 
-      console.log('📊 API responses:', {
-        profileStatus: profileResponse.status,
-        watchlistStatus: watchlistResponse.status,
-        kolCallsStatus: kolCallsResponse.status,
-        leaderboardStatus: leaderboardResponse.status
-      });
 
       if (profileResponse.ok && watchlistResponse.ok) {
         const profileData = await profileResponse.json();
@@ -232,15 +222,6 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
         const kolCallsData = kolCallsResponse.ok ? await kolCallsResponse.json() : { success: false, calls: [] };
         const leaderboardData = leaderboardResponse.ok ? await leaderboardResponse.json() : { success: false, leaderboard: [] };
 
-        console.log('📊 Profile data:', profileData);
-        console.log('📊 User stats from API:', {
-          tokensListed: profileData.user?.tokensListed,
-          tokensFueled: profileData.user?.tokensFueled,
-          tokensUpdated: profileData.user?.tokensUpdated
-        });
-        console.log('📊 Watchlist data:', watchlistData);
-        console.log('📊 KOL Calls data:', kolCallsData);
-        console.log('📊 Leaderboard data:', leaderboardData);
 
         if (profileData.success) {
           setDashboardData(prev => ({

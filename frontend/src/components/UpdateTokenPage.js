@@ -71,7 +71,6 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
       script.crossOrigin = 'anonymous';
       script.src = 'https://embed.hel.io/assets/index-v1.js';
       script.onload = () => {
-        console.log('✅ Helio Pay script loaded for Update Token');
         setHelioLoaded(true);
       };
       script.onerror = () => {
@@ -113,7 +112,6 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
               environment: "production",
               allowedDomains: ["degen-oracle.com", "localhost"],
               onSuccess: async (event) => {
-                console.log('✅ Update Token Payment Success:', event);
                 setPaymentCompleted(true);
                 setPaymentProcessing(false);
                 
@@ -144,7 +142,6 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
                 setPaymentProcessing(true);
               },
               onCancel: () => {
-                console.log('❌ Update Token Payment Cancelled');
                 setPaymentProcessing(false);
               },
               onStartPayment: () => {
@@ -166,74 +163,6 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
     }
   }, [helioLoaded, validationComplete, selectedToken, paymentCompleted, socials]);
 
-  // Expose debug function globally for testing
-  useEffect(() => {
-    window.debugHelioWidget = () => {
-      console.log('🔧 DEBUG: Manual Helio Widget Check');
-      console.log('helioLoaded:', helioLoaded);
-      console.log('validationComplete:', validationComplete);
-      console.log('selectedToken:', selectedToken);
-      console.log('paymentCompleted:', paymentCompleted);
-      console.log('window.helioCheckout exists:', !!window.helioCheckout);
-      
-      const container = document.getElementById('helioUpdateCheckoutContainer');
-      console.log('Container found:', !!container);
-      console.log('Container element:', container);
-      
-      if (container && window.helioCheckout) {
-        console.log('🎯 Manually initializing Helio widget...');
-        try {
-          window.helioCheckout(container, {
-            paylinkId: "68b51815c743122a7be18721",
-            theme: { "themeMode": "dark" },
-            primaryColor: "#FE5300",
-            neutralColor: "#5A6578",
-            display: "inline",
-            environment: "production",
-            allowedDomains: ["degen-oracle.com", "localhost"],
-            onSuccess: (event) => console.log('✅ Manual Success:', event),
-            onError: (event) => console.error('❌ Manual Error:', event),
-            onPending: (event) => console.log('⏳ Manual Pending:', event),
-            onCancel: () => console.log('❌ Manual Cancel'),
-            onStartPayment: () => console.log('🚀 Manual Start')
-          });
-        } catch (error) {
-          console.error('❌ Manual initialization error:', error);
-        }
-      }
-    };
-    
-    window.debugContractValidation = async () => {
-      console.log('🔧 DEBUG: Testing contract validation...');
-      try {
-        const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-        const response = await fetch(`${apiBase}/api/tokens`);
-        const tokens = await response.json();
-        console.log('📊 API returned', tokens.length, 'tokens');
-
-        const targetContract = '5EpbKX221NYVidK6A2nJGhtuLPvrPiQ6shknLbtjBAGS';
-        const foundToken = tokens.find(token =>
-          token.contractAddress &&
-          token.contractAddress.toLowerCase() === targetContract.toLowerCase()
-        );
-
-        if (foundToken) {
-          console.log('✅ FOUND MEMEPUTER:', foundToken.symbol, '-', foundToken.contractAddress);
-          return { success: true, token: foundToken };
-        } else {
-          console.log('❌ MEMEPUTER NOT FOUND in API response');
-          console.log('🔍 First 5 tokens:');
-          tokens.slice(0, 5).forEach((token, index) => {
-            console.log(`${index + 1}. ${token.symbol} - ${token.contractAddress}`);
-          });
-          return { success: false };
-        }
-      } catch (error) {
-        console.log('❌ Debug error:', error);
-        return { success: false, error: error.message };
-      }
-    };
-  }, []);
 
   // Check for pending update payment on component mount
   useEffect(() => {
@@ -432,7 +361,6 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
 
         // Note: Score recalculation is handled automatically by the backend
         // when social links are updated via updateMainTokensCache()
-        console.log('✅ Social links updated - backend handles score recalculation automatically');
 
         // Reset form after a delay to allow user to see success modal
         setTimeout(() => {
@@ -552,11 +480,6 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
         }
       });
       
-      console.log('🔄 Submitting socials update:', {
-        symbol: selectedToken.symbol,
-        socials: filteredSocials,
-        user: user
-      });
       
       const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/tokens/update-socials`, {
         method: 'POST',
@@ -573,9 +496,7 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
 
       const result = await response.json();
       
-      if (response.ok) {
-        console.log('✅ Socials successfully updated:', result);
-      } else {
+      if (!response.ok) {
         console.error('❌ Failed to update socials:', result);
       }
       
@@ -779,35 +700,25 @@ const UpdateTokenPage = ({ onBack, onTokenUpdated, initialToken = null }) => {
                           onClick={async () => {
                             setLoading(true);
                             try {
-                              console.log('🔍 Starting contract validation...');
-                              console.log('📋 Selected token:', selectedToken);
-                              console.log('🔗 Contract address to validate:', selectedToken?.contractAddress);
 
                               // Check if token exists in our database by fetching all tokens and filtering
                               const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/tokens`);
                               const tokens = await response.json();
-                              console.log('📊 Fetched tokens from API:', tokens.length);
 
                               // Find the token by contract address (case insensitive)
                               const contractAddress = selectedToken.contractAddress;
-                              console.log('🔍 Searching for contract:', contractAddress);
 
                               const foundToken = tokens.find(token => {
                                 const tokenContract = token.contractAddress;
                                 const match = tokenContract &&
                                   tokenContract.toLowerCase() === contractAddress.toLowerCase();
-                                if (match) {
-                                  console.log('✅ Found matching token:', token.symbol, '-', tokenContract);
-                                }
                                 return match;
                               });
 
                               if (foundToken) {
                                 setContractValidated(true);
                                 setError('');
-                                console.log('✅ Contract validation successful:', foundToken.symbol);
                               } else {
-                                console.log('❌ Token not found. Available tokens:', tokens.map(t => ({ symbol: t.symbol, contract: t.contractAddress })));
                                 const availableTokens = tokens.filter(t => t.symbol).map(t => t.symbol).join(', ');
                                 setError(`Token not found in database. Available tokens: ${availableTokens}. This token may need to be listed first.`);
                               }
