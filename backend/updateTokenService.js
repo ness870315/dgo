@@ -287,17 +287,28 @@ class UpdateTokenService {
    */
   async updateMainTokensCache(symbol, socials) {
     try {
+      console.log(`🔧 [updateMainTokensCache] Starting update for ${symbol} with socials:`, JSON.stringify(socials, null, 2));
+      console.log(`🔧 [updateMainTokensCache] Cache path: ${this.tokensCachePath}`);
+      
       const tokensData = JSON.parse(await fs.readFile(this.tokensCachePath, 'utf8'));
+      console.log(`🔧 [updateMainTokensCache] Loaded ${tokensData.length} tokens from cache`);
       
       // Find token and update social data
       const tokenIndex = tokensData.findIndex(token => 
         token.symbol && token.symbol.toUpperCase() === symbol.toUpperCase()
       );
       
+      console.log(`🔧 [updateMainTokensCache] Token index for ${symbol}: ${tokenIndex}`);
+      
       if (tokenIndex !== -1) {
+        const oldSocials = tokensData[tokenIndex].socials;
+        console.log(`🔧 [updateMainTokensCache] Old socials:`, JSON.stringify(oldSocials, null, 2));
+        
         tokensData[tokenIndex].socials = socials;
         tokensData[tokenIndex].socialSources = this.determineSocialSources(socials);
         tokensData[tokenIndex].socialsUpdatedAt = new Date().toISOString();
+        
+        console.log(`🔧 [updateMainTokensCache] New socials:`, JSON.stringify(tokensData[tokenIndex].socials, null, 2));
         
         // Update community score with social bonus
         const socialBonus = this.calculateSocialScoreBonus(socials);
@@ -308,12 +319,19 @@ class UpdateTokenService {
         }
         
         await fs.writeFile(this.tokensCachePath, JSON.stringify(tokensData, null, 2));
-        console.log(`✅ Updated main tokens cache for ${symbol}`);
+        console.log(`✅ [updateMainTokensCache] Successfully updated main tokens cache for ${symbol}`);
+        
+        // Verify the write worked
+        const verifyData = JSON.parse(await fs.readFile(this.tokensCachePath, 'utf8'));
+        const verifyToken = verifyData.find(t => t.symbol && t.symbol.toUpperCase() === symbol.toUpperCase());
+        if (verifyToken) {
+          console.log(`🔧 [updateMainTokensCache] Verification - Telegram in cache:`, verifyToken.socials?.telegram || 'NOT FOUND');
+        }
       } else {
-        console.log(`⚠️ Token ${symbol} not found in main cache`);
+        console.log(`⚠️ [updateMainTokensCache] Token ${symbol} not found in main cache`);
       }
     } catch (error) {
-      console.error('❌ Error updating main tokens cache:', error);
+      console.error('❌ [updateMainTokensCache] Error updating main tokens cache:', error);
     }
   }
 
