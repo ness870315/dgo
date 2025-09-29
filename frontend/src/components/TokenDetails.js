@@ -537,17 +537,29 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
     }
   };
 
-  const handleFuelShare = () => {
-    if (fuelShareMessage) {
-      // Message already includes image link, use it directly
-      const twitterUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
-        text: fuelShareMessage
-      }).toString()}`;
-      
-      // Open in new tab
-      window.open(twitterUrl, '_blank', 'noopener,noreferrer');
-    }
-  };
+    const handleFuelShare = async () => {
+      if (fuelShareMessage && appliedFuelType && token?.symbol) {
+        try {
+          // Use the fuel sharing URL that includes proper meta tags for link previews
+          const fuelPageUrl = `https://degen-oracle.com/fuel/${appliedFuelType}/${token.symbol}`;
+          
+          // Create Twitter URL with the fuel page link
+          const twitterUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
+            text: `${fuelShareMessage}\n\n${fuelPageUrl}`
+          }).toString()}`;
+          
+          // Open Twitter with the message and link
+          window.open(twitterUrl, '_blank', 'noopener,noreferrer');
+        } catch (error) {
+          console.error('Error sharing fuel:', error);
+          // Fallback to text-only sharing
+          const twitterUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
+            text: fuelShareMessage
+          }).toString()}`;
+          window.open(twitterUrl, '_blank', 'noopener,noreferrer');
+        }
+      }
+    };
 
   const handleCloseFuelShare = () => {
     setShowFuelShareModal(false);
