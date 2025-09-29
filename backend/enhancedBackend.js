@@ -639,14 +639,23 @@ class EnhancedBackend {
     this.app.get('/api/fuel-image/:fuelType/:symbol', async (req, res) => {
       try {
         const { fuelType, symbol } = req.params;
+        console.log(`[🛡️ Enhanced Backend] 🖼️ Generating fuel image for ${fuelType}/${symbol}`);
         
         // Generate the fuel image
         const fuelImageGenerator = new (await import('./fuelImageGenerator.js')).default();
         const imageDataURL = await fuelImageGenerator.generateFuelImageDataURL(fuelType, symbol);
         
+        if (!imageDataURL) {
+          console.error(`[🛡️ Enhanced Backend] ❌ Failed to generate image for ${fuelType}/${symbol}`);
+          res.status(500).json({ error: 'Failed to generate fuel image' });
+          return;
+        }
+        
         // Convert data URL to buffer
         const base64Data = imageDataURL.split(',')[1];
         const imageBuffer = Buffer.from(base64Data, 'base64');
+        
+        console.log(`[🛡️ Enhanced Backend] ✅ Generated fuel image for ${fuelType}/${symbol}, size: ${imageBuffer.length} bytes`);
         
         // Set appropriate headers for X/Twitter compatibility
         res.set({
@@ -770,7 +779,7 @@ class EnhancedBackend {
     <div class="container">
         <h1>🔥 ${symbol} ${fuelType} Fuel</h1>
         <p class="subtitle">Someone just fueled #${symbol} with ${fuelType} boost on Degen Oracle!</p>
-        <img src="${imageUrl}" alt="${symbol} ${fuelType} Fuel" class="fuel-image">
+        <img src="${imageUrl}" alt="${symbol} ${fuelType} Fuel" class="fuel-image" onerror="this.style.display='none'">
         <p>The degen army is assembling! 🚀</p>
         <a href="https://degen-oracle.com" class="cta-button">Join the Oracle</a>
     </div>
