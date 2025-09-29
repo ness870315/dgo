@@ -11210,9 +11210,9 @@ class EnhancedBackend {
       // Fuel configuration (very subtle multipliers for balanced scoring)
       const fuelConfig = {
         '10x': { boost: 0.02, duration: 12 * 60 * 60 * 1000 }, // 12 hours, 1.02x multiplier (2% boost)
-        '50x': { boost: 0.04, duration: 12 * 60 * 60 * 1000 }, // 1.04x multiplier (4% boost)
-        '500x': { boost: 0.06, duration: 12 * 60 * 60 * 1000 }, // 1.06x multiplier (6% boost)
-        '1000x': { boost: 0.08, duration: 12 * 60 * 60 * 1000 } // 1.08x multiplier (8% boost)
+        '50x': { boost: 0.04, duration: 18 * 60 * 60 * 1000 }, // 18 hours, 1.04x multiplier (4% boost)
+        '500x': { boost: 0.06, duration: 24 * 60 * 60 * 1000 }, // 24 hours, 1.06x multiplier (6% boost)
+        '1000x': { boost: 0.08, duration: 24 * 60 * 60 * 1000 } // 24 hours, 1.08x multiplier (8% boost)
       };
 
       const config = fuelConfig[fuelType];
@@ -11366,7 +11366,7 @@ class EnhancedBackend {
       
       return {
         success: true,
-        message: `Fuel ${fuelType} applied successfully to ${existingToken.symbol}! Total fuel: ${currentFuelDisplay}. Boost will last 12 hours.`,
+        message: `Fuel ${fuelType} applied successfully to ${existingToken.symbol}! Total fuel: ${currentFuelDisplay}. Boost will last ${Math.round(config.duration / (60 * 60 * 1000))} hours.`,
         token: updatedFueledToken
       };
 

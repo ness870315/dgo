@@ -28,6 +28,7 @@ const FuelTokenPage = ({ onBack, headerAuth = null, onFuelApplied }) => {
       boost: '15%',
       multiplier: 1.15,
       price: '$45',
+      duration: '12 hours',
       helioLink: 'https://app.hel.io/pay/68b50d01c743122a7be16ce9',
       description: 'Basic fuel boost'
     },
@@ -37,6 +38,7 @@ const FuelTokenPage = ({ onBack, headerAuth = null, onFuelApplied }) => {
       boost: '25%',
       multiplier: 1.25,
       price: '$195',
+      duration: '18 hours',
       helioLink: 'https://app.hel.io/pay/68b50dd130074e35926e3c8d',
       description: 'Popular choice'
     },
@@ -46,6 +48,7 @@ const FuelTokenPage = ({ onBack, headerAuth = null, onFuelApplied }) => {
       boost: '35%',
       multiplier: 1.35,
       price: '$695',
+      duration: '24 hours',
       helioLink: 'https://app.hel.io/pay/68b50cef3d14a3c150c1f6cb',
       description: 'High performance'
     },
@@ -55,6 +58,7 @@ const FuelTokenPage = ({ onBack, headerAuth = null, onFuelApplied }) => {
       boost: '45%',
       multiplier: 1.45,
       price: '$995',
+      duration: '24 hours',
       helioLink: 'https://app.hel.io/pay/68b50ded2b102da2c16c2359',
       description: 'Maximum boost'
     }
@@ -530,7 +534,8 @@ const FuelTokenPage = ({ onBack, headerAuth = null, onFuelApplied }) => {
                 >
                   <div className="text-3xl mb-2">{fuel.icon}</div>
                   <div className="text-lg font-bold text-white mb-1">{fuel.type}</div>
-                  <div className="text-xl font-bold text-green-400 mb-2">{fuel.price}</div>
+                  <div className="text-xl font-bold text-green-400 mb-1">{fuel.price}</div>
+                  <div className="text-sm text-orange-400 mb-1">Duration: {fuel.duration}</div>
                   <div className="text-gray-400 text-sm">{fuel.description}</div>
                 </div>
               ))}
