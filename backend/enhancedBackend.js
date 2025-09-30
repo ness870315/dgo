@@ -761,16 +761,22 @@ class EnhancedBackend {
       }
     });
 
-    // API fuel page endpoint for link previews (internal)
+    // API fuel page endpoint for link previews (internal) - PREVIEW ONLY
     this.app.get('/api/fuel/:fuelType/:symbol', async (req, res) => {
       try {
         const { fuelType, symbol } = req.params;
         console.log(`[🛡️ Enhanced Backend] 🔥 Fuel sharing page requested: ${fuelType}/${symbol}`);
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
-        // Use dynamic fuel image generation
-        const imageUrl = `${baseUrl}/api/fuel-image/${fuelType}/${symbol}`;
         
-        const html = `
+        // Check if this is a bot/crawler (Twitter, Facebook, etc.)
+        const userAgent = req.headers['user-agent'] || '';
+        const isBot = /bot|crawler|spider|crawling|facebook|twitter|linkedin|whatsapp|telegram/i.test(userAgent);
+        
+        if (isBot) {
+          // Serve meta tags for bots/crawlers
+          const baseUrl = `${req.protocol}://${req.get('host')}`;
+          const imageUrl = `${baseUrl}/api/fuel-image/${fuelType}/${symbol}`;
+        
+          const html = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -780,7 +786,7 @@ class EnhancedBackend {
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="${baseUrl}/fuel/${fuelType}/${symbol}">
+    <meta property="og:url" content="https://degen-oracle.com/fuel/${fuelType}/${symbol}">
     <meta property="og:title" content="🔥 ${symbol} ${fuelType} Fuel - Degen Oracle">
     <meta property="og:description" content="Someone just fueled #${symbol} with ${fuelType} boost on Degen Oracle! The degen army is assembling! 🚀">
     <meta property="og:image" content="${imageUrl}">
@@ -793,80 +799,28 @@ class EnhancedBackend {
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="@dgnoracle">
     <meta name="twitter:creator" content="@dgnoracle">
-    <meta name="twitter:url" content="${baseUrl}/fuel/${fuelType}/${symbol}">
+    <meta name="twitter:url" content="https://degen-oracle.com/fuel/${fuelType}/${symbol}">
     <meta name="twitter:title" content="🔥 ${symbol} ${fuelType} Fuel - Degen Oracle">
     <meta name="twitter:description" content="Someone just fueled #${symbol} with ${fuelType} boost on Degen Oracle! The degen army is assembling! 🚀">
     <meta name="twitter:image" content="${imageUrl}">
     <meta name="twitter:image:alt" content="${symbol} ${fuelType} Fuel Image">
     <meta name="twitter:domain" content="degen-oracle.com">
-    
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .container {
-            background: white;
-            border-radius: 20px;
-            padding: 40px;
-            text-align: center;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            max-width: 600px;
-        }
-        .fuel-image {
-            max-width: 100%;
-            height: auto;
-            border-radius: 15px;
-            margin: 20px 0;
-        }
-        h1 {
-            color: #333;
-            margin-bottom: 10px;
-        }
-        .subtitle {
-            color: #666;
-            font-size: 18px;
-            margin-bottom: 30px;
-        }
-        .cta-button {
-            background: linear-gradient(45deg, #ff6b6b, #ffa500);
-            color: white;
-            padding: 15px 30px;
-            border: none;
-            border-radius: 50px;
-            font-size: 18px;
-            font-weight: bold;
-            text-decoration: none;
-            display: inline-block;
-            transition: transform 0.2s;
-        }
-        .cta-button:hover {
-            transform: translateY(-2px);
-        }
-    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🔥 ${symbol} ${fuelType} Fuel</h1>
-        <p class="subtitle">Someone just fueled #${symbol} with ${fuelType} boost on Degen Oracle!</p>
-        <img src="${imageUrl}" alt="${symbol} ${fuelType} Fuel" class="fuel-image" onerror="this.style.display='none'">
-        <p>The degen army is assembling! 🚀</p>
-        <a href="https://degen-oracle.com" class="cta-button">Join the Oracle</a>
-    </div>
+    <script>window.location.href = 'https://degen-oracle.com';</script>
+    <p>Redirecting to Degen Oracle...</p>
 </body>
 </html>`;
-        
-        res.set('Content-Type', 'text/html');
-        res.send(html);
+          
+          res.set('Content-Type', 'text/html');
+          res.send(html);
+        } else {
+          // Redirect human users to main site
+          res.redirect(301, 'https://degen-oracle.com');
+        }
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Fuel page generation error:', error.message);
-        res.status(500).send('Failed to generate fuel page');
+        console.error('[🛡️ Enhanced Backend] ❌ Fuel sharing page error:', error.message);
+        res.redirect(301, 'https://degen-oracle.com');
       }
     });
 
