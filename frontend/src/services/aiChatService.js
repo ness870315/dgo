@@ -122,7 +122,6 @@ class AIChatService {
       "How many calls I've done so far?",
       "What's on my watchlist?",
       "What is trending on Degen Oracle?",
-      "Show me the top trending tokens",
       "What's my average call performance?",
       "How many milestones have I hit this month?",
       "What's the current price of SOL?",
