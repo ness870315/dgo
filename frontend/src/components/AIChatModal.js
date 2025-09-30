@@ -408,10 +408,10 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
             </div>
             
             <div className="chat-header-controls flex items-center gap-3">
-            {!showHistories && !currentHistoryId && (
+            {!showHistories && !currentHistoryId && !showWelcome && messages.length > 0 && (
               <button
                 onClick={handleSaveChat}
-                disabled={messages.length === 0 || isLoading}
+                disabled={isLoading}
                 className="px-1.5 py-0.5 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:opacity-50 rounded text-white transition-colors flex items-center gap-1"
               >
                 <Save size={8} />
@@ -433,7 +433,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
             </button>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors mr-2"
             >
               <X size={20} className="text-gray-400" />
             </button>
