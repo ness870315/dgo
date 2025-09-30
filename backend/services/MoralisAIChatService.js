@@ -512,10 +512,7 @@ class MoralisAIChatService {
    */
   async addToWatchlist(userId, contractAddress, tokenSymbol) {
     try {
-      console.log(`🎯 [AI WATCHLIST DEBUG] Starting addToWatchlist process`);
-      console.log(`🎯 [AI WATCHLIST DEBUG] UserId: ${userId}`);
-      console.log(`🎯 [AI WATCHLIST DEBUG] Contract: ${contractAddress}`);
-      console.log(`🎯 [AI WATCHLIST DEBUG] Symbol: ${tokenSymbol}`);
+      console.log(`🎯 Adding ${tokenSymbol} to watchlist for user ${userId}`);
       
       // First, verify token exists in our token cache database
       let tokenExists = false;
@@ -646,8 +643,8 @@ class MoralisAIChatService {
             console.log(`✅ Found token in cache: ${token.symbol} (${token.name})`);
             return {
               analytics: {
-                symbol: token.symbol,
-                name: token.name,
+                symbol: token.symbol?.trim() || 'Unknown',
+                name: token.name?.trim() || 'Unknown',
                 price: token.price || token.jupiterData?.price,
                 marketCap: token.marketCap || token.jupiterData?.marketCap,
                 volume24h: token.volume24h || token.jupiterData?.volume24h
@@ -1308,7 +1305,13 @@ class MoralisAIChatService {
 
       // 📊 CONDITIONAL DATA GATHERING (only what's needed for this intent)
       let userContext = {};
-      if (this.intentDetector.requiresUserData(primaryIntent)) {
+      
+      // Skip user data gathering if we have simple commands that don't need context
+      const hasSimpleCommands = commands.some(cmd => 
+        ['ADD_TO_WATCHLIST'].includes(cmd.type)
+      );
+      
+      if (this.intentDetector.requiresUserData(primaryIntent) && !hasSimpleCommands) {
         console.log(`📊 [SMART AI] Intent requires user data - gathering context`);
         const dataNeeds = this.analyzePromptDataNeeds(sanitizedPrompt);
         console.log(`🔍 Data needs identified:`, dataNeeds);
@@ -1320,7 +1323,7 @@ class MoralisAIChatService {
         const userPreferences = await this.getUserPreferences(userId);
         userContext.preferences = userPreferences;
       } else {
-        console.log(`⚡ [SMART AI] Intent doesn't require user data - skipping context gathering`);
+        console.log(`⚡ [SMART AI] Intent doesn't require user data or has simple commands - skipping context gathering`);
         // Still get basic preferences for personalization
         const userPreferences = await this.getUserPreferences(userId);
         userContext.preferences = userPreferences;
@@ -1334,6 +1337,36 @@ class MoralisAIChatService {
       // Add command results to context
       if (Object.keys(commandResults).length > 0) {
         userContext.commandResults = commandResults;
+      }
+
+      // Special handling for simple watchlist commands - return concise response
+      if (hasSimpleCommands && commands.length === 1 && commands[0].type === 'ADD_TO_WATCHLIST') {
+        const command = commands[0];
+        const result = commandResults.watchlistAdded;
+        
+        if (result && result.success) {
+          return {
+            success: true,
+            content: `${result.symbol} has been successfully added to your watchlist! 🎯`,
+            intent: primaryIntent,
+            confidence: confidence,
+            commands: commands,
+            commandResults: commandResults,
+            responseTime: Date.now() - startTime,
+            timestamp: new Date().toISOString()
+          };
+        } else {
+          return {
+            success: false,
+            content: `Sorry, I couldn't add ${command.contractAddress} to your watchlist. Please try again or check if the token exists.`,
+            intent: primaryIntent,
+            confidence: confidence,
+            commands: commands,
+            commandResults: commandResults,
+            responseTime: Date.now() - startTime,
+            timestamp: new Date().toISOString()
+          };
+        }
       }
 
       // 🎪 BUILD SPECIALIZED PROMPT (instead of generic buildEnhancedPrompt)
