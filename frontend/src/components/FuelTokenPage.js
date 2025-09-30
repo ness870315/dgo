@@ -283,9 +283,8 @@ const FuelTokenPage = ({ onBack, headerAuth = null, onFuelApplied }) => {
   const handleFuelShare = () => {
     if (fuelShareMessage && appliedFuelType && appliedTokenSymbol) {
       try {
-        // Use the main domain with URL parameters for fuel sharing (will redirect to API)
-        // Updated: Fixed proxy route implementation for Twitter link previews
-        const fuelPageUrl = `https://degen-oracle.com/?fuel=${appliedFuelType}&symbol=${appliedTokenSymbol}`;
+        // Use the main domain with proper fuel sharing URL (server-side redirect)
+        const fuelPageUrl = `https://degen-oracle.com/fuel/${appliedFuelType}/${appliedTokenSymbol}`;
         
         // Create Twitter URL with the fuel page link
         const twitterUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
