@@ -769,7 +769,10 @@ class EnhancedBackend {
         
         // Check if this is a bot/crawler (Twitter, Facebook, etc.)
         const userAgent = req.headers['user-agent'] || '';
-        const isBot = /bot|crawler|spider|crawling|facebook|twitter|linkedin|whatsapp|telegram/i.test(userAgent);
+        const isBot = /bot|crawler|spider|crawling|facebook|twitter|linkedin|whatsapp|telegram|slack|discord/i.test(userAgent);
+        
+        console.log(`[🛡️ Enhanced Backend] 🔍 User-Agent: ${userAgent}`);
+        console.log(`[🛡️ Enhanced Backend] 🤖 Is Bot: ${isBot}`);
         
         if (isBot) {
           // Serve meta tags for bots/crawlers
@@ -815,12 +818,12 @@ class EnhancedBackend {
           res.set('Content-Type', 'text/html');
           res.send(html);
         } else {
-          // Redirect human users to main site
-          res.redirect(301, 'https://degen-oracle.com');
+          // Redirect human users to main site (avoid redirect loop)
+          res.redirect(301, 'https://degen-oracle.com/?from=fuel');
         }
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Fuel sharing page error:', error.message);
-        res.redirect(301, 'https://degen-oracle.com');
+        res.redirect(301, 'https://degen-oracle.com/?from=fuel');
       }
     });
 
