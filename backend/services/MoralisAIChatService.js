@@ -645,8 +645,8 @@ class MoralisAIChatService {
               analytics: {
                 symbol: token.symbol?.trim() || 'Unknown',
                 name: token.name?.trim() || 'Unknown',
-                price: token.price || token.jupiterData?.price,
-                marketCap: token.marketCap || token.jupiterData?.marketCap,
+                price: token.price || token.currentPrice || token.usdPrice || token.jupiterData?.price || token.jupiterData?.usdPrice,
+                marketCap: token.marketCap || token.mcap || token.jupiterData?.marketCap || token.jupiterData?.mcap,
                 volume24h: token.volume24h || token.jupiterData?.volume24h
               },
               holders: token.holderCount || token.jupiterData?.holderCount,
