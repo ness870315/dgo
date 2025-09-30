@@ -244,7 +244,37 @@ class EnhancedBackend {
       next();
     });
 
-    // Serve static files from public directory (for admin dashboard)
+    // Admin authentication middleware
+    const adminAuth = (req, res, next) => {
+      const auth = req.headers.authorization;
+      
+      if (!auth || !auth.startsWith('Basic ')) {
+        res.setHeader('WWW-Authenticate', 'Basic realm="Admin Dashboard"');
+        return res.status(401).send('Authentication required');
+      }
+      
+      const credentials = Buffer.from(auth.slice(6), 'base64').toString();
+      const [username, password] = credentials.split(':');
+      
+      // Check credentials (use environment variables for production)
+      const validUsername = process.env.ADMIN_USERNAME || 'ness870315';
+      const validPassword = process.env.ADMIN_PASSWORD || '1E132730!';
+      
+      console.log(`[🛡️ Admin Auth] Login attempt: ${username} (env: ${process.env.ADMIN_USERNAME ? 'SET' : 'DEFAULT'})`);
+      
+      if (username === validUsername && password === validPassword) {
+        next();
+      } else {
+        res.setHeader('WWW-Authenticate', 'Basic realm="Admin Dashboard"');
+        res.status(401).send('Invalid credentials');
+      }
+    };
+
+    // Serve static files from public directory (for admin dashboard) - PROTECTED
+    this.app.use('/admin-dashboard.html', adminAuth);
+    this.app.use('/admin-dashboard.html', express.static(path.join(__dirname, 'public')));
+    
+    // Serve other static files without protection (if any)
     this.app.use(express.static(path.join(__dirname, 'public')));
   }
 
@@ -487,7 +517,29 @@ class EnhancedBackend {
     });
 
     // Admin: Users stats and list
-    this.app.get('/api/admin/users/stats', async (req, res) => {
+    // Admin API authentication middleware
+    const adminApiAuth = (req, res, next) => {
+      const auth = req.headers.authorization;
+      
+      if (!auth || !auth.startsWith('Basic ')) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+      
+      const credentials = Buffer.from(auth.slice(6), 'base64').toString();
+      const [username, password] = credentials.split(':');
+      
+      const validUsername = process.env.ADMIN_USERNAME || 'ness870315';
+      const validPassword = process.env.ADMIN_PASSWORD || '1E132730!';
+      
+      if (username === validUsername && password === validPassword) {
+        next();
+      } else {
+        res.status(401).json({ error: 'Invalid credentials' });
+      }
+    };
+
+    // Protect all admin API endpoints
+    this.app.get('/api/admin/users/stats', adminApiAuth, async (req, res) => {
       try {
         const users = await this.oauthXService.db.getAllUsers();
         let total = users.length;
@@ -510,7 +562,7 @@ class EnhancedBackend {
     });
 
     // Admin: Set user as free (non-premium)
-    this.app.post('/api/admin/users/:username/set-free', async (req, res) => {
+    this.app.post('/api/admin/users/:username/set-free', adminApiAuth, async (req, res) => {
       try {
         const { username } = req.params;
         console.log(`🔍 Admin: Setting user '${username}' as free`);
@@ -567,7 +619,7 @@ class EnhancedBackend {
       }
     });
 
-    this.app.get('/api/admin/users', async (req, res) => {
+    this.app.get('/api/admin/users', adminApiAuth, async (req, res) => {
       try {
         const users = await this.oauthXService.db.getAllUsers();
         const enriched = [];
@@ -593,7 +645,7 @@ class EnhancedBackend {
     });
 
     // Admin: Upgrade a user to premium bypassing payment
-    this.app.post('/api/admin/users/:id/upgrade', async (req, res) => {
+    this.app.post('/api/admin/users/:id/upgrade', adminApiAuth, async (req, res) => {
       try {
         const { id } = req.params;
         const { durationDays = 30, subscriptionType = 'admin_grant' } = req.body || {};
@@ -615,7 +667,7 @@ class EnhancedBackend {
     });
 
     // Admin: Earnings endpoints
-    this.app.get('/api/admin/earnings/summary', async (req, res) => {
+    this.app.get('/api/admin/earnings/summary', adminApiAuth, async (req, res) => {
       try {
         const summary = await this.oauthXService.db.getEarningsSummary();
         res.json({ success: true, summary });
@@ -625,7 +677,7 @@ class EnhancedBackend {
       }
     });
 
-    this.app.get('/api/admin/earnings', async (req, res) => {
+    this.app.get('/api/admin/earnings', adminApiAuth, async (req, res) => {
       try {
         const list = await this.oauthXService.db.getEarnings();
         res.json({ success: true, earnings: list });
@@ -818,7 +870,7 @@ class EnhancedBackend {
     });
 
     // Admin: KOL calls summary/debug endpoint
-    this.app.get('/api/admin/kol-calls/summary', async (req, res) => {
+    this.app.get('/api/admin/kol-calls/summary', adminApiAuth, async (req, res) => {
       try {
         // Load all KOL calls
         const allKolCalls = await this.oauthXService.db.getAllKolCalls();
@@ -875,7 +927,7 @@ class EnhancedBackend {
     });
 
     // Admin: Referral codes
-    this.app.get('/api/admin/referrals', async (req, res) => {
+    this.app.get('/api/admin/referrals', adminApiAuth, async (req, res) => {
       try {
         const list = await this.oauthXService.db.listReferralCodes();
         res.json({ success: true, referrals: list });
@@ -885,7 +937,7 @@ class EnhancedBackend {
       }
     });
 
-    this.app.post('/api/admin/referrals', async (req, res) => {
+    this.app.post('/api/admin/referrals', adminApiAuth, async (req, res) => {
       try {
         const { ownerUserId = 'admin', code, maxUses = 30 } = req.body || {};
         const created = await this.oauthXService.db.createReferralCode({ ownerUserId, code, maxUses });
@@ -1961,7 +2013,7 @@ class EnhancedBackend {
       }
     });
 
-    this.app.post('/api/admin/take-snapshot', async (req, res) => {
+    this.app.post('/api/admin/take-snapshot', adminApiAuth, async (req, res) => {
       try {
         console.log('📸 Manual snapshot request...');
         
@@ -2411,7 +2463,7 @@ class EnhancedBackend {
     });
 
     // Admin: Check which users have refresh tokens
-    this.app.get('/api/admin/users/refresh-token-status', async (req, res) => {
+    this.app.get('/api/admin/users/refresh-token-status', adminApiAuth, async (req, res) => {
       try {
         const users = await this.db.getAllUsers();
         const userStatus = [];
@@ -2447,7 +2499,7 @@ class EnhancedBackend {
     });
 
     // User: Get users with expired Twitter tokens (for admin)
-    this.app.get('/api/admin/twitter/expired-tokens', async (req, res) => {
+    this.app.get('/api/admin/twitter/expired-tokens', adminApiAuth, async (req, res) => {
       try {
         const users = await this.oauthXService.db.getAllUsers();
         const usersWithExpiredTokens = [];
@@ -2482,7 +2534,7 @@ class EnhancedBackend {
     });
 
     // Admin: Automatically refresh all Twitter tokens
-    this.app.post('/api/admin/twitter/refresh-all-tokens', async (req, res) => {
+    this.app.post('/api/admin/twitter/refresh-all-tokens', adminApiAuth, async (req, res) => {
       try {
         const users = await this.oauthXService.db.getAllUsers();
         const results = {
@@ -5373,7 +5425,7 @@ class EnhancedBackend {
     // ========================================
 
     // Admin: Add token for FREE (bypass payment) - CONTRACT ADDRESS ONLY
-    this.app.post('/api/admin/tokens/add-free', async (req, res) => {
+    this.app.post('/api/admin/tokens/add-free', adminApiAuth, async (req, res) => {
       try {
         const { symbol, name, contractAddress, socialLinks } = req.body;
 
@@ -5602,7 +5654,7 @@ class EnhancedBackend {
     });
 
     // Admin: Search tokens in database
-    this.app.get('/api/admin/tokens/search', async (req, res) => {
+    this.app.get('/api/admin/tokens/search', adminApiAuth, async (req, res) => {
       try {
         const { q, limit = 50 } = req.query;
         
@@ -5660,7 +5712,7 @@ class EnhancedBackend {
     });
 
     // Admin: Fuel tokens (boost processing priority)
-    this.app.post('/api/admin/tokens/fuel', async (req, res) => {
+    this.app.post('/api/admin/tokens/fuel', adminApiAuth, async (req, res) => {
       try {
         const { symbols } = req.body;
         
@@ -5721,7 +5773,7 @@ class EnhancedBackend {
     });
 
     // Admin: Smart Twitter refresh for specific token (with deduplication)
-    this.app.post('/api/admin/tokens/:symbol/smart-refresh-twitter', async (req, res) => {
+    this.app.post('/api/admin/tokens/:symbol/smart-refresh-twitter', adminApiAuth, async (req, res) => {
       try {
         const { symbol } = req.params;
         console.log(`[🛡️ Admin] 🧠 Smart Twitter refresh for identifier: ${symbol}`);
@@ -5807,7 +5859,7 @@ class EnhancedBackend {
     });
 
     // Admin: Manual Twitter refresh for specific token
-    this.app.post('/api/admin/tokens/:symbol/refresh-twitter', async (req, res) => {
+    this.app.post('/api/admin/tokens/:symbol/refresh-twitter', adminApiAuth, async (req, res) => {
       try {
         const { symbol } = req.params; // may be a symbol or a contract address
         console.log(`[🛡️ Admin] 🐦 Manual Twitter refresh for identifier: ${symbol}`);
@@ -6007,7 +6059,7 @@ class EnhancedBackend {
     });
 
     // Admin: Get Twitter API status and rate limits
-    this.app.get('/api/admin/twitter/status', async (req, res) => {
+    this.app.get('/api/admin/twitter/status', adminApiAuth, async (req, res) => {
       try {
         // Ensure social data service is initialized
         if (!this.tokenProcessor.socialDataService) {
@@ -6209,7 +6261,7 @@ class EnhancedBackend {
     });
 
     // Start queued refresh
-    this.app.post('/api/admin/twitter/refresh-all/start', async (req, res) => {
+    this.app.post('/api/admin/twitter/refresh-all/start', adminApiAuth, async (req, res) => {
       try {
         const socialService = await ensureSocialService();
 
@@ -6280,7 +6332,7 @@ class EnhancedBackend {
     });
 
     // Job status
-    this.app.get('/api/admin/twitter/refresh-all/status', (req, res) => {
+    this.app.get('/api/admin/twitter/refresh-all/status', adminApiAuth, (req, res) => {
       const job = this.twitterRefreshJob || { running: false };
       
       // Calculate next break info (aligned to new policy)
@@ -6325,7 +6377,7 @@ class EnhancedBackend {
     });
 
     // Stop job
-    this.app.post('/api/admin/twitter/refresh-all/stop', (req, res) => {
+    this.app.post('/api/admin/twitter/refresh-all/stop', adminApiAuth, (req, res) => {
       if (this.twitterRefreshJob) this.twitterRefreshJob.running = false;
       res.json({ success: true, message: 'Twitter refresh stopped' });
     });
@@ -6333,7 +6385,7 @@ class EnhancedBackend {
     // === NEW: Twitter API Usage Management ===
     
     // Get Twitter API usage statistics
-    this.app.get('/api/admin/twitter/usage', async (req, res) => {
+    this.app.get('/api/admin/twitter/usage', adminApiAuth, async (req, res) => {
       try {
         // Ensure social data service is initialized
         if (!this.tokenProcessor.socialDataService) {
@@ -6362,7 +6414,7 @@ class EnhancedBackend {
     });
     
     // Reset Twitter API monthly counter
-    this.app.post('/api/admin/twitter/reset-counter', async (req, res) => {
+    this.app.post('/api/admin/twitter/reset-counter', adminApiAuth, async (req, res) => {
       try {
         const socialService = this.tokenProcessor?.socialDataService;
         if (!socialService?.twitterApiManager) {
@@ -6386,7 +6438,7 @@ class EnhancedBackend {
     });
 
     // Admin endpoint for AI prediction cache statistics
-    this.app.get('/api/admin/ai-predictions/stats', async (req, res) => {
+    this.app.get('/api/admin/ai-predictions/stats', adminApiAuth, async (req, res) => {
       try {
         const stats = this.aiHypePrediction.getCacheStats();
         
@@ -6410,7 +6462,7 @@ class EnhancedBackend {
     });
 
     // Admin endpoint to clean expired AI prediction cache
-    this.app.post('/api/admin/ai-predictions/clean', async (req, res) => {
+    this.app.post('/api/admin/ai-predictions/clean', adminApiAuth, async (req, res) => {
       try {
         await this.aiHypePrediction.cleanExpiredCache();
         const stats = this.aiHypePrediction.getCacheStats();
@@ -6432,7 +6484,7 @@ class EnhancedBackend {
     });
 
     // Admin endpoint to clear ALL AI prediction cache (force fresh predictions)
-    this.app.post('/api/admin/ai-predictions/clear-all', async (req, res) => {
+    this.app.post('/api/admin/ai-predictions/clear-all', adminApiAuth, async (req, res) => {
       try {
         // Clear the in-memory cache
         this.aiHypePrediction.predictionCache.clear();
@@ -6464,7 +6516,7 @@ class EnhancedBackend {
     });
     
     // Emergency mode controls
-    this.app.post('/api/admin/twitter/emergency-mode/:action', async (req, res) => {
+    this.app.post('/api/admin/twitter/emergency-mode/:action', adminApiAuth, async (req, res) => {
       try {
         const { action } = req.params; // 'activate' or 'deactivate'
         
@@ -6490,7 +6542,7 @@ class EnhancedBackend {
     });
 
     // Admin: Recalculate all token scores (no API calls)
-    this.app.post('/api/admin/recalculate-all-scores', async (req, res) => {
+    this.app.post('/api/admin/recalculate-all-scores', adminApiAuth, async (req, res) => {
       try {
         console.log('[🛡️ Admin] 🧮 RECALCULATING ALL TOKEN SCORES...');
         
@@ -6581,7 +6633,7 @@ class EnhancedBackend {
     });
 
     // Admin: Restart backend
-    this.app.post('/api/admin/restart/backend', (req, res) => {
+    this.app.post('/api/admin/restart/backend', adminApiAuth, (req, res) => {
       try {
         console.log('[🛡️ Admin] 🔄 BACKEND RESTART REQUESTED');
         
@@ -6603,7 +6655,7 @@ class EnhancedBackend {
     });
 
     // Admin: Restart frontend (placeholder - requires frontend implementation)
-    this.app.post('/api/admin/restart/frontend', (req, res) => {
+    this.app.post('/api/admin/restart/frontend', adminApiAuth, (req, res) => {
       try {
         console.log('[🛡️ Admin] 🔄 FRONTEND RESTART REQUESTED');
         
@@ -6630,7 +6682,7 @@ class EnhancedBackend {
     // === LOG ACCESS ENDPOINTS ===
     
     // Admin: Get recent server logs
-    this.app.get('/api/admin/logs/recent', async (req, res) => {
+    this.app.get('/api/admin/logs/recent', adminApiAuth, async (req, res) => {
       try {
         const { lines = 100, level = 'all' } = req.query;
         const logLines = parseInt(lines);
@@ -6658,7 +6710,7 @@ class EnhancedBackend {
     });
     
     // Debug endpoint to check log file path and contents
-    this.app.get('/api/admin/logs/debug', async (req, res) => {
+    this.app.get('/api/admin/logs/debug', adminApiAuth, async (req, res) => {
       try {
         const logFile = '/var/data/logs/app.log';
         
@@ -6695,7 +6747,7 @@ class EnhancedBackend {
     });
 
     // Better Stack logs query endpoint for troubleshooting (ClickHouse HTTP API)
-    this.app.get('/api/admin/logs/betterstack', async (req, res) => {
+    this.app.get('/api/admin/logs/betterstack', adminApiAuth, async (req, res) => {
       try {
         const { 
           sourceId = 't458780_dgo_backend', 
@@ -6790,7 +6842,7 @@ class EnhancedBackend {
     });
 
     // Better Stack sources endpoint
-    this.app.get('/api/admin/logs/betterstack/sources', async (req, res) => {
+    this.app.get('/api/admin/logs/betterstack/sources', adminApiAuth, async (req, res) => {
       try {
         const username = process.env.BETTER_STACK_USERNAME;
         const password = process.env.BETTER_STACK_PASSWORD;
@@ -6843,7 +6895,7 @@ class EnhancedBackend {
     });
     
     // Admin: Get error logs only
-    this.app.get('/api/admin/logs/errors', async (req, res) => {
+    this.app.get('/api/admin/logs/errors', adminApiAuth, async (req, res) => {
       try {
         const { lines = 50 } = req.query;
         const logLines = parseInt(lines);
@@ -6870,7 +6922,7 @@ class EnhancedBackend {
     });
     
     // Admin: Get system logs (startup, deployment, etc.)
-    this.app.get('/api/admin/logs/system', async (req, res) => {
+    this.app.get('/api/admin/logs/system', adminApiAuth, async (req, res) => {
       try {
         const { lines = 100 } = req.query;
         const logLines = parseInt(lines);
@@ -6897,7 +6949,7 @@ class EnhancedBackend {
     });
     
     // Admin: Get processing logs
-    this.app.get('/api/admin/logs/processing', async (req, res) => {
+    this.app.get('/api/admin/logs/processing', adminApiAuth, async (req, res) => {
       try {
         const { lines = 100 } = req.query;
         const logLines = parseInt(lines);
@@ -6924,7 +6976,7 @@ class EnhancedBackend {
     });
     
     // Admin: Get database logs
-    this.app.get('/api/admin/logs/database', async (req, res) => {
+    this.app.get('/api/admin/logs/database', adminApiAuth, async (req, res) => {
       try {
         const { lines = 100 } = req.query;
         const logLines = parseInt(lines);
@@ -6951,7 +7003,7 @@ class EnhancedBackend {
     });
     
     // Admin: Export logs to file
-    this.app.get('/api/admin/logs/export', async (req, res) => {
+    this.app.get('/api/admin/logs/export', adminApiAuth, async (req, res) => {
       try {
         const { lines = 1000, level = 'all', format = 'json' } = req.query;
         const logLines = parseInt(lines);
@@ -7081,7 +7133,7 @@ class EnhancedBackend {
       }
     });
 
-    this.app.post('/api/admin/jupiter/refresh-all', async (req, res) => {
+    this.app.post('/api/admin/jupiter/refresh-all', adminApiAuth, async (req, res) => {
       try {
         console.log('🔄 Starting Jupiter refresh for all tokens (with batch processing)...');
 
@@ -7236,7 +7288,7 @@ class EnhancedBackend {
       }
     });
 
-    this.app.post('/api/admin/jupiter/refresh/:contractAddress', async (req, res) => {
+    this.app.post('/api/admin/jupiter/refresh/:contractAddress', adminApiAuth, async (req, res) => {
       try {
         const { contractAddress } = req.params;
 
@@ -8076,7 +8128,7 @@ class EnhancedBackend {
     });
 
     // Jupiter API Management
-    this.app.post('/api/admin/jupiter/clear-cache', async (req, res) => {
+    this.app.post('/api/admin/jupiter/clear-cache', adminApiAuth, async (req, res) => {
       try {
         const { default: jupiterApiService } = await import('./jupiterApiService.js');
         jupiterApiService.clearCache();
@@ -8102,7 +8154,7 @@ class EnhancedBackend {
     });
 
     // Jupiter API Batch Refresh for specific contracts
-    this.app.post('/api/admin/jupiter/refresh-batch', async (req, res) => {
+    this.app.post('/api/admin/jupiter/refresh-batch', adminApiAuth, async (req, res) => {
       try {
         const { contractAddresses } = req.body;
 
@@ -8190,7 +8242,7 @@ class EnhancedBackend {
     });
 
     // EMERGENCY: Cache restore endpoint
-    this.app.post('/api/admin/cache/emergency-restore', async (req, res) => {
+    this.app.post('/api/admin/cache/emergency-restore', adminApiAuth, async (req, res) => {
       try {
         console.log('🚨 EMERGENCY CACHE RESTORE REQUESTED');
         
@@ -8296,7 +8348,7 @@ class EnhancedBackend {
     // ===== ENHANCED BACKUP SYSTEM API ENDPOINTS =====
     
     // Get comprehensive backup status
-    this.app.get('/api/admin/backup/status', async (req, res) => {
+    this.app.get('/api/admin/backup/status', adminApiAuth, async (req, res) => {
       try {
         if (!this.backupIntegration) {
           return res.status(503).json({
@@ -8323,7 +8375,7 @@ class EnhancedBackend {
     });
 
     // List all available snapshots
-    this.app.get('/api/admin/backup/snapshots', async (req, res) => {
+    this.app.get('/api/admin/backup/snapshots', adminApiAuth, async (req, res) => {
       try {
         if (!this.backupIntegration) {
           return res.status(503).json({
@@ -8350,7 +8402,7 @@ class EnhancedBackend {
     });
 
     // Create manual snapshot
-    this.app.post('/api/admin/backup/create', async (req, res) => {
+    this.app.post('/api/admin/backup/create', adminApiAuth, async (req, res) => {
       try {
         if (!this.backupIntegration) {
           return res.status(503).json({
@@ -8385,7 +8437,7 @@ class EnhancedBackend {
     });
 
     // Restore from specific snapshot
-    this.app.post('/api/admin/backup/restore', async (req, res) => {
+    this.app.post('/api/admin/backup/restore', adminApiAuth, async (req, res) => {
       try {
         if (!this.backupIntegration) {
           return res.status(503).json({
@@ -8427,7 +8479,7 @@ class EnhancedBackend {
     });
 
     // Cache-only restore endpoint (restores only tokens-cache.json)
-    this.app.post('/api/admin/backup/restore-cache', async (req, res) => {
+    this.app.post('/api/admin/backup/restore-cache', adminApiAuth, async (req, res) => {
       try {
         const { snapshotId } = req.body;
         
@@ -8491,7 +8543,7 @@ class EnhancedBackend {
     });
 
     // Get backup system health
-    this.app.get('/api/admin/backup/health', async (req, res) => {
+    this.app.get('/api/admin/backup/health', adminApiAuth, async (req, res) => {
       try {
         if (!this.backupIntegration) {
           return res.status(503).json({
@@ -8517,7 +8569,7 @@ class EnhancedBackend {
     });
 
     // Force cleanup old snapshots
-    this.app.post('/api/admin/backup/cleanup', async (req, res) => {
+    this.app.post('/api/admin/backup/cleanup', adminApiAuth, async (req, res) => {
       try {
         if (!this.backupIntegration) {
           return res.status(503).json({
@@ -8546,7 +8598,7 @@ class EnhancedBackend {
     });
 
     // Start/Stop backup service
-    this.app.post('/api/admin/backup/service/:action', async (req, res) => {
+    this.app.post('/api/admin/backup/service/:action', adminApiAuth, async (req, res) => {
       try {
         const { action } = req.params; // 'start' or 'stop'
         
@@ -8598,7 +8650,7 @@ class EnhancedBackend {
     });
 
     // DIAGNOSTIC: Cache investigation endpoint
-    this.app.get('/api/admin/cache/diagnostic', async (req, res) => {
+    this.app.get('/api/admin/cache/diagnostic', adminApiAuth, async (req, res) => {
       try {
         console.log('🔍 PRODUCTION CACHE DIAGNOSTIC REQUESTED');
         
@@ -8698,7 +8750,7 @@ class EnhancedBackend {
       }
     });
 
-    this.app.get('/api/admin/system/status', async (req, res) => {
+    this.app.get('/api/admin/system/status', adminApiAuth, async (req, res) => {
       try {
         const processingStatus = this.tokenProcessor.getProcessingStatus();
         const tokens = await this.getTokensFromCache();
@@ -8765,7 +8817,7 @@ class EnhancedBackend {
     });
 
     // Manual Twitter Data Merge endpoint (NO API CALLS)
-    this.app.post('/api/admin/twitter/manual-merge', async (req, res) => {
+    this.app.post('/api/admin/twitter/manual-merge', adminApiAuth, async (req, res) => {
       try {
         console.log('[🛡️ Admin] 🔄 Manual Twitter Data Merge requested');
         
@@ -8797,7 +8849,7 @@ class EnhancedBackend {
     });
 
     // Get Twitter Data Merge Status
-    this.app.get('/api/admin/twitter/merge-status', async (req, res) => {
+    this.app.get('/api/admin/twitter/merge-status', adminApiAuth, async (req, res) => {
       try {
         console.log('[🛡️ Admin] 📊 Twitter Data Merge Status requested');
         
@@ -8826,7 +8878,7 @@ class EnhancedBackend {
     });
 
     // Toggle Automatic Twitter Data Merge
-    this.app.post('/api/admin/twitter/toggle-automatic-merge', async (req, res) => {
+    this.app.post('/api/admin/twitter/toggle-automatic-merge', adminApiAuth, async (req, res) => {
       try {
         console.log('[🛡️ Admin] 🤖 Toggle Automatic Twitter Data Merge requested');
         
