@@ -753,7 +753,10 @@ class EnhancedBackend {
         const { fuelType, symbol } = req.params;
         console.log(`[🛡️ Enhanced Backend] 🔥 Fuel sharing page requested: ${fuelType}/${symbol}`);
         
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        // Handle both main domain and API domain
+        const host = req.get('host');
+        const isMainDomain = host === 'degen-oracle.com' || host === 'www.degen-oracle.com';
+        const baseUrl = isMainDomain ? 'https://api.degen-oracle.com' : `${req.protocol}://${host}`;
         const imageUrl = `${baseUrl}/api/fuel-image/${fuelType}/${symbol}`;
         
         // Always serve meta tags for previews, redirect users with JavaScript
