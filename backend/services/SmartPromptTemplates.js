@@ -406,7 +406,9 @@ Please provide information about this Solana token. Use crypto slang and be enga
           prompt += `\n  * Complete Watchlist Performance (best to worst):`;
           tokens.forEach((token, index) => {
             const multiplierText = token.multiplier ? `${token.multiplier.toFixed(2)}x` : 'No data';
-            prompt += `\n    ${index + 1}. ${token.symbol}: ${multiplierText} (${token.status}) [${token.trending}]`;
+            const priceText = token.currentPrice ? `$${token.currentPrice.toFixed(6)}` : 'Unknown price';
+            const mcText = token.currentMC ? `$${(token.currentMC/1e6).toFixed(1)}M` : 'Unknown MC';
+            prompt += `\n    ${index + 1}. ${token.symbol}: ${multiplierText} (${token.status}) [${token.trending}] - Price: ${priceText}, MC: ${mcText}`;
           });
         }
       }
@@ -462,7 +464,9 @@ Please provide information about this Solana token. Use crypto slang and be enga
         prompt += `\n  * Complete Watchlist Performance (best to worst):`;
         tokens.forEach((token, index) => {
           const multiplierText = token.multiplier ? `${token.multiplier.toFixed(2)}x` : 'No data';
-          prompt += `\n    ${index + 1}. ${token.symbol}: ${multiplierText} (${token.status}) [${token.trending}]`;
+          const priceText = token.currentPrice ? `$${token.currentPrice.toFixed(6)}` : 'Unknown price';
+          const mcText = token.currentMC ? `$${(token.currentMC/1e6).toFixed(1)}M` : 'Unknown MC';
+          prompt += `\n    ${index + 1}. ${token.symbol}: ${multiplierText} (${token.status}) [${token.trending}] - Price: ${priceText}, MC: ${mcText}`;
         });
       }
     }
