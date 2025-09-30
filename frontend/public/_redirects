@@ -1,2 +1,6 @@
-# Fuel sharing is now handled by backend API
-# /fuel/:fuelType/:symbol is served by backend with dynamic meta tags
+# Fuel page redirects - handle dynamic fuel URLs
+/fuel/* /fuel.html 200
+
+# Other redirects
+/api/* https://api.degen-oracle.com/api/:splat 200
+/admin-dashboard.html https://api.degen-oracle.com/admin-dashboard.html 200
