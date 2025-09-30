@@ -636,7 +636,32 @@ class MoralisAIChatService {
     try {
       console.log(`📊 Fetching comprehensive data for token: ${contractAddress}`);
       
-      // Just return the contract address - Moralis Cortex will get all the data
+      // First try to get token data from the token cache
+      if (this.backendInstance) {
+        try {
+          const tokens = await this.backendInstance.getTokensFromCache();
+          const token = tokens.find(t => t.contractAddress === contractAddress);
+          
+          if (token) {
+            console.log(`✅ Found token in cache: ${token.symbol} (${token.name})`);
+            return {
+              analytics: {
+                symbol: token.symbol,
+                name: token.name,
+                price: token.price || token.jupiterData?.price,
+                marketCap: token.marketCap || token.jupiterData?.marketCap,
+                volume24h: token.volume24h || token.jupiterData?.volume24h
+              },
+              holders: token.holderCount || token.jupiterData?.holderCount,
+              contractAddress
+            };
+          }
+        } catch (cacheError) {
+          console.log(`⚠️ Error accessing token cache: ${cacheError.message}`);
+        }
+      }
+      
+      // Fallback: return basic structure with contract address
       return {
         analytics: null,
         holders: null,
