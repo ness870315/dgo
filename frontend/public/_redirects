@@ -1,2 +1,2 @@
-# Fuel sharing redirects for Twitter link previews
-/fuel/:fuelType/:symbol https://api.degen-oracle.com/fuel/:fuelType/:symbol 301
+# Fuel sharing redirects - serve fuel-sharing.html for all fuel URLs
+/fuel/* /fuel-sharing.html 200
