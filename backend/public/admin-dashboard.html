@@ -846,13 +846,21 @@
             return `<div class="alert ${alertClass}">${message}</div>`;
         }
 
+        // Helper function for admin API calls with credentials
+        function adminFetch(url, options = {}) {
+            return fetch(url, {
+                ...options,
+                credentials: 'include'
+            });
+        }
+
         // Users Management
         async function loadUsersStats() {
             const statsDiv = document.getElementById('usersStats');
             statsDiv.style.display = 'block';
             statsDiv.innerHTML = showLoading();
             try {
-                const res = await fetch(`${API_BASE}/api/admin/users/stats`);
+                const res = await adminFetch(`${API_BASE}/api/admin/users/stats`);
                 const data = await res.json();
                 if (!data.success) throw new Error(data.error || 'Failed');
                 statsDiv.innerHTML = `
@@ -870,7 +878,7 @@
             listDiv.style.display = 'block';
             listDiv.innerHTML = showLoading();
             try {
-                const res = await fetch(`${API_BASE}/api/admin/users`);
+                const res = await adminFetch(`${API_BASE}/api/admin/users`);
                 const data = await res.json();
                 if (!data.success) throw new Error(data.error || 'Failed');
                 if (!Array.isArray(data.users) || data.users.length === 0) {
@@ -913,7 +921,7 @@
             }
             resultDiv.innerHTML = showLoading();
             try {
-                const res = await fetch(`${API_BASE}/api/admin/users/${encodeURIComponent(id)}/upgrade`, {
+                const res = await adminFetch(`${API_BASE}/api/admin/users/${encodeURIComponent(id)}/upgrade`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ durationDays })
@@ -934,7 +942,7 @@
             div.style.display = 'block';
             div.innerHTML = showLoading();
             try {
-                const res = await fetch(`${API_BASE}/api/admin/earnings/summary`);
+                const res = await adminFetch(`${API_BASE}/api/admin/earnings/summary`);
                 const data = await res.json();
                 if (!data.success) throw new Error(data.error || 'Failed');
                 const s = data.summary;

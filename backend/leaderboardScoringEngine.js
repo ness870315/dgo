@@ -17,7 +17,7 @@ export default class LeaderboardScoringEngine {
       logisticCenter: 0,
 
       // Hit rate parameters
-      hitRateTarget: 1.0, // 1x multiple for hit rate (profitable calls)
+      hitRateTarget: 1.0, // 1x multiple for hit rate (break-even or better calls)
       hitRateWindow: 720, // hours (30 days)
       wilsonConfidence: 0.95,
 
@@ -51,6 +51,10 @@ export default class LeaderboardScoringEngine {
     // X multiple (prioritize lowercase 'c' as that's how it's saved)
     const calledMC = Number(call.calledMc || call.calledMC || 0);
     const currentMC = Number(currentData?.mcap || currentData?.marketCap || call.currentMC || 0);
+    
+    // ATH multiple for hit rate calculation (use ATH performance, not current)
+    const athMC = call.athMC || (call.athMultiplier && calledMC ? call.athMultiplier * calledMC : currentMC);
+    const athMultiple = calledMC > 0 ? athMC / calledMC : 0;
 
     if (!calledMC || !currentMC || calledMC <= 0) {
       console.log(`🏆 Skipping call (invalid MC): calledMC=${calledMC}, currentMC=${currentMC}`);
@@ -82,6 +86,7 @@ export default class LeaderboardScoringEngine {
     return {
       callId: call.id,
       xMultiple,
+      athMultiple, // Add ATH multiple for hit rate calculation
       logReturn,
       ddWeight,
       mcapWeight,
@@ -91,6 +96,7 @@ export default class LeaderboardScoringEngine {
       ageHours,
       calledMC,
       currentMC,
+      athMC, // Add ATH MC for reference
       maxDrawdown
     };
   }
@@ -127,18 +133,18 @@ export default class LeaderboardScoringEngine {
 
       // Hit rate tracking (no time window - all calls count)
       hitRateCalls++;
-      const isHit = call.xMultiple >= this.config.hitRateTarget;
+      const isHit = call.athMultiple >= this.config.hitRateTarget;
       if (isHit) {
         hitRateHits++;
       }
       
-      console.log(`🏆 Hit Rate Check: XMultiple=${call.xMultiple?.toFixed(2)}x, Target=${this.config.hitRateTarget}, IsHit=${isHit}`);
+      console.log(`🏆 Hit Rate Check: ATHMultiple=${call.athMultiple?.toFixed(2)}x, Target=${this.config.hitRateTarget}, IsHit=${isHit}`);
 
       // X multiples for median/geomean
       xMultiples.push(call.xMultiple);
 
-      // Time to 2x tracking
-      if (call.xMultiple >= 2.0) {
+      // Time to 2x tracking (use ATH multiple for consistency)
+      if (call.athMultiple >= 2.0) {
         timeTo2x.push(call.ageHours);
       }
     });
