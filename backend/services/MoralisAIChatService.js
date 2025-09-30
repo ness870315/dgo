@@ -665,7 +665,11 @@ class MoralisAIChatService {
                 name: token.name?.trim() || 'Unknown',
                 price: finalPrice,
                 marketCap: finalMC,
-                volume24h: token.volume24h || token.jupiterData?.volume24h
+                volume24h: token.volume24h || token.jupiterData?.volume24h,
+                overallScore: token.overallScore || token.enhancedScore || 0,
+                enhancedScore: token.enhancedScore || token.overallScore || 0,
+                communityHealthScore: token.communityHealthScore || 0,
+                mentions: token.mentions || token.twitterData?.mentions || 0
               },
               holders: token.holderCount || token.jupiterData?.holderCount,
               contractAddress
@@ -1802,6 +1806,7 @@ class MoralisAIChatService {
           multiplier: multiplier,
           status: status,
           trending: trendingStatus,
+          overallScore: currentData?.analytics?.overallScore || currentData?.analytics?.enhancedScore || 0,
           daysSinceAdded: token.addedAt ? Math.floor((Date.now() - new Date(token.addedAt).getTime()) / (1000 * 60 * 60 * 24)) : null
         };
 
@@ -1839,11 +1844,12 @@ class MoralisAIChatService {
     
     const score = tokenData.analytics.overallScore || tokenData.analytics.enhancedScore || 0;
     
-    if (score >= 8.5) return 'Viral';
-    else if (score >= 7.5) return 'Trending';
-    else if (score >= 6.5) return 'Building';
-    else if (score >= 5.5) return 'Waking Up';
-    else return 'Sleeping';
+    // Match the getHypeLabel thresholds exactly
+    if (score >= 9.0) return 'VIRAL';
+    else if (score >= 8.0) return 'TRENDING';
+    else if (score >= 7.0) return 'BUILDING';
+    else if (score >= 5.0) return 'WAKING UP';
+    else return 'SLEEPING';
   }
 
   /**
