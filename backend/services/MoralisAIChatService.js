@@ -1129,6 +1129,7 @@ class MoralisAIChatService {
    * Main chat method - processes user question with personalized context
    */
   async chat(userId, userPrompt, conversationHistory = []) {
+    const startTime = Date.now(); // Track response time
     try {
       console.log(`🤖 AI Chat request from user ${userId}: "${userPrompt.substring(0, 100)}..."`);
 
