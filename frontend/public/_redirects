@@ -1,2 +1,2 @@
-# Fuel sharing is now handled by Cloudflare Functions
-# /fuel/:fuelType/:symbol is served by functions/fuel/[fuelType]/[symbol].js
+# Fuel sharing redirects - serve fuel-sharing.html for all fuel URLs
+/fuel/* /fuel-sharing.html 200

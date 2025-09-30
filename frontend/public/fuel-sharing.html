@@ -82,14 +82,45 @@
 </head>
 <body>
     <div class="container">
-        <h1>🔥 Fuel Sharing</h1>
-        <p class="subtitle">Someone just fueled a token on Degen Oracle!</p>
-        <img src="https://api.degen-oracle.com/api/fuel-image/10x/EXAMPLE" alt="Fuel Sharing" class="fuel-image" onerror="this.style.display='none'">
+        <h1 id="fuel-title">🔥 Fuel Sharing</h1>
+        <p class="subtitle" id="fuel-subtitle">Someone just fueled a token on Degen Oracle!</p>
+        <img id="fuel-image" src="https://api.degen-oracle.com/api/fuel-image/10x/EXAMPLE" alt="Fuel Sharing" class="fuel-image" onerror="this.style.display='none'">
         <p>The degen army is assembling! 🚀</p>
         <a href="https://degen-oracle.com" class="cta-button">Join the Oracle</a>
     </div>
     
     <script>
+        // Extract fuel type and symbol from URL
+        const pathParts = window.location.pathname.split('/');
+        if (pathParts.length >= 4 && pathParts[1] === 'fuel') {
+            const fuelType = pathParts[2];
+            const symbol = pathParts[3];
+            
+            // Update the page content
+            document.title = `🔥 ${symbol} ${fuelType} Fuel - Degen Oracle`;
+            document.getElementById('fuel-title').textContent = `🔥 ${symbol} ${fuelType} Fuel`;
+            document.getElementById('fuel-subtitle').textContent = `Someone just fueled #${symbol} with ${fuelType} boost on Degen Oracle!`;
+            
+            // Update meta tags
+            const imageUrl = `https://api.degen-oracle.com/api/fuel-image/${fuelType}/${symbol}`;
+            document.getElementById('fuel-image').src = imageUrl;
+            document.getElementById('fuel-image').alt = `${symbol} ${fuelType} Fuel`;
+            
+            // Update Open Graph meta tags
+            document.querySelector('meta[property="og:url"]').setAttribute('content', `https://degen-oracle.com/fuel/${fuelType}/${symbol}`);
+            document.querySelector('meta[property="og:title"]').setAttribute('content', `🔥 ${symbol} ${fuelType} Fuel - Degen Oracle`);
+            document.querySelector('meta[property="og:description"]').setAttribute('content', `Someone just fueled #${symbol} with ${fuelType} boost on Degen Oracle! The degen army is assembling! 🚀`);
+            document.querySelector('meta[property="og:image"]').setAttribute('content', imageUrl);
+            document.querySelector('meta[property="og:image:alt"]').setAttribute('content', `${symbol} ${fuelType} Fuel Image`);
+            
+            // Update Twitter meta tags
+            document.querySelector('meta[name="twitter:url"]').setAttribute('content', `https://degen-oracle.com/fuel/${fuelType}/${symbol}`);
+            document.querySelector('meta[name="twitter:title"]').setAttribute('content', `🔥 ${symbol} ${fuelType} Fuel - Degen Oracle`);
+            document.querySelector('meta[name="twitter:description"]').setAttribute('content', `Someone just fueled #${symbol} with ${fuelType} boost on Degen Oracle! The degen army is assembling! 🚀`);
+            document.querySelector('meta[name="twitter:image"]').setAttribute('content', imageUrl);
+            document.querySelector('meta[name="twitter:image:alt"]').setAttribute('content', `${symbol} ${fuelType} Fuel Image`);
+        }
+        
         // Redirect users to main site after a short delay
         setTimeout(function() {
             window.location.href = 'https://degen-oracle.com';
