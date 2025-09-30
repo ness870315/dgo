@@ -767,19 +767,11 @@ class EnhancedBackend {
         const { fuelType, symbol } = req.params;
         console.log(`[🛡️ Enhanced Backend] 🔥 Fuel sharing page requested: ${fuelType}/${symbol}`);
         
-        // Check if this is a bot/crawler (Twitter, Facebook, etc.)
-        const userAgent = req.headers['user-agent'] || '';
-        const isBot = /bot|crawler|spider|crawling|facebook|twitter|linkedin|whatsapp|telegram|slack|discord/i.test(userAgent);
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const imageUrl = `${baseUrl}/api/fuel-image/${fuelType}/${symbol}`;
         
-        console.log(`[🛡️ Enhanced Backend] 🔍 User-Agent: ${userAgent}`);
-        console.log(`[🛡️ Enhanced Backend] 🤖 Is Bot: ${isBot}`);
-        
-        if (isBot) {
-          // Serve meta tags for bots/crawlers
-          const baseUrl = `${req.protocol}://${req.get('host')}`;
-          const imageUrl = `${baseUrl}/api/fuel-image/${fuelType}/${symbol}`;
-        
-          const html = `
+        // Always serve meta tags for previews, redirect users with JavaScript
+        const html = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -808,19 +800,80 @@ class EnhancedBackend {
     <meta name="twitter:image" content="${imageUrl}">
     <meta name="twitter:image:alt" content="${symbol} ${fuelType} Fuel Image">
     <meta name="twitter:domain" content="degen-oracle.com">
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 600px;
+            color: #333;
+        }
+        .fuel-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 18px;
+            margin-bottom: 30px;
+        }
+        .cta-button {
+            background: linear-gradient(45deg, #ff6b6b, #ffa500);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.2s;
+        }
+        .cta-button:hover {
+            transform: translateY(-2px);
+        }
+    </style>
 </head>
 <body>
-    <script>window.location.href = 'https://degen-oracle.com';</script>
-    <p>Redirecting to Degen Oracle...</p>
+    <div class="container">
+        <h1>🔥 ${symbol} ${fuelType} Fuel</h1>
+        <p class="subtitle">Someone just fueled #${symbol} with ${fuelType} boost on Degen Oracle!</p>
+        <img src="${imageUrl}" alt="${symbol} ${fuelType} Fuel" class="fuel-image" onerror="this.style.display='none'">
+        <p>The degen army is assembling! 🚀</p>
+        <a href="https://degen-oracle.com" class="cta-button">Join the Oracle</a>
+    </div>
+    
+    <script>
+        // Redirect users to main site, but let bots see the meta tags
+        setTimeout(function() {
+            window.location.href = 'https://degen-oracle.com/?from=fuel';
+        }, 2000);
+    </script>
 </body>
 </html>`;
-          
-          res.set('Content-Type', 'text/html');
-          res.send(html);
-        } else {
-          // Redirect human users to main site (avoid redirect loop)
-          res.redirect(301, 'https://degen-oracle.com/?from=fuel');
-        }
+        
+        res.set('Content-Type', 'text/html');
+        res.send(html);
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Fuel sharing page error:', error.message);
         res.redirect(301, 'https://degen-oracle.com/?from=fuel');
