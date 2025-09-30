@@ -207,7 +207,7 @@ class SmartIntentDetector {
    * Check if intent requires user data
    */
   requiresUserData(intent) {
-    return ['PLATFORM_QUERY', 'WATCHLIST_ACTION'].includes(intent);
+    return ['PLATFORM_QUERY', 'WATCHLIST_QUERY', 'WATCHLIST_ACTION'].includes(intent);
   }
 
   /**
