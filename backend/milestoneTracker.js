@@ -268,6 +268,12 @@ class MilestoneTracker {
   getNewMilestones(call, currentMultiplier, athMultiplier) {
     const newMilestones = [];
     
+    // Don't post milestones for tokens that haven't actually gained (1.00× or less)
+    if (athMultiplier <= 1.00) {
+      console.log(`🚫 Skipping milestone check for ${call.token?.symbol}: athMultiplier ${athMultiplier.toFixed(2)}× is not a meaningful gain`);
+      return newMilestones;
+    }
+    
     for (const milestone of this.milestones) {
       // Check if this milestone was hit and not yet posted
       if (athMultiplier >= milestone && 
