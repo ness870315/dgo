@@ -746,23 +746,9 @@ class EnhancedBackend {
       res.json({ status: 'working', timestamp: new Date().toISOString() });
     });
 
-    // Proxy fuel sharing endpoint on main domain (for public sharing)
-    this.app.get('/fuel/:fuelType/:symbol', async (req, res) => {
-      try {
-        const { fuelType, symbol } = req.params;
-        console.log(`[🛡️ Enhanced Backend] 🔥 Public fuel sharing page requested: ${fuelType}/${symbol}`);
-        
-        // Redirect to API domain for actual content
-        const apiUrl = `https://api.degen-oracle.com/fuel/${fuelType}/${symbol}`;
-        res.redirect(301, apiUrl);
-      } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Fuel sharing redirect error:', error.message);
-        res.status(500).send('Error redirecting to fuel sharing page');
-      }
-    });
 
-    // API fuel page endpoint for link previews (internal) - PREVIEW ONLY
-    this.app.get('/api/fuel/:fuelType/:symbol', async (req, res) => {
+    // Main domain fuel page endpoint for link previews - PREVIEW ONLY
+    this.app.get('/fuel/:fuelType/:symbol', async (req, res) => {
       try {
         const { fuelType, symbol } = req.params;
         console.log(`[🛡️ Enhanced Backend] 🔥 Fuel sharing page requested: ${fuelType}/${symbol}`);
