@@ -641,12 +641,30 @@ class MoralisAIChatService {
           
           if (token) {
             console.log(`✅ Found token in cache: ${token.symbol} (${token.name})`);
+            
+            // Debug: Log all available price fields
+            console.log(`🔍 [PRICE DEBUG] Token ${token.symbol} price fields:`, {
+              price: token.price,
+              currentPrice: token.currentPrice,
+              usdPrice: token.usdPrice,
+              jupiterPrice: token.jupiterData?.price,
+              jupiterUsdPrice: token.jupiterData?.usdPrice,
+              marketCap: token.marketCap,
+              mcap: token.mcap,
+              jupiterMcap: token.jupiterData?.mcap
+            });
+            
+            const finalPrice = token.price || token.currentPrice || token.usdPrice || token.jupiterData?.price || token.jupiterData?.usdPrice;
+            const finalMC = token.marketCap || token.mcap || token.jupiterData?.marketCap || token.jupiterData?.mcap;
+            
+            console.log(`💰 [PRICE DEBUG] Final values for ${token.symbol}: price=${finalPrice}, mcap=${finalMC}`);
+            
             return {
               analytics: {
                 symbol: token.symbol?.trim() || 'Unknown',
                 name: token.name?.trim() || 'Unknown',
-                price: token.price || token.currentPrice || token.usdPrice || token.jupiterData?.price || token.jupiterData?.usdPrice,
-                marketCap: token.marketCap || token.mcap || token.jupiterData?.marketCap || token.jupiterData?.mcap,
+                price: finalPrice,
+                marketCap: finalMC,
                 volume24h: token.volume24h || token.jupiterData?.volume24h
               },
               holders: token.holderCount || token.jupiterData?.holderCount,
