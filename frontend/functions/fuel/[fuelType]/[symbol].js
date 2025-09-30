@@ -1,15 +1,14 @@
-export async function onRequest(context) {
-  const { request, env, params } = context;
-  const url = new URL(request.url);
+export async function onRequestGet(context) {
+  const url = new URL(context.request.url);
+  const pathParts = url.pathname.split('/');
   
-  // Extract fuelType and symbol from the path
-  const pathParts = url.pathname.split('/').filter(part => part);
-  
-  if (pathParts.length === 3 && pathParts[0] === 'fuel') {
-    const fuelType = pathParts[1];
-    const symbol = pathParts[2];
+  // Extract fuelType and symbol from URL like /fuel/10x/COLLIES
+  if (pathParts.length >= 4 && pathParts[1] === 'fuel') {
+    const fuelType = pathParts[2];
+    const symbol = pathParts[3];
     
-    // Generate the HTML with proper meta tags
+    const imageUrl = `https://api.degen-oracle.com/api/fuel-image/${fuelType}/${symbol}`;
+    
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -22,7 +21,7 @@ export async function onRequest(context) {
     <meta property="og:url" content="https://degen-oracle.com/fuel/${fuelType}/${symbol}">
     <meta property="og:title" content="🔥 ${symbol} ${fuelType} Fuel - Degen Oracle">
     <meta property="og:description" content="Someone just fueled #${symbol} with ${fuelType} boost on Degen Oracle! The degen army is assembling! 🚀">
-    <meta property="og:image" content="https://api.degen-oracle.com/api/fuel-image/${fuelType}/${symbol}">
+    <meta property="og:image" content="${imageUrl}">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:image:type" content="image/png">
@@ -35,7 +34,7 @@ export async function onRequest(context) {
     <meta name="twitter:url" content="https://degen-oracle.com/fuel/${fuelType}/${symbol}">
     <meta name="twitter:title" content="🔥 ${symbol} ${fuelType} Fuel - Degen Oracle">
     <meta name="twitter:description" content="Someone just fueled #${symbol} with ${fuelType} boost on Degen Oracle! The degen army is assembling! 🚀">
-    <meta name="twitter:image" content="https://api.degen-oracle.com/api/fuel-image/${fuelType}/${symbol}">
+    <meta name="twitter:image" content="${imageUrl}">
     <meta name="twitter:image:alt" content="${symbol} ${fuelType} Fuel Image">
     <meta name="twitter:domain" content="degen-oracle.com">
     
@@ -49,14 +48,16 @@ export async function onRequest(context) {
             display: flex;
             align-items: center;
             justify-content: center;
+            color: white;
         }
         .container {
-            background: white;
+            background: rgba(255, 255, 255, 0.9);
             border-radius: 20px;
             padding: 40px;
             text-align: center;
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
             max-width: 600px;
+            color: #333;
         }
         .fuel-image {
             max-width: 100%;
@@ -94,16 +95,16 @@ export async function onRequest(context) {
     <div class="container">
         <h1>🔥 ${symbol} ${fuelType} Fuel</h1>
         <p class="subtitle">Someone just fueled #${symbol} with ${fuelType} boost on Degen Oracle!</p>
-        <img src="https://api.degen-oracle.com/api/fuel-image/${fuelType}/${symbol}" alt="${symbol} ${fuelType} Fuel" class="fuel-image" onerror="this.style.display='none'">
+        <img src="${imageUrl}" alt="${symbol} ${fuelType} Fuel" class="fuel-image" onerror="this.style.display='none'">
         <p>The degen army is assembling! 🚀</p>
         <a href="https://degen-oracle.com" class="cta-button">Join the Oracle</a>
     </div>
     
     <script>
-        // Redirect to main site after a short delay
-        setTimeout(() => {
+        // Redirect users to main site after a short delay
+        setTimeout(function() {
             window.location.href = 'https://degen-oracle.com';
-        }, 3000);
+        }, 2000);
     </script>
 </body>
 </html>`;
@@ -111,11 +112,11 @@ export async function onRequest(context) {
     return new Response(html, {
       headers: {
         'Content-Type': 'text/html',
-        'Cache-Control': 'public, max-age=3600',
-      },
+        'Cache-Control': 'public, max-age=3600'
+      }
     });
   }
   
-  // For all other requests, return the default response
+  // Fallback for other requests
   return new Response('Not Found', { status: 404 });
 }
