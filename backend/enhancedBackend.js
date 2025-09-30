@@ -7575,7 +7575,7 @@ class EnhancedBackend {
 
         res.json({
           success: true,
-          response: aiResponse,
+          response: aiResponse.response,
           dataUsed: aiResponse.dataUsed || false,
           hasUserData: aiResponse.hasUserData || false,
           timestamp: aiResponse.timestamp
