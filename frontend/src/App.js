@@ -747,11 +747,21 @@ function AppContent() {
     return () => clearInterval(interval);
   }, [settings.enableRealTimeUpdates, settings.refreshInterval, settings.useRealTwitterData, tokens.length, filters, searchTerm, applyFiltersAndSearch]);
 
-  // Handle URL parameters for payment success/error messages
+  // Handle URL parameters for payment success/error messages and fuel redirects
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const paymentStatus = urlParams.get('payment');
     const tokenSymbol = urlParams.get('token');
+    
+    // Handle fuel redirects
+    const fuelType = urlParams.get('fuel');
+    const fuelSymbol = urlParams.get('symbol');
+    if (fuelType && fuelSymbol) {
+      // Redirect to API domain for fuel sharing
+      const apiUrl = `https://api.degen-oracle.com/fuel/${fuelType}/${fuelSymbol}`;
+      window.location.href = apiUrl;
+      return;
+    }
     
     if (paymentStatus === 'success') {
       // Check for pending token data in localStorage

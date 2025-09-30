@@ -537,8 +537,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
     const handleFuelShare = async () => {
       if (fuelShareMessage && appliedFuelType && token?.symbol) {
         try {
-          // Use the fuel sharing URL on main domain (will redirect to API)
-          const fuelPageUrl = `https://degen-oracle.com/fuel/${appliedFuelType}/${token.symbol}`;
+          // Use the main domain with URL parameters for fuel sharing (will redirect to API)
+          const fuelPageUrl = `https://degen-oracle.com/?fuel=${appliedFuelType}&symbol=${token.symbol}`;
           
           // Create Twitter URL with the fuel page link
           const twitterUrl = `https://twitter.com/intent/tweet?${new URLSearchParams({
