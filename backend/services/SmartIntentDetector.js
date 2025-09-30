@@ -50,13 +50,27 @@ class SmartIntentDetector {
       PLATFORM_QUERY: {
         patterns: [
           /(?:trending|viral|building|waking up|sleeping)/i,
-          /(?:watchlist|calls?|performance)/i,
+          /(?:calls?|performance)/i,
           /(?:best|top|worst).*?(?:call|performance)/i,
-          /(?:my|user).*?(?:calls?|watchlist|performance)/i,
+          /(?:my|user).*?(?:calls?|performance)/i,
           /degen oracle.*?(?:trending|features)/i,
-          /(?:leaderboard|ranking|top users?)/i
+          /(?:leaderboard|ranking|top users?)/i,
+          /what.*?(?:is|are).*?(?:trending|viral|building)/i,
+          /(?:trending|viral|building).*?(?:on|in).*?(?:my|your).*?(?:watchlist|portfolio)/i
         ],
-        keywords: ['trending', 'watchlist', 'calls', 'performance', 'leaderboard', 'ranking', 'degen oracle'],
+        keywords: ['trending', 'calls', 'performance', 'leaderboard', 'ranking', 'degen oracle', 'viral', 'building'],
+        priority: 'high'
+      },
+
+      // Watchlist Queries (separate from trending)
+      WATCHLIST_QUERY: {
+        patterns: [
+          /what.*?(?:is|are).*?(?:on|in).*?(?:my|your).*?(?:watchlist|portfolio)/i,
+          /(?:show|list).*?(?:my|your).*?(?:watchlist|portfolio)/i,
+          /(?:my|your).*?(?:watchlist|portfolio).*?(?:contains?|has|shows?)/i,
+          /(?:watchlist|portfolio).*?(?:contents?|items?|tokens?)/i
+        ],
+        keywords: ['what is on', 'what are on', 'show watchlist', 'list watchlist', 'my watchlist', 'portfolio'],
         priority: 'high'
       },
 
