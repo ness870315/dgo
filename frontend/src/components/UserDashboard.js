@@ -13,7 +13,7 @@ import AIChatModal from './AIChatModal';
 import FloatingChatButton from './FloatingChatButton';
 import { getStatusFromScore } from '../utils/statusUtils';
 
-const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigateToUpdateToken, onNavigateToPremium }) => {
+const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigateToUpdateToken, onNavigateToPremium, mainPageTokens = [], fueledTokens = [] }) => {
   const { user, sessionId, isPremium } = useAuth();
   
   // All hooks must be called before any early returns
@@ -890,9 +890,18 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
             </div>
             <p className="text-gray-400 text-sm mb-4">Your recorded calls with performance metrics.</p>
             <KolCallsModal open asInline onClose={() => {}} onOpenToken={(row) => {
-              const tokenMatch = dashboardData.watchlist.find(t => (t.contractAddress && row.contractAddress) && t.contractAddress.toLowerCase() === row.contractAddress.toLowerCase());
+              // Use main page token data instead of watchlist data
+              const tokenMatch = mainPageTokens.find(t => (t.contractAddress && row.contractAddress) && t.contractAddress.toLowerCase() === row.contractAddress.toLowerCase());
               if (tokenMatch) {
+                console.log('✅ Found KOL call token in main page data:', tokenMatch.symbol);
                 setSelectedToken(tokenMatch);
+              } else {
+                // Fallback to watchlist data if not found in main page
+                const watchlistMatch = dashboardData.watchlist.find(t => (t.contractAddress && row.contractAddress) && t.contractAddress.toLowerCase() === row.contractAddress.toLowerCase());
+                if (watchlistMatch) {
+                  console.log('⚠️ Using fallback watchlist data for KOL call:', watchlistMatch.symbol);
+                  setSelectedToken(watchlistMatch);
+                }
               }
             }} />
           </div>
@@ -1111,19 +1120,21 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                       key={index}
                       onClick={async () => {
                         try {
-                          // Fetch complete token data from API for watchlist tokens
-                          const response = await fetch(`${API_BASE}/api/tokens/${token.contractAddress}`);
-                          if (response.ok) {
-                            const data = await response.json();
-                            if (data.success && data.token) {
-                              setSelectedToken(data.token);
-                              return;
-                            }
+                          // Use main page token data instead of API call
+                          const mainPageToken = mainPageTokens.find(t => 
+                            t.contractAddress?.toLowerCase() === token.contractAddress?.toLowerCase()
+                          );
+                          
+                          if (mainPageToken) {
+                            console.log('✅ Found token in main page data:', mainPageToken.symbol);
+                            setSelectedToken(mainPageToken);
+                            return;
                           }
                         } catch (error) {
-                          console.warn('Failed to fetch complete token data, using stored data:', error);
+                          console.warn('Failed to find token in main page data:', error);
                         }
-                        // Fallback to stored watchlist data if API fails
+                        // Fallback to stored watchlist data if not found in main page
+                        console.log('⚠️ Using fallback watchlist data for:', token.symbol);
                         setSelectedToken(token);
                       }}
                       className="bg-gray-800/50 rounded-lg p-4 cursor-pointer hover:bg-gray-700/50 transition-colors"
@@ -1337,12 +1348,20 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
             open={showKolCalls}
             onClose={() => setShowKolCalls(false)}
             onOpenToken={(row) => {
-              // When clicking a KOL call row, open the TokenDetails modal if we have it in cache
-              // Fallback: open hype chart modal if not found
-              const tokenMatch = dashboardData.watchlist.find(t => (t.contractAddress && row.contractAddress) && t.contractAddress.toLowerCase() === row.contractAddress.toLowerCase());
+              // Use main page token data instead of watchlist data
+              const tokenMatch = mainPageTokens.find(t => (t.contractAddress && row.contractAddress) && t.contractAddress.toLowerCase() === row.contractAddress.toLowerCase());
               if (tokenMatch) {
+                console.log('✅ Found KOL call token in main page data:', tokenMatch.symbol);
                 setSelectedToken(tokenMatch);
                 setShowKolCalls(false);
+              } else {
+                // Fallback to watchlist data if not found in main page
+                const watchlistMatch = dashboardData.watchlist.find(t => (t.contractAddress && row.contractAddress) && t.contractAddress.toLowerCase() === row.contractAddress.toLowerCase());
+                if (watchlistMatch) {
+                  console.log('⚠️ Using fallback watchlist data for KOL call:', watchlistMatch.symbol);
+                  setSelectedToken(watchlistMatch);
+                  setShowKolCalls(false);
+                }
               }
             }}
           />
@@ -1804,7 +1823,12 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                   ✕
                 </button>
               </div>
-              <TokenDetails token={selectedToken} onClose={() => setSelectedToken(null)} onNavigateToPremium={onNavigateToPremium} />
+              <TokenDetails 
+                token={selectedToken} 
+                fueledTokens={fueledTokens}
+                onClose={() => setSelectedToken(null)} 
+                onNavigateToPremium={onNavigateToPremium} 
+              />
             </div>
           </div>
         )}

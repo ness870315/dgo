@@ -1055,6 +1055,8 @@ function AppContent() {
           onNavigateToFuelToken={handleFuelTokenClick}
           onNavigateToUpdateToken={handleUpdateTokenClick}
           onNavigateToPremium={handlePremiumClick}
+          mainPageTokens={tokens}
+          fueledTokens={fueledTokens}
         />
       </AuthProvider>
     );
