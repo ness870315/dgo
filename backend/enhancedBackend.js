@@ -271,8 +271,9 @@ class EnhancedBackend {
     };
 
     // Serve static files from public directory (for admin dashboard) - PROTECTED
-    this.app.use('/admin-dashboard.html', adminAuth);
-    this.app.use('/admin-dashboard.html', express.static(path.join(__dirname, 'public')));
+    this.app.get('/admin-dashboard.html', adminAuth, (req, res) => {
+      res.sendFile(path.join(__dirname, 'public', 'admin-dashboard.html'));
+    });
     
     // Serve other static files without protection (if any)
     this.app.use(express.static(path.join(__dirname, 'public')));
