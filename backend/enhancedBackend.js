@@ -5764,6 +5764,7 @@ class EnhancedBackend {
               volume24h: token.jupiterData.volume24h || 
                          token.jupiterData.v24hUSD || 
                          token.jupiterData.stats24h?.volume ||
+                         ((token.jupiterData.stats24h?.buyVolume || 0) + (token.jupiterData.stats24h?.sellVolume || 0) || null) ||
                          (token.jupiterData.volume1h ? token.jupiterData.volume1h * 24 : null) ||
                          null
             } : null;
@@ -5928,11 +5929,12 @@ class EnhancedBackend {
           volume24h: token.jupiterData.volume24h || 
                      token.jupiterData.v24hUSD || 
                      token.jupiterData.stats24h?.volume ||
+                     ((token.jupiterData.stats24h?.buyVolume || 0) + (token.jupiterData.stats24h?.sellVolume || 0) || null) ||
                      (token.jupiterData.volume1h ? token.jupiterData.volume1h * 24 : null) ||
                      null
         } : null;
         
-        console.log(`[🛡️ Admin] 📊 Metadata for ${token.symbol}: mcap=$${metadata?.marketCap ? (metadata.marketCap/1e6).toFixed(1) : '?'}M, vol=$${metadata?.volume24h ? (metadata.volume24h/1e3).toFixed(0) : '?'}k`);
+        console.log(`[🛡️ Admin] 📊 Metadata for ${token.symbol}: mcap=$${metadata?.marketCap ? (metadata.marketCap/1e6).toFixed(1) : '?'}M, vol=$${metadata?.volume24h ? (metadata.volume24h/1e6).toFixed(2) : '?'}M`);
         
         // Force refresh Twitter data (REMOVED admin bypass to respect 72h cooldown)
         const lookupSymbol = token.symbol || upperSym;
@@ -6224,6 +6226,7 @@ class EnhancedBackend {
               volume24h: token.jupiterData.volume24h || 
                          token.jupiterData.v24hUSD || 
                          token.jupiterData.stats24h?.volume ||
+                         ((token.jupiterData.stats24h?.buyVolume || 0) + (token.jupiterData.stats24h?.sellVolume || 0) || null) ||
                          (token.jupiterData.volume1h ? token.jupiterData.volume1h * 24 : null) ||
                          null
             } : null;

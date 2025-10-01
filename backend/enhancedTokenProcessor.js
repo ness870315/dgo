@@ -1752,6 +1752,7 @@ class EnhancedTokenProcessor {
         volume24h: token.jupiterData.volume24h || 
                    token.jupiterData.v24hUSD || 
                    token.jupiterData.stats24h?.volume ||
+                   ((token.jupiterData.stats24h?.buyVolume || 0) + (token.jupiterData.stats24h?.sellVolume || 0) || null) ||
                    (token.jupiterData.volume1h ? token.jupiterData.volume1h * 24 : null) ||
                    null
       } : null;
