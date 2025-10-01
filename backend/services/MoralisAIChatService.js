@@ -1947,7 +1947,7 @@ class MoralisAIChatService {
       athMultiplier: athMultiplier, // Keep ATH for reference
       milestonesHit: milestonesHit,
       status: status,
-      profitLoss: performanceMultiplier >= 1 ? 'Profit' : 'Loss'
+      profitLoss: currentMultiplier >= 1 ? 'Profit' : 'Loss' // Based on current, not ATH
     };
   }
 
@@ -1979,7 +1979,9 @@ class MoralisAIChatService {
     });
     
     const totalMilestones = calls.reduce((sum, call) => sum + call.milestonePosts, 0);
-    const profitableCalls = calls.filter(call => call.performance.multiplier >= 1).length;
+    // FIX: Use currentMultiplier for win rate, not ATH multiplier
+    // Win rate should reflect current profitability, not if they ever hit 1x
+    const profitableCalls = calls.filter(call => call.performance.currentMultiplier >= 1).length;
     const winRate = (profitableCalls / calls.length * 100).toFixed(1);
 
     console.log(`🔍 [KOL SUMMARY DEBUG] Summary calculated:`, {
@@ -1988,7 +1990,8 @@ class MoralisAIChatService {
       bestCall: `${bestCall?.token?.symbol} (ATH: ${bestCall?.performance?.multiplier}x)`,
       worstCall: `${worstCall?.token?.symbol} (Current: ${worstCall?.performance?.currentMultiplier}x)`,
       profitableCalls: profitableCalls,
-      winRate: `${winRate}%`
+      winRate: `${winRate}%`,
+      note: 'Win rate based on current multiplier, not ATH'
     });
 
     return {
