@@ -11,11 +11,17 @@ const WatchlistPanel = ({ isOpen, onClose, onTokenSelect, allTokensData = [] }) 
 
   const loadFullTokenData = useCallback((symbols) => {
     try {
+      console.log('🔄 [WATCHLIST] Loading full token data for symbols:', symbols);
+      console.log('🔄 [WATCHLIST] Available tokens in cache:', allTokensData.length);
+      
       // Use already-loaded token data from App.js instead of making API calls
       // Filter tokens that are in the watchlist
       const watchlistTokens = allTokensData.filter(token => 
         symbols.includes(token.symbol.toUpperCase())
       );
+      
+      console.log('🔄 [WATCHLIST] Found tokens in cache:', watchlistTokens.map(t => t.symbol));
+      console.log('🔄 [WATCHLIST] Missing tokens:', symbols.filter(s => !watchlistTokens.some(t => t.symbol.toUpperCase() === s)));
       
       setFullTokensData(watchlistTokens);
     } catch (error) {
@@ -25,13 +31,18 @@ const WatchlistPanel = ({ isOpen, onClose, onTokenSelect, allTokensData = [] }) 
   }, [allTokensData]);
 
   const loadWatchlist = useCallback(async () => {
+    console.log('🔄 [WATCHLIST] Loading watchlist...');
     setLoading(true);
     try {
       const data = await watchlistService.getWatchlist();
+      console.log('🔄 [WATCHLIST] Raw data from API:', data);
+      
       // Normalize to array of UPPERCASE symbols regardless of backend shape
       const symbols = (Array.isArray(data) ? data : [])
         .map(item => typeof item === 'string' ? item.toUpperCase() : (item?.symbol || '').toUpperCase())
         .filter(Boolean);
+      
+      console.log('🔄 [WATCHLIST] Normalized symbols:', symbols);
       setWatchlist(symbols);
       
       // Get full token data for each symbol in watchlist from already-loaded cache
@@ -57,9 +68,13 @@ const WatchlistPanel = ({ isOpen, onClose, onTokenSelect, allTokensData = [] }) 
   // Listen for watchlist updates from AI chat or other sources
   useEffect(() => {
     const handleWatchlistUpdate = (event) => {
-      console.log('🔄 [WATCHLIST] Received update event from:', event.detail?.source);
+      console.log('🔄 [WATCHLIST] Received update event from:', event.detail?.source, 'at', new Date().toISOString());
       if (isAuthenticated) {
-        loadWatchlist();
+        console.log('🔄 [WATCHLIST] Reloading watchlist...');
+        // Add small delay to ensure backend has processed the update
+        setTimeout(() => {
+          loadWatchlist();
+        }, 200); // 200ms delay to ensure backend processing
       }
     };
 
