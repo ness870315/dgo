@@ -387,7 +387,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
             </div>
             <div class="text-sm">Market Cap: ${formatMarketCap(d.jupiterData?.mcap || d.marketCap || 0)}</div>
             <div class="text-sm">Price: ${formatPrice(d.jupiterData?.usdPrice || d.currentPrice || d.price || 0)}</div>
-            <div class="text-sm">Mentions: ${d.twitterData?.mentions || d.mentions || 0}</div>
+            <div class="text-sm">Mentions: ${d.twitterData?.displayMentions || d.displayMentions || d.mentions || d.twitterData?.mentions || 0}</div>
             <div class="text-sm">Community: ${d.communityScore ? d.communityScore.toFixed(1) : 'N/A'}/10</div>
           `);
       })
