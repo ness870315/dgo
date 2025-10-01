@@ -45,16 +45,18 @@ code {
 
 .bubble-tooltip {
   position: absolute;
-  padding: 4px 8px;
-  background: rgba(0, 0, 0, 0.9);
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.95);
   border: 1px solid #9945FF;
-  border-radius: 6px;
+  border-radius: 8px;
   color: white;
-  font-size: 11px;
+  font-size: 12px;
   pointer-events: none;
   z-index: 1000;
-  white-space: nowrap;
+  white-space: normal;
   display: inline-block;
+  max-width: 280px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .bubble-map-container {

@@ -346,31 +346,31 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
         const hypeData = getHypeLevel(d.score || d.overallScore || 0);
         
         // Position tooltip close to the mouse cursor for better UX
-        const tooltipWidth = 250; // Estimated tooltip width
-        const tooltipHeight = 120; // Estimated tooltip height
+        const tooltipWidth = 280; // Estimated tooltip width (matches CSS max-width)
+        const tooltipHeight = 140; // Estimated tooltip height (increased for better spacing)
         
         // Get mouse position relative to viewport
         const mouseX = event.clientX;
         const mouseY = event.clientY;
         
-        // Position tooltip very close to cursor
-        let tooltipX = mouseX + 3; // Very small offset to avoid cursor overlap
-        let tooltipY = mouseY - tooltipHeight - 3; // Position above cursor
+        // Position tooltip very close to cursor (prefer top positioning)
+        let tooltipX = mouseX + 8; // Small offset to avoid cursor overlap
+        let tooltipY = mouseY - tooltipHeight - 8; // Position above cursor with more space
         
         // Smart positioning to avoid going off-screen
         // If tooltip goes off right edge, position it to the left of cursor
         if (tooltipX + tooltipWidth > window.innerWidth) {
-          tooltipX = mouseX - tooltipWidth - 3;
+          tooltipX = mouseX - tooltipWidth - 8;
         }
         
-        // If tooltip goes off top edge, position it below cursor
+        // If tooltip goes off top edge, position it below cursor (but still close)
         if (tooltipY < 0) {
-          tooltipY = mouseY + 3;
+          tooltipY = mouseY + 8; // Below cursor, close to it
         }
         
-        // If tooltip goes off bottom edge, position it above cursor
-        if (tooltipY + tooltipHeight > window.innerHeight) {
-          tooltipY = mouseY - tooltipHeight - 3;
+        // If tooltip goes off bottom edge when below cursor, try above again
+        if (tooltipY + tooltipHeight > window.innerHeight && tooltipY > mouseY) {
+          tooltipY = mouseY - tooltipHeight - 8; // Above cursor
         }
         
         tooltip.style('display', 'block')
@@ -394,26 +394,30 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
       .on('mousemove', function(event, d) {
         // Update tooltip position as mouse moves over bubble
         const tooltip = d3.select(tooltipRef.current);
-        const tooltipWidth = 250;
-        const tooltipHeight = 120;
+        const tooltipWidth = 280; // Matches CSS max-width
+        const tooltipHeight = 140; // Increased for better spacing
         
         const mouseX = event.clientX;
         const mouseY = event.clientY;
         
-        let tooltipX = mouseX + 3;
-        let tooltipY = mouseY - tooltipHeight - 3;
+        // Position tooltip very close to cursor (prefer top positioning)
+        let tooltipX = mouseX + 8; // Small offset to avoid cursor overlap
+        let tooltipY = mouseY - tooltipHeight - 8; // Position above cursor with more space
         
         // Smart positioning to avoid going off-screen
+        // If tooltip goes off right edge, position it to the left of cursor
         if (tooltipX + tooltipWidth > window.innerWidth) {
-          tooltipX = mouseX - tooltipWidth - 3;
+          tooltipX = mouseX - tooltipWidth - 8;
         }
         
+        // If tooltip goes off top edge, position it below cursor (but still close)
         if (tooltipY < 0) {
-          tooltipY = mouseY + 3;
+          tooltipY = mouseY + 8; // Below cursor, close to it
         }
         
-        if (tooltipY + tooltipHeight > window.innerHeight) {
-          tooltipY = mouseY - tooltipHeight - 3;
+        // If tooltip goes off bottom edge when below cursor, try above again
+        if (tooltipY + tooltipHeight > window.innerHeight && tooltipY > mouseY) {
+          tooltipY = mouseY - tooltipHeight - 8; // Above cursor
         }
         
         tooltip.style('left', tooltipX + 'px')
