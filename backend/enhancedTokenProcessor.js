@@ -851,6 +851,17 @@ class EnhancedTokenProcessor {
             }
             const twitterData = await this.fetchTwitterData(symbol, token.name, officialHandle, token);
             token.twitterData = twitterData;
+            
+            // 🚨 CRITICAL: Load and store social links for scoring
+            try {
+              const { default: UpdateTokenService } = await import('./updateTokenService.js');
+              const updateService = new UpdateTokenService();
+              const tokenSocials = await updateService.getTokenSocials(symbol);
+              token.socials = tokenSocials?.socials || null;
+            } catch (error) {
+              console.log(`⚠️ Could not load social links for scoring ${symbol}:`, error.message);
+            }
+            
             await this.ensureSocialDataService();
             token.communityHealthScore = this.socialDataService.calculateCommunityHealthScore(twitterData, token.socials, token.jupiterData);
             token.stage = 'twitter';

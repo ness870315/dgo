@@ -1711,6 +1711,24 @@ class EnhancedSocialDataService {
       }
       score += qualityScore;
       
+      // 5. SOCIAL LINKS BONUS (BONUS points) - Legitimacy and community building
+      if (socials) {
+        const socialCount = Object.keys(socials).filter(key => 
+          socials[key] && socials[key] !== 'not_found' && socials[key] !== ''
+        ).length;
+        
+        let socialBonus = 0;
+        if (socialCount >= 5) socialBonus = 1.0;      // All 5 socials = +1.0 bonus
+        else if (socialCount >= 3) socialBonus = 0.75; // 3+ socials = +0.75 bonus  
+        else if (socialCount >= 2) socialBonus = 0.5; // 2+ socials = +0.5 bonus
+        
+        if (socialBonus > 0) {
+          console.log(`🌐 Social links bonus: ${socialCount} platforms = +${socialBonus.toFixed(2)} points`);
+        }
+        
+        score += socialBonus;
+      }
+      
       // Ensure score is within 0-10 range
       score = Math.min(9.9, Math.max(0, score));
       

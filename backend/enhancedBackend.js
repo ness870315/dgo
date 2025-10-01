@@ -5954,6 +5954,16 @@ class EnhancedBackend {
         token.twitterData = twitterData;
         token.twitterTimestamp = new Date().toISOString();
         
+        // 🚨 CRITICAL: Load social links for community score bonus
+        try {
+          const { default: UpdateTokenService } = await import('./updateTokenService.js');
+          const updateService = new UpdateTokenService();
+          const tokenSocials = await updateService.getTokenSocials(token.symbol);
+          token.socials = tokenSocials?.socials || null;
+        } catch (error) {
+          console.log(`⚠️ Could not load social links for ${token.symbol}:`, error.message);
+        }
+        
         // Recalculate community health score with new Twitter data using ENHANCED method
         token.communityHealthScore = this.calculateCommunityHealthScore(twitterData, token.socials, token.jupiterData);
         token.communityScore = token.communityHealthScore; // Ensure both fields are set
