@@ -874,7 +874,7 @@ class EnhancedSocialDataService {
       } else {
         // New token without history - use market/volume-aware projection
         // Base: sample * time_multiplier * size_multiplier * engagement_multiplier * synergy_bonus
-        const baseSampleMultiplier = 1.2; // ULTRA CONSERVATIVE: Barely above raw count
+        const baseSampleMultiplier = 1.0; // NO BASE MULTIPLIER: Only volume/size/engagement matter
         
         let projected = totalMentions * baseSampleMultiplier * sizeMultiplier * engagementMultiplier * synergyBonus;
         

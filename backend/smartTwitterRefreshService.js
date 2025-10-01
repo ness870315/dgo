@@ -257,9 +257,9 @@ class SmartTwitterRefreshService {
         else if (ratio >= 0.05) synergyBonus = 1.15;
       }
       
-      // Project mentions (ULTRA CONSERVATIVE: 1.2x base)
-      // With low engagement/volume, stays very close to raw count
-      const baseSampleMultiplier = 1.2;
+      // Project mentions (NO BASE MULTIPLIER - rely only on volume/size/engagement)
+      // Raw count gets multiplied only by actual market factors
+      const baseSampleMultiplier = 1.0;
       displayMentions = Math.round(totalMentions * baseSampleMultiplier * sizeMultiplier * engagementMultiplier * synergyBonus);
       
       // Apply floors and ceilings (CONSERVATIVE: lower minimums)
