@@ -384,7 +384,7 @@ class EnhancedSocialDataService {
       this.incrementRequestCounts();
       
       // Search for Twitter mentions using multiple strategies
-      const twitterData = await this.searchTwitterMentions(symbol, name, officialHandle, socialLinks);
+      const twitterData = await this.searchTwitterMentions(symbol, name, officialHandle, socialLinks, metadata);
       
       // 🚨 NEW: Record API usage with the Twitter API Manager
       if (this.twitterApiManager) {
@@ -508,7 +508,7 @@ class EnhancedSocialDataService {
    * Search Twitter for token mentions using Python microservice
    * Uses Twikit via Python FastAPI service
    */
-  async searchTwitterMentions(symbol, name, officialHandle = null, socialLinks = null) {
+  async searchTwitterMentions(symbol, name, officialHandle = null, socialLinks = null, metadata = null) {
     console.log(`🐦 Searching Twitter via microservice for ${symbol} (${name})`);
     
     try {
