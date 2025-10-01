@@ -910,16 +910,18 @@ class EnhancedSocialDataService {
         console.log(`📊 Projection (new token): base=${totalMentions}, size=${sizeMultiplier}x (mcap=${mcapMultiplier}x, vol=${volumeMultiplier}x), eng=${engagementMultiplier}x, synergy=${synergyBonus}x, final=${displayMentions}`);
       }
 
-      // Summary
+      // Summary (extract metadata for logging)
+      const summaryMcap = metadata?.marketCap || null;
+      const summaryVolume = metadata?.volume24h || null;
+      
       console.log(`📊 Twitter Search Summary for ${symbol}:`);
       console.log(`   🎯 Official Handle: ${officialHandle || 'not found'}`);
       console.log(`   👥 Followers: ${followers}`);
       console.log(`   📊 Sample Mentions: ${totalMentions} (from ${recentMentions.length} tweets)${mentions72hAvg != null ? ` | 72h avg: ${mentions72hAvg}` : ''}`);
       console.log(`   📈 Display Mentions: ${displayMentions} (smart projection with market/volume)`);
-      console.log(`   💰 Market Cap: ${mcap ? `$${(mcap/1e6).toFixed(1)}M (${mcapMultiplier}x)` : 'unknown'}`);
-      console.log(`   💹 24h Volume: ${volume24h ? `$${(volume24h/1e6).toFixed(2)}M (${volumeMultiplier}x)` : 'unknown'}`);
-      console.log(`   🎯 Size Multiplier: ${sizeMultiplier}x (max of mcap/volume) ${synergyBonus > 1 ? `+ ${synergyBonus}x synergy` : ''}`);
-      console.log(`   🔥 Avg Engagement: ${Math.round(avgEngagement)} (${engagementMultiplier}x)`);
+      console.log(`   💰 Market Cap: ${summaryMcap ? `$${(summaryMcap/1e6).toFixed(1)}M` : 'unknown'}`);
+      console.log(`   💹 24h Volume: ${summaryVolume ? `$${(summaryVolume/1e6).toFixed(2)}M` : 'unknown'}`);
+      console.log(`   🔥 Avg Engagement: ${Math.round(avgEngagement)}`);
       console.log(`   💖 Total Engagement: ${totalLikes + totalRetweets + totalReplies}`);
       
       return {
