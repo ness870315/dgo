@@ -1543,10 +1543,10 @@ class EnhancedSocialDataService {
       }
       
       // 🛡️ ATOMIC WRITE WITH LOCK: Save updated tokens cache with atomic write and lock protection
-      const cacheLock = new CacheLockService(tokensCachePath);
-      
+      const cacheLock = new CacheLockService();
+
       try {
-        await cacheLock.atomicWrite(tokens);
+        await cacheLock.atomicWrite(tokensCachePath, tokens);
         console.log(`💾 Updated ${updatedCount} tokens with Twitter data directly in main cache (atomic write with lock)`);
       } catch (error) {
         console.error('❌ Error saving Twitter data to cache:', error);
