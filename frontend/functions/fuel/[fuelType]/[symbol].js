@@ -1,15 +1,15 @@
 export async function onRequestGet(context) {
-  const url = new URL(context.request.url);
-  const pathParts = url.pathname.split('/');
+  // Extract fuelType and symbol from dynamic route params
+  const { fuelType, symbol } = context.params;
   
-  // Extract fuelType and symbol from URL like /fuel/10x/COLLIES
-  if (pathParts.length >= 4 && pathParts[1] === 'fuel') {
-    const fuelType = pathParts[2];
-    const symbol = pathParts[3];
-    
-    const imageUrl = `https://api.degen-oracle.com/api/fuel-image/${fuelType}/${symbol}`;
-    
-    const html = `<!DOCTYPE html>
+  // If params are missing, return 404
+  if (!fuelType || !symbol) {
+    return new Response('Not Found', { status: 404 });
+  }
+  
+  const imageUrl = `https://api.degen-oracle.com/api/fuel-image/${fuelType}/${symbol}`;
+  
+  const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -109,14 +109,10 @@ export async function onRequestGet(context) {
 </body>
 </html>`;
 
-    return new Response(html, {
-      headers: {
-        'Content-Type': 'text/html',
-        'Cache-Control': 'public, max-age=3600'
-      }
-    });
-  }
-  
-  // Fallback for other requests
-  return new Response('Not Found', { status: 404 });
+  return new Response(html, {
+    headers: {
+      'Content-Type': 'text/html',
+      'Cache-Control': 'public, max-age=3600'
+    }
+  });
 }
