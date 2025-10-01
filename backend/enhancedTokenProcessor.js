@@ -858,6 +858,13 @@ class EnhancedTokenProcessor {
               const updateService = new UpdateTokenService();
               const tokenSocials = await updateService.getTokenSocials(symbol);
               token.socials = tokenSocials?.socials || null;
+              
+              if (token.socials) {
+                const socialCount = Object.keys(token.socials).filter(key => 
+                  token.socials[key] && token.socials[key] !== 'not_found' && token.socials[key] !== ''
+                ).length;
+                console.log(`🌐 Loaded ${socialCount} social links for ${symbol} (will add +${socialCount >= 5 ? '1.0' : socialCount >= 3 ? '0.75' : socialCount >= 2 ? '0.5' : '0'} bonus)`);
+              }
             } catch (error) {
               console.log(`⚠️ Could not load social links for scoring ${symbol}:`, error.message);
             }

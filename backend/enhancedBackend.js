@@ -5960,8 +5960,17 @@ class EnhancedBackend {
           const updateService = new UpdateTokenService();
           const tokenSocials = await updateService.getTokenSocials(token.symbol);
           token.socials = tokenSocials?.socials || null;
+          
+          if (token.socials) {
+            const socialCount = Object.keys(token.socials).filter(key => 
+              token.socials[key] && token.socials[key] !== 'not_found' && token.socials[key] !== ''
+            ).length;
+            console.log(`[🛡️ Admin] 🌐 Loaded ${socialCount} social links for ${token.symbol}:`, Object.keys(token.socials).filter(k => token.socials[k] && token.socials[k] !== 'not_found'));
+          } else {
+            console.log(`[🛡️ Admin] ⚠️ No social links found for ${token.symbol}`);
+          }
         } catch (error) {
-          console.log(`⚠️ Could not load social links for ${token.symbol}:`, error.message);
+          console.log(`[🛡️ Admin] ❌ Could not load social links for ${token.symbol}:`, error.message);
         }
         
         // Recalculate community health score with new Twitter data using ENHANCED method
