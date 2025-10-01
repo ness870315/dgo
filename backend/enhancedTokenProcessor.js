@@ -1746,8 +1746,14 @@ class EnhancedTokenProcessor {
         console.log(`📊 Passing Jupiter data to social service for ${symbol} (mcap: $${token.jupiterData.marketCap?.toLocaleString()})`);
       }
       
-      // Use the real Twitter API service with social links and official handle
-      const twitterData = await this.socialDataService.getTwitterSocialData(symbol, name, false, officialHandle, socialLinks);
+      // Prepare metadata for smart projection (market cap + volume)
+      const metadata = token?.jupiterData ? {
+        marketCap: token.jupiterData.marketCap || token.jupiterData.mcap || null,
+        volume24h: token.jupiterData.volume24h || token.jupiterData.v24hUSD || null
+      } : null;
+      
+      // Use the real Twitter API service with social links, official handle, and metadata
+      const twitterData = await this.socialDataService.getTwitterSocialData(symbol, name, false, officialHandle, socialLinks, false, metadata);
       
       if (twitterData && twitterData.mentions !== undefined) {
         console.log(`✅ Real Twitter data for ${symbol}: ${twitterData.mentions} mentions`);

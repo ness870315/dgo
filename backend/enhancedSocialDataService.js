@@ -265,7 +265,7 @@ class EnhancedSocialDataService {
   /**
    * Get comprehensive Twitter social data for a token
    */
-  async getTwitterSocialData(symbol, name, forceRefresh = false, officialHandle = null, socialLinks = null, adminBypass = false) {
+  async getTwitterSocialData(symbol, name, forceRefresh = false, officialHandle = null, socialLinks = null, adminBypass = false, metadata = null) {
     // Initialize if not already done
     if (!this.initialized) {
       await this.initialize();
