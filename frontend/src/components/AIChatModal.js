@@ -511,7 +511,7 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
                 {personalizedSuggestions.length > 0 ? '🧠 Personalized suggestions:' : 'Try asking me:'}
               </p>
               <div className="grid grid-cols-1 gap-2">
-                {(personalizedSuggestions.length > 0 ? personalizedSuggestions : suggestedQuestions).slice(0, 6).map((question, index) => (
+                {(personalizedSuggestions.length > 0 ? personalizedSuggestions : suggestedQuestions).map((question, index) => (
                   <button
                     key={`suggestion-${index}-${question.substring(0, 20)}`}
                     onClick={() => handleSuggestionClick(question)}
