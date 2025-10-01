@@ -253,10 +253,22 @@ class SmartTwitterRefreshService {
          volume24h >= 1_000 ? 1.2 : 1.0)    // $1k+ = Minimal
         : 1.0;
       
+      if (volume24h) {
+        console.log(`💹 Volume boost: $${(volume24h/1e6).toFixed(2)}M = ${volumeMultiplier}x multiplier`);
+      }
+      
       // Weighted size multiplier (70% volume, 30% mcap)
       let sizeMultiplier = (mcap && volume24h) ? 
         (volumeMultiplier * 0.7 + mcapMultiplier * 0.3) : 
         (volume24h ? volumeMultiplier : Math.min(mcapMultiplier, 3));
+      
+      if (mcap && volume24h) {
+        console.log(`⚖️ Weighted size: volume ${volumeMultiplier}x (70%) + mcap ${mcapMultiplier}x (30%) = ${sizeMultiplier.toFixed(2)}x`);
+      } else if (volume24h) {
+        console.log(`📊 Using volume only: ${sizeMultiplier.toFixed(1)}x`);
+      } else if (mcap) {
+        console.log(`📊 Using capped mcap: ${sizeMultiplier.toFixed(1)}x (max 3x without volume)`);
+      }
       
       // Synergy bonus
       let synergyBonus = 1.0;
@@ -266,6 +278,8 @@ class SmartTwitterRefreshService {
         else if (ratio >= 0.3) synergyBonus = 1.6;
         else if (ratio >= 0.1) synergyBonus = 1.3;
         else if (ratio >= 0.05) synergyBonus = 1.15;
+        
+        console.log(`🔥 Volume/Mcap ratio: ${(ratio * 100).toFixed(1)}% = ${synergyBonus}x HYPE bonus`);
       }
       
       // Project mentions (NO BASE MULTIPLIER - rely only on volume/size/engagement)
@@ -285,8 +299,7 @@ class SmartTwitterRefreshService {
       
       displayMentions = Math.max(minMentions, Math.min(maxMentions, displayMentions));
       
-      const volText = volume24h ? `vol=$${(volume24h/1e6).toFixed(2)}M` : 'vol=unknown';
-      console.log(`🚀 Smart refresh projection for ${symbol}: ${totalMentions} → ${displayMentions} (${volText}, ${sizeMultiplier.toFixed(1)}x size, ${synergyBonus}x synergy)`);
+      console.log(`📊 Projection (smart refresh): base=${totalMentions}, size=${sizeMultiplier.toFixed(1)}x (mcap=${mcapMultiplier}x, vol=${volumeMultiplier}x), eng=${engagementMultiplier.toFixed(1)}x, synergy=${synergyBonus}x, final=${displayMentions}`);
     }
     
     const now = new Date().toISOString();
