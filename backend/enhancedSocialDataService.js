@@ -1646,12 +1646,17 @@ class EnhancedSocialDataService {
       // 1. MENTIONS SCORING (55% weight) - PRIMARY importance for community buzz
       // 🚨 CRITICAL: Use displayMentions (projected) not raw mentions!
       const mentionsRaw = Number(twitterData.displayMentions || twitterData.mentions || 0);
-      const has72h = Number(twitterData.mentionsWindowHours || 0) >= 72;
-      // Normalize to new 5-post pull policy; if 72h avg exists, it’s already smoothed
-      const normalizedActivity = Math.min(1, (has72h ? mentionsRaw : mentionsRaw) / 5);
-      const isBootstrap = !has72h; // no history yet
-      const mentionsWeight = isBootstrap ? 0.40 : 0.55; // reduce weight for new tokens
-      const mentionsScore = normalizedActivity * (3.5 / 0.55) * mentionsWeight; // keep max ~3.5 when weight=0.55
+      
+      // 🚨 NEW TIERED SCORING: Scale properly with projected mention counts
+      let mentionsScore = 0;
+      if (mentionsRaw >= 500) mentionsScore = 3.5;        // 500+ = Maximum buzz
+      else if (mentionsRaw >= 200) mentionsScore = 3.0;   // 200+ = Massive buzz
+      else if (mentionsRaw >= 100) mentionsScore = 2.5;   // 100+ = Major buzz
+      else if (mentionsRaw >= 50) mentionsScore = 2.0;    // 50+ = Strong buzz
+      else if (mentionsRaw >= 25) mentionsScore = 1.5;    // 25+ = Good buzz
+      else if (mentionsRaw >= 15) mentionsScore = 1.0;    // 15+ = Moderate buzz
+      else if (mentionsRaw >= 10) mentionsScore = 0.6;    // 10+ = Some buzz
+      else if (mentionsRaw >= 5) mentionsScore = 0.3;     // 5+ = Minimal buzz
 
       score += mentionsScore;
       

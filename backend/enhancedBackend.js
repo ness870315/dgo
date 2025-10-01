@@ -10250,11 +10250,16 @@ class EnhancedBackend {
     // 1. Mentions score (55% weight) - PRIMARY importance for community buzz
     // 🚨 CRITICAL: Use displayMentions (projected) not raw mentions!
     const mentions = twitterData.displayMentions || twitterData.mentions || 0;
-    if (mentions > 100) score += 2.75;
-    else if (mentions > 50) score += 2.2;
-    else if (mentions > 20) score += 1.65;
-    else if (mentions > 10) score += 1.1;
-    else if (mentions > 5) score += 0.55;
+    
+    // 🚨 TIERED SCORING: Scale properly with projected mention counts
+    if (mentions >= 500) score += 3.5;        // 500+ = Maximum buzz
+    else if (mentions >= 200) score += 3.0;   // 200+ = Massive buzz
+    else if (mentions >= 100) score += 2.5;   // 100+ = Major buzz
+    else if (mentions >= 50) score += 2.0;    // 50+ = Strong buzz
+    else if (mentions >= 25) score += 1.5;    // 25+ = Good buzz
+    else if (mentions >= 15) score += 1.0;    // 15+ = Moderate buzz
+    else if (mentions >= 10) score += 0.6;    // 10+ = Some buzz
+    else if (mentions >= 5) score += 0.3;     // 5+ = Minimal buzz
 
     // 2. Engagement score (35% weight) - Quality of community interaction
     const totalEngagement = (twitterData.likes || 0) + (twitterData.retweets || 0) + (twitterData.replies || 0);
