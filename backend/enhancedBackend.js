@@ -30,6 +30,7 @@ import { fileURLToPath } from 'url';
 import { ForecastDebugEndpoint } from './debug-forecast-token.js';
 import { CallMilestonesDebugEndpoint } from './debug-call-milestones.js';
 import MoralisAIChatService from './services/MoralisAIChatService.js';
+import TwitterAutoPostService from './twitterAutoPostService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -144,6 +145,7 @@ class EnhancedBackend {
     this.automatedCleanup = new AutomatedTokenCleanup();
     // Initialize AI Chat Service with OAuthXService for watchlist operations and backend instance for internal calls
     this.aiChatService = new MoralisAIChatService(this.oauthXService, this);
+    this.twitterAutoPostService = new TwitterAutoPostService();
     this.backupIntegration = null; // Will be initialized in setupServices()
     // Social Context cache (72h TTL)
     this.socialContextCache = new Map();
@@ -4607,6 +4609,17 @@ class EnhancedBackend {
               console.log(`[🛡️ Enhanced Backend] ✅ Recorded fuel earning: ${fuelType} - $${fuelPrice} from ${user ? user.username : 'GUEST'}`);
             } catch (earningError) {
               console.error(`[🛡️ Enhanced Backend] ❌ Failed to record fuel earning:`, earningError.message);
+            }
+          }
+          
+          // Auto-post to @dgnoracle for high-tier fuels (500x and 1000x)
+          if (fuelType === '500x' || fuelType === '1000x') {
+            try {
+              console.log(`[🛡️ Enhanced Backend] 🐦 Auto-posting ${fuelType} fuel to @dgnoracle...`);
+              await this.twitterAutoPostService.postFuelAnnouncement(result.token, fuelType, user);
+            } catch (twitterError) {
+              console.error(`[🛡️ Enhanced Backend] ❌ Failed to auto-post to Twitter:`, twitterError.message);
+              // Don't fail the fuel application if Twitter post fails - just log it
             }
           }
           
