@@ -792,19 +792,25 @@ class EnhancedSocialDataService {
         mcapMultiplier = 2;
       }
       
-      // 24h Volume multiplier (hot tokens with high volume deserve higher projections)
-      // MICRO CAP FRIENDLY: Lower thresholds so small tokens with decent volume get boosted
+      // 24h Volume multiplier (scales with trading activity - high volume = high social buzz)
       let volumeMultiplier = 1.0;
       const volume24h = metadata?.volume24h || null;
       if (volume24h) {
-        // Volume tiers - adjusted for micro caps (thresholds divided by 100)
-        if (volume24h >= 100_000) volumeMultiplier = 3.0;      // $100k+ volume = very hot for micro caps
-        else if (volume24h >= 50_000) volumeMultiplier = 2.5;  // $50k+ = hot trading
-        else if (volume24h >= 10_000) volumeMultiplier = 2.0;  // $10k+ = good activity
-        else if (volume24h >= 5_000) volumeMultiplier = 1.5;   // $5k+ = decent activity
-        else if (volume24h >= 1_000) volumeMultiplier = 1.2;   // $1k+ = some activity
+        // Volume tiers - aggressive scaling for high-volume tokens
+        if (volume24h >= 100_000_000) volumeMultiplier = 40.0;       // $100M+ = Ultra whale territory
+        else if (volume24h >= 50_000_000) volumeMultiplier = 30.0;   // $50M+ = Major league
+        else if (volume24h >= 20_000_000) volumeMultiplier = 25.0;   // $20M+ = Hot token
+        else if (volume24h >= 10_000_000) volumeMultiplier = 20.0;   // $10M+ = Very hot
+        else if (volume24h >= 5_000_000) volumeMultiplier = 15.0;    // $5M+ = Hot
+        else if (volume24h >= 1_000_000) volumeMultiplier = 10.0;    // $1M+ = Active
+        else if (volume24h >= 500_000) volumeMultiplier = 6.0;       // $500k+ = Warm
+        else if (volume24h >= 100_000) volumeMultiplier = 3.0;       // $100k+ = Decent
+        else if (volume24h >= 50_000) volumeMultiplier = 2.5;        // $50k+ = Low
+        else if (volume24h >= 10_000) volumeMultiplier = 2.0;        // $10k+ = Micro
+        else if (volume24h >= 5_000) volumeMultiplier = 1.5;         // $5k+ = Very low
+        else if (volume24h >= 1_000) volumeMultiplier = 1.2;         // $1k+ = Minimal
         
-        console.log(`💹 Volume boost: $${(volume24h/1e3).toFixed(1)}k = ${volumeMultiplier}x multiplier`);
+        console.log(`💹 Volume boost: $${(volume24h/1e6).toFixed(2)}M = ${volumeMultiplier}x multiplier`);
       }
       
       // HYPE-FIRST APPROACH: Combine mcap and volume with HEAVY WEIGHT on volume

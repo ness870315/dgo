@@ -237,10 +237,21 @@ class SmartTwitterRefreshService {
         (mcap >= 100_000_000 ? 5 : mcap >= 50_000_000 ? 4 : mcap >= 10_000_000 ? 3 : 
          mcap >= 5_000_000 ? 2.5 : mcap >= 1_000_000 ? 2 : 1.5) : 2;
       
-      // Volume multiplier (micro cap friendly)
-      let volumeMultiplier = volume24h ? 
-        (volume24h >= 100_000 ? 3.0 : volume24h >= 50_000 ? 2.5 : volume24h >= 10_000 ? 2.0 :
-         volume24h >= 5_000 ? 1.5 : volume24h >= 1_000 ? 1.2 : 1.0) : 1.0;
+      // Volume multiplier (scales with trading activity - high volume = high social buzz)
+      let volumeMultiplier = volume24h ?
+        (volume24h >= 100_000_000 ? 40.0 :  // $100M+ = Ultra whale territory
+         volume24h >= 50_000_000 ? 30.0 :   // $50M+ = Major league
+         volume24h >= 20_000_000 ? 25.0 :   // $20M+ = Hot token
+         volume24h >= 10_000_000 ? 20.0 :   // $10M+ = Very hot
+         volume24h >= 5_000_000 ? 15.0 :    // $5M+ = Hot
+         volume24h >= 1_000_000 ? 10.0 :    // $1M+ = Active
+         volume24h >= 500_000 ? 6.0 :       // $500k+ = Warm
+         volume24h >= 100_000 ? 3.0 :       // $100k+ = Decent
+         volume24h >= 50_000 ? 2.5 :        // $50k+ = Low
+         volume24h >= 10_000 ? 2.0 :        // $10k+ = Micro
+         volume24h >= 5_000 ? 1.5 :         // $5k+ = Very low
+         volume24h >= 1_000 ? 1.2 : 1.0)    // $1k+ = Minimal
+        : 1.0;
       
       // Weighted size multiplier (70% volume, 30% mcap)
       let sizeMultiplier = (mcap && volume24h) ? 
