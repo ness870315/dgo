@@ -1847,15 +1847,16 @@ class EnhancedSocialDataService {
    * @param {string} symbol - Token symbol
    * @param {string} name - Token name  
    * @param {boolean} adminBypass - If true, bypasses TwitterApiManager cooldowns (admin only)
+   * @param {Object} metadata - Token metadata (marketCap, volume24h) for projection
    */
-  async forceImmediateRefresh(symbol, name, adminBypass = false) {
+  async forceImmediateRefresh(symbol, name, adminBypass = false, metadata = null) {
     try {
       console.log(`🚀 Force refreshing ${symbol} (${name}) immediately...${adminBypass ? ' [ADMIN BYPASS]' : ''}`);
       
       // Force refresh and update cache
-      const twitterData = await this.getTwitterSocialData(symbol, name, true, null, null, adminBypass);
+      const twitterData = await this.getTwitterSocialData(symbol, name, true, null, null, adminBypass, metadata);
       
-      console.log(`✅ Immediate refresh completed for ${symbol}: ${twitterData.mentions} mentions`);
+      console.log(`✅ Immediate refresh completed for ${symbol}: ${twitterData.displayMentions || twitterData.mentions} mentions (projected)`);
       return twitterData;
       
     } catch (error) {

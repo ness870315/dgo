@@ -5910,9 +5910,17 @@ class EnhancedBackend {
         // Get social data service
         const socialService = this.tokenProcessor.socialDataService;
         
+        // Prepare metadata for smart projection (market cap + volume)
+        const metadata = token.jupiterData ? {
+          marketCap: token.jupiterData.marketCap || token.jupiterData.mcap || null,
+          volume24h: token.jupiterData.volume24h || token.jupiterData.v24hUSD || null
+        } : null;
+        
+        console.log(`[🛡️ Admin] 📊 Metadata for ${token.symbol}: mcap=$${metadata?.marketCap ? (metadata.marketCap/1e6).toFixed(1) : '?'}M, vol=$${metadata?.volume24h ? (metadata.volume24h/1e3).toFixed(0) : '?'}k`);
+        
         // Force refresh Twitter data (REMOVED admin bypass to respect 72h cooldown)
         const lookupSymbol = token.symbol || upperSym;
-        const twitterData = await socialService.forceImmediateRefresh(lookupSymbol, token.name, false);
+        const twitterData = await socialService.forceImmediateRefresh(lookupSymbol, token.name, false, metadata);
         
         // Update token with new Twitter data
         token.twitterData = twitterData;
@@ -5942,11 +5950,13 @@ class EnhancedBackend {
             name: token.name,
             twitterData: {
               mentions: twitterData.mentions,
+              displayMentions: twitterData.displayMentions,
               mentions24h: twitterData.mentions24h,
               followers: twitterData.followers,
               engagement: twitterData.engagement,
               officialHandle: twitterData.officialHandle,
-              recentMentions: twitterData.recentMentions?.length || 0
+              recentMentions: twitterData.recentMentions?.length || 0,
+              projection: metadata ? `${twitterData.mentions} sample → ${twitterData.displayMentions} projected` : 'no metadata'
             },
             communityScore: token.communityHealthScore,
             overallScore: token.overallScore
