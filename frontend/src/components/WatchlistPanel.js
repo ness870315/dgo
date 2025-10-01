@@ -54,6 +54,19 @@ const WatchlistPanel = ({ isOpen, onClose, onTokenSelect, allTokensData = [] }) 
     }
   }, [isOpen, isAuthenticated, loadWatchlist]);
 
+  // Listen for watchlist updates from AI chat or other sources
+  useEffect(() => {
+    const handleWatchlistUpdate = (event) => {
+      console.log('🔄 [WATCHLIST] Received update event from:', event.detail?.source);
+      if (isAuthenticated) {
+        loadWatchlist();
+      }
+    };
+
+    window.addEventListener('watchlistUpdated', handleWatchlistUpdate);
+    return () => window.removeEventListener('watchlistUpdated', handleWatchlistUpdate);
+  }, [isAuthenticated, loadWatchlist]);
+
   // Update watchlist token data when main app token data changes
   useEffect(() => {
     if (watchlist.length > 0 && allTokensData.length > 0) {

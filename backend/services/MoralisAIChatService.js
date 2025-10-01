@@ -1447,25 +1447,41 @@ class MoralisAIChatService {
         const result = commandResults.watchlistAdded;
         
         if (result && result.success) {
+          const responseTime = Date.now() - startTime;
+          console.log(`✅ [AI CHAT] Watchlist command completed in ${responseTime}ms`);
+          
           return {
             success: true,
-            content: `${result.symbol} has been successfully added to your watchlist! 🎯`,
-            intent: primaryIntent,
-            confidence: confidence,
-            commands: commands,
+            response: {
+              content: `${result.symbol || result.name || 'Token'} added to your watchlist! 🎯`,
+              hasUserData: false,
+              dataSourcesUsed: ['watchlist_command'],
+              commandsExecuted: commands
+            },
+            userContext: {},
+            dataUsed: [],
+            commandsExecuted: commands,
             commandResults: commandResults,
-            responseTime: Date.now() - startTime,
+            responseTime: responseTime,
             timestamp: new Date().toISOString()
           };
         } else {
+          const responseTime = Date.now() - startTime;
+          console.log(`❌ [AI CHAT] Watchlist command failed in ${responseTime}ms`);
+          
           return {
             success: false,
-            content: `Sorry, I couldn't add ${command.contractAddress} to your watchlist. Please try again or check if the token exists.`,
-            intent: primaryIntent,
-            confidence: confidence,
-            commands: commands,
+            error: result?.message || 'Failed to add to watchlist',
+            response: {
+              content: `Sorry, I couldn't add ${command.tokenName || command.contractAddress || 'that token'} to your watchlist. Please try again! 💫`,
+              hasUserData: false,
+              dataSourcesUsed: []
+            },
+            userContext: {},
+            dataUsed: [],
+            commandsExecuted: commands,
             commandResults: commandResults,
-            responseTime: Date.now() - startTime,
+            responseTime: responseTime,
             timestamp: new Date().toISOString()
           };
         }

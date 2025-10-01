@@ -182,6 +182,14 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
         success: response.success
       };
 
+      // Check if watchlist was modified and trigger refresh event
+      if (response.commandsExecuted && response.commandsExecuted.some(cmd => cmd.type === 'ADD_TO_WATCHLIST')) {
+        console.log('🔄 [AI CHAT] Watchlist modified, dispatching refresh event');
+        window.dispatchEvent(new CustomEvent('watchlistUpdated', { 
+          detail: { source: 'ai_chat' } 
+        }));
+      }
+
       setMessages(prev => {
         const updatedMessages = [...prev, aiMessage];
         
