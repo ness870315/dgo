@@ -102,6 +102,23 @@ class SmartIntentDetector {
         priority: 'high'
       },
 
+      // Off-Topic / Non-Crypto Requests
+      OFF_TOPIC: {
+        patterns: [
+          /(?:make|create|build|get|fetch|bring) (?:me|us) (?:a|an|some) (?:sandwich|food|coffee|drink|pizza)/i,
+          /tell (?:me|us) (?:a|an) (?:joke|story|riddle|poem)/i,
+          /(?:what|who) (?:is|are) (?:the|your) (?:meaning of life|weather|time|president|capital)/i,
+          /(?:play|sing|dance|draw|write) (?:a|something|for me)/i,
+          /(?:how|what) (?:is|are|do) (?:you|your) (?:name|age|birthday|favorite|feeling)/i,
+          /(?:do you|can you|will you) (?:love|like|hate|marry|date)/i,
+          /(?:recipe|cooking|baking|food|restaurant) (?:for|recommendation)/i,
+          /(?:movie|music|book|game|sports) (?:recommendation|suggestion)/i,
+          /(?:translate|speak|say) (?:in|to) (?:spanish|french|german|chinese)/i
+        ],
+        keywords: ['make me', 'tell me a joke', 'weather', 'recipe', 'movie', 'music', 'translate', 'play a', 'sing', 'your name', 'your age'],
+        priority: 'low'
+      },
+
       // General Conversation
       GENERAL: {
         patterns: [
@@ -222,6 +239,7 @@ class SmartIntentDetector {
       PLATFORM_QUERY: 'user',
       PLATFORM_INFO: 'general',
       WATCHLIST_ACTION: 'hybrid',
+      OFF_TOPIC: 'none', // No data needed for off-topic
       GENERAL: 'general'
     };
     return priorities[intent] || 'general';
