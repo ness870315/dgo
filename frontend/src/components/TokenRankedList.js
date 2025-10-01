@@ -93,7 +93,8 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
             const priceChange = token.jupiterData?.priceChange24h || token.priceChange24h || 0;
             const marketCap = token.jupiterData?.marketCap || token.marketCap || 0;
             const price = token.jupiterData?.price || token.price || 0;
-            const mentions = token.mentions || token.twitterData?.mentions || 0;
+            // Use displayMentions (smart projection) for consistency with TokenDetails
+            const mentions = token.twitterData?.displayMentions || token.displayMentions || token.mentions || token.twitterData?.mentions || 0;
             const fuelInfo = getFuelInfo(token);
             
             const { icon: PriceIcon, color: priceColor } = getPriceChangeDisplay(priceChange);
