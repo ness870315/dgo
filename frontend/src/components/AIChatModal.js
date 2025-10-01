@@ -184,13 +184,33 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
 
       // Check if watchlist was modified and trigger refresh event
       if (response.commandsExecuted && response.commandsExecuted.some(cmd => cmd.type === 'ADD_TO_WATCHLIST')) {
-        console.log('🔄 [AI CHAT] Watchlist modified, dispatching refresh event');
-        // Add delay to ensure backend has processed the update AND main token cache has refreshed
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent('watchlistUpdated', { 
-            detail: { source: 'ai_chat', timestamp: Date.now() } 
-          }));
-        }, 1500); // 1.5s delay to ensure backend processing + cache refresh
+        console.log('🔄 [AI CHAT] Watchlist modified, updating localStorage and dispatching event');
+        
+        // Update localStorage immediately (same as TokenDetails does)
+        const addCommand = response.commandsExecuted.find(cmd => cmd.type === 'ADD_TO_WATCHLIST');
+        if (addCommand && addCommand.data) {
+          const payload = {
+            symbol: addCommand.data.symbol,
+            name: addCommand.data.name,
+            price: addCommand.data.price,
+            marketCap: addCommand.data.marketCap,
+            contractAddress: addCommand.data.contractAddress
+          };
+          
+          // Update local fallback (same as TokenDetails)
+          const local = JSON.parse(localStorage.getItem('watchlist') || '[]');
+          // Avoid duplicates
+          if (!local.some(item => item.symbol === payload.symbol)) {
+            local.push(payload);
+            localStorage.setItem('watchlist', JSON.stringify(local));
+            console.log('🔄 [AI CHAT] Updated localStorage with:', payload.symbol);
+          }
+        }
+        
+        // Dispatch event immediately (no delay needed since localStorage is already updated)
+        window.dispatchEvent(new CustomEvent('watchlistUpdated', { 
+          detail: { source: 'ai_chat', timestamp: Date.now() } 
+        }));
       }
 
       setMessages(prev => {
