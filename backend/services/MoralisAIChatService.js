@@ -814,36 +814,60 @@ class MoralisAIChatService {
     
     conversationHistory.forEach(msg => {
       if (msg.role === 'assistant' && msg.content) {
-        // Look for patterns like "TokenName (ContractAddress)" or contract addresses mentioned
-        const contractMatches = msg.content.match(/([A-Za-z0-9]{32,})/g);
-        const nameMatches = msg.content.match(/(\w+)\s*\([A-Za-z0-9]{32,}\)/g);
+        // Look for all contract addresses in the message (32+ chars)
+        const contractMatches = msg.content.match(/\b([A-Za-z0-9]{32,})\b/g);
         
-        if (contractMatches && nameMatches) {
-          nameMatches.forEach(match => {
-            const nameMatch = match.match(/(\w+)\s*\(([A-Za-z0-9]{32,})\)/);
-            if (nameMatch) {
-              const tokenName = nameMatch[1].toLowerCase();
-              const contractAddress = nameMatch[2];
+        if (!contractMatches || contractMatches.length === 0) return;
+        
+        // Pattern 1: "TokenName (ContractAddress)"
+        const nameWithParens = msg.content.match(/(\w+)\s*\(([A-Za-z0-9]{32,})\)/g);
+        if (nameWithParens) {
+          nameWithParens.forEach(match => {
+            const parts = match.match(/(\w+)\s*\(([A-Za-z0-9]{32,})\)/);
+            if (parts) {
+              const tokenName = parts[1].toLowerCase();
+              const contractAddress = parts[2];
               tokenReferences.set(tokenName, contractAddress);
-              console.log(`🧠 [CONTEXT] Extracted token reference: ${tokenName} -> ${contractAddress}`);
+              console.log(`🧠 [CONTEXT] Pattern1: ${tokenName} -> ${contractAddress.substring(0, 8)}...`);
             }
           });
         }
         
-        // Also look for direct mentions like "Fartcoin is currently priced" followed by contract
-        const directMatches = msg.content.match(/(\w+)\s+(?:is|has|currently|priced)/gi);
-        if (directMatches && contractMatches) {
+        // Pattern 2: "token NAME ... address ADDR" or "NAME ... with the address ADDR"
+        contractMatches.forEach(contractAddr => {
+          // Look backwards for token name before the contract address
+          const beforeAddr = msg.content.substring(0, msg.content.indexOf(contractAddr));
+          
+          // Match patterns like "SSX", "Solana Stock Index", etc. before "address" or "with"
+          const nameBeforeMatch = beforeAddr.match(/(?:token\s+)?([A-Z][A-Za-z0-9]*)\s*(?:token)?[,\s]+[^.]*?(?:with\s+the\s+)?address\s*$/i);
+          if (nameBeforeMatch) {
+            const tokenName = nameBeforeMatch[1].toLowerCase();
+            tokenReferences.set(tokenName, contractAddr);
+            console.log(`🧠 [CONTEXT] Pattern2: ${tokenName} -> ${contractAddr.substring(0, 8)}...`);
+          }
+          
+          // Also match "let's talk about SSX..." at the start
+          const startMatch = beforeAddr.match(/(?:talk about|about|discussing|looking at)\s+([A-Z][A-Za-z0-9]*)[,\s]/i);
+          if (startMatch) {
+            const tokenName = startMatch[1].toLowerCase();
+            tokenReferences.set(tokenName, contractAddr);
+            console.log(`🧠 [CONTEXT] Pattern3: ${tokenName} -> ${contractAddr.substring(0, 8)}...`);
+          }
+        });
+        
+        // Pattern 3: "TokenName is currently priced/trading" (original fallback)
+        const directMatches = msg.content.match(/\b([A-Z][A-Za-z0-9]*)\s+(?:is|has|currently|trading)/gi);
+        if (directMatches && contractMatches.length > 0) {
           directMatches.forEach(match => {
             const tokenName = match.split(/\s+/)[0].toLowerCase();
-            if (contractMatches[0] && contractMatches[0].length >= 32) {
-              tokenReferences.set(tokenName, contractMatches[0]);
-              console.log(`🧠 [CONTEXT] Extracted direct token reference: ${tokenName} -> ${contractMatches[0]}`);
-            }
+            tokenReferences.set(tokenName, contractMatches[0]);
+            console.log(`🧠 [CONTEXT] Pattern4: ${tokenName} -> ${contractMatches[0].substring(0, 8)}...`);
           });
         }
       }
     });
     
+    console.log(`🧠 [CONTEXT] Total token references extracted: ${tokenReferences.size}`);
     return tokenReferences;
   }
 
