@@ -301,9 +301,15 @@ export default function DetailDrawer({ call, onClose, onRefresh }) {
   const max = Math.max(...series);
   const w = 640;
   const h = 220;
-  const step = series.length > 1 ? w / (series.length - 1) : w;
+  // Add padding to prevent clipping of markers
+  const padding = { top: 15, right: 50, bottom: 5, left: 5 };
+  const chartWidth = w - padding.left - padding.right;
+  const chartHeight = h - padding.top - padding.bottom;
+  const step = series.length > 1 ? chartWidth / (series.length - 1) : chartWidth;
   const norm = series.map((v) => (v - min) / (max - min || 1));
-  const path = norm.map((v, i) => `${i === 0 ? "M" : "L"}${i * step},${h - v * (h - 2) - 1}`).join(" ");
+  const path = norm.map((v, i) => 
+    `${i === 0 ? "M" : "L"}${padding.left + i * step},${padding.top + chartHeight - v * (chartHeight - 2) - 1}`
+  ).join(" ");
   
   // Chart generated successfully
 
@@ -403,21 +409,21 @@ export default function DetailDrawer({ call, onClose, onRefresh }) {
                   </linearGradient>
                 </defs>
                 {/* area fill */}
-                <path d={`${path} L ${w},${h} L 0,${h} Z`} fill="url(#grad)" opacity={0.35} />
+                <path d={`${path} L ${padding.left + chartWidth},${h} L ${padding.left},${h} Z`} fill="url(#grad)" opacity={0.35} />
                 {/* line */}
                 <path d={path} fill="none" stroke="rgb(52,211,153)" strokeWidth={2} />
                 {/* call marker */}
                 {callIndex >= 0 && (
                   <g>
-                    <line x1={callIndex * step} x2={callIndex * step} y1={0} y2={h} stroke="rgba(255,255,255,0.4)" strokeDasharray="4 4" />
-                    <text x={callIndex * step + 5} y={15} className="text-xs fill-white/60">Call</text>
+                    <line x1={padding.left + callIndex * step} x2={padding.left + callIndex * step} y1={padding.top} y2={h} stroke="rgba(255,255,255,0.4)" strokeDasharray="4 4" />
+                    <text x={padding.left + callIndex * step + 5} y={padding.top + 5} className="text-xs fill-white/60">Call</text>
                   </g>
                 )}
                 {/* ATH marker */}
                 {athIndex >= 0 && (
                   <g>
-                    <circle cx={athIndex * step} cy={h - norm[athIndex] * (h - 2) - 1} r={4} fill="rgb(52,211,153)" stroke="rgba(255,255,255,0.8)" strokeWidth="1" />
-                    <text x={athIndex * step + 5} y={30} className="text-xs fill-white/60">ATH</text>
+                    <circle cx={padding.left + athIndex * step} cy={padding.top + chartHeight - norm[athIndex] * (chartHeight - 2) - 1} r={4} fill="rgb(52,211,153)" stroke="rgba(255,255,255,0.8)" strokeWidth="1" />
+                    <text x={padding.left + athIndex * step + 5} y={padding.top + 15} className="text-xs fill-white/60">ATH</text>
                   </g>
                 )}
               </svg>
