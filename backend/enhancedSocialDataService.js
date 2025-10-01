@@ -749,14 +749,72 @@ class EnhancedSocialDataService {
       const uniqueTweetIds = new Set((recentMentions || []).map(t => t.tweetId || t.id || t.tweet_id));
       const uniqueAuthorsSet = new Set((recentMentions || []).map(t => (t.author || t.user?.screen_name || t.user?.username || t.user?.name || '').toLowerCase()));
 
-      // Calculate displayMentions estimate for UI
+      // 🚀 SMART PROJECTION: Calculate displayMentions with market-cap-aware estimation
       let displayMentions = totalMentions;
+      
+      // Calculate engagement multiplier (viral tweets = more actual mentions)
+      const avgEngagement = recentMentions.length > 0 
+        ? recentMentions.reduce((sum, t) => sum + (t.likes || 0) + (t.retweets || 0), 0) / recentMentions.length
+        : 0;
+      
+      // Engagement tiers (higher engagement = wider reach)
+      let engagementMultiplier = 1.0;
+      if (avgEngagement >= 100) engagementMultiplier = 2.5;       // Viral content
+      else if (avgEngagement >= 50) engagementMultiplier = 2.0;   // High engagement
+      else if (avgEngagement >= 20) engagementMultiplier = 1.5;   // Good engagement
+      else if (avgEngagement >= 5) engagementMultiplier = 1.2;    // Moderate engagement
+      
+      // Market cap tiers (realistic mention volumes by size)
+      let mcapMultiplier = 1.0;
+      const mcap = metadata?.marketCap || null;
+      if (mcap) {
+        if (mcap >= 100_000_000) mcapMultiplier = 15;      // $100M+ = major project
+        else if (mcap >= 50_000_000) mcapMultiplier = 10;  // $50M+ = established
+        else if (mcap >= 10_000_000) mcapMultiplier = 7;   // $10M+ = growing
+        else if (mcap >= 5_000_000) mcapMultiplier = 5;    // $5M+ = mid-tier
+        else if (mcap >= 1_000_000) mcapMultiplier = 3;    // $1M+ = small cap
+        else mcapMultiplier = 2;                            // <$1M = micro cap
+      } else {
+        // No mcap data - use moderate multiplier
+        mcapMultiplier = 4;
+      }
+      
+      // 24h Volume multiplier (hot tokens with high volume deserve higher projections)
+      let volumeMultiplier = 1.0;
+      const volume24h = metadata?.volume24h || null;
+      if (volume24h) {
+        // Volume tiers - micro caps with high volume can compete with larger caps
+        if (volume24h >= 10_000_000) volumeMultiplier = 3.0;      // $10M+ volume = very hot
+        else if (volume24h >= 5_000_000) volumeMultiplier = 2.5;  // $5M+ = hot trading
+        else if (volume24h >= 1_000_000) volumeMultiplier = 2.0;  // $1M+ = good activity
+        else if (volume24h >= 500_000) volumeMultiplier = 1.5;    // $500k+ = decent activity
+        else if (volume24h >= 100_000) volumeMultiplier = 1.2;    // $100k+ = some activity
+        
+        console.log(`💹 Volume boost: $${(volume24h/1e6).toFixed(2)}M = ${volumeMultiplier}x multiplier`);
+      }
+      
+      // Combine mcap and volume intelligently (don't just multiply)
+      // Use the HIGHER of the two to give micro caps a chance
+      const sizeMultiplier = Math.max(mcapMultiplier, volumeMultiplier);
+      
+      // If both are present, add a synergy bonus
+      let synergyBonus = 1.0;
+      if (mcap && volume24h) {
+        // High volume relative to mcap = trending/hot token
+        const volumeToMcapRatio = volume24h / mcap;
+        if (volumeToMcapRatio >= 0.5) synergyBonus = 1.5;       // 50%+ turnover = very hot
+        else if (volumeToMcapRatio >= 0.3) synergyBonus = 1.3;  // 30%+ = hot
+        else if (volumeToMcapRatio >= 0.1) synergyBonus = 1.15; // 10%+ = good activity
+        
+        console.log(`🔥 Volume/Mcap ratio: ${(volumeToMcapRatio * 100).toFixed(1)}% = ${synergyBonus}x synergy bonus`);
+      }
+      
       if (mentions72hAvg != null) {
-        // Blend 72h average with current sample projection
-        const alpha = 0.7;
+        // Has historical data - blend with projection
+        const alpha = 0.6; // Lower weight to history (was 0.7)
         let projected = totalMentions;
         
-        // Project from sample if we have time span data
+        // Time-based projection
         if (recentMentions.length >= 2) {
           const timestamps = recentMentions.map(t => new Date(t.createdAt).getTime()).filter(t => !isNaN(t));
           if (timestamps.length >= 2) {
@@ -764,24 +822,66 @@ class EnhancedSocialDataService {
             if (deltaHours >= 1) {
               const rate = totalMentions / deltaHours;
               projected = Math.round(rate * 24); // Project to 24h
+            } else {
+              // Very recent tweets - extrapolate cautiously
+              projected = totalMentions * Math.min(12, 24 / (deltaHours || 1));
             }
           }
         }
         
-        // Blend with caps
+        // Apply size, engagement, and synergy multipliers to projection
+        projected = Math.round(projected * engagementMultiplier * synergyBonus);
+        
+        // Blend with 72h average
         const blended = alpha * mentions72hAvg + (1 - alpha) * projected;
-        displayMentions = Math.round(Math.max(mentions72hAvg * 0.5, Math.min(mentions72hAvg * 1.5, blended)));
+        
+        // Less restrictive caps (2.5x instead of 1.5x) for growth allowance
+        displayMentions = Math.round(Math.max(mentions72hAvg * 0.3, Math.min(mentions72hAvg * 2.5, blended)));
+        
+        console.log(`📊 Projection (w/ history): base=${totalMentions}, projected=${projected}, 72h_avg=${mentions72hAvg}, synergy=${synergyBonus}x, final=${displayMentions}`);
       } else {
-        // New token without history - conservative estimate
-        displayMentions = Math.max(totalMentions * 4, 8); // Assume 4x multiplier, minimum 8
+        // New token without history - use market/volume-aware projection
+        // Base: sample * time_multiplier * size_multiplier * engagement_multiplier * synergy_bonus
+        const baseSampleMultiplier = 8; // Assume we're seeing ~1/8th of daily mentions in our 6-tweet sample
+        
+        let projected = totalMentions * baseSampleMultiplier * sizeMultiplier * engagementMultiplier * synergyBonus;
+        
+        // Floor: Minimum realistic mentions by market cap OR volume (whichever is higher)
+        let minMentions = 15;
+        if (mcap) {
+          if (mcap >= 100_000_000) minMentions = Math.max(minMentions, 200);
+          else if (mcap >= 50_000_000) minMentions = Math.max(minMentions, 100);
+          else if (mcap >= 10_000_000) minMentions = Math.max(minMentions, 50);
+          else if (mcap >= 5_000_000) minMentions = Math.max(minMentions, 30);
+          else if (mcap >= 1_000_000) minMentions = Math.max(minMentions, 20);
+        }
+        // Volume-based floor (helps micro caps with high volume)
+        if (volume24h) {
+          if (volume24h >= 5_000_000) minMentions = Math.max(minMentions, 80);
+          else if (volume24h >= 1_000_000) minMentions = Math.max(minMentions, 40);
+          else if (volume24h >= 500_000) minMentions = Math.max(minMentions, 25);
+        }
+        
+        // Ceiling: Prevent unrealistic inflation (based on larger of mcap or volume)
+        let maxMentions = 500;
+        if (mcap) maxMentions = Math.max(maxMentions, Math.min(5000, mcap / 50000));
+        if (volume24h) maxMentions = Math.max(maxMentions, Math.min(3000, volume24h / 10000));
+        
+        displayMentions = Math.round(Math.max(minMentions, Math.min(maxMentions, projected)));
+        
+        console.log(`📊 Projection (new token): base=${totalMentions}, size=${sizeMultiplier}x (mcap=${mcapMultiplier}x, vol=${volumeMultiplier}x), eng=${engagementMultiplier}x, synergy=${synergyBonus}x, final=${displayMentions}`);
       }
 
       // Summary
       console.log(`📊 Twitter Search Summary for ${symbol}:`);
       console.log(`   🎯 Official Handle: ${officialHandle || 'not found'}`);
       console.log(`   👥 Followers: ${followers}`);
-      console.log(`   📊 Community Mentions: ${totalMentions}${mentions72hAvg != null ? ` (72h avg: ${mentions72hAvg})` : ''}`);
-      console.log(`   📈 Display Mentions: ${displayMentions} (estimated)`);
+      console.log(`   📊 Sample Mentions: ${totalMentions} (from ${recentMentions.length} tweets)${mentions72hAvg != null ? ` | 72h avg: ${mentions72hAvg}` : ''}`);
+      console.log(`   📈 Display Mentions: ${displayMentions} (smart projection with market/volume)`);
+      console.log(`   💰 Market Cap: ${mcap ? `$${(mcap/1e6).toFixed(1)}M (${mcapMultiplier}x)` : 'unknown'}`);
+      console.log(`   💹 24h Volume: ${volume24h ? `$${(volume24h/1e6).toFixed(2)}M (${volumeMultiplier}x)` : 'unknown'}`);
+      console.log(`   🎯 Size Multiplier: ${sizeMultiplier}x (max of mcap/volume) ${synergyBonus > 1 ? `+ ${synergyBonus}x synergy` : ''}`);
+      console.log(`   🔥 Avg Engagement: ${Math.round(avgEngagement)} (${engagementMultiplier}x)`);
       console.log(`   💖 Total Engagement: ${totalLikes + totalRetweets + totalReplies}`);
       
       return {
