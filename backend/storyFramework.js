@@ -152,6 +152,7 @@ Rules:
 - Keep crypto Twitter vibes (emojis ok, but not excessive)
 - Sound confident and hype
 - Make it feel organic, not corporate
+- NO HASHTAGS - avoid using # symbols
 ${includeLink ? '- End with: 👉 degen-oracle.com' : '- DO NOT include any links'}
 
 Tweet:`;
