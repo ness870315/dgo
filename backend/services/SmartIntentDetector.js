@@ -9,24 +9,74 @@ class SmartIntentDetector {
       // Specific Token Data (Moralis Cortex)
       BLOCKCHAIN_QUERY: {
         patterns: [
+          // Price queries
           /(?:price|volume|holders?|market cap|liquidity|transactions?|ath|all.?time.?high) of \w+/i,
           /\w+ (?:price|volume|holders?|market cap|ath|all.?time.?high)/i,
           /what.*?(?:price|volume|holders?|ath|all.?time.?high) of/i,
           /what.*?(?:is|are).*?\w+.*?(?:ath|all.?time.?high|price|volume)/i,
           /(?:current|latest|highest) (?:price|data|ath) (?:of|for) \w+/i,
+          /(?:current|latest) price of .* and .*/i, // Multi-token price queries
+          /what.*?price of .* and .*/i,
+          
+          // Volume and trading
           /(?:buy|sell) (?:volume|pressure) (?:of|for) \w+/i,
-          /wallet.*?(?:analysis|transactions?|activity)/i,
+          
+          // Wallet analysis
+          /wallet.*?(?:analysis|transactions?|activity|hold)/i,
+          /what.*?(?:tokens?|nfts?).*?(?:wallet|address).*?(?:hold|own)/i,
+          /(?:tokens?|nfts?).*?(?:wallet|address).*?hold/i,
+          /show.*?(?:nfts?|tokens?).*?owned by/i,
+          /show.*?(?:nfts?|tokens?).*?(?:wallet|address)/i,
+          
+          // On-chain data
           /on-chain.*?(?:data|analysis)/i,
           /whale.*?activity.*?for\s+[a-z0-9]{32,}/i,
           /show.*?(?:whale|activity|transactions?).*?[a-z0-9]{32,}/i,
           /[a-z0-9]{32,}.*?(?:whale|activity|analysis|data)/i,
           /(?:whale|activity|analysis|data).*?[a-z0-9]{32,}/i,
+          
+          // Holder distribution
+          /(?:holder|holders?).*?distribution/i,
+          /analyze.*?holder/i,
+          /holder.*?analysis/i,
+          
+          // Entity/Exchange analysis
+          /find.*?wallet.*?(?:associated|linked|related)/i,
+          /wallet.*?associated.*?with/i,
+          
+          // General alpha/market
+          /give.*?(?:me|us).*?(?:some|the)?.*?alpha/i,
+          /(?:crypto|market|blockchain).*?news/i,
+          /how.*?(?:is|are).*?(?:the)?.*?market.*?(?:today|now|doing)/i,
+          /(?:market|crypto).*?(?:today|now|update)/i,
+          
+          // Generic analysis patterns
           /(?:holder|market|volume|price|analysis).*?(?:of|on|for) \w+/i,
           /\w+.*?(?:holder|market|volume|price|analysis)/i,
           /(?:analysis|data|info).*?(?:of|on|for) \w+/i,
           /\w+.*?(?:analysis|data|info)/i
         ],
-        keywords: ['price of', 'volume of', 'holders of', 'market cap of', 'liquidity of', 'ath', 'all-time high', 'all time high', 'highest price', 'peak price', 'high', 'wallet', 'on-chain', 'whale activity', 'show me', 'holder analysis', 'market analysis', 'volume analysis', 'price analysis', 'analysis of', 'data of', 'info of'],
+        keywords: [
+          // Price & metrics
+          'price of', 'volume of', 'holders of', 'market cap of', 'liquidity of', 
+          'ath', 'all-time high', 'all time high', 'highest price', 'peak price', 'high',
+          'current price', 'price of',
+          
+          // Wallet & on-chain
+          'wallet', 'on-chain', 'whale activity', 'show me', 'tokens hold', 'nfts owned',
+          'wallet holds', 'wallet analysis',
+          
+          // Analysis types
+          'holder analysis', 'market analysis', 'volume analysis', 'price analysis', 
+          'analysis of', 'data of', 'info of', 'holder distribution', 'analyze holder',
+          
+          // Alpha/Market
+          'give me alpha', 'some alpha', 'crypto news', 'market news', 
+          'how is the market', 'market today', 'market update',
+          
+          // Entity analysis
+          'find wallet', 'associated with', 'linked to'
+        ],
         priority: 'high'
       },
 
