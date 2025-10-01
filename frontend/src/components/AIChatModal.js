@@ -382,15 +382,15 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
           
           {/* Header with drag handle */}
           <div 
-            className="absolute top-0 left-0 right-0 flex items-center justify-between p-4 border-b border-white/10 chat-header"
+            className="absolute top-0 left-0 right-0 flex items-center justify-between p-3 border-b border-white/10 chat-header"
             onMouseDown={handleHeaderMouseDown}
-            style={{ cursor: isDragging ? 'grabbing' : 'grab', height: '60px' }}
+            style={{ cursor: isDragging ? 'grabbing' : 'grab', height: '56px' }}
           >
-            <div className="flex items-center gap-2">
-              <Move size={16} className="text-gray-400" />
-              <div className="flex items-center gap-2">
-                <Bot className="w-5 h-5 text-blue-400" />
-                <div className="font-semibold text-white text-center">
+            <div className="flex items-center gap-2 min-w-0 flex-shrink">
+              <Move size={14} className="text-gray-400 flex-shrink-0" />
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Bot className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                <div className="font-semibold text-white text-xs leading-tight">
                   <div className="block">Degen</div>
                   <div className="block whitespace-nowrap">Oracle AI</div>
                 </div>
@@ -398,50 +398,56 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
               {(!showWelcome || currentHistoryId) && (
                 <button
                   onClick={handleBackToWelcome}
-                  className="ml-8 mr-4 px-1.5 py-0.5 text-xs bg-gray-600 hover:bg-gray-700 rounded text-white transition-colors flex items-center gap-1"
+                  className="ml-2 p-1.5 bg-gray-700 hover:bg-gray-600 rounded text-white transition-colors flex items-center flex-shrink-0"
                   title="Back to Welcome"
                 >
-                  <ArrowLeft size={8} />
-                  Back
+                  <ArrowLeft size={12} />
                 </button>
               )}
             </div>
             
-            <div className="chat-header-controls flex items-center gap-3">
+            <div className="chat-header-controls flex items-center gap-1.5 flex-shrink-0">
             {!showHistories && !currentHistoryId && !showWelcome && messages.length > 0 && (
               <button
                 onClick={handleSaveChat}
                 disabled={isLoading}
-                className="px-1.5 py-0.5 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:opacity-50 rounded text-white transition-colors flex items-center gap-1"
+                className="p-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:opacity-50 rounded text-white transition-colors"
+                title="Save Chat"
               >
-                <Save size={8} />
-                Save Chat
+                <Save size={14} />
               </button>
             )}
             <button
               onClick={() => setShowHistories(!showHistories)}
-              className="px-1.5 py-0.5 text-xs bg-purple-600 hover:bg-purple-700 rounded text-white transition-colors flex items-center gap-1"
+              className="p-1.5 bg-purple-600 hover:bg-purple-700 rounded text-white transition-colors relative"
+              title={`History (${chatHistories.length})`}
             >
-              <History size={8} />
-              History ({chatHistories.length})
+              <History size={14} />
+              {chatHistories.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">
+                  {chatHistories.length}
+                </span>
+              )}
             </button>
             <button
               onClick={clearChat}
-              className="px-1.5 py-0.5 text-xs bg-gray-700 hover:bg-gray-600 rounded text-white transition-colors"
+              className="p-1.5 bg-gray-700 hover:bg-gray-600 rounded text-white transition-colors"
+              title="Clear Chat"
             >
-              Clear Chat
+              <Trash2 size={14} />
             </button>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors mr-2"
+              className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+              title="Close"
             >
-              <X size={20} className="text-gray-400" />
+              <X size={16} className="text-gray-400" />
             </button>
             </div>
           </div>
 
         {/* Messages */}
-        <div className="absolute top-16 left-0 right-0 bottom-16 overflow-y-auto p-4 space-y-4">
+        <div className="absolute top-14 left-0 right-0 bottom-16 overflow-y-auto p-4 space-y-4">
           
           {/* Chat Histories Panel */}
           {showHistories && (
