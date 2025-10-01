@@ -1008,10 +1008,12 @@ class EnhancedSocialDataService {
       'bank', 'banking', 'financial services', 'corporate finance', 'finance',
       'بانک', 'مالی', 'تامین مالی', // Persian banking terms
       
-      // Political (for Trump example)
+      // Political/Government (for Trump example)
       'president', 'election', 'vote', 'campaign', 'politics', 'political',
       'white house', 'congress', 'senate', 'democrat', 'republican', 'maga',
       'policy', 'government', 'administration', 'inauguration',
+      'police', 'nhs', 'corruption', 'scandal', 'parastatal', 'county',
+      'kenya', 'kenyan', 'theft', 'wizi', 'useless ppe', 'medical supplies',
       
       // Animals/Pets (for DOGE example)
       'puppy', 'dog', 'pet', 'cute', 'adorable', 'sleeping', 'shiba inu',
@@ -1179,9 +1181,9 @@ class EnhancedSocialDataService {
       return false;
     }
 
-    // DEFAULT APPROVAL: If we get here, it has some crypto relevance
-    console.log(`   🤔 APPROVED: Marginal crypto relevance (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
-    return true;
+    // DEFAULT REJECTION: If we get here, insufficient crypto relevance
+    console.log(`   ❌ REJECTED: Insufficient crypto relevance (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
+    return false;
   }
 
   /**
