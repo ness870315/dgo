@@ -285,7 +285,8 @@ class SmartTwitterRefreshService {
       
       displayMentions = Math.max(minMentions, Math.min(maxMentions, displayMentions));
       
-      console.log(`🚀 Smart refresh projection for ${symbol}: ${totalMentions} → ${displayMentions} (vol=$${(volume24h/1e3).toFixed(0)}k, ${sizeMultiplier.toFixed(1)}x size, ${synergyBonus}x synergy)`);
+      const volText = volume24h ? `vol=$${(volume24h/1e6).toFixed(2)}M` : 'vol=unknown';
+      console.log(`🚀 Smart refresh projection for ${symbol}: ${totalMentions} → ${displayMentions} (${volText}, ${sizeMultiplier.toFixed(1)}x size, ${synergyBonus}x synergy)`);
     }
     
     const now = new Date().toISOString();

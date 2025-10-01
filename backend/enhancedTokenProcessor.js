@@ -1749,7 +1749,11 @@ class EnhancedTokenProcessor {
       // Prepare metadata for smart projection (market cap + volume)
       const metadata = token?.jupiterData ? {
         marketCap: token.jupiterData.marketCap || token.jupiterData.mcap || null,
-        volume24h: token.jupiterData.volume24h || token.jupiterData.v24hUSD || null
+        volume24h: token.jupiterData.volume24h || 
+                   token.jupiterData.v24hUSD || 
+                   token.jupiterData.stats24h?.volume ||
+                   (token.jupiterData.volume1h ? token.jupiterData.volume1h * 24 : null) ||
+                   null
       } : null;
       
       // Use the real Twitter API service with social links, official handle, and metadata

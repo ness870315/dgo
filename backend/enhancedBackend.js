@@ -5761,7 +5761,11 @@ class EnhancedBackend {
             // Prepare metadata for smart projection (market cap + volume)
             const metadata = token.jupiterData ? {
               marketCap: token.jupiterData.marketCap || token.jupiterData.mcap || null,
-              volume24h: token.jupiterData.volume24h || token.jupiterData.v24hUSD || null
+              volume24h: token.jupiterData.volume24h || 
+                         token.jupiterData.v24hUSD || 
+                         token.jupiterData.stats24h?.volume ||
+                         (token.jupiterData.volume1h ? token.jupiterData.volume1h * 24 : null) ||
+                         null
             } : null;
             
             // Force refresh Twitter data WITH metadata
@@ -5921,7 +5925,11 @@ class EnhancedBackend {
         // Prepare metadata for smart projection (market cap + volume)
         const metadata = token.jupiterData ? {
           marketCap: token.jupiterData.marketCap || token.jupiterData.mcap || null,
-          volume24h: token.jupiterData.volume24h || token.jupiterData.v24hUSD || null
+          volume24h: token.jupiterData.volume24h || 
+                     token.jupiterData.v24hUSD || 
+                     token.jupiterData.stats24h?.volume ||
+                     (token.jupiterData.volume1h ? token.jupiterData.volume1h * 24 : null) ||
+                     null
         } : null;
         
         console.log(`[🛡️ Admin] 📊 Metadata for ${token.symbol}: mcap=$${metadata?.marketCap ? (metadata.marketCap/1e6).toFixed(1) : '?'}M, vol=$${metadata?.volume24h ? (metadata.volume24h/1e3).toFixed(0) : '?'}k`);
@@ -6213,7 +6221,11 @@ class EnhancedBackend {
             // Prepare metadata for smart projection (market cap + volume)
             const metadata = token?.jupiterData ? {
               marketCap: token.jupiterData.marketCap || token.jupiterData.mcap || null,
-              volume24h: token.jupiterData.volume24h || token.jupiterData.v24hUSD || null
+              volume24h: token.jupiterData.volume24h || 
+                         token.jupiterData.v24hUSD || 
+                         token.jupiterData.stats24h?.volume ||
+                         (token.jupiterData.volume1h ? token.jupiterData.volume1h * 24 : null) ||
+                         null
             } : null;
             
             const twitterData = await socialService.forceImmediateRefresh(item.symbol, item.name, false, metadata);
