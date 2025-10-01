@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
  * NO API CALLS - Only uses existing collected data
  */
 class TwitterDataMergeService {
-  constructor() {
+  constructor(tokenProcessor = null) {
     // Use production data directory if available, otherwise local cache
     this.cacheDir = process.env.DATA_DIR ? 
       path.join(process.env.DATA_DIR, 'cache') : 
@@ -24,6 +24,9 @@ class TwitterDataMergeService {
       path.join(this.cacheDir, 'twitter_metrics.json');
     this.backupDir = path.join(this.cacheDir, 'backups');
     this.maxBackups = 5;
+    
+    // Token processor for score recalculation
+    this.tokenProcessor = tokenProcessor;
   }
 
   /**
@@ -229,10 +232,22 @@ class TwitterDataMergeService {
           if (twitterData.mentions !== undefined) {
             updatedToken.communityHealthScore = this.calculateCommunityHealthScore(twitterData);
             updatedToken.communityScore = updatedToken.communityHealthScore;
+            
+            // 🚨 CRITICAL: Recalculate overall score after Twitter data changes
+            // Twitter mentions affect community score which affects overall score
+            if (this.tokenProcessor && this.tokenProcessor.calculateEnhancedOverallScore) {
+              const previousScore = updatedToken.overallScore || 0;
+              updatedToken.overallScore = this.tokenProcessor.calculateEnhancedOverallScore(updatedToken);
+              updatedToken.score = updatedToken.overallScore;
+              updatedToken.scoringTimestamp = new Date().toISOString();
+              
+              const scoreDiff = (updatedToken.overallScore - previousScore).toFixed(2);
+              console.log(`📊 Recalculated overall score for ${token.symbol}: ${previousScore.toFixed(1)} → ${updatedToken.overallScore.toFixed(1)} (${scoreDiff >= 0 ? '+' : ''}${scoreDiff})`);
+            }
           }
           
           updated++;
-          console.log(`🔄 Updated ${token.symbol}: ${twitterData.mentions} mentions, ${twitterData.likes} likes (freshness: ${twitterData._dataFreshness || 'unknown'})`);
+          console.log(`🔄 Updated ${token.symbol}: ${twitterData.displayMentions || twitterData.mentions} mentions, ${twitterData.likes} likes (freshness: ${twitterData._dataFreshness || 'unknown'})`);
           
           return updatedToken;
         } else {

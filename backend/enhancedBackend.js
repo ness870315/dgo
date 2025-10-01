@@ -8846,7 +8846,7 @@ class EnhancedBackend {
         
         // Import and initialize merge service
         const { default: TwitterDataMergeService } = await import('./twitterDataMergeService.js');
-        const mergeService = new TwitterDataMergeService();
+        const mergeService = new TwitterDataMergeService(this.tokenProcessor); // Pass tokenProcessor for score recalculation
         
         // Perform manual merge (NO API CALLS)
         const result = await mergeService.manualMerge();
@@ -8878,7 +8878,7 @@ class EnhancedBackend {
         
         // Import and initialize merge service
         const { default: TwitterDataMergeService } = await import('./twitterDataMergeService.js');
-        const mergeService = new TwitterDataMergeService();
+        const mergeService = new TwitterDataMergeService(this.tokenProcessor); // Pass tokenProcessor for score recalculation
         
         // Get merge status
         const status = await mergeService.getMergeStatus();

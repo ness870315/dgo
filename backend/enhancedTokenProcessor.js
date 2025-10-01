@@ -947,7 +947,7 @@ class EnhancedTokenProcessor {
     try {
       console.log('🔄 Starting automatic Twitter data merge...');
       const { default: TwitterDataMergeService } = await import('./twitterDataMergeService.js');
-      const mergeService = new TwitterDataMergeService();
+      const mergeService = new TwitterDataMergeService(this); // Pass tokenProcessor for score recalculation
       const mergeResult = await mergeService.automaticMerge();
       
       if (mergeResult.success) {
