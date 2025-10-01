@@ -750,6 +750,74 @@
                 <div id="twitterMergeStatus" class="status-display" style="display: none;"></div>
             </div>
 
+            <!-- Daily Tweet Service -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea10 0%, #764ba210 100%); border: 2px solid #667eea;">
+                <h2>📅 Daily Tweet Service</h2>
+                <p style="color: #666; font-size: 0.9em; margin-bottom: 15px;">
+                    🤖 <strong>Automated Marketing:</strong> Posts promotional tweets to @dgnoracle<br>
+                    🎲 <strong>Random Mode:</strong> 1-3 posts/day at random times (organic feel)<br>
+                    🧠 <strong>AI-Powered:</strong> Uses OpenAI to generate natural variations<br>
+                    ⏰ <strong>Smart Timing:</strong> Only posts during peak hours (8 AM - 10 PM UTC)
+                </p>
+                
+                <!-- Status Display -->
+                <div id="dailyTweetStatus" class="status-display" style="margin-bottom: 20px; display: none;"></div>
+                
+                <!-- Controls -->
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                    <button class="btn btn-success" onclick="startDailyTweets()">▶️ Start Service</button>
+                    <button class="btn btn-danger" onclick="stopDailyTweets()">⏹️ Stop Service</button>
+                    <button class="btn btn-warning" onclick="postTweetNow()">⚡ Post Now</button>
+                    <button class="btn btn-info" onclick="getDailyTweetStatus()">📊 Check Status</button>
+                </div>
+                
+                <!-- Configuration -->
+                <div style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                    <h4 style="margin-bottom: 10px;">⚙️ Configuration</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>Mode</label>
+                            <select id="tweetMode">
+                                <option value="random" selected>🎲 Random</option>
+                                <option value="fixed">⏰ Fixed Schedule</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>Min Posts/Day</label>
+                            <input type="number" id="minPosts" value="1" min="1" max="5">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>Max Posts/Day</label>
+                            <input type="number" id="maxPosts" value="3" min="1" max="5">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>Active Start (UTC)</label>
+                            <input type="number" id="activeStart" value="8" min="0" max="23">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>Active End (UTC)</label>
+                            <input type="number" id="activeEnd" value="22" min="0" max="23">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label>Min Hours Between</label>
+                            <input type="number" id="minHoursBetween" value="3" min="1" max="12">
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="useLLM" checked style="width: auto;">
+                            <span>🧠 Use OpenAI for natural variations</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Recent Posts -->
+                <div id="recentPosts" style="display: none;"></div>
+                
+                <!-- Results -->
+                <div id="dailyTweetResults"></div>
+            </div>
+
             <!-- Twitter API Usage Monitor -->
             <div class="card">
                 <h2>📊 Twitter API Usage Monitor</h2>
@@ -3129,6 +3197,218 @@ ${(aiPrediction.risks || []).map(r => `   • ${r}`).join('\\n') || '   • None
                 }
             } catch (error) {
                 resultsDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Daily Tweet Service Functions
+        async function startDailyTweets() {
+            const resultsDiv = document.getElementById('dailyTweetResults');
+            const mode = document.getElementById('tweetMode').value;
+            const useLLM = document.getElementById('useLLM').checked;
+            const minPosts = parseInt(document.getElementById('minPosts').value);
+            const maxPosts = parseInt(document.getElementById('maxPosts').value);
+            const activeStart = parseInt(document.getElementById('activeStart').value);
+            const activeEnd = parseInt(document.getElementById('activeEnd').value);
+            const minHoursBetween = parseInt(document.getElementById('minHoursBetween').value);
+            
+            resultsDiv.innerHTML = showLoading('▶️ Starting Daily Tweet Service...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/daily-tweets/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        useLLM,
+                        mode,
+                        minPosts,
+                        maxPosts,
+                        activeStart,
+                        activeEnd,
+                        minHoursBetween
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultsDiv.innerHTML = showAlert(`✅ ${data.message}`, 'success');
+                    setTimeout(getDailyTweetStatus, 1000);
+                } else {
+                    resultsDiv.innerHTML = showAlert(`❌ Failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function stopDailyTweets() {
+            const resultsDiv = document.getElementById('dailyTweetResults');
+            
+            resultsDiv.innerHTML = showLoading('⏹️ Stopping Daily Tweet Service...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/daily-tweets/stop`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultsDiv.innerHTML = showAlert(`✅ ${data.message}`, 'success');
+                    setTimeout(getDailyTweetStatus, 1000);
+                } else {
+                    resultsDiv.innerHTML = showAlert(`❌ Failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function postTweetNow() {
+            const resultsDiv = document.getElementById('dailyTweetResults');
+            const useLLM = document.getElementById('useLLM').checked;
+            
+            if (!confirm('⚡ POST TWEET NOW\\n\\nThis will immediately post a promotional tweet to @dgnoracle.\\n\\nContinue?')) {
+                return;
+            }
+            
+            resultsDiv.innerHTML = showLoading('⚡ Posting tweet now...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/daily-tweets/post-now`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ useLLM })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultsDiv.innerHTML = showAlert(`✅ Tweet posted successfully!<br><a href="https://twitter.com/dgnoracle/status/${data.tweetId}" target="_blank">View Tweet →</a>`, 'success');
+                    setTimeout(getDailyTweetStatus, 1000);
+                } else {
+                    resultsDiv.innerHTML = showAlert(`❌ Failed: ${data.error || data.message}`, 'error');
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function getDailyTweetStatus() {
+            const statusDiv = document.getElementById('dailyTweetStatus');
+            const recentPostsDiv = document.getElementById('recentPosts');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/daily-tweets/status`, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (!data.initialized) {
+                    statusDiv.innerHTML = `
+                        <div class="alert alert-warning">
+                            ⚠️ ${data.message || 'Daily Tweet Service not initialized'}
+                        </div>
+                    `;
+                    statusDiv.style.display = 'block';
+                    recentPostsDiv.style.display = 'none';
+                    return;
+                }
+                
+                const statusColor = data.running ? '#28a745' : '#dc3545';
+                const statusIcon = data.running ? '✅' : '⏹️';
+                const statusText = data.running ? 'RUNNING' : 'STOPPED';
+                
+                let configHtml = '';
+                if (data.mode === 'random') {
+                    configHtml = `
+                        <div class="status-item">
+                            <span class="status-label">Mode:</span>
+                            <span class="status-value">🎲 Random</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Posts/Day:</span>
+                            <span class="status-value">${data.randomConfig.postsPerDay.min}-${data.randomConfig.postsPerDay.max}</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Active Hours:</span>
+                            <span class="status-value">${data.randomConfig.activeHours.start}:00-${data.randomConfig.activeHours.end}:00 UTC</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Min Gap:</span>
+                            <span class="status-value">${data.randomConfig.minHoursBetween}h</span>
+                        </div>
+                    `;
+                } else {
+                    configHtml = `
+                        <div class="status-item">
+                            <span class="status-label">Mode:</span>
+                            <span class="status-value">⏰ Fixed</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Schedule:</span>
+                            <span class="status-value">${data.scheduledTime.hour}:${String(data.scheduledTime.minute).padStart(2, '0')} UTC</span>
+                        </div>
+                    `;
+                }
+                
+                statusDiv.innerHTML = `
+                    <h4 style="margin-bottom: 10px;">
+                        ${statusIcon} Status: <span style="color: ${statusColor};">${statusText}</span>
+                    </h4>
+                    <div class="status-display">
+                        ${configHtml}
+                        <div class="status-item">
+                            <span class="status-label">Posts Today:</span>
+                            <span class="status-value">${data.todayStats.postsToday}${data.todayStats.targetPosts ? `/${data.todayStats.targetPosts}` : ''}</span>
+                        </div>
+                        ${data.nextPostAt ? `
+                        <div class="status-item">
+                            <span class="status-label">Next Post:</span>
+                            <span class="status-value">${new Date(data.nextPostAt).toLocaleString()}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+                statusDiv.style.display = 'block';
+                
+                // Show recent posts
+                if (data.todayStats.recentPosts && data.todayStats.recentPosts.length > 0) {
+                    recentPostsDiv.innerHTML = `
+                        <h4 style="margin-bottom: 10px;">📝 Recent Posts</h4>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            ${data.todayStats.recentPosts.map(post => `
+                                <div style="background: rgba(255,255,255,0.5); padding: 10px; border-radius: 8px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="font-size: 0.9em; color: #666;">
+                                            ${new Date(post.timestamp).toLocaleString()}
+                                        </span>
+                                        <a href="${post.url}" target="_blank" class="btn" style="padding: 5px 10px; font-size: 0.9em;">
+                                            View →
+                                        </a>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                    recentPostsDiv.style.display = 'block';
+                } else {
+                    recentPostsDiv.style.display = 'none';
+                }
+                
+            } catch (error) {
+                statusDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+                statusDiv.style.display = 'block';
             }
         }
 

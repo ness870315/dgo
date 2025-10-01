@@ -8992,7 +8992,17 @@ class EnhancedBackend {
     // Start Daily Tweet Service
     this.app.post('/api/admin/daily-tweets/start', adminApiAuth, async (req, res) => {
       try {
-        const { useLLM = true, hour, minute } = req.body;
+        const { 
+          useLLM = true, 
+          mode = 'random', // 'random' or 'fixed'
+          hour, 
+          minute,
+          minPosts,
+          maxPosts,
+          activeStart,
+          activeEnd,
+          minHoursBetween
+        } = req.body;
 
         if (!this.dailyTweetService) {
           return res.status(503).json({
@@ -9001,8 +9011,25 @@ class EnhancedBackend {
           });
         }
 
-        // Update scheduled time if provided
-        if (hour !== undefined && minute !== undefined) {
+        // Set mode (random or fixed)
+        this.dailyTweetService.setMode(mode);
+
+        // Configure random mode if provided
+        if (mode === 'random') {
+          const randomConfig = {};
+          if (minPosts !== undefined) randomConfig.minPosts = minPosts;
+          if (maxPosts !== undefined) randomConfig.maxPosts = maxPosts;
+          if (activeStart !== undefined) randomConfig.activeStart = activeStart;
+          if (activeEnd !== undefined) randomConfig.activeEnd = activeEnd;
+          if (minHoursBetween !== undefined) randomConfig.minHoursBetween = minHoursBetween;
+          
+          if (Object.keys(randomConfig).length > 0) {
+            this.dailyTweetService.setRandomConfig(randomConfig);
+          }
+        }
+
+        // Update fixed schedule time if provided
+        if (mode === 'fixed' && hour !== undefined && minute !== undefined) {
           this.dailyTweetService.setScheduledTime(parseInt(hour), parseInt(minute));
         }
 
@@ -9012,7 +9039,13 @@ class EnhancedBackend {
         res.json({
           success: true,
           message: 'Daily Tweet Service started',
-          scheduledTime: this.dailyTweetService.scheduledTime,
+          mode: this.dailyTweetService.randomMode ? 'random' : 'fixed',
+          randomConfig: this.dailyTweetService.randomMode ? {
+            postsPerDay: this.dailyTweetService.postsPerDay,
+            activeHours: this.dailyTweetService.activeHours,
+            minHoursBetween: this.dailyTweetService.minHoursBetweenPosts
+          } : null,
+          scheduledTime: !this.dailyTweetService.randomMode ? this.dailyTweetService.scheduledTime : null,
           useLLM,
           timestamp: new Date().toISOString()
         });
@@ -9090,7 +9123,22 @@ class EnhancedBackend {
         res.json({
           initialized: true,
           running: this.dailyTweetService.isRunning,
-          scheduledTime: this.dailyTweetService.scheduledTime,
+          mode: this.dailyTweetService.randomMode ? 'random' : 'fixed',
+          randomConfig: this.dailyTweetService.randomMode ? {
+            postsPerDay: this.dailyTweetService.postsPerDay,
+            activeHours: this.dailyTweetService.activeHours,
+            minHoursBetween: this.dailyTweetService.minHoursBetweenPosts
+          } : null,
+          scheduledTime: !this.dailyTweetService.randomMode ? this.dailyTweetService.scheduledTime : null,
+          todayStats: {
+            postsToday: this.dailyTweetService.todayPostCount,
+            targetPosts: this.dailyTweetService.todayTargetPosts || null,
+            recentPosts: this.dailyTweetService.recentPosts.map(p => ({
+              timestamp: new Date(p.timestamp).toISOString(),
+              tweetId: p.tweetId,
+              url: `https://twitter.com/dgnoracle/status/${p.tweetId}`
+            }))
+          },
           nextPostAt: nextPost,
           timestamp: new Date().toISOString()
         });
