@@ -1,31 +1,24 @@
 /**
  * Twitter Auto-Post Service
  * Automatically posts high-tier fuel announcements to @dgnoracle
+ * Uses existing OAuthXService for posting
  */
 
-import axios from 'axios';
-
 class TwitterAutoPostService {
-  constructor() {
-    // Twitter API v2 credentials for @dgnoracle
-    this.apiKey = process.env.TWITTER_API_KEY || process.env.DGNORACLE_API_KEY;
-    this.apiSecret = process.env.TWITTER_API_SECRET || process.env.DGNORACLE_API_SECRET;
-    this.accessToken = process.env.TWITTER_ACCESS_TOKEN || process.env.DGNORACLE_ACCESS_TOKEN;
-    this.accessTokenSecret = process.env.TWITTER_ACCESS_TOKEN_SECRET || process.env.DGNORACLE_ACCESS_TOKEN_SECRET;
-    this.bearerToken = process.env.TWITTER_BEARER_TOKEN || process.env.DGNORACLE_BEARER_TOKEN;
+  constructor(oauthXService) {
+    this.oauthXService = oauthXService;
+    
+    // System user ID for @dgnoracle - you can set this via env or use a default
+    // This should be the userId of @dgnoracle after it authenticates via OAuth
+    this.dgnOracleUserId = process.env.DGNORACLE_USER_ID || null;
     
     console.log('🐦 Twitter Auto-Post Service initialized for @dgnoracle');
-    console.log(`   API Key: ${this.apiKey ? '✅ Set' : '❌ Missing'}`);
-    console.log(`   API Secret: ${this.apiSecret ? '✅ Set' : '❌ Missing'}`);
-    console.log(`   Access Token: ${this.accessToken ? '✅ Set' : '❌ Missing'}`);
-    console.log(`   Access Token Secret: ${this.accessTokenSecret ? '✅ Set' : '❌ Missing'}`);
-    console.log(`   Bearer Token: ${this.bearerToken ? '✅ Set' : '❌ Missing'}`);
+    console.log(`   DgnOracle User ID: ${this.dgnOracleUserId ? '✅ Set' : '❌ Not Set (use DGNORACLE_USER_ID env var)'}`);
     
-    this.isEnabled = !!(this.apiKey && this.apiSecret && this.accessToken && this.accessTokenSecret);
-    
-    if (!this.isEnabled) {
-      console.warn('⚠️ Twitter Auto-Post is DISABLED - missing credentials');
-      console.warn('   Set TWITTER_API_KEY, TWITTER_API_SECRET, TWITTER_ACCESS_TOKEN, TWITTER_ACCESS_TOKEN_SECRET');
+    if (!this.dgnOracleUserId) {
+      console.warn('⚠️ Twitter Auto-Post is DISABLED');
+      console.warn('   @dgnoracle needs to authenticate via OAuth first');
+      console.warn('   Then set DGNORACLE_USER_ID env var to the userId');
     } else {
       console.log('✅ Twitter Auto-Post is ENABLED for @dgnoracle');
     }
@@ -59,51 +52,6 @@ class TwitterAutoPostService {
     };
   }
 
-  /**
-   * Generate OAuth 1.0a signature for Twitter API v1.1
-   */
-  generateOAuthHeader(method, url, params = {}) {
-    const crypto = require('crypto');
-    
-    const oauthParams = {
-      oauth_consumer_key: this.apiKey,
-      oauth_token: this.accessToken,
-      oauth_signature_method: 'HMAC-SHA1',
-      oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
-      oauth_nonce: crypto.randomBytes(32).toString('base64').replace(/\W/g, ''),
-      oauth_version: '1.0'
-    };
-
-    // Combine OAuth params with request params
-    const allParams = { ...params, ...oauthParams };
-    
-    // Create signature base string
-    const sortedParams = Object.keys(allParams)
-      .sort()
-      .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(allParams[key])}`)
-      .join('&');
-    
-    const signatureBaseString = `${method.toUpperCase()}&${encodeURIComponent(url)}&${encodeURIComponent(sortedParams)}`;
-    
-    // Create signing key
-    const signingKey = `${encodeURIComponent(this.apiSecret)}&${encodeURIComponent(this.accessTokenSecret)}`;
-    
-    // Generate signature
-    const signature = crypto
-      .createHmac('sha1', signingKey)
-      .update(signatureBaseString)
-      .digest('base64');
-    
-    oauthParams.oauth_signature = signature;
-    
-    // Build OAuth header
-    const oauthHeader = 'OAuth ' + Object.keys(oauthParams)
-      .sort()
-      .map(key => `${encodeURIComponent(key)}="${encodeURIComponent(oauthParams[key])}"`)
-      .join(', ');
-    
-    return oauthHeader;
-  }
 
   /**
    * Get a random hype message
@@ -115,49 +63,35 @@ class TwitterAutoPostService {
   }
 
   /**
-   * Post a tweet to @dgnoracle
+   * Post a tweet to @dgnoracle using existing OAuth service
    */
   async postTweet(text) {
-    if (!this.isEnabled) {
-      console.log('⚠️ Twitter Auto-Post is disabled - skipping tweet');
-      return { success: false, reason: 'disabled' };
+    if (!this.dgnOracleUserId) {
+      console.log('⚠️ Twitter Auto-Post is disabled - @dgnoracle not authenticated');
+      return { success: false, reason: 'not_authenticated' };
     }
 
     try {
-      // Twitter API v2 endpoint
-      const url = 'https://api.twitter.com/2/tweets';
-      
-      // Generate OAuth 1.0a header
-      const oauthHeader = this.generateOAuthHeader('POST', url);
-      
       console.log('🐦 Posting tweet to @dgnoracle...');
       console.log(`   Text: ${text}`);
       
-      const response = await axios.post(
-        url,
-        { text },
-        {
-          headers: {
-            'Authorization': oauthHeader,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
+      // Use existing oauthXService to post tweet
+      const tweet = await this.oauthXService.postTweet(this.dgnOracleUserId, text);
+      
       console.log('✅ Tweet posted successfully!');
-      console.log(`   Tweet ID: ${response.data.data.id}`);
+      console.log(`   Tweet ID: ${tweet.id}`);
       
       return {
         success: true,
-        tweetId: response.data.data.id,
-        text: response.data.data.text
+        tweetId: tweet.id,
+        text: tweet.text
       };
 
     } catch (error) {
-      console.error('❌ Failed to post tweet:', error.response?.data || error.message);
+      console.error('❌ Failed to post tweet:', error.message);
       return {
         success: false,
-        error: error.response?.data || error.message
+        error: error.message
       };
     }
   }
@@ -166,9 +100,9 @@ class TwitterAutoPostService {
    * Post fuel announcement
    */
   async postFuelAnnouncement(token, fuelType, user = null) {
-    if (!this.isEnabled) {
-      console.log('⚠️ Twitter Auto-Post is disabled - skipping fuel announcement');
-      return { success: false, reason: 'disabled' };
+    if (!this.dgnOracleUserId) {
+      console.log('⚠️ Twitter Auto-Post is disabled - @dgnoracle not authenticated');
+      return { success: false, reason: 'not_authenticated' };
     }
 
     try {
@@ -209,7 +143,7 @@ class TwitterAutoPostService {
    * Check if auto-posting is enabled
    */
   isAutoPostEnabled() {
-    return this.isEnabled;
+    return !!this.dgnOracleUserId;
   }
 }
 

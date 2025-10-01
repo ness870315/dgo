@@ -145,7 +145,7 @@ class EnhancedBackend {
     this.automatedCleanup = new AutomatedTokenCleanup();
     // Initialize AI Chat Service with OAuthXService for watchlist operations and backend instance for internal calls
     this.aiChatService = new MoralisAIChatService(this.oauthXService, this);
-    this.twitterAutoPostService = new TwitterAutoPostService();
+    this.twitterAutoPostService = new TwitterAutoPostService(this.oauthXService);
     this.backupIntegration = null; // Will be initialized in setupServices()
     // Social Context cache (72h TTL)
     this.socialContextCache = new Map();
