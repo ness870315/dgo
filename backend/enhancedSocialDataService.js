@@ -764,19 +764,20 @@ class EnhancedSocialDataService {
       else if (avgEngagement >= 20) engagementMultiplier = 1.5;   // Good engagement
       else if (avgEngagement >= 5) engagementMultiplier = 1.2;    // Moderate engagement
       
-      // Market cap tiers (realistic mention volumes by size)
+      // Market cap tiers (REDUCED RANGE for fairness - size alone shouldn't dominate)
+      // Low caps with hype can have more mentions than large stagnant caps!
       let mcapMultiplier = 1.0;
       const mcap = metadata?.marketCap || null;
       if (mcap) {
-        if (mcap >= 100_000_000) mcapMultiplier = 15;      // $100M+ = major project
-        else if (mcap >= 50_000_000) mcapMultiplier = 10;  // $50M+ = established
-        else if (mcap >= 10_000_000) mcapMultiplier = 7;   // $10M+ = growing
-        else if (mcap >= 5_000_000) mcapMultiplier = 5;    // $5M+ = mid-tier
-        else if (mcap >= 1_000_000) mcapMultiplier = 3;    // $1M+ = small cap
-        else mcapMultiplier = 2;                            // <$1M = micro cap
+        if (mcap >= 100_000_000) mcapMultiplier = 5;       // $100M+ = major (reduced from 15x)
+        else if (mcap >= 50_000_000) mcapMultiplier = 4;   // $50M+ = established (reduced from 10x)
+        else if (mcap >= 10_000_000) mcapMultiplier = 3;   // $10M+ = growing (reduced from 7x)
+        else if (mcap >= 5_000_000) mcapMultiplier = 2.5;  // $5M+ = mid-tier (reduced from 5x)
+        else if (mcap >= 1_000_000) mcapMultiplier = 2;    // $1M+ = small cap (reduced from 3x)
+        else mcapMultiplier = 1.5;                          // <$1M = micro cap (reduced from 2x)
       } else {
-        // No mcap data - use moderate multiplier
-        mcapMultiplier = 4;
+        // No mcap data - use baseline
+        mcapMultiplier = 2;
       }
       
       // 24h Volume multiplier (hot tokens with high volume deserve higher projections)
@@ -794,20 +795,38 @@ class EnhancedSocialDataService {
         console.log(`💹 Volume boost: $${(volume24h/1e3).toFixed(1)}k = ${volumeMultiplier}x multiplier`);
       }
       
-      // Combine mcap and volume intelligently (don't just multiply)
-      // Use the HIGHER of the two to give micro caps a chance
-      const sizeMultiplier = Math.max(mcapMultiplier, volumeMultiplier);
+      // HYPE-FIRST APPROACH: Combine mcap and volume with HEAVY WEIGHT on volume
+      // Volume (hype) matters MORE than size for mentions!
+      let sizeMultiplier;
       
-      // If both are present, add a synergy bonus
+      if (mcap && volume24h) {
+        // Both available: Weighted average heavily favoring volume (70% volume, 30% mcap)
+        sizeMultiplier = (volumeMultiplier * 0.7) + (mcapMultiplier * 0.3);
+        console.log(`⚖️ Weighted size: volume ${volumeMultiplier}x (70%) + mcap ${mcapMultiplier}x (30%) = ${sizeMultiplier.toFixed(2)}x`);
+      } else if (volume24h) {
+        // Only volume: Use it fully (hype indicator)
+        sizeMultiplier = volumeMultiplier;
+        console.log(`📊 Using volume only: ${sizeMultiplier}x`);
+      } else if (mcap) {
+        // Only mcap: Use it but cap at 3x (prevent overweighting size without hype)
+        sizeMultiplier = Math.min(mcapMultiplier, 3);
+        console.log(`📊 Using capped mcap: ${sizeMultiplier}x (max 3x without volume)`);
+      } else {
+        // Neither: Use moderate baseline
+        sizeMultiplier = 2;
+      }
+      
+      // Synergy bonus: INCREASED for high volume/mcap ratio (hype indicator!)
       let synergyBonus = 1.0;
       if (mcap && volume24h) {
-        // High volume relative to mcap = trending/hot token
+        // High volume relative to mcap = massive hype/momentum
         const volumeToMcapRatio = volume24h / mcap;
-        if (volumeToMcapRatio >= 0.5) synergyBonus = 1.5;       // 50%+ turnover = very hot
-        else if (volumeToMcapRatio >= 0.3) synergyBonus = 1.3;  // 30%+ = hot
-        else if (volumeToMcapRatio >= 0.1) synergyBonus = 1.15; // 10%+ = good activity
+        if (volumeToMcapRatio >= 0.5) synergyBonus = 2.0;       // 50%+ turnover = MASSIVE hype! (was 1.5x)
+        else if (volumeToMcapRatio >= 0.3) synergyBonus = 1.6;  // 30%+ = major hype (was 1.3x)
+        else if (volumeToMcapRatio >= 0.1) synergyBonus = 1.3;  // 10%+ = good hype (was 1.15x)
+        else if (volumeToMcapRatio >= 0.05) synergyBonus = 1.15; // 5%+ = some hype
         
-        console.log(`🔥 Volume/Mcap ratio: ${(volumeToMcapRatio * 100).toFixed(1)}% = ${synergyBonus}x synergy bonus`);
+        console.log(`🔥 Volume/Mcap ratio: ${(volumeToMcapRatio * 100).toFixed(1)}% = ${synergyBonus}x HYPE bonus`);
       }
       
       if (mentions72hAvg != null) {
