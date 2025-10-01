@@ -5910,7 +5910,17 @@ class EnhancedBackend {
         ));
         
         if (!token) {
-          return res.status(404).json({ error: `Token ${symbol} not found` });
+          // Debug: Show similar symbols
+          const similarTokens = rawTokens
+            .filter(t => t.symbol && t.symbol.toUpperCase().includes(upperSym.substring(0, 3)))
+            .map(t => t.symbol)
+            .slice(0, 5);
+          
+          return res.status(404).json({ 
+            error: `Token ${symbol} not found`,
+            hint: similarTokens.length > 0 ? `Similar tokens: ${similarTokens.join(', ')}` : 'No similar tokens found',
+            totalTokens: rawTokens.length
+          });
         }
         
         // Ensure social data service is initialized
