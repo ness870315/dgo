@@ -1,6 +1,2 @@
-# Fuel sharing is handled by backend API with dynamic meta tags
-/fuel/* https://api.degen-oracle.com/fuel/:splat 200
-
-# API redirects
-/api/* https://api.degen-oracle.com/api/:splat 200
-/admin-dashboard.html https://api.degen-oracle.com/admin-dashboard.html 200
+# SPA fallback - serve index.html for all routes
+/* /index.html 200
