@@ -185,12 +185,12 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
       // Check if watchlist was modified and trigger refresh event
       if (response.commandsExecuted && response.commandsExecuted.some(cmd => cmd.type === 'ADD_TO_WATCHLIST')) {
         console.log('🔄 [AI CHAT] Watchlist modified, dispatching refresh event');
-        // Add small delay to ensure backend has processed the update
+        // Add delay to ensure backend has processed the update AND main token cache has refreshed
         setTimeout(() => {
           window.dispatchEvent(new CustomEvent('watchlistUpdated', { 
             detail: { source: 'ai_chat', timestamp: Date.now() } 
           }));
-        }, 500); // 500ms delay to ensure backend processing
+        }, 1500); // 1.5s delay to ensure backend processing + cache refresh
       }
 
       setMessages(prev => {

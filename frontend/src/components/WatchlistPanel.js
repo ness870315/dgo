@@ -71,10 +71,10 @@ const WatchlistPanel = ({ isOpen, onClose, onTokenSelect, allTokensData = [] }) 
       console.log('🔄 [WATCHLIST] Received update event from:', event.detail?.source, 'at', new Date().toISOString());
       if (isAuthenticated) {
         console.log('🔄 [WATCHLIST] Reloading watchlist...');
-        // Add small delay to ensure backend has processed the update
+        // Add delay to ensure backend has processed the update AND main token cache has refreshed
         setTimeout(() => {
           loadWatchlist();
-        }, 200); // 200ms delay to ensure backend processing
+        }, 500); // 500ms delay to ensure backend processing + cache refresh
       }
     };
 
