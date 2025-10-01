@@ -1646,6 +1646,8 @@ class EnhancedSocialDataService {
       // 1. MENTIONS SCORING (55% weight) - PRIMARY importance for community buzz
       // 🚨 CRITICAL: Use displayMentions (projected) not raw mentions!
       const mentionsRaw = Number(twitterData.displayMentions || twitterData.mentions || 0);
+      const has72h = Number(twitterData.mentionsWindowHours || 0) >= 72;
+      const isBootstrap = !has72h; // no history yet
       
       // 🚨 NEW TIERED SCORING: Scale properly with projected mention counts
       let mentionsScore = 0;
