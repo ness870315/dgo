@@ -1623,7 +1623,7 @@ class MoralisAIChatService {
             calledAt: kolCalls[0].calledAt
           } : 'none'
         });
-        context.kolCalls = this.processKolCallsForAI(kolCalls);
+        context.kolCalls = await this.processKolCallsForAI(kolCalls);
         console.log(`🔍 [KOL DEBUG] Processed KOL calls:`, {
           count: context.kolCalls.count,
           hasData: context.kolCalls.count > 0,
@@ -1705,7 +1705,7 @@ class MoralisAIChatService {
   /**
    * Process KOL calls data for AI consumption
    */
-  processKolCallsForAI(kolCalls) {
+  async processKolCallsForAI(kolCalls) {
     if (!Array.isArray(kolCalls) || kolCalls.length === 0) {
       return { count: 0, calls: [] };
     }
@@ -1734,7 +1734,7 @@ class MoralisAIChatService {
     return {
       count: processedCalls.length,
       calls: processedCalls,
-      summary: this.generateCallsSummary(processedCalls)
+      summary: await this.generateCallsSummary(processedCalls)
     };
   }
 
@@ -1952,9 +1952,9 @@ class MoralisAIChatService {
   }
 
   /**
-   * Generate summary of user's calls
+   * Generate summary of user's calls using EnhancedKOLTrustSystem
    */
-  generateCallsSummary(calls) {
+  async generateCallsSummary(calls) {
     if (calls.length === 0) {
       return { totalCalls: 0, avgMultiplier: 0, bestCall: null, totalMilestones: 0 };
     }
@@ -1964,14 +1964,50 @@ class MoralisAIChatService {
       console.log(`  ${index + 1}. ${call.token?.symbol}: ATH ${call.performance?.multiplier}x, Current ${call.performance?.currentMultiplier}x (${call.performance?.status})`);
     });
 
+    // Get fresh token data for accurate calculations
+    let currentTokenData = {};
+    if (this.backendInstance?.getTokensFromCache) {
+      try {
+        const tokens = await this.backendInstance.getTokensFromCache();
+        tokens.forEach(token => {
+          currentTokenData[token.contractAddress] = token;
+        });
+        console.log(`🔍 [KOL TRUST] Loaded ${Object.keys(currentTokenData).length} tokens for accurate calculations`);
+      } catch (error) {
+        console.error('❌ Error fetching token data for trust system:', error);
+      }
+    }
+
+    // Use EnhancedKOLTrustSystem for accurate performance calculations
+    let trustScore = null;
+    let hitRate = 0;
+    let profitableCalls = 0;
+    
+    if (this.backendInstance?.kolTrustSystem) {
+      try {
+        trustScore = this.backendInstance.kolTrustSystem.calculateKOLTrustScore(calls, currentTokenData);
+        hitRate = trustScore.performance?.currentHitRate || trustScore.performance?.hitRate || 0;
+        profitableCalls = trustScore.performance?.profitableCalls || 0;
+        console.log(`✅ [KOL TRUST] Using EnhancedKOLTrustSystem: ${profitableCalls}/${calls.length} profitable (${hitRate.toFixed(1)}% hit rate)`);
+      } catch (error) {
+        console.error('❌ Error using EnhancedKOLTrustSystem:', error);
+      }
+    }
+    
+    // Fallback to manual calculation if trust system not available or failed
+    if (!trustScore) {
+      profitableCalls = calls.filter(call => call.performance.currentMultiplier >= 1).length;
+      hitRate = (profitableCalls / calls.length * 100);
+      console.warn('⚠️ [KOL TRUST] EnhancedKOLTrustSystem not available, using fallback calculation');
+    }
+    
     const totalMultiplier = calls.reduce((sum, call) => sum + (call.performance.multiplier || 0), 0);
     const avgMultiplier = totalMultiplier / calls.length;
     
     // Best call: Highest ATH performance (already sorted by ATH)
     const bestCall = calls[0];
     
-    // 🚨 CRITICAL FIX: Worst call should be based on CURRENT performance (current pain)
-    // Sort by current multiplier to find worst current performer
+    // Worst call based on CURRENT performance
     const worstCall = calls.reduce((worst, current) => {
       const worstCurrent = worst.performance?.currentMultiplier || 0;
       const currentCurrent = current.performance?.currentMultiplier || 0;
@@ -1979,10 +2015,6 @@ class MoralisAIChatService {
     });
     
     const totalMilestones = calls.reduce((sum, call) => sum + call.milestonePosts, 0);
-    // FIX: Use currentMultiplier for win rate, not ATH multiplier
-    // Win rate should reflect current profitability, not if they ever hit 1x
-    const profitableCalls = calls.filter(call => call.performance.currentMultiplier >= 1).length;
-    const winRate = (profitableCalls / calls.length * 100).toFixed(1);
 
     console.log(`🔍 [KOL SUMMARY DEBUG] Summary calculated:`, {
       totalCalls: calls.length,
@@ -1990,18 +2022,19 @@ class MoralisAIChatService {
       bestCall: `${bestCall?.token?.symbol} (ATH: ${bestCall?.performance?.multiplier}x)`,
       worstCall: `${worstCall?.token?.symbol} (Current: ${worstCall?.performance?.currentMultiplier}x)`,
       profitableCalls: profitableCalls,
-      winRate: `${winRate}%`,
-      note: 'Win rate based on current multiplier, not ATH'
+      hitRate: `${hitRate.toFixed(1)}%`,
+      method: trustScore ? 'EnhancedKOLTrustSystem' : 'Fallback',
+      trustLevel: trustScore?.summary?.trustLevel || 'N/A'
     });
 
     return {
       totalCalls: calls.length,
       avgMultiplier: avgMultiplier,
       bestCall: bestCall,
-      worstCall: worstCall, // Now based on current performance
+      worstCall: worstCall,
       totalMilestones: totalMilestones,
       profitableCalls: profitableCalls,
-      winRate: winRate
+      winRate: hitRate.toFixed(1) // Use hit rate from trust system
     };
   }
 
