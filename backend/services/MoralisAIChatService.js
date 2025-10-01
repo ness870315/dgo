@@ -1028,35 +1028,90 @@ class MoralisAIChatService {
 
     // Check for whale activity or contract address analysis requests (if not already matched above)
     if (!tokenDataMatch) {
-      const whaleActivityMatch = lowerPrompt.match(/(?:whale|activity|analysis|data).*?([a-z0-9]{32,})/i) ||
-                                lowerPrompt.match(/([a-z0-9]{32,}).*?(?:whale|activity|analysis|data)/i) ||
-                                lowerPrompt.match(/show.*?(?:whale|activity|transactions?).*?for\s+([a-z0-9]{32,})/i);
+      // First check for whale queries with token NAMES (not addresses)
+      const whaleNameMatch = lowerPrompt.match(/(?:whale|whales?).*?(?:of|for|in)\s+(\w+)/i) ||
+                            lowerPrompt.match(/(?:get|give|show).*?whale.*?(?:wallet|address|holder).*?(?:of|for)\s+(\w+)/i) ||
+                            lowerPrompt.match(/whale.*?(?:wallet|address|holder).*?(?:of|for)\s+(\w+)/i) ||
+                            lowerPrompt.match(/(\w+).*?whale.*?(?:wallet|address|holder)/i);
       
-      console.log(`🔍 [AI PARSE DEBUG] Whale activity match result:`, whaleActivityMatch);
+      console.log(`🔍 [AI PARSE DEBUG] Whale name match result:`, whaleNameMatch);
       
-      if (whaleActivityMatch) {
-        const contractAddress = whaleActivityMatch[1];
-        console.log(`🐋 [AI PARSE DEBUG] Whale activity request for contract: ${contractAddress}`);
+      if (whaleNameMatch) {
+        let identifier = whaleNameMatch[1];
+        let tokenData = null;
         
-        // Try to extract token name from user input for whale activity
-        const whaleTokenNameMatch = lowerPrompt.match(/(?:whale.*for|activity.*for)\s+(\w+)\s+[a-z0-9]{32,}/i) ||
-                                   lowerPrompt.match(/(\w+)\s+[a-z0-9]{32,}/i);
+        console.log(`🐋 [AI PARSE DEBUG] Whale query for token name: "${identifier}"`);
         
-        const whaleExtractedTokenName = whaleTokenNameMatch ? whaleTokenNameMatch[1] : null;
-        console.log(`🐋 [AI PARSE DEBUG] Extracted token name for whale activity: "${whaleExtractedTokenName}"`);
+        // If it's not a contract address (less than 32 chars), look it up
+        if (identifier.length < 32) {
+          // First check conversation history
+          if (tokenReferences.has(identifier.toLowerCase())) {
+            const contractAddress = tokenReferences.get(identifier.toLowerCase());
+            console.log(`🧠 [AI PARSE DEBUG] Resolved whale token "${identifier}" from conversation history: ${contractAddress}`);
+            identifier = contractAddress;
+          } else {
+            // Search in database
+            console.log(`🔍 [AI PARSE DEBUG] Searching database for whale token: "${identifier}"`);
+            tokenData = await this.searchTokenByName(identifier);
+            
+            if (tokenData) {
+              console.log(`✅ [AI PARSE DEBUG] Found whale token in database: ${tokenData.name} (${tokenData.symbol}) - ${tokenData.contractAddress}`);
+              identifier = tokenData.contractAddress;
+            } else {
+              console.log(`❌ [AI PARSE DEBUG] Whale token "${identifier}" not found in database`);
+            }
+          }
+        }
+        
+        // Only create command if we have a valid contract address
+        if (identifier.length >= 32) {
+          const command = {
+            type: 'GET_TOKEN_DATA',
+            contractAddress: identifier,
+            tokenData: tokenData,
+            originalQuery: whaleNameMatch[1],
+            userId: userId,
+            analysisType: 'whale_activity',
+            userProvidedName: whaleNameMatch[1]
+          };
+          
+          console.log(`✅ [AI PARSE DEBUG] Whale activity command (from name) detected:`, JSON.stringify(command, null, 2));
+          commands.push(command);
+        }
+      }
+      
+      // Then check for whale queries with contract ADDRESSES (only if name match didn't already add a command)
+      if (!whaleNameMatch || (whaleNameMatch && whaleNameMatch[1].length >= 32)) {
+        const whaleActivityMatch = lowerPrompt.match(/(?:whale|activity|analysis|data).*?([a-z0-9]{32,})/i) ||
+                                  lowerPrompt.match(/([a-z0-9]{32,}).*?(?:whale|activity|analysis|data)/i) ||
+                                  lowerPrompt.match(/show.*?(?:whale|activity|transactions?).*?for\s+([a-z0-9]{32,})/i);
+        
+        console.log(`🔍 [AI PARSE DEBUG] Whale activity match result:`, whaleActivityMatch);
+        
+        if (whaleActivityMatch) {
+          const contractAddress = whaleActivityMatch[1];
+          console.log(`🐋 [AI PARSE DEBUG] Whale activity request for contract: ${contractAddress}`);
+          
+          // Try to extract token name from user input for whale activity
+          const whaleTokenNameMatch = lowerPrompt.match(/(?:whale.*for|activity.*for)\s+(\w+)\s+[a-z0-9]{32,}/i) ||
+                                     lowerPrompt.match(/(\w+)\s+[a-z0-9]{32,}/i);
+          
+          const whaleExtractedTokenName = whaleTokenNameMatch ? whaleTokenNameMatch[1] : null;
+          console.log(`🐋 [AI PARSE DEBUG] Extracted token name for whale activity: "${whaleExtractedTokenName}"`);
 
-        const command = {
-          type: 'GET_TOKEN_DATA',
-          contractAddress: contractAddress,
-          tokenData: null,
-          originalQuery: contractAddress,
-          userId: userId,
-          analysisType: 'whale_activity',
-          userProvidedName: whaleExtractedTokenName // Include extracted token name
-        };
-        
-        console.log(`✅ [AI PARSE DEBUG] WHALE_ACTIVITY command detected:`, JSON.stringify(command, null, 2));
-        commands.push(command);
+          const command = {
+            type: 'GET_TOKEN_DATA',
+            contractAddress: contractAddress,
+            tokenData: null,
+            originalQuery: contractAddress,
+            userId: userId,
+            analysisType: 'whale_activity',
+            userProvidedName: whaleExtractedTokenName // Include extracted token name
+          };
+          
+          console.log(`✅ [AI PARSE DEBUG] WHALE_ACTIVITY command detected:`, JSON.stringify(command, null, 2));
+          commands.push(command);
+        }
       }
     }
 
