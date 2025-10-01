@@ -16,9 +16,10 @@ class SmartTwitterRefreshService {
    * @param {Object} existingData - Current Twitter data
    * @param {string} officialHandle - Official Twitter handle
    * @param {Object} socialLinks - Social media links
+   * @param {Object} metadata - Token metadata (marketCap, volume24h) for projection
    * @returns {Object} Refreshed Twitter data with smart deduplication
    */
-  async refreshTwitterData(symbol, name, existingData, officialHandle = null, socialLinks = null) {
+  async refreshTwitterData(symbol, name, existingData, officialHandle = null, socialLinks = null, metadata = null) {
     try {
       console.log(`🧠 Smart refresh for ${symbol}: Starting hybrid deduplication approach`);
       
@@ -44,8 +45,8 @@ class SmartTwitterRefreshService {
       
       console.log(`🧠 Smart refresh complete: ${uniqueTweets.length} unique tweets found, ${bestTweets.length} selected`);
       
-      // Merge with existing data
-      return this.mergeTwitterData(existingData, bestTweets, symbol);
+      // Merge with existing data and apply projection
+      return this.mergeTwitterData(existingData, bestTweets, symbol, metadata);
       
     } catch (error) {
       console.error(`❌ Smart refresh failed for ${symbol}:`, error.message);
@@ -197,7 +198,7 @@ class SmartTwitterRefreshService {
   /**
    * Merge new tweets with existing Twitter data
    */
-  mergeTwitterData(existingData, newTweets, symbol) {
+  mergeTwitterData(existingData, newTweets, symbol, metadata = null) {
     const existingMentions = existingData.recentMentions || [];
     
     // Combine existing and new tweets, prioritizing new ones
@@ -212,19 +213,83 @@ class SmartTwitterRefreshService {
     const totalRetweets = finalTweets.reduce((sum, tweet) => sum + (tweet.retweets || 0), 0);
     const totalReplies = finalTweets.reduce((sum, tweet) => sum + (tweet.replies || 0), 0);
     
+    // 🚀 APPLY SMART PROJECTION (same as main service)
+    const totalMentions = finalTweets.length;
+    let displayMentions = totalMentions;
+    
+    // Calculate engagement multiplier
+    const avgEngagement = finalTweets.length > 0 
+      ? finalTweets.reduce((sum, t) => sum + (t.likes || 0) + (t.retweets || 0), 0) / finalTweets.length
+      : 0;
+    let engagementMultiplier = 1.0;
+    if (avgEngagement >= 100) engagementMultiplier = 2.5;
+    else if (avgEngagement >= 50) engagementMultiplier = 2.0;
+    else if (avgEngagement >= 20) engagementMultiplier = 1.5;
+    else if (avgEngagement >= 5) engagementMultiplier = 1.2;
+    
+    // If metadata available, use volume-weighted projection
+    if (metadata) {
+      const mcap = metadata.marketCap || null;
+      const volume24h = metadata.volume24h || null;
+      
+      // Market cap multiplier (reduced range)
+      let mcapMultiplier = mcap ? 
+        (mcap >= 100_000_000 ? 5 : mcap >= 50_000_000 ? 4 : mcap >= 10_000_000 ? 3 : 
+         mcap >= 5_000_000 ? 2.5 : mcap >= 1_000_000 ? 2 : 1.5) : 2;
+      
+      // Volume multiplier (micro cap friendly)
+      let volumeMultiplier = volume24h ? 
+        (volume24h >= 100_000 ? 3.0 : volume24h >= 50_000 ? 2.5 : volume24h >= 10_000 ? 2.0 :
+         volume24h >= 5_000 ? 1.5 : volume24h >= 1_000 ? 1.2 : 1.0) : 1.0;
+      
+      // Weighted size multiplier (70% volume, 30% mcap)
+      let sizeMultiplier = (mcap && volume24h) ? 
+        (volumeMultiplier * 0.7 + mcapMultiplier * 0.3) : 
+        (volume24h ? volumeMultiplier : Math.min(mcapMultiplier, 3));
+      
+      // Synergy bonus
+      let synergyBonus = 1.0;
+      if (mcap && volume24h) {
+        const ratio = volume24h / mcap;
+        if (ratio >= 0.5) synergyBonus = 2.0;
+        else if (ratio >= 0.3) synergyBonus = 1.6;
+        else if (ratio >= 0.1) synergyBonus = 1.3;
+        else if (ratio >= 0.05) synergyBonus = 1.15;
+      }
+      
+      // Project mentions
+      const baseSampleMultiplier = 8;
+      displayMentions = Math.round(totalMentions * baseSampleMultiplier * sizeMultiplier * engagementMultiplier * synergyBonus);
+      
+      // Apply floors and ceilings
+      let minMentions = 15;
+      if (volume24h >= 100_000) minMentions = Math.max(minMentions, 50);
+      else if (volume24h >= 50_000) minMentions = Math.max(minMentions, 30);
+      else if (volume24h >= 10_000) minMentions = Math.max(minMentions, 20);
+      
+      let maxMentions = 500;
+      if (mcap) maxMentions = Math.max(maxMentions, Math.min(5000, mcap / 50000));
+      if (volume24h) maxMentions = Math.max(maxMentions, Math.min(2000, volume24h / 100));
+      
+      displayMentions = Math.max(minMentions, Math.min(maxMentions, displayMentions));
+      
+      console.log(`🚀 Smart refresh projection for ${symbol}: ${totalMentions} → ${displayMentions} (vol=$${(volume24h/1e3).toFixed(0)}k, ${sizeMultiplier.toFixed(1)}x size, ${synergyBonus}x synergy)`);
+    }
+    
     const now = new Date().toISOString();
     
     return {
       ...existingData,
       recentMentions: finalTweets,
-      mentions: finalTweets.length,
+      mentions: totalMentions,
+      displayMentions: displayMentions,
       likes: totalLikes,
       retweets: totalRetweets,
       replies: totalReplies,
       engagement: totalLikes + totalRetweets + totalReplies,
       lastUpdate: now,
-      lastRefreshed: now, // 🚨 FIX: Set consistent timestamp field
-      twitterTimestamp: now, // 🚨 FIX: Set token-level timestamp field
+      lastRefreshed: now,
+      twitterTimestamp: now,
       _refreshType: 'smart_deduplication',
       _newTweetsAdded: newTweets.length
     };

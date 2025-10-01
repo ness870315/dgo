@@ -292,7 +292,8 @@ class EnhancedSocialDataService {
           name, 
           cached.data, 
           officialHandle, 
-          socialLinks
+          socialLinks,
+          metadata
         );
         
         // Update cache with smart refreshed data
@@ -455,7 +456,7 @@ class EnhancedSocialDataService {
   /**
    * Force smart refresh for a specific token (admin function)
    */
-  async forceSmartRefresh(symbol, name, officialHandle = null, socialLinks = null) {
+  async forceSmartRefresh(symbol, name, officialHandle = null, socialLinks = null, metadata = null) {
     console.log(`🧠 Force smart refresh for ${symbol}`);
     
     const cacheKey = `${symbol}_${name}`;
@@ -472,7 +473,8 @@ class EnhancedSocialDataService {
         name, 
         cached.data, 
         officialHandle, 
-        socialLinks
+        socialLinks,
+        metadata
       );
       
       // Update cache with smart refreshed data
