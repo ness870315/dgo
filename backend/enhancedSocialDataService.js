@@ -1543,10 +1543,10 @@ class EnhancedSocialDataService {
       }
       
       // 🛡️ ATOMIC WRITE WITH LOCK: Save updated tokens cache with atomic write and lock protection
-      const cacheLock = new CacheLockService();
+      const cacheLock = new CacheLockService(tokensCachePath);
 
       try {
-        await cacheLock.atomicWrite(tokensCachePath, tokens);
+        await cacheLock.atomicWrite(tokens);
         console.log(`💾 Updated ${updatedCount} tokens with Twitter data directly in main cache (atomic write with lock)`);
       } catch (error) {
         console.error('❌ Error saving Twitter data to cache:', error);
@@ -1917,8 +1917,8 @@ class EnhancedSocialDataService {
    * 🚨 CRITICAL: Uses displayMentions (projected) and atomic writes
    */
   async saveHistoricalSnapshot(symbol, name, twitterData) {
-    const lockAcquired = await CacheLockService.acquireLock('twitter_history.json');
-    
+    const cacheLock = new CacheLockService(this.historicalMetricsFile);
+
     try {
       // Ensure cache directory exists
       const cacheDir = path.dirname(this.historicalMetricsFile);
@@ -1966,16 +1966,12 @@ class EnhancedSocialDataService {
       }
       
       // 🔒 ATOMIC WRITE: Save updated history with lock protection
-      await fs.writeFile(this.historicalMetricsFile, JSON.stringify(history, null, 2), 'utf8');
-      
+      await cacheLock.atomicWrite(history);
+
       console.log(`📊 Historical snapshot saved for ${symbol} on ${today}: ${projectedMentions} mentions (projected)`);
-      
+
     } catch (error) {
       console.error(`❌ Error saving historical snapshot for ${symbol}:`, error.message);
-    } finally {
-      if (lockAcquired) {
-        CacheLockService.releaseLock('twitter_history.json');
-      }
     }
   }
 
