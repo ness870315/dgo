@@ -140,6 +140,40 @@ class TwitterAutoPostService {
   }
 
   /**
+   * Post a promotional tweet (for daily marketing posts)
+   */
+  async postPromotionalTweet(text) {
+    if (!this.dgnOracleUserId) {
+      console.log('⚠️ Twitter Auto-Post is disabled - @dgnoracle not authenticated');
+      return { success: false, reason: 'not_authenticated' };
+    }
+
+    try {
+      console.log('🐦 Posting promotional tweet to @dgnoracle...');
+      console.log(`   Text: ${text}`);
+      
+      // Use existing oauthXService to post tweet
+      const tweet = await this.oauthXService.postTweet(this.dgnOracleUserId, text);
+      
+      console.log('✅ Promotional tweet posted successfully!');
+      console.log(`   Tweet ID: ${tweet.id}`);
+      
+      return {
+        success: true,
+        tweetId: tweet.id,
+        text: tweet.text
+      };
+
+    } catch (error) {
+      console.error('❌ Failed to post promotional tweet:', error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
    * Check if auto-posting is enabled
    */
   isAutoPostEnabled() {

@@ -31,6 +31,7 @@ import { ForecastDebugEndpoint } from './debug-forecast-token.js';
 import { CallMilestonesDebugEndpoint } from './debug-call-milestones.js';
 import MoralisAIChatService from './services/MoralisAIChatService.js';
 import TwitterAutoPostService from './twitterAutoPostService.js';
+import DailyTweetService from './dailyTweetService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -146,6 +147,7 @@ class EnhancedBackend {
     // Initialize AI Chat Service with OAuthXService for watchlist operations and backend instance for internal calls
     this.aiChatService = new MoralisAIChatService(this.oauthXService, this);
     this.twitterAutoPostService = new TwitterAutoPostService(this.oauthXService);
+    this.dailyTweetService = null; // Will be initialized after OpenAI service is ready
     this.backupIntegration = null; // Will be initialized in setupServices()
     // Social Context cache (72h TTL)
     this.socialContextCache = new Map();
@@ -8984,6 +8986,121 @@ class EnhancedBackend {
     });
 
     // ========================================
+    // 📅 DAILY TWEET SERVICE ENDPOINTS
+    // ========================================
+
+    // Start Daily Tweet Service
+    this.app.post('/api/admin/daily-tweets/start', adminApiAuth, async (req, res) => {
+      try {
+        const { useLLM = true, hour, minute } = req.body;
+
+        if (!this.dailyTweetService) {
+          return res.status(503).json({
+            success: false,
+            error: 'Daily Tweet Service not initialized (OpenAI may not be available)'
+          });
+        }
+
+        // Update scheduled time if provided
+        if (hour !== undefined && minute !== undefined) {
+          this.dailyTweetService.setScheduledTime(parseInt(hour), parseInt(minute));
+        }
+
+        // Start the service
+        this.dailyTweetService.start(useLLM);
+
+        res.json({
+          success: true,
+          message: 'Daily Tweet Service started',
+          scheduledTime: this.dailyTweetService.scheduledTime,
+          useLLM,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to start Daily Tweet Service:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // Stop Daily Tweet Service
+    this.app.post('/api/admin/daily-tweets/stop', adminApiAuth, (req, res) => {
+      try {
+        if (!this.dailyTweetService) {
+          return res.status(503).json({
+            success: false,
+            error: 'Daily Tweet Service not initialized'
+          });
+        }
+
+        this.dailyTweetService.stop();
+
+        res.json({
+          success: true,
+          message: 'Daily Tweet Service stopped',
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to stop Daily Tweet Service:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // Post a promotional tweet immediately (for testing)
+    this.app.post('/api/admin/daily-tweets/post-now', adminApiAuth, async (req, res) => {
+      try {
+        const { useLLM = true } = req.body;
+
+        if (!this.dailyTweetService) {
+          return res.status(503).json({
+            success: false,
+            error: 'Daily Tweet Service not initialized (OpenAI may not be available)'
+          });
+        }
+
+        const result = await this.dailyTweetService.postNow(useLLM);
+
+        res.json({
+          success: result.success,
+          message: result.success ? 'Tweet posted successfully' : 'Failed to post tweet',
+          tweetId: result.tweetId,
+          error: result.error,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to post promotional tweet:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // Get Daily Tweet Service status
+    this.app.get('/api/admin/daily-tweets/status', adminApiAuth, (req, res) => {
+      try {
+        if (!this.dailyTweetService) {
+          return res.json({
+            initialized: false,
+            running: false,
+            message: 'Daily Tweet Service not initialized (OpenAI may not be available)'
+          });
+        }
+
+        const nextPost = this.dailyTweetService.isRunning
+          ? new Date(Date.now() + this.dailyTweetService.getMillisecondsUntilNextPost()).toISOString()
+          : null;
+
+        res.json({
+          initialized: true,
+          running: this.dailyTweetService.isRunning,
+          scheduledTime: this.dailyTweetService.scheduledTime,
+          nextPostAt: nextPost,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get Daily Tweet Service status:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // ========================================
     // 📈 PRICE CHART ENDPOINTS
     // ========================================
 
@@ -11743,6 +11860,14 @@ class EnhancedBackend {
       try {
         await this.socialContextAI.initialize();
         console.log('✅ Social Context AI initialized successfully');
+        
+        // Initialize Daily Tweet Service with OpenAI
+        console.log('📅 Initializing Daily Tweet Service...');
+        this.dailyTweetService = new DailyTweetService(
+          this.twitterAutoPostService,
+          this.socialContextAI.openaiService
+        );
+        console.log('✅ Daily Tweet Service initialized (not started yet)');
       } catch (error) {
         console.error('❌ Social Context AI failed to initialize:', error.message);
         console.warn('⚠️ Continuing with fallback analysis only...');
