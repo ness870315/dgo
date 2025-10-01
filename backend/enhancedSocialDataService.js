@@ -411,9 +411,11 @@ class EnhancedSocialDataService {
       
       // 🚨 CRITICAL: Use displayMentions (projected) for historical tracking, not raw sample
       const todayMentions = twitterData.displayMentions || twitterData.mentions;
-      const yesterdayMentions = twitterData.mentionsYesterday;
-      const actualChange = todayMentions - yesterdayMentions;
-      console.log(`📊 Historical Context for ${symbol}: Today=${todayMentions} (projected), Yesterday=${yesterdayMentions}, Change=${actualChange >= 0 ? '+' : ''}${actualChange}`);
+      const previousMentions = twitterData.mentionsYesterday;
+      const actualChange = todayMentions - previousMentions;
+      const changePercent = previousMentions > 0 ? ((actualChange / previousMentions) * 100).toFixed(1) : 'N/A';
+      const comparisonDateLabel = historicalData.lastSnapshotDate || 'last refresh';
+      console.log(`📊 Historical Context for ${symbol}: Today=${todayMentions}, Previous=${previousMentions} (${comparisonDateLabel}), Change=${actualChange >= 0 ? '+' : ''}${actualChange} (${changePercent}%)`);
       
       // Cache the result with historical context
       this.twitterMetricsCache.set(cacheKey, {
@@ -1868,18 +1870,39 @@ class EnhancedSocialDataService {
       const tokenKey = `${symbol}_${name}`;
       const tokenHistory = history[tokenKey] || {};
       
-      // Get yesterday's date (24 hours ago)
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayKey = yesterday.toISOString().split('T')[0]; // YYYY-MM-DD format
+      // 🚨 CRITICAL FIX: Find MOST RECENT snapshot instead of "yesterday"
+      // With 5-day cooldown, "yesterday" never exists - need last refresh
+      const dates = Object.keys(tokenHistory).sort();  // Chronological order
       
-      const yesterdayData = tokenHistory[yesterdayKey];
+      if (dates.length === 0) {
+        console.log(`📊 No historical snapshots found for ${symbol}`);
+        return {
+          yesterdayMentions: 0,
+          yesterdayLikes: 0,
+          yesterdayEngagement: 0,
+          hasHistoricalData: false,
+          lastSnapshotDate: null
+        };
+      }
+      
+      // Get the most recent snapshot (could be today, yesterday, or 5+ days ago)
+      const mostRecentDate = dates[dates.length - 1];
+      const mostRecentData = tokenHistory[mostRecentDate];
+      const today = new Date().toISOString().split('T')[0];
+      
+      // If most recent is today, use second-most-recent for comparison
+      const comparisonDate = mostRecentDate === today && dates.length > 1 ? 
+        dates[dates.length - 2] : mostRecentDate;
+      const comparisonData = tokenHistory[comparisonDate];
+      
+      console.log(`📊 Historical lookup for ${symbol}: comparing to ${comparisonDate} (${dates.length} snapshots available)`);
       
       return {
-        yesterdayMentions: yesterdayData?.mentions || 0,
-        yesterdayLikes: yesterdayData?.likes || 0,
-        yesterdayEngagement: yesterdayData?.engagement || 0,
-        hasHistoricalData: !!yesterdayData
+        yesterdayMentions: comparisonData?.mentions || 0,
+        yesterdayLikes: comparisonData?.likes || 0,
+        yesterdayEngagement: comparisonData?.engagement || 0,
+        hasHistoricalData: !!comparisonData,
+        lastSnapshotDate: comparisonDate
       };
       
     } catch (error) {
@@ -1888,7 +1911,8 @@ class EnhancedSocialDataService {
         yesterdayMentions: 0,
         yesterdayLikes: 0,
         yesterdayEngagement: 0,
-        hasHistoricalData: false
+        hasHistoricalData: false,
+        lastSnapshotDate: null
       };
     }
   }
