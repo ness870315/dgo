@@ -847,37 +847,10 @@ class EnhancedSocialDataService {
         console.log(`🔥 Volume/Mcap ratio: ${(volumeToMcapRatio * 100).toFixed(1)}% = ${synergyBonus}x HYPE bonus`);
       }
       
-      if (mentions72hAvg != null) {
-        // Has historical data - blend with projection
-        const alpha = 0.6; // Lower weight to history (was 0.7)
-        let projected = totalMentions;
-        
-        // Time-based projection
-        if (recentMentions.length >= 2) {
-          const timestamps = recentMentions.map(t => new Date(t.createdAt).getTime()).filter(t => !isNaN(t));
-          if (timestamps.length >= 2) {
-            const deltaHours = (Math.max(...timestamps) - Math.min(...timestamps)) / (1000 * 60 * 60);
-            if (deltaHours >= 1) {
-              const rate = totalMentions / deltaHours;
-              projected = Math.round(rate * 24); // Project to 24h
-            } else {
-              // Very recent tweets - extrapolate cautiously
-              projected = totalMentions * Math.min(12, 24 / (deltaHours || 1));
-            }
-          }
-        }
-        
-        // Apply size, engagement, and synergy multipliers to projection
-        projected = Math.round(projected * engagementMultiplier * synergyBonus);
-        
-        // Blend with 72h average
-        const blended = alpha * mentions72hAvg + (1 - alpha) * projected;
-        
-        // Less restrictive caps (2.5x instead of 1.5x) for growth allowance
-        displayMentions = Math.round(Math.max(mentions72hAvg * 0.3, Math.min(mentions72hAvg * 2.5, blended)));
-        
-        console.log(`📊 Projection (w/ history): base=${totalMentions}, projected=${projected}, 72h_avg=${mentions72hAvg}, synergy=${synergyBonus}x, final=${displayMentions}`);
-      } else {
+      // 🚨 REMOVED HISTORICAL BLENDING: Use pure market-driven projection only
+      // Historical averages were killing projections for surging high-volume tokens
+      // (e.g., LAUNCHCOIN: projected=99, but capped at 20 due to 72h avg of 8)
+      {
         // New token without history - use market/volume-aware projection
         // Base: sample * time_multiplier * size_multiplier * engagement_multiplier * synergy_bonus
         const baseSampleMultiplier = 1.0; // NO BASE MULTIPLIER: Only volume/size/engagement matter
