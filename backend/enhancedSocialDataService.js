@@ -780,17 +780,18 @@ class EnhancedSocialDataService {
       }
       
       // 24h Volume multiplier (hot tokens with high volume deserve higher projections)
+      // MICRO CAP FRIENDLY: Lower thresholds so small tokens with decent volume get boosted
       let volumeMultiplier = 1.0;
       const volume24h = metadata?.volume24h || null;
       if (volume24h) {
-        // Volume tiers - micro caps with high volume can compete with larger caps
-        if (volume24h >= 10_000_000) volumeMultiplier = 3.0;      // $10M+ volume = very hot
-        else if (volume24h >= 5_000_000) volumeMultiplier = 2.5;  // $5M+ = hot trading
-        else if (volume24h >= 1_000_000) volumeMultiplier = 2.0;  // $1M+ = good activity
-        else if (volume24h >= 500_000) volumeMultiplier = 1.5;    // $500k+ = decent activity
-        else if (volume24h >= 100_000) volumeMultiplier = 1.2;    // $100k+ = some activity
+        // Volume tiers - adjusted for micro caps (thresholds divided by 100)
+        if (volume24h >= 100_000) volumeMultiplier = 3.0;      // $100k+ volume = very hot for micro caps
+        else if (volume24h >= 50_000) volumeMultiplier = 2.5;  // $50k+ = hot trading
+        else if (volume24h >= 10_000) volumeMultiplier = 2.0;  // $10k+ = good activity
+        else if (volume24h >= 5_000) volumeMultiplier = 1.5;   // $5k+ = decent activity
+        else if (volume24h >= 1_000) volumeMultiplier = 1.2;   // $1k+ = some activity
         
-        console.log(`💹 Volume boost: $${(volume24h/1e6).toFixed(2)}M = ${volumeMultiplier}x multiplier`);
+        console.log(`💹 Volume boost: $${(volume24h/1e3).toFixed(1)}k = ${volumeMultiplier}x multiplier`);
       }
       
       // Combine mcap and volume intelligently (don't just multiply)
@@ -855,17 +856,17 @@ class EnhancedSocialDataService {
           else if (mcap >= 5_000_000) minMentions = Math.max(minMentions, 30);
           else if (mcap >= 1_000_000) minMentions = Math.max(minMentions, 20);
         }
-        // Volume-based floor (helps micro caps with high volume)
+        // Volume-based floor (helps micro caps with decent volume)
         if (volume24h) {
-          if (volume24h >= 5_000_000) minMentions = Math.max(minMentions, 80);
-          else if (volume24h >= 1_000_000) minMentions = Math.max(minMentions, 40);
-          else if (volume24h >= 500_000) minMentions = Math.max(minMentions, 25);
+          if (volume24h >= 100_000) minMentions = Math.max(minMentions, 50);  // $100k+ vol
+          else if (volume24h >= 50_000) minMentions = Math.max(minMentions, 30);   // $50k+ vol
+          else if (volume24h >= 10_000) minMentions = Math.max(minMentions, 20);   // $10k+ vol
         }
         
         // Ceiling: Prevent unrealistic inflation (based on larger of mcap or volume)
         let maxMentions = 500;
         if (mcap) maxMentions = Math.max(maxMentions, Math.min(5000, mcap / 50000));
-        if (volume24h) maxMentions = Math.max(maxMentions, Math.min(3000, volume24h / 10000));
+        if (volume24h) maxMentions = Math.max(maxMentions, Math.min(2000, volume24h / 100)); // Adjusted for lower volume thresholds
         
         displayMentions = Math.round(Math.max(minMentions, Math.min(maxMentions, projected)));
         
