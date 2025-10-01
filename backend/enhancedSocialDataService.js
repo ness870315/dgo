@@ -398,24 +398,24 @@ class EnhancedSocialDataService {
       // Get historical data for 24-hour comparison
       const historicalData = await this.getHistoricalTwitterData(symbol, name);
       
-      // Calculate 24-hour changes
-      const mentions24hChange = historicalData.yesterdayMentions ? 
-        twitterData.mentions - historicalData.yesterdayMentions : 0;
+      // Calculate 24-hour changes (use displayMentions for accurate comparison)
+      const todayMentions = twitterData.displayMentions || twitterData.mentions;
+      const previousMentions = historicalData.yesterdayMentions || 0;
+      const mentions24hChange = previousMentions ? todayMentions - previousMentions : 0;
+      const mentionsChangePercent = previousMentions > 0 ? ((mentions24hChange / previousMentions) * 100) : 0;
       
       // Add historical context to Twitter data
       twitterData.mentions24h = mentions24hChange;
-      twitterData.mentionsYesterday = historicalData.yesterdayMentions || 0;
-      twitterData.mentionsTrend = mentions24hChange > 0 ? 'increasing' : 
-                                  mentions24hChange < 0 ? 'decreasing' : 'stable';
+      twitterData.mentionsYesterday = previousMentions;
+      twitterData.mentionsTrend = mentionsChangePercent; // NUMERIC percentage for frontend
+      twitterData.mentionsTrendLabel = mentions24hChange > 0 ? 'increasing' : 
+                                       mentions24hChange < 0 ? 'decreasing' : 'stable'; // Text label
       twitterData.lastRefreshed = new Date().toISOString(); // Track refresh time
       
-      // 🚨 CRITICAL: Use displayMentions (projected) for historical tracking, not raw sample
-      const todayMentions = twitterData.displayMentions || twitterData.mentions;
-      const previousMentions = twitterData.mentionsYesterday;
-      const actualChange = todayMentions - previousMentions;
-      const changePercent = previousMentions > 0 ? ((actualChange / previousMentions) * 100).toFixed(1) : 'N/A';
+      // 🚨 CRITICAL: Log historical context for monitoring
+      const changePercentFormatted = previousMentions > 0 ? mentionsChangePercent.toFixed(1) : 'N/A';
       const comparisonDateLabel = historicalData.lastSnapshotDate || 'last refresh';
-      console.log(`📊 Historical Context for ${symbol}: Today=${todayMentions}, Previous=${previousMentions} (${comparisonDateLabel}), Change=${actualChange >= 0 ? '+' : ''}${actualChange} (${changePercent}%)`);
+      console.log(`📊 Historical Context for ${symbol}: Today=${todayMentions}, Previous=${previousMentions} (${comparisonDateLabel}), Change=${mentions24hChange >= 0 ? '+' : ''}${mentions24hChange} (${changePercentFormatted}%)`);
       
       // Cache the result with historical context
       this.twitterMetricsCache.set(cacheKey, {
