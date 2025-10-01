@@ -1661,7 +1661,8 @@ class EnhancedSocialDataService {
     
     try {
       // 1. MENTIONS SCORING (55% weight) - PRIMARY importance for community buzz
-      const mentionsRaw = Number(twitterData.mentions || 0);
+      // 🚨 CRITICAL: Use displayMentions (projected) not raw mentions!
+      const mentionsRaw = Number(twitterData.displayMentions || twitterData.mentions || 0);
       const has72h = Number(twitterData.mentionsWindowHours || 0) >= 72;
       // Normalize to new 5-post pull policy; if 72h avg exists, it’s already smoothed
       const normalizedActivity = Math.min(1, (has72h ? mentionsRaw : mentionsRaw) / 5);

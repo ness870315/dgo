@@ -332,7 +332,8 @@ class TwitterDataMergeService {
    * Calculate community health score from Twitter data
    */
   calculateCommunityHealthScore(twitterData) {
-    const mentions = twitterData.mentions || 0;
+    // 🚨 CRITICAL: Use displayMentions (projected) not raw mentions!
+    const mentions = twitterData.displayMentions || twitterData.mentions || 0;
     const followers = twitterData.followers || 0;
     const engagement = (twitterData.likes || 0) + (twitterData.retweets || 0) + (twitterData.replies || 0);
     

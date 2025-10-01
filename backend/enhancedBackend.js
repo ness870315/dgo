@@ -10233,7 +10233,8 @@ class EnhancedBackend {
     // (Removed redundant Recent Activity scoring - prioritizes mention volume and engagement quality)
 
     // 1. Mentions score (55% weight) - PRIMARY importance for community buzz
-    const mentions = twitterData.mentions || 0;
+    // 🚨 CRITICAL: Use displayMentions (projected) not raw mentions!
+    const mentions = twitterData.displayMentions || twitterData.mentions || 0;
     if (mentions > 100) score += 2.75;
     else if (mentions > 50) score += 2.2;
     else if (mentions > 20) score += 1.65;
