@@ -874,12 +874,12 @@ class EnhancedSocialDataService {
       } else {
         // New token without history - use market/volume-aware projection
         // Base: sample * time_multiplier * size_multiplier * engagement_multiplier * synergy_bonus
-        const baseSampleMultiplier = 8; // Assume we're seeing ~1/8th of daily mentions in our 6-tweet sample
+        const baseSampleMultiplier = 1.2; // ULTRA CONSERVATIVE: Barely above raw count
         
         let projected = totalMentions * baseSampleMultiplier * sizeMultiplier * engagementMultiplier * synergyBonus;
         
         // Floor: Minimum realistic mentions by market cap OR volume (whichever is higher)
-        let minMentions = 15;
+        let minMentions = 10; // CONSERVATIVE: Lower base minimum (was 15)
         if (mcap) {
           if (mcap >= 100_000_000) minMentions = Math.max(minMentions, 200);
           else if (mcap >= 50_000_000) minMentions = Math.max(minMentions, 100);

@@ -5758,8 +5758,14 @@ class EnhancedBackend {
               continue;
             }
             
-            // Force refresh Twitter data
-            const twitterData = await socialService.forceImmediateRefresh(symbol, token.name);
+            // Prepare metadata for smart projection (market cap + volume)
+            const metadata = token.jupiterData ? {
+              marketCap: token.jupiterData.marketCap || token.jupiterData.mcap || null,
+              volume24h: token.jupiterData.volume24h || token.jupiterData.v24hUSD || null
+            } : null;
+            
+            // Force refresh Twitter data WITH metadata
+            const twitterData = await socialService.forceImmediateRefresh(symbol, token.name, false, metadata);
             
             results.push({ 
               symbol, 
@@ -6204,7 +6210,13 @@ class EnhancedBackend {
           }
 
           try {
-            const twitterData = await socialService.forceImmediateRefresh(item.symbol, item.name);
+            // Prepare metadata for smart projection (market cap + volume)
+            const metadata = token?.jupiterData ? {
+              marketCap: token.jupiterData.marketCap || token.jupiterData.mcap || null,
+              volume24h: token.jupiterData.volume24h || token.jupiterData.v24hUSD || null
+            } : null;
+            
+            const twitterData = await socialService.forceImmediateRefresh(item.symbol, item.name, false, metadata);
 
             // Update cache entry
           if (job.tokensArray && item.index != null && job.tokensArray[item.index]) {

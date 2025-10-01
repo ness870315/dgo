@@ -257,12 +257,13 @@ class SmartTwitterRefreshService {
         else if (ratio >= 0.05) synergyBonus = 1.15;
       }
       
-      // Project mentions
-      const baseSampleMultiplier = 8;
+      // Project mentions (ULTRA CONSERVATIVE: 1.2x base)
+      // With low engagement/volume, stays very close to raw count
+      const baseSampleMultiplier = 1.2;
       displayMentions = Math.round(totalMentions * baseSampleMultiplier * sizeMultiplier * engagementMultiplier * synergyBonus);
       
-      // Apply floors and ceilings
-      let minMentions = 15;
+      // Apply floors and ceilings (CONSERVATIVE: lower minimums)
+      let minMentions = 10; // Base minimum (was 15)
       if (volume24h >= 100_000) minMentions = Math.max(minMentions, 50);
       else if (volume24h >= 50_000) minMentions = Math.max(minMentions, 30);
       else if (volume24h >= 10_000) minMentions = Math.max(minMentions, 20);
