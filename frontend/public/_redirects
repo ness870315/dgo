@@ -1,6 +1,6 @@
-# Fuel page redirects - handle dynamic fuel URLs
-/fuel/* /fuel.html 200
+# Fuel sharing is handled by backend API with dynamic meta tags
+/fuel/* https://api.degen-oracle.com/fuel/:splat 200
 
-# Other redirects
+# API redirects
 /api/* https://api.degen-oracle.com/api/:splat 200
 /admin-dashboard.html https://api.degen-oracle.com/admin-dashboard.html 200
