@@ -1806,19 +1806,19 @@ class EnhancedTokenProcessor {
     const marketTier = this.calculateMarketTier(token.jupiterData?.mcap || token.jupiterData?.marketCap);
     score += marketTier * 0.05;
     
-    // Volume 1hr (20%) - Calculate from Jupiter stats1h data
+    // Volume 1hr (25%) - INCREASED: More weight to immediate trading activity
     const buyVolume1h = token.jupiterData?.stats1h?.buyVolume || 0;
     const sellVolume1h = token.jupiterData?.stats1h?.sellVolume || 0;
     const totalVolume1h = buyVolume1h + sellVolume1h;
     const volume1h = this.calculateVolumeScore(totalVolume1h);
-    score += volume1h * 0.20;
+    score += volume1h * 0.25;
     
-    // Volume 24hr (15%) - Calculate from Jupiter stats24h data
+    // Volume 24hr (20%) - INCREASED: More weight to sustained volume
     const buyVolume24h = token.jupiterData?.stats24h?.buyVolume || 0;
     const sellVolume24h = token.jupiterData?.stats24h?.sellVolume || 0;
     const totalVolume24h = buyVolume24h + sellVolume24h;
     const volume24h = this.calculateVolumeScore(totalVolume24h);
-    score += volume24h * 0.15;
+    score += volume24h * 0.20;
     
     // Price Change 24hrs (10%) - Use Jupiter stats24h data
     const priceChange = this.calculatePriceChangeScore(token.jupiterData?.stats24h?.priceChange || 0);
@@ -1828,9 +1828,10 @@ class EnhancedTokenProcessor {
     const organicRatio = this.calculateOrganicVolumeRatio(token);
     score += organicRatio * 0.10;
     
-    // Community Health (35%) - Reduced from 45% to balance with increased Volume 1hr weight
+    // Community Health (25%) - REDUCED: Meaningful but not dominant
+    // Twitter/social buzz complements trading metrics rather than driving them
     const communityHealth = token.communityHealthScore || 2.0; // Lowered default from 5.0 to 2.0
-    score += communityHealth * 0.35;
+    score += communityHealth * 0.25;
     
     // Uniqueness Factor (5%)
     const uniqueness = this.calculateUniquenessFactor(token);
