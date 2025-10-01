@@ -5764,7 +5764,8 @@ class EnhancedBackend {
             results.push({ 
               symbol, 
               success: true, 
-              mentions: twitterData.mentions,
+              mentions: twitterData.mentions, // Raw sample
+              displayMentions: twitterData.displayMentions, // Projected
               engagement: twitterData.engagement?.total || 0
             });
             
@@ -5852,7 +5853,8 @@ class EnhancedBackend {
             symbol: token.symbol,
             name: token.name,
             twitterData: {
-              mentions: twitterData.mentions,
+              mentions: twitterData.mentions, // Raw sample
+              displayMentions: twitterData.displayMentions, // Projected
               recentMentions: twitterData.recentMentions?.length || 0,
               newTweetsAdded: twitterData._newTweetsAdded || 0,
               refreshType: twitterData._refreshType || 'unknown'

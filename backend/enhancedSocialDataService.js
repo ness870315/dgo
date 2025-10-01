@@ -305,7 +305,8 @@ class EnhancedSocialDataService {
         // Save to persistent storage
         await this.saveTwitterMetricsToFile();
         
-        console.log(`✅ Smart refresh completed for ${symbol}: ${smartRefreshedData._newTweetsAdded || 0} new tweets added`);
+        const displayCount = smartRefreshedData.displayMentions || smartRefreshedData.mentions;
+        console.log(`✅ Smart refresh completed for ${symbol}: ${smartRefreshedData._newTweetsAdded || 0} new tweets added, ${displayCount} mentions (projected)`);
         return smartRefreshedData;
       } catch (error) {
         console.log(`⚠️ Smart refresh failed for ${symbol}, falling back to regular refresh:`, error.message);
@@ -331,7 +332,8 @@ class EnhancedSocialDataService {
         
         // 🚨 CRITICAL FIX: ALWAYS preserve existing Twitter data during cooldowns
         if (cached && cached.data) {
-          console.log(`📦 Preserving existing Twitter data for ${symbol} during cooldown (${cached.data.mentions} mentions, score: ${cached.data.communityHealth || cached.data.communityScore || 'N/A'})`);
+          const displayCount = cached.data.displayMentions || cached.data.mentions;
+          console.log(`📦 Preserving existing Twitter data for ${symbol} during cooldown (${displayCount} mentions, score: ${cached.data.communityHealth || cached.data.communityScore || 'N/A'})`);
           const preservedData = { ...cached.data };
           preservedData._dataFreshness = 'preserved_during_cooldown';
           preservedData._blockReason = canRefresh.reason;
@@ -360,7 +362,8 @@ class EnhancedSocialDataService {
       
       // 🚨 CRITICAL FIX: ALWAYS preserve existing Twitter data during rate limits
       if (cached && cached.data) {
-        console.log(`📦 Preserving existing Twitter data for ${symbol} during rate limit (${cached.data.mentions} mentions)`);
+        const displayCount = cached.data.displayMentions || cached.data.mentions;
+        console.log(`📦 Preserving existing Twitter data for ${symbol} during rate limit (${displayCount} mentions)`);
         const preservedData = { ...cached.data };
         preservedData._dataFreshness = 'preserved_during_rate_limit';
         preservedData._preservedAt = new Date().toISOString();
@@ -406,7 +409,11 @@ class EnhancedSocialDataService {
                                   mentions24hChange < 0 ? 'decreasing' : 'stable';
       twitterData.lastRefreshed = new Date().toISOString(); // Track refresh time
       
-      console.log(`📊 Historical Context for ${symbol}: Today=${twitterData.mentions}, Yesterday=${twitterData.mentionsYesterday}, Change=${mentions24hChange}`);
+      // 🚨 CRITICAL: Use displayMentions (projected) for historical tracking, not raw sample
+      const todayMentions = twitterData.displayMentions || twitterData.mentions;
+      const yesterdayMentions = twitterData.mentionsYesterday;
+      const actualChange = todayMentions - yesterdayMentions;
+      console.log(`📊 Historical Context for ${symbol}: Today=${todayMentions} (projected), Yesterday=${yesterdayMentions}, Change=${actualChange >= 0 ? '+' : ''}${actualChange}`);
       
       // Cache the result with historical context
       this.twitterMetricsCache.set(cacheKey, {
@@ -418,7 +425,8 @@ class EnhancedSocialDataService {
       await this.saveTwitterMetricsToFile();
       await this.saveHistoricalSnapshot(symbol, name, twitterData);
       
-      console.log(`✅ Twitter data collected for ${symbol}: ${twitterData.mentions} mentions`);
+      const displayCount = twitterData.displayMentions || twitterData.mentions;
+      console.log(`✅ Twitter data collected for ${symbol}: ${displayCount} mentions (projected)`);
       twitterData._dataFreshness = 'fresh'; // Mark as fresh data
       
       // Clean up temporary Jupiter data
@@ -432,7 +440,8 @@ class EnhancedSocialDataService {
       // 🚨 CRITICAL FIX: ALWAYS preserve existing Twitter data during errors
       const cached = this.twitterMetricsCache.get(cacheKey);
       if (cached && cached.data) {
-        console.log(`📦 Preserving existing Twitter data for ${symbol} during API error (${cached.data.mentions} mentions)`);
+        const displayCount = cached.data.displayMentions || cached.data.mentions;
+        console.log(`📦 Preserving existing Twitter data for ${symbol} during API error (${displayCount} mentions)`);
         const preservedData = { ...cached.data };
         preservedData._dataFreshness = 'preserved_during_error';
         preservedData._preservedAt = new Date().toISOString();
@@ -486,7 +495,8 @@ class EnhancedSocialDataService {
       // Save to persistent storage
       await this.saveTwitterMetricsToFile();
       
-      console.log(`✅ Force smart refresh completed for ${symbol}: ${smartRefreshedData._newTweetsAdded || 0} new tweets added`);
+      const displayCount = smartRefreshedData.displayMentions || smartRefreshedData.mentions;
+      console.log(`✅ Force smart refresh completed for ${symbol}: ${smartRefreshedData._newTweetsAdded || 0} new tweets added, ${displayCount} mentions (projected)`);
       return smartRefreshedData;
     } catch (error) {
       console.error(`❌ Force smart refresh failed for ${symbol}:`, error.message);
@@ -1903,8 +1913,11 @@ class EnhancedSocialDataService {
 
   /**
    * Save daily snapshot for historical tracking
+   * 🚨 CRITICAL: Uses displayMentions (projected) and atomic writes
    */
   async saveHistoricalSnapshot(symbol, name, twitterData) {
+    const lockAcquired = await CacheLockService.acquireLock('twitter_history.json');
+    
     try {
       // Ensure cache directory exists
       const cacheDir = path.dirname(this.historicalMetricsFile);
@@ -1927,9 +1940,14 @@ class EnhancedSocialDataService {
         history[tokenKey] = {};
       }
       
+      // 🚨 CRITICAL: Save PROJECTED mentions (displayMentions), not raw sample
+      const projectedMentions = twitterData.displayMentions || twitterData.mentions;
+      
       // Save today's snapshot
       history[tokenKey][today] = {
-        mentions: twitterData.mentions,
+        mentions: projectedMentions, // Projected value for accurate historical comparison
+        displayMentions: projectedMentions, // Explicit field for clarity
+        sampleMentions: twitterData.mentions, // Keep raw sample for debugging
         likes: twitterData.likes,
         retweets: twitterData.retweets,
         replies: twitterData.replies,
@@ -1946,13 +1964,17 @@ class EnhancedSocialDataService {
         datesToRemove.forEach(date => delete tokenHistory[date]);
       }
       
-      // Save updated history
+      // 🔒 ATOMIC WRITE: Save updated history with lock protection
       await fs.writeFile(this.historicalMetricsFile, JSON.stringify(history, null, 2), 'utf8');
       
-      console.log(`📊 Historical snapshot saved for ${symbol} on ${today}`);
+      console.log(`📊 Historical snapshot saved for ${symbol} on ${today}: ${projectedMentions} mentions (projected)`);
       
     } catch (error) {
       console.error(`❌ Error saving historical snapshot for ${symbol}:`, error.message);
+    } finally {
+      if (lockAcquired) {
+        CacheLockService.releaseLock('twitter_history.json');
+      }
     }
   }
 
