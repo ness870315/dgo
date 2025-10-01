@@ -9,10 +9,11 @@ class SmartIntentDetector {
       // Specific Token Data (Moralis Cortex)
       BLOCKCHAIN_QUERY: {
         patterns: [
-          /(?:price|volume|holders?|market cap|liquidity|transactions?) of \w+/i,
-          /\w+ (?:price|volume|holders?|market cap)/i,
-          /what.*?(?:price|volume|holders?) of/i,
-          /(?:current|latest) (?:price|data) (?:of|for) \w+/i,
+          /(?:price|volume|holders?|market cap|liquidity|transactions?|ath|all.?time.?high) of \w+/i,
+          /\w+ (?:price|volume|holders?|market cap|ath|all.?time.?high)/i,
+          /what.*?(?:price|volume|holders?|ath|all.?time.?high) of/i,
+          /what.*?(?:is|are).*?\w+.*?(?:ath|all.?time.?high|price|volume)/i,
+          /(?:current|latest|highest) (?:price|data|ath) (?:of|for) \w+/i,
           /(?:buy|sell) (?:volume|pressure) (?:of|for) \w+/i,
           /wallet.*?(?:analysis|transactions?|activity)/i,
           /on-chain.*?(?:data|analysis)/i,
@@ -25,7 +26,7 @@ class SmartIntentDetector {
           /(?:analysis|data|info).*?(?:of|on|for) \w+/i,
           /\w+.*?(?:analysis|data|info)/i
         ],
-        keywords: ['price of', 'volume of', 'holders of', 'market cap of', 'liquidity of', 'wallet', 'on-chain', 'whale activity', 'show me', 'holder analysis', 'market analysis', 'volume analysis', 'price analysis', 'analysis of', 'data of', 'info of'],
+        keywords: ['price of', 'volume of', 'holders of', 'market cap of', 'liquidity of', 'ath', 'all-time high', 'all time high', 'highest price', 'peak price', 'high', 'wallet', 'on-chain', 'whale activity', 'show me', 'holder analysis', 'market analysis', 'volume analysis', 'price analysis', 'analysis of', 'data of', 'info of'],
         priority: 'high'
       },
 
@@ -78,14 +79,15 @@ class SmartIntentDetector {
       PLATFORM_INFO: {
         patterns: [
           /what.*?(?:is|does).*?degen oracle/i,
-          /how.*?(?:works?|use|trending)/i,
-          /(?:features|tools|services)/i,
-          /(?:premium|subscription|mp|vip)/i,
-          /(?:list token|fuel token|update token)/i,
-          /(?:bubble map|oracle chart|hype over time)/i
+          /how.*?(?:works?|use).*?(?:degen oracle|platform|trending algorithm)/i,
+          /(?:platform )?features/i,
+          /(?:premium|subscription|mp|vip).*?(?:features|services|benefits)/i,
+          /(?:list token|fuel token|update token).*?(?:service|feature)/i,
+          /(?:bubble map|oracle chart|hype over time).*?(?:works?|use)/i,
+          /how do i.*?(?:use|access).*?(?:platform|features|services)/i
         ],
-        keywords: ['what is', 'how does', 'features', 'premium', 'services', 'help'],
-        priority: 'medium'
+        keywords: ['degen oracle features', 'platform features', 'how does platform', 'premium features', 'services', 'help me', 'how to use'],
+        priority: 'low'
       },
 
       // Watchlist Actions
