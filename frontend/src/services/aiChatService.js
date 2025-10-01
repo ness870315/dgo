@@ -123,12 +123,9 @@ class AIChatService {
       "What's on my watchlist?",
       "What is trending on Degen Oracle?",
       "What's my average call performance?",
-      "How many milestones have I hit this month?",
-      "What's the current price of SOL?",
-      "Which of my calls has the highest ATH multiplier?",
+      "Holder analysis of Memeputer",
       "What is the current price of Fartcoin?",
-      "What is the 24h volume of Aura?",
-      "Holder analysis for Memeputer"
+      "Tell me the 24hr volume of Aura"
     ];
   }
 
