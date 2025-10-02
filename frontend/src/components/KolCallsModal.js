@@ -55,16 +55,6 @@ function MiniTrendChart({ call }) {
       const contractAddress = call?.contractAddress || call?.token?.contractAddress;
       const calledAt = call?.calledAt || call?.calledTs || call?.timestamp;
       
-      // Debug logging
-      if (call?.token?.symbol === 'WIZI') {
-        console.log('🔍 MiniTrendChart debug for WIZI:', {
-          contractAddress,
-          calledAt,
-          calledMC: call?.calledMc || call?.calledMC,
-          currentMC: call?.currentMC || call?.currentMc,
-          fullCall: call
-        });
-      }
       
       if (!contractAddress || !calledAt) {
         setLoading(false);
@@ -84,23 +74,13 @@ function MiniTrendChart({ call }) {
         
         if (response.success && response.data?.snapshots && response.data.snapshots.length > 0) {
           setChartData(response.data.snapshots);
-          if (call?.token?.symbol === 'WIZI' || call?.token?.symbol === 'BAGWORK') {
-            console.log(`✅ Historical chart loaded for ${call?.token?.symbol}: ${response.data.snapshots.length} points`);
-            console.log('🔍 Sample snapshot data:', response.data.snapshots[0]);
-          }
         } else {
           // No data available
           setChartData(null);
-          if (call?.token?.symbol === 'WIZI' || call?.token?.symbol === 'BAGWORK') {
-            console.log(`⚠️ No historical data for ${call?.token?.symbol}, will use fallback`);
-          }
         }
       } catch (error) {
         // Error loading chart (timeout or error)
         setChartData(null);
-        if (call?.token?.symbol === 'WIZI' || call?.token?.symbol === 'BAGWORK') {
-          console.log(`❌ Chart fetch failed for ${call?.token?.symbol}: ${error.message}`);
-        }
       } finally {
         setLoading(false);
       }
@@ -122,14 +102,6 @@ function MiniTrendChart({ call }) {
     const calledMC = call?.calledMc || call?.calledMC || 0;
     const currentMC = call?.currentMC || call?.currentMc || 0;
     
-    // Debug logging for fallback chart
-    if (call?.token?.symbol === 'WIZI' || call?.token?.symbol === 'BAGWORK') {
-      console.log(`📊 Fallback chart for ${call?.token?.symbol}:`, {
-        calledMC,
-        currentMC,
-        willRender: calledMC > 0 && currentMC > 0
-      });
-    }
     
     if (calledMC > 0 && currentMC > 0) {
       // Create simple 2-point chart
@@ -180,19 +152,8 @@ function MiniTrendChart({ call }) {
     );
   }
   
-  // Extract market cap values from historical snapshots
-  const series = chartData.map(s => s.marketCap || 0).filter(v => v > 0);
-  
-  if (call?.token?.symbol === 'WIZI' || call?.token?.symbol === 'BAGWORK') {
-    console.log(`📈 Processing historical chart for ${call?.token?.symbol}:`, {
-      totalPoints: chartData.length,
-      validPoints: series.length,
-      firstMC: series[0],
-      lastMC: series[series.length - 1],
-      min: Math.min(...series),
-      max: Math.max(...series)
-    });
-  }
+  // Extract market cap values from historical snapshots (field is 'mcap', not 'marketCap')
+  const series = chartData.map(s => s.mcap || s.marketCap || 0).filter(v => v > 0);
   
   if (series.length < 2) {
     return (
