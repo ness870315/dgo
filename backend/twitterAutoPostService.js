@@ -97,7 +97,7 @@ class TwitterAutoPostService {
   }
 
   /**
-   * Post fuel announcement
+   * Post fuel announcement with optional Twitter handle tagging
    */
   async postFuelAnnouncement(token, fuelType, user = null) {
     if (!this.dgnOracleUserId) {
@@ -109,15 +109,52 @@ class TwitterAutoPostService {
       const symbol = token.symbol || 'TOKEN';
       const fuelUrl = `https://degen-oracle.com/fuel/${fuelType}/${symbol}`;
       
+      // Check for token's Twitter handle from socials or jupiterData
+      let twitterHandle = null;
+      
+      // Priority 1: token.socials.twitter
+      if (token.socials?.twitter && token.socials.twitter !== 'not_found' && token.socials.twitter !== '') {
+        twitterHandle = token.socials.twitter;
+      }
+      // Priority 2: token.jupiterData.twitter
+      else if (token.jupiterData?.twitter && token.jupiterData.twitter !== 'not_found' && token.jupiterData.twitter !== '') {
+        twitterHandle = token.jupiterData.twitter;
+      }
+      // Priority 3: token.twitterHandle (legacy field)
+      else if (token.twitterHandle && token.twitterHandle !== 'not_found' && token.twitterHandle !== '') {
+        twitterHandle = token.twitterHandle;
+      }
+      
+      // Normalize handle (ensure it starts with @)
+      if (twitterHandle) {
+        twitterHandle = twitterHandle.trim();
+        if (!twitterHandle.startsWith('@')) {
+          twitterHandle = '@' + twitterHandle;
+        }
+        console.log(`🐦 Found Twitter handle for ${symbol}: ${twitterHandle}`);
+      } else {
+        console.log(`⚠️ No Twitter handle found for ${symbol}`);
+      }
+      
       // Generate hype message
       const hypeMessage = this.getHypeMessage(fuelType, symbol);
       
-      // Construct tweet text
-      const tweetText = `${hypeMessage}\n\n${fuelUrl}`;
+      // Construct tweet text - add Twitter handle if available
+      let tweetText;
+      if (twitterHandle) {
+        // Include the handle to tag the token's account
+        tweetText = `${hypeMessage}\n\n${twitterHandle} 🔥\n\n${fuelUrl}`;
+      } else {
+        // No handle - use standard format
+        tweetText = `${hypeMessage}\n\n${fuelUrl}`;
+      }
       
       console.log(`🔥 Auto-posting ${fuelType} fuel announcement for ${symbol}`);
       if (user) {
         console.log(`   Fueled by: @${user.username}`);
+      }
+      if (twitterHandle) {
+        console.log(`   Tagging: ${twitterHandle}`);
       }
       
       // Post the tweet
