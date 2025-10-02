@@ -739,10 +739,10 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                           )}
                         </button>
                         {/* Tooltip */}
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-black/85 border border-white/10 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[220px]">
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-black/85 border border-white/10 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[220px] whitespace-nowrap">
                           <div className="text-[11px] leading-snug text-gray-200">
                             <span className="font-semibold text-white">Oracle AI:</span>
-                            <span className="text-gray-300 ml-1">{aiLoading ? 'Analyzing... 10-30 seconds' : 'Get AI-powered social sentiment analysis'}</span>
+                            <span className="text-gray-300 ml-1">{aiLoading ? 'Analyzing...' : 'AI Market Analysis'}</span>
                           </div>
                         </div>
                       </div>
@@ -760,10 +760,10 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                           <span>Fuel</span>
                         </button>
                         {/* Tooltip */}
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-black/85 border border-white/10 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[220px]">
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-black/85 border border-white/10 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[220px] whitespace-nowrap">
                           <div className="text-[11px] leading-snug text-gray-200">
                             <span className="font-semibold text-white">Fuel:</span>
-                            <span className="text-gray-300 ml-1">Boost token visibility with 10x, 50x, 100x, 500x, or 1000x fuel</span>
+                            <span className="text-gray-300 ml-1">Fuel coin to gain Visibility</span>
                           </div>
                         </div>
                       </div>
@@ -823,10 +823,10 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                           <span>Call it!</span>
                         </button>
                         {/* Tooltip */}
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-black/85 border border-white/10 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[220px]">
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-black/85 border border-white/10 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[220px] whitespace-nowrap">
                           <div className="text-[11px] leading-snug text-gray-200">
                             <span className="font-semibold text-white">Call it!:</span>
-                            <span className="text-gray-300 ml-1">Record your call and track performance</span>
+                            <span className="text-gray-300 ml-1">Make the Call</span>
                           </div>
                         </div>
                       </div>
@@ -849,10 +849,10 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                           />
                         </button>
                         {/* Tooltip */}
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-black/85 border border-white/10 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[220px]">
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-black/85 border border-white/10 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[220px] whitespace-nowrap">
                           <div className="text-[11px] leading-snug text-gray-200">
-                            <span className="font-semibold text-white">{isInWatchlist ? 'Remove from' : 'Add to'} Watchlist:</span>
-                            <span className="text-gray-300 ml-1">{isInWatchlist ? 'Remove from your watchlist' : 'Track this token in your watchlist'}</span>
+                            <span className="font-semibold text-white">Fav:</span>
+                            <span className="text-gray-300 ml-1">{isInWatchlist ? 'Remove' : 'Add'} to Watchlist</span>
                           </div>
                         </div>
                       </div>
