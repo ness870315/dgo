@@ -739,13 +739,13 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                           )}
                         </button>
                         {/* Tooltip */}
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[200px]">
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999] whitespace-nowrap">
                           <div className="text-xs leading-tight">
                             <span className="font-semibold text-white">Oracle AI:</span>
                             <span className="text-gray-300 ml-1">{aiLoading ? 'Analyzing...' : 'AI Market Analysis'}</span>
                           </div>
                           {/* Arrow */}
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-600"></div>
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-600"></div>
                         </div>
                       </div>
                       
@@ -762,13 +762,13 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                           <span>Fuel</span>
                         </button>
                         {/* Tooltip */}
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[200px]">
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999] whitespace-nowrap">
                           <div className="text-xs leading-tight">
                             <span className="font-semibold text-white">Fuel:</span>
                             <span className="text-gray-300 ml-1">Fuel coin to gain Visibility</span>
                           </div>
                           {/* Arrow */}
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-600"></div>
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-600"></div>
                         </div>
                       </div>
                       
@@ -827,13 +827,13 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                           <span>Call it!</span>
                         </button>
                         {/* Tooltip */}
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[200px]">
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999] whitespace-nowrap">
                           <div className="text-xs leading-tight">
                             <span className="font-semibold text-white">Call it!:</span>
                             <span className="text-gray-300 ml-1">Make the Call</span>
                           </div>
                           {/* Arrow */}
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-600"></div>
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-600"></div>
                         </div>
                       </div>
                       
@@ -855,13 +855,13 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                           />
                         </button>
                         {/* Tooltip */}
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[200px]">
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999] whitespace-nowrap">
                           <div className="text-xs leading-tight">
                             <span className="font-semibold text-white">Fav:</span>
                             <span className="text-gray-300 ml-1">{isInWatchlist ? 'Remove' : 'Add'} to Watchlist</span>
                           </div>
                           {/* Arrow */}
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-gray-600"></div>
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-600"></div>
                         </div>
                       </div>
                     </div>
