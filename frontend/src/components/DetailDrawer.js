@@ -170,9 +170,9 @@ export default function DetailDrawer({ call, onClose, onRefresh }) {
     setRefreshing(true);
     try {
       await onRefresh();
-      console.log('🔄 DetailDrawer: Call data refreshed successfully');
+      // Call data refreshed successfully
     } catch (error) {
-      console.error('❌ DetailDrawer: Failed to refresh call data:', error);
+      // Failed to refresh call data silently
     } finally {
       setRefreshing(false);
     }
@@ -194,7 +194,6 @@ export default function DetailDrawer({ call, onClose, onRefresh }) {
   useEffect(() => {
     const contract = call?.token?.contractAddress || call?.contractAddress;
     const calledAt = call?.calledAt || call?.calledTs;
-    console.log('DetailDrawer chart loading:', { contract, calledAt, call });
     
     if (call && contract && calledAt) {
       // Boost priority for this token when DetailDrawer is opened
@@ -204,25 +203,20 @@ export default function DetailDrawer({ call, onClose, onRefresh }) {
       setLoadingChart(true);
       chartService.getMcapChart(contract, calledAt)
         .then(response => {
-          console.log('Chart API response:', response);
           if (response.success && response.data && response.data.snapshots && response.data.snapshots.length > 0) {
-            console.log(`✅ Loaded ${response.data.snapshots.length} real chart data points`);
             setChartData(response.data);
           } else {
-            console.log('📊 No historical data available, using mock data');
             setChartData(null);
           }
         })
         .catch(error => {
-          console.error('Failed to load chart data:', error);
-          console.log('📊 Falling back to mock data due to API error');
+          // Fallback to mock data silently
           setChartData(null);
         })
         .finally(() => {
           setLoadingChart(false);
         });
     } else {
-      console.warn('Missing required data for chart:', { contract, calledAt });
       setChartData(null);
     }
   }, [call]);

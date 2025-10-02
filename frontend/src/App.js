@@ -706,7 +706,7 @@ function AppContent() {
     
     const interval = setInterval(async () => {
       try {
-        console.log('🔄 Auto-refreshing token data...');
+        // Auto-refreshing token data
         const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
         const [tokenData, fueledData] = await Promise.all([
           tokenService.fetchTokens(settings.useRealTwitterData),
@@ -718,7 +718,7 @@ function AppContent() {
         
         // Only update if we got new data and it's different
         if (tokenData && tokenData.length > 0 && tokenData.length !== tokens.length) {
-          console.log(`🆕 Token count changed: ${tokens.length} → ${tokenData.length}`);
+          // Token count changed
           setTokens(tokenData);
           applyFiltersAndSearch(tokenData, filters, searchTerm);
         } else if (tokenData && tokenData.length > 0) {
@@ -734,7 +734,7 @@ function AppContent() {
           });
           
           if (hasUpdates) {
-            console.log('🔄 Token data updated, refreshing...');
+            // Token data updated, refreshing
             setTokens(tokenData);
             applyFiltersAndSearch(tokenData, filters, searchTerm);
           }
