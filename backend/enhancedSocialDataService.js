@@ -579,19 +579,13 @@ class EnhancedSocialDataService {
           endpoint: '/api/twitter/search',
           params: { 
             q: `($${symbol} OR $${symbolLower}) -is:retweet -is:reply lang:en`,
-            count: 4,
-            start_time: startTime
-          }
-        },
-        {
-          type: 'hashtag_with_crypto_context',
-          endpoint: '/api/twitter/search',
-          params: { 
-            q: `(#${symbol} OR #${symbolLower}) -is:retweet lang:en`,
-            count: 2,
+            count: 6, // Increased from 4 to 6 since cashtags are more reliable
             start_time: startTime
           }
         }
+        // Hashtag search DISABLED - too many false positives (e.g., #grift = scam, not $GRIFT token)
+        // Cashtags ($SYMBOL) are crypto-specific and more reliable
+        // If we need more tweets, our crypto relevance filter will catch non-crypto content
       ];
       
       // Store official handle info for follower detection (without API call)
