@@ -163,6 +163,36 @@ export default function DetailDrawer({ call, onClose, onRefresh }) {
   const MILESTONE_POSTS_PER_PAGE = 3; // Show 3 milestone posts per page
   const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
   
+  // Generate share tweet variations
+  const generateShareTweet = () => {
+    const { x, athX, timeToAth } = derive(call);
+    const symbol = call?.symbol || call?.token?.symbol || 'TOKEN';
+    const calledMC = formatUSD(call?.calledMc || call?.calledMC || 0);
+    const currentMC = formatUSD(call?.currentMC || 0);
+    
+    const variations = [
+      `Called $${symbol} at ${calledMC} MC — now ${currentMC} (${x.toFixed(2)}×). ATH since call: ${athX.toFixed(2)}× in ${timeToAth}. The community knew what was up! This is just the beginning of the run. Track my calls on @dgnoracle : https://degen-oracle.com`,
+      
+      `$${symbol} call update: Started at ${calledMC}, sitting at ${currentMC} (${x.toFixed(2)}×). Peaked at ${athX.toFixed(2)}× in ${timeToAth}. Still early! Follow my plays on @dgnoracle : https://degen-oracle.com`,
+      
+      `Another banger! $${symbol} from ${calledMC} to ${currentMC} — that's ${x.toFixed(2)}× and counting. Hit ${athX.toFixed(2)}× ATH in just ${timeToAth}. Not financial advice but I'm calling bangers daily on @dgnoracle : https://degen-oracle.com`,
+      
+      `$${symbol} update: ${x.toFixed(2)}× since my call at ${calledMC} MC. Currently ${currentMC}. ATH was ${athX.toFixed(2)}× in ${timeToAth}. The degen thesis was solid! More alpha on @dgnoracle : https://degen-oracle.com`,
+      
+      `GM! $${symbol} doing numbers. Called at ${calledMC}, now ${currentMC} (${x.toFixed(2)}×). Hit ${athX.toFixed(2)}× peak in ${timeToAth}. This one's got legs! Check my track record: @dgnoracle https://degen-oracle.com`
+    ];
+    
+    // Pick a random variation
+    return variations[Math.floor(Math.random() * variations.length)];
+  };
+  
+  // Handle share to Twitter
+  const handleShareToTwitter = () => {
+    const tweetText = generateShareTweet();
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
+    window.open(twitterUrl, '_blank', 'width=550,height=420');
+  };
+  
   // Refresh call data to get latest milestone posts
   const refreshCallData = async () => {
     if (!onRefresh) return;
@@ -334,9 +364,10 @@ export default function DetailDrawer({ call, onClose, onRefresh }) {
           </div>
           <div className="flex items-center gap-2">
             <button 
-              className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-sm text-white"
-              onClick={() => window.alert("Share card coming soon")}
+              className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-sm text-white flex items-center gap-2 transition-all duration-200 hover:scale-105"
+              onClick={handleShareToTwitter}
             >
+              <Twitter size={16} />
               Share card
             </button>
             <button 
