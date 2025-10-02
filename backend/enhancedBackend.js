@@ -5846,93 +5846,6 @@ class EnhancedBackend {
       }
     });
 
-    // Admin: Smart Twitter refresh for specific token (with deduplication)
-    this.app.post('/api/admin/tokens/:symbol/smart-refresh-twitter', adminApiAuth, async (req, res) => {
-      try {
-        const { symbol } = req.params;
-        console.log(`[🛡️ Admin] 🧠 Smart Twitter refresh for identifier: ${symbol}`);
-        
-        // Load raw tokens from cache
-        const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
-        const cachePath = path.join(dataDir, 'cache', 'tokens-cache.json');
-        let rawTokens = [];
-        
-        try {
-          const cacheData = await fs.readFile(cachePath, 'utf8');
-          rawTokens = JSON.parse(cacheData);
-        } catch (error) {
-          console.error('[🛡️ Admin] ❌ Error loading tokens cache:', error);
-          return res.status(500).json({ error: 'Failed to load tokens cache' });
-        }
-        
-        // Find token by symbol or contract address
-        const token = rawTokens.find(t => 
-          t.symbol?.toLowerCase() === symbol.toLowerCase() || 
-          t.contractAddress?.toLowerCase() === symbol.toLowerCase()
-        );
-        
-        if (!token) {
-          return res.status(404).json({ error: 'Token not found' });
-        }
-        
-        // Ensure social service is available
-        await this.ensureSocialDataService();
-        const socialService = this.tokenProcessor.socialDataService;
-        
-        // Force smart refresh Twitter data
-        const lookupSymbol = token.symbol;
-        const twitterData = await socialService.forceSmartRefresh(lookupSymbol, token.name, false);
-        
-        if (!twitterData) {
-          return res.status(400).json({ error: 'Smart refresh failed - no cached data available' });
-        }
-        
-        // Update token with new Twitter data
-        token.twitterData = twitterData;
-        token.twitterTimestamp = new Date().toISOString();
-        
-        // 🛡️ ATOMIC WRITE: Save updated tokens back to cache
-        const tempPath = cachePath + '.tmp';
-        const jsonData = JSON.stringify(rawTokens, null, 2);
-        
-        try {
-          await fs.writeFile(tempPath, jsonData, 'utf8');
-          await fs.rename(tempPath, cachePath);
-        } catch (error) {
-          // Cleanup temp file if it exists
-          try {
-            await fs.unlink(tempPath);
-          } catch (_) {}
-          throw error;
-        }
-        
-        res.json({
-          success: true,
-          message: `Smart Twitter refresh completed for ${token.symbol}`,
-          token: {
-            symbol: token.symbol,
-            name: token.name,
-            twitterData: {
-              mentions: twitterData.mentions, // Raw sample
-              displayMentions: twitterData.displayMentions, // Projected
-              recentMentions: twitterData.recentMentions?.length || 0,
-              newTweetsAdded: twitterData._newTweetsAdded || 0,
-              refreshType: twitterData._refreshType || 'unknown'
-            },
-            timestamp: token.twitterTimestamp
-          }
-        });
-        
-      } catch (error) {
-        console.error('[🛡️ Admin] ❌ Smart refresh error:', error);
-        res.status(500).json({ 
-          success: false, 
-          error: 'Smart refresh failed', 
-          details: error.message 
-        });
-      }
-    });
-
     // Admin: Manual Twitter refresh for specific token
     this.app.post('/api/admin/tokens/:symbol/refresh-twitter', adminApiAuth, async (req, res) => {
       try {
@@ -5995,9 +5908,9 @@ class EnhancedBackend {
         
         console.log(`[🛡️ Admin] 📊 Metadata for ${token.symbol}: mcap=$${metadata?.marketCap ? (metadata.marketCap/1e6).toFixed(1) : '?'}M, vol=$${metadata?.volume24h ? (metadata.volume24h/1e6).toFixed(2) : '?'}M`);
         
-        // Force refresh Twitter data (REMOVED admin bypass to respect 72h cooldown)
+        // Force refresh Twitter data with admin bypass (ignores 5-day cooldown)
         const lookupSymbol = token.symbol || upperSym;
-        const twitterData = await socialService.forceImmediateRefresh(lookupSymbol, token.name, false, metadata);
+        const twitterData = await socialService.forceImmediateRefresh(lookupSymbol, token.name, true, metadata);
         
         // Update token with new Twitter data
         token.twitterData = twitterData;
