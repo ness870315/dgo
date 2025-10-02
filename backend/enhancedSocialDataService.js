@@ -570,12 +570,17 @@ class EnhancedSocialDataService {
         console.log(`🐦 ${symbol}: No previous refresh data, using 7-day window`);
       }
       
+      // 🎯 BULLETPROOF QUERY: Use Twitter API operators for exact matching
+      // - has:cashtags/has:hashtags = ensures entity type exists (not just text)
+      // - -is:retweet = excludes retweets (reduces artificial inflation)
+      // - -is:reply = excludes reply threads (focuses on original mentions)
+      // - lang:en = English only (better crypto relevance)
       const searchStrategies = [
         {
           type: 'cashtag_primary',
           endpoint: '/api/twitter/search',
           params: { 
-            q: `$${symbol} OR $${symbolLower}`, // Cashtag search - both uppercase and lowercase
+            q: `($${symbol} OR $${symbolLower}) has:cashtags -is:retweet -is:reply lang:en`,
             count: 4,
             start_time: startTime
           }
@@ -584,7 +589,7 @@ class EnhancedSocialDataService {
           type: 'hashtag_with_crypto_context',
           endpoint: '/api/twitter/search',
           params: { 
-            q: `#${symbol} OR #${symbolLower}`, // Hashtag search - both cases
+            q: `(#${symbol} OR #${symbolLower}) has:hashtags -is:retweet lang:en`,
             count: 2,
             start_time: startTime
           }
@@ -610,7 +615,32 @@ class EnhancedSocialDataService {
           });
           
           if (response.data.success) {
-            const tweets = response.data.tweets || response.data.mentions || [];
+            let tweets = response.data.tweets || response.data.mentions || [];
+            
+            // 🎯 BULLETPROOF POST-FILTERING: Verify exact entity match
+            // Even with query operators, double-check entities for accuracy
+            if (strategy.type === 'cashtag_primary' && tweets.length > 0) {
+              const before = tweets.length;
+              tweets = tweets.filter(t => 
+                t.entities?.cashtags?.some(ct => 
+                  ct.tag?.toUpperCase() === symbol.toUpperCase()
+                )
+              );
+              if (tweets.length < before) {
+                console.log(`🔍 Cashtag entity filter: ${before} → ${tweets.length} tweets (removed ${before - tweets.length} false matches)`);
+              }
+            } else if (strategy.type.includes('hashtag') && tweets.length > 0) {
+              const before = tweets.length;
+              tweets = tweets.filter(t =>
+                t.entities?.hashtags?.some(ht =>
+                  ht.tag?.toUpperCase() === symbol.toUpperCase()
+                )
+              );
+              if (tweets.length < before) {
+                console.log(`🔍 Hashtag entity filter: ${before} → ${tweets.length} tweets (removed ${before - tweets.length} false matches)`);
+              }
+            }
+            
             console.log(`✅ Found ${tweets.length} tweets for ${strategy.type}`);
             allTweets = allTweets.concat(tweets);
           } else {
