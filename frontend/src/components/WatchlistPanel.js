@@ -33,21 +33,33 @@ const WatchlistPanel = ({ isOpen, onClose, onTokenSelect, allTokensData = [] }) 
         
         for (const symbol of missingSymbols) {
           try {
-            const response = await fetch(`${API_BASE}/api/tokens?search=${encodeURIComponent(symbol)}`);
+            const url = `${API_BASE}/api/tokens?search=${encodeURIComponent(symbol)}`;
+            console.log(`🔄 [WATCHLIST] Fetching ${symbol} from:`, url);
+            const response = await fetch(url);
             const data = await response.json();
             
+            console.log(`🔄 [WATCHLIST] API response for ${symbol}:`, data);
+            
             if (data.tokens && data.tokens.length > 0) {
+              console.log(`🔄 [WATCHLIST] Found ${data.tokens.length} tokens in response`);
               // Find exact symbol match (case-insensitive)
               const matchedToken = data.tokens.find(t => t.symbol.toUpperCase() === symbol.toUpperCase());
               if (matchedToken) {
-                console.log('🔄 [WATCHLIST] Fetched token from API:', matchedToken.symbol);
+                console.log('✅ [WATCHLIST] Matched token from API:', matchedToken.symbol, matchedToken);
                 watchlistTokens.push(matchedToken);
+              } else {
+                console.log('❌ [WATCHLIST] No exact match found for:', symbol);
+                console.log('   Available symbols:', data.tokens.map(t => t.symbol));
               }
+            } else {
+              console.log('❌ [WATCHLIST] No tokens in API response for:', symbol);
             }
           } catch (fetchError) {
-            console.error(`🔄 [WATCHLIST] Failed to fetch ${symbol}:`, fetchError);
+            console.error(`❌ [WATCHLIST] Failed to fetch ${symbol}:`, fetchError);
           }
         }
+        
+        console.log('🔄 [WATCHLIST] Final watchlist tokens count after API fetch:', watchlistTokens.length);
       }
       
       setFullTokensData(watchlistTokens);
