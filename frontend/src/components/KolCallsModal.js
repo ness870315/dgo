@@ -182,6 +182,17 @@ function MiniTrendChart({ call }) {
   // Extract market cap values from historical snapshots
   const series = chartData.map(s => s.marketCap || 0).filter(v => v > 0);
   
+  if (call?.token?.symbol === 'WIZI' || call?.token?.symbol === 'BAGWORK') {
+    console.log(`📈 Processing historical chart for ${call?.token?.symbol}:`, {
+      totalPoints: chartData.length,
+      validPoints: series.length,
+      firstMC: series[0],
+      lastMC: series[series.length - 1],
+      min: Math.min(...series),
+      max: Math.max(...series)
+    });
+  }
+  
   if (series.length < 2) {
     return (
       <div className="flex items-center justify-center w-20 h-8">
