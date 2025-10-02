@@ -51,25 +51,33 @@ function MiniTrendChart({ call }) {
   
   useEffect(() => {
     const loadChartData = async () => {
-      if (!call?.contractAddress || !call?.calledAt) {
+      // Handle different date field names
+      const contractAddress = call?.contractAddress || call?.token?.contractAddress;
+      const calledAt = call?.calledAt || call?.calledTs || call?.timestamp;
+      
+      if (!contractAddress || !calledAt) {
         setLoading(false);
         return;
       }
       
       try {
-        const response = await chartService.getMcapChart(call.contractAddress, call.calledAt);
+        const response = await chartService.getMcapChart(contractAddress, calledAt);
         if (response.success && response.data?.snapshots && response.data.snapshots.length > 0) {
           setChartData(response.data.snapshots);
+        } else {
+          // No data available
+          setChartData(null);
         }
       } catch (error) {
-        // Silently fail
+        // Error loading chart
+        setChartData(null);
       } finally {
         setLoading(false);
       }
     };
     
     loadChartData();
-  }, [call?.contractAddress, call?.calledAt]);
+  }, [call?.contractAddress, call?.token?.contractAddress, call?.calledAt, call?.calledTs, call?.timestamp]);
   
   if (loading) {
     return (
@@ -79,7 +87,53 @@ function MiniTrendChart({ call }) {
     );
   }
   
+  // If no historical data, create a simple 2-point chart from call data
   if (!chartData || chartData.length < 2) {
+    const calledMC = call?.calledMc || call?.calledMC || 0;
+    const currentMC = call?.currentMC || call?.currentMc || 0;
+    
+    if (calledMC > 0 && currentMC > 0) {
+      // Create simple 2-point chart
+      const series = [calledMC, currentMC];
+      const firstValue = series[0];
+      const lastValue = series[1];
+      const isUptrend = lastValue >= firstValue;
+      
+      const w = 80;
+      const h = 32;
+      const padding = { top: 4, right: 2, bottom: 4, left: 2 };
+      const chartHeight = h - padding.top - padding.bottom;
+      const chartWidth = w - padding.left - padding.right;
+      
+      const min = Math.min(...series);
+      const max = Math.max(...series);
+      const range = max - min;
+      const effectiveRange = range > 0 ? range : max * 0.05;
+      
+      const norm = series.map(v => (v - min) / effectiveRange);
+      
+      const path = `M${padding.left},${padding.top + chartHeight - (norm[0] * chartHeight)} L${padding.left + chartWidth},${padding.top + chartHeight - (norm[1] * chartHeight)}`;
+      
+      const color = isUptrend ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)';
+      const fillColor = isUptrend ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+      
+      return (
+        <svg width={w} height={h} className="inline-block">
+          <path
+            d={`${path} L ${padding.left + chartWidth},${h - padding.bottom} L ${padding.left},${h - padding.bottom} Z`}
+            fill={fillColor}
+          />
+          <path
+            d={path}
+            fill="none"
+            stroke={color}
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+    }
+    
     return (
       <div className="flex items-center justify-center w-20 h-8">
         <div className="text-gray-600 text-xs">—</div>
@@ -87,7 +141,7 @@ function MiniTrendChart({ call }) {
     );
   }
   
-  // Extract market cap values
+  // Extract market cap values from historical snapshots
   const series = chartData.map(s => s.marketCap || 0).filter(v => v > 0);
   
   if (series.length < 2) {
