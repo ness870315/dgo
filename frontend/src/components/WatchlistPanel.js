@@ -123,7 +123,7 @@ const WatchlistPanel = ({ isOpen, onClose, onTokenSelect, allTokensData = [] }) 
         </div>
 
         {/* Content */}
-        <div className="p-3 sm:p-4 md:p-6 flex-1 overflow-hidden">
+        <div className="p-3 sm:p-4 md:p-6 flex-1 overflow-y-auto">
           {!isAuthenticated ? (
             <div className="text-center py-8 sm:py-12">
               <Star className="mx-auto text-gray-500 mb-3 sm:mb-4" size={40} />
@@ -147,7 +147,7 @@ const WatchlistPanel = ({ isOpen, onClose, onTokenSelect, allTokensData = [] }) 
               <p className="text-sm sm:text-base text-gray-400">Loading token details...</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 overflow-y-auto h-full">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {fullTokensData.map((token) => (
                 <div
                   key={token.symbol}
