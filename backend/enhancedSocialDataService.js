@@ -575,7 +575,7 @@ class EnhancedSocialDataService {
           type: 'cashtag_primary',
           endpoint: '/api/twitter/search',
           params: { 
-            q: `$${symbol}`, // Cashtag search - more crypto-specific
+            q: `$${symbol} OR $${symbolLower}`, // Cashtag search - both uppercase and lowercase
             count: 4,
             start_time: startTime
           }
@@ -584,7 +584,7 @@ class EnhancedSocialDataService {
           type: 'hashtag_with_crypto_context',
           endpoint: '/api/twitter/search',
           params: { 
-            q: `#${symbolLower} crypto OR #${symbolLower} token OR #${symbolLower} solana`, // More specific search
+            q: `#${symbol} OR #${symbolLower}`, // Hashtag search - both cases
             count: 2,
             start_time: startTime
           }
