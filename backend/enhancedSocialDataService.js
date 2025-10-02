@@ -1529,7 +1529,7 @@ class EnhancedSocialDataService {
       
       // 🛡️ ATOMIC WRITE WITH LOCK: Save updated tokens cache with atomic write and lock protection
       const cacheLock = new CacheLockService(tokensCachePath);
-
+      
       try {
         await cacheLock.atomicWrite(tokens);
         console.log(`💾 Updated ${updatedCount} tokens with Twitter data directly in main cache (atomic write with lock)`);
@@ -1999,9 +1999,9 @@ class EnhancedSocialDataService {
       
       // 🔒 ATOMIC WRITE: Save updated history with lock protection
       await cacheLock.atomicWrite(history);
-
+      
       console.log(`📊 Historical snapshot saved for ${symbol} on ${today}: ${projectedMentions} mentions (projected)`);
-
+      
     } catch (error) {
       console.error(`❌ Error saving historical snapshot for ${symbol}:`, error.message);
     }
