@@ -573,11 +573,10 @@ class EnhancedSocialDataService {
           type: 'cashtag_hashtag_only',
           endpoint: '/api/twitter/search',
           params: { 
-            // Use String concatenation to avoid template literal $ escaping issues
-            // Simple search for cashtags/hashtags only - post-filtering ensures quality
-            // Include replies as they show engagement and community discussion
-            // Only filter retweets (not replies) to capture authentic engagement
-            q: `("$` + symbolUpper + `" OR "$` + symbolLower + `" OR "#` + symbolUpper + `" OR "#` + symbolLower + `") -is:retweet lang:en`,
+            // Twitter API v2 entities approach - use has:hashtags operator
+            // This properly searches for hashtags and returns tweets with actual #SYMBOL mentions
+            // Much more accurate than searching for bare symbol which returns irrelevant tweets
+            q: `has:hashtags #` + symbolUpper + ` -is:retweet lang:en`,
             count: 8, // Balanced sample size for projection without overwhelming API
             start_time: startTime
           }
