@@ -990,7 +990,8 @@ class EnhancedBackend {
     // Get all tokens
     this.app.get('/api/tokens', async (req, res) => {
       try {
-        console.log('[🛡️ Enhanced Backend] 📊 API request for tokens received...');
+        const { search } = req.query;
+        console.log('[🛡️ Enhanced Backend] 📊 API request for tokens received...', search ? `(search: "${search}")` : '');
 
         let tokens = await this.getTokensFromCache();
 
@@ -1008,13 +1009,24 @@ class EnhancedBackend {
         console.log(`[🛡️ Enhanced Backend] 🔄 Deduplicated API response: ${tokens.length} → ${deduplicatedTokens.length} tokens`);
 
         // Filter out tokens without valid contract addresses
-        const validTokens = deduplicatedTokens.filter(token => 
+        let validTokens = deduplicatedTokens.filter(token => 
           token.contractAddress && 
           token.contractAddress !== null && 
           token.contractAddress.length > 10
         );
         
-        console.log(`[🛡️ Enhanced Backend] ✅ Returning ${validTokens.length} valid tokens (filtered out ${deduplicatedTokens.length - validTokens.length} without contracts)`);
+        // Apply search filter if provided
+        if (search) {
+          const searchLower = search.toLowerCase();
+          validTokens = validTokens.filter(token =>
+            token.symbol.toLowerCase().includes(searchLower) ||
+            token.name.toLowerCase().includes(searchLower) ||
+            (token.contractAddress && token.contractAddress.toLowerCase().includes(searchLower))
+          );
+          console.log(`[🛡️ Enhanced Backend] 🔍 Search "${search}" matched ${validTokens.length} tokens`);
+        }
+        
+        console.log(`[🛡️ Enhanced Backend] ✅ Returning ${validTokens.length} valid tokens${search ? ' matching search' : ''}`);
         res.json(validTokens);
 
       } catch (error) {
