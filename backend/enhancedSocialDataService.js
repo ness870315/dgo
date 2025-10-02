@@ -563,22 +563,19 @@ class EnhancedSocialDataService {
       // Twitter API Basic tier limitations:
       // - NO has:cashtags/has:hashtags operators
       // - Must search for $SYMBOL and #SYMBOL as plain text (in quotes)
-      // - Crypto context keywords are OPTIONAL (boost relevance but not required)
+      // - Rely on strict post-filtering (isCryptoRelevantTweet + regex) for quality
       
       const symbolUpper = symbol.toUpperCase();
       // symbolLower already declared above (line 549)
       
-      // Comprehensive crypto context keywords for meme coins and altcoins (OPTIONAL)
-      const cryptoContext = 'solana OR crypto OR memecoin OR degen OR altseason OR loading OR supply OR bag OR bullish OR buy OR ape OR MC OR holder OR moon OR pump OR chart OR DEX OR lambo OR diamond OR hands OR WAGMI';
-      
       const searchStrategies = [
         {
-          type: 'cashtag_hashtag_optional_context',
+          type: 'cashtag_hashtag_only',
           endpoint: '/api/twitter/search',
           params: { 
             // Use String concatenation to avoid template literal $ escaping issues
-            // Crypto context is optional - tweets without it can still match
-            q: `("$` + symbolUpper + `" OR "$` + symbolLower + `" OR "#` + symbolUpper + `" OR "#` + symbolLower + `") ` + cryptoContext + ` -is:retweet lang:en`,
+            // Simple search for cashtags/hashtags only - post-filtering ensures quality
+            q: `("$` + symbolUpper + `" OR "$` + symbolLower + `" OR "#` + symbolUpper + `" OR "#` + symbolLower + `") -is:retweet lang:en`,
             count: 6,
             start_time: startTime
           }
