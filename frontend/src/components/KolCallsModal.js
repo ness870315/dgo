@@ -55,6 +55,17 @@ function MiniTrendChart({ call }) {
       const contractAddress = call?.contractAddress || call?.token?.contractAddress;
       const calledAt = call?.calledAt || call?.calledTs || call?.timestamp;
       
+      // Debug logging
+      if (call?.token?.symbol === 'WIZI') {
+        console.log('🔍 MiniTrendChart debug for WIZI:', {
+          contractAddress,
+          calledAt,
+          calledMC: call?.calledMc || call?.calledMC,
+          currentMC: call?.currentMC || call?.currentMc,
+          fullCall: call
+        });
+      }
+      
       if (!contractAddress || !calledAt) {
         setLoading(false);
         return;
