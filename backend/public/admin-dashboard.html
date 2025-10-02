@@ -797,14 +797,6 @@
                             <input type="number" id="maxPosts" value="4" min="1" max="5">
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
-                            <label>Active Start (UTC)</label>
-                            <input type="number" id="activeStart" value="0" min="0" max="23">
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label>Active End (UTC)</label>
-                            <input type="number" id="activeEnd" value="24" min="0" max="24">
-                        </div>
-                        <div class="form-group" style="margin-bottom: 0;">
                             <label>Min Hours Between</label>
                             <input type="number" id="minHoursBetween" value="3" min="1" max="12">
                         </div>
@@ -3210,6 +3202,9 @@ ${(aiPrediction.risks || []).map(r => `   • ${r}`).join('\\n') || '   • None
         document.addEventListener('DOMContentLoaded', function() {
             // Load AI prediction stats after a short delay
             setTimeout(refreshAIPredictionStats, 2000);
+            
+            // Load Daily Tweet Service status on page load
+            setTimeout(getDailyTweetStatus, 500);
         });
 
         // Automatic Merge Toggle Function
@@ -3249,9 +3244,11 @@ ${(aiPrediction.risks || []).map(r => `   • ${r}`).join('\\n') || '   • None
             const useLLM = document.getElementById('useLLM').checked;
             const minPosts = parseInt(document.getElementById('minPosts').value);
             const maxPosts = parseInt(document.getElementById('maxPosts').value);
-            const activeStart = parseInt(document.getElementById('activeStart').value);
-            const activeEnd = parseInt(document.getElementById('activeEnd').value);
             const minHoursBetween = parseInt(document.getElementById('minHoursBetween').value);
+            
+            // Always 24/7 now (no activeStart/activeEnd fields)
+            const activeStart = 0;
+            const activeEnd = 24;
             
             resultsDiv.innerHTML = showLoading('▶️ Starting Daily Tweet Service...');
             

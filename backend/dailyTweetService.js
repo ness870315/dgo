@@ -22,6 +22,9 @@ class DailyTweetService {
     this.recentPosts = [];
     this.todayPostCount = 0;
     this.lastPostDate = null;
+    
+    // Store the next scheduled post time (for status display)
+    this.nextPostTime = null;
   }
 
   // Set random posting configuration
@@ -213,6 +216,9 @@ class DailyTweetService {
 
     const msUntilNext = this.getMillisecondsUntilNextPost();
     const nextPostDate = new Date(Date.now() + msUntilNext);
+    
+    // Store the next post time for status display
+    this.nextPostTime = nextPostDate.toISOString();
 
     console.log(`⏰ [DAILY TWEET] Next post scheduled for: ${nextPostDate.toISOString()}`);
     console.log(`⏰ [DAILY TWEET] Time until next post: ${(msUntilNext / 3600000).toFixed(1)} hours`);
@@ -221,7 +227,7 @@ class DailyTweetService {
       // Post the tweet
       await this.postPromotionalTweet(useLLM);
 
-      // Schedule next post (24 hours later)
+      // Schedule next post
       this.scheduleNextPost(useLLM);
     }, msUntilNext);
   }
@@ -232,6 +238,7 @@ class DailyTweetService {
       clearTimeout(this.scheduledTimeout);
       this.scheduledTimeout = null;
     }
+    this.nextPostTime = null;
     this.isRunning = false;
     console.log('🛑 [DAILY TWEET] Service stopped');
   }

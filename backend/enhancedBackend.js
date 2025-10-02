@@ -9163,9 +9163,8 @@ class EnhancedBackend {
           });
         }
 
-        const nextPost = this.dailyTweetService.isRunning
-          ? new Date(Date.now() + this.dailyTweetService.getMillisecondsUntilNextPost()).toISOString()
-          : null;
+        // Use stored nextPostTime to avoid recalculating (which changes the random time)
+        const nextPost = this.dailyTweetService.nextPostTime;
 
         res.json({
           initialized: true,
