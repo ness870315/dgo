@@ -572,21 +572,22 @@ class EnhancedSocialDataService {
       
       // 🎯 BASIC TIER COMPATIBLE QUERY
       // Twitter API Basic tier limitations:
-      // - NO has:cashtags operator
-      // - NO $ symbol as operator (treated as invalid)
-      // - Must search as plain text
-      // Available: -is:retweet, -is:reply, lang:en
+      // - NO has:cashtags/has:hashtags operators
+      // - Must search for $SYMBOL and #SYMBOL as plain text (in quotes)
+      // - Require crypto context keywords to filter out non-crypto uses
       
-      // Search for token symbol as plain text + crypto context keywords
-      // This helps filter out non-crypto uses of common words
-      const cryptoContext = 'crypto OR token OR solana OR sol OR price OR chart OR dex';
+      const symbolUpper = symbol.toUpperCase();
+      const symbolLower = symbol.toLowerCase();
+      
+      // Comprehensive crypto context keywords for meme coins and altcoins
+      const cryptoContext = 'solana OR crypto OR memecoin OR degen OR altseason OR loading OR supply OR bag OR bullish OR buy OR ape OR MC OR holder OR moon OR pump OR chart OR DEX OR lambo OR diamond OR hands OR WAGMI';
       
       const searchStrategies = [
         {
-          type: 'symbol_with_crypto_context',
+          type: 'cashtag_hashtag_with_context',
           endpoint: '/api/twitter/search',
           params: { 
-            q: `"${symbol}" (${cryptoContext}) -is:retweet -is:reply lang:en`,
+            q: `("$${symbolUpper}" OR "$${symbolLower}" OR "#${symbolUpper}" OR "#${symbolLower}") (${cryptoContext}) -is:retweet lang:en`,
             count: 6,
             start_time: startTime
           }
@@ -614,41 +615,20 @@ class EnhancedSocialDataService {
           if (response.data.success) {
             let tweets = response.data.tweets || response.data.mentions || [];
             
-            // 🎯 OPTIONAL POST-FILTERING: Only filter if entities are available
-            // If entities exist, verify exact match; otherwise trust query operators
-            if (strategy.type === 'cashtag_primary' && tweets.length > 0) {
-              // Check if ANY tweet has entities before filtering
-              const hasEntities = tweets.some(t => t.entities?.cashtags);
-              if (hasEntities) {
-                const before = tweets.length;
-                tweets = tweets.filter(t => 
-                  !t.entities || // Keep if no entities (trust query)
-                  t.entities?.cashtags?.some(ct => 
-                    ct.tag?.toUpperCase() === symbol.toUpperCase()
-                  )
-                );
-                if (tweets.length < before) {
-                  console.log(`🔍 Cashtag entity filter: ${before} → ${tweets.length} tweets (removed ${before - tweets.length} false matches)`);
-                }
-              } else {
-                console.log(`🔍 No entities in cashtag tweets, trusting query operators (has:cashtags)`);
-              }
-            } else if (strategy.type.includes('hashtag') && tweets.length > 0) {
-              // Check if ANY tweet has entities before filtering
-              const hasEntities = tweets.some(t => t.entities?.hashtags);
-              if (hasEntities) {
-                const before = tweets.length;
-                tweets = tweets.filter(t =>
-                  !t.entities || // Keep if no entities (trust query)
-                  t.entities?.hashtags?.some(ht =>
-                    ht.tag?.toUpperCase() === symbol.toUpperCase()
-                  )
-                );
-                if (tweets.length < before) {
-                  console.log(`🔍 Hashtag entity filter: ${before} → ${tweets.length} tweets (removed ${before - tweets.length} false matches)`);
-                }
-              } else {
-                console.log(`🔍 No entities in hashtag tweets, trusting query operators (has:hashtags)`);
+            // 🎯 STRICT POST-FILTERING: Verify tweet actually contains $SYMBOL or #SYMBOL
+            // Uses regex to ensure symbol appears with $ or # prefix (not just the word)
+            if (tweets.length > 0) {
+              const before = tweets.length;
+              // Regex: Match $SYMBOL or #SYMBOL with word boundaries
+              const strictRegex = new RegExp(`(^|\\W)(\\$|#)${symbol}(\\b|\\W)`, 'i');
+              
+              tweets = tweets.filter(t => {
+                const text = t.text || '';
+                return strictRegex.test(text);
+              });
+              
+              if (tweets.length < before) {
+                console.log(`🔍 Strict symbol filter: ${before} → ${tweets.length} tweets (removed ${before - tweets.length} without $/${symbol} or #${symbol})`);
               }
             }
             
