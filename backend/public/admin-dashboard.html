@@ -1753,27 +1753,35 @@
                 
                 if (data.success) {
                     const twitter = data.token.twitterData;
+                    // Use projected mentions (displayMentions) instead of raw mentions
+                    const projectedMentions = twitter.displayMentions || twitter.mentions || 0;
+                    const rawMentions = twitter.mentions || 0;
+                    
                     resultDiv.innerHTML = showAlert(`✅ ${data.message}`, 'success') + `
                         <div class="status-display">
                             <div class="status-item">
-                                <span class="status-label">Mentions:</span>
-                                <span class="status-value">${twitter.mentions}</span>
+                                <span class="status-label">Mentions (Projected):</span>
+                                <span class="status-value">${projectedMentions}</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Raw Sample:</span>
+                                <span class="status-value">${rawMentions} tweets</span>
                             </div>
                             <div class="status-item">
                                 <span class="status-label">24h Mentions:</span>
-                                <span class="status-value">${twitter.mentions24h}</span>
+                                <span class="status-value">${twitter.mentions24h || 0}</span>
                             </div>
                             <div class="status-item">
                                 <span class="status-label">Followers:</span>
-                                <span class="status-value">${twitter.followers}</span>
+                                <span class="status-value">${twitter.followers || 0}</span>
                             </div>
                             <div class="status-item">
                                 <span class="status-label">Official Handle:</span>
-                                <span class="status-value">${twitter.officialHandle}</span>
+                                <span class="status-value">${twitter.officialHandle || 'not found'}</span>
                             </div>
                             <div class="status-item">
                                 <span class="status-label">Recent Mentions:</span>
-                                <span class="status-value">${twitter.recentMentions}</span>
+                                <span class="status-value">${twitter.recentMentions || 0}</span>
                             </div>
                         </div>
                     `;
