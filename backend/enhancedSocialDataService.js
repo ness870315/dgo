@@ -617,27 +617,41 @@ class EnhancedSocialDataService {
           if (response.data.success) {
             let tweets = response.data.tweets || response.data.mentions || [];
             
-            // 🎯 BULLETPROOF POST-FILTERING: Verify exact entity match
-            // Even with query operators, double-check entities for accuracy
+            // 🎯 OPTIONAL POST-FILTERING: Only filter if entities are available
+            // If entities exist, verify exact match; otherwise trust query operators
             if (strategy.type === 'cashtag_primary' && tweets.length > 0) {
-              const before = tweets.length;
-              tweets = tweets.filter(t => 
-                t.entities?.cashtags?.some(ct => 
-                  ct.tag?.toUpperCase() === symbol.toUpperCase()
-                )
-              );
-              if (tweets.length < before) {
-                console.log(`🔍 Cashtag entity filter: ${before} → ${tweets.length} tweets (removed ${before - tweets.length} false matches)`);
+              // Check if ANY tweet has entities before filtering
+              const hasEntities = tweets.some(t => t.entities?.cashtags);
+              if (hasEntities) {
+                const before = tweets.length;
+                tweets = tweets.filter(t => 
+                  !t.entities || // Keep if no entities (trust query)
+                  t.entities?.cashtags?.some(ct => 
+                    ct.tag?.toUpperCase() === symbol.toUpperCase()
+                  )
+                );
+                if (tweets.length < before) {
+                  console.log(`🔍 Cashtag entity filter: ${before} → ${tweets.length} tweets (removed ${before - tweets.length} false matches)`);
+                }
+              } else {
+                console.log(`🔍 No entities in cashtag tweets, trusting query operators (has:cashtags)`);
               }
             } else if (strategy.type.includes('hashtag') && tweets.length > 0) {
-              const before = tweets.length;
-              tweets = tweets.filter(t =>
-                t.entities?.hashtags?.some(ht =>
-                  ht.tag?.toUpperCase() === symbol.toUpperCase()
-                )
-              );
-              if (tweets.length < before) {
-                console.log(`🔍 Hashtag entity filter: ${before} → ${tweets.length} tweets (removed ${before - tweets.length} false matches)`);
+              // Check if ANY tweet has entities before filtering
+              const hasEntities = tweets.some(t => t.entities?.hashtags);
+              if (hasEntities) {
+                const before = tweets.length;
+                tweets = tweets.filter(t =>
+                  !t.entities || // Keep if no entities (trust query)
+                  t.entities?.hashtags?.some(ht =>
+                    ht.tag?.toUpperCase() === symbol.toUpperCase()
+                  )
+                );
+                if (tweets.length < before) {
+                  console.log(`🔍 Hashtag entity filter: ${before} → ${tweets.length} tweets (removed ${before - tweets.length} false matches)`);
+                }
+              } else {
+                console.log(`🔍 No entities in hashtag tweets, trusting query operators (has:hashtags)`);
               }
             }
             
