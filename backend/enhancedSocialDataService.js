@@ -1166,27 +1166,22 @@ class EnhancedSocialDataService {
       }
     }
 
-    // REJECTION: Net negative score or no crypto indicators
-    if (netScore <= 0 || cryptoScore === 0) {
-      console.log(`   ❌ REJECTED: Insufficient crypto indicators (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
-      return false;
-    }
-
-    // REJECTION: Too many non-crypto indicators relative to crypto ones
-    if (nonCryptoScore > cryptoScore * 2) {
-      console.log(`   🚫 REJECTED: Too many non-crypto indicators (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
-      return false;
-    }
-    
-    // REJECTION: High hashtag spam score (automatic rejection)
+    // REJECTION: Only reject if strong non-crypto signals (hashtag spam or overwhelming non-crypto context)
     if (hashtagSpamScore >= 5) {
       console.log(`   🚫 REJECTED: High hashtag spam score (${hashtagSpamScore}) - likely spam/farming`);
       return false;
     }
+    
+    // REJECTION: Only reject if non-crypto score is MUCH higher than crypto score (3x ratio)
+    if (nonCryptoScore >= 5 && nonCryptoScore > cryptoScore * 3) {
+      console.log(`   🚫 REJECTED: Overwhelming non-crypto context (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
+      return false;
+    }
 
-    // DEFAULT REJECTION: If we get here, insufficient crypto relevance
-    console.log(`   ❌ REJECTED: Insufficient crypto relevance (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
-    return false;
+    // DEFAULT APPROVAL: If we searched for $SYMBOL/#SYMBOL and found it, trust the query
+    // Post-filtering should be permissive since the query already targets cashtags/hashtags
+    console.log(`   ✅ APPROVED: Query-based match (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
+    return true;
   }
 
   /**
