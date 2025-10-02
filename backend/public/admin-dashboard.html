@@ -387,9 +387,11 @@
             <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
                 <button class="btn" onclick="loadEarningsSummary()">📈 Load Summary</button>
                 <button class="btn" onclick="loadEarningsList()">📋 List Earnings</button>
+                <button class="btn btn-danger" onclick="resetEarnings()">🗑️ Reset All Earnings</button>
             </div>
             <div id="earningsSummary" class="status-display" style="display:none;"></div>
             <div id="earningsList" class="results-container" style="display:none;"></div>
+            <div id="earningsResetResult"></div>
         </div>
 
         <!-- Jupiter API Management -->
@@ -1097,6 +1099,42 @@
         }
         function showLoading() {
             return '<div class="loading"></div> Processing...';
+        }
+
+        // Reset earnings
+        async function resetEarnings() {
+            const resultsDiv = document.getElementById('earningsResetResult');
+            
+            if (!confirm('🗑️ RESET ALL EARNINGS\\n\\nThis will permanently delete all earnings records!\\n\\n⚠️ A backup will be created before deletion.\\n\\nAre you sure you want to continue?')) {
+                return;
+            }
+            
+            resultsDiv.innerHTML = showLoading('🗑️ Resetting all earnings...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/earnings/reset`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultsDiv.innerHTML = showAlert(`✅ ${data.message}<br>📦 Backup created: ${data.backup.split('/').pop()}`, 'success');
+                    
+                    // Refresh earnings display
+                    setTimeout(() => {
+                        loadEarningsSummary();
+                        loadEarningsList();
+                    }, 1000);
+                } else {
+                    resultsDiv.innerHTML = showAlert(`❌ Failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
         }
 
         // Referrals

@@ -692,6 +692,41 @@ class EnhancedBackend {
       }
     });
 
+    // Admin: Reset all earnings (clear earnings.json)
+    this.app.post('/api/admin/earnings/reset', adminApiAuth, async (req, res) => {
+      try {
+        console.log('[🛡️ Admin] 🗑️ Resetting all earnings data...');
+        
+        // Get earnings file path
+        const earningsFile = this.oauthXService.db.getGlobalFile('earnings.json');
+        
+        // Create backup before reset
+        const backupFile = earningsFile.replace('.json', `_backup_${Date.now()}.json`);
+        try {
+          const currentData = await this.oauthXService.db.getEarnings();
+          await fs.writeFile(backupFile, JSON.stringify(currentData, null, 2));
+          console.log(`[🛡️ Admin] 📦 Backup created: ${backupFile}`);
+        } catch (backupErr) {
+          console.warn('[🛡️ Admin] ⚠️ Could not create backup:', backupErr.message);
+        }
+        
+        // Reset earnings to empty array
+        await this.oauthXService.db.writeJsonFile(earningsFile, []);
+        
+        console.log('[🛡️ Admin] ✅ All earnings data has been reset');
+        
+        res.json({
+          success: true,
+          message: 'All earnings data has been reset',
+          backup: backupFile,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to reset earnings:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to reset earnings' });
+      }
+    });
+
     // Serve fuel images
     this.app.get('/api/fuel-image/:fuelType/:symbol', async (req, res) => {
       try {
