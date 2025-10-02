@@ -1679,8 +1679,8 @@ class EnhancedTokenProcessor {
               currentPrice: jupiterData.usdPrice || 0,
               price: jupiterData.usdPrice || 0, // Also set as 'price' for compatibility
               id: jupiterData.id,
-              name: jupiterData.name,
-              symbol: jupiterData.symbol,
+              name: jupiterData.name ? jupiterData.name.trim() : jupiterData.name,
+              symbol: jupiterData.symbol ? jupiterData.symbol.trim() : jupiterData.symbol,
               icon: jupiterData.icon,
               decimals: jupiterData.decimals,
               totalSupply: jupiterData.totalSupply,

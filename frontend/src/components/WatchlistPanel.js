@@ -45,8 +45,10 @@ const WatchlistPanel = ({ isOpen, onClose, onTokenSelect, allTokensData = [] }) 
             
             if (tokensArray.length > 0) {
               console.log(`🔄 [WATCHLIST] Found ${tokensArray.length} tokens in response`);
-              // Find exact symbol match (case-insensitive)
-              const matchedToken = tokensArray.find(t => t.symbol && t.symbol.toUpperCase() === symbol.toUpperCase());
+              // Find exact symbol match (case-insensitive, trim whitespace)
+              const matchedToken = tokensArray.find(t => 
+                t.symbol && t.symbol.trim().toUpperCase() === symbol.trim().toUpperCase()
+              );
               if (matchedToken) {
                 console.log('✅ [WATCHLIST] Matched token from API:', matchedToken.symbol, matchedToken);
                 watchlistTokens.push(matchedToken);

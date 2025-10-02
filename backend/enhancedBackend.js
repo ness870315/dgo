@@ -5500,8 +5500,8 @@ class EnhancedBackend {
 
         // Use provided symbol/name or let Jupiter API fill them in
         const tokenData = {
-          symbol: symbol ? symbol.toUpperCase() : 'UNKNOWN',
-          name: name || 'Unknown Token',
+          symbol: symbol ? symbol.trim().toUpperCase() : 'UNKNOWN',
+          name: name ? name.trim() : 'Unknown Token',
           contractAddress: contractAddress.trim(),
           isPaid: false,
           isAdmin: true
