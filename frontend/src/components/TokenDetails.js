@@ -739,13 +739,13 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                           )}
                         </button>
                         {/* Tooltip */}
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999] whitespace-nowrap">
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-red-500 border-2 border-yellow-400 rounded-lg shadow-2xl opacity-100 pointer-events-none z-[99999] whitespace-nowrap">
                           <div className="text-xs leading-tight">
                             <span className="font-semibold text-white">Oracle AI:</span>
                             <span className="text-gray-300 ml-1">{aiLoading ? 'Analyzing...' : 'AI Market Analysis'}</span>
                           </div>
                           {/* Arrow */}
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-600"></div>
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-t-8 border-l-transparent border-r-transparent border-t-yellow-400"></div>
                         </div>
                       </div>
                       
