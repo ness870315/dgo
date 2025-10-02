@@ -235,7 +235,7 @@ function AppContent() {
     enableRealTimeUpdates: true,
     enableSentimentAnalysis: true,
     enableRiskDetection: true,
-    refreshInterval: 5
+    refreshInterval: 0.5 // 0.5 minutes = 30 seconds
   });
 
   // Helper function to get market cap from the correct source (prefer normalized Jupiter field)
