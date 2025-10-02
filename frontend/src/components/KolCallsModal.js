@@ -86,6 +86,7 @@ function MiniTrendChart({ call }) {
           setChartData(response.data.snapshots);
           if (call?.token?.symbol === 'WIZI' || call?.token?.symbol === 'BAGWORK') {
             console.log(`✅ Historical chart loaded for ${call?.token?.symbol}: ${response.data.snapshots.length} points`);
+            console.log('🔍 Sample snapshot data:', response.data.snapshots[0]);
           }
         } else {
           // No data available
