@@ -968,9 +968,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
           </div>
 
             {/* Desktop Action Buttons - Hidden on mobile, shown on desktop */}
-            <div className="hidden sm:flex items-center space-x-1 sm:space-x-2">
+            <div className="hidden sm:flex items-center space-x-1 sm:space-x-2 overflow-visible">
               {/* AI Analysis Button */}
-              <div className="relative group">
+              <div className="relative group overflow-visible">
               <button
                   onClick={() => {
 
@@ -983,7 +983,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                 disabled={!isAuthenticated || aiLoading}
                   className={`px-1.5 py-1 rounded-lg border border-solana-purple/60 bg-transparent text-xs flex items-center gap-1 transition-all duration-200 ${
                   (!isAuthenticated || aiLoading)
-                    ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none' 
+                    ? 'text-gray-500 cursor-not-allowed opacity-60' 
                     : 'text-gray-200 hover:bg-gray-700'
                 }`}
               >
@@ -996,26 +996,44 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                   </>
                 )}
               </button>
+              {/* Tooltip */}
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999] whitespace-nowrap">
+                <div className="text-xs leading-tight">
+                  <span className="font-semibold text-white">Oracle AI:</span>
+                  <span className="text-gray-300 ml-1">{aiLoading ? 'Analyzing...' : 'AI Market Analysis'}</span>
+                </div>
+                {/* Arrow */}
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-600"></div>
+              </div>
             </div>
             
               {/* Fuel Button */}
-              <div className="relative group">
+              <div className="relative group overflow-visible">
               <button
                 onClick={handleFuelClick}
                 className="p-2 rounded-lg transition-all duration-200 text-orange-400 hover:text-orange-300 hover:bg-orange-400/10"
               >
                 <Flame size={20} />
               </button>
+              {/* Tooltip */}
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999] whitespace-nowrap">
+                <div className="text-xs leading-tight">
+                  <span className="font-semibold text-white">Fuel:</span>
+                  <span className="text-gray-300 ml-1">Fuel coin to gain Visibility</span>
+                </div>
+                {/* Arrow */}
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-600"></div>
+              </div>
             </div>
 
             {/* Watchlist Star */}
-              <div className="relative group">
+              <div className="relative group overflow-visible">
                 <button
                   onClick={isAuthenticated ? toggleWatchlist : undefined}
                   disabled={!isAuthenticated}
                   className={`p-2 rounded-lg transition-all duration-200 ${
                     !isAuthenticated
-                      ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none'
+                      ? 'text-gray-500 cursor-not-allowed opacity-60'
                       : isInWatchlist 
                         ? 'text-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20' 
                         : 'text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/10'
@@ -1027,19 +1045,37 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                       fill={isInWatchlist ? 'currentColor' : 'none'} 
                     />
                 </button>
+                {/* Tooltip */}
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999] whitespace-nowrap">
+                  <div className="text-xs leading-tight">
+                    <span className="font-semibold text-white">Fav:</span>
+                    <span className="text-gray-300 ml-1">{isInWatchlist ? 'Remove' : 'Add'} to Watchlist</span>
+                  </div>
+                  {/* Arrow */}
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-600"></div>
+                </div>
               </div>
 
               {/* Call it! Button */}
-              <div className="relative group">
+              <div className="relative group overflow-visible">
                 <button
                   onClick={isAuthenticated ? () => setShowEnhancedCallModal(true) : undefined}
                   disabled={!isAuthenticated}
                   className={`px-1.5 py-1 rounded-lg bg-transparent border border-solana-purple/60 text-xs ${
-                    !isAuthenticated ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none' : 'text-gray-200 hover:bg-gray-700'
+                    !isAuthenticated ? 'text-gray-500 cursor-not-allowed opacity-60' : 'text-gray-200 hover:bg-gray-700'
                   }`}
                 >
                   <span>Call it!</span>
                 </button>
+                {/* Tooltip */}
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-[9999] whitespace-nowrap">
+                  <div className="text-xs leading-tight">
+                    <span className="font-semibold text-white">Call it!:</span>
+                    <span className="text-gray-300 ml-1">Make the Call</span>
+                  </div>
+                  {/* Arrow */}
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-gray-600"></div>
+                </div>
               </div>
 
               {/* Close Button */}
