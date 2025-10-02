@@ -2,12 +2,19 @@
 // Posts once a day to promote the Degen Oracle platform
 
 import { generateTweet, generateTweetWithLLM } from './storyFramework.js';
+import fs from 'fs/promises';
+import path from 'path';
 
 class DailyTweetService {
   constructor(twitterAutoPostService, openaiService = null) {
     this.twitterAutoPostService = twitterAutoPostService;
     this.openaiService = openaiService;
     this.isRunning = false;
+    
+    // State persistence file path
+    this.stateFilePath = process.env.DATA_DIR 
+      ? path.join(process.env.DATA_DIR, 'daily-tweet-state.json')
+      : path.join(process.cwd(), 'data', 'global', 'daily-tweet-state.json');
     
     // Random posting configuration
     this.randomMode = true; // Use random timing by default
@@ -25,6 +32,55 @@ class DailyTweetService {
     
     // Store the next scheduled post time (for status display)
     this.nextPostTime = null;
+    
+    // Flag to track if service should auto-restart
+    this.shouldAutoRestart = false;
+  }
+
+  // Load saved state from disk
+  async loadState() {
+    try {
+      const data = await fs.readFile(this.stateFilePath, 'utf8');
+      const state = JSON.parse(data);
+      
+      if (state.wasRunning) {
+        console.log('📅 [DAILY TWEET] Restoring service state from previous session...');
+        this.postsPerDay = state.postsPerDay || this.postsPerDay;
+        this.activeHours = state.activeHours || this.activeHours;
+        this.minHoursBetweenPosts = state.minHoursBetweenPosts || this.minHoursBetweenPosts;
+        this.randomMode = state.randomMode !== undefined ? state.randomMode : this.randomMode;
+        this.todayPostCount = state.todayPostCount || 0;
+        this.lastPostDate = state.lastPostDate || null;
+        this.recentPosts = state.recentPosts || [];
+        this.shouldAutoRestart = true; // Mark for auto-restart
+        
+        console.log('✅ [DAILY TWEET] State restored, service will auto-restart');
+      }
+    } catch (error) {
+      // File doesn't exist or is invalid - no problem, using defaults
+      console.log('📅 [DAILY TWEET] No saved state found, using defaults');
+    }
+  }
+
+  // Save current state to disk
+  async saveState() {
+    try {
+      const state = {
+        wasRunning: this.isRunning,
+        postsPerDay: this.postsPerDay,
+        activeHours: this.activeHours,
+        minHoursBetweenPosts: this.minHoursBetweenPosts,
+        randomMode: this.randomMode,
+        todayPostCount: this.todayPostCount,
+        lastPostDate: this.lastPostDate,
+        recentPosts: this.recentPosts,
+        savedAt: new Date().toISOString()
+      };
+      
+      await fs.writeFile(this.stateFilePath, JSON.stringify(state, null, 2), 'utf8');
+    } catch (error) {
+      console.error('❌ [DAILY TWEET] Failed to save state:', error.message);
+    }
   }
 
   // Set random posting configuration
@@ -40,6 +96,8 @@ class DailyTweetService {
       activeHours: `${this.activeHours.start}:00-${this.activeHours.end}:00 UTC`,
       minHoursBetween: `${this.minHoursBetweenPosts}h`
     });
+    
+    this.saveState(); // Save config changes
   }
 
   // Toggle between random and fixed scheduling
@@ -208,6 +266,9 @@ class DailyTweetService {
 
     // Schedule next post
     this.scheduleNextPost(useLLM);
+    
+    // Save running state to disk
+    this.saveState();
   }
 
   // Schedule the next post
@@ -241,6 +302,9 @@ class DailyTweetService {
     this.nextPostTime = null;
     this.isRunning = false;
     console.log('🛑 [DAILY TWEET] Service stopped');
+    
+    // Save stopped state to disk
+    this.saveState();
   }
 
   // Post immediately (for testing)

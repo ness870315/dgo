@@ -11961,7 +11961,16 @@ class EnhancedBackend {
           this.twitterAutoPostService,
           this.socialContextAI.openaiService
         );
-        console.log('✅ Daily Tweet Service initialized (not started yet)');
+        console.log('✅ Daily Tweet Service initialized');
+        
+        // Auto-restart if it was running before server restart
+        await this.dailyTweetService.loadState();
+        if (this.dailyTweetService.shouldAutoRestart) {
+          console.log('🔄 Auto-restarting Daily Tweet Service from saved state...');
+          this.dailyTweetService.start(true);
+        } else {
+          console.log('📅 Daily Tweet Service ready (not started)');
+        }
       } catch (error) {
         console.error('❌ Social Context AI failed to initialize:', error.message);
         console.warn('⚠️ Continuing with fallback analysis only...');
