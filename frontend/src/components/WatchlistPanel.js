@@ -11,60 +11,41 @@ const WatchlistPanel = ({ isOpen, onClose, onTokenSelect, allTokensData = [] }) 
 
   const loadFullTokenData = useCallback(async (symbols) => {
     try {
-      console.log('🔄 [WATCHLIST] Loading full token data for symbols:', symbols);
-      console.log('🔄 [WATCHLIST] Available tokens in cache:', allTokensData.length);
-      
       // Use already-loaded token data from App.js instead of making API calls
       // Filter tokens that are in the watchlist
       const watchlistTokens = allTokensData.filter(token => 
         symbols.includes(token.symbol.toUpperCase())
       );
       
-      console.log('🔄 [WATCHLIST] Found tokens in cache:', watchlistTokens.map(t => t.symbol));
-      
       // Find missing tokens that aren't in cache
       const missingSymbols = symbols.filter(s => !watchlistTokens.some(t => t.symbol.toUpperCase() === s));
-      console.log('🔄 [WATCHLIST] Missing tokens:', missingSymbols);
       
       // If there are missing tokens, fetch them from API
       if (missingSymbols.length > 0) {
-        console.log('🔄 [WATCHLIST] Fetching missing tokens from API...');
         const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
         
         for (const symbol of missingSymbols) {
           try {
             const url = `${API_BASE}/api/tokens?search=${encodeURIComponent(symbol)}`;
-            console.log(`🔄 [WATCHLIST] Fetching ${symbol} from:`, url);
             const response = await fetch(url);
             const data = await response.json();
-            
-            console.log(`🔄 [WATCHLIST] API response for ${symbol}:`, data);
             
             // Handle both response formats: array directly or {tokens: [...]}
             const tokensArray = Array.isArray(data) ? data : (data.tokens || []);
             
             if (tokensArray.length > 0) {
-              console.log(`🔄 [WATCHLIST] Found ${tokensArray.length} tokens in response`);
               // Find exact symbol match (case-insensitive, trim whitespace)
               const matchedToken = tokensArray.find(t => 
                 t.symbol && t.symbol.trim().toUpperCase() === symbol.trim().toUpperCase()
               );
               if (matchedToken) {
-                console.log('✅ [WATCHLIST] Matched token from API:', matchedToken.symbol, matchedToken);
                 watchlistTokens.push(matchedToken);
-              } else {
-                console.log('❌ [WATCHLIST] No exact match found for:', symbol);
-                console.log('   Available symbols:', tokensArray.slice(0, 10).map(t => t.symbol));
               }
-            } else {
-              console.log('❌ [WATCHLIST] No tokens in API response for:', symbol);
             }
           } catch (fetchError) {
-            console.error(`❌ [WATCHLIST] Failed to fetch ${symbol}:`, fetchError);
+            console.error(`Failed to fetch ${symbol}:`, fetchError);
           }
         }
-        
-        console.log('🔄 [WATCHLIST] Final watchlist tokens count after API fetch:', watchlistTokens.length);
       }
       
       setFullTokensData(watchlistTokens);
@@ -75,18 +56,15 @@ const WatchlistPanel = ({ isOpen, onClose, onTokenSelect, allTokensData = [] }) 
   }, [allTokensData]);
 
   const loadWatchlist = useCallback(async () => {
-    console.log('🔄 [WATCHLIST] Loading watchlist...');
     setLoading(true);
     try {
       const data = await watchlistService.getWatchlist();
-      console.log('🔄 [WATCHLIST] Raw data from API:', data);
       
       // Normalize to array of UPPERCASE symbols regardless of backend shape
       const symbols = (Array.isArray(data) ? data : [])
         .map(item => typeof item === 'string' ? item.toUpperCase() : (item?.symbol || '').toUpperCase())
         .filter(Boolean);
       
-      console.log('🔄 [WATCHLIST] Normalized symbols:', symbols);
       setWatchlist(symbols);
       
       // Get full token data for each symbol in watchlist from already-loaded cache
@@ -112,25 +90,16 @@ const WatchlistPanel = ({ isOpen, onClose, onTokenSelect, allTokensData = [] }) 
   // Listen for watchlist updates from AI chat or other sources
   useEffect(() => {
     const handleWatchlistUpdate = (event) => {
-      console.log('🔄 [WATCHLIST PANEL] Received update event from:', event.detail?.source, 'at', new Date().toISOString());
-      console.log('🔄 [WATCHLIST PANEL] isOpen:', isOpen, 'isAuthenticated:', isAuthenticated);
-      
       if (isAuthenticated) {
-        console.log('🔄 [WATCHLIST PANEL] Triggering reload in 300ms...');
         // Add small delay to ensure backend has processed the update
         setTimeout(() => {
-          console.log('🔄 [WATCHLIST PANEL] Executing loadWatchlist now...');
           loadWatchlist();
         }, 300); // 300ms delay to ensure backend processing
-      } else {
-        console.log('❌ [WATCHLIST PANEL] Skipping reload - not authenticated');
       }
     };
 
-    console.log('🔄 [WATCHLIST PANEL] Setting up event listener. isOpen:', isOpen, 'isAuthenticated:', isAuthenticated);
     window.addEventListener('watchlistUpdated', handleWatchlistUpdate);
     return () => {
-      console.log('🔄 [WATCHLIST PANEL] Removing event listener');
       window.removeEventListener('watchlistUpdated', handleWatchlistUpdate);
     };
   }, [isAuthenticated, loadWatchlist, isOpen]);
