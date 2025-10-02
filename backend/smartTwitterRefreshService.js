@@ -86,7 +86,8 @@ class SmartTwitterRefreshService {
         console.log(`🧠 ${symbol}: No previous refresh data, using 7-day window`);
       }
 
-      const searchQuery = `#${symbol.toLowerCase()}`;
+      // Use Twitter API v2 entities approach for accurate hashtag search
+      const searchQuery = `has:hashtags #${symbol.toUpperCase()} -is:retweet lang:en`;
       
       console.log(`🧠 Timestamp search for ${symbol}: ${searchQuery} since ${startTime}`);
       
@@ -115,7 +116,8 @@ class SmartTwitterRefreshService {
     try {
       // Fetch more tweets than needed to account for duplicates
       const searchCount = Math.min(15, 10 + existingTweetIds.size);
-      const searchQuery = `#${symbol.toLowerCase()}`;
+      // Use Twitter API v2 entities approach for accurate hashtag search
+      const searchQuery = `has:hashtags #${symbol.toUpperCase()} -is:retweet lang:en`;
       
       // Get tweets from last 24 hours to ensure freshness
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
