@@ -88,33 +88,57 @@ function MiniTrendChart({ call }) {
   }
   
   // Extract market cap values
-  const series = chartData.map(s => s.marketCap || 0);
+  const series = chartData.map(s => s.marketCap || 0).filter(v => v > 0);
+  
+  if (series.length < 2) {
+    return (
+      <div className="flex items-center justify-center w-20 h-8">
+        <div className="text-gray-600 text-xs">—</div>
+      </div>
+    );
+  }
+  
   const firstValue = series[0];
   const lastValue = series[series.length - 1];
   const isUptrend = lastValue >= firstValue;
   
-  // Create SVG path
+  // Create SVG path with better scaling
   const w = 80;
   const h = 32;
-  const padding = 2;
+  const padding = { top: 4, right: 2, bottom: 4, left: 2 };
+  const chartHeight = h - padding.top - padding.bottom;
+  const chartWidth = w - padding.left - padding.right;
+  
   const min = Math.min(...series);
   const max = Math.max(...series);
-  const range = max - min || 1;
+  const range = max - min;
   
-  const norm = series.map(v => (v - min) / range);
-  const step = (w - padding * 2) / (series.length - 1);
+  // If range is very small (flat chart), amplify it for visibility
+  const effectiveRange = range > 0 ? range : max * 0.01; // Use 1% of max if flat
+  
+  // Normalize with the effective range and add padding to prevent edge clipping
+  const norm = series.map(v => {
+    if (effectiveRange === 0) return 0.5; // Center line if completely flat
+    return (v - min) / effectiveRange;
+  });
+  
+  const step = chartWidth / (series.length - 1);
   const path = norm
-    .map((v, i) => `${i === 0 ? 'M' : 'L'}${padding + i * step},${h - padding - v * (h - padding * 2)}`)
+    .map((v, i) => {
+      const x = padding.left + i * step;
+      const y = padding.top + chartHeight - (v * chartHeight);
+      return `${i === 0 ? 'M' : 'L'}${x},${y}`;
+    })
     .join(' ');
   
   const color = isUptrend ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'; // green-500 or red-500
-  const fillColor = isUptrend ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+  const fillColor = isUptrend ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)';
   
   return (
     <svg width={w} height={h} className="inline-block">
       {/* Area fill */}
       <path
-        d={`${path} L ${w - padding},${h - padding} L ${padding},${h - padding} Z`}
+        d={`${path} L ${padding.left + chartWidth},${h - padding.bottom} L ${padding.left},${h - padding.bottom} Z`}
         fill={fillColor}
       />
       {/* Line */}
@@ -122,7 +146,9 @@ function MiniTrendChart({ call }) {
         d={path}
         fill="none"
         stroke={color}
-        strokeWidth={1.5}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );
