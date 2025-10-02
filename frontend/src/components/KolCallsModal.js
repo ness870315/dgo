@@ -103,6 +103,15 @@ function MiniTrendChart({ call }) {
     const calledMC = call?.calledMc || call?.calledMC || 0;
     const currentMC = call?.currentMC || call?.currentMc || 0;
     
+    // Debug logging for fallback chart
+    if (call?.token?.symbol === 'WIZI' || call?.token?.symbol === 'BAGWORK') {
+      console.log(`📊 Fallback chart for ${call?.token?.symbol}:`, {
+        calledMC,
+        currentMC,
+        willRender: calledMC > 0 && currentMC > 0
+      });
+    }
+    
     if (calledMC > 0 && currentMC > 0) {
       // Create simple 2-point chart
       const series = [calledMC, currentMC];
