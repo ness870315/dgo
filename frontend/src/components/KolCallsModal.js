@@ -72,16 +72,34 @@ function MiniTrendChart({ call }) {
       }
       
       try {
-        const response = await chartService.getMcapChart(contractAddress, calledAt);
+        // Add timeout to chart fetch - use fallback if it takes too long
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Chart fetch timeout')), 2000)
+        );
+        
+        const response = await Promise.race([
+          chartService.getMcapChart(contractAddress, calledAt),
+          timeoutPromise
+        ]);
+        
         if (response.success && response.data?.snapshots && response.data.snapshots.length > 0) {
           setChartData(response.data.snapshots);
+          if (call?.token?.symbol === 'WIZI' || call?.token?.symbol === 'BAGWORK') {
+            console.log(`✅ Historical chart loaded for ${call?.token?.symbol}: ${response.data.snapshots.length} points`);
+          }
         } else {
           // No data available
           setChartData(null);
+          if (call?.token?.symbol === 'WIZI' || call?.token?.symbol === 'BAGWORK') {
+            console.log(`⚠️ No historical data for ${call?.token?.symbol}, will use fallback`);
+          }
         }
       } catch (error) {
-        // Error loading chart
+        // Error loading chart (timeout or error)
         setChartData(null);
+        if (call?.token?.symbol === 'WIZI' || call?.token?.symbol === 'BAGWORK') {
+          console.log(`❌ Chart fetch failed for ${call?.token?.symbol}: ${error.message}`);
+        }
       } finally {
         setLoading(false);
       }
