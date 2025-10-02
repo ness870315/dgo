@@ -577,7 +577,7 @@ class EnhancedSocialDataService {
       // - Require crypto context keywords to filter out non-crypto uses
       
       const symbolUpper = symbol.toUpperCase();
-      const symbolLower = symbol.toLowerCase();
+      // symbolLower already declared above (line 549)
       
       // Comprehensive crypto context keywords for meme coins and altcoins
       const cryptoContext = 'solana OR crypto OR memecoin OR degen OR altseason OR loading OR supply OR bag OR bullish OR buy OR ape OR MC OR holder OR moon OR pump OR chart OR DEX OR lambo OR diamond OR hands OR WAGMI';
