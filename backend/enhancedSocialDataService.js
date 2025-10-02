@@ -605,20 +605,24 @@ class EnhancedSocialDataService {
           if (response.data.success) {
             let tweets = response.data.tweets || response.data.mentions || [];
             
-            // 🎯 STRICT POST-FILTERING: Verify tweet actually contains $SYMBOL or #SYMBOL
-            // Uses regex to ensure symbol appears with $ or # prefix (not just the word)
+            // 🎯 RELAXED POST-FILTERING: Verify tweet contains $SYMBOL or #SYMBOL anywhere
+            // More permissive - just check if the symbol appears with $ or # prefix
             if (tweets.length > 0) {
               const before = tweets.length;
-              // Regex: Match $SYMBOL or #SYMBOL with word boundaries
-              const strictRegex = new RegExp(`(^|\\W)(\\$|#)${symbol}(\\b|\\W)`, 'i');
+              // Regex: Match $SYMBOL or #SYMBOL (case-insensitive, allow anywhere in text)
+              const strictRegex = new RegExp(`(\\$|#)${symbol}`, 'i');
               
               tweets = tweets.filter(t => {
                 const text = t.text || '';
-                return strictRegex.test(text);
+                const matches = strictRegex.test(text);
+                if (!matches) {
+                  console.log(`   🚫 Filtered: "${text.substring(0, 80)}..."`);
+                }
+                return matches;
               });
               
               if (tweets.length < before) {
-                console.log(`🔍 Strict symbol filter: ${before} → ${tweets.length} tweets (removed ${before - tweets.length} without $/${symbol} or #${symbol})`);
+                console.log(`🔍 Symbol filter: ${before} → ${tweets.length} tweets (removed ${before - tweets.length} without $${symbol} or #${symbol})`);
               }
             }
             
