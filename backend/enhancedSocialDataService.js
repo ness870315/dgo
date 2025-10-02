@@ -575,8 +575,10 @@ class EnhancedSocialDataService {
           params: { 
             // Use String concatenation to avoid template literal $ escaping issues
             // Simple search for cashtags/hashtags only - post-filtering ensures quality
+            // Include replies as they show engagement and community discussion
+            // Only filter retweets (not replies) to capture authentic engagement
             q: `("$` + symbolUpper + `" OR "$` + symbolLower + `" OR "#` + symbolUpper + `" OR "#` + symbolLower + `") -is:retweet lang:en`,
-            count: 6,
+            count: 8, // Balanced sample size for projection without overwhelming API
             start_time: startTime
           }
         }
