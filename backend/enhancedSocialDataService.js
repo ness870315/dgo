@@ -639,17 +639,12 @@ class EnhancedSocialDataService {
         console.log(`📊 Processing ${uniqueTweets.length} total tweets collected`);
         
         for (const tweet of uniqueTweets) {
-              // Apply crypto relevance filter for hashtag searches
-              let isRelevant = true;
-              // Check if this is a hashtag/cashtag search (most common case)
-              if (tweet.text && (tweet.text.includes('#') || tweet.text.includes('$'))) {
-                isRelevant = this.isCryptoRelevantTweet(tweet.text, symbol, name);
-                if (!isRelevant) {
-                  console.log(`🚫 Filtered out non-crypto tweet: "${tweet.text.substring(0, 100)}..."`);
-                  // 🚨 TEMPORARY FIX: Don't skip tweets, just mark them as low priority
-                  // This ensures we get some tweet content even if crypto filter is too strict
-                  console.log(`🔄 Keeping tweet anyway for content display (low priority)`);
-                }
+              // Apply crypto relevance filter - STRICT MODE
+              let isRelevant = this.isCryptoRelevantTweet(tweet.text, symbol, name);
+              
+              if (!isRelevant) {
+                console.log(`🚫 Filtered out non-crypto tweet: "${tweet.text.substring(0, 100)}..."`);
+                continue; // SKIP this tweet entirely
               }
               
               // Aggregate metrics
@@ -677,8 +672,7 @@ class EnhancedSocialDataService {
                   createdAt: tweet.created_at,
                   tweetId: tweet.id,
                   sentiment: sentimentScore,
-                  isRelevant: isRelevant,
-                  priority: isRelevant ? 2 : 1 // Lower priority for filtered tweets
+                  isRelevant: true // Only relevant tweets make it here
                 });
               }
               
