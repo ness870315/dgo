@@ -40,16 +40,19 @@ const WatchlistPanel = ({ isOpen, onClose, onTokenSelect, allTokensData = [] }) 
             
             console.log(`🔄 [WATCHLIST] API response for ${symbol}:`, data);
             
-            if (data.tokens && data.tokens.length > 0) {
-              console.log(`🔄 [WATCHLIST] Found ${data.tokens.length} tokens in response`);
+            // Handle both response formats: array directly or {tokens: [...]}
+            const tokensArray = Array.isArray(data) ? data : (data.tokens || []);
+            
+            if (tokensArray.length > 0) {
+              console.log(`🔄 [WATCHLIST] Found ${tokensArray.length} tokens in response`);
               // Find exact symbol match (case-insensitive)
-              const matchedToken = data.tokens.find(t => t.symbol.toUpperCase() === symbol.toUpperCase());
+              const matchedToken = tokensArray.find(t => t.symbol && t.symbol.toUpperCase() === symbol.toUpperCase());
               if (matchedToken) {
                 console.log('✅ [WATCHLIST] Matched token from API:', matchedToken.symbol, matchedToken);
                 watchlistTokens.push(matchedToken);
               } else {
                 console.log('❌ [WATCHLIST] No exact match found for:', symbol);
-                console.log('   Available symbols:', data.tokens.map(t => t.symbol));
+                console.log('   Available symbols:', tokensArray.slice(0, 10).map(t => t.symbol));
               }
             } else {
               console.log('❌ [WATCHLIST] No tokens in API response for:', symbol);
