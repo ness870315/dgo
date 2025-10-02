@@ -709,7 +709,37 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
               </div>
                     <div className="flex items-center space-x-1 ml-2 overflow-visible">
                       {/* Oracle AI Button */}
-                      <div className="relative group overflow-visible">
+                      <div 
+                        className="relative group overflow-visible"
+                        ref={(el) => {
+                          if (el) {
+                            console.log('🔍 [TOOLTIP DEBUG] Oracle AI Container:', {
+                              element: el,
+                              computedStyle: window.getComputedStyle(el),
+                              overflow: window.getComputedStyle(el).overflow,
+                              position: window.getComputedStyle(el).position,
+                              boundingRect: el.getBoundingClientRect(),
+                              tooltip: el.querySelector('.absolute.bottom-full')
+                            });
+                            const tooltip = el.querySelector('.absolute.bottom-full');
+                            if (tooltip) {
+                              console.log('🎯 [TOOLTIP DEBUG] Tooltip Found:', {
+                                element: tooltip,
+                                computedStyle: window.getComputedStyle(tooltip),
+                                display: window.getComputedStyle(tooltip).display,
+                                visibility: window.getComputedStyle(tooltip).visibility,
+                                opacity: window.getComputedStyle(tooltip).opacity,
+                                zIndex: window.getComputedStyle(tooltip).zIndex,
+                                position: window.getComputedStyle(tooltip).position,
+                                boundingRect: tooltip.getBoundingClientRect(),
+                                offsetParent: tooltip.offsetParent
+                              });
+                            } else {
+                              console.log('❌ [TOOLTIP DEBUG] Tooltip NOT found in DOM!');
+                            }
+                          }
+                        }}
+                      >
                         <button
                           onClick={() => {
 
@@ -719,6 +749,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                               fetchAIAnalysis();
                             }
                           }}
+                          onMouseEnter={() => console.log('🖱️ [TOOLTIP DEBUG] Mouse entered Oracle AI button')}
+                          onMouseLeave={() => console.log('🖱️ [TOOLTIP DEBUG] Mouse left Oracle AI button')}
                           disabled={!isAuthenticated || aiLoading}
                           className={`px-2 py-1 rounded border border-solana-purple/60 bg-transparent text-xs flex items-center gap-1 transition-all duration-200 ${
                             (!isAuthenticated || aiLoading)
@@ -739,7 +771,23 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                           )}
                         </button>
                         {/* Tooltip */}
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-red-500 border-2 border-yellow-400 rounded-lg shadow-2xl opacity-100 pointer-events-none z-[99999] whitespace-nowrap">
+                        <div 
+                          className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-red-500 border-2 border-yellow-400 rounded-lg shadow-2xl opacity-100 pointer-events-none z-[99999] whitespace-nowrap"
+                          ref={(el) => {
+                            if (el) {
+                              console.log('🔴 [TOOLTIP DEBUG] RED Tooltip Element Rendered:', {
+                                element: el,
+                                innerHTML: el.innerHTML,
+                                className: el.className,
+                                boundingRect: el.getBoundingClientRect(),
+                                offsetTop: el.offsetTop,
+                                offsetLeft: el.offsetLeft,
+                                clientHeight: el.clientHeight,
+                                clientWidth: el.clientWidth
+                              });
+                            }
+                          }}
+                        >
                           <div className="text-xs leading-tight">
                             <span className="font-semibold text-white">Oracle AI:</span>
                             <span className="text-gray-300 ml-1">{aiLoading ? 'Analyzing...' : 'AI Market Analysis'}</span>
