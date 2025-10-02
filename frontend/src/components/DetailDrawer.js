@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ExternalLink, TrendingUp, TrendingDown, Twitter } from 'lucide-react';
+import { X, ExternalLink, TrendingUp, TrendingDown, Twitter, Info } from 'lucide-react';
 import chartService from '../services/chartService';
 import priorityService from '../services/priorityService';
 
@@ -448,12 +448,18 @@ export default function DetailDrawer({ call, onClose, onRefresh }) {
           </div>
 
 
-          {/* Call Tweets & Milestones */}
+          {/* Proof-of-Call & Receipts */}
           <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
             <div className="text-sm font-medium mb-3 text-white flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span>🐦</span>
-                Call Tweets & Milestones
+                Proof-of-Call & Receipts
+                <div className="group relative">
+                  <Info size={16} className="text-gray-400 hover:text-white cursor-help" />
+                  <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 p-2 bg-gray-900 border border-gray-700 rounded-lg text-xs text-gray-300 shadow-lg z-50">
+                    Auto tweets on first calls and milestones are performed as "Proof-of-Call" and "Receipts" to provide transparent, on-chain verified tracking of all predictions.
+                  </div>
+                </div>
               </div>
               <button
                 onClick={refreshCallData}
@@ -464,10 +470,10 @@ export default function DetailDrawer({ call, onClose, onRefresh }) {
               </button>
             </div>
             
-            {/* Original Call Tweet */}
+            {/* Proof-of-Call */}
             {call.twitterPostId ? (
               <div className="mb-4">
-                <div className="text-xs font-medium text-white/70 mb-2">Original Call Tweet</div>
+                <div className="text-xs font-medium text-white/70 mb-2">Proof-of-Call</div>
                 <div className="p-3 bg-gray-800/50 border border-gray-600/50 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
                     <Twitter size={14} className="text-blue-400" />
@@ -495,9 +501,9 @@ export default function DetailDrawer({ call, onClose, onRefresh }) {
               </div>
             )}
 
-            {/* Twitter Posts */}
+            {/* Receipts */}
             <div className="space-y-3">
-              <div className="text-xs font-medium text-white/70">Twitter Posts</div>
+              <div className="text-xs font-medium text-white/70">Receipts</div>
               
               {/* Initial Call Post */}
               {call.twitterPostId && (
