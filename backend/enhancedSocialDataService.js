@@ -549,26 +549,15 @@ class EnhancedSocialDataService {
       const symbolLower = symbol.toLowerCase();
       const safeName = name || symbol;
       
-      // 🚨 FIX: Use consistent 72-hour window logic to prevent infinite loops
-      const now = Date.now();
-      let startTime;
+      // 🎯 RECENCY FILTER: Always search last 24 hours for fresh, recent tweets
+      // Calculate yesterday at 00:00:00 UTC (last 24 hours)
+      const now = new Date();
+      const yesterday = new Date(now);
+      yesterday.setUTCDate(yesterday.getUTCDate() - 1); // Go back 1 day
+      yesterday.setUTCHours(0, 0, 0, 0); // Set to midnight UTC
       
-      // Check for existing Twitter timestamp to maintain consistency
-      const existingTwitterData = this.twitterMetricsCache.get(`${symbolLower}_${safeName.toLowerCase()}`);
-      const lastTwitterRefresh = existingTwitterData?.data?.lastRefreshed || existingTwitterData?.data?.twitterTimestamp;
-      
-      if (lastTwitterRefresh) {
-        const lastRefreshTime = new Date(lastTwitterRefresh).getTime();
-        const hoursSinceRefresh = (now - lastRefreshTime) / (1000 * 60 * 60);
-        
-        // Use the last refresh time as start_time to get only new tweets
-        startTime = new Date(lastRefreshTime).toISOString();
-        console.log(`🐦 ${symbol}: Using last refresh time as start_time (${hoursSinceRefresh.toFixed(1)}h ago)`);
-      } else {
-        // No previous refresh data - use 7 days ago as fallback
-        startTime = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
-        console.log(`🐦 ${symbol}: No previous refresh data, using 7-day window`);
-      }
+      const startTime = yesterday.toISOString();
+      console.log(`🐦 ${symbol}: Searching tweets from last 24h (since ${startTime})`);
       
       // 🎯 BASIC TIER COMPATIBLE QUERY
       // Twitter API Basic tier limitations:
@@ -587,7 +576,8 @@ class EnhancedSocialDataService {
           type: 'cashtag_hashtag_with_context',
           endpoint: '/api/twitter/search',
           params: { 
-            q: `("$${symbolUpper}" OR "$${symbolLower}" OR "#${symbolUpper}" OR "#${symbolLower}") (${cryptoContext}) -is:retweet lang:en`,
+            // Use String concatenation to avoid template literal $ escaping issues
+            q: `("$` + symbolUpper + `" OR "$` + symbolLower + `" OR "#` + symbolUpper + `" OR "#` + symbolLower + `") (` + cryptoContext + `) -is:retweet lang:en`,
             count: 6,
             start_time: startTime
           }
