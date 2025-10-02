@@ -9,7 +9,7 @@ const WatchlistPanel = ({ isOpen, onClose, onTokenSelect, allTokensData = [] }) 
   const [fullTokensData, setFullTokensData] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const loadFullTokenData = useCallback((symbols) => {
+  const loadFullTokenData = useCallback(async (symbols) => {
     try {
       console.log('🔄 [WATCHLIST] Loading full token data for symbols:', symbols);
       console.log('🔄 [WATCHLIST] Available tokens in cache:', allTokensData.length);
@@ -21,11 +21,38 @@ const WatchlistPanel = ({ isOpen, onClose, onTokenSelect, allTokensData = [] }) 
       );
       
       console.log('🔄 [WATCHLIST] Found tokens in cache:', watchlistTokens.map(t => t.symbol));
-      console.log('🔄 [WATCHLIST] Missing tokens:', symbols.filter(s => !watchlistTokens.some(t => t.symbol.toUpperCase() === s)));
+      
+      // Find missing tokens that aren't in cache
+      const missingSymbols = symbols.filter(s => !watchlistTokens.some(t => t.symbol.toUpperCase() === s));
+      console.log('🔄 [WATCHLIST] Missing tokens:', missingSymbols);
+      
+      // If there are missing tokens, fetch them from API
+      if (missingSymbols.length > 0) {
+        console.log('🔄 [WATCHLIST] Fetching missing tokens from API...');
+        const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+        
+        for (const symbol of missingSymbols) {
+          try {
+            const response = await fetch(`${API_BASE}/api/tokens?search=${encodeURIComponent(symbol)}`);
+            const data = await response.json();
+            
+            if (data.tokens && data.tokens.length > 0) {
+              // Find exact symbol match (case-insensitive)
+              const matchedToken = data.tokens.find(t => t.symbol.toUpperCase() === symbol.toUpperCase());
+              if (matchedToken) {
+                console.log('🔄 [WATCHLIST] Fetched token from API:', matchedToken.symbol);
+                watchlistTokens.push(matchedToken);
+              }
+            }
+          } catch (fetchError) {
+            console.error(`🔄 [WATCHLIST] Failed to fetch ${symbol}:`, fetchError);
+          }
+        }
+      }
       
       setFullTokensData(watchlistTokens);
     } catch (error) {
-      console.error('Error filtering watchlist tokens from cache:', error);
+      console.error('Error loading watchlist tokens:', error);
       setFullTokensData([]);
     }
   }, [allTokensData]);
