@@ -11,8 +11,8 @@ class DailyTweetService {
     
     // Random posting configuration
     this.randomMode = true; // Use random timing by default
-    this.postsPerDay = { min: 1, max: 3 }; // Random 1-3 posts per day
-    this.activeHours = { start: 8, end: 22 }; // Only post between 8 AM - 10 PM UTC (peak hours)
+    this.postsPerDay = { min: 1, max: 4 }; // Random 1-4 posts per day
+    this.activeHours = { start: 0, end: 24 }; // Post 24/7 (no restrictions)
     this.minHoursBetweenPosts = 3; // Minimum 3 hours between posts
     
     // Fixed schedule fallback (if randomMode = false)

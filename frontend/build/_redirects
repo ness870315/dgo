@@ -1,0 +1,2 @@
+# Cloudflare Pages handles SPA routing automatically
+# Fuel sharing is handled by Cloudflare Pages Functions in /functions/fuel/[fuelType]/[symbol].js

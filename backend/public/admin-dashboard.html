@@ -794,15 +794,15 @@
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label>Max Posts/Day</label>
-                            <input type="number" id="maxPosts" value="3" min="1" max="5">
+                            <input type="number" id="maxPosts" value="4" min="1" max="5">
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label>Active Start (UTC)</label>
-                            <input type="number" id="activeStart" value="8" min="0" max="23">
+                            <input type="number" id="activeStart" value="0" min="0" max="23">
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label>Active End (UTC)</label>
-                            <input type="number" id="activeEnd" value="22" min="0" max="23">
+                            <input type="number" id="activeEnd" value="24" min="0" max="24">
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label>Min Hours Between</label>
@@ -3373,6 +3373,11 @@ ${(aiPrediction.risks || []).map(r => `   • ${r}`).join('\\n') || '   • None
                 
                 let configHtml = '';
                 if (data.mode === 'random') {
+                    // Display active hours in GMT-6 (Central Time)
+                    const activeHoursDisplay = (data.randomConfig.activeHours.start === 0 && data.randomConfig.activeHours.end === 24) 
+                        ? '24/7' 
+                        : `${data.randomConfig.activeHours.start}:00-${data.randomConfig.activeHours.end}:00 UTC`;
+                    
                     configHtml = `
                         <div class="status-item">
                             <span class="status-label">Mode:</span>
@@ -3384,7 +3389,7 @@ ${(aiPrediction.risks || []).map(r => `   • ${r}`).join('\\n') || '   • None
                         </div>
                         <div class="status-item">
                             <span class="status-label">Active Hours:</span>
-                            <span class="status-value">${data.randomConfig.activeHours.start}:00-${data.randomConfig.activeHours.end}:00 UTC</span>
+                            <span class="status-value">${activeHoursDisplay}</span>
                         </div>
                         <div class="status-item">
                             <span class="status-label">Min Gap:</span>
@@ -3416,8 +3421,8 @@ ${(aiPrediction.risks || []).map(r => `   • ${r}`).join('\\n') || '   • None
                         </div>
                         ${data.nextPostAt ? `
                         <div class="status-item">
-                            <span class="status-label">Next Post:</span>
-                            <span class="status-value">${new Date(data.nextPostAt).toLocaleString()}</span>
+                            <span class="status-label">Next Post (GMT-6):</span>
+                            <span class="status-value">${new Date(data.nextPostAt).toLocaleString('en-US', { timeZone: 'America/Chicago', dateStyle: 'short', timeStyle: 'short' })}</span>
                         </div>
                         ` : ''}
                     </div>
