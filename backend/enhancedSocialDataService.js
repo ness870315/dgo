@@ -570,17 +570,15 @@ class EnhancedSocialDataService {
         console.log(`🐦 ${symbol}: No previous refresh data, using 7-day window`);
       }
       
-      // 🎯 BULLETPROOF QUERY: Use Twitter API operators for exact matching
-      // - has:cashtags/has:hashtags = ensures entity type exists (not just text)
-      // - -is:retweet = excludes retweets (reduces artificial inflation)
-      // - -is:reply = excludes reply threads (focuses on original mentions)
-      // - lang:en = English only (better crypto relevance)
+      // 🎯 IMPROVED QUERY: Use Basic tier operators (has:cashtags not available in Basic tier)
+      // Available operators: -is:retweet, -is:reply, lang:en
+      // Note: has:cashtags and has:hashtags require Twitter API v2 Standard/Enterprise tier
       const searchStrategies = [
         {
           type: 'cashtag_primary',
           endpoint: '/api/twitter/search',
           params: { 
-            q: `($${symbol} OR $${symbolLower}) has:cashtags -is:retweet -is:reply lang:en`,
+            q: `($${symbol} OR $${symbolLower}) -is:retweet -is:reply lang:en`,
             count: 4,
             start_time: startTime
           }
@@ -589,7 +587,7 @@ class EnhancedSocialDataService {
           type: 'hashtag_with_crypto_context',
           endpoint: '/api/twitter/search',
           params: { 
-            q: `(#${symbol} OR #${symbolLower}) has:hashtags -is:retweet lang:en`,
+            q: `(#${symbol} OR #${symbolLower}) -is:retweet lang:en`,
             count: 2,
             start_time: startTime
           }
