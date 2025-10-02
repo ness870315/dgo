@@ -570,22 +570,27 @@ class EnhancedSocialDataService {
         console.log(`🐦 ${symbol}: No previous refresh data, using 7-day window`);
       }
       
-      // 🎯 IMPROVED QUERY: Use Basic tier operators (has:cashtags not available in Basic tier)
-      // Available operators: -is:retweet, -is:reply, lang:en
-      // Note: has:cashtags and has:hashtags require Twitter API v2 Standard/Enterprise tier
+      // 🎯 BASIC TIER COMPATIBLE QUERY
+      // Twitter API Basic tier limitations:
+      // - NO has:cashtags operator
+      // - NO $ symbol as operator (treated as invalid)
+      // - Must search as plain text
+      // Available: -is:retweet, -is:reply, lang:en
+      
+      // Search for token symbol as plain text + crypto context keywords
+      // This helps filter out non-crypto uses of common words
+      const cryptoContext = 'crypto OR token OR solana OR sol OR price OR chart OR dex';
+      
       const searchStrategies = [
         {
-          type: 'cashtag_primary',
+          type: 'symbol_with_crypto_context',
           endpoint: '/api/twitter/search',
           params: { 
-            q: `($${symbol} OR $${symbolLower}) -is:retweet -is:reply lang:en`,
-            count: 6, // Increased from 4 to 6 since cashtags are more reliable
+            q: `"${symbol}" (${cryptoContext}) -is:retweet -is:reply lang:en`,
+            count: 6,
             start_time: startTime
           }
         }
-        // Hashtag search DISABLED - too many false positives (e.g., #grift = scam, not $GRIFT token)
-        // Cashtags ($SYMBOL) are crypto-specific and more reliable
-        // If we need more tweets, our crypto relevance filter will catch non-crypto content
       ];
       
       // Store official handle info for follower detection (without API call)
