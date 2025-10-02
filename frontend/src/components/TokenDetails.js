@@ -725,7 +725,6 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                               ? 'text-gray-500 cursor-not-allowed opacity-60 pointer-events-none' 
                               : 'text-gray-200 hover:bg-gray-700'
                           }`}
-                          title={aiLoading ? 'Analyzing token with AI... This may take 10-30 seconds' : 'Get AI-powered social sentiment analysis'}
                         >
                           {aiLoading ? (
                             <>
@@ -739,6 +738,13 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                             </>
                           )}
                         </button>
+                        {/* Tooltip */}
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-black/85 border border-white/10 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[220px]">
+                          <div className="text-[11px] leading-snug text-gray-200">
+                            <span className="font-semibold text-white">Oracle AI:</span>
+                            <span className="text-gray-300 ml-1">{aiLoading ? 'Analyzing... 10-30 seconds' : 'Get AI-powered social sentiment analysis'}</span>
+                          </div>
+                        </div>
                       </div>
                       
                       {/* Fuel Button */}
@@ -753,6 +759,13 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                           <Flame size={10} />
                           <span>Fuel</span>
                         </button>
+                        {/* Tooltip */}
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-black/85 border border-white/10 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[220px]">
+                          <div className="text-[11px] leading-snug text-gray-200">
+                            <span className="font-semibold text-white">Fuel:</span>
+                            <span className="text-gray-300 ml-1">Boost token visibility with 10x, 50x, 100x, 500x, or 1000x fuel</span>
+                          </div>
+                        </div>
                       </div>
                       
                       {/* Close Button */}
@@ -809,6 +822,13 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                         >
                           <span>Call it!</span>
                         </button>
+                        {/* Tooltip */}
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-black/85 border border-white/10 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[220px]">
+                          <div className="text-[11px] leading-snug text-gray-200">
+                            <span className="font-semibold text-white">Call it!:</span>
+                            <span className="text-gray-300 ml-1">Record your call and track performance</span>
+                          </div>
+                        </div>
                       </div>
                       
                       {/* Fav Button */}
@@ -828,6 +848,13 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                             fill={isInWatchlist ? 'currentColor' : 'none'} 
                           />
                         </button>
+                        {/* Tooltip */}
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-2 py-1 bg-black/85 border border-white/10 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 max-w-[220px]">
+                          <div className="text-[11px] leading-snug text-gray-200">
+                            <span className="font-semibold text-white">{isInWatchlist ? 'Remove from' : 'Add to'} Watchlist:</span>
+                            <span className="text-gray-300 ml-1">{isInWatchlist ? 'Remove from your watchlist' : 'Track this token in your watchlist'}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
