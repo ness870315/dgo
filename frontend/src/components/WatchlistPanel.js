@@ -68,19 +68,28 @@ const WatchlistPanel = ({ isOpen, onClose, onTokenSelect, allTokensData = [] }) 
   // Listen for watchlist updates from AI chat or other sources
   useEffect(() => {
     const handleWatchlistUpdate = (event) => {
-      console.log('🔄 [WATCHLIST] Received update event from:', event.detail?.source, 'at', new Date().toISOString());
+      console.log('🔄 [WATCHLIST PANEL] Received update event from:', event.detail?.source, 'at', new Date().toISOString());
+      console.log('🔄 [WATCHLIST PANEL] isOpen:', isOpen, 'isAuthenticated:', isAuthenticated);
+      
       if (isAuthenticated) {
-        console.log('🔄 [WATCHLIST] Reloading watchlist...');
+        console.log('🔄 [WATCHLIST PANEL] Triggering reload in 300ms...');
         // Add small delay to ensure backend has processed the update
         setTimeout(() => {
+          console.log('🔄 [WATCHLIST PANEL] Executing loadWatchlist now...');
           loadWatchlist();
-        }, 200); // 200ms delay to ensure backend processing
+        }, 300); // 300ms delay to ensure backend processing
+      } else {
+        console.log('❌ [WATCHLIST PANEL] Skipping reload - not authenticated');
       }
     };
 
+    console.log('🔄 [WATCHLIST PANEL] Setting up event listener. isOpen:', isOpen, 'isAuthenticated:', isAuthenticated);
     window.addEventListener('watchlistUpdated', handleWatchlistUpdate);
-    return () => window.removeEventListener('watchlistUpdated', handleWatchlistUpdate);
-  }, [isAuthenticated, loadWatchlist]);
+    return () => {
+      console.log('🔄 [WATCHLIST PANEL] Removing event listener');
+      window.removeEventListener('watchlistUpdated', handleWatchlistUpdate);
+    };
+  }, [isAuthenticated, loadWatchlist, isOpen]);
 
   // Update watchlist token data when main app token data changes
   useEffect(() => {

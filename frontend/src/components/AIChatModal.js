@@ -208,9 +208,12 @@ const AIChatModal = ({ isOpen, onClose, initialPosition = null }) => {
         }
         
         // Dispatch event immediately (no delay needed since localStorage is already updated)
-        window.dispatchEvent(new CustomEvent('watchlistUpdated', { 
+        console.log('🔄 [AI CHAT] Dispatching watchlistUpdated event...');
+        const event = new CustomEvent('watchlistUpdated', { 
           detail: { source: 'ai_chat', timestamp: Date.now() } 
-        }));
+        });
+        window.dispatchEvent(event);
+        console.log('🔄 [AI CHAT] Event dispatched successfully');
       }
 
       setMessages(prev => {
