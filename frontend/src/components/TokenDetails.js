@@ -688,16 +688,16 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-1 sm:p-2">
       <div className="bg-dark-bg border border-gray-700 rounded-xl max-w-3xl w-full max-h-[90vh] sm:max-h-[75vh] overflow-y-auto">
           {/* Header */}
-        <div className="sticky top-0 bg-dark-bg border-b border-gray-700 p-2 sm:p-3 flex items-center justify-between mobile-modal-header">
-          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+        <div className="sticky top-0 bg-dark-bg border-b border-gray-700 p-2 sm:p-3 flex items-center justify-between mobile-modal-header overflow-visible">
+          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1 overflow-visible">
             {(token?.image || token?.jupiterData?.icon) && (
               <img src={token?.jupiterData?.icon || token?.image} alt={token.name} className="w-10 h-10 sm:w-16 sm:h-16 rounded-full border-2 border-blue-500 flex-shrink-0 mobile-token-icon" />
               )}
-              <div className="min-w-0 flex-1 mobile-token-info">
+              <div className="min-w-0 flex-1 mobile-token-info overflow-visible">
                 {/* Mobile Layout - Two Rows */}
                 <div className="block sm:hidden">
                   {/* Row 1: Name | Oracle AI | Fuel | Close */}
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-2 overflow-visible">
                     <div className="flex items-center space-x-2 min-w-0 flex-1">
                       <h2 className="text-sm font-bold text-white truncate mobile-token-name">{token?.name || 'Unknown Token'}</h2>
                 {fuelMultiplier && (
@@ -707,9 +707,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                   </span>
                 )}
               </div>
-                    <div className="flex items-center space-x-1 ml-2">
+                    <div className="flex items-center space-x-1 ml-2 overflow-visible">
                       {/* Oracle AI Button */}
-                      <div className="relative group">
+                      <div className="relative group overflow-visible">
                         <button
                           onClick={() => {
 
