@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import kolCallsService from '../services/kolCallsService';
 import priorityService from '../services/priorityService';
 import DetailDrawer from './DetailDrawer';
+import chartService from '../services/chartService';
 
 function formatUSD(n) {
   const v = typeof n === 'number' ? n : Number(n || 0);
@@ -40,6 +41,90 @@ function TableHeader({ label, sortKey, sort, setSort }) {
     >
       <span className="inline-flex items-center gap-1">{label}<span className="text-gray-500">{arrow}</span></span>
     </th>
+  );
+}
+
+// Mini trend chart component for table cells
+function MiniTrendChart({ call }) {
+  const [chartData, setChartData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    const loadChartData = async () => {
+      if (!call?.contractAddress || !call?.calledAt) {
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        const response = await chartService.getMcapChart(call.contractAddress, call.calledAt);
+        if (response.success && response.data?.snapshots && response.data.snapshots.length > 0) {
+          setChartData(response.data.snapshots);
+        }
+      } catch (error) {
+        // Silently fail
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadChartData();
+  }, [call?.contractAddress, call?.calledAt]);
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center w-20 h-8">
+        <div className="text-gray-600 text-xs">...</div>
+      </div>
+    );
+  }
+  
+  if (!chartData || chartData.length < 2) {
+    return (
+      <div className="flex items-center justify-center w-20 h-8">
+        <div className="text-gray-600 text-xs">—</div>
+      </div>
+    );
+  }
+  
+  // Extract market cap values
+  const series = chartData.map(s => s.marketCap || 0);
+  const firstValue = series[0];
+  const lastValue = series[series.length - 1];
+  const isUptrend = lastValue >= firstValue;
+  
+  // Create SVG path
+  const w = 80;
+  const h = 32;
+  const padding = 2;
+  const min = Math.min(...series);
+  const max = Math.max(...series);
+  const range = max - min || 1;
+  
+  const norm = series.map(v => (v - min) / range);
+  const step = (w - padding * 2) / (series.length - 1);
+  const path = norm
+    .map((v, i) => `${i === 0 ? 'M' : 'L'}${padding + i * step},${h - padding - v * (h - padding * 2)}`)
+    .join(' ');
+  
+  const color = isUptrend ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'; // green-500 or red-500
+  const fillColor = isUptrend ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+  
+  return (
+    <svg width={w} height={h} className="inline-block">
+      {/* Area fill */}
+      <path
+        d={`${path} L ${w - padding},${h - padding} L ${padding},${h - padding} Z`}
+        fill={fillColor}
+      />
+      {/* Line */}
+      <path
+        d={path}
+        fill="none"
+        stroke={color}
+        strokeWidth={1.5}
+      />
+    </svg>
   );
 }
 
@@ -269,7 +354,7 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
                   <TableHeader label="PnL %" sortKey="pnl" sort={sort} setSort={setSort} />
                   <TableHeader label="ATH×" sortKey="athx" sort={sort} setSort={setSort} />
                   <TableHeader label="MDD %" sortKey="mdd" sort={sort} setSort={setSort} />
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-300">Actions</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-300">Trend</th>
                 </tr>
               </thead>
               <tbody>
@@ -280,7 +365,17 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
                   const athClass = d.athX >= 1 ? 'text-green-300' : 'text-gray-300';
                   const mddClass = d.mdd < 0 ? 'text-red-400' : 'text-gray-300';
                   return (
-                    <tr key={r.id} className="hover:bg-gray-800">
+                    <tr 
+                      key={r.id} 
+                      className="hover:bg-gray-800 cursor-pointer transition-colors"
+                      onClick={() => {
+                        setSelectedCall(r);
+                        // Boost priority when DetailDrawer is opened for more real-time updates
+                        if (r.contractAddress) {
+                          priorityService.boostTokenOnView(r.contractAddress, r.token.symbol);
+                        }
+                      }}
+                    >
                       <td className="px-3 py-2 text-white">{r.token.symbol} <span className="text-gray-400">· {r.token.name}</span></td>
                       <td className="px-3 py-2 text-gray-200">{formatUSD(r.calledMC)}</td>
                       <td className="px-3 py-2 text-gray-200">{formatUSD(r.currentMC)}</td>
@@ -288,29 +383,8 @@ export default function KolCallsModal({ open, onClose, onOpenToken, asInline = f
                       <td className={`px-3 py-2 ${pnlClass}`}>{formatPct(d.pnl)}</td>
                       <td className={`px-3 py-2 ${athClass}`}>{d.athX ? d.athX.toFixed(2) + '×' : '—'}</td>
                       <td className={`px-3 py-2 ${mddClass}`}>{isFinite(d.mdd) ? d.mdd.toFixed(2) + '%' : '—'}</td>
-                      <td className="px-3 py-2 text-gray-300">
-                        <div className="flex items-center gap-2">
-                          <button className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded" onClick={() => {
-                            setSelectedCall(r);
-                            // Boost priority when DetailDrawer is opened for more real-time updates
-                            if (r.contractAddress) {
-                              priorityService.boostTokenOnView(r.contractAddress, r.token.symbol);
-                            }
-                          }}>Open</button>
-                          <button className="px-2 py-1 text-xs bg-red-700 hover:bg-red-600 rounded" onClick={async () => {
-                            if (window.confirm(`Are you sure you want to delete the call for ${r.token.symbol}?`)) {
-                              try {
-                                console.log('🗑️ Deleting call:', r.id, r.token.symbol);
-                                await kolCallsService.deleteCall(r.id);
-                                console.log('✅ Call deleted successfully');
-                                await load();
-                              } catch (e) {
-                                console.error('❌ Delete failed', e);
-                                alert(`Failed to delete call: ${e.message}`);
-                              }
-                            }
-                          }}>Delete</button>
-                        </div>
+                      <td className="px-3 py-2">
+                        <MiniTrendChart call={r} />
                       </td>
                     </tr>
                   );
