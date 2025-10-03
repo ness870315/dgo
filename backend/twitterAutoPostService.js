@@ -125,12 +125,23 @@ class TwitterAutoPostService {
         twitterHandle = token.twitterHandle;
       }
       
-      // Normalize handle (ensure it starts with @)
+      // Extract handle from URL or normalize
       if (twitterHandle) {
         twitterHandle = twitterHandle.trim();
+        
+        // If it's a URL, extract the handle
+        if (twitterHandle.includes('twitter.com/') || twitterHandle.includes('x.com/')) {
+          const urlMatch = twitterHandle.match(/(?:twitter\.com|x\.com)\/([^/?#]+)/);
+          if (urlMatch && urlMatch[1]) {
+            twitterHandle = urlMatch[1];
+          }
+        }
+        
+        // Ensure it starts with @
         if (!twitterHandle.startsWith('@')) {
           twitterHandle = '@' + twitterHandle;
         }
+        
         console.log(`🐦 Found Twitter handle for ${symbol}: ${twitterHandle}`);
       } else {
         console.log(`⚠️ No Twitter handle found for ${symbol}`);
