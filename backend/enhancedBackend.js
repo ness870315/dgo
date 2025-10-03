@@ -965,6 +965,24 @@ class EnhancedBackend {
       }
     });
 
+    // Admin: Force reload image overrides (useful after updating override file)
+    this.app.post('/api/admin/reload-image-overrides', adminApiAuth, async (req, res) => {
+      try {
+        console.log('[🛡️ Enhanced Backend] 🖼️ Force reloading image overrides...');
+        // Force reload tokens from cache (which will apply overrides)
+        const tokens = await this.getTokensFromCache();
+        console.log(`[🛡️ Enhanced Backend] ✅ Reloaded ${tokens.length} tokens with image overrides applied`);
+        res.json({ 
+          success: true, 
+          message: 'Image overrides reloaded successfully',
+          tokensCount: tokens.length 
+        });
+      } catch (e) {
+        console.error('[🛡️ Enhanced Backend] ❌ Reload image overrides error:', e.message);
+        res.status(500).json({ error: 'Failed to reload image overrides' });
+      }
+    });
+
     // Admin: Referral codes
     this.app.get('/api/admin/referrals', adminApiAuth, async (req, res) => {
       try {
