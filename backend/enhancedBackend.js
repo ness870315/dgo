@@ -9576,6 +9576,29 @@ class EnhancedBackend {
       const data = await fs.readFile(cachePath, 'utf8');
       const tokens = JSON.parse(data || '[]');
 
+      // Apply image overrides for tokens with broken/custom images
+      try {
+        const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
+        const overridesPath = path.join(dataDir, 'cache', 'image-overrides.json');
+        const overridesData = await fs.readFile(overridesPath, 'utf8');
+        const imageOverrides = JSON.parse(overridesData || '{}');
+        
+        if (Object.keys(imageOverrides).length > 0) {
+          tokens.forEach(token => {
+            if (token.contractAddress && imageOverrides[token.contractAddress]) {
+              if (!token.jupiterData) token.jupiterData = {};
+              token.jupiterData.icon = imageOverrides[token.contractAddress];
+            }
+          });
+          console.log(`[🛡️ Enhanced Backend] 🖼️ Applied ${Object.keys(imageOverrides).length} image overrides`);
+        }
+      } catch (overrideError) {
+        // Silently fail if no overrides file exists
+        if (overrideError.code !== 'ENOENT') {
+          console.log(`[🛡️ Enhanced Backend] ⚠️ Image overrides error:`, overrideError.message);
+        }
+      }
+
       if (!Array.isArray(tokens) || tokens.length === 0) {
         console.log('[🛡️ Enhanced Backend] ⚠️ Cache is empty - attempting recovery from latest snapshot');
         const recovered = await this.attemptRestoreCacheFromLatestSnapshot(cachePath);
