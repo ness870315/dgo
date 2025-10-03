@@ -23,31 +23,41 @@ class TwitterAutoPostService {
       console.log('✅ Twitter Auto-Post is ENABLED for @dgnoracle');
     }
     
-    // Hype message templates
+    // Community-focused hype message templates
     this.messageTemplates = {
       '500x': [
-        '🔥 ${symbol} just got a 500x Fuel! The degen army is mobilizing! 🚀',
-        '⚡ MEGA FUEL ALERT! ${symbol} powered up with 500x! 💎',
-        '🎯 Someone just went ALL IN on ${symbol} with 500x Fuel! 🔥🔥🔥',
-        '💣 BOOM! ${symbol} got the 500x treatment! To the moon! 🌙',
-        '🚨 MASSIVE 500x Fuel on ${symbol}! The whales are watching! 🐋',
-        '⚡ ${symbol} just received 500x Fuel! This is HUGE! 💥',
-        '🔥🔥 ${symbol} 500x FUELED! Someone believes! 🚀🚀',
-        '💎 ${symbol} got the 500x boost! Diamond hands activated! ✨',
-        '🎪 The circus is in town! ${symbol} just got 500x Fuel! 🎭',
-        '🌟 ${symbol} shining bright with 500x Fuel! LFG! 🔥'
+        '🔥 A Chad just got a 500x FUEL for ${symbol}! The community is rallying! 🚀',
+        '⚡ Community member just FUELED ${symbol} with 500x! Diamond hands forming! 💎',
+        '🎯 Someone from the degen fam just went 500x FUEL on ${symbol}! Respect! 🔥',
+        '💣 BOOM! The community just FUELED ${symbol} with 500x! This is how legends are made! 🌙',
+        '🚨 A true believer just dropped 500x FUEL on ${symbol}! The cult grows stronger! 🐋',
+        '⚡ ${symbol} just got 500x FUEL from the community! The vibes are immaculate! 💥',
+        '🔥 Community FUELED ${symbol} with 500x! Someone sees the vision! 🚀',
+        '💎 A degen just activated 500x FUEL for ${symbol}! Diamond hands only! ✨',
+        '🎪 The community has spoken! ${symbol} just got 500x FUEL! LFG! 🎭',
+        '🌟 ${symbol} shining with 500x FUEL from a Chad! Community strong! 🔥',
+        '👑 One of our own just FUELED ${symbol} with 500x! This is the way! 💪',
+        '🚀 Community power! ${symbol} just received 500x FUEL! To the moon together! 🌙',
+        '💪 A degen champion FUELED ${symbol} with 500x! The movement grows! 🔥',
+        '⚡ ${symbol} got 500x FUEL! Community building in real time! 💎',
+        '🔥 Someone just showed ${symbol} some love with 500x FUEL! Cult status incoming! 👀'
       ],
       '1000x': [
-        '🚀🚀🚀 ${symbol} JUST GOT 1000x FUEL! THIS IS NOT A DRILL! 🚨',
-        '⚡⚡ ULTRA MEGA FUEL! ${symbol} with 1000x! MOONSHOT INCOMING! 🌙',
-        '💥 NUCLEAR FUEL ALERT! ${symbol} 1000x! The ultimate bet! 💎',
-        '🔥🔥🔥 ${symbol} 1000x FUELED! Someone went FULL DEGEN! 🎯',
-        '🚨 WHALE ALERT! ${symbol} just received 1000x Fuel! 🐋💰',
-        '⚡ MAXIMUM POWER! ${symbol} 1000x FUEL! This is legendary! 👑',
-        '🎰 ALL IN! ${symbol} just got the 1000x treatment! YOLO! 🔥',
-        '💣💣 DOUBLE NUCLEAR! ${symbol} 1000x FUELED! LFG! 🚀🚀',
-        '🌟 ${symbol} with 1000x Fuel! The gods have spoken! ⚡⚡',
-        '🔥 HISTORIC MOMENT! ${symbol} 1000x FUEL! This is the way! 💎✨'
+        '🚀🚀🚀 Community just FUELED ${symbol} with 1000x! This is how cults are formed! 🚨',
+        '⚡⚡ MEGA CHAD ALERT! Someone FUELED ${symbol} with 1000x! The community is ascending! 🌙',
+        '💥 A true believer just dropped 1000x FUEL on ${symbol}! This is legendary! 💎',
+        '🔥🔥🔥 Community member went FULL SEND! ${symbol} 1000x FUELED! WAGMI! 🎯',
+        '🚨 WHALE FROM OUR RANKS! ${symbol} just got 1000x FUEL! The cult is REAL! 🐋',
+        '⚡ ABSOLUTE LEGEND! Someone FUELED ${symbol} with 1000x! Community on fire! 👑',
+        '🎰 A degen hero just went ALL IN! ${symbol} 1000x FUELED! This is how we win! 🔥',
+        '💣💣 NUCLEAR COMMUNITY POWER! ${symbol} 1000x FUELED! We\'re so back! 🚀',
+        '🌟 The prophecy is real! ${symbol} got 1000x FUEL! Community united! ⚡',
+        '🔥 HISTORIC MOMENT! Community FUELED ${symbol} with 1000x! Nothing can stop us! 💎',
+        '👑 A KING AMONG US! ${symbol} just received 1000x FUEL! This is peak degen! 🔥',
+        '💪 Community strength! Someone FUELED ${symbol} with 1000x! Cult status achieved! 🚀',
+        '⚡⚡ THE MADMAN DID IT! ${symbol} 1000x FUELED! Community momentum unstoppable! 💥',
+        '🚀 One of our own went MAXIMUM FUEL on ${symbol} - 1000x! LFG! 🌙',
+        '🔥 ${symbol} 1000x FUELED by the community! This is how empires are built! 👑'
       ]
     };
   }
