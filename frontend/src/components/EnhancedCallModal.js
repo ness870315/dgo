@@ -16,6 +16,7 @@ const EnhancedCallModal = ({
   const [twitterLoading, setTwitterLoading] = useState(false);
   const [selectedTone, setSelectedTone] = useState('bullish');
   const [callLoading, setCallLoading] = useState(false);
+  const [lastGeneratedKey, setLastGeneratedKey] = useState(null);
 
   const tones = [
     { value: 'bullish', label: 'Bullish', description: 'Confident and enthusiastic' },
@@ -26,17 +27,24 @@ const EnhancedCallModal = ({
 
   useEffect(() => {
     if (isOpen && token) {
-      loadTwitterStatus();
-      generateThesis();
+      // Create stable key based on contract address and tone to prevent unnecessary regeneration
+      const generateKey = `${token.contractAddress}-${selectedTone}`;
+      
+      // Only generate if key changed (prevents re-generation on token prop updates)
+      if (generateKey !== lastGeneratedKey) {
+        loadTwitterStatus();
+        generateThesis();
+        setLastGeneratedKey(generateKey);
+      }
     }
-  }, [isOpen, token]);
+  }, [isOpen, token, selectedTone, lastGeneratedKey]);
 
-  // Regenerate thesis when tone changes
-  useEffect(() => {
-    if (isOpen && token) {
-      generateThesis();
-    }
-  }, [selectedTone]);
+  // Regenerate thesis when tone changes - merged into main useEffect above
+  // useEffect(() => {
+  //   if (isOpen && token) {
+  //     generateThesis();
+  //   }
+  // }, [selectedTone]);
 
   const loadTwitterStatus = async () => {
     try {
