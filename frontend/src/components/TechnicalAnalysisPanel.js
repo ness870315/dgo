@@ -22,9 +22,19 @@ const TechnicalAnalysisPanel = ({ contractAddress, chartData, timeframe, isVisib
   const [analysis, setAnalysis] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [lastFetchKey, setLastFetchKey] = useState(null);
 
   useEffect(() => {
     if (isVisible && contractAddress) {
+      // Create a stable key based on actual data changes, not object reference
+      const fetchKey = `${contractAddress}-${timeframe}-${chartData?.length || 0}`;
+      
+      // Only fetch if the key changed (prevents re-fetch on same data)
+      if (fetchKey === lastFetchKey) {
+        console.log('🔍 Technical Analysis Panel: Skipping fetch, data unchanged');
+        return;
+      }
+      
       console.log('🔍 Technical Analysis Panel: Fetching analysis for', { contractAddress, timeframe, chartDataLength: chartData?.length });
       const fetchAnalysis = async () => {
         setIsLoading(true);
@@ -33,9 +43,11 @@ const TechnicalAnalysisPanel = ({ contractAddress, chartData, timeframe, isVisib
           const result = await technicalAnalysisService.getTechnicalAnalysis(contractAddress, timeframe, chartData);
           console.log('🔍 Technical Analysis Panel: Received result:', result);
           setAnalysis(result);
+          setLastFetchKey(fetchKey);
         } catch (err) {
           console.error('Technical Analysis Panel Error:', err);
           setError(err.message || 'Failed to fetch technical analysis');
+          setLastFetchKey(fetchKey); // Still update key to prevent infinite retries
         } finally {
           setIsLoading(false);
         }
@@ -44,8 +56,9 @@ const TechnicalAnalysisPanel = ({ contractAddress, chartData, timeframe, isVisib
     } else {
       console.log('🔍 Technical Analysis Panel: Not visible or no contract address');
       setAnalysis(null); // Clear analysis when not visible
+      setLastFetchKey(null);
     }
-  }, [isVisible, contractAddress, timeframe, chartData]);
+  }, [isVisible, contractAddress, timeframe, chartData, lastFetchKey]);
 
   if (!isVisible) return null;
 
