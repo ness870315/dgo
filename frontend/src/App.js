@@ -558,9 +558,13 @@ function AppContent() {
   }, [categoryFilters, applyCategoryFilters]);
 
   // Load initial data
-  const loadTokens = useCallback(async () => {
+  // showLoading: true = show loading spinner (initial load, manual refresh)
+  //              false = silent background update (auto-refresh, token added, etc.)
+  const loadTokens = useCallback(async (showLoading = true) => {
     try {
-      setIsLoading(true);
+      if (showLoading) {
+        setIsLoading(true);
+      }
       setError(null);
               const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
               const [tokenData, fueledData] = await Promise.all([
@@ -584,7 +588,9 @@ function AppContent() {
       setError('Failed to load token data. Please try again.');
       console.error('Error loading tokens:', err);
     } finally {
-      setIsLoading(false);
+      if (showLoading) {
+        setIsLoading(false);
+      }
     }
   }, [filters, searchTerm, settings.useRealTwitterData, applyFiltersAndSearch, selectedToken]);
 
@@ -613,9 +619,9 @@ function AppContent() {
   // Handle settings
   const handleSettingsChange = useCallback((newSettings) => {
     setSettings(newSettings);
-    // Reload data if Twitter API setting changed
+    // Reload data if Twitter API setting changed (show loading for settings change)
     if (newSettings.useRealTwitterData !== settings.useRealTwitterData) {
-      loadTokens();
+      loadTokens(true); // SHOW LOADING - user changed settings
     }
   }, [settings.useRealTwitterData, loadTokens]);
 
@@ -627,14 +633,14 @@ function AppContent() {
     setSuccessMessage(`🎉 Token "${newToken.symbol}" successfully added! Refreshing data...`);
     setError(null);
     
-    // Force immediate refresh with multiple attempts
+    // Force immediate refresh with multiple attempts (SILENT - no loading spinner)
     let refreshAttempts = 0;
     const maxAttempts = 3;
     
     const attemptRefresh = async () => {
       try {
         console.log(`🔄 Refresh attempt ${refreshAttempts + 1}/${maxAttempts}`);
-        await loadTokens();
+        await loadTokens(false); // SILENT REFRESH - no loading spinner
         
         // Check if the new token is now visible
         const [currentTokens, fueledData] = await Promise.all([
@@ -682,9 +688,9 @@ function AppContent() {
     setSuccessMessage(`🎉 Social links for "${updatedToken.symbol}" successfully updated! Refreshing data...`);
     setError(null);
     
-    // Force immediate refresh
+    // Force immediate refresh (SILENT - no loading spinner)
     try {
-      await loadTokens();
+      await loadTokens(false); // SILENT REFRESH - no loading spinner
       
       // Refresh fueled tokens data
       const fueledData = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com'}/api/tokens/fuel`).then(res => res.ok ? res.json() : { value: [] });
@@ -816,9 +822,9 @@ function AppContent() {
       // Clear URL parameters
       window.history.replaceState({}, document.title, window.location.pathname);
       
-      // Auto-refresh data to show the new token
+      // Auto-refresh data to show the new token (SILENT - no loading spinner)
       setTimeout(() => {
-        loadTokens();
+        loadTokens(false); // SILENT REFRESH - no loading spinner
       }, 2000);
     } else if (paymentStatus === 'error') {
       const reason = urlParams.get('reason') || 'unknown error';
@@ -942,7 +948,7 @@ function AppContent() {
 
     const interval = setInterval(() => {
       if (!isLoading) {
-        loadTokens();
+        loadTokens(false); // SILENT REFRESH - no loading spinner for auto-refresh
       }
     }, settings.refreshInterval * 60 * 1000);
 
@@ -999,9 +1005,9 @@ function AppContent() {
         <FuelTokenPage 
           onBack={() => setShowFuelToken(false)}
           onFuelApplied={() => {
-            // Refresh fueled tokens when fuel is applied from this page
+            // Refresh fueled tokens when fuel is applied from this page (SILENT)
             console.log('🔥 App: Fuel applied, refreshing main app data...');
-            loadTokens();
+            loadTokens(false); // SILENT REFRESH - no loading spinner
           }}
           headerAuth={
             <AuthButton 
