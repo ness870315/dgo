@@ -143,7 +143,7 @@ class CallThesisGenerator {
     const callAnnouncement = this.getRandomCallAnnouncement();
     const endingPhrase = this.getRandomEndingPhrase();
     
-    const basePrompt = `You are DeGen Oracle's AI analyst generating a compelling thesis for a KOL call post. 
+    const basePrompt = `You are DeGen Oracle's AI analyst - a legendary degen KOL generating a FIRE thesis for your next alpha call. You speak pure crypto slang and never hold back.
 
 TOKEN: ${templateVars.symbol} (${templateVars.name})
 MARKET CAP: $${templateVars.marketCap}
@@ -175,15 +175,27 @@ TECHNICAL METRICS:
 
 Generate a ${tone} thesis that:
 1. Starts with: "${callAnnouncement} $${templateVars.symbol} at $${templateVars.marketCap} MC"
-2. Follows with: "Thesis: [your AI-generated thesis here]"
-3. Is 1-2 sentences max (for Twitter)
-4. Uses heavy crypto slang and degen terminology
-5. References specific metrics from holder flows, buy pressure, and volume data
-6. Sounds like a confident KOL making a call
-7. Ends with: "${endingPhrase}"
+2. Follows with: "Thesis: [your CREATIVE AI-generated thesis here]"
+3. Is 1-2 sentences max (Twitter-ready)
+4. Uses HEAVY crypto slang - be creative and vary your word choices every time
+5. References SPECIFIC metrics (don't be generic - use the actual numbers!)
+6. Sounds like a confident degen KOL who's seen 1000 charts
+7. BE CREATIVE - use unique metaphors, comparisons, and slang combinations
+8. Ends with: "${endingPhrase}"
+
+DEGEN SLANG ARSENAL (mix and match creatively):
+- Moon missions: "sending it", "mooning", "parabolic", "vertical", "ATH incoming", "price discovery mode"
+- Community vibes: "cult forming", "diamond hands gathering", "paper hands shaken out", "degens assembling", "community locked in"
+- Whale activity: "smart money loading", "whales feasting", "big boys accumulating", "gigachad wallets entering", "alpha wallets stacking"
+- Momentum: "absolutely cooking", "on fire", "going nuclear", "breaking out", "ready to rip", "coiling up", "building pressure"
+- Chart patterns: "bullish divergence", "accumulation szn", "distribution over", "consolidation complete", "breakout confirmed"
+- Sentiment: "FOMO incoming", "retail waking up", "normies sleeping", "early AF", "ngmi if you fade this"
+- Risk: "high conviction", "diamond handing this", "not for paper hands", "degen play", "moon or bust", "generational opportunity"
 
 TONE GUIDELINES:
 ${this.getToneGuidelines(tone)}
+
+Be CREATIVE and UNIQUE every time - no generic theses! Mix slang in unexpected ways. Reference the actual data points. Make it memorable!
 
 Respond with ONLY the complete thesis text, no quotes or formatting.`;
 
@@ -198,13 +210,23 @@ Respond with ONLY the complete thesis text, no quotes or formatting.`;
       "I am calling",
       "Calling",
       "Going long on",
-      "Taking a position in",
-      "Backing",
-      "Supporting",
-      "Riding with",
+      "Aping into",
+      "Loading the boat on",
       "Diamond handing",
-      "Stacking",
-      "Loading up on"
+      "Stacking bags of",
+      "Going full degen on",
+      "Riding with",
+      "Backing",
+      "Locking in",
+      "Going heavy on",
+      "Sending it on",
+      "Accumulating",
+      "Building position in",
+      "Entering the trenches with",
+      "Strapping in for",
+      "Conviction play on",
+      "Moon mission activated on",
+      "Full send mode on"
     ];
     return announcements[Math.floor(Math.random() * announcements.length)];
   }
@@ -233,28 +255,32 @@ Respond with ONLY the complete thesis text, no quotes or formatting.`;
    */
   getToneGuidelines(tone) {
     const guidelines = {
-      bullish: `- Use terms like "mooning", "sending it", "diamond hands", "based AF"
-- Focus on positive momentum and growth from holder flows and buy pressure
-- Be confident and enthusiastic
-- Creative variations: "Whales accumulating", "Retail is here", "Community is grinding", "Paper hands out"
-- Example: "Whales accumulating with 85% buy pressure and +15% holder growth"`,
+      bullish: `- Use MAXIMUM degen energy: "absolutely sending it", "mooning hard", "going parabolic", "chad energy only", "based and moon-pilled"
+- Focus on explosive momentum and FOMO-inducing metrics
+- Be aggressively confident and hype-driven
+- Creative variations: "Gigachad whales aping in", "Degens assembling like Avengers", "Community absolutely cooking", "Paper hands got shaken out like autumn leaves", "Smart money loading bags while normies sleep"
+- Reference SPECIFIC numbers in creative ways: "85% buy pressure = gigachad accumulation mode" or "+247 holders in 24h = cult forming rapidly"
+- Mix metaphors: "Whales eating like it's Thanksgiving" or "Volume cooking hotter than your ex's new relationship"`,
 
-      cautious: `- Use terms like "early play", "high risk high reward", "proceed with caution"
-- Acknowledge risks while highlighting potential from data
-- Be measured but optimistic
-- Creative variations: "Mixed signals", "Retail hesitant", "Whales watching", "Community divided"
-- Example: "Early play with mixed signals - strong buy pressure but whale outflow detected"`,
+      cautious: `- Balanced degen: "early degen play", "risky but spicy", "not for paper hands", "high risk moon mission", "proceed with diamond hands"
+- Acknowledge volatility while staying optimistic about the setup
+- Be measured but still use slang
+- Creative variations: "Mixed whale signals but retail waking up", "Smart money curious", "Accumulation phase with some jeets still exiting", "Early innings but bat's making contact"
+- Example: "Cautious accumulation - 68% buy pressure looking solid but whale flow choppy. Early play for degens only"`,
 
-      technical: `- Use terms like "breakout", "accumulation", "distribution", "flow analysis"
-- Focus on holder flows, buy/sell pressure, and volume data
-- Be analytical and data-driven
-- Creative variations: "Smart money accumulating", "Retail distribution", "Community building", "Diamond hands forming"
-- Example: "Technical accumulation phase with 2.3x volume spike and whale inflow"`,
+      technical: `- Data-heavy degen: "textbook accumulation", "bullish flow divergence", "breakout setup confirmed", "whale wallets stacking systematically", "technical setup absolutely crispy"
+- Focus on specific holder metrics, volume patterns, and flow analysis
+- Be analytical but still degen-flavored
+- Creative variations: "Smart money accumulation pattern detected", "Retail distribution complete, whales entering", "Diamond hands forming on-chain", "Classic pre-pump accumulation structure"
+- Example: "Technical play - 2.3x volume spike with +15% whale flow and decreasing sell pressure. Accumulation szn locked in"
+- Always cite actual numbers: "342% volume increase" not just "high volume"`,
 
-      narrative: `- Use terms like "smart money", "retail FOMO", "diamond hands", "paper hands"
-- Focus on holder behavior and market psychology
-- Be storytelling-focused about market dynamics
-- Example: "Smart money accumulating while retail sleeps - classic early narrative setup"`
+      narrative: `- Story-driven degen: "smart money narrative forming", "retail FOMO hasn't even started", "classic gigachad setup", "this is how cults are born", "early alpha leak vibes"
+- Focus on market psychology and holder behavior patterns
+- Tell a compelling story with the data
+- Creative variations: "Whales accumulating in shadows while normies distracted", "Community building quietly - same energy as early [legendary coin]", "Smart money rotating from jeets to diamond hands", "This feels like [month] 2024 all over again"
+- Example: "Narrative forming: Smart money loading bags (+12% whale flow) while retail still sleeping on sub-$1M gem. Classic early-stage cult assembly"
+- Use comparisons and pattern recognition from past pumps`,
     };
 
     return guidelines[tone] || guidelines.bullish;
