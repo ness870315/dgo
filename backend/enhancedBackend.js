@@ -11703,10 +11703,18 @@ class EnhancedBackend {
       const updatedFueledToken = existingFueledToken || fueledTokens[fueledTokens.length - 1];
       const currentFuelDisplay = updatedFueledToken.fuelType;
       
+      // Return the FULL token with jupiterData and socials for Twitter handle extraction
+      const fullTokenData = {
+        ...existingToken,
+        ...updatedFueledToken, // Merge fuel info on top
+        jupiterData: existingToken.jupiterData, // Ensure Jupiter data is included
+        socials: existingToken.socials // Ensure socials are included
+      };
+      
       return {
         success: true,
         message: `Fuel ${fuelType} applied successfully to ${existingToken.symbol}! Total fuel: ${currentFuelDisplay}. Boost will last ${Math.round(config.duration / (60 * 60 * 1000))} hours.`,
-        token: updatedFueledToken
+        token: fullTokenData
       };
 
     } catch (error) {
