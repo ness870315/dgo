@@ -229,6 +229,9 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
                             src={token.jupiterData.icon} 
                             alt={token.symbol} 
                             className="w-10 h-10 rounded-full border-2 border-gray-600"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
                           />
                         )}
                         <div>

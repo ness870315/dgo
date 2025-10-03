@@ -691,7 +691,14 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
         <div className="sticky top-0 bg-dark-bg border-b border-gray-700 p-2 sm:p-3 flex items-center justify-between mobile-modal-header overflow-visible">
           <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1 overflow-visible">
             {(token?.image || token?.jupiterData?.icon) && (
-              <img src={token?.jupiterData?.icon || token?.image} alt={token.name} className="w-10 h-10 sm:w-16 sm:h-16 rounded-full border-2 border-blue-500 flex-shrink-0 mobile-token-icon" />
+              <img 
+                src={token?.jupiterData?.icon || token?.image} 
+                alt={token.name} 
+                className="w-10 h-10 sm:w-16 sm:h-16 rounded-full border-2 border-blue-500 flex-shrink-0 mobile-token-icon" 
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
+              />
               )}
               <div className="min-w-0 flex-1 mobile-token-info overflow-visible">
                 {/* Mobile Layout - Two Rows */}

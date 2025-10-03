@@ -344,13 +344,23 @@ export default function DetailDrawer({ call, onClose, onRefresh }) {
         {/* Header */}
         <div className="p-5 md:p-6 sticky top-0 bg-dark-card/90 backdrop-blur border-b border-gray-700 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {jupToken?.icon ? (
-              <img src={jupToken.icon} alt="icon" className="h-9 w-9 rounded-xl object-cover border border-white/10" />
-            ) : (
-              <div className="h-9 w-9 rounded-xl bg-white/10 flex items-center justify-center text-xs font-bold">
-                {(jupToken?.symbol || call.token?.symbol || call.token || "?").slice(0, 3)}
-              </div>
-            )}
+            <div className="relative h-9 w-9">
+              {jupToken?.icon && (
+                <img 
+                  src={jupToken.icon} 
+                  alt="icon" 
+                  className="h-9 w-9 rounded-xl object-cover border border-white/10"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                  }}
+                />
+              )}
+              {!jupToken?.icon && (
+                <div className="h-9 w-9 rounded-xl bg-white/10 flex items-center justify-center text-xs font-bold">
+                  {(jupToken?.symbol || call.token?.symbol || call.token || "?").slice(0, 3)}
+                </div>
+              )}
+            </div>
             <div>
               <div className="text-lg font-semibold text-white">
                 {jupToken?.symbol || call.token?.symbol || call.token || "Unknown"} 
