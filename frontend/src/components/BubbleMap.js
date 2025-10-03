@@ -64,10 +64,13 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
   useEffect(() => {
     if (!tokens || tokens.length === 0) return;
 
-    // Debug: Log sample token data to check consistency
-
     const svg = d3.select(svgRef.current);
-    svg.selectAll("*").remove();
+    
+    // Only clear on first render or when dimensions change significantly
+    // This prevents the "glitch" on every token update
+    if (!svg.select('g.bubbles-container').node()) {
+      svg.selectAll("*").remove();
+    }
 
     const { width, height } = dimensions;
     const margin = { top: 80, right: 30, bottom: 60, left: 30 }; // Increased margins for better spacing and natural clustering
@@ -223,41 +226,71 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
         });
       });
 
-    const g = svg.append('g')
-      .attr('transform', `translate(${margin.left},${margin.top})`);
+    // Get or create the main bubbles container
+    let g = svg.select('g.bubbles-container');
+    if (g.empty()) {
+      g = svg.append('g')
+        .attr('class', 'bubbles-container')
+        .attr('transform', `translate(${margin.left},${margin.top})`);
+      
+      // Add zoom functionality only on first creation
+      const zoom = d3.zoom()
+        .scaleExtent([0.5, 3]) // Allow zoom from 0.5x to 3x
+        .on('zoom', (event) => {
+          setZoomTransform(event.transform);
+          g.attr('transform', `translate(${margin.left},${margin.top}) scale(${event.transform.k}) translate(${event.transform.x},${event.transform.y})`);
+        });
 
-    // 🌊 Soft boundaries - no visual indicators needed for natural clustering
+      // Store zoom reference for reset function
+      zoomRef.current = zoom;
+      svg.call(zoom);
+    }
 
-    // Add zoom functionality for better navigation with many bubbles
-    const zoom = d3.zoom()
-      .scaleExtent([0.5, 3]) // Allow zoom from 0.5x to 3x
-      .on('zoom', (event) => {
-        setZoomTransform(event.transform);
-        g.attr('transform', `translate(${margin.left},${margin.top}) scale(${event.transform.k}) translate(${event.transform.x},${event.transform.y})`);
-      });
-
-    // Store zoom reference for reset function
-    zoomRef.current = zoom;
-    svg.call(zoom);
-
-    // Create bubbles
+    // D3 Enter/Update/Exit pattern for efficient rendering
+    // Bind data with key function for proper tracking
     const bubbles = g.selectAll('.bubble')
-      .data(tokens)
-      .enter()
+      .data(tokens, d => d.contractAddress || d.symbol);
+
+    // EXIT: Remove bubbles that no longer exist
+    bubbles.exit()
+      .transition()
+      .duration(300)
+      .attr('opacity', 0)
+      .remove();
+
+    // ENTER: Create new bubbles
+    const bubblesEnter = bubbles.enter()
       .append('g')
       .attr('class', 'bubble')
-      .style('cursor', 'pointer');
+      .style('cursor', 'pointer')
+      .attr('opacity', 0);
 
-    // Add circles
-    bubbles.append('circle')
+    // Add circles to new bubbles
+    bubblesEnter.append('circle')
       .attr('r', d => radiusScale(d.score || d.overallScore || 5))
-              .attr('fill', d => colorScale(d.score || d.overallScore || 5))
+      .attr('fill', d => colorScale(d.score || d.overallScore || 5))
       .attr('stroke', '#9945FF')
       .attr('stroke-width', 2)
       .attr('opacity', 0.8);
 
+    // Fade in new bubbles
+    bubblesEnter
+      .transition()
+      .duration(300)
+      .attr('opacity', 1);
+
+    // MERGE: Combine enter and update selections
+    const bubblesAll = bubblesEnter.merge(bubbles);
+
+    // UPDATE: Update existing bubbles (color, size may have changed)
+    bubblesAll.select('circle')
+      .transition()
+      .duration(300)
+      .attr('r', d => radiusScale(d.score || d.overallScore || 5))
+      .attr('fill', d => colorScale(d.score || d.overallScore || 5));
+
     // Add fire icons and pulsing effects for fueled tokens
-    bubbles.each(function(d) {
+    bubblesAll.each(function(d) {
       // Handle the wrapped data structure from the API
       const fueledTokensArray = fueledTokens.value || fueledTokens;
       
@@ -265,13 +298,10 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
         fueled.symbol?.toLowerCase() === d.symbol?.toLowerCase()
       );
       
-
+      const bubble = d3.select(this);
+      const circle = bubble.select('circle');
       
       if (isFueled) {
-
-        const bubble = d3.select(this);
-        const circle = bubble.select('circle');
-        
         // Add pulsing animation class to the circle (bubble)
         circle.classed('fueled-token-pulse', true);
         
@@ -283,11 +313,19 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
         
         // Mark this token as fueled so we can add the fire icon after text is rendered
         d.isFueled = true;
+      } else {
+        // Reset non-fueled tokens
+        circle.classed('fueled-token-pulse', false);
+        circle
+          .attr('stroke', '#9945FF')
+          .attr('stroke-width', 2)
+          .style('filter', null);
+        d.isFueled = false;
       }
     });
     
-    // Add event handlers to the group (g) element instead of circle to avoid conflicts
-    bubbles
+    // Add event handlers to the merged selection (handles both new and existing bubbles)
+    bubblesAll
       .on('mouseover', function(event, d) {
         const circle = d3.select(this).select('circle');
         const currentRadius = radiusScale(d.score || d.overallScore || 5);
@@ -515,8 +553,8 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
         })
       );
 
-    // Add text labels
-    const textLabels = bubbles.append('text')
+    // Add text labels to new bubbles only
+    bubblesEnter.append('text')
       .attr('text-anchor', 'middle')
       .attr('dy', '.3em')
       .style('fill', 'white')
@@ -525,8 +563,13 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
       .style('pointer-events', 'none')
       .text(d => d.symbol);
 
+    // Update text labels for all bubbles (size may have changed)
+    bubblesAll.select('text')
+      .style('font-size', d => Math.min(radiusScale(d.score || d.overallScore || 5) / 2.5, 18) + 'px')
+      .text(d => d.symbol);
+
     // Add fire icons for fueled tokens after text is rendered
-    bubbles.each(function(d) {
+    bubblesAll.each(function(d) {
       if (d.isFueled) {
         const bubble = d3.select(this);
         const textElement = bubble.select('text');
@@ -562,6 +605,9 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
           fireAnchor = 'middle';
         }
         
+        // Remove old fire icon if exists
+        bubble.select('.fire-icon').remove();
+        
         // Add fire icon with dynamic positioning
         bubble.append('text')
           .attr('class', 'fire-icon')
@@ -574,11 +620,15 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
           .style('fill', '#FF4500')
           .style('filter', 'drop-shadow(0 0 3px rgba(255, 69, 0, 0.8))')
           .text('🔥');
+      } else {
+        // Remove fire icon if token is no longer fueled
+        const bubble = d3.select(this);
+        bubble.select('.fire-icon').remove();
       }
     });
     
     // Add subtle pulse animation for high-score tokens (score >= 6)
-    bubbles.selectAll('circle')
+    bubblesAll.selectAll('circle')
       .filter(d => (d.score || d.overallScore || 0) >= 6)
       .style('animation', d => {
         const score = d.score || d.overallScore || 0;
@@ -615,7 +665,7 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
 
     // Update positions on simulation tick with magnetic effect
     simulation.on('tick', () => {
-      bubbles.attr('transform', d => {
+      bubblesAll.attr('transform', d => {
         let finalX = d.x;
         let finalY = d.y;
         
