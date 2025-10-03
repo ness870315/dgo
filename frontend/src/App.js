@@ -912,34 +912,35 @@ function AppContent() {
   }, [loadTokens]);
 
   // Check for push notification support and show request
+  // DISABLED: Push notifications are currently disabled
   useEffect(() => {
-    const checkPushNotifications = async () => {
-      try {
-        const isMobile = pushNotificationService.isMobileDevice();
-        const isSupported = pushNotificationService.isSupported;
-        
-        if (isMobile && isSupported) {
-          const status = await pushNotificationService.checkSubscriptionStatus();
-          
-          // Show request if not subscribed and user hasn't dismissed it recently
-          if (!status.subscribed) {
-            const lastDismissed = localStorage.getItem('pushNotificationDismissed');
-            const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
-            
-            if (!lastDismissed || parseInt(lastDismissed) < oneDayAgo) {
-              // Wait a bit before showing to avoid interrupting initial load
-              setTimeout(() => {
-                setShowPushNotification(true);
-              }, 3000);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error checking push notification support:', error);
-      }
-    };
+    // const checkPushNotifications = async () => {
+    //   try {
+    //     const isMobile = pushNotificationService.isMobileDevice();
+    //     const isSupported = pushNotificationService.isSupported;
+    //     
+    //     if (isMobile && isSupported) {
+    //       const status = await pushNotificationService.checkSubscriptionStatus();
+    //       
+    //       // Show request if not subscribed and user hasn't dismissed it recently
+    //       if (!status.subscribed) {
+    //         const lastDismissed = localStorage.getItem('pushNotificationDismissed');
+    //         const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+    //         
+    //         if (!lastDismissed || parseInt(lastDismissed) < oneDayAgo) {
+    //           // Wait a bit before showing to avoid interrupting initial load
+    //           setTimeout(() => {
+    //             setShowPushNotification(true);
+    //           }, 3000);
+    //         }
+    //       }
+    //     }
+    //   } catch (error) {
+    //     console.error('Error checking push notification support:', error);
+    //   }
+    // };
 
-    checkPushNotifications();
+    // checkPushNotifications();
   }, []);
 
   // Set up real-time updates
