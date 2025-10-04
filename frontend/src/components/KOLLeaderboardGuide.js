@@ -216,11 +216,11 @@ const KOLLeaderboardGuide = ({ onClose }) => {
       <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-4">
         <h4 className="text-green-300 font-semibold mb-2">Trust Level Progression</h4>
         <div className="text-sm text-gray-300 space-y-2">
-          <p>• <strong>Developing KOL (40+):</strong> Start with 1+ profitable call</p>
-          <p>• <strong>Rising KOL (50+):</strong> Consistent profitable performance</p>
-          <p>• <strong>Trusted KOL (60+):</strong> Reliable with good risk management</p>
-          <p>• <strong>Expert KOL (70+):</strong> Consistently excellent performance</p>
-          <p>• <strong>Elite KOL (80+):</strong> Top 1% - exceptional across all metrics</p>
+          <p>• <strong>Developing KOL (20-39):</strong> Start with 1+ profitable call</p>
+          <p>• <strong>Rising KOL (40-49):</strong> Consistent profitable performance</p>
+          <p>• <strong>Trusted KOL (50-59):</strong> Reliable with good risk management</p>
+          <p>• <strong>Expert KOL (60-69):</strong> Consistently excellent performance</p>
+          <p>• <strong>Elite KOL (70+):</strong> Top performers - exceptional across all metrics</p>
         </div>
       </div>
     </div>
