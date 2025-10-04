@@ -394,6 +394,7 @@ Generate a SHORT, natural reply (max 150 chars):
 - If it's a question, be helpful but concise
 - NO hashtags ever
 - NO mentions of website unless they specifically ask
+- DO NOT include @username in your reply (it's already added automatically)
 
 Examples:
 - Intro: "Appreciate it anon. Always cool meeting other builders in the space 🤝"
@@ -401,7 +402,7 @@ Examples:
 - Question: "Yeah we track Solana gems. Real-time data, no bs"
 - General: "gm chad 🫡"
 
-Reply:`;
+Reply (without @username):`;
 
       const reply = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 100,
@@ -766,8 +767,9 @@ Now generate YOUR take on the token (max 180 chars):
 - Use the data but filter it through YOUR personality
 - Keep it SHORT and punchy
 - Focus on the VIBE, not a report
+- DO NOT include @username in your reply (it's already added automatically)
 
-Reply:`;
+Reply (without @username):`;
 
       const opinion = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 150,
