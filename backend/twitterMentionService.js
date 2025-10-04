@@ -286,13 +286,23 @@ Author: @${author}
 
 Rules:
 - BE GENEROUS: Reply to almost everything UNLESS it's obvious spam/bots
-- If someone mentions @dgnoracle in ANY context (introductions, recommendations, questions), REPLY
-- If ANY token symbol ($BONK, @token, etc.) is mentioned, it's "kol_opinion"
-- Type "casual" for greetings, thanks, questions about the platform, general chat
-- Type "kol_opinion" if they mention ANY tokens, symbols, or crypto projects
+- CONTEXT MATTERS:
+  * If introducing @dgnoracle to another project/platform/AI → "casual" (e.g., "let me introduce you to @X")
+  * If asking about price/trading/performance of a token → "kol_opinion" (e.g., "what do you think about $BONK?")
+  * If providing contract address → "contract_analysis"
+  * If greeting, thanking, or general chat → "casual"
+  
+- Type "casual" for: introductions, greetings, thanks, recommendations, questions about the platform
+- Type "kol_opinion" ONLY if: asking for token analysis, price opinions, trading insights, or "is X a buy?"
 - Type "contract_analysis" if they provide a Solana contract address (32-44 char base58 string)
-- Extract ALL symbols like $BONK, @memeputer, etc.
+- Extract ALL symbols ($BONK, @token) but DON'T treat them as analysis requests if they're mentioned in other contexts
 - ONLY skip: obvious spam (crypto giveaways, phishing links), bot replies, or completely unrelated topics
+
+Examples:
+- "let me introduce you to @memeputer" → casual (introduction, not asking for analysis)
+- "what do you think about $BONK?" → kol_opinion (asking for token analysis)
+- "check out @newtoken, it's pumping" → kol_opinion (discussing token performance)
+- "thanks for the alpha @dgnoracle!" → casual (gratitude)
 
 Respond in JSON format:
 {
