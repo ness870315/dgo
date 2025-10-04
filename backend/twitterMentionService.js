@@ -328,23 +328,33 @@ Reply:`;
       
       try {
         // Fetch Moralis Token Analytics for volume and buy/sell pressure
-        if (this.backend.moralisService) {
-          const { default: TechnicalAnalysisService } = await import('./services/TechnicalAnalysisService.js');
-          const techAnalysisService = new TechnicalAnalysisService();
-          const moralisAnalytics = await techAnalysisService.getMoralisTokenAnalytics(tokenData.contractAddress);
-          enhancedData.moralisAnalytics = moralisAnalytics;
-          console.log(`📊 [MENTIONS] Fetched Moralis TokenAnalytics for ${symbol}`);
-        }
-        
+        console.log(`📊 [MENTIONS] Fetching Moralis TokenAnalytics for ${symbol}...`);
+        const { default: TechnicalAnalysisService } = await import('./services/TechnicalAnalysisService.js');
+        const techAnalysisService = new TechnicalAnalysisService();
+        const moralisAnalytics = await techAnalysisService.getMoralisTokenAnalytics(tokenData.contractAddress);
+        enhancedData.moralisAnalytics = moralisAnalytics;
+        console.log(`✅ [MENTIONS] Fetched Moralis TokenAnalytics for ${symbol}:`, {
+          volume24h: moralisAnalytics.volume_24h || moralisAnalytics.volume24h,
+          buyVolume: moralisAnalytics.buy_volume_24h || moralisAnalytics.buyVolume24h,
+          sellVolume: moralisAnalytics.sell_volume_24h || moralisAnalytics.sellVolume24h
+        });
+      } catch (moralisError) {
+        console.warn(`⚠️ [MENTIONS] Failed to fetch Moralis Analytics for ${symbol}:`, moralisError.message);
+      }
+      
+      try {
         // Fetch Holder Timeseries data for detailed holder insights
-        if (this.backend.holderTimeseriesService) {
-          const holderData = await this.backend.holderTimeseriesService.getHolderInsights(tokenData.contractAddress);
-          enhancedData.holderData = holderData;
-          console.log(`👥 [MENTIONS] Fetched Holder data for ${symbol}`);
-        }
-      } catch (enhancedError) {
-        console.warn(`⚠️ [MENTIONS] Failed to fetch enhanced data for ${symbol}:`, enhancedError.message);
-        // Continue with basic data
+        console.log(`👥 [MENTIONS] Fetching Holder data for ${symbol}...`);
+        const { default: HolderTimeseriesService } = await import('./services/HolderTimeseriesService.js');
+        const holderTimeseriesService = new HolderTimeseriesService();
+        const holderData = await holderTimeseriesService.getHolderInsights(tokenData.contractAddress);
+        enhancedData.holderData = holderData;
+        console.log(`✅ [MENTIONS] Fetched Holder data for ${symbol}:`, {
+          totalHolders: holderData.holderStats?.totalHolders,
+          whales: holderData.holderStats?.holderDistribution?.whales
+        });
+      } catch (holderError) {
+        console.warn(`⚠️ [MENTIONS] Failed to fetch Holder data for ${symbol}:`, holderError.message);
       }
       
       // Generate KOL-style opinion with enhanced data
