@@ -348,18 +348,21 @@ Reply:`;
     }
   }
 
-  // Get holder insights
+  // Get holder insights from Moralis
   async getHolderInsights(contractAddress) {
     try {
-      // Use the same holder analysis service used for thesis generation
-      const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-      const response = await fetch(`${API_BASE}/api/holders/${contractAddress}`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        return data;
+      // Use backend's Moralis integration directly
+      if (this.backend && this.backend.moralisService) {
+        console.log(`📊 [MENTIONS] Fetching Moralis holder stats for ${contractAddress}`);
+        const holderStats = await this.backend.moralisService.getTokenHolderStats(contractAddress);
+        
+        if (holderStats) {
+          console.log(`✅ [MENTIONS] Got holder stats: ${holderStats.totalHolders} holders, ${holderStats.holderDistribution?.whales || 0} whales`);
+          return holderStats;
+        }
       }
       
+      console.log(`⚠️ [MENTIONS] No holder insights available for ${contractAddress}`);
       return null;
     } catch (error) {
       console.error('❌ [MENTIONS] Error fetching holder insights:', error.message);
@@ -370,41 +373,67 @@ Reply:`;
   // Generate KOL-style analysis
   async generateKOLAnalysis(symbol, tokenData, holderInsights) {
     try {
-      // Build context from data
-      const mcap = tokenData.jupiterData?.mcap || tokenData.marketCap || 0;
-      const volume24h = tokenData.volume24h || 0;
+      // Extract data from token cache (already has Jupiter data!)
+      const mcap = tokenData.mcap || tokenData.marketCap || tokenData.jupiterData?.mcap || 0;
+      const volume24h = tokenData.volume24h || tokenData.stats24h?.volume || 0;
       const volumeToMcap = mcap > 0 ? (volume24h / mcap * 100).toFixed(1) : 0;
-      const holderCount = tokenData.jupiterData?.holderCount || 0;
-      const liquidityUsd = tokenData.jupiterData?.liquidity || 0;
+      const holderCount = tokenData.holderCount || tokenData.jupiterData?.holderCount || 0;
+      const liquidityUsd = tokenData.liquidity || tokenData.jupiterData?.liquidity || 0;
       
-      // Holder insights summary
-      const topHoldersPct = holderInsights?.topHoldersPercentage || 0;
-      const whaleActivity = holderInsights?.whaleActivity || 'unknown';
-      const distribution = holderInsights?.distribution || 'unknown';
+      console.log(`📊 [MENTIONS] Token data for ${symbol}:`, {
+        mcap,
+        volume24h,
+        volumeToMcap: `${volumeToMcap}%`,
+        holderCount,
+        liquidityUsd
+      });
+      
+      // Build holder insights summary from Moralis data
+      let holderContext = '';
+      if (holderInsights) {
+        const whales = holderInsights.holderDistribution?.whales || 0;
+        const topHoldersPct = holderInsights.holderSupply?.top10?.supplyPercent || 0;
+        const holderChange24h = holderInsights.holderChange?.['24h']?.change || 0;
+        const holderChange30d = holderInsights.holderChange?.['30d']?.change || 0;
+        
+        holderContext = `
+Whales: ${whales}
+Top 10 Control: ${topHoldersPct.toFixed(1)}%
+Holder Change (24h): ${holderChange24h > 0 ? '+' : ''}${holderChange24h}
+Holder Change (30d): ${holderChange30d > 0 ? '+' : ''}${holderChange30d}`;
+        
+        console.log(`💎 [MENTIONS] Holder insights for ${symbol}:`, {
+          whales,
+          topHoldersPct: `${topHoldersPct.toFixed(1)}%`,
+          change24h: holderChange24h,
+          change30d: holderChange30d
+        });
+      }
       
       const dataContext = `
 Token: $${symbol}
 Market Cap: $${(mcap / 1000000).toFixed(2)}M
-24h Volume: $${(volume24h / 1000).toFixed(0)}K
+24h Volume: $${(volume24h / 1000).toFixed(1)}K
 Volume/MCap: ${volumeToMcap}%
 Holders: ${holderCount.toLocaleString()}
-Liquidity: $${(liquidityUsd / 1000).toFixed(0)}K
-Top 10 Holders: ${topHoldersPct}%
-Whale Activity: ${whaleActivity}
-Distribution: ${distribution}`;
+Liquidity: $${(liquidityUsd / 1000).toFixed(1)}K${holderContext}`;
 
-      const prompt = `You are a legendary crypto KOL giving a QUICK take on a token. Be direct, use degen slang, and base your opinion on the data.
+      console.log(`📝 [MENTIONS] Data context for GPT-4:\n${dataContext}`);
+
+      const prompt = `You are a legendary crypto KOL giving a QUICK take on a token. Be direct, use degen slang, and base your opinion STRICTLY on the data provided.
 
 ${dataContext}
 
 Generate a SHORT KOL opinion (max 200 chars):
-- Start with a vibe: bullish/bearish/cautious
+- Start with a vibe: bullish/bearish/cautious based on the DATA
 - Mention 1-2 KEY facts that support your take
-- Use crypto degen language (moon, rekt, aping, conviction, etc.)
-- Be confident but not financial advice
+- Use crypto degen language (moon, rekt, aping, conviction, diamond hands, etc.)
+- Be confident but add "NFA" (not financial advice) at end if bullish
 - NO hashtags, NO long explanations
-- Example tone: "Whales are feasting and holders have conviction, this is ready to moon 🚀"
-- Another example: "Volume is dead and retail is panic selling...I wouldn't touch this with a 10ft pole 📉"
+- Examples:
+  * Bullish: "79K volume pumping and 86 whales holding strong 💎 Looks ready to moon, but DYOR. NFA 🚀"
+  * Bearish: "Volume is dead and retail panic selling. I wouldn't touch this rn 📉"
+  * Cautious: "Decent setup but top 10 control 57%. Wait for better entry or get rekt 🤷"
 
 Opinion:`;
 
