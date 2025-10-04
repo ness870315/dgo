@@ -31,10 +31,10 @@ class TwitterMentionService {
     this.personalities = [
       {
         name: 'Ultra Degen',
-        style: 'Pure degen chaos. All caps energy, maximum slang, zero filter. Talk like you just aped your rent money.',
+        style: 'Excited degen energy with caps and slang, but stay positive and fun. Hype the good, be cautious (not mean) on the bad.',
         examples: [
-          'APING $ABC RN. WHALES LOADING BAGS, RETAIL FOMO IS REAL. THIS GONNA MOON OR I\'M COOKED 🚀🚀🚀',
-          '$XYZ IS DEAD AF. WHALES DUMPED, RETAIL FLED. RUG VIBES. STAYING FAR AWAY 💀'
+          'APING $ABC RN! Whales loading bags, retail FOMO kicking in. This could print big 🚀🚀',
+          '$XYZ looking shaky ngl. Whales exiting, volume thin. Gonna sit this one out and watch 👀'
         ]
       },
       {
@@ -257,10 +257,15 @@ class TwitterMentionService {
   // Analyze mention to understand context and extract tokens
   async analyzeMention(text, author) {
     try {
+      // First, check if this is a contract address (Solana addresses are 32-44 chars, base58)
+      const contractRegex = /\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/;
+      const contractMatch = text.match(contractRegex);
+      
       const prompt = `You are analyzing a Twitter mention to @dgnoracle. Determine:
 1. Should we reply? (yes/no)
-2. Type of reply needed: "casual" (general chat) or "kol_opinion" (crypto analysis)
+2. Type of reply needed: "casual" (general chat), "kol_opinion" (crypto analysis), or "contract_analysis" (user provided contract address)
 3. Extract any mentioned tokens/tickers (symbols starting with $ or @)
+4. Extract contract address if present (Solana addresses are long alphanumeric strings)
 
 Mention: "${text}"
 Author: @${author}
@@ -270,13 +275,15 @@ Rules:
 - SKIP spam, promotional tweets, or unrelated content
 - Type "casual" for greetings, questions about the platform, general chat
 - Type "kol_opinion" if they mention specific tokens, ask for analysis, or want trading insights
+- Type "contract_analysis" if they provide a Solana contract address (32-44 char base58 string)
 - Extract symbols like $BONK, @memeputer, etc.
 
 Respond in JSON format:
 {
   "shouldReply": true/false,
-  "replyType": "casual" or "kol_opinion",
+  "replyType": "casual" or "kol_opinion" or "contract_analysis",
   "tokens": ["SYMBOL1", "SYMBOL2"],
+  "contractAddress": "address_if_found" or null,
   "reason": "brief explanation"
 }`;
 
@@ -291,6 +298,13 @@ Respond in JSON format:
       if (jsonMatch) {
         const analysis = JSON.parse(jsonMatch[0]);
         analysis.originalText = text; // Store original text for context
+        
+        // If AI missed the contract but regex found it, add it
+        if (contractMatch && !analysis.contractAddress) {
+          analysis.contractAddress = contractMatch[0];
+          analysis.replyType = 'contract_analysis';
+        }
+        
         console.log(`🧠 [MENTIONS] Analysis:`, analysis);
         return analysis;
       }
@@ -315,6 +329,9 @@ Respond in JSON format:
     try {
       if (analysis.replyType === 'casual') {
         return await this.generateCasualReply(analysis, author);
+      } else if (analysis.replyType === 'contract_analysis' && analysis.contractAddress) {
+        // User provided a contract address - fetch from Jupiter and analyze
+        return await this.analyzeContractAddress(analysis.contractAddress, author);
       } else if (analysis.replyType === 'kol_opinion') {
         return await this.generateKOLOpinion(analysis, author);
       }
@@ -375,7 +392,27 @@ Reply:`;
       const tokenData = await this.getTokenData(symbol);
       
       if (!tokenData) {
-        return `@${author} Can't find ${symbol} in my systems. Either it's not on Solana or it's too early/dead. 🤷`;
+        // Token not in cache - provide graceful fallback
+        const fallbackResponses = [
+          `@${author} Need to look closer at ${symbol}. Not in my radar yet. Drop the contract if you got it and I'll dig in 🔍`,
+          `@${author} ${symbol}? Tracking it now to see if this is a moon-mission or a trip to rekt-town. Give me the contract for faster analysis 👀`,
+          `@${author} Don't have ${symbol} data loaded yet. Send me the contract address and I'll run the numbers 📊`,
+          `@${author} ${symbol} isn't in my systems rn. Either too new or not on my watchlist. Drop the CA if you want me to analyze it 🤷`
+        ];
+        const randomResponse = fallbackResponses[Math.floor(Math.random() * fallbackResponses.length)];
+        
+        // Only ask for contract 50% of the time to avoid being repetitive
+        if (Math.random() > 0.5) {
+          return randomResponse;
+        } else {
+          // Simpler response without asking for contract
+          const simpleResponses = [
+            `@${author} Need more time to track ${symbol}. Not on my radar yet 🔍`,
+            `@${author} ${symbol}? Gonna need to study this one first. Check back soon 👀`,
+            `@${author} Don't have ${symbol} loaded yet. Too new or flying under radar 🤷`
+          ];
+          return simpleResponses[Math.floor(Math.random() * simpleResponses.length)];
+        }
       }
       
       // Fetch enhanced data (same as thesis generator)
@@ -445,6 +482,95 @@ Reply:`;
     } catch (error) {
       console.error('❌ [MENTIONS] Error generating KOL opinion:', error.message);
       return `@${author} Can't analyze rn anon, systems are cooking. Try again later! 🔥`;
+    }
+  }
+
+  // Analyze token by contract address (when token not in cache)
+  async analyzeContractAddress(contractAddress, author) {
+    try {
+      console.log(`📍 [MENTIONS] Fetching token from Jupiter by contract: ${contractAddress}`);
+      
+      // Fetch token data from Jupiter API
+      const axios = (await import('axios')).default;
+      const jupiterResponse = await axios.get(`https://tokens.jup.ag/token/${contractAddress}`, {
+        timeout: 10000
+      });
+      
+      if (!jupiterResponse.data) {
+        return `@${author} Can't find that contract on Jupiter. Make sure it's a valid Solana token address 🤷`;
+      }
+      
+      const jupiterData = jupiterResponse.data;
+      const symbol = jupiterData.symbol || 'UNKNOWN';
+      
+      console.log(`✅ [MENTIONS] Found token from Jupiter: ${symbol}`);
+      
+      // Build basic token data structure
+      const tokenData = {
+        symbol: symbol,
+        name: jupiterData.name,
+        contractAddress: contractAddress,
+        jupiterData: jupiterData,
+        mcap: jupiterData.mcap || 0,
+        liquidity: jupiterData.liquidity || 0,
+        holderCount: jupiterData.holderCount || 0
+      };
+      
+      // Fetch enhanced data (Moralis + Holders)
+      let enhancedData = { ...tokenData };
+      
+      try {
+        // Fetch Moralis Token Analytics
+        console.log(`📊 [MENTIONS] Fetching Moralis TokenAnalytics for ${symbol}...`);
+        const { default: TechnicalAnalysisService } = await import('./services/TechnicalAnalysisService.js');
+        const techAnalysisService = new TechnicalAnalysisService();
+        const moralisAnalytics = await techAnalysisService.getMoralisTokenAnalytics(contractAddress);
+        enhancedData.moralisAnalytics = moralisAnalytics;
+        console.log(`✅ [MENTIONS] Fetched Moralis Analytics for ${symbol}`);
+      } catch (moralisError) {
+        console.warn(`⚠️ [MENTIONS] Failed to fetch Moralis Analytics:`, moralisError.message);
+      }
+      
+      try {
+        // Fetch Holder data
+        console.log(`👥 [MENTIONS] Fetching Holder stats for ${symbol}...`);
+        const { default: HolderTimeseriesService } = await import('./services/HolderTimeseriesService.js');
+        const holderService = new HolderTimeseriesService();
+        const holderAnalysis = await holderService.getHolderChangeAnalysis(contractAddress);
+        
+        if (holderAnalysis.success) {
+          const API_BASE = 'https://solana-gateway.moralis.io';
+          const API_KEY = process.env.MORALIS_API_KEY;
+          
+          if (API_KEY) {
+            const response = await axios.get(
+              `${API_BASE}/token/mainnet/holders/${contractAddress}`,
+              {
+                headers: {
+                  'X-API-Key': API_KEY,
+                  'Content-Type': 'application/json'
+                }
+              }
+            );
+            
+            if (response.status === 200 && response.data) {
+              enhancedData.holderStats = response.data;
+              enhancedData.holderAnalysis = holderAnalysis;
+              console.log(`✅ [MENTIONS] Fetched Holder data for ${symbol}`);
+            }
+          }
+        }
+      } catch (holderError) {
+        console.warn(`⚠️ [MENTIONS] Failed to fetch Holder data:`, holderError.message);
+      }
+      
+      // Generate KOL opinion with the fetched data
+      const opinion = await this.generateKOLAnalysis(symbol, enhancedData);
+      return `@${author} ${opinion}`;
+      
+    } catch (error) {
+      console.error(`❌ [MENTIONS] Error analyzing contract:`, error.message);
+      return `@${author} Had trouble fetching that contract. Make sure it's a valid Solana token address on Jupiter 🤷`;
     }
   }
 
