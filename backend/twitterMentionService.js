@@ -334,9 +334,9 @@ Reply:`;
         const moralisAnalytics = await techAnalysisService.getMoralisTokenAnalytics(tokenData.contractAddress);
         enhancedData.moralisAnalytics = moralisAnalytics;
         console.log(`✅ [MENTIONS] Fetched Moralis TokenAnalytics for ${symbol}:`, {
-          volume24h: moralisAnalytics.volume_24h || moralisAnalytics.volume24h,
-          buyVolume: moralisAnalytics.buy_volume_24h || moralisAnalytics.buyVolume24h,
-          sellVolume: moralisAnalytics.sell_volume_24h || moralisAnalytics.sellVolume24h
+          volume24h: moralisAnalytics.totalVolume?.['24h'] || moralisAnalytics.volume?.['24h'],
+          buyVolume: moralisAnalytics.totalBuyVolume?.['24h'],
+          sellVolume: moralisAnalytics.totalSellVolume?.['24h']
         });
       } catch (moralisError) {
         console.warn(`⚠️ [MENTIONS] Failed to fetch Moralis Analytics for ${symbol}:`, moralisError.message);
@@ -417,10 +417,11 @@ Reply:`;
       let sellPressure = 0;
       if (tokenData.moralisAnalytics) {
         const analytics = tokenData.moralisAnalytics;
-        // Moralis Analytics fields from callThesisGenerator
-        volume24h = analytics.totalVolume?.['24h'] || analytics.volume?.['24h'] || 0;
+        // Extract buy/sell volumes
         buyPressure = analytics.totalBuyVolume?.['24h'] || 0;
         sellPressure = analytics.totalSellVolume?.['24h'] || 0;
+        // Calculate total volume from buy + sell (Moralis doesn't always have totalVolume field)
+        volume24h = buyPressure + sellPressure;
         console.log(`📊 [MENTIONS] Moralis Analytics for ${symbol}:`, {
           volume24h,
           buyPressure,
