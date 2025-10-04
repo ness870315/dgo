@@ -52,11 +52,11 @@ const KOLLeaderboardGuide = ({ onClose }) => {
           <div>
             <h4 className="text-blue-300 font-semibold mb-2">Trust Levels</h4>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm text-gray-300">
-              <div><span className="text-yellow-400">Elite KOL</span> (80+) - Top 1%</div>
-              <div><span className="text-purple-400">Expert KOL</span> (70+) - Consistently excellent</div>
-              <div><span className="text-blue-400">Trusted KOL</span> (60+) - Reliable performers</div>
-              <div><span className="text-green-400">Rising KOL</span> (50+) - Promising newcomers</div>
-              <div><span className="text-orange-400">Developing KOL</span> (40+) - Learning phase</div>
+              <div><span className="text-yellow-400">Elite KOL</span> (70+) - Top performers</div>
+              <div><span className="text-purple-400">Expert KOL</span> (60-69) - Consistently excellent</div>
+              <div><span className="text-blue-400">Trusted KOL</span> (50-59) - Reliable performers</div>
+              <div><span className="text-green-400">Rising KOL</span> (40-49) - Promising newcomers</div>
+              <div><span className="text-orange-400">Developing KOL</span> (20-39) - Learning phase</div>
             </div>
           </div>
         </div>

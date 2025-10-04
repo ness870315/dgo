@@ -126,7 +126,7 @@ const EnhancedKOLLeaderboard = ({ onClose, onUserClick }) => {
           <div className="text-right">
             <div className="flex items-center justify-end space-x-2 sm:space-x-4 text-xs sm:text-sm">
               <div className="text-center">
-                <div className="text-green-400 font-semibold text-sm sm:text-lg">{trustScore.toFixed(0)}</div>
+                <div className="text-green-400 font-semibold text-sm sm:text-lg">{trustScore.toFixed(1)}</div>
                 <div className="text-gray-400 text-xs">Score</div>
               </div>
               
