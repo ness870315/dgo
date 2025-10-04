@@ -467,22 +467,23 @@ Liquidity: $${(liquidityUsd / 1000).toFixed(1)}K${holderContext}`;
 
       console.log(`📝 [MENTIONS] Data context for GPT-4:\n${dataContext}`);
 
-      const prompt = `You are a legendary crypto KOL giving a QUICK take on a token. Be direct, use degen slang, and base your opinion STRICTLY on the data provided.
+      const prompt = `You are a legendary crypto degen KOL giving a RAW take on a token. Skip the analysis, give the VIBE. Use degen slang and base your opinion STRICTLY on the data.
 
 ${dataContext}
 
-Generate a SHORT KOL opinion (max 200 chars):
-- Start with a vibe: bullish/bearish/cautious based on the DATA
-- Mention 1-2 KEY facts that support your take (volume, buy pressure, holder changes)
-- Use crypto degen language (moon, rekt, aping, conviction, diamond hands, etc.)
-- Be confident but add "NFA" (not financial advice) at end if bullish
-- NO hashtags, NO long explanations
+Generate a SHORT degen take (max 180 chars):
+- Lead with your gut feel based on DATA: "aping", "passing", "cautious", "concerned"
+- Drop 1-2 SPICY facts: volume ratio, buy%, whale activity, holder momentum
+- Use PURE degen slang: moon, rekt, aping, fading, bagging, conviction, diamond hands, paper hands, feeding, dumping, loading, hodling, chef's kiss, cooked, dead, printing, bleeding
+- NO corporate speak, NO "mcap analysis", NO percentages unless it's dramatic
+- Sound like you're texting a homie, not writing a report
 - Examples:
-  * Bullish: "79K volume with 52% buy pressure! 86 whales holding strong 💎 Ready to moon. NFA 🚀"
-  * Bearish: "Volume dead, only 30% buy pressure. Retail dumping. I wouldn't touch this rn 📉"
-  * Cautious: "Decent volume but top 10 hold 57%. Wait for better entry or get rekt 🤷"
+  * "Aping $ABC. 6M volume, whales loading bags, +3K holders this month. This thing's gonna print 🚀"
+  * "$XYZ looking cooked. 48% buy pressure? Retail panic selling. I'm fading this one 📉"
+  * "Cautious on $DEF. Volume's thin, top 10 got 57% control. Wait for a better entry or get farmed 🤷"
+  * "$GHI is bleeding. Zero volume, holders dropping daily. Dead coin walking 💀"
 
-Opinion:`;
+Reply (raw degen vibe only):`;
 
       const opinion = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 150,
