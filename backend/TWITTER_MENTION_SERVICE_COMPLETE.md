@@ -189,6 +189,28 @@ TwitterMentionService
 
 ---
 
+---
+
+## ⚠️ **CURRENT STATUS: STANDBY MODE**
+
+The service is **integrated and running**, but mention fetching is currently in **standby mode** until Twitter API v2 `getMentions` is properly integrated into `OAuthXService`.
+
+**What's Working:**
+- ✅ Service initialization and startup
+- ✅ Admin dashboard controls
+- ✅ State persistence
+- ✅ AI reply generation logic
+- ✅ Background polling every 10 minutes
+
+**What's Pending:**
+- ⏸️ Twitter API v2 mention fetching (waiting for OAuthXService integration)
+- ⏸️ Actual mention detection and reply posting
+
+**Next Step:**
+Add `getMentions()` method to `OAuthXService` to enable full functionality. The service will then automatically start processing mentions.
+
+---
+
 *Created: October 4, 2025*  
-*Status: PRODUCTION READY ✅*
+*Status: STANDBY MODE ⏸️ (Awaiting Twitter API v2 integration)*
 

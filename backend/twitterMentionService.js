@@ -141,8 +141,15 @@ class TwitterMentionService {
       
       url += '?' + params.toString();
       
-      // Get Twitter credentials from OAuthXService
-      const credentials = await this.twitterService.oauthXService.db.getTwitterCredentials(userId);
+      // TODO: Get Twitter credentials from OAuthXService
+      // For now, service is in standby mode until Twitter API v2 getMentions is properly integrated
+      console.log('⚠️ [MENTIONS] Twitter API v2 mention fetching not yet fully integrated');
+      console.log('   Service running in standby mode - awaiting OAuthXService getMentions implementation');
+      return [];
+      
+      /* Uncomment when OAuthXService has proper getMentions support:
+      
+      const credentials = await this.twitterService.oauthXService.getCredentials(userId);
       
       if (!credentials || !credentials.accessToken) {
         console.error('❌ [MENTIONS] Twitter credentials not found for dgnoracle');
@@ -195,6 +202,7 @@ class TwitterMentionService {
       
       console.log(`📬 [MENTIONS] Found ${mentions.length} new mentions`);
       return mentions;
+      */
       
     } catch (error) {
       console.error('❌ [MENTIONS] Error fetching mentions:', error.message);
