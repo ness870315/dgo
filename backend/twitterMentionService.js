@@ -410,7 +410,10 @@ Reply (without @username):`;
         model: 'gpt-3.5-turbo'
       });
       
-      return `@${author} ${reply.trim()}`;
+      // Remove any hashtags from the reply
+      const cleanReply = reply.trim().replace(/#\w+/g, '').replace(/\s+/g, ' ').trim();
+      
+      return `@${author} ${cleanReply}`;
       
     } catch (error) {
       console.error('❌ [MENTIONS] Error generating casual reply:', error.message);
@@ -780,7 +783,10 @@ Reply (without @username):`;
         model: 'gpt-4' // Use GPT-4 for better analysis
       });
       
-      return opinion.trim();
+      // Remove any hashtags from the opinion
+      const cleanOpinion = opinion.trim().replace(/#\w+/g, '').replace(/\s+/g, ' ').trim();
+      
+      return cleanOpinion;
       
     } catch (error) {
       console.error('❌ [MENTIONS] Error generating KOL analysis:', error.message);
