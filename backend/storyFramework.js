@@ -61,6 +61,48 @@ export const storyFramework = {
     "Alpha waits for no one. ⚡",
     "Stop guessing. Start knowing.",
     "The future of meme coin discovery is AI."
+  ],
+
+  // 6. Cult & KOL Spotting (Spotting Cults & Building Reputation)
+  cultSpotting: [
+    "Spot the next cult. Make the call. Become the KOL.",
+    "Every cult starts with one call.",
+    "Spot early. Call loud. Earn trust.",
+    "Call the cults, build the clout."
+  ],
+
+  // 7. Numbers & Data Focus (Data-Driven Conviction)
+  numbersFocus: [
+    "We crunch the numbers. You make the call.",
+    "Numbers don't lie. Calls make legends.",
+    "Crunch the data, call the future.",
+    "We run the math, you run the timeline."
+  ],
+
+  // 8. On-Chain Truth (On-Chain > Everything Else)
+  onChainTruth: [
+    "On-chain data > rumors.",
+    "Alpha lives on-chain.",
+    "Forget narratives. Follow the chain.",
+    "On-chain data is the only truth."
+  ],
+
+  // 9. Community as Core (Community = Utility)
+  communityCore: [
+    "Community is the utility.",
+    "Hype fades. Community holds.",
+    "Tokens pump. Community lasts.",
+    "No community, no cult."
+  ],
+
+  // 10. Blended Power Statements (Multi-Concept Punchlines)
+  blendedPower: [
+    "Spot the next cult with on-chain data. Become the trusted KOL.",
+    "We crunch numbers, community makes the cult.",
+    "On-chain data + community = conviction.",
+    "Spot the cult. Make the call. Community is the utility.",
+    "Crunch the numbers. Trust the chain. Build the community.",
+    "Alpha is on-chain. Power is in the community."
   ]
 };
 
@@ -75,9 +117,13 @@ export function generateTweet(includeLinkProbability = 0.4) {
   // Strategy 2: Short Punch (Hook + Solution + Close)
   // Strategy 3: Feature Focus (Solution + Edge + Close)
   // Strategy 4: Game Layer Focus (Game + Edge + Close)
+  // Strategy 5: Cult Spotting Focus (CultSpotting + OnChain/Numbers + Close)
+  // Strategy 6: Data-Driven (NumbersFocus + OnChainTruth + Close)
+  // Strategy 7: Community First (CommunityCore + CultSpotting + Close)
+  // Strategy 8: Blended Power (BlendedPower standalone or + Close)
   
   const strategies = [
-    // Full story (30%)
+    // Full story (15%)
     () => {
       return [
         randomPick(storyFramework.hooks),
@@ -87,7 +133,7 @@ export function generateTweet(includeLinkProbability = 0.4) {
         randomPick(storyFramework.closes)
       ].join('\n\n');
     },
-    // Short punch (30%)
+    // Short punch (15%)
     () => {
       return [
         randomPick(storyFramework.hooks),
@@ -95,7 +141,7 @@ export function generateTweet(includeLinkProbability = 0.4) {
         randomPick(storyFramework.closes)
       ].join('\n\n');
     },
-    // Feature focus (20%)
+    // Feature focus (10%)
     () => {
       return [
         randomPick(storyFramework.solutions),
@@ -103,13 +149,46 @@ export function generateTweet(includeLinkProbability = 0.4) {
         randomPick(storyFramework.closes)
       ].join('\n\n');
     },
-    // Game layer focus (20%)
+    // Game layer focus (10%)
     () => {
       return [
         randomPick(storyFramework.gameLayers),
         randomPick(storyFramework.edges),
         randomPick(storyFramework.closes)
       ].join('\n\n');
+    },
+    // Cult spotting focus (15%)
+    () => {
+      return [
+        randomPick(storyFramework.cultSpotting),
+        randomPick([...storyFramework.onChainTruth, ...storyFramework.numbersFocus]),
+        randomPick(storyFramework.closes)
+      ].join('\n\n');
+    },
+    // Data-driven (15%)
+    () => {
+      return [
+        randomPick(storyFramework.numbersFocus),
+        randomPick(storyFramework.onChainTruth),
+        randomPick(storyFramework.closes)
+      ].join('\n\n');
+    },
+    // Community first (10%)
+    () => {
+      return [
+        randomPick(storyFramework.communityCore),
+        randomPick(storyFramework.cultSpotting),
+        randomPick(storyFramework.closes)
+      ].join('\n\n');
+    },
+    // Blended power standalone (10%)
+    () => {
+      const blended = randomPick(storyFramework.blendedPower);
+      // 50% chance to add a close
+      if (Math.random() < 0.5) {
+        return [blended, randomPick(storyFramework.closes)].join('\n\n');
+      }
+      return blended;
     }
   ];
 
@@ -127,12 +206,29 @@ export function generateTweet(includeLinkProbability = 0.4) {
 
 // Generate a tweet using OpenAI LLM for more natural variation
 export async function generateTweetWithLLM(openaiService) {
-  // Get base components
-  const hook = randomPick(storyFramework.hooks);
-  const solution = randomPick(storyFramework.solutions);
-  const edge = randomPick(storyFramework.edges);
-  const gameLayer = randomPick(storyFramework.gameLayers);
-  const close = randomPick(storyFramework.closes);
+  // Get base components from ALL categories
+  const allComponents = [
+    randomPick(storyFramework.hooks),
+    randomPick(storyFramework.solutions),
+    randomPick(storyFramework.edges),
+    randomPick(storyFramework.gameLayers),
+    randomPick(storyFramework.closes),
+    randomPick(storyFramework.cultSpotting),
+    randomPick(storyFramework.numbersFocus),
+    randomPick(storyFramework.onChainTruth),
+    randomPick(storyFramework.communityCore),
+    randomPick(storyFramework.blendedPower)
+  ];
+  
+  // Randomly select 3-5 components for variety
+  const selectedComponents = [];
+  const numComponents = Math.floor(Math.random() * 3) + 3; // 3-5 components
+  for (let i = 0; i < numComponents; i++) {
+    const component = allComponents[Math.floor(Math.random() * allComponents.length)];
+    if (!selectedComponents.includes(component)) {
+      selectedComponents.push(component);
+    }
+  }
   
   const includeLink = Math.random() < 0.4;
   
@@ -141,11 +237,7 @@ export async function generateTweetWithLLM(openaiService) {
 
 Use these story elements to create ONE engaging tweet (max 280 chars):
 
-Hook: ${hook}
-Solution: ${solution}
-Edge: ${edge}
-Game Layer: ${gameLayer}
-Close: ${close}
+${selectedComponents.map((c, i) => `Element ${i + 1}: ${c}`).join('\n')}
 
 Rules:
 - Mix 2-3 of these elements naturally
@@ -153,6 +245,7 @@ Rules:
 - Sound confident and hype
 - Make it feel organic, not corporate
 - NO HASHTAGS - avoid using # symbols
+- Focus on: Cult spotting, KOL building, on-chain data, community, numbers
 ${includeLink ? '- End with: 👉 degen-oracle.com' : '- DO NOT include any links'}
 
 Tweet:`;
