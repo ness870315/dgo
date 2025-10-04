@@ -961,7 +961,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
 
         {/* KOL Profile Modal */}
         {selectedKolUser && (
-          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[60] p-4">
             <div className="bg-dark-card border border-gray-700 rounded-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto">
               <div className="p-4 border-b border-gray-700 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -1994,7 +1994,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
             onClose={() => setShowEnhancedLeaderboard(false)}
             onUserClick={(user) => {
               setSelectedKolUser(user);
-              setShowEnhancedLeaderboard(false);
+              // Keep leaderboard open - profile will show on top
             }}
           />
         )}
