@@ -343,16 +343,34 @@ Reply:`;
       }
       
       try {
-        // Fetch Holder Timeseries data for detailed holder insights
-        console.log(`👥 [MENTIONS] Fetching Holder data for ${symbol}...`);
-        const { default: HolderTimeseriesService } = await import('./services/HolderTimeseriesService.js');
-        const holderTimeseriesService = new HolderTimeseriesService();
-        const holderData = await holderTimeseriesService.getHolderInsights(tokenData.contractAddress);
-        enhancedData.holderData = holderData;
-        console.log(`✅ [MENTIONS] Fetched Holder data for ${symbol}:`, {
-          totalHolders: holderData.holderStats?.totalHolders,
-          whales: holderData.holderStats?.holderDistribution?.whales
-        });
+        // Fetch Holder data using Moralis directly (same as TokenDetails modal)
+        console.log(`👥 [MENTIONS] Fetching Holder stats for ${symbol}...`);
+        const axios = (await import('axios')).default;
+        const API_BASE = 'https://solana-gateway.moralis.io';
+        const API_KEY = process.env.MORALIS_API_KEY;
+        
+        if (API_KEY) {
+          const response = await axios.get(
+            `${API_BASE}/token/mainnet/holders/${tokenData.contractAddress}`,
+            {
+              headers: {
+                'X-API-Key': API_KEY,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          
+          if (response.status === 200 && response.data) {
+            enhancedData.holderStats = response.data;
+            console.log(`✅ [MENTIONS] Fetched Holder stats for ${symbol}:`, {
+              totalHolders: response.data.totalHolders,
+              whales: response.data.holderDistribution?.whales,
+              top10Pct: response.data.holderSupply?.top10?.supplyPercent
+            });
+          }
+        } else {
+          console.warn(`⚠️ [MENTIONS] MORALIS_API_KEY not set, skipping holder data`);
+        }
       } catch (holderError) {
         console.warn(`⚠️ [MENTIONS] Failed to fetch Holder data for ${symbol}:`, holderError.message);
       }
@@ -399,56 +417,42 @@ Reply:`;
       let sellPressure = 0;
       if (tokenData.moralisAnalytics) {
         const analytics = tokenData.moralisAnalytics;
-        volume24h = analytics.volume_24h || analytics.volume24h || 0;
-        buyPressure = analytics.buy_volume_24h || analytics.buyVolume24h || 0;
-        sellPressure = analytics.sell_volume_24h || analytics.sellVolume24h || 0;
+        // Moralis Analytics fields from callThesisGenerator
+        volume24h = analytics.totalVolume?.['24h'] || analytics.volume?.['24h'] || 0;
+        buyPressure = analytics.totalBuyVolume?.['24h'] || 0;
+        sellPressure = analytics.totalSellVolume?.['24h'] || 0;
         console.log(`📊 [MENTIONS] Moralis Analytics for ${symbol}:`, {
           volume24h,
           buyPressure,
           sellPressure,
-          buyPct: buyPressure > 0 ? ((buyPressure / (buyPressure + sellPressure)) * 100).toFixed(1) : 0
+          buyPct: (buyPressure + sellPressure) > 0 ? ((buyPressure / (buyPressure + sellPressure)) * 100).toFixed(1) : 0
         });
       }
       
       const volumeToMcap = mcap > 0 ? (volume24h / mcap * 100).toFixed(1) : 0;
       const buyPct = (buyPressure + sellPressure) > 0 ? ((buyPressure / (buyPressure + sellPressure)) * 100).toFixed(1) : 50;
       
-      // Extract holder insights from Holder Data
+      // Extract holder insights from Holder Stats (direct from Moralis)
       let holderContext = '';
-      if (tokenData.holderData) {
-        const holderStats = tokenData.holderData.holderStats;
-        const holderTimeseries = tokenData.holderData.holderTimeseries;
+      if (tokenData.holderStats) {
+        const holderStats = tokenData.holderStats;
+        const whales = holderStats.holderDistribution?.whales || 0;
+        const topHoldersPct = holderStats.holderSupply?.top10?.supplyPercent || 0;
+        const holderChange24h = holderStats.holderChange?.['24h']?.change || 0;
+        const holderChange30d = holderStats.holderChange?.['30d']?.change || 0;
         
-        if (holderStats) {
-          const whales = holderStats.holderDistribution?.whales || 0;
-          const topHoldersPct = holderStats.holderSupply?.top10?.supplyPercent || 0;
-          const holderChange24h = holderStats.holderChange?.['24h']?.change || 0;
-          const holderChange30d = holderStats.holderChange?.['30d']?.change || 0;
-          
-          holderContext = `
+        holderContext = `
 Whales: ${whales}
 Top 10 Control: ${topHoldersPct.toFixed(1)}%
 Holder Change (24h): ${holderChange24h > 0 ? '+' : ''}${holderChange24h}
 Holder Change (30d): ${holderChange30d > 0 ? '+' : ''}${holderChange30d}`;
-          
-          console.log(`💎 [MENTIONS] Holder insights for ${symbol}:`, {
-            whales,
-            topHoldersPct: `${topHoldersPct.toFixed(1)}%`,
-            change24h: holderChange24h,
-            change30d: holderChange30d
-          });
-        }
         
-        if (holderTimeseries && holderTimeseries.data) {
-          // Calculate holder percentage change from timeseries
-          const data = holderTimeseries.data;
-          if (data.length >= 2) {
-            const latest = data[data.length - 1];
-            const earliest = data[0];
-            const holderPctChange = ((latest.holders - earliest.holders) / earliest.holders * 100).toFixed(1);
-            holderContext += `\nHolder % Change: ${holderPctChange > 0 ? '+' : ''}${holderPctChange}%`;
-          }
-        }
+        console.log(`💎 [MENTIONS] Holder insights for ${symbol}:`, {
+          whales,
+          topHoldersPct: `${topHoldersPct.toFixed(1)}%`,
+          change24h: holderChange24h,
+          change30d: holderChange30d
+        });
       }
       
       const dataContext = `
