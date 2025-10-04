@@ -24,7 +24,62 @@ class TwitterMentionService {
       ? path.join(process.env.DATA_DIR, 'twitter-mentions-state.json')
       : path.join(process.cwd(), 'data', 'global', 'twitter-mentions-state.json');
     
-    console.log('🐦 Twitter Mention Service initialized');
+    // Round-robin personality selector for variety
+    this.currentPersonalityIndex = 0;
+    
+    // Different KOL personalities for variety
+    this.personalities = [
+      {
+        name: 'Ultra Degen',
+        style: 'Pure degen chaos. All caps energy, maximum slang, zero filter. Talk like you just aped your rent money.',
+        examples: [
+          'APING $ABC RN. WHALES LOADING BAGS, RETAIL FOMO IS REAL. THIS GONNA MOON OR I\'M COOKED 🚀🚀🚀',
+          '$XYZ IS DEAD AF. WHALES DUMPED, RETAIL FLED. RUG VIBES. STAYING FAR AWAY 💀'
+        ]
+      },
+      {
+        name: 'Mysterious Insider',
+        style: 'Vague but intriguing. Hint at things without saying too much. Make them curious.',
+        examples: [
+          'Interesting moves on $ABC. Some wallets I watch are loading. That\'s all I\'ll say 👀',
+          '$XYZ... yeah I\'m watching that exit. Smart money knows something 🤐'
+        ]
+      },
+      {
+        name: 'Data Degen',
+        style: 'Drop specific numbers but keep it casual. Mix facts with slang.',
+        examples: [
+          '$ABC looking spicy. +15 whales in, 6M volume, 58% buy pressure. Could run 🔥',
+          'Passing $XYZ. -7 whales out, volume dead. Numbers don\'t lie 📉'
+        ]
+      },
+      {
+        name: 'Street Philosopher',
+        style: 'Philosophical but degen. Drop wisdom with the take.',
+        examples: [
+          '$ABC got that energy. When whales load and retail follows, history repeats. Not advice but I\'m watching 👁️',
+          'Market teaches lessons. $XYZ showing us what happens when smart money exits. Tale as old as time 📖'
+        ]
+      },
+      {
+        name: 'Hype Beast',
+        style: 'Maximum enthusiasm and FOMO energy. Everything is either mooning or dead, no middle ground.',
+        examples: [
+          '$ABC IS ABOUT TO GO PARABOLIC! Whales piling in, volume exploding, this is THE play rn! 🌙🚀💎',
+          '$XYZ is absolutely cooked. Dead coin walking. Ghost town. Next! ⚰️'
+        ]
+      },
+      {
+        name: 'Cautious Contrarian',
+        style: 'Always skeptical, always waiting. Play it safe but with attitude.',
+        examples: [
+          '$ABC looks decent but I\'m waiting. Whales in but retail panic selling still. Need confirmation 🤷',
+          'Everyone hyped on $XYZ but I see whales exiting. I\'ll pass and watch from sidelines 👀'
+        ]
+      }
+    ];
+    
+    console.log('🐦 Twitter Mention Service initialized with 6 personality modes');
   }
 
   // Load state from disk
@@ -490,24 +545,30 @@ Liquidity: $${(liquidityUsd / 1000).toFixed(1)}K${holderContext}`;
 
       console.log(`📝 [MENTIONS] Data context for GPT-4:\n${dataContext}`);
 
-      const prompt = `You are a legendary crypto degen KOL giving a RAW take on a token. Skip the analysis, give the VIBE. Use degen slang and base your opinion STRICTLY on the data.
+      // Get current personality (round-robin)
+      const personality = this.personalities[this.currentPersonalityIndex];
+      this.currentPersonalityIndex = (this.currentPersonalityIndex + 1) % this.personalities.length;
+      
+      console.log(`🎭 [MENTIONS] Using personality: ${personality.name}`);
+
+      const prompt = `You are a legendary crypto KOL with a specific personality. Give a RAW take on this token based STRICTLY on the data provided.
 
 ${dataContext}
 
-Generate a SHORT degen take (max 180 chars):
-- Lead with your gut feel: "aping", "passing", "cautious", "fading"
-- Call out WHO'S moving: "whales loading", "whales dumping", "retail panic selling", "retail aping in", "smart money entering", "degens piling in"
-- Use PURE degen slang: moon, rekt, aping, fading, bags, loading, dumping, feeding, bleeding, printing, cooked, dead, diamond hands, paper hands
-- NO corporate speak, NO technical terms, NO percentages
-- Sound like you're texting a homie about a play
-- Examples:
-  * "Aping $ABC. Whales loading bags (+12 in), retail FOMO kicking in. Volume crazy. This gonna print 🚀"
-  * "$XYZ looking cooked. Whales exiting (-8 out), retail panic dumping. I'm fading hard 📉"
-  * "Cautious on $DEF. Whales holding but retail fleeing. Volume thin. Wait or get farmed 🤷"
-  * "$GHI is dead. Whales gone, retail gone, zero volume. Ghost town 💀"
-  * "$JKL heating up. +15 whales entered, retail piling in. Buy pressure strong. Could run 🔥"
+PERSONALITY MODE: "${personality.name}"
+STYLE: ${personality.style}
 
-Reply (raw degen vibe, focus on WHO'S moving and WHERE it's going):`;
+EXAMPLES OF YOUR STYLE:
+${personality.examples.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}
+
+Now generate YOUR take on the token (max 180 chars):
+- Stay true to the personality mode
+- Call out WHO'S moving (whales/retail entering or exiting)
+- Use the data but filter it through YOUR personality
+- Keep it SHORT and punchy
+- Focus on the VIBE, not a report
+
+Reply:`;
 
       const opinion = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 150,
