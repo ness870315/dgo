@@ -285,12 +285,14 @@ Mention: "${text}"
 Author: @${author}
 
 Rules:
-- Reply to genuine questions, greetings, or crypto discussions
-- SKIP spam, promotional tweets, or unrelated content
-- Type "casual" for greetings, questions about the platform, general chat
-- Type "kol_opinion" if they mention specific tokens, ask for analysis, or want trading insights
+- BE GENEROUS: Reply to almost everything UNLESS it's obvious spam/bots
+- If someone mentions @dgnoracle in ANY context (introductions, recommendations, questions), REPLY
+- If ANY token symbol ($BONK, @token, etc.) is mentioned, it's "kol_opinion"
+- Type "casual" for greetings, thanks, questions about the platform, general chat
+- Type "kol_opinion" if they mention ANY tokens, symbols, or crypto projects
 - Type "contract_analysis" if they provide a Solana contract address (32-44 char base58 string)
-- Extract symbols like $BONK, @memeputer, etc.
+- Extract ALL symbols like $BONK, @memeputer, etc.
+- ONLY skip: obvious spam (crypto giveaways, phishing links), bot replies, or completely unrelated topics
 
 Respond in JSON format:
 {
