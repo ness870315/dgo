@@ -100,7 +100,18 @@ export default class EnhancedKOLTrustSystem {
       const athMultiple = calledMC > 0 ? athMC / calledMC : currentMultiple;
       
       // Calculate drawdown from ATH
-      const drawdownFromAth = athMultiple > 0 ? (athMultiple - currentMultiple) / athMultiple : 0;
+      // BUT: Only penalize if call is currently unprofitable (<1x)
+      // If call is still profitable, historical drawdown doesn't matter (crypto volatility is normal)
+      let drawdownFromAth = 0;
+      if (currentMultiple < 1.0) {
+        // Call is losing money - penalize based on how far below entry
+        drawdownFromAth = (1.0 - currentMultiple); // e.g., 0.5x = 50% drawdown
+      } else if (currentMultiple < athMultiple) {
+        // Call is profitable but down from ATH - apply LIGHT penalty (10% of the drawdown)
+        const athDrawdown = (athMultiple - currentMultiple) / athMultiple;
+        drawdownFromAth = athDrawdown * 0.1; // Only 10% of ATH drawdown matters if still profitable
+      }
+      // If currentMultiple >= athMultiple (new ATH), drawdownFromAth = 0 (no penalty)
       
       console.log(`🔍 [Performance] Call ${call.token?.symbol || 'UNKNOWN'}:`, {
         contractAddress,
