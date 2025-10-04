@@ -292,8 +292,8 @@ Rules:
   * If providing contract address → "contract_analysis"
   * If greeting, thanking, or general chat → "casual"
   
-- Type "casual" for: introductions, greetings, thanks, recommendations, questions about the platform
-- Type "kol_opinion" ONLY if: asking for token analysis, price opinions, trading insights, or "is X a buy?"
+- Type "casual" for: introductions, greetings, thanks, recommendations, questions about the platform itself
+- Type "kol_opinion" if: asking for token analysis, price opinions, trading insights, volume questions, whale activity, holder changes, "is X a buy?", "what caused X?", "why is X pumping/dumping?"
 - Type "contract_analysis" if they provide a Solana contract address (32-44 char base58 string)
 - Extract ALL symbols ($BONK, @token) but DON'T treat them as analysis requests if they're mentioned in other contexts
 - ONLY skip: obvious spam (crypto giveaways, phishing links), bot replies, or completely unrelated topics
@@ -302,6 +302,8 @@ Examples:
 - "let me introduce you to @memeputer" → casual (introduction, not asking for analysis)
 - "what do you think about $BONK?" → kol_opinion (asking for token analysis)
 - "check out @newtoken, it's pumping" → kol_opinion (discussing token performance)
+- "what caused $ABC volume spike?" → kol_opinion (asking about token activity)
+- "why is $XYZ pumping?" → kol_opinion (asking about token performance)
 - "thanks for the alpha @dgnoracle!" → casual (gratitude)
 
 Respond in JSON format:
