@@ -394,7 +394,7 @@ Reply:`;
   async generateKOLOpinion(analysis, author) {
     try {
       // Extract first token mentioned
-      const symbol = analysis.tokens && analysis.tokens.length > 0 
+      let symbol = analysis.tokens && analysis.tokens.length > 0 
         ? analysis.tokens[0].replace(/[$@]/g, '').toUpperCase()
         : null;
       
@@ -404,8 +404,38 @@ Reply:`;
       
       console.log(`📊 [MENTIONS] Analyzing token: ${symbol}`);
       
-      // Fetch token data from cache
-      const tokenData = await this.getTokenData(symbol);
+      // Try to fetch token data from cache
+      let tokenData = await this.getTokenData(symbol);
+      
+      // If not found and original was a Twitter handle (@memeputer), try as ticker ($MEMEPUTER)
+      if (!tokenData && analysis.tokens[0].startsWith('@')) {
+        console.log(`🔄 [MENTIONS] @${symbol} not found, trying as ticker $${symbol}`);
+        tokenData = await this.getTokenData(symbol);
+      }
+      
+      // If still not found, try common variations
+      if (!tokenData) {
+        // Try removing common suffixes like "coin", "token", "sol", etc.
+        const variations = [
+          symbol.replace(/COIN$/i, ''),
+          symbol.replace(/TOKEN$/i, ''),
+          symbol.replace(/SOL$/i, ''),
+          symbol.replace(/FINANCE$/i, ''),
+          symbol.replace(/SWAP$/i, '')
+        ];
+        
+        for (const variation of variations) {
+          if (variation !== symbol && variation.length >= 2) {
+            console.log(`🔄 [MENTIONS] Trying variation: ${variation}`);
+            tokenData = await this.getTokenData(variation);
+            if (tokenData) {
+              symbol = variation; // Update symbol to the found variation
+              console.log(`✅ [MENTIONS] Found token as: ${symbol}`);
+              break;
+            }
+          }
+        }
+      }
       
       if (!tokenData) {
         // Token not in cache - provide graceful fallback
