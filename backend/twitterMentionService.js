@@ -5,12 +5,14 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import TwitterMemoryService from './services/TwitterMemoryService.js';
 
 class TwitterMentionService {
   constructor(twitterAutoPostService, openaiService, backendInstance) {
     this.twitterService = twitterAutoPostService;
     this.openaiService = openaiService;
     this.backend = backendInstance;
+    this.memoryService = new TwitterMemoryService();
     this.isRunning = false;
     this.checkInterval = null;
     this.checkIntervalMinutes = 10;
@@ -120,6 +122,10 @@ class TwitterMentionService {
     }
 
     await this.loadState();
+    
+    // Initialize memory service
+    await this.memoryService.initialize();
+    
     this.isRunning = true;
     
     console.log(`🚀 [MENTIONS] Service started - checking every ${this.checkIntervalMinutes} minutes`);
@@ -247,6 +253,14 @@ class TwitterMentionService {
           const oldest = Array.from(this.repliedMentions)[0];
           this.repliedMentions.delete(oldest);
         }
+        
+        // [PHASE 1] Log interaction to memory service
+        await this.logToMemory({
+          mention,
+          analysis,
+          reply,
+          author
+        });
       }
       
     } catch (error) {
@@ -745,6 +759,72 @@ Reply:`;
     } catch (error) {
       console.error('❌ [MENTIONS] Error posting reply:', error.message);
       return { success: false, error: error.message };
+    }
+  }
+
+  // ============================================================================
+  // MEMORY SERVICE INTEGRATION (Phase 1: Logging)
+  // ============================================================================
+
+  async logToMemory({ mention, analysis, reply, author }) {
+    try {
+      // Determine sentiment from personality used or analysis
+      let sentiment = null;
+      const replyLower = reply.toLowerCase();
+      if (replyLower.includes('aping') || replyLower.includes('bullish') || replyLower.includes('moon') || replyLower.includes('print')) {
+        sentiment = 'bullish';
+      } else if (replyLower.includes('passing') || replyLower.includes('fading') || replyLower.includes('bearish') || replyLower.includes('cooked')) {
+        sentiment = 'bearish';
+      } else if (replyLower.includes('cautious') || replyLower.includes('wait')) {
+        sentiment = 'cautious';
+      }
+      
+      // Get current personality
+      const currentPersonality = this.personalities[
+        (this.currentPersonalityIndex - 1 + this.personalities.length) % this.personalities.length
+      ].name;
+      
+      // Log the interaction
+      await this.memoryService.logInteraction({
+        tweetId: mention.id,
+        authorUsername: author,
+        authorId: mention.author_id || null,
+        mentionText: mention.text,
+        replyText: reply,
+        interactionType: analysis.replyType,
+        extractedTokens: analysis.tokens || [],
+        contractAddress: analysis.contractAddress || null,
+        personalityUsed: currentPersonality,
+        sentiment: sentiment,
+        tokenData: null // Will be enriched in future phases
+      });
+      
+      // Update user profile
+      await this.memoryService.updateUserProfile(author, {
+        userId: mention.author_id || null,
+        interactionType: analysis.replyType,
+        tokensAskedAbout: analysis.tokens || [],
+        providedContract: analysis.replyType === 'contract_analysis'
+      });
+      
+      // Update token history for each mentioned token
+      if (analysis.tokens && analysis.tokens.length > 0) {
+        for (const symbol of analysis.tokens) {
+          await this.memoryService.updateTokenHistory(symbol, {
+            contractAddress: analysis.contractAddress || null,
+            username: author,
+            sentiment: sentiment,
+            inCache: true, // Will be determined dynamically in future phases
+            tokenData: null // Will be enriched in future phases
+          });
+        }
+      }
+      
+      console.log(`💾 [MEMORY] Interaction logged for @${author}`);
+      
+    } catch (error) {
+      console.error('❌ [MEMORY] Failed to log interaction:', error.message);
+      // Don't throw - memory logging shouldn't break the main flow
     }
   }
 
