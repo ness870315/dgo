@@ -118,14 +118,84 @@ class TwitterMentionService {
   // Fetch mentions from Twitter API
   async fetchMentions() {
     try {
-      // TODO: Implement Twitter API v2 mentions endpoint
-      // For now, return empty array as placeholder
-      console.log('⚠️ [MENTIONS] Twitter API integration needed - returning empty for now');
-      return [];
+      const userId = process.env.DGNORACLE_USER_ID || '1924955560991977472';
       
-      // Expected implementation:
-      // const response = await this.twitterService.oauthXService.getMentions(this.lastCheckedMentionId);
-      // return response.data;
+      if (!userId) {
+        console.error('❌ [MENTIONS] DGNORACLE_USER_ID not set');
+        return [];
+      }
+      
+      // Build URL with query parameters
+      let url = `https://api.twitter.com/2/users/${userId}/mentions`;
+      const params = new URLSearchParams({
+        'max_results': '10',
+        'tweet.fields': 'author_id,created_at,text,conversation_id',
+        'expansions': 'author_id',
+        'user.fields': 'username,name,verified'
+      });
+      
+      // Add since_id if we have one (only get new mentions)
+      if (this.lastCheckedMentionId) {
+        params.append('since_id', this.lastCheckedMentionId);
+      }
+      
+      url += '?' + params.toString();
+      
+      // Get Twitter credentials from OAuthXService
+      const credentials = await this.twitterService.oauthXService.db.getTwitterCredentials(userId);
+      
+      if (!credentials || !credentials.accessToken) {
+        console.error('❌ [MENTIONS] Twitter credentials not found for dgnoracle');
+        return [];
+      }
+      
+      // Make request
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${credentials.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const error = await response.text();
+        console.error(`❌ [MENTIONS] Twitter API error: ${response.status} - ${error}`);
+        return [];
+      }
+      
+      const data = await response.json();
+      
+      // Check if we have mentions
+      if (!data.data || data.data.length === 0) {
+        console.log('📭 [MENTIONS] No new mentions found');
+        return [];
+      }
+      
+      // Format mentions
+      const mentions = data.data.map(tweet => {
+        const author = data.includes?.users?.find(u => u.id === tweet.author_id);
+        return {
+          id: tweet.id,
+          text: tweet.text,
+          createdAt: tweet.created_at,
+          conversationId: tweet.conversation_id,
+          author: {
+            id: tweet.author_id,
+            username: author?.username || 'unknown',
+            name: author?.name || 'Unknown',
+            verified: author?.verified || false
+          }
+        };
+      });
+      
+      // Update last checked ID to the most recent mention
+      if (mentions.length > 0) {
+        this.lastCheckedMentionId = mentions[0].id;
+      }
+      
+      console.log(`📬 [MENTIONS] Found ${mentions.length} new mentions`);
+      return mentions;
+      
     } catch (error) {
       console.error('❌ [MENTIONS] Error fetching mentions:', error.message);
       return [];
@@ -219,6 +289,7 @@ Respond in JSON format:
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const analysis = JSON.parse(jsonMatch[0]);
+        analysis.originalText = text; // Store original text for context
         console.log(`🧠 [MENTIONS] Analysis:`, analysis);
         return analysis;
       }
@@ -228,6 +299,7 @@ Respond in JSON format:
         shouldReply: true,
         replyType: 'casual',
         tokens: [],
+        originalText: text,
         reason: 'fallback analysis'
       };
       
@@ -423,13 +495,47 @@ Opinion:`;
   // Post reply to Twitter
   async postReply(mentionId, replyText) {
     try {
-      // TODO: Implement Twitter API reply
-      console.log(`🐦 [MENTIONS] Would reply to ${mentionId}: "${replyText}"`);
+      const userId = process.env.DGNORACLE_USER_ID || '1924955560991977472';
       
-      // Placeholder - actual implementation would be:
-      // return await this.twitterService.postReply(mentionId, replyText);
+      // Get Twitter credentials
+      const credentials = await this.twitterService.oauthXService.db.getTwitterCredentials(userId);
       
-      return { success: true, tweetId: 'placeholder' };
+      if (!credentials || !credentials.accessToken) {
+        console.error('❌ [MENTIONS] Twitter credentials not found for reply');
+        return { success: false, error: 'No credentials' };
+      }
+      
+      // Post reply using Twitter API v2
+      const response = await fetch('https://api.twitter.com/2/tweets', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${credentials.accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          text: replyText,
+          reply: {
+            in_reply_to_tweet_id: mentionId
+          }
+        })
+      });
+      
+      if (!response.ok) {
+        const error = await response.text();
+        console.error(`❌ [MENTIONS] Twitter API error posting reply: ${response.status} - ${error}`);
+        return { success: false, error: `Twitter API: ${response.status}` };
+      }
+      
+      const data = await response.json();
+      
+      console.log(`✅ [MENTIONS] Successfully posted reply to ${mentionId}`);
+      console.log(`🔗 Reply URL: https://twitter.com/dgnoracle/status/${data.data.id}`);
+      
+      return {
+        success: true,
+        tweetId: data.data.id,
+        text: data.data.text
+      };
       
     } catch (error) {
       console.error('❌ [MENTIONS] Error posting reply:', error.message);
