@@ -343,33 +343,40 @@ Reply:`;
       }
       
       try {
-        // Fetch Holder data using Moralis directly (same as TokenDetails modal)
-        console.log(`👥 [MENTIONS] Fetching Holder stats for ${symbol}...`);
-        const axios = (await import('axios')).default;
-        const API_BASE = 'https://solana-gateway.moralis.io';
-        const API_KEY = process.env.MORALIS_API_KEY;
+        // Fetch Holder data with timeseries and segment flow
+        console.log(`👥 [MENTIONS] Fetching Holder stats and segment flow for ${symbol}...`);
+        const { default: HolderTimeseriesService } = await import('./services/HolderTimeseriesService.js');
+        const holderService = new HolderTimeseriesService();
+        const holderAnalysis = await holderService.getHolderChangeAnalysis(tokenData.contractAddress);
         
-        if (API_KEY) {
-          const response = await axios.get(
-            `${API_BASE}/token/mainnet/holders/${tokenData.contractAddress}`,
-            {
-              headers: {
-                'X-API-Key': API_KEY,
-                'Content-Type': 'application/json'
-              }
-            }
-          );
+        if (holderAnalysis.success) {
+          // Get the holder stats directly for current distribution
+          const axios = (await import('axios')).default;
+          const API_BASE = 'https://solana-gateway.moralis.io';
+          const API_KEY = process.env.MORALIS_API_KEY;
           
-          if (response.status === 200 && response.data) {
-            enhancedData.holderStats = response.data;
-            console.log(`✅ [MENTIONS] Fetched Holder stats for ${symbol}:`, {
-              totalHolders: response.data.totalHolders,
-              whales: response.data.holderDistribution?.whales,
-              top10Pct: response.data.holderSupply?.top10?.supplyPercent
-            });
+          if (API_KEY) {
+            const response = await axios.get(
+              `${API_BASE}/token/mainnet/holders/${tokenData.contractAddress}`,
+              {
+                headers: {
+                  'X-API-Key': API_KEY,
+                  'Content-Type': 'application/json'
+                }
+              }
+            );
+            
+            if (response.status === 200 && response.data) {
+              enhancedData.holderStats = response.data;
+              enhancedData.holderAnalysis = holderAnalysis; // Add timeseries and segment flow
+              console.log(`✅ [MENTIONS] Fetched Holder data for ${symbol}:`, {
+                totalHolders: response.data.totalHolders,
+                whales: response.data.holderDistribution?.whales,
+                top10Pct: response.data.holderSupply?.top10?.supplyPercent,
+                segmentFlow: holderAnalysis.holderFlowData?.segmentFlow
+              });
+            }
           }
-        } else {
-          console.warn(`⚠️ [MENTIONS] MORALIS_API_KEY not set, skipping holder data`);
         }
       } catch (holderError) {
         console.warn(`⚠️ [MENTIONS] Failed to fetch Holder data for ${symbol}:`, holderError.message);
@@ -448,11 +455,27 @@ Top 10 Control: ${topHoldersPct.toFixed(1)}%
 Holder Change (24h): ${holderChange24h > 0 ? '+' : ''}${holderChange24h}
 Holder Change (30d): ${holderChange30d > 0 ? '+' : ''}${holderChange30d}`;
         
+        // Add segment flow data if available
+        if (tokenData.holderAnalysis?.holderFlowData?.segmentFlow) {
+          const segmentFlow = tokenData.holderAnalysis.holderFlowData.segmentFlow;
+          const whaleFlow = segmentFlow.whales || { in: 0, out: 0, net: 0 };
+          const retailFlow = {
+            in: (segmentFlow.crabs?.in || 0) + (segmentFlow.shrimps?.in || 0),
+            out: (segmentFlow.crabs?.out || 0) + (segmentFlow.shrimps?.out || 0),
+            net: (segmentFlow.crabs?.net || 0) + (segmentFlow.shrimps?.net || 0)
+          };
+          
+          holderContext += `
+Whale Flow: ${whaleFlow.net > 0 ? '+' : ''}${whaleFlow.net} (in: ${whaleFlow.in}, out: ${whaleFlow.out})
+Retail Flow: ${retailFlow.net > 0 ? '+' : ''}${retailFlow.net} (in: ${retailFlow.in}, out: ${retailFlow.out})`;
+        }
+        
         console.log(`💎 [MENTIONS] Holder insights for ${symbol}:`, {
           whales,
           topHoldersPct: `${topHoldersPct.toFixed(1)}%`,
           change24h: holderChange24h,
-          change30d: holderChange30d
+          change30d: holderChange30d,
+          segmentFlow: tokenData.holderAnalysis?.holderFlowData?.segmentFlow
         });
       }
       
@@ -472,18 +495,19 @@ Liquidity: $${(liquidityUsd / 1000).toFixed(1)}K${holderContext}`;
 ${dataContext}
 
 Generate a SHORT degen take (max 180 chars):
-- Lead with your gut feel based on DATA: "aping", "passing", "cautious", "concerned"
-- Drop 1-2 SPICY facts: volume ratio, buy%, whale activity, holder momentum
-- Use PURE degen slang: moon, rekt, aping, fading, bagging, conviction, diamond hands, paper hands, feeding, dumping, loading, hodling, chef's kiss, cooked, dead, printing, bleeding
-- NO corporate speak, NO "mcap analysis", NO percentages unless it's dramatic
-- Sound like you're texting a homie, not writing a report
+- Lead with your gut feel: "aping", "passing", "cautious", "fading"
+- Call out WHO'S moving: "whales loading", "whales dumping", "retail panic selling", "retail aping in", "smart money entering", "degens piling in"
+- Use PURE degen slang: moon, rekt, aping, fading, bags, loading, dumping, feeding, bleeding, printing, cooked, dead, diamond hands, paper hands
+- NO corporate speak, NO technical terms, NO percentages
+- Sound like you're texting a homie about a play
 - Examples:
-  * "Aping $ABC. 6M volume, whales loading bags, +3K holders this month. This thing's gonna print 🚀"
-  * "$XYZ looking cooked. 48% buy pressure? Retail panic selling. I'm fading this one 📉"
-  * "Cautious on $DEF. Volume's thin, top 10 got 57% control. Wait for a better entry or get farmed 🤷"
-  * "$GHI is bleeding. Zero volume, holders dropping daily. Dead coin walking 💀"
+  * "Aping $ABC. Whales loading bags (+12 in), retail FOMO kicking in. Volume crazy. This gonna print 🚀"
+  * "$XYZ looking cooked. Whales exiting (-8 out), retail panic dumping. I'm fading hard 📉"
+  * "Cautious on $DEF. Whales holding but retail fleeing. Volume thin. Wait or get farmed 🤷"
+  * "$GHI is dead. Whales gone, retail gone, zero volume. Ghost town 💀"
+  * "$JKL heating up. +15 whales entered, retail piling in. Buy pressure strong. Could run 🔥"
 
-Reply (raw degen vibe only):`;
+Reply (raw degen vibe, focus on WHO'S moving and WHERE it's going):`;
 
       const opinion = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 150,
