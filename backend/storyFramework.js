@@ -8,22 +8,22 @@ export const storyFramework = {
     "Charts tell you what happened. Communities tell you what will happen.",
     "DexScreener trends? Half of them are farmed hype. We cut through the noise.",
     "How many times have you chased volume, only to get rugged? That ends now.",
-    "❌ Fake volume.\n❌ Fake hype.\n✅ Real communities.\n\nThat's what builds the next 1000x.",
+    "Fake volume, fake hype. Real communities build the next 1000x.",
     "While you're glued to candles, whales are front-running the cults.",
-    "Other screeners = noise.\nDegen Oracle = signal.",
-    "Every degen wants to be a KOL.\nBut how do you prove your calls?"
+    "Other screeners = noise. Degen Oracle = signal.",
+    "Every degen wants to be a KOL. But how do you prove your calls?"
   ],
 
   // 2. The Solution (What Degen Oracle Is)
   solutions: [
     "Degen Oracle is the AI-powered screener built for meme coins on Solana.",
-    "We crunch on-chain transactions + sentiment + social signals to spot organic cults before they blow up.",
+    "We crunch on-chain transactions + sentiment + social signals to spot organic cults.",
     "Forget fake volume. Forget bot trades. Degen Oracle filters real community momentum.",
     "Our AI Core = your unfair edge in catching the next 1000x.",
     "That's what Degen Oracle tracks.",
-    "We built Oracle AI to crunch:\n📊 On-chain data\n💬 Market sentiment\n🔥 Social signals\n\nSo you catch the next gem before the herd.",
-    "We don't just track volume.\nWe measure organic momentum + cult potential.",
-    "🚀 Catch the next 1000x.\n🤖 Powered by Oracle AI.\n📊 Crunching data, sentiment & social."
+    "Oracle AI crunches on-chain data, market sentiment, and social signals.",
+    "We measure organic momentum + cult potential.",
+    "Catch the next 1000x. Powered by Oracle AI."
   ],
 
   // 3. The Unique Edge (Differentiation)
@@ -32,35 +32,35 @@ export const storyFramework = {
     "Every token gets scored on organic growth, sentiment & cult potential.",
     "Other screeners show you what's trending. We show you what will matter.",
     "Degen Oracle isn't just a screener. It's your KOL launcher.",
-    "Because coins don't moon on fake trades…\nThey moon on communities. 🌐",
-    "We don't chase volume.\nWe chase conviction.",
-    "Forget DexScreener hype trains.\nWe find the signal in the noise."
+    "Coins don't moon on fake trades. They moon on communities.",
+    "We don't chase volume. We chase conviction.",
+    "Forget DexScreener hype trains. We find the signal in the noise."
   ],
 
   // 4. The Game / Social Layer (Proof of Call + KOL Leaderboard)
   gameLayers: [
     "Make your call. Lock it in. Share it on X. Build your track record.",
     "Every trade is a chance to prove yourself as the next KOL.",
-    "Your dashboard keeps receipts: when you called it, what market cap, how far it ran.",
-    "The leaderboard never lies — are you ready to climb?",
-    "With Degen Oracle:\n⚡ Make a call.\n🐦 Auto-share to X.\n📈 Track multipliers on your dashboard.\n🏆 Climb the Leaderboard.\n\nReceipts don't lie.",
-    "🐦 Built for KOLs who want to rise.",
+    "Your dashboard keeps receipts: when you called it, what mcap, how far it ran.",
+    "The leaderboard never lies. Are you ready to climb?",
+    "Make a call. Auto-share to X. Track multipliers. Climb the leaderboard.",
+    "Built for KOLs who want to rise.",
     "Track your calls. Prove your alpha. Build your reputation.",
-    "Every call = proof of work.\nEvery win = credibility earned."
+    "Every call = proof of work. Every win = credibility earned."
   ],
 
   // 5. The Aspirational Close (Vision / Hype)
   closes: [
-    "Spot the next cult before it goes viral. 🔮",
-    "AI-driven conviction for the degen era. ⚡",
-    "Cults > Charts. Oracle > Noise.",
+    "Spot the next cult before it goes viral",
+    "AI-driven conviction for the degen era",
+    "Cults > Charts. Oracle > Noise",
     "The next KOL is you. Will you rise?",
-    "Catch the next 1000x with AI precision.",
-    "The Next-Gen Screener is here.",
-    "Your edge in the degen era. 🔮",
-    "Alpha waits for no one. ⚡",
-    "Stop guessing. Start knowing.",
-    "The future of meme coin discovery is AI."
+    "Catch the next 1000x with AI precision",
+    "The Next-Gen Screener is here",
+    "Your edge in the degen era",
+    "Alpha waits for no one",
+    "Stop guessing. Start knowing",
+    "The future of meme coin discovery is AI"
   ],
 
   // 6. Cult & KOL Spotting (Spotting Cults & Building Reputation)
