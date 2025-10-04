@@ -306,6 +306,107 @@ class OAuthXService {
   }
 
   /**
+   * Get mentions for a user using Twitter API v2
+   */
+  async getMentions(userId, options = {}) {
+    try {
+      const user = await this.getUserById(userId);
+      if (!user || !user.accessToken) {
+        throw new Error('User not found or no access token');
+      }
+
+      console.log(`📬 Fetching mentions for user ${userId}`);
+
+      // Build URL with query parameters
+      let url = `https://api.twitter.com/2/users/${userId}/mentions`;
+      const params = new URLSearchParams({
+        'max_results': String(options.maxResults || 10),
+        'tweet.fields': options.tweetFields || 'author_id,created_at,text,conversation_id',
+        'expansions': options.expansions || 'author_id',
+        'user.fields': options.userFields || 'username,name,verified'
+      });
+
+      // Add since_id if provided (only get new mentions)
+      if (options.sinceId) {
+        params.append('since_id', options.sinceId);
+      }
+
+      url += '?' + params.toString();
+
+      // Make request with user's access token
+      const response = await axios.get(url, {
+        headers: {
+          'Authorization': `Bearer ${user.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      // Check if we have mentions
+      if (!response.data.data || response.data.data.length === 0) {
+        console.log(`📭 No new mentions found for user ${userId}`);
+        return [];
+      }
+
+      // Format mentions
+      const mentions = response.data.data.map(tweet => {
+        const author = response.data.includes?.users?.find(u => u.id === tweet.author_id);
+        return {
+          id: tweet.id,
+          text: tweet.text,
+          createdAt: tweet.created_at,
+          conversationId: tweet.conversation_id,
+          author: {
+            id: tweet.author_id,
+            username: author?.username || 'unknown',
+            name: author?.name || 'Unknown',
+            verified: author?.verified || false
+          }
+        };
+      });
+
+      console.log(`✅ Found ${mentions.length} new mentions for user ${userId}`);
+      return mentions;
+
+    } catch (error) {
+      console.error('❌ Error fetching mentions:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Post a reply tweet to a conversation
+   */
+  async postReply(userId, text, replyToTweetId) {
+    try {
+      const user = await this.getUserById(userId);
+      if (!user || !user.accessToken) {
+        throw new Error('User not found or no access token');
+      }
+
+      console.log(`💬 Posting reply for user ${userId} to tweet ${replyToTweetId}`);
+
+      const response = await axios.post('https://api.twitter.com/2/tweets', {
+        text: text,
+        reply: {
+          in_reply_to_tweet_id: replyToTweetId
+        }
+      }, {
+        headers: {
+          'Authorization': `Bearer ${user.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log(`✅ Posted reply: ${response.data.data.id}`);
+      return response.data.data;
+
+    } catch (error) {
+      console.error('❌ Error posting reply:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Refresh access token using refresh token
    */
   async refreshAccessToken(refreshToken) {

@@ -118,91 +118,29 @@ class TwitterMentionService {
   // Fetch mentions from Twitter API
   async fetchMentions() {
     try {
-      const userId = process.env.DGNORACLE_USER_ID || '1924955560991977472';
+      const userId = this.twitterService.dgnOracleUserId;
       
       if (!userId) {
-        console.error('❌ [MENTIONS] DGNORACLE_USER_ID not set');
+        console.error('❌ [MENTIONS] DGNORACLE_USER_ID not set - cannot fetch mentions');
         return [];
       }
       
-      // Build URL with query parameters
-      let url = `https://api.twitter.com/2/users/${userId}/mentions`;
-      const params = new URLSearchParams({
-        'max_results': '10',
-        'tweet.fields': 'author_id,created_at,text,conversation_id',
-        'expansions': 'author_id',
-        'user.fields': 'username,name,verified'
-      });
-      
-      // Add since_id if we have one (only get new mentions)
-      if (this.lastCheckedMentionId) {
-        params.append('since_id', this.lastCheckedMentionId);
-      }
-      
-      url += '?' + params.toString();
-      
-      // TODO: Get Twitter credentials from OAuthXService
-      // For now, service is in standby mode until Twitter API v2 getMentions is properly integrated
-      console.log('⚠️ [MENTIONS] Twitter API v2 mention fetching not yet fully integrated');
-      console.log('   Service running in standby mode - awaiting OAuthXService getMentions implementation');
-      return [];
-      
-      /* Uncomment when OAuthXService has proper getMentions support:
-      
-      const credentials = await this.twitterService.oauthXService.getCredentials(userId);
-      
-      if (!credentials || !credentials.accessToken) {
-        console.error('❌ [MENTIONS] Twitter credentials not found for dgnoracle');
-        return [];
-      }
-      
-      // Make request
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${credentials.accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        const error = await response.text();
-        console.error(`❌ [MENTIONS] Twitter API error: ${response.status} - ${error}`);
-        return [];
-      }
-      
-      const data = await response.json();
-      
-      // Check if we have mentions
-      if (!data.data || data.data.length === 0) {
-        console.log('📭 [MENTIONS] No new mentions found');
-        return [];
-      }
-      
-      // Format mentions
-      const mentions = data.data.map(tweet => {
-        const author = data.includes?.users?.find(u => u.id === tweet.author_id);
-        return {
-          id: tweet.id,
-          text: tweet.text,
-          createdAt: tweet.created_at,
-          conversationId: tweet.conversation_id,
-          author: {
-            id: tweet.author_id,
-            username: author?.username || 'unknown',
-            name: author?.name || 'Unknown',
-            verified: author?.verified || false
-          }
-        };
+      // Use OAuthXService to fetch mentions
+      const mentions = await this.twitterService.oauthXService.getMentions(userId, {
+        maxResults: 10,
+        sinceId: this.lastCheckedMentionId,
+        tweetFields: 'author_id,created_at,text,conversation_id',
+        expansions: 'author_id',
+        userFields: 'username,name,verified'
       });
       
       // Update last checked ID to the most recent mention
       if (mentions.length > 0) {
         this.lastCheckedMentionId = mentions[0].id;
+        await this.saveState(); // Save state immediately
       }
       
-      console.log(`📬 [MENTIONS] Found ${mentions.length} new mentions`);
       return mentions;
-      */
       
     } catch (error) {
       console.error('❌ [MENTIONS] Error fetching mentions:', error.message);
@@ -503,53 +441,25 @@ Opinion:`;
   // Post reply to Twitter
   async postReply(mentionId, replyText) {
     try {
-      const userId = process.env.DGNORACLE_USER_ID || '1924955560991977472';
+      const userId = this.twitterService.dgnOracleUserId;
       
-      // Get Twitter credentials
-      const credentials = await this.twitterService.oauthXService.db.getTwitterCredentials(userId);
-      
-      if (!credentials || !credentials.accessToken) {
-        console.error('❌ [MENTIONS] Twitter credentials not found for reply');
-        return { success: false, error: 'No credentials' };
+      if (!userId) {
+        console.error('❌ [MENTIONS] DGNORACLE_USER_ID not set - cannot post reply');
+        return { success: false, error: 'No user ID' };
       }
       
-      // Post reply using Twitter API v2
-      const response = await fetch('https://api.twitter.com/2/tweets', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${credentials.accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          text: replyText,
-          reply: {
-            in_reply_to_tweet_id: mentionId
-          }
-        })
-      });
+      // Use OAuthXService to post reply
+      const tweet = await this.twitterService.oauthXService.postReply(userId, replyText, mentionId);
       
-      if (!response.ok) {
-        const error = await response.text();
-        console.error(`❌ [MENTIONS] Twitter API error posting reply: ${response.status} - ${error}`);
-        return { success: false, error: `Twitter API: ${response.status}` };
-      }
-      
-      const data = await response.json();
-      
-      console.log(`✅ [MENTIONS] Successfully posted reply to ${mentionId}`);
-      console.log(`🔗 Reply URL: https://twitter.com/dgnoracle/status/${data.data.id}`);
-      
-      return {
-        success: true,
-        tweetId: data.data.id,
-        text: data.data.text
-      };
+      console.log(`✅ [MENTIONS] Posted reply to ${mentionId}: ${tweet.id}`);
+      return { success: true, tweetId: tweet.id };
       
     } catch (error) {
       console.error('❌ [MENTIONS] Error posting reply:', error.message);
       return { success: false, error: error.message };
     }
   }
+
 }
 
 export default TwitterMentionService;
