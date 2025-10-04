@@ -82,7 +82,7 @@ const KOLLeaderboardGuide = ({ onClose }) => {
             <p>• <strong>PnL Hit Rate:</strong> % of calls that reach 1.5x+ (meaningful profits)</p>
             <p>• <strong>Profit Tiers:</strong> Excellent (3x+), Good (2x+), Profitable (1.5x+)</p>
             <p>• <strong>ATH Performance:</strong> Uses peak performance to reward best outcomes</p>
-            <p>• <strong>Smart Drawdown:</strong> Only penalizes if losing money (<1x), light penalty if profitable but down from ATH</p>
+            <p>• <strong>Smart Drawdown:</strong> Only penalizes if losing money (&lt;1x), light penalty if profitable but down from ATH</p>
             <p>• <strong>Crypto-Native:</strong> Understands tokens dump and resurge - rewards diamond hands</p>
           </div>
         </div>
@@ -106,7 +106,7 @@ const KOLLeaderboardGuide = ({ onClose }) => {
             Risk Management (20% Weight)
           </h3>
           <div className="space-y-2 text-sm text-gray-300">
-            <p>• <strong>Smart Drawdown Penalty:</strong> Heavy penalty if losing (<1x), light penalty if profitable but down from ATH (10% weight)</p>
+            <p>• <strong>Smart Drawdown Penalty:</strong> Heavy penalty if losing (&lt;1x), light penalty if profitable but down from ATH (10% weight)</p>
             <p>• <strong>Risk-Adjusted Returns:</strong> Performance relative to risk taken</p>
             <p>• <strong>Volatility Management:</strong> Lower volatility = better risk score</p>
             <p>• <strong>Crypto Cycles:</strong> System understands natural dump/pump cycles - no penalty for historical volatility if call is still profitable</p>
@@ -238,7 +238,7 @@ const KOLLeaderboardGuide = ({ onClose }) => {
         <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4">
           <h3 className="text-lg font-semibold text-red-400 mb-3">Smart Drawdown Penalties (Crypto-Native)</h3>
           <div className="space-y-2 text-sm text-gray-300">
-            <p>• <strong>Losing Calls (<1x):</strong> Heavy penalty - up to 50% based on how far underwater</p>
+            <p>• <strong>Losing Calls (&lt;1x):</strong> Heavy penalty - up to 50% based on how far underwater</p>
             <p>• <strong>Profitable but Down from ATH:</strong> Light penalty - only 10% of the ATH drawdown matters</p>
             <p>• <strong>At New ATH:</strong> Zero penalty - call is crushing it!</p>
             <p>• <strong>Example:</strong> 10x ATH → 5x now = only 5% penalty (not 50%)</p>
