@@ -854,8 +854,8 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-green-400 font-semibold text-lg">{kol.score}</p>
-                            <p className="text-gray-400 text-sm">Score: {(kol.trustScore || 0).toFixed(1)}</p>
+                            <p className="text-green-400 font-semibold text-lg">{(kol.trustScore || kol.score || 0).toFixed(1)}</p>
+                            <p className="text-gray-400 text-sm">Trust Score</p>
                           </div>
                         </div>
                       );
