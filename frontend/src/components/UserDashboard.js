@@ -502,7 +502,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                 <div className="relative">
                   <a
                     href={`https://twitter.com/intent/tweet?${new URLSearchParams({
-                      text: `Here is my referral code ${dashboardData.referralCode} for a 1 month Premium subscription for DeGen Oracle. Spot the next cult before it goes viral and become a KOL.`,
+                      text: `Use my referral code (${dashboardData.referralCode}) to get 1 month of Premium on DeGen Oracle.\nSpot the next cult before it goes viral — become a trusted KOL.`,
                       url: `https://degen-oracle.com`
                     }).toString()}`}
                     target="_blank"
