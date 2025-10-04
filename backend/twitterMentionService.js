@@ -323,11 +323,32 @@ Reply:`;
         return `@${author} Can't find ${symbol} in my systems. Either it's not on Solana or it's too early/dead. 🤷`;
       }
       
-      // Fetch holder insights if available
-      const holderInsights = await this.getHolderInsights(tokenData.contractAddress);
+      // Fetch enhanced data (same as thesis generator)
+      let enhancedData = { ...tokenData };
       
-      // Generate KOL-style opinion
-      const opinion = await this.generateKOLAnalysis(symbol, tokenData, holderInsights);
+      try {
+        // Fetch Moralis Token Analytics for volume and buy/sell pressure
+        if (this.backend.moralisService) {
+          const { default: TechnicalAnalysisService } = await import('./services/TechnicalAnalysisService.js');
+          const techAnalysisService = new TechnicalAnalysisService();
+          const moralisAnalytics = await techAnalysisService.getMoralisTokenAnalytics(tokenData.contractAddress);
+          enhancedData.moralisAnalytics = moralisAnalytics;
+          console.log(`📊 [MENTIONS] Fetched Moralis TokenAnalytics for ${symbol}`);
+        }
+        
+        // Fetch Holder Timeseries data for detailed holder insights
+        if (this.backend.holderTimeseriesService) {
+          const holderData = await this.backend.holderTimeseriesService.getHolderInsights(tokenData.contractAddress);
+          enhancedData.holderData = holderData;
+          console.log(`👥 [MENTIONS] Fetched Holder data for ${symbol}`);
+        }
+      } catch (enhancedError) {
+        console.warn(`⚠️ [MENTIONS] Failed to fetch enhanced data for ${symbol}:`, enhancedError.message);
+        // Continue with basic data
+      }
+      
+      // Generate KOL-style opinion with enhanced data
+      const opinion = await this.generateKOLAnalysis(symbol, enhancedData);
       
       return `@${author} ${opinion}`;
       
@@ -348,66 +369,76 @@ Reply:`;
     }
   }
 
-  // Get holder insights from Moralis
+  // DEPRECATED - Now using enhanced data in generateKOLOpinion
   async getHolderInsights(contractAddress) {
-    try {
-      // Use backend's Moralis integration directly
-      if (this.backend && this.backend.moralisService) {
-        console.log(`📊 [MENTIONS] Fetching Moralis holder stats for ${contractAddress}`);
-        const holderStats = await this.backend.moralisService.getTokenHolderStats(contractAddress);
-        
-        if (holderStats) {
-          console.log(`✅ [MENTIONS] Got holder stats: ${holderStats.totalHolders} holders, ${holderStats.holderDistribution?.whales || 0} whales`);
-          return holderStats;
-        }
-      }
-      
-      console.log(`⚠️ [MENTIONS] No holder insights available for ${contractAddress}`);
-      return null;
-    } catch (error) {
-      console.error('❌ [MENTIONS] Error fetching holder insights:', error.message);
-      return null;
-    }
+    console.warn('⚠️ [MENTIONS] getHolderInsights is deprecated, use enhanced data fetch instead');
+    return null;
   }
 
   // Generate KOL-style analysis
-  async generateKOLAnalysis(symbol, tokenData, holderInsights) {
+  async generateKOLAnalysis(symbol, tokenData) {
     try {
-      // Extract data from token cache (already has Jupiter data!)
+      // Extract mcap and holders from cache
       const mcap = tokenData.mcap || tokenData.marketCap || tokenData.jupiterData?.mcap || 0;
-      const volume24h = tokenData.volume24h || tokenData.stats24h?.volume || 0;
-      const volumeToMcap = mcap > 0 ? (volume24h / mcap * 100).toFixed(1) : 0;
       const holderCount = tokenData.holderCount || tokenData.jupiterData?.holderCount || 0;
       const liquidityUsd = tokenData.liquidity || tokenData.jupiterData?.liquidity || 0;
       
-      console.log(`📊 [MENTIONS] Token data for ${symbol}:`, {
-        mcap,
-        volume24h,
-        volumeToMcap: `${volumeToMcap}%`,
-        holderCount,
-        liquidityUsd
-      });
+      // Extract volume and buy/sell pressure from Moralis Analytics
+      let volume24h = 0;
+      let buyPressure = 0;
+      let sellPressure = 0;
+      if (tokenData.moralisAnalytics) {
+        const analytics = tokenData.moralisAnalytics;
+        volume24h = analytics.volume_24h || analytics.volume24h || 0;
+        buyPressure = analytics.buy_volume_24h || analytics.buyVolume24h || 0;
+        sellPressure = analytics.sell_volume_24h || analytics.sellVolume24h || 0;
+        console.log(`📊 [MENTIONS] Moralis Analytics for ${symbol}:`, {
+          volume24h,
+          buyPressure,
+          sellPressure,
+          buyPct: buyPressure > 0 ? ((buyPressure / (buyPressure + sellPressure)) * 100).toFixed(1) : 0
+        });
+      }
       
-      // Build holder insights summary from Moralis data
+      const volumeToMcap = mcap > 0 ? (volume24h / mcap * 100).toFixed(1) : 0;
+      const buyPct = (buyPressure + sellPressure) > 0 ? ((buyPressure / (buyPressure + sellPressure)) * 100).toFixed(1) : 50;
+      
+      // Extract holder insights from Holder Data
       let holderContext = '';
-      if (holderInsights) {
-        const whales = holderInsights.holderDistribution?.whales || 0;
-        const topHoldersPct = holderInsights.holderSupply?.top10?.supplyPercent || 0;
-        const holderChange24h = holderInsights.holderChange?.['24h']?.change || 0;
-        const holderChange30d = holderInsights.holderChange?.['30d']?.change || 0;
+      if (tokenData.holderData) {
+        const holderStats = tokenData.holderData.holderStats;
+        const holderTimeseries = tokenData.holderData.holderTimeseries;
         
-        holderContext = `
+        if (holderStats) {
+          const whales = holderStats.holderDistribution?.whales || 0;
+          const topHoldersPct = holderStats.holderSupply?.top10?.supplyPercent || 0;
+          const holderChange24h = holderStats.holderChange?.['24h']?.change || 0;
+          const holderChange30d = holderStats.holderChange?.['30d']?.change || 0;
+          
+          holderContext = `
 Whales: ${whales}
 Top 10 Control: ${topHoldersPct.toFixed(1)}%
 Holder Change (24h): ${holderChange24h > 0 ? '+' : ''}${holderChange24h}
 Holder Change (30d): ${holderChange30d > 0 ? '+' : ''}${holderChange30d}`;
+          
+          console.log(`💎 [MENTIONS] Holder insights for ${symbol}:`, {
+            whales,
+            topHoldersPct: `${topHoldersPct.toFixed(1)}%`,
+            change24h: holderChange24h,
+            change30d: holderChange30d
+          });
+        }
         
-        console.log(`💎 [MENTIONS] Holder insights for ${symbol}:`, {
-          whales,
-          topHoldersPct: `${topHoldersPct.toFixed(1)}%`,
-          change24h: holderChange24h,
-          change30d: holderChange30d
-        });
+        if (holderTimeseries && holderTimeseries.data) {
+          // Calculate holder percentage change from timeseries
+          const data = holderTimeseries.data;
+          if (data.length >= 2) {
+            const latest = data[data.length - 1];
+            const earliest = data[0];
+            const holderPctChange = ((latest.holders - earliest.holders) / earliest.holders * 100).toFixed(1);
+            holderContext += `\nHolder % Change: ${holderPctChange > 0 ? '+' : ''}${holderPctChange}%`;
+          }
+        }
       }
       
       const dataContext = `
@@ -415,6 +446,7 @@ Token: $${symbol}
 Market Cap: $${(mcap / 1000000).toFixed(2)}M
 24h Volume: $${(volume24h / 1000).toFixed(1)}K
 Volume/MCap: ${volumeToMcap}%
+Buy Pressure: ${buyPct}%
 Holders: ${holderCount.toLocaleString()}
 Liquidity: $${(liquidityUsd / 1000).toFixed(1)}K${holderContext}`;
 
@@ -426,14 +458,14 @@ ${dataContext}
 
 Generate a SHORT KOL opinion (max 200 chars):
 - Start with a vibe: bullish/bearish/cautious based on the DATA
-- Mention 1-2 KEY facts that support your take
+- Mention 1-2 KEY facts that support your take (volume, buy pressure, holder changes)
 - Use crypto degen language (moon, rekt, aping, conviction, diamond hands, etc.)
 - Be confident but add "NFA" (not financial advice) at end if bullish
 - NO hashtags, NO long explanations
 - Examples:
-  * Bullish: "79K volume pumping and 86 whales holding strong 💎 Looks ready to moon, but DYOR. NFA 🚀"
-  * Bearish: "Volume is dead and retail panic selling. I wouldn't touch this rn 📉"
-  * Cautious: "Decent setup but top 10 control 57%. Wait for better entry or get rekt 🤷"
+  * Bullish: "79K volume with 52% buy pressure! 86 whales holding strong 💎 Ready to moon. NFA 🚀"
+  * Bearish: "Volume dead, only 30% buy pressure. Retail dumping. I wouldn't touch this rn 📉"
+  * Cautious: "Decent volume but top 10 hold 57%. Wait for better entry or get rekt 🤷"
 
 Opinion:`;
 
