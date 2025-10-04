@@ -32,6 +32,7 @@ import { CallMilestonesDebugEndpoint } from './debug-call-milestones.js';
 import MoralisAIChatService from './services/MoralisAIChatService.js';
 import TwitterAutoPostService from './twitterAutoPostService.js';
 import DailyTweetService from './dailyTweetService.js';
+import TwitterMentionService from './twitterMentionService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -9056,6 +9057,91 @@ class EnhancedBackend {
       }
     });
 
+    // ==================== Twitter Mention Service Routes ====================
+    
+    // Get mention service status
+    this.app.get('/api/admin/twitter/mentions/status', adminApiAuth, async (req, res) => {
+      try {
+        if (!this.twitterMentionService) {
+          return res.json({
+            success: false,
+            initialized: false,
+            message: 'Twitter Mention Service not initialized'
+          });
+        }
+
+        const status = {
+          success: true,
+          initialized: true,
+          isRunning: this.twitterMentionService.isRunning,
+          checkIntervalMinutes: this.twitterMentionService.checkIntervalMinutes,
+          repliedCount: this.twitterMentionService.repliedMentions.size,
+          lastCheckedMentionId: this.twitterMentionService.lastCheckedMentionId || null
+        };
+        res.json(status);
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Mention status error:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // Start mention service
+    this.app.post('/api/admin/twitter/mentions/start', adminApiAuth, async (req, res) => {
+      try {
+        if (!this.twitterMentionService) {
+          return res.status(503).json({
+            success: false,
+            error: 'Twitter Mention Service not initialized'
+          });
+        }
+
+        await this.twitterMentionService.start();
+        res.json({ success: true, message: 'Mention service started' });
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to start mention service:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // Stop mention service
+    this.app.post('/api/admin/twitter/mentions/stop', adminApiAuth, async (req, res) => {
+      try {
+        if (!this.twitterMentionService) {
+          return res.status(503).json({
+            success: false,
+            error: 'Twitter Mention Service not initialized'
+          });
+        }
+
+        this.twitterMentionService.stop();
+        res.json({ success: true, message: 'Mention service stopped' });
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to stop mention service:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // Manually check mentions now
+    this.app.post('/api/admin/twitter/mentions/check', adminApiAuth, async (req, res) => {
+      try {
+        if (!this.twitterMentionService) {
+          return res.status(503).json({
+            success: false,
+            error: 'Twitter Mention Service not initialized'
+          });
+        }
+
+        await this.twitterMentionService.checkMentions();
+        res.json({ 
+          success: true, 
+          message: 'Checked mentions'
+        });
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to check mentions:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
     // Post a promotional tweet immediately (for testing)
     this.app.post('/api/admin/daily-tweets/post-now', adminApiAuth, async (req, res) => {
       try {
@@ -11930,9 +12016,22 @@ class EnhancedBackend {
         if (this.dailyTweetService.shouldAutoRestart) {
           console.log('🔄 Auto-restarting Daily Tweet Service from saved state...');
           this.dailyTweetService.start(true);
-        } else {
-          console.log('📅 Daily Tweet Service ready (not started)');
         }
+        
+        // Initialize Twitter Mention Service
+        console.log('🐦 Initializing Twitter Mention Service...');
+        this.twitterMentionService = new TwitterMentionService(
+          this.twitterAutoPostService,
+          this.socialContextAI.openaiService,
+          this // Pass backend instance for cache access
+        );
+        console.log('✅ Twitter Mention Service initialized');
+        
+        // Auto-start mention tracking
+        console.log('🚀 Starting Twitter Mention Service...');
+        await this.twitterMentionService.start();
+        console.log('✅ Twitter Mention Service started - monitoring @dgnoracle mentions every 10 minutes');
+        
       } catch (error) {
         console.error('❌ Social Context AI failed to initialize:', error.message);
         console.warn('⚠️ Continuing with fallback analysis only...');

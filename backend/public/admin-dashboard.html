@@ -816,6 +816,31 @@
                 <div id="dailyTweetResults"></div>
             </div>
 
+            <!-- Twitter Mention Service -->
+            <div class="card" style="background: linear-gradient(135deg, #1DA1F210 0%, #00ACEE10 100%); border: 2px solid #1DA1F2;">
+                <h2>🐦 Twitter Mention Service</h2>
+                <p style="color: #666; font-size: 0.9em; margin-bottom: 15px;">
+                    🔔 <strong>Mention Tracking:</strong> Monitors @dgnoracle mentions every 10 minutes<br>
+                    🤖 <strong>Auto Reply:</strong> Responds as a degen KOL with insights from Jupiter & Holder Analysis<br>
+                    💎 <strong>Smart Detection:</strong> Detects $SYMBOL and @handle mentions for expert opinions<br>
+                    🧠 <strong>AI-Powered:</strong> Generates natural, crypto-slang responses
+                </p>
+                
+                <!-- Status Display -->
+                <div id="mentionServiceStatus" class="status-display" style="margin-bottom: 20px; display: none;"></div>
+                
+                <!-- Controls -->
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                    <button class="btn btn-success" onclick="startMentionService()">▶️ Start Service</button>
+                    <button class="btn btn-danger" onclick="stopMentionService()">⏹️ Stop Service</button>
+                    <button class="btn btn-warning" onclick="checkMentionsNow()">⚡ Check Now</button>
+                    <button class="btn btn-info" onclick="getMentionServiceStatus()">📊 Check Status</button>
+                </div>
+                
+                <!-- Results -->
+                <div id="mentionServiceResults"></div>
+            </div>
+
             <!-- Twitter API Usage Monitor -->
             <div class="card">
                 <h2>📊 Twitter API Usage Monitor</h2>
@@ -2031,6 +2056,143 @@
             }
         }
 
+        // Twitter Mention Service Functions
+        async function getMentionServiceStatus() {
+            const statusDiv = document.getElementById('mentionServiceStatus');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/twitter/mentions/status`, {
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (!data.initialized) {
+                    statusDiv.innerHTML = `
+                        <div class="alert alert-warning">
+                            ⚠️ ${data.message || 'Twitter Mention Service not initialized'}
+                        </div>
+                    `;
+                    statusDiv.style.display = 'block';
+                    return;
+                }
+                
+                const statusColor = data.isRunning ? '#28a745' : '#dc3545';
+                const statusIcon = data.isRunning ? '✅' : '⏹️';
+                const statusText = data.isRunning ? 'RUNNING' : 'STOPPED';
+                
+                statusDiv.innerHTML = `
+                    <h4 style="margin-bottom: 10px;">
+                        ${statusIcon} Status: <span style="color: ${statusColor};">${statusText}</span>
+                    </h4>
+                    <div class="status-display">
+                        <div class="status-item">
+                            <span class="status-label">Check Interval:</span>
+                            <span class="status-value">Every ${data.checkIntervalMinutes} minutes</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">Replies Sent:</span>
+                            <span class="status-value">${data.repliedCount}</span>
+                        </div>
+                        ${data.lastCheckedMentionId ? `
+                        <div class="status-item">
+                            <span class="status-label">Last Mention ID:</span>
+                            <span class="status-value">${data.lastCheckedMentionId}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+                statusDiv.style.display = 'block';
+            } catch (error) {
+                statusDiv.innerHTML = showAlert(`❌ Error loading status: ${error.message}`, 'error');
+                statusDiv.style.display = 'block';
+            }
+        }
+        
+        async function startMentionService() {
+            const resultsDiv = document.getElementById('mentionServiceResults');
+            
+            resultsDiv.innerHTML = showLoading('▶️ Starting Twitter Mention Service...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/twitter/mentions/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultsDiv.innerHTML = showAlert(`✅ ${data.message}`, 'success');
+                    setTimeout(getMentionServiceStatus, 1000);
+                } else {
+                    resultsDiv.innerHTML = showAlert(`❌ Failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function stopMentionService() {
+            const resultsDiv = document.getElementById('mentionServiceResults');
+            
+            resultsDiv.innerHTML = showLoading('⏹️ Stopping Twitter Mention Service...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/twitter/mentions/stop`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultsDiv.innerHTML = showAlert(`✅ ${data.message}`, 'success');
+                    setTimeout(getMentionServiceStatus, 1000);
+                } else {
+                    resultsDiv.innerHTML = showAlert(`❌ Failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function checkMentionsNow() {
+            const resultsDiv = document.getElementById('mentionServiceResults');
+            
+            if (!confirm('⚡ CHECK MENTIONS NOW\\n\\nThis will immediately check for new @dgnoracle mentions and reply if needed.\\n\\nContinue?')) {
+                return;
+            }
+            
+            resultsDiv.innerHTML = showLoading('⚡ Checking mentions...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/twitter/mentions/check`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultsDiv.innerHTML = showAlert(`✅ ${data.message}`, 'success');
+                    setTimeout(getMentionServiceStatus, 1000);
+                } else {
+                    resultsDiv.innerHTML = showAlert(`❌ Failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
         // Processing Control
         async function startProcessing() {
             const resultDiv = document.getElementById('processingResults');
@@ -3213,6 +3375,9 @@ ${(aiPrediction.risks || []).map(r => `   • ${r}`).join('\\n') || '   • None
             
             // Load Daily Tweet Service status on page load
             setTimeout(getDailyTweetStatus, 500);
+            
+            // Load Twitter Mention Service status on page load
+            setTimeout(getMentionServiceStatus, 600);
         });
 
         // Automatic Merge Toggle Function
