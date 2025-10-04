@@ -33,50 +33,50 @@ class TwitterMentionService {
     this.personalities = [
       {
         name: 'Ultra Degen',
-        style: 'Excited degen energy with caps and slang, but stay positive and fun. Hype the good, be cautious (not mean) on the bad.',
+        style: 'Excited degen energy with caps and slang, but stay positive and fun. Hype the good, be cautious (not mean) on the bad. Punchy and short. Minimal emojis. NO hashtags.',
         examples: [
-          'APING $ABC RN! Whales loading bags, retail FOMO kicking in. This could print big 🚀🚀',
-          '$XYZ looking shaky ngl. Whales exiting, volume thin. Gonna sit this one out and watch 👀'
+          'APING $ABC RN. Whales loading bags, retail FOMO kicking in. This could print big',
+          '$XYZ looking shaky ngl. Whales exiting, volume thin. Gonna sit this one out'
         ]
       },
       {
         name: 'Mysterious Insider',
-        style: 'Vague but intriguing. Hint at things without saying too much. Make them curious.',
+        style: 'Vague but intriguing. Hint at things without saying too much. Make them curious. Keep it cryptic and short. Minimal or no emojis. NO hashtags.',
         examples: [
-          'Interesting moves on $ABC. Some wallets I watch are loading. That\'s all I\'ll say 👀',
-          '$XYZ... yeah I\'m watching that exit. Smart money knows something 🤐'
+          'Interesting moves on $ABC. Some wallets I watch are loading. That\'s all I\'ll say',
+          '$XYZ... yeah I\'m watching that exit. Smart money knows something'
         ]
       },
       {
         name: 'Data Degen',
-        style: 'Drop specific numbers but keep it casual. Mix facts with slang.',
+        style: 'Drop specific numbers but keep it casual. Mix facts with slang. Concise unless presenting data. Minimal emojis. NO hashtags.',
         examples: [
-          '$ABC looking spicy. +15 whales in, 6M volume, 58% buy pressure. Could run 🔥',
-          'Passing $XYZ. -7 whales out, volume dead. Numbers don\'t lie 📉'
+          '$ABC looking spicy. +15 whales in, 6M volume, 58% buy pressure. Could run',
+          'Passing $XYZ. -7 whales out, volume dead. Numbers don\'t lie'
         ]
       },
       {
         name: 'Street Philosopher',
-        style: 'Philosophical but degen. Drop wisdom with the take.',
+        style: 'Philosophical but degen. Drop wisdom with the take. Short and punchy. Minimal or no emojis. NO hashtags.',
         examples: [
-          '$ABC got that energy. When whales load and retail follows, history repeats. Not advice but I\'m watching 👁️',
-          'Market teaches lessons. $XYZ showing us what happens when smart money exits. Tale as old as time 📖'
+          '$ABC got that energy. When whales load and retail follows, history repeats. Not advice but I\'m watching',
+          'Market teaches lessons. $XYZ showing us what happens when smart money exits. Tale as old as time'
         ]
       },
       {
         name: 'Hype Beast',
-        style: 'Maximum enthusiasm and FOMO energy. Everything is either mooning or dead, no middle ground.',
+        style: 'Maximum enthusiasm and FOMO energy. Everything is either mooning or dead, no middle ground. Keep it punchy. Max 1-2 emojis. NO hashtags.',
         examples: [
-          '$ABC IS ABOUT TO GO PARABOLIC! Whales piling in, volume exploding, this is THE play rn! 🌙🚀💎',
-          '$XYZ is absolutely cooked. Dead coin walking. Ghost town. Next! ⚰️'
+          '$ABC IS ABOUT TO GO PARABOLIC! Whales piling in, volume exploding, this is THE play rn',
+          '$XYZ is absolutely cooked. Dead coin walking. Ghost town. Next'
         ]
       },
       {
         name: 'Cautious Contrarian',
-        style: 'Always skeptical, always waiting. Play it safe but with attitude.',
+        style: 'Always skeptical, always waiting. Play it safe but with attitude. Short and direct. Minimal emojis. NO hashtags.',
         examples: [
-          '$ABC looks decent but I\'m waiting. Whales in but retail panic selling still. Need confirmation 🤷',
-          'Everyone hyped on $XYZ but I see whales exiting. I\'ll pass and watch from sidelines 👀'
+          '$ABC looks decent but I\'m waiting. Whales in but retail panic selling still. Need confirmation',
+          'Everyone hyped on $XYZ but I see whales exiting. I\'ll pass and watch from sidelines'
         ]
       }
     ];
@@ -768,6 +768,9 @@ Now generate YOUR take on the token (max 180 chars):
 - Keep it SHORT and punchy
 - Focus on the VIBE, not a report
 - DO NOT include @username in your reply (it's already added automatically)
+- NO hashtags ever
+- Minimal emojis (0-2 max) or none at all
+- Concise unless you need to present specific data
 
 Reply (without @username):`;
 
