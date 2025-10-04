@@ -123,72 +123,32 @@ export function generateTweet(includeLinkProbability = 0.4) {
   // Strategy 8: Blended Power (BlendedPower standalone or + Close)
   
   const strategies = [
-    // Full story (15%)
+    // Single punchy line (30%) - Just a hook or blended
+    () => {
+      return randomPick([
+        ...storyFramework.hooks,
+        ...storyFramework.blendedPower,
+        ...storyFramework.cultSpotting
+      ]);
+    },
+    // One-liner with close (25%)
+    () => {
+      return `${randomPick(storyFramework.cultSpotting)} ${randomPick(storyFramework.closes)}`;
+    },
+    // Two elements (20%)
     () => {
       return [
-        randomPick(storyFramework.hooks),
-        randomPick(storyFramework.solutions),
-        randomPick(storyFramework.edges),
-        randomPick(storyFramework.gameLayers),
+        randomPick([...storyFramework.hooks, ...storyFramework.blendedPower]),
         randomPick(storyFramework.closes)
-      ].join('\n\n');
+      ].join(' ');
     },
-    // Short punch (15%)
+    // Data + close (15%)
     () => {
-      return [
-        randomPick(storyFramework.hooks),
-        randomPick(storyFramework.solutions),
-        randomPick(storyFramework.closes)
-      ].join('\n\n');
+      return `${randomPick(storyFramework.numbersFocus)} ${randomPick(storyFramework.closes)}`;
     },
-    // Feature focus (10%)
+    // Community + close (10%)
     () => {
-      return [
-        randomPick(storyFramework.solutions),
-        randomPick(storyFramework.edges),
-        randomPick(storyFramework.closes)
-      ].join('\n\n');
-    },
-    // Game layer focus (10%)
-    () => {
-      return [
-        randomPick(storyFramework.gameLayers),
-        randomPick(storyFramework.edges),
-        randomPick(storyFramework.closes)
-      ].join('\n\n');
-    },
-    // Cult spotting focus (15%)
-    () => {
-      return [
-        randomPick(storyFramework.cultSpotting),
-        randomPick([...storyFramework.onChainTruth, ...storyFramework.numbersFocus]),
-        randomPick(storyFramework.closes)
-      ].join('\n\n');
-    },
-    // Data-driven (15%)
-    () => {
-      return [
-        randomPick(storyFramework.numbersFocus),
-        randomPick(storyFramework.onChainTruth),
-        randomPick(storyFramework.closes)
-      ].join('\n\n');
-    },
-    // Community first (10%)
-    () => {
-      return [
-        randomPick(storyFramework.communityCore),
-        randomPick(storyFramework.cultSpotting),
-        randomPick(storyFramework.closes)
-      ].join('\n\n');
-    },
-    // Blended power standalone (10%)
-    () => {
-      const blended = randomPick(storyFramework.blendedPower);
-      // 50% chance to add a close
-      if (Math.random() < 0.5) {
-        return [blended, randomPick(storyFramework.closes)].join('\n\n');
-      }
-      return blended;
+      return `${randomPick(storyFramework.communityCore)} ${randomPick(storyFramework.closes)}`;
     }
   ];
 
@@ -232,21 +192,33 @@ export async function generateTweetWithLLM(openaiService) {
   
   const includeLink = Math.random() < 0.4;
   
+  // Personality variations for daily tweets (similar to mention service)
+  const personalities = [
+    'Expert KOL - Confident, knows his shit, short and punchy',
+    'Cult Spotter - Focus on finding early gems and building KOL reputation',
+    'Data-Driven Chad - Drop numbers and facts, keep it casual',
+    'Community Builder - Everything is about the people and conviction',
+    'Mysterious Insider - Hint at alpha without saying too much',
+    'Hype Beast - Maximum energy, FOMO vibes, no middle ground'
+  ];
+  
+  const personality = randomPick(personalities);
+  
   // Build prompt for OpenAI
-  const prompt = `You are crafting a promotional tweet for Degen Oracle, an AI-powered meme coin screener for Solana.
+  const prompt = `You are @dgnoracle promoting Degen Oracle, an AI-powered meme coin screener for Solana.
 
-Use these story elements to create ONE engaging tweet (max 280 chars):
+PERSONALITY: ${personality}
 
-${selectedComponents.map((c, i) => `Element ${i + 1}: ${c}`).join('\n')}
+Story elements (use 1-2 max):
+${selectedComponents.slice(0, 3).map((c, i) => `${i + 1}. ${c}`).join('\n')}
 
-Rules:
-- Mix 2-3 of these elements naturally
-- Keep crypto Twitter vibes (emojis ok, but not excessive)
-- Sound confident and hype
-- Make it feel organic, not corporate
-- NO HASHTAGS - avoid using # symbols
-- Focus on: Cult spotting, KOL building, on-chain data, community, numbers
-${includeLink ? '- End with: 👉 degen-oracle.com' : '- DO NOT include any links'}
+Generate ONE tweet (max 180 chars):
+- SHORT and PUNCHY - Twitter users scroll fast
+- NO hashtags ever
+- Minimal emojis (0-2 max)
+- Confident degen vibes
+- Focus on: spotting cults, being a KOL, on-chain data
+${includeLink ? '- End with: 👉 degen-oracle.com' : '- NO links'}
 
 Tweet:`;
 
