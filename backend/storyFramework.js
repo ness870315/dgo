@@ -214,11 +214,13 @@ ${selectedComponents.slice(0, 3).map((c, i) => `${i + 1}. ${c}`).join('\n')}
 
 Generate ONE tweet (max 180 chars):
 - SHORT and PUNCHY - Twitter users scroll fast
-- NO hashtags ever
+- ABSOLUTELY NO HASHTAGS - Do NOT use # symbols at all, NEVER include #degenoracle, #solana, #crypto or ANY hashtags
 - Minimal emojis (0-2 max)
 - Confident degen vibes
 - Focus on: spotting cults, being a KOL, on-chain data
 ${includeLink ? '- End with: 👉 degen-oracle.com' : '- NO links'}
+
+IMPORTANT: Your response must NOT contain any # symbols or hashtags. This is critical.
 
 Tweet:`;
 
@@ -234,7 +236,11 @@ Tweet:`;
       model: 'gpt-3.5-turbo' // Use faster model for tweets
     });
 
-    return completion.trim() || generateTweet(includeLink ? 1 : 0); // Fallback to template
+    // Post-process: Remove any hashtags if LLM added them anyway
+    let cleanedTweet = completion.trim();
+    cleanedTweet = cleanedTweet.replace(/#\w+/g, '').replace(/\s+/g, ' ').trim();
+    
+    return cleanedTweet || generateTweet(includeLink ? 1 : 0); // Fallback to template
   } catch (error) {
     console.error('❌ OpenAI tweet generation failed, using template:', error.message);
     return generateTweet(includeLink ? 1 : 0); // Fallback to template
