@@ -333,13 +333,56 @@ class OAuthXService {
 
       url += '?' + params.toString();
 
-      // Make request with user's access token
-      const response = await axios.get(url, {
-        headers: {
-          'Authorization': `Bearer ${user.accessToken}`,
-          'Content-Type': 'application/json'
+      // Try fetching with current token
+      let response;
+      try {
+        response = await axios.get(url, {
+          headers: {
+            'Authorization': `Bearer ${user.accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      } catch (apiError) {
+        console.error('❌ Twitter API error fetching mentions:', {
+          status: apiError.response?.status,
+          data: apiError.response?.data,
+          userId
+        });
+
+        // If token is invalid (401), try to refresh it
+        if (apiError.response?.status === 401 && user.refreshToken) {
+          console.log(`🔄 Access token expired for user ${userId}, attempting refresh...`);
+          
+          try {
+            const newTokens = await this.refreshAccessToken(user.refreshToken);
+            
+            // Update user with new tokens
+            await this.db.updateUserTokens(userId, newTokens.access_token, newTokens.refresh_token);
+            
+            console.log(`✅ Refreshed tokens for user ${userId}, retrying mentions fetch...`);
+            
+            // Retry with new token
+            response = await axios.get(url, {
+              headers: {
+                'Authorization': `Bearer ${newTokens.access_token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+
+            console.log(`✅ Fetched mentions with refreshed token for user ${userId}`);
+
+          } catch (refreshError) {
+            console.error('❌ Token refresh failed:', refreshError.message);
+            throw new Error(`Mentions fetch failed: Token expired and refresh failed - ${refreshError.message}`);
+          }
+        } else if (apiError.response?.status === 401 && !user.refreshToken) {
+          console.error(`❌ Access token expired for user ${userId} but no refresh token available`);
+          throw new Error(`Mentions fetch failed: Access token expired and no refresh token available. User needs to re-authenticate.`);
+        } else {
+          // Not a token issue, throw original error
+          throw apiError;
         }
-      });
+      }
 
       // Check if we have mentions
       if (!response.data.data || response.data.data.length === 0) {
@@ -385,20 +428,71 @@ class OAuthXService {
 
       console.log(`💬 Posting reply for user ${userId} to tweet ${replyToTweetId}`);
 
-      const response = await axios.post('https://api.twitter.com/2/tweets', {
-        text: text,
-        reply: {
-          in_reply_to_tweet_id: replyToTweetId
-        }
-      }, {
-        headers: {
-          'Authorization': `Bearer ${user.accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // Try posting with current token
+      let response;
+      try {
+        response = await axios.post('https://api.twitter.com/2/tweets', {
+          text: text,
+          reply: {
+            in_reply_to_tweet_id: replyToTweetId
+          }
+        }, {
+          headers: {
+            'Authorization': `Bearer ${user.accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
 
-      console.log(`✅ Posted reply: ${response.data.data.id}`);
-      return response.data.data;
+        console.log(`✅ Posted reply: ${response.data.data.id}`);
+        return response.data.data;
+
+      } catch (apiError) {
+        console.error('❌ Twitter API error posting reply:', {
+          status: apiError.response?.status,
+          data: apiError.response?.data,
+          userId
+        });
+
+        // If token is invalid (401), try to refresh it
+        if (apiError.response?.status === 401 && user.refreshToken) {
+          console.log(`🔄 Access token expired for user ${userId}, attempting refresh...`);
+          
+          try {
+            const newTokens = await this.refreshAccessToken(user.refreshToken);
+            
+            // Update user with new tokens
+            await this.db.updateUserTokens(userId, newTokens.access_token, newTokens.refresh_token);
+            
+            console.log(`✅ Refreshed tokens for user ${userId}, retrying reply...`);
+            
+            // Retry with new token
+            response = await axios.post('https://api.twitter.com/2/tweets', {
+              text: text,
+              reply: {
+                in_reply_to_tweet_id: replyToTweetId
+              }
+            }, {
+              headers: {
+                'Authorization': `Bearer ${newTokens.access_token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+
+            console.log(`✅ Posted reply with refreshed token: ${response.data.data.id}`);
+            return response.data.data;
+
+          } catch (refreshError) {
+            console.error('❌ Token refresh failed:', refreshError.message);
+            throw new Error(`Reply posting failed: Token expired and refresh failed - ${refreshError.message}`);
+          }
+        } else if (apiError.response?.status === 401 && !user.refreshToken) {
+          console.error(`❌ Access token expired for user ${userId} but no refresh token available`);
+          throw new Error(`Reply posting failed: Access token expired and no refresh token available. User needs to re-authenticate.`);
+        } else {
+          // Not a token issue, throw original error
+          throw apiError;
+        }
+      }
 
     } catch (error) {
       console.error('❌ Error posting reply:', error.response?.data || error.message);
