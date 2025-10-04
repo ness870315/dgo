@@ -81,8 +81,9 @@ const KOLLeaderboardGuide = ({ onClose }) => {
           <div className="space-y-2 text-sm text-gray-300">
             <p>• <strong>PnL Hit Rate:</strong> % of calls that reach 1.5x+ (meaningful profits)</p>
             <p>• <strong>Profit Tiers:</strong> Excellent (3x+), Good (2x+), Profitable (1.5x+)</p>
-            <p>• <strong>ATH Performance:</strong> Uses peak performance but penalizes current drawdowns</p>
-            <p>• <strong>Mixed Scoring:</strong> Historical success + current risk management</p>
+            <p>• <strong>ATH Performance:</strong> Uses peak performance to reward best outcomes</p>
+            <p>• <strong>Smart Drawdown:</strong> Only penalizes if losing money (<1x), light penalty if profitable but down from ATH</p>
+            <p>• <strong>Crypto-Native:</strong> Understands tokens dump and resurge - rewards diamond hands</p>
           </div>
         </div>
 
@@ -105,10 +106,10 @@ const KOLLeaderboardGuide = ({ onClose }) => {
             Risk Management (20% Weight)
           </h3>
           <div className="space-y-2 text-sm text-gray-300">
-            <p>• <strong>Drawdown Control:</strong> Penalty for high drawdowns from ATH</p>
+            <p>• <strong>Smart Drawdown Penalty:</strong> Heavy penalty if losing (<1x), light penalty if profitable but down from ATH (10% weight)</p>
             <p>• <strong>Risk-Adjusted Returns:</strong> Performance relative to risk taken</p>
             <p>• <strong>Volatility Management:</strong> Lower volatility = better risk score</p>
-            <p>• <strong>Capital Preservation:</strong> Protecting gains vs chasing moonshots</p>
+            <p>• <strong>Crypto Cycles:</strong> System understands natural dump/pump cycles - no penalty for historical volatility if call is still profitable</p>
           </div>
         </div>
 
@@ -235,12 +236,15 @@ const KOLLeaderboardGuide = ({ onClose }) => {
 
       <div className="space-y-4">
         <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-red-400 mb-3">Risk Management Penalties</h3>
+          <h3 className="text-lg font-semibold text-red-400 mb-3">Smart Drawdown Penalties (Crypto-Native)</h3>
           <div className="space-y-2 text-sm text-gray-300">
-            <p>• <strong>High Drawdowns:</strong> Penalty for drawdowns from ATH (20% of score)</p>
+            <p>• <strong>Losing Calls (<1x):</strong> Heavy penalty - up to 50% based on how far underwater</p>
+            <p>• <strong>Profitable but Down from ATH:</strong> Light penalty - only 10% of the ATH drawdown matters</p>
+            <p>• <strong>At New ATH:</strong> Zero penalty - call is crushing it!</p>
+            <p>• <strong>Example:</strong> 10x ATH → 5x now = only 5% penalty (not 50%)</p>
+            <p>• <strong>Philosophy:</strong> Tokens dump and resurge naturally - rewards diamond hands through volatility</p>
             <p>• <strong>Volatility Penalty:</strong> High volatility reduces risk management score</p>
             <p>• <strong>Risk-Adjusted Returns:</strong> Performance relative to risk taken matters</p>
-            <p>• <strong>Capital Preservation:</strong> Protecting gains vs chasing moonshots</p>
           </div>
         </div>
 
