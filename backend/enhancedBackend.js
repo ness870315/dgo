@@ -743,6 +743,97 @@ class EnhancedBackend {
       }
     });
 
+    // Admin: EMERGENCY - Restore users from backup or user directories
+    this.app.post('/api/admin/emergency-restore-users', adminApiAuth, async (req, res) => {
+      try {
+        console.log('[🚨 EMERGENCY] Restoring users...');
+        
+        const usersDir = this.oauthXService.db.usersDir;
+        const globalDir = this.oauthXService.db.globalDir;
+        const usersIndexPath = this.oauthXService.db.getGlobalFile('users-index.json');
+        
+        // Check for backup files
+        const globalFiles = await fs.readdir(globalDir);
+        const backupFiles = globalFiles.filter(f => f.includes('users-index') && (f.includes('backup') || f.includes('_')));
+        
+        if (backupFiles.length > 0) {
+          console.log(`[🚨 EMERGENCY] Found ${backupFiles.length} backup files`);
+          
+          // Use the most recent backup
+          const mostRecent = backupFiles.sort().reverse()[0];
+          const backupPath = path.join(globalDir, mostRecent);
+          
+          const backupData = await fs.readFile(backupPath, 'utf8');
+          const users = JSON.parse(backupData);
+          
+          console.log(`[🚨 EMERGENCY] Restoring ${users.length} users from ${mostRecent}`);
+          
+          await this.oauthXService.db.writeJsonFile(usersIndexPath, users);
+          
+          return res.json({
+            success: true,
+            message: `Restored ${users.length} users from backup`,
+            usersCount: users.length,
+            users: users.map(u => ({ id: u.id, username: u.username })),
+            source: 'backup',
+            backupFile: mostRecent
+          });
+        }
+        
+        // No backup - rebuild from user directories
+        console.log('[🚨 EMERGENCY] No backup found. Rebuilding from user directories...');
+        
+        const userDirs = await fs.readdir(usersDir);
+        const userFolders = userDirs.filter(d => d.startsWith('user-'));
+        
+        const rebuiltUsers = [];
+        
+        for (const folder of userFolders) {
+          try {
+            const userId = folder.replace('user-', '');
+            const profilePath = path.join(usersDir, folder, 'profile.json');
+            
+            const profileData = await fs.readFile(profilePath, 'utf8');
+            const profile = JSON.parse(profileData);
+            
+            rebuiltUsers.push({
+              id: userId,
+              username: profile.username,
+              displayName: profile.displayName,
+              profileImageUrl: profile.profileImageUrl,
+              createdAt: profile.createdAt,
+              referralCode: profile.referralCode
+            });
+            
+            console.log(`[🚨 EMERGENCY] Rebuilt: ${profile.username}`);
+          } catch (err) {
+            console.log(`[🚨 EMERGENCY] Could not rebuild ${folder}: ${err.message}`);
+          }
+        }
+        
+        if (rebuiltUsers.length > 0) {
+          await this.oauthXService.db.writeJsonFile(usersIndexPath, rebuiltUsers);
+          
+          return res.json({
+            success: true,
+            message: `Rebuilt ${rebuiltUsers.length} users from directories`,
+            usersCount: rebuiltUsers.length,
+            users: rebuiltUsers.map(u => ({ id: u.id, username: u.username })),
+            source: 'rebuilt'
+          });
+        }
+        
+        res.status(500).json({
+          success: false,
+          error: 'No backup or user directories found'
+        });
+        
+      } catch (error) {
+        console.error('[🚨 EMERGENCY] Restore failed:', error.message);
+        res.status(500).json({ success: false, error: 'Emergency restore failed' });
+      }
+    });
+
     // Admin: Delete a user completely
     this.app.post('/api/admin/users/:username/delete', adminApiAuth, async (req, res) => {
       try {
