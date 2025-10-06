@@ -216,6 +216,13 @@ class TwitterMentionService {
       const text = mention.text;
       const author = mention.author?.username || 'unknown';
       
+      // Skip if mention is from @dgnoracle itself (prevent infinite loop)
+      if (author.toLowerCase() === 'dgnoracle' || author.toLowerCase() === 'dgen_oracle') {
+        console.log(`⏭️ [MENTIONS] Skipping ${mentionId} - mention from self (@${author})`);
+        this.repliedMentions.add(mentionId); // Mark as processed to avoid checking again
+        return;
+      }
+      
       // Skip if already replied
       if (this.repliedMentions.has(mentionId)) {
         console.log(`⏭️ [MENTIONS] Skipping ${mentionId} - already replied`);
