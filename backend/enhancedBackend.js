@@ -33,6 +33,7 @@ import MoralisAIChatService from './services/MoralisAIChatService.js';
 import TwitterAutoPostService from './twitterAutoPostService.js';
 import DailyTweetService from './dailyTweetService.js';
 import TwitterMentionService from './twitterMentionService.js';
+import NFTGatedAccessService from './nftGatedAccessService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -148,6 +149,7 @@ class EnhancedBackend {
     // Initialize AI Chat Service with OAuthXService for watchlist operations and backend instance for internal calls
     this.aiChatService = new MoralisAIChatService(this.oauthXService, this);
     this.twitterAutoPostService = new TwitterAutoPostService(this.oauthXService);
+    this.nftGatedAccessService = new NFTGatedAccessService();
     this.dailyTweetService = null; // Will be initialized after OpenAI service is ready
     this.backupIntegration = null; // Will be initialized in setupServices()
     // Social Context cache (72h TTL)
@@ -454,6 +456,51 @@ class EnhancedBackend {
       } catch (error) {
         logger.error('[🛡️ Enhanced Backend] ❌ Activate premium failed:', error.message);
         res.status(500).json({ success: false, error: 'Failed to activate premium' });
+      }
+    });
+
+    // Verify NFT ownership and grant Premium access
+    this.app.post('/api/user/premium/verify-nft', async (req, res) => {
+      try {
+        const { sessionId, walletAddress } = req.body;
+        
+        if (!sessionId || !walletAddress) {
+          return res.status(400).json({ success: false, error: 'Missing sessionId or walletAddress' });
+        }
+        
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) return res.status(401).json({ success: false, error: 'Invalid session' });
+        
+        // Verify NFT ownership
+        const verification = await this.nftGatedAccessService.verifyNFTOwnership(walletAddress);
+        
+        if (!verification.isHolder) {
+          return res.status(403).json({ 
+            success: false, 
+            error: 'No NFTs found from the required collection',
+            isHolder: false
+          });
+        }
+        
+        // Grant Premium access
+        const result = await this.nftGatedAccessService.grantPremiumAccess(
+          user.id,
+          walletAddress,
+          verification.nfts,
+          this.oauthXService.db
+        );
+        
+        res.json({ 
+          success: true, 
+          premium: result,
+          isHolder: true,
+          nfts: verification.nfts,
+          message: `Premium activated! You own ${verification.nfts.length} NFT(s) from the collection.`
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ NFT verification failed:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to verify NFT ownership' });
       }
     });
 

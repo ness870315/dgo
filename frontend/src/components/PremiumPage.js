@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import NFTGatedAccess from './NFTGatedAccess';
 
 export default function PremiumPage({ onBack, headerAuth }) {
   const { sessionId, user } = useAuth();
@@ -152,7 +153,7 @@ export default function PremiumPage({ onBack, headerAuth }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
           {/* Helio Payment */}
           <div className="bg-dark-card border border-gray-700 rounded-xl p-4 sm:p-6">
             <h3 className="text-base sm:text-lg font-semibold text-white mb-3">Upgrade to Premium</h3>
@@ -164,6 +165,9 @@ export default function PremiumPage({ onBack, headerAuth }) {
               <div className="mt-4 text-xs sm:text-sm text-gray-300">{statusMsg}</div>
             )}
           </div>
+
+          {/* NFT Holder Access */}
+          <NFTGatedAccess />
 
           {/* Referral Code Redeem */}
           <div className="bg-dark-card border border-gray-700 rounded-xl p-4 sm:p-6">

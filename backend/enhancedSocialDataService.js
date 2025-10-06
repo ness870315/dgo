@@ -580,8 +580,8 @@ class EnhancedSocialDataService {
               // Apply crypto relevance filter - STRICT MODE
               let isRelevant = this.isCryptoRelevantTweet(tweet.text, symbol, name);
               
-              if (!isRelevant) {
-                console.log(`🚫 Filtered out non-crypto tweet: "${tweet.text.substring(0, 100)}..."`);
+                if (!isRelevant) {
+                  console.log(`🚫 Filtered out non-crypto tweet: "${tweet.text.substring(0, 100)}..."`);
                 continue; // SKIP this tweet entirely
               }
               
@@ -1100,13 +1100,13 @@ class EnhancedSocialDataService {
       console.log(`   🚫 REJECTED: High hashtag spam score (${hashtagSpamScore}) - likely spam/farming`);
       return false;
     }
-    
+
     // REJECTION: Only reject if non-crypto score is MUCH higher than crypto score (3x ratio)
     if (nonCryptoScore >= 5 && nonCryptoScore > cryptoScore * 3) {
       console.log(`   🚫 REJECTED: Overwhelming non-crypto context (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
       return false;
     }
-
+    
     // DEFAULT APPROVAL: If we searched for $SYMBOL/#SYMBOL and found it, trust the query
     // Post-filtering should be permissive since the query already targets cashtags/hashtags
     console.log(`   ✅ APPROVED: Query-based match (crypto: ${cryptoScore}, non-crypto: ${nonCryptoScore}, net: ${netScore})`);
