@@ -1833,7 +1833,18 @@ class EnhancedTokenProcessor {
     const buyVolume1h = token.jupiterData?.stats1h?.buyVolume || 0;
     const sellVolume1h = token.jupiterData?.stats1h?.sellVolume || 0;
     const totalVolume1h = buyVolume1h + sellVolume1h;
-    const volume1h = this.calculateVolumeScore(totalVolume1h);
+    let volume1h = this.calculateVolumeScore(totalVolume1h);
+    
+    // Apply Volume Change Penalty - penalize declining volume
+    const volumeChange1h = token.jupiterData?.stats1h?.volumeChange || 0;
+    const volumeChange6h = token.jupiterData?.stats6h?.volumeChange || 0;
+    if (volumeChange1h < -50 || volumeChange6h < -50) {
+      // Severe volume decline: -50% or worse
+      const penalty = Math.min(5.0, Math.abs(Math.min(volumeChange1h, volumeChange6h)) / 10);
+      volume1h = Math.max(1.0, volume1h - penalty);
+      console.log(`⚠️ Volume decline penalty for ${token.symbol}: ${volumeChange1h.toFixed(1)}% (1h), ${volumeChange6h.toFixed(1)}% (6h) → -${penalty.toFixed(1)} points`);
+    }
+    
     score += volume1h * 0.25;
     
     // Volume 24hr (20%) - INCREASED: More weight to sustained volume
