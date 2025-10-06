@@ -117,7 +117,7 @@ const EnhancedKOLLeaderboard = ({ onClose, onUserClick }) => {
                     <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white rounded-full"></div>
                   </div>}
                 </div>
-                <p className="text-gray-400 text-xs sm:text-sm">@{user.username}</p>
+                <p className="text-gray-400 text-xs sm:text-sm">{user.username}</p>
               </div>
             </div>
           </div>
