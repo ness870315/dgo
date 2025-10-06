@@ -154,7 +154,19 @@ class MilestoneTracker {
         return null;
       }
 
-      const tokensCache = JSON.parse(fs.readFileSync(tokensCachePath, 'utf8'));
+      let tokensCache;
+      try {
+        const cacheContent = fs.readFileSync(tokensCachePath, 'utf8');
+        if (!cacheContent || cacheContent.trim() === '') {
+          console.log(`⚠️ Token cache is empty, skipping ${contractAddress.substring(0, 8)}`);
+          return null;
+        }
+        tokensCache = JSON.parse(cacheContent);
+      } catch (parseError) {
+        console.log(`⚠️ Token cache corrupted or being written, skipping ${contractAddress.substring(0, 8)}: ${parseError.message}`);
+        return null;
+      }
+      
       const token = tokensCache.find(t => t.contractAddress === contractAddress);
       
       if (!token) {
