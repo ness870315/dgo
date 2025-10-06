@@ -743,6 +743,100 @@ class EnhancedBackend {
       }
     });
 
+    // Admin: Delete a user completely
+    this.app.post('/api/admin/users/:username/delete', adminApiAuth, async (req, res) => {
+      try {
+        const { username } = req.params;
+        console.log(`[🛡️ Admin] 🗑️ Deleting user '${username}'...`);
+        
+        // Get all users to find the user by username
+        const users = await this.oauthXService.db.getAllUsers();
+        const user = users.find(u => u.username === username || u.username === `@${username}`);
+        
+        if (!user) {
+          return res.status(404).json({ 
+            success: false, 
+            error: `User '${username}' not found`,
+            availableUsers: users.map(u => u.username).slice(0, 10)
+          });
+        }
+        
+        console.log(`[🛡️ Admin] ✅ Found user: ${user.username} (ID: ${user.id})`);
+        
+        const deletedData = {
+          kolCalls: 0,
+          sessions: 0,
+          referralCodes: 0
+        };
+        
+        // Delete user directory
+        const userDir = this.oauthXService.db.getUserFile(user.id, '');
+        const userDirPath = userDir.substring(0, userDir.lastIndexOf(path.sep));
+        
+        try {
+          await fs.rm(userDirPath, { recursive: true, force: true });
+          console.log(`[🛡️ Admin] ✅ User directory deleted: ${userDirPath}`);
+        } catch (err) {
+          console.log(`[🛡️ Admin] ⚠️ Could not delete user directory: ${err.message}`);
+        }
+        
+        // Remove from users index
+        const updatedUsers = users.filter(u => u.id !== user.id);
+        const usersIndexPath = this.oauthXService.db.getGlobalFile('users-index.json');
+        await this.oauthXService.db.writeJsonFile(usersIndexPath, updatedUsers);
+        console.log(`[🛡️ Admin] ✅ Removed from users index (${users.length} → ${updatedUsers.length})`);
+        
+        // Remove sessions
+        const sessionsPath = this.oauthXService.db.getGlobalFile('sessions.json');
+        try {
+          const sessions = await this.oauthXService.db.readJsonFile(sessionsPath, {});
+          const sessionKeys = Object.keys(sessions);
+          const userSessions = sessionKeys.filter(key => sessions[key].userId === user.id);
+          
+          userSessions.forEach(key => delete sessions[key]);
+          deletedData.sessions = userSessions.length;
+          
+          await this.oauthXService.db.writeJsonFile(sessionsPath, sessions);
+          console.log(`[🛡️ Admin] ✅ Removed ${userSessions.length} session(s)`);
+        } catch (err) {
+          console.log(`[🛡️ Admin] ⚠️ Could not remove sessions: ${err.message}`);
+        }
+        
+        // Remove from referral codes
+        const referralCodesPath = this.oauthXService.db.getGlobalFile('referral-codes.json');
+        try {
+          const codes = await this.oauthXService.db.readJsonFile(referralCodesPath, []);
+          const userCodes = codes.filter(c => c.createdBy === user.id);
+          const updatedCodes = codes.filter(c => c.createdBy !== user.id);
+          
+          if (userCodes.length > 0) {
+            await this.oauthXService.db.writeJsonFile(referralCodesPath, updatedCodes);
+            deletedData.referralCodes = userCodes.length;
+            console.log(`[🛡️ Admin] ✅ Removed ${userCodes.length} referral code(s)`);
+          }
+        } catch (err) {
+          console.log(`[🛡️ Admin] ⚠️ Could not check referral codes: ${err.message}`);
+        }
+        
+        console.log(`[🛡️ Admin] ✅ User '${user.username}' has been completely deleted`);
+        
+        res.json({ 
+          success: true, 
+          message: `User '${username}' deleted successfully`,
+          user: {
+            id: user.id,
+            username: user.username,
+            displayName: user.displayName
+          },
+          deletedData
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Delete user failed:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to delete user' });
+      }
+    });
+
     // Admin: Earnings endpoints
     this.app.get('/api/admin/earnings/summary', adminApiAuth, async (req, res) => {
       try {
