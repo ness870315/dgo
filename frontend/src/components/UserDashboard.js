@@ -540,7 +540,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
             )}
             <div className="min-w-0 flex-1">
               <h1 className="text-xl sm:text-3xl font-bold text-white truncate">{user?.displayName || 'User'}</h1>
-              <p className="text-gray-400 text-sm sm:text-base">@{user?.username || 'unknown'}</p>
+              <p className="text-gray-400 text-sm sm:text-base">{user?.username || 'unknown'}</p>
               {user?.verified && (
                 <div className="flex items-center space-x-1 mt-1">
                   <div className="w-3 h-3 sm:w-4 sm:h-4 bg-blue-500 rounded-full flex items-center justify-center">
@@ -784,7 +784,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                           <span className="text-white font-semibold text-sm">#{i+1}</span>
                           <span className={`inline-flex items-center justify-center w-4 h-4 rounded ${i===0?'bg-yellow-500':i===1?'bg-gray-400':'bg-amber-700'}`}></span>
                           <span className="text-white font-medium text-sm truncate">{w.displayName}</span>
-                          <span className="text-blue-400 text-[11px] truncate">@{w.username}</span>
+                          <span className="text-blue-400 text-[11px] truncate">{w.username}</span>
                         </div>
                         <div className="text-[11px] text-gray-300 flex gap-2">
                           <span>Calls: {w.callCount}</span>
@@ -850,7 +850,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                                 <p className="text-white font-medium">{kol.displayName}</p>
                                 {trophy && <Award size={16} className={trophyClass} />}
                               </div>
-                              <p className="text-blue-400 text-sm font-medium">@{kol.username}</p>
+                              <p className="text-blue-400 text-sm font-medium">{kol.username}</p>
                             </div>
                           </div>
                           <div className="text-right">
@@ -981,7 +981,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                         rel="noopener noreferrer"
                         className="text-blue-400 text-sm hover:text-blue-300 hover:underline cursor-pointer"
                       >
-                        @{selectedKolUser.username}
+                        {selectedKolUser.username}
                       </a>
                     </div>
                     <div className="text-xs text-gray-400 flex gap-3 mt-1">
@@ -1893,7 +1893,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                             </div>
                           )}
                           <div className="flex-1 text-left">
-                            <div className="text-white font-medium">@{username}</div>
+                            <div className="text-white font-medium">{username}</div>
                             <div className="text-gray-400 text-sm">{displayName}</div>
                           </div>
                         </button>
@@ -1966,7 +1966,7 @@ const UserDashboard = ({ onNavigateToListToken, onNavigateToFuelToken, onNavigat
                             </div>
                           )}
                           <div className="flex-1 text-left">
-                            <div className="text-white font-medium">@{username}</div>
+                            <div className="text-white font-medium">{username}</div>
                             <div className="text-gray-400 text-sm">{displayName}</div>
                           </div>
                         </button>
