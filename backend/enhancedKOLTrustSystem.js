@@ -408,7 +408,12 @@ export default class EnhancedKOLTrustSystem {
    * Generate trust summary
    */
   generateTrustSummary(performance, consistency, riskManagement, marketTiming) {
-    const overallScore = (performance.score + consistency.score + riskManagement.score + marketTiming.score) / 4;
+    // Use weighted score (same as trustScore calculation) instead of simple average
+    const overallScore = 
+      (performance.score * this.config.performanceWeight) +
+      (consistency.score * this.config.consistencyWeight) +
+      (riskManagement.score * this.config.riskManagementWeight) +
+      (marketTiming.score * this.config.marketTimingWeight);
     
     let trustLevel = 'Novice';
     if (overallScore >= 70) trustLevel = 'Elite KOL';
