@@ -656,7 +656,30 @@ class EnhancedBackend {
         const { id } = req.params;
         const { durationDays = 30, subscriptionType = 'admin_grant' } = req.body || {};
         const now = new Date();
-        const expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
+        
+        // Check if user already has premium
+        const existingPremium = await this.oauthXService.db.getPremiumStatus(id);
+        let expiresAt;
+        
+        if (existingPremium && existingPremium.isPremium && existingPremium.expiresAt) {
+          // User already has premium - EXTEND from current expiration date
+          const currentExpiration = new Date(existingPremium.expiresAt);
+          
+          // If current expiration is in the future, add to it
+          // If it's in the past, start from now
+          const baseDate = currentExpiration > now ? currentExpiration : now;
+          expiresAt = new Date(baseDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
+          
+          console.log(`[🛡️ Enhanced Backend] 📅 Extending Premium for user ${id}:`);
+          console.log(`  Current expiration: ${currentExpiration.toISOString()}`);
+          console.log(`  Adding: ${durationDays} days`);
+          console.log(`  New expiration: ${expiresAt.toISOString()}`);
+        } else {
+          // User doesn't have premium or it's expired - start from now
+          expiresAt = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
+          console.log(`[🛡️ Enhanced Backend] 🆕 Granting Premium to user ${id} for ${durationDays} days`);
+        }
+        
         const result = await this.oauthXService.db.setPremiumStatus(id, {
           isPremium: true,
           subscriptionType,
@@ -665,6 +688,7 @@ class EnhancedBackend {
           expiresAt: expiresAt.toISOString(),
           durationDays
         });
+        
         res.json({ success: true, premium: result });
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Admin upgrade failed:', error.message);
