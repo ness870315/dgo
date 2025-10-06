@@ -501,6 +501,70 @@ class OAuthXService {
   }
 
   /**
+   * Get conversation thread (replies leading up to a tweet)
+   * This helps understand context when replying to mentions
+   */
+  async getConversationContext(userId, conversationId, referenceTweetId, maxTweets = 5) {
+    try {
+      const user = await this.getUserById(userId);
+      if (!user || !user.accessToken) {
+        throw new Error('User not found or no access token');
+      }
+
+      console.log(`🔍 Fetching conversation context for conversation ${conversationId}`);
+
+      // Search for tweets in the conversation
+      // We'll use the search endpoint to get tweets in this conversation
+      const url = `https://api.twitter.com/2/tweets/search/recent`;
+      const params = new URLSearchParams({
+        'query': `conversation_id:${conversationId}`,
+        'max_results': String(Math.min(maxTweets, 10)),
+        'tweet.fields': 'author_id,created_at,text,conversation_id,referenced_tweets',
+        'expansions': 'author_id,referenced_tweets.id',
+        'user.fields': 'username,name'
+      });
+
+      const response = await axios.get(`${url}?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${user.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.data || !response.data.data) {
+        console.log('📭 No conversation context found');
+        return [];
+      }
+
+      // Format the conversation tweets
+      const tweets = response.data.data.map(tweet => {
+        const author = response.data.includes?.users?.find(u => u.id === tweet.author_id);
+        return {
+          id: tweet.id,
+          text: tweet.text,
+          createdAt: tweet.created_at,
+          author: {
+            id: tweet.author_id,
+            username: author?.username || 'unknown',
+            name: author?.name || 'Unknown'
+          }
+        };
+      });
+
+      // Sort by creation time (oldest first for context)
+      tweets.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+      console.log(`✅ Found ${tweets.length} tweets in conversation`);
+      return tweets;
+
+    } catch (error) {
+      console.error('❌ Error fetching conversation context:', error.response?.data || error.message);
+      // Don't throw - just return empty array if context fetch fails
+      return [];
+    }
+  }
+
+  /**
    * Refresh access token using refresh token
    */
   async refreshAccessToken(refreshToken) {

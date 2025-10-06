@@ -231,8 +231,27 @@ class TwitterMentionService {
       
       console.log(`💬 [MENTIONS] Processing mention from @${author}: "${text}"`);
       
+      // Fetch conversation context if available
+      let conversationContext = [];
+      if (mention.conversationId) {
+        console.log(`🔍 [MENTIONS] Fetching conversation context for ${mention.conversationId}`);
+        conversationContext = await this.twitterService.oauthXService.getConversationContext(
+          this.twitterService.dgnOracleUserId,
+          mention.conversationId,
+          mentionId,
+          5 // Get up to 5 previous tweets for context
+        );
+        
+        if (conversationContext.length > 0) {
+          console.log(`📜 [MENTIONS] Found ${conversationContext.length} tweets in conversation:`);
+          conversationContext.forEach((tweet, i) => {
+            console.log(`  ${i + 1}. @${tweet.author.username}: "${tweet.text.substring(0, 60)}..."`);
+          });
+        }
+      }
+      
       // Analyze the mention to extract context and tokens
-      const analysis = await this.analyzeMention(text, author);
+      const analysis = await this.analyzeMention(text, author, conversationContext);
       
       if (!analysis.shouldReply) {
         console.log(`🚫 [MENTIONS] Skipping - ${analysis.reason}`);
@@ -240,8 +259,8 @@ class TwitterMentionService {
         return;
       }
       
-      // Generate appropriate reply
-      const reply = await this.generateReply(analysis, author);
+      // Generate appropriate reply with conversation context
+      const reply = await this.generateReply(analysis, author, conversationContext);
       
       if (!reply) {
         console.log(`❌ [MENTIONS] Failed to generate reply for ${mentionId}`);
@@ -276,18 +295,28 @@ class TwitterMentionService {
   }
 
   // Analyze mention to understand context and extract tokens
-  async analyzeMention(text, author) {
+  async analyzeMention(text, author, conversationContext = []) {
     try {
       // First, check if this is a contract address (Solana addresses are 32-44 chars, base58)
       const contractRegex = /\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/;
       const contractMatch = text.match(contractRegex);
+      
+      // Build conversation context string for AI
+      let contextString = '';
+      if (conversationContext.length > 0) {
+        contextString = '\n\nPREVIOUS CONVERSATION:\n';
+        conversationContext.forEach((tweet, i) => {
+          contextString += `${i + 1}. @${tweet.author.username}: "${tweet.text}"\n`;
+        });
+        contextString += '\nCURRENT MENTION:\n';
+      }
       
       const prompt = `You are analyzing a Twitter mention to @dgnoracle. Determine:
 1. Should we reply? (yes/no)
 2. Type of reply needed: "casual" (general chat), "kol_opinion" (crypto analysis), or "contract_analysis" (user provided contract address)
 3. Extract any mentioned tokens/tickers (symbols starting with $ or @)
 4. Extract contract address if present (Solana addresses are long alphanumeric strings)
-
+${contextString}
 Mention: "${text}"
 Author: @${author}
 
@@ -360,10 +389,10 @@ Respond in JSON format:
   }
 
   // Generate reply based on analysis
-  async generateReply(analysis, author) {
+  async generateReply(analysis, author, conversationContext = []) {
     try {
       if (analysis.replyType === 'casual') {
-        return await this.generateCasualReply(analysis, author);
+        return await this.generateCasualReply(analysis, author, conversationContext);
       } else if (analysis.replyType === 'contract_analysis' && analysis.contractAddress) {
         // User provided a contract address - fetch from Jupiter and analyze
         return await this.analyzeContractAddress(analysis.contractAddress, author);
@@ -379,8 +408,18 @@ Respond in JSON format:
   }
 
   // Generate casual conversational reply
-  async generateCasualReply(analysis, author) {
+  async generateCasualReply(analysis, author, conversationContext = []) {
     try {
+      // Build conversation context string for AI
+      let contextString = '';
+      if (conversationContext.length > 0) {
+        contextString = '\n\nPREVIOUS CONVERSATION:\n';
+        conversationContext.forEach((tweet, i) => {
+          contextString += `${i + 1}. @${tweet.author.username}: "${tweet.text}"\n`;
+        });
+        contextString += '\nCURRENT MENTION:\n';
+      }
+      
       const prompt = `You are @dgnoracle - DeGen Oracle, a legendary crypto KOL and AI meme coin expert on Solana.
 
 PERSONALITY:
@@ -391,7 +430,7 @@ PERSONALITY:
 - Concise and punchy - no fluff
 - Sometimes elaborate if it's worth it
 - NO corporate speak, NO hashtags, NO formalities
-
+${contextString}
 Someone said: "${analysis.originalText || 'hey'}"
 Author: @${author}
 
