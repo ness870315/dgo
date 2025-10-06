@@ -764,17 +764,29 @@ class EnhancedBackend {
           const backupPath = path.join(globalDir, mostRecent);
           
           const backupData = await fs.readFile(backupPath, 'utf8');
-          const users = JSON.parse(backupData);
+          let usersData = JSON.parse(backupData);
           
-          console.log(`[🚨 EMERGENCY] Restoring ${users.length} users from ${mostRecent}`);
+          // Convert array to object format if needed (userId as key)
+          let usersIndex = {};
+          if (Array.isArray(usersData)) {
+            console.log(`[🚨 EMERGENCY] Converting array format to object format`);
+            usersData.forEach(user => {
+              usersIndex[user.id] = user;
+            });
+          } else {
+            usersIndex = usersData;
+          }
           
-          await this.oauthXService.db.writeJsonFile(usersIndexPath, users);
+          const userCount = Object.keys(usersIndex).length;
+          console.log(`[🚨 EMERGENCY] Restoring ${userCount} users from ${mostRecent}`);
+          
+          await this.oauthXService.db.writeJsonFile(usersIndexPath, usersIndex);
           
           return res.json({
             success: true,
-            message: `Restored ${users.length} users from backup`,
-            usersCount: users.length,
-            users: users.map(u => ({ id: u.id, username: u.username })),
+            message: `Restored ${userCount} users from backup`,
+            usersCount: userCount,
+            users: Object.values(usersIndex).map(u => ({ id: u.id, username: u.username })),
             source: 'backup',
             backupFile: mostRecent
           });
@@ -786,7 +798,7 @@ class EnhancedBackend {
         const userDirs = await fs.readdir(usersDir);
         const userFolders = userDirs.filter(d => d.startsWith('user-'));
         
-        const rebuiltUsers = [];
+        const rebuiltUsersIndex = {};
         
         for (const folder of userFolders) {
           try {
@@ -796,14 +808,14 @@ class EnhancedBackend {
             const profileData = await fs.readFile(profilePath, 'utf8');
             const profile = JSON.parse(profileData);
             
-            rebuiltUsers.push({
+            rebuiltUsersIndex[userId] = {
               id: userId,
               username: profile.username,
               displayName: profile.displayName,
               profileImageUrl: profile.profileImageUrl,
               createdAt: profile.createdAt,
               referralCode: profile.referralCode
-            });
+            };
             
             console.log(`[🚨 EMERGENCY] Rebuilt: ${profile.username}`);
           } catch (err) {
@@ -811,14 +823,16 @@ class EnhancedBackend {
           }
         }
         
-        if (rebuiltUsers.length > 0) {
-          await this.oauthXService.db.writeJsonFile(usersIndexPath, rebuiltUsers);
+        const rebuiltCount = Object.keys(rebuiltUsersIndex).length;
+        
+        if (rebuiltCount > 0) {
+          await this.oauthXService.db.writeJsonFile(usersIndexPath, rebuiltUsersIndex);
           
           return res.json({
             success: true,
-            message: `Rebuilt ${rebuiltUsers.length} users from directories`,
-            usersCount: rebuiltUsers.length,
-            users: rebuiltUsers.map(u => ({ id: u.id, username: u.username })),
+            message: `Rebuilt ${rebuiltCount} users from directories`,
+            usersCount: rebuiltCount,
+            users: Object.values(rebuiltUsersIndex).map(u => ({ id: u.id, username: u.username })),
             source: 'rebuilt'
           });
         }
