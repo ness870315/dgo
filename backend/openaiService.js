@@ -7,6 +7,7 @@ import fetch from 'node-fetch';
 /**
  * OpenAI Service - Core AI engine for DeGen Oracle
  * Handles all AI interactions with rate limiting, caching, and cost tracking
+ * Supports GPT-5 Responses API with built-in web search
  */
 class OpenAIService {
   constructor() {
