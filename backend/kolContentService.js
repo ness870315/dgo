@@ -82,75 +82,28 @@ class KOLContentService {
   }
 
   /**
-   * Select best tokens for content (high momentum, interesting stories)
+   * Select top trending tokens for content (uses our trending system directly)
    */
   async selectTopMemecoins(count = 2) {
     const trending = await this.getTrendingTokens(20);
     
     if (trending.length === 0) {
-      console.log('⚠️ No trending tokens available');
+      console.log('⚠️ No trending tokens available from our system');
       return [];
     }
 
-    // Filter for interesting tokens (flexible criteria)
-    const candidates = trending.filter(token => {
-      const mcap = token.mcap || token.marketCap || 0;
-      const volume24h = token.volume24h || 0;
-      const score = token.overallScore || 0;
-      
-      // Skip if missing critical data
-      if (!mcap || mcap === 0 || isNaN(mcap)) {
-        return false;
-      }
-      
-      // Accept tokens that are:
-      // 1. Low-mid cap (<$100M) with good volume, OR
-      // 2. High trending score (>8.5), OR
-      // 3. Decent volume (>$50K)
-      const volumeToMcap = volume24h / mcap;
-      
-      return (
-        (mcap < 100_000_000 && volumeToMcap > 0.05) || // Low-mid cap with 5%+ volume/mcap
-        (score > 8.5) || // High trending score
-        (volume24h > 50_000) // Decent absolute volume
-      );
-    });
+    console.log(`📋 Received ${trending.length} trending tokens from Degen Oracle system`);
 
-    console.log(`📋 Found ${candidates.length} candidate tokens (from ${trending.length} trending)`);
-
-    // If not enough candidates, use all trending tokens
-    const tokensToScore = candidates.length >= count ? candidates : trending.filter(t => {
-      const mcap = t.mcap || t.marketCap || 0;
-      return mcap > 0 && !isNaN(mcap); // Just filter out broken data
-    });
-
-    // Sort by momentum (score + volume/mcap + price change)
-    const scored = tokensToScore.map(token => {
-      const mcap = token.mcap || token.marketCap || 0;
-      const volume24h = token.volume24h || 0;
-      const volumeToMcap = mcap > 0 ? (volume24h / mcap) : 0;
-      const priceChange = token.priceChange24h || 0;
-      
-      // Momentum score: overall score + volume ratio + price action
-      const momentumScore = (token.overallScore || 0) + (volumeToMcap * 10) + (priceChange / 10);
-      
-      return {
-        ...token,
-        momentumScore,
-        volumeToMcap
-      };
-    });
-
-    // Sort by momentum and take top N
-    scored.sort((a, b) => b.momentumScore - a.momentumScore);
+    // Simply take the top N tokens from our trending system
+    // Our trending algorithm already does the heavy lifting (score, volume, momentum, etc.)
+    const selected = trending.slice(0, count);
     
-    const selected = scored.slice(0, count);
-    console.log(`🎯 Selected ${selected.length} tokens for content:`, 
+    console.log(`🎯 Selected top ${selected.length} trending tokens for content:`, 
       selected.map(t => ({ 
         symbol: t.symbol, 
         mcap: `$${((t.mcap || 0) / 1_000_000).toFixed(2)}M`,
         score: (t.overallScore || 0).toFixed(1),
-        momentum: t.momentumScore.toFixed(1) 
+        priceChange: `${(t.priceChange24h || 0).toFixed(1)}%`
       }))
     );
     
