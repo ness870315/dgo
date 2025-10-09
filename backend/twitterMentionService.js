@@ -456,16 +456,26 @@ Examples:
 
 Reply (without @username):`;
 
+      console.log(`🤖 [MENTIONS] Calling GPT-5-mini for casual reply...`);
       const reply = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 100,
         temperature: 0.8,
         model: 'gpt-5-mini' // Casual replies with GPT-5 mini
       });
       
+      console.log(`📝 [MENTIONS] GPT-5-mini raw response: "${reply}"`);
+      console.log(`📏 [MENTIONS] Raw response length: ${reply?.length || 0} chars`);
+      
       // Remove any hashtags from the reply
       const cleanReply = reply.trim().replace(/#\w+/g, '').replace(/\s+/g, ' ').trim();
       
-      return `@${author} ${cleanReply}`;
+      console.log(`🧹 [MENTIONS] Cleaned reply: "${cleanReply}"`);
+      console.log(`📏 [MENTIONS] Cleaned reply length: ${cleanReply.length} chars`);
+      
+      const finalReply = `@${author} ${cleanReply}`;
+      console.log(`✅ [MENTIONS] Final reply: "${finalReply}"`);
+      
+      return finalReply;
       
     } catch (error) {
       console.error('❌ [MENTIONS] Error generating casual reply:', error.message);
