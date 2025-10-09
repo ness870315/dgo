@@ -94,34 +94,9 @@ class KOLContentService {
 
     console.log(`📋 Received ${trending.length} trending tokens from Degen Oracle system`);
 
-    // Filter out tokens with broken/missing data
-    const validTokens = trending.filter(token => {
-      const mcap = token.mcap || token.marketCap || 0;
-      const volume = token.volume24h || 0;
-      
-      // Must have valid mcap (> $10K to avoid dust/broken tokens)
-      if (!mcap || mcap <= 10000 || isNaN(mcap)) {
-        console.log(`⏭️ Skipping $${token.symbol} - invalid mcap ($${mcap.toFixed(0)})`);
-        return false;
-      }
-      // Must have valid volume (> $1K)
-      if (!volume || volume <= 1000 || isNaN(volume)) {
-        console.log(`⏭️ Skipping $${token.symbol} - invalid volume ($${volume.toFixed(0)})`);
-        return false;
-      }
-      
-      return true;
-    });
-
-    if (validTokens.length === 0) {
-      console.log('⚠️ No valid tokens after filtering (all have broken data)');
-      return null;
-    }
-
-    console.log(`✅ ${validTokens.length} valid tokens after filtering`);
-
+    // Backend already filters out broken tokens, so we can trust the data
     // Take top 5 and randomly pick one
-    const top5 = validTokens.slice(0, Math.min(5, validTokens.length));
+    const top5 = trending.slice(0, Math.min(5, trending.length));
     const selected = top5[Math.floor(Math.random() * top5.length)];
     
     console.log(`🎯 Randomly selected from top 5: $${selected.symbol}`, {

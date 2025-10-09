@@ -1343,6 +1343,13 @@ class EnhancedBackend {
         // Filter for trending tokens (Viral and Trending status)
         const trendingTokens = tokens.filter(token => {
           const overallScore = token.overallScore || 0;
+          const mcap = token.mcap || token.marketCap || 0;
+          const volume = token.volume24h || 0;
+          
+          // Must have valid data (mcap > $10K, volume > $1K)
+          if (!mcap || mcap <= 10000 || isNaN(mcap)) return false;
+          if (!volume || volume <= 1000 || isNaN(volume)) return false;
+          
           // Viral: >8.5, Trending: >7.8
           return overallScore > 7.8 && 
                  !this.isSuspiciousToken(token) && 
