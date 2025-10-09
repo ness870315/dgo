@@ -268,20 +268,35 @@ class OpenAIService {
       console.log(`🌐 [GPT-5 RESPONSES API] Making request with web search...`);
 
       // Use Responses API (not Chat Completions) for GPT-5 web search
+      // Note: Responses API may return incomplete if max_output_tokens is too low
       const response = await this.openai.responses.create({
         model: model,
         tools: [{ type: 'web_search' }],
         input: prompt,
-        max_output_tokens: maxTokens
+        max_output_tokens: Math.max(maxTokens, 500) // Minimum 500 tokens for complete responses
       });
 
-      console.log(`🔍 [DEBUG] Responses API response structure:`, JSON.stringify(response, null, 2));
+      console.log(`🔍 [DEBUG] Response status: ${response.status}`);
       
-      // Try different possible response fields
-      const completion = response.output_text || response.output || response.text || response.content || '';
+      // Check if response is incomplete
+      if (response.status === 'incomplete') {
+        console.warn(`⚠️ Response incomplete: ${response.incomplete_details?.reason}`);
+        console.warn(`⚠️ Requested ${maxTokens} tokens, may need more. Retrying with 1000...`);
+        
+        // Retry with more tokens
+        const retryResponse = await this.openai.responses.create({
+          model: model,
+          tools: [{ type: 'web_search' }],
+          input: prompt,
+          max_output_tokens: 1000
+        });
+        
+        const completion = retryResponse.output_text || '';
+        console.log(`✅ [RETRY] Got completion: ${completion.length} chars`);
+        return completion;
+      }
       
-      console.log(`📝 [DEBUG] Extracted completion: "${completion}"`);
-      console.log(`📏 [DEBUG] Completion length: ${completion.length}`);
+      const completion = response.output_text || '';
       
       const tokensUsed = response.usage?.total_tokens || maxTokens;
       const cost = this.calculateCost(model, tokensUsed);
