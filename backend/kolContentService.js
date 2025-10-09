@@ -328,14 +328,16 @@ Tweet 3:`;
 
       // Decide content format randomly (more realistic distribution)
       const contentTypes = [
-        'single+single',      // 30% - Two standalone tweets
-        'single+short',       // 25% - One tweet + one 2-tweet thread
-        'short+short',        // 25% - Two 2-tweet threads
+        'single+single',      // 25% - Two standalone tweets
+        'single+short',       // 20% - One tweet + one 2-tweet thread
+        'short+short',        // 20% - Two 2-tweet threads
         'short+deep',         // 15% - One 2-tweet + one 3-tweet thread
+        'meme+single',        // 10% - One meme/joke + one analysis
+        'meme+meme',          // 5%  - Two crypto jokes/memes
         'deep+deep'           // 5%  - Two 3-tweet threads (rare, for big plays)
       ];
 
-      const weights = [30, 25, 25, 15, 5];
+      const weights = [25, 20, 20, 15, 10, 5, 5];
       const random = Math.random() * 100;
       let cumulative = 0;
       let selectedFormat = 'single+single';
@@ -383,7 +385,7 @@ Tweet 3:`;
   }
 
   /**
-   * Generate content based on format (single, short, deep)
+   * Generate content based on format (single, short, deep, meme)
    */
   async generateContentByFormat(token, format) {
     switch (format) {
@@ -397,8 +399,137 @@ Tweet 3:`;
       case 'deep':
         return await this.generateTokenThread(token);
       
+      case 'meme':
+        return await this.generateMemeTweet(token);
+      
       default:
         return null;
+    }
+  }
+
+  /**
+   * Generate crypto meme/joke tweet (market sentiment + humor)
+   */
+  async generateMemeTweet(token) {
+    try {
+      // 30% chance to do a general market meme instead of token-specific
+      const isGeneralMeme = Math.random() < 0.3;
+      
+      if (isGeneralMeme) {
+        return await this.generateGeneralMarketMeme();
+      }
+
+      console.log(`😂 Generating meme tweet for $${token.symbol}...`);
+
+      const mcap = token.mcap || token.marketCap || 0;
+      const priceChange = token.priceChange24h || 0;
+      const volume24h = token.volume24h || 0;
+      const volumeToMcap = mcap > 0 ? ((volume24h / mcap) * 100).toFixed(1) : 0;
+
+      const memePrompt = `You're a crypto KOL with a great sense of humor. Generate a funny tweet about $${token.symbol}.
+
+TOKEN CONTEXT:
+- Price: ${priceChange > 0 ? '+' : ''}${priceChange.toFixed(1)}% (24h)
+- MCap: $${(mcap / 1_000_000).toFixed(2)}M
+- Volume/MCap: ${volumeToMcap}%
+
+HUMOR STYLES (pick one that fits):
+- If dumping: "someone needs to CTO [token]" or "exit liquidity szn" jokes
+- If pumping hard: "ser this is a casino" or "10x in 3 days is normal here" humor
+- If sideways: "consolidation = accumulation" or "bullish wedge on the 1min chart" jokes
+- Low volume: "volume lower than my self-esteem" type jokes
+- If memecoin: Self-aware degen humor about gambling
+
+Also check Twitter sentiment with web search for current memes/jokes about this token or the broader market.
+
+Make it:
+- Relatable to crypto degens
+- Self-aware and ironic
+- Short and punchy
+- Uses crypto slang naturally
+- NO hashtags
+- Max 280 characters
+
+Meme tweet:`;
+
+      const memeTweet = await this.openaiService.generateCompletion(memePrompt, {
+        maxTokens: 100,
+        temperature: 0.9, // High creativity for humor
+        model: 'gpt-5',
+        enableWebSearch: true
+      });
+
+      const cleanMeme = memeTweet.trim()
+        .replace(/#\w+/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      console.log(`✅ Generated meme tweet for $${token.symbol}`);
+      return [cleanMeme];
+
+    } catch (error) {
+      console.error(`❌ Error generating meme tweet for ${token.symbol}:`, error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Generate general market sentiment meme (not token-specific)
+   */
+  async generateGeneralMarketMeme() {
+    try {
+      console.log('😂 Generating general market meme...');
+
+      const generalMemePrompt = `You're a crypto KOL with great humor. Generate a funny tweet about the current crypto market.
+
+Use web search to check:
+- Is BTC/ETH up or down today?
+- What's trending on Crypto Twitter right now?
+- Any major news/events (SEC, regulations, hacks, etc.)?
+- General market sentiment (fear? greed? crab?)
+
+CLASSIC CRYPTO JOKES (pick what fits):
+- BTC dumping: "looks like someone needs to CTO Bitcoin"
+- Market crabbing: "this sideways action is violating the Geneva Convention"
+- Green candles: "ser this is a Wendy's... I mean casino"
+- Red candles: "my portfolio is a social experiment at this point"
+- Hopium tweets: "trust me bro" energy
+- TA jokes: "bullish wedge on the 1min chart, trust the science"
+- Influencer jokes: "CT KOLs explaining why their -90% call was actually genius"
+- Regulatory FUD: "Gary Gensler woke up and chose violence again"
+- "It's different this time" copium
+- "Few understand" memes
+- "Zoom out" when dumping
+- Exit liquidity jokes
+
+Make it:
+- Timely and relevant to TODAY's market
+- Relatable to crypto degens
+- Self-aware and ironic
+- NO specific token mentions (general market vibes only)
+- NO hashtags
+- Max 280 characters
+
+Market meme:`;
+
+      const memeTweet = await this.openaiService.generateCompletion(generalMemePrompt, {
+        maxTokens: 100,
+        temperature: 0.95, // Very high creativity for humor
+        model: 'gpt-5',
+        enableWebSearch: true
+      });
+
+      const cleanMeme = memeTweet.trim()
+        .replace(/#\w+/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      console.log(`✅ Generated general market meme`);
+      return [cleanMeme];
+
+    } catch (error) {
+      console.error('❌ Error generating general market meme:', error.message);
+      return null;
     }
   }
 
