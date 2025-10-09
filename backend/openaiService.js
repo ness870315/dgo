@@ -148,9 +148,16 @@ class OpenAIService {
       enableWebSearch = false // Enable real-time web search
     } = options;
 
-    // GPT-5 with web search uses Responses API, not Chat Completions
+    // All GPT-5 variants (gpt-5, gpt-5-mini, gpt-5-nano) with web search use Responses API
     if (model.includes('gpt-5') && enableWebSearch) {
       return await this.generateResponseWithWebSearch(prompt, options);
+    }
+    
+    // GPT-5 variants without web search can also use Responses API (for consistency)
+    // But we'll use Chat Completions for non-web-search calls (faster)
+    if (model.includes('gpt-5') && !enableWebSearch) {
+      // Use Chat Completions API for GPT-5 without web search
+      // Falls through to regular chat completions logic below
     }
 
     const startTime = Date.now();

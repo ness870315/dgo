@@ -460,7 +460,8 @@ Reply (without @username):`;
       const reply = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 100,
         temperature: 0.8,
-        model: 'gpt-5-mini'
+        model: 'gpt-5-mini',
+        enableWebSearch: true // GPT-5-mini supports web search via Responses API
       });
       
       console.log(`📝 [MENTIONS] GPT-5-mini raw response: "${reply}"`);
