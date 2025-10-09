@@ -271,7 +271,9 @@ class TwitterMentionService {
       const result = await this.postReply(mentionId, reply);
       
       if (result.success) {
-        console.log(`✅ [MENTIONS] Replied to @${author}: "${reply.substring(0, 50)}..."`);
+        console.log(`✅ [MENTIONS] Replied to @${author}:`);
+        console.log(`📝 [MENTIONS] Full reply text: "${reply}"`);
+        console.log(`📏 [MENTIONS] Reply length: ${reply.length} characters`);
         this.repliedMentions.add(mentionId);
         
         // Keep only last 1000 replied IDs in memory
