@@ -358,7 +358,7 @@ Respond in JSON format:
       const response = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 200,
         temperature: 0.3,
-        model: 'gpt-5-nano' // Fast classification with GPT-5 nano
+        model: 'gpt-4o-mini' // Fast classification
       });
       
       // Parse JSON response
@@ -456,11 +456,11 @@ Examples:
 
 Reply (without @username):`;
 
-      console.log(`🤖 [MENTIONS] Calling GPT-5-mini for casual reply...`);
+      console.log(`🤖 [MENTIONS] Calling GPT-4o for casual reply...`);
       const reply = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 100,
         temperature: 0.8,
-        model: 'gpt-5-mini' // Casual replies with GPT-5 mini
+        model: 'gpt-4o' // Temporary: Use gpt-4o until GPT-5 names confirmed
       });
       
       console.log(`📝 [MENTIONS] GPT-5-mini raw response: "${reply}"`);
@@ -852,7 +852,7 @@ Reply (without @username):`;
       const opinion = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 150,
         temperature: 0.7,
-        model: 'gpt-5', // Use GPT-5 for best analysis and real-time knowledge
+        model: 'gpt-4o', // Use GPT-4o with web search
         enableWebSearch: true // Enable web search for real-time token data
       });
       
