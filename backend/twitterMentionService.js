@@ -317,43 +317,39 @@ class TwitterMentionService {
       
       const prompt = `You are analyzing a Twitter mention to @dgnoracle. Determine:
 1. Should we reply? (yes/no)
-2. Type of reply needed: "casual" (general chat), "kol_opinion" (crypto analysis), or "contract_analysis" (user provided contract address)
-3. Extract any mentioned tokens/tickers (symbols starting with $ or @)
-4. Extract contract address if present (Solana addresses are long alphanumeric strings)
+2. Type of reply needed
+3. Extract any mentioned tokens/tickers
+4. Extract contract address if present
+
 ${contextString}
 Mention: "${text}"
 Author: @${author}
 
-Rules:
-- BE GENEROUS: Reply to almost everything UNLESS it's obvious spam/bots
-- CONTEXT MATTERS:
-  * If introducing @dgnoracle to another project/platform/AI → "casual" (e.g., "let me introduce you to @X")
-  * If asking about price/trading/performance of a token → "kol_opinion" (e.g., "what do you think about $BONK?")
-  * If providing contract address → "contract_analysis"
-  * If greeting, thanking, or general chat → "casual"
-  
-- Type "casual" for ONLY: introductions, greetings, thanks, platform questions
-- Type "kol_opinion" if asking about:
-  * Token analysis, price opinions, trading insights
-  * "What's trending?" "What should I buy?" "What's hot on CT?"
-  * Volume questions, whale activity, holder changes
-  * "Is X a buy?" "What caused X?" "Why is X pumping/dumping?"
-  * Market opportunities, calls, recommendations
-  * ANY question seeking investment/trading advice or market insights
-- Type "contract_analysis" if they provide a Solana contract address (32-44 char base58 string)
-- Extract ALL symbols ($BONK, @token) but DON'T treat them as analysis requests if they're mentioned in other contexts
-- ONLY skip: obvious spam (crypto giveaways, phishing links), bot replies, or completely unrelated topics
+CRITICAL CLASSIFICATION RULES:
 
-Examples:
-- "let me introduce you to @memeputer" → casual (introduction, not asking for analysis)
-- "what's trending on CT? what should I buy?" → kol_opinion (asking for trading recommendations)
-- "what do you think about $BONK?" → kol_opinion (asking for token analysis)
-- "check out @newtoken, it's pumping" → kol_opinion (discussing token performance)
-- "what caused $ABC volume spike?" → kol_opinion (asking about token activity)
-- "why is $XYZ pumping?" → kol_opinion (asking about token performance)
-- "what should I buy today?" → kol_opinion (asking for investment advice)
-- "what's hot right now?" → kol_opinion (asking for trending picks)
-- "thanks for the alpha @dgnoracle!" → casual (gratitude)
+Type = "kol_opinion" if the mention contains ANY of these:
+- Questions about buying/investing: "what should I buy", "what to buy", "buy today", "investment", "calls"
+- Questions about trending: "what's trending", "what's hot", "trending on CT", "what's pumping"
+- Questions about specific tokens: "thoughts on $X", "what about $X", "your take on $X", "$X analysis"
+- Performance questions: "why pumping", "why dumping", "what caused", "volume spike"
+- Trading advice: "is X a buy", "should I ape", "entry point", "take profit"
+
+Type = "casual" ONLY for:
+- Greetings: "gm", "hello", "hey" (without questions)
+- Thanks: "thanks", "appreciate it"
+- Introductions: "let me introduce you to"
+- Platform questions: "how does oracle work"
+
+Type = "contract_analysis" if:
+- Contains Solana address (32-44 char alphanumeric)
+
+EXAMPLES (FOLLOW THESE EXACTLY):
+✅ "what's trending on CT? what should I buy?" → {"replyType": "kol_opinion", "tokens": [], "reason": "asking for trending + buy recommendations"}
+✅ "what is your take on $monkey" → {"replyType": "kol_opinion", "tokens": ["MONKEY"], "reason": "asking for token analysis"}
+✅ "what should I buy today" → {"replyType": "kol_opinion", "tokens": [], "reason": "asking for investment advice"}
+✅ "what's hot right now" → {"replyType": "kol_opinion", "tokens": [], "reason": "asking for trending tokens"}
+❌ "gm @dgnoracle" → {"replyType": "casual", "tokens": [], "reason": "greeting only"}
+❌ "thanks for the alpha" → {"replyType": "casual", "tokens": [], "reason": "gratitude"}
 
 Respond in JSON format:
 {
