@@ -233,7 +233,7 @@ Tweet:`;
     const completion = await openaiService.generateCompletion(prompt, {
       maxTokens: 150,
       temperature: 0.8,
-      model: 'gpt-3.5-turbo' // Use faster model for tweets
+      model: 'gpt-5-mini' // Use GPT-5 mini for creative tweets
     });
 
     // Post-process: Remove any hashtags if LLM added them anyway
