@@ -275,8 +275,15 @@ class OpenAIService {
         max_output_tokens: maxTokens
       });
 
-      const completion = response.output_text;
-      const tokensUsed = response.usage?.total_tokens || maxTokens; // Estimate if not provided
+      console.log(`🔍 [DEBUG] Responses API response structure:`, JSON.stringify(response, null, 2));
+      
+      // Try different possible response fields
+      const completion = response.output_text || response.output || response.text || response.content || '';
+      
+      console.log(`📝 [DEBUG] Extracted completion: "${completion}"`);
+      console.log(`📏 [DEBUG] Completion length: ${completion.length}`);
+      
+      const tokensUsed = response.usage?.total_tokens || maxTokens;
       const cost = this.calculateCost(model, tokensUsed);
 
       // Track rate limiting
