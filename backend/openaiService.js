@@ -235,7 +235,7 @@ class OpenAIService {
 
   /**
    * Generate response using GPT-5 Responses API with web search
-   * This is the correct API for GPT-5 with built-in web search
+   * Uses the new Responses API (not Chat Completions) for GPT-5 with tools
    */
   async generateResponseWithWebSearch(prompt, options = {}) {
     const {
@@ -265,51 +265,48 @@ class OpenAIService {
       // Rate limiting
       await this.checkRateLimit();
 
-      console.log(`🌐 [GPT-5 RESPONSES API] Making request with web search...`);
+      console.log(`🌐 [GPT-5 RESPONSES API] Creating response with web search...`);
 
-      // Use Responses API (not Chat Completions) for GPT-5 web search
-      // Note: Responses API may return incomplete if max_output_tokens is too low
-      const response = await this.openai.responses.create({
+      // Create response using Responses API
+      let response = await this.openai.responses.create({
         model: model,
         tools: [{ type: 'web_search' }],
         input: prompt,
-        max_output_tokens: Math.max(maxTokens, 500) // Minimum 500 tokens for complete responses
+        max_output_tokens: 2000 // Set high enough to avoid incomplete responses
       });
 
-      console.log(`🔍 [DEBUG] Response status: ${response.status}`);
-      
-      // Check if response is incomplete
-      if (response.status === 'incomplete') {
-        console.warn(`⚠️ Response incomplete: ${response.incomplete_details?.reason}`);
-        console.warn(`⚠️ Requested ${maxTokens} tokens, may need more. Retrying with 1000...`);
+      console.log(`🔍 [DEBUG] Initial response status: ${response.status}`);
+
+      // If incomplete or failed, poll for completion
+      let pollAttempts = 0;
+      while (response.status !== 'completed' && pollAttempts < 30) {
+        console.log(`⏳ [POLLING] Response ${response.status}, waiting... (attempt ${pollAttempts + 1})`);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
         
-        // Retry with more tokens
-        const retryResponse = await this.openai.responses.create({
-          model: model,
-          tools: [{ type: 'web_search' }],
-          input: prompt,
-          max_output_tokens: 1000
-        });
-        
-        console.log(`🔍 [RETRY DEBUG] Retry response:`, JSON.stringify(retryResponse, null, 2));
-        
-        // Extract text from output array
-        let completion = '';
-        if (retryResponse.output && Array.isArray(retryResponse.output)) {
-          const textOutput = retryResponse.output.find(o => o.type === 'text' || o.text);
-          completion = textOutput?.text || '';
-        }
-        
-        console.log(`✅ [RETRY] Got completion: ${completion.length} chars`);
-        return completion;
+        // Retrieve the response to check status
+        response = await this.openai.responses.retrieve(response.id);
+        pollAttempts++;
       }
-      
-      // Extract text from output array (not output_text field)
+
+      if (response.status !== 'completed') {
+        throw new Error(`Response did not complete after ${pollAttempts} attempts. Status: ${response.status}`);
+      }
+
+      console.log(`✅ [GPT-5] Response completed after ${pollAttempts} polls`);
+      console.log(`🔍 [DEBUG] Final response:`, JSON.stringify(response, null, 2).substring(0, 500));
+
+      // Extract text from output array
       let completion = '';
       if (response.output && Array.isArray(response.output)) {
-        const textOutput = response.output.find(o => o.type === 'text' || o.text);
-        completion = textOutput?.text || '';
+        for (const item of response.output) {
+          if (item.type === 'text' && item.text) {
+            completion += item.text;
+          }
+        }
       }
+
+      console.log(`📝 [DEBUG] Extracted text: "${completion.substring(0, 100)}..."`);
+      console.log(`📏 [DEBUG] Text length: ${completion.length} chars`);
       
       const tokensUsed = response.usage?.total_tokens || maxTokens;
       const cost = this.calculateCost(model, tokensUsed);
