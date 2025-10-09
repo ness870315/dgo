@@ -253,6 +253,13 @@ class TwitterMentionService {
       // Analyze the mention to extract context and tokens
       const analysis = await this.analyzeMention(text, author, conversationContext);
       
+      console.log(`🧠 [MENTIONS] Classification result:`, {
+        shouldReply: analysis.shouldReply,
+        replyType: analysis.replyType,
+        tokens: analysis.tokens,
+        reason: analysis.reason
+      });
+      
       if (!analysis.shouldReply) {
         console.log(`🚫 [MENTIONS] Skipping - ${analysis.reason}`);
         this.repliedMentions.add(mentionId);
