@@ -194,9 +194,14 @@ class OpenAIService {
 
       const requestParams = {
         model: model,
-        messages: messages,
-        temperature: temperature
+        messages: messages
       };
+
+      // GPT-5 only supports temperature: 1 (default), older models support 0-2
+      if (!model.includes('gpt-5')) {
+        requestParams.temperature = temperature;
+      }
+      // Note: GPT-5 uses default temperature of 1, no parameter needed
 
       // GPT-5 uses max_completion_tokens, older models use max_tokens
       if (model.includes('gpt-5')) {
@@ -234,9 +239,13 @@ class OpenAIService {
           // Get final response with search context
           const finalRequestParams = {
             model: model,
-            messages: messages,
-            temperature: temperature
+            messages: messages
           };
+          
+          // GPT-5 only supports temperature: 1 (default)
+          if (!model.includes('gpt-5')) {
+            finalRequestParams.temperature = temperature;
+          }
           
           if (model.includes('gpt-5')) {
             finalRequestParams.max_completion_tokens = maxTokens;
