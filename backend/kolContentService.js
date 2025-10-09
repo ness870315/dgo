@@ -99,13 +99,14 @@ class KOLContentService {
       const mcap = token.mcap || token.marketCap || 0;
       const volume = token.volume24h || 0;
       
-      // Must have valid mcap and volume
-      if (!mcap || mcap === 0 || isNaN(mcap)) {
-        console.log(`⏭️ Skipping $${token.symbol} - invalid mcap (${mcap})`);
+      // Must have valid mcap (> $10K to avoid dust/broken tokens)
+      if (!mcap || mcap <= 10000 || isNaN(mcap)) {
+        console.log(`⏭️ Skipping $${token.symbol} - invalid mcap ($${mcap.toFixed(0)})`);
         return false;
       }
-      if (!volume || volume === 0 || isNaN(volume)) {
-        console.log(`⏭️ Skipping $${token.symbol} - invalid volume (${volume})`);
+      // Must have valid volume (> $1K)
+      if (!volume || volume <= 1000 || isNaN(volume)) {
+        console.log(`⏭️ Skipping $${token.symbol} - invalid volume ($${volume.toFixed(0)})`);
         return false;
       }
       
@@ -591,6 +592,12 @@ Reply:`;
     try {
       console.log(`📤 Posting thread (${tweets.length} tweets)...`);
 
+      // Get @dgnoracle user ID from environment
+      const dgnOracleUserId = process.env.DGNORACLE_USER_ID;
+      if (!dgnOracleUserId) {
+        throw new Error('DGNORACLE_USER_ID not set in environment');
+      }
+
       let previousTweetId = null;
 
       for (let i = 0; i < tweets.length; i++) {
@@ -599,7 +606,7 @@ Reply:`;
         // Post as reply to previous tweet (if exists)
         const tweetId = await oauthXService.postReply(
           tweet,
-          null, // userId not needed for own tweets
+          dgnOracleUserId, // @dgnoracle user ID
           previousTweetId // replyToId
         );
 
