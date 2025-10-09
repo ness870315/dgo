@@ -2,7 +2,6 @@ import OpenAI from 'openai';
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
-import fetch from 'node-fetch';
 
 /**
  * OpenAI Service - Core AI engine for DeGen Oracle
