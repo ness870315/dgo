@@ -141,7 +141,8 @@ class OpenAIService {
       temperature = 0.7,
       maxTokens = 1000,
       useCache = true,
-      cacheExpiry = 3600000 // 1 hour default
+      cacheExpiry = 3600000, // 1 hour default
+      enableWebSearch = false // Enable real-time web search for GPT-5
     } = options;
 
     const startTime = Date.now();
@@ -164,13 +165,23 @@ class OpenAIService {
       // Rate limiting
       await this.checkRateLimit();
 
-      // Make OpenAI request
-      const response = await this.openai.chat.completions.create({
+      // Make OpenAI request with optional web search
+      const requestParams = {
         model: model,
         messages: [{ role: 'user', content: prompt }],
         temperature: temperature,
         max_tokens: maxTokens
-      });
+      };
+
+      // Enable web search for GPT-5 models (if supported)
+      if (enableWebSearch && model.includes('gpt-5')) {
+        requestParams.tools = [{
+          type: 'web_search',
+          web_search: { enabled: true }
+        }];
+      }
+
+      const response = await this.openai.chat.completions.create(requestParams);
 
       const completion = response.choices[0].message.content;
       const tokensUsed = response.usage.total_tokens;
@@ -213,7 +224,10 @@ class OpenAIService {
     const pricing = {
       'gpt-3.5-turbo': 0.002 / 1000,      // $0.002 per 1K tokens
       'gpt-4': 0.03 / 1000,               // $0.03 per 1K tokens  
-      'gpt-4-turbo': 0.01 / 1000          // $0.01 per 1K tokens
+      'gpt-4-turbo': 0.01 / 1000,         // $0.01 per 1K tokens
+      'gpt-5-nano': 0.0015 / 1000,        // $0.0015 per 1K tokens (estimate)
+      'gpt-5-mini': 0.003 / 1000,         // $0.003 per 1K tokens (estimate)
+      'gpt-5': 0.02 / 1000                // $0.02 per 1K tokens (estimate)
     };
     
     return (pricing[model] || pricing['gpt-3.5-turbo']) * tokens;

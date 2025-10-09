@@ -828,7 +828,8 @@ Reply (without @username):`;
       const opinion = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 150,
         temperature: 0.7,
-        model: 'gpt-5' // Use GPT-5 for best analysis and real-time knowledge
+        model: 'gpt-5', // Use GPT-5 for best analysis and real-time knowledge
+        enableWebSearch: true // Enable web search for real-time token data
       });
       
       // Remove any hashtags from the opinion
