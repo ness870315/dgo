@@ -1,14 +1,15 @@
-// Daily Promotional Tweet Service for @dgnoracle
-// Posts once a day to promote the Degen Oracle platform
+// KOL Content Service for @dgnoracle
+// Generates authentic crypto influencer content with trending tokens
+// Posts threads about 2 memecoins daily (data + news driven)
 
-import { generateTweet, generateTweetWithLLM } from './storyFramework.js';
+import KOLContentService from './kolContentService.js';
 import fs from 'fs/promises';
 import path from 'path';
 
 class DailyTweetService {
-  constructor(twitterAutoPostService, openaiService = null) {
+  constructor(twitterAutoPostService, backendInstance = null) {
     this.twitterAutoPostService = twitterAutoPostService;
-    this.openaiService = openaiService;
+    this.kolContentService = backendInstance ? new KOLContentService(backendInstance) : null;
     this.isRunning = false;
     
     // State persistence file path
@@ -16,11 +17,13 @@ class DailyTweetService {
       ? path.join(process.env.DATA_DIR, 'daily-tweet-state.json')
       : path.join(process.cwd(), 'data', 'global', 'daily-tweet-state.json');
     
-    // Random posting configuration
-    this.randomMode = true; // Use random timing by default
-    this.postsPerDay = { min: 1, max: 4 }; // Random 1-4 posts per day
-    this.activeHours = { start: 0, end: 24 }; // Post 24/7 (no restrictions)
-    this.minHoursBetweenPosts = 3; // Minimum 3 hours between posts
+    // KOL Content posting configuration
+    this.randomMode = false; // Use fixed schedule for quality content
+    this.postsPerDay = { min: 1, max: 1 }; // 1 content cycle per day (2 pieces of content)
+    this.activeHours = { start: 8, end: 20 }; // Post during active hours (8 AM - 8 PM UTC)
+    this.minHoursBetweenPosts = 24; // Once per day
+    
+    // Content format: Mix of singles (1 tweet), short (2 tweets), deep (3 tweets)
     
     // Fixed schedule fallback (if randomMode = false)
     this.scheduledTime = { hour: 14, minute: 0 }; // 2:00 PM UTC by default
@@ -197,82 +200,69 @@ class DailyTweetService {
     return next - now;
   }
 
-  // Generate and post a promotional tweet
-  async postPromotionalTweet(useLLM = true) {
+  // Generate and post KOL content (2 memecoin threads)
+  async postKOLContent() {
     try {
-      console.log('🐦 [DAILY TWEET] Generating promotional tweet...');
-
-      // Generate tweet content
-      let tweetContent;
-      if (useLLM && this.openaiService) {
-        console.log('🤖 [DAILY TWEET] Using OpenAI for natural variation...');
-        tweetContent = await generateTweetWithLLM(this.openaiService);
-      } else {
-        console.log('📝 [DAILY TWEET] Using template mix & match...');
-        tweetContent = generateTweet(0.4); // 40% chance of including link
+      if (!this.kolContentService) {
+        console.error('❌ [KOL CONTENT] KOL Content Service not initialized');
+        return { success: false, error: 'KOL Content Service not available' };
       }
 
-      console.log('📄 [DAILY TWEET] Generated content:', tweetContent);
+      console.log('🎤 [KOL CONTENT] Starting daily content cycle...');
 
-      // Post to Twitter as @dgnoracle
-      const result = await this.twitterAutoPostService.postPromotionalTweet(tweetContent);
-
-      if (result.success) {
-        console.log('✅ [DAILY TWEET] Successfully posted promotional tweet!');
-        console.log(`🔗 Tweet URL: https://twitter.com/dgnoracle/status/${result.tweetId}`);
-        
-        // Track the post
-        this.todayPostCount++;
-        this.recentPosts.push({
-          timestamp: Date.now(),
-          tweetId: result.tweetId,
-          content: tweetContent
-        });
-        
-        // Keep only last 10 posts in memory
-        if (this.recentPosts.length > 10) {
-          this.recentPosts.shift();
-        }
-        
-        console.log(`📊 [DAILY TWEET] Posts today: ${this.todayPostCount}/${this.todayTargetPosts || this.postsPerDay.max}`);
-      } else {
-        console.error('❌ [DAILY TWEET] Failed to post tweet:', result.error);
+      // Initialize if needed
+      if (!this.kolContentService.openaiService.isInitialized) {
+        await this.kolContentService.initialize();
       }
 
-      return result;
+      // Run the daily content cycle (generates + posts 2 threads)
+      await this.kolContentService.runDailyContentCycle(this.twitterAutoPostService.oauthXService);
+
+      // Track the post
+      this.todayPostCount++;
+      this.recentPosts.push({
+        timestamp: Date.now(),
+        type: 'kol_threads',
+        content: '2 memecoin threads posted'
+      });
+      
+      // Keep only last 10 posts in memory
+      if (this.recentPosts.length > 10) {
+        this.recentPosts.shift();
+      }
+      
+      console.log(`📊 [KOL CONTENT] Content cycles today: ${this.todayPostCount}/${this.todayTargetPosts || this.postsPerDay.max}`);
+
+      return { success: true };
     } catch (error) {
-      console.error('❌ [DAILY TWEET] Error posting promotional tweet:', error);
+      console.error('❌ [KOL CONTENT] Error posting KOL content:', error);
       return { success: false, error: error.message };
     }
   }
 
   // Start the daily posting scheduler
-  start(useLLM = true) {
+  start() {
     if (this.isRunning) {
-      console.log('⚠️ [DAILY TWEET] Service already running');
+      console.log('⚠️ [KOL CONTENT] Service already running');
       return;
     }
 
     this.isRunning = true;
-    console.log('🚀 [DAILY TWEET] Service started');
-    
-    if (this.randomMode) {
-      console.log(`🎲 [DAILY TWEET] RANDOM MODE: ${this.postsPerDay.min}-${this.postsPerDay.max} posts/day`);
-      console.log(`⏰ [DAILY TWEET] Active hours: ${this.activeHours.start}:00-${this.activeHours.end}:00 UTC`);
-      console.log(`⏱️ [DAILY TWEET] Min ${this.minHoursBetweenPosts}h between posts`);
-    } else {
-      console.log(`⏰ [DAILY TWEET] FIXED SCHEDULE: ${this.scheduledTime.hour}:${String(this.scheduledTime.minute).padStart(2, '0')} UTC daily`);
-    }
+    console.log('🚀 [KOL CONTENT] Service started');
+    console.log('🎤 [KOL CONTENT] Mode: Authentic KOL content (2 memecoins)');
+    console.log('📝 [KOL CONTENT] Format: Mix of singles, short threads, deep-dives');
+    console.log(`⏰ [KOL CONTENT] Active hours: ${this.activeHours.start}:00-${this.activeHours.end}:00 UTC`);
+    console.log(`📅 [KOL CONTENT] Frequency: Once per day (30-60 min apart)`);
 
     // Schedule next post
-    this.scheduleNextPost(useLLM);
+    this.scheduleNextPost();
     
     // Save running state to disk
     this.saveState();
   }
 
   // Schedule the next post
-  scheduleNextPost(useLLM) {
+  scheduleNextPost() {
     if (!this.isRunning) return;
 
     const msUntilNext = this.getMillisecondsUntilNextPost();
@@ -281,15 +271,15 @@ class DailyTweetService {
     // Store the next post time for status display
     this.nextPostTime = nextPostDate.toISOString();
 
-    console.log(`⏰ [DAILY TWEET] Next post scheduled for: ${nextPostDate.toISOString()}`);
-    console.log(`⏰ [DAILY TWEET] Time until next post: ${(msUntilNext / 3600000).toFixed(1)} hours`);
+    console.log(`⏰ [KOL CONTENT] Next content cycle scheduled for: ${nextPostDate.toISOString()}`);
+    console.log(`⏰ [KOL CONTENT] Time until next cycle: ${(msUntilNext / 3600000).toFixed(1)} hours`);
 
     this.scheduledTimeout = setTimeout(async () => {
-      // Post the tweet
-      await this.postPromotionalTweet(useLLM);
+      // Post KOL content (2 threads)
+      await this.postKOLContent();
 
       // Schedule next post
-      this.scheduleNextPost(useLLM);
+      this.scheduleNextPost();
     }, msUntilNext);
   }
 
@@ -301,16 +291,16 @@ class DailyTweetService {
     }
     this.nextPostTime = null;
     this.isRunning = false;
-    console.log('🛑 [DAILY TWEET] Service stopped');
+    console.log('🛑 [KOL CONTENT] Service stopped');
     
     // Save stopped state to disk
     this.saveState();
   }
 
   // Post immediately (for testing)
-  async postNow(useLLM = true) {
-    console.log('⚡ [DAILY TWEET] Posting immediately (manual trigger)...');
-    return await this.postPromotionalTweet(useLLM);
+  async postNow() {
+    console.log('⚡ [KOL CONTENT] Posting immediately (manual trigger)...');
+    return await this.postKOLContent();
   }
 }
 
