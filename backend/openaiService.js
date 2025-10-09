@@ -293,17 +293,9 @@ class OpenAIService {
       }
 
       console.log(`✅ [GPT-5] Response completed after ${pollAttempts} polls`);
-      console.log(`🔍 [DEBUG] Final response:`, JSON.stringify(response, null, 2).substring(0, 500));
 
-      // Extract text from output array
-      let completion = '';
-      if (response.output && Array.isArray(response.output)) {
-        for (const item of response.output) {
-          if (item.type === 'text' && item.text) {
-            completion += item.text;
-          }
-        }
-      }
+      // Use the output_text helper (as per OpenAI docs)
+      const completion = response.output_text || '';
 
       console.log(`📝 [DEBUG] Extracted text: "${completion.substring(0, 100)}..."`);
       console.log(`📏 [DEBUG] Text length: ${completion.length} chars`);
