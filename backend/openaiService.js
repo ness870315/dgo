@@ -291,12 +291,25 @@ class OpenAIService {
           max_output_tokens: 1000
         });
         
-        const completion = retryResponse.output_text || '';
+        console.log(`🔍 [RETRY DEBUG] Retry response:`, JSON.stringify(retryResponse, null, 2));
+        
+        // Extract text from output array
+        let completion = '';
+        if (retryResponse.output && Array.isArray(retryResponse.output)) {
+          const textOutput = retryResponse.output.find(o => o.type === 'text' || o.text);
+          completion = textOutput?.text || '';
+        }
+        
         console.log(`✅ [RETRY] Got completion: ${completion.length} chars`);
         return completion;
       }
       
-      const completion = response.output_text || '';
+      // Extract text from output array (not output_text field)
+      let completion = '';
+      if (response.output && Array.isArray(response.output)) {
+        const textOutput = response.output.find(o => o.type === 'text' || o.text);
+        completion = textOutput?.text || '';
+      }
       
       const tokensUsed = response.usage?.total_tokens || maxTokens;
       const cost = this.calculateCost(model, tokensUsed);
