@@ -181,7 +181,7 @@ Tweet:`;
       const content = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 100,
         temperature: 0.8,
-        model: 'gpt-5',
+        model: 'gpt-4o',
         enableWebSearch: true
       });
 
@@ -247,7 +247,7 @@ Tweet 2:`;
       const tweet2 = await this.openaiService.generateCompletion(tweet2Prompt, {
         maxTokens: 100,
         temperature: 0.7,
-        model: 'gpt-5-mini'
+        model: 'gpt-4o-mini'
       });
 
       // Tweet 3: The verdict/recommendation
@@ -268,7 +268,7 @@ Tweet 3:`;
       const tweet3 = await this.openaiService.generateCompletion(tweet3Prompt, {
         maxTokens: 100,
         temperature: 0.8,
-        model: 'gpt-5-mini'
+        model: 'gpt-4o-mini'
       });
 
       const thread = [
@@ -417,7 +417,7 @@ Meme tweet:`;
       const memeTweet = await this.openaiService.generateCompletion(memePrompt, {
         maxTokens: 100,
         temperature: 0.9, // High creativity for humor
-        model: 'gpt-5',
+        model: 'gpt-4o',
         enableWebSearch: true
       });
 
@@ -477,7 +477,7 @@ Market meme:`;
       const memeTweet = await this.openaiService.generateCompletion(generalMemePrompt, {
         maxTokens: 100,
         temperature: 0.95, // Very high creativity for humor
-        model: 'gpt-5',
+        model: 'gpt-4o',
         enableWebSearch: true
       });
 
@@ -524,7 +524,7 @@ Tweet:`;
       const tweet1 = await this.openaiService.generateCompletion(tweet1Prompt, {
         maxTokens: 100,
         temperature: 0.8,
-        model: 'gpt-5',
+        model: 'gpt-4o',
         enableWebSearch: true
       });
 
@@ -543,7 +543,7 @@ Reply:`;
       const tweet2 = await this.openaiService.generateCompletion(tweet2Prompt, {
         maxTokens: 80,
         temperature: 0.8,
-        model: 'gpt-5-mini'
+        model: 'gpt-4o-mini'
       });
 
       const thread = [
