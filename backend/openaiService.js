@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
+import fetch from 'node-fetch';
 
 /**
  * OpenAI Service - Core AI engine for DeGen Oracle
@@ -11,6 +12,7 @@ class OpenAIService {
   constructor() {
     this.openai = null;
     this.isInitialized = false;
+    this.tavilyApiKey = process.env.TAVILY_API_KEY; // Web search API key
     this.rateLimiter = {
       requests: [],
       maxRequestsPerMinute: 50, // Adjust based on your OpenAI plan
@@ -165,23 +167,73 @@ class OpenAIService {
       // Rate limiting
       await this.checkRateLimit();
 
-      // Make OpenAI request with optional web search
+      // Make OpenAI request with optional web search via function calling
+      let messages = [{ role: 'user', content: prompt }];
+      let tools = undefined;
+
+      // Enable web search via function calling (if requested)
+      if (enableWebSearch && this.tavilyApiKey) {
+        tools = [{
+          type: 'function',
+          function: {
+            name: 'search_web',
+            description: 'Search the web for real-time information, news, and current events',
+            parameters: {
+              type: 'object',
+              properties: {
+                query: {
+                  type: 'string',
+                  description: 'The search query to look up on the web'
+                }
+              },
+              required: ['query']
+            }
+          }
+        }];
+      }
+
       const requestParams = {
         model: model,
-        messages: [{ role: 'user', content: prompt }],
+        messages: messages,
         temperature: temperature,
         max_tokens: maxTokens
       };
 
-      // Enable web search for GPT-5 models (if supported)
-      if (enableWebSearch && model.includes('gpt-5')) {
-        requestParams.tools = [{
-          type: 'web_search',
-          web_search: { enabled: true }
-        }];
+      if (tools) {
+        requestParams.tools = tools;
+        requestParams.tool_choice = 'auto';
       }
 
-      const response = await this.openai.chat.completions.create(requestParams);
+      let response = await this.openai.chat.completions.create(requestParams);
+
+      // Handle web search tool calls
+      if (response.choices[0].message.tool_calls && response.choices[0].message.tool_calls.length > 0) {
+        const toolCall = response.choices[0].message.tool_calls[0];
+        
+        if (toolCall.function.name === 'search_web') {
+          const args = JSON.parse(toolCall.function.arguments);
+          console.log(`🔍 AI is searching the web for: "${args.query}"`);
+          
+          const searchResults = await this.searchWeb(args.query);
+          
+          // Add assistant's tool call and tool response to messages
+          messages.push(response.choices[0].message);
+          messages.push({
+            role: 'tool',
+            tool_call_id: toolCall.id,
+            name: 'search_web',
+            content: JSON.stringify({ sources: searchResults })
+          });
+
+          // Get final response with search context
+          response = await this.openai.chat.completions.create({
+            model: model,
+            messages: messages,
+            temperature: temperature,
+            max_tokens: maxTokens
+          });
+        }
+      }
 
       const completion = response.choices[0].message.content;
       const tokensUsed = response.usage.total_tokens;
@@ -214,6 +266,54 @@ class OpenAIService {
       this.metrics.errorCount++;
       console.error('❌ OpenAI completion error:', error.message);
       throw error;
+    }
+  }
+
+  /**
+   * Search the web using Tavily API
+   */
+  async searchWeb(query) {
+    try {
+      if (!this.tavilyApiKey) {
+        console.warn('⚠️ Tavily API key not configured, skipping web search');
+        return [];
+      }
+
+      const response = await fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          api_key: this.tavilyApiKey,
+          query: query,
+          max_results: 5,
+          search_depth: 'basic',
+          include_answer: false,
+          include_raw_content: false
+        })
+      });
+
+      if (!response.ok) {
+        console.error('❌ Tavily API error:', response.status);
+        return [];
+      }
+
+      const data = await response.json();
+      const results = data.results || [];
+
+      console.log(`✅ Found ${results.length} web sources for: "${query}"`);
+      
+      return results.map(r => ({
+        title: r.title,
+        url: r.url,
+        snippet: r.content,
+        score: r.score
+      }));
+
+    } catch (error) {
+      console.error('❌ Web search error:', error.message);
+      return [];
     }
   }
 
