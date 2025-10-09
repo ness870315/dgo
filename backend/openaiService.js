@@ -132,6 +132,7 @@ class OpenAIService {
 
   /**
    * Main AI completion method with caching and rate limiting
+   * Supports both Chat Completions API and Responses API (for GPT-5 web search)
    */
   async generateCompletion(prompt, options = {}) {
     if (!this.isInitialized) {
@@ -144,8 +145,13 @@ class OpenAIService {
       maxTokens = 1000,
       useCache = true,
       cacheExpiry = 3600000, // 1 hour default
-      enableWebSearch = false // Enable real-time web search for GPT-5
+      enableWebSearch = false // Enable real-time web search
     } = options;
+
+    // GPT-5 with web search uses Responses API, not Chat Completions
+    if (model.includes('gpt-5') && enableWebSearch) {
+      return await this.generateResponseWithWebSearch(prompt, options);
+    }
 
     const startTime = Date.now();
     
@@ -287,6 +293,83 @@ class OpenAIService {
     } catch (error) {
       this.metrics.errorCount++;
       console.error('❌ OpenAI completion error:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate response using GPT-5 Responses API with web search
+   * This is the correct API for GPT-5 with built-in web search
+   */
+  async generateResponseWithWebSearch(prompt, options = {}) {
+    const {
+      model = 'gpt-5',
+      maxTokens = 1000,
+      useCache = true,
+      cacheExpiry = 3600000
+    } = options;
+
+    const startTime = Date.now();
+
+    try {
+      // Check cache first
+      const cacheKey = this.generateCacheKey(prompt, model, 1, options?.identity || {});
+      
+      if (useCache && this.cache.has(cacheKey)) {
+        const cached = this.cache.get(cacheKey);
+        if (Date.now() - cached.timestamp < cacheExpiry) {
+          this.metrics.cacheHits++;
+          console.log(`💾 Cache hit for AI request (${cacheKey.slice(0, 8)}...)`);
+          return cached.response;
+        } else {
+          this.cache.delete(cacheKey);
+        }
+      }
+
+      // Rate limiting
+      await this.checkRateLimit();
+
+      console.log(`🌐 [GPT-5 RESPONSES API] Making request with web search...`);
+
+      // Use Responses API (not Chat Completions) for GPT-5 web search
+      const response = await this.openai.responses.create({
+        model: model,
+        tools: [{ type: 'web_search' }],
+        input: prompt,
+        max_output_tokens: maxTokens
+      });
+
+      const completion = response.output_text;
+      const tokensUsed = response.usage?.total_tokens || maxTokens; // Estimate if not provided
+      const cost = this.calculateCost(model, tokensUsed);
+
+      // Track rate limiting
+      this.rateLimiter.requests.push({
+        timestamp: Date.now(),
+        tokens: tokensUsed
+      });
+
+      // Update metrics
+      this.updateMetrics(tokensUsed, cost, Date.now() - startTime);
+
+      // Cache response
+      if (useCache) {
+        this.cache.set(cacheKey, {
+          response: completion,
+          timestamp: Date.now(),
+          tokensUsed,
+          cost
+        });
+        await this.saveCacheEntry(cacheKey, completion);
+      }
+
+      console.log(`🤖 GPT-5 Responses API completion (${tokensUsed} tokens, $${cost.toFixed(4)})`);
+      return completion;
+
+    } catch (error) {
+      this.metrics.errorCount++;
+      console.error('❌ GPT-5 Responses API error:', error.message);
+      console.error('❌ Full error:', error);
       throw error;
     }
   }
