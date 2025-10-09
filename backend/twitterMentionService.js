@@ -291,6 +291,8 @@ class TwitterMentionService {
       
     } catch (error) {
       console.error(`❌ [MENTIONS] Error processing mention ${mention.id}:`, error.message);
+      console.error(`❌ [MENTIONS] Full error:`, error);
+      console.error(`❌ [MENTIONS] Stack trace:`, error.stack);
     }
   }
 
