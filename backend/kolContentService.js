@@ -11,7 +11,7 @@ class KOLContentService {
     this.backend = backendInstance;
     this.openaiService = new OpenAIService();
     this.lastTweetTime = null;
-    this.tweetInterval = 6 * 60 * 60 * 1000; // 6 hours between tweets
+    this.tweetInterval = 6 * 60 * 60 * 1000; // 6 hours = 4 tweets per day
     
     // KOL Personalities - Authentic crypto influencer styles
     this.personalities = [
@@ -82,30 +82,28 @@ class KOLContentService {
   }
 
   /**
-   * Select top trending tokens for content (uses our trending system directly)
+   * Select random token from top 5 trending (uses our trending system directly)
    */
-  async selectTopMemecoins(count = 2) {
+  async selectRandomTrendingToken() {
     const trending = await this.getTrendingTokens(20);
     
     if (trending.length === 0) {
       console.log('⚠️ No trending tokens available from our system');
-      return [];
+      return null;
     }
 
     console.log(`📋 Received ${trending.length} trending tokens from Degen Oracle system`);
 
-    // Simply take the top N tokens from our trending system
-    // Our trending algorithm already does the heavy lifting (score, volume, momentum, etc.)
-    const selected = trending.slice(0, count);
+    // Take top 5 and randomly pick one
+    const top5 = trending.slice(0, Math.min(5, trending.length));
+    const selected = top5[Math.floor(Math.random() * top5.length)];
     
-    console.log(`🎯 Selected top ${selected.length} trending tokens for content:`, 
-      selected.map(t => ({ 
-        symbol: t.symbol, 
-        mcap: `$${((t.mcap || 0) / 1_000_000).toFixed(2)}M`,
-        score: (t.overallScore || 0).toFixed(1),
-        priceChange: `${(t.priceChange24h || 0).toFixed(1)}%`
-      }))
-    );
+    console.log(`🎯 Randomly selected from top 5: $${selected.symbol}`, {
+      rank: top5.indexOf(selected) + 1,
+      mcap: `$${((selected.mcap || 0) / 1_000_000).toFixed(2)}M`,
+      score: (selected.overallScore || 0).toFixed(1),
+      priceChange: `${(selected.priceChange24h || 0).toFixed(1)}%`
+    });
     
     return selected;
   }
@@ -288,75 +286,56 @@ Tweet 3:`;
   }
 
   /**
-   * Generate daily KOL content: Mix of singles, short threads, deep-dives
+   * Generate daily KOL content: Pick random token from top 5, random format
    */
   async generateDailyContent() {
     try {
       console.log('🎤 Generating daily KOL content...');
 
-      // Select 2 top tokens
-      const tokens = await this.selectTopMemecoins(2);
+      // Select 1 random token from top 5 trending
+      const token = await this.selectRandomTrendingToken();
 
-      if (tokens.length < 1) {
+      if (!token) {
         console.log('⚠️ No tokens available for content');
         return null;
       }
 
-      // If only 1 token, duplicate it for both content pieces (different formats)
-      if (tokens.length === 1) {
-        console.log('⚠️ Only 1 token available, will create 2 different pieces of content about it');
-        tokens.push(tokens[0]);
-      }
-
       // Decide content format randomly (more realistic distribution)
-      const contentTypes = [
-        'single+single',      // 25% - Two standalone tweets
-        'single+short',       // 20% - One tweet + one 2-tweet thread
-        'short+short',        // 20% - Two 2-tweet threads
-        'short+deep',         // 15% - One 2-tweet + one 3-tweet thread
-        'meme+single',        // 10% - One meme/joke + one analysis
-        'meme+meme',          // 5%  - Two crypto jokes/memes
-        'deep+deep'           // 5%  - Two 3-tweet threads (rare, for big plays)
+      const contentFormats = [
+        'single',       // 35% - Single tweet
+        'short',        // 30% - Short thread (2 tweets)
+        'deep',         // 20% - Deep-dive thread (3 tweets)
+        'meme'          // 15% - Meme/joke tweet
       ];
 
-      const weights = [25, 20, 20, 15, 10, 5, 5];
+      const weights = [35, 30, 20, 15];
       const random = Math.random() * 100;
       let cumulative = 0;
-      let selectedFormat = 'single+single';
+      let selectedFormat = 'single';
 
       for (let i = 0; i < weights.length; i++) {
         cumulative += weights[i];
         if (random <= cumulative) {
-          selectedFormat = contentTypes[i];
+          selectedFormat = contentFormats[i];
           break;
         }
       }
 
       console.log(`📝 Selected format: ${selectedFormat}`);
 
-      // Generate content based on format
-      const [format1, format2] = selectedFormat.split('+');
-      
-      const content1 = await this.generateContentByFormat(tokens[0], format1);
-      const content2 = await this.generateContentByFormat(tokens[1], format2);
+      // Generate content
+      const content = await this.generateContentByFormat(token, selectedFormat);
 
-      if (!content1 || !content2) {
+      if (!content) {
         console.log('❌ Failed to generate content');
         return null;
       }
 
       console.log('✅ Daily KOL content generated successfully');
       return {
-        content1: {
-          token: tokens[0],
-          tweets: content1,
-          format: format1
-        },
-        content2: {
-          token: tokens[1],
-          tweets: content2,
-          format: format2
-        },
+        token: token,
+        tweets: content,
+        format: selectedFormat,
         timestamp: new Date().toISOString()
       };
 
@@ -647,7 +626,7 @@ Reply:`;
 
       console.log('🎤 Starting daily KOL content cycle...');
 
-      // Generate content
+      // Generate content for 1 random token from top 5
       const content = await this.generateDailyContent();
 
       if (!content) {
@@ -655,22 +634,13 @@ Reply:`;
         return;
       }
 
-      // Post content 1
-      console.log(`\n📤 Posting content 1: $${content.content1.token.symbol} (${content.content1.format})`);
-      await this.postThread(content.content1.tweets, oauthXService);
-
-      // Wait 30-60 minutes between posts (random for more natural timing)
-      const waitMinutes = Math.floor(Math.random() * 30) + 30; // 30-60 minutes
-      console.log(`⏰ Waiting ${waitMinutes} minutes before posting content 2...`);
-      await new Promise(resolve => setTimeout(resolve, waitMinutes * 60 * 1000));
-
-      // Post content 2
-      console.log(`\n📤 Posting content 2: $${content.content2.token.symbol} (${content.content2.format})`);
-      await this.postThread(content.content2.tweets, oauthXService);
+      // Post the content
+      console.log(`\n📤 Posting content: $${content.token.symbol} (${content.format})`);
+      await this.postThread(content.tweets, oauthXService);
 
       this.lastTweetTime = Date.now();
       console.log('✅ Daily KOL content cycle completed');
-      console.log(`📊 Posted: ${content.content1.format} (${content.content1.tweets.length} tweets) + ${content.content2.format} (${content.content2.tweets.length} tweets)`);
+      console.log(`📊 Posted: ${content.format} (${content.tweets.length} tweet${content.tweets.length > 1 ? 's' : ''})`);
 
     } catch (error) {
       console.error('❌ Error in daily content cycle:', error.message);

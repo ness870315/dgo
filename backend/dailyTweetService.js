@@ -1,6 +1,13 @@
 // KOL Content Service for @dgnoracle
-// Generates authentic crypto influencer content with trending tokens
-// Posts threads about 2 memecoins daily (data + news driven)
+// 
+// WHAT IT POSTS:
+// - Picks 1 random token from top 5 trending (RFC, Cads, Aura, etc.)
+// - Format: 35% single tweet, 30% short thread (2), 20% deep-dive (3), 15% memes/jokes
+// - Uses our trending system + GPT-5 web search for news/catalysts
+// 
+// HOW OFTEN:
+// - Every 6 hours (4 times per day)
+// - Scheduled at 2 PM UTC (configurable below)
 
 import KOLContentService from './kolContentService.js';
 import fs from 'fs/promises';
