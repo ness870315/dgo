@@ -195,9 +195,15 @@ class OpenAIService {
       const requestParams = {
         model: model,
         messages: messages,
-        temperature: temperature,
-        max_tokens: maxTokens
+        temperature: temperature
       };
+
+      // GPT-5 uses max_completion_tokens, older models use max_tokens
+      if (model.includes('gpt-5')) {
+        requestParams.max_completion_tokens = maxTokens;
+      } else {
+        requestParams.max_tokens = maxTokens;
+      }
 
       if (tools) {
         requestParams.tools = tools;
@@ -226,12 +232,19 @@ class OpenAIService {
           });
 
           // Get final response with search context
-          response = await this.openai.chat.completions.create({
+          const finalRequestParams = {
             model: model,
             messages: messages,
-            temperature: temperature,
-            max_tokens: maxTokens
-          });
+            temperature: temperature
+          };
+          
+          if (model.includes('gpt-5')) {
+            finalRequestParams.max_completion_tokens = maxTokens;
+          } else {
+            finalRequestParams.max_tokens = maxTokens;
+          }
+          
+          response = await this.openai.chat.completions.create(finalRequestParams);
         }
       }
 

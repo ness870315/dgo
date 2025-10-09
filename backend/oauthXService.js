@@ -504,7 +504,7 @@ class OAuthXService {
    * Get conversation thread (replies leading up to a tweet)
    * This helps understand context when replying to mentions
    */
-  async getConversationContext(userId, conversationId, referenceTweetId, maxTweets = 5) {
+  async getConversationContext(userId, conversationId, referenceTweetId, maxTweets = 10) {
     try {
       const user = await this.getUserById(userId);
       if (!user || !user.accessToken) {
@@ -518,7 +518,7 @@ class OAuthXService {
       const url = `https://api.twitter.com/2/tweets/search/recent`;
       const params = new URLSearchParams({
         'query': `conversation_id:${conversationId}`,
-        'max_results': String(Math.min(maxTweets, 10)),
+        'max_results': String(Math.max(10, Math.min(maxTweets, 100))), // Twitter requires 10-100
         'tweet.fields': 'author_id,created_at,text,conversation_id,referenced_tweets',
         'expansions': 'author_id,referenced_tweets.id',
         'user.fields': 'username,name'
