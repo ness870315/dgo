@@ -373,9 +373,12 @@ Respond in JSON format:
         model: 'gpt-5-nano'
       });
       
+      console.log(`📝 [CLASSIFIER DEBUG] GPT-5-nano raw response:`, response);
+      
       // Parse JSON response
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
+        console.log(`✅ [CLASSIFIER DEBUG] Found JSON:`, jsonMatch[0]);
         const analysis = JSON.parse(jsonMatch[0]);
         analysis.originalText = text; // Store original text for context
         
@@ -388,6 +391,9 @@ Respond in JSON format:
         console.log(`🧠 [MENTIONS] Analysis:`, analysis);
         return analysis;
       }
+      
+      console.error(`❌ [CLASSIFIER DEBUG] No JSON found in response!`);
+      console.error(`❌ [CLASSIFIER DEBUG] Full response was:`, response);
       
       // Fallback: assume should reply as casual
       return {
