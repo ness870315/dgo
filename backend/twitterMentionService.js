@@ -395,13 +395,40 @@ Respond in JSON format:
       console.error(`❌ [CLASSIFIER DEBUG] No JSON found in response!`);
       console.error(`❌ [CLASSIFIER DEBUG] Full response was:`, response);
       
-      // Fallback: assume should reply as casual
+      // Fallback: Use rule-based classification
+      console.log(`🔧 [CLASSIFIER] Using rule-based fallback...`);
+      
+      const lowerText = text.toLowerCase();
+      let replyType = 'casual';
+      let extractedTokens = [];
+      
+      // Extract token symbols
+      const tokenMatches = text.match(/\$[A-Za-z0-9]+/g) || [];
+      extractedTokens = tokenMatches.map(t => t.substring(1).toUpperCase());
+      
+      // Rule-based classification
+      if (
+        lowerText.includes('trending') ||
+        lowerText.includes('what should i buy') ||
+        lowerText.includes('what to buy') ||
+        lowerText.includes('buy today') ||
+        lowerText.includes('what\'s hot') ||
+        lowerText.includes('whats hot') ||
+        lowerText.includes('your take on') ||
+        lowerText.includes('thoughts on') ||
+        lowerText.includes('opinion on') ||
+        extractedTokens.length > 0 // If token mentioned
+      ) {
+        replyType = 'kol_opinion';
+        console.log(`✅ [CLASSIFIER] Matched kol_opinion rules`);
+      }
+      
       return {
         shouldReply: true,
-        replyType: 'casual',
-        tokens: [],
+        replyType: replyType,
+        tokens: extractedTokens,
         originalText: text,
-        reason: 'fallback analysis'
+        reason: 'rule-based fallback classification'
       };
       
     } catch (error) {
