@@ -92,18 +92,40 @@ class KOLContentService {
       return [];
     }
 
-    // Filter for memecoins (low-mid cap, high volume/mcap ratio)
-    const memecoins = trending.filter(token => {
+    // Filter for interesting tokens (flexible criteria)
+    const candidates = trending.filter(token => {
       const mcap = token.mcap || token.marketCap || 0;
       const volume24h = token.volume24h || 0;
-      const volumeToMcap = mcap > 0 ? (volume24h / mcap) : 0;
+      const score = token.overallScore || 0;
       
-      // Memecoin criteria: <$50M mcap, >10% volume/mcap ratio
-      return mcap < 50_000_000 && volumeToMcap > 0.1;
+      // Skip if missing critical data
+      if (!mcap || mcap === 0 || isNaN(mcap)) {
+        return false;
+      }
+      
+      // Accept tokens that are:
+      // 1. Low-mid cap (<$100M) with good volume, OR
+      // 2. High trending score (>8.5), OR
+      // 3. Decent volume (>$50K)
+      const volumeToMcap = volume24h / mcap;
+      
+      return (
+        (mcap < 100_000_000 && volumeToMcap > 0.05) || // Low-mid cap with 5%+ volume/mcap
+        (score > 8.5) || // High trending score
+        (volume24h > 50_000) // Decent absolute volume
+      );
+    });
+
+    console.log(`📋 Found ${candidates.length} candidate tokens (from ${trending.length} trending)`);
+
+    // If not enough candidates, use all trending tokens
+    const tokensToScore = candidates.length >= count ? candidates : trending.filter(t => {
+      const mcap = t.mcap || t.marketCap || 0;
+      return mcap > 0 && !isNaN(mcap); // Just filter out broken data
     });
 
     // Sort by momentum (score + volume/mcap + price change)
-    const scored = memecoins.map(token => {
+    const scored = tokensToScore.map(token => {
       const mcap = token.mcap || token.marketCap || 0;
       const volume24h = token.volume24h || 0;
       const volumeToMcap = mcap > 0 ? (volume24h / mcap) : 0;
@@ -123,10 +145,11 @@ class KOLContentService {
     scored.sort((a, b) => b.momentumScore - a.momentumScore);
     
     const selected = scored.slice(0, count);
-    console.log(`🎯 Selected ${selected.length} memecoins for content:`, 
+    console.log(`🎯 Selected ${selected.length} tokens for content:`, 
       selected.map(t => ({ 
         symbol: t.symbol, 
-        mcap: `$${(t.mcap / 1_000_000).toFixed(2)}M`,
+        mcap: `$${((t.mcap || 0) / 1_000_000).toFixed(2)}M`,
+        score: (t.overallScore || 0).toFixed(1),
         momentum: t.momentumScore.toFixed(1) 
       }))
     );
@@ -318,12 +341,18 @@ Tweet 3:`;
     try {
       console.log('🎤 Generating daily KOL content...');
 
-      // Select 2 top memecoins
+      // Select 2 top tokens
       const tokens = await this.selectTopMemecoins(2);
 
-      if (tokens.length < 2) {
-        console.log('⚠️ Not enough tokens for daily content');
+      if (tokens.length < 1) {
+        console.log('⚠️ No tokens available for content');
         return null;
+      }
+
+      // If only 1 token, duplicate it for both content pieces (different formats)
+      if (tokens.length === 1) {
+        console.log('⚠️ Only 1 token available, will create 2 different pieces of content about it');
+        tokens.push(tokens[0]);
       }
 
       // Decide content format randomly (more realistic distribution)
