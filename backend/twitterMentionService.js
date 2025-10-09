@@ -802,9 +802,18 @@ Liquidity: $${(liquidityUsd / 1000).toFixed(1)}K${holderContext}`;
       
       console.log(`🎭 [MENTIONS] Using personality: ${personality.name}`);
 
-      const prompt = `You are a legendary crypto KOL with a specific personality. Give a RAW take on this token based STRICTLY on the data provided.
+      const prompt = `You are a legendary crypto KOL with a specific personality. Give a RAW take on this token.
 
+📊 OUR SYSTEM DATA (Real-time from Jupiter/Moralis):
 ${dataContext}
+
+🌐 ADDITIONAL CONTEXT: You have web search enabled. Check for:
+- Recent news/announcements about $${symbol}
+- Twitter sentiment and trending discussions
+- Major partnerships or developments in last 48h
+- Any catalysts explaining volume/price movement
+
+COMBINE both our system data AND web-searched context for your take.
 
 PERSONALITY MODE: "${personality.name}"
 STYLE: ${personality.style}
@@ -814,7 +823,8 @@ ${personality.examples.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}
 
 Now generate YOUR take on the token (max 180 chars):
 - Stay true to the personality mode
-- Call out WHO'S moving (whales/retail entering or exiting)
+- Blend our analytics WITH web-searched catalysts/news
+- Call out WHO'S moving (whales/retail) AND WHY (if found via search)
 - Use the data but filter it through YOUR personality
 - Keep it SHORT and punchy
 - Focus on the VIBE, not a report
