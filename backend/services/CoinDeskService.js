@@ -42,14 +42,20 @@ class CoinDeskService {
 
       const data = await response.json();
       
-      if (!data.articles || !Array.isArray(data.articles)) {
+      console.log(`📊 [COINDESK] Response structure:`, JSON.stringify(Object.keys(data), null, 2));
+      
+      // Try different possible response structures
+      let articles = data.articles || data.data || data;
+      
+      if (!Array.isArray(articles)) {
+        console.log(`📊 [COINDESK] Full response:`, JSON.stringify(data, null, 2));
         throw new Error('Invalid response format from CoinDesk API');
       }
 
-      console.log(`✅ [COINDESK] Fetched ${data.articles.length} articles`);
+      console.log(`✅ [COINDESK] Fetched ${articles.length} articles`);
       
       // Filter and clean articles
-      const cleanArticles = data.articles
+      const cleanArticles = articles
         .filter(article => article && article.title && article.description)
         .map(article => ({
           title: article.title?.trim(),
