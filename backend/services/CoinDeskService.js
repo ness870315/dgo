@@ -42,28 +42,27 @@ class CoinDeskService {
 
       const data = await response.json();
       
-      console.log(`📊 [COINDESK] Response structure:`, JSON.stringify(Object.keys(data), null, 2));
-      
-      // Try different possible response structures
-      let articles = data.articles || data.data || data;
-      
-      if (!Array.isArray(articles)) {
-        console.log(`📊 [COINDESK] Full response:`, JSON.stringify(data, null, 2));
+      // CoinDesk API returns { Data: [...], Err: {} }
+      if (!data.Data || !Array.isArray(data.Data)) {
+        console.log(`📊 [COINDESK] Unexpected response structure:`, JSON.stringify(data, null, 2).substring(0, 500));
         throw new Error('Invalid response format from CoinDesk API');
       }
 
+      const articles = data.Data;
       console.log(`✅ [COINDESK] Fetched ${articles.length} articles`);
       
-      // Filter and clean articles
+      // Filter and clean articles (map CoinDesk fields to our format)
       const cleanArticles = articles
-        .filter(article => article && article.title && article.description)
+        .filter(article => article && article.TITLE && (article.SUBTITLE || article.BODY))
         .map(article => ({
-          title: article.title?.trim(),
-          description: article.description?.trim(),
-          url: article.url,
-          publishedAt: article.publishedAt,
-          source: article.source || 'CoinDesk',
-          category: article.category || 'General'
+          title: article.TITLE?.trim(),
+          description: (article.SUBTITLE || article.BODY)?.trim().substring(0, 300), // Limit description length
+          url: article.URL,
+          publishedAt: article.PUBLISHED_ON ? new Date(article.PUBLISHED_ON * 1000).toISOString() : null,
+          source: article.SOURCE_DATA?.NAME || 'CoinDesk',
+          category: article.CATEGORY_DATA?.[0]?.NAME || 'General',
+          imageUrl: article.IMAGE_URL,
+          sentiment: article.SENTIMENT
         }))
         .slice(0, limit);
 
