@@ -11,7 +11,19 @@ class KOLContentService {
     this.backend = backendInstance;
     this.openaiService = new OpenAIService();
     this.lastTweetTime = null;
-    this.tweetInterval = 6 * 60 * 60 * 1000; // 6 hours = 4 tweets per day
+    
+    // Configuration panel settings (defaults)
+    this.config = {
+      mode: 'random',
+      minPostsPerDay: 1,
+      maxPostsPerDay: 4,
+      minHoursBetween: 3,
+      useOpenAI: true
+    };
+    
+    // Track daily posts
+    this.dailyPostCount = 0;
+    this.lastResetDate = new Date().toDateString();
     
     // KOL Personalities - Authentic crypto influencer styles
     this.personalities = [
@@ -716,15 +728,67 @@ Reply:`;
   }
 
   /**
-   * Check if it's time to post daily content
+   * Update configuration from panel settings
+   */
+  updateConfig(newConfig) {
+    this.config = { ...this.config, ...newConfig };
+    console.log('📊 [KOL CONTENT] Configuration updated:', this.config);
+  }
+
+  /**
+   * Reset daily post count if new day
+   */
+  resetDailyCountIfNeeded() {
+    const today = new Date().toDateString();
+    if (this.lastResetDate !== today) {
+      this.dailyPostCount = 0;
+      this.lastResetDate = today;
+      console.log('📅 [KOL CONTENT] New day - reset post count');
+    }
+  }
+
+  /**
+   * Check if it's time to post daily content based on configuration
    */
   shouldPostContent() {
-    if (!this.lastTweetTime) {
-      return true; // First run
+    // Reset daily count if new day
+    this.resetDailyCountIfNeeded();
+
+    // Check if we've hit daily limit
+    if (this.dailyPostCount >= this.config.maxPostsPerDay) {
+      console.log(`⏰ [KOL CONTENT] Daily limit reached (${this.dailyPostCount}/${this.config.maxPostsPerDay})`);
+      return false;
     }
 
+    // Check if we need minimum posts for today
+    if (this.dailyPostCount < this.config.minPostsPerDay) {
+      console.log(`📈 [KOL CONTENT] Need minimum posts (${this.dailyPostCount}/${this.config.minPostsPerDay})`);
+      return true;
+    }
+
+    // If we have no last tweet time, post
+    if (!this.lastTweetTime) {
+      return true;
+    }
+
+    // Check minimum hours between posts
     const timeSinceLastTweet = Date.now() - this.lastTweetTime;
-    return timeSinceLastTweet >= this.tweetInterval;
+    const minIntervalMs = this.config.minHoursBetween * 60 * 60 * 1000;
+    
+    if (timeSinceLastTweet < minIntervalMs) {
+      const hoursRemaining = ((minIntervalMs - timeSinceLastTweet) / (60 * 60 * 1000)).toFixed(1);
+      console.log(`⏰ [KOL CONTENT] Min interval not met (${hoursRemaining}h remaining)`);
+      return false;
+    }
+
+    // Random mode: 50% chance to post if conditions met
+    if (this.config.mode === 'random') {
+      const shouldPost = Math.random() < 0.5;
+      console.log(`🎲 [KOL CONTENT] Random check: ${shouldPost ? 'POST' : 'WAIT'}`);
+      return shouldPost;
+    }
+
+    return true;
   }
 
   /**
@@ -733,32 +797,34 @@ Reply:`;
   async runDailyContentCycle(oauthXService) {
     try {
       if (!this.shouldPostContent()) {
-        const nextTweetIn = this.tweetInterval - (Date.now() - this.lastTweetTime);
-        const hoursRemaining = (nextTweetIn / (60 * 60 * 1000)).toFixed(1);
-        console.log(`⏰ Next KOL content in ${hoursRemaining} hours`);
+        console.log(`⏰ [KOL CONTENT] Skipping cycle (posts today: ${this.dailyPostCount}/${this.config.maxPostsPerDay})`);
         return;
       }
 
-      console.log('🎤 Starting daily KOL content cycle...');
+      console.log(`🎤 [KOL CONTENT] Starting content cycle (posts today: ${this.dailyPostCount}/${this.config.maxPostsPerDay})...`);
 
       // Generate content for 1 random token from top 5
       const content = await this.generateDailyContent();
 
       if (!content) {
-        console.log('❌ Failed to generate content, skipping this cycle');
+        console.log('❌ [KOL CONTENT] Failed to generate content, skipping this cycle');
         return;
       }
 
       // Post the content
-      console.log(`\n📤 Posting content: $${content.token.symbol} (${content.format})`);
+      console.log(`\n📤 [KOL CONTENT] Posting: $${content.token.symbol} (${content.format})`);
       await this.postThread(content.tweets, oauthXService);
 
+      // Update tracking
       this.lastTweetTime = Date.now();
-      console.log('✅ Daily KOL content cycle completed');
-      console.log(`📊 Posted: ${content.format} (${content.tweets.length} tweet${content.tweets.length > 1 ? 's' : ''})`);
+      this.dailyPostCount++;
+      
+      console.log('✅ [KOL CONTENT] Content cycle completed');
+      console.log(`📊 [KOL CONTENT] Posted: ${content.format} (${content.tweets.length} tweet${content.tweets.length > 1 ? 's' : ''})`);
+      console.log(`📈 [KOL CONTENT] Daily count: ${this.dailyPostCount}/${this.config.maxPostsPerDay}`);
 
     } catch (error) {
-      console.error('❌ Error in daily content cycle:', error.message);
+      console.error('❌ [KOL CONTENT] Error in content cycle:', error.message);
     }
   }
 }
