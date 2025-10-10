@@ -52,7 +52,15 @@ class PerplexitySonarService {
         search_domain_filter: options.searchDomainFilter || [], // Optional: filter to specific domains
         return_images: options.returnImages || false,
         return_related_questions: options.returnRelatedQuestions || false,
-        search_recency_filter: options.searchRecencyFilter || 'month' // Options: 'day', 'week', 'month', 'year'
+        search_recency_filter: options.searchRecencyFilter || 'month', // Options: 'day', 'week', 'month', 'year'
+        // Force output without <think> tags using regex response format
+        // Match any text that doesn't contain <think> tags (reasoning-free output)
+        response_format: {
+          type: 'regex',
+          regex: {
+            regex: '[^<].*' // Match text that doesn't start with < (no <think> tags)
+          }
+        }
       };
 
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
@@ -77,9 +85,12 @@ class PerplexitySonarService {
       const searchResults = data.search_results || [];
       const usage = data.usage || {};
 
-      // Strip reasoning tags from sonar-reasoning model
-      // Format: <think>reasoning...</think>actual answer
-      content = this.stripReasoningTags(content);
+      // Strip reasoning tags from sonar-reasoning model (as safety fallback)
+      // Note: response_format regex should prevent these, but keep as failsafe
+      if (content.includes('<think>')) {
+        console.warn('⚠️ [PERPLEXITY] Response still contains <think> tags despite regex format - stripping manually');
+        content = this.stripReasoningTags(content);
+      }
 
       console.log(`✅ [PERPLEXITY] Response generated (${usage.total_tokens || 0} tokens)`);
       console.log(`📚 [PERPLEXITY] Citations: ${citations.length}, Search results: ${searchResults.length}`);
