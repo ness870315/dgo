@@ -269,13 +269,14 @@ class OpenAIService {
 
       // Create response using Responses API
       // Note: Response creation is async, starts background job
+      // Use HIGH reasoning for better web search integration and analysis
       let response = await this.openai.responses.create({
         model: model,
         tools: [{ type: 'web_search' }],
         input: prompt,
         max_output_tokens: 2000,
-        reasoning: { effort: "low" },      // Low for faster completion
-        text: { verbosity: "low" }         // Concise outputs
+        reasoning: { effort: "high" },     // High reasoning = better web search synthesis
+        text: { verbosity: "medium" }      // Medium for more context from web
       });
 
       console.log(`🔍 [DEBUG] Initial response ID: ${response.id}`);
