@@ -740,7 +740,7 @@ Reply:`;
       }
       
       // Generate KOL-style opinion with enhanced data
-      const opinion = await this.generateKOLAnalysis(symbol, enhancedData);
+      const opinion = await this.generateKOLAnalysis(symbol, enhancedData, analysis);
       
       return `@${author} ${opinion}`;
       
@@ -830,7 +830,7 @@ Reply:`;
       }
       
       // Generate KOL opinion with the fetched data
-      const opinion = await this.generateKOLAnalysis(symbol, enhancedData);
+      const opinion = await this.generateKOLAnalysis(symbol, enhancedData, analysis);
       return `@${author} ${opinion}`;
       
     } catch (error) {
@@ -857,7 +857,7 @@ Reply:`;
   }
 
   // Generate KOL-style analysis
-  async generateKOLAnalysis(symbol, tokenData) {
+  async generateKOLAnalysis(symbol, tokenData, analysis = {}) {
     try {
       // Extract mcap and holders from cache
       const mcap = tokenData.mcap || tokenData.marketCap || tokenData.jupiterData?.mcap || 0;
@@ -942,11 +942,17 @@ Liquidity: $${(liquidityUsd / 1000).toFixed(1)}K${holderContext}`;
       
       console.log(`🎭 [MENTIONS] Using personality: ${personality.name}`);
 
-      // Lightweight web enrichment: fetch catalysts separately (short browse)
+      // Lightweight web enrichment: quick chat completion with web enabled (faster than Responses API)
       let catalysts = '';
       try {
         console.log(`🌐 [MENTIONS] Fetching web catalysts for $${symbol}...`);
-        catalysts = await this.openaiService.fetchWebCatalysts(symbol, { model: 'gpt-5-mini', lookbackHours: 72, maxOutputTokens: 250 });
+        const catalystPrompt = `Search the web for $${symbol} token in the last 72h. Find 1-2 concrete catalysts (listings, partnerships, notable X mentions, exchange news). Return short bullets, no links. If nothing, say "none".`;
+        catalysts = await this.openaiService.generateCompletion(catalystPrompt, {
+          maxTokens: 200,
+          temperature: 0.3,
+          model: 'gpt-4o',
+          enableWebSearch: false // Use chat completions directly for speed
+        });
         console.log(`✅ [MENTIONS] Web catalysts for $${symbol}: ${catalysts ? catalysts.substring(0, 100) : 'none'}`);
       } catch (err) {
         console.warn(`⚠️ [MENTIONS] Failed to fetch web catalysts for $${symbol}:`, err.message);
