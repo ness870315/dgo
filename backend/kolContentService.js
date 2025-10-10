@@ -18,6 +18,7 @@ class KOLContentService {
       minPostsPerDay: 1,
       maxPostsPerDay: 4,
       minHoursBetween: 3,
+      activeHours: { start: 8, end: 20 }, // 8 AM - 8 PM UTC
       useOpenAI: true
     };
     
@@ -764,6 +765,14 @@ Reply:`;
     if (this.dailyPostCount < this.config.minPostsPerDay) {
       console.log(`📈 [KOL CONTENT] Need minimum posts (${this.dailyPostCount}/${this.config.minPostsPerDay})`);
       return true;
+    }
+
+    // Check if we're within active hours
+    const now = new Date();
+    const currentHour = now.getUTCHours();
+    if (this.config.activeHours && (currentHour < this.config.activeHours.start || currentHour >= this.config.activeHours.end)) {
+      console.log(`⏰ [KOL CONTENT] Outside active hours (${currentHour}h, active: ${this.config.activeHours.start}-${this.config.activeHours.end}h UTC)`);
+      return false;
     }
 
     // If we have no last tweet time, post

@@ -108,6 +108,7 @@ class DailyTweetService {
         minPostsPerDay: this.postsPerDay.min,
         maxPostsPerDay: this.postsPerDay.max,
         minHoursBetween: this.minHoursBetweenPosts,
+        activeHours: this.activeHours,
         useOpenAI: true
       });
     }
@@ -132,6 +133,7 @@ class DailyTweetService {
         minPostsPerDay: this.postsPerDay.min,
         maxPostsPerDay: this.postsPerDay.max,
         minHoursBetween: this.minHoursBetweenPosts,
+        activeHours: this.activeHours,
         useOpenAI: true
       });
     }
@@ -230,7 +232,7 @@ class DailyTweetService {
     return next - now;
   }
 
-  // Generate and post KOL content (uses configuration-based scheduling)
+  // Generate and post KOL content (delegates to KOLContentService configuration)
   async postKOLContent() {
     try {
       if (!this.kolContentService) {
@@ -238,39 +240,23 @@ class DailyTweetService {
         return { success: false, error: 'KOL Content Service not available' };
       }
 
-      console.log('🎤 [KOL CONTENT] Starting daily content cycle...');
-
       // Initialize if needed
       if (!this.kolContentService.openaiService.isInitialized) {
         await this.kolContentService.initialize();
       }
 
-      // Ensure KOL Content Service has latest configuration
+      // Update KOL Content Service with current panel configuration
       this.kolContentService.updateConfig({
         mode: this.randomMode ? 'random' : 'fixed',
         minPostsPerDay: this.postsPerDay.min,
         maxPostsPerDay: this.postsPerDay.max,
         minHoursBetween: this.minHoursBetweenPosts,
+        activeHours: this.activeHours,
         useOpenAI: true
       });
 
-      // Run the daily content cycle (generates + posts 1 content piece)
+      // Let KOLContentService handle all the posting logic based on its configuration
       await this.kolContentService.runDailyContentCycle(this.twitterAutoPostService.oauthXService);
-
-      // Track the post
-      this.todayPostCount++;
-      this.recentPosts.push({
-        timestamp: Date.now(),
-        type: 'kol_content',
-        content: 'KOL content posted'
-      });
-      
-      // Keep only last 10 posts in memory
-      if (this.recentPosts.length > 10) {
-        this.recentPosts.shift();
-      }
-      
-      console.log(`📊 [KOL CONTENT] Content cycles today: ${this.todayPostCount}/${this.todayTargetPosts || this.postsPerDay.max}`);
 
       return { success: true };
     } catch (error) {
@@ -314,69 +300,15 @@ class DailyTweetService {
     console.log(`⏰ [KOL CONTENT] Next check scheduled for: ${nextCheckDate.toISOString()}`);
 
     this.scheduledTimeout = setTimeout(async () => {
-      // Check if we should post based on configuration
-      const shouldPost = this.shouldPostBasedOnConfig();
-      
-      if (shouldPost) {
-        console.log(`🎯 [KOL CONTENT] Configuration check: POST NOW`);
-        await this.postKOLContent();
-      } else {
-        console.log(`⏸️ [KOL CONTENT] Configuration check: WAIT`);
-      }
+      // Always call postKOLContent - it will delegate to KOLContentService's configuration logic
+      console.log(`🎯 [KOL CONTENT] Configuration check...`);
+      await this.postKOLContent();
 
       // Schedule next check
       this.scheduleNextPost();
     }, checkInterval);
   }
 
-  // Check if we should post based on configuration
-  shouldPostBasedOnConfig() {
-    // Reset daily counter if needed
-    this.resetDailyCounter();
-
-    // Check if we've hit daily limit
-    if (this.todayPostCount >= this.postsPerDay.max) {
-      console.log(`⏰ [KOL CONTENT] Daily limit reached (${this.todayPostCount}/${this.postsPerDay.max})`);
-      return false;
-    }
-
-    // Check if we need minimum posts for today
-    if (this.todayPostCount < this.postsPerDay.min) {
-      console.log(`📈 [KOL CONTENT] Need minimum posts (${this.todayPostCount}/${this.postsPerDay.min})`);
-      return true;
-    }
-
-    // Check if we're within active hours
-    const now = new Date();
-    const currentHour = now.getUTCHours();
-    if (currentHour < this.activeHours.start || currentHour >= this.activeHours.end) {
-      console.log(`⏰ [KOL CONTENT] Outside active hours (${currentHour}h, active: ${this.activeHours.start}-${this.activeHours.end}h UTC)`);
-      return false;
-    }
-
-    // Check minimum hours between posts
-    if (this.recentPosts.length > 0) {
-      const lastPost = this.recentPosts[this.recentPosts.length - 1];
-      const timeSinceLastPost = Date.now() - lastPost.timestamp;
-      const minIntervalMs = this.minHoursBetweenPosts * 60 * 60 * 1000;
-      
-      if (timeSinceLastPost < minIntervalMs) {
-        const hoursRemaining = ((minIntervalMs - timeSinceLastPost) / (60 * 60 * 1000)).toFixed(1);
-        console.log(`⏰ [KOL CONTENT] Min interval not met (${hoursRemaining}h remaining)`);
-        return false;
-      }
-    }
-
-    // Random mode: 30% chance to post if conditions met (to avoid too frequent posting)
-    if (this.randomMode) {
-      const shouldPost = Math.random() < 0.3; // 30% chance every 15 minutes = natural random timing
-      console.log(`🎲 [KOL CONTENT] Random check: ${shouldPost ? 'POST' : 'WAIT'}`);
-      return shouldPost;
-    }
-
-    // Fixed mode: only post if we haven't posted today
-    return this.todayPostCount === 0;
-  }
 
   // Stop the daily posting scheduler
   stop() {
