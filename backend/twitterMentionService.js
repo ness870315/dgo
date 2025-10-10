@@ -914,18 +914,37 @@ Reply (without @username):`;
     }
   }
 
-  // Fallback basic opinion without LLM
+  // Fallback basic opinion without LLM (uses actual backend data)
   generateBasicOpinion(symbol, tokenData) {
-    const mcap = tokenData.jupiterData?.mcap || tokenData.marketCap || 0;
-    const volume24h = tokenData.volume24h || 0;
+    const mcap = tokenData.mcap || tokenData.marketCap || tokenData.jupiterData?.mcap || 0;
+    
+    // Get volume from Moralis analytics (more reliable)
+    let volume24h = 0;
+    if (tokenData.moralisAnalytics) {
+      const buyVol = tokenData.moralisAnalytics.buyVolume || 0;
+      const sellVol = tokenData.moralisAnalytics.sellVolume || 0;
+      volume24h = buyVol + sellVol;
+    } else {
+      volume24h = tokenData.volume24h || 0;
+    }
+    
+    const buyPressure = tokenData.moralisAnalytics?.buyPressure || 50;
+    const whaleFlow = tokenData.holderStats?.segmentFlow?.whales?.net || 0;
+    const holderChange = tokenData.holderStats?.holderChange?.['24h'] || 0;
+    
     const volumeToMcap = mcap > 0 ? (volume24h / mcap * 100) : 0;
     
-    if (volumeToMcap > 20) {
-      return `$${symbol} is seeing crazy volume (${volumeToMcap.toFixed(0)}% of mcap). Whales are moving. 👀🔥`;
-    } else if (volumeToMcap < 2) {
-      return `$${symbol} volume is dead rn (${volumeToMcap.toFixed(1)}%). I'd wait for momentum before aping. 📉`;
+    console.log(`📊 [FALLBACK] Using data: mcap=$${mcap}, vol=$${volume24h}, vol/mcap=${volumeToMcap.toFixed(1)}%`);
+    
+    // Build response based on actual metrics
+    if (volumeToMcap > 20 && buyPressure > 60) {
+      return `$${symbol} cooking. ${volumeToMcap.toFixed(0)}% vol/mcap, ${buyPressure.toFixed(0)}% buy pressure. ${whaleFlow > 0 ? 'Whales entering' : 'Watch whale exits'}. 👀`;
+    } else if (volumeToMcap < 5 && holderChange < -10) {
+      return `$${symbol} bleeding holders (${holderChange} in 24h). Volume low at ${volumeToMcap.toFixed(1)}% of mcap. Wait for reversal. 📉`;
+    } else if (whaleFlow < -3) {
+      return `$${symbol} whales dumping (${whaleFlow} net flow). Top 10 control ${(tokenData.holderStats?.top10Pct || 0).toFixed(0)}%. Risky. ⚠️`;
     } else {
-      return `$${symbol} has decent flow, nothing crazy. Do your own research anon! 🤷`;
+      return `$${symbol} at $${(mcap/1000000).toFixed(2)}M mcap. ${buyPressure.toFixed(0)}% buy pressure. Volume ${volumeToMcap.toFixed(1)}% of mcap. Mid play, DYOR. 🤷`;
     }
   }
 
