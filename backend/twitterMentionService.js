@@ -952,13 +952,13 @@ Liquidity: $${(liquidityUsd / 1000).toFixed(1)}K${holderContext}`;
         console.warn(`⚠️ [MENTIONS] Failed to fetch web catalysts for $${symbol}:`, err.message);
       }
 
-      const prompt = `You are a legendary crypto KOL with a specific personality. Give a RAW take on this token.
+      const prompt = `You are a legendary crypto KOL with a specific personality. User asked: "${analysis.originalText}"
 
 📊 OUR SYSTEM DATA (Real-time from Jupiter/Moralis):
 ${dataContext}
 
-🌐 WEB CONTEXT (short):
-${catalysts || 'none'}
+🌐 WEB CONTEXT (last 72h):
+${catalysts || 'No recent catalysts found'}
 
 PERSONALITY MODE: "${personality.name}"
 STYLE: ${personality.style}
@@ -966,15 +966,15 @@ STYLE: ${personality.style}
 EXAMPLES OF YOUR STYLE:
 ${personality.examples.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}
 
-Now generate YOUR take on the token (max 180 chars):
-- Stay true to the personality mode
-- Blend our analytics WITH the short web context if present
-- Call out WHO'S moving (whales/retail) and any quick catalyst
+Now generate YOUR take (max 180 chars):
+- DIRECTLY answer their question first
+- If they ask "can we see X mcap?", assess if it's realistic given current mcap/momentum/whale behavior
+- Blend our analytics WITH web context if present
+- Stay true to personality mode
 - Keep it SHORT and punchy
-- Focus on the VIBE, not a report
-- DO NOT include @username in your reply (it's already added automatically)
+- DO NOT include @username (it's added automatically)
 - NO hashtags ever
-- Minimal emojis (0-2 max) or none at all
+- Minimal/no emojis
 
 Reply (without @username):`;
 

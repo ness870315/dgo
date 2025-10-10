@@ -428,27 +428,38 @@ Return 1 short bullet per catalyst. No links. If nothing solid, return "none".`;
       await new Promise(r => setTimeout(r, 1000));
       try {
         res = await this.openai.responses.retrieve(res.id);
-      } catch (_) {
+      } catch (retrieveErr) {
+        console.warn(`⚠️ [CATALYST] Retrieve error (attempt ${pollAttempts}):`, retrieveErr.message);
         await new Promise(r => setTimeout(r, 300));
       }
       pollAttempts++;
     }
 
+    console.log(`🔍 [CATALYST] Final status after ${pollAttempts} polls: ${res.status}`);
+
     if (res.status === 'failed') {
+      console.warn(`❌ [CATALYST] Response failed for $${symbol}`);
       return '';
     }
 
     const text = res.output_text || '';
-    if (text) return text.trim();
+    if (text) {
+      console.log(`✅ [CATALYST] Extracted via output_text: ${text.length} chars`);
+      return text.trim();
+    }
     if (Array.isArray(res.output)) {
       try {
         const joined = res.output
           .filter(item => item?.type === 'text' && typeof item.text === 'string')
           .map(item => item.text)
           .join('\n');
-        return joined.trim();
+        if (joined) {
+          console.log(`✅ [CATALYST] Extracted via output array: ${joined.length} chars`);
+          return joined.trim();
+        }
       } catch (_) {}
     }
+    console.warn(`⚠️ [CATALYST] No text extracted for $${symbol}`);
     return '';
   }
 
