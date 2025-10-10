@@ -321,9 +321,9 @@ class OAuthXService {
       let url = `https://api.twitter.com/2/users/${userId}/mentions`;
       const params = new URLSearchParams({
         'max_results': String(options.maxResults || 10),
-        'tweet.fields': options.tweetFields || 'author_id,created_at,text,conversation_id,referenced_tweets',
-        'expansions': options.expansions || 'author_id,referenced_tweets.id',
-        'user.fields': options.userFields || 'username,name,verified'
+        'tweet.fields': 'author_id,created_at,text,conversation_id,referenced_tweets,in_reply_to_user_id',
+        'expansions': 'author_id,referenced_tweets.id,in_reply_to_user_id',
+        'user.fields': 'username,name,verified'
       });
 
       // Add since_id if provided (only get new mentions)
@@ -398,6 +398,8 @@ class OAuthXService {
           text: tweet.text,
           createdAt: tweet.created_at,
           conversationId: tweet.conversation_id,
+          referenced_tweets: tweet.referenced_tweets || null, // Include referenced tweets
+          in_reply_to_user_id: tweet.in_reply_to_user_id || null,
           author: {
             id: tweet.author_id,
             username: author?.username || 'unknown',
