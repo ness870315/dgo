@@ -1356,8 +1356,14 @@ class EnhancedBackend {
         // Limit to requested number of trending tokens
         const limitedTrending = trendingTokens.slice(0, requestedLimit);
 
-        console.log(`[🛡️ Enhanced Backend] ✅ Returning ${limitedTrending.length} trending tokens (score >7.8, limit: ${requestedLimit})`);
-        res.json(limitedTrending);
+        // Normalize mcap field (check both mcap and marketCap from jupiterData)
+        const normalizedTrending = limitedTrending.map(token => ({
+          ...token,
+          mcap: token.mcap || token.marketCap || token.jupiterData?.mcap || token.jupiterData?.marketCap || 0
+        }));
+
+        console.log(`[🛡️ Enhanced Backend] ✅ Returning ${normalizedTrending.length} trending tokens (score >7.8, limit: ${requestedLimit})`);
+        res.json(normalizedTrending);
 
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Trending tokens error:', error);
