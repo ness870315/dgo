@@ -297,11 +297,96 @@ Tweet:`;
   }
 
   /**
-   * Generate a thread about a token (3-4 tweets deep-dive)
+   * Generate a thread about a token (3 tweets deep-dive with enhanced data)
    */
   async generateTokenThread(token) {
     try {
-      console.log(`🧵 Generating thread for $${token.symbol}...`);
+      console.log(`🧵 Generating enhanced deep thread for $${token.symbol}...`);
+
+      // Fetch enhanced data (same as mentions service)
+      let volume24h = token.volume24h || 0;
+      let buyPressure = token.jupiterData?.stats24h?.buyVolume || 0;
+      let sellPressure = token.jupiterData?.stats24h?.sellVolume || 0;
+      let holders = token.holderCount || 0;
+      let whaleContext = '';
+
+      try {
+        console.log(`📊 [KOL THREAD] Fetching Moralis analytics for ${token.symbol}...`);
+        const { default: TechnicalAnalysisService } = await import('./services/TechnicalAnalysisService.js');
+        const techAnalysisService = new TechnicalAnalysisService();
+        const moralisAnalytics = await techAnalysisService.getMoralisTokenAnalytics(token.contractAddress);
+        
+        if (moralisAnalytics) {
+          const totalBuy = moralisAnalytics.totalBuyVolume?.['24h'] || moralisAnalytics.buyVolume || 0;
+          const totalSell = moralisAnalytics.totalSellVolume?.['24h'] || moralisAnalytics.sellVolume || 0;
+          volume24h = totalBuy + totalSell;
+          buyPressure = totalBuy;
+          sellPressure = totalSell;
+          console.log(`✅ [KOL THREAD] Moralis analytics: vol=$${volume24h}, buy=${buyPressure}, sell=${sellPressure}`);
+        }
+      } catch (err) {
+        console.warn(`⚠️ [KOL THREAD] Failed to fetch Moralis analytics:`, err.message);
+      }
+
+      // Fetch Holder insights
+      try {
+        console.log(`👥 [KOL THREAD] Fetching holder insights for ${token.symbol}...`);
+        const { default: HolderTimeseriesService } = await import('./services/HolderTimeseriesService.js');
+        const holderService = new HolderTimeseriesService();
+        const holderAnalysis = await holderService.getHolderChangeAnalysis(token.contractAddress);
+        
+        if (holderAnalysis.success) {
+          const axios = (await import('axios')).default;
+          const API_BASE = 'https://solana-gateway.moralis.io';
+          const API_KEY = process.env.MORALIS_API_KEY;
+          
+          if (API_KEY) {
+            const response = await axios.get(
+              `${API_BASE}/token/mainnet/holders/${token.contractAddress}`,
+              { headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' } }
+            );
+            
+            if (response.status === 200 && response.data) {
+              const holderStats = response.data;
+              holders = holderStats.totalHolders || holders;
+              const whales = holderStats.holderDistribution?.whales || 0;
+              const top10Pct = holderStats.holderSupply?.top10?.supplyPercent || 0;
+              const holderChange24h = holderStats.holderChange?.['24h']?.change || 0;
+              const holderChange30d = holderStats.holderChange?.['30d']?.change || 0;
+              
+              const segmentFlow = holderAnalysis.holderFlowData?.segmentFlow;
+              const whaleFlow = segmentFlow?.whales || { in: 0, out: 0, net: 0 };
+              const retailFlow = {
+                in: (segmentFlow?.crabs?.in || 0) + (segmentFlow?.shrimps?.in || 0),
+                out: (segmentFlow?.crabs?.out || 0) + (segmentFlow?.shrimps?.out || 0),
+                net: (segmentFlow?.crabs?.net || 0) + (segmentFlow?.shrimps?.net || 0)
+              };
+              
+              whaleContext = `
+Whales: ${whales}
+Top 10 Control: ${top10Pct.toFixed(1)}%
+Holder Change (24h): ${holderChange24h > 0 ? '+' : ''}${holderChange24h}
+Holder Change (30d): ${holderChange30d > 0 ? '+' : ''}${holderChange30d}
+Whale Flow: ${whaleFlow.net > 0 ? '+' : ''}${whaleFlow.net} (in: ${whaleFlow.in}, out: ${whaleFlow.out})
+Retail Flow: ${retailFlow.net > 0 ? '+' : ''}${retailFlow.net} (in: ${retailFlow.in}, out: ${retailFlow.out})`;
+              
+              console.log(`✅ [KOL THREAD] Holder insights: ${holders} holders, ${whales} whales, top10=${top10Pct.toFixed(1)}%`);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(`⚠️ [KOL THREAD] Failed to fetch holder insights:`, err.message);
+      }
+
+      // Fetch Tavily news/catalysts
+      console.log(`🔍 [KOL THREAD] Fetching Tavily updates for $${token.symbol}...`);
+      let tavilyResults = '';
+      try {
+        tavilyResults = await this.openaiService.searchTavily(`latest news and updates on $${token.symbol} crypto token`);
+        console.log(`✅ [KOL THREAD] Tavily results: ${tavilyResults.substring(0, 100)}...`);
+      } catch (err) {
+        console.warn(`⚠️ [KOL THREAD] Tavily search failed:`, err.message);
+      }
 
       // Tweet 1: Hook (interesting finding or question)
       const tweet1 = await this.generateTokenContent(token, 'thread');
@@ -310,15 +395,10 @@ Tweet:`;
         throw new Error('Failed to generate tweet 1');
       }
 
-      // Tweet 2: The data/metrics deep-dive
+      // Tweet 2: Enhanced data/metrics deep-dive with real analytics
       const mcap = token.mcap || token.marketCap || 0;
-      const volume24h = token.volume24h || 0;
       const volumeToMcap = mcap > 0 ? ((volume24h / mcap) * 100).toFixed(1) : 0;
       const priceChange = token.priceChange24h || 0;
-      const holders = token.holderCount || 0;
-      
-      const buyPressure = token.jupiterData?.stats24h?.buyVolume || 0;
-      const sellPressure = token.jupiterData?.stats24h?.sellVolume || 0;
       const buyPct = (buyPressure + sellPressure) > 0 
         ? ((buyPressure / (buyPressure + sellPressure)) * 100).toFixed(1) 
         : 50;
@@ -327,16 +407,20 @@ Tweet:`;
 
 Tweet 1 was: "${tweet1}"
 
-Now provide the DATA/METRICS breakdown:
+📊 ENHANCED DATA BREAKDOWN:
 - MCap: $${(mcap / 1_000_000).toFixed(2)}M
 - 24h Volume: $${(volume24h / 1_000).toFixed(1)}K (${volumeToMcap}% of mcap)
 - Price: ${priceChange > 0 ? '+' : ''}${priceChange.toFixed(1)}% (24h)
 - Buy pressure: ${buyPct}%
-- Holders: ${holders.toLocaleString()}
+- Holders: ${holders.toLocaleString()}${whaleContext}
+
+🔍 TAVILY NEWS/CATALYSTS:
+${tavilyResults || 'No recent news found'}
 
 START with "2/" to continue the thread.
-Present these numbers in a compelling way that tells a story.
-What do these metrics reveal? What's the narrative?
+Present these numbers + any news in a compelling way that tells a story.
+If Tavily has specific catalysts/news, WEAVE them in naturally.
+What do these metrics + news reveal? What's the narrative?
 Max 280 characters. Crypto slang. No hashtags.
 
 Example format: "2/ $MONKEY in 60s: mcap $0.21M, vol/mcap 13.6%, whale flow -5, retail flow +5. No hopium, just numbers"
@@ -349,21 +433,29 @@ Tweet 2:`;
         model: 'gpt-4o'
       });
 
-      // Tweet 3: The verdict/recommendation
-      const tweet3Prompt = `Write tweet 3 (final) of a crypto thread about $${token.symbol}.
+      // Tweet 3: Data-driven verdict/recommendation
+      const tweet3Prompt = `Write tweet 3 of a crypto thread about $${token.symbol}.
 
-Previous tweets covered the hook and the data.
+Previous tweets covered the hook and enhanced data.
 
-Now give your VERDICT:
+📊 DATA-DRIVEN VERDICT:
+Based on the REAL metrics we just analyzed:
+- Volume/MCap ratio: ${volumeToMcap}%
+- Buy pressure: ${buyPct}%
+- Holder momentum: ${holders > 0 ? 'Active' : 'Unknown'}${whaleContext ? `, whale flow analysis available` : ''}
+${tavilyResults ? `- Recent news/catalysts: ${tavilyResults.substring(0, 100)}...` : ''}
+
+Give your VERDICT based on ACTUAL DATA:
 - Is this a call? Wait and watch? Or pass?
-- What's the risk level?
-- What should degens watch for next?
+- What's the risk level based on real metrics?
+- What SPECIFIC data points should degens watch?
 
 START with "3/" to continue the thread.
-Be decisive. Take a stance. Give actionable advice.
+Be decisive. Take a stance based on DATA, not speculation.
+NO generic advice like "watch for dev updates" if no dev exists.
 Max 280 characters. Crypto slang. No hashtags.
 
-Example format: "3/ How I judge entries: volume/mcap > 20%, holder momentum up, whales net ≥ 0. Receipts below"
+Example format: "3/ Data says: vol/mcap ${volumeToMcap}% is ${parseFloat(volumeToMcap) > 20 ? 'strong' : 'weak'}, buy pressure ${buyPct}% ${parseFloat(buyPct) > 60 ? 'bullish' : 'concerning'}. ${parseFloat(volumeToMcap) > 20 && parseFloat(buyPct) > 60 ? 'Worth watching.' : 'Wait for better setup.'}"
 
 Tweet 3:`;
 
@@ -373,35 +465,10 @@ Tweet 3:`;
         model: 'gpt-4o'
       });
 
-      // Tweet 4: TL;DR wrap-up (optional - only if we have space)
-      const tweet4Prompt = `Write a final TL;DR tweet for a crypto thread about $${token.symbol}.
-
-Previous tweets covered: hook, data breakdown, and verdict.
-
-Give a concise wrap-up:
-- Key takeaway
-- Final verdict (wait/watch/pass)
-- DYOR reminder
-
-START with "End/🧵" to end the thread.
-Keep it SHORT and punchy.
-Max 200 characters. Crypto slang. No hashtags.
-
-Example format: "End/🧵 TL;DR: Wait for vol/mcap > 20% and whale net inflow. DYOR."
-
-Final tweet:`;
-
-      const tweet4 = await this.openaiService.generateCompletion(tweet4Prompt, {
-        maxTokens: 80,
-        temperature: 0.7,
-        model: 'gpt-4o'
-      });
-
       const thread = [
         tweet1.trim().replace(/#\w+/g, '').replace(/\s+/g, ' ').trim(),
         tweet2.trim().replace(/#\w+/g, '').replace(/\s+/g, ' ').trim(),
-        tweet3.trim().replace(/#\w+/g, '').replace(/\s+/g, ' ').trim(),
-        tweet4.trim().replace(/#\w+/g, '').replace(/\s+/g, ' ').trim()
+        tweet3.trim().replace(/#\w+/g, '').replace(/\s+/g, ' ').trim()
       ];
 
       console.log(`✅ Generated thread for $${token.symbol} (${thread.length} tweets)`);
@@ -497,14 +564,13 @@ News recap:`;
 
       // Decide content format randomly (more realistic distribution)
       const contentFormats = [
-        'single',       // 25% - Single tweet
-        'short',        // 25% - Short thread (2 tweets)
-        'deep',         // 20% - Deep-dive thread (4 tweets)
-        'meme',         // 15% - Meme/joke tweet
+        'single',       // 35% - Single tweet
+        'deep',         // 30% - Deep-dive thread (4 tweets)
+        'meme',         // 20% - Meme/joke tweet
         'news'          // 15% - Crypto news recap
       ];
 
-      const weights = [25, 25, 20, 15, 15];
+      const weights = [35, 30, 20, 15];
       const random = Math.random() * 100;
       let cumulative = 0;
       let selectedFormat = 'single';
@@ -565,9 +631,6 @@ News recap:`;
       case 'single':
         const singleTweet = await this.generateTokenContent(token, 'single');
         return singleTweet ? [singleTweet] : null;
-      
-      case 'short':
-        return await this.generateShortThread(token);
       
       case 'deep':
         return await this.generateTokenThread(token);
@@ -725,75 +788,6 @@ Market meme:`;
     }
   }
 
-  /**
-   * Generate a short thread (2 tweets) - observation + quick take
-   */
-  async generateShortThread(token) {
-    try {
-      console.log(`🧵 Generating short thread (2 tweets) for $${token.symbol}...`);
-
-      // Tweet 1: Observation/Data point
-      const mcap = token.mcap || token.marketCap || 0;
-      const volume24h = token.volume24h || 0;
-      const volumeToMcap = mcap > 0 ? ((volume24h / mcap) * 100).toFixed(1) : 0;
-      const priceChange = token.priceChange24h || 0;
-
-      const tweet1Prompt = `Write a crypto thread starter about $${token.symbol}.
-
-Share ONE interesting observation:
-- MCap: $${(mcap / 1_000_000).toFixed(2)}M
-- 24h Volume: $${(volume24h / 1_000).toFixed(1)}K (${volumeToMcap}% of mcap)
-- Price: ${priceChange > 0 ? '+' : ''}${priceChange.toFixed(1)}% (24h)
-
-START with "🧵 1/" and end with "↓" to indicate it's a thread.
-Pick the most interesting metric and present it naturally.
-Max 280 characters. Crypto slang. No hashtags.
-
-Example format: "🧵 1/ Here's my quick take on $MONKEY. Data, holders, and catalysts ↓"
-
-Tweet:`;
-
-      const tweet1 = await this.openaiService.generateCompletion(tweet1Prompt, {
-        maxTokens: 100,
-        temperature: 0.8,
-        model: 'gpt-4o',
-        enableWebSearch: false // Tavily already fetched if needed
-      });
-
-      // Tweet 2: Quick take/opinion
-      const tweet2Prompt = `Reply to: "${tweet1}"
-
-Give your quick take on $${token.symbol}:
-- Worth watching? Why?
-- What's the vibe?
-- Simple verdict
-
-START with "2/" to continue the thread.
-Keep it SHORT. One sentence. Crypto slang. No hashtags.
-
-Example format: "2/ Worth watching for vol/mcap > 20% and whale net inflow. DYOR."
-
-Reply:`;
-
-      const tweet2 = await this.openaiService.generateCompletion(tweet2Prompt, {
-        maxTokens: 80,
-        temperature: 0.8,
-        model: 'gpt-4o'
-      });
-
-      const thread = [
-        tweet1.trim().replace(/#\w+/g, '').replace(/\s+/g, ' ').trim(),
-        tweet2.trim().replace(/#\w+/g, '').replace(/\s+/g, ' ').trim()
-      ];
-
-      console.log(`✅ Generated short thread for $${token.symbol} (${thread.length} tweets)`);
-      return thread;
-
-    } catch (error) {
-      console.error(`❌ Error generating short thread for ${token.symbol}:`, error.message);
-      return null;
-    }
-  }
 
   /**
    * Post thread to Twitter
@@ -925,10 +919,11 @@ Reply:`;
   /**
    * Force generate content (bypasses all configuration controls)
    * Used by admin "Post Now" button to override settings
+   * @param {string} contentType - 'random', 'single', 'deep', 'meme', or 'news'
    */
-  async forceGenerateContent() {
+  async forceGenerateContent(contentType = 'random') {
     try {
-      console.log('🎯 [KOL CONTENT] FORCE GENERATING content (bypassing all config controls)...');
+      console.log(`🎯 [KOL CONTENT] FORCE GENERATING content (bypassing all config controls) - Type: ${contentType}...`);
 
       // Select 1 random token from top 5 trending
       const token = await this.selectRandomTrendingToken();
@@ -938,29 +933,36 @@ Reply:`;
         return null;
       }
 
-      // Decide content format randomly (more realistic distribution)
-      const contentFormats = [
-        'single',       // 25% - Single tweet
-        'short',        // 25% - Short thread (2 tweets)
-        'deep',         // 20% - Deep-dive thread (4 tweets)
-        'meme',         // 15% - Meme/joke tweet
-        'news'          // 15% - Crypto news recap
-      ];
+      let selectedFormat;
 
-      const weights = [25, 25, 20, 15, 15];
-      const random = Math.random() * 100;
-      let cumulative = 0;
-      let selectedFormat = 'single';
+      if (contentType === 'random') {
+        // Decide content format randomly (more realistic distribution)
+        const contentFormats = [
+          'single',       // 35% - Single tweet
+          'deep',         // 30% - Deep-dive thread (3 tweets)
+          'meme',         // 20% - Meme/joke tweet
+          'news'          // 15% - Crypto news recap
+        ];
 
-      for (let i = 0; i < weights.length; i++) {
-        cumulative += weights[i];
-        if (random <= cumulative) {
-          selectedFormat = contentFormats[i];
-          break;
+        const weights = [35, 30, 20, 15];
+        const random = Math.random() * 100;
+        let cumulative = 0;
+        selectedFormat = 'single';
+
+        for (let i = 0; i < weights.length; i++) {
+          cumulative += weights[i];
+          if (random <= cumulative) {
+            selectedFormat = contentFormats[i];
+            break;
+          }
         }
-      }
 
-      console.log(`📝 [KOL CONTENT] FORCE Selected format: ${selectedFormat}`);
+        console.log(`📝 [KOL CONTENT] FORCE Random selected format: ${selectedFormat}`);
+      } else {
+        // Use the specified content type
+        selectedFormat = contentType;
+        console.log(`📝 [KOL CONTENT] FORCE Using specified format: ${selectedFormat}`);
+      }
 
       // Generate content directly without configuration checks
       let content, tokenInfo = token, article = null;

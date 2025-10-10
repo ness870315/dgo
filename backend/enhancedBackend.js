@@ -9421,7 +9421,7 @@ class EnhancedBackend {
     // Post a promotional tweet immediately (for testing)
     this.app.post('/api/admin/daily-tweets/post-now', adminApiAuth, async (req, res) => {
       try {
-        const { useLLM = true } = req.body;
+        const { useLLM = true, contentType = 'random' } = req.body;
 
         if (!this.dailyTweetService) {
           return res.status(503).json({
@@ -9430,12 +9430,14 @@ class EnhancedBackend {
           });
         }
 
-        const result = await this.dailyTweetService.postNow(useLLM);
+        console.log(`[🛡️ Admin] 📤 Post Now request - contentType: ${contentType}`);
+        const result = await this.dailyTweetService.postNow(contentType);
 
         res.json({
           success: result.success,
           message: result.success ? 'Tweet posted successfully' : 'Failed to post tweet',
           tweetId: result.tweetId,
+          content: result.content,
           error: result.error,
           timestamp: new Date().toISOString()
         });

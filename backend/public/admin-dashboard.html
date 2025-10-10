@@ -770,10 +770,20 @@
                 <div id="dailyTweetStatus" class="status-display" style="margin-bottom: 20px; display: none;"></div>
                 
                 <!-- Controls -->
-                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; align-items: center;">
                     <button class="btn btn-success" onclick="startDailyTweets()">▶️ Start Service</button>
                     <button class="btn btn-danger" onclick="stopDailyTweets()">⏹️ Stop Service</button>
-                    <button class="btn btn-warning" onclick="postTweetNow()">⚡ Post Now</button>
+                    <div style="display: flex; gap: 8px; align-items: center; background: rgba(255,255,255,0.3); padding: 8px 12px; border-radius: 8px;">
+                        <label style="margin: 0; font-weight: 600; white-space: nowrap;">Post Type:</label>
+                        <select id="postNowType" style="padding: 6px 10px; border-radius: 6px; border: 2px solid #667eea; background: white; font-weight: 500; cursor: pointer;">
+                            <option value="random">🎲 Random</option>
+                            <option value="single">📝 Single Tweet</option>
+                            <option value="deep">🧵 Deep Thread (3 tweets)</option>
+                            <option value="meme">😂 Meme/Joke</option>
+                            <option value="news">📰 Crypto News</option>
+                        </select>
+                        <button class="btn btn-warning" onclick="postTweetNow()">⚡ Post Now</button>
+                    </div>
                     <button class="btn btn-info" onclick="getDailyTweetStatus()">📊 Check Status</button>
                 </div>
                 
@@ -3484,12 +3494,21 @@ ${(aiPrediction.risks || []).map(r => `   • ${r}`).join('\\n') || '   • None
         async function postTweetNow() {
             const resultsDiv = document.getElementById('dailyTweetResults');
             const useLLM = document.getElementById('useLLM').checked;
+            const contentType = document.getElementById('postNowType').value;
             
-            if (!confirm('⚡ POST TWEET NOW\\n\\nThis will immediately post a promotional tweet to @dgnoracle.\\n\\nContinue?')) {
+            const typeLabels = {
+                'random': '🎲 Random',
+                'single': '📝 Single Tweet',
+                'deep': '🧵 Deep Thread (3 tweets)',
+                'meme': '😂 Meme/Joke',
+                'news': '📰 Crypto News'
+            };
+            
+            if (!confirm(`⚡ POST TWEET NOW\\n\\nType: ${typeLabels[contentType]}\\n\\nThis will immediately post content to @dgnoracle.\\n\\nContinue?`)) {
                 return;
             }
             
-            resultsDiv.innerHTML = showLoading('⚡ Posting tweet now...');
+            resultsDiv.innerHTML = showLoading(`⚡ Posting ${typeLabels[contentType]} now...`);
             
             try {
                 const response = await fetch(`${API_BASE}/api/admin/daily-tweets/post-now`, {
@@ -3497,13 +3516,16 @@ ${(aiPrediction.risks || []).map(r => `   • ${r}`).join('\\n') || '   • None
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ useLLM })
+                    body: JSON.stringify({ useLLM, contentType })
                 });
                 
                 const data = await response.json();
                 
                 if (data.success) {
-                    resultsDiv.innerHTML = showAlert(`✅ Tweet posted successfully!<br><a href="https://twitter.com/dgnoracle/status/${data.tweetId}" target="_blank">View Tweet →</a>`, 'success');
+                    const content = data.content || {};
+                    const formatInfo = content.format ? ` (${content.format})` : '';
+                    const tweetCount = content.tweets?.length || 1;
+                    resultsDiv.innerHTML = showAlert(`✅ ${typeLabels[contentType]} posted successfully!${formatInfo}<br>📊 ${tweetCount} tweet${tweetCount > 1 ? 's' : ''} posted`, 'success');
                     setTimeout(getDailyTweetStatus, 1000);
                 } else {
                     resultsDiv.innerHTML = showAlert(`❌ Failed: ${data.error || data.message}`, 'error');

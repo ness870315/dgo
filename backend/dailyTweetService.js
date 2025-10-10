@@ -325,8 +325,8 @@ class DailyTweetService {
   }
 
   // Post immediately (for testing) - OVERRIDES ALL CONFIGURATION CONTROLS
-  async postNow() {
-    console.log('⚡ [KOL CONTENT] Posting immediately (manual trigger - OVERRIDING CONFIG)...');
+  async postNow(contentType = 'random') {
+    console.log(`⚡ [KOL CONTENT] Posting immediately (manual trigger - OVERRIDING CONFIG) - Type: ${contentType}...`);
     
     try {
       if (!this.kolContentService) {
@@ -342,8 +342,8 @@ class DailyTweetService {
       // FORCE POST BY BYPASSING shouldPostContent() - Generate content directly
       console.log('🎯 [KOL CONTENT] Bypassing configuration controls - generating content now...');
       
-      // Generate content directly without checking configuration
-      const content = await this.kolContentService.forceGenerateContent();
+      // Generate content directly without checking configuration, with specified type
+      const content = await this.kolContentService.forceGenerateContent(contentType);
       
       if (!content) {
         console.log('❌ [KOL CONTENT] Failed to generate content');
