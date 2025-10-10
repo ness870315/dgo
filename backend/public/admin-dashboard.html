@@ -781,6 +781,7 @@
                             <option value="deep">🧵 Deep Thread (3 tweets)</option>
                             <option value="meme">😂 Meme/Joke</option>
                             <option value="news">📰 Crypto News</option>
+                            <option value="newsjoke">🎭 News Joke (Perplexity)</option>
                         </select>
                         <button class="btn btn-warning" onclick="postTweetNow()">⚡ Post Now</button>
                     </div>
@@ -3501,7 +3502,8 @@ ${(aiPrediction.risks || []).map(r => `   • ${r}`).join('\\n') || '   • None
                 'single': '📝 Single Tweet',
                 'deep': '🧵 Deep Thread (3 tweets)',
                 'meme': '😂 Meme/Joke',
-                'news': '📰 Crypto News'
+                'news': '📰 Crypto News',
+                'newsjoke': '🎭 News Joke (Perplexity)'
             };
             
             if (!confirm(`⚡ POST TWEET NOW\\n\\nType: ${typeLabels[contentType]}\\n\\nThis will immediately post content to @dgnoracle.\\n\\nContinue?`)) {

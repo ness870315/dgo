@@ -1,6 +1,7 @@
 import fetch from 'node-fetch';
 import OpenAIService from './openaiService.js';
 import CoinDeskService from './services/CoinDeskService.js';
+import PerplexitySonarService from './services/PerplexitySonarService.js';
 
 /**
  * KOL Content Service - Generate authentic crypto influencer content
@@ -12,6 +13,7 @@ class KOLContentService {
     this.backend = backendInstance;
     this.openaiService = new OpenAIService();
     this.coinDeskService = new CoinDeskService();
+    this.perplexityService = new PerplexitySonarService();
     this.lastTweetTime = null;
     
     // Configuration panel settings (defaults)
@@ -567,6 +569,59 @@ News recap:`;
   }
 
   /**
+   * Generate crypto news joke using Perplexity
+   */
+  async generateNewsJoke() {
+    try {
+      console.log('🎭 [KOL CONTENT] Generating news joke with Perplexity...');
+
+      // Use Perplexity to fetch latest crypto news
+      if (!this.perplexityService || !this.perplexityService.isInitialized) {
+        console.warn('⚠️ [KOL CONTENT] Perplexity service not initialized');
+        return null;
+      }
+
+      // Fetch today's crypto news facts from Perplexity
+      const perplexityResponse = await this.perplexityService.searchCrypto(
+        'Tell me a joke based on crypto facts news from today, answer as a true degen!'
+      );
+
+      if (!perplexityResponse || !perplexityResponse.content) {
+        console.log('⚠️ [KOL CONTENT] No Perplexity response for news joke');
+        return null;
+      }
+
+      console.log(`✅ [KOL CONTENT] Perplexity joke response: ${perplexityResponse.content.substring(0, 100)}...`);
+
+      // Clean up the joke
+      let joke = perplexityResponse.content.trim()
+        .replace(/#\w+/g, '') // Remove hashtags
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      // If the response is too long, truncate to 280 chars
+      if (joke.length > 280) {
+        joke = joke.substring(0, 277) + '...';
+      }
+
+      console.log(`🎭 Generated news joke: "${joke}"`);
+      return {
+        format: 'newsjoke',
+        tweets: [joke],
+        token: { symbol: 'JOKE', name: 'Crypto News Joke' },
+        perplexityData: {
+          citations: perplexityResponse.citations || [],
+          searchResults: perplexityResponse.searchResults || []
+        }
+      };
+
+    } catch (error) {
+      console.error(`❌ Error generating news joke:`, error.message);
+      return null;
+    }
+  }
+
+  /**
    * Generate daily KOL content: Pick random token from top 5, random format
    */
   async generateDailyContent() {
@@ -984,7 +1039,7 @@ Market meme:`;
       }
 
       // Generate content directly without configuration checks
-      let content, tokenInfo = token, article = null;
+      let content, tokenInfo = token, article = null, perplexityData = null;
       
       if (selectedFormat === 'news') {
         // For news, generate directly and get full content object
@@ -996,6 +1051,16 @@ Market meme:`;
         content = newsContent.tweets;
         tokenInfo = newsContent.token;
         article = newsContent.article;
+      } else if (selectedFormat === 'newsjoke') {
+        // For news joke, use Perplexity directly
+        const jokeContent = await this.generateNewsJoke();
+        if (!jokeContent) {
+          console.log('❌ [KOL CONTENT] Failed to generate news joke');
+          return null;
+        }
+        content = jokeContent.tweets;
+        tokenInfo = jokeContent.token;
+        perplexityData = jokeContent.perplexityData;
       } else {
         // For other formats, use the existing method
         content = await this.generateContentByFormat(token, selectedFormat);
@@ -1012,7 +1077,8 @@ Market meme:`;
         tweets: content,
         format: selectedFormat,
         timestamp: new Date().toISOString(),
-        ...(article && { article })
+        ...(article && { article }),
+        ...(perplexityData && { perplexityData })
       };
 
     } catch (error) {
