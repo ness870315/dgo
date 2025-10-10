@@ -867,11 +867,10 @@ Liquidity: $${(liquidityUsd / 1000).toFixed(1)}K${holderContext}`;
 📊 OUR SYSTEM DATA (Real-time from Jupiter/Moralis):
 ${dataContext}
 
-🌐 ADDITIONAL CONTEXT: You have web search enabled. Check for:
-- Recent news/announcements about $${symbol}
-- Twitter sentiment and trending discussions
-- Major partnerships or developments in last 48h
-- Any catalysts explaining volume/price movement
+🌐 ADDITIONAL CONTEXT: You have web search enabled. In the last 72h, quickly search for:
+ - Concrete catalysts: listings, partnerships, notable X mentions, exchange news
+ - If you find 1–2 relevant items, cite them succinctly (no links)
+ - Stop searching after first solid catalyst
 
 COMBINE both our system data AND web-searched context for your take.
 
@@ -917,34 +916,51 @@ Reply (without @username):`;
   // Fallback basic opinion without LLM (uses actual backend data)
   generateBasicOpinion(symbol, tokenData) {
     const mcap = tokenData.mcap || tokenData.marketCap || tokenData.jupiterData?.mcap || 0;
-    
-    // Get volume from Moralis analytics (more reliable)
+
+    // Prefer Moralis totals; fall back to summed buy/sell; then legacy fields
     let volume24h = 0;
-    if (tokenData.moralisAnalytics) {
-      const buyVol = tokenData.moralisAnalytics.buyVolume || 0;
-      const sellVol = tokenData.moralisAnalytics.sellVolume || 0;
-      volume24h = buyVol + sellVol;
+    let buyVol24h = 0;
+    let sellVol24h = 0;
+    const ma = tokenData.moralisAnalytics || {};
+    const totalVol = ma.totalVolume?.['24h'] ?? ma.volume?.['24h'];
+    const totalBuy = ma.totalBuyVolume?.['24h'] ?? ma.buyVolume ?? 0;
+    const totalSell = ma.totalSellVolume?.['24h'] ?? ma.sellVolume ?? 0;
+    if (typeof totalVol === 'number') {
+      volume24h = totalVol;
+    } else if (totalBuy || totalSell) {
+      volume24h = totalBuy + totalSell;
     } else {
       volume24h = tokenData.volume24h || 0;
     }
-    
-    const buyPressure = tokenData.moralisAnalytics?.buyPressure || 50;
-    const whaleFlow = tokenData.holderStats?.segmentFlow?.whales?.net || 0;
-    const holderChange = tokenData.holderStats?.holderChange?.['24h'] || 0;
-    
+    buyVol24h = typeof totalBuy === 'number' ? totalBuy : 0;
+    sellVol24h = typeof totalSell === 'number' ? totalSell : 0;
+
+    // Compute buy pressure percent if available; else derive from buy/sell
+    let buyPressurePct = 50;
+    if (typeof ma.buyPct === 'string' || typeof ma.buyPct === 'number') {
+      buyPressurePct = parseFloat(ma.buyPct) || 50;
+    } else if (buyVol24h + sellVol24h > 0) {
+      buyPressurePct = (buyVol24h / (buyVol24h + sellVol24h)) * 100;
+    }
+
+    // Use holderAnalysis for segment flow; holderStats for supply/changes
+    const whaleFlow = tokenData.holderAnalysis?.holderFlowData?.segmentFlow?.whales?.net || 0;
+    const top10Pct = tokenData.holderStats?.holderSupply?.top10?.supplyPercent || 0;
+    const holderChange = tokenData.holderStats?.holderChange?.['24h']?.change || 0;
+
     const volumeToMcap = mcap > 0 ? (volume24h / mcap * 100) : 0;
-    
-    console.log(`📊 [FALLBACK] Using data: mcap=$${mcap}, vol=$${volume24h}, vol/mcap=${volumeToMcap.toFixed(1)}%`);
-    
+
+    console.log(`📊 [FALLBACK] Using data: mcap=$${mcap}, vol=$${volume24h}, vol/mcap=${volumeToMcap.toFixed(1)}%, buy%=${buyPressurePct.toFixed(1)}%`);
+
     // Build response based on actual metrics
-    if (volumeToMcap > 20 && buyPressure > 60) {
-      return `$${symbol} cooking. ${volumeToMcap.toFixed(0)}% vol/mcap, ${buyPressure.toFixed(0)}% buy pressure. ${whaleFlow > 0 ? 'Whales entering' : 'Watch whale exits'}. 👀`;
+    if (volumeToMcap > 20 && buyPressurePct > 60) {
+      return `$${symbol} cooking. ${volumeToMcap.toFixed(0)}% vol/mcap, ${buyPressurePct.toFixed(0)}% buy pressure. ${whaleFlow > 0 ? 'Whales entering' : 'Watch whale exits'}. 👀`;
     } else if (volumeToMcap < 5 && holderChange < -10) {
       return `$${symbol} bleeding holders (${holderChange} in 24h). Volume low at ${volumeToMcap.toFixed(1)}% of mcap. Wait for reversal. 📉`;
     } else if (whaleFlow < -3) {
-      return `$${symbol} whales dumping (${whaleFlow} net flow). Top 10 control ${(tokenData.holderStats?.top10Pct || 0).toFixed(0)}%. Risky. ⚠️`;
+      return `$${symbol} whales dumping (${whaleFlow} net flow). Top 10 control ${top10Pct.toFixed(1)}%. Risky. ⚠️`;
     } else {
-      return `$${symbol} at $${(mcap/1000000).toFixed(2)}M mcap. ${buyPressure.toFixed(0)}% buy pressure. Volume ${volumeToMcap.toFixed(1)}% of mcap. Mid play, DYOR. 🤷`;
+      return `$${symbol} at $${(mcap/1000000).toFixed(2)}M mcap. ${buyPressurePct.toFixed(0)}% buy pressure. Volume ${volumeToMcap.toFixed(1)}% of mcap. Mid play, DYOR.`;
     }
   }
 

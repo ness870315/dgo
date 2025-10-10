@@ -275,7 +275,7 @@ class OpenAIService {
         // Constrain tool usage and scope to avoid long-running searches
         tools: [{
           type: 'web_search',
-          search_context_size: 'small',
+          search_context_size: 'low',
           user_location: { type: 'approximate', country: 'US' }
         }],
         tool_choice: {
