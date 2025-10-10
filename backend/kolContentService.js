@@ -30,6 +30,9 @@ class KOLContentService {
     this.dailyPostCount = 0;
     this.lastResetDate = new Date().toDateString();
     
+    // Track posted tokens to avoid repeats (48hr cooldown)
+    this.postedTokens = new Map(); // { symbol: timestamp }
+    
     // KOL Personalities - Authentic crypto influencer styles
     this.personalities = [
       {
@@ -121,6 +124,53 @@ class KOLContentService {
       mcap: `$${((selected.mcap || 0) / 1_000_000).toFixed(2)}M`,
       score: (selected.overallScore || 0).toFixed(1),
       priceChange: `${(selected.priceChange24h || 0).toFixed(1)}%`
+    });
+    
+    return selected;
+  }
+
+  /**
+   * Select random token from top 10 for deep threads (with 48hr cooldown)
+   */
+  async selectTokenForDeepThread() {
+    const trending = await this.getTrendingTokens(20);
+    
+    if (trending.length === 0) {
+      console.log('⚠️ No trending tokens available');
+      return null;
+    }
+
+    // Clean up old entries (older than 48 hours)
+    const now = Date.now();
+    const cooldownMs = 48 * 60 * 60 * 1000; // 48 hours
+    for (const [symbol, timestamp] of this.postedTokens.entries()) {
+      if (now - timestamp > cooldownMs) {
+        this.postedTokens.delete(symbol);
+        console.log(`🧹 Removed ${symbol} from cooldown (>48hrs)`);
+      }
+    }
+
+    // Filter out recently posted tokens
+    const top10 = trending.slice(0, Math.min(10, trending.length));
+    const available = top10.filter(token => !this.postedTokens.has(token.symbol));
+
+    if (available.length === 0) {
+      console.log('⚠️ All top 10 tokens posted recently, using top 5 fallback');
+      return await this.selectRandomTrendingToken();
+    }
+
+    // Randomly select from available tokens
+    const selected = available[Math.floor(Math.random() * available.length)];
+    
+    // Mark as posted
+    this.postedTokens.set(selected.symbol, now);
+    
+    console.log(`🎯 Selected from top 10 (${available.length} available after cooldown): $${selected.symbol}`, {
+      rank: trending.indexOf(selected) + 1,
+      mcap: `$${((selected.mcap || 0) / 1_000_000).toFixed(2)}M`,
+      score: (selected.overallScore || 0).toFixed(1),
+      priceChange: `${(selected.priceChange24h || 0).toFixed(1)}%`,
+      cooldownTokens: this.postedTokens.size
     });
     
     return selected;
@@ -636,18 +686,10 @@ News recap:`;
     try {
       console.log('🎤 Generating daily KOL content...');
 
-      // Select 1 random token from top 5 trending
-      const token = await this.selectRandomTrendingToken();
-
-      if (!token) {
-        console.log('⚠️ No tokens available for content');
-        return null;
-      }
-
       // Decide content format randomly (more realistic distribution)
       const contentFormats = [
         'single',       // 35% - Single tweet
-        'deep',         // 30% - Deep-dive thread (4 tweets)
+        'deep',         // 30% - Deep-dive thread (3 tweets)
         'meme',         // 20% - Meme/joke tweet
         'news'          // 15% - Crypto news recap
       ];
@@ -666,6 +708,21 @@ News recap:`;
       }
 
       console.log(`📝 Selected format: ${selectedFormat}`);
+
+      // Select token based on format
+      let token;
+      if (selectedFormat === 'deep') {
+        // Deep threads use top 10 with 48hr cooldown
+        token = await this.selectTokenForDeepThread();
+      } else if (selectedFormat !== 'news' && selectedFormat !== 'newsjoke') {
+        // Other token-based formats use top 5
+        token = await this.selectRandomTrendingToken();
+      }
+
+      if (!token && selectedFormat !== 'news' && selectedFormat !== 'newsjoke') {
+        console.log('⚠️ No tokens available for content');
+        return null;
+      }
 
       // Generate content
       let content, tokenInfo = token, article = null;
@@ -1007,14 +1064,6 @@ Market meme:`;
     try {
       console.log(`🎯 [KOL CONTENT] FORCE GENERATING content (bypassing all config controls) - Type: ${contentType}...`);
 
-      // Select 1 random token from top 5 trending
-      const token = await this.selectRandomTrendingToken();
-
-      if (!token) {
-        console.log('⚠️ [KOL CONTENT] No tokens available for content');
-        return null;
-      }
-
       let selectedFormat;
 
       if (contentType === 'random') {
@@ -1044,6 +1093,21 @@ Market meme:`;
         // Use the specified content type
         selectedFormat = contentType;
         console.log(`📝 [KOL CONTENT] FORCE Using specified format: ${selectedFormat}`);
+      }
+
+      // Select token based on format
+      let token;
+      if (selectedFormat === 'deep') {
+        // Deep threads use top 10 with 48hr cooldown
+        token = await this.selectTokenForDeepThread();
+      } else if (selectedFormat !== 'news' && selectedFormat !== 'newsjoke') {
+        // Other token-based formats use top 5
+        token = await this.selectRandomTrendingToken();
+      }
+
+      if (!token && selectedFormat !== 'news' && selectedFormat !== 'newsjoke') {
+        console.log('⚠️ [KOL CONTENT] No tokens available for content');
+        return null;
       }
 
       // Generate content directly without configuration checks
