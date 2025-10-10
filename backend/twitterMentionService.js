@@ -233,8 +233,28 @@ class TwitterMentionService {
       
       console.log(`💬 [MENTIONS] Processing mention from @${author}: "${text}"`);
       
-      // Fetch conversation context if available
+      // Fetch conversation context and parent tweet if available
       let conversationContext = [];
+      let parentTweet = null;
+      
+      // Check if this mention is a reply to another tweet
+      if (mention.referenced_tweets && mention.referenced_tweets.length > 0) {
+        const replyToTweet = mention.referenced_tweets.find(ref => ref.type === 'replied_to');
+        if (replyToTweet && replyToTweet.id) {
+          console.log(`🔗 [MENTIONS] This is a reply to tweet ${replyToTweet.id}, fetching parent...`);
+          try {
+            const parentData = await this.twitterService.oauthXService.getTweet(replyToTweet.id);
+            if (parentData) {
+              parentTweet = parentData;
+              console.log(`✅ [MENTIONS] Parent tweet: "@${parentTweet.author?.username}: ${parentTweet.text?.substring(0, 100)}..."`);
+            }
+          } catch (err) {
+            console.warn(`⚠️ [MENTIONS] Failed to fetch parent tweet:`, err.message);
+          }
+        }
+      }
+      
+      // Fetch conversation context if available
       if (mention.conversationId) {
         console.log(`🔍 [MENTIONS] Fetching conversation context for ${mention.conversationId}`);
         conversationContext = await this.twitterService.oauthXService.getConversationContext(
@@ -252,8 +272,8 @@ class TwitterMentionService {
         }
       }
       
-      // Analyze the mention to extract context and tokens
-      const analysis = await this.analyzeMention(text, author, conversationContext);
+      // Analyze the mention to extract context and tokens (include parent tweet if exists)
+      const analysis = await this.analyzeMention(text, author, conversationContext, parentTweet);
       
       console.log(`🧠 [MENTIONS] Classification result:`, {
         shouldReply: analysis.shouldReply,
@@ -268,8 +288,8 @@ class TwitterMentionService {
         return;
       }
       
-      // Generate appropriate reply with conversation context
-      const reply = await this.generateReply(analysis, author, conversationContext);
+      // Generate appropriate reply with conversation context and parent tweet
+      const reply = await this.generateReply(analysis, author, conversationContext, parentTweet);
       
       if (!reply || !reply.trim() || reply.trim() === `@${author}`) {
         console.log(`❌ [MENTIONS] Empty reply generated, using safe fallback`);
@@ -317,7 +337,7 @@ class TwitterMentionService {
   }
 
   // Analyze mention to understand context and extract tokens
-  async analyzeMention(text, author, conversationContext = []) {
+  async analyzeMention(text, author, conversationContext = [], parentTweet = null) {
     try {
       // First, check if this is a contract address (Solana addresses are 32-44 chars, base58)
       const contractRegex = /\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/;
@@ -325,8 +345,14 @@ class TwitterMentionService {
       
       // Build conversation context string for AI
       let contextString = '';
+      
+      // Add parent tweet first (the original tweet being replied to)
+      if (parentTweet) {
+        contextString = `\n\nORIGINAL TWEET (what user is replying under):\n@${parentTweet.author.username}: "${parentTweet.text}"\n`;
+      }
+      
       if (conversationContext.length > 0) {
-        contextString = '\n\nPREVIOUS CONVERSATION:\n';
+        contextString += '\n\nPREVIOUS CONVERSATION:\n';
         conversationContext.forEach((tweet, i) => {
           contextString += `${i + 1}. @${tweet.author.username}: "${tweet.text}"\n`;
         });
@@ -479,10 +505,10 @@ Respond in JSON format:
   }
 
   // Generate reply based on analysis
-  async generateReply(analysis, author, conversationContext = []) {
+  async generateReply(analysis, author, conversationContext = [], parentTweet = null) {
     try {
       if (analysis.replyType === 'casual') {
-        return await this.generateCasualReply(analysis, author, conversationContext);
+        return await this.generateCasualReply(analysis, author, conversationContext, parentTweet);
       } else if (analysis.replyType === 'contract_analysis' && analysis.contractAddress) {
         // User provided a contract address - fetch from Jupiter and analyze
         return await this.analyzeContractAddress(analysis.contractAddress, author);
@@ -498,12 +524,18 @@ Respond in JSON format:
   }
 
   // Generate casual conversational reply (ENHANCED with Perplexity)
-  async generateCasualReply(analysis, author, conversationContext = []) {
+  async generateCasualReply(analysis, author, conversationContext = [], parentTweet = null) {
     try {
       // Build conversation context string for AI
       let contextString = '';
+      
+      // Add parent tweet first (the original tweet user is replying under)
+      if (parentTweet) {
+        contextString = `\n\nORIGINAL TWEET (what user is replying under):\n@${parentTweet.author.username}: "${parentTweet.text}"\n`;
+      }
+      
       if (conversationContext.length > 0) {
-        contextString = '\n\nPREVIOUS CONVERSATION:\n';
+        contextString += '\n\nPREVIOUS CONVERSATION:\n';
         conversationContext.forEach((tweet, i) => {
           contextString += `${i + 1}. @${tweet.author.username}: "${tweet.text}"\n`;
         });

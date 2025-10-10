@@ -321,8 +321,8 @@ class OAuthXService {
       let url = `https://api.twitter.com/2/users/${userId}/mentions`;
       const params = new URLSearchParams({
         'max_results': String(options.maxResults || 10),
-        'tweet.fields': options.tweetFields || 'author_id,created_at,text,conversation_id',
-        'expansions': options.expansions || 'author_id',
+        'tweet.fields': options.tweetFields || 'author_id,created_at,text,conversation_id,referenced_tweets',
+        'expansions': options.expansions || 'author_id,referenced_tweets.id',
         'user.fields': options.userFields || 'username,name,verified'
       });
 
@@ -561,6 +561,60 @@ class OAuthXService {
       console.error('❌ Error fetching conversation context:', error.response?.data || error.message);
       // Don't throw - just return empty array if context fetch fails
       return [];
+    }
+  }
+
+  /**
+   * Get a single tweet by ID
+   * @param {string} tweetId - The tweet ID to fetch
+   * @returns {Promise<Object>} - Tweet data with author info
+   */
+  async getTweet(tweetId, userId = null) {
+    try {
+      // Use dgnoracle user if no userId provided
+      const targetUserId = userId || this.dgnOracleUserId;
+      const user = await this.getUserById(targetUserId);
+      
+      if (!user || !user.accessToken) {
+        throw new Error('User not found or no access token');
+      }
+
+      const url = `https://api.twitter.com/2/tweets/${tweetId}`;
+      const params = new URLSearchParams({
+        'tweet.fields': 'author_id,created_at,text,conversation_id',
+        'expansions': 'author_id',
+        'user.fields': 'username,name'
+      });
+
+      const response = await axios.get(`${url}?${params.toString()}`, {
+        headers: {
+          'Authorization': `Bearer ${user.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.data || !response.data.data) {
+        return null;
+      }
+
+      const tweet = response.data.data;
+      const author = response.data.includes?.users?.find(u => u.id === tweet.author_id);
+
+      return {
+        id: tweet.id,
+        text: tweet.text,
+        createdAt: tweet.created_at,
+        conversationId: tweet.conversation_id,
+        author: {
+          id: tweet.author_id,
+          username: author?.username || 'unknown',
+          name: author?.name || 'Unknown'
+        }
+      };
+
+    } catch (error) {
+      console.error('❌ Error fetching tweet:', error.response?.data || error.message);
+      return null;
     }
   }
 
