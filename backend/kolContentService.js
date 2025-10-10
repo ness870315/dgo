@@ -923,6 +923,84 @@ Reply:`;
   }
 
   /**
+   * Force generate content (bypasses all configuration controls)
+   * Used by admin "Post Now" button to override settings
+   */
+  async forceGenerateContent() {
+    try {
+      console.log('🎯 [KOL CONTENT] FORCE GENERATING content (bypassing all config controls)...');
+
+      // Select 1 random token from top 5 trending
+      const token = await this.selectRandomTrendingToken();
+
+      if (!token) {
+        console.log('⚠️ [KOL CONTENT] No tokens available for content');
+        return null;
+      }
+
+      // Decide content format randomly (more realistic distribution)
+      const contentFormats = [
+        'single',       // 25% - Single tweet
+        'short',        // 25% - Short thread (2 tweets)
+        'deep',         // 20% - Deep-dive thread (4 tweets)
+        'meme',         // 15% - Meme/joke tweet
+        'news'          // 15% - Crypto news recap
+      ];
+
+      const weights = [25, 25, 20, 15, 15];
+      const random = Math.random() * 100;
+      let cumulative = 0;
+      let selectedFormat = 'single';
+
+      for (let i = 0; i < weights.length; i++) {
+        cumulative += weights[i];
+        if (random <= cumulative) {
+          selectedFormat = contentFormats[i];
+          break;
+        }
+      }
+
+      console.log(`📝 [KOL CONTENT] FORCE Selected format: ${selectedFormat}`);
+
+      // Generate content directly without configuration checks
+      let content, tokenInfo = token, article = null;
+      
+      if (selectedFormat === 'news') {
+        // For news, generate directly and get full content object
+        const newsContent = await this.generateCryptoNews();
+        if (!newsContent) {
+          console.log('❌ [KOL CONTENT] Failed to generate news content');
+          return null;
+        }
+        content = newsContent.tweets;
+        tokenInfo = newsContent.token;
+        article = newsContent.article;
+      } else {
+        // For other formats, use the existing method
+        content = await this.generateContentByFormat(token, selectedFormat);
+        if (!content) {
+          console.log('❌ [KOL CONTENT] Failed to generate content');
+          return null;
+        }
+      }
+
+      console.log('✅ [KOL CONTENT] FORCE content generated successfully');
+      
+      return {
+        token: tokenInfo,
+        tweets: content,
+        format: selectedFormat,
+        timestamp: new Date().toISOString(),
+        ...(article && { article })
+      };
+
+    } catch (error) {
+      console.error('❌ [KOL CONTENT] Error force generating content:', error.message);
+      return null;
+    }
+  }
+
+  /**
    * Main routine: Generate and post daily KOL content
    */
   async runDailyContentCycle(oauthXService) {

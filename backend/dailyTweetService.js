@@ -324,10 +324,53 @@ class DailyTweetService {
     this.saveState();
   }
 
-  // Post immediately (for testing)
+  // Post immediately (for testing) - OVERRIDES ALL CONFIGURATION CONTROLS
   async postNow() {
-    console.log('⚡ [KOL CONTENT] Posting immediately (manual trigger)...');
-    return await this.postKOLContent();
+    console.log('⚡ [KOL CONTENT] Posting immediately (manual trigger - OVERRIDING CONFIG)...');
+    
+    try {
+      if (!this.kolContentService) {
+        console.error('❌ [KOL CONTENT] KOL Content Service not initialized');
+        return { success: false, error: 'KOL Content Service not available' };
+      }
+
+      // Initialize if needed
+      if (!this.kolContentService.openaiService.isInitialized) {
+        await this.kolContentService.initialize();
+      }
+
+      // FORCE POST BY BYPASSING shouldPostContent() - Generate content directly
+      console.log('🎯 [KOL CONTENT] Bypassing configuration controls - generating content now...');
+      
+      // Generate content directly without checking configuration
+      const content = await this.kolContentService.forceGenerateContent();
+      
+      if (!content) {
+        console.log('❌ [KOL CONTENT] Failed to generate content');
+        return { success: false, error: 'Failed to generate content' };
+      }
+
+      // Post the content directly
+      console.log(`\n📤 [KOL CONTENT] FORCING POST: $${content.token.symbol} (${content.format})`);
+      await this.kolContentService.postThread(content.tweets, this.twitterAutoPostService.oauthXService);
+
+      // Update tracking (but don't increment daily count since this is manual override)
+      this.lastTweetTime = Date.now();
+      
+      console.log('✅ [KOL CONTENT] Manual post completed successfully');
+      console.log(`📊 [KOL CONTENT] Posted: ${content.format} (${content.tweets.length} tweet${content.tweets.length > 1 ? 's' : ''})`);
+      console.log(`🎯 [KOL CONTENT] Configuration override - daily count unchanged: ${this.todayPostCount}/${this.postsPerDay.max}`);
+
+      return { 
+        success: true, 
+        message: `Posted ${content.format} content for $${content.token.symbol}`,
+        content: content
+      };
+
+    } catch (error) {
+      console.error('❌ [KOL CONTENT] Error in manual post:', error.message);
+      return { success: false, error: error.message };
+    }
   }
 }
 
