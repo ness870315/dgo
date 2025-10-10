@@ -515,8 +515,12 @@ Respond in JSON format:
       
       // Fetch Perplexity data for factual grounding
       let perplexityData = '';
-      if (this.perplexityService.isInitialized && cleanQuery.length > 10) {
-        console.log(`🔮 [MENTIONS] Fetching Perplexity insights for: "${cleanQuery.substring(0, 60)}..."`);
+      if (!this.perplexityService.isInitialized) {
+        console.warn(`⚠️ [MENTIONS CASUAL] Perplexity not initialized (API key missing?) - skipping Perplexity enrichment`);
+      } else if (cleanQuery.length <= 10) {
+        console.log(`⏭️ [MENTIONS CASUAL] Query too short for Perplexity (${cleanQuery.length} chars)`);
+      } else {
+        console.log(`🔮 [MENTIONS CASUAL] Fetching Perplexity insights for: "${cleanQuery.substring(0, 60)}..."`);
         try {
           const perplexityResponse = await this.perplexityService.searchCrypto(cleanQuery);
           if (perplexityResponse && perplexityResponse.content) {
@@ -524,10 +528,12 @@ Respond in JSON format:
             if (perplexityResponse.citations && perplexityResponse.citations.length > 0) {
               perplexityData += `\nSources: ${perplexityResponse.citations.slice(0, 3).join(', ')}`;
             }
-            console.log(`✅ [MENTIONS] Perplexity data fetched (${perplexityResponse.usage.total_tokens} tokens)`);
+            console.log(`✅ [MENTIONS CASUAL] Perplexity data fetched (${perplexityResponse.usage.total_tokens} tokens, ${perplexityResponse.citations.length} citations)`);
+          } else {
+            console.warn(`⚠️ [MENTIONS CASUAL] Perplexity returned empty response`);
           }
         } catch (err) {
-          console.warn(`⚠️ [MENTIONS] Perplexity fetch failed:`, err.message);
+          console.error(`❌ [MENTIONS CASUAL] Perplexity fetch error:`, err.message);
         }
       }
       
@@ -1047,19 +1053,24 @@ Liquidity: $${(liquidityUsd / 1000).toFixed(1)}K${holderContext}`;
       }
       
       // 3. Perplexity Sonar (grounded facts with citations)
-      if (this.perplexityService.isInitialized) {
+      if (!this.perplexityService.isInitialized) {
+        console.warn(`⚠️ [MENTIONS KOL] Perplexity not initialized (API key missing?) - skipping Perplexity enrichment`);
+      } else {
         try {
-          console.log(`🔮 [MENTIONS] Fetching Perplexity Sonar insights for $${symbol}...`);
+          console.log(`🔮 [MENTIONS KOL] Fetching Perplexity Sonar insights for $${symbol}...`);
           const perplexityResponse = await this.perplexityService.searchCrypto(`What is $${symbol} crypto token? Latest price, market updates, and news.`);
           if (perplexityResponse && perplexityResponse.content) {
             perplexityInsights = perplexityResponse.content.substring(0, 600);
             if (perplexityResponse.citations && perplexityResponse.citations.length > 0) {
               perplexityInsights += `\nSources: ${perplexityResponse.citations.slice(0, 2).join(', ')}`;
             }
-            console.log(`✅ [MENTIONS] Perplexity insights: ${perplexityInsights.substring(0, 80)}...`);
+            console.log(`✅ [MENTIONS KOL] Perplexity insights fetched (${perplexityResponse.usage.total_tokens} tokens, ${perplexityResponse.citations.length} citations)`);
+            console.log(`📝 [MENTIONS KOL] Perplexity preview: ${perplexityInsights.substring(0, 100)}...`);
+          } else {
+            console.warn(`⚠️ [MENTIONS KOL] Perplexity returned empty response`);
           }
         } catch (err) {
-          console.warn(`⚠️ [MENTIONS] Failed to fetch Perplexity insights:`, err.message);
+          console.error(`❌ [MENTIONS KOL] Perplexity fetch error:`, err.message);
         }
       }
 
