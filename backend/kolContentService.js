@@ -268,7 +268,7 @@ Generate a ${contentType === 'single' ? 'RICH, FACT-PACKED tweet' : 'HOOK thread
 - Max 280 characters
 - Sound like a real person sharing alpha, not a bot
 
-${contentType === 'thread' ? '(This is tweet 1 of a thread - make it hook readers with a surprising fact or question)' : ''}
+${contentType === 'thread' ? 'START with "🧵 1/" and end with "↓" to indicate it\'s a thread. Example: "🧵 1/ Breaking down how I spot early KOL plays step by step ↓"' : ''}
 
 Tweet:`;
 
@@ -332,9 +332,12 @@ Now provide the DATA/METRICS breakdown:
 - Buy pressure: ${buyPct}%
 - Holders: ${holders.toLocaleString()}
 
+START with "2/" to continue the thread.
 Present these numbers in a compelling way that tells a story.
 What do these metrics reveal? What's the narrative?
 Max 280 characters. Crypto slang. No hashtags.
+
+Example format: "2/ $MONKEY in 60s: mcap $0.21M, vol/mcap 13.6%, whale flow -5, retail flow +5. No hopium, just numbers"
 
 Tweet 2:`;
 
@@ -354,8 +357,11 @@ Now give your VERDICT:
 - What's the risk level?
 - What should degens watch for next?
 
+START with "3/" to continue the thread.
 Be decisive. Take a stance. Give actionable advice.
 Max 280 characters. Crypto slang. No hashtags.
+
+Example format: "3/ How I judge entries: volume/mcap > 20%, holder momentum up, whales net ≥ 0. Receipts below"
 
 Tweet 3:`;
 
@@ -365,10 +371,35 @@ Tweet 3:`;
         model: 'gpt-4o'
       });
 
+      // Tweet 4: TL;DR wrap-up (optional - only if we have space)
+      const tweet4Prompt = `Write a final TL;DR tweet for a crypto thread about $${token.symbol}.
+
+Previous tweets covered: hook, data breakdown, and verdict.
+
+Give a concise wrap-up:
+- Key takeaway
+- Final verdict (wait/watch/pass)
+- DYOR reminder
+
+START with "End/🧵" to end the thread.
+Keep it SHORT and punchy.
+Max 200 characters. Crypto slang. No hashtags.
+
+Example format: "End/🧵 TL;DR: Wait for vol/mcap > 20% and whale net inflow. DYOR."
+
+Final tweet:`;
+
+      const tweet4 = await this.openaiService.generateCompletion(tweet4Prompt, {
+        maxTokens: 80,
+        temperature: 0.7,
+        model: 'gpt-4o'
+      });
+
       const thread = [
         tweet1.trim().replace(/#\w+/g, '').replace(/\s+/g, ' ').trim(),
         tweet2.trim().replace(/#\w+/g, '').replace(/\s+/g, ' ').trim(),
-        tweet3.trim().replace(/#\w+/g, '').replace(/\s+/g, ' ').trim()
+        tweet3.trim().replace(/#\w+/g, '').replace(/\s+/g, ' ').trim(),
+        tweet4.trim().replace(/#\w+/g, '').replace(/\s+/g, ' ').trim()
       ];
 
       console.log(`✅ Generated thread for $${token.symbol} (${thread.length} tweets)`);
@@ -621,16 +652,18 @@ Market meme:`;
       const volumeToMcap = mcap > 0 ? ((volume24h / mcap) * 100).toFixed(1) : 0;
       const priceChange = token.priceChange24h || 0;
 
-      const tweet1Prompt = `Write a crypto tweet about $${token.symbol}.
+      const tweet1Prompt = `Write a crypto thread starter about $${token.symbol}.
 
 Share ONE interesting observation:
 - MCap: $${(mcap / 1_000_000).toFixed(2)}M
 - 24h Volume: $${(volume24h / 1_000).toFixed(1)}K (${volumeToMcap}% of mcap)
 - Price: ${priceChange > 0 ? '+' : ''}${priceChange.toFixed(1)}% (24h)
 
+START with "🧵 1/" and end with "↓" to indicate it's a thread.
 Pick the most interesting metric and present it naturally.
-Use web search to find if there's recent news/catalyst.
 Max 280 characters. Crypto slang. No hashtags.
+
+Example format: "🧵 1/ Here's my quick take on $MONKEY. Data, holders, and catalysts ↓"
 
 Tweet:`;
 
@@ -649,7 +682,10 @@ Give your quick take on $${token.symbol}:
 - What's the vibe?
 - Simple verdict
 
+START with "2/" to continue the thread.
 Keep it SHORT. One sentence. Crypto slang. No hashtags.
+
+Example format: "2/ Worth watching for vol/mcap > 20% and whale net inflow. DYOR."
 
 Reply:`;
 
