@@ -501,15 +501,17 @@ Tweet 3:`;
 
       const prompt = `You are ${personality.name}, a real crypto KOL with ${personality.style}.
 
-📰 COINDESK ARTICLE:
+📰 CRYPTO NEWS:
 Title: "${article.title}"
 Description: "${article.description}"
 Source: ${article.source}
-Published: ${article.publishedAt}
 
 ${personality.tone}
 
 Generate a DeGen Oracle-style news recap that:
+- DO NOT mention CoinDesk or where the news came from
+- ONLY quote/mention the original source (${article.source}) if it's valuable, credible, or adds context (e.g., "Bloomberg reports...", "SEC just dropped...")
+- If source isn't notable, just share the news naturally without attribution
 - Summarizes the key points in crypto-native language
 - Adds your unique perspective/analysis
 - Uses crypto slang naturally (not forced)
@@ -517,6 +519,10 @@ Generate a DeGen Oracle-style news recap that:
 - NO hashtags
 - Max 280 characters
 - Sound like a real person sharing alpha, not a bot
+
+Example (with source mention): "Yo degens, SEC just approved spot ETH ETFs—institutions loading up. This means more normie money flowing in. Bullish for alts too. Stack before the pump. GM! 🔥"
+
+Example (no source mention): "Yo degens, AI trading bots are going wild rn—your 24/7 alpha hunters. More uptime, less FOMO, less rekt. For us apes, this is free leverage. Stack sats, sleep easy. GM! 🔥"
 
 News recap:`;
 
