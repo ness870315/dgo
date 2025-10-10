@@ -942,16 +942,16 @@ Liquidity: $${(liquidityUsd / 1000).toFixed(1)}K${holderContext}`;
       
       console.log(`🎭 [MENTIONS] Using personality: ${personality.name}`);
 
-      // Lightweight web enrichment: quick chat completion with web enabled (faster than Responses API)
+      // Lightweight web enrichment: LEAN prompt for GPT-5-mini Responses API (like casual, completes quickly)
       let catalysts = '';
       try {
         console.log(`🌐 [MENTIONS] Fetching web catalysts for $${symbol}...`);
-        const catalystPrompt = `Search the web for $${symbol} token in the last 72h. Find 1-2 concrete catalysts (listings, partnerships, notable X mentions, exchange news). Return short bullets, no links. If nothing, say "none".`;
+        const catalystPrompt = `Search web for $${symbol} token in last 72h. Find 1-2 catalysts (listings/partnerships/X buzz/exchange news). Short bullets, no links. If none, say "none".`;
         catalysts = await this.openaiService.generateCompletion(catalystPrompt, {
-          maxTokens: 200,
+          maxTokens: 150,
           temperature: 0.3,
-          model: 'gpt-4o',
-          enableWebSearch: false // Use chat completions directly for speed
+          model: 'gpt-5-mini',
+          enableWebSearch: true // Responses API with web search (lean prompt = fast like casual)
         });
         console.log(`✅ [MENTIONS] Web catalysts for $${symbol}: ${catalysts ? catalysts.substring(0, 100) : 'none'}`);
       } catch (err) {
