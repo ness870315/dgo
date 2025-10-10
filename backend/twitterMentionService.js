@@ -946,7 +946,7 @@ Liquidity: $${(liquidityUsd / 1000).toFixed(1)}K${holderContext}`;
       let catalysts = '';
       try {
         console.log(`🌐 [MENTIONS] Fetching web catalysts for $${symbol}...`);
-        const catalystPrompt = `Search web for $${symbol} token in last 72h. Find 1-2 catalysts (listings/partnerships/X buzz/exchange news). Short bullets, no links. If none, say "none".`;
+        const catalystPrompt = `Search CoinGecko, CoinMarketCap, and crypto Twitter for $${symbol} news/updates. Find 1-2 key items (listings/partnerships/notable mentions). Short bullets, no links. If none, say "none".`;
         catalysts = await this.openaiService.generateCompletion(catalystPrompt, {
           maxTokens: 150,
           temperature: 0.3,
