@@ -549,8 +549,8 @@ Tweet:`;
       const tweet1 = await this.openaiService.generateCompletion(tweet1Prompt, {
         maxTokens: 100,
         temperature: 0.8,
-        model: 'gpt-5',
-        enableWebSearch: true
+        model: 'gpt-4o',
+        enableWebSearch: false // Tavily already fetched if needed
       });
 
       // Tweet 2: Quick take/opinion
@@ -568,7 +568,7 @@ Reply:`;
       const tweet2 = await this.openaiService.generateCompletion(tweet2Prompt, {
         maxTokens: 80,
         temperature: 0.8,
-        model: 'gpt-5-mini'
+        model: 'gpt-4o'
       });
 
       const thread = [
@@ -604,11 +604,14 @@ Reply:`;
         const tweet = tweets[i];
         
         // Post as reply to previous tweet (if exists)
-        const tweetId = await oauthXService.postReply(
-          tweet,
+        // Correct signature: postReply(userId, text, replyToTweetId)
+        const result = await oauthXService.postReply(
           dgnOracleUserId, // @dgnoracle user ID
-          previousTweetId // replyToId
+          tweet,           // tweet text
+          previousTweetId  // replyToId (null for first tweet = new thread)
         );
+        
+        const tweetId = result?.id || result;
 
         if (!tweetId) {
           throw new Error(`Failed to post tweet ${i + 1}`);
