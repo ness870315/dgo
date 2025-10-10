@@ -72,10 +72,14 @@ class PerplexitySonarService {
       const data = await response.json();
 
       // Extract the response
-      const content = data.choices?.[0]?.message?.content || '';
+      let content = data.choices?.[0]?.message?.content || '';
       const citations = data.citations || [];
       const searchResults = data.search_results || [];
       const usage = data.usage || {};
+
+      // Strip reasoning tags from sonar-reasoning model
+      // Format: <think>reasoning...</think>actual answer
+      content = this.stripReasoningTags(content);
 
       console.log(`✅ [PERPLEXITY] Response generated (${usage.total_tokens || 0} tokens)`);
       console.log(`📚 [PERPLEXITY] Citations: ${citations.length}, Search results: ${searchResults.length}`);
@@ -167,6 +171,28 @@ class PerplexitySonarService {
     }
 
     return facts.slice(0, 5); // Top 5 facts
+  }
+
+  /**
+   * Strip reasoning tags from sonar-reasoning model responses
+   * Format: <think>reasoning...</think>actual answer
+   * @param {string} content - Raw Perplexity response
+   * @returns {string} - Clean answer without reasoning
+   */
+  stripReasoningTags(content) {
+    if (!content) return '';
+
+    // Remove <think>...</think> blocks (including nested content)
+    // The reasoning is wrapped in <think> tags, followed by the actual answer
+    let cleaned = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
+    // If nothing left after removing think tags, return original (failsafe)
+    if (!cleaned) {
+      console.warn('⚠️ [PERPLEXITY] Stripped all content, using original');
+      return content;
+    }
+
+    return cleaned;
   }
 }
 
