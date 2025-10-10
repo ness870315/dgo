@@ -279,16 +279,35 @@ class OpenAIService {
 
       // If incomplete or failed, poll for completion
       let pollAttempts = 0;
-      while (response.status !== 'completed' && pollAttempts < 30) {
-        console.log(`⏳ [POLLING] Response ${response.status}, waiting... (attempt ${pollAttempts + 1})`);
+      const maxPolls = 60; // 60 seconds max
+      
+      while (response.status !== 'completed' && response.status !== 'failed' && pollAttempts < maxPolls) {
+        console.log(`⏳ [POLLING] Response ${response.status}, waiting... (attempt ${pollAttempts + 1}/${maxPolls})`);
         await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
         
         // Retrieve the response to check status
-        response = await this.openai.responses.retrieve(response.id);
+        try {
+          response = await this.openai.responses.retrieve(response.id);
+        } catch (retrieveError) {
+          console.error(`❌ [POLLING] Error retrieving response:`, retrieveError.message);
+          break;
+        }
+        
         pollAttempts++;
       }
 
+      if (response.status === 'failed') {
+        throw new Error(`Response failed: ${response.error?.message || 'Unknown error'}`);
+      }
+
       if (response.status !== 'completed') {
+        console.warn(`⚠️ Response timeout after ${pollAttempts}s, using partial output if available`);
+        // Try to extract any partial output
+        const partialText = response.output_text || '';
+        if (partialText) {
+          console.log(`✅ Using partial output: ${partialText.length} chars`);
+          return partialText;
+        }
         throw new Error(`Response did not complete after ${pollAttempts} attempts. Status: ${response.status}`);
       }
 
