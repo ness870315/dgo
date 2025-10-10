@@ -581,9 +581,9 @@ News recap:`;
         return null;
       }
 
-      // Fetch today's crypto news facts from Perplexity
-      const perplexityResponse = await this.perplexityService.searchCrypto(
-        'Tell me a joke based on crypto facts news from today, answer as a true degen!'
+      // Fetch today's crypto news facts from Perplexity (use reasoning for creativity)
+      const perplexityResponse = await this.perplexityService.searchWithReasoning(
+        'Tell me ONE SHORT crypto joke about ONE topic from today\'s news. Pick one interesting crypto event and make a degen joke about it. Max 280 characters. No markdown, no citations in text, just the joke!'
       );
 
       if (!perplexityResponse || !perplexityResponse.content) {
@@ -591,10 +591,15 @@ News recap:`;
         return null;
       }
 
-      // Clean up the joke
+      // Clean up the joke - remove markdown, citations, hashtags
       let joke = perplexityResponse.content.trim()
+        .replace(/\*\*/g, '') // Remove bold markdown
+        .replace(/\*/g, '')   // Remove italics markdown
+        .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1') // Remove markdown links but keep text
+        .replace(/\[[^\]]+\]/g, '') // Remove citation brackets like [*cites Coindesk*]
         .replace(/#\w+/g, '') // Remove hashtags
-        .replace(/\s+/g, ' ')
+        .replace(/^#+\s/gm, '') // Remove markdown headers
+        .replace(/\s+/g, ' ') // Normalize whitespace
         .trim();
 
       // If empty after cleaning, Perplexity failed
@@ -614,11 +619,8 @@ News recap:`;
       return {
         format: 'newsjoke',
         tweets: [joke],
-        token: { symbol: 'JOKE', name: 'Crypto News Joke' },
-        perplexityData: {
-          citations: perplexityResponse.citations || [],
-          searchResults: perplexityResponse.searchResults || []
-        }
+        token: { symbol: 'JOKE', name: 'Crypto News Joke' }
+        // Don't include perplexityData - no citations in tweets
       };
 
     } catch (error) {

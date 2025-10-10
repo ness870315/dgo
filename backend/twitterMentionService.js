@@ -552,13 +552,13 @@ Someone said: "${analysis.originalText || 'hey'}"
 Author: @${author}
 ${perplexityData}
 
-Generate a SHORT, natural reply (max 150 chars):
+Generate a natural reply (max 280 chars - use full length if answer needs it):
 - If Perplexity insights are available, USE them for factual accuracy
 - Keep it real and conversational
 - Match the energy they bring
 - If it's an intro, be cool but not overly excited
 - If it's a thank you, be chill ("np anon", "anytime fren")
-- If it's a question, be helpful but concise with REAL facts
+- If it's a question with facts, be detailed and helpful - USE THE FULL 280 chars if needed
 - NO hashtags ever
 - NO mentions of website unless they specifically ask
 - DO NOT include @username in your reply (it's already added automatically)
@@ -568,13 +568,13 @@ Examples:
 - Thanks: "Anytime fren. That's what we're here for 💎"
 - Question: "Yeah we track Solana gems. Real-time data, no bs"
 - General: "gm chad 🫡"
-- With facts: "BTC just hit $95K, institutions still loading. Bullish setup for Q1 📈"
+- Detailed answer: "BTC just hit $95K on institutional buying. ETF inflows at $2.1B this week, spot premium rising. Historically, Q1 sees 40% avg gains after consolidation like this. Bullish setup if we hold $92K support 📈"
 
 Reply (without @username):`;
 
       console.log(`🤖 [MENTIONS] Calling GPT-4o for casual reply (Perplexity-enhanced)...`);
       const reply = await this.openaiService.generateCompletion(prompt, {
-        maxTokens: 100,
+        maxTokens: 150, // Increased for detailed responses
         temperature: 0.7,
         model: 'gpt-4o',
         enableWebSearch: false // Perplexity already did the search
@@ -1094,14 +1094,15 @@ STYLE: ${personality.style}
 EXAMPLES OF YOUR STYLE:
 ${personality.examples.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}
 
-Now generate YOUR RICH, FACT-ENRICHED KOL OPINION (max 180 chars):
+Now generate YOUR RICH, FACT-ENRICHED KOL OPINION (max 280 chars - use full length if needed):
 - DIRECTLY answer their question first
 - BLEND all 4 sources into ONE cohesive take: system metrics + web catalysts + Tavily facts + Perplexity insights
 - Perplexity data is the most accurate (grounded with citations), prioritize it for facts
 - If Perplexity/Tavily has specific facts (listings, partnerships, price targets), WEAVE them in naturally
-- If they ask "can we see X mcap?", assess using momentum + whale behavior + web updates
+- If complex analysis needed, USE THE FULL 280 chars to provide detailed insights
+- If they ask "can we see X mcap?", give detailed assessment with momentum + whale behavior + web updates
 - Stay true to personality mode (don't just list facts, filter through YOUR lens)
-- Keep it SHORT but RICH - every word should add value
+- RICH and detailed when warranted, punchy when appropriate
 - DO NOT include @username (it's added automatically)
 - NO hashtags ever
 - Minimal/no emojis
@@ -1110,7 +1111,7 @@ Reply (without @username):`;
 
       // Use gpt-4o for final generation (proven reliable, catalysts already prefetched)
       const opinion = await this.openaiService.generateCompletion(prompt, {
-        maxTokens: 150,
+        maxTokens: 200, // Increased for detailed analysis
         temperature: 0.7,
         model: 'gpt-4o',
         enableWebSearch: false // catalysts already prefetched

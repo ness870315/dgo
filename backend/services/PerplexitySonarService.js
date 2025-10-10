@@ -9,14 +9,17 @@ class PerplexitySonarService {
   constructor() {
     this.apiKey = process.env.PERPLEXITY_API_KEY;
     this.baseUrl = 'https://api.perplexity.ai';
-    this.model = 'sonar-reasoning'; // Latest reasoning model with search
+    this.defaultModel = 'sonar-pro'; // Default: Fast, no reasoning overhead
+    this.reasoningModel = 'sonar-reasoning'; // For jokes and creative content
     this.isInitialized = false;
 
     if (!this.apiKey) {
       console.warn('⚠️ [PERPLEXITY] API key not found. Service will not be available.');
     } else {
       this.isInitialized = true;
-      console.log('✅ [PERPLEXITY] Sonar Service initialized with model:', this.model);
+      console.log('✅ [PERPLEXITY] Sonar Service initialized');
+      console.log('  - Default model:', this.defaultModel, '(fast, no reasoning)');
+      console.log('  - Reasoning model:', this.reasoningModel, '(for creative content)');
     }
   }
 
@@ -36,7 +39,7 @@ class PerplexitySonarService {
       console.log(`🔍 [PERPLEXITY] Searching: "${query.substring(0, 80)}..."`);
 
       const requestBody = {
-        model: options.model || this.model,
+        model: options.model || this.defaultModel,
         messages: [
           {
             role: 'system',
@@ -52,15 +55,7 @@ class PerplexitySonarService {
         search_domain_filter: options.searchDomainFilter || [], // Optional: filter to specific domains
         return_images: options.returnImages || false,
         return_related_questions: options.returnRelatedQuestions || false,
-        search_recency_filter: options.searchRecencyFilter || 'month', // Options: 'day', 'week', 'month', 'year'
-        // Force output without <think> tags using regex response format
-        // Match any text that doesn't contain <think> tags (reasoning-free output)
-        response_format: {
-          type: 'regex',
-          regex: {
-            regex: '[^<].*' // Match text that doesn't start with < (no <think> tags)
-          }
-        }
+        search_recency_filter: options.searchRecencyFilter || 'month' // Options: 'day', 'week', 'month', 'year'
       };
 
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
@@ -84,15 +79,19 @@ class PerplexitySonarService {
       const citations = data.citations || [];
       const searchResults = data.search_results || [];
       const usage = data.usage || {};
+      const modelUsed = requestBody.model;
 
-      // Strip reasoning tags from sonar-reasoning model (as safety fallback)
-      // Note: response_format regex should prevent these, but keep as failsafe
-      if (content.includes('<think>')) {
-        console.warn('⚠️ [PERPLEXITY] Response still contains <think> tags despite regex format - stripping manually');
+      // Strip reasoning tags if using sonar-reasoning model
+      if (modelUsed.includes('reasoning') && content.includes('<think>')) {
+        console.log(`✂️ [PERPLEXITY] Stripping reasoning tags from ${modelUsed} response...`);
         content = this.stripReasoningTags(content);
+        if (!content) {
+          console.error('❌ [PERPLEXITY] Failed to extract answer from reasoning response');
+          return null;
+        }
       }
 
-      console.log(`✅ [PERPLEXITY] Response generated (${usage.total_tokens || 0} tokens)`);
+      console.log(`✅ [PERPLEXITY] Response generated (${usage.total_tokens || 0} tokens, model: ${modelUsed})`);
       console.log(`📚 [PERPLEXITY] Citations: ${citations.length}, Search results: ${searchResults.length}`);
 
       return {
@@ -112,13 +111,32 @@ class PerplexitySonarService {
   /**
    * Get a crypto-specific search response
    * @param {string} query - Crypto-related query
+   * @param {Object} customOptions - Override default options
    * @returns {Promise<Object>} - Perplexity response
    */
-  async searchCrypto(query) {
+  async searchCrypto(query, customOptions = {}) {
     return await this.search(query, {
-      systemPrompt: 'You are a crypto market analyst. Provide factual, data-driven insights about cryptocurrency markets, tokens, and blockchain news. Always cite your sources.',
+      model: this.defaultModel, // Use sonar-pro for fast, direct answers
+      systemPrompt: 'You are a crypto market analyst. Provide factual, data-driven insights about cryptocurrency markets, tokens, and blockchain news. Be concise and avoid citations in the answer text.',
       searchRecencyFilter: 'week', // Focus on recent crypto news
-      maxTokens: 600
+      maxTokens: 800,
+      ...customOptions // Allow caller to override (e.g., use reasoningModel for jokes)
+    });
+  }
+
+  /**
+   * Search with reasoning (for creative content like jokes)
+   * @param {string} query - Query for creative/reasoning response
+   * @param {Object} customOptions - Override default options
+   * @returns {Promise<Object>} - Perplexity response with reasoning
+   */
+  async searchWithReasoning(query, customOptions = {}) {
+    return await this.search(query, {
+      model: this.reasoningModel, // Use sonar-reasoning for creative content
+      systemPrompt: 'You are a witty crypto degen. Use the search results to create engaging, factual content. Do not include citations in your answer.',
+      searchRecencyFilter: 'day', // Focus on today's news for freshness
+      maxTokens: 1500, // Higher limit for reasoning + answer
+      ...customOptions
     });
   }
 
