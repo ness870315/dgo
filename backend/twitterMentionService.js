@@ -942,20 +942,32 @@ Liquidity: $${(liquidityUsd / 1000).toFixed(1)}K${holderContext}`;
       
       console.log(`🎭 [MENTIONS] Using personality: ${personality.name}`);
 
-      // Lightweight web enrichment: LEAN prompt for GPT-5-mini Responses API (like casual, completes quickly)
+      // Triple web enrichment: GPT-5-mini + Tavily for comprehensive context
       let catalysts = '';
+      let tavilyResults = '';
+      
+      // 1. GPT-5-mini web search (CoinGecko/CMC/Twitter)
       try {
-        console.log(`🌐 [MENTIONS] Fetching web catalysts for $${symbol}...`);
+        console.log(`🌐 [MENTIONS] Fetching GPT-5-mini web catalysts for $${symbol}...`);
         const catalystPrompt = `Search CoinGecko, CoinMarketCap, and crypto Twitter for $${symbol} news/updates. Find 1-2 key items (listings/partnerships/notable mentions). Short bullets, no links. If none, say "none".`;
         catalysts = await this.openaiService.generateCompletion(catalystPrompt, {
           maxTokens: 150,
           temperature: 0.3,
           model: 'gpt-5-mini',
-          enableWebSearch: true // Responses API with web search (lean prompt = fast like casual)
+          enableWebSearch: true
         });
-        console.log(`✅ [MENTIONS] Web catalysts for $${symbol}: ${catalysts ? catalysts.substring(0, 100) : 'none'}`);
+        console.log(`✅ [MENTIONS] GPT-5-mini catalysts: ${catalysts ? catalysts.substring(0, 80) : 'none'}`);
       } catch (err) {
-        console.warn(`⚠️ [MENTIONS] Failed to fetch web catalysts for $${symbol}:`, err.message);
+        console.warn(`⚠️ [MENTIONS] Failed to fetch GPT-5-mini catalysts:`, err.message);
+      }
+      
+      // 2. Tavily search (latest updates)
+      try {
+        console.log(`🔍 [MENTIONS] Fetching Tavily search for $${symbol}...`);
+        tavilyResults = await this.openaiService.searchTavily(`latest updates on $${symbol} crypto token`);
+        console.log(`✅ [MENTIONS] Tavily results: ${tavilyResults ? tavilyResults.substring(0, 80) : 'none'}`);
+      } catch (err) {
+        console.warn(`⚠️ [MENTIONS] Failed to fetch Tavily results:`, err.message);
       }
 
       const prompt = `You are a legendary crypto KOL with a specific personality. User asked: "${analysis.originalText}"
@@ -963,8 +975,11 @@ Liquidity: $${(liquidityUsd / 1000).toFixed(1)}K${holderContext}`;
 📊 OUR SYSTEM DATA (Real-time from Jupiter/Moralis):
 ${dataContext}
 
-🌐 WEB CONTEXT (last 72h):
-${catalysts || 'No recent catalysts found'}
+🌐 GPT-5-MINI WEB SEARCH (CoinGecko/CMC/Twitter):
+${catalysts || 'No catalysts found'}
+
+🔍 TAVILY LATEST UPDATES:
+${tavilyResults || 'No recent updates found'}
 
 PERSONALITY MODE: "${personality.name}"
 STYLE: ${personality.style}
@@ -972,12 +987,13 @@ STYLE: ${personality.style}
 EXAMPLES OF YOUR STYLE:
 ${personality.examples.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}
 
-Now generate YOUR take (max 180 chars):
+Now generate YOUR RICH, FACT-ENRICHED KOL OPINION (max 180 chars):
 - DIRECTLY answer their question first
-- If they ask "can we see X mcap?", assess if it's realistic given current mcap/momentum/whale behavior
-- Blend our analytics WITH web context if present
-- Stay true to personality mode
-- Keep it SHORT and punchy
+- BLEND all 3 sources into ONE cohesive take: system metrics + web catalysts + Tavily facts
+- If Tavily has specific facts (listings, partnerships, price targets), WEAVE them in naturally
+- If they ask "can we see X mcap?", assess using momentum + whale behavior + Tavily updates
+- Stay true to personality mode (don't just list facts, filter through YOUR lens)
+- Keep it SHORT but RICH - every word should add value
 - DO NOT include @username (it's added automatically)
 - NO hashtags ever
 - Minimal/no emojis

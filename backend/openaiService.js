@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
+import fetch from 'node-fetch';
 
 /**
  * OpenAI Service - Core AI engine for DeGen Oracle
@@ -381,6 +382,53 @@ class OpenAIService {
     }
   }
 
+
+  /**
+   * Tavily web search for latest token updates
+   * Fast, comprehensive real-time web search
+   */
+  async searchTavily(query, options = {}) {
+    const tavilyApiKey = process.env.TAVILY_API_KEY || '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';
+    
+    try {
+      console.log(`🔍 [TAVILY] Searching: "${query}"`);
+      
+      const response = await fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          api_key: tavilyApiKey,
+          query: query,
+          search_depth: 'basic',
+          include_answer: true,
+          max_results: 3
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Tavily API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log(`✅ [TAVILY] Found ${data.results?.length || 0} results`);
+      
+      // Extract answer and top results
+      let summary = '';
+      if (data.answer) {
+        summary += `Summary: ${data.answer}\n`;
+      }
+      if (data.results && data.results.length > 0) {
+        summary += data.results.slice(0, 2).map(r => `- ${r.title}: ${r.content.substring(0, 100)}...`).join('\n');
+      }
+      
+      return summary || 'No results found';
+    } catch (error) {
+      console.warn(`⚠️ [TAVILY] Search failed:`, error.message);
+      return '';
+    }
+  }
 
   /**
    * Lightweight web enrichment: fetch 1–2 concrete catalysts for a token in the last N hours
