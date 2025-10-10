@@ -519,10 +519,23 @@ Generate a DeGen Oracle-style news recap that:
 - NO hashtags
 - Max 280 characters
 - Sound like a real person sharing alpha, not a bot
+- VARY your opening - don't always start with "Yo degens"
 
-Example (with source mention): "Yo degens, SEC just approved spot ETH ETFs—institutions loading up. This means more normie money flowing in. Bullish for alts too. Stack before the pump. GM! 🔥"
+Opening variations (use different ones):
+- "Yo degens, [news]..."
+- "GM anons, [news]..."
+- "Apes, [news]..."
+- "Ser, [news]..."
+- "Frens, [news]..."
+- Just start with the news directly: "SEC just approved..."
+- "Breaking: [news]..."
+- "Alpha: [news]..."
 
-Example (no source mention): "Yo degens, AI trading bots are going wild rn—your 24/7 alpha hunters. More uptime, less FOMO, less rekt. For us apes, this is free leverage. Stack sats, sleep easy. GM! 🔥"
+Example (with source): "SEC just approved spot ETH ETFs—institutions loading up. This means more normie money flowing in. Bullish for alts too. Stack before the pump 🔥"
+
+Example (no source): "AI trading bots are going wild rn—your 24/7 alpha hunters. More uptime, less FOMO, less rekt. For us apes, this is free leverage. Stack sats, sleep easy. GM! 🔥"
+
+Example (GM opening): "GM anons, whale wallets accumulating again—$420M moved off exchanges this week. Smart money positioning for the next leg up. Follow the whales, not the hype 👀"
 
 News recap:`;
 
