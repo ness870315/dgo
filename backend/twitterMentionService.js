@@ -580,7 +580,10 @@ Reply (without @username):`;
       if (!symbol) {
         try {
           console.log(`🔍 [MENTIONS] No token specified, using Tavily for general question...`);
-          const tavilyResults = await this.openaiService.searchTavily(analysis.originalText);
+          // Strip @mentions from query for cleaner Tavily search
+          const cleanQuery = analysis.originalText.replace(/@\w+/g, '').trim();
+          console.log(`🔍 [TAVILY] Clean query: "${cleanQuery}"`);
+          const tavilyResults = await this.openaiService.searchTavily(cleanQuery);
           console.log(`📋 [TAVILY] Full results for prompt:\n${tavilyResults.substring(0, 500)}...`);
           
           if (tavilyResults && tavilyResults.length > 10) {
