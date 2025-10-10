@@ -269,14 +269,14 @@ class OpenAIService {
 
       // Create response using Responses API
       // Note: Response creation is async, starts background job
-      // Use HIGH reasoning for better web search integration and analysis
+      // Use MEDIUM reasoning for balanced quality and speed
       let response = await this.openai.responses.create({
         model: model,
         tools: [{ type: 'web_search' }],
         input: prompt,
         max_output_tokens: 2000,
-        reasoning: { effort: "high" },     // High reasoning = better web search synthesis
-        text: { verbosity: "medium" }      // Medium for more context from web
+        reasoning: { effort: "medium" },   // Medium = good web integration without timeout
+        text: { verbosity: "low" }         // Concise for Twitter
       });
 
       console.log(`🔍 [DEBUG] Initial response ID: ${response.id}`);
@@ -284,7 +284,7 @@ class OpenAIService {
 
       // If incomplete or failed, poll for completion
       let pollAttempts = 0;
-      const maxPolls = 60; // 60 seconds max
+      const maxPolls = 100; // 100 seconds max for medium/high reasoning
       
       while (response.status !== 'completed' && response.status !== 'failed' && pollAttempts < maxPolls) {
         console.log(`⏳ [POLLING] Response ${response.status}, waiting... (attempt ${pollAttempts + 1}/${maxPolls})`);
