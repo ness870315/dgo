@@ -272,8 +272,19 @@ class OpenAIService {
       // Use MEDIUM reasoning for balanced quality and speed
       let response = await this.openai.responses.create({
         model: model,
-        tools: [{ type: 'web_search' }],
+        // Constrain tool usage and scope to avoid long-running searches
+        tools: [{
+          type: 'web_search',
+          search_context_size: 'small',
+          user_location: { country: 'US' }
+        }],
+        tool_choice: {
+          type: 'allowed_tools',
+          mode: 'auto',
+          tools: [{ type: 'web_search' }]
+        },
         input: prompt,
+        store: false, // stateless for faster scheduling
         max_output_tokens: 2000,
         reasoning: { effort: "medium" },   // Medium = good web integration without timeout
         text: { verbosity: "low" }         // Concise for Twitter
