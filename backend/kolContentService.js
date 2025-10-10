@@ -116,19 +116,94 @@ class KOLContentService {
     try {
       // Get token metrics
       const mcap = token.mcap || token.marketCap || 0;
-      const volume24h = token.volume24h || 0;
-      const volumeToMcap = mcap > 0 ? ((volume24h / mcap) * 100).toFixed(1) : 0;
+      let volume24h = token.volume24h || 0;
       const priceChange = token.priceChange24h || 0;
-      const holders = token.holderCount || 0;
+      let holders = token.holderCount || 0;
       const score = token.overallScore || 0;
       
       // Get Jupiter data if available
       const liquidity = token.liquidity || token.jupiterData?.liquidity || 0;
-      const buyPressure = token.jupiterData?.stats24h?.buyVolume || 0;
-      const sellPressure = token.jupiterData?.stats24h?.sellVolume || 0;
-      const buyPct = (buyPressure + sellPressure) > 0 
+      let buyPressure = token.jupiterData?.stats24h?.buyVolume || 0;
+      let sellPressure = token.jupiterData?.stats24h?.sellVolume || 0;
+      let buyPct = (buyPressure + sellPressure) > 0 
         ? ((buyPressure / (buyPressure + sellPressure)) * 100).toFixed(1) 
         : 50;
+
+      // Fetch enhanced data (same as mentions service)
+      try {
+        // Fetch Moralis Token Analytics for accurate volume and buy/sell pressure
+        console.log(`📊 [KOL CONTENT] Fetching Moralis analytics for ${token.symbol}...`);
+        const { default: TechnicalAnalysisService } = await import('./services/TechnicalAnalysisService.js');
+        const techAnalysisService = new TechnicalAnalysisService();
+        const moralisAnalytics = await techAnalysisService.getMoralisTokenAnalytics(token.contractAddress);
+        
+        if (moralisAnalytics) {
+          const totalBuy = moralisAnalytics.totalBuyVolume?.['24h'] || moralisAnalytics.buyVolume || 0;
+          const totalSell = moralisAnalytics.totalSellVolume?.['24h'] || moralisAnalytics.sellVolume || 0;
+          volume24h = totalBuy + totalSell;
+          buyPressure = totalBuy;
+          sellPressure = totalSell;
+          buyPct = (buyPressure + sellPressure) > 0 
+            ? ((buyPressure / (buyPressure + sellPressure)) * 100).toFixed(1) 
+            : 50;
+          console.log(`✅ [KOL CONTENT] Moralis analytics: vol=$${volume24h}, buy=${buyPct}%`);
+        }
+      } catch (err) {
+        console.warn(`⚠️ [KOL CONTENT] Failed to fetch Moralis analytics:`, err.message);
+      }
+
+      // Fetch Holder insights
+      let holderContext = '';
+      try {
+        console.log(`👥 [KOL CONTENT] Fetching holder insights for ${token.symbol}...`);
+        const { default: HolderTimeseriesService } = await import('./services/HolderTimeseriesService.js');
+        const holderService = new HolderTimeseriesService();
+        const holderAnalysis = await holderService.getHolderChangeAnalysis(token.contractAddress);
+        
+        if (holderAnalysis.success) {
+          const axios = (await import('axios')).default;
+          const API_BASE = 'https://solana-gateway.moralis.io';
+          const API_KEY = process.env.MORALIS_API_KEY;
+          
+          if (API_KEY) {
+            const response = await axios.get(
+              `${API_BASE}/token/mainnet/holders/${token.contractAddress}`,
+              { headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' } }
+            );
+            
+            if (response.status === 200 && response.data) {
+              const holderStats = response.data;
+              holders = holderStats.totalHolders || holders;
+              const whales = holderStats.holderDistribution?.whales || 0;
+              const top10Pct = holderStats.holderSupply?.top10?.supplyPercent || 0;
+              const holderChange24h = holderStats.holderChange?.['24h']?.change || 0;
+              const holderChange30d = holderStats.holderChange?.['30d']?.change || 0;
+              
+              const segmentFlow = holderAnalysis.holderFlowData?.segmentFlow;
+              const whaleFlow = segmentFlow?.whales || { in: 0, out: 0, net: 0 };
+              const retailFlow = {
+                in: (segmentFlow?.crabs?.in || 0) + (segmentFlow?.shrimps?.in || 0),
+                out: (segmentFlow?.crabs?.out || 0) + (segmentFlow?.shrimps?.out || 0),
+                net: (segmentFlow?.crabs?.net || 0) + (segmentFlow?.shrimps?.net || 0)
+              };
+              
+              holderContext = `
+Whales: ${whales}
+Top 10 Control: ${top10Pct.toFixed(1)}%
+Holder Change (24h): ${holderChange24h > 0 ? '+' : ''}${holderChange24h}
+Holder Change (30d): ${holderChange30d > 0 ? '+' : ''}${holderChange30d}
+Whale Flow: ${whaleFlow.net > 0 ? '+' : ''}${whaleFlow.net} (in: ${whaleFlow.in}, out: ${whaleFlow.out})
+Retail Flow: ${retailFlow.net > 0 ? '+' : ''}${retailFlow.net} (in: ${retailFlow.in}, out: ${retailFlow.out})`;
+              
+              console.log(`✅ [KOL CONTENT] Holder insights: ${holders} holders, ${whales} whales, top10=${top10Pct.toFixed(1)}%`);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(`⚠️ [KOL CONTENT] Failed to fetch holder insights:`, err.message);
+      }
+
+      const volumeToMcap = mcap > 0 ? ((volume24h / mcap) * 100).toFixed(1) : 0;
 
       // Select personality
       const personality = this.personalities[this.currentPersonalityIndex];
@@ -146,7 +221,7 @@ Price Change 24h: ${priceChange > 0 ? '+' : ''}${priceChange.toFixed(1)}%
 Buy Pressure: ${buyPct}%
 Holders: ${holders.toLocaleString()}
 Liquidity: $${(liquidity / 1_000).toFixed(1)}K
-Degen Oracle Score: ${score.toFixed(1)}/10`;
+Degen Oracle Score: ${score.toFixed(1)}/10${holderContext}`;
 
       // Fetch web context via Tavily (proven approach from mentions)
       console.log(`🔍 [KOL CONTENT] Fetching Tavily updates for $${token.symbol}...`);
