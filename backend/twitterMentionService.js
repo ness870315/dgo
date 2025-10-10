@@ -269,8 +269,17 @@ class TwitterMentionService {
       // Generate appropriate reply with conversation context
       const reply = await this.generateReply(analysis, author, conversationContext);
       
-      if (!reply) {
-        console.log(`❌ [MENTIONS] Failed to generate reply for ${mentionId}`);
+      if (!reply || !reply.trim() || reply.trim() === `@${author}`) {
+        console.log(`❌ [MENTIONS] Empty reply generated, using safe fallback`);
+        const safeText = analysis.replyType === 'kol_opinion' && (analysis.tokens?.[0])
+          ? this.generateBasicOpinion(analysis.tokens[0], { mcap: 0 })
+          : 'gm anon';
+        const finalSafe = `@${author} ${safeText}`.trim();
+        const result = await this.postReply(mentionId, finalSafe);
+        if (result.success) {
+          this.repliedMentions.add(mentionId);
+          await this.logToMemory({ mention, analysis, reply: finalSafe, author });
+        }
         return;
       }
       
@@ -382,6 +391,14 @@ Respond in JSON format:
         const analysis = JSON.parse(jsonMatch[0]);
         analysis.originalText = text; // Store original text for context
         
+        // Override: majors should be casual by default (BTC/ETH/SOL/BNB/SUI/etc.)
+        const majors = new Set(['BTC','ETH','SOL','BNB','SUI','XRP','ADA','DOGE','TON','AVAX','MATIC','LINK','DOT','LTC','TRX']);
+        const hasMajor = (analysis.tokens || []).some(t => majors.has(String(t).toUpperCase()));
+        if (hasMajor && analysis.replyType !== 'contract_analysis') {
+          analysis.replyType = 'casual';
+          analysis.reason = (analysis.reason || '') + ' | forced casual for major coin';
+        }
+        
         // If AI missed the contract but regex found it, add it
         if (contractMatch && !analysis.contractAddress) {
           analysis.contractAddress = contractMatch[0];
@@ -439,6 +456,12 @@ Respond in JSON format:
         console.log(`✅ [CLASSIFIER] Matched kol_opinion rules`);
       }
       
+      // Override: majors should be casual by default
+      const majors = new Set(['BTC','ETH','SOL','BNB','SUI','XRP','ADA','DOGE','TON','AVAX','MATIC','LINK','DOT','LTC','TRX']);
+      const hasMajor = extractedTokens.some(t => majors.has(String(t).toUpperCase()));
+      if (hasMajor) {
+        replyType = 'casual';
+      }
       return {
         shouldReply: true,
         replyType: replyType,
