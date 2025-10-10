@@ -984,11 +984,11 @@ Now generate YOUR take (max 180 chars):
 
 Reply (without @username):`;
 
-      // Use gpt-4o for final generation (faster, no timeouts, supports web if needed)
+      // Use gpt-5 for final generation (catalysts already prefetched, so no web search needed)
       const opinion = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 150,
         temperature: 0.7,
-        model: 'gpt-4o',
+        model: 'gpt-5',
         enableWebSearch: false // catalysts already prefetched
       });
       
