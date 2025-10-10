@@ -628,25 +628,26 @@ Reply (without @username):`;
             const prompt = `You are a legendary crypto KOL. User asked: "${analysis.originalText}"
 
 🔮 PERPLEXITY INSIGHTS (Grounded Facts with Citations):
-${perplexityResponse.content.substring(0, 1000)}
+${perplexityResponse.content.substring(0, 1500)}
 
 PERSONALITY MODE: "${personality.name}"
 STYLE: ${personality.style}
 
-Generate a helpful, fact-based answer (max 280 chars - use full length if needed):
-- Use Perplexity facts for accuracy
-- Answer their specific question directly
-- Be specific with numbers, prices, events from Perplexity
-- Filter through your personality (don't just copy-paste facts)
-- NO hashtags, minimal/no emojis
+Generate a RICH, fact-based answer (max 280 chars - USE FULL LENGTH):
+- INCLUDE specific details from Perplexity (numbers, percentages, prices, odds, bet amounts)
+- If Perplexity lists multiple items/bets, mention the TOP 2-3 most interesting
+- Answer their question DIRECTLY with REAL data
+- Keep degen personality but PRESERVE the valuable facts
+- Be specific: "96% odds on X, 2% on Y" not "check hot bets"
+- NO hashtags, minimal emojis
 - DO NOT include @username
-- Do not mention sources/citations in the text
+- Do not mention sources/citations in text
 
 Reply (without @username):`;
 
             const opinion = await this.openaiService.generateCompletion(prompt, {
-              maxTokens: 180,
-              temperature: 0.7,
+              maxTokens: 200, // Increased to preserve more details
+              temperature: 0.6, // Lower temp for more factual accuracy
               model: 'gpt-4o',
               enableWebSearch: false
             });
