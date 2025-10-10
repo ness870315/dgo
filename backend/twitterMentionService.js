@@ -233,8 +233,7 @@ class TwitterMentionService {
       
       console.log(`💬 [MENTIONS] Processing mention from @${author}: "${text}"`);
       
-      // Fetch conversation context and parent tweet if available
-      let conversationContext = [];
+      // Fetch parent tweet if this is a reply (the original tweet user is commenting under)
       let parentTweet = null;
       
       // Check if this mention is a reply to another tweet
@@ -254,26 +253,8 @@ class TwitterMentionService {
         }
       }
       
-      // Fetch conversation context if available
-      if (mention.conversationId) {
-        console.log(`🔍 [MENTIONS] Fetching conversation context for ${mention.conversationId}`);
-        conversationContext = await this.twitterService.oauthXService.getConversationContext(
-          this.twitterService.dgnOracleUserId,
-          mention.conversationId,
-          mentionId,
-          5 // Get up to 5 previous tweets for context
-        );
-        
-        if (conversationContext.length > 0) {
-          console.log(`📜 [MENTIONS] Found ${conversationContext.length} tweets in conversation:`);
-          conversationContext.forEach((tweet, i) => {
-            console.log(`  ${i + 1}. @${tweet.author.username}: "${tweet.text.substring(0, 60)}..."`);
-          });
-        }
-      }
-      
       // Analyze the mention to extract context and tokens (include parent tweet if exists)
-      const analysis = await this.analyzeMention(text, author, conversationContext, parentTweet);
+      const analysis = await this.analyzeMention(text, author, null, parentTweet);
       
       console.log(`🧠 [MENTIONS] Classification result:`, {
         shouldReply: analysis.shouldReply,
@@ -288,8 +269,8 @@ class TwitterMentionService {
         return;
       }
       
-      // Generate appropriate reply with conversation context and parent tweet
-      const reply = await this.generateReply(analysis, author, conversationContext, parentTweet);
+      // Generate appropriate reply with parent tweet context
+      const reply = await this.generateReply(analysis, author, null, parentTweet);
       
       if (!reply || !reply.trim() || reply.trim() === `@${author}`) {
         console.log(`❌ [MENTIONS] Empty reply generated, using safe fallback`);
@@ -343,20 +324,10 @@ class TwitterMentionService {
       const contractRegex = /\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/;
       const contractMatch = text.match(contractRegex);
       
-      // Build conversation context string for AI
+      // Build context string for AI (only parent tweet if exists)
       let contextString = '';
-      
-      // Add parent tweet first (the original tweet being replied to)
       if (parentTweet) {
-        contextString = `\n\nORIGINAL TWEET (what user is replying under):\n@${parentTweet.author.username}: "${parentTweet.text}"\n`;
-      }
-      
-      if (conversationContext.length > 0) {
-        contextString += '\n\nPREVIOUS CONVERSATION:\n';
-        conversationContext.forEach((tweet, i) => {
-          contextString += `${i + 1}. @${tweet.author.username}: "${tweet.text}"\n`;
-        });
-        contextString += '\nCURRENT MENTION:\n';
+        contextString = `\n\nORIGINAL TWEET (what user is replying under):\n@${parentTweet.author.username}: "${parentTweet.text}"\n\nCURRENT MENTION:`;
       }
       
       const prompt = `You are analyzing a Twitter mention to @dgnoracle. Determine:
@@ -513,7 +484,7 @@ Respond in JSON format:
         // User provided a contract address - fetch from Jupiter and analyze
         return await this.analyzeContractAddress(analysis.contractAddress, author);
       } else if (analysis.replyType === 'kol_opinion') {
-        return await this.generateKOLOpinion(analysis, author);
+        return await this.generateKOLOpinion(analysis, author, parentTweet);
       }
       
       return null;
@@ -526,24 +497,20 @@ Respond in JSON format:
   // Generate casual conversational reply (ENHANCED with Perplexity)
   async generateCasualReply(analysis, author, conversationContext = [], parentTweet = null) {
     try {
-      // Build conversation context string for AI
+      // Build context string for AI (only parent tweet if exists)
       let contextString = '';
-      
-      // Add parent tweet first (the original tweet user is replying under)
       if (parentTweet) {
-        contextString = `\n\nORIGINAL TWEET (what user is replying under):\n@${parentTweet.author.username}: "${parentTweet.text}"\n`;
+        contextString = `\n\nORIGINAL TWEET (what user is replying under):\n@${parentTweet.author.username}: "${parentTweet.text}"\n\nCURRENT MENTION:`;
       }
       
-      if (conversationContext.length > 0) {
-        contextString += '\n\nPREVIOUS CONVERSATION:\n';
-        conversationContext.forEach((tweet, i) => {
-          contextString += `${i + 1}. @${tweet.author.username}: "${tweet.text}"\n`;
-        });
-        contextString += '\nCURRENT MENTION:\n';
-      }
+      // Build enriched query for Perplexity (include parent tweet context if relevant)
+      let cleanQuery = analysis.originalText.replace(/@dgnoracle/gi, '').trim();
       
-      // Strip @dgnoracle from query for cleaner Perplexity search
-      const cleanQuery = analysis.originalText.replace(/@dgnoracle/gi, '').trim();
+      // If query is vague ("do you agree?", "what do you think?") but we have parent tweet, enrich it
+      if (parentTweet && cleanQuery.length < 30 && /agree|think|opinion|take/i.test(cleanQuery)) {
+        cleanQuery = `${parentTweet.text} - ${cleanQuery}`;
+        console.log(`🔗 [MENTIONS] Enriched vague query with parent tweet context`);
+      }
       
       // Fetch Perplexity data for factual grounding
       let perplexityData = '';
@@ -552,7 +519,7 @@ Respond in JSON format:
       } else if (cleanQuery.length <= 10) {
         console.log(`⏭️ [MENTIONS CASUAL] Query too short for Perplexity (${cleanQuery.length} chars)`);
       } else {
-        console.log(`🔮 [MENTIONS CASUAL] Fetching Perplexity insights for: "${cleanQuery.substring(0, 60)}..."`);
+        console.log(`🔮 [MENTIONS CASUAL] Fetching Perplexity insights for: "${cleanQuery.substring(0, 100)}..."`);
         try {
           const perplexityResponse = await this.perplexityService.searchCrypto(cleanQuery);
           if (perplexityResponse && perplexityResponse.content) {
@@ -633,20 +600,43 @@ Reply (without @username):`;
   }
 
   // Generate KOL opinion with token analysis
-  async generateKOLOpinion(analysis, author) {
+  async generateKOLOpinion(analysis, author, parentTweet = null) {
     try {
       // Extract first token mentioned
       let symbol = analysis.tokens && analysis.tokens.length > 0 
         ? analysis.tokens[0].replace(/[$@]/g, '').toUpperCase()
         : null;
       
-      // If no specific token, use Perplexity for general crypto questions
+      // If no specific token, check parent tweet for context or use Perplexity
+      if (!symbol && parentTweet) {
+        // Try to extract tokens from parent tweet
+        const tokenRegex = /\$([A-Z]{2,10})\b/g;
+        const parentTokens = [...parentTweet.text.matchAll(tokenRegex)].map(m => m[1]);
+        
+        if (parentTokens.length > 0) {
+          // Found tokens in parent tweet, analyze the first one
+          symbol = parentTokens[0];
+          console.log(`🔍 [MENTIONS] Extracted token from parent tweet: $${symbol}`);
+          tokenData = await this.getTokenData(symbol);
+          // Continue with normal token analysis below
+        }
+      }
+      
       if (!symbol) {
-        try {
-          console.log(`🔮 [MENTIONS] No token specified, using Perplexity for general question...`);
-          // Strip @mentions from query for cleaner search
-          const cleanQuery = analysis.originalText.replace(/@\w+/g, '').trim();
-          console.log(`🔮 [PERPLEXITY] Clean query: "${cleanQuery}"`);
+          // No tokens found, use Perplexity for general question
+          try {
+            console.log(`🔮 [MENTIONS] No token in mention or conversation, using Perplexity for general question...`);
+            
+            // Build enriched query with parent tweet context if available
+            let cleanQuery = analysis.originalText.replace(/@dgnoracle/gi, '').trim();
+            
+            // If vague question + parent tweet exists, enrich with parent context
+            if (parentTweet && cleanQuery.length < 40 && /agree|think|opinion|take/i.test(cleanQuery)) {
+              cleanQuery = `Context: "${parentTweet.text}" - Question: ${cleanQuery}`;
+              console.log(`🔗 [MENTIONS] Enriched general question with parent tweet`);
+            }
+            
+            console.log(`🔮 [PERPLEXITY] Clean query: "${cleanQuery}"`);
           
           // Use Perplexity for grounded, factual answers
           const perplexityResponse = await this.perplexityService.searchCrypto(cleanQuery);
