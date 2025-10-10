@@ -853,8 +853,8 @@ Reply:`;
         console.warn(`⚠️ [MENTIONS] Failed to fetch Holder data for ${symbol}:`, holderError.message);
       }
       
-      // Generate KOL-style opinion with enhanced data
-      const opinion = await this.generateKOLAnalysis(symbol, enhancedData, analysis);
+      // Generate KOL-style opinion with enhanced data and parent tweet context
+      const opinion = await this.generateKOLAnalysis(symbol, enhancedData, analysis, parentTweet);
       
       return `@${author} ${opinion}`;
       
@@ -943,8 +943,8 @@ Reply:`;
         console.warn(`⚠️ [MENTIONS] Failed to fetch Holder data:`, holderError.message);
       }
       
-      // Generate KOL opinion with the fetched data
-      const opinion = await this.generateKOLAnalysis(symbol, enhancedData, analysis);
+      // Generate KOL opinion with the fetched data (no parent tweet for contract analysis)
+      const opinion = await this.generateKOLAnalysis(symbol, enhancedData, analysis, null);
       return `@${author} ${opinion}`;
       
     } catch (error) {
@@ -971,7 +971,7 @@ Reply:`;
   }
 
   // Generate KOL-style analysis
-  async generateKOLAnalysis(symbol, tokenData, analysis = {}) {
+  async generateKOLAnalysis(symbol, tokenData, analysis = {}, parentTweet = null) {
     try {
       // Extract mcap and holders from cache
       const mcap = tokenData.mcap || tokenData.marketCap || tokenData.jupiterData?.mcap || 0;
@@ -1107,7 +1107,13 @@ Liquidity: $${(liquidityUsd / 1000).toFixed(1)}K${holderContext}`;
         }
       }
 
-      const prompt = `You are a legendary crypto KOL with a specific personality. User asked: "${analysis.originalText}"
+      // Build context about what we're responding to
+      let responseContext = `User asked: "${analysis.originalText}"`;
+      if (parentTweet) {
+        responseContext = `PARENT TWEET OPINION:\n@${parentTweet.author.username} said: "${parentTweet.text}"\n\nUSER'S QUESTION:\n"${analysis.originalText}" (asking if you agree with @${parentTweet.author.username})`;
+      }
+
+      const prompt = `You are a legendary crypto KOL with a specific personality. ${responseContext}
 
 📊 OUR SYSTEM DATA (Real-time from Jupiter/Moralis):
 ${dataContext}
@@ -1128,13 +1134,13 @@ EXAMPLES OF YOUR STYLE:
 ${personality.examples.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}
 
 Now generate YOUR RICH, FACT-ENRICHED KOL OPINION (max 280 chars - use full length if needed):
+${parentTweet ? `- CRITICAL: Address whether you agree/disagree with @${parentTweet.author.username}'s opinion` : ''}
+${parentTweet ? `- Reference their take: "${parentTweet.text.substring(0, 100)}..."` : ''}
 - DIRECTLY answer their question first
 - BLEND all 4 sources into ONE cohesive take: system metrics + web catalysts + Tavily facts + Perplexity insights
 - Perplexity data is the most accurate (grounded with citations), prioritize it for facts
-- If Perplexity/Tavily has specific facts (listings, partnerships, price targets), WEAVE them in naturally
-- If complex analysis needed, USE THE FULL 280 chars to provide detailed insights
-- If they ask "can we see X mcap?", give detailed assessment with momentum + whale behavior + web updates
-- Stay true to personality mode (don't just list facts, filter through YOUR lens)
+- If parent tweet says token will moon, VALIDATE with data (volume, whales, buzz) - agree if data supports, disagree if not
+- Be specific with your stance: "Yes, they're right because..." or "Nah, data shows..."
 - RICH and detailed when warranted, punchy when appropriate
 - DO NOT include @username (it's added automatically)
 - NO hashtags ever
