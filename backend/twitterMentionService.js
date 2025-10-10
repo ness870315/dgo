@@ -919,11 +919,16 @@ Liquidity: $${(liquidityUsd / 1000).toFixed(1)}K${holderContext}`;
       
       console.log(`🎭 [MENTIONS] Using personality: ${personality.name}`);
 
-      // Lightweight web enrichment: fetch catalysts separately (short browse)
+      // Decide major vs. alt flow
+      const isMajor = ['BTC', 'ETH', 'SOL'].includes(symbol);
+      
+      // Lightweight web enrichment for non-majors: fetch catalysts separately (short browse)
       let catalysts = '';
-      try {
-        catalysts = await this.openaiService.fetchWebCatalysts(symbol, { model: 'gpt-5-mini', lookbackHours: 72, maxOutputTokens: 250 });
-      } catch (_) {}
+      if (!isMajor) {
+        try {
+          catalysts = await this.openaiService.fetchWebCatalysts(symbol, { model: 'gpt-5-mini', lookbackHours: 72, maxOutputTokens: 250 });
+        } catch (_) {}
+      }
 
       const prompt = `You are a legendary crypto KOL with a specific personality. Give a RAW take on this token.
 
@@ -954,12 +959,18 @@ Reply (without @username):`;
       const opinion = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 150,
         temperature: 0.7,
-        model: 'gpt-5',
-        enableWebSearch: false // final generation without browsing
+        model: isMajor ? 'gpt-5-mini' : 'gpt-5',
+        // For majors, allow a single quick web_search at generation time; others generate without web
+        enableWebSearch: isMajor
       });
       
       // Remove any hashtags from the opinion
-      const cleanOpinion = opinion.trim().replace(/#\w+/g, '').replace(/\s+/g, ' ').trim();
+      const cleanOpinion = (opinion || '').trim().replace(/#\w+/g, '').replace(/\s+/g, ' ').trim();
+      
+      // If model returned empty, fall back to data-driven basic opinion
+      if (!cleanOpinion) {
+        return this.generateBasicOpinion(symbol, tokenData);
+      }
       
       return cleanOpinion;
       
