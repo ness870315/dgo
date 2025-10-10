@@ -267,12 +267,14 @@ class OpenAIService {
 
       console.log(`🌐 [GPT-5 RESPONSES API] Creating response with web search...`);
 
-      // Create response using Responses API
+      // Create response using Responses API with fast settings
       let response = await this.openai.responses.create({
         model: model,
         tools: [{ type: 'web_search' }],
         input: prompt,
-        max_output_tokens: 2000 // Set high enough to avoid incomplete responses
+        max_output_tokens: 2000,
+        reasoning: { effort: "minimal" },  // Fast reasoning for Twitter replies
+        text: { verbosity: "low" }         // Concise outputs
       });
 
       console.log(`🔍 [DEBUG] Initial response status: ${response.status}`);
