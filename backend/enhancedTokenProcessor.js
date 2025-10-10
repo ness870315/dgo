@@ -1842,7 +1842,7 @@ class EnhancedTokenProcessor {
       // Severe volume decline: -50% or worse
       const penalty = Math.min(5.0, Math.abs(Math.min(volumeChange1h, volumeChange6h)) / 10);
       volume1h = Math.max(1.0, volume1h - penalty);
-      console.log(`⚠️ Volume decline penalty for ${token.symbol}: ${volumeChange1h.toFixed(1)}% (1h), ${volumeChange6h.toFixed(1)}% (6h) → -${penalty.toFixed(1)} points`);
+      // Removed verbose logging
     }
     
     score += volume1h * 0.25;
@@ -2289,7 +2289,7 @@ class EnhancedTokenProcessor {
         // 🚨 CRITICAL FIX: ALWAYS add existing tokens to the final merged result
         // The stage filtering should only apply to processing queue, not to final result
             merged.push(existing);
-        console.log(`➕ Added existing token ${existing.symbol} to final result (stage: ${existing.stage})`);
+        // Removed verbose logging
       }
     }
     
