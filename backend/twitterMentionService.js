@@ -608,56 +608,66 @@ Reply (without @username):`;
         ? analysis.tokens[0].replace(/[$@]/g, '').toUpperCase()
         : null;
       
-      // If no specific token, use Tavily to answer general crypto questions
+      // If no specific token, use Perplexity for general crypto questions
       if (!symbol) {
         try {
-          console.log(`🔍 [MENTIONS] No token specified, using Tavily for general question...`);
-          // Strip @mentions from query for cleaner Tavily search
+          console.log(`🔮 [MENTIONS] No token specified, using Perplexity for general question...`);
+          // Strip @mentions from query for cleaner search
           const cleanQuery = analysis.originalText.replace(/@\w+/g, '').trim();
-          console.log(`🔍 [TAVILY] Clean query: "${cleanQuery}"`);
-          const tavilyResults = await this.openaiService.searchTavily(cleanQuery);
-          console.log(`📋 [TAVILY] Full results for prompt:\n${tavilyResults.substring(0, 500)}...`);
+          console.log(`🔮 [PERPLEXITY] Clean query: "${cleanQuery}"`);
           
-          if (tavilyResults && tavilyResults.length > 10) {
+          // Use Perplexity for grounded, factual answers
+          const perplexityResponse = await this.perplexityService.searchCrypto(cleanQuery);
+          
+          if (perplexityResponse && perplexityResponse.content) {
+            console.log(`✅ [PERPLEXITY] Got ${perplexityResponse.content.length} chars, ${perplexityResponse.citations.length} citations`);
+            
             const personality = this.personalities[this.currentPersonalityIndex];
             this.currentPersonalityIndex = (this.currentPersonalityIndex + 1) % this.personalities.length;
             
             const prompt = `You are a legendary crypto KOL. User asked: "${analysis.originalText}"
 
-🔍 TAVILY SEARCH RESULTS (USE ONLY THIS DATA):
-${tavilyResults}
+🔮 PERPLEXITY INSIGHTS (Grounded Facts with Citations):
+${perplexityResponse.content.substring(0, 1000)}
 
 PERSONALITY MODE: "${personality.name}"
 STYLE: ${personality.style}
 
-CRITICAL: Generate answer using ONLY the Tavily data above (max 180 chars):
-- Extract specific token names/prices from Tavily results
-- If Tavily mentions "Just A Chill Guy" or "USELESS" or other tokens, USE THOSE
-- DO NOT mention tokens not in Tavily results
-- Filter Tavily facts through your personality
-- Be specific with numbers if Tavily provides them
+Generate a helpful, fact-based answer (max 280 chars - use full length if needed):
+- Use Perplexity facts for accuracy
+- Answer their specific question directly
+- Be specific with numbers, prices, events from Perplexity
+- Filter through your personality (don't just copy-paste facts)
 - NO hashtags, minimal/no emojis
 - DO NOT include @username
+- Do not mention sources/citations in the text
 
 Reply (without @username):`;
 
             const opinion = await this.openaiService.generateCompletion(prompt, {
-              maxTokens: 120,
+              maxTokens: 180,
               temperature: 0.7,
               model: 'gpt-4o',
               enableWebSearch: false
             });
             
-            const cleanOpinion = (opinion || '').trim().replace(/#\w+/g, '').replace(/\s+/g, ' ').trim();
-            if (cleanOpinion) {
+            const cleanOpinion = (opinion || '').trim()
+              .replace(/#\w+/g, '') // Remove hashtags
+              .replace(/\*\*/g, '') // Remove markdown bold
+              .replace(/\*/g, '')   // Remove markdown italics
+              .replace(/\s+/g, ' ') // Normalize whitespace
+              .trim();
+              
+            if (cleanOpinion && cleanOpinion.length > 10) {
+              console.log(`✅ [MENTIONS] Generated Perplexity-based answer: "${cleanOpinion}"`);
               return `@${author} ${cleanOpinion}`;
             }
           }
         } catch (err) {
-          console.warn(`⚠️ [MENTIONS] Tavily general question failed:`, err.message);
+          console.warn(`⚠️ [MENTIONS] Perplexity general question failed:`, err.message);
         }
         
-        // Fallback if Tavily fails
+        // Fallback if Perplexity fails
         return `@${author} I need a token symbol to analyze, anon! Drop a $ and I'll give you the alpha. 👀`;
       }
       
