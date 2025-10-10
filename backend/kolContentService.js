@@ -603,13 +603,18 @@ Reply:`;
       for (let i = 0; i < tweets.length; i++) {
         const tweet = tweets[i];
         
-        // Post as reply to previous tweet (if exists)
-        // Correct signature: postReply(userId, text, replyToTweetId)
-        const result = await oauthXService.postReply(
-          dgnOracleUserId, // @dgnoracle user ID
-          tweet,           // tweet text
-          previousTweetId  // replyToId (null for first tweet = new thread)
-        );
+        let result;
+        if (i === 0) {
+          // First tweet: post as new tweet
+          result = await oauthXService.postTweet(dgnOracleUserId, tweet);
+        } else {
+          // Subsequent tweets: post as reply to previous
+          result = await oauthXService.postReply(
+            dgnOracleUserId,  // @dgnoracle user ID
+            tweet,            // tweet text
+            previousTweetId   // replyToId
+          );
+        }
         
         const tweetId = result?.id || result;
 
