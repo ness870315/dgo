@@ -148,25 +148,31 @@ Holders: ${holders.toLocaleString()}
 Liquidity: $${(liquidity / 1_000).toFixed(1)}K
 Degen Oracle Score: ${score.toFixed(1)}/10`;
 
+      // Fetch web context via Tavily (proven approach from mentions)
+      console.log(`🔍 [KOL CONTENT] Fetching Tavily updates for $${token.symbol}...`);
+      let tavilyResults = '';
+      try {
+        tavilyResults = await this.openaiService.searchTavily(`latest news and updates on $${token.symbol} crypto token`);
+        console.log(`✅ [KOL CONTENT] Tavily results: ${tavilyResults.substring(0, 100)}...`);
+      } catch (err) {
+        console.warn(`⚠️ [KOL CONTENT] Tavily search failed:`, err.message);
+      }
+
       const prompt = `You are ${personality.name}, a real crypto KOL with ${personality.style}.
 
 ${dataContext}
 
-🌐 WEB SEARCH TASK:
-Search for recent information about $${token.symbol}:
-1. Latest news/announcements (last 48 hours)
-2. Twitter sentiment and trending discussions
-3. Notable partnerships, listings, or developments
-4. Any catalysts explaining the volume or price movement
-5. What degens on CT are saying about it
+🔍 TAVILY WEB SEARCH RESULTS:
+${tavilyResults || 'No recent news found'}
 
 CONTENT TYPE: ${contentType === 'single' ? 'Single tweet (280 chars)' : 'Thread starter tweet (280 chars)'}
 
-Generate a ${contentType === 'single' ? 'standalone tweet' : 'thread starter'} that:
-- Combines our analytics WITH web-searched news/catalysts
+Generate a ${contentType === 'single' ? 'RICH, FACT-PACKED tweet' : 'HOOK thread starter'} that:
+- BLEND our analytics WITH Tavily's latest news/catalysts
 - ${personality.tone}
 - Highlights the most interesting/surprising finding (data or news)
-- If pumping: explain WHY (partnership, listing, whale activity, etc.)
+- If Tavily mentions partnerships, listings, whale activity: WEAVE them in naturally
+- If pumping: explain WHY using both metrics and news
 - If good fundamentals but no pump yet: explain the opportunity
 - Use crypto slang naturally (not forced)
 - NO hashtags
@@ -174,15 +180,15 @@ Generate a ${contentType === 'single' ? 'standalone tweet' : 'thread starter'} t
 - Max 280 characters
 - Sound like a real person sharing alpha, not a bot
 
-${contentType === 'thread' ? '(This is tweet 1 of a thread - make it hook readers)' : ''}
+${contentType === 'thread' ? '(This is tweet 1 of a thread - make it hook readers with a surprising fact or question)' : ''}
 
 Tweet:`;
 
       const content = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 100,
         temperature: 0.8,
-        model: 'gpt-5',
-        enableWebSearch: true
+        model: 'gpt-4o', // Proven reliable model
+        enableWebSearch: false // Tavily already fetched
       });
 
       // Clean up
@@ -247,7 +253,7 @@ Tweet 2:`;
       const tweet2 = await this.openaiService.generateCompletion(tweet2Prompt, {
         maxTokens: 100,
         temperature: 0.7,
-        model: 'gpt-5-mini'
+        model: 'gpt-4o'
       });
 
       // Tweet 3: The verdict/recommendation
@@ -268,7 +274,7 @@ Tweet 3:`;
       const tweet3 = await this.openaiService.generateCompletion(tweet3Prompt, {
         maxTokens: 100,
         temperature: 0.8,
-        model: 'gpt-5-mini'
+        model: 'gpt-4o'
       });
 
       const thread = [
@@ -388,6 +394,16 @@ Tweet 3:`;
       const volume24h = token.volume24h || 0;
       const volumeToMcap = mcap > 0 ? ((volume24h / mcap) * 100).toFixed(1) : 0;
 
+      // Fetch Twitter sentiment via Tavily
+      console.log(`🔍 [MEME] Fetching Tavily sentiment for $${token.symbol}...`);
+      let tavilySentiment = '';
+      try {
+        tavilySentiment = await this.openaiService.searchTavily(`crypto twitter memes and jokes about $${token.symbol}`);
+        console.log(`✅ [MEME] Tavily sentiment: ${tavilySentiment.substring(0, 80)}...`);
+      } catch (err) {
+        console.warn(`⚠️ [MEME] Tavily sentiment search failed:`, err.message);
+      }
+
       const memePrompt = `You're a crypto KOL with a great sense of humor. Generate a funny tweet about $${token.symbol}.
 
 TOKEN CONTEXT:
@@ -395,14 +411,16 @@ TOKEN CONTEXT:
 - MCap: $${(mcap / 1_000_000).toFixed(2)}M
 - Volume/MCap: ${volumeToMcap}%
 
+🔍 TWITTER SENTIMENT (from Tavily):
+${tavilySentiment || 'No specific memes found'}
+
 HUMOR STYLES (pick one that fits):
 - If dumping: "someone needs to CTO [token]" or "exit liquidity szn" jokes
 - If pumping hard: "ser this is a casino" or "10x in 3 days is normal here" humor
 - If sideways: "consolidation = accumulation" or "bullish wedge on the 1min chart" jokes
 - Low volume: "volume lower than my self-esteem" type jokes
 - If memecoin: Self-aware degen humor about gambling
-
-Also check Twitter sentiment with web search for current memes/jokes about this token or the broader market.
+- If Tavily has specific Twitter jokes/memes: ADAPT and riff on those
 
 Make it:
 - Relatable to crypto degens
@@ -417,8 +435,8 @@ Meme tweet:`;
       const memeTweet = await this.openaiService.generateCompletion(memePrompt, {
         maxTokens: 100,
         temperature: 0.9,
-        model: 'gpt-5',
-        enableWebSearch: true
+        model: 'gpt-4o',
+        enableWebSearch: false // Tavily already fetched
       });
 
       const cleanMeme = memeTweet.trim()
@@ -442,15 +460,22 @@ Meme tweet:`;
     try {
       console.log('😂 Generating general market meme...');
 
+      // Fetch current market sentiment via Tavily
+      console.log(`🔍 [MEME] Fetching Tavily market sentiment...`);
+      let marketSentiment = '';
+      try {
+        marketSentiment = await this.openaiService.searchTavily('crypto market sentiment today, Bitcoin Ethereum price, trending on crypto twitter');
+        console.log(`✅ [MEME] Market sentiment: ${marketSentiment.substring(0, 80)}...`);
+      } catch (err) {
+        console.warn(`⚠️ [MEME] Market sentiment search failed:`, err.message);
+      }
+
       const generalMemePrompt = `You're a crypto KOL with great humor. Generate a funny tweet about the current crypto market.
 
-Use web search to check:
-- Is BTC/ETH up or down today?
-- What's trending on Crypto Twitter right now?
-- Any major news/events (SEC, regulations, hacks, etc.)?
-- General market sentiment (fear? greed? crab?)
+🔍 CURRENT MARKET (from Tavily):
+${marketSentiment || 'General crypto market vibes'}
 
-CLASSIC CRYPTO JOKES (pick what fits):
+CLASSIC CRYPTO JOKES (pick what fits based on Tavily sentiment):
 - BTC dumping: "looks like someone needs to CTO Bitcoin"
 - Market crabbing: "this sideways action is violating the Geneva Convention"
 - Green candles: "ser this is a Wendy's... I mean casino"
@@ -465,7 +490,7 @@ CLASSIC CRYPTO JOKES (pick what fits):
 - Exit liquidity jokes
 
 Make it:
-- Timely and relevant to TODAY's market
+- Timely and relevant to TODAY's market (use Tavily data)
 - Relatable to crypto degens
 - Self-aware and ironic
 - NO specific token mentions (general market vibes only)
@@ -477,8 +502,8 @@ Market meme:`;
       const memeTweet = await this.openaiService.generateCompletion(generalMemePrompt, {
         maxTokens: 100,
         temperature: 0.95,
-        model: 'gpt-5',
-        enableWebSearch: true
+        model: 'gpt-4o',
+        enableWebSearch: false // Tavily already fetched
       });
 
       const cleanMeme = memeTweet.trim()
