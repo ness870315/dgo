@@ -6,6 +6,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import TwitterMemoryService from './services/TwitterMemoryService.js';
+import PerplexitySonarService from './services/PerplexitySonarService.js';
 
 class TwitterMentionService {
   constructor(twitterAutoPostService, openaiService, backendInstance) {
@@ -13,6 +14,7 @@ class TwitterMentionService {
     this.openaiService = openaiService;
     this.backend = backendInstance;
     this.memoryService = new TwitterMemoryService();
+    this.perplexityService = new PerplexitySonarService();
     this.isRunning = false;
     this.checkInterval = null;
     this.checkIntervalMinutes = 10;
@@ -495,7 +497,7 @@ Respond in JSON format:
     }
   }
 
-  // Generate casual conversational reply
+  // Generate casual conversational reply (ENHANCED with Perplexity)
   async generateCasualReply(analysis, author, conversationContext = []) {
     try {
       // Build conversation context string for AI
@@ -506,6 +508,27 @@ Respond in JSON format:
           contextString += `${i + 1}. @${tweet.author.username}: "${tweet.text}"\n`;
         });
         contextString += '\nCURRENT MENTION:\n';
+      }
+      
+      // Strip @dgnoracle from query for cleaner Perplexity search
+      const cleanQuery = analysis.originalText.replace(/@dgnoracle/gi, '').trim();
+      
+      // Fetch Perplexity data for factual grounding
+      let perplexityData = '';
+      if (this.perplexityService.isInitialized && cleanQuery.length > 10) {
+        console.log(`🔮 [MENTIONS] Fetching Perplexity insights for: "${cleanQuery.substring(0, 60)}..."`);
+        try {
+          const perplexityResponse = await this.perplexityService.searchCrypto(cleanQuery);
+          if (perplexityResponse && perplexityResponse.content) {
+            perplexityData = `\n\n🔮 PERPLEXITY INSIGHTS (Grounded Facts):\n${perplexityResponse.content.substring(0, 800)}`;
+            if (perplexityResponse.citations && perplexityResponse.citations.length > 0) {
+              perplexityData += `\nSources: ${perplexityResponse.citations.slice(0, 3).join(', ')}`;
+            }
+            console.log(`✅ [MENTIONS] Perplexity data fetched (${perplexityResponse.usage.total_tokens} tokens)`);
+          }
+        } catch (err) {
+          console.warn(`⚠️ [MENTIONS] Perplexity fetch failed:`, err.message);
+        }
       }
       
       const prompt = `You are @dgnoracle - DeGen Oracle, a legendary crypto KOL and AI meme coin expert on Solana.
@@ -521,13 +544,15 @@ PERSONALITY:
 ${contextString}
 Someone said: "${analysis.originalText || 'hey'}"
 Author: @${author}
+${perplexityData}
 
 Generate a SHORT, natural reply (max 150 chars):
+- If Perplexity insights are available, USE them for factual accuracy
 - Keep it real and conversational
 - Match the energy they bring
 - If it's an intro, be cool but not overly excited
 - If it's a thank you, be chill ("np anon", "anytime fren")
-- If it's a question, be helpful but concise
+- If it's a question, be helpful but concise with REAL facts
 - NO hashtags ever
 - NO mentions of website unless they specifically ask
 - DO NOT include @username in your reply (it's already added automatically)
@@ -537,18 +562,19 @@ Examples:
 - Thanks: "Anytime fren. That's what we're here for 💎"
 - Question: "Yeah we track Solana gems. Real-time data, no bs"
 - General: "gm chad 🫡"
+- With facts: "BTC just hit $95K, institutions still loading. Bullish setup for Q1 📈"
 
 Reply (without @username):`;
 
-      console.log(`🤖 [MENTIONS] Calling GPT-5-mini for casual reply...`);
+      console.log(`🤖 [MENTIONS] Calling GPT-4o for casual reply (Perplexity-enhanced)...`);
       const reply = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 100,
-        temperature: 0.8,
-        model: 'gpt-5-mini',
-        enableWebSearch: true // GPT-5-mini supports web search via Responses API
+        temperature: 0.7,
+        model: 'gpt-4o',
+        enableWebSearch: false // Perplexity already did the search
       });
       
-      console.log(`📝 [MENTIONS] GPT-5-mini raw response: "${reply}"`);
+      console.log(`📝 [MENTIONS] GPT-4o raw response: "${reply}"`);
       console.log(`📏 [MENTIONS] Raw response length: ${reply?.length || 0} chars`);
       
       // Remove any hashtags from the reply
@@ -991,9 +1017,10 @@ Liquidity: $${(liquidityUsd / 1000).toFixed(1)}K${holderContext}`;
       
       console.log(`🎭 [MENTIONS] Using personality: ${personality.name}`);
 
-      // Triple web enrichment: GPT-5-mini + Tavily for comprehensive context
+      // Quad web enrichment: GPT-5-mini + Tavily + Perplexity for comprehensive context
       let catalysts = '';
       let tavilyResults = '';
+      let perplexityInsights = '';
       
       // 1. GPT-5-mini web search (CoinGecko/CMC/Twitter)
       try {
@@ -1018,6 +1045,23 @@ Liquidity: $${(liquidityUsd / 1000).toFixed(1)}K${holderContext}`;
       } catch (err) {
         console.warn(`⚠️ [MENTIONS] Failed to fetch Tavily results:`, err.message);
       }
+      
+      // 3. Perplexity Sonar (grounded facts with citations)
+      if (this.perplexityService.isInitialized) {
+        try {
+          console.log(`🔮 [MENTIONS] Fetching Perplexity Sonar insights for $${symbol}...`);
+          const perplexityResponse = await this.perplexityService.searchCrypto(`What is $${symbol} crypto token? Latest price, market updates, and news.`);
+          if (perplexityResponse && perplexityResponse.content) {
+            perplexityInsights = perplexityResponse.content.substring(0, 600);
+            if (perplexityResponse.citations && perplexityResponse.citations.length > 0) {
+              perplexityInsights += `\nSources: ${perplexityResponse.citations.slice(0, 2).join(', ')}`;
+            }
+            console.log(`✅ [MENTIONS] Perplexity insights: ${perplexityInsights.substring(0, 80)}...`);
+          }
+        } catch (err) {
+          console.warn(`⚠️ [MENTIONS] Failed to fetch Perplexity insights:`, err.message);
+        }
+      }
 
       const prompt = `You are a legendary crypto KOL with a specific personality. User asked: "${analysis.originalText}"
 
@@ -1030,6 +1074,9 @@ ${catalysts || 'No catalysts found'}
 🔍 TAVILY LATEST UPDATES:
 ${tavilyResults || 'No recent updates found'}
 
+🔮 PERPLEXITY SONAR (Grounded Facts with Citations):
+${perplexityInsights || 'No Perplexity data available'}
+
 PERSONALITY MODE: "${personality.name}"
 STYLE: ${personality.style}
 
@@ -1038,9 +1085,10 @@ ${personality.examples.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}
 
 Now generate YOUR RICH, FACT-ENRICHED KOL OPINION (max 180 chars):
 - DIRECTLY answer their question first
-- BLEND all 3 sources into ONE cohesive take: system metrics + web catalysts + Tavily facts
-- If Tavily has specific facts (listings, partnerships, price targets), WEAVE them in naturally
-- If they ask "can we see X mcap?", assess using momentum + whale behavior + Tavily updates
+- BLEND all 4 sources into ONE cohesive take: system metrics + web catalysts + Tavily facts + Perplexity insights
+- Perplexity data is the most accurate (grounded with citations), prioritize it for facts
+- If Perplexity/Tavily has specific facts (listings, partnerships, price targets), WEAVE them in naturally
+- If they ask "can we see X mcap?", assess using momentum + whale behavior + web updates
 - Stay true to personality mode (don't just list facts, filter through YOUR lens)
 - Keep it SHORT but RICH - every word should add value
 - DO NOT include @username (it's added automatically)
