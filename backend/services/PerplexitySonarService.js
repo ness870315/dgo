@@ -182,16 +182,30 @@ class PerplexitySonarService {
   stripReasoningTags(content) {
     if (!content) return '';
 
-    // Remove <think>...</think> blocks (including nested content)
-    // The reasoning is wrapped in <think> tags, followed by the actual answer
-    let cleaned = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+    console.log(`📝 [PERPLEXITY] Raw response (first 200 chars): ${content.substring(0, 200)}`);
 
-    // If nothing left after removing think tags, return original (failsafe)
-    if (!cleaned) {
-      console.warn('⚠️ [PERPLEXITY] Stripped all content, using original');
+    // Method 1: Try regex removal (handles multiple think blocks)
+    let cleaned = content.replace(/<think>[\s\S]*?<\/think>\s*/gi, '').trim();
+
+    // Method 2: If regex didn't work or content still has <think>, use split method
+    if (!cleaned || cleaned.includes('<think>')) {
+      console.log(`🔄 [PERPLEXITY] Regex failed, trying split method...`);
+      const parts = content.split('</think>');
+      if (parts.length > 1) {
+        // Take everything after the last </think> tag
+        cleaned = parts[parts.length - 1].trim();
+      }
+    }
+
+    // If still nothing or too short, return original as failsafe
+    if (!cleaned || cleaned.length < 5) {
+      console.warn('⚠️ [PERPLEXITY] Stripped content too short or empty, using original');
       return content;
     }
 
+    console.log(`✂️ [PERPLEXITY] Successfully stripped reasoning - before: ${content.length} chars, after: ${cleaned.length} chars`);
+    console.log(`✅ [PERPLEXITY] Clean response (first 200 chars): ${cleaned.substring(0, 200)}`);
+    
     return cleaned;
   }
 }
