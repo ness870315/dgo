@@ -293,22 +293,26 @@ class OpenAIService {
       console.log(`🔍 [DEBUG] Initial response ID: ${response.id}`);
       console.log(`🔍 [DEBUG] Initial response status: ${response.status}`);
 
-      // If incomplete or failed, poll for completion
+      // If incomplete or failed, poll for completion (robust to transient 404s)
       let pollAttempts = 0;
-      const maxPolls = 100; // 100 seconds max for medium/high reasoning
-      
+      const maxPolls = 100; // 100 seconds max for medium reasoning
       while (response.status !== 'completed' && response.status !== 'failed' && pollAttempts < maxPolls) {
-        console.log(`⏳ [POLLING] Response ${response.status}, waiting... (attempt ${pollAttempts + 1}/${maxPolls})`);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
-        
-        // Retrieve the response to check status
+        console.log(`⏳ [POLLING] Response ${response.status || 'unknown'}, waiting... (attempt ${pollAttempts + 1}/${maxPolls})`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
         try {
           response = await this.openai.responses.retrieve(response.id);
         } catch (retrieveError) {
-          console.error(`❌ [POLLING] Error retrieving response:`, retrieveError.message);
-          break;
+          // Handle eventual consistency: 404 not found can occur immediately after create
+          const msg = retrieveError?.message || '';
+          if (msg.includes('not found') || msg.includes('404')) {
+            console.warn('⚠️ [POLLING] Retrieve 404/not found. Retrying...');
+            // small extra backoff
+            await new Promise(resolve => setTimeout(resolve, 500));
+          } else {
+            console.error(`❌ [POLLING] Error retrieving response:`, msg);
+          }
+          // Do NOT break; continue polling
         }
-        
         pollAttempts++;
       }
 
@@ -319,7 +323,15 @@ class OpenAIService {
       if (response.status !== 'completed') {
         console.warn(`⚠️ Response timeout after ${pollAttempts}s, using partial output if available`);
         // Try to extract any partial output
-        const partialText = response.output_text || '';
+        let partialText = response.output_text || '';
+        if (!partialText && Array.isArray(response.output)) {
+          try {
+            partialText = response.output
+              .filter(item => item?.type === 'text' && typeof item.text === 'string')
+              .map(item => item.text)
+              .join('\n');
+          } catch (_) {}
+        }
         if (partialText) {
           console.log(`✅ Using partial output: ${partialText.length} chars`);
           return partialText;
