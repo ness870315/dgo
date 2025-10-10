@@ -370,7 +370,7 @@ Respond in JSON format:
       const response = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 200,
         temperature: 0.3,
-        model: 'gpt-5-nano'
+        model: 'gpt-4o-mini' // Use gpt-4o-mini for reliable JSON responses
       });
       
       console.log(`📝 [CLASSIFIER DEBUG] GPT-5-nano raw response:`, response);
