@@ -6,7 +6,7 @@ import fetch from 'node-fetch';
  */
 class CoinDeskService {
   constructor() {
-    this.baseUrl = 'https://developers.coindesk.com/news/v1';
+    this.baseUrl = 'https://data-api.coindesk.com/news/v1';
     this.apiKey = process.env.COINDESK_API_KEY || null; // Optional API key
     this.defaultLimit = 10;
   }
