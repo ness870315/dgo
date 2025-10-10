@@ -232,6 +232,12 @@ class TwitterMentionService {
       }
       
       console.log(`💬 [MENTIONS] Processing mention from @${author}: "${text}"`);
+      console.log(`🔍 [MENTIONS DEBUG] Mention object:`, {
+        id: mention.id,
+        hasReferencedTweets: !!mention.referenced_tweets,
+        referencedTweetsCount: mention.referenced_tweets?.length || 0,
+        referencedTweets: mention.referenced_tweets
+      });
       
       // Fetch parent tweet if this is a reply (the original tweet user is commenting under)
       let parentTweet = null;
@@ -239,18 +245,26 @@ class TwitterMentionService {
       // Check if this mention is a reply to another tweet
       if (mention.referenced_tweets && mention.referenced_tweets.length > 0) {
         const replyToTweet = mention.referenced_tweets.find(ref => ref.type === 'replied_to');
+        console.log(`🔍 [MENTIONS DEBUG] Found reply reference:`, replyToTweet);
+        
         if (replyToTweet && replyToTweet.id) {
           console.log(`🔗 [MENTIONS] This is a reply to tweet ${replyToTweet.id}, fetching parent...`);
           try {
             const parentData = await this.twitterService.oauthXService.getTweet(replyToTweet.id);
             if (parentData) {
               parentTweet = parentData;
-              console.log(`✅ [MENTIONS] Parent tweet: "@${parentTweet.author?.username}: ${parentTweet.text?.substring(0, 100)}..."`);
+              console.log(`✅ [MENTIONS] Parent tweet fetched successfully:`);
+              console.log(`   Author: @${parentTweet.author?.username}`);
+              console.log(`   Text: "${parentTweet.text}"`);
+            } else {
+              console.warn(`⚠️ [MENTIONS] getTweet returned null for ${replyToTweet.id}`);
             }
           } catch (err) {
-            console.warn(`⚠️ [MENTIONS] Failed to fetch parent tweet:`, err.message);
+            console.error(`❌ [MENTIONS] Failed to fetch parent tweet:`, err.message);
           }
         }
+      } else {
+        console.log(`ℹ️ [MENTIONS] This is NOT a reply - no parent tweet to fetch`);
       }
       
       // Analyze the mention to extract context and tokens (include parent tweet if exists)
