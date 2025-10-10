@@ -1,5 +1,6 @@
 import fetch from 'node-fetch';
 import OpenAIService from './openaiService.js';
+import CoinDeskService from './services/CoinDeskService.js';
 
 /**
  * KOL Content Service - Generate authentic crypto influencer content
@@ -10,6 +11,7 @@ class KOLContentService {
   constructor(backendInstance) {
     this.backend = backendInstance;
     this.openaiService = new OpenAIService();
+    this.coinDeskService = new CoinDeskService();
     this.lastTweetTime = null;
     
     // Configuration panel settings (defaults)
@@ -412,6 +414,73 @@ Final tweet:`;
   }
 
   /**
+   * Generate crypto news recap from CoinDesk
+   */
+  async generateCryptoNews() {
+    try {
+      console.log('📰 [KOL CONTENT] Generating crypto news recap...');
+
+      // Get a random article from CoinDesk
+      const article = await this.coinDeskService.getRandomArticle();
+      
+      if (!article) {
+        console.log('⚠️ [KOL CONTENT] No news articles available');
+        return null;
+      }
+
+      // Select personality
+      const personality = this.personalities[this.currentPersonalityIndex];
+      this.currentPersonalityIndex = (this.currentPersonalityIndex + 1) % this.personalities.length;
+
+      const prompt = `You are ${personality.name}, a real crypto KOL with ${personality.style}.
+
+📰 COINDESK ARTICLE:
+Title: "${article.title}"
+Description: "${article.description}"
+Source: ${article.source}
+Published: ${article.publishedAt}
+
+${personality.tone}
+
+Generate a DeGen Oracle-style news recap that:
+- Summarizes the key points in crypto-native language
+- Adds your unique perspective/analysis
+- Uses crypto slang naturally (not forced)
+- Highlights what this means for degens
+- NO hashtags
+- Max 280 characters
+- Sound like a real person sharing alpha, not a bot
+
+News recap:`;
+
+      const recap = await this.openaiService.generateCompletion(prompt, {
+        maxTokens: 120,
+        temperature: 0.8,
+        model: 'gpt-4o',
+        enableWebSearch: false
+      });
+
+      // Clean up
+      const cleanRecap = recap.trim()
+        .replace(/#\w+/g, '') // Remove hashtags
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      console.log(`✍️ Generated news recap: "${article.title}" (${personality.name})`);
+      return {
+        format: 'news',
+        tweets: [cleanRecap],
+        token: { symbol: 'NEWS', name: 'Crypto News' },
+        article: article
+      };
+
+    } catch (error) {
+      console.error(`❌ Error generating crypto news:`, error.message);
+      return null;
+    }
+  }
+
+  /**
    * Generate daily KOL content: Pick random token from top 5, random format
    */
   async generateDailyContent() {
@@ -428,13 +497,14 @@ Final tweet:`;
 
       // Decide content format randomly (more realistic distribution)
       const contentFormats = [
-        'single',       // 35% - Single tweet
-        'short',        // 30% - Short thread (2 tweets)
-        'deep',         // 20% - Deep-dive thread (3 tweets)
-        'meme'          // 15% - Meme/joke tweet
+        'single',       // 25% - Single tweet
+        'short',        // 25% - Short thread (2 tweets)
+        'deep',         // 20% - Deep-dive thread (4 tweets)
+        'meme',         // 15% - Meme/joke tweet
+        'news'          // 15% - Crypto news recap
       ];
 
-      const weights = [35, 30, 20, 15];
+      const weights = [25, 25, 20, 15, 15];
       const random = Math.random() * 100;
       let cumulative = 0;
       let selectedFormat = 'single';
@@ -450,19 +520,35 @@ Final tweet:`;
       console.log(`📝 Selected format: ${selectedFormat}`);
 
       // Generate content
-      const content = await this.generateContentByFormat(token, selectedFormat);
-
-      if (!content) {
-        console.log('❌ Failed to generate content');
-        return null;
+      let content, tokenInfo = token, article = null;
+      
+      if (selectedFormat === 'news') {
+        // For news, generate directly and get full content object
+        const newsContent = await this.generateCryptoNews();
+        if (!newsContent) {
+          console.log('❌ Failed to generate news content');
+          return null;
+        }
+        content = newsContent.tweets;
+        tokenInfo = newsContent.token;
+        article = newsContent.article;
+      } else {
+        // For other formats, use the existing method
+        content = await this.generateContentByFormat(token, selectedFormat);
+        if (!content) {
+          console.log('❌ Failed to generate content');
+          return null;
+        }
       }
 
       console.log('✅ Daily KOL content generated successfully');
+      
       return {
-        token: token,
+        token: tokenInfo,
         tweets: content,
         format: selectedFormat,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        ...(article && { article })
       };
 
     } catch (error) {
