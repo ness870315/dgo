@@ -576,7 +576,50 @@ Reply (without @username):`;
         ? analysis.tokens[0].replace(/[$@]/g, '').toUpperCase()
         : null;
       
+      // If no specific token, use Tavily to answer general crypto questions
       if (!symbol) {
+        try {
+          console.log(`🔍 [MENTIONS] No token specified, using Tavily for general question...`);
+          const tavilyResults = await this.openaiService.searchTavily(analysis.originalText);
+          
+          if (tavilyResults && tavilyResults.length > 10) {
+            const personality = this.personalities[this.currentPersonalityIndex];
+            this.currentPersonalityIndex = (this.currentPersonalityIndex + 1) % this.personalities.length;
+            
+            const prompt = `You are a legendary crypto KOL. User asked: "${analysis.originalText}"
+
+🔍 TAVILY SEARCH RESULTS:
+${tavilyResults}
+
+PERSONALITY MODE: "${personality.name}"
+STYLE: ${personality.style}
+
+Generate a SHORT, punchy answer (max 180 chars):
+- Use Tavily's facts/answer to respond directly
+- Filter through your personality
+- Be specific (mention tokens/prices if Tavily provides them)
+- NO hashtags, minimal/no emojis
+- DO NOT include @username
+
+Reply (without @username):`;
+
+            const opinion = await this.openaiService.generateCompletion(prompt, {
+              maxTokens: 120,
+              temperature: 0.7,
+              model: 'gpt-4o',
+              enableWebSearch: false
+            });
+            
+            const cleanOpinion = (opinion || '').trim().replace(/#\w+/g, '').replace(/\s+/g, ' ').trim();
+            if (cleanOpinion) {
+              return `@${author} ${cleanOpinion}`;
+            }
+          }
+        } catch (err) {
+          console.warn(`⚠️ [MENTIONS] Tavily general question failed:`, err.message);
+        }
+        
+        // Fallback if Tavily fails
         return `@${author} I need a token symbol to analyze, anon! Drop a $ and I'll give you the alpha. 👀`;
       }
       
