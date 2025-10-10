@@ -591,20 +591,26 @@ News recap:`;
         return null;
       }
 
-      console.log(`✅ [KOL CONTENT] Perplexity joke response: ${perplexityResponse.content.substring(0, 100)}...`);
-
       // Clean up the joke
       let joke = perplexityResponse.content.trim()
         .replace(/#\w+/g, '') // Remove hashtags
         .replace(/\s+/g, ' ')
         .trim();
 
+      // If empty after cleaning, Perplexity failed
+      if (!joke || joke.length < 10) {
+        console.log('⚠️ [KOL CONTENT] Perplexity returned empty/invalid joke after cleaning');
+        return null;
+      }
+
+      console.log(`✅ [KOL CONTENT] Clean joke response: "${joke.substring(0, 100)}..."`);
+
       // If the response is too long, truncate to 280 chars
       if (joke.length > 280) {
         joke = joke.substring(0, 277) + '...';
       }
 
-      console.log(`🎭 Generated news joke: "${joke}"`);
+      console.log(`🎭 Generated news joke (${joke.length} chars): "${joke}"`);
       return {
         format: 'newsjoke',
         tweets: [joke],

@@ -193,29 +193,31 @@ class PerplexitySonarService {
   stripReasoningTags(content) {
     if (!content) return '';
 
-    console.log(`📝 [PERPLEXITY] Raw response (first 200 chars): ${content.substring(0, 200)}`);
+    let cleaned = content;
 
-    // Method 1: Try regex removal (handles multiple think blocks)
-    let cleaned = content.replace(/<think>[\s\S]*?<\/think>\s*/gi, '').trim();
-
-    // Method 2: If regex didn't work or content still has <think>, use split method
-    if (!cleaned || cleaned.includes('<think>')) {
-      console.log(`🔄 [PERPLEXITY] Regex failed, trying split method...`);
-      const parts = content.split('</think>');
-      if (parts.length > 1) {
-        // Take everything after the last </think> tag
-        cleaned = parts[parts.length - 1].trim();
+    // Check if response contains <think> tags
+    if (content.includes('<think>')) {
+      // Find the closing </think> tag
+      const thinkEndIndex = content.indexOf('</think>');
+      
+      if (thinkEndIndex !== -1) {
+        // Found closing tag - take everything AFTER </think>
+        cleaned = content.substring(thinkEndIndex + '</think>'.length).trim();
+        console.log(`✂️ [PERPLEXITY] Stripped <think> block - answer starts at char ${thinkEndIndex + 8}`);
+      } else {
+        // No closing tag - the entire response is reasoning, no answer yet
+        console.warn('⚠️ [PERPLEXITY] No </think> closing tag found - response is incomplete or malformed');
+        return '';
       }
     }
 
-    // If still nothing or too short, return original as failsafe
+    // If nothing useful after stripping, return empty
     if (!cleaned || cleaned.length < 5) {
-      console.warn('⚠️ [PERPLEXITY] Stripped content too short or empty, using original');
-      return content;
+      console.warn('⚠️ [PERPLEXITY] Answer too short or empty after stripping');
+      return '';
     }
 
-    console.log(`✂️ [PERPLEXITY] Successfully stripped reasoning - before: ${content.length} chars, after: ${cleaned.length} chars`);
-    console.log(`✅ [PERPLEXITY] Clean response (first 200 chars): ${cleaned.substring(0, 200)}`);
+    console.log(`✅ [PERPLEXITY] Clean answer extracted (${cleaned.length} chars): ${cleaned.substring(0, 150)}...`);
     
     return cleaned;
   }
