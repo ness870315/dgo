@@ -405,6 +405,22 @@ Respond in JSON format:
       // Extract token symbols
       const tokenMatches = text.match(/\$[A-Za-z0-9]+/g) || [];
       extractedTokens = tokenMatches.map(t => t.substring(1).toUpperCase());
+
+      // Also map common coin names to symbols (e.g., "bitcoin" -> BTC)
+      const lower = lowerText;
+      const nameToSymbol = {
+        'bitcoin': 'BTC',
+        'btc': 'BTC',
+        'ethereum': 'ETH',
+        'eth': 'ETH',
+        'solana': 'SOL',
+        'sol': 'SOL'
+      };
+      for (const [name, sym] of Object.entries(nameToSymbol)) {
+        if (lower.includes(name) && !extractedTokens.includes(sym)) {
+          extractedTokens.push(sym);
+        }
+      }
       
       // Rule-based classification
       if (
@@ -577,6 +593,47 @@ Reply (without @username):`;
       }
       
       if (!tokenData) {
+        // Special-case majors even if not in our local cache
+        const majors = new Set(['BTC', 'ETH', 'SOL']);
+        if (majors.has(symbol)) {
+          try {
+            let catalysts = '';
+            try {
+              catalysts = await this.openaiService.fetchWebCatalysts(symbol, { model: 'gpt-5-mini', lookbackHours: 24, maxOutputTokens: 200 });
+            } catch (_) {}
+
+            const personality = this.personalities[this.currentPersonalityIndex];
+            this.currentPersonalityIndex = (this.currentPersonalityIndex + 1) % this.personalities.length;
+
+            const prompt = `You are a legendary crypto KOL. Give a SHORT take on $${symbol} today.
+
+🌐 WEB CONTEXT (last 24h):
+${catalysts || 'none'}
+
+STYLE: ${personality.style}
+EXAMPLES:
+${personality.examples.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}
+
+Rules:
+- Max 160 chars
+- If context is 'none', just vibe-check using typical KOL tone
+- No hashtags, no @mentions, minimal/no emojis
+
+Reply:`;
+
+            const opinion = await this.openaiService.generateCompletion(prompt, {
+              maxTokens: 120,
+              temperature: 0.7,
+              model: 'gpt-5',
+              enableWebSearch: false
+            });
+            const cleanOpinion = opinion.trim().replace(/#\w+/g, '').replace(/\s+/g, ' ').trim();
+            return `@${author} ${cleanOpinion}`;
+          } catch (_) {
+            // fall through to generic fallback if something goes wrong
+          }
+        }
+
         // Token not in cache - provide graceful fallback
         const fallbackResponses = [
           `@${author} Need to look closer at ${symbol}. Not in my radar yet. Drop the contract if you got it and I'll dig in 🔍`,
@@ -862,17 +919,19 @@ Liquidity: $${(liquidityUsd / 1000).toFixed(1)}K${holderContext}`;
       
       console.log(`🎭 [MENTIONS] Using personality: ${personality.name}`);
 
+      // Lightweight web enrichment: fetch catalysts separately (short browse)
+      let catalysts = '';
+      try {
+        catalysts = await this.openaiService.fetchWebCatalysts(symbol, { model: 'gpt-5-mini', lookbackHours: 72, maxOutputTokens: 250 });
+      } catch (_) {}
+
       const prompt = `You are a legendary crypto KOL with a specific personality. Give a RAW take on this token.
 
 📊 OUR SYSTEM DATA (Real-time from Jupiter/Moralis):
 ${dataContext}
 
-🌐 ADDITIONAL CONTEXT: You have web search enabled. In the last 72h, quickly search for:
- - Concrete catalysts: listings, partnerships, notable X mentions, exchange news
- - If you find 1–2 relevant items, cite them succinctly (no links)
- - Stop searching after first solid catalyst
-
-COMBINE both our system data AND web-searched context for your take.
+🌐 WEB CONTEXT (short):
+${catalysts || 'none'}
 
 PERSONALITY MODE: "${personality.name}"
 STYLE: ${personality.style}
@@ -882,23 +941,21 @@ ${personality.examples.map((ex, i) => `${i + 1}. ${ex}`).join('\n')}
 
 Now generate YOUR take on the token (max 180 chars):
 - Stay true to the personality mode
-- Blend our analytics WITH web-searched catalysts/news
-- Call out WHO'S moving (whales/retail) AND WHY (if found via search)
-- Use the data but filter it through YOUR personality
+- Blend our analytics WITH the short web context if present
+- Call out WHO'S moving (whales/retail) and any quick catalyst
 - Keep it SHORT and punchy
 - Focus on the VIBE, not a report
 - DO NOT include @username in your reply (it's already added automatically)
 - NO hashtags ever
 - Minimal emojis (0-2 max) or none at all
-- Concise unless you need to present specific data
 
 Reply (without @username):`;
 
       const opinion = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 150,
         temperature: 0.7,
-        model: 'gpt-5', // GPT-5 with Responses API web search
-        enableWebSearch: true
+        model: 'gpt-5',
+        enableWebSearch: false // final generation without browsing
       });
       
       // Remove any hashtags from the opinion

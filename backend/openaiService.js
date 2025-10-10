@@ -286,7 +286,7 @@ class OpenAIService {
         input: prompt,
         store: false, // stateless for faster scheduling
         max_output_tokens: 2000,
-        reasoning: { effort: "medium" },   // Medium = good web integration without timeout
+        reasoning: { effort: "low" },      // Low = faster, fewer timeouts
         text: { verbosity: "low" }         // Concise for Twitter
       });
 
@@ -379,6 +379,77 @@ class OpenAIService {
       console.error('❌ Full error:', error);
       throw error;
     }
+  }
+
+
+  /**
+   * Lightweight web enrichment: fetch 1–2 concrete catalysts for a token in the last N hours
+   * Uses constrained web_search to avoid timeouts and heavy browsing.
+   */
+  async fetchWebCatalysts(symbol, options = {}) {
+    const {
+      model = 'gpt-5-mini',
+      lookbackHours = 72,
+      maxOutputTokens = 300
+    } = options;
+
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+
+    await this.checkRateLimit();
+
+    const prompt = `You can browse the web. Perform a single quick search for $${symbol} in the last ${lookbackHours}h.
+Find at most 2 concrete catalysts (e.g., listings, partnerships, notable X mentions, exchange news).
+Return 1 short bullet per catalyst. No links. If nothing solid, return "none".`;
+
+    const response = await this.openai.responses.create({
+      model,
+      tools: [{
+        type: 'web_search',
+        search_context_size: 'low',
+        user_location: { type: 'approximate', country: 'US' }
+      }],
+      tool_choice: {
+        type: 'allowed_tools',
+        mode: 'auto',
+        tools: [{ type: 'web_search' }]
+      },
+      input: prompt,
+      max_output_tokens: maxOutputTokens,
+      reasoning: { effort: 'low' },
+      text: { verbosity: 'low' }
+    });
+
+    let pollAttempts = 0;
+    const maxPolls = 30;
+    let res = response;
+    while (res.status !== 'completed' && res.status !== 'failed' && pollAttempts < maxPolls) {
+      await new Promise(r => setTimeout(r, 1000));
+      try {
+        res = await this.openai.responses.retrieve(res.id);
+      } catch (_) {
+        await new Promise(r => setTimeout(r, 300));
+      }
+      pollAttempts++;
+    }
+
+    if (res.status === 'failed') {
+      return '';
+    }
+
+    const text = res.output_text || '';
+    if (text) return text.trim();
+    if (Array.isArray(res.output)) {
+      try {
+        const joined = res.output
+          .filter(item => item?.type === 'text' && typeof item.text === 'string')
+          .map(item => item.text)
+          .join('\n');
+        return joined.trim();
+      } catch (_) {}
+    }
+    return '';
   }
 
 
