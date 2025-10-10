@@ -250,7 +250,10 @@ class TwitterMentionService {
         if (replyToTweet && replyToTweet.id) {
           console.log(`🔗 [MENTIONS] This is a reply to tweet ${replyToTweet.id}, fetching parent...`);
           try {
-            const parentData = await this.twitterService.oauthXService.getTweet(replyToTweet.id);
+            const parentData = await this.twitterService.oauthXService.getTweet(
+              replyToTweet.id,
+              this.twitterService.dgnOracleUserId
+            );
             if (parentData) {
               parentTweet = parentData;
               console.log(`✅ [MENTIONS] Parent tweet fetched successfully:`);
