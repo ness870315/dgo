@@ -276,7 +276,7 @@ class OpenAIService {
         tools: [{
           type: 'web_search',
           search_context_size: 'small',
-          user_location: { country: 'US' }
+          user_location: { type: 'approximate', country: 'US' }
         }],
         tool_choice: {
           type: 'allowed_tools',
