@@ -581,6 +581,7 @@ Reply (without @username):`;
         try {
           console.log(`🔍 [MENTIONS] No token specified, using Tavily for general question...`);
           const tavilyResults = await this.openaiService.searchTavily(analysis.originalText);
+          console.log(`📋 [TAVILY] Full results for prompt:\n${tavilyResults.substring(0, 500)}...`);
           
           if (tavilyResults && tavilyResults.length > 10) {
             const personality = this.personalities[this.currentPersonalityIndex];
@@ -588,16 +589,18 @@ Reply (without @username):`;
             
             const prompt = `You are a legendary crypto KOL. User asked: "${analysis.originalText}"
 
-🔍 TAVILY SEARCH RESULTS:
+🔍 TAVILY SEARCH RESULTS (USE ONLY THIS DATA):
 ${tavilyResults}
 
 PERSONALITY MODE: "${personality.name}"
 STYLE: ${personality.style}
 
-Generate a SHORT, punchy answer (max 180 chars):
-- Use Tavily's facts/answer to respond directly
-- Filter through your personality
-- Be specific (mention tokens/prices if Tavily provides them)
+CRITICAL: Generate answer using ONLY the Tavily data above (max 180 chars):
+- Extract specific token names/prices from Tavily results
+- If Tavily mentions "Just A Chill Guy" or "USELESS" or other tokens, USE THOSE
+- DO NOT mention tokens not in Tavily results
+- Filter Tavily facts through your personality
+- Be specific with numbers if Tavily provides them
 - NO hashtags, minimal/no emojis
 - DO NOT include @username
 
