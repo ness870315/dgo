@@ -453,11 +453,11 @@
 
                 console.log('Step 5: Payment payload created');
 
-                // Step 6: Submit to PayAI facilitator for settlement
+                // Step 6: Submit to PayAI facilitator for settlement (via our backend proxy)
                 statusDiv.innerHTML = '<p class="text-blue-200">📡 Submitting to PayAI facilitator...</p>';
-                console.log('Step 6: Calling PayAI /settle endpoint...');
+                console.log('Step 6: Calling PayAI /settle endpoint via backend proxy...');
                 
-                const settleResponse = await fetch('https://facilitator.payai.network/settle', {
+                const settleResponse = await fetch(`${API_BASE}/api/x402/settle`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

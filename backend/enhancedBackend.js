@@ -4926,6 +4926,39 @@ class EnhancedBackend {
       }
     });
 
+    // Proxy PayAI facilitator /settle endpoint (to avoid CORS)
+    this.app.post('/api/x402/settle', async (req, res) => {
+      try {
+        const { paymentPayload, paymentRequirements } = req.body;
+        
+        console.log('[🛡️ x402] 📡 Proxying /settle request to PayAI facilitator...');
+        console.log('[🛡️ x402] Payment payload:', JSON.stringify(paymentPayload, null, 2));
+        console.log('[🛡️ x402] Payment requirements:', JSON.stringify(paymentRequirements, null, 2));
+
+        // Forward to PayAI facilitator
+        const facilitatorResponse = await axios.post('https://facilitator.payai.network/settle', {
+          paymentPayload,
+          paymentRequirements
+        }, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        console.log('[🛡️ x402] ✅ Facilitator response:', facilitatorResponse.data);
+
+        // Return the facilitator response
+        res.json(facilitatorResponse.data);
+
+      } catch (error) {
+        console.error('[🛡️ x402] ❌ Error proxying /settle request:', error.response?.data || error.message);
+        res.status(error.response?.status || 500).json({
+          success: false,
+          errorReason: error.response?.data?.errorReason || error.message
+        });
+      }
+    });
+
     // x402 Fuel Payment Webhook (from PayAI facilitator)
     this.app.post('/api/x402/fuel-payment-webhook', async (req, res) => {
       try {
