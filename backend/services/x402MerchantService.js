@@ -43,9 +43,10 @@ class X402MerchantService {
    * @param {string} contractAddress - Token contract address
    * @param {string} fuelType - Fuel tier (10x, 50x, 500x, 1000x)
    * @param {string} userHandle - Twitter handle of requester
+   * @param {string} originalTweetId - Original tweet ID for final confirmation reply
    * @returns {Object} - Payment requirements and payment URL
    */
-  async generateFuelPaymentLink(tokenSymbol, contractAddress, fuelType, userHandle) {
+  async generateFuelPaymentLink(tokenSymbol, contractAddress, fuelType, userHandle, originalTweetId = null) {
     try {
       if (!this.fuelPrices[fuelType]) {
         throw new Error(`Invalid fuel type: ${fuelType}`);
@@ -88,7 +89,8 @@ class X402MerchantService {
         amount: pricing.discountedUsd,
         expiresAt,
         status: 'pending',
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        originalTweetId // Store for final confirmation reply
       });
 
       // Generate PayAI payment URL
@@ -121,23 +123,16 @@ class X402MerchantService {
   }
 
   /**
-   * Create PayAI payment URL from requirements
+   * Create payment URL (our hosted payment page)
    */
   createPaymentUrl(requirements) {
-    // Encode payment requirements as query params
-    const params = new URLSearchParams({
-      network: requirements.network,
-      amount: requirements.maxAmountRequired,
-      asset: requirements.asset,
-      payTo: requirements.payTo,
-      description: requirements.description,
-      nonce: requirements.nonce,
-      validAfter: requirements.validAfter,
-      validBefore: requirements.validBefore,
-      metadata: JSON.stringify(requirements.metadata)
-    });
-
-    return `https://pay.payai.network/pay?${params.toString()}`;
+    // Use our own payment page with nonce
+    // Payment page will fetch details via API and handle wallet connection
+    const baseUrl = process.env.NODE_ENV === 'production'
+      ? 'https://degen-oracle.com'
+      : 'http://localhost:3000';
+    
+    return `${baseUrl}/fuel-payment.html?nonce=${requirements.nonce}`;
   }
 
   /**

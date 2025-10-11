@@ -4876,6 +4876,56 @@ class EnhancedBackend {
     });
 
     // Apply fuel to token
+    // Get x402 payment details by nonce (for payment page)
+    this.app.get('/api/x402/payment-details/:nonce', async (req, res) => {
+      try {
+        const { nonce } = req.params;
+        
+        console.log('[🛡️ x402] 📄 Fetching payment details for nonce:', nonce);
+
+        const payment = this.twitterMentionService.x402Service.getPendingPayment(nonce);
+        
+        if (!payment) {
+          return res.status(404).json({ 
+            success: false, 
+            error: 'Payment not found or has expired' 
+          });
+        }
+
+        // Check if expired
+        if (payment.expiresAt < Date.now()) {
+          return res.status(410).json({ 
+            success: false, 
+            error: 'Payment link has expired' 
+          });
+        }
+
+        const priceInfo = this.twitterMentionService.x402Service.getFuelPrice(payment.fuelType);
+
+        res.json({
+          success: true,
+          nonce: payment.nonce,
+          tokenSymbol: payment.tokenSymbol,
+          contractAddress: payment.contractAddress,
+          fuelType: payment.fuelType,
+          userHandle: payment.userHandle,
+          amount: payment.amount,
+          originalPrice: priceInfo.usd,
+          discount: '90%',
+          currency: 'USDC',
+          network: 'Solana',
+          payTo: this.twitterMentionService.x402Service.payToAddress,
+          expiresAt: payment.expiresAt,
+          status: payment.status,
+          createdAt: payment.createdAt
+        });
+
+      } catch (error) {
+        console.error('[🛡️ x402] ❌ Error fetching payment details:', error);
+        res.status(500).json({ success: false, error: 'Server error' });
+      }
+    });
+
     // x402 Fuel Payment Webhook (from PayAI facilitator)
     this.app.post('/api/x402/fuel-payment-webhook', async (req, res) => {
       try {
@@ -4940,31 +4990,47 @@ class EnhancedBackend {
           }
         }
 
-        // Send confirmation reply on Twitter
+        // Send confirmation reply with image to the original tweet
         try {
-          const confirmationReply = `@${userHandle} ✅ Payment confirmed! ${fuelType} Fuel applied to $${tokenSymbol} 🔥
+          const originalTweetId = pendingPayment.originalTweetId;
+          
+          if (originalTweetId) {
+            // Use TwitterAutoPostService to generate image and post as reply
+            const user = { username: userHandle };
+            await this.twitterAutoPostService.postFuelConfirmation(
+              fuelResult.token, 
+              fuelType, 
+              user, 
+              originalTweetId,
+              transactionHash
+            );
+            console.log(`[🛡️ x402] ✅ Posted confirmation reply with image to tweet ${originalTweetId}`);
+          } else {
+            // Fallback: post standalone confirmation if no original tweet ID
+            const confirmationReply = `@${userHandle} ✅ Payment confirmed! ${fuelType} Fuel applied to $${tokenSymbol} 🔥
 
 TX: ${transactionHash.substring(0, 12)}...
 Boost active for 12 hours!
 
 Thanks for using x402 payments on Twitter! 🚀`;
 
-          await this.twitterMentionService.twitterService.oauthXService.postTweet(
-            this.twitterMentionService.twitterService.dgnOracleUserId,
-            confirmationReply
-          );
-          
-          console.log(`[🛡️ x402] ✅ Posted confirmation reply to @${userHandle}`);
+            await this.twitterMentionService.twitterService.oauthXService.postTweet(
+              this.twitterMentionService.twitterService.dgnOracleUserId,
+              confirmationReply
+            );
+            
+            console.log(`[🛡️ x402] ✅ Posted confirmation tweet to @${userHandle} (no original tweet ID)`);
+          }
         } catch (replyError) {
           console.error(`[🛡️ x402] ❌ Failed to post confirmation reply:`, replyError.message);
         }
 
-        // Auto-post for high-tier fuels (500x and 1000x)
+        // Auto-post PUBLIC announcement for high-tier fuels (500x and 1000x)
         if (fuelType === '500x' || fuelType === '1000x') {
           try {
             const user = { username: userHandle };
             await this.twitterAutoPostService.postFuelAnnouncement(fuelResult.token, fuelType, user);
-            console.log(`[🛡️ x402] ✅ Auto-posted ${fuelType} announcement`);
+            console.log(`[🛡️ x402] ✅ Auto-posted ${fuelType} public announcement`);
           } catch (twitterError) {
             console.error(`[🛡️ x402] ❌ Failed to auto-post:`, twitterError.message);
           }

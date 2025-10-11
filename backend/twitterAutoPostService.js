@@ -198,6 +198,79 @@ class TwitterAutoPostService {
   }
 
   /**
+   * Post fuel payment confirmation as a REPLY to the original fuel request tweet
+   * This creates a nice closed loop for all fuel tiers
+   * Includes metadata link for image preview (same as Helio payments)
+   */
+  async postFuelConfirmation(token, fuelType, user, originalTweetId, transactionHash = null) {
+    if (!this.dgnOracleUserId) {
+      console.log('⚠️ Twitter Auto-Post is disabled - @dgnoracle not authenticated');
+      return { success: false, reason: 'not_authenticated' };
+    }
+
+    try {
+      const symbol = token.symbol || 'TOKEN';
+      const userHandle = user.username || user;
+      
+      // Get fuel pricing for original price display
+      const fuelPrices = {
+        '10x': { usd: 45.00, discountedUsd: 0.10 },
+        '50x': { usd: 195.00, discountedUsd: 19.50 },
+        '500x': { usd: 695.00, discountedUsd: 69.50 },
+        '1000x': { usd: 995.00, discountedUsd: 99.50 }
+      };
+      const pricing = fuelPrices[fuelType];
+      
+      // Generate fuel image URL (for metadata preview, same as Helio payments)
+      const fuelUrl = `https://degen-oracle.com/fuel/${fuelType}/${symbol}`;
+      
+      // Create confirmation message with metadata link for image preview
+      let confirmationText = `@${userHandle} ✅ Payment confirmed! ${fuelType} Fuel applied to $${symbol} 🔥
+
+💰 Paid: $${pricing.discountedUsd} USDC (90% off!)
+⏱️ Boost active for 12 hours
+🔥 Powered by x402 on Solana`;
+
+      if (transactionHash) {
+        confirmationText += `\n\n📝 TX: ${transactionHash.substring(0, 12)}...`;
+      }
+      
+      // Add fuel URL at the end - Twitter will fetch OG image metadata for preview
+      confirmationText += `\n\n${fuelUrl}`;
+      
+      console.log(`🔥 [FUEL CONFIRMATION] Posting reply with image to tweet ${originalTweetId}`);
+      console.log(`   User: @${userHandle}`);
+      console.log(`   Token: $${symbol}`);
+      console.log(`   Fuel: ${fuelType}`);
+      console.log(`   Image URL: ${fuelUrl}`);
+      
+      // Post as reply to the original fuel request tweet
+      const tweet = await this.oauthXService.postReply(
+        this.dgnOracleUserId,
+        confirmationText,
+        originalTweetId
+      );
+      
+      console.log(`✅ [FUEL CONFIRMATION] Posted confirmation reply with image preview`);
+      console.log(`   Tweet ID: ${tweet.id}`);
+      console.log(`   URL: https://twitter.com/dgnoracle/status/${tweet.id}`);
+      
+      return {
+        success: true,
+        tweetId: tweet.id,
+        text: tweet.text
+      };
+
+    } catch (error) {
+      console.error('❌ [FUEL CONFIRMATION] Error posting confirmation reply:', error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
    * Post a promotional tweet (for daily marketing posts)
    */
   async postPromotionalTweet(text) {

@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuel Payment - DeGen Oracle x402</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+        }
+        .glow {
+            box-shadow: 0 0 20px rgba(124, 58, 237, 0.5);
+        }
+        .pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4">
+    
+    <div class="max-w-md w-full bg-gray-900 rounded-2xl border-2 border-purple-500 glow p-8">
+        
+        <!-- Loading State -->
+        <div id="loadingState" class="text-center">
+            <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-500 mx-auto mb-4"></div>
+            <p class="text-gray-400">Loading payment details...</p>
+        </div>
+
+        <!-- Payment Details State -->
+        <div id="paymentState" class="hidden">
+            <!-- Header -->
+            <div class="text-center mb-6">
+                <h1 class="text-3xl font-bold text-white mb-2">🔥 Fuel Payment</h1>
+                <p class="text-gray-400 text-sm">Powered by x402 on Solana</p>
+            </div>
+
+            <!-- Token Info -->
+            <div class="bg-gray-800 rounded-lg p-4 mb-6">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-gray-400">Token:</span>
+                    <span class="text-white font-bold text-xl" id="tokenSymbol">-</span>
+                </div>
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-gray-400">Fuel Tier:</span>
+                    <span class="text-orange-400 font-bold" id="fuelType">-</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-400">Requested by:</span>
+                    <span class="text-blue-400" id="userHandle">-</span>
+                </div>
+            </div>
+
+            <!-- Pricing -->
+            <div class="bg-gradient-to-r from-purple-900 to-purple-700 rounded-lg p-4 mb-6">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-purple-200 line-through" id="originalPrice">$0.00</span>
+                    <span class="bg-green-500 text-white text-xs px-2 py-1 rounded-full font-bold">90% OFF</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-white text-sm">You pay:</span>
+                    <span class="text-white font-bold text-3xl" id="payAmount">0.00</span>
+                    <span class="text-white text-xl">USDC</span>
+                </div>
+                <p class="text-purple-200 text-xs mt-2">Payment on Solana network</p>
+            </div>
+
+            <!-- Expiration Timer -->
+            <div class="bg-yellow-900 border border-yellow-600 rounded-lg p-3 mb-6 text-center">
+                <p class="text-yellow-200 text-sm">⏰ Link expires in <span id="expiryTimer" class="font-bold">15:00</span></p>
+            </div>
+
+            <!-- Connect Wallet Button -->
+            <button 
+                id="connectWalletBtn"
+                class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 glow mb-4"
+            >
+                🔗 Connect Wallet & Pay
+            </button>
+
+            <!-- Payment Status -->
+            <div id="paymentStatus" class="hidden mt-4 p-4 rounded-lg text-center"></div>
+
+            <!-- Info -->
+            <div class="text-center text-gray-500 text-xs mt-4">
+                <p>Secure payment via Phantom or Solflare</p>
+                <p class="mt-1">Using x402 protocol on Solana</p>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" class="hidden text-center">
+            <div class="text-6xl mb-4">❌</div>
+            <h2 class="text-xl font-bold text-white mb-2">Payment Link Invalid</h2>
+            <p class="text-gray-400 mb-4" id="errorMessage">This payment link has expired or is invalid.</p>
+            <a href="https://degen-oracle.com" class="text-purple-400 hover:text-purple-300">Return to DeGen Oracle →</a>
+        </div>
+
+        <!-- Success State -->
+        <div id="successState" class="hidden text-center">
+            <div class="text-6xl mb-4">✅</div>
+            <h2 class="text-xl font-bold text-white mb-2">Payment Successful!</h2>
+            <p class="text-gray-400 mb-2">Fuel has been applied to <span id="successToken" class="text-white font-bold">$TOKEN</span></p>
+            <p class="text-gray-500 text-sm mb-4">Check your Twitter for confirmation from @dgnoracle</p>
+            <div class="bg-gray-800 rounded-lg p-3 mb-4">
+                <p class="text-gray-400 text-xs mb-1">Transaction:</p>
+                <p class="text-purple-400 text-sm font-mono" id="txHash">-</p>
+            </div>
+            <a href="https://degen-oracle.com" class="text-purple-400 hover:text-purple-300">Return to DeGen Oracle →</a>
+        </div>
+
+    </div>
+
+    <script>
+        // Parse URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const nonce = urlParams.get('nonce');
+        const API_BASE = 'https://api.degen-oracle.com';
+
+        // State management
+        let paymentDetails = null;
+        let expiryInterval = null;
+
+        // Initialize
+        async function init() {
+            if (!nonce) {
+                showError('Missing payment identifier');
+                return;
+            }
+
+            try {
+                // Fetch payment details from backend
+                const response = await fetch(`${API_BASE}/api/x402/payment-details/${nonce}`);
+                
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        showError('Payment not found or has expired');
+                    } else {
+                        showError('Failed to load payment details');
+                    }
+                    return;
+                }
+
+                paymentDetails = await response.json();
+                
+                if (!paymentDetails.success) {
+                    showError(paymentDetails.error || 'Invalid payment');
+                    return;
+                }
+
+                // Check if already completed
+                if (paymentDetails.status === 'completed') {
+                    showSuccess(paymentDetails);
+                    return;
+                }
+
+                // Check if expired
+                const now = Date.now();
+                if (paymentDetails.expiresAt < now) {
+                    showError('Payment link has expired (15 min limit)');
+                    return;
+                }
+
+                // Show payment UI
+                displayPaymentDetails(paymentDetails);
+                startExpiryTimer(paymentDetails.expiresAt);
+
+            } catch (error) {
+                console.error('Error loading payment:', error);
+                showError('Failed to connect to server');
+            }
+        }
+
+        // Display payment details
+        function displayPaymentDetails(details) {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('paymentState').classList.remove('hidden');
+
+            document.getElementById('tokenSymbol').textContent = `$${details.tokenSymbol}`;
+            document.getElementById('fuelType').textContent = details.fuelType;
+            document.getElementById('userHandle').textContent = `@${details.userHandle}`;
+            document.getElementById('originalPrice').textContent = `$${details.originalPrice} USD`;
+            document.getElementById('payAmount').textContent = details.amount.toFixed(2);
+        }
+
+        // Expiry timer
+        function startExpiryTimer(expiresAt) {
+            function updateTimer() {
+                const now = Date.now();
+                const remaining = expiresAt - now;
+
+                if (remaining <= 0) {
+                    clearInterval(expiryInterval);
+                    showError('Payment link has expired');
+                    return;
+                }
+
+                const minutes = Math.floor(remaining / 60000);
+                const seconds = Math.floor((remaining % 60000) / 1000);
+                document.getElementById('expiryTimer').textContent = 
+                    `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+
+            updateTimer();
+            expiryInterval = setInterval(updateTimer, 1000);
+        }
+
+        // Connect Wallet & Pay
+        document.getElementById('connectWalletBtn').addEventListener('click', async () => {
+            try {
+                // Check if Phantom is installed
+                const isPhantomInstalled = window.solana && window.solana.isPhantom;
+                
+                if (!isPhantomInstalled) {
+                    alert('Please install Phantom wallet to continue.\n\nVisit: https://phantom.app');
+                    return;
+                }
+
+                // Show processing
+                const btn = document.getElementById('connectWalletBtn');
+                const originalText = btn.textContent;
+                btn.textContent = '⏳ Processing...';
+                btn.disabled = true;
+
+                // Connect to Phantom
+                const resp = await window.solana.connect();
+                const publicKey = resp.publicKey.toString();
+                
+                console.log('Connected wallet:', publicKey);
+
+                // Create and send USDC transfer
+                // For x402, we need to create a transfer authorization
+                // This is a simplified version - full x402 requires EIP-3009 style authorization
+                
+                // For now, show payment instructions
+                showPaymentInstructions(publicKey);
+
+            } catch (error) {
+                console.error('Payment error:', error);
+                document.getElementById('connectWalletBtn').textContent = '🔗 Connect Wallet & Pay';
+                document.getElementById('connectWalletBtn').disabled = false;
+                
+                const statusDiv = document.getElementById('paymentStatus');
+                statusDiv.className = 'mt-4 p-4 rounded-lg text-center bg-red-900 border border-red-600';
+                statusDiv.innerHTML = '<p class="text-red-200">Payment failed. Please try again.</p>';
+                statusDiv.classList.remove('hidden');
+            }
+        });
+
+        // Show payment instructions (simplified for testing)
+        function showPaymentInstructions(walletAddress) {
+            const statusDiv = document.getElementById('paymentStatus');
+            statusDiv.className = 'mt-4 p-4 rounded-lg bg-blue-900 border border-blue-600';
+            statusDiv.innerHTML = `
+                <p class="text-blue-200 mb-2">Wallet Connected: ${walletAddress.substring(0, 8)}...</p>
+                <p class="text-white font-bold mb-3">To complete payment:</p>
+                <ol class="text-left text-blue-100 text-sm space-y-2 mb-4">
+                    <li>1. Send ${paymentDetails.amount} USDC to:</li>
+                    <li class="font-mono text-xs break-all pl-4">${paymentDetails.payTo}</li>
+                    <li>2. Include memo: <span class="font-mono">${paymentDetails.nonce.substring(0, 16)}</span></li>
+                    <li>3. Payment auto-confirms via x402 protocol</li>
+                </ol>
+                <p class="text-yellow-200 text-xs">⚠️ Testing phase: Manual USDC transfer required</p>
+                <p class="text-gray-300 text-xs mt-2">Full x402 integration coming soon!</p>
+            `;
+            statusDiv.classList.remove('hidden');
+        }
+
+        // Show error
+        function showError(message) {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('paymentState').classList.add('hidden');
+            document.getElementById('errorState').classList.remove('hidden');
+            document.getElementById('errorMessage').textContent = message;
+            
+            if (expiryInterval) {
+                clearInterval(expiryInterval);
+            }
+        }
+
+        // Show success
+        function showSuccess(details) {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('paymentState').classList.add('hidden');
+            document.getElementById('successState').classList.remove('hidden');
+            document.getElementById('successToken').textContent = `$${details.tokenSymbol}`;
+            
+            if (details.transactionHash) {
+                document.getElementById('txHash').textContent = details.transactionHash;
+            }
+            
+            if (expiryInterval) {
+                clearInterval(expiryInterval);
+            }
+        }
+
+        // Start
+        init();
+    </script>
+</body>
+</html>
+

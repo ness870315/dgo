@@ -288,8 +288,8 @@ class TwitterMentionService {
         return;
       }
       
-      // Generate appropriate reply with parent tweet context
-      const reply = await this.generateReply(analysis, author, null, parentTweet);
+      // Generate appropriate reply with parent tweet context (pass mention.id for fuel payments)
+      const reply = await this.generateReply(analysis, author, null, parentTweet, mention.id);
       
       if (!reply || !reply.trim() || reply.trim() === `@${author}`) {
         console.log(`❌ [MENTIONS] Empty reply generated, using safe fallback`);
@@ -506,10 +506,10 @@ Respond in JSON format:
   }
 
   // Generate reply based on analysis
-  async generateReply(analysis, author, conversationContext = [], parentTweet = null) {
+  async generateReply(analysis, author, conversationContext = [], parentTweet = null, mentionId = null) {
     try {
       if (analysis.replyType === 'fuel_payment') {
-        return await this.generateFuelPaymentReply(analysis, author);
+        return await this.generateFuelPaymentReply(analysis, author, mentionId);
       } else if (analysis.replyType === 'contract_analysis' && analysis.contractAddress) {
         // Regular contract analysis
         return await this.analyzeContractAddress(analysis.contractAddress, author);
@@ -632,7 +632,7 @@ Reply (without @username):`;
   }
 
   // Generate fuel payment reply with x402 payment link
-  async generateFuelPaymentReply(analysis, author) {
+  async generateFuelPaymentReply(analysis, author, mentionId = null) {
     try {
       console.log(`💳 [MENTIONS] Generating fuel payment reply for @${author}`);
 
@@ -667,12 +667,13 @@ Once listed, come back and I'll generate your fuel payment link! 🔥`;
 
       contractAddress = tokenData.contractAddress;
 
-      // Generate x402 payment link
+      // Generate x402 payment link (pass mentionId for storing the original tweet)
       const paymentInfo = await this.x402Service.generateFuelPaymentLink(
         symbol,
         contractAddress,
         fuelType,
-        author
+        author,
+        mentionId
       );
 
       // Create reply with payment link
