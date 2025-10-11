@@ -7,9 +7,7 @@
 console.log('[x402] 🔧 x402-browser-client.js loaded - Version 2.0.0');
 
 class X402BrowserClient {
-  constructor(apiBase, nonce) {
-    this.apiBase = apiBase;
-    this.nonce = nonce;
+  constructor() {
     this.wallet = null;
     this.walletAdapter = null;
   }
@@ -55,10 +53,10 @@ class X402BrowserClient {
    * Fetch with x402 payment handling
    * 1) Make request → get 402 with payment requirements
    * 2) Build & sign transaction → retry with X-PAYMENT header
+   * @param {string} resourceUrl - The full URL to the paid resource
+   * @param {object} options - Fetch options (optional)
    */
-  async fetchWithPayment() {
-    const resourceUrl = `${this.apiBase}/api/x402/fuel/${this.nonce}`;
-    
+  async fetchWithPayment(resourceUrl, options = {}) {
     console.log('[x402] 🚀 Making initial request to:', resourceUrl);
 
     // Step 1: Initial request (expect 402)

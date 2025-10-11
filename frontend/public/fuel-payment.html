@@ -240,11 +240,7 @@
                 statusDiv.innerHTML = '<p class="text-blue-200">💼 Connecting wallet...</p>';
                 
                 const merchantUrl = `${API_BASE}/api/x402/fuel/${nonce}`;
-                const response = await x402Client.fetchWithPayment(merchantUrl, {
-                    method: 'GET'
-                });
-
-                const result = await response.json();
+                const result = await x402Client.fetchWithPayment(merchantUrl);
                 
                 console.log('[Fuel Payment] ✅ Payment successful:', result);
 
