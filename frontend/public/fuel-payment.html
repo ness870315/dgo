@@ -437,23 +437,58 @@
                     )[0];
                 }
                 
-                // Build minimal transaction without compute budget instructions
-                // Create transaction manually to avoid automatic instruction addition
-                const transaction = new solanaWeb3.Transaction();
-                transaction.recentBlockhash = blockhash;
-                transaction.feePayer = fromPubkey;
+                // Build VersionedTransaction (v0) per x402 spec - prevents auto-added instructions
+                // Use TransactionMessage for clean construction
                 
-                // CRITICAL: Don't use Transaction.add() or any methods that might add compute budget
-                // Leave instructions array empty - facilitator will add the USDC transfer
+                const recentBlockhashObj = await connection.getLatestBlockhash();
                 
-                console.log('Minimal transaction created (no compute budget instructions)');
+                // Build SPL token transfer instruction
+                const fromATA = findAssociatedTokenAddress(fromPubkey, usdcMint);
+                const toATA = findAssociatedTokenAddress(toPubkey, usdcMint);
+                
+                // Encode transfer instruction data: [3 (Transfer), amount (u64 LE)]
+                const transferData = new Uint8Array(9);
+                transferData[0] = 3; // Transfer discriminator
+                const amountBigInt = BigInt(amount);
+                for (let i = 0; i < 8; i++) {
+                    transferData[1 + i] = Number((amountBigInt >> BigInt(i * 8)) & BigInt(0xFF));
+                }
+                
+                const transferInstruction = new solanaWeb3.TransactionInstruction({
+                    keys: [
+                        { pubkey: fromATA, isSigner: false, isWritable: true },
+                        { pubkey: toATA, isSigner: false, isWritable: true },
+                        { pubkey: fromPubkey, isSigner: true, isWritable: false }
+                    ],
+                    programId: TOKEN_PROGRAM_ID,
+                    data: transferData
+                });
+                
+                // Create v0 message with facilitator as fee payer
+                const facilitatorFeePayer = new solanaWeb3.PublicKey(paymentRequirements.extra.feePayer);
+                
+                const messageV0 = new solanaWeb3.TransactionMessage({
+                    payerKey: facilitatorFeePayer, // Facilitator pays gas
+                    recentBlockhash: recentBlockhashObj.blockhash,
+                    instructions: [transferInstruction]
+                }).compileToV0Message();
+                
+                const transaction = new solanaWeb3.VersionedTransaction(messageV0);
+                
+                console.log('VersionedTransaction (v0) created with facilitator fee payer');
 
-                // Step 4: Sign transaction with wallet
-                statusDiv.innerHTML = '<p class="text-blue-200">🔐 Please approve in your wallet...</p>';
-                console.log('Step 4: Requesting wallet signature...');
+                // Step 4: Partially sign with user wallet (facilitator will co-sign)
+                statusDiv.innerHTML = '<p class="text-blue-200">🔐 Please approve USDC payment in your wallet...</p>';
+                console.log('Step 4: Requesting partial signature from user wallet...');
+                
+                // Sign with user wallet (this adds user's signature, facilitator will add theirs)
+                transaction.sign([{
+                    publicKey: fromPubkey,
+                    secretKey: null // Wallet will provide via signTransaction
+                }]);
                 
                 const signedTx = await walletAdapter.signTransaction(transaction);
-                const serialized = signedTx.serialize({ requireAllSignatures: false, verifySignatures: false });
+                const serialized = signedTx.serialize();
                 const base64Tx = btoa(String.fromCharCode.apply(null, serialized));
 
                 console.log('✅ Transaction signed successfully');
