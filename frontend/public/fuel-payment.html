@@ -389,61 +389,80 @@
 
                 console.log('Step 2: x402 payment requirements created:', paymentRequirements);
 
-                // Step 3: Create Solana connection and build transaction
-                statusDiv.innerHTML = '<p class="text-blue-200">💼 Preparing transaction...</p>';
+                // Step 3: Build USDC transfer transaction using wallet
+                statusDiv.innerHTML = '<p class="text-blue-200">💼 Building payment transaction...</p>';
                 
-                console.log('Step 3: Creating Solana transaction...');
-                // Use multiple RPC endpoints for reliability
-                const rpcEndpoints = [
+                console.log('Step 3: Building USDC transfer transaction...');
+                
+                // Use Helius RPC for reliability
+                const connection = new solanaWeb3.Connection(
                     'https://mainnet.helius-rpc.com/?api-key=e20ea2f4-232f-484e-be1e-e41b698a7850',
-                    'https://solana-api.projectserum.com',
-                    'https://rpc.ankr.com/solana'
-                ];
+                    'confirmed'
+                );
                 
-                let connection = null;
-                let blockhash = null;
-                
-                for (const rpcUrl of rpcEndpoints) {
-                    try {
-                        connection = new solanaWeb3.Connection(rpcUrl, 'confirmed');
-                        const result = await connection.getLatestBlockhash();
-                        blockhash = result.blockhash;
-                        console.log('✅ Connected to RPC:', rpcUrl);
-                        break;
-                    } catch (err) {
-                        console.warn('❌ Failed RPC:', rpcUrl, err.message);
-                    }
-                }
-                
-                if (!blockhash) {
-                    throw new Error('Failed to connect to Solana RPC. Please try again.');
-                }
+                const { blockhash } = await connection.getLatestBlockhash();
+                console.log('✅ Got blockhash:', blockhash);
                 
                 const fromPubkey = new solanaWeb3.PublicKey(publicKey);
                 const toPubkey = new solanaWeb3.PublicKey(paymentRequirements.payTo);
+                const usdcMint = new solanaWeb3.PublicKey(paymentRequirements.asset);
+                const amount = parseInt(paymentRequirements.maxAmountRequired);
+                
+                // Get associated token accounts for sender and receiver
+                const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+                const ASSOCIATED_TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+                
+                // Calculate associated token account addresses
+                function findAssociatedTokenAddress(walletAddress, tokenMintAddress) {
+                    return solanaWeb3.PublicKey.findProgramAddressSync(
+                        [
+                            walletAddress.toBuffer(),
+                            TOKEN_PROGRAM_ID.toBuffer(),
+                            tokenMintAddress.toBuffer()
+                        ],
+                        ASSOCIATED_TOKEN_PROGRAM_ID
+                    )[0];
+                }
+                
+                const fromTokenAccount = findAssociatedTokenAddress(fromPubkey, usdcMint);
+                const toTokenAccount = findAssociatedTokenAddress(toPubkey, usdcMint);
+                
+                console.log('From USDC account:', fromTokenAccount.toBase58());
+                console.log('To USDC account:', toTokenAccount.toBase58());
+                
+                // Build SPL token transfer instruction (instruction discriminator 3 = Transfer)
+                const dataLayout = Buffer.alloc(9);
+                dataLayout.writeUInt8(3, 0); // Transfer instruction
+                dataLayout.writeBigUInt64LE(BigInt(amount), 1); // Amount
+                
+                const transferInstruction = new solanaWeb3.TransactionInstruction({
+                    keys: [
+                        { pubkey: fromTokenAccount, isSigner: false, isWritable: true },
+                        { pubkey: toTokenAccount, isSigner: false, isWritable: true },
+                        { pubkey: fromPubkey, isSigner: true, isWritable: false }
+                    ],
+                    programId: TOKEN_PROGRAM_ID,
+                    data: dataLayout
+                });
                 
                 const transaction = new solanaWeb3.Transaction({
                     recentBlockhash: blockhash,
                     feePayer: fromPubkey
                 });
                 
-                const transferInstruction = solanaWeb3.SystemProgram.transfer({
-                    fromPubkey: fromPubkey,
-                    toPubkey: toPubkey,
-                    lamports: parseInt(paymentRequirements.maxAmountRequired)
-                });
-
                 transaction.add(transferInstruction);
+                
+                console.log('Transaction built successfully');
 
                 // Step 4: Sign transaction with wallet
-                statusDiv.innerHTML = '<p class="text-blue-200">🔐 Please approve in your wallet...</p>';
-                console.log('Step 4: Requesting wallet signature...');
+                statusDiv.innerHTML = '<p class="text-blue-200">🔐 Please approve USDC payment in your wallet...</p>';
+                console.log('Step 4: Requesting wallet signature for USDC transfer...');
                 
                 const signedTx = await walletAdapter.signTransaction(transaction);
                 const serialized = signedTx.serialize({ requireAllSignatures: false });
                 const base64Tx = btoa(String.fromCharCode.apply(null, serialized));
 
-                console.log('Transaction signed successfully');
+                console.log('✅ Transaction signed successfully');
 
                 // Step 5: Create x402 payment payload
                 const paymentPayload = {
