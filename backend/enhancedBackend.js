@@ -4978,8 +4978,8 @@ class EnhancedBackend {
         if (!xPaymentHeader) {
           console.log('[🛡️ x402] 💰 Returning 402 Payment Required with payment requirements...');
           
-          // Convert USDC amount to lamports (USDC has 6 decimals)
-          const lamports = Math.floor(payment.amount * 1_000_000);
+          // Convert USDC amount to lamports (USDC has 6 decimals) - use BigInt to avoid rounding
+          const lamports = (BigInt(Math.round(payment.amount * 1e6))).toString();
           
           // Build payment requirements object
           const paymentRequirements = {
@@ -4993,14 +4993,7 @@ class EnhancedBackend {
             asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC on Solana
             payTo: this.twitterMentionService.x402Service.payToAddress,
             extra: {
-              feePayer: 'GWRUEnMCfuDzz9zWh4hckkSZDN5dYH3UmzRNf64L52Sk', // PayAI facilitator fee payer
-              metadata: {
-                nonce: payment.nonce,
-                tokenSymbol: payment.tokenSymbol,
-                contractAddress: payment.contractAddress,
-                fuelType: payment.fuelType,
-                userHandle: payment.userHandle
-              }
+              feePayer: 'GWRUEnMCfuDzz9zWh4hckkSZDN5dYH3UmzRNf64L52Sk' // PayAI facilitator fee payer
             }
           };
           
@@ -5022,7 +5015,7 @@ class EnhancedBackend {
           console.log('[🛡️ x402] Payment payload:', JSON.stringify(paymentPayload, null, 2));
 
           // Build payment requirements for verification (must match 402 response)
-          const lamports = Math.floor(payment.amount * 1_000_000);
+          const lamports = (BigInt(Math.round(payment.amount * 1e6))).toString();
           const paymentRequirements = {
             x402Version: 1,
             scheme: 'exact',
@@ -5034,19 +5027,16 @@ class EnhancedBackend {
             asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
             payTo: this.twitterMentionService.x402Service.payToAddress,
             extra: {
-              feePayer: 'GWRUEnMCfuDzz9zWh4hckkSZDN5dYH3UmzRNf64L52Sk',
-              metadata: {
-                nonce: payment.nonce,
-                tokenSymbol: payment.tokenSymbol,
-                contractAddress: payment.contractAddress,
-                fuelType: payment.fuelType,
-                userHandle: payment.userHandle
-              }
+              feePayer: 'GWRUEnMCfuDzz9zWh4hckkSZDN5dYH3UmzRNf64L52Sk'
             }
           };
 
           // Verify with PayAI facilitator
           console.log('[🛡️ x402] 📡 Verifying payment with PayAI facilitator...');
+          console.log('[🛡️ x402] 📤 Sending to facilitator:', JSON.stringify({
+            paymentPayload: { ...paymentPayload, payload: { transaction: '...' } },
+            paymentRequirements
+          }, null, 2));
           
           const verifyResponse = await axios.post('https://facilitator.payai.network/verify', {
             paymentPayload,
@@ -5144,10 +5134,16 @@ class EnhancedBackend {
           });
 
         } catch (verifyError) {
-          console.error('[🛡️ x402] ❌ Error verifying/settling payment:', verifyError.response?.data || verifyError.message);
+          console.error('[🛡️ x402] ❌ Error verifying/settling payment:', {
+            status: verifyError.response?.status,
+            statusText: verifyError.response?.statusText,
+            data: verifyError.response?.data,
+            message: verifyError.message
+          });
           return res.status(500).json({
             error: 'Payment processing error',
-            details: verifyError.response?.data || verifyError.message
+            details: verifyError.response?.data || verifyError.message,
+            facilitatorStatus: verifyError.response?.status
           });
         }
 

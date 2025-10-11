@@ -11,9 +11,16 @@ class X402MerchantService {
   constructor() {
     this.facilitatorUrl = process.env.X402_FACILITATOR_URL || 'https://facilitator.payai.network';
     this.network = 'solana';
-    this.payToAddress = process.env.X402_PAY_TO_ADDRESS || '3hn5fWZEf2yUZcwU2CV2Wkvk7YDiysM8xBwmesFg7sN1';
+    
+    // Merchant wallet address
+    this.merchantWallet = process.env.X402_PAY_TO_ADDRESS || '3hn5fWZEf2yUZcwU2CV2Wkvk7YDiysM8xBwmesFg7sN1';
+    
+    // USDC mint and decimals
     this.usdcAddress = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'; // USDC on Solana
     this.usdcDecimals = 6; // USDC has 6 decimals
+    
+    // Compute merchant's USDC ATA (Associated Token Account)
+    this.payToAddress = this.computeMerchantUSDCATA();
     
     // Twitter x402 prices (90% discount from website prices)
     // NOTE: 10x set to 0.1 USDC for testing
@@ -29,12 +36,35 @@ class X402MerchantService {
     
     console.log('💳 [x402] Merchant Service initialized');
     console.log('  - Network:', this.network);
-    console.log('  - Pay to:', this.payToAddress);
+    console.log('  - Merchant wallet:', this.merchantWallet);
+    console.log('  - Merchant USDC ATA:', this.payToAddress);
     console.log('  - Facilitator:', this.facilitatorUrl);
     console.log('  - Twitter pricing (90% off):');
     Object.entries(this.fuelPrices).forEach(([type, price]) => {
       console.log(`    ${type}: $${price.discountedUsd} USDC (was $${price.usd})`);
     });
+  }
+
+  /**
+   * Compute merchant's USDC Associated Token Account (ATA)
+   * This is the address where USDC payments will be sent
+   */
+  computeMerchantUSDCATA() {
+    const { PublicKey } = require('@solana/web3.js');
+    
+    const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+    const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+    
+    const merchantWalletPk = new PublicKey(this.merchantWallet);
+    const usdcMintPk = new PublicKey(this.usdcAddress);
+    
+    // Compute ATA: [wallet, TOKEN_PROGRAM_ID, mint]
+    const [ataAddress] = PublicKey.findProgramAddressSync(
+      [merchantWalletPk.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), usdcMintPk.toBuffer()],
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+    
+    return ataAddress.toBase58();
   }
 
   /**

@@ -166,26 +166,21 @@ class X402BrowserClient {
     // Parse addresses
     const userPubkey = this.wallet;
     const usdcMintPk = new solanaWeb3.PublicKey(usdcMint);
-    const payToPk = new solanaWeb3.PublicKey(payToAddress);
+    const destination = new solanaWeb3.PublicKey(payToAddress); // Use payTo directly (already ATA from server)
     const facilitatorFeePayer = new solanaWeb3.PublicKey(extra.feePayer);
     const amount = BigInt(amountRaw);
     
-    // Derive Associated Token Accounts
+    // Derive user's Associated Token Account only
     const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
     const ASSOCIATED_TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
     
-    const findATA = (walletPk, mintPk) => {
-      return solanaWeb3.PublicKey.findProgramAddressSync(
-        [walletPk.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mintPk.toBuffer()],
-        ASSOCIATED_TOKEN_PROGRAM_ID
-      )[0];
-    };
-    
-    const userATA = findATA(userPubkey, usdcMintPk);
-    const merchantATA = findATA(payToPk, usdcMintPk);
+    const userATA = solanaWeb3.PublicKey.findProgramAddressSync(
+      [userPubkey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), usdcMintPk.toBuffer()],
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    )[0];
     
     console.log('[x402] 📍 User ATA:', userATA.toBase58());
-    console.log('[x402] 📍 Merchant ATA:', merchantATA.toBase58());
+    console.log('[x402] 📍 Destination (from requirements.payTo):', destination.toBase58());
     console.log('[x402] 💸 Fee payer (facilitator):', facilitatorFeePayer.toBase58());
     console.log('[x402] 💸 Token sender (user):', userPubkey.toBase58());
     
@@ -207,7 +202,7 @@ class X402BrowserClient {
       keys: [
         { pubkey: userATA, isSigner: false, isWritable: true },      // source
         { pubkey: usdcMintPk, isSigner: false, isWritable: false },  // mint
-        { pubkey: merchantATA, isSigner: false, isWritable: true },  // destination
+        { pubkey: destination, isSigner: false, isWritable: true },  // destination (EXACTLY requirements.payTo)
         { pubkey: userPubkey, isSigner: true, isWritable: false }    // owner (SIGNER)
       ],
       programId: TOKEN_PROGRAM_ID,
@@ -231,7 +226,15 @@ class X402BrowserClient {
     
     // Serialize the signed transaction
     const serialized = signedTx.serialize();
-    const base64Tx = btoa(String.fromCharCode.apply(null, serialized));
+    
+    // Use Buffer for proper base64 encoding (avoid btoa limitations)
+    let base64Tx;
+    if (typeof Buffer !== 'undefined') {
+      base64Tx = Buffer.from(serialized).toString('base64');
+    } else {
+      // Fallback to btoa if Buffer not available
+      base64Tx = btoa(String.fromCharCode.apply(null, serialized));
+    }
     
     console.log('[x402] ✅ Transaction signed successfully');
     
