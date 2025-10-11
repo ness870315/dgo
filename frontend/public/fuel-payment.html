@@ -4,6 +4,45 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fuel Payment - DeGen Oracle @PayAINetwork</title>
+    <!-- CRITICAL: Prevent MetaMask/EVM extension injection BEFORE any other scripts -->
+    <script>
+        // Aggressively block all EVM providers to prevent Phantom anti-phishing
+        (function() {
+            const blockEVM = () => {
+                // List of EVM provider properties to block
+                const evmProviders = ['ethereum', 'web3', 'metamask'];
+                
+                evmProviders.forEach(prop => {
+                    try {
+                        if (window[prop]) {
+                            delete window[prop];
+                        }
+                        Object.defineProperty(window, prop, {
+                            get: () => {
+                                console.log(`🚫 Blocked EVM provider access: ${prop}`);
+                                return undefined;
+                            },
+                            set: () => {
+                                console.log(`🚫 Blocked EVM provider injection: ${prop}`);
+                                return true;
+                            },
+                            configurable: false
+                        });
+                    } catch (e) {
+                        // Property already locked, ignore
+                    }
+                });
+            };
+            
+            // Block immediately
+            blockEVM();
+            
+            // Block again after DOM ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', blockEVM);
+            }
+        })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Buffer polyfill for Solana Web3.js -->
     <script>
@@ -197,22 +236,6 @@
     </div>
 
     <script>
-        // CRITICAL: Block EVM/MetaMask access to prevent anti-phishing triggers
-        // This page is SOLANA ONLY - do not allow any EVM provider access
-        try {
-            if (window.ethereum) {
-                console.log('⚠️ Blocking EVM provider access - Solana only page');
-                // Try to set to undefined, but if it fails (already non-configurable), that's fine
-                Object.defineProperty(window, 'ethereum', {
-                    get: () => undefined,
-                    configurable: false
-                });
-            }
-        } catch (e) {
-            // If ethereum property is already non-configurable, just log and continue
-            console.log('ℹ️ Cannot block ethereum property (already locked by extension)');
-        }
-        
         // Parse URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const nonce = urlParams.get('nonce');
