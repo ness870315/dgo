@@ -481,63 +481,18 @@
                     'confirmed'
                 );
                 
-                const { blockhash } = await connection.getLatestBlockhash();
-                console.log('✅ Got blockhash:', blockhash);
+                // Get recent blockhash for transaction
+                const recentBlockhashObj = await connection.getLatestBlockhash();
+                console.log('✅ Got blockhash:', recentBlockhashObj.blockhash);
                 
                 const fromPubkey = new solanaWeb3.PublicKey(publicKey);
-                const toPubkey = new solanaWeb3.PublicKey(paymentRequirements.payTo);
-                const usdcMint = new solanaWeb3.PublicKey(paymentRequirements.asset);
-                const amount = parseInt(paymentRequirements.maxAmountRequired);
                 
-                // Get associated token accounts for sender and receiver
-                const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-                const ASSOCIATED_TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
-                
-                // Calculate associated token account addresses
-                function findAssociatedTokenAddress(walletAddress, tokenMintAddress) {
-                    return solanaWeb3.PublicKey.findProgramAddressSync(
-                        [
-                            walletAddress.toBuffer(),
-                            TOKEN_PROGRAM_ID.toBuffer(),
-                            tokenMintAddress.toBuffer()
-                        ],
-                        ASSOCIATED_TOKEN_PROGRAM_ID
-                    )[0];
-                }
-                
-                // Build VersionedTransaction (v0) per x402 spec - prevents auto-added instructions
-                // Use TransactionMessage for clean construction
-                
-                const recentBlockhashObj = await connection.getLatestBlockhash();
-                
-                // Build SPL token transfer instruction
-                const fromATA = findAssociatedTokenAddress(fromPubkey, usdcMint);
-                const toATA = findAssociatedTokenAddress(toPubkey, usdcMint);
-                
-                // Encode transfer instruction data: [3 (Transfer), amount (u64 LE)]
-                const transferData = new Uint8Array(9);
-                transferData[0] = 3; // Transfer discriminator
-                const amountBigInt = BigInt(amount);
-                for (let i = 0; i < 8; i++) {
-                    transferData[1 + i] = Number((amountBigInt >> BigInt(i * 8)) & BigInt(0xFF));
-                }
-                
-                const transferInstruction = new solanaWeb3.TransactionInstruction({
-                    keys: [
-                        { pubkey: fromATA, isSigner: false, isWritable: true },
-                        { pubkey: toATA, isSigner: false, isWritable: true },
-                        { pubkey: fromPubkey, isSigner: true, isWritable: false }
-                    ],
-                    programId: TOKEN_PROGRAM_ID,
-                    data: transferData
-                });
-                
-                // Create v0 message with USER as fee payer (more standard, less suspicious to Phantom)
-                // PayAI will handle this correctly on settlement
+                // Create EMPTY v0 message - PayAI facilitator will build the USDC transfer
+                // Per x402 protocol, we just provide signed authorization, facilitator constructs tx
                 const messageV0 = new solanaWeb3.TransactionMessage({
                     payerKey: fromPubkey, // User pays gas (prevents Phantom anti-phishing)
                     recentBlockhash: recentBlockhashObj.blockhash,
-                    instructions: [transferInstruction]
+                    instructions: [] // EMPTY - facilitator builds the transfer from payment requirements
                 }).compileToV0Message();
                 
                 const transaction = new solanaWeb3.VersionedTransaction(messageV0);
