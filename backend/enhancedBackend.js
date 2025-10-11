@@ -4993,7 +4993,8 @@ class EnhancedBackend {
             asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC on Solana
             payTo: this.twitterMentionService.x402Service.payToAddress,
             extra: {
-              feePayer: 'GWRUEnMCfuDzz9zWh4hckkSZDN5dYH3UmzRNf64L52Sk' // PayAI facilitator fee payer
+              // User pays minimal fees, facilitator handles x402 settlement
+              // This prevents "malicious dApp" flagging while maintaining x402 compliance
             }
           };
           
@@ -5027,7 +5028,8 @@ class EnhancedBackend {
             asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
             payTo: this.twitterMentionService.x402Service.payToAddress,
             extra: {
-              feePayer: 'GWRUEnMCfuDzz9zWh4hckkSZDN5dYH3UmzRNf64L52Sk'
+              // Note: User pays minimal fees, facilitator handles x402 settlement
+              // This matches the frontend transaction structure
             }
           };
 
