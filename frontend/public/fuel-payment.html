@@ -531,16 +531,19 @@
                     data: transferData
                 });
                 
-                // Create v0 transaction with proper TransferChecked instruction
+                // Create v0 transaction with facilitator as fee payer (per x402 spec)
+                // The facilitator provides their fee payer address in paymentRequirements.extra.feePayer
+                const facilitatorFeePayer = new solanaWeb3.PublicKey(paymentRequirements.extra.feePayer);
+                
                 const messageV0 = new solanaWeb3.TransactionMessage({
-                    payerKey: fromPubkey, // User pays gas (prevents Phantom anti-phishing)
+                    payerKey: facilitatorFeePayer, // Facilitator pays gas (per x402 protocol)
                     recentBlockhash: recentBlockhashObj.blockhash,
                     instructions: [transferInstruction]
                 }).compileToV0Message();
                 
                 const transaction = new solanaWeb3.VersionedTransaction(messageV0);
                 
-                console.log('VersionedTransaction (v0) created with user as fee payer');
+                console.log('VersionedTransaction (v0) created with facilitator as fee payer');
 
                 // Step 4: Partially sign with user wallet ONLY (facilitator will co-sign on /settle)
                 statusDiv.innerHTML = '<p class="text-blue-200">🔐 Please approve USDC payment in your wallet...</p>';
