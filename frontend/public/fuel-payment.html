@@ -437,24 +437,23 @@
                     )[0];
                 }
                 
-                // For x402 Solana, the facilitator builds the transfer instruction
-                // We just need to provide an empty signed transaction with blockhash and fee payer
-                const transaction = new solanaWeb3.Transaction({
-                    recentBlockhash: blockhash,
-                    feePayer: fromPubkey
-                });
+                // Build minimal transaction without compute budget instructions
+                // Create transaction manually to avoid automatic instruction addition
+                const transaction = new solanaWeb3.Transaction();
+                transaction.recentBlockhash = blockhash;
+                transaction.feePayer = fromPubkey;
                 
-                // Don't add any instructions - PayAI facilitator will construct the USDC transfer
-                // based on the payment requirements we send
+                // CRITICAL: Don't use Transaction.add() or any methods that might add compute budget
+                // Leave instructions array empty - facilitator will add the USDC transfer
                 
-                console.log('Empty transaction built (facilitator will add transfer instruction)');
+                console.log('Minimal transaction created (no compute budget instructions)');
 
                 // Step 4: Sign transaction with wallet
-                statusDiv.innerHTML = '<p class="text-blue-200">🔐 Please approve USDC payment in your wallet...</p>';
-                console.log('Step 4: Requesting wallet signature for USDC transfer...');
+                statusDiv.innerHTML = '<p class="text-blue-200">🔐 Please approve in your wallet...</p>';
+                console.log('Step 4: Requesting wallet signature...');
                 
                 const signedTx = await walletAdapter.signTransaction(transaction);
-                const serialized = signedTx.serialize({ requireAllSignatures: false });
+                const serialized = signedTx.serialize({ requireAllSignatures: false, verifySignatures: false });
                 const base64Tx = btoa(String.fromCharCode.apply(null, serialized));
 
                 console.log('✅ Transaction signed successfully');
