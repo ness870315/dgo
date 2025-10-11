@@ -486,13 +486,56 @@
                 console.log('✅ Got blockhash:', recentBlockhashObj.blockhash);
                 
                 const fromPubkey = new solanaWeb3.PublicKey(publicKey);
+                const toPubkey = new solanaWeb3.PublicKey(paymentRequirements.payTo);
+                const usdcMint = new solanaWeb3.PublicKey(paymentRequirements.asset);
+                const amount = BigInt(paymentRequirements.maxAmountRequired);
                 
-                // Create EMPTY v0 message - PayAI facilitator will build the USDC transfer
-                // Per x402 protocol, we just provide signed authorization, facilitator constructs tx
+                // Calculate Associated Token Accounts
+                const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+                const ASSOCIATED_TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+                
+                const findATA = (wallet, mint) => {
+                    return solanaWeb3.PublicKey.findProgramAddressSync(
+                        [wallet.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+                        ASSOCIATED_TOKEN_PROGRAM_ID
+                    )[0];
+                };
+                
+                const fromATA = findATA(fromPubkey, usdcMint);
+                const toATA = findATA(toPubkey, usdcMint);
+                
+                console.log('From ATA:', fromATA.toBase58());
+                console.log('To ATA:', toATA.toBase58());
+                
+                // Build TransferChecked instruction (SPL Token Program)
+                // Instruction layout for TransferChecked (discriminator 12)
+                const transferData = new Uint8Array(17);
+                transferData[0] = 12; // TransferChecked discriminator
+                
+                // Amount (u64 LE)
+                for (let i = 0; i < 8; i++) {
+                    transferData[1 + i] = Number((amount >> BigInt(i * 8)) & BigInt(0xFF));
+                }
+                
+                // Decimals (u8) - USDC has 6 decimals
+                transferData[9] = 6;
+                
+                const transferInstruction = new solanaWeb3.TransactionInstruction({
+                    keys: [
+                        { pubkey: fromATA, isSigner: false, isWritable: true },        // source
+                        { pubkey: usdcMint, isSigner: false, isWritable: false },      // mint
+                        { pubkey: toATA, isSigner: false, isWritable: true },          // destination
+                        { pubkey: fromPubkey, isSigner: true, isWritable: false }      // authority
+                    ],
+                    programId: TOKEN_PROGRAM_ID,
+                    data: transferData
+                });
+                
+                // Create v0 transaction with proper TransferChecked instruction
                 const messageV0 = new solanaWeb3.TransactionMessage({
                     payerKey: fromPubkey, // User pays gas (prevents Phantom anti-phishing)
                     recentBlockhash: recentBlockhashObj.blockhash,
-                    instructions: [] // EMPTY - facilitator builds the transfer from payment requirements
+                    instructions: [transferInstruction]
                 }).compileToV0Message();
                 
                 const transaction = new solanaWeb3.VersionedTransaction(messageV0);
