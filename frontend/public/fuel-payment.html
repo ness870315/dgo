@@ -5,16 +5,72 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fuel Payment - DeGen Oracle @PayAINetwork</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Load Buffer BEFORE Solana Web3 -->
-    <script src="https://cdn.jsdelivr.net/npm/buffer@6.0.3/index.js"></script>
+    <!-- Load Buffer polyfill BEFORE Solana Web3 -->
     <script>
-        // Set Buffer globally BEFORE loading Solana Web3.js
-        if (typeof window !== 'undefined') {
-            // buffer module exports as { Buffer: ... }
-            window.Buffer = window.Buffer || exports.Buffer || require('buffer').Buffer;
+        // Manual Buffer polyfill for browser
+        (function() {
+            const BufferPolyfill = function Buffer(arg, encodingOrOffset, length) {
+                return Uint8Array.from(arg);
+            };
+
+            BufferPolyfill.from = function(data, encoding) {
+                if (typeof data === 'string') {
+                    if (encoding === 'base64') {
+                        const binaryString = atob(data);
+                        const bytes = new Uint8Array(binaryString.length);
+                        for (let i = 0; i < binaryString.length; i++) {
+                            bytes[i] = binaryString.charCodeAt(i);
+                        }
+                        return bytes;
+                    } else if (encoding === 'hex') {
+                        const bytes = new Uint8Array(data.length / 2);
+                        for (let i = 0; i < data.length; i += 2) {
+                            bytes[i / 2] = parseInt(data.substr(i, 2), 16);
+                        }
+                        return bytes;
+                    } else {
+                        const encoder = new TextEncoder();
+                        return encoder.encode(data);
+                    }
+                } else if (Array.isArray(data)) {
+                    return new Uint8Array(data);
+                } else if (data instanceof Uint8Array) {
+                    return data;
+                }
+                return new Uint8Array(data);
+            };
+
+            BufferPolyfill.alloc = function(size, fill) {
+                const buf = new Uint8Array(size);
+                if (fill !== undefined) {
+                    buf.fill(fill);
+                }
+                return buf;
+            };
+
+            BufferPolyfill.isBuffer = function(obj) {
+                return obj instanceof Uint8Array;
+            };
+
+            BufferPolyfill.concat = function(list, totalLength) {
+                if (totalLength === undefined) {
+                    totalLength = list.reduce((acc, buf) => acc + buf.length, 0);
+                }
+                const result = new Uint8Array(totalLength);
+                let offset = 0;
+                for (const buf of list) {
+                    result.set(buf, offset);
+                    offset += buf.length;
+                }
+                return result;
+            };
+
+            // Set Buffer globally
+            window.Buffer = BufferPolyfill;
             window.global = window;
-            console.log('Buffer polyfill loaded:', typeof window.Buffer, typeof (window.Buffer && window.Buffer.from));
-        }
+            
+            console.log('Buffer polyfill loaded:', typeof window.Buffer, typeof window.Buffer.from);
+        })();
     </script>
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     <style>
