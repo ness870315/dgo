@@ -182,13 +182,11 @@ class X402BrowserClient {
       data: transferData
     });
     
-    // Determine fee payer
-    // If facilitator provides feePayer, use it; otherwise user pays
-    const feePayer = extra?.feePayer 
-      ? new solanaWeb3.PublicKey(extra.feePayer)
-      : fromPubkey;
+    // User pays gas fees (standard x402 pattern)
+    // Facilitator will handle settlement and can refund if needed
+    const feePayer = fromPubkey;
     
-    console.log('[x402] 💸 Fee payer:', feePayer.toBase58());
+    console.log('[x402] 💸 Fee payer (user):', feePayer.toBase58());
     
     // Create v0 transaction
     const messageV0 = new solanaWeb3.TransactionMessage({
