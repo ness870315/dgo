@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fuel Payment - DeGen Oracle @PayAINetwork</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Solana Web3.js for wallet interaction -->
+    <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.min.js"></script>
+    <!-- x402 Browser Client -->
+    <script src="/x402-browser-client.js"></script>
     <style>
         body {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -73,7 +77,7 @@
                 id="payBtn"
                 class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 glow mb-4"
             >
-                💳 Pay with Wallet
+                💳 Connect Wallet & Pay
             </button>
 
             <!-- Payment Status -->
@@ -118,6 +122,7 @@
         // State management
         let paymentDetails = null;
         let expiryInterval = null;
+        let x402Client = null;
 
         // Initialize
         async function init() {
@@ -163,6 +168,9 @@
                 displayPaymentDetails(paymentDetails);
                 startExpiryTimer(paymentDetails.expiresAt);
 
+                // Initialize x402 client
+                x402Client = new X402BrowserClient();
+
             } catch (error) {
                 console.error('Error loading payment:', error);
                 showError('Failed to connect to server');
@@ -203,7 +211,7 @@
             expiryInterval = setInterval(updateTimer, 1000);
         }
 
-        // Pay with Wallet
+        // Pay with x402 protocol
         document.getElementById('payBtn').addEventListener('click', async () => {
             try {
                 const btn = document.getElementById('payBtn');
@@ -212,27 +220,30 @@
 
                 const statusDiv = document.getElementById('paymentStatus');
                 statusDiv.className = 'mt-4 p-4 rounded-lg text-center bg-blue-900 border border-blue-600';
-                statusDiv.innerHTML = '<p class="text-blue-200">🚀 Initiating x402 payment...</p>';
+                statusDiv.innerHTML = '<p class="text-blue-200">🚀 Starting x402 payment...</p>';
                 statusDiv.classList.remove('hidden');
 
-                console.log('🚀 Starting x402 payment flow for nonce:', nonce);
+                console.log('[Fuel Payment] 🚀 Starting x402 payment flow for nonce:', nonce);
 
-                // Call backend to process payment via PayAI facilitator
-                // The backend handles all the complexity
-                statusDiv.innerHTML = '<p class="text-blue-200">💳 Processing payment via PayAI...</p>';
+                // Use x402 client to make payment request
+                // This will automatically:
+                // 1. Make request to merchant
+                // 2. Detect 402 Payment Required
+                // 3. Connect wallet
+                // 4. Build & sign transaction
+                // 5. Retry with X-PAYMENT header
+                statusDiv.innerHTML = '<p class="text-blue-200">💼 Connecting wallet...</p>';
                 
-                const payResponse = await fetch(`${API_BASE}/api/x402/pay/${nonce}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
+                const merchantUrl = `${API_BASE}/api/x402/fuel/${nonce}`;
+                const response = await x402Client.fetchWithPayment(merchantUrl, {
+                    method: 'GET'
                 });
 
-                const result = await payResponse.json();
+                const result = await response.json();
                 
-                console.log('Payment response:', result);
+                console.log('[Fuel Payment] ✅ Payment successful:', result);
 
-                if (result.success) {
+                if (result.delivered || result.status === 'completed') {
                     // Show success
                     statusDiv.className = 'mt-4 p-4 rounded-lg text-center bg-green-900 border border-green-600';
                     statusDiv.innerHTML = `
@@ -256,10 +267,10 @@
                 }
 
             } catch (error) {
-                console.error('Payment error:', error);
+                console.error('[Fuel Payment] ❌ Payment error:', error);
                 
                 const btn = document.getElementById('payBtn');
-                btn.textContent = '💳 Pay with Wallet';
+                btn.textContent = '💳 Connect Wallet & Pay';
                 btn.disabled = false;
                 
                 const statusDiv = document.getElementById('paymentStatus');
