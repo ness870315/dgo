@@ -167,7 +167,17 @@ class X402BrowserClient {
     // Parse addresses
     const userPubkey = this.wallet;
     const usdcMintPk = new solanaWeb3.PublicKey(usdcMint);
-    const destination = new solanaWeb3.PublicKey(payToAddress); // Use payTo directly (already ATA from server)
+    
+    // ===== DEFINE TOKEN PROGRAM IDs =====
+    const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+    const ASSOCIATED_TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
+    
+    // payToAddress is merchant wallet - derive the USDC ATA
+    const merchantWallet = new solanaWeb3.PublicKey(payToAddress);
+    const destination = solanaWeb3.PublicKey.findProgramAddressSync(
+      [merchantWallet.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), usdcMintPk.toBuffer()],
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    )[0];
     
     // Handle case where feePayer might not be in extra (new approach)
     const facilitatorFeePayer = extra?.feePayer 
@@ -175,10 +185,6 @@ class X402BrowserClient {
       : new solanaWeb3.PublicKey('GWRUEnMCfuDzz9zWh4hckkSZDN5dYH3UmzRNf64L52Sk'); // Fallback to known facilitator
     
     const amount = BigInt(amountRaw);
-    
-    // Derive user's Associated Token Account only
-    const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-    const ASSOCIATED_TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
     
     const userATA = solanaWeb3.PublicKey.findProgramAddressSync(
       [userPubkey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), usdcMintPk.toBuffer()],
@@ -253,7 +259,7 @@ class X402BrowserClient {
       scheme: 'exact',
       network: network,
       payload: {
-        transaction: base64Tx
+        transactionBase64: base64Tx // Use 'transactionBase64' not 'transaction' for PayAI
       }
     };
   }

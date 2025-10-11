@@ -4981,21 +4981,17 @@ class EnhancedBackend {
           // Convert USDC amount to lamports (USDC has 6 decimals) - use BigInt to avoid rounding
           const lamports = (BigInt(Math.round(payment.amount * 1e6))).toString();
           
-          // Build payment requirements object
+          // Build payment requirements object (PayAI spec format)
           const paymentRequirements = {
             x402Version: 1,
             scheme: 'exact',
-            network: 'solana',
-            maxAmountRequired: lamports.toString(),
+            network: 'solana', // PayAI accepts 'solana' for mainnet
+            amount: lamports, // Use 'amount' not 'maxAmountRequired' for PayAI
             resource: `https://api.degen-oracle.com/api/x402/fuel/${nonce}`,
             description: `${payment.fuelType} Fuel for ${payment.tokenSymbol}`,
             maxTimeoutSeconds: 300,
             asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC on Solana
-            payTo: this.twitterMentionService.x402Service.payToAddress,
-            extra: {
-              // Remove feePayer to make facilitator more flexible about fee payer
-              // User pays minimal fees to prevent "malicious dApp" flagging
-            }
+            payTo: this.twitterMentionService.x402Service.merchantWallet // Merchant wallet (PayAI derives ATA)
           };
           
           // Return 402 response in x402 spec format (accepts array)
@@ -5015,28 +5011,24 @@ class EnhancedBackend {
           
           console.log('[🛡️ x402] Payment payload:', JSON.stringify(paymentPayload, null, 2));
 
-          // Build payment requirements for verification (must match 402 response)
+          // Build payment requirements for verification (must match 402 response exactly)
           const lamports = (BigInt(Math.round(payment.amount * 1e6))).toString();
           const paymentRequirements = {
             x402Version: 1,
             scheme: 'exact',
-            network: 'solana',
-            maxAmountRequired: lamports.toString(),
+            network: 'solana', // PayAI accepts 'solana' for mainnet
+            amount: lamports, // Use 'amount' not 'maxAmountRequired' for PayAI
             resource: `https://api.degen-oracle.com/api/x402/fuel/${nonce}`,
             description: `${payment.fuelType} Fuel for ${payment.tokenSymbol}`,
             maxTimeoutSeconds: 300,
             asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-            payTo: this.twitterMentionService.x402Service.payToAddress,
-            extra: {
-              // Remove feePayer to make facilitator more flexible about fee payer
-              // User pays minimal fees to prevent "malicious dApp" flagging
-            }
+            payTo: this.twitterMentionService.x402Service.merchantWallet // Merchant wallet (PayAI derives ATA)
           };
 
           // Verify with PayAI facilitator
           console.log('[🛡️ x402] 📡 Verifying payment with PayAI facilitator...');
           console.log('[🛡️ x402] 📤 Sending to facilitator:', JSON.stringify({
-            paymentPayload: { ...paymentPayload, payload: { transaction: '...' } },
+            paymentPayload: { ...paymentPayload, payload: { transactionBase64: '...' } },
             paymentRequirements
           }, null, 2));
           
