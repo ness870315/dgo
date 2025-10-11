@@ -142,7 +142,8 @@ class X402BrowserClient {
       network,
       asset: usdcMint,
       payTo: payToAddress,
-      maxAmountRequired: amountRaw,
+      amount,                 // preferred for scheme: "exact"
+      maxAmountRequired,      // some facilitators use this name
       extra
     } = requirements;
 
@@ -151,14 +152,35 @@ class X402BrowserClient {
     }
 
     console.log('[x402] 🔨 Building Solana payment transaction...');
-    console.log('[x402] 📋 Requirements:', { usdcMint, payToAddress, amountRaw, extra });
+    console.log('[x402] 📋 Requirements:', { usdcMint, payToAddress, amount, maxAmountRequired, extra });
 
-    // Get RPC connection
+    // 1) Pick the amount string safely
+    const amountStr = (typeof amount === 'string' ? amount : maxAmountRequired);
+    if (!amountStr || !/^\d+$/.test(amountStr)) {
+      throw new Error(`Invalid amount in 402: got "${amountStr}". Expected base units as a string (e.g., "100000" for 0.10 USDC).`);
+    }
+    const amountBI = BigInt(amountStr);
+
+    // 2) Pick the correct RPC by network
     const rpcUrl = network === 'solana-devnet' 
       ? 'https://api.devnet.solana.com'
       : 'https://mainnet.helius-rpc.com/?api-key=e20ea2f4-232f-484e-be1e-e41b698a7850';
     
     const connection = new solanaWeb3.Connection(rpcUrl, 'confirmed');
+    
+    // 3) Validate inputs
+    if (!payToAddress) throw new Error('Missing payTo in 402.');
+    if (!usdcMint) throw new Error('Missing asset (USDC mint) in 402.');
+
+    // 4) USDC mint sanity for each network
+    const MAINNET_USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+    const DEVNET_USDC = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'; // common devnet USDC
+    if (network === 'solana' && usdcMint !== MAINNET_USDC) {
+      console.warn('[x402] asset != mainnet USDC mint; ensure this is intended:', usdcMint);
+    }
+    if (network === 'solana-devnet' && usdcMint !== DEVNET_USDC) {
+      console.warn('[x402] asset != devnet USDC mint; ensure this is intended:', usdcMint);
+    }
     
     // Get recent blockhash
     const { blockhash } = await connection.getLatestBlockhash();
@@ -184,8 +206,6 @@ class X402BrowserClient {
       ? new solanaWeb3.PublicKey(extra.feePayer)
       : new solanaWeb3.PublicKey('GWRUEnMCfuDzz9zWh4hckkSZDN5dYH3UmzRNf64L52Sk'); // Fallback to known facilitator
     
-    const amount = BigInt(amountRaw);
-    
     const userATA = solanaWeb3.PublicKey.findProgramAddressSync(
       [userPubkey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), usdcMintPk.toBuffer()],
       ASSOCIATED_TOKEN_PROGRAM_ID
@@ -203,7 +223,7 @@ class X402BrowserClient {
     
     // Amount (u64 little-endian)
     for (let i = 0; i < 8; i++) {
-      transferData[1 + i] = Number((amount >> BigInt(i * 8)) & BigInt(0xFF));
+      transferData[1 + i] = Number((amountBI >> BigInt(i * 8)) & BigInt(0xFF));
     }
     
     // Decimals (USDC has 6 decimals)
