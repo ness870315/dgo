@@ -4981,31 +4981,34 @@ class EnhancedBackend {
           // Convert USDC amount to lamports (USDC has 6 decimals)
           const lamports = Math.floor(payment.amount * 1_000_000);
           
-          // Return 402 response in the format expected by x402 clients
-          return res.status(402).json({
-            error: 'X-PAYMENT header is required',
-            paymentRequirements: {
-              scheme: 'exact',
-              network: 'solana',
-              maxAmountRequired: lamports.toString(),
-              resource: `https://api.degen-oracle.com/api/x402/fuel/${nonce}`,
-              description: `${payment.fuelType} Fuel for ${payment.tokenSymbol}`,
-              mimeType: 'application/json',
-              payTo: this.twitterMentionService.x402Service.payToAddress,
-              maxTimeoutSeconds: 300,
-              asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC on Solana
-              outputSchema: null,
-              extra: {
-                feePayer: 'GWRUEnMCfuDzz9zWh4hckkSZDN5dYH3UmzRNf64L52Sk', // PayAI facilitator fee payer
-                metadata: {
-                  nonce: payment.nonce,
-                  tokenSymbol: payment.tokenSymbol,
-                  contractAddress: payment.contractAddress,
-                  fuelType: payment.fuelType,
-                  userHandle: payment.userHandle
-                }
+          // Build payment requirements object
+          const paymentRequirements = {
+            x402Version: 1,
+            scheme: 'exact',
+            network: 'solana',
+            maxAmountRequired: lamports.toString(),
+            resource: `https://api.degen-oracle.com/api/x402/fuel/${nonce}`,
+            description: `${payment.fuelType} Fuel for ${payment.tokenSymbol}`,
+            maxTimeoutSeconds: 300,
+            asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC on Solana
+            payTo: this.twitterMentionService.x402Service.payToAddress,
+            extra: {
+              feePayer: 'GWRUEnMCfuDzz9zWh4hckkSZDN5dYH3UmzRNf64L52Sk', // PayAI facilitator fee payer
+              metadata: {
+                nonce: payment.nonce,
+                tokenSymbol: payment.tokenSymbol,
+                contractAddress: payment.contractAddress,
+                fuelType: payment.fuelType,
+                userHandle: payment.userHandle
               }
             }
+          };
+          
+          // Return 402 response in x402 spec format (accepts array)
+          return res.status(402).json({
+            x402Version: 1,
+            error: 'X-PAYMENT header is required',
+            accepts: [paymentRequirements]
           });
         }
 
@@ -5018,18 +5021,18 @@ class EnhancedBackend {
           
           console.log('[🛡️ x402] Payment payload:', JSON.stringify(paymentPayload, null, 2));
 
-          // Build payment requirements for verification
+          // Build payment requirements for verification (must match 402 response)
           const lamports = Math.floor(payment.amount * 1_000_000);
           const paymentRequirements = {
+            x402Version: 1,
             scheme: 'exact',
             network: 'solana',
             maxAmountRequired: lamports.toString(),
-            asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-            payTo: this.twitterMentionService.x402Service.payToAddress,
             resource: `https://api.degen-oracle.com/api/x402/fuel/${nonce}`,
             description: `${payment.fuelType} Fuel for ${payment.tokenSymbol}`,
-            mimeType: 'application/json',
             maxTimeoutSeconds: 300,
+            asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+            payTo: this.twitterMentionService.x402Service.payToAddress,
             extra: {
               feePayer: 'GWRUEnMCfuDzz9zWh4hckkSZDN5dYH3UmzRNf64L52Sk',
               metadata: {

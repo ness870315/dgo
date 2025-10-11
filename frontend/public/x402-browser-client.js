@@ -1,19 +1,21 @@
 /**
  * Browser-compatible x402 Client for Solana
- * Adapted from x402-fetch for use with Phantom/Solflare wallets
- * Version: 1.0.3
+ * Matches PayAI x402 reference implementation
+ * Version: 2.0.0
  */
 
-console.log('[x402] 🔧 x402-browser-client.js loaded - Version 1.0.3');
+console.log('[x402] 🔧 x402-browser-client.js loaded - Version 2.0.0');
 
 class X402BrowserClient {
-  constructor() {
+  constructor(apiBase, nonce) {
+    this.apiBase = apiBase;
+    this.nonce = nonce;
     this.wallet = null;
     this.walletAdapter = null;
   }
 
   /**
-   * Connect to Solana wallet (Phantom, Solflare, Backpack, etc.)
+   * Connect to Solana wallet (Phantom, Solflare, Backpack)
    */
   async connectWallet() {
     console.log('[x402] 🔗 Connecting to Solana wallet...');
@@ -50,64 +52,62 @@ class X402BrowserClient {
   }
 
   /**
-   * Wrap fetch with x402 payment handling
-   * Similar to wrapFetchWithPayment from x402-fetch
+   * Fetch with x402 payment handling
+   * 1) Make request → get 402 with payment requirements
+   * 2) Build & sign transaction → retry with X-PAYMENT header
    */
-  async fetchWithPayment(url, options = {}) {
-    console.log('[x402] 🚀 Making request to:', url);
+  async fetchWithPayment() {
+    const resourceUrl = `${this.apiBase}/api/x402/fuel/${this.nonce}`;
     
-    // Make initial request
-    const response = await fetch(url, options);
-    
-    // Check if payment is required (402 status)
-    if (response.status !== 402) {
-      console.log('[x402] ✅ No payment required, returning response');
-      return response;
+    console.log('[x402] 🚀 Making initial request to:', resourceUrl);
+
+    // Step 1: Initial request (expect 402)
+    const initialResponse = await fetch(resourceUrl);
+
+    if (initialResponse.status !== 402) {
+      // Already paid or other status
+      return initialResponse.json();
     }
 
     console.log('[x402] 💰 Payment required (402), processing payment...');
-    
-    // Parse payment requirements from 402 response
-    const paymentData = await response.json();
-    const paymentRequirements = paymentData.paymentRequirements;
-    
-    if (!paymentRequirements) {
-      throw new Error('Invalid 402 response: missing paymentRequirements');
+
+    // Parse 402 response (accepts array format)
+    const paymentInfo = await initialResponse.json();
+    console.log('[x402] 📋 Payment info:', paymentInfo);
+
+    if (!paymentInfo.accepts || !Array.isArray(paymentInfo.accepts)) {
+      throw new Error('Invalid 402 response: missing accepts array');
     }
 
-    console.log('[x402] 📋 Payment requirements:', paymentRequirements);
+    // Find Solana requirements
+    const requirements = paymentInfo.accepts.find(req => req.network === 'solana');
+    if (!requirements) {
+      throw new Error('No Solana payment requirements found');
+    }
 
-    // Ensure wallet is connected
-    if (!this.wallet || !this.walletAdapter) {
+    console.log('[x402] 📋 Payment requirements:', requirements);
+
+    // Step 2: Connect wallet if not connected
+    if (!this.wallet) {
       await this.connectWallet();
     }
 
-    // Build and sign payment transaction
-    const paymentPayload = await this.buildPaymentTransaction(paymentRequirements);
+    // Step 3: Build and sign payment transaction
+    const paymentPayload = await this.buildPaymentTransaction(requirements);
     
-    // Encode payment payload to base64 (x402 format)
+    // Step 4: Encode payment payload to base64 (x402 format)
     const xPaymentHeader = btoa(JSON.stringify(paymentPayload));
     
     console.log('[x402] 📡 Retrying request with X-PAYMENT header...');
     console.log('[x402] X-PAYMENT header length:', xPaymentHeader.length);
-    console.log('[x402] X-PAYMENT header (first 100 chars):', xPaymentHeader.substring(0, 100));
     
-    // Build headers object
-    const requestHeaders = {
-      'x-payment': xPaymentHeader,
-      'content-type': 'application/json',
-      'accept': 'application/json'
-    };
-    
-    console.log('[x402] 🔍 Request headers being sent:', Object.keys(requestHeaders));
-    console.log('[x402] 🔍 x-payment header value exists:', !!requestHeaders['x-payment']);
-    
-    // Retry request with X-PAYMENT header (try lowercase for proxy compatibility)
-    const paidResponse = await fetch(url, {
+    // Step 5: Retry request with X-PAYMENT header (uppercase per spec)
+    const paidResponse = await fetch(resourceUrl, {
       method: 'GET',
-      headers: requestHeaders,
-      credentials: 'include',
-      cache: 'no-cache'
+      headers: {
+        'X-PAYMENT': xPaymentHeader,
+        'Accept': 'application/json'
+      }
     });
 
     if (!paidResponse.ok) {
@@ -115,7 +115,7 @@ class X402BrowserClient {
       throw new Error(`Payment failed: ${errorData.error || paidResponse.statusText}`);
     }
 
-    // Read X-PAYMENT-RESPONSE header (x402 spec)
+    // Step 6: Read X-PAYMENT-RESPONSE header (settlement details)
     const xPaymentResponse = paidResponse.headers.get('X-PAYMENT-RESPONSE');
     if (xPaymentResponse) {
       try {
@@ -129,27 +129,30 @@ class X402BrowserClient {
 
     console.log('[x402] ✅ Payment successful, resource delivered!');
     
-    return paidResponse;
+    return paidResponse.json();
   }
 
   /**
    * Build and sign Solana payment transaction
+   * Creates a v0 VersionedTransaction with:
+   * - Fee payer = facilitator (from requirements.extra.feePayer)
+   * - Single transferChecked instruction (USDC from user ATA → merchant ATA)
+   * - User signs (partial signature)
    */
   async buildPaymentTransaction(requirements) {
-    console.log('[x402] 🔨 Building Solana payment transaction...');
-    
     const {
       network,
-      maxAmountRequired,
-      asset,
-      payTo,
+      asset: usdcMint,
+      payTo: payToAddress,
+      maxAmountRequired: amountRaw,
       extra
     } = requirements;
 
-    // Verify this is Solana
     if (network !== 'solana' && network !== 'solana-devnet') {
       throw new Error(`Unsupported network: ${network}. This client only supports Solana.`);
     }
+
+    console.log('[x402] 🔨 Building Solana payment transaction...');
 
     // Get RPC connection
     const rpcUrl = network === 'solana-devnet' 
@@ -162,68 +165,60 @@ class X402BrowserClient {
     const { blockhash } = await connection.getLatestBlockhash();
     console.log('[x402] ✅ Got blockhash:', blockhash);
     
-    // Build SPL Token transfer instruction (USDC)
-    const fromPubkey = this.wallet;
-    const toPubkey = new solanaWeb3.PublicKey(payTo);
-    const usdcMint = new solanaWeb3.PublicKey(asset);
-    const amount = BigInt(maxAmountRequired);
+    // Parse addresses
+    const userPubkey = this.wallet;
+    const usdcMintPk = new solanaWeb3.PublicKey(usdcMint);
+    const payToPk = new solanaWeb3.PublicKey(payToAddress);
+    const facilitatorFeePayer = new solanaWeb3.PublicKey(extra.feePayer);
+    const amount = BigInt(amountRaw);
     
+    // Derive Associated Token Accounts
     const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
     const ASSOCIATED_TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
     
-    // Calculate Associated Token Accounts
-    const findATA = (wallet, mint) => {
+    const findATA = (walletPk, mintPk) => {
       return solanaWeb3.PublicKey.findProgramAddressSync(
-        [wallet.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
+        [walletPk.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mintPk.toBuffer()],
         ASSOCIATED_TOKEN_PROGRAM_ID
       )[0];
     };
     
-    const fromATA = findATA(fromPubkey, usdcMint);
-    const toATA = findATA(toPubkey, usdcMint);
+    const userATA = findATA(userPubkey, usdcMintPk);
+    const merchantATA = findATA(payToPk, usdcMintPk);
     
-    console.log('[x402] 📍 From ATA:', fromATA.toBase58());
-    console.log('[x402] 📍 To ATA:', toATA.toBase58());
+    console.log('[x402] 📍 User ATA:', userATA.toBase58());
+    console.log('[x402] 📍 Merchant ATA:', merchantATA.toBase58());
+    console.log('[x402] 💸 Fee payer (facilitator):', facilitatorFeePayer.toBase58());
+    console.log('[x402] 💸 Token sender (user):', userPubkey.toBase58());
     
-    // Build TransferChecked instruction (SPL Token Program)
+    // Build TransferChecked instruction (discriminator 12)
+    // Layout: [discriminator: u8, amount: u64 LE, decimals: u8]
     const transferData = new Uint8Array(17);
-    transferData[0] = 12; // TransferChecked discriminator
+    transferData[0] = 12; // TransferChecked
     
-    // Amount (u64 LE)
+    // Amount (u64 little-endian)
     for (let i = 0; i < 8; i++) {
       transferData[1 + i] = Number((amount >> BigInt(i * 8)) & BigInt(0xFF));
     }
     
-    // Decimals (u8) - USDC has 6 decimals
+    // Decimals (USDC has 6 decimals)
     transferData[9] = 6;
     
+    // TransferChecked keys: [source, mint, destination, owner]
     const transferInstruction = new solanaWeb3.TransactionInstruction({
       keys: [
-        { pubkey: fromATA, isSigner: false, isWritable: true },
-        { pubkey: usdcMint, isSigner: false, isWritable: false },
-        { pubkey: toATA, isSigner: false, isWritable: true },
-        { pubkey: fromPubkey, isSigner: true, isWritable: false }
+        { pubkey: userATA, isSigner: false, isWritable: true },      // source
+        { pubkey: usdcMintPk, isSigner: false, isWritable: false },  // mint
+        { pubkey: merchantATA, isSigner: false, isWritable: true },  // destination
+        { pubkey: userPubkey, isSigner: true, isWritable: false }    // owner (SIGNER)
       ],
       programId: TOKEN_PROGRAM_ID,
       data: transferData
     });
     
-    // Facilitator pays gas fees (x402 pattern)
-    // Extract facilitator's fee payer from requirements
-    const facilitatorFeePayer = requirements.extra?.feePayer;
-    if (!facilitatorFeePayer) {
-      throw new Error('Payment requirements missing facilitator feePayer address');
-    }
-    
-    const feePayer = new solanaWeb3.PublicKey(facilitatorFeePayer);
-    
-    console.log('[x402] 💸 Fee payer (facilitator):', feePayer.toBase58());
-    console.log('[x402] 💸 Token sender (user):', fromPubkey.toBase58());
-    
-    // Create v0 transaction with facilitator as fee payer
-    // ONLY include the transfer instruction - facilitator expects exact scheme with single instruction
+    // Create v0 transaction with facilitator as fee payer (x402 pattern)
     const messageV0 = new solanaWeb3.TransactionMessage({
-      payerKey: feePayer,
+      payerKey: facilitatorFeePayer,
       recentBlockhash: blockhash,
       instructions: [transferInstruction]
     }).compileToV0Message();
@@ -231,11 +226,9 @@ class X402BrowserClient {
     const transaction = new solanaWeb3.VersionedTransaction(messageV0);
     
     console.log('[x402] 🔐 Requesting wallet signature...');
-    console.log('[x402] ℹ️  Note: Facilitator pays gas fees (x402 protocol)');
+    console.log('[x402] ℹ️  Facilitator pays gas fees (x402 protocol)');
     
-    // Sign with wallet (partially signed - facilitator will co-sign)
-    // Note: Some wallets may show a warning since user is not paying gas
-    // This is normal for x402 payments where the facilitator covers fees
+    // Sign with wallet (partial signature - user only)
     const signedTx = await this.walletAdapter.signTransaction(transaction);
     
     // Serialize the signed transaction
@@ -247,7 +240,7 @@ class X402BrowserClient {
     // Return payment payload in x402 format
     return {
       x402Version: 1,
-      scheme: requirements.scheme || 'exact',
+      scheme: 'exact',
       network: network,
       payload: {
         transaction: base64Tx
@@ -255,7 +248,3 @@ class X402BrowserClient {
     };
   }
 }
-
-// Export for use in HTML
-window.X402BrowserClient = X402BrowserClient;
-
