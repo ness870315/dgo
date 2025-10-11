@@ -368,10 +368,14 @@
                 console.log('Payment requirements:', paymentData);
 
                 // Step 2: Create x402 payment requirements object
+                // Convert USDC amount to lamports (USDC has 6 decimals)
+                const usdcAmount = parseFloat(paymentData.amount);
+                const lamports = Math.floor(usdcAmount * 1_000_000); // 0.1 USDC = 100,000 lamports
+                
                 const paymentRequirements = {
                     scheme: 'exact',
                     network: 'solana',
-                    maxAmountRequired: paymentData.amount.toString(),
+                    maxAmountRequired: lamports.toString(),
                     asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC on Solana
                     payTo: paymentData.payTo,
                     resource: window.location.href,
