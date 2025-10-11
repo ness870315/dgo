@@ -5,74 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fuel Payment - DeGen Oracle @PayAINetwork</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Load Buffer polyfill BEFORE Solana Web3 -->
-    <script>
-        // Manual Buffer polyfill for browser
-        (function() {
-            const BufferPolyfill = function Buffer(arg, encodingOrOffset, length) {
-                return Uint8Array.from(arg);
-            };
-
-            BufferPolyfill.from = function(data, encoding) {
-                if (typeof data === 'string') {
-                    if (encoding === 'base64') {
-                        const binaryString = atob(data);
-                        const bytes = new Uint8Array(binaryString.length);
-                        for (let i = 0; i < binaryString.length; i++) {
-                            bytes[i] = binaryString.charCodeAt(i);
-                        }
-                        return bytes;
-                    } else if (encoding === 'hex') {
-                        const bytes = new Uint8Array(data.length / 2);
-                        for (let i = 0; i < data.length; i += 2) {
-                            bytes[i / 2] = parseInt(data.substr(i, 2), 16);
-                        }
-                        return bytes;
-                    } else {
-                        const encoder = new TextEncoder();
-                        return encoder.encode(data);
-                    }
-                } else if (Array.isArray(data)) {
-                    return new Uint8Array(data);
-                } else if (data instanceof Uint8Array) {
-                    return data;
-                }
-                return new Uint8Array(data);
-            };
-
-            BufferPolyfill.alloc = function(size, fill) {
-                const buf = new Uint8Array(size);
-                if (fill !== undefined) {
-                    buf.fill(fill);
-                }
-                return buf;
-            };
-
-            BufferPolyfill.isBuffer = function(obj) {
-                return obj instanceof Uint8Array;
-            };
-
-            BufferPolyfill.concat = function(list, totalLength) {
-                if (totalLength === undefined) {
-                    totalLength = list.reduce((acc, buf) => acc + buf.length, 0);
-                }
-                const result = new Uint8Array(totalLength);
-                let offset = 0;
-                for (const buf of list) {
-                    result.set(buf, offset);
-                    offset += buf.length;
-                }
-                return result;
-            };
-
-            // Set Buffer globally
-            window.Buffer = BufferPolyfill;
-            window.global = window;
-            
-            console.log('Buffer polyfill loaded:', typeof window.Buffer, typeof window.Buffer.from);
-        })();
-    </script>
-    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <!-- Solana Web3.js for wallet interaction -->
+    <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.min.js"></script>
     <style>
         body {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -345,7 +279,7 @@
             }
         });
 
-        // Process actual x402 payment
+        // Process actual x402 payment via PayAI Facilitator
         async function processPayment(publicKey) {
             try {
                 const btn = document.getElementById('connectWalletBtn');
@@ -354,17 +288,11 @@
 
                 const statusDiv = document.getElementById('paymentStatus');
                 statusDiv.className = 'mt-4 p-4 rounded-lg text-center bg-blue-900 border border-blue-600';
-                statusDiv.innerHTML = '<p class="text-blue-200">Processing @PayAINetwork payment...</p>';
+                statusDiv.innerHTML = '<p class="text-blue-200">🚀 Starting PayAI x402 payment flow...</p>';
                 statusDiv.classList.remove('hidden');
 
-                // Debug: Check if Buffer is available
-                console.log('Buffer check:', {
-                    windowBuffer: typeof window.Buffer,
-                    bufferFrom: typeof (window.Buffer && window.Buffer.from),
-                    globalBuffer: typeof Buffer
-                });
-
-                // Get payment details from our backend
+                // Step 1: Get payment details from our backend
+                console.log('Step 1: Getting payment requirements...');
                 const response = await fetch(`${API_BASE}/api/x402/payment-details/${nonce}`);
                 const paymentData = await response.json();
 
@@ -372,38 +300,106 @@
                     throw new Error(paymentData.error || 'Failed to get payment details');
                 }
 
-                console.log('Creating payment for:', paymentData);
-                console.log('Wallet adapter:', walletAdapter);
-                console.log('Public key:', publicKey);
+                console.log('Payment requirements:', paymentData);
 
-                // Simple Solana Web3.js transaction - wallet handles everything
-                console.log('Creating transaction...');
+                // Step 2: Create x402 payment requirements object
+                const paymentRequirements = {
+                    scheme: 'exact',
+                    network: 'solana',
+                    maxAmountRequired: paymentData.amount.toString(),
+                    asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC on Solana
+                    payTo: paymentData.payTo,
+                    resource: window.location.href,
+                    description: `${paymentData.fuelType} Fuel for ${paymentData.tokenSymbol}`,
+                    mimeType: 'application/json',
+                    maxTimeoutSeconds: 300,
+                    extra: {
+                        feePayer: 'GWRUEnMCfuDzz9zWh4hckkSZDN5dYH3UmzRNf64L52Sk' // PayAI facilitator fee payer
+                    }
+                };
+
+                console.log('Step 2: x402 payment requirements created:', paymentRequirements);
+
+                // Step 3: Create Solana connection and build transaction
+                statusDiv.innerHTML = '<p class="text-blue-200">💼 Preparing transaction...</p>';
+                
+                console.log('Step 3: Creating Solana transaction...');
+                const connection = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+                const { blockhash } = await connection.getLatestBlockhash();
                 
                 const fromPubkey = new solanaWeb3.PublicKey(publicKey);
-                const toPubkey = new solanaWeb3.PublicKey(paymentData.payTo);
+                const toPubkey = new solanaWeb3.PublicKey(paymentRequirements.payTo);
                 
-                const transaction = new solanaWeb3.Transaction();
+                const transaction = new solanaWeb3.Transaction({
+                    recentBlockhash: blockhash,
+                    feePayer: fromPubkey
+                });
+                
                 const transferInstruction = solanaWeb3.SystemProgram.transfer({
                     fromPubkey: fromPubkey,
                     toPubkey: toPubkey,
-                    lamports: 100000000, // 0.1 SOL
+                    lamports: parseInt(paymentRequirements.maxAmountRequired)
                 });
 
                 transaction.add(transferInstruction);
 
-                console.log('Sending transaction to wallet for signing...');
-                const signedTransaction = await walletAdapter.signAndSendTransaction(transaction);
-                console.log('Transaction sent:', signedTransaction);
+                // Step 4: Sign transaction with wallet
+                statusDiv.innerHTML = '<p class="text-blue-200">🔐 Please approve in your wallet...</p>';
+                console.log('Step 4: Requesting wallet signature...');
+                
+                const signedTx = await walletAdapter.signTransaction(transaction);
+                const serialized = signedTx.serialize({ requireAllSignatures: false });
+                const base64Tx = btoa(String.fromCharCode.apply(null, serialized));
+
+                console.log('Transaction signed successfully');
+
+                // Step 5: Create x402 payment payload
+                const paymentPayload = {
+                    x402Version: 1,
+                    scheme: 'exact',
+                    network: 'solana',
+                    payload: {
+                        transaction: base64Tx
+                    }
+                };
+
+                console.log('Step 5: Payment payload created');
+
+                // Step 6: Submit to PayAI facilitator for settlement
+                statusDiv.innerHTML = '<p class="text-blue-200">📡 Submitting to PayAI facilitator...</p>';
+                console.log('Step 6: Calling PayAI /settle endpoint...');
+                
+                const settleResponse = await fetch('https://facilitator.payai.network/settle', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        paymentPayload,
+                        paymentRequirements
+                    })
+                });
+
+                const settleResult = await settleResponse.json();
+                console.log('PayAI settlement response:', settleResult);
+
+                if (!settleResult.success) {
+                    throw new Error(settleResult.errorReason || 'Payment settlement failed');
+                }
+
+                const txHash = settleResult.transaction;
+                console.log('✅ Payment successful! TX:', txHash);
 
                 // Update status
                 statusDiv.className = 'mt-4 p-4 rounded-lg text-center bg-green-900 border border-green-600';
                 statusDiv.innerHTML = `
-                    <p class="text-green-200 mb-2">✅ Payment sent successfully!</p>
-                    <p class="text-white text-sm">TX: ${signedTransaction.signature.substring(0, 12)}...</p>
-                    <p class="text-green-300 text-xs mt-2">Waiting for confirmation...</p>
+                    <p class="text-green-200 mb-2">✅ Payment sent successfully via @PayAINetwork!</p>
+                    <p class="text-white text-sm">TX: ${txHash.substring(0, 12)}...</p>
+                    <p class="text-green-300 text-xs mt-2">⏳ Waiting for backend confirmation...</p>
                 `;
 
-                pollPaymentConfirmation(signedTransaction.signature);
+                // Poll our backend for confirmation
+                pollPaymentConfirmation(txHash);
 
             } catch (error) {
                 console.error('Payment error (full):', error);
