@@ -4954,7 +4954,8 @@ class EnhancedBackend {
         const xPaymentHeader = req.headers['x-payment'];
         
         console.log('[🛡️ x402] 💳 Merchant resource requested for nonce:', nonce);
-        console.log('[🛡️ x402] X-PAYMENT header:', xPaymentHeader ? 'Present' : 'Not present');
+        console.log('[🛡️ x402] All headers:', Object.keys(req.headers).join(', '));
+        console.log('[🛡️ x402] X-PAYMENT header:', xPaymentHeader ? `Present (${xPaymentHeader.length} chars)` : 'Not present');
 
         // Get pending payment
         const payment = this.twitterMentionService.x402Service.getPendingPayment(nonce);

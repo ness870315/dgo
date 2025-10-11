@@ -86,13 +86,16 @@ class X402BrowserClient {
     const xPaymentHeader = btoa(JSON.stringify(paymentPayload));
     
     console.log('[x402] 📡 Retrying request with X-PAYMENT header...');
+    console.log('[x402] X-PAYMENT header length:', xPaymentHeader.length);
+    console.log('[x402] X-PAYMENT header (first 100 chars):', xPaymentHeader.substring(0, 100));
     
     // Retry request with X-PAYMENT header
     const paidResponse = await fetch(url, {
       ...options,
       headers: {
         ...options.headers,
-        'X-PAYMENT': xPaymentHeader
+        'X-PAYMENT': xPaymentHeader,
+        'Content-Type': 'application/json'
       }
     });
 
