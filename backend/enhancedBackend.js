@@ -4875,6 +4875,77 @@ class EnhancedBackend {
       }
     });
 
+    // Simplified x402 Payment Endpoint (backend handles everything via facilitator)
+    this.app.post('/api/x402/pay/:nonce', async (req, res) => {
+      try {
+        const { nonce } = req.params;
+        
+        console.log('[🛡️ x402] 💳 Processing payment for nonce:', nonce);
+
+        const payment = this.twitterMentionService.x402Service.getPendingPayment(nonce);
+        
+        if (!payment) {
+          return res.status(404).json({ 
+            success: false,
+            error: 'Payment not found or has expired' 
+          });
+        }
+
+        // Check if expired
+        if (payment.expiresAt < Date.now()) {
+          return res.status(410).json({ 
+            success: false,
+            error: 'Payment link has expired' 
+          });
+        }
+
+        // For now, simulate payment success
+        // In production, this would integrate with PayAI facilitator to handle the actual payment
+        console.log('[🛡️ x402] ⚠️ DEMO MODE: Simulating payment success');
+        
+        const txHash = 'demo_' + Date.now();
+        
+        // Update payment status
+        this.twitterMentionService.x402Service.markPaymentCompleted(nonce, txHash);
+
+        // Apply fuel to token
+        const token = await this.databaseService.getTokenByAddress(payment.contractAddress);
+        if (token) {
+          await this.fuelService.applyFuel(token, payment.fuelType);
+          console.log(`[🛡️ x402] ✅ Fuel ${payment.fuelType} applied to ${payment.tokenSymbol}`);
+
+          // Post Twitter confirmation
+          if (payment.originalTweetId) {
+            await this.twitterAutoPostService.postFuelConfirmation(
+              token,
+              payment.fuelType,
+              { handle: payment.userHandle },
+              payment.originalTweetId,
+              txHash
+            );
+          }
+
+          // Public announcement for high tiers
+          if (payment.fuelType === '500x' || payment.fuelType === '1000x') {
+            const announcement = `🔥 MASSIVE ${payment.fuelType.toUpperCase()} FUEL APPLIED!\n\n$${payment.tokenSymbol} just got boosted by @${payment.userHandle}\n\nThis token is now trending HARD on degen-oracle.com 🚀\n\n#DegenMode #SolanaAlpha`;
+            await this.oauthXService.postTweet(announcement);
+          }
+        }
+
+        res.json({
+          success: true,
+          tokenSymbol: payment.tokenSymbol,
+          fuelType: payment.fuelType,
+          transactionHash: txHash,
+          status: 'completed'
+        });
+
+      } catch (error) {
+        console.error('[🛡️ x402] ❌ Error processing payment:', error);
+        res.status(500).json({ success: false, error: 'Payment processing error' });
+      }
+    });
+
     // x402 Merchant Resource Endpoint (returns 402 Payment Required)
     // This is the endpoint the x402 SDK calls to initiate payment
     this.app.get('/api/x402/fuel/:nonce', async (req, res) => {

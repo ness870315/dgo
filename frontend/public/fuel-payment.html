@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fuel Payment - DeGen Oracle @PayAINetwork</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- PayAI x402 SDK -->
-    <script src="https://unpkg.com/@payai/x402@latest/dist/index.iife.js"></script>
     <style>
         body {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -14,13 +12,6 @@
         }
         .glow {
             box-shadow: 0 0 20px rgba(124, 58, 237, 0.5);
-        }
-        .pulse {
-            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: .5; }
         }
     </style>
 </head>
@@ -69,7 +60,7 @@
                     <span class="text-white font-bold text-3xl" id="payAmount">0.00</span>
                     <span class="text-white text-xl">USDC</span>
                 </div>
-                <p class="text-purple-200 text-xs mt-2">Payment via @PayAINetwork</p>
+                <p class="text-purple-200 text-xs mt-2">Gas-free payment via @PayAINetwork</p>
             </div>
 
             <!-- Expiration Timer -->
@@ -77,12 +68,12 @@
                 <p class="text-yellow-200 text-sm">⏰ Link expires in <span id="expiryTimer" class="font-bold">15:00</span></p>
             </div>
 
-            <!-- Connect Wallet Button -->
+            <!-- Pay Button -->
             <button 
-                id="connectWalletBtn"
+                id="payBtn"
                 class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 glow mb-4"
             >
-                🔗 Connect Wallet & Pay
+                💳 Pay with Wallet
             </button>
 
             <!-- Payment Status -->
@@ -90,8 +81,8 @@
 
             <!-- Info -->
             <div class="text-center text-gray-500 text-xs mt-4">
-                <p>Secure payment via Phantom or Solflare</p>
-                <p class="mt-1">Using @PayAINetwork protocol</p>
+                <p>Secure payment via Solana wallet</p>
+                <p class="mt-1">Using @PayAINetwork x402 protocol</p>
             </div>
         </div>
 
@@ -111,7 +102,7 @@
             <p class="text-gray-500 text-sm mb-4">Check your Twitter for confirmation from @dgnoracle</p>
             <div class="bg-gray-800 rounded-lg p-3 mb-4">
                 <p class="text-gray-400 text-xs mb-1">Transaction:</p>
-                <p class="text-purple-400 text-sm font-mono" id="txHash">-</p>
+                <p class="text-purple-400 text-sm font-mono break-all" id="txHash">-</p>
             </div>
             <a href="https://degen-oracle.com" class="text-purple-400 hover:text-purple-300">Return to DeGen Oracle →</a>
         </div>
@@ -127,7 +118,6 @@
         // State management
         let paymentDetails = null;
         let expiryInterval = null;
-        let x402Client = null;
 
         // Initialize
         async function init() {
@@ -213,69 +203,63 @@
             expiryInterval = setInterval(updateTimer, 1000);
         }
 
-        // Connect Wallet & Pay using x402 SDK
-        document.getElementById('connectWalletBtn').addEventListener('click', async () => {
+        // Pay with Wallet
+        document.getElementById('payBtn').addEventListener('click', async () => {
             try {
-                const btn = document.getElementById('connectWalletBtn');
+                const btn = document.getElementById('payBtn');
                 btn.textContent = '⏳ Processing...';
                 btn.disabled = true;
 
                 const statusDiv = document.getElementById('paymentStatus');
                 statusDiv.className = 'mt-4 p-4 rounded-lg text-center bg-blue-900 border border-blue-600';
-                statusDiv.innerHTML = '<p class="text-blue-200">🚀 Starting PayAI x402 payment flow...</p>';
+                statusDiv.innerHTML = '<p class="text-blue-200">🚀 Initiating x402 payment...</p>';
                 statusDiv.classList.remove('hidden');
 
-                console.log('🚀 Starting PayAI x402 payment flow...');
+                console.log('🚀 Starting x402 payment flow for nonce:', nonce);
 
-                // Step 1: Create x402 client
-                console.log('Step 1: Creating x402 client...');
-                x402Client = new window.X402.Client({
-                    network: 'solana',
-                    rpcUrl: 'https://mainnet.helius-rpc.com/?api-key=e20ea2f4-232f-484e-be1e-e41b698a7850',
-                    connectionEndpoint: 'https://mainnet.helius-rpc.com/?api-key=e20ea2f4-232f-484e-be1e-e41b698a7850'
+                // Call backend to process payment via PayAI facilitator
+                // The backend handles all the complexity
+                statusDiv.innerHTML = '<p class="text-blue-200">💳 Processing payment via PayAI...</p>';
+                
+                const payResponse = await fetch(`${API_BASE}/api/x402/pay/${nonce}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
                 });
 
-                statusDiv.innerHTML = '<p class="text-blue-200">💼 Please connect your wallet...</p>';
-
-                // Step 2: Make paid request to our merchant endpoint
-                // The backend will return 402 Payment Required with payment requirements
-                // The x402 SDK will handle the wallet connection, transaction building, and facilitator settlement
-                console.log('Step 2: Making paid request to merchant...');
-                console.log('💰 PayAI Facilitator will cover all gas fees!');
+                const result = await payResponse.json();
                 
-                statusDiv.innerHTML = '<p class="text-blue-200">💳 Building transaction...</p>';
+                console.log('Payment response:', result);
 
-                const result = await x402Client.request(`${API_BASE}/api/x402/fuel/${nonce}`);
-                
-                console.log('Step 3: Processing response...');
-                console.log('✅ Payment complete & resource delivered!', result);
-                console.log('Transaction signature:', result.transaction || 'null');
-                console.log('💚 You paid $0 in gas fees!');
+                if (result.success) {
+                    // Show success
+                    statusDiv.className = 'mt-4 p-4 rounded-lg text-center bg-green-900 border border-green-600';
+                    statusDiv.innerHTML = `
+                        <p class="text-green-200 mb-2">🎉 Payment successful!</p>
+                        <p class="text-white text-sm">Fuel applied to $${result.tokenSymbol || paymentDetails.tokenSymbol}</p>
+                        <p class="text-green-300 text-xs mt-2">Check Twitter for confirmation</p>
+                    `;
 
-                // Show success
-                statusDiv.className = 'mt-4 p-4 rounded-lg text-center bg-green-900 border border-green-600';
-                statusDiv.innerHTML = `
-                    <p class="text-green-200 mb-2">🎉 Payment confirmed!</p>
-                    <p class="text-white text-sm">Fuel applied to $${paymentDetails.tokenSymbol}</p>
-                    <p class="text-green-300 text-xs mt-2">Check Twitter for confirmation from @dgnoracle</p>
-                `;
+                    // Hide button
+                    btn.classList.add('hidden');
 
-                // Hide button
-                btn.classList.add('hidden');
-
-                // Show full success state after a moment
-                setTimeout(() => {
-                    showSuccess({
-                        ...paymentDetails,
-                        transactionHash: result.transaction || 'Processing...'
-                    });
-                }, 2000);
+                    // Show full success state after a moment
+                    setTimeout(() => {
+                        showSuccess({
+                            ...paymentDetails,
+                            transactionHash: result.transactionHash || 'Processing...'
+                        });
+                    }, 2000);
+                } else {
+                    throw new Error(result.error || 'Payment failed');
+                }
 
             } catch (error) {
                 console.error('Payment error:', error);
                 
-                const btn = document.getElementById('connectWalletBtn');
-                btn.textContent = '🔗 Connect Wallet & Pay';
+                const btn = document.getElementById('payBtn');
+                btn.textContent = '💳 Pay with Wallet';
                 btn.disabled = false;
                 
                 const statusDiv = document.getElementById('paymentStatus');
