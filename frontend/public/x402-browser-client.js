@@ -215,18 +215,20 @@ class X402BrowserClient {
       data: transferData
     });
     
-    // ⚠️ EXPERIMENTAL: Use standard Transaction (not VersionedTransaction) with facilitator as feePayer
-    // This might be the "middle ground" that prevents both flagging and rejection
-    const transaction = new solanaWeb3.Transaction({
-      feePayer: facilitatorFeePayer, // Facilitator as fee payer (matches requirements)
+    // ⚠️ REVERT: Use user as feePayer to prevent "malicious dApp" flagging
+    // We need to find a way to make the facilitator accept this structure
+    const messageV0 = new solanaWeb3.TransactionMessage({
+      payerKey: userPubkey, // User as fee payer (prevents "malicious dApp" warning)
       recentBlockhash: blockhash,
-      instructions: [transferInstruction] // Single instruction only
-    });
+      instructions: [transferInstruction]
+    }).compileToV0Message();
+    
+    const transaction = new solanaWeb3.VersionedTransaction(messageV0);
     
     console.log('[x402] 🔐 Requesting wallet signature...');
-    console.log('[x402] ℹ️  Standard Transaction with facilitator as feePayer');
-    console.log('[x402] 💸 Fee payer (facilitator):', facilitatorFeePayer.toBase58());
-    console.log('[x402] ⚠️  Testing if this prevents both flagging and rejection');
+    console.log('[x402] ℹ️  User as feePayer (prevents flagging) - facilitator must be flexible');
+    console.log('[x402] 💸 Fee payer (user):', userPubkey.toBase58());
+    console.log('[x402] 💸 Facilitator address:', facilitatorFeePayer.toBase58());
     
     // Sign with wallet (user signs, facilitator co-signs during settlement)
     const signedTx = await this.walletAdapter.signTransaction(transaction);

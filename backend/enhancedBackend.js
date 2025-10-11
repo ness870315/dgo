@@ -4993,8 +4993,8 @@ class EnhancedBackend {
             asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC on Solana
             payTo: this.twitterMentionService.x402Service.payToAddress,
             extra: {
-              // User pays minimal fees, facilitator handles x402 settlement
-              // This prevents "malicious dApp" flagging while maintaining x402 compliance
+              // Remove feePayer to make facilitator more flexible about fee payer
+              // User pays minimal fees to prevent "malicious dApp" flagging
             }
           };
           
@@ -5028,8 +5028,8 @@ class EnhancedBackend {
             asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
             payTo: this.twitterMentionService.x402Service.payToAddress,
             extra: {
-              // Note: User pays minimal fees, facilitator handles x402 settlement
-              // This matches the frontend transaction structure
+              // Remove feePayer to make facilitator more flexible about fee payer
+              // User pays minimal fees to prevent "malicious dApp" flagging
             }
           };
 
@@ -5053,6 +5053,8 @@ class EnhancedBackend {
 
           if (!verifyResponse.data.isValid) {
             console.log('[🛡️ x402] ❌ Payment verification failed');
+            console.log('[🛡️ x402] ❌ Invalid reason:', verifyResponse.data.invalidReason);
+            console.log('[🛡️ x402] ❌ Full response:', JSON.stringify(verifyResponse.data, null, 2));
             return res.status(402).json({
               error: 'Payment verification failed',
               details: verifyResponse.data
