@@ -6,6 +6,13 @@
     <title>Fuel Payment - DeGen Oracle @PayAINetwork</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <script src="https://unpkg.com/buffer@6.0.3/index.js"></script>
+    <script>
+        // Buffer polyfill for browser
+        if (typeof window !== 'undefined') {
+            window.Buffer = window.Buffer || Buffer;
+        }
+    </script>
     <style>
         body {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -76,10 +83,49 @@
                 <p class="text-yellow-200 text-sm">⏰ Link expires in <span id="expiryTimer" class="font-bold">15:00</span></p>
             </div>
 
-            <!-- Connect Wallet Button -->
+            <!-- Wallet Selection -->
+            <div id="walletSelection" class="space-y-3 mb-4">
+                <button 
+                    id="phantomBtn"
+                    class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 flex items-center justify-center space-x-3"
+                    onclick="connectWallet('phantom')"
+                >
+                    <span>🦄</span>
+                    <span>Connect Phantom</span>
+                </button>
+                
+                <button 
+                    id="solflareBtn"
+                    class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 flex items-center justify-center space-x-3"
+                    onclick="connectWallet('solflare')"
+                >
+                    <span>🔥</span>
+                    <span>Connect Solflare</span>
+                </button>
+                
+                <button 
+                    id="backpackBtn"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 flex items-center justify-center space-x-3"
+                    onclick="connectWallet('backpack')"
+                >
+                    <span>🎒</span>
+                    <span>Connect Backpack</span>
+                </button>
+                
+                <button 
+                    id="trustWalletBtn"
+                    class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 flex items-center justify-center space-x-3"
+                    onclick="connectWallet('trustwallet')"
+                >
+                    <span>🛡️</span>
+                    <span>Connect Trust Wallet</span>
+                </button>
+            </div>
+
+            <!-- Single Connect Button (hidden after wallet detection) -->
             <button 
                 id="connectWalletBtn"
-                class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 glow mb-4"
+                class="hidden w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 glow mb-4"
             >
                 🔗 Connect Wallet & Pay
             </button>
@@ -211,28 +257,101 @@
             expiryInterval = setInterval(updateTimer, 1000);
         }
 
-        // Connect Wallet & Pay
-        document.getElementById('connectWalletBtn').addEventListener('click', async () => {
+        // Wallet detection and connection
+        let currentWallet = null;
+        let walletAdapter = null;
+
+        // Detect available wallets on page load
+        function detectWallets() {
+            const wallets = {
+                phantom: { name: 'Phantom', icon: '🦄', installed: false, provider: null },
+                solflare: { name: 'Solflare', icon: '🔥', installed: false, provider: null },
+                backpack: { name: 'Backpack', icon: '🎒', installed: false, provider: null },
+                trustwallet: { name: 'Trust Wallet', icon: '🛡️', installed: false, provider: null }
+            };
+
+            // Check Phantom
+            if (window.solana && window.solana.isPhantom) {
+                wallets.phantom.installed = true;
+                wallets.phantom.provider = window.solana;
+            }
+
+            // Check Solflare
+            if (window.solflare) {
+                wallets.solflare.installed = true;
+                wallets.solflare.provider = window.solflare;
+            }
+
+            // Check Backpack
+            if (window.backpack) {
+                wallets.backpack.installed = true;
+                wallets.backpack.provider = window.backpack;
+            }
+
+            // Check Trust Wallet
+            if (window.trustwallet) {
+                wallets.trustwallet.installed = true;
+                wallets.trustwallet.provider = window.trustwallet;
+            }
+
+            // Update UI based on available wallets
+            updateWalletButtons(wallets);
+            return wallets;
+        }
+
+        function updateWalletButtons(wallets) {
+            Object.entries(wallets).forEach(([key, wallet]) => {
+                const button = document.getElementById(key + 'Btn');
+                if (button) {
+                    if (wallet.installed) {
+                        button.classList.remove('opacity-50', 'cursor-not-allowed');
+                        button.disabled = false;
+                    } else {
+                        button.classList.add('opacity-50', 'cursor-not-allowed');
+                        button.disabled = true;
+                        button.innerHTML = `<span>${wallet.icon}</span><span>Install ${wallet.name}</span>`;
+                        button.onclick = () => {
+                            const urls = {
+                                phantom: 'https://phantom.app',
+                                solflare: 'https://solflare.com',
+                                backpack: 'https://backpack.app',
+                                trustwallet: 'https://trustwallet.com'
+                            };
+                            window.open(urls[key], '_blank');
+                        };
+                    }
+                }
+            });
+        }
+
+        // Connect to specific wallet
+        async function connectWallet(walletType) {
             try {
-                // Check if Phantom is installed
-                const isPhantomInstalled = window.solana && window.solana.isPhantom;
+                const wallets = detectWallets();
+                const wallet = wallets[walletType];
                 
-                if (!isPhantomInstalled) {
-                    alert('Please install Phantom wallet to continue.\n\nVisit: https://phantom.app');
+                if (!wallet.installed) {
+                    alert(`Please install ${wallet.name} wallet first.`);
                     return;
                 }
 
-                // Show processing
+                // Hide wallet selection, show single button
+                document.getElementById('walletSelection').classList.add('hidden');
+                document.getElementById('connectWalletBtn').classList.remove('hidden');
+                
                 const btn = document.getElementById('connectWalletBtn');
-                const originalText = btn.textContent;
                 btn.textContent = '⏳ Connecting...';
                 btn.disabled = true;
 
-                // Connect to Phantom
-                const resp = await window.solana.connect();
+                // Connect to the selected wallet
+                const provider = wallet.provider;
+                const resp = await provider.connect();
                 const publicKey = resp.publicKey.toString();
                 
-                console.log('Connected wallet:', publicKey);
+                console.log(`Connected to ${wallet.name}:`, publicKey);
+                
+                currentWallet = walletType;
+                walletAdapter = provider;
 
                 // Update button to show payment
                 btn.textContent = '💳 Process Payment';
@@ -245,14 +364,21 @@
 
             } catch (error) {
                 console.error('Connection error:', error);
-                document.getElementById('connectWalletBtn').textContent = '🔗 Connect Wallet & Pay';
-                document.getElementById('connectWalletBtn').disabled = false;
+                
+                // Show wallet selection again
+                document.getElementById('walletSelection').classList.remove('hidden');
+                document.getElementById('connectWalletBtn').classList.add('hidden');
                 
                 const statusDiv = document.getElementById('paymentStatus');
                 statusDiv.className = 'mt-4 p-4 rounded-lg text-center bg-red-900 border border-red-600';
                 statusDiv.innerHTML = '<p class="text-red-200">Failed to connect wallet. Please try again.</p>';
                 statusDiv.classList.remove('hidden');
             }
+        }
+
+        // Initialize wallet detection on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            detectWallets();
         });
 
         // Process actual x402 payment
@@ -295,8 +421,8 @@
 
                 console.log('Sending transaction to wallet for signing...');
                 
-                // Let the wallet handle RPC, blockhash, and signing
-                const signedTransaction = await window.solana.signAndSendTransaction(transaction);
+                // Let the connected wallet handle RPC, blockhash, and signing
+                const signedTransaction = await walletAdapter.signAndSendTransaction(transaction);
                 console.log('Transaction sent:', signedTransaction.signature);
 
                 // Update status
