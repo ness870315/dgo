@@ -45,6 +45,19 @@
                 if (fill !== undefined) {
                     buf.fill(fill);
                 }
+                
+                // Add Node Buffer methods for compatibility
+                buf.writeUInt8 = function(value, offset) {
+                    this[offset] = value;
+                    return offset + 1;
+                };
+                
+                buf.writeBigUInt64LE = function(value, offset) {
+                    const view = new DataView(this.buffer, this.byteOffset, this.byteLength);
+                    view.setBigUint64(offset, value, true); // true = little endian
+                    return offset + 8;
+                };
+                
                 return buf;
             };
 
@@ -430,10 +443,16 @@
                 console.log('From USDC account:', fromTokenAccount.toBase58());
                 console.log('To USDC account:', toTokenAccount.toBase58());
                 
-                // Build SPL token transfer instruction (instruction discriminator 3 = Transfer)
-                const dataLayout = Buffer.alloc(9);
-                dataLayout.writeUInt8(3, 0); // Transfer instruction
-                dataLayout.writeBigUInt64LE(BigInt(amount), 1); // Amount
+                // Build SPL token transfer instruction data (instruction discriminator 3 = Transfer)
+                // Layout: [u8 instruction, u64 amount]
+                const instructionData = new Uint8Array(9);
+                instructionData[0] = 3; // Transfer instruction discriminator
+                
+                // Write amount as little-endian u64
+                const amountBigInt = BigInt(amount);
+                for (let i = 0; i < 8; i++) {
+                    instructionData[1 + i] = Number((amountBigInt >> BigInt(i * 8)) & BigInt(0xFF));
+                }
                 
                 const transferInstruction = new solanaWeb3.TransactionInstruction({
                     keys: [
@@ -442,7 +461,7 @@
                         { pubkey: fromPubkey, isSigner: true, isWritable: false }
                     ],
                     programId: TOKEN_PROGRAM_ID,
-                    data: dataLayout
+                    data: instructionData
                 });
                 
                 const transaction = new solanaWeb3.Transaction({
