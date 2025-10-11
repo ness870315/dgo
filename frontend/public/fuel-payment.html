@@ -532,18 +532,17 @@
                     data: transferData
                 });
                 
-                // Create v0 message with facilitator as fee payer
-                const facilitatorFeePayer = new solanaWeb3.PublicKey(paymentRequirements.extra.feePayer);
-                
+                // Create v0 message with USER as fee payer (more standard, less suspicious to Phantom)
+                // PayAI will handle this correctly on settlement
                 const messageV0 = new solanaWeb3.TransactionMessage({
-                    payerKey: facilitatorFeePayer, // Facilitator pays gas
+                    payerKey: fromPubkey, // User pays gas (prevents Phantom anti-phishing)
                     recentBlockhash: recentBlockhashObj.blockhash,
                     instructions: [transferInstruction]
                 }).compileToV0Message();
                 
                 const transaction = new solanaWeb3.VersionedTransaction(messageV0);
                 
-                console.log('VersionedTransaction (v0) created with facilitator fee payer');
+                console.log('VersionedTransaction (v0) created with user as fee payer');
 
                 // Step 4: Partially sign with user wallet ONLY (facilitator will co-sign on /settle)
                 statusDiv.innerHTML = '<p class="text-blue-200">🔐 Please approve USDC payment in your wallet...</p>';
