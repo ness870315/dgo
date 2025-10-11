@@ -104,6 +104,18 @@ class X402BrowserClient {
       throw new Error(`Payment failed: ${errorData.error || paidResponse.statusText}`);
     }
 
+    // Read X-PAYMENT-RESPONSE header (x402 spec)
+    const xPaymentResponse = paidResponse.headers.get('X-PAYMENT-RESPONSE');
+    if (xPaymentResponse) {
+      try {
+        const settlementResponse = JSON.parse(atob(xPaymentResponse));
+        console.log('[x402] 💰 Settlement response:', settlementResponse);
+        console.log('[x402] 🔗 Transaction:', `https://solscan.io/tx/${settlementResponse.transaction}`);
+      } catch (e) {
+        console.warn('[x402] Failed to parse X-PAYMENT-RESPONSE:', e);
+      }
+    }
+
     console.log('[x402] ✅ Payment successful, resource delivered!');
     
     return paidResponse;
@@ -185,13 +197,19 @@ class X402BrowserClient {
       data: transferData
     });
     
-    // User pays gas fees (standard x402 pattern)
-    // Facilitator will handle settlement and can refund if needed
-    const feePayer = fromPubkey;
+    // Facilitator pays gas fees (x402 pattern)
+    // Extract facilitator's fee payer from requirements
+    const facilitatorFeePayer = requirements.extra?.feePayer;
+    if (!facilitatorFeePayer) {
+      throw new Error('Payment requirements missing facilitator feePayer address');
+    }
     
-    console.log('[x402] 💸 Fee payer (user):', feePayer.toBase58());
+    const feePayer = new solanaWeb3.PublicKey(facilitatorFeePayer);
     
-    // Create v0 transaction
+    console.log('[x402] 💸 Fee payer (facilitator):', feePayer.toBase58());
+    console.log('[x402] 💸 Token sender (user):', fromPubkey.toBase58());
+    
+    // Create v0 transaction with facilitator as fee payer
     const messageV0 = new solanaWeb3.TransactionMessage({
       payerKey: feePayer,
       recentBlockhash: blockhash,

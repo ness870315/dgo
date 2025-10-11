@@ -223,7 +223,8 @@ class EnhancedBackend {
       },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-PAYMENT']
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-PAYMENT'],
+      exposedHeaders: ['X-PAYMENT-RESPONSE'] // Allow frontend to read settlement response
     };
 
     this.app.use(cors(corsOptions));
@@ -5042,6 +5043,8 @@ class EnhancedBackend {
           };
 
           // Verify with PayAI facilitator
+          console.log('[🛡️ x402] 📡 Verifying payment with PayAI facilitator...');
+          
           const verifyResponse = await axios.post('https://facilitator.payai.network/verify', {
             paymentPayload,
             paymentRequirements
@@ -5061,8 +5064,8 @@ class EnhancedBackend {
             });
           }
 
-          // Payment verified! Settle it
-          console.log('[🛡️ x402] ✅ Payment verified, settling...');
+          // Payment verified! Settle it with facilitator
+          console.log('[🛡️ x402] ✅ Payment verified, settling with facilitator...');
           
           const settleResponse = await axios.post('https://facilitator.payai.network/settle', {
             paymentPayload,
@@ -5114,7 +5117,19 @@ class EnhancedBackend {
             }
           }
 
-          // Return the resource (payment confirmed)
+          // Build settlement response for X-PAYMENT-RESPONSE header (x402 spec)
+          const settlementResponse = {
+            success: true,
+            transaction: txHash,
+            network: 'solana',
+            payer: payment.userHandle
+          };
+          
+          // Encode settlement response to base64 (x402 format)
+          const xPaymentResponse = Buffer.from(JSON.stringify(settlementResponse)).toString('base64');
+          
+          // Return the resource with X-PAYMENT-RESPONSE header (payment confirmed)
+          res.setHeader('X-PAYMENT-RESPONSE', xPaymentResponse);
           res.json({
             delivered: true,
             resourceId: nonce,
