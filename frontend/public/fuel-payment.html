@@ -197,6 +197,16 @@
     </div>
 
     <script>
+        // CRITICAL: Block EVM/MetaMask access to prevent anti-phishing triggers
+        // This page is SOLANA ONLY - do not allow any EVM provider access
+        if (window.ethereum) {
+            console.log('⚠️ Blocking EVM provider access - Solana only page');
+            Object.defineProperty(window, 'ethereum', {
+                get: () => undefined,
+                configurable: false
+            });
+        }
+        
         // Parse URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const nonce = urlParams.get('nonce');
