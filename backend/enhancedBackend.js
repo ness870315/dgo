@@ -4991,7 +4991,7 @@ class EnhancedBackend {
             description: `${payment.fuelType} Fuel for ${payment.tokenSymbol}`,
             maxTimeoutSeconds: 300,
             asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC on Solana
-            payTo: this.twitterMentionService.x402Service.merchantWallet // Merchant wallet (PayAI derives ATA)
+            payTo: this.twitterMentionService.x402Service.payToAddress // Merchant USDC ATA (precomputed)
           };
           
           // Return 402 response in x402 spec format (accepts array)
@@ -5022,7 +5022,7 @@ class EnhancedBackend {
             description: `${payment.fuelType} Fuel for ${payment.tokenSymbol}`,
             maxTimeoutSeconds: 300,
             asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-            payTo: this.twitterMentionService.x402Service.merchantWallet // Merchant wallet (PayAI derives ATA)
+            payTo: this.twitterMentionService.x402Service.payToAddress // Merchant USDC ATA (precomputed)
           };
 
           // Verify with PayAI facilitator

@@ -85,9 +85,9 @@ class X402MerchantService {
       const paymentRequirements = {
         scheme: 'exact',
         network: this.network,
-        maxAmountRequired: pricing.usdc.toString(), // USDC amount in smallest unit
+        amount: pricing.usdc.toString(), // USDC amount in smallest unit (use 'amount' for PayAI)
         asset: this.usdcAddress,
-        payTo: this.payToAddress,
+        payTo: this.payToAddress, // Merchant's USDC ATA (not wallet)
         description: `${fuelType} Fuel for $${tokenSymbol} (Twitter x402 - 90% off)`,
         nonce: nonce,
         validAfter: Math.floor(Date.now() / 1000).toString(),

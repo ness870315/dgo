@@ -194,25 +194,23 @@ class X402BrowserClient {
     const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
     const ASSOCIATED_TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
     
-    // payToAddress is merchant wallet - derive the USDC ATA
-    const merchantWallet = new solanaWeb3.PublicKey(payToAddress);
-    const destination = solanaWeb3.PublicKey.findProgramAddressSync(
-      [merchantWallet.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), usdcMintPk.toBuffer()],
-      ASSOCIATED_TOKEN_PROGRAM_ID
-    )[0];
+    // payToAddress is already the merchant's USDC ATA (precomputed on backend)
+    // No need to derive - use it directly
+    const destination = new solanaWeb3.PublicKey(payToAddress);
     
     // Handle case where feePayer might not be in extra (new approach)
     const facilitatorFeePayer = extra?.feePayer 
       ? new solanaWeb3.PublicKey(extra.feePayer)
       : new solanaWeb3.PublicKey('GWRUEnMCfuDzz9zWh4hckkSZDN5dYH3UmzRNf64L52Sk'); // Fallback to known facilitator
     
+    // Derive user's USDC ATA
     const userATA = solanaWeb3.PublicKey.findProgramAddressSync(
       [userPubkey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), usdcMintPk.toBuffer()],
       ASSOCIATED_TOKEN_PROGRAM_ID
     )[0];
     
     console.log('[x402] 📍 User ATA:', userATA.toBase58());
-    console.log('[x402] 📍 Destination (from requirements.payTo):', destination.toBase58());
+    console.log('[x402] 📍 Destination (merchant USDC ATA from backend):', destination.toBase58());
     console.log('[x402] 💸 Fee payer (facilitator):', facilitatorFeePayer.toBase58());
     console.log('[x402] 💸 Token sender (user):', userPubkey.toBase58());
     
