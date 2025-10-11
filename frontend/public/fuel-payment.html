@@ -300,6 +300,13 @@
                 statusDiv.innerHTML = '<p class="text-blue-200">Processing @PayAINetwork payment...</p>';
                 statusDiv.classList.remove('hidden');
 
+                // Debug: Check if Buffer is available
+                console.log('Buffer check:', {
+                    windowBuffer: typeof window.Buffer,
+                    bufferFrom: typeof (window.Buffer && window.Buffer.from),
+                    globalBuffer: typeof Buffer
+                });
+
                 // Get payment details from our backend
                 const response = await fetch(`${API_BASE}/api/x402/payment-details/${nonce}`);
                 const paymentData = await response.json();
@@ -309,42 +316,91 @@
                 }
 
                 console.log('Creating payment for:', paymentData);
+                console.log('Wallet adapter:', walletAdapter);
+                console.log('Public key:', publicKey);
 
-                // Simple approach: Let the wallet handle everything
-                const fromPubkey = new solanaWeb3.PublicKey(publicKey);
-                const toPubkey = new solanaWeb3.PublicKey(paymentData.payTo);
+                // IMPORTANT: Use wallet's sendTransaction method instead of building manually
+                // This lets the wallet handle all the complex Buffer/RPC stuff
                 
-                // Create a simple SOL transfer transaction (let wallet handle RPC)
-                const transaction = new solanaWeb3.Transaction();
+                console.log('Requesting payment from wallet...');
                 
-                // For testing: Transfer 0.1 SOL (equivalent to ~$0.10 USDC for testing)
-                const transferInstruction = solanaWeb3.SystemProgram.transfer({
-                    fromPubkey: fromPubkey,
-                    toPubkey: toPubkey,
-                    lamports: 100000000, // 0.1 SOL
-                });
+                // Create a simple transfer using the wallet's native API
+                // Most wallets have a simpler API that doesn't require Buffer
+                const transferParams = {
+                    to: paymentData.payTo,
+                    amount: 100000000, // 0.1 SOL in lamports
+                };
 
-                transaction.add(transferInstruction);
+                console.log('Transfer params:', transferParams);
 
-                console.log('Sending transaction to wallet for signing...');
-                
-                // Let the connected wallet handle RPC, blockhash, and signing
-                const signedTransaction = await walletAdapter.signAndSendTransaction(transaction);
-                console.log('Transaction sent:', signedTransaction.signature);
+                // Use Phantom's simpler transfer API if available
+                if (walletAdapter.isPhantom && walletAdapter.request) {
+                    console.log('Using Phantom transfer API...');
+                    const result = await walletAdapter.request({
+                        method: 'signAndSendTransaction',
+                        params: {
+                            transaction: {
+                                feePayer: publicKey,
+                                instructions: [{
+                                    programId: '11111111111111111111111111111111', // System Program
+                                    keys: [
+                                        { pubkey: publicKey, isSigner: true, isWritable: true },
+                                        { pubkey: paymentData.payTo, isSigner: false, isWritable: true }
+                                    ],
+                                    data: [2, 0, 0, 0, 0, 232, 3, 0, 0, 0, 0, 0] // Transfer 0.1 SOL
+                                }]
+                            }
+                        }
+                    });
+                    
+                    console.log('Transaction sent:', result);
 
-                // Update status
-                statusDiv.className = 'mt-4 p-4 rounded-lg text-center bg-green-900 border border-green-600';
-                statusDiv.innerHTML = `
-                    <p class="text-green-200 mb-2">✅ Payment sent successfully!</p>
-                    <p class="text-white text-sm">TX: ${signedTransaction.signature.substring(0, 12)}...</p>
-                    <p class="text-green-300 text-xs mt-2">Waiting for confirmation...</p>
-                `;
+                    // Update status
+                    statusDiv.className = 'mt-4 p-4 rounded-lg text-center bg-green-900 border border-green-600';
+                    statusDiv.innerHTML = `
+                        <p class="text-green-200 mb-2">✅ Payment sent successfully!</p>
+                        <p class="text-white text-sm">TX: ${result.signature || 'pending'}...</p>
+                        <p class="text-green-300 text-xs mt-2">Waiting for confirmation...</p>
+                    `;
 
-                // Poll for payment confirmation
-                pollPaymentConfirmation(signedTransaction.signature);
+                    // Poll for payment confirmation
+                    if (result.signature) {
+                        pollPaymentConfirmation(result.signature);
+                    }
+                } else {
+                    // Fallback: Try simple transaction (this will use Buffer)
+                    console.log('Using standard Solana Web3.js transaction...');
+                    
+                    const fromPubkey = new solanaWeb3.PublicKey(publicKey);
+                    const toPubkey = new solanaWeb3.PublicKey(paymentData.payTo);
+                    
+                    const transaction = new solanaWeb3.Transaction();
+                    const transferInstruction = solanaWeb3.SystemProgram.transfer({
+                        fromPubkey: fromPubkey,
+                        toPubkey: toPubkey,
+                        lamports: 100000000,
+                    });
+
+                    transaction.add(transferInstruction);
+
+                    console.log('Sending transaction to wallet for signing...');
+                    const signedTransaction = await walletAdapter.signAndSendTransaction(transaction);
+                    console.log('Transaction sent:', signedTransaction);
+
+                    // Update status
+                    statusDiv.className = 'mt-4 p-4 rounded-lg text-center bg-green-900 border border-green-600';
+                    statusDiv.innerHTML = `
+                        <p class="text-green-200 mb-2">✅ Payment sent successfully!</p>
+                        <p class="text-white text-sm">TX: ${signedTransaction.signature.substring(0, 12)}...</p>
+                        <p class="text-green-300 text-xs mt-2">Waiting for confirmation...</p>
+                    `;
+
+                    pollPaymentConfirmation(signedTransaction.signature);
+                }
 
             } catch (error) {
-                console.error('Payment error:', error);
+                console.error('Payment error (full):', error);
+                console.error('Error stack:', error.stack);
                 
                 const btn = document.getElementById('connectWalletBtn');
                 btn.textContent = '💳 Process Payment';
