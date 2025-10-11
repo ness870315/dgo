@@ -437,41 +437,17 @@
                     )[0];
                 }
                 
-                const fromTokenAccount = findAssociatedTokenAddress(fromPubkey, usdcMint);
-                const toTokenAccount = findAssociatedTokenAddress(toPubkey, usdcMint);
-                
-                console.log('From USDC account:', fromTokenAccount.toBase58());
-                console.log('To USDC account:', toTokenAccount.toBase58());
-                
-                // Build SPL token transfer instruction data (instruction discriminator 3 = Transfer)
-                // Layout: [u8 instruction, u64 amount]
-                const instructionData = new Uint8Array(9);
-                instructionData[0] = 3; // Transfer instruction discriminator
-                
-                // Write amount as little-endian u64
-                const amountBigInt = BigInt(amount);
-                for (let i = 0; i < 8; i++) {
-                    instructionData[1 + i] = Number((amountBigInt >> BigInt(i * 8)) & BigInt(0xFF));
-                }
-                
-                const transferInstruction = new solanaWeb3.TransactionInstruction({
-                    keys: [
-                        { pubkey: fromTokenAccount, isSigner: false, isWritable: true },
-                        { pubkey: toTokenAccount, isSigner: false, isWritable: true },
-                        { pubkey: fromPubkey, isSigner: true, isWritable: false }
-                    ],
-                    programId: TOKEN_PROGRAM_ID,
-                    data: instructionData
-                });
-                
+                // For x402 Solana, the facilitator builds the transfer instruction
+                // We just need to provide an empty signed transaction with blockhash and fee payer
                 const transaction = new solanaWeb3.Transaction({
                     recentBlockhash: blockhash,
                     feePayer: fromPubkey
                 });
                 
-                transaction.add(transferInstruction);
+                // Don't add any instructions - PayAI facilitator will construct the USDC transfer
+                // based on the payment requirements we send
                 
-                console.log('Transaction built successfully');
+                console.log('Empty transaction built (facilitator will add transfer instruction)');
 
                 // Step 4: Sign transaction with wallet
                 statusDiv.innerHTML = '<p class="text-blue-200">🔐 Please approve USDC payment in your wallet...</p>';
