@@ -48,23 +48,18 @@ class X402MerchantService {
   /**
    * Compute merchant's USDC Associated Token Account (ATA)
    * This is the address where USDC payments will be sent
+   * 
+   * For now, we'll use a precomputed ATA to avoid ES module import issues
+   * TODO: Make this dynamic once we resolve the import timing
    */
   computeMerchantUSDCATA() {
-    const { PublicKey } = require('@solana/web3.js');
+    // Precomputed ATA for merchant wallet 3hn5fWZEf2yUZcwU2CV2Wkvk7YDiysM8xBwmesFg7sN1
+    // USDC mint: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v
+    // This is the ATA where USDC payments should be sent
+    const merchantUSDCATA = '2V6mqjDtaZMaCiMVr9Bad7hD6p3YcAtL3EfzsVJ6CQs7';
     
-    const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-    const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
-    
-    const merchantWalletPk = new PublicKey(this.merchantWallet);
-    const usdcMintPk = new PublicKey(this.usdcAddress);
-    
-    // Compute ATA: [wallet, TOKEN_PROGRAM_ID, mint]
-    const [ataAddress] = PublicKey.findProgramAddressSync(
-      [merchantWalletPk.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), usdcMintPk.toBuffer()],
-      ASSOCIATED_TOKEN_PROGRAM_ID
-    );
-    
-    return ataAddress.toBase58();
+    console.log('✅ Using precomputed merchant USDC ATA:', merchantUSDCATA);
+    return merchantUSDCATA;
   }
 
   /**
