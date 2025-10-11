@@ -1,7 +1,10 @@
 /**
  * Browser-compatible x402 Client for Solana
  * Adapted from x402-fetch for use with Phantom/Solflare wallets
+ * Version: 1.0.3
  */
+
+console.log('[x402] 🔧 x402-browser-client.js loaded - Version 1.0.3');
 
 class X402BrowserClient {
   constructor() {
@@ -89,14 +92,22 @@ class X402BrowserClient {
     console.log('[x402] X-PAYMENT header length:', xPaymentHeader.length);
     console.log('[x402] X-PAYMENT header (first 100 chars):', xPaymentHeader.substring(0, 100));
     
-    // Retry request with X-PAYMENT header
+    // Build headers object
+    const requestHeaders = {
+      'x-payment': xPaymentHeader,
+      'content-type': 'application/json',
+      'accept': 'application/json'
+    };
+    
+    console.log('[x402] 🔍 Request headers being sent:', Object.keys(requestHeaders));
+    console.log('[x402] 🔍 x-payment header value exists:', !!requestHeaders['x-payment']);
+    
+    // Retry request with X-PAYMENT header (try lowercase for proxy compatibility)
     const paidResponse = await fetch(url, {
-      ...options,
-      headers: {
-        ...options.headers,
-        'X-PAYMENT': xPaymentHeader,
-        'Content-Type': 'application/json'
-      }
+      method: 'GET',
+      headers: requestHeaders,
+      credentials: 'include',
+      cache: 'no-cache'
     });
 
     if (!paidResponse.ok) {
@@ -197,39 +208,6 @@ class X402BrowserClient {
       data: transferData
     });
     
-    // Add minimal compute budget instructions to keep gas fees ultra-low
-    const COMPUTE_BUDGET_PROGRAM = new solanaWeb3.PublicKey('ComputeBudget111111111111111111111111111111');
-    
-    // Set compute unit limit (minimal for SPL transfer)
-    const computeUnitLimitData = new Uint8Array(9);
-    computeUnitLimitData[0] = 2; // SetComputeUnitLimit discriminator
-    // 5,000 compute units (very low, SPL transfer needs ~3,000)
-    const units = 5000;
-    for (let i = 0; i < 4; i++) {
-      computeUnitLimitData[1 + i] = (units >> (i * 8)) & 0xFF;
-    }
-    
-    const computeUnitLimitIx = new solanaWeb3.TransactionInstruction({
-      keys: [],
-      programId: COMPUTE_BUDGET_PROGRAM,
-      data: computeUnitLimitData
-    });
-    
-    // Set compute unit price to 1 micro-lamport (ultra low priority)
-    const computeUnitPriceData = new Uint8Array(9);
-    computeUnitPriceData[0] = 3; // SetComputeUnitPrice discriminator
-    // Price: 1 micro-lamport per compute unit
-    const priceInMicroLamports = BigInt(1);
-    for (let i = 0; i < 8; i++) {
-      computeUnitPriceData[1 + i] = Number((priceInMicroLamports >> BigInt(i * 8)) & BigInt(0xFF));
-    }
-    
-    const computeUnitPriceIx = new solanaWeb3.TransactionInstruction({
-      keys: [],
-      programId: COMPUTE_BUDGET_PROGRAM,
-      data: computeUnitPriceData
-    });
-    
     // Facilitator pays gas fees (x402 pattern)
     // Extract facilitator's fee payer from requirements
     const facilitatorFeePayer = requirements.extra?.feePayer;
@@ -241,15 +219,13 @@ class X402BrowserClient {
     
     console.log('[x402] 💸 Fee payer (facilitator):', feePayer.toBase58());
     console.log('[x402] 💸 Token sender (user):', fromPubkey.toBase58());
-    console.log('[x402] ⚡ Compute units: 5,000 (minimal)');
-    console.log('[x402] ⚡ Priority fee: 1 micro-lamport (ultra low)');
     
     // Create v0 transaction with facilitator as fee payer
-    // Include compute budget instructions FIRST to prevent wallet from adding high defaults
+    // ONLY include the transfer instruction - facilitator expects exact scheme with single instruction
     const messageV0 = new solanaWeb3.TransactionMessage({
       payerKey: feePayer,
       recentBlockhash: blockhash,
-      instructions: [computeUnitLimitIx, computeUnitPriceIx, transferInstruction]
+      instructions: [transferInstruction]
     }).compileToV0Message();
     
     const transaction = new solanaWeb3.VersionedTransaction(messageV0);
