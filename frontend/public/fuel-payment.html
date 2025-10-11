@@ -4,155 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fuel Payment - DeGen Oracle @PayAINetwork</title>
-    <!-- CRITICAL: Prevent MetaMask/EVM extension injection BEFORE any other scripts -->
-    <script>
-        // Aggressively neuter all EVM providers to prevent Phantom anti-phishing
-        (function() {
-            // If ethereum already exists (injected by extension), neuter its methods
-            const neuterEVM = () => {
-                if (window.ethereum) {
-                    console.log('⚠️ EVM provider detected, neutering methods...');
-                    
-                    // Neuter all MetaMask/EVM methods to prevent connection attempts
-                    const noop = () => Promise.reject(new Error('EVM provider disabled on Solana-only page'));
-                    const noopSync = () => { throw new Error('EVM provider disabled on Solana-only page'); };
-                    
-                    try {
-                        // Neuter connection methods
-                        window.ethereum.request = noop;
-                        window.ethereum.send = noopSync;
-                        window.ethereum.sendAsync = noop;
-                        window.ethereum.enable = noop;
-                        
-                        // Neuter event emitters
-                        window.ethereum.on = () => {};
-                        window.ethereum.removeListener = () => {};
-                        
-                        // Set isMetaMask to false
-                        Object.defineProperty(window.ethereum, 'isMetaMask', {
-                            get: () => false,
-                            configurable: false
-                        });
-                        
-                        console.log('✅ EVM provider neutered successfully');
-                    } catch (e) {
-                        console.log('⚠️ Could not fully neuter EVM provider:', e.message);
-                    }
-                }
-                
-                // Try to block other EVM providers
-                ['web3', 'metamask'].forEach(prop => {
-                    try {
-                        if (window[prop]) {
-                            delete window[prop];
-                        }
-                        Object.defineProperty(window, prop, {
-                            get: () => {
-                                console.log(`🚫 Blocked EVM provider access: ${prop}`);
-                                return undefined;
-                            },
-                            set: () => true,
-                            configurable: false
-                        });
-                    } catch (e) {
-                        // Already locked
-                    }
-                });
-            };
-            
-            // Neuter immediately (before extensions load)
-            neuterEVM();
-            
-            // Neuter again after extensions inject (they usually inject on DOMContentLoaded)
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', neuterEVM);
-            }
-            
-            // Neuter one more time after full page load
-            window.addEventListener('load', neuterEVM);
-        })();
-    </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Buffer polyfill for Solana Web3.js -->
-    <script>
-        // Minimal Buffer polyfill for browser
-        (function() {
-            const BufferPolyfill = function Buffer(arg, encodingOrOffset, length) {
-                return Uint8Array.from(arg);
-            };
-
-            BufferPolyfill.from = function(data, encoding) {
-                if (typeof data === 'string') {
-                    if (encoding === 'base64') {
-                        const binaryString = atob(data);
-                        const bytes = new Uint8Array(binaryString.length);
-                        for (let i = 0; i < binaryString.length; i++) {
-                            bytes[i] = binaryString.charCodeAt(i);
-                        }
-                        return bytes;
-                    } else if (encoding === 'hex') {
-                        const bytes = new Uint8Array(data.length / 2);
-                        for (let i = 0; i < data.length; i += 2) {
-                            bytes[i / 2] = parseInt(data.substr(i, 2), 16);
-                        }
-                        return bytes;
-                    } else {
-                        const encoder = new TextEncoder();
-                        return encoder.encode(data);
-                    }
-                } else if (Array.isArray(data)) {
-                    return new Uint8Array(data);
-                } else if (data instanceof Uint8Array) {
-                    return data;
-                }
-                return new Uint8Array(data);
-            };
-
-            BufferPolyfill.alloc = function(size, fill) {
-                const buf = new Uint8Array(size);
-                if (fill !== undefined) {
-                    buf.fill(fill);
-                }
-                
-                // Add Node Buffer methods for compatibility
-                buf.writeUInt8 = function(value, offset) {
-                    this[offset] = value;
-                    return offset + 1;
-                };
-                
-                buf.writeBigUInt64LE = function(value, offset) {
-                    const view = new DataView(this.buffer, this.byteOffset, this.byteLength);
-                    view.setBigUint64(offset, value, true); // true = little endian
-                    return offset + 8;
-                };
-                
-                return buf;
-            };
-
-            BufferPolyfill.isBuffer = function(obj) {
-                return obj instanceof Uint8Array;
-            };
-
-            BufferPolyfill.concat = function(list, totalLength) {
-                if (totalLength === undefined) {
-                    totalLength = list.reduce((acc, buf) => acc + buf.length, 0);
-                }
-                const result = new Uint8Array(totalLength);
-                let offset = 0;
-                for (const buf of list) {
-                    result.set(buf, offset);
-                    offset += buf.length;
-                }
-                return result;
-            };
-
-            // Set Buffer globally BEFORE Solana Web3.js loads
-            window.Buffer = BufferPolyfill;
-            window.global = window;
-        })();
-    </script>
-    <!-- Solana Web3.js for wallet interaction -->
-    <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.min.js"></script>
+    <!-- PayAI x402 SDK -->
+    <script src="https://unpkg.com/@payai/x402@latest/dist/index.iife.js"></script>
     <style>
         body {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -273,6 +127,7 @@
         // State management
         let paymentDetails = null;
         let expiryInterval = null;
+        let x402Client = null;
 
         // Initialize
         async function init() {
@@ -358,78 +213,11 @@
             expiryInterval = setInterval(updateTimer, 1000);
         }
 
-        // Simple wallet auto-detection and connection
-        let walletAdapter = null;
-
-        // Auto-detect and connect to available wallet
+        // Connect Wallet & Pay using x402 SDK
         document.getElementById('connectWalletBtn').addEventListener('click', async () => {
             try {
                 const btn = document.getElementById('connectWalletBtn');
-                btn.textContent = '⏳ Connecting...';
-                btn.disabled = true;
-
-                // Auto-detect available wallet
-                let provider = null;
-                let walletName = '';
-
-                if (window.solana && window.solana.isPhantom) {
-                    provider = window.solana;
-                    walletName = 'Phantom';
-                } else if (window.solflare) {
-                    provider = window.solflare;
-                    walletName = 'Solflare';
-                } else if (window.backpack) {
-                    provider = window.backpack;
-                    walletName = 'Backpack';
-                } else if (window.trustwallet) {
-                    provider = window.trustwallet;
-                    walletName = 'Trust Wallet';
-                } else {
-                    // No wallet detected
-                    btn.textContent = '🔗 Connect Wallet & Pay';
-                    btn.disabled = false;
-                    alert('No Solana wallet detected. Please install Phantom, Solflare, Backpack, or Trust Wallet.');
-                    return;
-                }
-
-                console.log(`Connecting to ${walletName}...`);
-                
-                // Connect to the detected wallet
-                const resp = await provider.connect();
-                const publicKey = resp.publicKey.toString();
-                
-                console.log(`Connected to ${walletName}:`, publicKey);
-                
-                walletAdapter = provider;
-
-                // Update button to show payment
-                btn.textContent = '💳 Process Payment';
-                btn.disabled = false;
-
-                // Add click handler for payment processing
-                btn.onclick = async () => {
-                    await processPayment(publicKey);
-                };
-
-            } catch (error) {
-                console.error('Connection error:', error);
-                
-                const btn = document.getElementById('connectWalletBtn');
-                btn.textContent = '🔗 Connect Wallet & Pay';
-                btn.disabled = false;
-                
-                const statusDiv = document.getElementById('paymentStatus');
-                statusDiv.className = 'mt-4 p-4 rounded-lg text-center bg-red-900 border border-red-600';
-                statusDiv.innerHTML = '<p class="text-red-200">Failed to connect wallet. Please try again.</p>';
-                statusDiv.classList.remove('hidden');
-            }
-        });
-
-        // Process actual x402 payment via PayAI Facilitator
-        async function processPayment(publicKey) {
-            try {
-                const btn = document.getElementById('connectWalletBtn');
-                btn.textContent = '⏳ Processing Payment...';
+                btn.textContent = '⏳ Processing...';
                 btn.disabled = true;
 
                 const statusDiv = document.getElementById('paymentStatus');
@@ -437,182 +225,57 @@
                 statusDiv.innerHTML = '<p class="text-blue-200">🚀 Starting PayAI x402 payment flow...</p>';
                 statusDiv.classList.remove('hidden');
 
-                // Step 1: Get payment details from our backend
-                console.log('Step 1: Getting payment requirements...');
-                const response = await fetch(`${API_BASE}/api/x402/payment-details/${nonce}`);
-                const paymentData = await response.json();
+                console.log('🚀 Starting PayAI x402 payment flow...');
 
-                if (!paymentData.success) {
-                    throw new Error(paymentData.error || 'Failed to get payment details');
-                }
-
-                console.log('Payment requirements:', paymentData);
-
-                // Step 2: Create x402 payment requirements object
-                // Convert USDC amount to lamports (USDC has 6 decimals)
-                const usdcAmount = parseFloat(paymentData.amount);
-                const lamports = Math.floor(usdcAmount * 1_000_000); // 0.1 USDC = 100,000 lamports
-                
-                const paymentRequirements = {
-                    scheme: 'exact',
+                // Step 1: Create x402 client
+                console.log('Step 1: Creating x402 client...');
+                x402Client = new window.X402.Client({
                     network: 'solana',
-                    maxAmountRequired: lamports.toString(),
-                    asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC on Solana
-                    payTo: paymentData.payTo,
-                    resource: window.location.href,
-                    description: `${paymentData.fuelType} Fuel for ${paymentData.tokenSymbol}`,
-                    mimeType: 'application/json',
-                    maxTimeoutSeconds: 300,
-                    extra: {
-                        feePayer: 'GWRUEnMCfuDzz9zWh4hckkSZDN5dYH3UmzRNf64L52Sk' // PayAI facilitator fee payer
-                    }
-                };
-
-                console.log('Step 2: x402 payment requirements created:', paymentRequirements);
-
-                // Step 3: Build USDC transfer transaction using wallet
-                statusDiv.innerHTML = '<p class="text-blue-200">💼 Building payment transaction...</p>';
-                
-                console.log('Step 3: Building USDC transfer transaction...');
-                
-                // Use Helius RPC for reliability
-                const connection = new solanaWeb3.Connection(
-                    'https://mainnet.helius-rpc.com/?api-key=e20ea2f4-232f-484e-be1e-e41b698a7850',
-                    'confirmed'
-                );
-                
-                // Get recent blockhash for transaction
-                const recentBlockhashObj = await connection.getLatestBlockhash();
-                console.log('✅ Got blockhash:', recentBlockhashObj.blockhash);
-                
-                const fromPubkey = new solanaWeb3.PublicKey(publicKey);
-                const toPubkey = new solanaWeb3.PublicKey(paymentRequirements.payTo);
-                const usdcMint = new solanaWeb3.PublicKey(paymentRequirements.asset);
-                const amount = BigInt(paymentRequirements.maxAmountRequired);
-                
-                // Calculate Associated Token Accounts
-                const TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
-                const ASSOCIATED_TOKEN_PROGRAM_ID = new solanaWeb3.PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
-                
-                const findATA = (wallet, mint) => {
-                    return solanaWeb3.PublicKey.findProgramAddressSync(
-                        [wallet.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mint.toBuffer()],
-                        ASSOCIATED_TOKEN_PROGRAM_ID
-                    )[0];
-                };
-                
-                const fromATA = findATA(fromPubkey, usdcMint);
-                const toATA = findATA(toPubkey, usdcMint);
-                
-                console.log('From ATA:', fromATA.toBase58());
-                console.log('To ATA:', toATA.toBase58());
-                
-                // Build TransferChecked instruction (SPL Token Program)
-                // Instruction layout for TransferChecked (discriminator 12)
-                const transferData = new Uint8Array(17);
-                transferData[0] = 12; // TransferChecked discriminator
-                
-                // Amount (u64 LE)
-                for (let i = 0; i < 8; i++) {
-                    transferData[1 + i] = Number((amount >> BigInt(i * 8)) & BigInt(0xFF));
-                }
-                
-                // Decimals (u8) - USDC has 6 decimals
-                transferData[9] = 6;
-                
-                const transferInstruction = new solanaWeb3.TransactionInstruction({
-                    keys: [
-                        { pubkey: fromATA, isSigner: false, isWritable: true },        // source
-                        { pubkey: usdcMint, isSigner: false, isWritable: false },      // mint
-                        { pubkey: toATA, isSigner: false, isWritable: true },          // destination
-                        { pubkey: fromPubkey, isSigner: true, isWritable: false }      // authority
-                    ],
-                    programId: TOKEN_PROGRAM_ID,
-                    data: transferData
-                });
-                
-                // Create v0 transaction with facilitator as fee payer (per x402 spec)
-                // The facilitator provides their fee payer address in paymentRequirements.extra.feePayer
-                const facilitatorFeePayer = new solanaWeb3.PublicKey(paymentRequirements.extra.feePayer);
-                
-                const messageV0 = new solanaWeb3.TransactionMessage({
-                    payerKey: facilitatorFeePayer, // Facilitator pays gas (per x402 protocol)
-                    recentBlockhash: recentBlockhashObj.blockhash,
-                    instructions: [transferInstruction]
-                }).compileToV0Message();
-                
-                const transaction = new solanaWeb3.VersionedTransaction(messageV0);
-                
-                console.log('VersionedTransaction (v0) created with facilitator as fee payer');
-
-                // Step 4: Partially sign with user wallet ONLY (facilitator will co-sign on /settle)
-                statusDiv.innerHTML = '<p class="text-blue-200">🔐 Please approve USDC payment in your wallet...</p>';
-                console.log('Step 4: Requesting user signature (facilitator signs later)...');
-                
-                // DO NOT call transaction.sign() - that requires secret keys
-                // Just pass to wallet for signing - Phantom will add user's signature
-                const signedTx = await walletAdapter.signTransaction(transaction);
-                
-                // Serialize the partially-signed transaction (user signed, facilitator slot empty)
-                const serialized = signedTx.serialize();
-                const base64Tx = btoa(String.fromCharCode.apply(null, serialized));
-
-                console.log('✅ Transaction signed successfully');
-
-                // Step 5: Create x402 payment payload
-                const paymentPayload = {
-                    x402Version: 1,
-                    scheme: 'exact',
-                    network: 'solana',
-                    payload: {
-                        transaction: base64Tx
-                    }
-                };
-
-                console.log('Step 5: Payment payload created');
-
-                // Step 6: Submit to PayAI facilitator for settlement (via our backend proxy)
-                statusDiv.innerHTML = '<p class="text-blue-200">📡 Submitting to PayAI facilitator...</p>';
-                console.log('Step 6: Calling PayAI /settle endpoint via backend proxy...');
-                
-                const settleResponse = await fetch(`${API_BASE}/api/x402/settle`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        paymentPayload,
-                        paymentRequirements
-                    })
+                    rpcUrl: 'https://mainnet.helius-rpc.com/?api-key=e20ea2f4-232f-484e-be1e-e41b698a7850',
+                    connectionEndpoint: 'https://mainnet.helius-rpc.com/?api-key=e20ea2f4-232f-484e-be1e-e41b698a7850'
                 });
 
-                const settleResult = await settleResponse.json();
-                console.log('PayAI settlement response:', settleResult);
+                statusDiv.innerHTML = '<p class="text-blue-200">💼 Please connect your wallet...</p>';
 
-                if (!settleResult.success) {
-                    throw new Error(settleResult.errorReason || 'Payment settlement failed');
-                }
+                // Step 2: Make paid request to our merchant endpoint
+                // The backend will return 402 Payment Required with payment requirements
+                // The x402 SDK will handle the wallet connection, transaction building, and facilitator settlement
+                console.log('Step 2: Making paid request to merchant...');
+                console.log('💰 PayAI Facilitator will cover all gas fees!');
+                
+                statusDiv.innerHTML = '<p class="text-blue-200">💳 Building transaction...</p>';
 
-                const txHash = settleResult.transaction;
-                console.log('✅ Payment successful! TX:', txHash);
+                const result = await x402Client.request(`${API_BASE}/api/x402/fuel/${nonce}`);
+                
+                console.log('Step 3: Processing response...');
+                console.log('✅ Payment complete & resource delivered!', result);
+                console.log('Transaction signature:', result.transaction || 'null');
+                console.log('💚 You paid $0 in gas fees!');
 
-                // Update status
+                // Show success
                 statusDiv.className = 'mt-4 p-4 rounded-lg text-center bg-green-900 border border-green-600';
                 statusDiv.innerHTML = `
-                    <p class="text-green-200 mb-2">✅ Payment sent successfully via @PayAINetwork!</p>
-                    <p class="text-white text-sm">TX: ${txHash.substring(0, 12)}...</p>
-                    <p class="text-green-300 text-xs mt-2">⏳ Waiting for backend confirmation...</p>
+                    <p class="text-green-200 mb-2">🎉 Payment confirmed!</p>
+                    <p class="text-white text-sm">Fuel applied to $${paymentDetails.tokenSymbol}</p>
+                    <p class="text-green-300 text-xs mt-2">Check Twitter for confirmation from @dgnoracle</p>
                 `;
 
-                // Poll our backend for confirmation
-                pollPaymentConfirmation(txHash);
+                // Hide button
+                btn.classList.add('hidden');
+
+                // Show full success state after a moment
+                setTimeout(() => {
+                    showSuccess({
+                        ...paymentDetails,
+                        transactionHash: result.transaction || 'Processing...'
+                    });
+                }, 2000);
 
             } catch (error) {
-                console.error('Payment error (full):', error);
-                console.error('Error stack:', error.stack);
+                console.error('Payment error:', error);
                 
                 const btn = document.getElementById('connectWalletBtn');
-                btn.textContent = '💳 Process Payment';
+                btn.textContent = '🔗 Connect Wallet & Pay';
                 btn.disabled = false;
                 
                 const statusDiv = document.getElementById('paymentStatus');
@@ -620,52 +283,7 @@
                 statusDiv.innerHTML = `<p class="text-red-200">Payment failed: ${error.message}</p>`;
                 statusDiv.classList.remove('hidden');
             }
-        }
-
-        // Poll for payment confirmation
-        async function pollPaymentConfirmation(txHash) {
-            const maxAttempts = 30; // 30 seconds
-            let attempts = 0;
-
-            const poll = async () => {
-                try {
-                    attempts++;
-                    
-                    // Check if payment was processed by our webhook
-                    const response = await fetch(`${API_BASE}/api/x402/payment-details/${nonce}`);
-                    const paymentData = await response.json();
-
-                    if (paymentData.status === 'completed') {
-                        // Payment confirmed!
-                        const statusDiv = document.getElementById('paymentStatus');
-                        statusDiv.className = 'mt-4 p-4 rounded-lg text-center bg-green-900 border border-green-600';
-                        statusDiv.innerHTML = `
-                            <p class="text-green-200 mb-2">🎉 Payment confirmed!</p>
-                            <p class="text-white text-sm">Fuel applied to $${paymentData.tokenSymbol}</p>
-                            <p class="text-green-300 text-xs mt-2">Check Twitter for confirmation from @dgnoracle</p>
-                        `;
-
-                        // Hide button
-                        document.getElementById('connectWalletBtn').classList.add('hidden');
-                        return;
-                    }
-
-                    if (attempts >= maxAttempts) {
-                        throw new Error('Payment confirmation timeout');
-                    }
-
-                    // Continue polling
-                    setTimeout(poll, 1000);
-                } catch (error) {
-                    console.error('Confirmation error:', error);
-                    const statusDiv = document.getElementById('paymentStatus');
-                    statusDiv.innerHTML = `<p class="text-yellow-200">Payment sent but confirmation pending. Check Twitter for updates.</p>`;
-                }
-            };
-
-            poll();
-        }
-
+        });
 
         // Show error
         function showError(message) {
@@ -700,4 +318,3 @@
     </script>
 </body>
 </html>
-

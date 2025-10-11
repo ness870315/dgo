@@ -4875,6 +4875,199 @@ class EnhancedBackend {
       }
     });
 
+    // x402 Merchant Resource Endpoint (returns 402 Payment Required)
+    // This is the endpoint the x402 SDK calls to initiate payment
+    this.app.get('/api/x402/fuel/:nonce', async (req, res) => {
+      try {
+        const { nonce } = req.params;
+        const xPaymentHeader = req.headers['x-payment'];
+        
+        console.log('[🛡️ x402] 💳 Merchant resource requested for nonce:', nonce);
+        console.log('[🛡️ x402] X-PAYMENT header:', xPaymentHeader ? 'Present' : 'Not present');
+
+        // Get pending payment
+        const payment = this.twitterMentionService.x402Service.getPendingPayment(nonce);
+        
+        if (!payment) {
+          return res.status(404).json({ 
+            error: 'Payment not found or has expired' 
+          });
+        }
+
+        // Check if expired
+        if (payment.expiresAt < Date.now()) {
+          return res.status(410).json({ 
+            error: 'Payment link has expired' 
+          });
+        }
+
+        // If no X-PAYMENT header, return 402 Payment Required
+        if (!xPaymentHeader) {
+          console.log('[🛡️ x402] 💰 Returning 402 Payment Required with payment requirements...');
+          
+          // Convert USDC amount to lamports (USDC has 6 decimals)
+          const lamports = Math.floor(payment.amount * 1_000_000);
+          
+          const paymentRequirements = {
+            x402Version: 1,
+            error: 'X-PAYMENT header is required',
+            accepts: [{
+              scheme: 'exact',
+              network: 'solana',
+              maxAmountRequired: lamports.toString(),
+              asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC on Solana
+              payTo: this.twitterMentionService.x402Service.payToAddress,
+              resource: `https://api.degen-oracle.com/api/x402/fuel/${nonce}`,
+              description: `${payment.fuelType} Fuel for ${payment.tokenSymbol}`,
+              mimeType: 'application/json',
+              maxTimeoutSeconds: 300,
+              extra: {
+                feePayer: 'GWRUEnMCfuDzz9zWh4hckkSZDN5dYH3UmzRNf64L52Sk', // PayAI facilitator fee payer
+                metadata: {
+                  nonce: payment.nonce,
+                  tokenSymbol: payment.tokenSymbol,
+                  contractAddress: payment.contractAddress,
+                  fuelType: payment.fuelType,
+                  userHandle: payment.userHandle
+                }
+              }
+            }]
+          };
+
+          return res.status(402).json(paymentRequirements);
+        }
+
+        // If X-PAYMENT header is present, verify the payment with facilitator
+        console.log('[🛡️ x402] ✅ X-PAYMENT header present, verifying payment...');
+        
+        try {
+          // Parse X-PAYMENT header (it's base64 encoded JSON)
+          const paymentPayload = JSON.parse(Buffer.from(xPaymentHeader, 'base64').toString('utf-8'));
+          
+          console.log('[🛡️ x402] Payment payload:', JSON.stringify(paymentPayload, null, 2));
+
+          // Build payment requirements for verification
+          const lamports = Math.floor(payment.amount * 1_000_000);
+          const paymentRequirements = {
+            scheme: 'exact',
+            network: 'solana',
+            maxAmountRequired: lamports.toString(),
+            asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+            payTo: this.twitterMentionService.x402Service.payToAddress,
+            resource: `https://api.degen-oracle.com/api/x402/fuel/${nonce}`,
+            description: `${payment.fuelType} Fuel for ${payment.tokenSymbol}`,
+            mimeType: 'application/json',
+            maxTimeoutSeconds: 300,
+            extra: {
+              feePayer: 'GWRUEnMCfuDzz9zWh4hckkSZDN5dYH3UmzRNf64L52Sk',
+              metadata: {
+                nonce: payment.nonce,
+                tokenSymbol: payment.tokenSymbol,
+                contractAddress: payment.contractAddress,
+                fuelType: payment.fuelType,
+                userHandle: payment.userHandle
+              }
+            }
+          };
+
+          // Verify with PayAI facilitator
+          const verifyResponse = await axios.post('https://facilitator.payai.network/verify', {
+            paymentPayload,
+            paymentRequirements
+          }, {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+
+          console.log('[🛡️ x402] Facilitator verification response:', verifyResponse.data);
+
+          if (!verifyResponse.data.isValid) {
+            console.log('[🛡️ x402] ❌ Payment verification failed');
+            return res.status(402).json({
+              error: 'Payment verification failed',
+              details: verifyResponse.data
+            });
+          }
+
+          // Payment verified! Settle it
+          console.log('[🛡️ x402] ✅ Payment verified, settling...');
+          
+          const settleResponse = await axios.post('https://facilitator.payai.network/settle', {
+            paymentPayload,
+            paymentRequirements
+          }, {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+
+          console.log('[🛡️ x402] Facilitator settlement response:', settleResponse.data);
+
+          if (!settleResponse.data.success) {
+            console.log('[🛡️ x402] ❌ Payment settlement failed');
+            return res.status(500).json({
+              error: 'Payment settlement failed',
+              details: settleResponse.data
+            });
+          }
+
+          // Payment successful! Apply fuel
+          const txHash = settleResponse.data.transaction;
+          console.log('[🛡️ x402] 💚 Payment successful! TX:', txHash);
+
+          // Update payment status
+          this.twitterMentionService.x402Service.markPaymentCompleted(nonce, txHash);
+
+          // Apply fuel to token
+          const token = await this.databaseService.getTokenByAddress(payment.contractAddress);
+          if (token) {
+            await this.fuelService.applyFuel(token, payment.fuelType);
+            console.log(`[🛡️ x402] ✅ Fuel ${payment.fuelType} applied to ${payment.tokenSymbol}`);
+
+            // Post Twitter confirmation
+            if (payment.originalTweetId) {
+              await this.twitterAutoPostService.postFuelConfirmation(
+                token,
+                payment.fuelType,
+                { handle: payment.userHandle },
+                payment.originalTweetId,
+                txHash
+              );
+            }
+
+            // Public announcement for high tiers
+            if (payment.fuelType === '500x' || payment.fuelType === '1000x') {
+              const announcement = `🔥 MASSIVE ${payment.fuelType.toUpperCase()} FUEL APPLIED!\n\n$${payment.tokenSymbol} just got boosted by @${payment.userHandle}\n\nThis token is now trending HARD on degen-oracle.com 🚀\n\n#DegenMode #SolanaAlpha`;
+              await this.oauthXService.postTweet(announcement);
+            }
+          }
+
+          // Return the resource (payment confirmed)
+          res.json({
+            delivered: true,
+            resourceId: nonce,
+            message: 'Payment verified, delivering resource',
+            tokenSymbol: payment.tokenSymbol,
+            fuelType: payment.fuelType,
+            transactionHash: txHash,
+            status: 'completed'
+          });
+
+        } catch (verifyError) {
+          console.error('[🛡️ x402] ❌ Error verifying/settling payment:', verifyError.response?.data || verifyError.message);
+          return res.status(500).json({
+            error: 'Payment processing error',
+            details: verifyError.response?.data || verifyError.message
+          });
+        }
+
+      } catch (error) {
+        console.error('[🛡️ x402] ❌ Error in merchant resource endpoint:', error);
+        res.status(500).json({ error: 'Server error' });
+      }
+    });
+
     // Apply fuel to token
     // Get x402 payment details by nonce (for payment page)
     this.app.get('/api/x402/payment-details/:nonce', async (req, res) => {
