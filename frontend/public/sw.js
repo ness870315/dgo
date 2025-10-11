@@ -103,9 +103,17 @@ async function handleRequest(request) {
 async function handleApiRequest(request) {
   const url = new URL(request.url);
   
-  // Never cache x402 payment endpoints (they return 402 which is not OK)
-  if (url.pathname.includes('/x402/') || url.pathname.includes('/fuel-payment')) {
-    return fetch(request);
+  // Never cache x402 payment endpoints or fuel-payment pages
+  // These should always fetch fresh from network
+  if (url.pathname.includes('/x402/') || 
+      url.pathname.includes('/fuel-payment') ||
+      url.pathname.includes('payment-details')) {
+    try {
+      return await fetch(request);
+    } catch (error) {
+      console.log('⚠️ Network error for x402 endpoint:', url.pathname, error.message);
+      throw error; // Re-throw to let the caller handle it
+    }
   }
   
   // Check if this is a cacheable API endpoint
