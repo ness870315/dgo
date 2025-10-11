@@ -6,13 +6,42 @@
     <title>Fuel Payment - DeGen Oracle @PayAINetwork</title>
     <!-- CRITICAL: Prevent MetaMask/EVM extension injection BEFORE any other scripts -->
     <script>
-        // Aggressively block all EVM providers to prevent Phantom anti-phishing
+        // Aggressively neuter all EVM providers to prevent Phantom anti-phishing
         (function() {
-            const blockEVM = () => {
-                // List of EVM provider properties to block
-                const evmProviders = ['ethereum', 'web3', 'metamask'];
+            // If ethereum already exists (injected by extension), neuter its methods
+            const neuterEVM = () => {
+                if (window.ethereum) {
+                    console.log('⚠️ EVM provider detected, neutering methods...');
+                    
+                    // Neuter all MetaMask/EVM methods to prevent connection attempts
+                    const noop = () => Promise.reject(new Error('EVM provider disabled on Solana-only page'));
+                    const noopSync = () => { throw new Error('EVM provider disabled on Solana-only page'); };
+                    
+                    try {
+                        // Neuter connection methods
+                        window.ethereum.request = noop;
+                        window.ethereum.send = noopSync;
+                        window.ethereum.sendAsync = noop;
+                        window.ethereum.enable = noop;
+                        
+                        // Neuter event emitters
+                        window.ethereum.on = () => {};
+                        window.ethereum.removeListener = () => {};
+                        
+                        // Set isMetaMask to false
+                        Object.defineProperty(window.ethereum, 'isMetaMask', {
+                            get: () => false,
+                            configurable: false
+                        });
+                        
+                        console.log('✅ EVM provider neutered successfully');
+                    } catch (e) {
+                        console.log('⚠️ Could not fully neuter EVM provider:', e.message);
+                    }
+                }
                 
-                evmProviders.forEach(prop => {
+                // Try to block other EVM providers
+                ['web3', 'metamask'].forEach(prop => {
                     try {
                         if (window[prop]) {
                             delete window[prop];
@@ -22,25 +51,25 @@
                                 console.log(`🚫 Blocked EVM provider access: ${prop}`);
                                 return undefined;
                             },
-                            set: () => {
-                                console.log(`🚫 Blocked EVM provider injection: ${prop}`);
-                                return true;
-                            },
+                            set: () => true,
                             configurable: false
                         });
                     } catch (e) {
-                        // Property already locked, ignore
+                        // Already locked
                     }
                 });
             };
             
-            // Block immediately
-            blockEVM();
+            // Neuter immediately (before extensions load)
+            neuterEVM();
             
-            // Block again after DOM ready
+            // Neuter again after extensions inject (they usually inject on DOMContentLoaded)
             if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', blockEVM);
+                document.addEventListener('DOMContentLoaded', neuterEVM);
             }
+            
+            // Neuter one more time after full page load
+            window.addEventListener('load', neuterEVM);
         })();
     </script>
     <script src="https://cdn.tailwindcss.com"></script>
