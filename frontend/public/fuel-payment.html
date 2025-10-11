@@ -324,8 +324,31 @@
                 statusDiv.innerHTML = '<p class="text-blue-200">💼 Preparing transaction...</p>';
                 
                 console.log('Step 3: Creating Solana transaction...');
-                const connection = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com', 'confirmed');
-                const { blockhash } = await connection.getLatestBlockhash();
+                // Use multiple RPC endpoints for reliability
+                const rpcEndpoints = [
+                    'https://mainnet.helius-rpc.com/?api-key=e20ea2f4-232f-484e-be1e-e41b698a7850',
+                    'https://solana-api.projectserum.com',
+                    'https://rpc.ankr.com/solana'
+                ];
+                
+                let connection = null;
+                let blockhash = null;
+                
+                for (const rpcUrl of rpcEndpoints) {
+                    try {
+                        connection = new solanaWeb3.Connection(rpcUrl, 'confirmed');
+                        const result = await connection.getLatestBlockhash();
+                        blockhash = result.blockhash;
+                        console.log('✅ Connected to RPC:', rpcUrl);
+                        break;
+                    } catch (err) {
+                        console.warn('❌ Failed RPC:', rpcUrl, err.message);
+                    }
+                }
+                
+                if (!blockhash) {
+                    throw new Error('Failed to connect to Solana RPC. Please try again.');
+                }
                 
                 const fromPubkey = new solanaWeb3.PublicKey(publicKey);
                 const toPubkey = new solanaWeb3.PublicKey(paymentRequirements.payTo);
