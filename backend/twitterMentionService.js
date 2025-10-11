@@ -510,11 +510,11 @@ Respond in JSON format:
     try {
       if (analysis.replyType === 'fuel_payment') {
         return await this.generateFuelPaymentReply(analysis, author);
+      } else if (analysis.replyType === 'contract_analysis' && analysis.contractAddress) {
+        // Regular contract analysis
+        return await this.analyzeContractAddress(analysis.contractAddress, author);
       } else if (analysis.replyType === 'casual') {
         return await this.generateCasualReply(analysis, author, conversationContext, parentTweet);
-      } else if (analysis.replyType === 'contract_analysis' && analysis.contractAddress) {
-        // User provided a contract address - fetch from Jupiter and analyze
-        return await this.analyzeContractAddress(analysis.contractAddress, author);
       } else if (analysis.replyType === 'kol_opinion') {
         return await this.generateKOLOpinion(analysis, author, parentTweet);
       }
@@ -648,20 +648,29 @@ Reply (without @username):`;
       }
 
       if (!fuelType || !['10x', '50x', '500x', '1000x'].includes(fuelType)) {
-        return `@${author} Choose a fuel tier: 10x ($4.50), 50x ($19.50), 500x ($69.50), or 1000x ($99.50) USDC. 90% off! 🔥`;
+        return `@${author} Choose a fuel tier: 10x ($0.10 TEST), 50x ($19.50), 500x ($69.50), or 1000x ($99.50) USDC. 90% off! 🔥`;
       }
 
       // Get token data to find contract address
-      const tokenData = await this.getTokenData(symbol);
+      let tokenData = await this.getTokenData(symbol);
+      let contractAddress = null;
       
       if (!tokenData || !tokenData.contractAddress) {
-        return `@${author} Can't find $${symbol} in our system. Make sure it's listed on DeGen Oracle first! 🤷`;
+        // Token not in our database - guide to list it first
+        return `@${author} $${symbol} isn't listed on DeGen Oracle yet! 
+
+To fuel it, you need to list it first:
+👉 https://degen-oracle.com
+
+Once listed, come back and I'll generate your fuel payment link! 🔥`;
       }
+
+      contractAddress = tokenData.contractAddress;
 
       // Generate x402 payment link
       const paymentInfo = await this.x402Service.generateFuelPaymentLink(
         symbol,
-        tokenData.contractAddress,
+        contractAddress,
         fuelType,
         author
       );
