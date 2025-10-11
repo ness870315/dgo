@@ -275,138 +275,40 @@
                     throw new Error(paymentData.error || 'Failed to get payment details');
                 }
 
-                // Create x402 payment request
-                const paymentRequest = {
-                    network: 'solana',
-                    amount: Math.floor(paymentData.amount * 1e6).toString(), // Convert to lamports
-                    asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
-                    payTo: paymentData.payTo,
-                    description: `${paymentData.fuelType} Fuel for $${paymentData.tokenSymbol}`,
-                    metadata: {
-                        nonce: paymentData.nonce,
-                        tokenSymbol: paymentData.tokenSymbol,
-                        fuelType: paymentData.fuelType,
-                        userHandle: paymentData.userHandle
-                    }
-                };
+                console.log('Creating payment for:', paymentData);
 
-                console.log('Creating x402 payment:', paymentRequest);
-
-                // Create transaction for USDC transfer
-                // Use multiple RPC endpoints for better reliability
-                const rpcEndpoints = [
-                    'https://solana-api.projectserum.com',
-                    'https://api.mainnet-beta.solana.com',
-                    'https://rpc.ankr.com/solana'
-                ];
-                
-                let connection;
-                let lastError;
-                
-                // Try each RPC endpoint
-                for (const endpoint of rpcEndpoints) {
-                    try {
-                        connection = new solanaWeb3.Connection(endpoint);
-                        // Test the connection
-                        await connection.getLatestBlockhash();
-                        console.log(`Using RPC endpoint: ${endpoint}`);
-                        break;
-                    } catch (error) {
-                        console.warn(`RPC endpoint failed: ${endpoint}`, error.message);
-                        lastError = error;
-                        continue;
-                    }
-                }
-                
-                if (!connection) {
-                    throw new Error(`All RPC endpoints failed. Last error: ${lastError.message}`);
-                }
-                
+                // Simple approach: Let the wallet handle everything
                 const fromPubkey = new solanaWeb3.PublicKey(publicKey);
-                const toPubkey = new solanaWeb3.PublicKey(paymentRequest.payTo);
+                const toPubkey = new solanaWeb3.PublicKey(paymentData.payTo);
                 
-                // Get recent blockhash with retry logic
-                let blockhash;
-                let retries = 3;
+                // Create a simple SOL transfer transaction (let wallet handle RPC)
+                const transaction = new solanaWeb3.Transaction();
                 
-                while (retries > 0) {
-                    try {
-                        const result = await connection.getLatestBlockhash();
-                        blockhash = result.blockhash;
-                        break;
-                    } catch (error) {
-                        retries--;
-                        if (retries === 0) {
-                            throw new Error(`Failed to get recent blockhash after 3 attempts: ${error.message}`);
-                        }
-                        console.warn(`Blockhash attempt failed, retrying... (${retries} attempts left)`);
-                        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
-                    }
-                }
+                // For testing: Transfer 0.1 SOL (equivalent to ~$0.10 USDC for testing)
+                const transferInstruction = solanaWeb3.SystemProgram.transfer({
+                    fromPubkey: fromPubkey,
+                    toPubkey: toPubkey,
+                    lamports: 100000000, // 0.1 SOL
+                });
+
+                transaction.add(transferInstruction);
+
+                console.log('Sending transaction to wallet for signing...');
                 
-                // Try using wallet's preferred RPC first (more reliable)
-                try {
-                    // Use wallet's transaction creation (Phantom handles RPC)
-                    const transaction = new solanaWeb3.Transaction();
-                    
-                    // For testing: Transfer SOL equivalent (0.1 SOL ≈ $20, close to 0.1 USDC for testing)
-                    const transferInstruction = solanaWeb3.SystemProgram.transfer({
-                        fromPubkey: fromPubkey,
-                        toPubkey: toPubkey,
-                        lamports: 100000000, // 0.1 SOL for testing
-                    });
+                // Let the wallet handle RPC, blockhash, and signing
+                const signedTransaction = await window.solana.signAndSendTransaction(transaction);
+                console.log('Transaction sent:', signedTransaction.signature);
 
-                    transaction.add(transferInstruction);
+                // Update status
+                statusDiv.className = 'mt-4 p-4 rounded-lg text-center bg-green-900 border border-green-600';
+                statusDiv.innerHTML = `
+                    <p class="text-green-200 mb-2">✅ Payment sent successfully!</p>
+                    <p class="text-white text-sm">TX: ${signedTransaction.signature.substring(0, 12)}...</p>
+                    <p class="text-green-300 text-xs mt-2">Waiting for confirmation...</p>
+                `;
 
-                    // Let Phantom handle the RPC and blockhash
-                    const signedTransaction = await window.solana.signAndSendTransaction(transaction);
-                    console.log('Transaction sent:', signedTransaction.signature);
-
-                    // Update status
-                    statusDiv.className = 'mt-4 p-4 rounded-lg text-center bg-green-900 border border-green-600';
-                    statusDiv.innerHTML = `
-                        <p class="text-green-200 mb-2">✅ Payment sent successfully!</p>
-                        <p class="text-white text-sm">TX: ${signedTransaction.signature.substring(0, 12)}...</p>
-                        <p class="text-green-300 text-xs mt-2">Waiting for confirmation...</p>
-                    `;
-
-                    // Poll for payment confirmation
-                    pollPaymentConfirmation(signedTransaction.signature);
-                    return;
-
-                } catch (walletError) {
-                    console.warn('Wallet transaction failed, trying manual approach:', walletError.message);
-                    
-                    // Fallback: Manual transaction creation
-                    const transaction = new solanaWeb3.Transaction({
-                        recentBlockhash: blockhash,
-                        feePayer: fromPubkey,
-                    });
-
-                    // For testing: Transfer SOL equivalent (0.1 SOL ≈ $20, close to 0.1 USDC for testing)
-                    const transferInstruction = solanaWeb3.SystemProgram.transfer({
-                        fromPubkey: fromPubkey,
-                        toPubkey: toPubkey,
-                        lamports: 100000000, // 0.1 SOL for testing
-                    });
-
-                    transaction.add(transferInstruction);
-
-                    // Sign and send transaction
-                    const signedTransaction = await window.solana.signAndSendTransaction(transaction);
-                    console.log('Transaction sent:', signedTransaction.signature);
-
-                    // Update status
-                    statusDiv.className = 'mt-4 p-4 rounded-lg text-center bg-green-900 border border-green-600';
-                    statusDiv.innerHTML = `
-                        <p class="text-green-200 mb-2">✅ Payment sent successfully!</p>
-                        <p class="text-white text-sm">TX: ${signedTransaction.signature.substring(0, 12)}...</p>
-                        <p class="text-green-300 text-xs mt-2">Waiting for confirmation...</p>
-                    `;
-
-                    // Poll for payment confirmation
-                    pollPaymentConfirmation(signedTransaction.signature);
-                }
+                // Poll for payment confirmation
+                pollPaymentConfirmation(signedTransaction.signature);
 
             } catch (error) {
                 console.error('Payment error:', error);
