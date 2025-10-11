@@ -7,6 +7,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import TwitterMemoryService from './services/TwitterMemoryService.js';
 import PerplexitySonarService from './services/PerplexitySonarService.js';
+import X402MerchantService from './services/x402MerchantService.js';
 
 class TwitterMentionService {
   constructor(twitterAutoPostService, openaiService, backendInstance) {
@@ -15,6 +16,7 @@ class TwitterMentionService {
     this.backend = backendInstance;
     this.memoryService = new TwitterMemoryService();
     this.perplexityService = new PerplexitySonarService();
+    this.x402Service = new X402MerchantService();
     this.isRunning = false;
     this.checkInterval = null;
     this.checkIntervalMinutes = 10;
@@ -359,6 +361,13 @@ Author: @${author}
 
 CRITICAL CLASSIFICATION RULES:
 
+Type = "fuel_payment" if the mention contains ANY of these:
+- "fuel $TOKEN" or "fuel to $TOKEN"
+- "10x fuel", "50x fuel", "500x fuel", "1000x fuel"
+- "add fuel to $TOKEN", "apply fuel"
+- "do a Nx fuel to $TOKEN" (where N is multiplier)
+Extract: tokens array and fuelMultiplier (10x, 50x, 500x, or 1000x)
+
 Type = "kol_opinion" if the mention contains ANY of these:
 - Questions about buying/investing: "what should I buy", "what to buy", "buy today", "investment", "calls"
 - Questions about trending: "what's trending", "what's hot", "trending on CT", "what's pumping"
@@ -376,6 +385,9 @@ Type = "contract_analysis" if:
 - Contains Solana address (32-44 char alphanumeric)
 
 EXAMPLES (FOLLOW THESE EXACTLY):
+✅ "do a 10x fuel to $memeputer" → {"replyType": "fuel_payment", "tokens": ["MEMEPUTER"], "fuelMultiplier": "10x", "reason": "fuel payment request"}
+✅ "fuel $bonk 50x" → {"replyType": "fuel_payment", "tokens": ["BONK"], "fuelMultiplier": "50x", "reason": "fuel payment request"}
+✅ "add 500x fuel to $wif" → {"replyType": "fuel_payment", "tokens": ["WIF"], "fuelMultiplier": "500x", "reason": "fuel payment request"}
 ✅ "what's trending on CT? what should I buy?" → {"replyType": "kol_opinion", "tokens": [], "reason": "asking for trending + buy recommendations"}
 ✅ "what is your take on $monkey" → {"replyType": "kol_opinion", "tokens": ["MONKEY"], "reason": "asking for token analysis"}
 ✅ "what should I buy today" → {"replyType": "kol_opinion", "tokens": [], "reason": "asking for investment advice"}
@@ -386,9 +398,10 @@ EXAMPLES (FOLLOW THESE EXACTLY):
 Respond in JSON format:
 {
   "shouldReply": true/false,
-  "replyType": "casual" or "kol_opinion" or "contract_analysis",
+  "replyType": "casual" or "kol_opinion" or "contract_analysis" or "fuel_payment",
   "tokens": ["SYMBOL1", "SYMBOL2"],
   "contractAddress": "address_if_found" or null,
+  "fuelMultiplier": "10x" or "50x" or "500x" or "1000x" (only for fuel_payment),
   "reason": "brief explanation"
 }`;
 
@@ -495,7 +508,9 @@ Respond in JSON format:
   // Generate reply based on analysis
   async generateReply(analysis, author, conversationContext = [], parentTweet = null) {
     try {
-      if (analysis.replyType === 'casual') {
+      if (analysis.replyType === 'fuel_payment') {
+        return await this.generateFuelPaymentReply(analysis, author);
+      } else if (analysis.replyType === 'casual') {
         return await this.generateCasualReply(analysis, author, conversationContext, parentTweet);
       } else if (analysis.replyType === 'contract_analysis' && analysis.contractAddress) {
         // User provided a contract address - fetch from Jupiter and analyze
@@ -613,6 +628,65 @@ Reply (without @username):`;
     } catch (error) {
       console.error('❌ [MENTIONS] Error generating casual reply:', error.message);
       return `@${author} GM! Thanks for reaching out! 🔮`;
+    }
+  }
+
+  // Generate fuel payment reply with x402 payment link
+  async generateFuelPaymentReply(analysis, author) {
+    try {
+      console.log(`💳 [MENTIONS] Generating fuel payment reply for @${author}`);
+
+      // Extract token and fuel multiplier
+      const symbol = analysis.tokens && analysis.tokens.length > 0 
+        ? analysis.tokens[0].replace(/[$@]/g, '').toUpperCase()
+        : null;
+      
+      const fuelType = analysis.fuelMultiplier;
+
+      if (!symbol) {
+        return `@${author} I need a token symbol to fuel, anon! Try: "fuel $TOKEN 10x" 🔥`;
+      }
+
+      if (!fuelType || !['10x', '50x', '500x', '1000x'].includes(fuelType)) {
+        return `@${author} Choose a fuel tier: 10x ($4.50), 50x ($19.50), 500x ($69.50), or 1000x ($99.50) USDC. 90% off! 🔥`;
+      }
+
+      // Get token data to find contract address
+      const tokenData = await this.getTokenData(symbol);
+      
+      if (!tokenData || !tokenData.contractAddress) {
+        return `@${author} Can't find $${symbol} in our system. Make sure it's listed on DeGen Oracle first! 🤷`;
+      }
+
+      // Generate x402 payment link
+      const paymentInfo = await this.x402Service.generateFuelPaymentLink(
+        symbol,
+        tokenData.contractAddress,
+        fuelType,
+        author
+      );
+
+      // Create reply with payment link
+      const priceInfo = this.x402Service.getFuelPrice(fuelType);
+      const reply = `@${author} To fuel $${symbol} ${fuelType}:
+
+💳 Pay ${paymentInfo.amount} USDC: ${paymentInfo.paymentUrl}
+
+🎉 Special: 90% off (was $${priceInfo.usd})
+⏰ Link expires in 15 min
+🔥 Fuel activates instantly after payment
+
+Pay via Phantom/Solflare with USDC on Solana`;
+
+      console.log(`✅ [MENTIONS] Generated fuel payment reply for $${symbol} ${fuelType}`);
+      console.log(`   Amount: ${paymentInfo.amount} USDC`);
+      console.log(`   Nonce: ${paymentInfo.nonce}`);
+
+      return reply;
+
+    } catch (error) {
+      console.error('❌ [MENTIONS] Error generating fuel payment reply:', error.message);
+      return `@${author} Had trouble generating payment link. Try again or visit https://degen-oracle.com to fuel manually! 🔥`;
     }
   }
 

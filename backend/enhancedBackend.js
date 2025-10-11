@@ -4876,6 +4876,114 @@ class EnhancedBackend {
     });
 
     // Apply fuel to token
+    // x402 Fuel Payment Webhook (from PayAI facilitator)
+    this.app.post('/api/x402/fuel-payment-webhook', async (req, res) => {
+      try {
+        const paymentData = req.body;
+        
+        console.log('[🛡️ x402] 🔔 Received x402 fuel payment webhook:', paymentData);
+
+        // Extract payment metadata
+        const nonce = paymentData.nonce || paymentData.metadata?.nonce;
+        const tokenSymbol = paymentData.metadata?.tokenSymbol;
+        const contractAddress = paymentData.metadata?.contractAddress;
+        const fuelType = paymentData.metadata?.fuelType;
+        const userHandle = paymentData.metadata?.userHandle;
+        const transactionHash = paymentData.transactionHash || paymentData.txHash;
+
+        if (!nonce || !tokenSymbol || !contractAddress || !fuelType) {
+          console.error('[🛡️ x402] ❌ Missing required payment metadata');
+          return res.status(400).json({ error: 'Missing payment metadata' });
+        }
+
+        // Verify this is a valid pending payment
+        const pendingPayment = this.twitterMentionService.x402Service.getPendingPayment(nonce);
+        
+        if (!pendingPayment) {
+          console.error('[🛡️ x402] ❌ Payment nonce not found or already processed');
+          return res.status(404).json({ error: 'Payment not found' });
+        }
+
+        // Apply fuel to token
+        const fuelResult = await this.applyFuelToToken(contractAddress, fuelType);
+        
+        if (!fuelResult.success) {
+          console.error('[🛡️ x402] ❌ Failed to apply fuel:', fuelResult.error);
+          return res.status(500).json({ error: 'Failed to apply fuel' });
+        }
+
+        // Mark payment as completed
+        this.twitterMentionService.x402Service.completePayment(nonce);
+
+        // Record earning (90% discounted price)
+        const pricing = this.twitterMentionService.x402Service.getFuelPrice(fuelType);
+        if (pricing) {
+          try {
+            await this.oauthXService.db.addEarning({
+              type: 'fuel_x402',
+              category: fuelType,
+              amount: pricing.discountedUsd,
+              currency: 'USDC',
+              userId: 'twitter_' + userHandle,
+              username: userHandle,
+              contractAddress: contractAddress,
+              isGuest: true,
+              source: 'twitter_x402',
+              discount: '90%',
+              originalPrice: pricing.usd,
+              transactionHash: transactionHash,
+              createdAt: new Date().toISOString()
+            });
+            console.log(`[🛡️ x402] ✅ Recorded earning: ${fuelType} - $${pricing.discountedUsd} USDC from @${userHandle}`);
+          } catch (earningError) {
+            console.error(`[🛡️ x402] ❌ Failed to record earning:`, earningError.message);
+          }
+        }
+
+        // Send confirmation reply on Twitter
+        try {
+          const confirmationReply = `@${userHandle} ✅ Payment confirmed! ${fuelType} Fuel applied to $${tokenSymbol} 🔥
+
+TX: ${transactionHash.substring(0, 12)}...
+Boost active for 12 hours!
+
+Thanks for using x402 payments on Twitter! 🚀`;
+
+          await this.twitterMentionService.twitterService.oauthXService.postTweet(
+            this.twitterMentionService.twitterService.dgnOracleUserId,
+            confirmationReply
+          );
+          
+          console.log(`[🛡️ x402] ✅ Posted confirmation reply to @${userHandle}`);
+        } catch (replyError) {
+          console.error(`[🛡️ x402] ❌ Failed to post confirmation reply:`, replyError.message);
+        }
+
+        // Auto-post for high-tier fuels (500x and 1000x)
+        if (fuelType === '500x' || fuelType === '1000x') {
+          try {
+            const user = { username: userHandle };
+            await this.twitterAutoPostService.postFuelAnnouncement(fuelResult.token, fuelType, user);
+            console.log(`[🛡️ x402] ✅ Auto-posted ${fuelType} announcement`);
+          } catch (twitterError) {
+            console.error(`[🛡️ x402] ❌ Failed to auto-post:`, twitterError.message);
+          }
+        }
+
+        res.json({
+          success: true,
+          message: 'Fuel applied successfully',
+          token: fuelResult.token,
+          fuelType,
+          transactionHash
+        });
+
+      } catch (error) {
+        console.error('[🛡️ x402] ❌ Webhook processing error:', error);
+        res.status(500).json({ error: 'Webhook processing failed' });
+      }
+    });
+
     this.app.post('/api/tokens/fuel', async (req, res) => {
       try {
         const { contractAddress, fuelType, sessionId } = req.body;

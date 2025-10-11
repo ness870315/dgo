@@ -1,0 +1,282 @@
+import fetch from 'node-fetch';
+import crypto from 'crypto';
+
+/**
+ * x402 Merchant Service - PayAI Integration for Twitter Fuel Payments
+ * Enables users to fuel tokens via natural language on Twitter
+ * Uses PayAI x402 protocol for on-chain USDC payments on Solana
+ * Documentation: https://docs.payai.network/x402/reference
+ */
+class X402MerchantService {
+  constructor() {
+    this.facilitatorUrl = process.env.X402_FACILITATOR_URL || 'https://facilitator.payai.network';
+    this.network = 'solana';
+    this.payToAddress = process.env.X402_PAY_TO_ADDRESS || '3hn5fWZEf2yUZcwU2CV2Wkvk7YDiysM8xBwmesFg7sN1';
+    this.usdcAddress = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'; // USDC on Solana
+    this.usdcDecimals = 6; // USDC has 6 decimals
+    
+    // Twitter x402 prices (90% discount from website prices)
+    this.fuelPrices = {
+      '10x': { usd: 45.00, discountedUsd: 4.50, usdc: 4.50 * 1e6 },   // 4,500,000
+      '50x': { usd: 195.00, discountedUsd: 19.50, usdc: 19.50 * 1e6 }, // 19,500,000
+      '500x': { usd: 695.00, discountedUsd: 69.50, usdc: 69.50 * 1e6 }, // 69,500,000
+      '1000x': { usd: 995.00, discountedUsd: 99.50, usdc: 99.50 * 1e6 }  // 99,500,000
+    };
+    
+    // Track pending payments (nonce -> payment details)
+    this.pendingPayments = new Map();
+    
+    console.log('💳 [x402] Merchant Service initialized');
+    console.log('  - Network:', this.network);
+    console.log('  - Pay to:', this.payToAddress);
+    console.log('  - Facilitator:', this.facilitatorUrl);
+    console.log('  - Twitter pricing (90% off):');
+    Object.entries(this.fuelPrices).forEach(([type, price]) => {
+      console.log(`    ${type}: $${price.discountedUsd} USDC (was $${price.usd})`);
+    });
+  }
+
+  /**
+   * Generate payment requirements for fuel request
+   * @param {string} tokenSymbol - Token to fuel (e.g., "MEMEPUTER")
+   * @param {string} contractAddress - Token contract address
+   * @param {string} fuelType - Fuel tier (10x, 50x, 500x, 1000x)
+   * @param {string} userHandle - Twitter handle of requester
+   * @returns {Object} - Payment requirements and payment URL
+   */
+  async generateFuelPaymentLink(tokenSymbol, contractAddress, fuelType, userHandle) {
+    try {
+      if (!this.fuelPrices[fuelType]) {
+        throw new Error(`Invalid fuel type: ${fuelType}`);
+      }
+
+      const pricing = this.fuelPrices[fuelType];
+      const nonce = this.generateNonce();
+      const expiresAt = Date.now() + (15 * 60 * 1000); // 15 minutes
+
+      // Create payment requirements
+      const paymentRequirements = {
+        scheme: 'exact',
+        network: this.network,
+        maxAmountRequired: pricing.usdc.toString(), // USDC amount in smallest unit
+        asset: this.usdcAddress,
+        payTo: this.payToAddress,
+        description: `${fuelType} Fuel for $${tokenSymbol} (Twitter x402 - 90% off)`,
+        nonce: nonce,
+        validAfter: Math.floor(Date.now() / 1000).toString(),
+        validBefore: Math.floor(expiresAt / 1000).toString(),
+        metadata: {
+          tokenSymbol,
+          contractAddress,
+          fuelType,
+          userHandle,
+          source: 'twitter',
+          discount: '90%',
+          originalPrice: pricing.usd,
+          discountedPrice: pricing.discountedUsd
+        }
+      };
+
+      // Store pending payment
+      this.pendingPayments.set(nonce, {
+        nonce,
+        tokenSymbol,
+        contractAddress,
+        fuelType,
+        userHandle,
+        amount: pricing.discountedUsd,
+        expiresAt,
+        status: 'pending',
+        createdAt: Date.now()
+      });
+
+      // Generate PayAI payment URL
+      const paymentUrl = this.createPaymentUrl(paymentRequirements);
+
+      console.log(`💳 [x402] Generated payment link for ${fuelType} fuel to $${tokenSymbol}`);
+      console.log(`   Amount: ${pricing.discountedUsd} USDC (90% off)`);
+      console.log(`   User: @${userHandle}`);
+      console.log(`   Nonce: ${nonce}`);
+      console.log(`   Expires: ${new Date(expiresAt).toISOString()}`);
+
+      return {
+        paymentUrl,
+        amount: pricing.discountedUsd,
+        amountUSDC: pricing.usdc,
+        currency: 'USDC',
+        expiresAt,
+        expiresInMinutes: 15,
+        nonce,
+        tokenSymbol,
+        fuelType,
+        discount: '90%',
+        originalPrice: pricing.usd
+      };
+
+    } catch (error) {
+      console.error('❌ [x402] Error generating fuel payment link:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Create PayAI payment URL from requirements
+   */
+  createPaymentUrl(requirements) {
+    // Encode payment requirements as query params
+    const params = new URLSearchParams({
+      network: requirements.network,
+      amount: requirements.maxAmountRequired,
+      asset: requirements.asset,
+      payTo: requirements.payTo,
+      description: requirements.description,
+      nonce: requirements.nonce,
+      validAfter: requirements.validAfter,
+      validBefore: requirements.validBefore,
+      metadata: JSON.stringify(requirements.metadata)
+    });
+
+    return `https://pay.payai.network/pay?${params.toString()}`;
+  }
+
+  /**
+   * Verify payment with facilitator
+   */
+  async verifyPayment(paymentProof) {
+    try {
+      console.log(`🔍 [x402] Verifying payment with facilitator...`);
+
+      const response = await fetch(`${this.facilitatorUrl}/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(paymentProof)
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(`Verification failed: ${JSON.stringify(error)}`);
+      }
+
+      const result = await response.json();
+      console.log(`✅ [x402] Payment verification:`, result);
+      
+      return {
+        valid: result.valid || false,
+        reason: result.reason || 'unknown',
+        result
+      };
+
+    } catch (error) {
+      console.error('❌ [x402] Verification error:', error.message);
+      return { valid: false, reason: error.message };
+    }
+  }
+
+  /**
+   * Settle payment with facilitator (execute on-chain)
+   */
+  async settlePayment(paymentProof) {
+    try {
+      console.log(`💰 [x402] Settling payment with facilitator...`);
+
+      const response = await fetch(`${this.facilitatorUrl}/settle`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(paymentProof)
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(`Settlement failed: ${JSON.stringify(error)}`);
+      }
+
+      const result = await response.json();
+      console.log(`✅ [x402] Payment settled:`, result);
+      
+      return {
+        settled: true,
+        transactionHash: result.transactionHash || result.txHash,
+        blockNumber: result.blockNumber,
+        result
+      };
+
+    } catch (error) {
+      console.error('❌ [x402] Settlement error:', error.message);
+      return { settled: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get pending payment by nonce
+   */
+  getPendingPayment(nonce) {
+    return this.pendingPayments.get(nonce);
+  }
+
+  /**
+   * Mark payment as completed
+   */
+  completePayment(nonce) {
+    const payment = this.pendingPayments.get(nonce);
+    if (payment) {
+      payment.status = 'completed';
+      payment.completedAt = Date.now();
+      console.log(`✅ [x402] Payment completed:`, { nonce, tokenSymbol: payment.tokenSymbol, fuelType: payment.fuelType });
+    }
+    return payment;
+  }
+
+  /**
+   * Clean up expired payments
+   */
+  cleanupExpiredPayments() {
+    const now = Date.now();
+    let cleaned = 0;
+    
+    for (const [nonce, payment] of this.pendingPayments.entries()) {
+      if (payment.expiresAt < now && payment.status === 'pending') {
+        this.pendingPayments.delete(nonce);
+        cleaned++;
+      }
+    }
+    
+    if (cleaned > 0) {
+      console.log(`🧹 [x402] Cleaned up ${cleaned} expired payments`);
+    }
+  }
+
+  /**
+   * Generate unique nonce for payment
+   */
+  generateNonce() {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  /**
+   * Get fuel price info
+   */
+  getFuelPrice(fuelType) {
+    return this.fuelPrices[fuelType] || null;
+  }
+
+  /**
+   * List all available fuel tiers
+   */
+  getAvailableFuelTiers() {
+    return Object.keys(this.fuelPrices).map(type => ({
+      type,
+      originalPrice: this.fuelPrices[type].usd,
+      discountedPrice: this.fuelPrices[type].discountedUsd,
+      discount: '90%',
+      currency: 'USDC',
+      network: 'Solana'
+    }));
+  }
+}
+
+export default X402MerchantService;
+
