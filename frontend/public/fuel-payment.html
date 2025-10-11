@@ -8,9 +8,13 @@
     <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
     <script src="https://unpkg.com/buffer@6.0.3/index.js"></script>
     <script>
-        // Buffer polyfill for browser
+        // Proper Buffer polyfill for browser
         if (typeof window !== 'undefined') {
-            window.Buffer = window.Buffer || Buffer;
+            window.Buffer = window.Buffer || require('buffer').Buffer;
+        }
+        // Also set global Buffer
+        if (typeof global !== 'undefined') {
+            global.Buffer = global.Buffer || require('buffer').Buffer;
         }
     </script>
     <style>
@@ -83,49 +87,10 @@
                 <p class="text-yellow-200 text-sm">⏰ Link expires in <span id="expiryTimer" class="font-bold">15:00</span></p>
             </div>
 
-            <!-- Wallet Selection -->
-            <div id="walletSelection" class="space-y-3 mb-4">
-                <button 
-                    id="phantomBtn"
-                    class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 flex items-center justify-center space-x-3"
-                    onclick="connectWallet('phantom')"
-                >
-                    <span>🦄</span>
-                    <span>Connect Phantom</span>
-                </button>
-                
-                <button 
-                    id="solflareBtn"
-                    class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 flex items-center justify-center space-x-3"
-                    onclick="connectWallet('solflare')"
-                >
-                    <span>🔥</span>
-                    <span>Connect Solflare</span>
-                </button>
-                
-                <button 
-                    id="backpackBtn"
-                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 flex items-center justify-center space-x-3"
-                    onclick="connectWallet('backpack')"
-                >
-                    <span>🎒</span>
-                    <span>Connect Backpack</span>
-                </button>
-                
-                <button 
-                    id="trustWalletBtn"
-                    class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 flex items-center justify-center space-x-3"
-                    onclick="connectWallet('trustwallet')"
-                >
-                    <span>🛡️</span>
-                    <span>Connect Trust Wallet</span>
-                </button>
-            </div>
-
-            <!-- Single Connect Button (hidden after wallet detection) -->
+            <!-- Connect Wallet Button -->
             <button 
                 id="connectWalletBtn"
-                class="hidden w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 glow mb-4"
+                class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-4 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 glow mb-4"
             >
                 🔗 Connect Wallet & Pay
             </button>
@@ -257,100 +222,48 @@
             expiryInterval = setInterval(updateTimer, 1000);
         }
 
-        // Wallet detection and connection
-        let currentWallet = null;
+        // Simple wallet auto-detection and connection
         let walletAdapter = null;
 
-        // Detect available wallets on page load
-        function detectWallets() {
-            const wallets = {
-                phantom: { name: 'Phantom', icon: '🦄', installed: false, provider: null },
-                solflare: { name: 'Solflare', icon: '🔥', installed: false, provider: null },
-                backpack: { name: 'Backpack', icon: '🎒', installed: false, provider: null },
-                trustwallet: { name: 'Trust Wallet', icon: '🛡️', installed: false, provider: null }
-            };
-
-            // Check Phantom
-            if (window.solana && window.solana.isPhantom) {
-                wallets.phantom.installed = true;
-                wallets.phantom.provider = window.solana;
-            }
-
-            // Check Solflare
-            if (window.solflare) {
-                wallets.solflare.installed = true;
-                wallets.solflare.provider = window.solflare;
-            }
-
-            // Check Backpack
-            if (window.backpack) {
-                wallets.backpack.installed = true;
-                wallets.backpack.provider = window.backpack;
-            }
-
-            // Check Trust Wallet
-            if (window.trustwallet) {
-                wallets.trustwallet.installed = true;
-                wallets.trustwallet.provider = window.trustwallet;
-            }
-
-            // Update UI based on available wallets
-            updateWalletButtons(wallets);
-            return wallets;
-        }
-
-        function updateWalletButtons(wallets) {
-            Object.entries(wallets).forEach(([key, wallet]) => {
-                const button = document.getElementById(key + 'Btn');
-                if (button) {
-                    if (wallet.installed) {
-                        button.classList.remove('opacity-50', 'cursor-not-allowed');
-                        button.disabled = false;
-                    } else {
-                        button.classList.add('opacity-50', 'cursor-not-allowed');
-                        button.disabled = true;
-                        button.innerHTML = `<span>${wallet.icon}</span><span>Install ${wallet.name}</span>`;
-                        button.onclick = () => {
-                            const urls = {
-                                phantom: 'https://phantom.app',
-                                solflare: 'https://solflare.com',
-                                backpack: 'https://backpack.app',
-                                trustwallet: 'https://trustwallet.com'
-                            };
-                            window.open(urls[key], '_blank');
-                        };
-                    }
-                }
-            });
-        }
-
-        // Connect to specific wallet
-        async function connectWallet(walletType) {
+        // Auto-detect and connect to available wallet
+        document.getElementById('connectWalletBtn').addEventListener('click', async () => {
             try {
-                const wallets = detectWallets();
-                const wallet = wallets[walletType];
-                
-                if (!wallet.installed) {
-                    alert(`Please install ${wallet.name} wallet first.`);
-                    return;
-                }
-
-                // Hide wallet selection, show single button
-                document.getElementById('walletSelection').classList.add('hidden');
-                document.getElementById('connectWalletBtn').classList.remove('hidden');
-                
                 const btn = document.getElementById('connectWalletBtn');
                 btn.textContent = '⏳ Connecting...';
                 btn.disabled = true;
 
-                // Connect to the selected wallet
-                const provider = wallet.provider;
+                // Auto-detect available wallet
+                let provider = null;
+                let walletName = '';
+
+                if (window.solana && window.solana.isPhantom) {
+                    provider = window.solana;
+                    walletName = 'Phantom';
+                } else if (window.solflare) {
+                    provider = window.solflare;
+                    walletName = 'Solflare';
+                } else if (window.backpack) {
+                    provider = window.backpack;
+                    walletName = 'Backpack';
+                } else if (window.trustwallet) {
+                    provider = window.trustwallet;
+                    walletName = 'Trust Wallet';
+                } else {
+                    // No wallet detected
+                    btn.textContent = '🔗 Connect Wallet & Pay';
+                    btn.disabled = false;
+                    alert('No Solana wallet detected. Please install Phantom, Solflare, Backpack, or Trust Wallet.');
+                    return;
+                }
+
+                console.log(`Connecting to ${walletName}...`);
+                
+                // Connect to the detected wallet
                 const resp = await provider.connect();
                 const publicKey = resp.publicKey.toString();
                 
-                console.log(`Connected to ${wallet.name}:`, publicKey);
+                console.log(`Connected to ${walletName}:`, publicKey);
                 
-                currentWallet = walletType;
                 walletAdapter = provider;
 
                 // Update button to show payment
@@ -365,20 +278,15 @@
             } catch (error) {
                 console.error('Connection error:', error);
                 
-                // Show wallet selection again
-                document.getElementById('walletSelection').classList.remove('hidden');
-                document.getElementById('connectWalletBtn').classList.add('hidden');
+                const btn = document.getElementById('connectWalletBtn');
+                btn.textContent = '🔗 Connect Wallet & Pay';
+                btn.disabled = false;
                 
                 const statusDiv = document.getElementById('paymentStatus');
                 statusDiv.className = 'mt-4 p-4 rounded-lg text-center bg-red-900 border border-red-600';
                 statusDiv.innerHTML = '<p class="text-red-200">Failed to connect wallet. Please try again.</p>';
                 statusDiv.classList.remove('hidden');
             }
-        }
-
-        // Initialize wallet detection on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            detectWallets();
         });
 
         // Process actual x402 payment
