@@ -477,17 +477,15 @@
                 
                 console.log('VersionedTransaction (v0) created with facilitator fee payer');
 
-                // Step 4: Partially sign with user wallet (facilitator will co-sign)
+                // Step 4: Partially sign with user wallet ONLY (facilitator will co-sign on /settle)
                 statusDiv.innerHTML = '<p class="text-blue-200">🔐 Please approve USDC payment in your wallet...</p>';
-                console.log('Step 4: Requesting partial signature from user wallet...');
+                console.log('Step 4: Requesting user signature (facilitator signs later)...');
                 
-                // Sign with user wallet (this adds user's signature, facilitator will add theirs)
-                transaction.sign([{
-                    publicKey: fromPubkey,
-                    secretKey: null // Wallet will provide via signTransaction
-                }]);
-                
+                // DO NOT call transaction.sign() - that requires secret keys
+                // Just pass to wallet for signing - Phantom will add user's signature
                 const signedTx = await walletAdapter.signTransaction(transaction);
+                
+                // Serialize the partially-signed transaction (user signed, facilitator slot empty)
                 const serialized = signedTx.serialize();
                 const base64Tx = btoa(String.fromCharCode.apply(null, serialized));
 
