@@ -4979,19 +4979,20 @@ class EnhancedBackend {
           // Convert USDC amount to lamports (USDC has 6 decimals)
           const lamports = Math.floor(payment.amount * 1_000_000);
           
-          const paymentRequirements = {
-            x402Version: 1,
+          // Return 402 response in the format expected by x402 clients
+          return res.status(402).json({
             error: 'X-PAYMENT header is required',
-            accepts: [{
+            paymentRequirements: {
               scheme: 'exact',
               network: 'solana',
               maxAmountRequired: lamports.toString(),
-              asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC on Solana
-              payTo: this.twitterMentionService.x402Service.payToAddress,
               resource: `https://api.degen-oracle.com/api/x402/fuel/${nonce}`,
               description: `${payment.fuelType} Fuel for ${payment.tokenSymbol}`,
               mimeType: 'application/json',
+              payTo: this.twitterMentionService.x402Service.payToAddress,
               maxTimeoutSeconds: 300,
+              asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC on Solana
+              outputSchema: null,
               extra: {
                 feePayer: 'GWRUEnMCfuDzz9zWh4hckkSZDN5dYH3UmzRNf64L52Sk', // PayAI facilitator fee payer
                 metadata: {
@@ -5002,10 +5003,8 @@ class EnhancedBackend {
                   userHandle: payment.userHandle
                 }
               }
-            }]
-          };
-
-          return res.status(402).json(paymentRequirements);
+            }
+          });
         }
 
         // If X-PAYMENT header is present, verify the payment with facilitator
