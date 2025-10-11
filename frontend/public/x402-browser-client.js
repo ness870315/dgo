@@ -197,6 +197,39 @@ class X402BrowserClient {
       data: transferData
     });
     
+    // Add minimal compute budget instructions to keep gas fees ultra-low
+    const COMPUTE_BUDGET_PROGRAM = new solanaWeb3.PublicKey('ComputeBudget111111111111111111111111111111');
+    
+    // Set compute unit limit (minimal for SPL transfer)
+    const computeUnitLimitData = new Uint8Array(9);
+    computeUnitLimitData[0] = 2; // SetComputeUnitLimit discriminator
+    // 5,000 compute units (very low, SPL transfer needs ~3,000)
+    const units = 5000;
+    for (let i = 0; i < 4; i++) {
+      computeUnitLimitData[1 + i] = (units >> (i * 8)) & 0xFF;
+    }
+    
+    const computeUnitLimitIx = new solanaWeb3.TransactionInstruction({
+      keys: [],
+      programId: COMPUTE_BUDGET_PROGRAM,
+      data: computeUnitLimitData
+    });
+    
+    // Set compute unit price to 1 micro-lamport (ultra low priority)
+    const computeUnitPriceData = new Uint8Array(9);
+    computeUnitPriceData[0] = 3; // SetComputeUnitPrice discriminator
+    // Price: 1 micro-lamport per compute unit
+    const priceInMicroLamports = BigInt(1);
+    for (let i = 0; i < 8; i++) {
+      computeUnitPriceData[1 + i] = Number((priceInMicroLamports >> BigInt(i * 8)) & BigInt(0xFF));
+    }
+    
+    const computeUnitPriceIx = new solanaWeb3.TransactionInstruction({
+      keys: [],
+      programId: COMPUTE_BUDGET_PROGRAM,
+      data: computeUnitPriceData
+    });
+    
     // Facilitator pays gas fees (x402 pattern)
     // Extract facilitator's fee payer from requirements
     const facilitatorFeePayer = requirements.extra?.feePayer;
@@ -208,19 +241,25 @@ class X402BrowserClient {
     
     console.log('[x402] 💸 Fee payer (facilitator):', feePayer.toBase58());
     console.log('[x402] 💸 Token sender (user):', fromPubkey.toBase58());
+    console.log('[x402] ⚡ Compute units: 5,000 (minimal)');
+    console.log('[x402] ⚡ Priority fee: 1 micro-lamport (ultra low)');
     
     // Create v0 transaction with facilitator as fee payer
+    // Include compute budget instructions FIRST to prevent wallet from adding high defaults
     const messageV0 = new solanaWeb3.TransactionMessage({
       payerKey: feePayer,
       recentBlockhash: blockhash,
-      instructions: [transferInstruction]
+      instructions: [computeUnitLimitIx, computeUnitPriceIx, transferInstruction]
     }).compileToV0Message();
     
     const transaction = new solanaWeb3.VersionedTransaction(messageV0);
     
     console.log('[x402] 🔐 Requesting wallet signature...');
+    console.log('[x402] ℹ️  Note: Facilitator pays gas fees (x402 protocol)');
     
-    // Sign with wallet
+    // Sign with wallet (partially signed - facilitator will co-sign)
+    // Note: Some wallets may show a warning since user is not paying gas
+    // This is normal for x402 payments where the facilitator covers fees
     const signedTx = await this.walletAdapter.signTransaction(transaction);
     
     // Serialize the signed transaction
