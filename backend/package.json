@@ -22,7 +22,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@payai/x402": "^0.1.0",
     "@solana/web3.js": "^1.87.6",
     "axios": "^1.6.0",
     "cheerio": "^1.0.0",
