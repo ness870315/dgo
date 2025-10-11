@@ -151,6 +151,7 @@ class X402BrowserClient {
     }
 
     console.log('[x402] 🔨 Building Solana payment transaction...');
+    console.log('[x402] 📋 Requirements:', { usdcMint, payToAddress, amountRaw, extra });
 
     // Get RPC connection
     const rpcUrl = network === 'solana-devnet' 
@@ -167,7 +168,12 @@ class X402BrowserClient {
     const userPubkey = this.wallet;
     const usdcMintPk = new solanaWeb3.PublicKey(usdcMint);
     const destination = new solanaWeb3.PublicKey(payToAddress); // Use payTo directly (already ATA from server)
-    const facilitatorFeePayer = new solanaWeb3.PublicKey(extra.feePayer);
+    
+    // Handle case where feePayer might not be in extra (new approach)
+    const facilitatorFeePayer = extra?.feePayer 
+      ? new solanaWeb3.PublicKey(extra.feePayer)
+      : new solanaWeb3.PublicKey('GWRUEnMCfuDzz9zWh4hckkSZDN5dYH3UmzRNf64L52Sk'); // Fallback to known facilitator
+    
     const amount = BigInt(amountRaw);
     
     // Derive user's Associated Token Account only
