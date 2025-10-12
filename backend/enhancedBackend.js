@@ -5084,7 +5084,11 @@ class EnhancedBackend {
           this.twitterMentionService.x402Service.completePayment(nonce);
 
           // Apply fuel to token
-          const token = await this.databaseService.getTokenByAddress(payment.contractAddress);
+          const tokens = await this.tokenProcessor.loadTokens();
+          const token = tokens.find(t => 
+            t.contractAddress?.toLowerCase() === payment.contractAddress?.toLowerCase()
+          );
+          
           if (token) {
             await this.fuelService.applyFuel(token, payment.fuelType);
             console.log(`[🛡️ x402 PayAI SDK] ✅ Fuel ${payment.fuelType} applied to ${payment.tokenSymbol}`);
