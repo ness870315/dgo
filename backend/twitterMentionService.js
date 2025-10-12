@@ -733,9 +733,10 @@ Pay via Phantom/Solflare with USDC on Solana`;
             
             // If vague/short question + parent tweet exists, ALWAYS enrich with parent context
             // This handles: "thoughts?", "what do you think?", "agree?", "opinions?", etc.
-            if (parentTweet && cleanQuery.length < 50 && /thoughts?|agree|think|opinion|take|view|comment/i.test(cleanQuery)) {
+            // If this is a reply and we have parent context, always enrich the query
+            if (parentTweet && parentTweet.text) {
               cleanQuery = `Context: "${parentTweet.text}" - Question: ${cleanQuery}`;
-              console.log(`🔗 [MENTIONS] Enriched with parent tweet context`);
+              console.log(`🔗 [MENTIONS] Enriched with parent tweet context: "${parentTweet.text}"`);
             }
             
             console.log(`🔮 [PERPLEXITY] Clean query: "${cleanQuery}"`);
