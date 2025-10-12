@@ -5045,17 +5045,18 @@ class EnhancedBackend {
           console.log('[🛡️ x402 PayAI SDK] 📡 Verifying with PayAI facilitator...');
           const verifyResult = await this.x402PaymentHandler.verifyPayment(xPaymentHeader, paymentRequirements);
 
-          console.log('[🛡️ x402 PayAI SDK] 📋 Verify result:', JSON.stringify(verifyResult, null, 2));
+          console.log('[🛡️ x402 PayAI SDK] 📋 Verify result:', verifyResult);
 
-          if (!verifyResult || !verifyResult.isValid) {
+          // SDK returns boolean: true = valid, false = invalid
+          if (verifyResult !== true) {
             console.log('[🛡️ x402 PayAI SDK] ❌ Payment verification failed');
-            console.log('[🛡️ x402 PayAI SDK] ❌ Invalid reason:', verifyResult?.invalidReason);
-            console.log('[🛡️ x402 PayAI SDK] ❌ Full result:', verifyResult);
             return res.status(402).json({
               error: 'Payment verification failed',
-              details: verifyResult
+              details: { isValid: verifyResult }
             });
           }
+          
+          console.log('[🛡️ x402 PayAI SDK] ✅ Payment verified!');
 
           // Settle payment using PayAI SDK
           console.log('[🛡️ x402 PayAI SDK] 💰 Settling payment...');
