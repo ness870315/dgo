@@ -704,13 +704,13 @@ News recap:`;
 
       console.log(`✅ [NORMAL] Market sentiment: ${perplexityResponse.content.substring(0, 100)}...`);
 
-      // Randomly decide tweet length: 40% long, 30% medium, 30% short
+      // Randomly decide tweet length: 20% long, 40% medium, 40% short
       const lengthRandom = Math.random() * 100;
       let tweetLength, maxTokens;
-      if (lengthRandom < 40) {
+      if (lengthRandom < 20) {
         tweetLength = 'long'; // Full thought (200-280 chars)
         maxTokens = 100;
-      } else if (lengthRandom < 70) {
+      } else if (lengthRandom < 60) {
         tweetLength = 'medium'; // Two sentences (100-180 chars)
         maxTokens = 60;
       } else {
@@ -735,14 +735,21 @@ DEGEN ORACLE PERSONALITY:
 TWEET LENGTH: ${tweetLength.toUpperCase()}
 
 📏 LONG TWEETS (200-280 chars - Full thought with context):
-Example: "Damn, when the market's getting nuked harder than my portfolio, you gotta ask: are we in Downtober or the end of days? Tariff tantrum got us reeling, but real degens know the game ain't over till the liquidity dries up. Keep the faith, respect the builders, and hold on tight."
+VARY THE OPENING - DO NOT always start with "Damn":
+- "Damn, when the market's getting nuked harder than my portfolio, you gotta ask: are we in Downtober or the end of days? Tariff tantrum got us reeling, but real degens know the game ain't over till the liquidity dries up. Keep the faith, respect the builders, and hold on tight."
+- "This is just like the COVID Crash… Except we're not drastically printing money and handing out stimulus checks and loans to every person imaginable. Real degens know when the Fed's bluffing."
+- "When exchanges go offline during pumps, you know the game is rigged. Keep building a working exchange that doesn't go offline, or get the fuck out of the way for those who will."
 
 📏 MEDIUM TWEETS (100-180 chars - Two sentences):
+VARY THE STRUCTURE:
 - "Buy when there's blood in the streets, especially when it's mine and yours. This is the degen way."
 - "Don't buy memecoins from influencers. Buy into communities that grind on X. Understand this."
 - "Is this Uptober or Downtober?? Either way, builders keep building and degens keep degen-ing."
+- "Liquidating means you took too much risk. Not sorry. Manage your leverage or get rekt."
+- "The bull run's still on if you believe it's on. Conviction separates winners from exit liquidity."
 
 📏 SHORT TWEETS (40-80 chars - Punchline only):
+MIX IT UP:
 - "Believe in something"
 - "GM Bulls!"
 - "Who is ready for Uptober?!!!"
@@ -750,9 +757,13 @@ Example: "Damn, when the market's getting nuked harder than my portfolio, you go
 - "Liquidating means you took too much risk. Not sorry"
 - "is the bull run still on?"
 - "Who is still bullish?"
+- "Believers only"
+- "Buy the dip!"
 
-TONE GUIDELINES:
-- Add mild swear words naturally (1 per tweet max): damn, shit, fuck, hell
+VARIATION REQUIREMENTS:
+- VARY your opening words - use "Damn" max 20% of the time
+- VARY sentence structure - don't follow same pattern
+- Add mild swear words naturally (0-1 per tweet): damn, shit, fuck, hell
 - Be cocky when market proves you right
 - Be real/cynical when market is BS
 - Match the length requirement: ${tweetLength}
