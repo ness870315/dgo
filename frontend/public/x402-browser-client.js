@@ -272,8 +272,47 @@ class X402BrowserClient {
       console.log(`[x402]   Instruction ${i}: Program ${programPubkey.toBase58()}`);
     });
     
-    // Serialize the signed transaction
-    const serialized = signedTx.serialize();
+    // 🔧 CRITICAL FIX: Phantom adds extra instructions (compute budget, analytics)
+    // PayAI's "exact" scheme requires EXACTLY 1 instruction (the TransferChecked)
+    // We need to strip the extras and rebuild the transaction with only our instruction
+    if (signedTx.message.compiledInstructions.length > 1) {
+      console.log('[x402] ⚠️  Phantom added extra instructions! Stripping to only TransferChecked...');
+      
+      // Find the TransferChecked instruction (SPL Token program)
+      const tokenProgramId = TOKEN_PROGRAM_ID.toBase58();
+      const transferIxIndex = signedTx.message.compiledInstructions.findIndex(ix => {
+        const programPk = signedTx.message.staticAccountKeys[ix.programIdIndex];
+        return programPk.toBase58() === tokenProgramId && ix.data[0] === 12; // TransferChecked discriminator
+      });
+      
+      if (transferIxIndex === -1) {
+        throw new Error('Could not find TransferChecked instruction in signed transaction');
+      }
+      
+      console.log(`[x402] ✅ Found TransferChecked at index ${transferIxIndex}`);
+      
+      // Rebuild transaction with ONLY the TransferChecked instruction
+      const cleanMessageV0 = new solanaWeb3.TransactionMessage({
+        payerKey: userPubkey,
+        recentBlockhash: blockhash,
+        instructions: [transferInstruction] // Original clean instruction
+      }).compileToV0Message();
+      
+      const cleanTransaction = new solanaWeb3.VersionedTransaction(cleanMessageV0);
+      
+      // Copy the signature from Phantom's signed transaction
+      cleanTransaction.signatures[0] = signedTx.signatures[0];
+      
+      console.log('[x402] ✅ Rebuilt transaction with 1 instruction + Phantom signature');
+      console.log('[x402] 📊 Final instruction count:', cleanTransaction.message.compiledInstructions.length);
+      
+      // Use the clean transaction
+      const serialized = cleanTransaction.serialize();
+    } else {
+      // No extra instructions, use as-is
+      console.log('[x402] ✅ Transaction is clean (1 instruction)');
+      var serialized = signedTx.serialize();
+    }
     
     // Use Buffer for proper base64 encoding (avoid btoa limitations)
     let base64Tx;
