@@ -15,6 +15,7 @@ import UpdateTokenPage from './components/UpdateTokenPage';
 import UserDashboard from './components/UserDashboard';
 import ApifyTestPage from './components/ApifyTestPage';
 import PremiumPage from './components/PremiumPage';
+import X402FuelPaymentPage from './components/X402FuelPaymentPage';
 import MobilePushNotification from './components/MobilePushNotification';
 import AIChatModal from './components/AIChatModal';
 import FloatingChatButton from './components/FloatingChatButton';
@@ -1108,6 +1109,15 @@ function AppContent() {
         />
       </AuthProvider>
     );
+  }
+  
+  // Check if this is an x402 fuel payment page
+  const urlParams = new URLSearchParams(window.location.search);
+  const isX402Payment = urlParams.get('x402-fuel-payment') === 'true';
+  
+  // If x402 payment, show payment page
+  if (isX402Payment) {
+    return <X402FuelPaymentPage />;
   }
 
   return (

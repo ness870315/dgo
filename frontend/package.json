@@ -8,6 +8,7 @@
     "npm": ">=9.0.0"
   },
   "dependencies": {
+    "@payai/x402-solana": "^0.1.0-beta.2",
     "@solana/web3.js": "^1.98.4",
     "@tailwindcss/forms": "^0.5.10",
     "@testing-library/dom": "^10.4.1",
