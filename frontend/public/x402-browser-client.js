@@ -304,13 +304,34 @@ class X402BrowserClient {
       console.log(`[x402]   Instruction ${i}: Program ${programPubkey.toBase58()}`);
     });
     
-    // ✅ Per x402 spec: Send the partially-signed transaction AS-IS
-    // The facilitator should accept compute budget instructions
-    // and will co-sign + submit the transaction during settlement
-    console.log('[x402] ℹ️  Sending transaction as-is (with compute budget instructions)');
-    console.log('[x402] ℹ️  Facilitator will validate TransferChecked and co-sign during settlement');
+    // 🔧 Check if Phantom added extra instructions
+    let finalTx = signedTx;
     
-    const serialized = signedTx.serialize();
+    if (signedTx.message.compiledInstructions.length > 1) {
+      console.log('[x402] ⚠️  Phantom added compute budget instructions');
+      console.log('[x402] ℹ️  PayAI "exact" scheme requires ONLY the TransferChecked instruction');
+      console.log('[x402] 🔧 Rebuilding transaction with correct structure...');
+      
+      // Rebuild transaction with ONLY TransferChecked and facilitator as fee payer
+      const cleanMessageV0 = new solanaWeb3.TransactionMessage({
+        payerKey: facilitatorPk, // Keep facilitator as payer
+        recentBlockhash: blockhash,
+        instructions: [transferInstruction] // Only our instruction
+      }).compileToV0Message();
+      
+      const cleanTransaction = new solanaWeb3.VersionedTransaction(cleanMessageV0);
+      
+      // Important: Ask Phantom to sign the CLEAN transaction
+      console.log('[x402] 🔐 Requesting signature for clean transaction...');
+      finalTx = await this.walletAdapter.signTransaction(cleanTransaction);
+      
+      console.log('[x402] ✅ Clean transaction signed');
+      console.log('[x402] 📊 Final instruction count:', finalTx.message.compiledInstructions.length);
+    } else {
+      console.log('[x402] ✅ Transaction is clean (1 instruction), using as-is');
+    }
+    
+    const serialized = finalTx.serialize();
     console.log('[x402] 📦 Serialized transaction:', serialized.length, 'bytes');
     
     // Use Buffer for proper base64 encoding (avoid btoa limitations)
