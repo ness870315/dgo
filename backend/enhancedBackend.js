@@ -5081,7 +5081,7 @@ class EnhancedBackend {
           console.log('[🛡️ x402 PayAI SDK] 💚 Payment successful! Reference:', txHash);
 
           // Update payment status
-          this.twitterMentionService.x402Service.markPaymentCompleted(nonce, txHash);
+          this.twitterMentionService.x402Service.completePayment(nonce);
 
           // Apply fuel to token
           const token = await this.databaseService.getTokenByAddress(payment.contractAddress);
