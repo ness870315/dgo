@@ -22,6 +22,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@payai/x402-solana": "^0.1.0-beta.2",
     "@solana/spl-token": "^0.4.14",
     "@solana/web3.js": "^1.87.6",
     "axios": "^1.6.0",

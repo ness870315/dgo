@@ -34,6 +34,7 @@ import TwitterAutoPostService from './twitterAutoPostService.js';
 import DailyTweetService from './dailyTweetService.js';
 import TwitterMentionService from './twitterMentionService.js';
 import NFTGatedAccessService from './nftGatedAccessService.js';
+import { X402PaymentHandler } from '@payai/x402-solana';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -152,6 +153,13 @@ class EnhancedBackend {
     this.nftGatedAccessService = new NFTGatedAccessService();
     this.dailyTweetService = null; // Will be initialized after OpenAI service is ready
     this.backupIntegration = null; // Will be initialized in setupServices()
+    
+    // Initialize PayAI x402 Payment Handler
+    this.x402PaymentHandler = new X402PaymentHandler({
+      network: 'solana',
+      treasuryAddress: '2V6mqjDtaZMaCiMVr9Bad7hD6p3YcAtL3EfzsVJ6CQs7', // Merchant USDC ATA
+      facilitatorUrl: 'https://facilitator.payai.network'
+    });
     // Social Context cache (72h TTL)
     this.socialContextCache = new Map();
     try {
@@ -4949,14 +4957,14 @@ class EnhancedBackend {
 
     // x402 Merchant Resource Endpoint (returns 402 Payment Required)
     // This is the endpoint the x402 SDK calls to initiate payment
+    // Now using PayAI official @payai/x402-solana SDK
     this.app.get('/api/x402/fuel/:nonce', async (req, res) => {
       try {
         const { nonce } = req.params;
-        const xPaymentHeader = req.headers['x-payment'];
+        const xPaymentHeader = this.x402PaymentHandler.extractPayment(req.headers);
         
-        console.log('[🛡️ x402] 💳 Merchant resource requested for nonce:', nonce);
-        console.log('[🛡️ x402] All headers:', Object.keys(req.headers).join(', '));
-        console.log('[🛡️ x402] X-PAYMENT header:', xPaymentHeader ? `Present (${xPaymentHeader.length} chars)` : 'Not present');
+        console.log('[🛡️ x402 PayAI SDK] 💳 Merchant resource requested for nonce:', nonce);
+        console.log('[🛡️ x402 PayAI SDK] X-PAYMENT header:', xPaymentHeader ? 'Present' : 'Not present');
 
         // Get pending payment
         const payment = this.twitterMentionService.x402Service.getPendingPayment(nonce);
@@ -4976,125 +4984,92 @@ class EnhancedBackend {
 
         // If no X-PAYMENT header, return 402 Payment Required
         if (!xPaymentHeader) {
-          console.log('[🛡️ x402] 💰 Returning 402 Payment Required with payment requirements...');
+          console.log('[🛡️ x402 PayAI SDK] 💰 Generating 402 Payment Required...');
           
-          // Convert USDC amount to lamports (USDC has 6 decimals) - use BigInt to avoid rounding
-          const lamports = (BigInt(Math.round(payment.amount * 1e6))).toString();
+          // Convert USDC amount to atomic units (6 decimals)
+          const amountLamports = (BigInt(Math.round(payment.amount * 1e6))).toString();
           
-          // Get facilitator fee payer (from /supported endpoint)
-          const facilitatorFeePayer = '2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4';
-          
-          // Build payment requirements object (PayAI spec format)
-          const paymentRequirements = {
-            x402Version: 1,
-            scheme: 'exact',
-            network: 'solana', // PayAI accepts 'solana' for mainnet
-            amount: lamports, // Use 'amount' not 'maxAmountRequired' for PayAI
-            resource: `https://api.degen-oracle.com/api/x402/fuel/${nonce}`,
-            description: `${payment.fuelType} Fuel for ${payment.tokenSymbol}`,
-            maxTimeoutSeconds: 300,
-            asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC on Solana
-            payTo: this.twitterMentionService.x402Service.payToAddress, // Merchant USDC ATA (precomputed)
-            extra: {
-              feePayer: facilitatorFeePayer // Required for Solana per x402 spec
+          // Create payment requirements using PayAI SDK
+          const routeConfig = {
+            price: {
+              amount: amountLamports,
+              asset: {
+                address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC mainnet
+                decimals: 6
+              }
+            },
+            network: 'solana',
+            config: {
+              resource: `https://api.degen-oracle.com/api/x402/fuel/${nonce}`,
+              description: `${payment.fuelType} Fuel for ${payment.tokenSymbol} (Twitter x402)`,
+              maxTimeoutSeconds: 300,
+              mimeType: 'application/json'
             }
           };
           
-          // Return 402 response in x402 spec format (accepts array)
-          return res.status(402).json({
-            x402Version: 1,
-            error: 'X-PAYMENT header is required',
-            accepts: [paymentRequirements]
-          });
+          const paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
+          const response402 = this.x402PaymentHandler.create402Response(paymentRequirements);
+          
+          console.log('[🛡️ x402 PayAI SDK] ✅ Returning 402 with payment requirements');
+          
+          return res.status(response402.status).json(response402.body);
         }
 
-        // If X-PAYMENT header is present, verify the payment with facilitator
-        console.log('[🛡️ x402] ✅ X-PAYMENT header present, verifying payment...');
+        // If X-PAYMENT header is present, verify and settle the payment
+        console.log('[🛡️ x402 PayAI SDK] ✅ X-PAYMENT header present, verifying payment...');
         
         try {
-          // Parse X-PAYMENT header (it's base64 encoded JSON)
-          const paymentPayload = JSON.parse(Buffer.from(xPaymentHeader, 'base64').toString('utf-8'));
+          // Recreate payment requirements for verification
+          const amountLamports = (BigInt(Math.round(payment.amount * 1e6))).toString();
           
-          console.log('[🛡️ x402] Payment payload:', JSON.stringify(paymentPayload, null, 2));
-
-          // Build payment requirements for verification (must match 402 response exactly)
-          const lamports = (BigInt(Math.round(payment.amount * 1e6))).toString();
-          
-          // Get facilitator fee payer from cached data or use fallback
-          const facilitatorFeePayer = '2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4'; // From /supported endpoint
-          
-          const paymentRequirements = {
-            x402Version: 1,
-            scheme: 'exact',
-            network: 'solana', // PayAI accepts 'solana' for mainnet
-            amount: lamports, // Use 'amount' not 'maxAmountRequired' for PayAI
-            resource: `https://api.degen-oracle.com/api/x402/fuel/${nonce}`,
-            description: `${payment.fuelType} Fuel for ${payment.tokenSymbol}`,
-            maxTimeoutSeconds: 300,
-            asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-            payTo: this.twitterMentionService.x402Service.payToAddress, // Merchant USDC ATA (precomputed)
-            extra: {
-              feePayer: facilitatorFeePayer // Required for Solana per x402 spec
+          const routeConfig = {
+            price: {
+              amount: amountLamports,
+              asset: {
+                address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+                decimals: 6
+              }
+            },
+            network: 'solana',
+            config: {
+              resource: `https://api.degen-oracle.com/api/x402/fuel/${nonce}`,
+              description: `${payment.fuelType} Fuel for ${payment.tokenSymbol} (Twitter x402)`,
+              maxTimeoutSeconds: 300,
+              mimeType: 'application/json'
             }
           };
-
-          // Verify with PayAI facilitator
-          console.log('[🛡️ x402] 📡 Verifying payment with PayAI facilitator...');
-          console.log('[🛡️ x402] 📤 Payment payload structure:', JSON.stringify({
-            x402Version: paymentPayload.x402Version,
-            scheme: paymentPayload.scheme,
-            network: paymentPayload.network,
-            payloadKeys: Object.keys(paymentPayload.payload),
-            transactionLength: paymentPayload.payload.transaction?.length || paymentPayload.payload.transactionBase64?.length || 0
-          }, null, 2));
-          console.log('[🛡️ x402] 📤 Payment requirements:', JSON.stringify(paymentRequirements, null, 2));
           
-          const verifyResponse = await axios.post('https://facilitator.payai.network/verify', {
-            paymentPayload,
-            paymentRequirements
-          }, {
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          });
+          const paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
 
-          console.log('[🛡️ x402] Facilitator verification response:', verifyResponse.data);
+          // Verify payment using PayAI SDK
+          console.log('[🛡️ x402 PayAI SDK] 📡 Verifying with PayAI facilitator...');
+          const verifyResult = await this.x402PaymentHandler.verifyPayment(xPaymentHeader, paymentRequirements);
 
-          if (!verifyResponse.data.isValid) {
-            console.log('[🛡️ x402] ❌ Payment verification failed');
-            console.log('[🛡️ x402] ❌ Invalid reason:', verifyResponse.data.invalidReason);
-            console.log('[🛡️ x402] ❌ Full response:', JSON.stringify(verifyResponse.data, null, 2));
+          if (!verifyResult.isValid) {
+            console.log('[🛡️ x402 PayAI SDK] ❌ Payment verification failed:', verifyResult.invalidReason);
             return res.status(402).json({
               error: 'Payment verification failed',
-              details: verifyResponse.data
+              details: verifyResult
             });
           }
 
-          // Payment verified! Settle it with facilitator
-          console.log('[🛡️ x402] ✅ Payment verified, settling with facilitator...');
-          
-          const settleResponse = await axios.post('https://facilitator.payai.network/settle', {
-            paymentPayload,
-            paymentRequirements
-          }, {
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          });
+          // Settle payment using PayAI SDK
+          console.log('[🛡️ x402 PayAI SDK] 💰 Settling payment...');
+          const settleResult = await this.x402PaymentHandler.settlePayment(xPaymentHeader, paymentRequirements);
 
-          console.log('[🛡️ x402] Facilitator settlement response:', settleResponse.data);
+          console.log('[🛡️ x402 PayAI SDK] Settlement result:', settleResult);
 
-          if (!settleResponse.data.success) {
-            console.log('[🛡️ x402] ❌ Payment settlement failed');
+          if (!settleResult.success) {
+            console.log('[🛡️ x402 PayAI SDK] ❌ Payment settlement failed');
             return res.status(500).json({
               error: 'Payment settlement failed',
-              details: settleResponse.data
+              details: settleResult
             });
           }
 
           // Payment successful! Apply fuel
-          const txHash = settleResponse.data.transaction;
-          console.log('[🛡️ x402] 💚 Payment successful! TX:', txHash);
+          const txHash = settleResult.transaction;
+          console.log('[🛡️ x402 PayAI SDK] 💚 Payment successful! TX:', txHash);
 
           // Update payment status
           this.twitterMentionService.x402Service.markPaymentCompleted(nonce, txHash);
@@ -5103,7 +5078,7 @@ class EnhancedBackend {
           const token = await this.databaseService.getTokenByAddress(payment.contractAddress);
           if (token) {
             await this.fuelService.applyFuel(token, payment.fuelType);
-            console.log(`[🛡️ x402] ✅ Fuel ${payment.fuelType} applied to ${payment.tokenSymbol}`);
+            console.log(`[🛡️ x402 PayAI SDK] ✅ Fuel ${payment.fuelType} applied to ${payment.tokenSymbol}`);
 
             // Post Twitter confirmation
             if (payment.originalTweetId) {
@@ -5147,33 +5122,19 @@ class EnhancedBackend {
           });
 
         } catch (verifyError) {
-          console.error('[🛡️ x402] ❌ Error verifying/settling payment:', {
-            status: verifyError.response?.status,
-            statusText: verifyError.response?.statusText,
-            data: verifyError.response?.data,
-            message: verifyError.message
+          console.error('[🛡️ x402 PayAI SDK] ❌ Error verifying/settling payment:', {
+            message: verifyError.message,
+            stack: verifyError.stack
           });
-          
-          // Log full facilitator error response
-          if (verifyError.response) {
-            console.error('[🛡️ x402] 📋 Full facilitator error response:', JSON.stringify({
-              status: verifyError.response.status,
-              headers: verifyError.response.headers,
-              data: verifyError.response.data
-            }, null, 2));
-          }
           
           return res.status(500).json({
             error: 'Payment processing error',
-            details: verifyError.response?.data || verifyError.message,
-            facilitatorStatus: verifyError.response?.status,
-            facilitatorError: verifyError.response?.data?.error || null,
-            facilitatorInvalidReason: verifyError.response?.data?.invalidReason || null
+            details: verifyError.message
           });
         }
 
       } catch (error) {
-        console.error('[🛡️ x402] ❌ Error in merchant resource endpoint:', error);
+        console.error('[🛡️ x402 PayAI SDK] ❌ Error in merchant resource endpoint:', error);
         res.status(500).json({ error: 'Server error' });
       }
     });
