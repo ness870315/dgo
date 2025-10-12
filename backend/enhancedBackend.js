@@ -231,7 +231,7 @@ class EnhancedBackend {
       },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-PAYMENT'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-PAYMENT', 'Access-Control-Expose-Headers'],
       exposedHeaders: ['X-PAYMENT-RESPONSE'] // Allow frontend to read settlement response
     };
 
