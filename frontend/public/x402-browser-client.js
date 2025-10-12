@@ -275,6 +275,8 @@ class X402BrowserClient {
     // 🔧 CRITICAL FIX: Phantom adds extra instructions (compute budget, analytics)
     // PayAI's "exact" scheme requires EXACTLY 1 instruction (the TransferChecked)
     // We need to strip the extras and rebuild the transaction with only our instruction
+    let serialized;
+    
     if (signedTx.message.compiledInstructions.length > 1) {
       console.log('[x402] ⚠️  Phantom added extra instructions! Stripping to only TransferChecked...');
       
@@ -306,12 +308,14 @@ class X402BrowserClient {
       console.log('[x402] ✅ Rebuilt transaction with 1 instruction + Phantom signature');
       console.log('[x402] 📊 Final instruction count:', cleanTransaction.message.compiledInstructions.length);
       
-      // Use the clean transaction
-      const serialized = cleanTransaction.serialize();
+      // Serialize the clean transaction
+      serialized = cleanTransaction.serialize();
+      console.log('[x402] 📦 Serialized clean transaction:', serialized.length, 'bytes');
     } else {
       // No extra instructions, use as-is
       console.log('[x402] ✅ Transaction is clean (1 instruction)');
-      var serialized = signedTx.serialize();
+      serialized = signedTx.serialize();
+      console.log('[x402] 📦 Serialized transaction:', serialized.length, 'bytes');
     }
     
     // Use Buffer for proper base64 encoding (avoid btoa limitations)
