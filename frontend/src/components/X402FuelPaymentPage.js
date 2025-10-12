@@ -8,6 +8,8 @@ function X402FuelPaymentPage() {
   const [success, setSuccess] = useState(false);
   const [status, setStatus] = useState(null);
   const [expiryTime, setExpiryTime] = useState('');
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [connectedWallet, setConnectedWallet] = useState(null);
 
   // Get nonce from URL
   const nonce = new URLSearchParams(window.location.search).get('nonce');
@@ -56,11 +58,11 @@ function X402FuelPaymentPage() {
     }
   }
 
-  async function processPayment() {
+  // Connect wallet first
+  async function connectWallet() {
     setStatus({ message: 'Connecting to wallet...', type: 'info' });
     
     try {
-      // Connect to Phantom
       if (!window.solana?.isPhantom) {
         throw new Error('Phantom wallet not found. Install from phantom.app');
       }
@@ -70,29 +72,51 @@ function X402FuelPaymentPage() {
       
       console.log('[Payment] ✅ Wallet connected:', phantomWallet.publicKey.toString());
       
-      setStatus({ message: 'Creating x402 payment...', type: 'info' });
-
-      // Create wallet adapter for PayAI SDK
+      // Create wallet adapter
       const walletAdapter = {
         publicKey: phantomWallet.publicKey,
         signTransaction: async (transaction) => {
-          console.log('[Payment] 🔐 Signing transaction...');
+          console.log('[Payment] 🔐 Requesting signature from wallet...');
           const signed = await phantomWallet.signTransaction(transaction);
           console.log('[Payment] ✅ Transaction signed');
           return signed;
         }
       };
+      
+      setConnectedWallet(walletAdapter);
+      setWalletConnected(true);
+      setStatus(null);
+      
+    } catch (err) {
+      console.error('[Payment] ❌ Wallet connection error:', err);
+      if (err.message.includes('rejected')) {
+        setStatus({ message: 'Connection cancelled by user', type: 'error' });
+      } else {
+        setStatus({ message: `Failed to connect: ${err.message}`, type: 'error' });
+      }
+    }
+  }
 
-      // Create x402 client with Helius RPC (better reliability)
+  // Process payment after wallet is connected
+  async function processPayment() {
+    if (!connectedWallet) {
+      setStatus({ message: 'Please connect your wallet first', type: 'error' });
+      return;
+    }
+    
+    setStatus({ message: 'Creating x402 payment...', type: 'info' });
+    
+    try {
+      // Create x402 client with connected wallet
       const client = createX402Client({
-        wallet: walletAdapter,
+        wallet: connectedWallet,
         network: 'solana',
         rpcUrl: 'https://mainnet.helius-rpc.com/?api-key=e20ea2f4-232f-484e-be1e-e41b698a7850'
       });
 
-      setStatus({ message: 'Processing payment...', type: 'info' });
+      setStatus({ message: 'Requesting payment approval...', type: 'info' });
 
-      // Make paid request
+      // Make paid request - SDK will prompt for transaction signature
       const resourceUrl = `https://api.degen-oracle.com/api/x402/fuel/${nonce}`;
       const response = await client.fetch(resourceUrl);
 
@@ -106,12 +130,21 @@ function X402FuelPaymentPage() {
       setStatus(null);
 
     } catch (err) {
-      console.error('Payment error:', err);
+      console.error('[Payment] ❌ Payment error:', err);
       if (err.message.includes('rejected')) {
         setStatus({ message: 'Payment cancelled by user', type: 'error' });
       } else {
         setStatus({ message: `Payment failed: ${err.message}`, type: 'error' });
       }
+    }
+  }
+  
+  // Handle button click - connect wallet or process payment
+  async function handleButtonClick() {
+    if (!walletConnected) {
+      await connectWallet();
+    } else {
+      await processPayment();
     }
   }
 
@@ -209,13 +242,13 @@ function X402FuelPaymentPage() {
           </p>
         </div>
 
-        {/* Pay Button */}
+        {/* Pay Button - Changes text based on wallet state */}
         <button
-          onClick={processPayment}
+          onClick={handleButtonClick}
           disabled={status !== null}
           className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white font-bold py-4 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg mb-4"
         >
-          💳 Connect Wallet & Pay
+          {!walletConnected ? '🔗 Connect Wallet' : '💳 Pay with Wallet'}
         </button>
 
         {/* Status */}
