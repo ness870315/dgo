@@ -855,16 +855,16 @@ Generate ONE ${tweetLength} tweet (just the text, no quotes):`;
     try {
       console.log('🎤 Generating daily KOL content...');
 
-      // Decide content format randomly (more realistic distribution)
+      // Decide content format randomly (prioritize market sentiment takes)
       const contentFormats = [
-        'single',       // 25% - Single tweet (token analysis)
-        'deep',         // 20% - Deep-dive thread (3 tweets)
+        'normal',       // 35% - Market sentiment tweet (no emojis, edgy, slang)
         'meme',         // 20% - Meme/joke tweet
-        'news',         // 15% - Crypto news recap
-        'normal'        // 20% - Market sentiment tweet (no emojis, clean)
+        'news',         // 20% - Crypto news recap
+        'single',       // 15% - Single tweet (token analysis)
+        'deep'          // 10% - Deep-dive thread (3 tweets)
       ];
 
-      const weights = [25, 20, 20, 15, 20];
+      const weights = [35, 20, 20, 15, 10];
       const random = Math.random() * 100;
       let cumulative = 0;
       let selectedFormat = 'single';
@@ -1261,16 +1261,16 @@ Market meme:`;
       let selectedFormat;
 
       if (contentType === 'random') {
-        // Decide content format randomly (more realistic distribution)
+        // Decide content format randomly (prioritize market sentiment takes)
         const contentFormats = [
-          'single',       // 25% - Single tweet (token analysis)
-          'deep',         // 20% - Deep-dive thread (3 tweets)
+          'normal',       // 35% - Market sentiment tweet (no emojis, edgy, slang)
           'meme',         // 20% - Meme/joke tweet
-          'news',         // 15% - Crypto news recap
-          'normal'        // 20% - Market sentiment tweet (no emojis, clean)
+          'news',         // 20% - Crypto news recap
+          'single',       // 15% - Single tweet (token analysis)
+          'deep'          // 10% - Deep-dive thread (3 tweets)
         ];
 
-        const weights = [25, 20, 20, 15, 20];
+        const weights = [35, 20, 20, 15, 10];
         const random = Math.random() * 100;
         let cumulative = 0;
         selectedFormat = 'single';
