@@ -2,6 +2,7 @@ import fetch from 'node-fetch';
 import OpenAIService from './openaiService.js';
 import CoinDeskService from './services/CoinDeskService.js';
 import PerplexitySonarService from './services/PerplexitySonarService.js';
+import DGOOpinionDatabase from './services/DGOOpinionDatabase.js';
 
 /**
  * KOL Content Service - Generate authentic crypto influencer content
@@ -14,6 +15,7 @@ class KOLContentService {
     this.openaiService = new OpenAIService();
     this.coinDeskService = new CoinDeskService();
     this.perplexityService = new PerplexitySonarService();
+    this.opinionDatabase = new DGOOpinionDatabase();
     this.lastTweetTime = null;
     
     // Configuration panel settings (defaults)
@@ -69,7 +71,8 @@ class KOLContentService {
     if (!this.openaiService.isInitialized) {
       await this.openaiService.initialize();
     }
-    console.log('🎤 KOL Content Service initialized');
+    await this.opinionDatabase.initialize();
+    console.log('🎤 KOL Content Service initialized with Opinion Database');
   }
 
   /**
@@ -310,13 +313,14 @@ ${tavilyResults || 'No recent news found'}
 CONTENT TYPE: ${contentType === 'single' ? 'Single tweet (280 chars)' : 'Thread starter tweet (280 chars)'}
 
 Generate a ${contentType === 'single' ? 'RICH, FACT-PACKED tweet' : 'HOOK thread starter'} that:
-- BLEND our analytics WITH Tavily's latest news/catalysts
+- BLEND our analytics WITH latest news/catalysts
 - ${personality.tone}
 - Highlights the most interesting/surprising finding (data or news)
-- If Tavily mentions partnerships, listings, whale activity: WEAVE them in naturally
+- If there's news about partnerships, listings, whale activity: WEAVE them in naturally
 - If pumping: explain WHY using both metrics and news
 - If good fundamentals but no pump yet: explain the opportunity
 - Use crypto slang naturally (not forced)
+- DO NOT mention data sources (just present the insights)
 - NO hashtags
 - Include $${token.symbol} ticker
 - Max 280 characters
@@ -471,8 +475,9 @@ ${tavilyResults || 'No recent news found'}
 
 START with "2/" to continue the thread.
 Present these numbers + any news in a compelling way that tells a story.
-If Tavily has specific catalysts/news, WEAVE them in naturally.
+If there's specific catalysts/news, WEAVE them in naturally.
 What do these metrics + news reveal? What's the narrative?
+DO NOT mention data sources (Tavily, Moralis, etc) - just present the insights.
 Max 280 characters. Crypto slang. No hashtags.
 
 Example format: "2/ $MONKEY in 60s: mcap $0.21M, vol/mcap 13.6%, whale flow -5, retail flow +5. No hopium, just numbers"
@@ -722,7 +727,7 @@ News recap:`;
 
       const normalTweetPrompt = `You're Degen Oracle - a cocky but smart crypto KOL. Generate ONE tweet based on current market sentiment.
 
-CURRENT MARKET (from Perplexity):
+CURRENT MARKET CONTEXT:
 ${perplexityResponse.content}
 
 DEGEN ORACLE PERSONALITY:
@@ -787,7 +792,8 @@ CRITICAL RULES:
 - NO hashtags  
 - NO quotation marks around the tweet
 - Match the ${tweetLength} length guideline
-- Match sentiment to CURRENT market (use Perplexity data)
+- Match sentiment to CURRENT market context
+- DO NOT mention research tools (Perplexity, Tavily, Moralis, etc)
 
 Generate ONE ${tweetLength} tweet (just the text, no quotes):`;
 
@@ -820,6 +826,14 @@ Generate ONE ${tweetLength} tweet (just the text, no quotes):`;
       }
 
       console.log(`✅ Generated normal tweet (${cleanTweet.length} chars): ${cleanTweet}`);
+      
+      // Store opinion in database for future reference
+      await this.opinionDatabase.storeOpinion({
+        text: cleanTweet,
+        marketContext: perplexityResponse.content.substring(0, 500),
+        type: 'normal',
+        tweetId: null // Will be updated after posting
+      });
       
       return {
         format: 'normal',
@@ -994,8 +1008,8 @@ TOKEN CONTEXT:
 - MCap: $${(mcap / 1_000_000).toFixed(2)}M
 - Volume/MCap: ${volumeToMcap}%
 
-🔍 TWITTER SENTIMENT (from Tavily):
-${tavilySentiment || 'No specific memes found'}
+🔍 TWITTER SENTIMENT & COMMUNITY VIBES:
+${tavilySentiment || 'General crypto Twitter vibes'}
 
 HUMOR STYLES (pick one that fits):
 - If dumping: "someone needs to CTO [token]" or "exit liquidity szn" jokes
@@ -1003,7 +1017,7 @@ HUMOR STYLES (pick one that fits):
 - If sideways: "consolidation = accumulation" or "bullish wedge on the 1min chart" jokes
 - Low volume: "volume lower than my self-esteem" type jokes
 - If memecoin: Self-aware degen humor about gambling
-- If Tavily has specific Twitter jokes/memes: ADAPT and riff on those
+- Adapt to current Twitter jokes/memes if relevant
 
 Make it:
 - Relatable to crypto degens
@@ -1057,10 +1071,10 @@ Meme tweet:`;
 
       const generalMemePrompt = `You're a crypto KOL with great humor. Generate a funny tweet about the current crypto market.
 
-🔍 CURRENT MARKET (from Tavily):
+🔍 CURRENT MARKET CONTEXT:
 ${marketSentiment || 'General crypto market vibes'}
 
-CLASSIC CRYPTO JOKES (pick what fits based on Tavily sentiment):
+CLASSIC CRYPTO JOKES (pick what fits based on current market):
 - BTC dumping: "looks like someone needs to CTO Bitcoin"
 - Market crabbing: "this sideways action is violating the Geneva Convention"
 - Green candles: "ser this is a Wendy's... I mean casino"
@@ -1075,7 +1089,7 @@ CLASSIC CRYPTO JOKES (pick what fits based on Tavily sentiment):
 - Exit liquidity jokes
 
 Make it:
-- Timely and relevant to TODAY's market (use Tavily data)
+- Timely and relevant to TODAY's market
 - Relatable to crypto degens
 - Self-aware and ironic
 - NO specific token mentions (general market vibes only)
