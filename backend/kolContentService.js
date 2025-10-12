@@ -665,7 +665,7 @@ News recap:`;
         joke = joke.substring(0, 277) + '...';
       }
 
-      console.log(`🎭 Generated news joke (${joke.length} chars): "${joke}"`);
+      console.log(`🎭 Generated news joke (${joke.length} chars): ${joke}`);
       return {
         format: 'newsjoke',
         tweets: [joke],
@@ -680,6 +680,120 @@ News recap:`;
   }
 
   /**
+   * Generate "normal" tweet - clean market sentiment without emojis/hashtags
+   * Uses Perplexity to check Solana/crypto market mood and adapts tone
+   */
+  async generateNormalTweet() {
+    try {
+      console.log('💬 [KOL CONTENT] Generating normal tweet with market sentiment...');
+      
+      // Fetch current Solana & crypto market sentiment via Perplexity
+      let marketSentiment = '';
+      try {
+        marketSentiment = await this.perplexityService.searchWithReasoning(
+          'What is happening in crypto and Solana markets today? Bitcoin price, Solana ecosystem, major liquidations, trending events. Brief summary.'
+        );
+        console.log(`✅ [NORMAL] Market sentiment: ${marketSentiment.content.substring(0, 100)}...`);
+      } catch (err) {
+        console.warn('⚠️ [NORMAL] Perplexity sentiment check failed:', err.message);
+      }
+
+      const normalTweetPrompt = `You're Degen Oracle - a cocky but smart crypto KOL. Generate ONE tweet based on current market sentiment.
+
+CURRENT MARKET (from Perplexity):
+${marketSentiment.content || 'Mixed market conditions in crypto and Solana'}
+
+DEGEN ORACLE PERSONALITY:
+- Confident and slightly cocky (not arrogant)
+- Uses mild swearing for emphasis (damn, shit, fuck - but tastefully)
+- Calls out BS when you see it
+- Respects builders, roasts moonboys
+- Self-aware degen who knows the game
+
+TWEET EXAMPLES (match the vibe to current sentiment):
+
+🟢 Bullish/Uptober vibes:
+- Believe in something
+- GM Bulls!
+- Who is ready for Uptober?!!!
+- Who is still bullish?
+- Buy the builders.
+- Believers only
+
+🔴 Bearish/Downtober/Liquidation vibes:
+- Buy the dip!
+- Buy when there's blood in the streets, especially when it's mine and yours.
+- Is this Uptober or Downtober??
+- Liquidating means you took too much risk. Not sorry
+- keep building a working exchange that doesn't go offline
+- is the bull run still on?
+- This is just like the COVID Crash… Except we're not drastically printing money and handing out stimulus checks and loans to every person imaginable.
+
+⚪ Sideways/Crabbing/Builder mode:
+- Heres the part of the cycle where degens come together and send some shit to billions.
+- Don't buy memecoins from influencers. Buy into communities that grind on X. Understand this.
+
+TONE GUIDELINES:
+- Add mild swear words naturally (1 per tweet max): damn, shit, fuck, hell
+- Be cocky when market proves you right
+- Be real/cynical when market is BS
+- NO offensive slurs or targeted attacks
+- Keep it fun and relatable
+
+CRITICAL RULES:
+- NO emojis
+- NO hashtags  
+- NO quotation marks around the tweet
+- Max 280 characters
+- Match sentiment to CURRENT market (use Perplexity data)
+- Add edge and personality (mild swearing OK)
+
+Generate ONE tweet (just the text, no quotes):`;
+
+      const normalTweet = await this.openaiService.generateCompletion(normalTweetPrompt, {
+        maxTokens: 100,
+        temperature: 0.8,
+        model: 'gpt-4o',
+        enableWebSearch: false
+      });
+
+      // Clean the tweet - remove emojis, hashtags, quotes
+      let cleanTweet = normalTweet.trim()
+        .replace(/[\u{1F300}-\u{1F9FF}]/gu, '') // Remove emojis
+        .replace(/[\u{2600}-\u{26FF}]/gu, '') // Remove misc symbols
+        .replace(/[\u{2700}-\u{27BF}]/gu, '') // Remove dingbats
+        .replace(/#\w+/g, '') // Remove hashtags
+        .replace(/^["']|["']$/g, '') // Remove leading/trailing quotes
+        .replace(/^"|"$/g, '') // Remove smart quotes
+        .replace(/\s+/g, ' ') // Normalize spaces
+        .trim();
+
+      if (!cleanTweet || cleanTweet.length < 10) {
+        console.log('⚠️ [NORMAL] Generated tweet too short after cleaning');
+        return null;
+      }
+
+      // Ensure max length
+      if (cleanTweet.length > 280) {
+        cleanTweet = cleanTweet.substring(0, 280);
+      }
+
+      console.log(`✅ Generated normal tweet (${cleanTweet.length} chars): ${cleanTweet}`);
+      
+      return {
+        format: 'normal',
+        tweets: [cleanTweet],
+        token: { symbol: 'SENTIMENT', name: 'Market Sentiment' },
+        sentiment: marketSentiment.content ? marketSentiment.content.substring(0, 200) : 'Unknown'
+      };
+
+    } catch (error) {
+      console.error(`❌ Error generating normal tweet:`, error.message);
+      return null;
+    }
+  }
+
+  /**
    * Generate daily KOL content: Pick random token from top 5, random format
    */
   async generateDailyContent() {
@@ -688,13 +802,14 @@ News recap:`;
 
       // Decide content format randomly (more realistic distribution)
       const contentFormats = [
-        'single',       // 35% - Single tweet
-        'deep',         // 30% - Deep-dive thread (3 tweets)
+        'single',       // 25% - Single tweet (token analysis)
+        'deep',         // 20% - Deep-dive thread (3 tweets)
         'meme',         // 20% - Meme/joke tweet
-        'news'          // 15% - Crypto news recap
+        'news',         // 15% - Crypto news recap
+        'normal'        // 20% - Market sentiment tweet (no emojis, clean)
       ];
 
-      const weights = [35, 30, 20, 15];
+      const weights = [25, 20, 20, 15, 20];
       const random = Math.random() * 100;
       let cumulative = 0;
       let selectedFormat = 'single';
@@ -714,18 +829,18 @@ News recap:`;
       if (selectedFormat === 'deep') {
         // Deep threads use top 10 with 48hr cooldown
         token = await this.selectTokenForDeepThread();
-      } else if (selectedFormat !== 'news' && selectedFormat !== 'newsjoke') {
+      } else if (selectedFormat !== 'news' && selectedFormat !== 'newsjoke' && selectedFormat !== 'normal') {
         // Other token-based formats use top 5
         token = await this.selectRandomTrendingToken();
       }
 
-      if (!token && selectedFormat !== 'news' && selectedFormat !== 'newsjoke') {
+      if (!token && selectedFormat !== 'news' && selectedFormat !== 'newsjoke' && selectedFormat !== 'normal') {
         console.log('⚠️ No tokens available for content');
         return null;
       }
 
       // Generate content
-      let content, tokenInfo = token, article = null;
+      let content, tokenInfo = token, article = null, perplexityData = null;
       
       if (selectedFormat === 'news') {
         // For news, generate directly and get full content object
@@ -737,6 +852,25 @@ News recap:`;
         content = newsContent.tweets;
         tokenInfo = newsContent.token;
         article = newsContent.article;
+      } else if (selectedFormat === 'newsjoke') {
+        // For news joke
+        const jokeContent = await this.generateNewsJoke();
+        if (!jokeContent) {
+          console.log('❌ Failed to generate news joke');
+          return null;
+        }
+        content = jokeContent.tweets;
+        tokenInfo = jokeContent.token;
+      } else if (selectedFormat === 'normal') {
+        // For normal market sentiment tweet
+        const normalContent = await this.generateNormalTweet();
+        if (!normalContent) {
+          console.log('❌ Failed to generate normal tweet');
+          return null;
+        }
+        content = normalContent.tweets;
+        tokenInfo = normalContent.token;
+        perplexityData = { sentiment: normalContent.sentiment };
       } else {
         // For other formats, use the existing method
         content = await this.generateContentByFormat(token, selectedFormat);
@@ -753,7 +887,8 @@ News recap:`;
         tweets: content,
         format: selectedFormat,
         timestamp: new Date().toISOString(),
-        ...(article && { article })
+        ...(article && { article }),
+        ...(perplexityData && { perplexityData })
       };
 
     } catch (error) {
@@ -847,7 +982,9 @@ Meme tweet:`;
       });
 
       const cleanMeme = memeTweet.trim()
-        .replace(/#\w+/g, '')
+        .replace(/#\w+/g, '') // Remove hashtags
+        .replace(/^["']|["']$/g, '') // Remove leading/trailing quotes
+        .replace(/^"|"$/g, '') // Remove smart quotes
         .replace(/\s+/g, ' ')
         .trim();
 
@@ -914,7 +1051,9 @@ Market meme:`;
       });
 
       const cleanMeme = memeTweet.trim()
-        .replace(/#\w+/g, '')
+        .replace(/#\w+/g, '') // Remove hashtags
+        .replace(/^["']|["']$/g, '') // Remove leading/trailing quotes
+        .replace(/^"|"$/g, '') // Remove smart quotes
         .replace(/\s+/g, ' ')
         .trim();
 
@@ -1069,13 +1208,14 @@ Market meme:`;
       if (contentType === 'random') {
         // Decide content format randomly (more realistic distribution)
         const contentFormats = [
-          'single',       // 35% - Single tweet
-          'deep',         // 30% - Deep-dive thread (3 tweets)
+          'single',       // 25% - Single tweet (token analysis)
+          'deep',         // 20% - Deep-dive thread (3 tweets)
           'meme',         // 20% - Meme/joke tweet
-          'news'          // 15% - Crypto news recap
+          'news',         // 15% - Crypto news recap
+          'normal'        // 20% - Market sentiment tweet (no emojis, clean)
         ];
 
-        const weights = [35, 30, 20, 15];
+        const weights = [25, 20, 20, 15, 20];
         const random = Math.random() * 100;
         let cumulative = 0;
         selectedFormat = 'single';
@@ -1133,6 +1273,16 @@ Market meme:`;
         content = jokeContent.tweets;
         tokenInfo = jokeContent.token;
         perplexityData = jokeContent.perplexityData;
+      } else if (selectedFormat === 'normal') {
+        // For normal tweet, use market sentiment
+        const normalContent = await this.generateNormalTweet();
+        if (!normalContent) {
+          console.log('❌ [KOL CONTENT] Failed to generate normal tweet');
+          return null;
+        }
+        content = normalContent.tweets;
+        tokenInfo = normalContent.token;
+        perplexityData = { sentiment: normalContent.sentiment };
       } else {
         // For other formats, use the existing method
         content = await this.generateContentByFormat(token, selectedFormat);

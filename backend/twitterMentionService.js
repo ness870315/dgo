@@ -731,10 +731,11 @@ Pay via Phantom/Solflare with USDC on Solana`;
             // Build enriched query with parent tweet context if available
             let cleanQuery = analysis.originalText.replace(/@dgnoracle/gi, '').trim();
             
-            // If vague question + parent tweet exists, enrich with parent context
-            if (parentTweet && cleanQuery.length < 40 && /agree|think|opinion|take/i.test(cleanQuery)) {
+            // If vague/short question + parent tweet exists, ALWAYS enrich with parent context
+            // This handles: "thoughts?", "what do you think?", "agree?", "opinions?", etc.
+            if (parentTweet && cleanQuery.length < 50 && /thoughts?|agree|think|opinion|take|view|comment/i.test(cleanQuery)) {
               cleanQuery = `Context: "${parentTweet.text}" - Question: ${cleanQuery}`;
-              console.log(`🔗 [MENTIONS] Enriched general question with parent tweet`);
+              console.log(`🔗 [MENTIONS] Enriched with parent tweet context`);
             }
             
             console.log(`🔮 [PERPLEXITY] Clean query: "${cleanQuery}"`);
@@ -748,21 +749,29 @@ Pay via Phantom/Solflare with USDC on Solana`;
             const personality = this.personalities[this.currentPersonalityIndex];
             this.currentPersonalityIndex = (this.currentPersonalityIndex + 1) % this.personalities.length;
             
-            const prompt = `You are a legendary crypto KOL. User asked: "${analysis.originalText}"
+            const prompt = `You are Degen Oracle - a cocky but smart crypto KOL. User asked: "${analysis.originalText}"
 
 🔮 PERPLEXITY INSIGHTS (Grounded Facts with Citations):
 ${perplexityResponse.content.substring(0, 1500)}
+
+DEGEN ORACLE PERSONALITY:
+- Confident and slightly cocky (not arrogant)
+- Uses mild swearing for emphasis (damn, shit, fuck, hell - tastefully, max 1 per tweet)
+- Calls out BS when you see it
+- Respects builders, roasts moonboys
+- Self-aware degen who knows the game
 
 PERSONALITY MODE: "${personality.name}"
 STYLE: ${personality.style}
 
 Generate a RICH, fact-based answer (max 280 chars - USE FULL LENGTH):
-- INCLUDE specific details from Perplexity (numbers, percentages, prices, odds, bet amounts)
-- If Perplexity lists multiple items/bets, mention the TOP 2-3 most interesting
+- INCLUDE specific details from Perplexity (numbers, percentages, prices, events)
+- If Perplexity lists multiple items, mention the TOP 2-3 most interesting
 - Answer their question DIRECTLY with REAL data
-- Keep degen personality but PRESERVE the valuable facts
-- Be specific: "96% odds on X, 2% on Y" not "check hot bets"
-- NO hashtags, minimal emojis
+- Add mild swearing naturally if it fits the vibe (optional)
+- Keep it real and punchy
+- Be specific with data: "96% odds on X" not "check the data"
+- NO hashtags, minimal emojis (1-2 max)
 - DO NOT include @username
 - Do not mention sources/citations in text
 
