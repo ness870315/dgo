@@ -5062,19 +5062,23 @@ class EnhancedBackend {
           console.log('[🛡️ x402 PayAI SDK] 💰 Settling payment...');
           const settleResult = await this.x402PaymentHandler.settlePayment(xPaymentHeader, paymentRequirements);
 
-          console.log('[🛡️ x402 PayAI SDK] Settlement result:', settleResult);
+          console.log('[🛡️ x402 PayAI SDK] 📋 Settlement result:', settleResult);
 
-          if (!settleResult.success) {
+          // SDK returns boolean: true = settled, false = failed
+          if (settleResult !== true) {
             console.log('[🛡️ x402 PayAI SDK] ❌ Payment settlement failed');
             return res.status(500).json({
               error: 'Payment settlement failed',
-              details: settleResult
+              details: { settled: settleResult }
             });
           }
 
+          console.log('[🛡️ x402 PayAI SDK] ✅ Payment settled successfully!');
+
           // Payment successful! Apply fuel
-          const txHash = settleResult.transaction;
-          console.log('[🛡️ x402 PayAI SDK] 💚 Payment successful! TX:', txHash);
+          // Note: SDK returns boolean, not transaction hash
+          const txHash = 'payai_' + nonce.substring(0, 16); // Generate reference ID
+          console.log('[🛡️ x402 PayAI SDK] 💚 Payment successful! Reference:', txHash);
 
           // Update payment status
           this.twitterMentionService.x402Service.markPaymentCompleted(nonce, txHash);
