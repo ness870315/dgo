@@ -110,9 +110,15 @@ const txHash = settleResult.transaction;
 
 ## 🌐 **Frontend Integration**
 
+### **Status:** Using existing working implementation (not SDK)
+
+**Note:** The PayAI SDK cannot be loaded directly in browser via CDN due to Node.js dependencies. We use a **hybrid approach**:
+- **Backend:** PayAI SDK (X402PaymentHandler) ✅
+- **Frontend:** Custom implementation (proven working) ✅
+
 ### **File:** `frontend/public/fuel-payment.html`
 
-### **Changes:**
+### **Current Approach:**
 
 #### **1. Import Map for ESM in Browser:**
 ```html

@@ -108,27 +108,28 @@
 
     </div>
 
-    <!-- Load PayAI SDK via CDN - trying jsdelivr -->
+    <!-- Load PayAI SDK client subpath -->
     <script type="module">
-        console.log('[Fuel Payment] 🔧 Loading PayAI SDK...');
+        console.log('[Fuel Payment] 🔧 Loading PayAI SDK client...');
         
-        // Try to import from jsdelivr (better CDN for npm packages)
+        // Import from /client subpath as per documentation
         let createX402Client;
         
         try {
-            const module = await import('https://cdn.jsdelivr.net/npm/@payai/x402-solana@0.1.0-beta.2/+esm');
+            // Try jsdelivr with /client subpath
+            const module = await import('https://cdn.jsdelivr.net/npm/@payai/x402-solana@0.1.0-beta.2/dist/client/index.mjs');
             createX402Client = module.createX402Client;
-            console.log('[Fuel Payment] ✅ PayAI SDK loaded successfully!');
+            console.log('[Fuel Payment] ✅ PayAI SDK client loaded!');
         } catch (error) {
-            console.error('[Fuel Payment] ❌ Failed to load PayAI SDK:', error);
-            console.log('[Fuel Payment] 📦 Trying alternative: unpkg...');
+            console.error('[Fuel Payment] ❌ Failed to load SDK client:', error);
             
+            // Fallback to unpkg
             try {
-                const module2 = await import('https://unpkg.com/@payai/x402-solana@0.1.0-beta.2/dist/index.mjs');
+                const module2 = await import('https://unpkg.com/@payai/x402-solana@0.1.0-beta.2/dist/client/index.mjs');
                 createX402Client = module2.createX402Client;
-                console.log('[Fuel Payment] ✅ PayAI SDK loaded from unpkg!');
+                console.log('[Fuel Payment] ✅ SDK client loaded from unpkg!');
             } catch (error2) {
-                console.error('[Fuel Payment] ❌ Failed to load from unpkg:', error2);
+                console.error('[Fuel Payment] ❌ All CDN attempts failed:', error2);
                 document.getElementById('loadingState').classList.add('hidden');
                 document.getElementById('errorState').classList.remove('hidden');
                 document.getElementById('errorMessage').textContent = 'Failed to load payment SDK. Please try again later.';
@@ -145,13 +146,13 @@
             throw new Error('No nonce in URL');
         }
 
-        console.log('[Fuel Payment] 🚀 Starting payment flow for nonce:', nonce);
+        console.log('[Fuel Payment] 🚀 Starting for nonce:', nonce);
 
-        // State management
+        // State
         let paymentDetails = null;
         let expiryInterval = null;
 
-        // Show/hide states
+        // UI Functions
         function showLoading() {
             document.getElementById('loadingState').classList.remove('hidden');
             document.getElementById('paymentState').classList.add('hidden');
@@ -182,9 +183,7 @@
             document.getElementById('successFuelType').textContent = paymentDetails.fuelType;
             document.getElementById('successToken').textContent = paymentDetails.tokenSymbol;
             
-            if (expiryInterval) {
-                clearInterval(expiryInterval);
-            }
+            if (expiryInterval) clearInterval(expiryInterval);
         }
 
         function showStatus(message, type = 'info') {
@@ -203,84 +202,65 @@
             }
         }
 
-        // Update expiry timer
         function updateExpiryTimer() {
             if (!paymentDetails) return;
-            
-            const now = Date.now();
-            const expiresAt = paymentDetails.expiresAt;
-            const remaining = Math.max(0, expiresAt - now);
-            
+            const remaining = Math.max(0, paymentDetails.expiresAt - Date.now());
             if (remaining === 0) {
                 showError('Payment link has expired');
                 clearInterval(expiryInterval);
                 return;
             }
-            
             const minutes = Math.floor(remaining / 60000);
             const seconds = Math.floor((remaining % 60000) / 1000);
-            document.getElementById('expiryTimer').textContent = 
-                `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('expiryTimer').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
         }
 
         // Load payment details
         async function loadPaymentDetails() {
             try {
-                console.log('[Fuel Payment] 📡 Fetching payment details...');
                 const response = await fetch(`https://api.degen-oracle.com/api/x402/payment-details/${nonce}`);
-                
-                if (!response.ok) {
-                    throw new Error('Payment not found or expired');
-                }
+                if (!response.ok) throw new Error('Payment not found or expired');
                 
                 paymentDetails = await response.json();
-                console.log('[Fuel Payment] ✅ Payment details loaded:', paymentDetails);
+                console.log('[Fuel Payment] ✅ Details loaded');
                 
-                // Update UI
                 document.getElementById('tokenSymbol').textContent = paymentDetails.tokenSymbol;
                 document.getElementById('fuelType').textContent = paymentDetails.fuelType;
                 document.getElementById('userHandle').textContent = `@${paymentDetails.userHandle}`;
                 document.getElementById('originalPrice').textContent = `$${paymentDetails.originalPrice.toFixed(2)} USD`;
                 document.getElementById('payAmount').textContent = paymentDetails.amount.toFixed(2);
                 
-                // Start expiry timer
                 expiryInterval = setInterval(updateExpiryTimer, 1000);
                 updateExpiryTimer();
-                
                 showPayment();
-                
             } catch (error) {
-                console.error('[Fuel Payment] ❌ Error loading payment details:', error);
+                console.error('[Fuel Payment] ❌ Load error:', error);
                 showError(error.message || 'Failed to load payment details');
             }
         }
 
-        // Process payment using PayAI SDK
+        // Process payment with PayAI SDK
         async function processPayment() {
             const payBtn = document.getElementById('payBtn');
             payBtn.disabled = true;
-            payBtn.textContent = '🔗 Connecting wallet...';
+            payBtn.textContent = '🔗 Connecting...';
             
             try {
-                // Connect to Phantom
-                console.log('[Fuel Payment] 🔗 Connecting to Solana wallet...');
-                
-                if (!window.solana || !window.solana.isPhantom) {
-                    throw new Error('Phantom wallet not found. Please install Phantom from phantom.app');
+                if (!window.solana?.isPhantom) {
+                    throw new Error('Phantom wallet not found. Install from phantom.app');
                 }
                 
                 await window.solana.connect();
                 const wallet = window.solana;
-                console.log('[Fuel Payment] ✅ Connected to wallet:', wallet.publicKey.toString());
+                console.log('[Fuel Payment] ✅ Wallet connected:', wallet.publicKey.toString());
                 
-                payBtn.textContent = '💳 Processing payment...';
-                showStatus('🔐 Creating x402 payment with PayAI SDK...', 'info');
+                payBtn.textContent = '💳 Processing...';
+                showStatus('🔐 Creating x402 payment...', 'info');
                 
-                // Create PayAI x402 client
-                console.log('[Fuel Payment] 🔧 Creating PayAI x402 client...');
-                const x402Client = createX402Client({
+                // Create x402 client with wallet adapter
+                const client = createX402Client({
+                    wallet: wallet,  // Phantom wallet has signTransaction
                     network: 'solana',
-                    wallet: wallet,
                     rpcUrl: 'https://api.mainnet-beta.solana.com'
                 });
                 
@@ -289,32 +269,30 @@
                 
                 // Make paid request - SDK handles everything!
                 const resourceUrl = `https://api.degen-oracle.com/api/x402/fuel/${nonce}`;
-                console.log('[Fuel Payment] 📡 Making paid request to:', resourceUrl);
-                
-                const response = await x402Client.fetch(resourceUrl);
+                const response = await client.fetch(resourceUrl);
                 
                 if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(errorData.error || `Payment failed with status ${response.status}`);
+                    throw new Error(errorData.error || `Failed: ${response.status}`);
                 }
                 
                 const result = await response.json();
-                console.log('[Fuel Payment] ✅ Payment successful!', result);
+                console.log('[Fuel Payment] ✅ Success!', result);
                 
-                payBtn.textContent = '✅ Payment Complete!';
+                payBtn.textContent = '✅ Complete!';
                 showSuccess();
                 
             } catch (error) {
-                console.error('[Fuel Payment] ❌ Payment error:', error);
+                console.error('[Fuel Payment] ❌ Error:', error);
                 payBtn.disabled = false;
                 payBtn.textContent = '💳 Connect Wallet & Pay';
                 
-                if (error.message.includes('User rejected')) {
-                    showStatus('❌ Payment cancelled by user', 'error');
+                if (error.message.includes('rejected')) {
+                    showStatus('❌ Cancelled by user', 'error');
                 } else if (error.message.includes('Phantom')) {
                     showStatus('❌ ' + error.message, 'error');
                 } else {
-                    showStatus(`❌ Payment failed: ${error.message}`, 'error');
+                    showStatus(`❌ Failed: ${error.message}`, 'error');
                 }
             }
         }
@@ -322,8 +300,6 @@
         // Initialize
         showLoading();
         loadPaymentDetails();
-        
-        // Attach payment handler
         document.getElementById('payBtn').addEventListener('click', processPayment);
     </script>
 
