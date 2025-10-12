@@ -5027,10 +5027,14 @@ class EnhancedBackend {
 
           // Verify with PayAI facilitator
           console.log('[🛡️ x402] 📡 Verifying payment with PayAI facilitator...');
-          console.log('[🛡️ x402] 📤 Sending to facilitator:', JSON.stringify({
-            paymentPayload: { ...paymentPayload, payload: { transactionBase64: '...' } },
-            paymentRequirements
+          console.log('[🛡️ x402] 📤 Payment payload structure:', JSON.stringify({
+            x402Version: paymentPayload.x402Version,
+            scheme: paymentPayload.scheme,
+            network: paymentPayload.network,
+            payloadKeys: Object.keys(paymentPayload.payload),
+            transactionLength: paymentPayload.payload.transaction?.length || paymentPayload.payload.transactionBase64?.length || 0
           }, null, 2));
+          console.log('[🛡️ x402] 📤 Payment requirements:', JSON.stringify(paymentRequirements, null, 2));
           
           const verifyResponse = await axios.post('https://facilitator.payai.network/verify', {
             paymentPayload,
@@ -5136,10 +5140,22 @@ class EnhancedBackend {
             data: verifyError.response?.data,
             message: verifyError.message
           });
+          
+          // Log full facilitator error response
+          if (verifyError.response) {
+            console.error('[🛡️ x402] 📋 Full facilitator error response:', JSON.stringify({
+              status: verifyError.response.status,
+              headers: verifyError.response.headers,
+              data: verifyError.response.data
+            }, null, 2));
+          }
+          
           return res.status(500).json({
             error: 'Payment processing error',
             details: verifyError.response?.data || verifyError.message,
-            facilitatorStatus: verifyError.response?.status
+            facilitatorStatus: verifyError.response?.status,
+            facilitatorError: verifyError.response?.data?.error || null,
+            facilitatorInvalidReason: verifyError.response?.data?.invalidReason || null
           });
         }
 
