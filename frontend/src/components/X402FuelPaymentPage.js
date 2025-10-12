@@ -70,11 +70,11 @@ function X402FuelPaymentPage() {
       
       setStatus({ message: 'Creating x402 payment...', type: 'info' });
 
-      // Create x402 client
+      // Create x402 client with Helius RPC (better reliability)
       const client = createX402Client({
         wallet: wallet,
         network: 'solana',
-        rpcUrl: 'https://api.mainnet-beta.solana.com'
+        rpcUrl: 'https://mainnet.helius-rpc.com/?api-key=e20ea2f4-232f-484e-be1e-e41b698a7850'
       });
 
       setStatus({ message: 'Processing payment...', type: 'info' });
