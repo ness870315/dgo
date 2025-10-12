@@ -10,6 +10,35 @@ class X402BrowserClient {
   constructor() {
     this.wallet = null;
     this.walletAdapter = null;
+    this.facilitatorFeePayer = null; // Will be fetched from facilitator
+  }
+
+  /**
+   * Fetch facilitator's fee payer address from /supported endpoint
+   */
+  async getFacilitatorFeePayer(network = 'solana') {
+    try {
+      console.log('[x402] 📡 Fetching facilitator info...');
+      const response = await fetch('https://facilitator.payai.network/supported');
+      const data = await response.json();
+      
+      // Find Solana entry
+      const solanaEntry = data.kinds.find(k => 
+        k.network === network && k.scheme === 'exact'
+      );
+      
+      if (!solanaEntry || !solanaEntry.extra?.feePayer) {
+        throw new Error(`Facilitator does not provide feePayer for network: ${network}`);
+      }
+      
+      this.facilitatorFeePayer = solanaEntry.extra.feePayer;
+      console.log('[x402] ✅ Facilitator fee payer:', this.facilitatorFeePayer);
+      
+      return this.facilitatorFeePayer;
+    } catch (error) {
+      console.error('[x402] ❌ Failed to fetch facilitator info:', error);
+      throw error;
+    }
   }
 
   /**
@@ -58,6 +87,11 @@ class X402BrowserClient {
    */
   async fetchWithPayment(resourceUrl, options = {}) {
     console.log('[x402] 🚀 Making initial request to:', resourceUrl);
+
+    // First, get facilitator's fee payer address
+    if (!this.facilitatorFeePayer) {
+      await this.getFacilitatorFeePayer('solana');
+    }
 
     // Step 1: Initial request (expect 402)
     const initialResponse = await fetch(resourceUrl);
@@ -198,11 +232,6 @@ class X402BrowserClient {
     // No need to derive - use it directly
     const destination = new solanaWeb3.PublicKey(payToAddress);
     
-    // Handle case where feePayer might not be in extra (new approach)
-    const facilitatorFeePayer = extra?.feePayer 
-      ? new solanaWeb3.PublicKey(extra.feePayer)
-      : new solanaWeb3.PublicKey('GWRUEnMCfuDzz9zWh4hckkSZDN5dYH3UmzRNf64L52Sk'); // Fallback to known facilitator
-    
     // Derive user's USDC ATA
     const userATA = solanaWeb3.PublicKey.findProgramAddressSync(
       [userPubkey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), usdcMintPk.toBuffer()],
@@ -211,7 +240,7 @@ class X402BrowserClient {
     
     console.log('[x402] 📍 User ATA:', userATA.toBase58());
     console.log('[x402] 📍 Destination (merchant USDC ATA from backend):', destination.toBase58());
-    console.log('[x402] 💸 Fee payer (facilitator):', facilitatorFeePayer.toBase58());
+    console.log('[x402] 💸 Fee payer (from facilitator):', this.facilitatorFeePayer);
     console.log('[x402] 💸 Token sender (user):', userPubkey.toBase58());
     
     // Build TransferChecked instruction (discriminator 12)
@@ -239,10 +268,12 @@ class X402BrowserClient {
       data: transferData
     });
     
-    // ⚠️ REVERT: Use user as feePayer to prevent "malicious dApp" flagging
-    // We need to find a way to make the facilitator accept this structure
+    // ✅ Use facilitator as fee payer (as per x402 spec)
+    // Facilitator will co-sign during settlement
+    const facilitatorPk = new solanaWeb3.PublicKey(this.facilitatorFeePayer);
+    
     const messageV0 = new solanaWeb3.TransactionMessage({
-      payerKey: userPubkey, // User as fee payer (prevents "malicious dApp" warning)
+      payerKey: facilitatorPk, // Facilitator pays gas (gasless for user!)
       recentBlockhash: blockhash,
       instructions: [transferInstruction]
     }).compileToV0Message();
@@ -257,9 +288,9 @@ class X402BrowserClient {
     });
     
     console.log('[x402] 🔐 Requesting wallet signature...');
-    console.log('[x402] ℹ️  User as feePayer (prevents flagging) - facilitator must be flexible');
-    console.log('[x402] 💸 Fee payer (user):', userPubkey.toBase58());
-    console.log('[x402] 💸 Facilitator address:', facilitatorFeePayer.toBase58());
+    console.log('[x402] ℹ️  Facilitator as feePayer (gasless for user!)');
+    console.log('[x402] 💸 Fee payer (facilitator):', facilitatorPk.toBase58());
+    console.log('[x402] 💸 Token sender (user):', userPubkey.toBase58());
     
     // Sign with wallet (user signs, facilitator co-signs during settlement)
     const signedTx = await this.walletAdapter.signTransaction(transaction);
