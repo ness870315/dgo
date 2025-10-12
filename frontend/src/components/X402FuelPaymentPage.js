@@ -72,8 +72,9 @@ function X402FuelPaymentPage() {
       
       console.log('[Payment] ✅ Wallet connected:', phantomWallet.publicKey.toString());
       
-      // Create wallet adapter
+      // Create wallet adapter for PayAI SDK (must have 'address' property)
       const walletAdapter = {
+        address: phantomWallet.publicKey.toString(),  // ← PayAI SDK requires 'address' as string
         publicKey: phantomWallet.publicKey,
         signTransaction: async (transaction) => {
           console.log('[Payment] 🔐 Requesting signature from wallet...');
