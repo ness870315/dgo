@@ -304,51 +304,14 @@ class X402BrowserClient {
       console.log(`[x402]   Instruction ${i}: Program ${programPubkey.toBase58()}`);
     });
     
-    // 🔧 CRITICAL FIX: Phantom adds extra instructions (compute budget, analytics)
-    // PayAI's "exact" scheme requires EXACTLY 1 instruction (the TransferChecked)
-    // We need to strip the extras and rebuild the transaction with only our instruction
-    let serialized;
+    // ✅ Per x402 spec: Send the partially-signed transaction AS-IS
+    // The facilitator should accept compute budget instructions
+    // and will co-sign + submit the transaction during settlement
+    console.log('[x402] ℹ️  Sending transaction as-is (with compute budget instructions)');
+    console.log('[x402] ℹ️  Facilitator will validate TransferChecked and co-sign during settlement');
     
-    if (signedTx.message.compiledInstructions.length > 1) {
-      console.log('[x402] ⚠️  Phantom added extra instructions! Stripping to only TransferChecked...');
-      
-      // Find the TransferChecked instruction (SPL Token program)
-      const tokenProgramId = TOKEN_PROGRAM_ID.toBase58();
-      const transferIxIndex = signedTx.message.compiledInstructions.findIndex(ix => {
-        const programPk = signedTx.message.staticAccountKeys[ix.programIdIndex];
-        return programPk.toBase58() === tokenProgramId && ix.data[0] === 12; // TransferChecked discriminator
-      });
-      
-      if (transferIxIndex === -1) {
-        throw new Error('Could not find TransferChecked instruction in signed transaction');
-      }
-      
-      console.log(`[x402] ✅ Found TransferChecked at index ${transferIxIndex}`);
-      
-      // Rebuild transaction with ONLY the TransferChecked instruction
-      const cleanMessageV0 = new solanaWeb3.TransactionMessage({
-        payerKey: userPubkey,
-        recentBlockhash: blockhash,
-        instructions: [transferInstruction] // Original clean instruction
-      }).compileToV0Message();
-      
-      const cleanTransaction = new solanaWeb3.VersionedTransaction(cleanMessageV0);
-      
-      // Copy the signature from Phantom's signed transaction
-      cleanTransaction.signatures[0] = signedTx.signatures[0];
-      
-      console.log('[x402] ✅ Rebuilt transaction with 1 instruction + Phantom signature');
-      console.log('[x402] 📊 Final instruction count:', cleanTransaction.message.compiledInstructions.length);
-      
-      // Serialize the clean transaction
-      serialized = cleanTransaction.serialize();
-      console.log('[x402] 📦 Serialized clean transaction:', serialized.length, 'bytes');
-    } else {
-      // No extra instructions, use as-is
-      console.log('[x402] ✅ Transaction is clean (1 instruction)');
-      serialized = signedTx.serialize();
-      console.log('[x402] 📦 Serialized transaction:', serialized.length, 'bytes');
-    }
+    const serialized = signedTx.serialize();
+    console.log('[x402] 📦 Serialized transaction:', serialized.length, 'bytes');
     
     // Use Buffer for proper base64 encoding (avoid btoa limitations)
     let base64Tx;
