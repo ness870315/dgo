@@ -19,7 +19,7 @@ class TwitterMentionService {
     this.x402Service = new X402MerchantService();
     this.isRunning = false;
     this.checkInterval = null;
-    this.checkIntervalMinutes = 10;
+    this.checkIntervalMinutes = 0.5; // 30 seconds
     
     // Track replied mentions to avoid duplicates
     this.repliedMentions = new Set();

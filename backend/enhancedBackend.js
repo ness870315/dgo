@@ -157,7 +157,7 @@ class EnhancedBackend {
     // Initialize PayAI x402 Payment Handler
     this.x402PaymentHandler = new X402PaymentHandler({
       network: 'solana',
-      treasuryAddress: '2V6mqjDtaZMaCiMVr9Bad7hD6p3YcAtL3EfzsVJ6CQs7', // Merchant USDC ATA
+      treasuryAddress: '3hn5fWZEf2yUZcwU2CV2Wkvk7YDiysM8xBwmesFg7sN1', // Merchant WALLET (SDK derives ATA)
       facilitatorUrl: 'https://facilitator.payai.network'
     });
     // Social Context cache (72h TTL)
