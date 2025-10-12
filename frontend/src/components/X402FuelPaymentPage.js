@@ -66,13 +66,26 @@ function X402FuelPaymentPage() {
       }
 
       await window.solana.connect();
-      const wallet = window.solana;
+      const phantomWallet = window.solana;
+      
+      console.log('[Payment] ✅ Wallet connected:', phantomWallet.publicKey.toString());
       
       setStatus({ message: 'Creating x402 payment...', type: 'info' });
 
+      // Create wallet adapter for PayAI SDK
+      const walletAdapter = {
+        publicKey: phantomWallet.publicKey,
+        signTransaction: async (transaction) => {
+          console.log('[Payment] 🔐 Signing transaction...');
+          const signed = await phantomWallet.signTransaction(transaction);
+          console.log('[Payment] ✅ Transaction signed');
+          return signed;
+        }
+      };
+
       // Create x402 client with Helius RPC (better reliability)
       const client = createX402Client({
-        wallet: wallet,
+        wallet: walletAdapter,
         network: 'solana',
         rpcUrl: 'https://mainnet.helius-rpc.com/?api-key=e20ea2f4-232f-484e-be1e-e41b698a7850'
       });
