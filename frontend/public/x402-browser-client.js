@@ -324,13 +324,13 @@ class X402BrowserClient {
     
     console.log('[x402] ✅ Transaction signed successfully');
     
-    // Return payment payload in x402 format
+    // Return payment payload in x402 format (per official spec)
     return {
       x402Version: 1,
       scheme: 'exact',
       network: network,
       payload: {
-        transactionBase64: base64Tx // Use 'transactionBase64' not 'transaction' for PayAI
+        transaction: base64Tx // Use 'transaction' per x402 spec
       }
     };
   }
