@@ -688,20 +688,26 @@ News recap:`;
       console.log('💬 [KOL CONTENT] Generating normal tweet with market sentiment...');
       
       // Fetch current Solana & crypto market sentiment via Perplexity
-      let marketSentiment = '';
-      try {
-        marketSentiment = await this.perplexityService.searchWithReasoning(
-          'What is happening in crypto and Solana markets today? Bitcoin price, Solana ecosystem, major liquidations, trending events. Brief summary.'
-        );
-        console.log(`✅ [NORMAL] Market sentiment: ${marketSentiment.content.substring(0, 100)}...`);
-      } catch (err) {
-        console.warn('⚠️ [NORMAL] Perplexity sentiment check failed:', err.message);
+      if (!this.perplexityService || !this.perplexityService.isInitialized) {
+        console.warn('⚠️ [NORMAL] Perplexity service not initialized');
+        return null;
       }
+
+      const perplexityResponse = await this.perplexityService.searchWithReasoning(
+        'What is happening in crypto and Solana markets today? Bitcoin price, Solana ecosystem, major liquidations, trending events. Brief summary.'
+      );
+
+      if (!perplexityResponse || !perplexityResponse.content) {
+        console.log('⚠️ [NORMAL] No Perplexity response for market sentiment');
+        return null;
+      }
+
+      console.log(`✅ [NORMAL] Market sentiment: ${perplexityResponse.content.substring(0, 100)}...`);
 
       const normalTweetPrompt = `You're Degen Oracle - a cocky but smart crypto KOL. Generate ONE tweet based on current market sentiment.
 
 CURRENT MARKET (from Perplexity):
-${marketSentiment.content || 'Mixed market conditions in crypto and Solana'}
+${perplexityResponse.content}
 
 DEGEN ORACLE PERSONALITY:
 - Confident and slightly cocky (not arrogant)
@@ -784,7 +790,7 @@ Generate ONE tweet (just the text, no quotes):`;
         format: 'normal',
         tweets: [cleanTweet],
         token: { symbol: 'SENTIMENT', name: 'Market Sentiment' },
-        sentiment: marketSentiment.content ? marketSentiment.content.substring(0, 200) : 'Unknown'
+        sentiment: perplexityResponse.content.substring(0, 200)
       };
 
     } catch (error) {
