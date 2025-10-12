@@ -19,7 +19,8 @@ class X402BrowserClient {
   async getFacilitatorFeePayer(network = 'solana') {
     try {
       console.log('[x402] 📡 Fetching facilitator info...');
-      const response = await fetch('https://facilitator.payai.network/supported');
+      // Use our backend proxy to avoid CORS
+      const response = await fetch('https://api.degen-oracle.com/api/x402/supported');
       const data = await response.json();
       
       // Find Solana entry

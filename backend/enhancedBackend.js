@@ -5200,6 +5200,31 @@ class EnhancedBackend {
       }
     });
 
+    // Proxy PayAI facilitator /supported endpoint (to avoid CORS)
+    this.app.get('/api/x402/supported', async (req, res) => {
+      try {
+        console.log('[🛡️ x402] 📡 Proxying /supported request to PayAI facilitator...');
+
+        // Forward to PayAI facilitator
+        const facilitatorResponse = await axios.get('https://facilitator.payai.network/supported', {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        console.log('[🛡️ x402] ✅ Facilitator supported networks:', facilitatorResponse.data);
+
+        // Return the facilitator response
+        res.json(facilitatorResponse.data);
+
+      } catch (error) {
+        console.error('[🛡️ x402] ❌ Error proxying /supported request:', error.response?.data || error.message);
+        res.status(error.response?.status || 500).json({
+          error: error.message
+        });
+      }
+    });
+
     // Proxy PayAI facilitator /settle endpoint (to avoid CORS)
     this.app.post('/api/x402/settle', async (req, res) => {
       try {
