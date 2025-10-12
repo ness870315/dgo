@@ -4981,6 +4981,9 @@ class EnhancedBackend {
           // Convert USDC amount to lamports (USDC has 6 decimals) - use BigInt to avoid rounding
           const lamports = (BigInt(Math.round(payment.amount * 1e6))).toString();
           
+          // Get facilitator fee payer (from /supported endpoint)
+          const facilitatorFeePayer = '2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4';
+          
           // Build payment requirements object (PayAI spec format)
           const paymentRequirements = {
             x402Version: 1,
@@ -4991,7 +4994,10 @@ class EnhancedBackend {
             description: `${payment.fuelType} Fuel for ${payment.tokenSymbol}`,
             maxTimeoutSeconds: 300,
             asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC on Solana
-            payTo: this.twitterMentionService.x402Service.payToAddress // Merchant USDC ATA (precomputed)
+            payTo: this.twitterMentionService.x402Service.payToAddress, // Merchant USDC ATA (precomputed)
+            extra: {
+              feePayer: facilitatorFeePayer // Required for Solana per x402 spec
+            }
           };
           
           // Return 402 response in x402 spec format (accepts array)
@@ -5013,6 +5019,10 @@ class EnhancedBackend {
 
           // Build payment requirements for verification (must match 402 response exactly)
           const lamports = (BigInt(Math.round(payment.amount * 1e6))).toString();
+          
+          // Get facilitator fee payer from cached data or use fallback
+          const facilitatorFeePayer = '2wKupLR9q6wXYppw8Gr2NvWxKBUqm4PPJKkQfoxHDBg4'; // From /supported endpoint
+          
           const paymentRequirements = {
             x402Version: 1,
             scheme: 'exact',
@@ -5022,7 +5032,10 @@ class EnhancedBackend {
             description: `${payment.fuelType} Fuel for ${payment.tokenSymbol}`,
             maxTimeoutSeconds: 300,
             asset: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-            payTo: this.twitterMentionService.x402Service.payToAddress // Merchant USDC ATA (precomputed)
+            payTo: this.twitterMentionService.x402Service.payToAddress, // Merchant USDC ATA (precomputed)
+            extra: {
+              feePayer: facilitatorFeePayer // Required for Solana per x402 spec
+            }
           };
 
           // Verify with PayAI facilitator
