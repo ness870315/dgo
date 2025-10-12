@@ -249,6 +249,13 @@ class X402BrowserClient {
     
     const transaction = new solanaWeb3.VersionedTransaction(messageV0);
     
+    // DEBUG: Check transaction BEFORE signing
+    console.log('[x402] 🔐 Transaction BEFORE wallet signs:');
+    console.log('[x402] 📊 Instruction count BEFORE:', transaction.message.compiledInstructions.length);
+    transaction.message.compiledInstructions.forEach((ix, i) => {
+      console.log(`[x402]   Instruction ${i}: Program Index ${ix.programIdIndex}`);
+    });
+    
     console.log('[x402] 🔐 Requesting wallet signature...');
     console.log('[x402] ℹ️  User as feePayer (prevents flagging) - facilitator must be flexible');
     console.log('[x402] 💸 Fee payer (user):', userPubkey.toBase58());
@@ -256,6 +263,14 @@ class X402BrowserClient {
     
     // Sign with wallet (user signs, facilitator co-signs during settlement)
     const signedTx = await this.walletAdapter.signTransaction(transaction);
+    
+    // DEBUG: Check transaction AFTER signing
+    console.log('[x402] ✅ Transaction AFTER wallet signs:');
+    console.log('[x402] 📊 Instruction count AFTER:', signedTx.message.compiledInstructions.length);
+    signedTx.message.compiledInstructions.forEach((ix, i) => {
+      const programPubkey = signedTx.message.staticAccountKeys[ix.programIdIndex];
+      console.log(`[x402]   Instruction ${i}: Program ${programPubkey.toBase58()}`);
+    });
     
     // Serialize the signed transaction
     const serialized = signedTx.serialize();
