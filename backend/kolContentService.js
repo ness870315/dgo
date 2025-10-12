@@ -704,6 +704,22 @@ News recap:`;
 
       console.log(`✅ [NORMAL] Market sentiment: ${perplexityResponse.content.substring(0, 100)}...`);
 
+      // Randomly decide tweet length: 40% long, 30% medium, 30% short
+      const lengthRandom = Math.random() * 100;
+      let tweetLength, maxTokens;
+      if (lengthRandom < 40) {
+        tweetLength = 'long'; // Full thought (200-280 chars)
+        maxTokens = 100;
+      } else if (lengthRandom < 70) {
+        tweetLength = 'medium'; // Two sentences (100-180 chars)
+        maxTokens = 60;
+      } else {
+        tweetLength = 'short'; // Punchline (40-80 chars)
+        maxTokens = 30;
+      }
+
+      console.log(`📏 [NORMAL] Selected length: ${tweetLength}`);
+
       const normalTweetPrompt = `You're Degen Oracle - a cocky but smart crypto KOL. Generate ONE tweet based on current market sentiment.
 
 CURRENT MARKET (from Perplexity):
@@ -711,53 +727,48 @@ ${perplexityResponse.content}
 
 DEGEN ORACLE PERSONALITY:
 - Confident and slightly cocky (not arrogant)
-- Uses mild swearing for emphasis (damn, shit, fuck - but tastefully)
+- Uses mild swearing for emphasis (damn, shit, fuck, hell - tastefully)
 - Calls out BS when you see it
 - Respects builders, roasts moonboys
 - Self-aware degen who knows the game
 
-TWEET EXAMPLES (match the vibe to current sentiment):
+TWEET LENGTH: ${tweetLength.toUpperCase()}
 
-🟢 Bullish/Uptober vibes:
-- Believe in something
-- GM Bulls!
-- Who is ready for Uptober?!!!
-- Who is still bullish?
-- Buy the builders.
-- Believers only
+📏 LONG TWEETS (200-280 chars - Full thought with context):
+Example: "Damn, when the market's getting nuked harder than my portfolio, you gotta ask: are we in Downtober or the end of days? Tariff tantrum got us reeling, but real degens know the game ain't over till the liquidity dries up. Keep the faith, respect the builders, and hold on tight."
 
-🔴 Bearish/Downtober/Liquidation vibes:
-- Buy the dip!
-- Buy when there's blood in the streets, especially when it's mine and yours.
-- Is this Uptober or Downtober??
-- Liquidating means you took too much risk. Not sorry
-- keep building a working exchange that doesn't go offline
-- is the bull run still on?
-- This is just like the COVID Crash… Except we're not drastically printing money and handing out stimulus checks and loans to every person imaginable.
+📏 MEDIUM TWEETS (100-180 chars - Two sentences):
+- "Buy when there's blood in the streets, especially when it's mine and yours. This is the degen way."
+- "Don't buy memecoins from influencers. Buy into communities that grind on X. Understand this."
+- "Is this Uptober or Downtober?? Either way, builders keep building and degens keep degen-ing."
 
-⚪ Sideways/Crabbing/Builder mode:
-- Heres the part of the cycle where degens come together and send some shit to billions.
-- Don't buy memecoins from influencers. Buy into communities that grind on X. Understand this.
+📏 SHORT TWEETS (40-80 chars - Punchline only):
+- "Believe in something"
+- "GM Bulls!"
+- "Who is ready for Uptober?!!!"
+- "Buy the builders."
+- "Liquidating means you took too much risk. Not sorry"
+- "is the bull run still on?"
+- "Who is still bullish?"
 
 TONE GUIDELINES:
 - Add mild swear words naturally (1 per tweet max): damn, shit, fuck, hell
 - Be cocky when market proves you right
 - Be real/cynical when market is BS
+- Match the length requirement: ${tweetLength}
 - NO offensive slurs or targeted attacks
-- Keep it fun and relatable
 
 CRITICAL RULES:
 - NO emojis
 - NO hashtags  
 - NO quotation marks around the tweet
-- Max 280 characters
+- Match the ${tweetLength} length guideline
 - Match sentiment to CURRENT market (use Perplexity data)
-- Add edge and personality (mild swearing OK)
 
-Generate ONE tweet (just the text, no quotes):`;
+Generate ONE ${tweetLength} tweet (just the text, no quotes):`;
 
       const normalTweet = await this.openaiService.generateCompletion(normalTweetPrompt, {
-        maxTokens: 100,
+        maxTokens: maxTokens,
         temperature: 0.8,
         model: 'gpt-4o',
         enableWebSearch: false
