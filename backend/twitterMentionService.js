@@ -8,6 +8,7 @@ import path from 'path';
 import TwitterMemoryService from './services/TwitterMemoryService.js';
 import PerplexitySonarService from './services/PerplexitySonarService.js';
 import X402MerchantService from './services/x402MerchantService.js';
+import TwitterAPIioService from './services/TwitterAPIioService.js';
 
 class TwitterMentionService {
   constructor(twitterAutoPostService, openaiService, backendInstance) {
@@ -17,6 +18,19 @@ class TwitterMentionService {
     this.memoryService = new TwitterMemoryService();
     this.perplexityService = new PerplexitySonarService();
     this.x402Service = new X402MerchantService();
+    
+    // Initialize TwitterAPI.io service (for read-only operations)
+    this.twitterAPIio = null;
+    if (process.env.TWITTERAPIIO_ENABLED === 'true') {
+      try {
+        this.twitterAPIio = new TwitterAPIioService();
+        console.log('✅ [MENTIONS] TwitterAPI.io service initialized (read-only mode)');
+      } catch (error) {
+        console.error('❌ [MENTIONS] Failed to initialize TwitterAPI.io:', error.message);
+        console.log('   Falling back to OAuth for all operations');
+      }
+    }
+    
     this.isRunning = false;
     this.checkInterval = null;
     this.checkIntervalMinutes = 1; // 1 minute
@@ -180,9 +194,51 @@ class TwitterMentionService {
     }
   }
 
-  // Fetch mentions from Twitter API
+  // Fetch mentions from Twitter API (adapter pattern with feature flag)
   async fetchMentions() {
+    // Try TwitterAPI.io first if enabled
+    if (process.env.USE_TWITTERAPIIO_MENTIONS === 'true' && this.twitterAPIio) {
+      try {
+        return await this.fetchMentionsFromTwitterAPIio();
+      } catch (error) {
+        console.error('❌ [MENTIONS] TwitterAPI.io failed, falling back to OAuth:', error.message);
+        // Fall through to OAuth
+      }
+    }
+    
+    // Use OAuth (current implementation)
+    return await this.fetchMentionsFromOAuth();
+  }
+
+  // Fetch mentions using TwitterAPI.io (new)
+  async fetchMentionsFromTwitterAPIio() {
     try {
+      console.log('📡 [MENTIONS] Using TwitterAPI.io to fetch mentions...');
+      
+      const result = await this.twitterAPIio.getMentions(null, this.lastCheckedMentionId);
+      const mentions = this.twitterAPIio.transformMentions(result.tweets);
+      
+      console.log(`✅ [MENTIONS] TwitterAPI.io returned ${mentions.length} mentions`);
+      
+      // Update last checked ID
+      if (mentions.length > 0) {
+        this.lastCheckedMentionId = mentions[0].id;
+        await this.saveState();
+      }
+      
+      return mentions;
+      
+    } catch (error) {
+      console.error('❌ [MENTIONS] TwitterAPI.io error:', error.message);
+      throw error; // Let caller handle fallback
+    }
+  }
+
+  // Fetch mentions using OAuth (existing implementation)
+  async fetchMentionsFromOAuth() {
+    try {
+      console.log('📡 [MENTIONS] Using OAuth to fetch mentions...');
+      
       const userId = this.twitterService.dgnOracleUserId;
       
       if (!userId) {
@@ -252,12 +308,37 @@ class TwitterMentionService {
         if (replyToTweet && replyToTweet.id) {
           console.log(`🔗 [MENTIONS] This is a reply to tweet ${replyToTweet.id}, fetching parent...`);
           try {
-            const parentData = await this.twitterService.oauthXService.getTweet(
-              replyToTweet.id,
-              this.twitterService.dgnOracleUserId
-            );
-            if (parentData) {
-              parentTweet = parentData;
+            // Try TwitterAPI.io first if enabled
+            if (process.env.USE_TWITTERAPIIO_MENTIONS === 'true' && this.twitterAPIio) {
+              try {
+                const parentData = await this.twitterAPIio.getTweetById(replyToTweet.id);
+                if (parentData) {
+                  parentTweet = this.twitterAPIio.transformTweet(parentData);
+                  console.log(`✅ [MENTIONS] Parent tweet fetched via TwitterAPI.io`);
+                }
+              } catch (apiError) {
+                console.log(`⚠️ [MENTIONS] TwitterAPI.io failed for parent, using OAuth:`, apiError.message);
+                // Fallback to OAuth
+                const parentData = await this.twitterService.oauthXService.getTweet(
+                  replyToTweet.id,
+                  this.twitterService.dgnOracleUserId
+                );
+                if (parentData) {
+                  parentTweet = parentData;
+                }
+              }
+            } else {
+              // Use OAuth
+              const parentData = await this.twitterService.oauthXService.getTweet(
+                replyToTweet.id,
+                this.twitterService.dgnOracleUserId
+              );
+              if (parentData) {
+                parentTweet = parentData;
+              }
+            }
+            
+            if (parentTweet) {
               console.log(`✅ [MENTIONS] Parent tweet fetched successfully:`);
               console.log(`   Author: @${parentTweet.author?.username}`);
               console.log(`   Text: "${parentTweet.text}"`);
