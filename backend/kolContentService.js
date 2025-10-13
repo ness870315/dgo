@@ -630,12 +630,17 @@ News recap:`;
         .replace(/\s+/g, ' ')
         .trim();
 
-      console.log(`✍️ Generated news recap: "${article.title}" (${personality.name})`);
+      console.log(`✍️ Generated news recap: "${cleanRecap.substring(0, 50)}..." (${personality.name})`);
       return {
         format: 'news',
         tweets: [cleanRecap],
         token: { symbol: 'NEWS', name: 'Crypto News' },
-        article: article
+        article: {
+          title: 'Real-time Crypto News',
+          content: perplexityResponse.content,
+          source: 'Perplexity',
+          timestamp: new Date().toISOString()
+        }
       };
 
     } catch (error) {
