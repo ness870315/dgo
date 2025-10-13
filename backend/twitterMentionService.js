@@ -9,6 +9,7 @@ import TwitterMemoryService from './services/TwitterMemoryService.js';
 import PerplexitySonarService from './services/PerplexitySonarService.js';
 import X402MerchantService from './services/x402MerchantService.js';
 import TwitterAPIioService from './services/TwitterAPIioService.js';
+import TwitterAPIioWebSocketService from './services/TwitterAPIioWebSocketService.js';
 
 class TwitterMentionService {
   constructor(twitterAutoPostService, openaiService, backendInstance) {
@@ -19,15 +20,30 @@ class TwitterMentionService {
     this.perplexityService = new PerplexitySonarService();
     this.x402Service = new X402MerchantService();
     
-    // Initialize TwitterAPI.io service (for read-only operations)
+    // Initialize TwitterAPI.io REST service (for read-only operations)
     this.twitterAPIio = null;
     if (process.env.TWITTERAPIIO_ENABLED === 'true') {
       try {
         this.twitterAPIio = new TwitterAPIioService();
-        console.log('✅ [MENTIONS] TwitterAPI.io service initialized (read-only mode)');
+        console.log('✅ [MENTIONS] TwitterAPI.io REST service initialized');
       } catch (error) {
         console.error('❌ [MENTIONS] Failed to initialize TwitterAPI.io:', error.message);
         console.log('   Falling back to OAuth for all operations');
+      }
+    }
+    
+    // Initialize TwitterAPI.io WebSocket service (real-time mentions)
+    this.wsService = null;
+    if (process.env.USE_TWITTERAPIIO_WEBSOCKET === 'true' && process.env.TWITTERAPIIO_ENABLED === 'true') {
+      try {
+        this.wsService = new TwitterAPIioWebSocketService(
+          process.env.TWITTERAPIIO_API_KEY,
+          (tweet) => this.handleWebSocketMention(tweet)
+        );
+        console.log('✅ [MENTIONS] TwitterAPI.io WebSocket service initialized (real-time mode)');
+      } catch (error) {
+        console.error('❌ [MENTIONS] Failed to initialize WebSocket:', error.message);
+        console.log('   Will use polling fallback');
       }
     }
     
@@ -146,7 +162,17 @@ class TwitterMentionService {
     
     this.isRunning = true;
     
-    console.log(`🚀 [MENTIONS] Service started - checking every ${this.checkIntervalMinutes} minutes`);
+    // If WebSocket enabled, use real-time mode instead of polling
+    if (process.env.USE_TWITTERAPIIO_WEBSOCKET === 'true' && this.wsService) {
+      console.log('🚀 [MENTIONS] Service started - REAL-TIME MODE via WebSocket ⚡');
+      console.log('   📡 Instant mention delivery (<1s latency)');
+      console.log('   💰 Cost: ~$0.015/day (vs $0.22/day polling)');
+      this.wsService.connect();
+      return;
+    }
+    
+    // Otherwise, use polling (REST API or OAuth)
+    console.log(`🚀 [MENTIONS] Service started - POLLING MODE (checking every ${this.checkIntervalMinutes} minutes)`);
     
     // Check immediately on start
     await this.checkMentions();
@@ -159,12 +185,40 @@ class TwitterMentionService {
 
   // Stop the service
   stop() {
+    // Disconnect WebSocket if active
+    if (this.wsService) {
+      this.wsService.disconnect();
+    }
+    
+    // Stop polling interval
     if (this.checkInterval) {
       clearInterval(this.checkInterval);
       this.checkInterval = null;
     }
+    
     this.isRunning = false;
     console.log('🛑 [MENTIONS] Service stopped');
+  }
+
+  // Handle mention from WebSocket (real-time)
+  async handleWebSocketMention(wsTweet) {
+    try {
+      console.log('📬 [MENTIONS WS] Real-time mention received!');
+      console.log(`   From: @${wsTweet.author?.userName}`);
+      console.log(`   Text: "${wsTweet.text?.substring(0, 80)}..."`);
+      
+      // Transform WebSocket tweet to our internal format
+      const mention = this.wsService.transformWebSocketTweet(wsTweet);
+      
+      // Process immediately (same logic as polling)
+      await this.processMention(mention);
+      
+      // Save state after processing
+      await this.saveState();
+      
+    } catch (error) {
+      console.error('❌ [MENTIONS WS] Error processing WebSocket mention:', error.message);
+    }
   }
 
   // Check for new mentions
