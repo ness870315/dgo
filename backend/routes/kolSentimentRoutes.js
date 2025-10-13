@@ -567,10 +567,20 @@ router.delete('/kols/:handle', async (req, res) => {
     const service = await initializeService();
     const { handle } = req.params;
     
-    // Normalize handle - remove @ if present and convert to lowercase
-    const normalizedHandle = handle.startsWith('@') ? handle.toLowerCase() : `@${handle.toLowerCase()}`;
+    // Normalize handle - remove @ if present but keep original case for lookup
+    const normalizedHandle = handle.startsWith('@') ? handle.slice(1) : handle;
     
-    const kol = service.kols.get(normalizedHandle);
+    // Try exact match first, then case-insensitive match
+    let kol = service.kols.get(normalizedHandle);
+    if (!kol) {
+      // Try case-insensitive lookup
+      for (const [storedHandle, storedKol] of service.kols) {
+        if (storedHandle.toLowerCase() === normalizedHandle.toLowerCase()) {
+          kol = storedKol;
+          break;
+        }
+      }
+    }
     if (!kol) {
       return res.status(404).json({
         success: false,
@@ -578,8 +588,13 @@ router.delete('/kols/:handle', async (req, res) => {
       });
     }
     
-    // Remove KOL
-    service.kols.delete(normalizedHandle);
+    // Remove KOL using the actual stored key
+    const actualKey = Array.from(service.kols.keys()).find(key => 
+      key.toLowerCase() === normalizedHandle.toLowerCase()
+    );
+    if (actualKey) {
+      service.kols.delete(actualKey);
+    }
     
     // Remove related posts (optional - you might want to keep historical data)
     // service.posts = service.posts.filter(post => post.kol_handle.toLowerCase() !== handle.toLowerCase());
