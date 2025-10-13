@@ -104,6 +104,8 @@ class TwitterAPIioService {
       const url = `${this.baseUrl}/tweets?ids=${ids}`;
       
       console.log(`🔍 [TwitterAPI.io] Fetching ${Array.isArray(tweetIds) ? tweetIds.length : 1} tweet(s)...`);
+      console.log(`📡 [TwitterAPI.io] Request URL: ${url}`);
+      console.log(`📡 [TwitterAPI.io] Tweet IDs: ${ids}`);
       
       const response = await fetch(url, {
         method: 'GET',
@@ -113,6 +115,8 @@ class TwitterAPIioService {
       });
 
       if (!response.ok) {
+        const errorBody = await response.text();
+        console.error(`❌ [TwitterAPI.io] Error body:`, errorBody);
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
