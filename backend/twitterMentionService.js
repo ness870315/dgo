@@ -321,14 +321,21 @@ class TwitterMentionService {
                   console.log(`✅ [MENTIONS] Parent tweet fetched via TwitterAPI.io`);
                 }
               } catch (apiError) {
-                console.log(`⚠️ [MENTIONS] TwitterAPI.io failed for parent, using OAuth:`, apiError.message);
+                console.log(`⚠️ [MENTIONS] TwitterAPI.io failed for parent (${apiError.message}), trying OAuth fallback...`);
                 // Fallback to OAuth
-                const parentData = await this.twitterService.oauthXService.getTweet(
-                  replyToTweet.id,
-                  this.twitterService.dgnOracleUserId
-                );
-                if (parentData) {
-                  parentTweet = parentData;
+                try {
+                  const parentData = await this.twitterService.oauthXService.getTweet(
+                    replyToTweet.id,
+                    this.twitterService.dgnOracleUserId
+                  );
+                  if (parentData) {
+                    parentTweet = parentData;
+                    console.log(`✅ [MENTIONS] Parent tweet fetched via OAuth fallback`);
+                  } else {
+                    console.warn(`⚠️ [MENTIONS] OAuth also returned null for parent tweet`);
+                  }
+                } catch (oauthError) {
+                  console.error(`❌ [MENTIONS] OAuth fallback also failed:`, oauthError.message);
                 }
               }
             } else {
