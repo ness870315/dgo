@@ -607,6 +607,205 @@ router.delete('/kols/:handle', async (req, res) => {
 });
 
 /**
+ * GET /api/kolsentiment/kols
+ * Get all KOLs
+ */
+router.get('/kols', async (req, res) => {
+  try {
+    const service = await initializeService();
+    
+    const kols = Array.from(service.kols.values()).map(kol => ({
+      id: kol.id,
+      handle: kol.handle,
+      influence_score: kol.influence_score,
+      segments: kol.segments,
+      total_posts: kol.total_posts,
+      reliability_score: kol.reliability_score,
+      last_monitored: kol.last_monitored,
+      created_at: kol.created_at
+    }));
+    
+    res.json({
+      success: true,
+      data: {
+        kols: kols,
+        total: kols.length
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [KOL SENTIMENT API] Get KOLs error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/kolsentiment/kols
+ * Add a new KOL
+ */
+router.post('/kols', async (req, res) => {
+  try {
+    const service = await initializeService();
+    const { handle, influence_score = 50, segments = [] } = req.body;
+    
+    if (!handle) {
+      return res.status(400).json({
+        success: false,
+        error: 'Handle is required'
+      });
+    }
+    
+    // Clean handle (remove @ if present)
+    const cleanHandle = handle.replace('@', '');
+    
+    // Check if KOL already exists
+    if (service.kols.has(cleanHandle)) {
+      return res.status(400).json({
+        success: false,
+        error: 'KOL already exists'
+      });
+    }
+    
+    const kol = {
+      id: service.generateId(),
+      handle: cleanHandle,
+      influence_score: Math.max(1, Math.min(100, influence_score)),
+      segments: Array.isArray(segments) ? segments : [],
+      total_posts: 0,
+      reliability_score: 0,
+      last_monitored: null,
+      created_at: new Date().toISOString()
+    };
+    
+    service.kols.set(cleanHandle, kol);
+    
+    // Immediately fetch tweets for this new KOL
+    console.log(`🚀 [KOL SENTIMENT API] Fetching initial tweets for new KOL: @${cleanHandle}`);
+    try {
+      await service.monitorKOLAccount(kol);
+      console.log(`✅ [KOL SENTIMENT API] Initial tweet fetch completed for @${cleanHandle}`);
+    } catch (fetchError) {
+      console.warn(`⚠️ [KOL SENTIMENT API] Initial tweet fetch failed for @${cleanHandle}:`, fetchError.message);
+      // Don't fail the KOL creation if tweet fetch fails
+    }
+    
+    await service.saveData();
+    
+    console.log(`✅ [KOL SENTIMENT API] Added new KOL: @${cleanHandle}`);
+    
+    res.json({
+      success: true,
+      data: {
+        kol: kol,
+        message: 'KOL added successfully'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [KOL SENTIMENT API] Add KOL error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * PUT /api/kolsentiment/kols/:handle
+ * Update a KOL
+ */
+router.put('/kols/:handle', async (req, res) => {
+  try {
+    const service = await initializeService();
+    const { handle } = req.params;
+    const { influence_score, segments } = req.body;
+    
+    const cleanHandle = handle.replace('@', '');
+    const kol = service.kols.get(cleanHandle);
+    
+    if (!kol) {
+      return res.status(404).json({
+        success: false,
+        error: 'KOL not found'
+      });
+    }
+    
+    if (influence_score !== undefined) {
+      kol.influence_score = Math.max(1, Math.min(100, influence_score));
+    }
+    
+    if (segments !== undefined) {
+      kol.segments = Array.isArray(segments) ? segments : [];
+    }
+    
+    service.kols.set(cleanHandle, kol);
+    await service.saveData();
+    
+    res.json({
+      success: true,
+      data: {
+        kol: kol,
+        message: 'KOL updated successfully'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [KOL SENTIMENT API] Update KOL error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * DELETE /api/kolsentiment/kols/:handle
+ * Delete a KOL
+ */
+router.delete('/kols/:handle', async (req, res) => {
+  try {
+    const service = await initializeService();
+    const { handle } = req.params;
+    
+    const cleanHandle = handle.replace('@', '');
+    const kol = service.kols.get(cleanHandle);
+    
+    if (!kol) {
+      return res.status(404).json({
+        success: false,
+        error: 'KOL not found'
+      });
+    }
+    
+    service.kols.delete(cleanHandle);
+    
+    // Remove posts from this KOL
+    service.posts = service.posts.filter(post => post.kol_handle !== cleanHandle);
+    
+    await service.saveData();
+    
+    console.log(`🗑️ [KOL SENTIMENT API] Deleted KOL: @${cleanHandle}`);
+    
+    res.json({
+      success: true,
+      data: {
+        message: 'KOL deleted successfully'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [KOL SENTIMENT API] Delete KOL error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * GET /api/kolsentiment/status
  * Service status and health check
  */

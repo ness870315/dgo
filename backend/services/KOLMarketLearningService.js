@@ -46,19 +46,8 @@ class KOLMarketLearningService {
     this.monitoringInterval = 2 * 24 * 60 * 60 * 1000; // 2 days
     this.lastMonitoringRun = 0;
     
-    // KOL accounts to monitor (expand this list)
-    this.kolAccounts = [
-      { handle: 'elonmusk', influence_score: 100, segments: ['crypto', 'tech', 'meme'] },
-      { handle: 'VitalikButerin', influence_score: 95, segments: ['ethereum', 'defi', 'tech'] },
-      { handle: 'naval', influence_score: 90, segments: ['crypto', 'philosophy', 'investment'] },
-      { handle: 'balajis', influence_score: 88, segments: ['crypto', 'tech', 'sovereignty'] },
-      { handle: 'APompliano', influence_score: 85, segments: ['bitcoin', 'crypto', 'investment'] },
-      { handle: 'michael_saylor', influence_score: 92, segments: ['bitcoin', 'corporate', 'strategy'] },
-      { handle: 'justinsuntron', influence_score: 80, segments: ['tron', 'crypto', 'defi'] },
-      { handle: 'cz_binance', influence_score: 95, segments: ['crypto', 'exchange', 'defi'] },
-      { handle: 'brian_armstrong', influence_score: 85, segments: ['crypto', 'exchange', 'tech'] },
-      { handle: 'barrysilbert', influence_score: 82, segments: ['crypto', 'investment', 'bitcoin'] }
-    ];
+    // KOL accounts to monitor (start empty - users will add their own)
+    this.kolAccounts = [];
     
     console.log('🧠 [KOL LEARNING] Service initialized');
     console.log(`   Data dir: ${this.dataDir}`);
