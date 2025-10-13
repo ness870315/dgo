@@ -960,23 +960,6 @@ class EnhancedTokenProcessor {
     
     // DO NOT REMOVE TOKENS FROM PROCESSING QUEUE - they need to be scored and saved!
     
-    // 🚀 AUTOMATIC TWITTER DATA MERGE
-    // Merge fresh Twitter data into main cache immediately after Twitter stage
-    try {
-      console.log('🔄 Starting automatic Twitter data merge...');
-      const { default: TwitterDataMergeService } = await import('./twitterDataMergeService.js');
-      const mergeService = new TwitterDataMergeService(this); // Pass tokenProcessor for score recalculation
-      const mergeResult = await mergeService.automaticMerge();
-      
-      if (mergeResult.success) {
-        console.log(`✅ Automatic Twitter merge completed: ${mergeResult.result?.updated || 0} tokens updated`);
-      } else {
-        console.log(`⚠️ Automatic Twitter merge failed: ${mergeResult.error}`);
-      }
-    } catch (error) {
-      console.log(`⚠️ Automatic Twitter merge error: ${error.message}`);
-      // Don't fail the entire stage if merge fails
-    }
   }
 
   /**
