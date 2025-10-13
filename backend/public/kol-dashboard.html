@@ -299,7 +299,11 @@
                 }
                 
                 if (kolsResult.success) {
+                    console.log('KOLs fetched:', kolsResult.data.kols);
                     updateKOLList(kolsResult.data.kols);
+                } else {
+                    console.error('Failed to fetch KOLs:', kolsResult.error);
+                    updateStatus('Error fetching KOLs: ' + kolsResult.error, 'error');
                 }
                 
             } catch (error) {
@@ -526,7 +530,10 @@
         }
 
         function updateKOLList(kols) {
+            console.log('updateKOLList called with:', kols);
             const container = document.getElementById('kolList');
+            console.log('Container element:', container);
+            
             if (!kols || kols.length === 0) {
                 container.innerHTML = `
                     <div class="text-center text-gray-500 py-8">
@@ -599,6 +606,7 @@
                 </div>
             `).join('');
             
+            console.log('Generated HTML for KOLs:', container.innerHTML.substring(0, 200) + '...');
             lucide.createIcons();
         }
 
