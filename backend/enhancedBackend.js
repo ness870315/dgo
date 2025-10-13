@@ -300,12 +300,12 @@ class EnhancedBackend {
             </ul>
         </div>
         
-        <a href="/api/kolsentiment/dashboard" class="cta-button">
-            📊 Access Dashboard API
+        <a href="/kol-dashboard.html" class="cta-button">
+            📊 Open Dashboard
         </a>
         
         <p style="margin-top: 30px; color: #888; font-size: 0.9em;">
-            Dashboard UI coming soon! For now, access the API endpoints directly.
+            Real-time KOL analysis dashboard with interactive charts and management tools.
         </p>
     </div>
 </body>
