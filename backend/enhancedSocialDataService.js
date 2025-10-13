@@ -583,7 +583,6 @@ class EnhancedSocialDataService {
             // Continue with other searches
           }
         }
-      }
       
       // 🚨 FIX: Deduplicate tweets before processing to prevent duplicate processing
       const uniqueTweets = this.deduplicateTweetsByContent(allTweets);
