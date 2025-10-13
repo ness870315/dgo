@@ -5084,7 +5084,7 @@ class EnhancedBackend {
           this.twitterMentionService.x402Service.completePayment(nonce);
 
           // Apply fuel to token
-          const tokens = await this.tokenProcessor.loadTokens();
+          const tokens = await this.getTokensFromCache();
           const token = tokens.find(t => 
             t.contractAddress?.toLowerCase() === payment.contractAddress?.toLowerCase()
           );
