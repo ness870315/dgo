@@ -257,6 +257,92 @@ def search_mentions(
         logger.error(f"Error searching mentions: {str(e)}")
         return {"success": False, "handle": handle, "count": 0, "mentions": [], "source": "twitter_api_v2", "error": str(e)}
 
+@app.get("/api/twitter/advanced_search")
+def twitterapiio_advanced_search(
+    query: str = Query(..., description="Search query (e.g., '$wizi OR #wizi')"),
+    count: int = Query(20, description="Number of tweets to return"),
+    queryType: str = Query("Latest", description="Query type (Latest, Popular, etc.)"),
+    startTime: str = Query(None, description="Start time for search (ISO format)"),
+    endTime: str = Query(None, description="End time for search (ISO format)")
+):
+    """Search tweets using TwitterAPI.io advanced search endpoint."""
+    try:
+        import os
+        twitterapiio_key = os.getenv('TWITTERAPIIO_API_KEY')
+        
+        if not twitterapiio_key:
+            logger.error("TWITTERAPIIO_API_KEY not set")
+            return {"success": False, "query": query, "count": 0, "tweets": [], "source": "twitterapiio", "error": "missing_api_key"}
+
+        # Build the request URL
+        base_url = "https://api.twitterapi.io/twitter/tweet/advanced_search"
+        params = {
+            "query": query,
+            "count": min(count, 20),  # TwitterAPI.io limit
+            "queryType": queryType
+        }
+        
+        if startTime:
+            params["startTime"] = startTime
+        if endTime:
+            params["endTime"] = endTime
+            
+        # Build URL with query parameters
+        url = base_url + "?" + "&".join([f"{k}={v}" for k, v in params.items()])
+        
+        headers = {
+            'X-API-Key': twitterapiio_key
+        }
+        
+        logger.info(f"TwitterAPI.io advanced search: {query}")
+        response = requests.get(url, headers=headers, timeout=30)
+        
+        if response.status_code != 200:
+            logger.error(f"TwitterAPI.io API error: {response.status_code} - {response.text}")
+            return {"success": False, "query": query, "count": 0, "tweets": [], "source": "twitterapiio", "error": f"api_error_{response.status_code}"}
+        
+        data = response.json()
+        tweets = data.get("tweets", [])
+        
+        # Transform to our internal format
+        transformed_tweets = []
+        for tweet in tweets:
+            author = tweet.get("author", {})
+            transformed_tweets.append({
+                "id": tweet.get("id"),
+                "text": tweet.get("text", ""),
+                "created_at": tweet.get("createdAt", datetime.now().isoformat()),
+                "user": {
+                    "name": author.get("name", "Unknown User"),
+                    "screen_name": author.get("userName", "unknown")
+                },
+                "retweet_count": tweet.get("retweetCount", 0),
+                "favorite_count": tweet.get("likeCount", 0),
+                "reply_count": tweet.get("replyCount", 0),
+                "quote_count": tweet.get("quoteCount", 0),
+                "view_count": tweet.get("viewCount", 0),
+                "is_reply": tweet.get("isReply", False),
+                "in_reply_to_id": tweet.get("inReplyToId"),
+                "in_reply_to_username": tweet.get("inReplyToUsername"),
+                "url": tweet.get("url"),
+                "source": "twitterapiio"
+            })
+        
+        logger.info(f"TwitterAPI.io search successful: {len(transformed_tweets)} tweets for '{query}'")
+        return {
+            "success": True, 
+            "query": query, 
+            "count": len(transformed_tweets), 
+            "tweets": transformed_tweets, 
+            "source": "twitterapiio",
+            "has_next_page": data.get("has_next_page", False),
+            "next_cursor": data.get("next_cursor")
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in TwitterAPI.io advanced search: {str(e)}")
+        return {"success": False, "query": query, "count": 0, "tweets": [], "source": "twitterapiio", "error": str(e)}
+
 def _get_mock_tweets(query, count, reason):
     """Generate informative mock tweets when real API fails."""
     mock_tweets = []

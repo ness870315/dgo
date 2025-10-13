@@ -3,7 +3,6 @@ import fs from 'fs/promises';
 import path from 'path';
 // TwitterApiManager will be imported dynamically to handle deployment issues
 import CacheLockService from './cacheLockService.js';
-import TwitterAPIioSearchService from './services/TwitterAPIioSearchService.js';
 
 class EnhancedSocialDataService {
   constructor() {
@@ -26,16 +25,6 @@ class EnhancedSocialDataService {
     this.twitterApi = null; // Will be replaced by microservice calls
     
     // TwitterAPI.io Search Service (new primary method)
-    this.twitterAPIioSearch = null;
-    if (process.env.TWITTERAPIIO_SEARCH_ENABLED === 'true') {
-      try {
-        this.twitterAPIioSearch = new TwitterAPIioSearchService();
-        console.log('✅ [EnhancedSocialDataService] TwitterAPI.io Search service initialized');
-      } catch (error) {
-        console.error('❌ [EnhancedSocialDataService] Failed to initialize TwitterAPI.io Search:', error.message);
-        console.log('   Will use twitter-service microservice fallback');
-      }
-    }
     
     // 🚨 NEW: Twitter API Manager for 15K/month limit protection with fallback
     // Will be initialized asynchronously in initialize() method
@@ -505,20 +494,35 @@ class EnhancedSocialDataService {
       const symbolUpper = symbol.toUpperCase();
       // symbolLower already declared above (line 549)
       
-      const searchStrategies = [
-        {
-          type: 'cashtag_hashtag_only',
-          endpoint: '/api/twitter/search',
-          params: { 
-            // Twitter API v2 entities approach - use has:hashtags operator
-            // This properly searches for hashtags and returns tweets with actual #SYMBOL mentions
-            // Much more accurate than searching for bare symbol which returns irrelevant tweets
-            q: `has:hashtags #` + symbolUpper + ` -is:retweet lang:en`,
-            count: 8, // Balanced sample size for projection without overwhelming API
-            start_time: startTime
+      // 🚀 NEW: Try TwitterAPI.io advanced search first (if enabled)
+      let searchStrategies = [];
+      
+      if (process.env.TWITTERAPIIO_SEARCH_ENABLED === 'true') {
+        searchStrategies.push({
+          type: 'twitterapiio_advanced_search',
+          endpoint: '/api/twitter/advanced_search',
+          params: {
+            query: `($${symbolUpper} OR #${symbolUpper})`,
+            count: 20,
+            queryType: 'Latest',
+            startTime: startTime
           }
+        });
+      }
+      
+      // Fallback to Twitter API v2 search
+      searchStrategies.push({
+        type: 'cashtag_hashtag_only',
+        endpoint: '/api/twitter/search',
+        params: { 
+          // Twitter API v2 entities approach - use has:hashtags operator
+          // This properly searches for hashtags and returns tweets with actual #SYMBOL mentions
+          // Much more accurate than searching for bare symbol which returns irrelevant tweets
+          q: `has:hashtags #` + symbolUpper + ` -is:retweet lang:en`,
+          count: 8, // Balanced sample size for projection without overwhelming API
+          start_time: startTime
         }
-      ];
+      });
       
       // Store official handle info for follower detection (without API call)
       if (officialHandle && officialHandle !== 'not found') {
@@ -527,41 +531,10 @@ class EnhancedSocialDataService {
         username = socialLinks.twitter.replace('@', '');
       }
       
-      // Execute searches - try TwitterAPI.io first, then fallback to microservice
+      // Execute searches via twitter-service microservice
       let allTweets = []; // Store all tweets before filtering
       
-      // 🚀 NEW: Try TwitterAPI.io Search first (if enabled)
-      if (process.env.TWITTERAPIIO_SEARCH_ENABLED === 'true' && this.twitterAPIioSearch) {
-        try {
-          console.log(`🔍 [TwitterAPI.io Search] Searching for token mentions: ${symbol}`);
-          
-          const startTime = searchStrategies[0]?.params?.start_time || null;
-          const searchResult = await this.twitterAPIioSearch.searchTokenMentions(symbol, 20, startTime);
-          
-          if (searchResult.success && searchResult.tweets.length > 0) {
-            console.log(`✅ [TwitterAPI.io Search] Found ${searchResult.tweets.length} tweets for ${symbol}`);
-            
-            // Transform to our internal format
-            const transformedTweets = this.twitterAPIioSearch.transformSearchTweets(searchResult.tweets);
-            allTweets = [...allTweets, ...transformedTweets];
-            
-            console.log(`🎯 [TwitterAPI.io Search] Using ${transformedTweets.length} tweets for social health calculation`);
-          } else {
-            console.log(`⚠️ [TwitterAPI.io Search] No tweets found for ${symbol}, falling back to microservice`);
-            throw new Error('No tweets found via TwitterAPI.io');
-          }
-          
-        } catch (twitterAPIioError) {
-          console.warn(`⚠️ [TwitterAPI.io Search] Failed: ${twitterAPIioError.message}`);
-          console.log(`🔄 [TwitterAPI.io Search] Falling back to twitter-service microservice...`);
-          
-          // Fall through to microservice fallback
-        }
-      }
-      
-      // Fallback to twitter-service microservice if TwitterAPI.io not enabled or failed
-      if (allTweets.length === 0) {
-        console.log(`🔍 [Microservice Fallback] Using twitter-service for ${symbol}`);
+      console.log(`🔍 [Microservice] Using twitter-service for ${symbol}`);
         
         for (const strategy of searchStrategies) {
           try {
