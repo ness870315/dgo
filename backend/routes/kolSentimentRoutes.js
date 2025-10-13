@@ -567,7 +567,10 @@ router.delete('/kols/:handle', async (req, res) => {
     const service = await initializeService();
     const { handle } = req.params;
     
-    const kol = service.kols.get(handle.toLowerCase());
+    // Normalize handle - remove @ if present and convert to lowercase
+    const normalizedHandle = handle.startsWith('@') ? handle.toLowerCase() : `@${handle.toLowerCase()}`;
+    
+    const kol = service.kols.get(normalizedHandle);
     if (!kol) {
       return res.status(404).json({
         success: false,
@@ -576,7 +579,7 @@ router.delete('/kols/:handle', async (req, res) => {
     }
     
     // Remove KOL
-    service.kols.delete(handle.toLowerCase());
+    service.kols.delete(normalizedHandle);
     
     // Remove related posts (optional - you might want to keep historical data)
     // service.posts = service.posts.filter(post => post.kol_handle.toLowerCase() !== handle.toLowerCase());
