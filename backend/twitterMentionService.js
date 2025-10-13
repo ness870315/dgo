@@ -55,6 +55,9 @@ class TwitterMentionService {
     this.repliedMentions = new Set();
     this.lastCheckedMentionId = null;
     
+    // Track conversation depth to limit follow-up replies (max 3 per thread)
+    this.conversationDepth = new Map(); // conversationId -> replyCount
+    
     // State persistence
     this.stateFilePath = process.env.DATA_DIR 
       ? path.join(process.env.DATA_DIR, 'twitter-mentions-state.json')
@@ -347,9 +350,22 @@ class TwitterMentionService {
         return;
       }
       
+      // Check conversation depth limit (max 3 replies per thread)
+      const conversationId = mention.conversation_id || mentionId;
+      const currentDepth = this.conversationDepth.get(conversationId) || 0;
+      
+      if (currentDepth >= 3) {
+        console.log(`⏭️ [MENTIONS] Skipping ${mentionId} - conversation depth limit reached (${currentDepth}/3)`);
+        console.log(`   Conversation ID: ${conversationId}`);
+        this.repliedMentions.add(mentionId);
+        return;
+      }
+      
       console.log(`💬 [MENTIONS] Processing mention from @${author}: "${text}"`);
       console.log(`🔍 [MENTIONS DEBUG] Mention object:`, {
         id: mention.id,
+        conversationId: conversationId,
+        conversationDepth: currentDepth,
         hasReferencedTweets: !!mention.referenced_tweets,
         referencedTweetsCount: mention.referenced_tweets?.length || 0,
         referencedTweets: mention.referenced_tweets
@@ -407,6 +423,24 @@ class TwitterMentionService {
               console.log(`✅ [MENTIONS] Parent tweet fetched successfully:`);
               console.log(`   Author: @${parentTweet.author?.username}`);
               console.log(`   Text: "${parentTweet.text}"`);
+              
+              // Skip if parent tweet is from @dgnoracle (e.g., fuel confirmation, daily tweet)
+              const parentAuthor = parentTweet.author?.username?.toLowerCase();
+              if (parentAuthor === 'dgnoracle' || parentAuthor === 'dgen_oracle') {
+                console.log(`⏭️ [MENTIONS] Skipping ${mentionId} - parent tweet is from @dgnoracle (likely fuel confirmation or bot tweet)`);
+                this.repliedMentions.add(mentionId);
+                return;
+              }
+              
+              // Skip if parent tweet contains fuel payment keywords (our confirmation tweets)
+              const parentText = parentTweet.text?.toLowerCase() || '';
+              if (parentText.includes('payment confirmed') || 
+                  parentText.includes('fuel applied') ||
+                  parentText.includes('powered by @payainetwork')) {
+                console.log(`⏭️ [MENTIONS] Skipping ${mentionId} - parent is a fuel confirmation tweet`);
+                this.repliedMentions.add(mentionId);
+                return;
+              }
             } else {
               console.warn(`⚠️ [MENTIONS] getTweet returned null for ${replyToTweet.id}`);
             }
@@ -459,6 +493,10 @@ class TwitterMentionService {
         console.log(`📝 [MENTIONS] Full reply text: "${reply}"`);
         console.log(`📏 [MENTIONS] Reply length: ${reply.length} characters`);
         this.repliedMentions.add(mentionId);
+        
+        // Increment conversation depth
+        this.conversationDepth.set(conversationId, currentDepth + 1);
+        console.log(`📊 [MENTIONS] Conversation depth: ${currentDepth + 1}/3 for thread ${conversationId}`);
         
         // Keep only last 1000 replied IDs in memory
         if (this.repliedMentions.size > 1000) {
