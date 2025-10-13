@@ -955,8 +955,8 @@ Reply (without @username):`;
       
       console.log(`📊 [MENTIONS] Analyzing token: ${symbol}`);
       
-      // Try to fetch token data from cache
-      let tokenData = await this.getTokenData(symbol);
+      // Try to fetch token data from cache (tokenData already declared above)
+      tokenData = await this.getTokenData(symbol);
       
       // If not found and original was a Twitter handle (@memeputer), try as ticker ($MEMEPUTER)
       if (!tokenData && analysis.tokens[0].startsWith('@')) {
