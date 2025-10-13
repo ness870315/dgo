@@ -27,23 +27,23 @@ class TwitterAPIioService {
    * Get mentions for a user
    * Endpoint: GET /user/mentions
    * 
-   * @param {string} userId - Twitter user ID (optional, uses authenticated user if not provided)
+   * @param {string} userName - Twitter username (e.g., 'dgnoracle')
    * @param {string} cursor - Pagination cursor for next page
    * @returns {Promise<Object>} - Mentions response with tweets array
    */
-  async getMentions(userId = null, cursor = null) {
+  async getMentions(userName = null, cursor = null) {
     try {
       let url = `${this.baseUrl}/user/mentions`;
       
       const params = new URLSearchParams();
-      if (userId) params.append('userId', userId);
+      if (userName) params.append('userName', userName);
       if (cursor) params.append('cursor', cursor);
       
       if (params.toString()) {
         url += `?${params.toString()}`;
       }
       
-      console.log(`🔍 [TwitterAPI.io] Fetching mentions${userId ? ` for user ${userId}` : ''}...`);
+      console.log(`🔍 [TwitterAPI.io] Fetching mentions${userName ? ` for @${userName}` : ''}...`);
       console.log(`📡 [TwitterAPI.io] Request URL: ${url}`);
       
       const response = await fetch(url, {
