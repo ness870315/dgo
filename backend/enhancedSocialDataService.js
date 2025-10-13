@@ -809,7 +809,12 @@ class EnhancedSocialDataService {
         // Base: sample * time_multiplier * size_multiplier * engagement_multiplier * synergy_bonus
         const baseSampleMultiplier = 1.0; // NO BASE MULTIPLIER: Only volume/size/engagement matter
         
-        let projected = totalMentions * baseSampleMultiplier * sizeMultiplier * engagementMultiplier * synergyBonus;
+        // 🚀 TWITTERAPI.IO ADJUSTMENT: Scale down multipliers for larger sample size
+        // TwitterAPI.io provides up to 20 tweets vs Twitter API v2's 6 tweets
+        // Scale down multipliers by 0.8x to maintain projection accuracy (validated: 6→50→54 actual)
+        const sampleSizeAdjustment = totalMentions > 10 ? 0.8 : 1.0; // Adjust if we have larger sample
+        
+        let projected = totalMentions * baseSampleMultiplier * (sizeMultiplier * sampleSizeAdjustment) * engagementMultiplier * synergyBonus;
         
         // Floor: Minimum realistic mentions by market cap OR volume (whichever is higher)
         let minMentions = 10; // CONSERVATIVE: Lower base minimum (was 15)
@@ -834,7 +839,7 @@ class EnhancedSocialDataService {
         
         displayMentions = Math.round(Math.max(minMentions, Math.min(maxMentions, projected)));
         
-        console.log(`📊 Projection (new token): base=${totalMentions}, size=${sizeMultiplier}x (mcap=${mcapMultiplier}x, vol=${volumeMultiplier}x), eng=${engagementMultiplier}x, synergy=${synergyBonus}x, final=${displayMentions}`);
+        console.log(`📊 Projection (new token): base=${totalMentions}, size=${sizeMultiplier}x→${(sizeMultiplier * sampleSizeAdjustment).toFixed(2)}x (${sampleSizeAdjustment}x adj), eng=${engagementMultiplier}x, synergy=${synergyBonus}x, final=${displayMentions}`);
       }
 
       // Summary (extract metadata for logging)
