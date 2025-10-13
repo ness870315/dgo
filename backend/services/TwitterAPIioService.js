@@ -44,6 +44,7 @@ class TwitterAPIioService {
       }
       
       console.log(`🔍 [TwitterAPI.io] Fetching mentions${userId ? ` for user ${userId}` : ''}...`);
+      console.log(`📡 [TwitterAPI.io] Request URL: ${url}`);
       
       const response = await fetch(url, {
         method: 'GET',
@@ -53,6 +54,8 @@ class TwitterAPIioService {
       });
 
       if (!response.ok) {
+        const errorBody = await response.text();
+        console.error(`❌ [TwitterAPI.io] Response body:`, errorBody);
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 

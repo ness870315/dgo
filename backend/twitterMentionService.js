@@ -213,9 +213,17 @@ class TwitterMentionService {
   // Fetch mentions using TwitterAPI.io (new)
   async fetchMentionsFromTwitterAPIio() {
     try {
-      console.log('📡 [MENTIONS] Using TwitterAPI.io to fetch mentions...');
+      const userId = this.twitterService.dgnOracleUserId;
       
-      const result = await this.twitterAPIio.getMentions(null, this.lastCheckedMentionId);
+      if (!userId) {
+        throw new Error('DGNORACLE_USER_ID not set');
+      }
+      
+      console.log('📡 [MENTIONS] Using TwitterAPI.io to fetch mentions...');
+      console.log(`   User ID: ${userId}`);
+      console.log(`   Since ID: ${this.lastCheckedMentionId || 'none'}`);
+      
+      const result = await this.twitterAPIio.getMentions(userId, this.lastCheckedMentionId);
       const mentions = this.twitterAPIio.transformMentions(result.tweets);
       
       console.log(`✅ [MENTIONS] TwitterAPI.io returned ${mentions.length} mentions`);
