@@ -5090,7 +5090,7 @@ class EnhancedBackend {
           );
           
           if (token) {
-            await this.fuelService.applyFuel(token, payment.fuelType);
+            await this.applyFuelToToken(payment.contractAddress, payment.fuelType);
             console.log(`[🛡️ x402 PayAI SDK] ✅ Fuel ${payment.fuelType} applied to ${payment.tokenSymbol}`);
 
             // Post Twitter confirmation
