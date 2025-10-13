@@ -210,11 +210,11 @@ class TwitterAutoPostService {
 
     try {
       const symbol = token.symbol || 'TOKEN';
-      const userHandle = user.username || user;
+      const userHandle = user.handle || user.username || user;
       
-      // Get fuel pricing for original price display
+      // Get fuel pricing with correct 90% discounts
       const fuelPrices = {
-        '10x': { usd: 45.00, discountedUsd: 0.10 },
+        '10x': { usd: 45.00, discountedUsd: 4.50 },
         '50x': { usd: 195.00, discountedUsd: 19.50 },
         '500x': { usd: 695.00, discountedUsd: 69.50 },
         '1000x': { usd: 995.00, discountedUsd: 99.50 }
@@ -229,7 +229,7 @@ class TwitterAutoPostService {
 
 💰 Paid: $${pricing.discountedUsd} USDC (90% off!)
 ⏱️ Boost active for 12 hours
-🔥 Powered by x402 on Solana`;
+🔥 Powered by @PayAINetwork and x402 protocol on Solana`;
 
       if (transactionHash) {
         confirmationText += `\n\n📝 TX: ${transactionHash.substring(0, 12)}...`;

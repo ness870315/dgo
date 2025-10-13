@@ -23,9 +23,8 @@ class X402MerchantService {
     this.payToAddress = this.computeMerchantUSDCATA();
     
     // Twitter x402 prices (90% discount from website prices)
-    // NOTE: 10x set to 0.1 USDC for testing
     this.fuelPrices = {
-      '10x': { usd: 45.00, discountedUsd: 0.10, usdc: 0.10 * 1e6 },   // 100,000 (TEST PRICE)
+      '10x': { usd: 45.00, discountedUsd: 4.50, usdc: 4.50 * 1e6 },   // 4,500,000
       '50x': { usd: 195.00, discountedUsd: 19.50, usdc: 19.50 * 1e6 }, // 19,500,000
       '500x': { usd: 695.00, discountedUsd: 69.50, usdc: 69.50 * 1e6 }, // 69,500,000
       '1000x': { usd: 995.00, discountedUsd: 99.50, usdc: 99.50 * 1e6 }  // 99,500,000
