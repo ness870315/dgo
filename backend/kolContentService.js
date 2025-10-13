@@ -538,37 +538,62 @@ Tweet 3:`;
   }
 
   /**
-   * Generate crypto news recap from CoinDesk
+   * Generate crypto news recap using Perplexity for real-time news
    */
   async generateCryptoNews() {
     try {
-      console.log('📰 [KOL CONTENT] Generating crypto news recap...');
+      console.log('📰 [KOL CONTENT] Generating real-time crypto news recap...');
 
-      // Get a random article from CoinDesk
-      const article = await this.coinDeskService.getRandomArticle();
+      // 🚀 ENHANCED: Use Perplexity for real-time news instead of CoinDesk
+      if (!this.perplexityService || !this.perplexityService.isInitialized) {
+        console.warn('⚠️ [KOL CONTENT] Perplexity service not initialized, falling back to CoinDesk');
+        const article = await this.coinDeskService.getRandomArticle();
+        if (!article) {
+          console.log('⚠️ [KOL CONTENT] No news articles available');
+          return null;
+        }
+        return await this.generateNewsFromCoinDesk(article);
+      }
+
+      // Use Perplexity for real-time news
+      const realTimeNewsQueries = [
+        'Latest Bitcoin news last 2 hours, current Bitcoin price, recent Bitcoin developments',
+        'Latest Solana news last 2 hours, Solana ecosystem updates, Solana price movement',
+        'Latest crypto news last 2 hours, major crypto announcements, trending crypto events',
+        'Latest DeFi news last 2 hours, major DeFi protocols, DeFi token movements',
+        'Latest crypto regulatory news last 2 hours, SEC announcements, crypto policy updates'
+      ];
       
-      if (!article) {
-        console.log('⚠️ [KOL CONTENT] No news articles available');
-        return null;
+      const randomNewsQuery = realTimeNewsQueries[Math.floor(Math.random() * realTimeNewsQueries.length)];
+      console.log(`📰 [CRYPTO NEWS] Using real-time query: ${randomNewsQuery}`);
+      
+      const perplexityResponse = await this.perplexityService.searchWithReasoning(randomNewsQuery);
+      
+      if (!perplexityResponse || !perplexityResponse.content) {
+        console.log('⚠️ [KOL CONTENT] No Perplexity response for crypto news, falling back to CoinDesk');
+        const article = await this.coinDeskService.getRandomArticle();
+        if (!article) {
+          console.log('⚠️ [KOL CONTENT] No news articles available');
+          return null;
+        }
+        return await this.generateNewsFromCoinDesk(article);
       }
 
       // Select personality
       const personality = this.personalities[this.currentPersonalityIndex];
       this.currentPersonalityIndex = (this.currentPersonalityIndex + 1) % this.personalities.length;
 
+      console.log(`✅ [CRYPTO NEWS] Real-time news: ${perplexityResponse.content.substring(0, 100)}...`);
+
       const prompt = `You are ${personality.name}, a real crypto KOL with ${personality.style}.
 
-📰 CRYPTO NEWS:
-Title: "${article.title}"
-Description: "${article.description}"
-Source: ${article.source}
+📰 REAL-TIME CRYPTO NEWS:
+${perplexityResponse.content}
 
 ${personality.tone}
 
 Generate a DeGen Oracle-style news recap that:
-- DO NOT mention CoinDesk or where the news came from
-- ONLY quote/mention the original source (${article.source}) if it's valuable, credible, or adds context (e.g., "Bloomberg reports...", "SEC just dropped...")
-- If source isn't notable, just share the news naturally without attribution
+- Uses the REAL-TIME news data above (not stale data)
 - Summarizes the key points in crypto-native language
 - Adds your unique perspective/analysis
 - Uses crypto slang naturally (not forced)
@@ -584,15 +609,11 @@ Opening variations (use different ones):
 - "Apes, [news]..."
 - "Ser, [news]..."
 - "Frens, [news]..."
-- Just start with the news directly: "SEC just approved..."
+- Just start with the news directly: "BTC just hit..."
 - "Breaking: [news]..."
 - "Alpha: [news]..."
 
-Example (with source): "SEC just approved spot ETH ETFs—institutions loading up. This means more normie money flowing in. Bullish for alts too. Stack before the pump 🔥"
-
-Example (no source): "AI trading bots are going wild rn—your 24/7 alpha hunters. More uptime, less FOMO, less rekt. For us apes, this is free leverage. Stack sats, sleep easy. GM! 🔥"
-
-Example (GM opening): "GM anons, whale wallets accumulating again—$420M moved off exchanges this week. Smart money positioning for the next leg up. Follow the whales, not the hype 👀"
+Example: "BTC just hit $125K—whales are loading up again. Smart money positioning for the next leg up. Follow the whales, not the hype 👀"
 
 News recap:`;
 
@@ -636,10 +657,18 @@ News recap:`;
         return null;
       }
 
-      // Fetch today's crypto news facts from Perplexity (use reasoning for creativity)
-      const perplexityResponse = await this.perplexityService.searchWithReasoning(
-        'Tell me ONE SHORT crypto joke about ONE topic from today\'s news. Pick one interesting crypto event and make a degen joke about it. Max 280 characters. No markdown, no citations in text, just the joke!'
-      );
+      // 🚀 ENHANCED: Fetch latest crypto news for more current jokes
+      const newsJokeQueries = [
+        'Latest crypto news last 2 hours, make a degen joke about current Bitcoin price or recent crypto event. Max 280 chars.',
+        'Recent crypto developments today, create a funny degen take on current market situation. Max 280 chars.',
+        'Latest Solana or crypto ecosystem news, make a humorous degen comment. Max 280 chars.',
+        'Current crypto market movers, create a joke about trending tokens or recent events. Max 280 chars.'
+      ];
+      
+      const randomJokeQuery = newsJokeQueries[Math.floor(Math.random() * newsJokeQueries.length)];
+      console.log(`🎭 [NEWS JOKE] Using query: ${randomJokeQuery}`);
+      
+      const perplexityResponse = await this.perplexityService.searchWithReasoning(randomJokeQuery);
 
       if (!perplexityResponse || !perplexityResponse.content) {
         console.log('⚠️ [KOL CONTENT] No Perplexity response for news joke');
@@ -698,9 +727,18 @@ News recap:`;
         return null;
       }
 
-      const perplexityResponse = await this.perplexityService.searchWithReasoning(
-        'What is happening in crypto and Solana markets today? Bitcoin price, Solana ecosystem, major liquidations, trending events. Brief summary.'
-      );
+      // 🚀 ENHANCED: Use specific real-time queries for more current data
+      const realTimeQueries = [
+        'Bitcoin current price right now, latest Bitcoin news last 2 hours, Bitcoin price movement today',
+        'Solana current price right now, latest Solana news last 2 hours, Solana ecosystem updates',
+        'Crypto market movers right now, biggest gainers losers last 2 hours, major liquidations today',
+        'Latest crypto news last 2 hours, trending crypto events today, major announcements'
+      ];
+      
+      const randomQuery = realTimeQueries[Math.floor(Math.random() * realTimeQueries.length)];
+      console.log(`🔍 [NORMAL] Using real-time query: ${randomQuery}`);
+      
+      const perplexityResponse = await this.perplexityService.searchWithReasoning(randomQuery);
 
       if (!perplexityResponse || !perplexityResponse.content) {
         console.log('⚠️ [NORMAL] No Perplexity response for market sentiment');
@@ -1398,6 +1436,59 @@ Market meme:`;
 
     } catch (error) {
       console.error('❌ [KOL CONTENT] Error in content cycle:', error.message);
+    }
+  }
+
+  /**
+   * Helper method: Generate news from CoinDesk (fallback)
+   */
+  async generateNewsFromCoinDesk(article) {
+    try {
+      // Select personality
+      const personality = this.personalities[this.currentPersonalityIndex];
+      this.currentPersonalityIndex = (this.currentPersonalityIndex + 1) % this.personalities.length;
+
+      const prompt = `You are ${personality.name}, a real crypto KOL with ${personality.style}.
+
+📰 CRYPTO NEWS:
+Title: "${article.title}"
+Description: "${article.description}"
+Source: ${article.source}
+
+${personality.tone}
+
+Generate a DeGen Oracle-style news recap that:
+- DO NOT mention CoinDesk or where the news came from
+- ONLY quote/mention the original source (${article.source}) if it's valuable, credible, or adds context
+- If source isn't notable, just share the news naturally without attribution
+- Summarizes the key points in crypto-native language
+- Adds your unique perspective/analysis
+- Uses crypto slang naturally (not forced)
+- Highlights what this means for degens
+- NO hashtags
+- Max 280 characters
+- Sound like a real person sharing alpha, not a bot
+
+News recap:`;
+
+      const recap = await this.openaiService.generateCompletion(prompt, {
+        maxTokens: 120,
+        temperature: 0.8,
+        model: 'gpt-4o',
+        presencePenalty: 0.3
+      });
+
+      if (!recap || !recap.trim()) {
+        console.log('⚠️ [KOL CONTENT] Failed to generate news recap from CoinDesk');
+        return null;
+      }
+
+      console.log(`✅ [KOL CONTENT] Generated news recap (CoinDesk fallback): ${recap.substring(0, 80)}...`);
+      return recap.trim();
+
+    } catch (error) {
+      console.error('❌ [KOL CONTENT] Error generating news from CoinDesk:', error.message);
+      return null;
     }
   }
 }
