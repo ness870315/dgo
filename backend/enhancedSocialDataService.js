@@ -3,6 +3,7 @@ import fs from 'fs/promises';
 import path from 'path';
 // TwitterApiManager will be imported dynamically to handle deployment issues
 import CacheLockService from './cacheLockService.js';
+import TwitterAPIioSearchService from './services/TwitterAPIioSearchService.js';
 
 class EnhancedSocialDataService {
   constructor() {
@@ -23,6 +24,18 @@ class EnhancedSocialDataService {
     // Twitter microservice configuration
     this.twitterServiceUrl = process.env.TWITTER_SERVICE_URL || 'https://dgo-2.onrender.com';
     this.twitterApi = null; // Will be replaced by microservice calls
+    
+    // TwitterAPI.io Search Service (new primary method)
+    this.twitterAPIioSearch = null;
+    if (process.env.TWITTERAPIIO_SEARCH_ENABLED === 'true') {
+      try {
+        this.twitterAPIioSearch = new TwitterAPIioSearchService();
+        console.log('✅ [EnhancedSocialDataService] TwitterAPI.io Search service initialized');
+      } catch (error) {
+        console.error('❌ [EnhancedSocialDataService] Failed to initialize TwitterAPI.io Search:', error.message);
+        console.log('   Will use twitter-service microservice fallback');
+      }
+    }
     
     // 🚨 NEW: Twitter API Manager for 15K/month limit protection with fallback
     // Will be initialized asynchronously in initialize() method
@@ -514,53 +527,88 @@ class EnhancedSocialDataService {
         username = socialLinks.twitter.replace('@', '');
       }
       
-      // Execute searches
+      // Execute searches - try TwitterAPI.io first, then fallback to microservice
       let allTweets = []; // Store all tweets before filtering
-      for (const strategy of searchStrategies) {
+      
+      // 🚀 NEW: Try TwitterAPI.io Search first (if enabled)
+      if (process.env.TWITTERAPIIO_SEARCH_ENABLED === 'true' && this.twitterAPIioSearch) {
         try {
-          console.log(`🔍 Executing ${strategy.type} search via microservice...`);
+          console.log(`🔍 [TwitterAPI.io Search] Searching for token mentions: ${symbol}`);
           
-          const response = await axios.get(`${this.twitterServiceUrl}${strategy.endpoint}`, {
-            params: strategy.params,
-            timeout: 30000
-          });
+          const startTime = searchStrategies[0]?.params?.start_time || null;
+          const searchResult = await this.twitterAPIioSearch.searchTokenMentions(symbol, 20, startTime);
           
-          if (response.data.success) {
-            let tweets = response.data.tweets || response.data.mentions || [];
+          if (searchResult.success && searchResult.tweets.length > 0) {
+            console.log(`✅ [TwitterAPI.io Search] Found ${searchResult.tweets.length} tweets for ${symbol}`);
             
-            // 🎯 RELAXED POST-FILTERING: Verify tweet contains $SYMBOL or #SYMBOL anywhere
-            // More permissive - just check if the symbol appears with $ or # prefix
-            if (tweets.length > 0) {
-              const before = tweets.length;
-              // Regex: Match $SYMBOL or #SYMBOL (case-insensitive, allow anywhere in text)
-              const strictRegex = new RegExp(`(\\$|#)${symbol}`, 'i');
-              
-              tweets = tweets.filter(t => {
-                const text = t.text || '';
-                const matches = strictRegex.test(text);
-                if (!matches) {
-                  console.log(`   🚫 Filtered: "${text.substring(0, 80)}..."`);
-                }
-                return matches;
-              });
-              
-              if (tweets.length < before) {
-                console.log(`🔍 Symbol filter: ${before} → ${tweets.length} tweets (removed ${before - tweets.length} without $${symbol} or #${symbol})`);
-              }
-            }
+            // Transform to our internal format
+            const transformedTweets = this.twitterAPIioSearch.transformSearchTweets(searchResult.tweets);
+            allTweets = [...allTweets, ...transformedTweets];
             
-            console.log(`✅ Found ${tweets.length} tweets for ${strategy.type}`);
-            allTweets = allTweets.concat(tweets);
+            console.log(`🎯 [TwitterAPI.io Search] Using ${transformedTweets.length} tweets for social health calculation`);
           } else {
-            console.log(`❌ ${strategy.type} search failed: ${response.data.detail || 'Unknown error'}`);
+            console.log(`⚠️ [TwitterAPI.io Search] No tweets found for ${symbol}, falling back to microservice`);
+            throw new Error('No tweets found via TwitterAPI.io');
           }
           
-          // Small delay between searches
-          await new Promise(resolve => setTimeout(resolve, 2000));
+        } catch (twitterAPIioError) {
+          console.warn(`⚠️ [TwitterAPI.io Search] Failed: ${twitterAPIioError.message}`);
+          console.log(`🔄 [TwitterAPI.io Search] Falling back to twitter-service microservice...`);
           
-        } catch (error) {
-          console.log(`⚠️ ${strategy.type} search error: ${error.message}`);
-          // Continue with other searches
+          // Fall through to microservice fallback
+        }
+      }
+      
+      // Fallback to twitter-service microservice if TwitterAPI.io not enabled or failed
+      if (allTweets.length === 0) {
+        console.log(`🔍 [Microservice Fallback] Using twitter-service for ${symbol}`);
+        
+        for (const strategy of searchStrategies) {
+          try {
+            console.log(`🔍 Executing ${strategy.type} search via microservice...`);
+            
+            const response = await axios.get(`${this.twitterServiceUrl}${strategy.endpoint}`, {
+              params: strategy.params,
+              timeout: 30000
+            });
+            
+            if (response.data.success) {
+              let tweets = response.data.tweets || response.data.mentions || [];
+              
+              // 🎯 RELAXED POST-FILTERING: Verify tweet contains $SYMBOL or #SYMBOL anywhere
+              // More permissive - just check if the symbol appears with $ or # prefix
+              if (tweets.length > 0) {
+                const before = tweets.length;
+                // Regex: Match $SYMBOL or #SYMBOL (case-insensitive, allow anywhere in text)
+                const strictRegex = new RegExp(`(\\$|#)${symbol}`, 'i');
+                
+                tweets = tweets.filter(t => {
+                  const text = t.text || '';
+                  const matches = strictRegex.test(text);
+                  if (!matches) {
+                    console.log(`   🚫 Filtered: "${text.substring(0, 80)}..."`);
+                  }
+                  return matches;
+                });
+                
+                if (tweets.length < before) {
+                  console.log(`🔍 Symbol filter: ${before} → ${tweets.length} tweets (removed ${before - tweets.length} without $${symbol} or #${symbol})`);
+                }
+              }
+              
+              console.log(`✅ Found ${tweets.length} tweets for ${strategy.type}`);
+              allTweets = allTweets.concat(tweets);
+            } else {
+              console.log(`❌ ${strategy.type} search failed: ${response.data.detail || 'Unknown error'}`);
+            }
+            
+            // Small delay between searches
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+          } catch (error) {
+            console.log(`⚠️ ${strategy.type} search error: ${error.message}`);
+            // Continue with other searches
+          }
         }
       }
       
