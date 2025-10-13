@@ -854,6 +854,8 @@ Pay via Phantom/Solflare with USDC on Solana`;
         ? analysis.tokens[0].replace(/[$@]/g, '').toUpperCase()
         : null;
       
+      let tokenData = null; // Declare tokenData early
+      
       // If no specific token, check parent tweet for context or use Perplexity
       if (!symbol && parentTweet) {
         // Try to extract tokens from parent tweet
