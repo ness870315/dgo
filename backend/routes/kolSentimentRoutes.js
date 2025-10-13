@@ -627,10 +627,8 @@ router.get('/kols', async (req, res) => {
     
     res.json({
       success: true,
-      data: {
-        kols: kols,
-        total: kols.length
-      }
+      data: kols,
+      total: kols.length
     });
     
   } catch (error) {

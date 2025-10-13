@@ -299,8 +299,8 @@
                 }
                 
                 if (kolsResult.success) {
-                    console.log('KOLs fetched:', kolsResult.data.kols);
-                    updateKOLList(kolsResult.data.kols);
+                    console.log('KOLs fetched:', kolsResult.data);
+                    updateKOLList(kolsResult.data);
                 } else {
                     console.error('Failed to fetch KOLs:', kolsResult.error);
                     updateStatus('Error fetching KOLs: ' + kolsResult.error, 'error');
