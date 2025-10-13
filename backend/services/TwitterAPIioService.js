@@ -101,7 +101,7 @@ class TwitterAPIioService {
   async getTweetsByIds(tweetIds) {
     try {
       const ids = Array.isArray(tweetIds) ? tweetIds.join(',') : tweetIds;
-      const url = `${this.baseUrl}/tweets?ids=${ids}`;
+      const url = `${this.baseUrl}/tweets?tweet_ids=${ids}`;  // ← Changed to tweet_ids
       
       console.log(`🔍 [TwitterAPI.io] Fetching ${Array.isArray(tweetIds) ? tweetIds.length : 1} tweet(s)...`);
       console.log(`📡 [TwitterAPI.io] Request URL: ${url}`);
