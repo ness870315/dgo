@@ -386,41 +386,26 @@ class TwitterMentionService {
         if (replyToTweet && replyToTweet.id) {
           console.log(`🔗 [MENTIONS] This is a reply to tweet ${replyToTweet.id} with @dgnoracle mention, fetching parent...`);
           try {
-            // Try TwitterAPI.io first if enabled
-            if (process.env.USE_TWITTERAPIIO_MENTIONS === 'true' && this.twitterAPIio) {
+            // Try TwitterAPI.io first if available
+            if (this.twitterAPIio) {
               try {
                 const parentData = await this.twitterAPIio.getTweetById(replyToTweet.id);
                 if (parentData) {
                   parentTweet = this.twitterAPIio.transformTweet(parentData);
                   console.log(`✅ [MENTIONS] Parent tweet fetched via TwitterAPI.io`);
+                } else {
+                  console.log(`⚠️ [MENTIONS] TwitterAPI.io returned null for parent tweet ${replyToTweet.id}`);
                 }
               } catch (apiError) {
-                console.log(`⚠️ [MENTIONS] TwitterAPI.io failed for parent (${apiError.message}), trying OAuth fallback...`);
-                // Fallback to OAuth
-                try {
-                  const parentData = await this.twitterService.oauthXService.getTweet(
-                    replyToTweet.id,
-                    this.twitterService.dgnOracleUserId
-                  );
-                  if (parentData) {
-                    parentTweet = parentData;
-                    console.log(`✅ [MENTIONS] Parent tweet fetched via OAuth fallback`);
-                  } else {
-                    console.warn(`⚠️ [MENTIONS] OAuth also returned null for parent tweet`);
-                  }
-                } catch (oauthError) {
-                  console.error(`❌ [MENTIONS] OAuth fallback also failed:`, oauthError.message);
-                }
+                console.error(`❌ [MENTIONS] TwitterAPI.io failed for parent tweet ${replyToTweet.id}:`, apiError.message);
+                console.log(`⚠️ [MENTIONS] Skipping parent tweet fetch due to API error`);
+                // Don't fallback to OAuth to avoid usage cap issues
+                parentTweet = null;
               }
             } else {
-              // Use OAuth
-              const parentData = await this.twitterService.oauthXService.getTweet(
-                replyToTweet.id,
-                this.twitterService.dgnOracleUserId
-              );
-              if (parentData) {
-                parentTweet = parentData;
-              }
+              console.log(`⚠️ [MENTIONS] TwitterAPI.io not available, skipping parent tweet fetch`);
+              console.log(`   (Avoiding OAuth usage cap issues)`);
+              parentTweet = null;
             }
             
             if (parentTweet) {
