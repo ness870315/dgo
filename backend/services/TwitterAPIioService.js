@@ -28,16 +28,17 @@ class TwitterAPIioService {
    * Endpoint: GET /user/mentions
    * 
    * @param {string} userName - Twitter username (e.g., 'dgnoracle')
-   * @param {string} cursor - Pagination cursor for next page
+   * @param {string} sinceId - Only return mentions after this tweet ID (for incremental fetching)
    * @returns {Promise<Object>} - Mentions response with tweets array
    */
-  async getMentions(userName = null, cursor = null) {
+  async getMentions(userName = null, sinceId = null) {
     try {
       let url = `${this.baseUrl}/user/mentions`;
       
       const params = new URLSearchParams();
       if (userName) params.append('userName', userName);
-      if (cursor) params.append('cursor', cursor);
+      // Note: twitterapi.io doesn't support sinceId filtering, we'll filter client-side
+      // if (sinceId) params.append('sinceId', sinceId);
       
       if (params.toString()) {
         url += `?${params.toString()}`;
@@ -65,10 +66,21 @@ class TwitterAPIioService {
         throw new Error(data.message || 'API returned error status');
       }
       
-      console.log(`✅ [TwitterAPI.io] Fetched ${data.tweets?.length || 0} mentions`);
+      let tweets = data.tweets || [];
+      
+      // Client-side filtering if sinceId provided (API doesn't support it natively)
+      if (sinceId && tweets.length > 0) {
+        tweets = tweets.filter(tweet => {
+          // Only include tweets with ID greater than sinceId
+          return BigInt(tweet.id) > BigInt(sinceId);
+        });
+        console.log(`🔍 [TwitterAPI.io] Filtered to ${tweets.length} new mentions (since ${sinceId})`);
+      }
+      
+      console.log(`✅ [TwitterAPI.io] Fetched ${tweets.length} mentions`);
       
       return {
-        tweets: data.tweets || [],
+        tweets: tweets,
         hasNextPage: data.has_next_page || false,
         nextCursor: data.next_cursor || null
       };
