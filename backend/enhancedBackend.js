@@ -196,9 +196,127 @@ class EnhancedBackend {
     // Initialize Winston logger
     logger.info('🚀 Enhanced Backend v3.0 starting up...');
     logger.info('🔄 Initializing services and middleware...');
+    
+    // Load KOL Sentiment Dashboard Routes asynchronously
+    this.loadKOLRoutes();
+    
     logger.info('✅ Enhanced Backend constructor completed');
     
     // Enhanced backup system is now initialized in start() method
+  }
+
+  async loadKOLRoutes() {
+    try {
+      const { default: kolSentimentRoutes } = await import('./routes/kolSentimentRoutes.js');
+      this.app.use('/api/kolsentiment', kolSentimentRoutes);
+      
+      // Serve KOL dashboard page
+      this.app.get('/kolsentiment', (req, res) => {
+        res.send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KOL Alpha Dashboard - Degen Oracle</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 600px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 1.2em;
+            margin-bottom: 30px;
+        }
+        .cta-button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: bold;
+            text-decoration: none;
+            display: inline-block;
+            transition: transform 0.2s;
+        }
+        .cta-button:hover {
+            transform: translateY(-2px);
+        }
+        .features {
+            text-align: left;
+            margin: 30px 0;
+            color: #555;
+        }
+        .features ul {
+            list-style: none;
+            padding: 0;
+        }
+        .features li {
+            margin: 10px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+        .features li:before {
+            content: "🚀";
+            position: absolute;
+            left: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 KOL Alpha Dashboard</h1>
+        <p class="subtitle">Who moves what, when, and how — across crypto KOLs</p>
+        
+        <div class="features">
+            <ul>
+                <li>Real-time KOL × Coin heatmap with sentiment coloring</li>
+                <li>Alpha signal detection for high-potential opportunities</li>
+                <li>KOL reliability leaderboard with HRS scoring</li>
+                <li>Network analysis showing KOL amplification chains</li>
+                <li>Dynamic KOL management (add/edit/delete)</li>
+                <li>Auto-refresh dashboard with 30-second intervals</li>
+            </ul>
+        </div>
+        
+        <a href="/api/kolsentiment/dashboard" class="cta-button">
+            📊 Access Dashboard API
+        </a>
+        
+        <p style="margin-top: 30px; color: #888; font-size: 0.9em;">
+            Dashboard UI coming soon! For now, access the API endpoints directly.
+        </p>
+    </div>
+</body>
+</html>
+        `);
+      });
+      
+      logger.info('✅ KOL Sentiment Dashboard routes loaded');
+    } catch (error) {
+      logger.warn(`⚠️ Failed to load KOL Sentiment routes: ${error.message}`);
+    }
   }
 
   setupMiddleware() {
@@ -349,6 +467,7 @@ class EnhancedBackend {
         });
       }
     });
+
 
     // Activate Premium for the authenticated user
     this.app.post('/api/user/premium/activate', async (req, res) => {
