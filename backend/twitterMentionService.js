@@ -371,16 +371,20 @@ class TwitterMentionService {
         referencedTweets: mention.referenced_tweets
       });
       
-      // Fetch parent tweet if this is a reply (the original tweet user is commenting under)
+      // Fetch parent tweet ONLY if user specifically mentions @dgnoracle in their reply
       let parentTweet = null;
       
-      // Check if this mention is a reply to another tweet
-      if (mention.referenced_tweets && mention.referenced_tweets.length > 0) {
+      // Check if user specifically tagged @dgnoracle in their reply
+      const textLower = text.toLowerCase();
+      const mentionsDgnoracle = textLower.includes('@dgnoracle');
+      
+      // Only fetch parent tweet if this is a reply AND user tagged @dgnoracle
+      if (mention.referenced_tweets && mention.referenced_tweets.length > 0 && mentionsDgnoracle) {
         const replyToTweet = mention.referenced_tweets.find(ref => ref.type === 'replied_to');
-        console.log(`🔍 [MENTIONS DEBUG] Found reply reference:`, replyToTweet);
+        console.log(`🔍 [MENTIONS DEBUG] Found reply reference and @dgnoracle mention:`, replyToTweet);
         
         if (replyToTweet && replyToTweet.id) {
-          console.log(`🔗 [MENTIONS] This is a reply to tweet ${replyToTweet.id}, fetching parent...`);
+          console.log(`🔗 [MENTIONS] This is a reply to tweet ${replyToTweet.id} with @dgnoracle mention, fetching parent...`);
           try {
             // Try TwitterAPI.io first if enabled
             if (process.env.USE_TWITTERAPIIO_MENTIONS === 'true' && this.twitterAPIio) {
@@ -448,6 +452,8 @@ class TwitterMentionService {
             console.error(`❌ [MENTIONS] Failed to fetch parent tweet:`, err.message);
           }
         }
+      } else if (mention.referenced_tweets && mention.referenced_tweets.length > 0) {
+        console.log(`ℹ️ [MENTIONS] This is a reply but doesn't mention @dgnoracle - no parent tweet fetch needed`);
       } else {
         console.log(`ℹ️ [MENTIONS] This is NOT a reply - no parent tweet to fetch`);
       }
