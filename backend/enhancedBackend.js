@@ -197,9 +197,6 @@ class EnhancedBackend {
     logger.info('🚀 Enhanced Backend v3.0 starting up...');
     logger.info('🔄 Initializing services and middleware...');
     
-    // Load KOL Sentiment Dashboard Routes asynchronously
-    this.loadKOLRoutes();
-    
     logger.info('✅ Enhanced Backend constructor completed');
     
     // Enhanced backup system is now initialized in start() method
@@ -12732,6 +12729,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
   async start() {
     try {
+      // Load KOL routes first
+      await this.loadKOLRoutes();
+      
       await this.tokenProcessor.initialize();
 
       // Initialize Social Context AI
