@@ -385,11 +385,25 @@ router.post('/force-enrich', async (req, res) => {
   }
 });
 
+// Rate limiting for API calls
+let lastApiCall = 0;
+const API_CALL_DELAY = 2000; // 2 seconds between calls
+
 // POST /api/kol/fetch-coin-image/:symbol - Fetch coin image from CoinGecko or Perplexity
 router.post('/fetch-coin-image/:symbol', async (req, res) => {
   try {
     const { symbol } = req.params;
     console.log(`🖼️ [KOL API] Fetching image for ${symbol}...`);
+    
+    // Rate limiting - wait if we called API recently
+    const now = Date.now();
+    const timeSinceLastCall = now - lastApiCall;
+    if (timeSinceLastCall < API_CALL_DELAY) {
+      const waitTime = API_CALL_DELAY - timeSinceLastCall;
+      console.log(`⏳ [KOL API] Rate limiting: waiting ${waitTime}ms before API call...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    lastApiCall = Date.now();
     
     // Try CoinGecko first
     try {
@@ -404,6 +418,8 @@ router.post('/fetch-coin-image/:symbol', async (req, res) => {
             source: 'coingecko'
           });
         }
+      } else if (response.status === 429) {
+        console.log(`⚠️ [KOL API] CoinGecko rate limit hit for ${symbol}, trying Perplexity...`);
       }
     } catch (error) {
       console.log(`❌ [KOL API] CoinGecko failed for ${symbol}: ${error.message}`);
@@ -446,6 +462,13 @@ router.post('/fetch-coin-image/:symbol', async (req, res) => {
             });
           }
         }
+      } else if (perplexityResponse.status === 429) {
+        console.log(`⚠️ [KOL API] Perplexity rate limit hit for ${symbol}`);
+        return res.json({
+          success: false,
+          imageUrl: null,
+          message: 'Rate limited - please try again later'
+        });
       }
     } catch (error) {
       console.log(`❌ [KOL API] Perplexity failed for ${symbol}: ${error.message}`);
