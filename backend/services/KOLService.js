@@ -502,8 +502,19 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       const formattedDate = date.toISOString().split('T')[0];
       const time = date.toTimeString().substring(0, 5);
       
-      // Enhanced query with $ ticker and Solana context for better results
-      const query = `What is the price of $${symbol} on Solana blockchain on ${formattedDate} at ${time} UTC? If not on Solana, check other blockchains. Please provide only the USD price as a number.`;
+      // Smart blockchain detection
+      const majorCoins = ['BTC', 'ETH', 'BNB', 'XRP', 'ADA', 'DOGE', 'MATIC', 'DOT', 'AVAX', 'LINK', 'UNI', 'ATOM', 'LTC', 'BCH', 'XLM', 'ALGO', 'VET', 'ICP', 'FIL', 'HBAR', 'NEAR', 'FLOW', 'EOS', 'AAVE', 'MKR', 'SNX', 'COMP'];
+      const isMajorCoin = majorCoins.includes(symbol.toUpperCase());
+      
+      // Construct appropriate query based on coin type
+      let query;
+      if (isMajorCoin) {
+        // For major coins, don't specify blockchain
+        query = `What was the price of ${symbol} cryptocurrency on ${formattedDate} around ${time} UTC? Please provide only the USD price as a number.`;
+      } else {
+        // For other coins (likely Solana memecoins), mention Solana
+        query = `What was the price of $${symbol} token on ${formattedDate} around ${time} UTC? Check Solana blockchain and other chains. Please provide only the USD price as a number.`;
+      }
       
       console.log(`🔍 [KOL SERVICE] Fetching historical price for $${symbol} at ${formattedDate} ${time}`);
       
