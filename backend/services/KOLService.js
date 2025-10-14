@@ -463,8 +463,9 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
   // Fetch coin data from DegenOracle backend
   async fetchCoinData(symbol) {
     try {
-      // Try to fetch from main backend
-      const response = await axios.get(`http://localhost:${process.env.PORT || 3001}/api/tokens`, {
+      // Use 127.0.0.1 to avoid IPv6 issues (::1)
+      const port = process.env.PORT || 3001;
+      const response = await axios.get(`http://127.0.0.1:${port}/api/tokens`, {
         timeout: 5000
       });
       
