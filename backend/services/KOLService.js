@@ -25,6 +25,7 @@ class KOLService {
     this.dataDir = path.join(dataDir, 'kol-cache');
     this.kolsFile = path.join(this.dataDir, 'kols.json');
     this.postsFile = path.join(this.dataDir, 'posts.json');
+    this.logosCacheFile = path.join(this.dataDir, 'logos-cache.json');
     
     // Ensure directory exists synchronously
     try {
@@ -36,6 +37,10 @@ class KOLService {
     
     this.openaiService = new OpenAIService();
     this.perplexityService = new PerplexitySonarService();
+    
+    // Logo cache (symbol -> logo URL)
+    this.logosCache = new Map();
+    this.loadLogosCache();
     
     // Start backfill job
     this.startBackfillJob();
@@ -82,6 +87,33 @@ class KOLService {
       }
     } catch (error) {
       console.error('❌ [KOL SERVICE] Error loading data:', error.message);
+    }
+  }
+
+  // Load logos cache from disk (synchronous for constructor)
+  loadLogosCache() {
+    try {
+      if (fsSync.existsSync(this.logosCacheFile)) {
+        const data = fsSync.readFileSync(this.logosCacheFile, 'utf8');
+        const logosObj = JSON.parse(data);
+        this.logosCache = new Map(Object.entries(logosObj));
+        console.log(`📦 [KOL SERVICE] Loaded ${this.logosCache.size} cached logos`);
+      }
+    } catch (error) {
+      console.warn('⚠️ [KOL SERVICE] Could not load logos cache:', error.message);
+    }
+  }
+
+  // Save logos cache to disk
+  async saveLogosCache() {
+    try {
+      const logosObj = Object.fromEntries(this.logosCache);
+      const tempPath = this.logosCacheFile + '.tmp';
+      await fs.writeFile(tempPath, JSON.stringify(logosObj, null, 2), 'utf8');
+      await fs.rename(tempPath, this.logosCacheFile);
+      console.log(`💾 [KOL SERVICE] Saved ${this.logosCache.size} logos to cache`);
+    } catch (error) {
+      console.error('❌ [KOL SERVICE] Error saving logos cache:', error.message);
     }
   }
 
@@ -460,6 +492,47 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
     }
   }
 
+  // Fetch logo from CoinGecko (cached, only called once per coin)
+  async fetchLogoFromCoinGecko(symbol) {
+    // Check cache first
+    if (this.logosCache.has(symbol.toUpperCase())) {
+      const cachedLogo = this.logosCache.get(symbol.toUpperCase());
+      console.log(`📦 [KOL SERVICE] Using cached logo for ${symbol}`);
+      return cachedLogo;
+    }
+
+    try {
+      // Search for coin on CoinGecko
+      console.log(`🔍 [KOL SERVICE] Fetching logo from CoinGecko for ${symbol}...`);
+      
+      const searchResponse = await axios.get(`https://api.coingecko.com/api/v3/search?query=${symbol}`, {
+        timeout: 5000
+      });
+
+      const coin = searchResponse.data?.coins?.[0];
+      if (coin && coin.large) {
+        const logo = coin.large;
+        // Cache it
+        this.logosCache.set(symbol.toUpperCase(), logo);
+        await this.saveLogosCache();
+        console.log(`✅ [KOL SERVICE] Cached logo for ${symbol} from CoinGecko`);
+        return logo;
+      }
+
+      // Cache null result to avoid repeated failed calls
+      this.logosCache.set(symbol.toUpperCase(), null);
+      await this.saveLogosCache();
+      return null;
+
+    } catch (error) {
+      console.warn(`⚠️ [KOL SERVICE] Could not fetch logo from CoinGecko for ${symbol}:`, error.message);
+      // Cache null to avoid repeated calls
+      this.logosCache.set(symbol.toUpperCase(), null);
+      await this.saveLogosCache();
+      return null;
+    }
+  }
+
   // Fetch coin data from DegenOracle backend
   async fetchCoinData(symbol) {
     try {
@@ -484,6 +557,11 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
             logo = `https://img.fotofolio.xyz/?url=https%3A%2F%2Fraw.githubusercontent.com%2Fsolana-labs%2Ftoken-list%2Fmain%2Fassets%2Fmainnet%2F${coin.contractAddress}%2Flogo.png`;
           }
           
+          // If still no logo, try CoinGecko (cached)
+          if (!logo) {
+            logo = await this.fetchLogoFromCoinGecko(symbol);
+          }
+          
           return {
             symbol: coin.symbol,
             name: coin.name,
@@ -494,6 +572,22 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
             price_change_24h: coin.priceChange24h
           };
         }
+      }
+      
+      // Coin not in DegenOracle, try CoinGecko for logo only
+      console.warn(`⚠️ [KOL SERVICE] ${symbol} not in DegenOracle, trying CoinGecko for logo...`);
+      const logo = await this.fetchLogoFromCoinGecko(symbol);
+      
+      if (logo) {
+        return {
+          symbol: symbol,
+          name: symbol,
+          image: logo,
+          price: null,
+          volume_24h: null,
+          mcap: null,
+          price_change_24h: null
+        };
       }
       
       return null;
