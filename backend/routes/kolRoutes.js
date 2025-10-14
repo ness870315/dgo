@@ -385,4 +385,79 @@ router.post('/force-enrich', async (req, res) => {
   }
 });
 
+// POST /api/kol/fetch-coin-image/:symbol - Fetch coin image from CoinGecko or Perplexity
+router.post('/fetch-coin-image/:symbol', async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    console.log(`🖼️ [KOL API] Fetching image for ${symbol}...`);
+    
+    // Try CoinGecko first
+    try {
+      const response = await fetch(`https://api.coingecko.com/api/v3/coins/${symbol.toLowerCase()}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.image && data.image.large) {
+          console.log(`✅ [KOL API] Found CoinGecko image for ${symbol}: ${data.image.large}`);
+          return res.json({
+            success: true,
+            imageUrl: data.image.large,
+            source: 'coingecko'
+          });
+        }
+      }
+    } catch (error) {
+      console.log(`❌ [KOL API] CoinGecko failed for ${symbol}: ${error.message}`);
+    }
+    
+    // Try Perplexity as fallback
+    try {
+      const query = `What is the logo image URL for ${symbol} cryptocurrency? Please provide only the direct image URL.`;
+      
+      const perplexityResponse = await fetch('http://127.0.0.1:10000/api/perplexity/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          query: query,
+          model: 'sonar-pro',
+          maxTokens: 100
+        })
+      });
+      
+      if (perplexityResponse.ok) {
+        const data = await perplexityResponse.json();
+        if (data.content) {
+          // Extract URL from response
+          const urlMatch = data.content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp)/i);
+          if (urlMatch) {
+            console.log(`✅ [KOL API] Found Perplexity image for ${symbol}: ${urlMatch[0]}`);
+            return res.json({
+              success: true,
+              imageUrl: urlMatch[0],
+              source: 'perplexity'
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.log(`❌ [KOL API] Perplexity failed for ${symbol}: ${error.message}`);
+    }
+    
+    console.log(`❌ [KOL API] No image found for ${symbol}`);
+    res.json({
+      success: false,
+      imageUrl: null,
+      message: 'No image found'
+    });
+    
+  } catch (error) {
+    console.error(`❌ [KOL API] Error fetching image for ${req.params.symbol}:`, error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router;
