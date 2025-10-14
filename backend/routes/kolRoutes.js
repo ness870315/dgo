@@ -113,4 +113,53 @@ router.get('/posts', async (req, res) => {
   }
 });
 
+// POST /api/kol/reanalyze - Re-analyze all posts
+router.post('/reanalyze', async (req, res) => {
+  try {
+    const service = await initializeService();
+    
+    console.log(`🔄 [KOL API] Starting re-analysis of ${service.posts.length} posts...`);
+    
+    let analyzed = 0;
+    for (const post of service.posts) {
+      // Skip if already has analysis
+      if (post.coins && post.sentiment !== undefined) {
+        continue;
+      }
+      
+      // Analyze tweet
+      const analysis = await service.analyzeTweet(post.text);
+      
+      // Update post
+      post.coins = analysis.coins;
+      post.sentiment = analysis.sentiment;
+      post.narratives = analysis.narratives;
+      
+      analyzed++;
+      
+      if (analysis.coins.length > 0) {
+        console.log(`🤖 [KOL API] Analyzed: ${analysis.coins.join(', ')} | Sentiment: ${analysis.sentiment > 0 ? '📈' : analysis.sentiment < 0 ? '📉' : '➡️'}`);
+      }
+    }
+    
+    // Save updated posts
+    await service.saveData();
+    
+    console.log(`✅ [KOL API] Re-analysis complete! Analyzed ${analyzed} tweets`);
+    
+    res.json({
+      success: true,
+      message: `Re-analyzed ${analyzed} tweets`,
+      total_posts: service.posts.length
+    });
+    
+  } catch (error) {
+    console.error('❌ [KOL API] Re-analyze error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router;
