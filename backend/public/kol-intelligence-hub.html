@@ -891,9 +891,19 @@
         let networkSimulation = null;
         let networkZoomLevel = 1;
         
+    // Frontend cache for coin images
+    const frontendImageCache = new Map();
+    
     // Fetch coin image using backend API
     async function fetchCoinImage(symbol) {
         try {
+            // Check frontend cache first
+            const cacheKey = symbol.toUpperCase();
+            if (frontendImageCache.has(cacheKey)) {
+                console.log(`💾 [FRONTEND] Using cached image for ${symbol}`);
+                return frontendImageCache.get(cacheKey);
+            }
+            
             console.log(`🖼️ [BACKEND] Fetching image for ${symbol}...`);
             
             const response = await fetch(`/api/kol/fetch-coin-image/${symbol}`, {
@@ -904,6 +914,8 @@
                 const data = await response.json();
                 if (data.imageUrl) {
                     console.log(`✅ [BACKEND] Found image for ${symbol}: ${data.imageUrl}`);
+                    // Cache the result
+                    frontendImageCache.set(cacheKey, data.imageUrl);
                     return data.imageUrl;
                 }
             }
@@ -979,7 +991,17 @@
                 try {
                     const imageUrl = await fetchCoinImage(coin);
                     if (imageUrl) {
-                        updateNodeImage(`coin_${coin}`, imageUrl);
+                        console.log(`✅ [FRONTEND] Got image for ${coin}: ${imageUrl}`);
+                        // Update the global coin data
+                        if (window.coinData) {
+                            window.coinData[coin] = {
+                                ...window.coinData[coin],
+                                image: imageUrl
+                            };
+                        }
+                        // Force re-render of the network
+                        renderNetwork();
+                        console.log(`🎨 [FRONTEND] Re-rendered network with ${coin} image`);
                     }
                     // Longer delay to avoid rate limiting - backend also has rate limiting
                     await new Promise(resolve => setTimeout(resolve, 3000));
