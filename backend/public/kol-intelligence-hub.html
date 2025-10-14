@@ -940,6 +940,10 @@
                 // Get coin image from global coinData cache
                 const coinInfo = window.coinData && window.coinData[coin];
                 
+                // Debug logging
+                console.log(`🔍 [NETWORK] Coin: ${coin}, CoinInfo:`, coinInfo);
+                console.log(`🔍 [NETWORK] Window.coinData keys:`, Object.keys(window.coinData || {}));
+                
                 const node = {
                     id: `coin_${coin}`,
                     label: coin,
@@ -951,6 +955,8 @@
                     imageUrl: coinInfo?.image || null,  // Coin logo from DegenOracle
                     price: coinInfo?.price || null
                 };
+                
+                console.log(`🔍 [NETWORK] Node for ${coin}:`, node);
                 nodes.push(node);
                 nodeMap.set(node.id, node);
             });
@@ -1095,6 +1101,8 @@
                 const nodeGroup = d3.select(this);
                 
                 if (d.imageUrl && (d.type === 'kol' || d.type === 'coin')) {
+                    console.log(`🖼️ [NETWORK] Loading image for ${d.type} ${d.label}: ${d.imageUrl}`);
+                    
                     // Use clipPath for circular images
                     const clipId = `clip-${d.id.replace(/[^a-zA-Z0-9]/g, '')}`;
                     
