@@ -704,6 +704,11 @@
                     updateNarratives();
                     updateAlphaSignals();
                     updateStats();
+                    
+                    // Fetch missing coin images from CoinGecko after network renders
+                    setTimeout(() => {
+                        fetchMissingCoinImages();
+                    }, 1000);
                 }
 
                 updateLastUpdateTime();
@@ -885,6 +890,85 @@
         // Network graph state
         let networkSimulation = null;
         let networkZoomLevel = 1;
+        
+        // Fetch coin image from CoinGecko
+        async function fetchCoinGeckoImage(symbol) {
+            try {
+                console.log(`🦎 [COINGECKO] Fetching image for ${symbol}...`);
+                const response = await fetch(`https://api.coingecko.com/api/v3/coins/${symbol.toLowerCase()}`);
+                const data = await response.json();
+                
+                if (data.image && data.image.large) {
+                    console.log(`✅ [COINGECKO] Found image for ${symbol}: ${data.image.large}`);
+                    return data.image.large;
+                }
+            } catch (error) {
+                console.log(`❌ [COINGECKO] Failed to fetch image for ${symbol}: ${error.message}`);
+            }
+            return null;
+        }
+        
+        // Update node image dynamically
+        function updateNodeImage(nodeId, imageUrl) {
+            console.log(`🔄 [NETWORK] Updating image for ${nodeId}: ${imageUrl}`);
+            
+            // Find the node in the simulation
+            const node = networkSimulation.nodes().find(n => n.id === nodeId);
+            if (node) {
+                node.imageUrl = imageUrl;
+                
+                // Update the visual representation
+                const nodeElement = d3.select(`#${nodeId}`);
+                if (!nodeElement.empty()) {
+                    // Remove existing image
+                    nodeElement.selectAll('image').remove();
+                    
+                    // Add new image
+                    const clipId = `clip-${nodeId.replace(/[^a-zA-Z0-9]/g, '')}`;
+                    
+                    nodeElement.append('defs')
+                        .append('clipPath')
+                        .attr('id', clipId)
+                        .append('circle')
+                        .attr('r', node.size);
+                    
+                    nodeElement.append('image')
+                        .attr('href', imageUrl)
+                        .attr('x', -node.size)
+                        .attr('y', -node.size)
+                        .attr('width', node.size * 2)
+                        .attr('height', node.size * 2)
+                        .attr('clip-path', `url(#${clipId})`)
+                        .on('error', function() {
+                            console.log(`❌ [NETWORK] Failed to load image for ${nodeId}: ${imageUrl}`);
+                            // Fallback to colored circle
+                            d3.select(this).remove();
+                            nodeElement.append('circle')
+                                .attr('r', node.size)
+                                .attr('fill', node.color);
+                        });
+                }
+            }
+        }
+        
+        // Fetch missing coin images from CoinGecko in bulk
+        async function fetchMissingCoinImages() {
+            const missingCoins = ['ASTER', 'APEX', 'ZEC', 'YEPE', 'HYPE', 'USDC', 'SAFEMOON'];
+            console.log(`🦎 [COINGECKO] Fetching images for ${missingCoins.length} missing coins...`);
+            
+            for (const coin of missingCoins) {
+                try {
+                    const imageUrl = await fetchCoinGeckoImage(coin);
+                    if (imageUrl) {
+                        updateNodeImage(`coin_${coin}`, imageUrl);
+                        // Small delay to avoid rate limiting
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+                } catch (error) {
+                    console.log(`❌ [COINGECKO] Error fetching ${coin}: ${error.message}`);
+                }
+            }
+        }
 
         // Render correlation network
         function renderNetwork() {
@@ -940,9 +1024,25 @@
                 // Get coin image from global coinData cache
                 const coinInfo = window.coinData && window.coinData[coin];
                 
+                // If no image found, try to fetch from CoinGecko
+                let imageUrl = coinInfo?.image || null;
+                
+                // For coins without images, fetch from CoinGecko
+                if (!imageUrl && coinInfo && Object.keys(coinInfo).length === 0) {
+                    fetchCoinGeckoImage(coin).then(url => {
+                        if (url) {
+                            // Update the node with the new image
+                            const nodeElement = d3.select(`#coin_${coin}`);
+                            if (!nodeElement.empty()) {
+                                updateNodeImage(`coin_${coin}`, url);
+                            }
+                        }
+                    });
+                }
+                
                 // Debug logging
                 console.log(`🔍 [NETWORK] Coin: ${coin}, CoinInfo:`, coinInfo);
-                console.log(`🔍 [NETWORK] Window.coinData keys:`, Object.keys(window.coinData || {}));
+                console.log(`🔍 [NETWORK] Image URL: ${imageUrl}`);
                 
                 const node = {
                     id: `coin_${coin}`,
@@ -952,7 +1052,7 @@
                     mentions: data.mentions,
                     sentiment: avgSentiment,
                     color: avgSentiment > 0.3 ? '#14F195' : avgSentiment < -0.3 ? '#FF4757' : '#9945FF',
-                    imageUrl: coinInfo?.image || null,  // Coin logo from DegenOracle
+                    imageUrl: imageUrl,
                     price: coinInfo?.price || null
                 };
                 
