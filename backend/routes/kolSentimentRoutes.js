@@ -472,18 +472,24 @@ router.post('/kols', async (req, res) => {
       });
     }
     
-    // Check if KOL already exists
-    if (service.kols.has(handle.toLowerCase())) {
+    // Normalize handle - remove @ if present
+    const normalizedHandle = handle.startsWith('@') ? handle.slice(1) : handle;
+    
+    // Check if KOL already exists (case-insensitive)
+    const existingKol = Array.from(service.kols.keys()).find(key => 
+      key.toLowerCase() === normalizedHandle.toLowerCase()
+    );
+    if (existingKol) {
       return res.status(409).json({
         success: false,
         error: 'KOL already exists'
       });
     }
     
-    // Create new KOL
+    // Create new KOL with original case
     const newKOL = {
       id: service.generateId(),
-      handle: handle.toLowerCase(),
+      handle: normalizedHandle,
       influence_score: Math.max(1, Math.min(100, influence_score)),
       segments: Array.isArray(segments) ? segments : [],
       created_at: new Date().toISOString(),
@@ -492,15 +498,25 @@ router.post('/kols', async (req, res) => {
       reliability_score: 0
     };
     
-    service.kols.set(handle.toLowerCase(), newKOL);
+    service.kols.set(normalizedHandle, newKOL);
     await service.saveKOLs();
     
-    console.log(`✅ [KOL SENTIMENT API] Added new KOL: @${handle}`);
+    console.log(`✅ [KOL SENTIMENT API] Added new KOL: @${normalizedHandle}`);
+    
+    // Immediately fetch tweets for the new KOL
+    try {
+      console.log(`🔍 [KOL SENTIMENT API] Starting immediate tweet fetch for @${normalizedHandle}...`);
+      await service.monitorKOLAccount(newKOL);
+      console.log(`✅ [KOL SENTIMENT API] Tweet fetch completed for @${normalizedHandle}`);
+    } catch (error) {
+      console.error(`⚠️ [KOL SENTIMENT API] Failed to fetch tweets for @${normalizedHandle}:`, error.message);
+      // Don't fail the request if tweet fetch fails
+    }
     
     res.json({
       success: true,
       data: newKOL,
-      message: `KOL @${handle} added successfully`
+      message: `KOL @${normalizedHandle} added successfully`
     });
     
   } catch (error) {
