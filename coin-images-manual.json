@@ -1,0 +1,35 @@
+{
+  "coinImages": {
+    "DOGE": "https://ipfs.io/ipfs/QmS4A53WG7xaxzs7vxG7s8TDdjENZYkQHq78Bp4WRJ939f",
+    "SDOGE": "https://ipfs.io/ipfs/QmQ93EwWNGLgiDWu3jRRCNT4npYEvjN9Kj6HZY73382NQu", 
+    "BABYDOGE": "https://coin-images.coingecko.com/coins/images/16125/large/babydoge.jpg?1696515731",
+    "CDOGE": "https://coin-images.coingecko.com/coins/images/51479/large/CYBERDOGE_%28200_x_200_px%29_20240828_185017_0000.png?1731404439",
+    "SWOGE": "https://ipfs.io/ipfs/bafybeid2ewvibhaefdyjahknu6hoq6yqzcxcxp4pnywtslwaglffalry4g4",
+    "DJI": "https://ipfs.io/ipfs/QmPVzz1CgyyRSQWT1Tzrp6Lrx2iSzeY6LV4kTCESVG11mH",
+    "WIENER": "https://ipfs.io/ipfs/QmQeghB8yDTv1DhMR2Zc6Tx3zdgvUeesGzR6VrL9TneYCp",
+    "WIF": "https://arweave.net/wgF3yV7WJ4QK5QK5QK5QK5QK5QK5QK5QK5QK5QK5QK5QK5Q",
+    "BONK": "https://arweave.net/hQiPZOsRZXGXBJd_82PhVNDMpEC4IPW6o2SCg8ZvR68",
+    "PEPE": "https://coin-images.coingecko.com/coins/images/29850/large/pepe-token.jpeg",
+    "SHIB": "https://coin-images.coingecko.com/coins/images/11939/large/shiba.png",
+    "BNB": "https://coin-images.coingecko.com/coins/images/825/large/bnb-icon2_2x.png",
+    "ATOM": "https://coin-images.coingecko.com/coins/images/1481/large/cosmos_hub.png",
+    "TRUMP": "https://ipfs.io/ipfs/QmQeghB8yDTv1DhMR2Zc6Tx3zdgvUeesGzR6VrL9TneYCp",
+    "POPCAT": "https://ipfs.io/ipfs/bafkreibwuxfmxknunbhif5un32gnaanmypzvyv2jxpbbfqzfineetsfpsu",
+    "FARTCOIN": "https://ipfs.io/ipfs/QmQeghB8yDTv1DhMR2Zc6Tx3zdgvUeesGzR6VrL9TneYCp",
+    "SAFEMOON": "https://coin-images.coingecko.com/coins/images/14362/large/174x174-white.png",
+    "ASTER": "https://ipfs.io/ipfs/QmQeghB8yDTv1DhMR2Zc6Tx3zdgvUeesGzR6VrL9TneYCp",
+    "USELESS": "https://ipfs.io/ipfs/QmQeghB8yDTv1DhMR2Zc6Tx3zdgvUeesGzR6VrL9TneYCp",
+    "4": "https://ipfs.io/ipfs/QmQeghB8yDTv1DhMR2Zc6Tx3zdgvUeesGzR6VrL9TneYCp"
+  },
+  "notes": {
+    "source": "Manual compilation from DegenOracle API responses and known reliable sources",
+    "lastUpdated": "2025-01-15",
+    "sources": [
+      "DegenOracle API",
+      "CoinGecko API", 
+      "Jupiter CDN",
+      "IPFS",
+      "Arweave"
+    ]
+  }
+}
