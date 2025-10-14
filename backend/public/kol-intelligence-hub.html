@@ -891,43 +891,21 @@
         let networkSimulation = null;
         let networkZoomLevel = 1;
         
-        // Fetch coin image from CoinGecko
+        // Fetch coin image from CoinGecko (simple approach like DeGen Oracle)
         async function fetchCoinGeckoImage(symbol) {
             try {
                 console.log(`🦎 [COINGECKO] Fetching image for ${symbol}...`);
+                const response = await fetch(`https://api.coingecko.com/api/v3/coins/${symbol.toLowerCase()}`);
                 
-                // Try different coin name variations
-                const variations = [
-                    symbol.toLowerCase(),
-                    symbol.toLowerCase().replace(/coin$/, ''), // Remove 'coin' suffix
-                    symbol.toLowerCase().replace(/token$/, ''), // Remove 'token' suffix
-                    'dogecoin', // Special case for DOGE
-                    'usd-coin', // Special case for USDC
-                    'safe-moon', // Special case for SAFEMOON
-                    'zcash', // Special case for ZEC
-                ];
-                
-                for (const variation of variations) {
-                    try {
-                        console.log(`🦎 [COINGECKO] Trying variation: ${variation}`);
-                        const response = await fetch(`https://api.coingecko.com/api/v3/coins/${variation}`);
-                        
-                        if (response.ok) {
-                            const data = await response.json();
-                            
-                            if (data.image && data.image.large) {
-                                console.log(`✅ [COINGECKO] Found image for ${symbol} using variation '${variation}': ${data.image.large}`);
-                                return data.image.large;
-                            }
-                        } else {
-                            console.log(`⚠️ [COINGECKO] Variation '${variation}' returned ${response.status}: ${response.statusText}`);
-                        }
-                    } catch (variationError) {
-                        console.log(`⚠️ [COINGECKO] Variation '${variation}' failed: ${variationError.message}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.image && data.image.large) {
+                        console.log(`✅ [COINGECKO] Found image for ${symbol}: ${data.image.large}`);
+                        return data.image.large;
                     }
                 }
                 
-                console.log(`❌ [COINGECKO] No image found for ${symbol} in any variation`);
+                console.log(`❌ [COINGECKO] No image found for ${symbol}`);
                 return null;
                 
             } catch (error) {
@@ -969,23 +947,22 @@
                         .attr('clip-path', `url(#${clipId})`)
                         .on('error', function() {
                             console.log(`❌ [NETWORK] Failed to load image for ${nodeId}: ${imageUrl}`);
-                            console.log(`🔍 [NETWORK] Reasons could be: CORS, invalid URL, network issue, or image doesn't exist`);
-                            
-                            // Fallback to colored circle with coin symbol
+                            // Simple fallback - just hide the image like DeGen Oracle does
                             d3.select(this).remove();
-                            nodeElement.append('circle')
-                                .attr('r', node.size)
-                                .attr('fill', node.color);
-                            
-                            // Add text label as fallback
-                            nodeElement.append('text')
-                                .attr('text-anchor', 'middle')
-                                .attr('dy', '0.35em')
-                                .attr('font-size', Math.max(8, node.size * 0.4))
-                                .attr('font-weight', 'bold')
-                                .attr('fill', '#ffffff')
-                                .text(node.label.substring(0, 3)); // First 3 chars of coin symbol
                         });
+                    
+                    // Always add fallback circle and text (like DeGen Oracle approach)
+                    nodeGroup.append('circle')
+                        .attr('r', node.size)
+                        .attr('fill', node.color);
+                    
+                    nodeGroup.append('text')
+                        .attr('text-anchor', 'middle')
+                        .attr('dy', '0.35em')
+                        .attr('font-size', Math.max(8, node.size * 0.4))
+                        .attr('font-weight', 'bold')
+                        .attr('fill', '#ffffff')
+                        .text(node.label.substring(0, 3));
                 }
             }
         }
