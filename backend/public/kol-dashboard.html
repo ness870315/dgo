@@ -272,6 +272,11 @@
                 return;
             }
 
+            // Disable button to prevent double-clicks
+            const button = event.target;
+            button.disabled = true;
+            button.textContent = 'Adding...';
+
             try {
                 const response = await fetch('/api/kol/kols', {
                     method: 'POST',
@@ -284,7 +289,7 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    alert('KOL added successfully!');
+                    alert('KOL added successfully! Fetching tweets...');
                     hideAddKOLModal();
                     loadData(); // Reload data
                 } else {
@@ -292,6 +297,10 @@
                 }
             } catch (error) {
                 alert('Error adding KOL: ' + error.message);
+            } finally {
+                // Re-enable button
+                button.disabled = false;
+                button.textContent = 'Add KOL';
             }
         }
 

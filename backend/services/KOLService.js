@@ -86,9 +86,14 @@ class KOLService {
   async addKOL(handle) {
     const normalizedHandle = handle.replace('@', '').toLowerCase();
     
+    console.log(`🔍 [KOL SERVICE] Checking if @${normalizedHandle} exists... Current KOLs: ${Array.from(this.kols.keys()).join(', ')}`);
+    
     if (this.kols.has(normalizedHandle)) {
+      console.log(`❌ [KOL SERVICE] KOL @${normalizedHandle} already exists!`);
       throw new Error('KOL already exists');
     }
+    
+    console.log(`✅ [KOL SERVICE] KOL @${normalizedHandle} is new, proceeding with creation...`);
 
     const newKOL = {
       id: this.generateId(),
