@@ -1046,9 +1046,9 @@
                 // If no image found, try to fetch from CoinGecko
                 let imageUrl = coinInfo?.image || null;
                 
-                // For coins without images, fetch from CoinGecko
+                // For coins without images, fetch from backend API
                 if (!imageUrl && coinInfo && Object.keys(coinInfo).length === 0) {
-                    fetchCoinGeckoImage(coin).then(url => {
+                    fetchCoinImage(coin).then(url => {
                         if (url) {
                             // Update the node with the new image
                             const nodeElement = d3.select(`#coin_${coin}`);
