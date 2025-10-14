@@ -276,12 +276,15 @@ class KOLService {
         // Store profile picture
         if (profilePicture) {
           kol.profile_picture = profilePicture;
-          console.log(`🖼️ [KOL SERVICE] Saved profile picture for @${handle}`);
+          console.log(`🖼️ [KOL SERVICE] Saved profile picture for @${handle}: ${profilePicture.substring(0, 50)}...`);
+        } else {
+          console.warn(`⚠️ [KOL SERVICE] No profile picture found for @${handle}`);
         }
         
         // Store follower count
         if (userInfo && userInfo.followers) {
           kol.followers = userInfo.followers;
+          console.log(`👥 [KOL SERVICE] Followers for @${handle}: ${userInfo.followers.toLocaleString()}`);
         }
         
         // Calculate influence score
@@ -498,14 +501,15 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       const formattedDate = date.toISOString().split('T')[0];
       const time = date.toTimeString().substring(0, 5);
       
-      const query = `What was the price of ${symbol} cryptocurrency on ${formattedDate} at ${time} UTC? Please provide only the USD price as a number, without currency symbols or commas.`;
+      // Enhanced query with $ ticker and Solana context for better results
+      const query = `What is the price of $${symbol} on Solana blockchain on ${formattedDate} at ${time} UTC? If not on Solana, check other blockchains. Please provide only the USD price as a number.`;
       
-      console.log(`🔍 [KOL SERVICE] Fetching historical price for ${symbol} at ${formattedDate} ${time}`);
+      console.log(`🔍 [KOL SERVICE] Fetching historical price for $${symbol} at ${formattedDate} ${time}`);
       
       const response = await this.perplexityService.searchWithReasoning(query, {
         model: 'sonar-pro',
         maxTokens: 200,
-        systemPrompt: 'You are a helpful assistant that provides only numerical price data. Respond with just the number.'
+        systemPrompt: 'You are a helpful assistant that provides only numerical cryptocurrency price data. Respond with just the price number in USD.'
       });
       
       if (!response || !response.content) return null;
@@ -516,7 +520,8 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       const patterns = [
         /\$?([\d,]+\.?\d*)/,           // $123.45 or 123.45
         /([\d,]+\.?\d*)\s*USD/i,       // 123.45 USD
-        /price.*?([\d,]+\.?\d*)/i      // price: 123.45
+        /price.*?([\d,]+\.?\d*)/i,     // price: 123.45
+        /([\d,]+\.?\d*)\s*dollars?/i   // 123.45 dollars
       ];
       
       for (const pattern of patterns) {
@@ -524,14 +529,14 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
         if (match && match[1]) {
           const price = parseFloat(match[1].replace(/,/g, ''));
           if (!isNaN(price) && price > 0) {
-            console.log(`✅ [KOL SERVICE] Found price for ${symbol}: $${price}`);
+            console.log(`✅ [KOL SERVICE] Found price for $${symbol}: $${price}`);
             return price;
           }
         }
       }
       
       console.warn(`⚠️ [KOL SERVICE] Could not parse price from Perplexity response for ${symbol}`);
-      console.warn(`   Response: ${content.substring(0, 100)}`);
+      console.warn(`   Response: ${content.substring(0, 200)}`);
       return null;
       
     } catch (error) {
@@ -571,6 +576,13 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       if (data) {
         coinDataCache[coin] = data;
         console.log(`✅ [KOL SERVICE] Fetched data for ${coin}: $${data.price}`);
+        if (data.image) {
+          console.log(`   🖼️ Logo: ${data.image.substring(0, 50)}...`);
+        } else {
+          console.warn(`   ⚠️ No logo found for ${coin}`);
+        }
+      } else {
+        console.warn(`⚠️ [KOL SERVICE] No data found in DegenOracle for ${coin}`);
       }
     }
 
