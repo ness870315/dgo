@@ -162,4 +162,83 @@ router.post('/reanalyze', async (req, res) => {
   }
 });
 
+// POST /api/kol/enrich - Enrich posts with coin data (logos, prices)
+router.post('/enrich', async (req, res) => {
+  try {
+    const service = await initializeService();
+    
+    console.log(`💎 [KOL API] Starting coin data enrichment...`);
+    
+    const coinData = await service.enrichPostsWithCoinData();
+    
+    res.json({
+      success: true,
+      message: `Enriched posts with data for ${Object.keys(coinData).length} coins`,
+      coin_data: coinData
+    });
+    
+  } catch (error) {
+    console.error('❌ [KOL API] Enrich error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET /api/kol/coin-data - Get cached coin data
+router.get('/coin-data', async (req, res) => {
+  try {
+    const service = await initializeService();
+    
+    // Extract unique coins from posts
+    const coinDataMap = {};
+    service.posts.forEach(post => {
+      if (post.coin_data) {
+        Object.entries(post.coin_data).forEach(([coin, data]) => {
+          if (!coinDataMap[coin]) {
+            coinDataMap[coin] = data;
+          }
+        });
+      }
+    });
+    
+    res.json({
+      success: true,
+      data: coinDataMap
+    });
+    
+  } catch (error) {
+    console.error('❌ [KOL API] Get coin data error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// POST /api/kol/backfill - Manually trigger price backfill
+router.post('/backfill', async (req, res) => {
+  try {
+    const service = await initializeService();
+    
+    console.log(`🔄 [KOL API] Manual backfill triggered...`);
+    
+    const backfilled = await service.backfillPriceData();
+    
+    res.json({
+      success: true,
+      message: `Backfilled ${backfilled} price points`,
+      backfilled: backfilled
+    });
+    
+  } catch (error) {
+    console.error('❌ [KOL API] Backfill error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router;

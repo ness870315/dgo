@@ -13,6 +13,7 @@ import * as fsSync from 'fs';
 import path from 'path';
 import axios from 'axios';
 import OpenAIService from '../openaiService.js';
+import PerplexityService from '../perplexityService.js';
 
 class KOLService {
   constructor() {
@@ -34,6 +35,10 @@ class KOLService {
     }
     
     this.openaiService = new OpenAIService();
+    this.perplexityService = new PerplexityService();
+    
+    // Start backfill job
+    this.startBackfillJob();
   }
 
   async initialize() {
@@ -202,10 +207,12 @@ class KOLService {
       const data = response.data;
       const tweets = data.data?.tweets || data.tweets || [];
 
-      // Extract user info from first tweet (for influence calculation)
+      // Extract user info from first tweet (for influence calculation and PFP)
       let userInfo = null;
+      let profilePicture = null;
       if (tweets.length > 0 && tweets[0].author) {
         userInfo = tweets[0].author;
+        profilePicture = userInfo.profilePicture || userInfo.profile_image_url || null;
       }
 
       // Process tweets with AI analysis
@@ -265,6 +272,17 @@ class KOLService {
       if (kol) {
         kol.last_fetched = new Date().toISOString();
         kol.total_posts = this.posts.filter(p => p.kol_handle.toLowerCase() === handle.toLowerCase()).length;
+        
+        // Store profile picture
+        if (profilePicture) {
+          kol.profile_picture = profilePicture;
+          console.log(`🖼️ [KOL SERVICE] Saved profile picture for @${handle}`);
+        }
+        
+        // Store follower count
+        if (userInfo && userInfo.followers) {
+          kol.followers = userInfo.followers;
+        }
         
         // Calculate influence score
         const influence = this.calculateInfluenceScore(kol, userInfo, totalEngagement, cryptoTweetCount, tweets.length);
@@ -437,6 +455,249 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       // Return default
       return '{"coins": [], "sentiment": 0, "narratives": []}';
     }
+  }
+
+  // Fetch coin data from DegenOracle backend
+  async fetchCoinData(symbol) {
+    try {
+      // Try to fetch from main backend
+      const response = await axios.get(`http://localhost:${process.env.PORT || 3001}/api/tokens`, {
+        timeout: 5000
+      });
+      
+      if (response.data && Array.isArray(response.data)) {
+        const coin = response.data.find(t => 
+          t.symbol?.toUpperCase() === symbol.toUpperCase() ||
+          t.name?.toUpperCase() === symbol.toUpperCase()
+        );
+        
+        if (coin) {
+          return {
+            symbol: coin.symbol,
+            name: coin.name,
+            image: coin.image || coin.logoURI,
+            price: coin.priceUsd || coin.price,
+            volume_24h: coin.volume24h,
+            mcap: coin.mcap || coin.marketCap,
+            price_change_24h: coin.priceChange24h
+          };
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error(`❌ [KOL SERVICE] Error fetching coin data for ${symbol}:`, error.message);
+      return null;
+    }
+  }
+
+  // Fetch historical price using Perplexity (for backfill or missing coins)
+  async fetchHistoricalPrice(symbol, timestamp) {
+    try {
+      const date = new Date(timestamp);
+      const formattedDate = date.toISOString().split('T')[0];
+      const time = date.toTimeString().substring(0, 5);
+      
+      const query = `What was the price of ${symbol} cryptocurrency on ${formattedDate} at ${time} UTC? Please provide only the USD price as a number, without currency symbols or commas.`;
+      
+      console.log(`🔍 [KOL SERVICE] Fetching historical price for ${symbol} at ${formattedDate} ${time}`);
+      
+      const response = await this.perplexityService.searchWithReasoning(query, {
+        model: 'sonar-pro',
+        max_tokens: 200
+      });
+      
+      if (!response) return null;
+      
+      // Extract price from response (multiple formats)
+      const patterns = [
+        /\$?([\d,]+\.?\d*)/,           // $123.45 or 123.45
+        /([\d,]+\.?\d*)\s*USD/i,       // 123.45 USD
+        /price.*?([\d,]+\.?\d*)/i      // price: 123.45
+      ];
+      
+      for (const pattern of patterns) {
+        const match = response.match(pattern);
+        if (match && match[1]) {
+          const price = parseFloat(match[1].replace(/,/g, ''));
+          if (!isNaN(price) && price > 0) {
+            console.log(`✅ [KOL SERVICE] Found price for ${symbol}: $${price}`);
+            return price;
+          }
+        }
+      }
+      
+      console.warn(`⚠️ [KOL SERVICE] Could not parse price from Perplexity response for ${symbol}`);
+      return null;
+      
+    } catch (error) {
+      console.error(`❌ [KOL SERVICE] Error fetching historical price for ${symbol}:`, error.message);
+      return null;
+    }
+  }
+
+  // Hybrid: Try DegenOracle first, fallback to Perplexity
+  async fetchPrice(symbol, timestamp = null) {
+    // For current prices, try DegenOracle
+    if (!timestamp) {
+      const coinData = await this.fetchCoinData(symbol);
+      if (coinData && coinData.price) {
+        return coinData.price;
+      }
+    }
+    
+    // For historical or missing coins, use Perplexity
+    return await this.fetchHistoricalPrice(symbol, timestamp || new Date());
+  }
+
+  // Enrich posts with coin data (logos, prices)
+  async enrichPostsWithCoinData() {
+    const uniqueCoins = new Set();
+    this.posts.forEach(post => {
+      if (post.coins) {
+        post.coins.forEach(coin => uniqueCoins.add(coin));
+      }
+    });
+
+    console.log(`🔍 [KOL SERVICE] Enriching ${uniqueCoins.size} unique coins with data...`);
+
+    const coinDataCache = {};
+    for (const coin of uniqueCoins) {
+      const data = await this.fetchCoinData(coin);
+      if (data) {
+        coinDataCache[coin] = data;
+        console.log(`✅ [KOL SERVICE] Fetched data for ${coin}: $${data.price}`);
+      }
+    }
+
+    // Add coin data to posts
+    let enriched = 0;
+    this.posts.forEach(post => {
+      if (post.coins && !post.coin_data) {
+        post.coin_data = {};
+        post.coins.forEach(coin => {
+          if (coinDataCache[coin]) {
+            post.coin_data[coin] = {
+              ...coinDataCache[coin],
+              price_at_mention: coinDataCache[coin].price,
+              timestamp: post.created_at
+            };
+            enriched++;
+          }
+        });
+      }
+    });
+
+    if (enriched > 0) {
+      await this.saveData();
+      console.log(`💎 [KOL SERVICE] Enriched ${enriched} posts with coin data`);
+    }
+
+    return coinDataCache;
+  }
+
+  // Backfill price data for posts (1h, 4h, 24h after mention)
+  async backfillPriceData() {
+    try {
+      console.log(`🔄 [PRICE BACKFILL] Starting backfill for ${this.posts.length} posts...`);
+      
+      let backfilled = 0;
+      const now = new Date();
+      
+      for (const post of this.posts) {
+        if (!post.coins || post.coins.length === 0) continue;
+        
+        const mentionTime = new Date(post.created_at);
+        const hoursSinceMention = (now - mentionTime) / (1000 * 60 * 60);
+        
+        // Initialize coin_data if not exists
+        if (!post.coin_data) {
+          post.coin_data = {};
+        }
+        
+        for (const coin of post.coins) {
+          if (!post.coin_data[coin]) {
+            post.coin_data[coin] = {};
+          }
+          
+          const coinData = post.coin_data[coin];
+          
+          // Backfill 1h after
+          if (hoursSinceMention >= 1 && !coinData.price_1h_after) {
+            const t1h = new Date(mentionTime.getTime() + 60 * 60 * 1000);
+            coinData.price_1h_after = await this.fetchPrice(coin, t1h);
+            if (coinData.price_1h_after) {
+              backfilled++;
+              console.log(`📊 [BACKFILL] ${coin} @ +1h: $${coinData.price_1h_after}`);
+            }
+            await this.delay(1000); // Rate limit friendly
+          }
+          
+          // Backfill 4h after
+          if (hoursSinceMention >= 4 && !coinData.price_4h_after) {
+            const t4h = new Date(mentionTime.getTime() + 4 * 60 * 60 * 1000);
+            coinData.price_4h_after = await this.fetchPrice(coin, t4h);
+            if (coinData.price_4h_after) {
+              backfilled++;
+              console.log(`📊 [BACKFILL] ${coin} @ +4h: $${coinData.price_4h_after}`);
+            }
+            await this.delay(1000);
+          }
+          
+          // Backfill 24h after
+          if (hoursSinceMention >= 24 && !coinData.price_24h_after) {
+            const t24h = new Date(mentionTime.getTime() + 24 * 60 * 60 * 1000);
+            coinData.price_24h_after = await this.fetchPrice(coin, t24h);
+            if (coinData.price_24h_after) {
+              backfilled++;
+              console.log(`📊 [BACKFILL] ${coin} @ +24h: $${coinData.price_24h_after}`);
+            }
+            await this.delay(1000);
+          }
+        }
+      }
+      
+      if (backfilled > 0) {
+        await this.saveData();
+        console.log(`✅ [PRICE BACKFILL] Complete! Backfilled ${backfilled} price points`);
+      } else {
+        console.log(`✅ [PRICE BACKFILL] No backfill needed`);
+      }
+      
+      return backfilled;
+      
+    } catch (error) {
+      console.error('❌ [PRICE BACKFILL] Error:', error.message);
+      return 0;
+    }
+  }
+
+  // Start background job for price backfill (runs every hour)
+  startBackfillJob() {
+    // Run immediately on start (after a delay to let system initialize)
+    setTimeout(() => {
+      this.backfillPriceData();
+    }, 60000); // 1 minute after start
+    
+    // Then run every hour
+    this.backfillInterval = setInterval(() => {
+      this.backfillPriceData();
+    }, 3600000); // 1 hour
+    
+    console.log('⏰ [KOL SERVICE] Backfill job started (runs every hour)');
+  }
+
+  // Stop backfill job (for cleanup)
+  stopBackfillJob() {
+    if (this.backfillInterval) {
+      clearInterval(this.backfillInterval);
+      console.log('⏸️ [KOL SERVICE] Backfill job stopped');
+    }
+  }
+
+  // Helper: delay function
+  delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   // Generate unique ID

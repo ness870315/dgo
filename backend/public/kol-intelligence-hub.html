@@ -643,6 +643,7 @@
         let kols = [];
         let posts = [];
         let selectedKOL = null;
+        let coinData = {};
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
@@ -671,6 +672,20 @@
                 if (postsResult.success) {
                     posts = postsResult.data;
                     updateMomentum();
+                    
+                    // Load coin data for logos/prices
+                    try {
+                        const coinDataResponse = await fetch('/api/kol/coin-data');
+                        const coinDataResult = await coinDataResponse.json();
+                        if (coinDataResult.success) {
+                            coinData = coinDataResult.data;
+                            window.coinData = coinData;  // Make globally available
+                            console.log(`💎 Loaded data for ${Object.keys(coinData).length} coins`);
+                        }
+                    } catch (e) {
+                        console.warn('Could not load coin data:', e.message);
+                    }
+                    
                     renderNetwork();
                     updateNarratives();
                     updateAlphaSignals();
@@ -907,6 +922,10 @@
 
             Object.entries(coinData).forEach(([coin, data]) => {
                 const avgSentiment = data.sentimentCount > 0 ? data.sentiment / data.sentimentCount : 0;
+                
+                // Get coin image from global coinData cache
+                const coinInfo = window.coinData && window.coinData[coin];
+                
                 const node = {
                     id: `coin_${coin}`,
                     label: coin,
@@ -914,7 +933,9 @@
                     size: Math.min(30, 15 + data.mentions * 2),
                     mentions: data.mentions,
                     sentiment: avgSentiment,
-                    color: avgSentiment > 0.3 ? '#14F195' : avgSentiment < -0.3 ? '#FF4757' : '#9945FF'
+                    color: avgSentiment > 0.3 ? '#14F195' : avgSentiment < -0.3 ? '#FF4757' : '#9945FF',
+                    imageUrl: coinInfo?.image || null,  // Coin logo from DegenOracle
+                    price: coinInfo?.price || null
                 };
                 nodes.push(node);
                 nodeMap.set(node.id, node);
@@ -972,13 +993,17 @@
                 .sort((a, b) => b[1] - a[1])
                 .slice(0, 10)
                 .forEach(([handle, count]) => {
+                    // Get KOL profile picture from kols array
+                    const kolInfo = kols.find(k => k.handle.toLowerCase() === handle.toLowerCase());
+                    
                     const node = {
                         id: `kol_${handle}`,
                         label: `@${handle}`,
                         type: 'kol',
                         size: 8,
                         count: count,
-                        color: '#00D9FF'
+                        color: '#00D9FF',
+                        imageUrl: kolInfo?.profile_picture || null  // KOL profile picture
                     };
                     nodes.push(node);
                     nodeMap.set(node.id, node);
@@ -1051,12 +1076,56 @@
                     .on('drag', dragged)
                     .on('end', dragended));
 
-            node.append('circle')
-                .attr('r', d => d.size)
-                .attr('fill', d => d.color)
-                .attr('stroke', '#fff')
-                .attr('stroke-width', 2)
-                .style('filter', 'drop-shadow(0 0 8px rgba(153, 69, 255, 0.6))');
+            // Add images for KOLs and Coins, circles for Narratives
+            node.each(function(d) {
+                const nodeGroup = d3.select(this);
+                
+                if (d.imageUrl && (d.type === 'kol' || d.type === 'coin')) {
+                    // Use clipPath for circular images
+                    const clipId = `clip-${d.id.replace(/[^a-zA-Z0-9]/g, '')}`;
+                    
+                    nodeGroup.append('defs')
+                        .append('clipPath')
+                        .attr('id', clipId)
+                        .append('circle')
+                        .attr('r', d.size);
+                    
+                    nodeGroup.append('image')
+                        .attr('xlink:href', d.imageUrl)
+                        .attr('width', d.size * 2)
+                        .attr('height', d.size * 2)
+                        .attr('x', -d.size)
+                        .attr('y', -d.size)
+                        .attr('clip-path', `url(#${clipId})`)
+                        .style('filter', 'drop-shadow(0 0 8px rgba(153, 69, 255, 0.6))')
+                        .on('error', function() {
+                            // Fallback to circle on image load error
+                            d3.select(this).remove();
+                            nodeGroup.append('circle')
+                                .attr('r', d.size)
+                                .attr('fill', d.color)
+                                .attr('stroke', '#fff')
+                                .attr('stroke-width', 2)
+                                .style('filter', 'drop-shadow(0 0 8px rgba(153, 69, 255, 0.6))');
+                        });
+                    
+                    // Border ring
+                    nodeGroup.append('circle')
+                        .attr('r', d.size)
+                        .attr('fill', 'none')
+                        .attr('stroke', '#fff')
+                        .attr('stroke-width', 2)
+                        .style('filter', 'drop-shadow(0 0 8px rgba(153, 69, 255, 0.6))');
+                } else {
+                    // Use colored circles for narratives and fallbacks
+                    nodeGroup.append('circle')
+                        .attr('r', d.size)
+                        .attr('fill', d.color)
+                        .attr('stroke', '#fff')
+                        .attr('stroke-width', 2)
+                        .style('filter', 'drop-shadow(0 0 8px rgba(153, 69, 255, 0.6))');
+                }
+            });
 
             // Add labels
             node.append('text')
@@ -1484,6 +1553,10 @@
 
                         <!-- Stats Grid -->
                         <div class="grid grid-cols-2 gap-3 mb-4">
+                            <div class="glass-light rounded p-3">
+                                <div class="text-gray-500 text-xs">Followers</div>
+                                <div class="text-lg font-bold accent-blue">${kol.followers ? kol.followers.toLocaleString() : 'N/A'}</div>
+                            </div>
                             <div class="glass-light rounded p-3">
                                 <div class="text-gray-500 text-xs">Total Posts</div>
                                 <div class="text-lg font-bold">${kol.total_posts}</div>
