@@ -640,3 +640,34 @@ router.delete('/kols/:handle', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/kolsentiment/status
+ * Service status and health check
+ */
+router.get('/status', async (req, res) => {
+  try {
+    const service = await initializeService();
+    
+    const status = {
+      service_status: 'active',
+      total_kols: service.kols.size,
+      total_posts: service.posts.length,
+      last_monitoring_run: service.lastMonitoringRun,
+      monitoring_enabled: true
+    };
+    
+    res.json({
+      success: true,
+      data: status
+    });
+    
+  } catch (error) {
+    console.error('❌ [KOL SENTIMENT API] Status error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+export default router;
