@@ -17,6 +17,11 @@
                 </button>
             </div>
 
+            <!-- Insights Summary -->
+            <div id="insights" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <!-- Insights will be loaded here -->
+            </div>
+
             <!-- KOLs List -->
             <div id="kolsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
                 <!-- KOLs will be loaded here -->
@@ -78,6 +83,7 @@
                 
                 if (postsResult.success) {
                     posts = postsResult.data;
+                    updateInsights();
                     updatePostsList();
                 } else {
                     console.error('Failed to load posts:', postsResult.error);
@@ -86,6 +92,79 @@
             } catch (error) {
                 console.error('Error loading data:', error);
             }
+        }
+
+        // Update insights summary
+        function updateInsights() {
+            const container = document.getElementById('insights');
+            
+            if (posts.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            // Calculate insights
+            const coinMentions = {};
+            const narrativeMentions = {};
+            let bullishCount = 0;
+            let bearishCount = 0;
+            let neutralCount = 0;
+
+            posts.forEach(post => {
+                // Count coins
+                if (post.coins) {
+                    post.coins.forEach(coin => {
+                        coinMentions[coin] = (coinMentions[coin] || 0) + 1;
+                    });
+                }
+
+                // Count narratives
+                if (post.narratives) {
+                    post.narratives.forEach(narrative => {
+                        narrativeMentions[narrative] = (narrativeMentions[narrative] || 0) + 1;
+                    });
+                }
+
+                // Count sentiment
+                if (post.sentiment > 0) bullishCount++;
+                else if (post.sentiment < 0) bearishCount++;
+                else neutralCount++;
+            });
+
+            // Top coins
+            const topCoins = Object.entries(coinMentions)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5)
+                .map(([coin, count]) => `<span class="text-sm">${coin} (${count})</span>`)
+                .join(', ') || 'None yet';
+
+            // Top narratives
+            const topNarratives = Object.entries(narrativeMentions)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3)
+                .map(([narrative, count]) => `<span class="text-sm">${narrative} (${count})</span>`)
+                .join(', ') || 'None yet';
+
+            // Overall sentiment
+            const totalSentiment = bullishCount + bearishCount + neutralCount;
+            const sentimentText = totalSentiment > 0 
+                ? `📈 ${Math.round(bullishCount/totalSentiment*100)}% | ➡️ ${Math.round(neutralCount/totalSentiment*100)}% | 📉 ${Math.round(bearishCount/totalSentiment*100)}%`
+                : 'No data';
+
+            container.innerHTML = `
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 class="font-semibold text-blue-900 mb-2">Top Coins</h3>
+                    <div class="text-blue-700">${topCoins}</div>
+                </div>
+                <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <h3 class="font-semibold text-purple-900 mb-2">Top Narratives</h3>
+                    <div class="text-purple-700">${topNarratives}</div>
+                </div>
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h3 class="font-semibold text-green-900 mb-2">Overall Sentiment</h3>
+                    <div class="text-green-700">${sentimentText}</div>
+                </div>
+            `;
         }
 
         // Update KOLs list
@@ -136,21 +215,35 @@
                 .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
                 .slice(0, 10);
 
-            container.innerHTML = recentPosts.map(post => `
-                <div class="bg-white border rounded-lg p-3 mb-3">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="font-semibold text-blue-600">@${post.kol_handle}</span>
-                        <span class="text-xs text-gray-500">${new Date(post.created_at).toLocaleString()}</span>
+            container.innerHTML = recentPosts.map(post => {
+                const sentimentIcon = post.sentiment > 0 ? '📈' : post.sentiment < 0 ? '📉' : '➡️';
+                const sentimentColor = post.sentiment > 0 ? 'text-green-600' : post.sentiment < 0 ? 'text-red-600' : 'text-gray-600';
+                const coinsDisplay = post.coins && post.coins.length > 0 
+                    ? `<div class="flex gap-1 mb-2">${post.coins.map(coin => `<span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">${coin}</span>`).join('')}</div>`
+                    : '';
+                const narrativesDisplay = post.narratives && post.narratives.length > 0 
+                    ? `<div class="flex gap-1 mb-2">${post.narratives.map(n => `<span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">${n}</span>`).join('')}</div>`
+                    : '';
+                
+                return `
+                    <div class="bg-white border rounded-lg p-3 mb-3">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="font-semibold text-blue-600">@${post.kol_handle}</span>
+                            <span class="text-xs text-gray-500">${new Date(post.created_at).toLocaleString()}</span>
+                        </div>
+                        <p class="text-sm mb-2">${post.text}</p>
+                        ${coinsDisplay}
+                        ${narrativesDisplay}
+                        <div class="flex gap-4 text-xs text-gray-500">
+                            <span class="${sentimentColor} font-semibold">${sentimentIcon} ${post.sentiment > 0 ? 'Bullish' : post.sentiment < 0 ? 'Bearish' : 'Neutral'}</span>
+                            <span>❤️ ${post.likes}</span>
+                            <span>🔄 ${post.retweets}</span>
+                            <span>💬 ${post.replies}</span>
+                            <span>👀 ${post.views}</span>
+                        </div>
                     </div>
-                    <p class="text-sm mb-2">${post.text}</p>
-                    <div class="flex gap-4 text-xs text-gray-500">
-                        <span>❤️ ${post.likes}</span>
-                        <span>🔄 ${post.retweets}</span>
-                        <span>💬 ${post.replies}</span>
-                        <span>👀 ${post.views}</span>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         // Show add KOL modal

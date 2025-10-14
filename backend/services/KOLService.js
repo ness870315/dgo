@@ -11,6 +11,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import axios from 'axios';
+import OpenAIService from './openaiService.js';
 
 class KOLService {
   constructor() {
@@ -19,6 +20,7 @@ class KOLService {
     this.dataDir = path.join(process.cwd(), 'data', 'kols');
     this.kolsFile = path.join(this.dataDir, 'kols.json');
     this.postsFile = path.join(this.dataDir, 'posts.json');
+    this.openaiService = new OpenAIService();
   }
 
   async initialize() {
@@ -173,7 +175,7 @@ class KOLService {
       const data = response.data;
       const tweets = data.data?.tweets || data.tweets || [];
 
-      // Process tweets
+      // Process tweets with AI analysis
       let newPosts = 0;
       for (const tweet of tweets) {
         const postId = `post_${tweet.id}`;
@@ -182,6 +184,9 @@ class KOLService {
         if (this.posts.some(post => post.id === postId)) {
           continue;
         }
+
+        // Analyze tweet with AI
+        const analysis = await this.analyzeTweet(tweet.text || '');
 
         const post = {
           id: postId,
@@ -195,11 +200,20 @@ class KOLService {
           quotes: tweet.quoteCount || 0,
           views: tweet.viewCount || 0,
           url: tweet.url,
+          // AI analysis
+          coins: analysis.coins,
+          sentiment: analysis.sentiment,
+          narratives: analysis.narratives,
           processed_at: new Date().toISOString()
         };
 
         this.posts.push(post);
         newPosts++;
+
+        // Log analysis
+        if (analysis.coins.length > 0) {
+          console.log(`🤖 [KOL SERVICE] Analyzed: ${analysis.coins.join(', ')} | Sentiment: ${analysis.sentiment > 0 ? '📈' : analysis.sentiment < 0 ? '📉' : '➡️'}`);
+        }
       }
 
       // Update KOL stats
@@ -218,6 +232,84 @@ class KOLService {
     } catch (error) {
       console.error(`❌ [KOL SERVICE] Error fetching tweets for @${handle}:`, error.message);
       return [];
+    }
+  }
+
+  // Analyze tweet with AI
+  async analyzeTweet(text) {
+    try {
+      const prompt = `Analyze this crypto tweet and extract:
+1. Coin symbols (BTC, ETH, SOL, etc.)
+2. Sentiment: bullish (1), neutral (0), or bearish (-1)
+3. Key narratives/themes
+
+Tweet: "${text}"
+
+Respond with ONLY valid JSON:
+{
+  "coins": ["BTC", "ETH"],
+  "sentiment": 1,
+  "narratives": ["DeFi", "Layer 2"]
+}
+
+If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
+
+      const response = await this.openaiService.generateCompletion(prompt, {
+        maxTokens: 150,
+        temperature: 0.1,
+        model: 'gpt-4o'
+      });
+
+      // Parse JSON response
+      const cleanResponse = this.extractJSON(response);
+      const analysis = JSON.parse(cleanResponse);
+
+      return {
+        coins: analysis.coins || [],
+        sentiment: Math.max(-1, Math.min(1, analysis.sentiment || 0)),
+        narratives: analysis.narratives || []
+      };
+
+    } catch (error) {
+      console.error('❌ [KOL SERVICE] AI analysis error:', error.message);
+      return {
+        coins: [],
+        sentiment: 0,
+        narratives: []
+      };
+    }
+  }
+
+  // Extract JSON from AI response
+  extractJSON(response) {
+    try {
+      let clean = response.trim();
+      
+      // Remove markdown code blocks
+      if (clean.startsWith('```json')) {
+        clean = clean.substring(7);
+      } else if (clean.startsWith('```')) {
+        clean = clean.substring(3);
+      }
+      
+      if (clean.endsWith('```')) {
+        clean = clean.substring(0, clean.length - 3);
+      }
+      
+      clean = clean.trim();
+      
+      // Validate JSON
+      JSON.parse(clean);
+      return clean;
+      
+    } catch (error) {
+      // Try to find JSON in response
+      const match = response.match(/\{[\s\S]*\}/);
+      if (match) {
+        return match[0];
+      }
+      // Return default
+      return '{"coins": [], "sentiment": 0, "narratives": []}';
     }
   }
 
