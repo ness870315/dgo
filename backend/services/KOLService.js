@@ -9,6 +9,7 @@
  */
 
 import fs from 'fs/promises';
+import * as fsSync from 'fs';
 import path from 'path';
 import axios from 'axios';
 import OpenAIService from '../openaiService.js';
@@ -17,9 +18,21 @@ class KOLService {
   constructor() {
     this.kols = new Map();
     this.posts = [];
-    this.dataDir = path.join(process.cwd(), 'data', 'kols');
+    
+    // Use same persistent disk pattern as main app
+    const dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
+    this.dataDir = path.join(dataDir, 'kol-cache');
     this.kolsFile = path.join(this.dataDir, 'kols.json');
     this.postsFile = path.join(this.dataDir, 'posts.json');
+    
+    // Ensure directory exists synchronously
+    try {
+      fsSync.mkdirSync(this.dataDir, { recursive: true });
+      console.log(`📁 [KOL SERVICE] Data directory: ${this.dataDir}`);
+    } catch (error) {
+      console.error('❌ [KOL SERVICE] Failed to create data directory:', error.message);
+    }
+    
     this.openaiService = new OpenAIService();
   }
 
@@ -31,7 +44,8 @@ class KOLService {
       // Load existing data
       await this.loadData();
       
-      console.log(`✅ [KOL SERVICE] Initialized with ${this.kols.size} KOLs`);
+      console.log(`✅ [KOL SERVICE] Initialized with ${this.kols.size} KOLs and ${this.posts.length} posts from ${this.dataDir}`);
+      console.log(`📊 [KOL SERVICE] KOL handles: ${Array.from(this.kols.keys()).join(', ') || 'none'}`);
     } catch (error) {
       console.error('❌ [KOL SERVICE] Initialization failed:', error.message);
       throw error;
@@ -68,14 +82,22 @@ class KOLService {
 
   async saveData() {
     try {
-      // Save KOLs
+      // 🛡️ ATOMIC WRITE: Save KOLs with temp file pattern
       const kolsArray = Array.from(this.kols.values());
-      await fs.writeFile(this.kolsFile, JSON.stringify(kolsArray, null, 2), 'utf8');
+      const kolsTempPath = this.kolsFile + '.tmp';
+      const kolsData = JSON.stringify(kolsArray, null, 2);
+      
+      await fs.writeFile(kolsTempPath, kolsData, 'utf8');
+      await fs.rename(kolsTempPath, this.kolsFile);
 
-      // Save posts
-      await fs.writeFile(this.postsFile, JSON.stringify(this.posts, null, 2), 'utf8');
+      // 🛡️ ATOMIC WRITE: Save posts with temp file pattern
+      const postsTempPath = this.postsFile + '.tmp';
+      const postsData = JSON.stringify(this.posts, null, 2);
+      
+      await fs.writeFile(postsTempPath, postsData, 'utf8');
+      await fs.rename(postsTempPath, this.postsFile);
 
-      console.log(`💾 [KOL SERVICE] Saved ${this.kols.size} KOLs and ${this.posts.length} posts`);
+      console.log(`💾 [KOL SERVICE] Saved ${this.kols.size} KOLs and ${this.posts.length} posts to ${this.dataDir}`);
     } catch (error) {
       console.error('❌ [KOL SERVICE] Error saving data:', error.message);
       throw error;
