@@ -204,8 +204,15 @@ class EnhancedBackend {
 
   async loadKOLRoutes() {
     try {
+      console.log('🔄 [BACKEND] Loading KOL routes...');
       const { default: kolRoutes } = await import('./routes/kolRoutes.js');
+      
+      if (!kolRoutes) {
+        throw new Error('KOL routes import returned undefined');
+      }
+      
       this.app.use('/api/kol', kolRoutes);
+      console.log('✅ [BACKEND] KOL routes registered at /api/kol');
       
       // Serve KOL dashboard page
       this.app.get('/kolsentiment', (req, res) => {
@@ -285,8 +292,11 @@ class EnhancedBackend {
       });
       
       logger.info('✅ KOL Dashboard routes loaded');
+      console.log('✅ [BACKEND] KOL Dashboard page available at /kolsentiment');
     } catch (error) {
-      logger.warn(`⚠️ Failed to load KOL Sentiment routes: ${error.message}`);
+      console.error('❌ [BACKEND] Failed to load KOL routes:', error);
+      logger.error(`❌ Failed to load KOL routes: ${error.message}`);
+      throw error; // Re-throw to prevent server from starting with broken routes
     }
   }
 
