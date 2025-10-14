@@ -262,9 +262,12 @@ class KOLMarketLearningService {
         }
       }
 
-      // Update KOL stats
+      // Update KOL stats and calculate influence score
       kol.last_monitored = new Date().toISOString();
       kol.total_posts += processedCount;
+      
+      // Calculate and update influence score based on recent data
+      await this.calculateInfluenceScore(kol, tweets);
       
       console.log(`✅ [KOL LEARNING] Processed ${processedCount} new tweets from @${kol.handle} (${tweets.length} total fetched)`);
       
@@ -420,7 +423,9 @@ Return JSON format:
         model: 'gpt-4o'
       });
 
-      const extracted = JSON.parse(response);
+      // Extract JSON from response (handle markdown code blocks)
+      const cleanResponse = this.extractJSONFromResponse(response);
+      const extracted = JSON.parse(cleanResponse);
       return {
         coins: extracted.coins || [],
         narratives: extracted.narratives || []
@@ -458,7 +463,9 @@ Return only valid JSON:`;
         model: 'gpt-4o'
       });
 
-      const stance = JSON.parse(response);
+      // Extract JSON from response (handle markdown code blocks)
+      const cleanResponse = this.extractJSONFromResponse(response);
+      const stance = JSON.parse(cleanResponse);
       return {
         score: Math.max(-1, Math.min(1, stance.score || 0)),
         confidence: Math.max(0, Math.min(1, stance.confidence || 0.5)),
@@ -778,6 +785,142 @@ Return only valid JSON:`;
       .filter(signal => new Date(signal.timestamp) >= cutoffTime)
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
       .slice(0, 50); // Last 50 signals
+  }
+
+  /**
+   * Calculate influence score based on Twitter metrics
+   */
+  async calculateInfluenceScore(kol, tweets) {
+    try {
+      if (!tweets || tweets.length === 0) {
+        console.log(`⚠️ [KOL LEARNING] No tweets available for influence calculation for @${kol.handle}`);
+        return;
+      }
+
+      // Get the most recent tweet to get current follower count
+      const latestTweet = tweets[0];
+      const followerCount = latestTweet.author?.followers || 0;
+      
+      // Calculate engagement metrics from recent tweets
+      const recentTweets = tweets.slice(0, Math.min(20, tweets.length)); // Last 20 tweets
+      
+      let totalLikes = 0;
+      let totalRetweets = 0;
+      let totalReplies = 0;
+      let totalViews = 0;
+      let cryptoRelatedTweets = 0;
+      
+      for (const tweet of recentTweets) {
+        totalLikes += tweet.likes || 0;
+        totalRetweets += tweet.retweets || 0;
+        totalReplies += tweet.replies || 0;
+        totalViews += tweet.views || 0;
+        
+        // Check if tweet is crypto-related (simple keyword check)
+        const text = (tweet.text || '').toLowerCase();
+        const cryptoKeywords = ['bitcoin', 'btc', 'ethereum', 'eth', 'crypto', 'defi', 'nft', 'solana', 'sol', 'moon', 'pump', 'token', 'coin', 'altcoin', 'memecoin'];
+        if (cryptoKeywords.some(keyword => text.includes(keyword))) {
+          cryptoRelatedTweets++;
+        }
+      }
+      
+      const avgLikes = totalLikes / recentTweets.length;
+      const avgRetweets = totalRetweets / recentTweets.length;
+      const avgReplies = totalReplies / recentTweets.length;
+      const avgViews = totalViews / recentTweets.length;
+      const cryptoFocus = cryptoRelatedTweets / recentTweets.length;
+      
+      // Calculate influence score components (0-100 scale)
+      
+      // 1. Follower Score (40% weight)
+      let followerScore = 0;
+      if (followerCount >= 1000000) {
+        followerScore = 85 + Math.min(15, (followerCount - 1000000) / 10000000 * 15); // 85-100
+      } else if (followerCount >= 100000) {
+        followerScore = 60 + ((followerCount - 100000) / 900000) * 25; // 60-85
+      } else if (followerCount >= 10000) {
+        followerScore = 30 + ((followerCount - 10000) / 90000) * 30; // 30-60
+      } else if (followerCount >= 1000) {
+        followerScore = 10 + ((followerCount - 1000) / 9000) * 20; // 10-30
+      } else {
+        followerScore = Math.min(10, followerCount / 100); // 0-10
+      }
+      
+      // 2. Engagement Score (30% weight)
+      let engagementScore = 0;
+      if (avgViews > 0) {
+        const engagementRate = (avgLikes + avgRetweets + avgReplies) / avgViews;
+        engagementScore = Math.min(100, engagementRate * 10000); // Scale to 0-100
+      }
+      
+      // 3. Activity Score (15% weight) - based on tweet frequency
+      const daysSinceFirstTweet = (Date.now() - new Date(recentTweets[recentTweets.length - 1].created_at).getTime()) / (1000 * 60 * 60 * 24);
+      const tweetsPerDay = recentTweets.length / Math.max(1, daysSinceFirstTweet);
+      const activityScore = Math.min(100, tweetsPerDay * 10); // Scale to 0-100
+      
+      // 4. Crypto Focus Score (15% weight)
+      const cryptoFocusScore = cryptoFocus * 100;
+      
+      // Calculate weighted final score
+      const newInfluenceScore = Math.round(
+        (followerScore * 0.4) +
+        (engagementScore * 0.3) +
+        (activityScore * 0.15) +
+        (cryptoFocusScore * 0.15)
+      );
+      
+      // Smooth the score update (avoid dramatic changes)
+      const currentScore = kol.influence_score || 50;
+      const smoothedScore = Math.round(currentScore * 0.7 + newInfluenceScore * 0.3);
+      
+      kol.influence_score = Math.max(1, Math.min(100, smoothedScore));
+      
+      console.log(`📊 [KOL LEARNING] Influence score updated for @${kol.handle}:`);
+      console.log(`   Followers: ${followerCount.toLocaleString()} (${followerScore.toFixed(1)} pts)`);
+      console.log(`   Engagement: ${engagementScore.toFixed(1)} pts`);
+      console.log(`   Activity: ${activityScore.toFixed(1)} pts`);
+      console.log(`   Crypto Focus: ${cryptoFocusScore.toFixed(1)} pts`);
+      console.log(`   Previous: ${currentScore} → New: ${newInfluenceScore} → Smoothed: ${kol.influence_score}`);
+      
+    } catch (error) {
+      console.error(`❌ [KOL LEARNING] Error calculating influence score for @${kol.handle}:`, error.message);
+    }
+  }
+
+  /**
+   * Extract JSON from AI response (handle markdown code blocks)
+   */
+  extractJSONFromResponse(response) {
+    try {
+      // Remove markdown code blocks if present
+      let cleanResponse = response.trim();
+      
+      // Remove ```json and ``` markers
+      if (cleanResponse.startsWith('```json')) {
+        cleanResponse = cleanResponse.substring(7);
+      } else if (cleanResponse.startsWith('```')) {
+        cleanResponse = cleanResponse.substring(3);
+      }
+      
+      if (cleanResponse.endsWith('```')) {
+        cleanResponse = cleanResponse.substring(0, cleanResponse.length - 3);
+      }
+      
+      cleanResponse = cleanResponse.trim();
+      
+      // Try to parse to validate it's valid JSON
+      JSON.parse(cleanResponse);
+      return cleanResponse;
+      
+    } catch (error) {
+      console.warn('⚠️ [KOL LEARNING] Failed to extract JSON from response:', response.substring(0, 100));
+      // Fallback: try to find JSON-like content
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return jsonMatch[0];
+      }
+      throw error;
+    }
   }
 
   /**
