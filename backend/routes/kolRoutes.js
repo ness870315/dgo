@@ -241,4 +241,74 @@ router.post('/backfill', async (req, res) => {
   }
 });
 
+// POST /api/kol/refetch-all - Re-fetch ALL KOLs to update profile pictures
+router.post('/refetch-all', async (req, res) => {
+  try {
+    const service = await initializeService();
+    
+    console.log(`🔄 [KOL API] Re-fetching ALL KOLs to update profile pictures...`);
+    
+    const kols = Array.from(service.kols.values());
+    const results = [];
+    
+    for (const kol of kols) {
+      console.log(`🔄 [KOL API] Re-fetching @${kol.handle}...`);
+      try {
+        await service.fetchKOLTweets(kol.handle);
+        results.push({ handle: kol.handle, success: true });
+      } catch (error) {
+        console.error(`❌ [KOL API] Failed to re-fetch @${kol.handle}:`, error.message);
+        results.push({ handle: kol.handle, success: false, error: error.message });
+      }
+      
+      // Wait 2 seconds between KOLs to avoid rate limits
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    
+    res.json({
+      success: true,
+      message: `Re-fetched ${kols.length} KOLs`,
+      results
+    });
+    
+  } catch (error) {
+    console.error('❌ [KOL API] Refetch error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// POST /api/kol/force-enrich - Force re-enrich coin data (including logos)
+router.post('/force-enrich', async (req, res) => {
+  try {
+    const service = await initializeService();
+    
+    console.log(`💎 [KOL API] Force re-enriching coin data with logos...`);
+    
+    // Temporarily remove existing coin_data to force re-enrichment
+    service.posts.forEach(post => {
+      if (post.coin_data) {
+        delete post.coin_data;
+      }
+    });
+    
+    const coinData = await service.enrichPostsWithCoinData();
+    
+    res.json({
+      success: true,
+      message: `Force enriched ${Object.keys(coinData).length} coins with logos`,
+      coin_data: coinData
+    });
+    
+  } catch (error) {
+    console.error('❌ [KOL API] Force enrich error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router;

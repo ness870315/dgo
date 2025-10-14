@@ -463,6 +463,20 @@
                         <div class="text-sm text-gray-400">
                             <span id="totalPosts">0</span> Posts • <span id="totalCoins">0</span> Coins Tracked
                         </div>
+                        <div class="flex gap-2">
+                            <button onclick="refetchAllKOLs()" class="px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white text-sm rounded-lg transition tooltip" data-tooltip="Update all KOL profile pictures & followers">
+                                <i data-lucide="refresh-cw" class="w-4 h-4 inline mr-1"></i>
+                                Refetch KOLs
+                            </button>
+                            <button onclick="forceEnrichCoins()" class="px-4 py-2 bg-green-900 hover:bg-green-800 text-white text-sm rounded-lg transition tooltip" data-tooltip="Fetch coin logos from DegenOracle">
+                                <i data-lucide="image" class="w-4 h-4 inline mr-1"></i>
+                                Fix Logos
+                            </button>
+                            <button onclick="enrichData()" class="px-4 py-2 bg-purple-900 hover:bg-purple-800 text-white text-sm rounded-lg transition tooltip" data-tooltip="Enrich posts with current coin data">
+                                <i data-lucide="sparkles" class="w-4 h-4 inline mr-1"></i>
+                                Enrich Data
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1718,6 +1732,99 @@
                 }
             });
             document.getElementById('totalCoins').textContent = uniqueCoins.size;
+        }
+
+        // Enrich data with coin logos and prices
+        async function enrichData() {
+            if (!confirm('Enrich all posts with coin data (logos, prices)? This may take a few minutes.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/kol/enrich', {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Success! ${result.message}`);
+                    // Reload data to show new logos
+                    loadData();
+                } else {
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('❌ Error: ' + error.message);
+            }
+        }
+
+        // Re-fetch all KOLs to update profile pictures and follower counts
+        async function refetchAllKOLs() {
+            if (!confirm('Re-fetch ALL KOLs to update profile pictures & follower counts?\n\nThis will take ~2 seconds per KOL (rate limit friendly).')) {
+                return;
+            }
+
+            const button = event.target.closest('button');
+            const originalText = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<i data-lucide="loader" class="w-4 h-4 inline mr-1 animate-spin"></i> Refetching...';
+
+            try {
+                const response = await fetch('/api/kol/refetch-all', {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Success! ${result.message}\n\nResults:\n${result.results.map(r => `${r.success ? '✅' : '❌'} @${r.handle}`).join('\n')}`);
+                    // Reload data to show new PFPs
+                    loadData();
+                } else {
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('❌ Error: ' + error.message);
+            } finally {
+                button.disabled = false;
+                button.innerHTML = originalText;
+                lucide.createIcons(); // Re-initialize icons
+            }
+        }
+
+        // Force re-enrich coin data to fetch logos
+        async function forceEnrichCoins() {
+            if (!confirm('Force re-fetch coin logos from DegenOracle?\n\nThis will clear existing coin data and fetch fresh logos.')) {
+                return;
+            }
+
+            const button = event.target.closest('button');
+            const originalText = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<i data-lucide="loader" class="w-4 h-4 inline mr-1 animate-spin"></i> Fetching Logos...';
+
+            try {
+                const response = await fetch('/api/kol/force-enrich', {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Success! ${result.message}\n\nLogos fetched for coins: ${Object.keys(result.coin_data).join(', ')}`);
+                    // Reload data to show new logos
+                    loadData();
+                } else {
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('❌ Error: ' + error.message);
+            } finally {
+                button.disabled = false;
+                button.innerHTML = originalText;
+                lucide.createIcons(); // Re-initialize icons
+            }
         }
 
         // Settings (Phase 2)
