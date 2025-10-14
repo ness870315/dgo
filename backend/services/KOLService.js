@@ -663,6 +663,91 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
     }
   }
 
+  // NEW: Fetch multiple historical prices for same coin in single Perplexity call
+  async fetchBundledHistoricalPrices(symbol, timestamps) {
+    try {
+      if (!timestamps || timestamps.length === 0) return {};
+      
+      // Sort timestamps chronologically
+      const sortedTimestamps = [...timestamps].sort((a, b) => new Date(a) - new Date(b));
+      
+      // Smart blockchain detection
+      const majorCoins = ['BTC', 'ETH', 'BNB', 'XRP', 'ADA', 'DOGE', 'MATIC', 'DOT', 'AVAX', 'LINK', 'UNI', 'ATOM', 'LTC', 'BCH', 'XLM', 'ALGO', 'VET', 'ICP', 'FIL', 'HBAR', 'NEAR', 'FLOW', 'EOS', 'AAVE', 'MKR', 'SNX', 'COMP'];
+      const isMajorCoin = majorCoins.includes(symbol.toUpperCase());
+      
+      // Format timestamps for query
+      const timeStrings = sortedTimestamps.map(ts => {
+        const date = new Date(ts);
+        const formattedDate = date.toISOString().split('T')[0];
+        const time = date.toTimeString().substring(0, 5);
+        return `${formattedDate} at ${time} UTC`;
+      });
+      
+      // Construct bundled query
+      let query;
+      if (isMajorCoin) {
+        query = `What were the prices of ${symbol} cryptocurrency at these times: ${timeStrings.join(', ')}? Please provide the USD prices for each timestamp in this exact format: "YYYY-MM-DD HH:MM: $price".`;
+      } else {
+        query = `What were the prices of $${symbol} token at these times: ${timeStrings.join(', ')}? Check Solana blockchain and other chains. Please provide the USD prices for each timestamp in this exact format: "YYYY-MM-DD HH:MM: $price".`;
+      }
+      
+      console.log(`🔍 [KOL SERVICE] Fetching BUNDLED historical prices for $${symbol} at ${timestamps.length} timestamps`);
+      console.log(`🔍 [PERPLEXITY] Searching: "${query}"`);
+      
+      const response = await this.perplexityService.searchWithReasoning(query, {
+        model: 'sonar-pro',
+        maxTokens: 500,
+        systemPrompt: 'You are a helpful assistant that provides cryptocurrency price data. Respond with prices in the exact format requested: "YYYY-MM-DD HH:MM: $price" for each timestamp.'
+      });
+      
+      if (!response || !response.content) {
+        console.log(`⚠️ [KOL SERVICE] No response from Perplexity for bundled ${symbol} prices`);
+        return {};
+      }
+      
+      // Parse multiple prices from response
+      const prices = {};
+      const content = response.content;
+      const lines = content.split('\n');
+      
+      for (const timestamp of sortedTimestamps) {
+        const date = new Date(timestamp);
+        const formattedDate = date.toISOString().split('T')[0];
+        const time = date.toTimeString().substring(0, 5);
+        const searchPattern = `${formattedDate} ${time}`;
+        
+        // Look for price in format "YYYY-MM-DD HH:MM: $price"
+        let foundPrice = null;
+        for (const line of lines) {
+          if (line.includes(searchPattern)) {
+            const priceMatch = line.match(/\$?([\d,]+\.?\d*)/);
+            if (priceMatch) {
+              const priceStr = priceMatch[1].replace(/,/g, '');
+              const price = parseFloat(priceStr);
+              if (price > 0 && price < 1000000) {
+                foundPrice = price;
+                break;
+              }
+            }
+          }
+        }
+        
+        if (foundPrice) {
+          prices[timestamp] = foundPrice;
+          console.log(`✅ [KOL SERVICE] Bundled price for $${symbol} at ${searchPattern}: $${foundPrice}`);
+        } else {
+          console.log(`⚠️ [KOL SERVICE] Could not find bundled price for $${symbol} at ${searchPattern}`);
+        }
+      }
+      
+      return prices;
+      
+    } catch (error) {
+      console.error(`❌ [KOL SERVICE] Error fetching bundled historical prices for ${symbol}:`, error.message);
+      return {};
+    }
+  }
+
   // Hybrid: Try DegenOracle first, fallback to Perplexity
   async fetchPrice(symbol, timestamp = null) {
     // For current prices, try DegenOracle
@@ -730,13 +815,16 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
     return coinDataCache;
   }
 
-  // Backfill price data for posts (1h, 4h, 24h after mention)
+  // Backfill price data for posts (1h, 4h, 24h after mention) - BUNDLED APPROACH
   async backfillPriceData() {
     try {
-      console.log(`🔄 [PRICE BACKFILL] Starting backfill for ${this.posts.length} posts...`);
+      console.log(`🔄 [PRICE BACKFILL] Starting BUNDLED backfill for ${this.posts.length} posts...`);
       
       let backfilled = 0;
       const now = new Date();
+      
+      // Group all needed timestamps by coin for bundling
+      const coinTimestampMap = new Map();
       
       for (const post of this.posts) {
         if (!post.coins || post.coins.length === 0) continue;
@@ -756,52 +844,80 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
           
           const coinData = post.coin_data[coin];
           
+          // Collect all needed timestamps for this coin
+          if (!coinTimestampMap.has(coin)) {
+            coinTimestampMap.set(coin, []);
+          }
+          
+          const coinTimestamps = coinTimestampMap.get(coin);
+          
           // Backfill 1h after
           if (hoursSinceMention >= 1 && !coinData.price_1h_after) {
             const t1h = new Date(mentionTime.getTime() + 60 * 60 * 1000);
-            coinData.price_1h_after = await this.fetchPrice(coin, t1h);
-            if (coinData.price_1h_after) {
-              backfilled++;
-              console.log(`📊 [BACKFILL] ${coin} @ +1h: $${coinData.price_1h_after}`);
-            }
-            await this.delay(1000); // Rate limit friendly
+            coinTimestamps.push({ timestamp: t1h, type: '1h', coinData, post });
           }
           
           // Backfill 4h after
           if (hoursSinceMention >= 4 && !coinData.price_4h_after) {
             const t4h = new Date(mentionTime.getTime() + 4 * 60 * 60 * 1000);
-            coinData.price_4h_after = await this.fetchPrice(coin, t4h);
-            if (coinData.price_4h_after) {
-              backfilled++;
-              console.log(`📊 [BACKFILL] ${coin} @ +4h: $${coinData.price_4h_after}`);
-            }
-            await this.delay(1000);
+            coinTimestamps.push({ timestamp: t4h, type: '4h', coinData, post });
           }
           
           // Backfill 24h after
           if (hoursSinceMention >= 24 && !coinData.price_24h_after) {
             const t24h = new Date(mentionTime.getTime() + 24 * 60 * 60 * 1000);
-            coinData.price_24h_after = await this.fetchPrice(coin, t24h);
-            if (coinData.price_24h_after) {
-              backfilled++;
-              console.log(`📊 [BACKFILL] ${coin} @ +24h: $${coinData.price_24h_after}`);
-            }
-            await this.delay(1000);
+            coinTimestamps.push({ timestamp: t24h, type: '24h', coinData, post });
           }
         }
       }
       
+      // Process each coin with bundled calls
+      for (const [coin, timestamps] of coinTimestampMap) {
+        if (timestamps.length === 0) continue;
+        
+        console.log(`📊 [BUNDLED BACKFILL] Processing ${timestamps.length} timestamps for ${coin}`);
+        
+        // Extract just the timestamps for the bundled call
+        const timestampList = timestamps.map(t => t.timestamp);
+        
+        // Make single bundled call for this coin
+        const bundledPrices = await this.fetchBundledHistoricalPrices(coin, timestampList);
+        
+        // Apply the results back to the coin data
+        for (const timestampInfo of timestamps) {
+          const { timestamp, type, coinData, post } = timestampInfo;
+          const priceKey = `price_${type}_after`;
+          
+          if (bundledPrices[timestamp]) {
+            coinData[priceKey] = bundledPrices[timestamp];
+            backfilled++;
+            console.log(`📊 [BUNDLED BACKFILL] ${coin} @ +${type}: $${coinData[priceKey]}`);
+          } else {
+            // Fallback to individual call if bundled didn't work
+            console.log(`⚠️ [BUNDLED BACKFILL] Fallback to individual call for ${coin} @ +${type}`);
+            coinData[priceKey] = await this.fetchPrice(coin, timestamp);
+            if (coinData[priceKey]) {
+              backfilled++;
+              console.log(`📊 [FALLBACK] ${coin} @ +${type}: $${coinData[priceKey]}`);
+            }
+          }
+        }
+        
+        // Rate limit friendly delay between coins
+        await this.delay(2000);
+      }
+      
       if (backfilled > 0) {
         await this.saveData();
-        console.log(`✅ [PRICE BACKFILL] Complete! Backfilled ${backfilled} price points`);
+        console.log(`✅ [BUNDLED BACKFILL] Complete! Backfilled ${backfilled} price points using ${coinTimestampMap.size} bundled calls`);
       } else {
-        console.log(`✅ [PRICE BACKFILL] No backfill needed`);
+        console.log(`✅ [BUNDLED BACKFILL] No backfill needed`);
       }
       
       return backfilled;
       
     } catch (error) {
-      console.error('❌ [PRICE BACKFILL] Error:', error.message);
+      console.error('❌ [BUNDLED BACKFILL] Error:', error.message);
       return 0;
     }
   }
@@ -826,6 +942,117 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
     if (this.backfillInterval) {
       clearInterval(this.backfillInterval);
       console.log('⏸️ [KOL SERVICE] Backfill job stopped');
+    }
+  }
+
+  // Normalize existing coin data to fix case sensitivity issues
+  async normalizeCoinData() {
+    try {
+      console.log('🔄 [COIN NORMALIZATION] Starting coin case normalization...');
+      
+      let postsUpdated = 0;
+      let coinsNormalized = 0;
+      const coinMapping = new Map();
+      
+      for (let i = 0; i < this.posts.length; i++) {
+        const post = this.posts[i];
+        let postChanged = false;
+        
+        // Normalize coins array
+        if (post.coins && Array.isArray(post.coins)) {
+          const originalCoins = [...post.coins];
+          const normalizedCoins = [];
+          
+          for (const coin of originalCoins) {
+            const normalizedCoin = coin.toUpperCase();
+            
+            // Track mapping for reporting
+            if (coin !== normalizedCoin) {
+              coinMapping.set(coin, normalizedCoin);
+              coinsNormalized++;
+            }
+            
+            // Avoid duplicates in normalized array
+            if (!normalizedCoins.includes(normalizedCoin)) {
+              normalizedCoins.push(normalizedCoin);
+            }
+          }
+          
+          // Update if changes were made
+          if (JSON.stringify(originalCoins) !== JSON.stringify(normalizedCoins)) {
+            post.coins = normalizedCoins;
+            postChanged = true;
+          }
+        }
+        
+        // Normalize coin_data keys
+        if (post.coin_data && typeof post.coin_data === 'object') {
+          const originalCoinData = { ...post.coin_data };
+          const normalizedCoinData = {};
+          
+          for (const [coinKey, coinData] of Object.entries(originalCoinData)) {
+            const normalizedKey = coinKey.toUpperCase();
+            
+            // If we already have data for this normalized key, merge it
+            if (normalizedCoinData[normalizedKey]) {
+              normalizedCoinData[normalizedKey] = {
+                ...normalizedCoinData[normalizedKey],
+                ...coinData,
+                timestamp: coinData.timestamp || normalizedCoinData[normalizedKey].timestamp
+              };
+            } else {
+              normalizedCoinData[normalizedKey] = coinData;
+            }
+            
+            // Track mapping
+            if (coinKey !== normalizedKey) {
+              coinMapping.set(coinKey, normalizedKey);
+              coinsNormalized++;
+            }
+          }
+          
+          // Update if changes were made
+          if (JSON.stringify(originalCoinData) !== JSON.stringify(normalizedCoinData)) {
+            post.coin_data = normalizedCoinData;
+            postChanged = true;
+          }
+        }
+        
+        if (postChanged) {
+          postsUpdated++;
+        }
+      }
+      
+      // Save changes if any were made
+      if (postsUpdated > 0) {
+        await this.saveData();
+        console.log(`✅ [COIN NORMALIZATION] Updated ${postsUpdated} posts`);
+      }
+      
+      // Report results
+      console.log(`📊 [COIN NORMALIZATION] Summary:`);
+      console.log(`   Posts processed: ${this.posts.length}`);
+      console.log(`   Posts updated: ${postsUpdated}`);
+      console.log(`   Coin mappings: ${coinMapping.size}`);
+      
+      if (coinMapping.size > 0) {
+        console.log(`🔄 [COIN NORMALIZATION] Applied mappings:`);
+        for (const [old, normalized] of coinMapping) {
+          if (old !== normalized) {
+            console.log(`   "${old}" → "${normalized}"`);
+          }
+        }
+      }
+      
+      return {
+        postsUpdated,
+        coinsNormalized,
+        coinMapping: Object.fromEntries(coinMapping)
+      };
+      
+    } catch (error) {
+      console.error('❌ [COIN NORMALIZATION] Error:', error.message);
+      return null;
     }
   }
 

@@ -241,6 +241,80 @@ router.post('/backfill', async (req, res) => {
   }
 });
 
+// POST /api/kol/test-bundled - Test bundled price fetching approach
+router.post('/test-bundled', async (req, res) => {
+  try {
+    const service = await initializeService();
+    const { symbol, timestamps } = req.body;
+    
+    if (!symbol || !timestamps || !Array.isArray(timestamps)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing symbol or timestamps array in request body'
+      });
+    }
+    
+    console.log(`🧪 [KOL API] Testing bundled price fetch for ${symbol} with ${timestamps.length} timestamps`);
+    
+    const startTime = Date.now();
+    const bundledPrices = await service.fetchBundledHistoricalPrices(symbol, timestamps);
+    const endTime = Date.now();
+    
+    res.json({
+      success: true,
+      message: `Bundled fetch completed in ${endTime - startTime}ms`,
+      symbol: symbol,
+      requestedTimestamps: timestamps.length,
+      fetchedPrices: Object.keys(bundledPrices).length,
+      prices: bundledPrices,
+      performance: {
+        duration: endTime - startTime,
+        requestsMade: 1, // Single bundled call
+        efficiency: `${Object.keys(bundledPrices).length}/${timestamps.length} prices fetched`
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [KOL API] Test bundled error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// POST /api/kol/migrate-coins - Migrate existing coin data to fix case sensitivity
+router.post('/migrate-coins', async (req, res) => {
+  try {
+    const service = await initializeService();
+    
+    console.log(`🔄 [KOL API] Starting coin case normalization migration...`);
+    
+    // Run the normalization method
+    const result = await service.normalizeCoinData();
+    
+    if (result) {
+      res.json({
+        success: true,
+        message: 'Coin case normalization migration completed',
+        result: result
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Migration failed - no result returned'
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ [KOL API] Migration error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // POST /api/kol/refetch-all - Re-fetch ALL KOLs to update profile pictures
 router.post('/refetch-all', async (req, res) => {
   try {
