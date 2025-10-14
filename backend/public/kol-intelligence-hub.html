@@ -891,7 +891,7 @@
         let networkSimulation = null;
         let networkZoomLevel = 1;
         
-        // Fetch coin image from CoinGecko (simple approach like DeGen Oracle)
+        // Fetch coin image from CoinGecko, fallback to Perplexity
         async function fetchCoinGeckoImage(symbol) {
             try {
                 console.log(`🦎 [COINGECKO] Fetching image for ${symbol}...`);
@@ -905,11 +905,51 @@
                     }
                 }
                 
-                console.log(`❌ [COINGECKO] No image found for ${symbol}`);
+                console.log(`❌ [COINGECKO] No image found for ${symbol}, trying Perplexity...`);
+                return await fetchPerplexityImage(symbol);
+                
+            } catch (error) {
+                console.log(`❌ [COINGECKO] Failed to fetch image for ${symbol}: ${error.message}, trying Perplexity...`);
+                return await fetchPerplexityImage(symbol);
+            }
+        }
+        
+        // Fetch coin image using Perplexity Sonar-Pro
+        async function fetchPerplexityImage(symbol) {
+            try {
+                console.log(`🤖 [PERPLEXITY] Fetching image for ${symbol}...`);
+                
+                const query = `What is the logo image URL for ${symbol} cryptocurrency? Please provide only the direct image URL.`;
+                
+                const response = await fetch('/api/perplexity/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        model: 'sonar-pro',
+                        maxTokens: 100
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.content) {
+                        // Extract URL from response
+                        const urlMatch = data.content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp)/i);
+                        if (urlMatch) {
+                            console.log(`✅ [PERPLEXITY] Found image for ${symbol}: ${urlMatch[0]}`);
+                            return urlMatch[0];
+                        }
+                    }
+                }
+                
+                console.log(`❌ [PERPLEXITY] No image found for ${symbol}`);
                 return null;
                 
             } catch (error) {
-                console.log(`❌ [COINGECKO] Failed to fetch image for ${symbol}: ${error.message}`);
+                console.log(`❌ [PERPLEXITY] Failed to fetch image for ${symbol}: ${error.message}`);
                 return null;
             }
         }
