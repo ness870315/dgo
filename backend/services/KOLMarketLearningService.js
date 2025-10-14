@@ -405,7 +405,7 @@ class KOLMarketLearningService {
    */
   async extractTweetData(text) {
     try {
-      const prompt = `Analyze this crypto tweet and extract coin symbols and narratives. You must respond with ONLY valid JSON.
+      const prompt = `You are a crypto data extraction tool. Extract coin symbols and narratives from this tweet. You MUST respond with ONLY valid JSON, no other text.
 
 Tweet: "${text}"
 
@@ -413,10 +413,16 @@ Extract:
 - Coin symbols: BTC, ETH, SOL, PEPE, DOGE, etc.
 - Narratives: DeFi, NFTs, Layer 2, AI tokens, memecoins, etc.
 
-Respond with ONLY this JSON format (no other text):
+CRITICAL: Respond with ONLY this exact JSON format:
 {
   "coins": ["BTC", "ETH"],
   "narratives": ["DeFi", "Layer 2"]
+}
+
+If no coins or narratives are found, return empty arrays:
+{
+  "coins": [],
+  "narratives": []
 }`;
 
       const response = await this.openaiService.generateCompletion(prompt, {
@@ -444,7 +450,7 @@ Respond with ONLY this JSON format (no other text):
    */
   async detectStance(text) {
     try {
-      const prompt = `Analyze the sentiment and stance of this crypto tweet. You must respond with ONLY valid JSON.
+      const prompt = `You are a crypto sentiment analysis tool. Analyze the sentiment of this tweet and respond with ONLY valid JSON.
 
 Tweet: "${text}"
 
@@ -453,12 +459,16 @@ Analyze sentiment considering:
 - Negative: "bearish", "dump", "sell", "short", "rekt"
 - Price predictions and overall tone
 
-Respond with ONLY this JSON format (no other text):
+CRITICAL: Respond with ONLY this exact JSON format:
 {
   "score": 0.5,
   "confidence": 0.8,
   "reasoning": "brief explanation"
-}`;
+}
+
+Score: -1 (very bearish) to +1 (very bullish), 0 is neutral
+Confidence: 0 to 1
+Reasoning: brief explanation of the sentiment`;
 
       const response = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 150,
@@ -917,12 +927,31 @@ Respond with ONLY this JSON format (no other text):
       
     } catch (error) {
       console.warn('⚠️ [KOL LEARNING] Failed to extract JSON from response:', response.substring(0, 100));
-      // Fallback: try to find JSON-like content
-      const jsonMatch = response.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return jsonMatch[0];
+      
+      // Enhanced fallback: try multiple patterns
+      const patterns = [
+        /\{[\s\S]*\}/,  // Standard JSON object
+        /\[[\s\S]*\]/,  // JSON array
+        /\{.*\}/,       // Simple object
+        /\[.*\]/        // Simple array
+      ];
+      
+      for (const pattern of patterns) {
+        const match = response.match(pattern);
+        if (match) {
+          try {
+            JSON.parse(match[0]);
+            console.log(`✅ [KOL LEARNING] Extracted JSON using fallback pattern: ${match[0].substring(0, 50)}...`);
+            return match[0];
+          } catch (parseError) {
+            continue;
+          }
+        }
       }
-      throw error;
+      
+      // Last resort: return default empty structure
+      console.warn('⚠️ [KOL LEARNING] Could not extract valid JSON, returning default structure');
+      return '{"coins": [], "narratives": []}';
     }
   }
 

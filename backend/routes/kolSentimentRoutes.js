@@ -433,16 +433,19 @@ router.get('/kols', async (req, res) => {
   try {
     const service = await initializeService();
     
-    const kols = Array.from(service.kols.values()).map(kol => ({
-      id: kol.id,
-      handle: kol.handle,
-      influence_score: kol.influence_score,
-      segments: kol.segments,
-      created_at: kol.created_at,
-      last_monitored: kol.last_monitored,
-      total_posts: kol.total_posts,
-      reliability_score: kol.reliability_score
-    }));
+    // Filter out deleted KOLs
+    const kols = Array.from(service.kols.values())
+      .filter(kol => !kol.deleted)
+      .map(kol => ({
+        id: kol.id,
+        handle: kol.handle,
+        influence_score: kol.influence_score,
+        segments: kol.segments,
+        created_at: kol.created_at,
+        last_monitored: kol.last_monitored,
+        total_posts: kol.total_posts,
+        reliability_score: kol.reliability_score
+      }));
     
     res.json({
       success: true,
@@ -481,12 +484,15 @@ router.post('/kols', async (req, res) => {
     console.log(`🔍 [KOL SENTIMENT API] Checking for existing KOL: "${normalizedHandle}"`);
     console.log(`📋 [KOL SENTIMENT API] Current KOLs: ${Array.from(service.kols.keys()).join(', ')}`);
     
-    const existingKol = Array.from(service.kols.keys()).find(key => 
+    // Check for existing KOLs (including deleted ones to prevent re-adding)
+    const existingKol = Array.from(service.kols.entries()).find(([key, kol]) => 
       key.toLowerCase() === normalizedHandle.toLowerCase()
     );
     
     if (existingKol) {
-      console.log(`⚠️ [KOL SENTIMENT API] KOL already exists: "${existingKol}"`);
+      const [key, kol] = existingKol;
+      const status = kol.deleted ? 'deleted' : 'active';
+      console.log(`⚠️ [KOL SENTIMENT API] KOL already exists: "${key}" (status: ${status})`);
       return res.status(409).json({
         success: false,
         error: 'KOL already exists'
@@ -617,23 +623,20 @@ router.delete('/kols/:handle', async (req, res) => {
       });
     }
     
-    // Remove KOL using the actual stored key
+    // Soft delete: mark KOL as deleted but keep data for historical analysis
     const actualKey = Array.from(service.kols.keys()).find(key => 
       key.toLowerCase() === normalizedHandle.toLowerCase()
     );
     if (actualKey) {
-      service.kols.delete(actualKey);
+      const kolToDelete = service.kols.get(actualKey);
+      kolToDelete.deleted = true;
+      kolToDelete.deleted_at = new Date().toISOString();
+      service.kols.set(actualKey, kolToDelete);
+      console.log(`🗑️ [KOL SENTIMENT API] Soft-deleted KOL: @${handle} (marked as deleted, data preserved)`);
     }
     
-    // Remove related posts (optional - you might want to keep historical data)
-    // service.posts = service.posts.filter(post => post.kol_handle.toLowerCase() !== handle.toLowerCase());
-    
-    // Remove relations
-    for (const [relationKey, relation] of service.relations) {
-      if (relation.src_kol_id === kol.id || relation.dst_kol_id === kol.id) {
-        service.relations.delete(relationKey);
-      }
-    }
+    // Keep all posts and relations for historical analysis
+    console.log(`📊 [KOL SENTIMENT API] Preserving ${service.posts.filter(p => p.kol_handle.toLowerCase() === normalizedHandle.toLowerCase()).length} posts and relations for historical analysis`);
     
     await service.saveData();
     
