@@ -42,6 +42,10 @@ class KOLService {
     this.logosCache = new Map();
     this.loadLogosCache();
     
+    // Rate limiting for API calls
+    this.lastPerplexityCall = 0;
+    this.PERPLEXITY_DELAY = 3000; // 3 seconds between Perplexity calls
+    
     // Start backfill job
     this.startBackfillJob();
   }
@@ -604,6 +608,9 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
   // Fetch historical price using Perplexity (for backfill or missing coins)
   async fetchHistoricalPrice(symbol, timestamp) {
     try {
+      // Rate limiting
+      await this.waitForRateLimit();
+      
       const date = new Date(timestamp);
       const formattedDate = date.toISOString().split('T')[0];
       const time = date.toTimeString().substring(0, 5);
@@ -663,10 +670,25 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
     }
   }
 
+  // Rate limiting helper for Perplexity calls
+  async waitForRateLimit() {
+    const now = Date.now();
+    const timeSinceLastCall = now - this.lastPerplexityCall;
+    if (timeSinceLastCall < this.PERPLEXITY_DELAY) {
+      const waitTime = this.PERPLEXITY_DELAY - timeSinceLastCall;
+      console.log(`⏳ [KOL SERVICE] Rate limiting: waiting ${waitTime}ms before Perplexity call...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    this.lastPerplexityCall = Date.now();
+  }
+
   // NEW: Fetch multiple historical prices for same coin in single Perplexity call
   async fetchBundledHistoricalPrices(symbol, timestamps) {
     try {
       if (!timestamps || timestamps.length === 0) return {};
+      
+      // Rate limiting
+      await this.waitForRateLimit();
       
       // Sort timestamps chronologically
       const sortedTimestamps = [...timestamps].sort((a, b) => new Date(a) - new Date(b));
