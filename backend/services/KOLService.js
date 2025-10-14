@@ -13,7 +13,7 @@ import * as fsSync from 'fs';
 import path from 'path';
 import axios from 'axios';
 import OpenAIService from '../openaiService.js';
-import PerplexityService from '../perplexityService.js';
+import PerplexitySonarService from './PerplexitySonarService.js';
 
 class KOLService {
   constructor() {
@@ -35,7 +35,7 @@ class KOLService {
     }
     
     this.openaiService = new OpenAIService();
-    this.perplexityService = new PerplexityService();
+    this.perplexityService = new PerplexitySonarService();
     
     // Start backfill job
     this.startBackfillJob();
@@ -504,10 +504,13 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       
       const response = await this.perplexityService.searchWithReasoning(query, {
         model: 'sonar-pro',
-        max_tokens: 200
+        maxTokens: 200,
+        systemPrompt: 'You are a helpful assistant that provides only numerical price data. Respond with just the number.'
       });
       
-      if (!response) return null;
+      if (!response || !response.content) return null;
+      
+      const content = response.content;
       
       // Extract price from response (multiple formats)
       const patterns = [
@@ -517,7 +520,7 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       ];
       
       for (const pattern of patterns) {
-        const match = response.match(pattern);
+        const match = content.match(pattern);
         if (match && match[1]) {
           const price = parseFloat(match[1].replace(/,/g, ''));
           if (!isNaN(price) && price > 0) {
@@ -528,6 +531,7 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       }
       
       console.warn(`⚠️ [KOL SERVICE] Could not parse price from Perplexity response for ${symbol}`);
+      console.warn(`   Response: ${content.substring(0, 100)}`);
       return null;
       
     } catch (error) {
