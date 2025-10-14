@@ -310,7 +310,7 @@ class KOLMarketLearningService {
       }
 
       const data = response.data;
-      const tweets = data.tweets || [];
+      const tweets = data.data?.tweets || data.tweets || [];
 
       // Transform TwitterAPI.io format to our internal format
       const transformedTweets = tweets.map(tweet => ({
