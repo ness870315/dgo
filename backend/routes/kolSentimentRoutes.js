@@ -476,15 +476,22 @@ router.post('/kols', async (req, res) => {
     const normalizedHandle = handle.startsWith('@') ? handle.slice(1) : handle;
     
     // Check if KOL already exists (case-insensitive)
+    console.log(`🔍 [KOL SENTIMENT API] Checking for existing KOL: "${normalizedHandle}"`);
+    console.log(`📋 [KOL SENTIMENT API] Current KOLs: ${Array.from(service.kols.keys()).join(', ')}`);
+    
     const existingKol = Array.from(service.kols.keys()).find(key => 
       key.toLowerCase() === normalizedHandle.toLowerCase()
     );
+    
     if (existingKol) {
+      console.log(`⚠️ [KOL SENTIMENT API] KOL already exists: "${existingKol}"`);
       return res.status(409).json({
         success: false,
         error: 'KOL already exists'
       });
     }
+    
+    console.log(`✅ [KOL SENTIMENT API] KOL "${normalizedHandle}" is new, proceeding with creation`);
     
     // Create new KOL with original case (influence score will be calculated automatically)
     const newKOL = {
@@ -499,9 +506,9 @@ router.post('/kols', async (req, res) => {
     };
     
     service.kols.set(normalizedHandle, newKOL);
+    console.log(`💾 [KOL SENTIMENT API] Saving KOL: @${normalizedHandle} (total KOLs: ${service.kols.size})`);
     await service.saveKOLs();
-    
-    console.log(`✅ [KOL SENTIMENT API] Added new KOL: @${normalizedHandle}`);
+    console.log(`✅ [KOL SENTIMENT API] KOL saved successfully: @${normalizedHandle}`);
     
     // Immediately fetch tweets for the new KOL
     try {

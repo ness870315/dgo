@@ -405,13 +405,15 @@ class KOLMarketLearningService {
    */
   async extractTweetData(text) {
     try {
-      const prompt = `Analyze this crypto tweet and extract:
-1. Coin symbols mentioned (e.g., BTC, ETH, SOL, PEPE, DOGE)
-2. Narratives/themes (e.g., "DeFi", "NFTs", "Layer 2", "AI tokens", "memecoins")
+      const prompt = `Analyze this crypto tweet and extract coin symbols and narratives. You must respond with ONLY valid JSON.
 
 Tweet: "${text}"
 
-Return JSON format:
+Extract:
+- Coin symbols: BTC, ETH, SOL, PEPE, DOGE, etc.
+- Narratives: DeFi, NFTs, Layer 2, AI tokens, memecoins, etc.
+
+Respond with ONLY this JSON format (no other text):
 {
   "coins": ["BTC", "ETH"],
   "narratives": ["DeFi", "Layer 2"]
@@ -442,20 +444,21 @@ Return JSON format:
    */
   async detectStance(text) {
     try {
-      const prompt = `Analyze the sentiment and stance of this crypto tweet. Return a JSON object with:
-- "score": number from -1 (very bearish) to +1 (very bullish), 0 is neutral
-- "confidence": number from 0 to 1 indicating confidence in the stance
-- "reasoning": brief explanation
+      const prompt = `Analyze the sentiment and stance of this crypto tweet. You must respond with ONLY valid JSON.
 
 Tweet: "${text}"
 
-Consider:
-- Positive words: "bullish", "moon", "pump", "buy", "long", "ape"
-- Negative words: "bearish", "dump", "sell", "short", "rekt"
-- Price predictions and targets
-- Overall sentiment and tone
+Analyze sentiment considering:
+- Positive: "bullish", "moon", "pump", "buy", "long", "ape"
+- Negative: "bearish", "dump", "sell", "short", "rekt"
+- Price predictions and overall tone
 
-Return only valid JSON:`;
+Respond with ONLY this JSON format (no other text):
+{
+  "score": 0.5,
+  "confidence": 0.8,
+  "reasoning": "brief explanation"
+}`;
 
       const response = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 150,
