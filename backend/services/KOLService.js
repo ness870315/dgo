@@ -418,7 +418,7 @@ class KOLService {
   async analyzeTweet(text) {
     try {
       const prompt = `Analyze this crypto tweet and extract:
-1. Coin symbols (BTC, ETH, SOL, etc.)
+1. Coin symbols (BTC, ETH, SOL, etc.) - ALWAYS USE UPPERCASE
 2. Sentiment: bullish (1), neutral (0), or bearish (-1)
 3. Key narratives/themes
 
@@ -431,6 +431,7 @@ Respond with ONLY valid JSON:
   "narratives": ["DeFi", "Layer 2"]
 }
 
+IMPORTANT: All coin symbols MUST be in UPPERCASE (BTC not btc, USELESS not useless).
 If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
 
       const response = await this.openaiService.generateCompletion(prompt, {
@@ -443,8 +444,11 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       const cleanResponse = this.extractJSON(response);
       const analysis = JSON.parse(cleanResponse);
 
+      // Normalize all coin symbols to UPPERCASE (in case AI didn't follow instructions)
+      const normalizedCoins = (analysis.coins || []).map(coin => coin.toUpperCase());
+
       return {
-        coins: analysis.coins || [],
+        coins: normalizedCoins,
         sentiment: Math.max(-1, Math.min(1, analysis.sentiment || 0)),
         narratives: analysis.narratives || []
       };
