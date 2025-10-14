@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KOL Command Center - DegenOracle</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background-color: #0a0a0a;
+            color: #ffffff;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* Glassmorphism */
+        .glass {
+            background: rgba(20, 20, 20, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(153, 69, 255, 0.2);
+        }
+
+        .glass-light {
+            background: rgba(30, 30, 30, 0.5);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(153, 69, 255, 0.1);
+        }
+
+        /* Accent Colors */
+        .accent-purple { color: #9945FF; }
+        .accent-green { color: #14F195; }
+        .accent-red { color: #FF4757; }
+        .accent-yellow { color: #FFA502; }
+
+        .bg-accent-purple { background-color: #9945FF; }
+        .border-accent-purple { border-color: #9945FF; }
+
+        /* Glow Effects */
+        .glow-purple {
+            box-shadow: 0 0 20px rgba(153, 69, 255, 0.3);
+        }
+
+        .glow-green {
+            box-shadow: 0 0 20px rgba(20, 241, 149, 0.3);
+        }
+
+        .glow-red {
+            box-shadow: 0 0 20px rgba(255, 71, 87, 0.3);
+        }
+
+        /* Animations */
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .pulse-slow {
+            animation: pulse-slow 3s ease-in-out infinite;
+        }
+
+        @keyframes slide-in-right {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .slide-in-right {
+            animation: slide-in-right 0.3s ease-out;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(20, 20, 20, 0.5);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(153, 69, 255, 0.5);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(153, 69, 255, 0.8);
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+        }
+
+        .tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 4px 8px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 1px solid #9945FF;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            margin-bottom: 5px;
+        }
+
+        /* KOL Card Hover */
+        .kol-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .kol-card:hover {
+            transform: translateX(5px);
+            border-color: #9945FF;
+        }
+
+        .kol-card.active {
+            border-color: #9945FF;
+            background: rgba(153, 69, 255, 0.1);
+        }
+
+        /* Inspector Panel */
+        .inspector {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100vh;
+            transition: right 0.3s ease;
+            z-index: 100;
+        }
+
+        .inspector.open {
+            right: 0;
+        }
+
+        /* Floating Action Orb */
+        .action-orb {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #9945FF, #14F195);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(153, 69, 255, 0.5);
+            transition: transform 0.2s;
+            z-index: 1000;
+        }
+
+        .action-orb:hover {
+            transform: scale(1.1);
+        }
+
+        /* Sentiment Indicator */
+        .sentiment-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .sentiment-bullish {
+            background: #14F195;
+            box-shadow: 0 0 8px #14F195;
+        }
+
+        .sentiment-bearish {
+            background: #FF4757;
+            box-shadow: 0 0 8px #FF4757;
+        }
+
+        .sentiment-neutral {
+            background: #FFA502;
+            box-shadow: 0 0 8px #FFA502;
+        }
+
+        /* Market Pulse */
+        .pulse-ring {
+            border: 3px solid;
+            border-radius: 50%;
+            animation: pulse-ring 2s ease-out infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.8);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1.2);
+                opacity: 0;
+            }
+        }
+
+        /* Badge */
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        /* Loading State */
+        .loading-shimmer {
+            background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Container -->
+    <div class="flex h-screen">
+        <!-- LEFT PANEL: KOL Cards -->
+        <div class="w-80 glass border-r border-gray-800 flex flex-col">
+            <!-- Header -->
+            <div class="p-4 border-b border-gray-800">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold accent-purple">KOL INTELLIGENCE</h2>
+                    <button onclick="showSettings()" class="tooltip" data-tooltip="Settings">
+                        <i data-lucide="settings" class="w-5 h-5 text-gray-400 hover:text-purple-500 transition"></i>
+                    </button>
+                </div>
+                <div class="text-sm text-gray-400">
+                    <span id="kolCount">0</span> Active KOLs • Last updated: <span id="lastUpdate">Never</span>
+                </div>
+            </div>
+
+            <!-- KOL List -->
+            <div id="kolList" class="flex-1 overflow-y-auto p-4 space-y-3">
+                <!-- KOL cards will be loaded here -->
+                <div class="text-center py-12 text-gray-500">
+                    <i data-lucide="users" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
+                    <p>No KOLs yet</p>
+                    <p class="text-xs mt-2">Click + to add your first KOL</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- CENTER PANEL: Live Feed -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Top Bar -->
+            <div class="glass border-b border-gray-800 p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold">COMMAND CENTER</h1>
+                        <p class="text-sm text-gray-400">Real-time KOL Intelligence</p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <!-- Market Pulse -->
+                        <div class="flex items-center gap-2">
+                            <div class="relative w-3 h-3">
+                                <div class="absolute inset-0 pulse-ring border-green-500"></div>
+                                <div class="sentiment-dot sentiment-bullish"></div>
+                            </div>
+                            <span class="text-sm">Market Pulse: <span class="accent-green font-semibold" id="marketSentiment">Neutral</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                <!-- Hot Signals -->
+                <section>
+                    <div class="flex items-center gap-2 mb-4">
+                        <i data-lucide="flame" class="w-5 h-5 accent-yellow"></i>
+                        <h3 class="text-lg font-bold">HOT SIGNALS</h3>
+                    </div>
+                    <div id="hotSignals" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Hot signals will appear here -->
+                        <div class="glass-light rounded-lg p-6 text-center">
+                            <div class="text-gray-500 mb-2">
+                                <i data-lucide="activity" class="w-12 h-12 mx-auto opacity-30"></i>
+                            </div>
+                            <p class="text-sm text-gray-500">No signals yet</p>
+                            <p class="text-xs text-gray-600 mt-1">Add KOLs to start monitoring</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Latest Activity -->
+                <section>
+                    <div class="flex items-center gap-2 mb-4">
+                        <i data-lucide="zap" class="w-5 h-5 accent-purple"></i>
+                        <h3 class="text-lg font-bold">LATEST ACTIVITY</h3>
+                    </div>
+                    <div id="latestActivity" class="space-y-3">
+                        <!-- Activity feed will appear here -->
+                        <div class="glass-light rounded-lg p-6 text-center">
+                            <div class="text-gray-500 mb-2">
+                                <i data-lucide="radio" class="w-12 h-12 mx-auto opacity-30"></i>
+                            </div>
+                            <p class="text-sm text-gray-500">Waiting for activity...</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Insights Dashboard -->
+                <section>
+                    <div class="flex items-center gap-2 mb-4">
+                        <i data-lucide="bar-chart-3" class="w-5 h-5 accent-green"></i>
+                        <h3 class="text-lg font-bold">INTELLIGENCE DASHBOARD</h3>
+                    </div>
+                    <div id="insights" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Insights will appear here -->
+                        <div class="glass-light rounded-lg p-6">
+                            <div class="text-sm text-gray-400 mb-2">Top Coins</div>
+                            <div class="text-2xl font-bold accent-purple" id="topCoins">--</div>
+                        </div>
+                        <div class="glass-light rounded-lg p-6">
+                            <div class="text-sm text-gray-400 mb-2">Sentiment</div>
+                            <div class="text-2xl font-bold accent-green" id="sentimentBreakdown">--</div>
+                        </div>
+                        <div class="glass-light rounded-lg p-6">
+                            <div class="text-sm text-gray-400 mb-2">Top Narratives</div>
+                            <div class="text-2xl font-bold accent-yellow" id="topNarratives">--</div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL: Inspector (Hidden by default) -->
+        <div id="inspector" class="inspector glass border-l border-gray-800">
+            <div class="h-full flex flex-col">
+                <!-- Inspector Header -->
+                <div class="p-4 border-b border-gray-800 flex items-center justify-between">
+                    <h3 class="text-lg font-bold" id="inspectorTitle">Inspector</h3>
+                    <button onclick="closeInspector()" class="text-gray-400 hover:text-white transition">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <!-- Inspector Content -->
+                <div id="inspectorContent" class="flex-1 overflow-y-auto p-4">
+                    <!-- Dynamic content will load here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Action Orb -->
+    <div class="action-orb" onclick="showQuickActions()">
+        <i data-lucide="plus" class="w-8 h-8 text-white"></i>
+    </div>
+
+    <!-- Add KOL Modal -->
+    <div id="addKOLModal" class="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-[9999] hidden">
+        <div class="glass rounded-xl p-6 w-full max-w-md slide-in-right">
+            <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                <i data-lucide="user-plus" class="w-5 h-5 accent-purple"></i>
+                Add New KOL
+            </h3>
+            <input id="kolHandle" type="text" placeholder="@username" class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg mb-4 focus:border-purple-500 focus:outline-none text-white">
+            <div class="flex gap-2">
+                <button onclick="addKOL()" class="flex-1 bg-accent-purple text-white py-3 rounded-lg hover:opacity-80 transition font-semibold">
+                    Add KOL
+                </button>
+                <button onclick="hideAddKOLModal()" class="px-6 py-3 border border-gray-700 rounded-lg hover:bg-gray-800 transition">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Global state
+        let kols = [];
+        let posts = [];
+        let selectedKOL = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+            // Auto-refresh every 30 seconds
+            setInterval(loadData, 30000);
+        });
+
+        // Load data
+        async function loadData() {
+            try {
+                // Load KOLs
+                const kolsResponse = await fetch('/api/kol/kols');
+                const kolsResult = await kolsResponse.json();
+                
+                if (kolsResult.success) {
+                    kols = kolsResult.data;
+                    updateKOLList();
+                    updateKOLCount();
+                }
+
+                // Load posts
+                const postsResponse = await fetch('/api/kol/posts');
+                const postsResult = await postsResponse.json();
+                
+                if (postsResult.success) {
+                    posts = postsResult.data;
+                    updateInsights();
+                    updateLatestActivity();
+                    updateHotSignals();
+                }
+
+                updateLastUpdateTime();
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+
+        // Update KOL list
+        function updateKOLList() {
+            const container = document.getElementById('kolList');
+            
+            if (kols.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-gray-500">
+                        <i data-lucide="users" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
+                        <p>No KOLs yet</p>
+                        <p class="text-xs mt-2">Click + to add your first KOL</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            container.innerHTML = kols.map(kol => {
+                const kolPosts = posts.filter(p => p.kol_handle.toLowerCase() === kol.handle.toLowerCase());
+                const latestPost = kolPosts[0];
+                const avgSentiment = kolPosts.length > 0
+                    ? kolPosts.reduce((sum, p) => sum + (p.sentiment || 0), 0) / kolPosts.length
+                    : 0;
+                
+                const sentimentClass = avgSentiment > 0 ? 'sentiment-bullish' : avgSentiment < 0 ? 'sentiment-bearish' : 'sentiment-neutral';
+                const sentimentLabel = avgSentiment > 0 ? 'Bullish' : avgSentiment < 0 ? 'Bearish' : 'Neutral';
+
+                return `
+                    <div class="kol-card glass-light rounded-lg p-4" onclick="selectKOL('${kol.handle}')">
+                        <div class="flex items-start justify-between mb-2">
+                            <div class="flex-1">
+                                <div class="font-semibold accent-purple">@${kol.handle}</div>
+                                <div class="text-xs text-gray-500">${kol.total_posts} posts</div>
+                            </div>
+                            <div class="sentiment-dot ${sentimentClass}" title="${sentimentLabel}"></div>
+                        </div>
+                        ${latestPost ? `
+                            <div class="text-xs text-gray-400 line-clamp-2 mt-2">
+                                "${latestPost.text.substring(0, 80)}..."
+                            </div>
+                        ` : '<div class="text-xs text-gray-600">No recent activity</div>'}
+                        <div class="flex items-center gap-2 mt-3 text-xs text-gray-500">
+                            <i data-lucide="clock" class="w-3 h-3"></i>
+                            ${kol.last_fetched ? new Date(kol.last_fetched).toLocaleTimeString() : 'Never'}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        // Update insights
+        function updateInsights() {
+            if (posts.length === 0) return;
+
+            // Top coins
+            const coinCounts = {};
+            posts.forEach(post => {
+                if (post.coins) {
+                    post.coins.forEach(coin => {
+                        coinCounts[coin] = (coinCounts[coin] || 0) + 1;
+                    });
+                }
+            });
+
+            const topCoins = Object.entries(coinCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3)
+                .map(([coin, count]) => `${coin} (${count})`)
+                .join(', ') || 'None';
+
+            document.getElementById('topCoins').textContent = topCoins;
+
+            // Sentiment
+            let bullish = 0, bearish = 0, neutral = 0;
+            posts.forEach(post => {
+                if (post.sentiment > 0) bullish++;
+                else if (post.sentiment < 0) bearish++;
+                else neutral++;
+            });
+
+            const total = posts.length;
+            const sentimentText = total > 0 
+                ? `${Math.round(bullish/total*100)}% 📈`
+                : '--';
+            
+            document.getElementById('sentimentBreakdown').textContent = sentimentText;
+            document.getElementById('marketSentiment').textContent = bullish > bearish ? 'Bullish' : bearish > bullish ? 'Bearish' : 'Neutral';
+
+            // Top narratives
+            const narrativeCounts = {};
+            posts.forEach(post => {
+                if (post.narratives) {
+                    post.narratives.forEach(narrative => {
+                        narrativeCounts[narrative] = (narrativeCounts[narrative] || 0) + 1;
+                    });
+                }
+            });
+
+            const topNarratives = Object.entries(narrativeCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 2)
+                .map(([narrative]) => narrative)
+                .join(', ') || 'None';
+
+            document.getElementById('topNarratives').textContent = topNarratives;
+        }
+
+        // Update latest activity
+        function updateLatestActivity() {
+            const container = document.getElementById('latestActivity');
+            
+            if (posts.length === 0) {
+                container.innerHTML = `
+                    <div class="glass-light rounded-lg p-6 text-center">
+                        <div class="text-gray-500 mb-2">
+                            <i data-lucide="radio" class="w-12 h-12 mx-auto opacity-30"></i>
+                        </div>
+                        <p class="text-sm text-gray-500">Waiting for activity...</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            const recentPosts = posts
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                .slice(0, 5);
+
+            container.innerHTML = recentPosts.map(post => {
+                const sentimentIcon = post.sentiment > 0 ? '📈' : post.sentiment < 0 ? '📉' : '➡️';
+                const sentimentColor = post.sentiment > 0 ? 'accent-green' : post.sentiment < 0 ? 'accent-red' : 'accent-yellow';
+
+                return `
+                    <div class="glass-light rounded-lg p-4">
+                        <div class="flex items-start justify-between mb-2">
+                            <span class="font-semibold accent-purple">@${post.kol_handle}</span>
+                            <span class="${sentimentColor} text-sm">${sentimentIcon}</span>
+                        </div>
+                        <p class="text-sm text-gray-300 mb-3">${post.text}</p>
+                        ${post.coins && post.coins.length > 0 ? `
+                            <div class="flex flex-wrap gap-1 mb-2">
+                                ${post.coins.map(coin => `<span class="badge bg-purple-900 text-purple-300">${coin}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                        <div class="flex items-center gap-4 text-xs text-gray-500">
+                            <span>❤️ ${post.likes}</span>
+                            <span>🔄 ${post.retweets}</span>
+                            <span>👀 ${post.views}</span>
+                            <span>${new Date(post.created_at).toLocaleTimeString()}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Update hot signals
+        function updateHotSignals() {
+            const container = document.getElementById('hotSignals');
+            
+            // Detect if multiple KOLs mentioned same coin recently
+            const recentPosts = posts.filter(post => {
+                const postTime = new Date(post.created_at);
+                const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+                return postTime > hourAgo;
+            });
+
+            if (recentPosts.length === 0) {
+                container.innerHTML = `
+                    <div class="glass-light rounded-lg p-6 text-center">
+                        <div class="text-gray-500 mb-2">
+                            <i data-lucide="activity" class="w-12 h-12 mx-auto opacity-30"></i>
+                        </div>
+                        <p class="text-sm text-gray-500">No signals yet</p>
+                        <p class="text-xs text-gray-600 mt-1">Add KOLs to start monitoring</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            // For now, show a placeholder - will enhance in Phase 2
+            container.innerHTML = `
+                <div class="glass-light rounded-lg p-6 glow-purple">
+                    <div class="text-sm text-gray-400 mb-2">Multiple Mentions</div>
+                    <div class="text-xl font-bold accent-purple mb-2">${recentPosts.length} posts</div>
+                    <div class="text-xs text-gray-500">Last hour</div>
+                </div>
+            `;
+        }
+
+        // Select KOL
+        function selectKOL(handle) {
+            selectedKOL = handle;
+            const kol = kols.find(k => k.handle === handle);
+            const kolPosts = posts.filter(p => p.kol_handle.toLowerCase() === handle.toLowerCase());
+
+            // Highlight selected card
+            document.querySelectorAll('.kol-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+
+            // Open inspector
+            const inspector = document.getElementById('inspector');
+            const inspectorContent = document.getElementById('inspectorContent');
+            
+            inspectorContent.innerHTML = `
+                <div class="space-y-6">
+                    <!-- KOL Profile -->
+                    <div>
+                        <h4 class="font-semibold mb-3 accent-purple">@${kol.handle}</h4>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div class="glass-light rounded p-3">
+                                <div class="text-gray-500 text-xs">Total Posts</div>
+                                <div class="text-lg font-bold">${kol.total_posts}</div>
+                            </div>
+                            <div class="glass-light rounded p-3">
+                                <div class="text-gray-500 text-xs">Last Fetched</div>
+                                <div class="text-xs">${kol.last_fetched ? new Date(kol.last_fetched).toLocaleString() : 'Never'}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="space-y-2">
+                        <button onclick="refreshKOL('${kol.handle}')" class="w-full bg-purple-900 hover:bg-purple-800 text-white py-2 rounded-lg transition">
+                            <i data-lucide="refresh-cw" class="w-4 h-4 inline mr-2"></i>
+                            Refresh Tweets
+                        </button>
+                        <button onclick="deleteKOL('${kol.handle}')" class="w-full bg-red-900 hover:bg-red-800 text-white py-2 rounded-lg transition">
+                            <i data-lucide="trash-2" class="w-4 h-4 inline mr-2"></i>
+                            Delete KOL
+                        </button>
+                    </div>
+
+                    <!-- Recent Posts -->
+                    <div>
+                        <h5 class="font-semibold mb-3">Recent Posts (${kolPosts.length})</h5>
+                        <div class="space-y-3">
+                            ${kolPosts.slice(0, 5).map(post => `
+                                <div class="glass-light rounded p-3 text-sm">
+                                    <p class="mb-2">${post.text.substring(0, 100)}...</p>
+                                    <div class="flex items-center gap-2 text-xs text-gray-500">
+                                        <span>${new Date(post.created_at).toLocaleDateString()}</span>
+                                        ${post.sentiment > 0 ? '📈' : post.sentiment < 0 ? '📉' : '➡️'}
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            inspector.classList.add('open');
+            lucide.createIcons();
+        }
+
+        // Close inspector
+        function closeInspector() {
+            document.getElementById('inspector').classList.remove('open');
+            selectedKOL = null;
+            document.querySelectorAll('.kol-card').forEach(card => {
+                card.classList.remove('active');
+            });
+        }
+
+        // Show quick actions
+        function showQuickActions() {
+            showAddKOLModal();
+        }
+
+        // Show add KOL modal
+        function showAddKOLModal() {
+            document.getElementById('addKOLModal').classList.remove('hidden');
+            document.getElementById('kolHandle').focus();
+        }
+
+        // Hide add KOL modal
+        function hideAddKOLModal() {
+            document.getElementById('addKOLModal').classList.add('hidden');
+            document.getElementById('kolHandle').value = '';
+        }
+
+        // Add KOL
+        async function addKOL() {
+            const handle = document.getElementById('kolHandle').value.trim();
+            
+            if (!handle) {
+                alert('Please enter a Twitter handle');
+                return;
+            }
+
+            const button = event.target;
+            button.disabled = true;
+            button.classList.add('opacity-50');
+            button.textContent = 'Adding...';
+
+            try {
+                const response = await fetch('/api/kol/kols', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ handle })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('KOL added successfully! Fetching tweets...');
+                    hideAddKOLModal();
+                    loadData();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error adding KOL: ' + error.message);
+            } finally {
+                button.disabled = false;
+                button.classList.remove('opacity-50');
+                button.textContent = 'Add KOL';
+            }
+        }
+
+        // Delete KOL
+        async function deleteKOL(handle) {
+            if (!confirm(`Are you sure you want to delete @${handle}?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/kol/kols/${handle}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('KOL deleted successfully!');
+                    closeInspector();
+                    loadData();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error deleting KOL: ' + error.message);
+            }
+        }
+
+        // Refresh KOL (manual tweet fetch)
+        async function refreshKOL(handle) {
+            alert('Manual refresh will be available in Phase 2!');
+        }
+
+        // Update counters
+        function updateKOLCount() {
+            document.getElementById('kolCount').textContent = kols.length;
+        }
+
+        function updateLastUpdateTime() {
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = now.toLocaleTimeString();
+        }
+
+        // Settings
+        function showSettings() {
+            alert('Settings will be available in Phase 2!');
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // ESC to close inspector
+            if (e.key === 'Escape') {
+                closeInspector();
+                hideAddKOLModal();
+            }
+            // G for Ghost mode (future feature)
+            if (e.key === 'g' || e.key === 'G') {
+                console.log('Ghost mode - Coming in Phase 2!');
+            }
+        });
+    </script>
+</body>
+</html>

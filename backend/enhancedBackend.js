@@ -278,8 +278,8 @@ class EnhancedBackend {
             Add KOLs, fetch their tweets, and manage your KOL database.
         </p>
         
-        <a href="/kol-dashboard.html" class="cta-button">
-            📊 Open Dashboard
+        <a href="/kol-command-center.html" class="cta-button">
+            🎯 Launch Command Center
         </a>
         
         <p style="margin-top: 30px; color: #888; font-size: 0.9em;">
