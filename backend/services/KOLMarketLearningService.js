@@ -288,7 +288,7 @@ class KOLMarketLearningService {
       // TwitterAPI.io last_tweets endpoint
       const url = `https://api.twitterapi.io/twitter/user/last_tweets`;
       const params = {
-        username: handle.replace('@', ''), // Remove @ if present
+        userId: handle.replace('@', ''), // Remove @ if present - use userId parameter
         count: 50 // Get last 50 tweets
       };
 
