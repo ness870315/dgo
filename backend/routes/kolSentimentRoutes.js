@@ -18,6 +18,8 @@ const initializeService = async () => {
     kolLearningService = new KOLMarketLearningService();
     await kolLearningService.initialize();
     console.log(`✅ [KOL SENTIMENT API] Service initialized with ${kolLearningService.kols.size} KOLs`);
+  } else {
+    console.log(`♻️ [KOL SENTIMENT API] Using existing service instance with ${kolLearningService.kols.size} KOLs`);
   }
   return kolLearningService;
 };
@@ -517,10 +519,6 @@ router.post('/kols', async (req, res) => {
     console.log(`💾 [KOL SENTIMENT API] Saving KOL: @${normalizedHandle} (total KOLs: ${service.kols.size})`);
     await service.saveKOLs();
     console.log(`✅ [KOL SENTIMENT API] KOL saved successfully: @${normalizedHandle}`);
-    
-    // Reload data to ensure it's persisted
-    await service.loadData();
-    console.log(`🔄 [KOL SENTIMENT API] Data reloaded, total KOLs: ${service.kols.size}`);
     
     // Immediately fetch tweets for the new KOL
     try {

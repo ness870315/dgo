@@ -207,8 +207,8 @@ class EnhancedBackend {
 
   async loadKOLRoutes() {
     try {
-      const { default: kolSentimentRoutes } = await import('./routes/kolSentimentRoutes.js');
-      this.app.use('/api/kolsentiment', kolSentimentRoutes);
+      const { default: kolRoutes } = await import('./routes/kolRoutes.js');
+      this.app.use('/api/kol', kolRoutes);
       
       // Serve KOL dashboard page
       this.app.get('/kolsentiment', (req, res) => {
@@ -218,7 +218,7 @@ class EnhancedBackend {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KOL Alpha Dashboard - Degen Oracle</title>
+    <title>KOL Dashboard - Degen Oracle</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -263,49 +263,23 @@ class EnhancedBackend {
         .cta-button:hover {
             transform: translateY(-2px);
         }
-        .features {
-            text-align: left;
-            margin: 30px 0;
-            color: #555;
-        }
-        .features ul {
-            list-style: none;
-            padding: 0;
-        }
-        .features li {
-            margin: 10px 0;
-            padding-left: 20px;
-            position: relative;
-        }
-        .features li:before {
-            content: "🚀";
-            position: absolute;
-            left: 0;
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🧠 KOL Alpha Dashboard</h1>
-        <p class="subtitle">Who moves what, when, and how — across crypto KOLs</p>
+        <h1>🧠 KOL Dashboard</h1>
+        <p class="subtitle">Simple KOL Management System</p>
         
-        <div class="features">
-            <ul>
-                <li>Real-time KOL × Coin heatmap with sentiment coloring</li>
-                <li>Alpha signal detection for high-potential opportunities</li>
-                <li>KOL reliability leaderboard with HRS scoring</li>
-                <li>Network analysis showing KOL amplification chains</li>
-                <li>Dynamic KOL management (add/edit/delete)</li>
-                <li>Auto-refresh dashboard with 30-second intervals</li>
-            </ul>
-        </div>
+        <p style="margin: 30px 0; color: #555;">
+            Add KOLs, fetch their tweets, and manage your KOL database.
+        </p>
         
         <a href="/kol-dashboard.html" class="cta-button">
             📊 Open Dashboard
         </a>
         
         <p style="margin-top: 30px; color: #888; font-size: 0.9em;">
-            Real-time KOL analysis dashboard with interactive charts and management tools.
+            Simple and clean KOL management dashboard.
         </p>
     </div>
 </body>
@@ -313,7 +287,7 @@ class EnhancedBackend {
         `);
       });
       
-      logger.info('✅ KOL Sentiment Dashboard routes loaded');
+      logger.info('✅ KOL Dashboard routes loaded');
     } catch (error) {
       logger.warn(`⚠️ Failed to load KOL Sentiment routes: ${error.message}`);
     }

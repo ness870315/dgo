@@ -3,685 +3,192 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KOL Alpha Dashboard - Degen Oracle</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>KOL Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
-    <style>
-        .gradient-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        .card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            padding: 1.5rem;
-        }
-        .heatmap-cell {
-            transition: all 0.2s;
-            border-radius: 6px;
-            padding: 8px;
-            text-align: center;
-            cursor: pointer;
-        }
-        .heatmap-cell:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #3498db;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
 </head>
-<body class="gradient-bg min-h-screen">
+<body class="bg-gray-100 min-h-screen">
     <div class="container mx-auto px-4 py-8">
-        <!-- Header -->
-        <div class="text-center mb-8">
-            <h1 class="text-4xl font-bold text-white mb-2">🧠 KOL Alpha Dashboard</h1>
-            <p class="text-white/80 text-lg">Who moves what, when, and how — across crypto KOLs</p>
-            <div class="mt-4 flex justify-center gap-4">
-                <button onclick="refreshData()" class="bg-white/20 text-white px-4 py-2 rounded-lg hover:bg-white/30 transition-colors">
-                    <i data-lucide="refresh-cw" class="w-4 h-4 inline mr-2"></i>
-                    Refresh
-                </button>
-                <button onclick="toggleAutoRefresh()" id="autoRefreshBtn" class="bg-white/20 text-white px-4 py-2 rounded-lg hover:bg-white/30 transition-colors">
-                    <i data-lucide="clock" class="w-4 h-4 inline mr-2"></i>
-                    Auto-refresh: OFF
-                </button>
-                <select id="timeWindow" onchange="refreshData()" class="bg-white/20 text-white px-4 py-2 rounded-lg border-0">
-                    <option value="24h">24 Hours</option>
-                    <option value="7d">7 Days</option>
-                </select>
-            </div>
-        </div>
-
-        <!-- Status Bar -->
-        <div id="statusBar" class="card mb-6">
-            <div class="flex justify-between items-center">
-                <div>
-                    <span class="text-sm text-gray-600">Last updated:</span>
-                    <span id="lastUpdated" class="font-semibold">Never</span>
-                </div>
-                <div id="loadingIndicator" class="loading" style="display: none;"></div>
-                <div>
-                    <span class="text-sm text-gray-600">Status:</span>
-                    <span id="statusText" class="font-semibold text-green-600">Connected</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Key Metrics -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div class="card">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-gray-600">Total KOLs</p>
-                        <p id="totalKOLs" class="text-2xl font-bold text-blue-600">0</p>
-                    </div>
-                    <i data-lucide="users" class="w-8 h-8 text-blue-600"></i>
-                </div>
-            </div>
-            
-            <div class="card">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-gray-600">Total Posts</p>
-                        <p id="totalPosts" class="text-2xl font-bold text-green-600">0</p>
-                    </div>
-                    <i data-lucide="message-square" class="w-8 h-8 text-green-600"></i>
-                </div>
-            </div>
-            
-            <div class="card">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-gray-600">Active Coins</p>
-                        <p id="activeCoins" class="text-2xl font-bold text-purple-600">0</p>
-                    </div>
-                    <i data-lucide="trending-up" class="w-8 h-8 text-purple-600"></i>
-                </div>
-            </div>
-            
-            <div class="card">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-gray-600">Alpha Signals</p>
-                        <p id="alphaSignals" class="text-2xl font-bold text-orange-600">0</p>
-                    </div>
-                    <i data-lucide="zap" class="w-8 h-8 text-orange-600"></i>
-                </div>
-            </div>
-        </div>
-
-        <!-- Main Dashboard Tabs -->
-        <div class="card">
-            <div class="flex flex-wrap gap-2 mb-6">
-                <button onclick="showTab('overview')" id="tab-overview" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium">
-                    Overview
-                </button>
-                <button onclick="showTab('heatmap')" id="tab-heatmap" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium">
-                    Heatmap
-                </button>
-                <button onclick="showTab('momentum')" id="tab-momentum" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium">
-                    Momentum
-                </button>
-                <button onclick="showTab('signals')" id="tab-signals" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium">
-                    Alpha Signals
-                </button>
-                <button onclick="showTab('manage')" id="tab-manage" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium">
-                    Manage KOLs
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-3xl font-bold text-gray-800">KOL Dashboard</h1>
+                <button onclick="showAddKOLModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                    Add KOL
                 </button>
             </div>
 
-            <!-- Overview Tab -->
-            <div id="content-overview" class="tab-content">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Momentum Board -->
-                    <div>
-                        <h3 class="text-lg font-semibold mb-4 flex items-center">
-                            <i data-lucide="flame" class="w-5 h-5 mr-2 text-orange-500"></i>
-                            Momentum Board
-                        </h3>
-                        <div id="momentumBoard" class="space-y-3">
-                            <div class="text-center text-gray-500 py-8">
-                                No momentum data available
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- KOL Leaderboard -->
-                    <div>
-                        <h3 class="text-lg font-semibold mb-4 flex items-center">
-                            <i data-lucide="users" class="w-5 h-5 mr-2 text-blue-500"></i>
-                            KOL Reliability Leaderboard
-                        </h3>
-                        <div id="leaderboard" class="space-y-3">
-                            <div class="text-center text-gray-500 py-8">
-                                No leaderboard data available
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <!-- KOLs List -->
+            <div id="kolsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                <!-- KOLs will be loaded here -->
             </div>
 
-            <!-- Heatmap Tab -->
-            <div id="content-heatmap" class="tab-content hidden">
-                <h3 class="text-lg font-semibold mb-4 flex items-center">
-                    <i data-lucide="grid-3x3" class="w-5 h-5 mr-2 text-purple-500"></i>
-                    KOL × Coin Heatmap
-                </h3>
-                <div id="heatmapContainer">
-                    <div class="text-center text-gray-500 py-8">
-                        No heatmap data available
-                    </div>
-                </div>
-            </div>
-
-            <!-- Momentum Tab -->
-            <div id="content-momentum" class="tab-content hidden">
-                <h3 class="text-lg font-semibold mb-4 flex items-center">
-                    <i data-lucide="trending-up" class="w-5 h-5 mr-2 text-green-500"></i>
-                    Momentum Trends
-                </h3>
-                <div class="h-96">
-                    <canvas id="momentumChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Alpha Signals Tab -->
-            <div id="content-signals" class="tab-content hidden">
-                <h3 class="text-lg font-semibold mb-4 flex items-center">
-                    <i data-lucide="zap" class="w-5 h-5 mr-2 text-yellow-500"></i>
-                    Alpha Signals
-                </h3>
-                <div id="alphaSignalsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div class="text-center text-gray-500 py-8">
-                        No alpha signals detected
-                    </div>
-                </div>
-            </div>
-
-            <!-- Manage KOLs Tab -->
-            <div id="content-manage" class="tab-content hidden">
-                <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-lg font-semibold flex items-center">
-                        <i data-lucide="settings" class="w-5 h-5 mr-2 text-purple-500"></i>
-                        KOL Management
-                    </h3>
-                    <button onclick="showAddKOLModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                        <i data-lucide="user-plus" class="w-4 h-4 inline mr-2"></i>
-                        Add KOL
-                    </button>
-                </div>
-                <div id="kolList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div class="text-center text-gray-500 py-8">
-                        No KOLs configured
-                    </div>
+            <!-- Posts List -->
+            <div class="bg-gray-50 rounded-lg p-4">
+                <h2 class="text-xl font-semibold mb-4">Recent Posts</h2>
+                <div id="postsList">
+                    <!-- Posts will be loaded here -->
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Add KOL Modal -->
-    <div id="addKOLModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4">
-            <h3 class="text-lg font-semibold mb-4 flex items-center">
-                <i data-lucide="user-plus" class="w-5 h-5 mr-2"></i>
-                Add New KOL
-            </h3>
-            <div class="space-y-4">
-                <div>
-                    <label class="text-sm font-medium mb-2 block">Twitter Handle</label>
-                    <input id="kolHandle" type="text" placeholder="@username" class="w-full px-3 py-2 border rounded-lg">
-                </div>
-                <div>
-                    <label class="text-sm font-medium mb-2 block">Segments (comma-separated)</label>
-                    <input id="kolSegments" type="text" placeholder="crypto, defi, nft" class="w-full px-3 py-2 border rounded-lg">
-                </div>
-                <div class="flex gap-2 pt-4">
-                    <button onclick="addKOL()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                        Add KOL
-                    </button>
-                    <button onclick="hideAddKOLModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors">
-                        Cancel
-                    </button>
-                </div>
+    <div id="addKOLModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+            <h3 class="text-xl font-semibold mb-4">Add New KOL</h3>
+            <input id="kolHandle" type="text" placeholder="@username" class="w-full px-3 py-2 border rounded-lg mb-4">
+            <div class="flex gap-2">
+                <button onclick="addKOL()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+                    Add KOL
+                </button>
+                <button onclick="hideAddKOLModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50">
+                    Cancel
+                </button>
             </div>
         </div>
     </div>
 
     <script>
-        let dashboardData = null;
-        let autoRefreshInterval = null;
-        let autoRefreshEnabled = false;
+        // Global state
+        let kols = [];
+        let posts = [];
 
-        // Initialize dashboard
+        // Initialize
         document.addEventListener('DOMContentLoaded', function() {
-            lucide.createIcons();
-            refreshData();
-            showTab('overview');
+            loadData();
         });
 
-        async function refreshData() {
-            showLoading(true);
+        // Load data
+        async function loadData() {
             try {
-                const timeWindow = document.getElementById('timeWindow').value;
-                
-                // Fetch dashboard data and KOL list in parallel
-                const [dashboardResponse, kolsResponse] = await Promise.all([
-                    fetch(`/api/kolsentiment/dashboard?window=${timeWindow}`),
-                    fetch('/api/kolsentiment/kols')
-                ]);
-                
-                const dashboardResult = await dashboardResponse.json();
+                // Load KOLs
+                const kolsResponse = await fetch('/api/kol/kols');
                 const kolsResult = await kolsResponse.json();
                 
-                if (dashboardResult.success) {
-                    dashboardData = dashboardResult.data;
-                    updateUI();
-                    updateStatus('Connected', 'success');
-                } else {
-                    updateStatus('Error: ' + dashboardResult.error, 'error');
-                }
-                
                 if (kolsResult.success) {
-                    console.log('KOLs fetched:', kolsResult.data);
-                    updateKOLList(kolsResult.data);
+                    kols = kolsResult.data;
+                    updateKOLsList();
                 } else {
-                    console.error('Failed to fetch KOLs:', kolsResult.error);
-                    updateStatus('Error fetching KOLs: ' + kolsResult.error, 'error');
+                    console.error('Failed to load KOLs:', kolsResult.error);
                 }
+
+                // Load posts
+                const postsResponse = await fetch('/api/kol/posts');
+                const postsResult = await postsResponse.json();
                 
-            } catch (error) {
-                updateStatus('Connection Error', 'error');
-                console.error('Error fetching data:', error);
-            }
-            showLoading(false);
-        }
-
-        function updateUI() {
-            if (!dashboardData) return;
-
-            // Update metrics
-            document.getElementById('totalKOLs').textContent = dashboardData.metadata.total_kols || 0;
-            document.getElementById('totalPosts').textContent = dashboardData.metadata.total_posts || 0;
-            document.getElementById('activeCoins').textContent = dashboardData.heatmap.length || 0;
-            document.getElementById('alphaSignals').textContent = dashboardData.signals.length || 0;
-            document.getElementById('lastUpdated').textContent = new Date(dashboardData.metadata.last_updated).toLocaleString();
-
-            // Update overview content
-            updateMomentumBoard();
-            updateLeaderboard();
-            updateHeatmap();
-            updateAlphaSignals();
-            updateMomentumChart();
-        }
-
-        function updateMomentumBoard() {
-            const container = document.getElementById('momentumBoard');
-            if (!dashboardData.momentum || dashboardData.momentum.length === 0) {
-                container.innerHTML = '<div class="text-center text-gray-500 py-8">No momentum data available</div>';
-                return;
-            }
-
-            container.innerHTML = dashboardData.momentum.map((item, index) => `
-                <div class="flex items-center justify-between p-3 rounded-lg border bg-gradient-to-r from-slate-50 to-white hover:shadow-md transition-shadow">
-                    <div class="flex items-center gap-3">
-                        <span class="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
-                            ${index + 1}
-                        </span>
-                        <div>
-                            <div class="font-semibold">$${item.coin}</div>
-                            <div class="text-xs text-gray-500">
-                                breadth ${item.breadth} • stance ${item.stance?.toFixed(2) || 0} • velocity ${item.velocity?.toFixed(2) || 0}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <div class="font-semibold">${item.score?.toFixed(1) || 0}</div>
-                        <div class="text-xs text-gray-500">score</div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function updateLeaderboard() {
-            const container = document.getElementById('leaderboard');
-            if (!dashboardData.leaderboard || dashboardData.leaderboard.length === 0) {
-                container.innerHTML = '<div class="text-center text-gray-500 py-8">No leaderboard data available</div>';
-                return;
-            }
-
-            container.innerHTML = dashboardData.leaderboard.map((kol, index) => `
-                <div class="flex items-center justify-between p-3 rounded-lg border bg-gradient-to-r from-slate-50 to-white">
-                    <div class="flex items-center gap-3">
-                        <span class="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-sm">
-                            ${index + 1}
-                        </span>
-                        <div>
-                            <div class="font-semibold">@${kol.kol}</div>
-                            <div class="text-xs text-gray-500">
-                                ${kol.total_posts || 0} posts • ${kol.coins_mentioned || 0} coins
-                            </div>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <div class="font-bold text-lg">${kol.hrs?.toFixed(1) || 0}</div>
-                        <div class="text-xs text-gray-500">HRS</div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function updateHeatmap() {
-            const container = document.getElementById('heatmapContainer');
-            if (!dashboardData.heatmap || dashboardData.heatmap.length === 0) {
-                container.innerHTML = '<div class="text-center text-gray-500 py-8">No heatmap data available</div>';
-                return;
-            }
-
-            // Group data by KOL and Coin
-            const groupedData = {};
-            dashboardData.heatmap.forEach(item => {
-                if (!groupedData[item.kol]) groupedData[item.kol] = {};
-                groupedData[item.kol][item.coin] = item;
-            });
-
-            const kols = Object.keys(groupedData);
-            const coins = [...new Set(dashboardData.heatmap.map(item => item.coin))];
-
-            if (kols.length === 0 || coins.length === 0) {
-                container.innerHTML = '<div class="text-center text-gray-500 py-8">No heatmap data available</div>';
-                return;
-            }
-
-            const table = `
-                <div class="overflow-x-auto">
-                    <table class="min-w-full border-separate border-spacing-0">
-                        <thead>
-                            <tr>
-                                <th class="sticky left-0 z-10 bg-white/90 backdrop-blur px-4 py-3 text-left text-sm font-semibold text-gray-700 border-b">
-                                    KOL \\ Coin
-                                </th>
-                                ${coins.map(coin => `<th class="px-4 py-3 text-center text-sm font-semibold text-gray-700 border-b min-w-[120px]">$${coin}</th>`).join('')}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${kols.map(kol => `
-                                <tr class="hover:bg-gray-50/50">
-                                    <td class="sticky left-0 z-10 bg-white/90 backdrop-blur px-4 py-3 text-sm font-semibold border-b">
-                                        @${kol}
-                                    </td>
-                                    ${coins.map(coin => {
-                                        const cell = groupedData[kol][coin];
-                                        if (!cell) return '<td class="px-2 py-3 border-b"></td>';
-                                        
-                                        const score = cell.score || 0;
-                                        const stance = cell.stance || 0;
-                                        const intensity = Math.min(100, Math.max(0, Math.abs(score)));
-                                        const hue = stance > 0 ? 120 : stance < 0 ? 0 : 60;
-                                        const saturation = 70 + (intensity / 100) * 30;
-                                        const lightness = 90 - (intensity / 100) * 40;
-                                        const bgColor = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-                                        
-                                        return `
-                                            <td class="px-2 py-3 border-b">
-                                                <div class="heatmap-cell" style="background-color: ${bgColor}" 
-                                                     title="${kol} × ${coin}: Score ${score.toFixed(1)}, Stance ${stance.toFixed(2)}">
-                                                    <div class="text-sm font-semibold">${score.toFixed(0)}</div>
-                                                    <div class="text-xs opacity-75">
-                                                        m:${cell.mentions || 0} • e:${cell.engagement || 0}
-                                                    </div>
-                                                    <div class="text-xs mt-1">
-                                                        ${stance > 0.3 ? '📈' : stance < -0.3 ? '📉' : '➡️'}
-                                                    </div>
-                                                </div>
-                                            </td>
-                                        `;
-                                    }).join('')}
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            `;
-
-            container.innerHTML = table;
-        }
-
-        function updateAlphaSignals() {
-            const container = document.getElementById('alphaSignalsContainer');
-            if (!dashboardData.signals || dashboardData.signals.length === 0) {
-                container.innerHTML = '<div class="text-center text-gray-500 py-8">No alpha signals detected</div>';
-                return;
-            }
-
-            container.innerHTML = dashboardData.signals.map((signal, index) => `
-                <div class="p-4 rounded-lg border bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="bg-yellow-500 text-white px-2 py-1 rounded text-xs">Alpha Signal</span>
-                        <div class="text-xs text-gray-500">
-                            ${new Date(signal.timestamp).toLocaleTimeString()}
-                        </div>
-                    </div>
-                    <div class="font-bold text-lg">$${signal.asset_symbol}</div>
-                    <div class="space-y-1 text-sm mt-2">
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">KOL Coverage:</span>
-                            <span class="font-semibold">${signal.unique_kols} KOLs</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Velocity:</span>
-                            <span class="font-semibold">${signal.velocity?.toFixed(1) || 0}/hr</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-gray-600">Sentiment:</span>
-                            <span class="font-semibold ${signal.stance_score > 0 ? 'text-green-600' : signal.stance_score < 0 ? 'text-red-600' : 'text-gray-600'}">
-                                ${signal.stance_score > 0 ? '+' : ''}${signal.stance_score?.toFixed(2) || 0}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function updateMomentumChart() {
-            const ctx = document.getElementById('momentumChart');
-            if (!ctx || !dashboardData.momentum || dashboardData.momentum.length === 0) {
-                return;
-            }
-
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: dashboardData.momentum.map(item => `$${item.coin}`),
-                    datasets: [{
-                        label: 'Momentum Score',
-                        data: dashboardData.momentum.map(item => item.score || 0),
-                        backgroundColor: 'rgba(59, 130, 246, 0.8)',
-                        borderColor: 'rgba(59, 130, 246, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true
-                        }
-                    }
+                if (postsResult.success) {
+                    posts = postsResult.data;
+                    updatePostsList();
+                } else {
+                    console.error('Failed to load posts:', postsResult.error);
                 }
-            });
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
         }
 
-        function updateKOLList(kols) {
-            console.log('updateKOLList called with:', kols);
-            const container = document.getElementById('kolList');
-            console.log('Container element:', container);
+        // Update KOLs list
+        function updateKOLsList() {
+            const container = document.getElementById('kolsList');
             
-            if (!kols || kols.length === 0) {
+            if (kols.length === 0) {
                 container.innerHTML = `
-                    <div class="text-center text-gray-500 py-8">
-                        <div class="mb-4">
-                            <i data-lucide="users" class="w-12 h-12 mx-auto text-gray-400"></i>
-                        </div>
-                        <p class="mb-4">No KOLs configured yet</p>
-                        <button onclick="showAddKOLModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                            <i data-lucide="user-plus" class="w-4 w-4 inline mr-2"></i>
+                    <div class="col-span-full text-center text-gray-500 py-8">
+                        <p class="mb-4">No KOLs added yet</p>
+                        <button onclick="showAddKOLModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
                             Add Your First KOL
                         </button>
                     </div>
                 `;
-                lucide.createIcons();
                 return;
             }
 
             container.innerHTML = kols.map(kol => `
-                <div class="p-4 rounded-lg border bg-gradient-to-r from-slate-50 to-white hover:shadow-md transition-shadow">
-                    <div class="flex items-center justify-between mb-3">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold">
-                                @${kol.handle.charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                                <div class="font-semibold">@${kol.handle}</div>
-                                <div class="text-xs text-slate-500">
-                                    Influence: ${kol.influence_score}/100
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex gap-1">
-                            <button onclick="editKOL('${kol.handle}')" class="p-2 hover:bg-gray-100 rounded transition-colors">
-                                <i data-lucide="edit" class="w-4 h-4 text-blue-600"></i>
-                            </button>
-                            <button onclick="deleteKOL('${kol.handle}')" class="p-2 hover:bg-gray-100 rounded transition-colors">
-                                <i data-lucide="trash-2" class="w-4 h-4 text-red-600"></i>
-                            </button>
-                        </div>
+                <div class="bg-white border rounded-lg p-4 shadow-sm">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="font-semibold">@${kol.handle}</h3>
+                        <button onclick="deleteKOL('${kol.handle}')" class="text-red-600 hover:text-red-800">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
                     </div>
-                    
-                    <div class="space-y-2 text-sm">
-                        <div class="flex justify-between">
-                            <span class="text-slate-600">Posts:</span>
-                            <span class="font-semibold">${kol.total_posts || 0}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-600">Reliability:</span>
-                            <span class="font-semibold">${(kol.reliability_score || 0).toFixed(1)}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-600">Last Monitored:</span>
-                            <span class="text-xs">
-                                ${kol.last_monitored ? 
-                                    new Date(kol.last_monitored).toLocaleDateString() : 
-                                    'Never'
-                                }
-                            </span>
-                        </div>
-                        ${kol.segments && kol.segments.length > 0 ? `
-                            <div class="flex flex-wrap gap-1 mt-2">
-                                ${kol.segments.map(segment => `
-                                    <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
-                                        ${segment}
-                                    </span>
-                                `).join('')}
-                            </div>
-                        ` : ''}
-                    </div>
+                    <p class="text-sm text-gray-600">Posts: ${kol.total_posts}</p>
+                    <p class="text-sm text-gray-600">Last fetched: ${kol.last_fetched ? new Date(kol.last_fetched).toLocaleString() : 'Never'}</p>
+                    <p class="text-xs text-gray-500">Added: ${new Date(kol.created_at).toLocaleDateString()}</p>
                 </div>
             `).join('');
-            
-            console.log('Generated HTML for KOLs:', container.innerHTML.substring(0, 200) + '...');
+
+            // Initialize Lucide icons
             lucide.createIcons();
         }
 
-        function showTab(tabName) {
-            // Hide all tab contents
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.add('hidden');
-            });
+        // Update posts list
+        function updatePostsList() {
+            const container = document.getElementById('postsList');
             
-            // Remove active class from all tabs
-            document.querySelectorAll('[id^="tab-"]').forEach(tab => {
-                tab.className = 'px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium';
-            });
-            
-            // Show selected tab content
-            document.getElementById(`content-${tabName}`).classList.remove('hidden');
-            
-            // Add active class to selected tab
-            document.getElementById(`tab-${tabName}`).className = 'px-4 py-2 bg-blue-600 text-white rounded-lg font-medium';
-        }
-
-        function showLoading(show) {
-            document.getElementById('loadingIndicator').style.display = show ? 'inline-block' : 'none';
-        }
-
-        function updateStatus(text, type) {
-            const statusElement = document.getElementById('statusText');
-            statusElement.textContent = text;
-            statusElement.className = `font-semibold text-${type === 'success' ? 'green' : type === 'error' ? 'red' : 'gray'}-600`;
-        }
-
-        function toggleAutoRefresh() {
-            autoRefreshEnabled = !autoRefreshEnabled;
-            const btn = document.getElementById('autoRefreshBtn');
-            
-            if (autoRefreshEnabled) {
-                btn.innerHTML = '<i data-lucide="clock" class="w-4 h-4 inline mr-2"></i>Auto-refresh: ON';
-                btn.className = 'bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors';
-                autoRefreshInterval = setInterval(refreshData, 30000); // 30 seconds
-            } else {
-                btn.innerHTML = '<i data-lucide="clock" class="w-4 h-4 inline mr-2"></i>Auto-refresh: OFF';
-                btn.className = 'bg-white/20 text-white px-4 py-2 rounded-lg hover:bg-white/30 transition-colors';
-                if (autoRefreshInterval) {
-                    clearInterval(autoRefreshInterval);
-                    autoRefreshInterval = null;
-                }
+            if (posts.length === 0) {
+                container.innerHTML = '<p class="text-gray-500">No posts yet</p>';
+                return;
             }
+
+            // Show recent posts (last 10)
+            const recentPosts = posts
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                .slice(0, 10);
+
+            container.innerHTML = recentPosts.map(post => `
+                <div class="bg-white border rounded-lg p-3 mb-3">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="font-semibold text-blue-600">@${post.kol_handle}</span>
+                        <span class="text-xs text-gray-500">${new Date(post.created_at).toLocaleString()}</span>
+                    </div>
+                    <p class="text-sm mb-2">${post.text}</p>
+                    <div class="flex gap-4 text-xs text-gray-500">
+                        <span>❤️ ${post.likes}</span>
+                        <span>🔄 ${post.retweets}</span>
+                        <span>💬 ${post.replies}</span>
+                        <span>👀 ${post.views}</span>
+                    </div>
+                </div>
+            `).join('');
         }
 
+        // Show add KOL modal
         function showAddKOLModal() {
             document.getElementById('addKOLModal').classList.remove('hidden');
+            document.getElementById('kolHandle').focus();
         }
 
+        // Hide add KOL modal
         function hideAddKOLModal() {
             document.getElementById('addKOLModal').classList.add('hidden');
+            document.getElementById('kolHandle').value = '';
         }
 
+        // Add KOL
         async function addKOL() {
             const handle = document.getElementById('kolHandle').value.trim();
-            const segments = document.getElementById('kolSegments').value.split(',').map(s => s.trim()).filter(s => s);
-
+            
             if (!handle) {
                 alert('Please enter a Twitter handle');
                 return;
             }
 
             try {
-                const response = await fetch('/api/kolsentiment/kols', {
+                const response = await fetch('/api/kol/kols', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ handle, segments })
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ handle })
                 });
 
                 const result = await response.json();
                 
                 if (result.success) {
-                    alert('KOL added successfully! Fetching tweets...');
+                    alert('KOL added successfully!');
                     hideAddKOLModal();
-                    refreshData();
+                    loadData(); // Reload data
                 } else {
                     alert('Error: ' + result.error);
                 }
@@ -690,13 +197,14 @@
             }
         }
 
+        // Delete KOL
         async function deleteKOL(handle) {
             if (!confirm(`Are you sure you want to delete @${handle}?`)) {
                 return;
             }
 
             try {
-                const response = await fetch(`/api/kolsentiment/kols/${handle}`, {
+                const response = await fetch(`/api/kol/kols/${handle}`, {
                     method: 'DELETE'
                 });
 
@@ -704,43 +212,12 @@
                 
                 if (result.success) {
                     alert('KOL deleted successfully!');
-                    refreshData();
+                    loadData(); // Reload data
                 } else {
                     alert('Error: ' + result.error);
                 }
             } catch (error) {
                 alert('Error deleting KOL: ' + error.message);
-            }
-        }
-
-        async function editKOL(handle) {
-            // For now, just show a simple prompt
-            const newInfluence = prompt(`Enter new influence score for @${handle} (1-100):`, '50');
-            if (newInfluence === null) return;
-
-            const influence = parseInt(newInfluence);
-            if (isNaN(influence) || influence < 1 || influence > 100) {
-                alert('Please enter a valid influence score between 1 and 100');
-                return;
-            }
-
-            try {
-                const response = await fetch(`/api/kolsentiment/kols/${handle}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ influence_score: influence })
-                });
-
-                const result = await response.json();
-                
-                if (result.success) {
-                    alert('KOL updated successfully!');
-                    refreshData();
-                } else {
-                    alert('Error: ' + result.error);
-                }
-            } catch (error) {
-                alert('Error updating KOL: ' + error.message);
             }
         }
     </script>
