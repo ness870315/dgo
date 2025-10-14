@@ -413,23 +413,30 @@ router.post('/fetch-coin-image/:symbol', async (req, res) => {
     try {
       const query = `What is the logo image URL for ${symbol} cryptocurrency? Please provide only the direct image URL.`;
       
-      const perplexityResponse = await fetch('http://127.0.0.1:10000/api/perplexity/search', {
+      const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          query: query,
           model: 'sonar-pro',
-          maxTokens: 100
+          messages: [
+            {
+              role: 'user',
+              content: query
+            }
+          ],
+          max_tokens: 100
         })
       });
       
       if (perplexityResponse.ok) {
         const data = await perplexityResponse.json();
-        if (data.content) {
+        if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
+          const content = data.choices[0].message.content;
           // Extract URL from response
-          const urlMatch = data.content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp)/i);
+          const urlMatch = content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp)/i);
           if (urlMatch) {
             console.log(`✅ [KOL API] Found Perplexity image for ${symbol}: ${urlMatch[0]}`);
             return res.json({
