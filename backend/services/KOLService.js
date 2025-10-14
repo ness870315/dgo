@@ -476,13 +476,21 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
         );
         
         if (coin) {
+          // Get logo from Jupiter token list if not in DegenOracle
+          let logo = coin.image || coin.logoURI;
+          
+          if (!logo && coin.contractAddress) {
+            // Fallback to Jupiter CDN for Solana tokens
+            logo = `https://img.fotofolio.xyz/?url=https%3A%2F%2Fraw.githubusercontent.com%2Fsolana-labs%2Ftoken-list%2Fmain%2Fassets%2Fmainnet%2F${coin.contractAddress}%2Flogo.png`;
+          }
+          
           return {
             symbol: coin.symbol,
             name: coin.name,
-            image: coin.image || coin.logoURI,
-            price: coin.priceUsd || coin.price,
+            image: logo,
+            price: coin.price || coin.currentPrice,
             volume_24h: coin.volume24h,
-            mcap: coin.mcap || coin.marketCap,
+            mcap: coin.marketCap,
             price_change_24h: coin.priceChange24h
           };
         }
