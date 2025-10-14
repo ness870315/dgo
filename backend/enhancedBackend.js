@@ -214,7 +214,7 @@ class EnhancedBackend {
       this.app.use('/api/kol', kolRoutes);
       console.log('✅ [BACKEND] KOL routes registered at /api/kol');
       
-      // Serve KOL dashboard page
+      // Serve KOL Intelligence Hub page
       this.app.get('/kolsentiment', (req, res) => {
         res.send(`
 <!DOCTYPE html>
@@ -222,38 +222,41 @@ class EnhancedBackend {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KOL Dashboard - Degen Oracle</title>
+    <title>KOL Intelligence Hub - Degen Oracle</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             margin: 0;
             padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a0a2e 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
         }
         .container {
-            background: white;
+            background: rgba(20, 20, 20, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(153, 69, 255, 0.3);
             border-radius: 20px;
             padding: 40px;
             text-align: center;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 20px 60px rgba(153, 69, 255, 0.2);
             max-width: 600px;
         }
         h1 {
-            color: #333;
+            color: #9945FF;
             margin-bottom: 20px;
             font-size: 2.5em;
+            text-shadow: 0 0 20px rgba(153, 69, 255, 0.5);
         }
         .subtitle {
-            color: #666;
+            color: #aaa;
             font-size: 1.2em;
             margin-bottom: 30px;
         }
         .cta-button {
-            background: linear-gradient(45deg, #667eea, #764ba2);
+            background: linear-gradient(45deg, #9945FF, #14F195);
             color: white;
             padding: 15px 30px;
             border: none;
@@ -262,28 +265,60 @@ class EnhancedBackend {
             font-weight: bold;
             text-decoration: none;
             display: inline-block;
-            transition: transform 0.2s;
+            transition: all 0.3s;
+            box-shadow: 0 4px 20px rgba(153, 69, 255, 0.4);
         }
         .cta-button:hover {
-            transform: translateY(-2px);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 30px rgba(153, 69, 255, 0.6);
+        }
+        .features {
+            margin: 30px 0;
+            color: #888;
+            text-align: left;
+        }
+        .feature {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .feature-icon {
+            color: #9945FF;
+            font-size: 1.2em;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🧠 KOL Dashboard</h1>
-        <p class="subtitle">Simple KOL Management System</p>
+        <h1>🧠 KOL INTELLIGENCE HUB</h1>
+        <p class="subtitle">Who Moves What, When, and How</p>
         
-        <p style="margin: 30px 0; color: #555;">
-            Add KOLs, fetch their tweets, and manage your KOL database.
-        </p>
+        <div class="features">
+            <div class="feature">
+                <span class="feature-icon">🚀</span>
+                <span>Momentum Board - Track coin mentions</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">💭</span>
+                <span>Narrative Radar - Detect emerging trends</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">⚡</span>
+                <span>Alpha Signals - Real-time opportunities</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">📊</span>
+                <span>Auto Influence Scores - AI-powered KOL ranking</span>
+            </div>
+        </div>
         
-        <a href="/kol-command-center.html" class="cta-button">
-            🎯 Launch Command Center
+        <a href="/kol-intelligence-hub.html" class="cta-button">
+            🎯 Launch Intelligence Hub
         </a>
         
-        <p style="margin-top: 30px; color: #888; font-size: 0.9em;">
-            Simple and clean KOL management dashboard.
+        <p style="margin-top: 30px; color: #666; font-size: 0.9em;">
+            Revolutionary KOL intelligence platform
         </p>
     </div>
 </body>

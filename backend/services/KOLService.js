@@ -180,8 +180,17 @@ class KOLService {
       const data = response.data;
       const tweets = data.data?.tweets || data.tweets || [];
 
+      // Extract user info from first tweet (for influence calculation)
+      let userInfo = null;
+      if (tweets.length > 0 && tweets[0].author) {
+        userInfo = tweets[0].author;
+      }
+
       // Process tweets with AI analysis
       let newPosts = 0;
+      let totalEngagement = 0;
+      let cryptoTweetCount = 0;
+
       for (const tweet of tweets) {
         const postId = `post_${tweet.id}`;
         
@@ -215,17 +224,40 @@ class KOLService {
         this.posts.push(post);
         newPosts++;
 
+        // Calculate engagement
+        totalEngagement += (post.likes + post.retweets * 2 + post.replies + post.quotes);
+        
+        // Check if crypto-related
+        if (analysis.coins.length > 0 || analysis.narratives.length > 0) {
+          cryptoTweetCount++;
+        }
+
         // Log analysis
         if (analysis.coins.length > 0) {
           console.log(`🤖 [KOL SERVICE] Analyzed: ${analysis.coins.join(', ')} | Sentiment: ${analysis.sentiment > 0 ? '📈' : analysis.sentiment < 0 ? '📉' : '➡️'}`);
         }
       }
 
-      // Update KOL stats
+      // Update KOL stats & calculate influence
       const kol = this.kols.get(handle.toLowerCase());
       if (kol) {
         kol.last_fetched = new Date().toISOString();
         kol.total_posts = this.posts.filter(p => p.kol_handle.toLowerCase() === handle.toLowerCase()).length;
+        
+        // Calculate influence score
+        const influence = this.calculateInfluenceScore(kol, userInfo, totalEngagement, cryptoTweetCount, tweets.length);
+        
+        // Smooth transition (70% old + 30% new) if previous score exists
+        if (kol.influence_score !== undefined) {
+          kol.influence_score = Math.round(kol.influence_score * 0.7 + influence.total * 0.3);
+        } else {
+          kol.influence_score = influence.total;
+        }
+        
+        kol.influence_breakdown = influence.breakdown;
+        
+        console.log(`📊 [KOL SERVICE] Influence score for @${handle}: ${kol.influence_score}/100`);
+        
         this.kols.set(handle.toLowerCase(), kol);
       }
 
@@ -238,6 +270,73 @@ class KOLService {
       console.error(`❌ [KOL SERVICE] Error fetching tweets for @${handle}:`, error.message);
       return [];
     }
+  }
+
+  // Calculate automatic influence score
+  calculateInfluenceScore(kol, userInfo, totalEngagement, cryptoTweetCount, tweetCount) {
+    const breakdown = {
+      followers: 0,
+      engagement: 0,
+      activity: 0,
+      cryptoFocus: 0
+    };
+
+    // 1. Follower Count (40% weight)
+    if (userInfo && userInfo.followers) {
+      const followers = userInfo.followers;
+      if (followers >= 1000000) breakdown.followers = 100;
+      else if (followers >= 500000) breakdown.followers = 90;
+      else if (followers >= 100000) breakdown.followers = 80;
+      else if (followers >= 50000) breakdown.followers = 70;
+      else if (followers >= 10000) breakdown.followers = 60;
+      else if (followers >= 5000) breakdown.followers = 50;
+      else if (followers >= 1000) breakdown.followers = 30;
+      else breakdown.followers = 10;
+    } else {
+      breakdown.followers = 50; // Default if not available
+    }
+
+    // 2. Engagement Rate (30% weight)
+    if (tweetCount > 0) {
+      const avgEngagement = totalEngagement / tweetCount;
+      if (avgEngagement >= 1000) breakdown.engagement = 100;
+      else if (avgEngagement >= 500) breakdown.engagement = 85;
+      else if (avgEngagement >= 200) breakdown.engagement = 70;
+      else if (avgEngagement >= 100) breakdown.engagement = 60;
+      else if (avgEngagement >= 50) breakdown.engagement = 50;
+      else if (avgEngagement >= 20) breakdown.engagement = 40;
+      else breakdown.engagement = 30;
+    }
+
+    // 3. Activity Level (15% weight)
+    if (kol.total_posts >= 100) breakdown.activity = 100;
+    else if (kol.total_posts >= 50) breakdown.activity = 80;
+    else if (kol.total_posts >= 20) breakdown.activity = 60;
+    else if (kol.total_posts >= 10) breakdown.activity = 40;
+    else breakdown.activity = 20;
+
+    // 4. Crypto Focus (15% weight)
+    if (tweetCount > 0) {
+      const cryptoPercentage = (cryptoTweetCount / tweetCount) * 100;
+      if (cryptoPercentage >= 80) breakdown.cryptoFocus = 100;
+      else if (cryptoPercentage >= 60) breakdown.cryptoFocus = 85;
+      else if (cryptoPercentage >= 40) breakdown.cryptoFocus = 70;
+      else if (cryptoPercentage >= 20) breakdown.cryptoFocus = 50;
+      else breakdown.cryptoFocus = 30;
+    }
+
+    // Calculate weighted total
+    const total = Math.round(
+      breakdown.followers * 0.40 +
+      breakdown.engagement * 0.30 +
+      breakdown.activity * 0.15 +
+      breakdown.cryptoFocus * 0.15
+    );
+
+    return {
+      total: Math.max(1, Math.min(100, total)),
+      breakdown
+    };
   }
 
   // Analyze tweet with AI

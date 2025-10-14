@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KOL Intelligence Hub - DegenOracle</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background-color: #0a0a0a;
+            color: #ffffff;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* Glassmorphism */
+        .glass {
+            background: rgba(20, 20, 20, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(153, 69, 255, 0.2);
+        }
+
+        .glass-light {
+            background: rgba(30, 30, 30, 0.5);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(153, 69, 255, 0.1);
+        }
+
+        /* Accent Colors - DegenOracle Theme */
+        .accent-purple { color: #9945FF; }
+        .accent-green { color: #14F195; }
+        .accent-red { color: #FF4757; }
+        .accent-yellow { color: #FFA502; }
+        .accent-blue { color: #00D9FF; }
+
+        .bg-accent-purple { background-color: #9945FF; }
+        .bg-accent-green { background-color: #14F195; }
+        .bg-accent-red { background-color: #FF4757; }
+        .border-accent-purple { border-color: #9945FF; }
+
+        /* Glow Effects */
+        .glow-purple {
+            box-shadow: 0 0 20px rgba(153, 69, 255, 0.4);
+        }
+
+        .glow-green {
+            box-shadow: 0 0 20px rgba(20, 241, 149, 0.4);
+        }
+
+        .glow-red {
+            box-shadow: 0 0 20px rgba(255, 71, 87, 0.4);
+        }
+
+        /* Animations */
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .pulse-slow {
+            animation: pulse-slow 3s ease-in-out infinite;
+        }
+
+        @keyframes slide-in-right {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .slide-in-right {
+            animation: slide-in-right 0.3s ease-out;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(20, 20, 20, 0.5);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(153, 69, 255, 0.5);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(153, 69, 255, 0.8);
+        }
+
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+        }
+
+        .tooltip:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 6px 10px;
+            background: rgba(0, 0, 0, 0.95);
+            border: 1px solid #9945FF;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            margin-bottom: 8px;
+        }
+
+        /* KOL Card */
+        .kol-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .kol-card:hover {
+            transform: translateX(5px);
+            border-color: #9945FF;
+            box-shadow: 0 0 15px rgba(153, 69, 255, 0.3);
+        }
+
+        .kol-card.active {
+            border-color: #9945FF;
+            background: rgba(153, 69, 255, 0.1);
+        }
+
+        /* Momentum Card */
+        .momentum-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .momentum-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(153, 69, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .momentum-card:hover::before {
+            left: 100%;
+        }
+
+        .momentum-card:hover {
+            transform: translateY(-5px);
+            border-color: #9945FF;
+            box-shadow: 0 5px 20px rgba(153, 69, 255, 0.3);
+        }
+
+        /* Narrative Badge */
+        .narrative-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .narrative-badge:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(153, 69, 255, 0.3);
+        }
+
+        /* Inspector Panel */
+        .inspector {
+            position: fixed;
+            top: 0;
+            right: -450px;
+            width: 450px;
+            height: 100vh;
+            transition: right 0.3s ease;
+            z-index: 100;
+        }
+
+        .inspector.open {
+            right: 0;
+        }
+
+        /* Floating Action Orb */
+        .action-orb {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #9945FF, #14F195);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(153, 69, 255, 0.6);
+            transition: transform 0.2s;
+            z-index: 1000;
+        }
+
+        .action-orb:hover {
+            transform: scale(1.1) rotate(90deg);
+        }
+
+        /* Sentiment Indicator */
+        .sentiment-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .sentiment-bullish {
+            background: #14F195;
+            box-shadow: 0 0 10px #14F195;
+        }
+
+        .sentiment-bearish {
+            background: #FF4757;
+            box-shadow: 0 0 10px #FF4757;
+        }
+
+        .sentiment-neutral {
+            background: #FFA502;
+            box-shadow: 0 0 10px #FFA502;
+        }
+
+        /* Velocity Indicator */
+        .velocity-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .velocity-high {
+            background: #14F195;
+            animation: pulse-slow 1s infinite;
+        }
+
+        .velocity-medium {
+            background: #FFA502;
+            animation: pulse-slow 2s infinite;
+        }
+
+        .velocity-low {
+            background: #666;
+        }
+
+        /* Influence Score Bar */
+        .influence-bar {
+            height: 4px;
+            background: linear-gradient(90deg, #FF4757, #FFA502, #14F195);
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+
+        /* Loading State */
+        .loading-shimmer {
+            background: linear-gradient(90deg, rgba(255,255,255,0.05) 25%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Badge */
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        /* Coin Deep Dive Page */
+        .coin-detail-page {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: #0a0a0a;
+            z-index: 200;
+            overflow-y: auto;
+            transform: translateY(100%);
+            transition: transform 0.4s ease;
+        }
+
+        .coin-detail-page.open {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Container -->
+    <div class="flex h-screen">
+        <!-- LEFT PANEL: KOL Intelligence -->
+        <div class="w-80 glass border-r border-gray-800 flex flex-col">
+            <!-- Header -->
+            <div class="p-4 border-b border-gray-800">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h2 class="text-lg font-bold accent-purple">KOL INTELLIGENCE</h2>
+                        <p class="text-xs text-gray-500">Who Moves Markets</p>
+                    </div>
+                    <button onclick="showSettings()" class="tooltip" data-tooltip="Settings">
+                        <i data-lucide="settings" class="w-5 h-5 text-gray-400 hover:text-purple-500 transition"></i>
+                    </button>
+                </div>
+                <div class="text-xs text-gray-400">
+                    <span id="kolCount" class="accent-purple font-semibold">0</span> Active • Updated <span id="lastUpdate">--</span>
+                </div>
+            </div>
+
+            <!-- KOL List -->
+            <div id="kolList" class="flex-1 overflow-y-auto p-4 space-y-2">
+                <!-- KOL cards will be loaded here -->
+                <div class="text-center py-12 text-gray-500">
+                    <i data-lucide="users" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
+                    <p class="text-sm">No KOLs yet</p>
+                    <p class="text-xs mt-2">Click + to add</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- CENTER PANEL: Intelligence Dashboard -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Top Bar -->
+            <div class="glass border-b border-gray-800 p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-bold flex items-center gap-2">
+                            <span class="accent-purple">INTELLIGENCE HUB</span>
+                        </h1>
+                        <p class="text-xs text-gray-400 mt-1">Who moves what, when, and how</p>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="text-sm text-gray-400">
+                            <span id="totalPosts">0</span> Posts • <span id="totalCoins">0</span> Coins Tracked
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                <!-- MOMENTUM BOARD -->
+                <section>
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="trending-up" class="w-5 h-5 accent-green"></i>
+                            <h3 class="text-xl font-bold">MOMENTUM BOARD</h3>
+                        </div>
+                        <select id="momentumTimeframe" onchange="updateMomentum()" class="bg-gray-900 border border-gray-700 rounded px-3 py-1 text-sm">
+                            <option value="6">Last 6h</option>
+                            <option value="24" selected>Last 24h</option>
+                            <option value="168">Last 7d</option>
+                        </select>
+                    </div>
+                    <div id="momentumBoard" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <!-- Momentum cards will appear here -->
+                        <div class="glass-light rounded-lg p-6 text-center col-span-4">
+                            <div class="text-gray-500 mb-2">
+                                <i data-lucide="bar-chart-3" class="w-12 h-12 mx-auto opacity-30"></i>
+                            </div>
+                            <p class="text-sm text-gray-500">Add KOLs to see momentum</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- NARRATIVE RADAR -->
+                <section>
+                    <div class="flex items-center gap-2 mb-4">
+                        <i data-lucide="radio" class="w-5 h-5 accent-yellow"></i>
+                        <h3 class="text-xl font-bold">NARRATIVE RADAR</h3>
+                        <span class="text-xs text-gray-500 ml-2">Emerging themes & trends</span>
+                    </div>
+                    <div id="narrativeRadar" class="glass-light rounded-lg p-6">
+                        <!-- Narrative badges will appear here -->
+                        <div class="text-center text-gray-500">
+                            <i data-lucide="compass" class="w-12 h-12 mx-auto mb-3 opacity-30"></i>
+                            <p class="text-sm">No narratives detected yet</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ALPHA SIGNALS -->
+                <section>
+                    <div class="flex items-center gap-2 mb-4">
+                        <i data-lucide="zap" class="w-5 h-5 accent-red"></i>
+                        <h3 class="text-xl font-bold">ALPHA SIGNALS</h3>
+                        <span class="badge bg-red-900 text-red-300 pulse-slow">LIVE</span>
+                    </div>
+                    <div id="alphaSignals" class="space-y-3">
+                        <!-- Alpha signals will appear here -->
+                        <div class="glass-light rounded-lg p-6 text-center">
+                            <div class="text-gray-500 mb-2">
+                                <i data-lucide="bell" class="w-12 h-12 mx-auto opacity-30"></i>
+                            </div>
+                            <p class="text-sm text-gray-500">No signals detected</p>
+                            <p class="text-xs text-gray-600 mt-1">System is monitoring...</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL: Context Inspector -->
+        <div id="inspector" class="inspector glass border-l border-gray-800">
+            <div class="h-full flex flex-col">
+                <!-- Inspector Header -->
+                <div class="p-4 border-b border-gray-800 flex items-center justify-between">
+                    <h3 class="text-lg font-bold accent-purple" id="inspectorTitle">Inspector</h3>
+                    <button onclick="closeInspector()" class="text-gray-400 hover:text-white transition">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <!-- Inspector Content -->
+                <div id="inspectorContent" class="flex-1 overflow-y-auto p-4">
+                    <!-- Dynamic content will load here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Coin Detail Page (Overlay) -->
+    <div id="coinDetailPage" class="coin-detail-page">
+        <div class="max-w-6xl mx-auto p-6">
+            <!-- Back Button -->
+            <button onclick="closeCoinDetail()" class="mb-4 flex items-center gap-2 text-gray-400 hover:text-white transition">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                Back to Intelligence Hub
+            </button>
+
+            <!-- Coin Detail Content -->
+            <div id="coinDetailContent">
+                <!-- Will be populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Action Orb -->
+    <div class="action-orb float" onclick="showAddKOLModal()">
+        <i data-lucide="plus" class="w-8 h-8 text-white"></i>
+    </div>
+
+    <!-- Add KOL Modal -->
+    <div id="addKOLModal" class="fixed inset-0 bg-black bg-opacity-80 backdrop-blur-sm flex items-center justify-center z-[9999] hidden">
+        <div class="glass rounded-xl p-6 w-full max-w-md slide-in-right">
+            <h3 class="text-xl font-semibold mb-4 flex items-center gap-2">
+                <i data-lucide="user-plus" class="w-5 h-5 accent-purple"></i>
+                Add New KOL
+            </h3>
+            <input id="kolHandle" type="text" placeholder="@username" class="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg mb-4 focus:border-purple-500 focus:outline-none text-white">
+            <div class="flex gap-2">
+                <button onclick="addKOL()" id="addKOLBtn" class="flex-1 bg-accent-purple text-white py-3 rounded-lg hover:opacity-80 transition font-semibold">
+                    Add KOL
+                </button>
+                <button onclick="hideAddKOLModal()" class="px-6 py-3 border border-gray-700 rounded-lg hover:bg-gray-800 transition">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Global state
+        let kols = [];
+        let posts = [];
+        let selectedKOL = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+            // Auto-refresh every 30 seconds
+            setInterval(loadData, 30000);
+        });
+
+        // Load data from API
+        async function loadData() {
+            try {
+                // Load KOLs
+                const kolsResponse = await fetch('/api/kol/kols');
+                const kolsResult = await kolsResponse.json();
+                
+                if (kolsResult.success) {
+                    kols = kolsResult.data;
+                    updateKOLList();
+                    updateKOLCount();
+                }
+
+                // Load posts
+                const postsResponse = await fetch('/api/kol/posts');
+                const postsResult = await postsResponse.json();
+                
+                if (postsResult.success) {
+                    posts = postsResult.data;
+                    updateMomentum();
+                    updateNarratives();
+                    updateAlphaSignals();
+                    updateStats();
+                }
+
+                updateLastUpdateTime();
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+
+        // Update KOL list with influence scores
+        function updateKOLList() {
+            const container = document.getElementById('kolList');
+            
+            if (kols.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-gray-500">
+                        <i data-lucide="users" class="w-12 h-12 mx-auto mb-3 opacity-30"></i>
+                        <p class="text-sm">No KOLs yet</p>
+                        <p class="text-xs mt-2">Click + to add</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            container.innerHTML = kols.map(kol => {
+                const kolPosts = posts.filter(p => p.kol_handle.toLowerCase() === kol.handle.toLowerCase());
+                
+                // Calculate top coins for this KOL
+                const coinCounts = {};
+                kolPosts.forEach(post => {
+                    if (post.coins) {
+                        post.coins.forEach(coin => {
+                            coinCounts[coin] = (coinCounts[coin] || 0) + 1;
+                        });
+                    }
+                });
+                
+                const topCoins = Object.entries(coinCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 3)
+                    .map(([coin]) => coin);
+
+                // Calculate average sentiment
+                const avgSentiment = kolPosts.length > 0
+                    ? kolPosts.reduce((sum, p) => sum + (p.sentiment || 0), 0) / kolPosts.length
+                    : 0;
+                
+                const sentimentClass = avgSentiment > 0 ? 'sentiment-bullish' : avgSentiment < 0 ? 'sentiment-bearish' : 'sentiment-neutral';
+                
+                // Get influence score
+                const influenceScore = kol.influence_score || 50;
+
+                return `
+                    <div class="kol-card glass-light rounded-lg p-3" onclick="selectKOL('${kol.handle}')">
+                        <div class="flex items-start justify-between mb-2">
+                            <div class="flex-1">
+                                <div class="font-semibold accent-purple text-sm">@${kol.handle}</div>
+                                <div class="text-xs text-gray-500">${kol.total_posts} posts</div>
+                            </div>
+                            <div class="sentiment-dot ${sentimentClass}"></div>
+                        </div>
+                        
+                        <!-- Influence Score -->
+                        <div class="mb-2">
+                            <div class="flex items-center justify-between text-xs mb-1">
+                                <span class="text-gray-500">Influence</span>
+                                <span class="accent-green font-semibold">${influenceScore}/100</span>
+                            </div>
+                            <div class="w-full bg-gray-800 h-1 rounded">
+                                <div class="influence-bar h-1" style="width: ${influenceScore}%"></div>
+                            </div>
+                        </div>
+
+                        ${topCoins.length > 0 ? `
+                            <div class="flex flex-wrap gap-1">
+                                ${topCoins.map(coin => `<span class="badge bg-purple-900 text-purple-300 text-xs">${coin}</span>`).join('')}
+                            </div>
+                        ` : '<div class="text-xs text-gray-600">No recent focus</div>'}
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        // Update momentum board with coins
+        function updateMomentum() {
+            const container = document.getElementById('momentumBoard');
+            
+            if (posts.length === 0) {
+                container.innerHTML = `
+                    <div class="glass-light rounded-lg p-6 text-center col-span-4">
+                        <div class="text-gray-500 mb-2">
+                            <i data-lucide="bar-chart-3" class="w-12 h-12 mx-auto opacity-30"></i>
+                        </div>
+                        <p class="text-sm text-gray-500">Add KOLs to see momentum</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            // Calculate coin momentum
+            const coinData = {};
+            posts.forEach(post => {
+                if (post.coins) {
+                    post.coins.forEach(coin => {
+                        if (!coinData[coin]) {
+                            coinData[coin] = {
+                                mentions: 0,
+                                bullish: 0,
+                                bearish: 0,
+                                kols: new Set()
+                            };
+                        }
+                        coinData[coin].mentions++;
+                        if (post.sentiment > 0) coinData[coin].bullish++;
+                        if (post.sentiment < 0) coinData[coin].bearish++;
+                        coinData[coin].kols.add(post.kol_handle);
+                    });
+                }
+            });
+
+            // Sort by mentions
+            const topCoins = Object.entries(coinData)
+                .sort((a, b) => b[1].mentions - a[1].mentions)
+                .slice(0, 8);
+
+            if (topCoins.length === 0) {
+                container.innerHTML = `
+                    <div class="glass-light rounded-lg p-6 text-center col-span-4">
+                        <p class="text-sm text-gray-500">No coin mentions yet</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = topCoins.map(([coin, data]) => {
+                const sentimentScore = data.mentions > 0 
+                    ? Math.round((data.bullish - data.bearish) / data.mentions * 100)
+                    : 0;
+                const sentimentColor = sentimentScore > 20 ? 'accent-green' : sentimentScore < -20 ? 'accent-red' : 'accent-yellow';
+                const velocity = data.mentions > 5 ? 'velocity-high' : data.mentions > 2 ? 'velocity-medium' : 'velocity-low';
+
+                return `
+                    <div class="momentum-card glass-light rounded-lg p-4 relative" onclick="openCoinDetail('${coin}')">
+                        <div class="velocity-indicator ${velocity}"></div>
+                        
+                        <div class="text-2xl font-bold accent-purple mb-2">${coin}</div>
+                        
+                        <div class="space-y-2 text-sm">
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-400">Mentions</span>
+                                <span class="font-bold accent-blue">${data.mentions}</span>
+                            </div>
+                            
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-400">KOLs</span>
+                                <span class="font-bold">${data.kols.size}</span>
+                            </div>
+                            
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-400">Sentiment</span>
+                                <span class="font-bold ${sentimentColor}">${sentimentScore > 0 ? '+' : ''}${sentimentScore}%</span>
+                            </div>
+                        </div>
+
+                        <div class="mt-3 pt-3 border-t border-gray-700 flex items-center justify-between text-xs">
+                            <span class="text-gray-500">📈 ${data.bullish}</span>
+                            <span class="text-gray-500">➡️ ${data.mentions - data.bullish - data.bearish}</span>
+                            <span class="text-gray-500">📉 ${data.bearish}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Update narrative radar
+        function updateNarratives() {
+            const container = document.getElementById('narrativeRadar');
+            
+            if (posts.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-gray-500">
+                        <i data-lucide="compass" class="w-12 h-12 mx-auto mb-3 opacity-30"></i>
+                        <p class="text-sm">No narratives detected yet</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            // Calculate narrative data
+            const narrativeData = {};
+            posts.forEach(post => {
+                if (post.narratives) {
+                    post.narratives.forEach(narrative => {
+                        if (!narrativeData[narrative]) {
+                            narrativeData[narrative] = {
+                                count: 0,
+                                coins: new Set(),
+                                kols: new Set()
+                            };
+                        }
+                        narrativeData[narrative].count++;
+                        if (post.coins) {
+                            post.coins.forEach(coin => narrativeData[narrative].coins.add(coin));
+                        }
+                        narrativeData[narrative].kols.add(post.kol_handle);
+                    });
+                }
+            });
+
+            const topNarratives = Object.entries(narrativeData)
+                .sort((a, b) => b[1].count - a[1].count)
+                .slice(0, 10);
+
+            if (topNarratives.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-gray-500">
+                        <p class="text-sm">No narratives detected yet</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="flex flex-wrap gap-3">
+                    ${topNarratives.map(([narrative, data]) => {
+                        const size = data.count > 10 ? 'text-lg' : data.count > 5 ? 'text-base' : 'text-sm';
+                        return `
+                            <div class="narrative-badge glass ${size}" style="background: rgba(153, 69, 255, ${Math.min(0.3 + data.count * 0.05, 0.8)})">
+                                <span>${narrative}</span>
+                                <span class="badge bg-purple-700 text-white">${data.count}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <div class="mt-4 text-xs text-gray-500">
+                    <i data-lucide="info" class="w-4 h-4 inline mr-1"></i>
+                    Size = mention frequency • Brightness = momentum
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        // Update alpha signals
+        function updateAlphaSignals() {
+            const container = document.getElementById('alphaSignals');
+            
+            // Detect signals (multiple KOLs on same coin, high velocity, etc.)
+            const signals = [];
+            
+            // Signal 1: Multiple KOLs mentioning same coin recently
+            const recentPosts = posts.filter(post => {
+                const postTime = new Date(post.created_at);
+                const hoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                return postTime > hoursAgo;
+            });
+
+            const recentCoins = {};
+            recentPosts.forEach(post => {
+                if (post.coins) {
+                    post.coins.forEach(coin => {
+                        if (!recentCoins[coin]) {
+                            recentCoins[coin] = { kols: new Set(), bullish: 0, bearish: 0 };
+                        }
+                        recentCoins[coin].kols.add(post.kol_handle);
+                        if (post.sentiment > 0) recentCoins[coin].bullish++;
+                        if (post.sentiment < 0) recentCoins[coin].bearish++;
+                    });
+                }
+            });
+
+            Object.entries(recentCoins).forEach(([coin, data]) => {
+                if (data.kols.size >= 2) {
+                    signals.push({
+                        type: 'convergence',
+                        coin: coin,
+                        kolCount: data.kols.size,
+                        sentiment: data.bullish > data.bearish ? 'bullish' : data.bearish > data.bullish ? 'bearish' : 'mixed'
+                    });
+                }
+            });
+
+            if (signals.length === 0) {
+                container.innerHTML = `
+                    <div class="glass-light rounded-lg p-6 text-center">
+                        <div class="text-gray-500 mb-2">
+                            <i data-lucide="bell" class="w-12 h-12 mx-auto opacity-30"></i>
+                        </div>
+                        <p class="text-sm text-gray-500">No signals detected</p>
+                        <p class="text-xs text-gray-600 mt-1">System is monitoring...</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            container.innerHTML = signals.map(signal => {
+                const sentimentColor = signal.sentiment === 'bullish' ? 'accent-green' : signal.sentiment === 'bearish' ? 'accent-red' : 'accent-yellow';
+                const icon = signal.sentiment === 'bullish' ? 'trending-up' : signal.sentiment === 'bearish' ? 'trending-down' : 'minus';
+                
+                return `
+                    <div class="glass-light rounded-lg p-4 glow-purple">
+                        <div class="flex items-start gap-3">
+                            <div class="${sentimentColor}">
+                                <i data-lucide="${icon}" class="w-6 h-6"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="font-semibold mb-1">${signal.kolCount} KOLs mentioned <span class="accent-purple">${signal.coin}</span></div>
+                                <div class="text-sm text-gray-400">
+                                    Sentiment: <span class="${sentimentColor} font-semibold">${signal.sentiment.toUpperCase()}</span>
+                                </div>
+                                <div class="text-xs text-gray-500 mt-1">Last 24 hours</div>
+                            </div>
+                            <button onclick="openCoinDetail('${signal.coin}')" class="text-xs accent-purple hover:underline">
+                                Details →
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        // Open coin detail page
+        function openCoinDetail(coin) {
+            const page = document.getElementById('coinDetailPage');
+            const content = document.getElementById('coinDetailContent');
+            
+            // Filter posts for this coin
+            const coinPosts = posts.filter(post => post.coins && post.coins.includes(coin));
+            
+            // Get KOLs who mentioned it
+            const kolMentions = {};
+            coinPosts.forEach(post => {
+                if (!kolMentions[post.kol_handle]) {
+                    kolMentions[post.kol_handle] = [];
+                }
+                kolMentions[post.kol_handle].push(post);
+            });
+
+            // Calculate sentiment over time
+            const sentimentData = coinPosts.map(post => ({
+                time: new Date(post.created_at),
+                sentiment: post.sentiment
+            })).sort((a, b) => a.time - b.time);
+
+            content.innerHTML = `
+                <div class="space-y-6">
+                    <!-- Coin Header -->
+                    <div class="glass rounded-xl p-6">
+                        <div class="text-4xl font-bold accent-purple mb-4">${coin}</div>
+                        <div class="grid grid-cols-4 gap-4 text-center">
+                            <div>
+                                <div class="text-2xl font-bold accent-blue">${coinPosts.length}</div>
+                                <div class="text-sm text-gray-400">Total Mentions</div>
+                            </div>
+                            <div>
+                                <div class="text-2xl font-bold accent-green">${Object.keys(kolMentions).length}</div>
+                                <div class="text-sm text-gray-400">KOLs Talking</div>
+                            </div>
+                            <div>
+                                <div class="text-2xl font-bold accent-yellow">${coinPosts.filter(p => p.sentiment > 0).length}</div>
+                                <div class="text-sm text-gray-400">Bullish Posts</div>
+                            </div>
+                            <div>
+                                <div class="text-2xl font-bold accent-red">${coinPosts.filter(p => p.sentiment < 0).length}</div>
+                                <div class="text-sm text-gray-400">Bearish Posts</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KOL Mentions -->
+                    <div class="glass rounded-xl p-6">
+                        <h3 class="text-xl font-bold mb-4">KOLs Mentioning ${coin}</h3>
+                        <div class="space-y-3">
+                            ${Object.entries(kolMentions).map(([handle, mentions]) => {
+                                const avgSentiment = mentions.reduce((sum, p) => sum + p.sentiment, 0) / mentions.length;
+                                const sentimentClass = avgSentiment > 0 ? 'accent-green' : avgSentiment < 0 ? 'accent-red' : 'accent-yellow';
+                                
+                                return `
+                                    <div class="glass-light rounded-lg p-4">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <span class="font-semibold accent-purple">@${handle}</span>
+                                            <span class="${sentimentClass} text-sm font-semibold">
+                                                ${avgSentiment > 0 ? '📈 Bullish' : avgSentiment < 0 ? '📉 Bearish' : '➡️ Neutral'}
+                                            </span>
+                                        </div>
+                                        <div class="text-sm text-gray-400">${mentions.length} mention${mentions.length > 1 ? 's' : ''}</div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Timeline -->
+                    <div class="glass rounded-xl p-6">
+                        <h3 class="text-xl font-bold mb-4">Mention Timeline</h3>
+                        <div class="space-y-3">
+                            ${coinPosts.slice(0, 10).map(post => {
+                                const sentimentIcon = post.sentiment > 0 ? '📈' : post.sentiment < 0 ? '📉' : '➡️';
+                                return `
+                                    <div class="glass-light rounded-lg p-4">
+                                        <div class="flex items-start justify-between mb-2">
+                                            <span class="font-semibold accent-purple">@${post.kol_handle}</span>
+                                            <span class="text-xs text-gray-500">${new Date(post.created_at).toLocaleString()}</span>
+                                        </div>
+                                        <p class="text-sm text-gray-300 mb-2">${post.text}</p>
+                                        <div class="flex items-center gap-4 text-xs text-gray-500">
+                                            <span>${sentimentIcon}</span>
+                                            <span>❤️ ${post.likes}</span>
+                                            <span>🔄 ${post.retweets}</span>
+                                            <span>👀 ${post.views}</span>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            page.classList.add('open');
+            lucide.createIcons();
+        }
+
+        // Close coin detail page
+        function closeCoinDetail() {
+            document.getElementById('coinDetailPage').classList.remove('open');
+        }
+
+        // Select KOL (open inspector)
+        function selectKOL(handle) {
+            selectedKOL = handle;
+            const kol = kols.find(k => k.handle === handle);
+            const kolPosts = posts.filter(p => p.kol_handle.toLowerCase() === handle.toLowerCase());
+
+            // Highlight selected card
+            document.querySelectorAll('.kol-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            event.currentTarget.classList.add('active');
+
+            // Calculate stats
+            const coinCounts = {};
+            kolPosts.forEach(post => {
+                if (post.coins) {
+                    post.coins.forEach(coin => {
+                        coinCounts[coin] = (coinCounts[coin] || 0) + 1;
+                    });
+                }
+            });
+
+            const topCoins = Object.entries(coinCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+
+            const avgSentiment = kolPosts.length > 0
+                ? kolPosts.reduce((sum, p) => sum + (p.sentiment || 0), 0) / kolPosts.length
+                : 0;
+
+                // Get influence data
+                const influenceScore = kol.influence_score || 50;
+                const breakdown = kol.influence_breakdown || {
+                    followers: 50,
+                    engagement: 50,
+                    activity: 50,
+                    cryptoFocus: 50
+                };
+
+                const inspector = document.getElementById('inspector');
+                const inspectorContent = document.getElementById('inspectorContent');
+                
+                inspectorContent.innerHTML = `
+                <div class="space-y-6">
+                    <!-- KOL Profile -->
+                    <div>
+                        <h4 class="text-xl font-bold accent-purple mb-3">@${kol.handle}</h4>
+                        
+                        <!-- Influence Score -->
+                        <div class="glass rounded-lg p-4 mb-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-sm text-gray-400">Influence Score</span>
+                                <span class="text-2xl font-bold accent-green">${influenceScore}/100</span>
+                            </div>
+                            <div class="w-full bg-gray-800 h-2 rounded mb-3">
+                                <div class="influence-bar h-2" style="width: ${influenceScore}%"></div>
+                            </div>
+                            <div class="space-y-1 text-xs">
+                                <div class="flex items-center justify-between text-gray-400">
+                                    <span>Followers (40%)</span>
+                                    <span class="accent-blue">${breakdown.followers}/100</span>
+                                </div>
+                                <div class="flex items-center justify-between text-gray-400">
+                                    <span>Engagement (30%)</span>
+                                    <span class="accent-green">${breakdown.engagement}/100</span>
+                                </div>
+                                <div class="flex items-center justify-between text-gray-400">
+                                    <span>Activity (15%)</span>
+                                    <span class="accent-yellow">${breakdown.activity}/100</span>
+                                </div>
+                                <div class="flex items-center justify-between text-gray-400">
+                                    <span>Crypto Focus (15%)</span>
+                                    <span class="accent-purple">${breakdown.cryptoFocus}/100</span>
+                                </div>
+                            </div>
+                            <div class="mt-3 pt-3 border-t border-gray-700 text-xs text-gray-500">
+                                Auto-calculated • Updates with each fetch
+                            </div>
+                        </div>
+
+                        <!-- Stats Grid -->
+                        <div class="grid grid-cols-2 gap-3 mb-4">
+                            <div class="glass-light rounded p-3">
+                                <div class="text-gray-500 text-xs">Total Posts</div>
+                                <div class="text-lg font-bold">${kol.total_posts}</div>
+                            </div>
+                            <div class="glass-light rounded p-3">
+                                <div class="text-gray-500 text-xs">Avg Sentiment</div>
+                                <div class="text-lg font-bold ${avgSentiment > 0 ? 'accent-green' : avgSentiment < 0 ? 'accent-red' : 'accent-yellow'}">
+                                    ${avgSentiment > 0 ? '📈' : avgSentiment < 0 ? '📉' : '➡️'} ${avgSentiment.toFixed(2)}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Top Coins Focus -->
+                        ${topCoins.length > 0 ? `
+                            <div class="mb-4">
+                                <div class="text-sm text-gray-400 mb-2">Top Focus</div>
+                                <div class="space-y-2">
+                                    ${topCoins.map(([coin, count]) => `
+                                        <div class="flex items-center justify-between text-sm">
+                                            <span class="accent-purple font-semibold">${coin}</span>
+                                            <span class="text-gray-400">${count} mentions</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <!-- Last Fetched -->
+                        <div class="text-xs text-gray-500 mb-4">
+                            Last updated: ${kol.last_fetched ? new Date(kol.last_fetched).toLocaleString() : 'Never'}
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="space-y-2">
+                        <button onclick="refreshKOL('${kol.handle}')" class="w-full bg-purple-900 hover:bg-purple-800 text-white py-3 rounded-lg transition font-semibold">
+                            <i data-lucide="refresh-cw" class="w-4 h-4 inline mr-2"></i>
+                            Refresh Tweets
+                        </button>
+                        <button onclick="deleteKOL('${kol.handle}')" class="w-full bg-red-900 hover:bg-red-800 text-white py-3 rounded-lg transition font-semibold">
+                            <i data-lucide="trash-2" class="w-4 h-4 inline mr-2"></i>
+                            Delete KOL
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            inspector.classList.add('open');
+            lucide.createIcons();
+        }
+
+        // Close inspector
+        function closeInspector() {
+            document.getElementById('inspector').classList.remove('open');
+            selectedKOL = null;
+            document.querySelectorAll('.kol-card').forEach(card => {
+                card.classList.remove('active');
+            });
+        }
+
+        // Show/hide add KOL modal
+        function showAddKOLModal() {
+            document.getElementById('addKOLModal').classList.remove('hidden');
+            document.getElementById('kolHandle').focus();
+        }
+
+        function hideAddKOLModal() {
+            document.getElementById('addKOLModal').classList.add('hidden');
+            document.getElementById('kolHandle').value = '';
+        }
+
+        // Add KOL
+        async function addKOL() {
+            const handle = document.getElementById('kolHandle').value.trim();
+            
+            if (!handle) {
+                alert('Please enter a Twitter handle');
+                return;
+            }
+
+            const button = document.getElementById('addKOLBtn');
+            button.disabled = true;
+            button.classList.add('opacity-50', 'cursor-not-allowed');
+            button.textContent = 'Adding...';
+
+            try {
+                const response = await fetch('/api/kol/kols', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ handle })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('✅ KOL added! Analyzing tweets...');
+                    hideAddKOLModal();
+                    setTimeout(loadData, 2000); // Reload after 2s to get analyzed data
+                } else {
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('❌ Error: ' + error.message);
+            } finally {
+                button.disabled = false;
+                button.classList.remove('opacity-50', 'cursor-not-allowed');
+                button.textContent = 'Add KOL';
+            }
+        }
+
+        // Delete KOL
+        async function deleteKOL(handle) {
+            if (!confirm(`Delete @${handle}? This will remove all their data.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/kol/kols/${handle}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('✅ KOL deleted');
+                    closeInspector();
+                    loadData();
+                } else {
+                    alert('❌ Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('❌ Error: ' + error.message);
+            }
+        }
+
+        // Refresh KOL (Phase 2)
+        function refreshKOL(handle) {
+            alert('Manual refresh coming in Phase 2!');
+        }
+
+        // Update counters
+        function updateKOLCount() {
+            document.getElementById('kolCount').textContent = kols.length;
+        }
+
+        function updateLastUpdateTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('lastUpdate').textContent = timeStr;
+        }
+
+        function updateStats() {
+            document.getElementById('totalPosts').textContent = posts.length;
+            
+            const uniqueCoins = new Set();
+            posts.forEach(post => {
+                if (post.coins) {
+                    post.coins.forEach(coin => uniqueCoins.add(coin));
+                }
+            });
+            document.getElementById('totalCoins').textContent = uniqueCoins.size;
+        }
+
+        // Settings (Phase 2)
+        function showSettings() {
+            alert('Settings coming in Phase 2!');
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeInspector();
+                hideAddKOLModal();
+                closeCoinDetail();
+            }
+        });
+    </script>
+</body>
+</html>
