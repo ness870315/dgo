@@ -1489,7 +1489,19 @@ News recap:`;
       }
 
       console.log(`✅ [KOL CONTENT] Generated news recap (CoinDesk fallback): ${recap.substring(0, 80)}...`);
-      return recap.trim();
+      
+      // Return in the same format as the main generateCryptoNews method
+      return {
+        format: 'news',
+        tweets: [recap.trim()],
+        token: { symbol: 'NEWS', name: 'Crypto News' },
+        article: {
+          title: article.title,
+          content: article.description,
+          source: article.source,
+          timestamp: new Date().toISOString()
+        }
+      };
 
     } catch (error) {
       console.error('❌ [KOL CONTENT] Error generating news from CoinDesk:', error.message);
