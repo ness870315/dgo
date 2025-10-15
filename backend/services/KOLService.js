@@ -615,24 +615,32 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       
       // Try Binance first (most reliable)
       try {
+        console.log(`🔍 [KOL SERVICE] Trying Binance for ${symbol} at ${targetTime.toISOString()}`);
         const binancePrice = await this.fetchBinanceHistoricalPrice(symbolUpper, targetTime);
         if (binancePrice) {
           console.log(`✅ [KOL SERVICE] Found Binance price for $${symbol}: $${binancePrice}`);
           return binancePrice;
+        } else {
+          console.log(`⚠️ [KOL SERVICE] Binance returned null for ${symbol}`);
         }
       } catch (error) {
-        console.log(`⚠️ [KOL SERVICE] Binance failed for ${symbol}: ${error.message}`);
+        console.log(`❌ [KOL SERVICE] Binance failed for ${symbol}: ${error.message}`);
+        console.log(`❌ [KOL SERVICE] Binance error stack:`, error.stack);
       }
       
       // Try CoinDesk as backup
       try {
+        console.log(`🔍 [KOL SERVICE] Trying CoinDesk for ${symbol} at ${targetTime.toISOString()}`);
         const coindeskPrice = await this.fetchCoinDeskHistoricalPrice(symbolUpper, targetTime);
         if (coindeskPrice) {
           console.log(`✅ [KOL SERVICE] Found CoinDesk price for $${symbol}: $${coindeskPrice}`);
           return coindeskPrice;
+        } else {
+          console.log(`⚠️ [KOL SERVICE] CoinDesk returned null for ${symbol}`);
         }
       } catch (error) {
-        console.log(`⚠️ [KOL SERVICE] CoinDesk failed for ${symbol}: ${error.message}`);
+        console.log(`❌ [KOL SERVICE] CoinDesk failed for ${symbol}: ${error.message}`);
+        console.log(`❌ [KOL SERVICE] CoinDesk error stack:`, error.stack);
       }
       
       // Fallback to Perplexity only if free APIs fail
@@ -657,9 +665,16 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       
       const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=1h&startTime=${startTime.getTime()}&endTime=${endTime.getTime()}&limit=10`;
       
+      console.log(`🔍 [BINANCE INDIVIDUAL] Fetching ${binanceSymbol} at ${targetTime.toISOString()}`);
+      console.log(`🔍 [BINANCE INDIVIDUAL] URL: ${url}`);
+      
       const response = await fetch(url);
+      console.log(`🔍 [BINANCE INDIVIDUAL] Response status: ${response.status}`);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log(`🔍 [BINANCE INDIVIDUAL] Received ${data.length} klines`);
+        
         if (data && data.length > 0) {
           // Find closest kline to target time
           let closestKline = data[0];
@@ -675,11 +690,20 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
           }
           
           // Return close price (index 4 in Binance kline format)
-          return parseFloat(closestKline[4]);
+          const price = parseFloat(closestKline[4]);
+          console.log(`✅ [BINANCE INDIVIDUAL] Found price for ${symbol}: $${price}`);
+          return price;
+        } else {
+          console.log(`⚠️ [BINANCE INDIVIDUAL] No klines data for ${binanceSymbol}`);
         }
+      } else {
+        const errorText = await response.text();
+        console.log(`❌ [BINANCE INDIVIDUAL] API error ${response.status}: ${errorText}`);
       }
+      
       return null;
     } catch (error) {
+      console.log(`❌ [BINANCE INDIVIDUAL] Exception for ${symbol}: ${error.message}`);
       throw new Error(`Binance API error: ${error.message}`);
     }
   }
