@@ -27,6 +27,7 @@ class KOLService {
     this.kolsFile = path.join(this.dataDir, 'kols.json');
     this.postsFile = path.join(this.dataDir, 'posts.json');
     this.logosCacheFile = path.join(this.dataDir, 'logos-cache.json');
+    this.historicalPricesCacheFile = path.join(this.dataDir, 'historical-prices-cache.json');
     
     // Ensure directory exists synchronously
     try {
@@ -43,6 +44,14 @@ class KOLService {
     // Logo cache (symbol -> logo URL)
     this.logosCache = new Map();
     this.loadLogosCache();
+    
+    // Historical prices cache (symbol_timestamp -> price)
+    this.historicalPricesCache = new Map();
+    this.loadHistoricalPricesCache();
+    
+    // Coin data cache (symbol -> coin data from main backend)
+    this.coinDataCache = {};
+    this.loadCoinDataCache();
     
     // Rate limiting for API calls
     this.lastPerplexityCall = 0;
@@ -122,6 +131,60 @@ class KOLService {
       console.log(`💾 [KOL SERVICE] Saved ${this.logosCache.size} logos to cache`);
     } catch (error) {
       console.error('❌ [KOL SERVICE] Error saving logos cache:', error.message);
+    }
+  }
+
+  // Load historical prices cache from disk (synchronous for constructor)
+  loadHistoricalPricesCache() {
+    try {
+      if (fsSync.existsSync(this.historicalPricesCacheFile)) {
+        const data = fsSync.readFileSync(this.historicalPricesCacheFile, 'utf8');
+        const pricesObj = JSON.parse(data);
+        this.historicalPricesCache = new Map(Object.entries(pricesObj));
+        console.log(`📦 [KOL SERVICE] Loaded ${this.historicalPricesCache.size} cached historical prices`);
+      }
+    } catch (error) {
+      console.warn('⚠️ [KOL SERVICE] Could not load historical prices cache:', error.message);
+    }
+  }
+
+  // Save historical prices cache to disk (atomic write)
+  async saveHistoricalPricesCache() {
+    try {
+      const pricesObj = Object.fromEntries(this.historicalPricesCache);
+      const tempPath = this.historicalPricesCacheFile + '.tmp';
+      await fs.writeFile(tempPath, JSON.stringify(pricesObj, null, 2), 'utf8');
+      await fs.rename(tempPath, this.historicalPricesCacheFile);
+      console.log(`💾 [KOL SERVICE] Saved ${this.historicalPricesCache.size} historical prices to cache`);
+    } catch (error) {
+      console.error('❌ [KOL SERVICE] Error saving historical prices cache:', error.message);
+    }
+  }
+
+  // Save coin data cache to disk (atomic write)
+  async saveCoinDataCache() {
+    try {
+      const coinDataCacheFile = path.join(this.dataDir, 'coin-data-cache.json');
+      const tempPath = coinDataCacheFile + '.tmp';
+      await fs.writeFile(tempPath, JSON.stringify(this.coinDataCache, null, 2), 'utf8');
+      await fs.rename(tempPath, coinDataCacheFile);
+      console.log(`💾 [KOL SERVICE] Saved ${Object.keys(this.coinDataCache).length} coin data entries to cache`);
+    } catch (error) {
+      console.error('❌ [KOL SERVICE] Error saving coin data cache:', error.message);
+    }
+  }
+
+  // Load coin data cache from disk
+  loadCoinDataCache() {
+    try {
+      const coinDataCacheFile = path.join(this.dataDir, 'coin-data-cache.json');
+      if (fsSync.existsSync(coinDataCacheFile)) {
+        const data = fsSync.readFileSync(coinDataCacheFile, 'utf8');
+        this.coinDataCache = JSON.parse(data);
+        console.log(`📦 [KOL SERVICE] Loaded ${Object.keys(this.coinDataCache).length} cached coin data entries`);
+      }
+    } catch (error) {
+      console.warn('⚠️ [KOL SERVICE] Could not load coin data cache:', error.message);
     }
   }
 
@@ -546,8 +609,14 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
   }
 
   // Fetch coin data from DegenOracle backend
-  async fetchCoinData(symbol) {
+  async fetchCoinData(symbol, forceRefresh = false) {
     try {
+      // Check cache first (unless force refresh)
+      if (!forceRefresh && this.coinDataCache && this.coinDataCache[symbol]) {
+        console.log(`💾 [KOL SERVICE] Using cached coin data for ${symbol}`);
+        return this.coinDataCache[symbol];
+      }
+      
       // Use 127.0.0.1 to avoid IPv6 issues (::1)
       const port = process.env.PORT || 3001;
       const response = await axios.get(`http://127.0.0.1:${port}/api/tokens`, {
@@ -587,7 +656,7 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
             finalPrice: finalPrice
           });
           
-          return {
+          const coinData = {
             symbol: coin.symbol,
             name: coin.name,
             image: logo,
@@ -596,6 +665,14 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
             mcap: coin.marketCap,
             price_change_24h: coin.priceChange24h
           };
+          
+          // Cache the result
+          if (!this.coinDataCache) {
+            this.coinDataCache = {};
+          }
+          this.coinDataCache[symbol] = coinData;
+          
+          return coinData;
         }
       }
       
@@ -604,7 +681,7 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       const logo = await this.fetchLogoFromCoinGecko(symbol);
       
       if (logo) {
-        return {
+        const fallbackData = {
           symbol: symbol,
           name: symbol,
           image: logo,
@@ -613,6 +690,14 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
           mcap: null,
           price_change_24h: null
         };
+        
+        // Cache the fallback result too
+        if (!this.coinDataCache) {
+          this.coinDataCache = {};
+        }
+        this.coinDataCache[symbol] = fallbackData;
+        
+        return fallbackData;
       }
       
       return null;
@@ -628,6 +713,16 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
             const targetTime = new Date(timestamp);
             const symbolUpper = symbol.toUpperCase();
             
+            // Create cache key: symbol_timestamp (rounded to hour for better cache hits)
+            const cacheKey = `${symbolUpper}_${Math.floor(targetTime.getTime() / (1000 * 60 * 60))}`;
+            
+            // Check cache first
+            if (this.historicalPricesCache.has(cacheKey)) {
+              const cachedPrice = this.historicalPricesCache.get(cacheKey);
+              console.log(`💾 [KOL SERVICE] Using cached price for $${symbol}: $${cachedPrice}`);
+              return cachedPrice;
+            }
+            
             // Map token names to their actual trading symbols
             const symbolMapping = {
               'SPX6900': 'SPX' // SPX6900 maps to SPX for CoinDesk (becomes SPX-USD)
@@ -637,49 +732,63 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
             // Skip symbols that are known to not work with CoinDesk
             const skipCoinDesk = []; // CoinDesk supports SPX-USD on Kraken
       
-      console.log(`🔍 [KOL SERVICE] Fetching historical price for $${symbol} at ${targetTime.toISOString()}`);
+            console.log(`🔍 [KOL SERVICE] Fetching historical price for $${symbol} at ${targetTime.toISOString()}`);
+            
+            let historicalPrice = null;
+            
+            // Try CoinDesk (primary free API - no location restrictions)
+            if (!skipCoinDesk.includes(symbolUpper)) {
+              try {
+                console.log(`🔍 [KOL SERVICE] Trying CoinDesk for ${symbol} at ${targetTime.toISOString()}`);
+                historicalPrice = await this.fetchCoinDeskHistoricalPrice(symbolUpper, targetTime);
+                if (historicalPrice) {
+                  console.log(`✅ [KOL SERVICE] Found CoinDesk price for $${symbol}: $${historicalPrice}`);
+                } else {
+                  console.log(`⚠️ [KOL SERVICE] CoinDesk returned null for ${symbol}`);
+                }
+              } catch (error) {
+                console.log(`❌ [KOL SERVICE] CoinDesk failed for ${symbol}: ${error.message}`);
+              }
+            } else {
+              console.log(`⏭️ [KOL SERVICE] Skipping CoinDesk for ${symbol} (known incompatible symbol)`);
+            }
+            
+            // Try CoinAPI.io (fallback - comprehensive coverage)
+            if (!historicalPrice) {
+              try {
+                console.log(`🔍 [KOL SERVICE] Trying CoinAPI.io for ${symbol} at ${targetTime.toISOString()}`);
+                historicalPrice = await this.fetchCoinAPIHistoricalPrice(symbolUpper, targetTime);
+                if (historicalPrice) {
+                  console.log(`✅ [KOL SERVICE] Found CoinAPI.io price for $${symbol}: $${historicalPrice}`);
+                } else {
+                  console.log(`⚠️ [KOL SERVICE] CoinAPI.io returned null for ${symbol}`);
+                }
+              } catch (error) {
+                console.log(`❌ [KOL SERVICE] CoinAPI.io failed for ${symbol}: ${error.message}`);
+              }
+            }
+            
+            // Cache the result (even if null to avoid repeated failed API calls)
+            this.historicalPricesCache.set(cacheKey, historicalPrice);
+            
+            // Save cache periodically (every 10 new entries to avoid excessive I/O)
+            if (this.historicalPricesCache.size % 10 === 0) {
+              await this.saveHistoricalPricesCache();
+            }
+            
+            if (historicalPrice) {
+              console.log(`💾 [KOL SERVICE] Cached price for $${symbol}: $${historicalPrice}`);
+            } else {
+              console.log(`❌ [KOL SERVICE] No historical price data available for ${symbol}`);
+            }
+            
+            return historicalPrice;
       
-      // Try CoinDesk (primary free API - no location restrictions)
-      if (!skipCoinDesk.includes(symbolUpper)) {
-        try {
-          console.log(`🔍 [KOL SERVICE] Trying CoinDesk for ${symbol} at ${targetTime.toISOString()}`);
-          const coindeskPrice = await this.fetchCoinDeskHistoricalPrice(symbolUpper, targetTime);
-          if (coindeskPrice) {
-            console.log(`✅ [KOL SERVICE] Found CoinDesk price for $${symbol}: $${coindeskPrice}`);
-            return coindeskPrice;
-          } else {
-            console.log(`⚠️ [KOL SERVICE] CoinDesk returned null for ${symbol}`);
+          } catch (error) {
+            console.error(`❌ [KOL SERVICE] Error fetching historical price for ${symbol}:`, error.message);
+            return null;
           }
-        } catch (error) {
-          console.log(`❌ [KOL SERVICE] CoinDesk failed for ${symbol}: ${error.message}`);
         }
-      } else {
-        console.log(`⏭️ [KOL SERVICE] Skipping CoinDesk for ${symbol} (known incompatible symbol)`);
-      }
-      
-      // Try CoinAPI.io (fallback - comprehensive coverage)
-      try {
-        console.log(`🔍 [KOL SERVICE] Trying CoinAPI.io for ${symbol} at ${targetTime.toISOString()}`);
-        const coinapiPrice = await this.fetchCoinAPIHistoricalPrice(symbolUpper, targetTime);
-        if (coinapiPrice) {
-          console.log(`✅ [KOL SERVICE] Found CoinAPI.io price for $${symbol}: $${coinapiPrice}`);
-          return coinapiPrice;
-        } else {
-          console.log(`⚠️ [KOL SERVICE] CoinAPI.io returned null for ${symbol}`);
-        }
-      } catch (error) {
-        console.log(`❌ [KOL SERVICE] CoinAPI.io failed for ${symbol}: ${error.message}`);
-      }
-      
-      // No data available from any source
-      console.log(`❌ [KOL SERVICE] No historical price data available for ${symbol}`);
-      return null;
-      
-    } catch (error) {
-      console.error(`❌ [KOL SERVICE] Error fetching historical price for ${symbol}:`, error.message);
-      return null;
-    }
-  }
 
 
   // Fetch from CoinDesk API - try multiple markets
@@ -1483,6 +1592,9 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
 
     if (enriched > 0) {
       await this.saveData();
+      // Also save historical prices cache and coin data cache
+      await this.saveHistoricalPricesCache();
+      await this.saveCoinDataCache();
       console.log(`💎 [KOL SERVICE] Enriched ${enriched} posts with coin data`);
     }
 
