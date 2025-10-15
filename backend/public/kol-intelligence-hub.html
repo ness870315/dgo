@@ -938,10 +938,77 @@
                 }
             });
 
-            // Filter out coins with only 1 KOL and sort by mentions
-            const topCoins = Object.entries(coinData)
-                .filter(([coin, data]) => data.kols.size > 1) // Only coins with 2+ KOLs
-                .sort((a, b) => b[1].mentions - a[1].mentions)
+            // Calculate momentum score for each coin (Lead-Lag driven)
+            const coinMomentumScores = Object.entries(coinData).map(([coin, data]) => {
+                const avgSentiment = data.sentimentCount > 0 ? data.sentiment / data.sentimentCount : 0;
+                const kolCount = data.kols.size;
+                const mentions = data.mentions;
+                const bullishRatio = data.bullish / Math.max(data.bullish + data.bearish, 1);
+                
+                // Get Lead-Lag data for this coin
+                let leadLagScore = 0;
+                let avgHitRate = 0;
+                let avgLeadTime = 0;
+                let highAlphaKOLs = 0;
+                
+                // Calculate KOL influence for this coin
+                const kolInfluences = Array.from(data.kols).map(kolHandle => {
+                    const alphaScore = window.kolAlphaScores && window.kolAlphaScores.get(kolHandle);
+                    return {
+                        handle: kolHandle,
+                        alphaScore: alphaScore?.alphaScore || 0,
+                        alphaTier: alphaScore?.alphaTier || 'C',
+                        hitRate: alphaScore?.hitRate || 0,
+                        leadTime: alphaScore?.averageLeadTime || 0
+                    };
+                });
+                
+                // Calculate weighted metrics based on KOL alpha scores
+                if (kolInfluences.length > 0) {
+                    const totalWeight = kolInfluences.reduce((sum, kol) => sum + kol.alphaScore, 0);
+                    if (totalWeight > 0) {
+                        avgHitRate = kolInfluences.reduce((sum, kol) => sum + (kol.hitRate * kol.alphaScore), 0) / totalWeight;
+                        avgLeadTime = kolInfluences.reduce((sum, kol) => sum + (kol.leadTime * kol.alphaScore), 0) / totalWeight;
+                        highAlphaKOLs = kolInfluences.filter(kol => kol.alphaTier === 'S+' || kol.alphaTier === 'S').length;
+                    }
+                }
+                
+                // Calculate momentum score (Lead-Lag weighted)
+                let momentumScore = 0;
+                
+                // 1. Lead-Lag Performance (50%): Hit rate and lead time
+                const leadLagPerformance = (avgHitRate * 0.7) + (Math.max(0, 1 - avgLeadTime / 240) * 0.3); // Faster lead time = better
+                momentumScore += leadLagPerformance * 0.5;
+                
+                // 2. High Alpha KOLs (25%): Premium KOLs mentioning this coin
+                momentumScore += Math.min(highAlphaKOLs / 3, 1) * 0.25; // Max score at 3+ high alpha KOLs
+                
+                // 3. Sentiment + Bullish Ratio (15%): Market sentiment
+                const sentimentScore = (avgSentiment + 1) / 2; // Normalize -1 to 1 -> 0 to 1
+                momentumScore += (sentimentScore * 0.1 + bullishRatio * 0.05);
+                
+                // 4. KOL Diversity (10%): More KOLs = more consensus
+                momentumScore += Math.min(kolCount / 5, 1) * 0.1;
+                
+                return {
+                    coin,
+                    data,
+                    momentumScore,
+                    avgSentiment,
+                    kolCount,
+                    mentions,
+                    bullishRatio,
+                    leadLagScore,
+                    avgHitRate,
+                    avgLeadTime,
+                    highAlphaKOLs,
+                    kolInfluences
+                };
+            });
+            
+            // Sort by momentum score (highest momentum first)
+            const topCoins = coinMomentumScores
+                .sort((a, b) => b.momentumScore - a.momentumScore)
                 .slice(0, 8);
 
             if (topCoins.length === 0) {
@@ -953,34 +1020,55 @@
                 return;
             }
 
-            container.innerHTML = topCoins.map(([coin, data]) => {
-                const sentimentScore = data.mentions > 0 
-                    ? Math.round((data.bullish - data.bearish) / data.mentions * 100)
-                    : 0;
+            container.innerHTML = topCoins.map((coinData) => {
+                const { coin, data, momentumScore, avgSentiment, kolCount, mentions, bullishRatio, avgHitRate, avgLeadTime, highAlphaKOLs, kolInfluences } = coinData;
+                
+                const sentimentScore = Math.round(avgSentiment * 100);
                 const sentimentColor = sentimentScore > 20 ? 'accent-green' : sentimentScore < -20 ? 'accent-red' : 'accent-yellow';
-                const velocity = data.mentions > 5 ? 'velocity-high' : data.mentions > 2 ? 'velocity-medium' : 'velocity-low';
+                const velocity = momentumScore > 0.6 ? 'velocity-high' : momentumScore > 0.3 ? 'velocity-medium' : 'velocity-low';
+                const momentumColor = momentumScore > 0.7 ? 'accent-green' : momentumScore > 0.4 ? 'accent-yellow' : 'accent-red';
+                
+                // Alpha indicators
+                const alphaKOLs = kolInfluences.filter(kol => kol.alphaTier === 'S+' || kol.alphaTier === 'S').map(kol => kol.handle).join(', ');
+                const hitRateColor = avgHitRate > 0.7 ? 'accent-green' : avgHitRate > 0.4 ? 'accent-yellow' : 'accent-red';
+                const leadTimeColor = avgLeadTime < 120 ? 'accent-green' : avgLeadTime < 240 ? 'accent-yellow' : 'accent-red';
 
                 return `
                     <div class="momentum-card glass-light rounded-lg p-4 relative" onclick="openCoinDetail('${coin}')">
                         <div class="velocity-indicator ${velocity}"></div>
+                        <div class="momentum-score absolute top-2 right-2 text-xs font-bold ${momentumColor}">
+                            ${Math.round(momentumScore * 100)}%
+                        </div>
                         
                         <div class="text-2xl font-bold accent-purple mb-2">${coin}</div>
                         
                         <div class="space-y-2 text-sm">
                             <div class="flex items-center justify-between">
-                                <span class="text-gray-400">Mentions</span>
-                                <span class="font-bold accent-blue">${data.mentions}</span>
+                                <span class="text-gray-400">Hit Rate</span>
+                                <span class="font-bold ${hitRateColor}">${Math.round(avgHitRate * 100)}%</span>
                             </div>
                             
                             <div class="flex items-center justify-between">
-                                <span class="text-gray-400">KOLs</span>
-                                <span class="font-bold">${data.kols.size}</span>
+                                <span class="text-gray-400">Lead Time</span>
+                                <span class="font-bold ${leadTimeColor}">${Math.round(avgLeadTime)}min</span>
+                            </div>
+                            
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-400">Alpha KOLs</span>
+                                <span class="font-bold accent-purple">${highAlphaKOLs}</span>
                             </div>
                             
                             <div class="flex items-center justify-between">
                                 <span class="text-gray-400">Sentiment</span>
                                 <span class="font-bold ${sentimentColor}">${sentimentScore > 0 ? '+' : ''}${sentimentScore}%</span>
                             </div>
+                            
+                            ${alphaKOLs ? `
+                            <div class="text-xs text-gray-500 mt-2">
+                                <div class="font-bold">🎯 Alpha KOLs:</div>
+                                <div class="truncate">${alphaKOLs}</div>
+                            </div>
+                            ` : ''}
                         </div>
 
                         <div class="mt-3 pt-3 border-t border-gray-700 flex items-center justify-between text-xs">
