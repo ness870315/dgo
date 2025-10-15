@@ -361,12 +361,14 @@
         }
 
         .network-label {
-            fill: #ffffff;
-            font-size: 11px;
-            font-weight: 600;
-            text-anchor: middle;
-            pointer-events: none;
-            text-shadow: 0 0 3px #000, 0 0 5px #000;
+            fill: #ffffff !important;
+            font-size: 10px !important;
+            font-weight: 500 !important;
+            text-anchor: middle !important;
+            dominant-baseline: hanging !important;
+            pointer-events: none !important;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8) !important;
+            white-space: nowrap !important;
         }
 
         .network-pulse {
@@ -1089,11 +1091,25 @@
                         .style('filter', 'drop-shadow(0 0 8px rgba(153, 69, 255, 0.6))');
                 }
                 
-                // Add labels
+                // Add labels with better positioning
                 group.append('text')
                     .attr('class', 'network-label')
-                    .attr('dy', d => d.size + 14)
-                    .text(d => d.label.length > 12 ? d.label.substring(0, 10) + '...' : d.label);
+                    .attr('dy', d => d.size + 16)
+                    .attr('text-anchor', 'middle')
+                    .attr('dominant-baseline', 'hanging')
+                    .style('font-size', '10px')
+                    .style('font-weight', '500')
+                    .style('fill', '#ffffff')
+                    .style('text-shadow', '1px 1px 2px rgba(0,0,0,0.8)')
+                    .style('pointer-events', 'none')
+                    .text(d => {
+                        // Better text truncation
+                        const maxLength = 8;
+                        if (d.label.length > maxLength) {
+                            return d.label.substring(0, maxLength) + '...';
+                        }
+                        return d.label;
+                    });
             });
         }
 
@@ -1350,16 +1366,16 @@
                 // Create force simulation with stability settings
                 networkSimulation = d3.forceSimulation(nodes)
                     .force('link', d3.forceLink(links).id(d => d.id).distance(d => {
-                        if (d.source.type === 'coin' || d.target.type === 'coin') return 120;
-                        return 80;
+                        if (d.source.type === 'coin' || d.target.type === 'coin') return 150;
+                        return 100;
                     }).strength(d => d.strength))
                     .force('charge', d3.forceManyBody().strength(d => {
-                        if (d.type === 'coin') return -800;
-                        if (d.type === 'narrative') return -400;
-                        return -200;
+                        if (d.type === 'coin') return -1000;
+                        if (d.type === 'narrative') return -600;
+                        return -300;
                     }))
                     .force('center', d3.forceCenter(width / 2, height / 2))
-                    .force('collision', d3.forceCollide().radius(d => d.size + 5))
+                    .force('collision', d3.forceCollide().radius(d => d.size + 15))
                     .alpha(0.3)  // Start with moderate heat
                     .alphaDecay(0.02)  // Slower decay for stability
                     .on('end', () => {
