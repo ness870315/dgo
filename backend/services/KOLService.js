@@ -1103,7 +1103,12 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
   // Fetch multiple prices from CoinDesk in single API call
   async fetchCoinDeskBundledPrices(symbol, timestamps) {
     try {
-      const coindeskSymbol = `${symbol}-USD`;
+      // Apply symbol mapping (same as individual method)
+      const symbolMapping = {
+        'SPX6900': 'SPX' // SPX6900 maps to SPX for CoinDesk (becomes SPX-USD)
+      };
+      const actualSymbol = symbolMapping[symbol.toUpperCase()] || symbol.toUpperCase();
+      const coindeskSymbol = `${actualSymbol}-USD`;
       const prices = {};
       
       console.log(`🔍 [COINDESK BUNDLED] Fetching prices for ${coindeskSymbol} with ${timestamps.length} timestamps`);

@@ -406,7 +406,7 @@ router.post('/fetch-coin-image/:symbol', async (req, res) => {
     
     // Check if this symbol is currently blocked due to too many failed attempts
     const failedAttempt = failedImageAttempts.get(symbolKey);
-    if (failedAttempt) {
+    if (failedAttempt && failedAttempt.blockedUntil) {
       const now = Date.now();
       if (now < failedAttempt.blockedUntil) {
         const remainingTime = Math.round((failedAttempt.blockedUntil - now) / (60 * 60 * 1000)); // hours
@@ -420,9 +420,9 @@ router.post('/fetch-coin-image/:symbol', async (req, res) => {
           blockedUntil: failedAttempt.blockedUntil
         });
       } else {
-        // Block period expired, reset attempts
-        console.log(`🔄 [KOL API] Block period expired for ${symbol}, resetting attempts`);
-        failedImageAttempts.delete(symbolKey);
+        // Block period expired, reset block but keep attempt count
+        console.log(`🔄 [KOL API] Block period expired for ${symbol}, resetting block but keeping attempt count (${failedAttempt.attempts})`);
+        failedAttempt.blockedUntil = null; // Remove block but keep attempts
       }
     }
     
