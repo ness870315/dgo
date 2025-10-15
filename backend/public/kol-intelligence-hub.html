@@ -2033,14 +2033,35 @@
                 }
 
                 // Prepare timeline data from posts
-                const timelineData = coinPosts.map((post, index) => ({
-                    x: index,
-                    y: post.likes + post.retweets + post.views,
-                    timestamp: new Date(post.created_at).toLocaleDateString(),
-                    kol: post.kol_handle,
-                    sentiment: post.sentiment,
-                    engagement: post.likes + post.retweets + post.views
-                }));
+                const timelineData = coinPosts.map((post, index) => {
+                    // Handle multiple timestamp fields and validate dates
+                    const postDate = new Date(post.created_at || post.timestamp || post.date);
+                    if (isNaN(postDate.getTime())) {
+                        console.log(`⚠️ [CHART] Invalid date for post in mentions-only chart:`, post);
+                        return null;
+                    }
+                    
+                    return {
+                        x: index,
+                        y: (post.likes || 0) + (post.retweets || 0) + (post.views || 0),
+                        timestamp: postDate.toLocaleDateString(),
+                        kol: post.kol_handle,
+                        sentiment: post.sentiment || 0,
+                        engagement: (post.likes || 0) + (post.retweets || 0) + (post.views || 0)
+                    };
+                }).filter(item => item !== null); // Remove invalid entries
+
+                // Check if we have any valid data
+                if (timelineData.length === 0) {
+                    console.log(`⚠️ [CHART] No valid timeline data for mentions-only chart for ${coin}`);
+                    ctx.parentElement.innerHTML = `
+                        <div class="text-center text-gray-500 py-8">
+                            <div class="text-lg mb-2">📊 No Valid Data</div>
+                            <div class="text-sm">All posts have invalid timestamps</div>
+                        </div>
+                    `;
+                    return;
+                }
 
                 // Color based on sentiment
                 const colors = timelineData.map(item => 
@@ -2178,7 +2199,12 @@
             // Process price data from backend response
             if (priceData.data && priceData.data.length > 0) {
                 priceData.data.forEach(point => {
-                    const date = new Date(point.timestamp);
+                    // Use mentionTime (processed) instead of timestamp (original)
+                    const date = new Date(point.mentionTime || point.timestamp);
+                    if (isNaN(date.getTime())) {
+                        console.log(`⚠️ [CHART] Invalid date for point:`, point);
+                        return;
+                    }
                     labels.push(date.toLocaleDateString() + ' ' + date.toLocaleTimeString());
                     priceDataPoints.push({
                         x: labels.length - 1,
@@ -2189,7 +2215,13 @@
 
             // Process KOL mentions
             coinPosts.forEach(post => {
-                const postDate = new Date(post.created_at);
+                // Use multiple timestamp fields as fallback
+                const postDate = new Date(post.created_at || post.timestamp || post.date);
+                if (isNaN(postDate.getTime())) {
+                    console.log(`⚠️ [CHART] Invalid date for post:`, post);
+                    return;
+                }
+                
                 const dateIndex = labels.findIndex(label => {
                     const labelDate = new Date(label);
                     return Math.abs(labelDate - postDate) < 24 * 60 * 60 * 1000; // Within 24 hours
