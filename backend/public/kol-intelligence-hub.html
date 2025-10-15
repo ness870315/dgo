@@ -1283,11 +1283,15 @@
                 data.coins.forEach(coin => {
                     const coinNode = `coin_${coin}`;
                     if (nodeMap.has(coinNode)) {
-                        links.push({
-                            source: node.id,
-                            target: coinNode,
-                            strength: 1
-                        });
+                        const sourceNode = nodeMap.get(node.id);
+                        const targetNode = nodeMap.get(coinNode);
+                        if (sourceNode && targetNode) {
+                            links.push({
+                                source: sourceNode,
+                                target: targetNode,
+                                strength: 1
+                            });
+                        }
                     }
                 });
             });
@@ -1332,11 +1336,15 @@
                     kolCoins.forEach(coin => {
                         const coinNode = `coin_${coin}`;
                         if (nodeMap.has(coinNode)) {
-                            links.push({
-                                source: node.id,
-                                target: coinNode,
-                                strength: 0.5
-                            });
+                            const sourceNode = nodeMap.get(node.id);
+                            const targetNode = nodeMap.get(coinNode);
+                            if (sourceNode && targetNode) {
+                                links.push({
+                                    source: sourceNode,
+                                    target: targetNode,
+                                    strength: 0.5
+                                });
+                            }
                         }
                     });
                 });
@@ -1453,12 +1461,27 @@
             // Update simulation tick handler
             networkSimulation.on('tick', () => {
                 link.selectAll('line')
-                    .attr('x1', d => d.source.x)
-                    .attr('y1', d => d.source.y)
-                    .attr('x2', d => d.target.x)
-                    .attr('y2', d => d.target.y);
+                    .attr('x1', d => {
+                        if (!d.source || typeof d.source.x !== 'number') return 0;
+                        return d.source.x;
+                    })
+                    .attr('y1', d => {
+                        if (!d.source || typeof d.source.y !== 'number') return 0;
+                        return d.source.y;
+                    })
+                    .attr('x2', d => {
+                        if (!d.target || typeof d.target.x !== 'number') return 0;
+                        return d.target.x;
+                    })
+                    .attr('y2', d => {
+                        if (!d.target || typeof d.target.y !== 'number') return 0;
+                        return d.target.y;
+                    });
 
-                node.attr('transform', d => `translate(${d.x},${d.y})`);
+                node.attr('transform', d => {
+                    if (typeof d.x !== 'number' || typeof d.y !== 'number') return 'translate(0,0)';
+                    return `translate(${d.x},${d.y})`;
+                });
             });
 
             // Node interactions
