@@ -103,13 +103,7 @@ class DexscreenerApiService {
         const symbol = originalSymbol?.toUpperCase();
         const stableTokens = ['USDC', 'USDT', 'SOL', 'JUP', 'WETH', 'WBTC', 'JLP', 'JUPSOL'];
         
-        // Enhanced debug logging for all tokens to catch variations
-        console.log(`🔍 [DEXSCREENER DEBUG] Processing token: "${originalSymbol}" → "${symbol}" (contract: ${pair.baseToken?.address?.substring(0, 8)}...)`);
-        
-        // Debug logging for JLP and JupSOL specifically (including variations)
-        if (symbol && (symbol.includes('JLP') || symbol.includes('JUPSOL') || symbol.includes('JUP'))) {
-          console.log(`🚫 [DEXSCREENER DEBUG] Potential stable token detected: ${symbol} (original: "${originalSymbol}")`);
-        }
+        // Removed debug logging to reduce console noise
         
         if (!symbol || stableTokens.includes(symbol)) {
           if (symbol && stableTokens.includes(symbol)) {

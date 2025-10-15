@@ -260,13 +260,8 @@ class DailyTweetService {
       // Use the new reliable TweetAPI posting service instead of OAuth
       console.log('🐦 [DAILY TWEET] Using TweetAPI v2 posting service for reliable posting...');
       
-      // Test the posting service first
-      const testResult = await this.tweetPostingService.testService();
-      if (!testResult.success) {
-        console.log('❌ [DAILY TWEET] TweetAPI v2 posting service test failed, falling back to OAuth...');
-        await this.kolContentService.runDailyContentCycle(this.twitterAutoPostService.oauthXService);
-      } else {
-        console.log('✅ [DAILY TWEET] TweetAPI v2 posting service working, using for content posting...');
+      // Skip automatic testing - use TweetAPI v2 directly for posting
+      console.log('✅ [DAILY TWEET] Using TweetAPI v2 posting service for content posting...');
         
         // Generate content using KOLContentService but post with TweetAPI v2
         const content = await this.kolContentService.generateDailyContent();
@@ -408,10 +403,8 @@ class DailyTweetService {
       // Post the content directly using TweetAPI v2
       console.log(`\n📤 [KOL CONTENT] FORCING POST: $${content.token.symbol} (${content.format})`);
       
-      // Test TweetAPI v2 first
-      const testResult = await this.tweetPostingService.testService();
-      if (testResult.success) {
-        console.log('✅ [KOL CONTENT] Using TweetAPI v2 for manual posting...');
+      // Use TweetAPI v2 directly for manual posting
+      console.log('✅ [KOL CONTENT] Using TweetAPI v2 for manual posting...');
         
         let lastTweetId = null;
         for (let i = 0; i < content.tweets.length; i++) {
