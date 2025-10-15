@@ -908,29 +908,39 @@
                 return;
             }
 
-            // Calculate coin momentum
+            // Symbol mapping for merging duplicates
+            const symbolMap = {
+                'SPX6900': 'SPX', // Merge SPX6900 into SPX
+                'SPX': 'SPX'      // Keep SPX as SPX
+            };
+            
+            // Calculate coin momentum with symbol merging
             const coinData = {};
             posts.forEach(post => {
                 if (post.coins) {
                     post.coins.forEach(coin => {
-                        if (!coinData[coin]) {
-                            coinData[coin] = {
+                        // Use mapped symbol or original if no mapping
+                        const mappedCoin = symbolMap[coin] || coin;
+                        
+                        if (!coinData[mappedCoin]) {
+                            coinData[mappedCoin] = {
                                 mentions: 0,
                                 bullish: 0,
                                 bearish: 0,
                                 kols: new Set()
                             };
                         }
-                        coinData[coin].mentions++;
-                        if (post.sentiment > 0) coinData[coin].bullish++;
-                        if (post.sentiment < 0) coinData[coin].bearish++;
-                        coinData[coin].kols.add(post.kol_handle);
+                        coinData[mappedCoin].mentions++;
+                        if (post.sentiment > 0) coinData[mappedCoin].bullish++;
+                        if (post.sentiment < 0) coinData[mappedCoin].bearish++;
+                        coinData[mappedCoin].kols.add(post.kol_handle);
                     });
                 }
             });
 
-            // Sort by mentions
+            // Filter out coins with only 1 KOL and sort by mentions
             const topCoins = Object.entries(coinData)
+                .filter(([coin, data]) => data.kols.size > 1) // Only coins with 2+ KOLs
                 .sort((a, b) => b[1].mentions - a[1].mentions)
                 .slice(0, 8);
 
@@ -1408,21 +1418,29 @@
                 });
             }
 
-            // Add coin nodes
+            // Add coin nodes with symbol merging
             const coinData = {};
+            const symbolMap = {
+                'SPX6900': 'SPX', // Merge SPX6900 into SPX
+                'SPX': 'SPX'      // Keep SPX as SPX
+            };
+            
             posts.forEach(post => {
                 if (post.coins) {
                     post.coins.forEach(coin => {
-                        if (!coinData[coin]) {
-                            coinData[coin] = { mentions: 0, kols: new Set(), narratives: new Set(), sentiment: 0, sentimentCount: 0 };
+                        // Use mapped symbol or original if no mapping
+                        const mappedCoin = symbolMap[coin] || coin;
+                        
+                        if (!coinData[mappedCoin]) {
+                            coinData[mappedCoin] = { mentions: 0, kols: new Set(), narratives: new Set(), sentiment: 0, sentimentCount: 0 };
                         }
-                        coinData[coin].mentions++;
-                        coinData[coin].kols.add(post.kol_handle);
+                        coinData[mappedCoin].mentions++;
+                        coinData[mappedCoin].kols.add(post.kol_handle);
                         if (post.narratives) {
-                            post.narratives.forEach(n => coinData[coin].narratives.add(n));
+                            post.narratives.forEach(n => coinData[mappedCoin].narratives.add(n));
                         }
-                        coinData[coin].sentiment += post.sentiment || 0;
-                        coinData[coin].sentimentCount++;
+                        coinData[mappedCoin].sentiment += post.sentiment || 0;
+                        coinData[mappedCoin].sentimentCount++;
                     });
                 }
             });
@@ -1892,12 +1910,12 @@
             if (leftPanel.classList.contains('hidden')) {
                 // Show panel
                 leftPanel.classList.remove('hidden');
-                icon.setAttribute('data-lucide', 'panel-left-close');
+                icon.setAttribute('data-lucide', 'chevron-left'); // Show left arrow when panel is open (to close it)
                 lucide.createIcons();
             } else {
                 // Hide panel
                 leftPanel.classList.add('hidden');
-                icon.setAttribute('data-lucide', 'panel-left-open');
+                icon.setAttribute('data-lucide', 'chevron-right'); // Show right arrow when panel is closed (to open it)
                 lucide.createIcons();
             }
         }
@@ -2217,8 +2235,8 @@
                 console.log(`📊 [CHART] Valid price points: ${chartData.priceData.length}`);
                 
                 // Check if we have valid chart data
-                if (!chartData || !chartData.priceData || chartData.priceData.length === 0) {
-                    console.log(`⚠️ [CHART] No valid chart data for ${coin}, creating mentions-only chart`);
+                if (!chartData || chartData.priceData.length === 0) {
+                    console.log(`⚠️ [CHART] No price data for ${coin}, creating mentions-only chart`);
                     createMentionsOnlyChart(coin, coinPosts);
                     return;
                 }
@@ -2613,9 +2631,11 @@
                         return;
                     }
                     
-                    // Only process points with valid price data
+                    // Always add the date label
+                    labels.push(date.toLocaleDateString() + ' ' + date.toLocaleTimeString());
+                    
+                    // Only add price data if available, but still show timeline
                     if (point.priceAtMention != null && point.priceAtMention !== undefined) {
-                        labels.push(date.toLocaleDateString() + ' ' + date.toLocaleTimeString());
                         priceDataPoints.push({
                             x: priceDataPoints.length, // Use actual count, not labels.length
                             y: point.priceAtMention

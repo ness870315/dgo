@@ -632,14 +632,26 @@ router.get('/coin-timeline/:symbol', async (req, res) => {
     const { symbol } = req.params;
     const symbolUpper = symbol.toUpperCase();
     
-    console.log(`📊 [KOL API] Getting timeline data for ${symbolUpper}`);
+    // Symbol mapping for frontend requests
+    const symbolMap = {
+      'SPX': 'SPX6900' // Frontend requests SPX, but data is stored as SPX6900
+    };
+    
+    const actualSymbol = symbolMap[symbolUpper] || symbolUpper;
+    
+    console.log(`📊 [KOL API] Getting timeline data for ${symbolUpper} (actual: ${actualSymbol})`);
     
     // Get all mentions of this coin with price data
     const coinMentions = [];
     
     for (const post of kolService.posts) {
-      if (post.coins && post.coins.includes(symbolUpper) && post.coin_data && post.coin_data[symbolUpper]) {
-        const coinData = post.coin_data[symbolUpper];
+      // Check both the requested symbol and the actual stored symbol
+      const symbolToCheck = post.coins && (post.coins.includes(symbolUpper) || post.coins.includes(actualSymbol));
+      const coinDataKey = post.coin_data && (post.coin_data[symbolUpper] || post.coin_data[actualSymbol]);
+      
+      if (symbolToCheck && coinDataKey) {
+        // Use the actual stored symbol for coin data lookup
+        const coinData = post.coin_data[actualSymbol] || post.coin_data[symbolUpper];
         
         // Handle different timestamp formats
         let mentionTime;
