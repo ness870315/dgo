@@ -648,16 +648,26 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       
       const url = `https://data-api.coindesk.com/spot/v1/historical/days?market=kraken&instrument=${coindeskSymbol}&limit=${Math.min(daysBack + 5, 30)}&aggregate=1&fill=true&apply_mapping=true&response_format=JSON`;
       
+      console.log(`🔍 [COINDESK INDIVIDUAL] Fetching ${coindeskSymbol} at ${targetTime.toISOString()}`);
+      console.log(`🔍 [COINDESK INDIVIDUAL] URL: ${url}`);
+      
       const response = await fetch(url);
+      console.log(`🔍 [COINDESK INDIVIDUAL] Response status: ${response.status}`);
+      
       if (response.ok) {
         const data = await response.json();
-        if (data && data.data && data.data.length > 0) {
-          // Find closest date to target time
-          let closestData = data.data[0];
-          let minTimeDiff = Math.abs(new Date(data.data[0].datetime) - targetTime);
+        console.log(`🔍 [COINDESK INDIVIDUAL] Response structure:`, Object.keys(data));
+        
+        if (data && data.Data && data.Data.length > 0) {
+          console.log(`🔍 [COINDESK INDIVIDUAL] Received ${data.Data.length} data points`);
+          console.log(`🔍 [COINDESK INDIVIDUAL] Sample data:`, data.Data[0]);
           
-          for (const dayData of data.data) {
-            const dayTime = new Date(dayData.datetime);
+          // Find closest date to target time
+          let closestData = data.Data[0];
+          let minTimeDiff = Math.abs(new Date(data.Data[0].TIMESTAMP * 1000) - targetTime);
+          
+          for (const dayData of data.Data) {
+            const dayTime = new Date(dayData.TIMESTAMP * 1000);
             const timeDiff = Math.abs(dayTime - targetTime);
             if (timeDiff < minTimeDiff) {
               minTimeDiff = timeDiff;
@@ -665,11 +675,25 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
             }
           }
           
-          return parseFloat(closestData.close);
+          // CoinDesk uses CLOSE field for price
+          const price = closestData.CLOSE;
+          if (price) {
+            console.log(`✅ [COINDESK INDIVIDUAL] Found price for ${symbol}: $${price}`);
+            return parseFloat(price);
+          } else {
+            console.log(`⚠️ [COINDESK INDIVIDUAL] No CLOSE price found in data:`, closestData);
+          }
+        } else {
+          console.log(`⚠️ [COINDESK INDIVIDUAL] No data received for ${coindeskSymbol}`);
         }
+      } else {
+        const errorText = await response.text();
+        console.log(`❌ [COINDESK INDIVIDUAL] API error ${response.status}: ${errorText}`);
       }
+      
       return null;
     } catch (error) {
+      console.log(`❌ [COINDESK INDIVIDUAL] Exception for ${symbol}: ${error.message}`);
       throw new Error(`CoinDesk API error: ${error.message}`);
     }
   }
@@ -796,24 +820,34 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       const coindeskSymbol = `${symbol}-USD`;
       const prices = {};
       
+      console.log(`🔍 [COINDESK BUNDLED] Fetching prices for ${coindeskSymbol} with ${timestamps.length} timestamps`);
+      
       // Calculate days back for oldest timestamp
       const oldestTimestamp = Math.min(...timestamps);
       const daysBack = Math.ceil((Date.now() - oldestTimestamp) / (1000 * 60 * 60 * 24));
       
       const url = `https://data-api.coindesk.com/spot/v1/historical/days?market=kraken&instrument=${coindeskSymbol}&limit=${Math.min(daysBack + 10, 30)}&aggregate=1&fill=true&apply_mapping=true&response_format=JSON`;
       
+      console.log(`🔍 [COINDESK BUNDLED] URL: ${url}`);
+      
       const response = await fetch(url);
+      console.log(`🔍 [COINDESK BUNDLED] Response status: ${response.status}`);
+      
       if (response.ok) {
         const data = await response.json();
-        if (data && data.data && data.data.length > 0) {
+        console.log(`🔍 [COINDESK BUNDLED] Response structure:`, Object.keys(data));
+        
+        if (data && data.Data && data.Data.length > 0) {
+          console.log(`🔍 [COINDESK BUNDLED] Received ${data.Data.length} data points`);
+          
           // Match each timestamp to closest daily data
           for (const timestamp of timestamps) {
             const targetTime = new Date(timestamp);
-            let closestData = data.data[0];
-            let minTimeDiff = Math.abs(new Date(data.data[0].datetime) - targetTime);
+            let closestData = data.Data[0];
+            let minTimeDiff = Math.abs(new Date(data.Data[0].TIMESTAMP * 1000) - targetTime);
             
-            for (const dayData of data.data) {
-              const dayTime = new Date(dayData.datetime);
+            for (const dayData of data.Data) {
+              const dayTime = new Date(dayData.TIMESTAMP * 1000);
               const timeDiff = Math.abs(dayTime - targetTime);
               if (timeDiff < minTimeDiff) {
                 minTimeDiff = timeDiff;
@@ -821,12 +855,24 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
               }
             }
             
-            prices[timestamp] = parseFloat(closestData.close);
+            const price = closestData.CLOSE;
+            if (price) {
+              prices[timestamp] = parseFloat(price);
+              console.log(`✅ [COINDESK BUNDLED] ${symbol} at ${timestamp}: $${price}`);
+            }
           }
+        } else {
+          console.log(`⚠️ [COINDESK BUNDLED] No data received for ${coindeskSymbol}`);
         }
+      } else {
+        const errorText = await response.text();
+        console.log(`❌ [COINDESK BUNDLED] API error ${response.status}: ${errorText}`);
       }
+      
+      console.log(`📊 [COINDESK BUNDLED] Returning ${Object.keys(prices).length} prices for ${symbol}`);
       return prices;
     } catch (error) {
+      console.log(`❌ [COINDESK BUNDLED] Error for ${symbol}: ${error.message}`);
       throw new Error(`CoinDesk bundled API error: ${error.message}`);
     }
   }
