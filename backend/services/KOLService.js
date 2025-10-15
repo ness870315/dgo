@@ -723,6 +723,24 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
               return cachedPrice;
             }
             
+            let historicalPrice = null;
+            
+            // NEW: Try Apex Exchange first (high priority for supported symbols)
+            const apexSupportedSymbols = ['APEX', 'FARTCOIN', 'BTC', 'ETH', 'SOL', 'DOGE', 'SHIB', 'WIF', 'TRUMP', 'BONK', 'POPCAT'];
+            if (apexSupportedSymbols.includes(symbolUpper)) {
+              try {
+                historicalPrice = await this.fetchApexExchangeHistoricalPrice(symbolUpper, targetTime);
+                if (historicalPrice) {
+                  console.log(`✅ [KOL SERVICE] Found Apex Exchange price for $${symbol}: $${historicalPrice}`);
+                  // Cache the result
+                  this.historicalPricesCache.set(cacheKey, historicalPrice);
+                  return historicalPrice;
+                }
+              } catch (error) {
+                console.log(`❌ [KOL SERVICE] Apex Exchange failed for ${symbol}: ${error.message}`);
+              }
+            }
+            
             // Map token names to their actual trading symbols
             const symbolMapping = {
               'SPX6900': 'SPX' // SPX6900 maps to SPX for CoinDesk (becomes SPX-USD)
@@ -790,6 +808,72 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
           }
         }
 
+
+  // Fetch from Apex Exchange API (NEW - High Priority)
+  async fetchApexExchangeHistoricalPrice(symbol, targetTime) {
+    try {
+      // Apex Exchange format: SYMBOLUSDT
+      const apexSymbol = `${symbol}USDT`;
+      const targetTimestamp = targetTime.getTime();
+      
+      console.log(`🔍 [KOL SERVICE] Trying Apex Exchange for ${symbol} at ${targetTime.toISOString()}`);
+      
+      // Try different intervals to find the closest match
+      const intervals = ['1', '5', '15', '60']; // 1m, 5m, 15m, 1h
+      
+      for (const interval of intervals) {
+        try {
+          const url = `https://omni.apex.exchange/api/v3/klines?symbol=${apexSymbol}&interval=${interval}`;
+          const response = await fetch(url);
+          
+          if (!response.ok) {
+            console.log(`⚠️ [KOL SERVICE] Apex Exchange interval ${interval} failed: ${response.status}`);
+            continue;
+          }
+          
+          const data = await response.json();
+          
+          if (data.data && data.data[apexSymbol] && data.data[apexSymbol].length > 0) {
+            const klines = data.data[apexSymbol];
+            
+            // Find the closest kline to our target time
+            let closestKline = null;
+            let minTimeDiff = Infinity;
+            
+            for (const kline of klines) {
+              const klineTime = kline.t; // timestamp in milliseconds
+              const timeDiff = Math.abs(klineTime - targetTimestamp);
+              
+              if (timeDiff < minTimeDiff) {
+                minTimeDiff = timeDiff;
+                closestKline = kline;
+              }
+            }
+            
+            if (closestKline) {
+              const price = parseFloat(closestKline.c); // close price
+              const klineTime = new Date(closestKline.t);
+              const timeDiffMinutes = Math.abs(klineTime - targetTime) / (1000 * 60);
+              
+              console.log(`✅ [KOL SERVICE] Found Apex Exchange price for ${symbol}: $${price} (diff: ${Math.round(timeDiffMinutes)}min)`);
+              
+              return price;
+            }
+          }
+        } catch (error) {
+          console.log(`❌ [KOL SERVICE] Apex Exchange interval ${interval} error for ${symbol}: ${error.message}`);
+          continue;
+        }
+      }
+      
+      console.log(`⚠️ [KOL SERVICE] Apex Exchange failed for ${symbol}`);
+      return null;
+      
+    } catch (error) {
+      console.error(`❌ [KOL SERVICE] Apex Exchange error for ${symbol}:`, error.message);
+      return null;
+    }
+  }
 
   // Fetch from CoinDesk API - try multiple markets
   async fetchCoinDeskHistoricalPrice(symbol, targetTime) {
@@ -1286,6 +1370,20 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       
       console.log(`🔍 [KOL SERVICE] Fetching BUNDLED historical prices for $${symbol} at ${timestamps.length} timestamps using free APIs`);
       
+      // NEW: Try Apex Exchange bundled first (high priority for supported symbols)
+      const apexSupportedSymbols = ['APEX', 'FARTCOIN', 'BTC', 'ETH', 'SOL', 'DOGE', 'SHIB', 'WIF', 'TRUMP', 'BONK', 'POPCAT'];
+      if (apexSupportedSymbols.includes(symbolUpper)) {
+        try {
+          const apexPrices = await this.fetchApexExchangeBundledPrices(symbolUpper, timestamps);
+          if (Object.keys(apexPrices).length > 0) {
+            console.log(`✅ [KOL SERVICE] Got ${Object.keys(apexPrices).length} prices from Apex Exchange for ${symbol}`);
+            return apexPrices;
+          }
+        } catch (error) {
+          console.log(`⚠️ [KOL SERVICE] Apex Exchange bundled failed for ${symbol}: ${error.message}`);
+        }
+      }
+      
       // Try CoinDesk bundled (primary free API - no location restrictions)
       try {
         const coindeskPrices = await this.fetchCoinDeskBundledPrices(symbolUpper, timestamps);
@@ -1325,6 +1423,83 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
     }
   }
 
+
+  // Fetch multiple prices from Apex Exchange in single API call
+  async fetchApexExchangeBundledPrices(symbol, timestamps) {
+    try {
+      const apexSymbol = `${symbol}USDT`;
+      const prices = {};
+      
+      console.log(`🔍 [KOL SERVICE] Fetching Apex Exchange bundled prices for ${symbol} (${timestamps.length} timestamps)`);
+      
+      // Try different intervals to find the best coverage
+      const intervals = ['1', '5', '15', '60']; // 1m, 5m, 15m, 1h
+      
+      for (const interval of intervals) {
+        try {
+          const url = `https://omni.apex.exchange/api/v3/klines?symbol=${apexSymbol}&interval=${interval}`;
+          const response = await fetch(url);
+          
+          if (!response.ok) {
+            console.log(`⚠️ [KOL SERVICE] Apex Exchange interval ${interval} failed: ${response.status}`);
+            continue;
+          }
+          
+          const data = await response.json();
+          
+          if (data.data && data.data[apexSymbol] && data.data[apexSymbol].length > 0) {
+            const klines = data.data[apexSymbol];
+            
+            // Find closest klines for each requested timestamp
+            for (const timestamp of timestamps) {
+              if (prices[timestamp]) continue; // Already found a price for this timestamp
+              
+              const targetTime = new Date(timestamp).getTime();
+              let closestKline = null;
+              let minTimeDiff = Infinity;
+              
+              for (const kline of klines) {
+                const klineTime = kline.t; // timestamp in milliseconds
+                const timeDiff = Math.abs(klineTime - targetTime);
+                
+                if (timeDiff < minTimeDiff) {
+                  minTimeDiff = timeDiff;
+                  closestKline = kline;
+                }
+              }
+              
+              if (closestKline) {
+                const price = parseFloat(closestKline.c); // close price
+                const klineTime = new Date(closestKline.t);
+                const timeDiffMinutes = Math.abs(klineTime - new Date(timestamp)) / (1000 * 60);
+                
+                // Only use if within reasonable time difference (max 1 hour)
+                if (timeDiffMinutes <= 60) {
+                  prices[timestamp] = price;
+                  console.log(`📊 [APEX BUNDLED] ${symbol} @ ${new Date(timestamp).toISOString()}: $${price} (diff: ${Math.round(timeDiffMinutes)}min)`);
+                }
+              }
+            }
+            
+            // If we found prices for all timestamps, we're done
+            if (Object.keys(prices).length === timestamps.length) {
+              break;
+            }
+          }
+        } catch (error) {
+          console.log(`❌ [KOL SERVICE] Apex Exchange interval ${interval} error: ${error.message}`);
+          continue;
+        }
+      }
+      
+      console.log(`✅ [KOL SERVICE] Apex Exchange bundled: ${Object.keys(prices).length}/${timestamps.length} prices found for ${symbol}`);
+      return prices;
+      
+    } catch (error) {
+      console.error(`❌ [KOL SERVICE] Apex Exchange bundled error for ${symbol}:`, error.message);
+      throw new Error(`Apex Exchange bundled API error: ${error.message}`);
+    }
+  }
 
   // Fetch multiple prices from CoinDesk in single API call - try multiple markets
   async fetchCoinDeskBundledPrices(symbol, timestamps) {
