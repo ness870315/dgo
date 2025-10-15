@@ -799,7 +799,7 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       const daysBack = Math.ceil((Date.now() - targetTime.getTime()) / (1000 * 60 * 60 * 24));
       
       // Try multiple markets in order of preference
-      const markets = ['binance', 'ascendex', 'gateio', 'mexc', 'kraken'];
+      const markets = ['binance', 'ascendex', 'gateio', 'mexc', 'kraken', 'hyperliquid'];
       
       for (const market of markets) {
         try {
@@ -1344,7 +1344,7 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       const daysBack = Math.ceil((Date.now() - oldestTimestamp) / (1000 * 60 * 60 * 24));
       
       // Try multiple markets in order of preference
-      const markets = ['binance', 'ascendex', 'gateio', 'mexc', 'kraken'];
+      const markets = ['binance', 'ascendex', 'gateio', 'mexc', 'kraken', 'hyperliquid'];
       
       for (const market of markets) {
         try {
