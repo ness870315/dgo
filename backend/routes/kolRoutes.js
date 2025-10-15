@@ -635,10 +635,26 @@ router.get('/coin-timeline/:symbol', async (req, res) => {
     // Get all mentions of this coin with price data
     const coinMentions = [];
     
-    kolService.posts.forEach(post => {
+    for (const post of kolService.posts) {
       if (post.coins && post.coins.includes(symbolUpper) && post.coin_data && post.coin_data[symbolUpper]) {
         const coinData = post.coin_data[symbolUpper];
-        const mentionTime = new Date(post.timestamp);
+        
+        // Handle different timestamp formats
+        let mentionTime;
+        if (post.timestamp) {
+          mentionTime = new Date(post.timestamp);
+        } else if (post.created_at) {
+          mentionTime = new Date(post.created_at);
+        } else {
+          console.log(`⚠️ [KOL API] No valid timestamp for post:`, post);
+          continue;
+        }
+        
+        // Validate the date
+        if (isNaN(mentionTime.getTime())) {
+          console.log(`⚠️ [KOL API] Invalid timestamp for post:`, post.timestamp || post.created_at);
+          continue;
+        }
         
         coinMentions.push({
           timestamp: post.timestamp,
@@ -658,7 +674,7 @@ router.get('/coin-timeline/:symbol', async (req, res) => {
             ((coinData.price_24h_after - coinData.price_at_mention) / coinData.price_at_mention) * 100 : null
         });
       }
-    });
+    }
     
     // Sort by timestamp
     coinMentions.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));

@@ -946,6 +946,16 @@
                     console.log(`✅ [BACKEND] Found image for ${symbol}: ${data.imageUrl}`);
                     // Cache the result
                     frontendImageCache.set(cacheKey, data.imageUrl);
+                    
+                    // Also update the global coinData cache
+                    if (window.coinData && window.coinData[symbol]) {
+                        window.coinData[symbol].image = data.imageUrl;
+                        console.log(`💾 [CACHE] Updated window.coinData[${symbol}].image`);
+                        
+                        // Update the network graph node image
+                        updateNodeImage(`coin_${symbol}`, data.imageUrl);
+                    }
+                    
                     return data.imageUrl;
                 }
             }
@@ -1885,6 +1895,14 @@
 
                 // Prepare chart data
                 const chartData = prepareChartData(priceData, coinPosts);
+                console.log(`📊 [CHART] Chart data for ${coin}:`, chartData);
+                
+                // Check if we have valid chart data
+                if (!chartData || !chartData.priceData || chartData.priceData.length === 0) {
+                    console.log(`⚠️ [CHART] No valid chart data for ${coin}, creating mentions-only chart`);
+                    createMentionsOnlyChart(coin, coinPosts);
+                    return;
+                }
                 
                 // Create Chart.js chart
                 const ctx = document.getElementById(`priceChart_${coin}`);
@@ -1912,8 +1930,9 @@
                                 borderWidth: 2,
                                 fill: true,
                                 tension: 0.4,
-                                pointRadius: 0,
-                                pointHoverRadius: 6
+                                pointRadius: 3,
+                                pointHoverRadius: 6,
+                                pointBackgroundColor: '#9945FF'
                             },
                             {
                                 label: 'KOL Mentions',

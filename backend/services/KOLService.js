@@ -49,8 +49,9 @@ class KOLService {
     this.PERPLEXITY_DELAY = 3000; // 3 seconds between Perplexity calls
     
     // Start backfill job
-        this.startBackfillJob();
-        this.startLeadLagAnalysis();
+    this.startBackfillJob();
+    this.startLeadLagAnalysis();
+    this.startAutomaticTweetFetching(); // NEW: Start automatic tweet fetching
   }
 
   async initialize() {
@@ -1579,6 +1580,82 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
   // Generate unique ID
   generateId() {
     return `kol_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  // Start automatic tweet fetching for all KOLs every 6 hours
+  startAutomaticTweetFetching() {
+    console.log('🔄 [KOL SERVICE] Starting automatic tweet fetching (every 6 hours)');
+    
+    // Run initial fetch after 5 minutes
+    setTimeout(() => {
+      this.fetchAllKOLTweets();
+    }, 5 * 60 * 1000);
+    
+    // Then run every 6 hours
+    this.tweetFetchInterval = setInterval(() => {
+      this.fetchAllKOLTweets();
+    }, 6 * 60 * 60 * 1000); // 6 hours
+    
+    console.log('⏰ [KOL SERVICE] Automatic tweet fetching scheduled (every 6 hours)');
+  }
+
+  // Fetch tweets for all active KOLs
+  async fetchAllKOLTweets() {
+    try {
+      console.log('🔄 [KOL SERVICE] Starting automatic tweet fetch for all KOLs...');
+      
+      const activeKOLs = Array.from(this.kols.values()).filter(kol => kol.status === 'active');
+      console.log(`📊 [KOL SERVICE] Found ${activeKOLs.length} active KOLs to fetch tweets for`);
+      
+      let totalNewPosts = 0;
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (const kol of activeKOLs) {
+        try {
+          console.log(`🔍 [KOL SERVICE] Auto-fetching tweets for @${kol.handle}...`);
+          
+          // Fetch tweets for this KOL
+          const newPosts = await this.fetchKOLTweets(kol.handle);
+          
+          if (newPosts && newPosts > 0) {
+            totalNewPosts += newPosts;
+            successCount++;
+            console.log(`✅ [KOL SERVICE] Auto-fetch completed for @${kol.handle}: ${newPosts} new posts`);
+          } else {
+            console.log(`ℹ️ [KOL SERVICE] Auto-fetch completed for @${kol.handle}: no new posts`);
+          }
+          
+          // Rate limiting - wait 10 seconds between KOLs to avoid API limits
+          await new Promise(resolve => setTimeout(resolve, 10000));
+          
+        } catch (error) {
+          errorCount++;
+          console.error(`❌ [KOL SERVICE] Auto-fetch failed for @${kol.handle}:`, error.message);
+        }
+      }
+      
+      console.log(`🎯 [KOL SERVICE] Auto-fetch completed: ${successCount} successful, ${errorCount} errors, ${totalNewPosts} total new posts`);
+      
+      // If we got new posts, enrich them with coin data
+      if (totalNewPosts > 0) {
+        console.log('💎 [KOL SERVICE] Auto-fetch found new posts, enriching with coin data...');
+        await this.enrichPostsWithCoinData();
+        
+        console.log('🔄 [KOL SERVICE] Auto-fetch completed with data enrichment');
+      }
+      
+    } catch (error) {
+      console.error('❌ [KOL SERVICE] Error in automatic tweet fetching:', error.message);
+    }
+  }
+
+  // Stop automatic tweet fetching
+  stopAutomaticTweetFetching() {
+    if (this.tweetFetchInterval) {
+      clearInterval(this.tweetFetchInterval);
+      console.log('⏸️ [KOL SERVICE] Automatic tweet fetching stopped');
+    }
   }
 }
 
