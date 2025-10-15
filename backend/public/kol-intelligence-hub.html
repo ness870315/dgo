@@ -907,6 +907,9 @@
     // Frontend cache for coin images
     const frontendImageCache = new Map();
     
+    // Track blocked symbols to prevent multiple requests
+    const blockedSymbols = new Set();
+    
     // Fetch coin image using backend API
     async function fetchCoinImage(symbol) {
         try {
@@ -917,6 +920,12 @@
                 return frontendImageCache.get(cacheKey);
             }
             
+            // Check if symbol is blocked (to prevent multiple requests)
+            if (blockedSymbols.has(cacheKey)) {
+                console.log(`🚫 [FRONTEND] ${symbol} is blocked, skipping request`);
+                return null;
+            }
+            
             console.log(`🖼️ [BACKEND] Fetching image for ${symbol}...`);
             
             const response = await fetch(`/api/kol/fetch-coin-image/${symbol}`, {
@@ -925,6 +934,14 @@
             
             if (response.ok) {
                 const data = await response.json();
+                
+                // Check if symbol is blocked
+                if (data.blocked) {
+                    console.log(`🚫 [FRONTEND] ${symbol} is blocked by backend, adding to frontend block list`);
+                    blockedSymbols.add(cacheKey);
+                    return null;
+                }
+                
                 if (data.imageUrl) {
                     console.log(`✅ [BACKEND] Found image for ${symbol}: ${data.imageUrl}`);
                     // Cache the result
