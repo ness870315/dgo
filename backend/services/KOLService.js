@@ -931,54 +931,6 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       throw new Error(`CoinDesk bundled API error: ${error.message}`);
     }
   }
-      
-      if (!response || !response.content) {
-        console.log(`⚠️ [KOL SERVICE] No response from Perplexity for bundled ${symbol} prices`);
-        return {};
-      }
-      
-      // Parse multiple prices from response
-      const prices = {};
-      const content = response.content;
-      const lines = content.split('\n');
-      
-      for (const timestamp of sortedTimestamps) {
-        const date = new Date(timestamp);
-        const formattedDate = date.toISOString().split('T')[0];
-        const time = date.toTimeString().substring(0, 5);
-        const searchPattern = `${formattedDate} ${time}`;
-        
-        // Look for price in format "YYYY-MM-DD HH:MM: $price"
-        let foundPrice = null;
-        for (const line of lines) {
-          if (line.includes(searchPattern)) {
-            const priceMatch = line.match(/\$?([\d,]+\.?\d*)/);
-            if (priceMatch) {
-              const priceStr = priceMatch[1].replace(/,/g, '');
-              const price = parseFloat(priceStr);
-              if (price > 0 && price < 1000000) {
-                foundPrice = price;
-                break;
-              }
-            }
-          }
-        }
-        
-        if (foundPrice) {
-          prices[timestamp] = foundPrice;
-          console.log(`✅ [KOL SERVICE] Bundled price for $${symbol} at ${searchPattern}: $${foundPrice}`);
-        } else {
-          console.log(`⚠️ [KOL SERVICE] Could not find bundled price for $${symbol} at ${searchPattern}`);
-        }
-      }
-      
-      return prices;
-      
-    } catch (error) {
-      console.error(`❌ [KOL SERVICE] Error fetching bundled historical prices for ${symbol}:`, error.message);
-      return {};
-    }
-  }
 
   // Hybrid: Try DegenOracle first, fallback to Perplexity
   async fetchPrice(symbol, timestamp = null) {
