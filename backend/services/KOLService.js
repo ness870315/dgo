@@ -851,6 +851,8 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       const binanceSymbol = `${symbol}USDT`;
       const prices = {};
       
+      console.log(`🔍 [BINANCE BUNDLED] Fetching prices for ${binanceSymbol} with ${timestamps.length} timestamps`);
+      
       // Get time range covering all timestamps
       const sortedTimestamps = [...timestamps].sort((a, b) => new Date(a) - new Date(b));
       const startTime = new Date(sortedTimestamps[0]);
@@ -860,11 +862,18 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       startTime.setHours(startTime.getHours() - 2);
       endTime.setHours(endTime.getHours() + 2);
       
+      console.log(`🔍 [BINANCE BUNDLED] Time range: ${startTime.toISOString()} to ${endTime.toISOString()}`);
+      
       const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=1h&startTime=${startTime.getTime()}&endTime=${endTime.getTime()}&limit=1000`;
+      console.log(`🔍 [BINANCE BUNDLED] URL: ${url}`);
       
       const response = await fetch(url);
+      console.log(`🔍 [BINANCE BUNDLED] Response status: ${response.status}`);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log(`🔍 [BINANCE BUNDLED] Received ${data.length} klines`);
+        
         if (data && data.length > 0) {
           // Match each timestamp to closest kline
           for (const timestamp of timestamps) {
@@ -881,12 +890,22 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
               }
             }
             
-            prices[timestamp] = parseFloat(closestKline[4]);
+            const price = parseFloat(closestKline[4]);
+            prices[timestamp] = price;
+            console.log(`✅ [BINANCE BUNDLED] ${symbol} at ${timestamp}: $${price}`);
           }
+        } else {
+          console.log(`⚠️ [BINANCE BUNDLED] No klines data received for ${binanceSymbol}`);
         }
+      } else {
+        const errorText = await response.text();
+        console.log(`❌ [BINANCE BUNDLED] API error ${response.status}: ${errorText}`);
       }
+      
+      console.log(`📊 [BINANCE BUNDLED] Returning ${Object.keys(prices).length} prices for ${symbol}`);
       return prices;
     } catch (error) {
+      console.log(`❌ [BINANCE BUNDLED] Error for ${symbol}: ${error.message}`);
       throw new Error(`Binance bundled API error: ${error.message}`);
     }
   }
