@@ -103,6 +103,19 @@ async function handleRequest(request) {
 async function handleApiRequest(request) {
   const url = new URL(request.url);
   
+  // Never cache x402 payment endpoints or fuel-payment pages
+  // These should always fetch fresh from network
+  if (url.pathname.includes('/x402/') || 
+      url.pathname.includes('/fuel-payment') ||
+      url.pathname.includes('payment-details')) {
+    try {
+      return await fetch(request);
+    } catch (error) {
+      console.log('⚠️ Network error for x402 endpoint:', url.pathname, error.message);
+      throw error; // Re-throw to let the caller handle it
+    }
+  }
+  
   // Check if this is a cacheable API endpoint
   const isCacheable = API_CACHE_PATTERNS.some(pattern => pattern.test(url.pathname));
   
@@ -115,25 +128,22 @@ async function handleApiRequest(request) {
     // Network-first strategy for API calls
     const networkResponse = await fetch(request);
     
-    if (networkResponse.ok) {
+    // Only cache successful (200-299) responses
+    if (networkResponse.ok && networkResponse.status >= 200 && networkResponse.status < 300) {
       // Cache successful API responses
       const cache = await caches.open(DYNAMIC_CACHE);
-      cache.put(request, networkResponse.clone());
+      // Only put if response is not opaque and is successful
+      if (networkResponse.type !== 'opaque') {
+        cache.put(request, networkResponse.clone()).catch(err => {
+          console.log('⚠️ Failed to cache response:', err.message);
+        });
+      }
       
-      // Set cache expiration (5 minutes for API data)
-      const responseWithExpiry = new Response(networkResponse.body, {
-        status: networkResponse.status,
-        statusText: networkResponse.statusText,
-        headers: {
-          ...networkResponse.headers,
-          'sw-cache-expires': (Date.now() + 5 * 60 * 1000).toString()
-        }
-      });
-      
-      return responseWithExpiry;
+      return networkResponse;
     }
     
-    throw new Error(`API request failed: ${networkResponse.status}`);
+    // For non-OK responses (4xx, 5xx), just return them without caching
+    return networkResponse;
     
   } catch (error) {
     console.log('🌐 Network failed, trying cache for:', url.pathname);

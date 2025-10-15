@@ -1420,6 +1420,27 @@ class EnhancedBackend {
       }
     });
 
+    // Startup status endpoint - check if real data is available
+    this.app.get('/api/startup-status', async (req, res) => {
+      try {
+        const hasCache = await this.hasCachedData();
+        const processorTokens = this.tokenProcessor?.processedTokens?.length || 0;
+        
+        res.json({
+          success: true,
+          hasCachedData: hasCache,
+          processorTokens: processorTokens,
+          realDataAvailable: hasCache || processorTokens > 0,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
     // Get all tokens
     this.app.get('/api/tokens', async (req, res) => {
       try {
@@ -1429,9 +1450,16 @@ class EnhancedBackend {
         let tokens = await this.getTokensFromCache();
 
         if (tokens.length === 0) {
-          console.log('[🛡️ Enhanced Backend] ⚠️ No tokens found in cache');
-          res.json([]);
-          return;
+          console.log('[🛡️ Enhanced Backend] ⚠️ No tokens found in cache - checking token processor');
+          // Fallback: Try to get tokens from token processor if cache is empty
+          if (this.tokenProcessor && this.tokenProcessor.processedTokens && this.tokenProcessor.processedTokens.length > 0) {
+            console.log(`[🛡️ Enhanced Backend] 🔄 Using ${this.tokenProcessor.processedTokens.length} tokens from processor as fallback`);
+            tokens = this.tokenProcessor.processedTokens;
+          } else {
+            console.log('[🛡️ Enhanced Backend] ⚠️ No tokens available - returning empty array');
+            res.json([]);
+            return;
+          }
         }
 
         // Exclude suspicious, rugged, or major/stable tokens from API output as an extra safety layer
@@ -1479,9 +1507,16 @@ class EnhancedBackend {
         let tokens = await this.getTokensFromCache();
 
         if (tokens.length === 0) {
-          console.log('[🛡️ Enhanced Backend] ⚠️ No tokens found in cache');
-          res.json([]);
-          return;
+          console.log('[🛡️ Enhanced Backend] ⚠️ No tokens found in cache - checking token processor');
+          // Fallback: Try to get tokens from token processor if cache is empty
+          if (this.tokenProcessor && this.tokenProcessor.processedTokens && this.tokenProcessor.processedTokens.length > 0) {
+            console.log(`[🛡️ Enhanced Backend] 🔄 Using ${this.tokenProcessor.processedTokens.length} tokens from processor as fallback`);
+            tokens = this.tokenProcessor.processedTokens;
+          } else {
+            console.log('[🛡️ Enhanced Backend] ⚠️ No tokens available - returning empty array');
+            res.json([]);
+            return;
+          }
         }
 
         // Filter for trending tokens (Viral and Trending status)
@@ -12772,10 +12807,61 @@ Thanks for using x402 payments on Twitter! 🚀`;
     }
   }
 
+  // Check if cached data is available
+  async hasCachedData() {
+    try {
+      const cachePath = this.persistentCachePath;
+      await fs.access(cachePath);
+      const data = await fs.readFile(cachePath, 'utf8');
+      const tokens = JSON.parse(data || '[]');
+      return Array.isArray(tokens) && tokens.length > 0;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // Preload cache to serve real data during startup
+  async preloadCache() {
+    try {
+      console.log('📊 PRELOAD: Attempting to load cached tokens...');
+      
+      // Try to load cached data immediately
+      const cachedTokens = await this.getTokensFromCache();
+      
+      if (cachedTokens && cachedTokens.length > 0) {
+        console.log(`✅ PRELOAD: Successfully loaded ${cachedTokens.length} cached tokens`);
+        console.log('🎯 PRELOAD: Real cached data will be served during startup');
+        
+        // Store in token processor for immediate availability
+        this.tokenProcessor.processedTokens = cachedTokens;
+        
+        return true;
+      } else {
+        console.log('⚠️ PRELOAD: No cached data found - will serve empty data until processing completes');
+        return false;
+      }
+      
+    } catch (error) {
+      console.log(`❌ PRELOAD: Failed to load cache: ${error.message}`);
+      console.log('⚠️ PRELOAD: Will serve empty data until processing completes');
+      return false;
+    }
+  }
+
   async start() {
     try {
       // Load KOL routes first
       await this.loadKOLRoutes();
+      
+      // PRELOAD CACHE: Load cached data immediately to serve real data during startup
+      console.log('🚀 PRELOADING CACHE: Loading cached data before serving requests...');
+      const cacheLoaded = await this.preloadCache();
+      
+      if (cacheLoaded) {
+        console.log('✅ STARTUP: Real cached data is now available - no more mock data!');
+      } else {
+        console.log('⚠️ STARTUP: No cached data found - will serve empty data until processing completes');
+      }
       
       await this.tokenProcessor.initialize();
 

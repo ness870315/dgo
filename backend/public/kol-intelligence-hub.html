@@ -669,6 +669,9 @@
         // Load data from API
         async function loadData() {
             try {
+                // Clear network for fresh data load
+                clearNetwork();
+                
                 // Load KOLs
                 const kolsResponse = await fetch('/api/kol/kols');
                 const kolsResult = await kolsResponse.json();
@@ -999,9 +1002,9 @@
                                 image: imageUrl
                             };
                         }
-                        // Force re-render of the network
-                        renderNetwork();
-                        console.log(`🎨 [FRONTEND] Re-rendered network with ${coin} image`);
+                        // Update the specific node image without full re-render
+                        updateNodeImage(`coin_${coin}`, imageUrl);
+                        console.log(`🎨 [FRONTEND] Updated ${coin} image in network`);
                     }
                     // Longer delay to avoid rate limiting - backend also has rate limiting
                     await new Promise(resolve => setTimeout(resolve, 3000));
@@ -1013,11 +1016,107 @@
             }
         }
 
-        // Render correlation network
-        function renderNetwork() {
+        // Update a specific node's image without full re-render
+        function updateNodeImage(nodeId, imageUrl) {
+            const nodeElement = d3.select(`g[data-id="${nodeId}"]`);
+            if (!nodeElement.empty()) {
+                const imageElement = nodeElement.select('image');
+                if (!imageElement.empty()) {
+                    imageElement.attr('xlink:href', imageUrl);
+                    console.log(`🎨 [NETWORK] Updated image for ${nodeId}: ${imageUrl}`);
+                }
+            }
+        }
+
+        // Add visual elements to a node (extracted for stability)
+        function addNodeVisuals(nodeGroup) {
+            nodeGroup.each(function(d) {
+                const group = d3.select(this);
+                
+                if (d.imageUrl && (d.type === 'kol' || d.type === 'coin')) {
+                    console.log(`🖼️ [NETWORK] Loading image for ${d.type} ${d.label}: ${d.imageUrl}`);
+                    
+                    // Use clipPath for circular images
+                    const clipId = `clip-${d.id.replace(/[^a-zA-Z0-9]/g, '')}`;
+                    
+                    group.append('defs')
+                        .append('clipPath')
+                        .attr('id', clipId)
+                        .append('circle')
+                        .attr('r', d.size);
+                    
+                    group.append('image')
+                        .attr('xlink:href', d.imageUrl)
+                        .attr('width', d.size * 2)
+                        .attr('height', d.size * 2)
+                        .attr('x', -d.size)
+                        .attr('y', -d.size)
+                        .attr('clip-path', `url(#${clipId})`)
+                        .style('filter', 'drop-shadow(0 0 8px rgba(153, 69, 255, 0.6))')
+                        .on('error', function() {
+                            // Fallback to circle on image load error
+                            d3.select(this).remove();
+                            group.append('circle')
+                                .attr('r', d.size)
+                                .attr('fill', d.color)
+                                .attr('stroke', '#fff')
+                                .attr('stroke-width', 2)
+                                .style('filter', 'drop-shadow(0 0 8px rgba(153, 69, 255, 0.6))');
+                        });
+                    
+                    // Border ring
+                    group.append('circle')
+                        .attr('r', d.size)
+                        .attr('fill', 'none')
+                        .attr('stroke', '#fff')
+                        .attr('stroke-width', 2)
+                        .style('filter', 'drop-shadow(0 0 8px rgba(153, 69, 255, 0.6))');
+                } else {
+                    // Use colored circles for narratives and fallbacks
+                    group.append('circle')
+                        .attr('r', d.size)
+                        .attr('fill', d.color)
+                        .attr('stroke', '#fff')
+                        .attr('stroke-width', 2)
+                        .style('filter', 'drop-shadow(0 0 8px rgba(153, 69, 255, 0.6))');
+                }
+                
+                // Add labels
+                group.append('text')
+                    .attr('class', 'network-label')
+                    .attr('dy', d => d.size + 14)
+                    .text(d => d.label.length > 12 ? d.label.substring(0, 10) + '...' : d.label);
+            });
+        }
+
+        // Clear network for fresh start
+        function clearNetwork() {
+            if (networkSimulation) {
+                networkSimulation.stop();
+                networkSimulation = null;
+            }
+            networkNodes = [];
+            networkLinks = [];
+            isNetworkStable = false;
+            networkUpdateQueue = [];
+        }
+
+        // Global variables for stable network rendering
+        let networkSimulation = null;
+        let networkNodes = [];
+        let networkLinks = [];
+        let isNetworkStable = false;
+        let networkUpdateQueue = [];
+
+        // Render correlation network with stability improvements
+        function renderNetwork(forceUpdate = false) {
             const container = document.getElementById('networkGraph');
             
             if (posts.length === 0 || kols.length === 0) {
+                if (networkSimulation) {
+                    networkSimulation.stop();
+                    networkSimulation = null;
+                }
                 container.innerHTML = `
                     <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #666;">
                         <div style="text-align: center;">
@@ -1034,6 +1133,13 @@
                         </div>
                     </div>
                 `;
+                isNetworkStable = false;
+                return;
+            }
+
+            // If network is already stable and this isn't a force update, just queue the update
+            if (isNetworkStable && !forceUpdate) {
+                networkUpdateQueue.push({ type: 'data_update' });
                 return;
             }
 
@@ -1041,6 +1147,16 @@
             const nodes = [];
             const links = [];
             const nodeMap = new Map();
+            
+            // Preserve existing node positions for stability
+            const existingPositions = new Map();
+            if (networkNodes.length > 0) {
+                networkNodes.forEach(node => {
+                    if (node.x !== undefined && node.y !== undefined) {
+                        existingPositions.set(node.id, { x: node.x, y: node.y });
+                    }
+                });
+            }
 
             // Add coin nodes
             const coinData = {};
@@ -1070,15 +1186,12 @@
                 // If no image found, try to fetch from CoinGecko
                 let imageUrl = coinInfo?.image || null;
                 
-                // For coins without images, fetch from backend API
+                // For coins without images, fetch from backend API (but don't trigger full re-render)
                 if (!imageUrl && coinInfo && Object.keys(coinInfo).length === 0) {
                     fetchCoinImage(coin).then(url => {
                         if (url) {
-                            // Update the node with the new image
-                            const nodeElement = d3.select(`#coin_${coin}`);
-                            if (!nodeElement.empty()) {
-                                updateNodeImage(`coin_${coin}`, url);
-                            }
+                            // Update the specific node image without full re-render
+                            updateNodeImage(`coin_${coin}`, url);
                         }
                     });
                 }
@@ -1087,8 +1200,11 @@
                 console.log(`🔍 [NETWORK] Coin: ${coin}, CoinInfo:`, coinInfo);
                 console.log(`🔍 [NETWORK] Image URL: ${imageUrl}`);
                 
+                const nodeId = `coin_${coin}`;
+                const existingPos = existingPositions.get(nodeId);
+                
                 const node = {
-                    id: `coin_${coin}`,
+                    id: nodeId,
                     label: coin,
                     type: 'coin',
                     size: Math.min(30, 15 + data.mentions * 2),
@@ -1096,7 +1212,10 @@
                     sentiment: avgSentiment,
                     color: avgSentiment > 0.3 ? '#14F195' : avgSentiment < -0.3 ? '#FF4757' : '#9945FF',
                     imageUrl: imageUrl,
-                    price: coinInfo?.price || null
+                    price: coinInfo?.price || null,
+                    // Preserve position for stability
+                    fx: existingPos ? existingPos.x : null,
+                    fy: existingPos ? existingPos.y : null
                 };
                 
                 console.log(`🔍 [NETWORK] Node for ${coin}:`, node);
@@ -1122,13 +1241,19 @@
             });
 
             Object.entries(narrativeData).slice(0, 8).forEach(([narrative, data]) => {
+                const nodeId = `narrative_${narrative}`;
+                const existingPos = existingPositions.get(nodeId);
+                
                 const node = {
-                    id: `narrative_${narrative}`,
+                    id: nodeId,
                     label: narrative,
                     type: 'narrative',
                     size: Math.min(20, 8 + data.count),
                     count: data.count,
-                    color: '#FFA502'
+                    color: '#FFA502',
+                    // Preserve position for stability
+                    fx: existingPos ? existingPos.x : null,
+                    fy: existingPos ? existingPos.y : null
                 };
                 nodes.push(node);
                 nodeMap.set(node.id, node);
@@ -1158,15 +1283,20 @@
                 .forEach(([handle, count]) => {
                     // Get KOL profile picture from kols array
                     const kolInfo = kols.find(k => k.handle.toLowerCase() === handle.toLowerCase());
+                    const nodeId = `kol_${handle}`;
+                    const existingPos = existingPositions.get(nodeId);
                     
                     const node = {
-                        id: `kol_${handle}`,
+                        id: nodeId,
                         label: `@${handle}`,
                         type: 'kol',
                         size: 8,
                         count: count,
                         color: '#00D9FF',
-                        imageUrl: kolInfo?.profile_picture || null  // KOL profile picture
+                        imageUrl: kolInfo?.profile_picture || null,  // KOL profile picture
+                        // Preserve position for stability
+                        fx: existingPos ? existingPos.x : null,
+                        fy: existingPos ? existingPos.y : null
                     };
                     nodes.push(node);
                     nodeMap.set(node.id, node);
@@ -1190,113 +1320,125 @@
                     });
                 });
 
-            // Clear previous graph
-            container.innerHTML = '';
+            // Store current data for stability
+            networkNodes = nodes;
+            networkLinks = links;
 
-            // Create SVG
+            // Create or reuse SVG
+            let svg, g;
             const width = container.clientWidth;
             const height = container.clientHeight;
 
-            const svg = d3.select('#networkGraph')
-                .append('svg')
-                .attr('width', width)
-                .attr('height', height)
-                .style('background', 'rgba(10, 10, 10, 0.5)')
-                .style('border-radius', '12px');
-
-            const g = svg.append('g');
-
-            // Create force simulation
-            networkSimulation = d3.forceSimulation(nodes)
-                .force('link', d3.forceLink(links).id(d => d.id).distance(d => {
-                    if (d.source.type === 'coin' || d.target.type === 'coin') return 120;
-                    return 80;
-                }).strength(d => d.strength))
-                .force('charge', d3.forceManyBody().strength(d => {
-                    if (d.type === 'coin') return -800;
-                    if (d.type === 'narrative') return -400;
-                    return -200;
-                }))
-                .force('center', d3.forceCenter(width / 2, height / 2))
-                .force('collision', d3.forceCollide().radius(d => d.size + 5));
-
-            // Draw links
-            const link = g.append('g')
-                .selectAll('line')
-                .data(links)
-                .join('line')
-                .attr('class', 'network-link')
-                .attr('stroke-width', d => d.strength * 2);
-
-            // Draw nodes
-            const node = g.append('g')
-                .selectAll('g')
-                .data(nodes)
-                .join('g')
-                .attr('class', 'network-node')
-                .call(d3.drag()
-                    .on('start', dragstarted)
-                    .on('drag', dragged)
-                    .on('end', dragended));
-
-            // Add images for KOLs and Coins, circles for Narratives
-            node.each(function(d) {
-                const nodeGroup = d3.select(this);
+            if (!networkSimulation) {
+                // First time - create everything
+                container.innerHTML = '';
                 
-                if (d.imageUrl && (d.type === 'kol' || d.type === 'coin')) {
-                    console.log(`🖼️ [NETWORK] Loading image for ${d.type} ${d.label}: ${d.imageUrl}`);
-                    
-                    // Use clipPath for circular images
-                    const clipId = `clip-${d.id.replace(/[^a-zA-Z0-9]/g, '')}`;
-                    
-                    nodeGroup.append('defs')
-                        .append('clipPath')
-                        .attr('id', clipId)
-                        .append('circle')
-                        .attr('r', d.size);
-                    
-                    nodeGroup.append('image')
-                        .attr('xlink:href', d.imageUrl)
-                        .attr('width', d.size * 2)
-                        .attr('height', d.size * 2)
-                        .attr('x', -d.size)
-                        .attr('y', -d.size)
-                        .attr('clip-path', `url(#${clipId})`)
-                        .style('filter', 'drop-shadow(0 0 8px rgba(153, 69, 255, 0.6))')
-                        .on('error', function() {
-                            // Fallback to circle on image load error
-                            d3.select(this).remove();
-                            nodeGroup.append('circle')
-                                .attr('r', d.size)
-                                .attr('fill', d.color)
-                                .attr('stroke', '#fff')
-                                .attr('stroke-width', 2)
-                                .style('filter', 'drop-shadow(0 0 8px rgba(153, 69, 255, 0.6))');
-                        });
-                    
-                    // Border ring
-                    nodeGroup.append('circle')
-                        .attr('r', d.size)
-                        .attr('fill', 'none')
-                        .attr('stroke', '#fff')
-                        .attr('stroke-width', 2)
-                        .style('filter', 'drop-shadow(0 0 8px rgba(153, 69, 255, 0.6))');
-                } else {
-                    // Use colored circles for narratives and fallbacks
-                    nodeGroup.append('circle')
-                        .attr('r', d.size)
-                        .attr('fill', d.color)
-                        .attr('stroke', '#fff')
-                        .attr('stroke-width', 2)
-                        .style('filter', 'drop-shadow(0 0 8px rgba(153, 69, 255, 0.6))');
-                }
-            });
+                svg = d3.select('#networkGraph')
+                    .append('svg')
+                    .attr('width', width)
+                    .attr('height', height)
+                    .style('background', 'rgba(10, 10, 10, 0.5)')
+                    .style('border-radius', '12px');
 
-            // Add labels
-            node.append('text')
-                .attr('class', 'network-label')
-                .attr('dy', d => d.size + 14)
-                .text(d => d.label.length > 12 ? d.label.substring(0, 10) + '...' : d.label);
+                g = svg.append('g');
+
+                // Create force simulation with stability settings
+                networkSimulation = d3.forceSimulation(nodes)
+                    .force('link', d3.forceLink(links).id(d => d.id).distance(d => {
+                        if (d.source.type === 'coin' || d.target.type === 'coin') return 120;
+                        return 80;
+                    }).strength(d => d.strength))
+                    .force('charge', d3.forceManyBody().strength(d => {
+                        if (d.type === 'coin') return -800;
+                        if (d.type === 'narrative') return -400;
+                        return -200;
+                    }))
+                    .force('center', d3.forceCenter(width / 2, height / 2))
+                    .force('collision', d3.forceCollide().radius(d => d.size + 5))
+                    .alpha(0.3)  // Start with moderate heat
+                    .alphaDecay(0.02)  // Slower decay for stability
+                    .on('end', () => {
+                        isNetworkStable = true;
+                        // Process queued updates
+                        if (networkUpdateQueue.length > 0) {
+                            const update = networkUpdateQueue.shift();
+                            if (update.type === 'data_update') {
+                                setTimeout(() => renderNetwork(true), 100);
+                            }
+                        }
+                    });
+            } else {
+                // Reuse existing simulation and update data
+                svg = d3.select('#networkGraph svg');
+                g = svg.select('g');
+                
+                // Update simulation data
+                networkSimulation.nodes(nodes);
+                networkSimulation.force('link').links(links);
+                
+                // Only restart if this is a major update
+                if (forceUpdate || nodes.length !== networkNodes.length) {
+                    networkSimulation.alpha(0.1).restart();
+                }
+            }
+
+            // Draw or update links
+            let link = g.select('.links');
+            if (link.empty()) {
+                link = g.append('g').attr('class', 'links');
+            }
+            
+            link.selectAll('line')
+                .data(links, d => `${d.source.id}-${d.target.id}`)
+                .join(
+                    enter => enter.append('line')
+                        .attr('class', 'network-link')
+                        .attr('stroke-width', d => d.strength * 2),
+                    update => update.attr('stroke-width', d => d.strength * 2),
+                    exit => exit.remove()
+                );
+
+            // Draw or update nodes
+            let nodeGroup = g.select('.nodes');
+            if (nodeGroup.empty()) {
+                nodeGroup = g.append('g').attr('class', 'nodes');
+            }
+            
+            const node = nodeGroup.selectAll('g')
+                .data(nodes, d => d.id)
+                .join(
+                    enter => {
+                        const newNode = enter.append('g')
+                            .attr('class', 'network-node')
+                            .attr('data-id', d => d.id)
+                            .call(d3.drag()
+                                .on('start', dragstarted)
+                                .on('drag', dragged)
+                                .on('end', dragended));
+                        
+                        // Add visual elements to new nodes
+                        addNodeVisuals(newNode);
+                        return newNode;
+                    },
+                    update => {
+                        // Update existing nodes without recreating them
+                        update.selectAll('image').attr('xlink:href', d => d.imageUrl);
+                        update.selectAll('text').text(d => d.label.length > 12 ? d.label.substring(0, 10) + '...' : d.label);
+                        return update;
+                    },
+                    exit => exit.remove()
+                );
+
+            // Update simulation tick handler
+            networkSimulation.on('tick', () => {
+                link.selectAll('line')
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+
+                node.attr('transform', d => `translate(${d.x},${d.y})`);
+            });
 
             // Node interactions
             node.on('mouseover', function(event, d) {

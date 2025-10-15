@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fuel Payment - Redirecting...</title>
+    <script>
+        // Redirect to React app with x402-fuel-payment flag
+        const urlParams = new URLSearchParams(window.location.search);
+        const nonce = urlParams.get('nonce');
+        if (nonce) {
+            window.location.href = `/?x402-fuel-payment=true&nonce=${nonce}`;
+        } else {
+            window.location.href = '/';
+        }
+    </script>
+</head>
+<body>
+    <div style="display: flex; align-items: center; justify-center; min-height: 100vh; background: #1a1a2e; color: white; font-family: sans-serif;">
+        <div style="text-center;">
+            <div style="font-size: 48px; margin-bottom: 20px;">🔄</div>
+            <p>Redirecting to payment page...</p>
+        </div>
+    </div>
+</body>
+</html>
