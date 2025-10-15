@@ -682,59 +682,72 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
   }
 
 
-  // Fetch from CoinDesk API
+  // Fetch from CoinDesk API - try multiple markets
   async fetchCoinDeskHistoricalPrice(symbol, targetTime) {
     try {
-      // CoinDesk format: SYMBOL-USD
-      const coindeskSymbol = `${symbol}-USD`;
+      // CoinDesk format: SYMBOL-USDT
+      const coindeskSymbol = `${symbol}-USDT`;
       const daysBack = Math.ceil((Date.now() - targetTime.getTime()) / (1000 * 60 * 60 * 24));
       
-      const url = `https://data-api.coindesk.com/spot/v1/historical/days?market=kraken&instrument=${coindeskSymbol}&limit=${Math.min(daysBack + 5, 30)}&aggregate=1&fill=true&apply_mapping=true&response_format=JSON`;
+      // Try multiple markets in order of preference
+      const markets = ['binance', 'ascendex', 'gateio', 'mexc', 'kraken'];
       
-      console.log(`🔍 [COINDESK INDIVIDUAL] Fetching ${coindeskSymbol} at ${targetTime.toISOString()}`);
-      console.log(`🔍 [COINDESK INDIVIDUAL] URL: ${url}`);
-      
-      const response = await fetch(url);
-      console.log(`🔍 [COINDESK INDIVIDUAL] Response status: ${response.status}`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log(`🔍 [COINDESK INDIVIDUAL] Response structure:`, Object.keys(data));
-        
-        if (data && data.Data && data.Data.length > 0) {
-          console.log(`🔍 [COINDESK INDIVIDUAL] Received ${data.Data.length} data points`);
-          console.log(`🔍 [COINDESK INDIVIDUAL] Sample data:`, data.Data[0]);
+      for (const market of markets) {
+        try {
+          const url = `https://data-api.coindesk.com/spot/v1/historical/days?market=${market}&instrument=${coindeskSymbol}&limit=${Math.min(daysBack + 5, 30)}&aggregate=1&fill=true&apply_mapping=true&response_format=JSON`;
           
-          // Find closest date to target time
-          let closestData = data.Data[0];
-          let minTimeDiff = Math.abs(new Date(data.Data[0].TIMESTAMP * 1000) - targetTime);
+          console.log(`🔍 [COINDESK INDIVIDUAL] Trying ${market} for ${coindeskSymbol} at ${targetTime.toISOString()}`);
+          console.log(`🔍 [COINDESK INDIVIDUAL] URL: ${url}`);
           
-          for (const dayData of data.Data) {
-            const dayTime = new Date(dayData.TIMESTAMP * 1000);
-            const timeDiff = Math.abs(dayTime - targetTime);
-            if (timeDiff < minTimeDiff) {
-              minTimeDiff = timeDiff;
-              closestData = dayData;
+          const response = await fetch(url);
+          console.log(`🔍 [COINDESK INDIVIDUAL] ${market} response status: ${response.status}`);
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log(`🔍 [COINDESK INDIVIDUAL] ${market} response structure:`, Object.keys(data));
+            
+            if (data && data.Data && data.Data.length > 0) {
+              console.log(`🔍 [COINDESK INDIVIDUAL] ${market} received ${data.Data.length} data points`);
+              console.log(`🔍 [COINDESK INDIVIDUAL] ${market} sample data:`, data.Data[0]);
+              
+              // Find closest date to target time
+              let closestData = data.Data[0];
+              let minTimeDiff = Math.abs(new Date(data.Data[0].TIMESTAMP * 1000) - targetTime);
+              
+              for (const dayData of data.Data) {
+                const dayTime = new Date(dayData.TIMESTAMP * 1000);
+                const timeDiff = Math.abs(dayTime - targetTime);
+                if (timeDiff < minTimeDiff) {
+                  minTimeDiff = timeDiff;
+                  closestData = dayData;
+                }
+              }
+              
+              // CoinDesk uses CLOSE field for price
+              const price = closestData.CLOSE;
+              if (price) {
+                console.log(`✅ [COINDESK INDIVIDUAL] Found price for ${symbol} on ${market}: $${price}`);
+                return parseFloat(price);
+              } else {
+                console.log(`⚠️ [COINDESK INDIVIDUAL] No CLOSE price found in ${market} data:`, closestData);
+              }
+            } else {
+              console.log(`⚠️ [COINDESK INDIVIDUAL] ${market} returned no data for ${coindeskSymbol}`);
             }
-          }
-          
-          // CoinDesk uses CLOSE field for price
-          const price = closestData.CLOSE;
-          if (price) {
-            console.log(`✅ [COINDESK INDIVIDUAL] Found price for ${symbol}: $${price}`);
-            return parseFloat(price);
           } else {
-            console.log(`⚠️ [COINDESK INDIVIDUAL] No CLOSE price found in data:`, closestData);
+            const errorText = await response.text();
+            console.log(`❌ [COINDESK INDIVIDUAL] ${market} API error ${response.status}: ${errorText.substring(0, 200)}...`);
           }
-        } else {
-          console.log(`⚠️ [COINDESK INDIVIDUAL] No data received for ${coindeskSymbol}`);
+        } catch (marketError) {
+          console.log(`❌ [COINDESK INDIVIDUAL] ${market} exception for ${symbol}: ${marketError.message}`);
         }
-      } else {
-        const errorText = await response.text();
-        console.log(`❌ [COINDESK INDIVIDUAL] API error ${response.status}: ${errorText}`);
+        
+        // Small delay between market attempts
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
       
-      return null;
+      console.log(`❌ [COINDESK INDIVIDUAL] No market found for ${symbol}`);
+      return null; // Return null if no market worked
     } catch (error) {
       console.log(`❌ [COINDESK INDIVIDUAL] Exception for ${symbol}: ${error.message}`);
       return null; // Return null instead of throwing, so CoinAPI fallback can be tried
@@ -1114,15 +1127,15 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
   }
 
 
-  // Fetch multiple prices from CoinDesk in single API call
+  // Fetch multiple prices from CoinDesk in single API call - try multiple markets
   async fetchCoinDeskBundledPrices(symbol, timestamps) {
     try {
       // Apply symbol mapping (same as individual method)
       const symbolMapping = {
-        'SPX6900': 'SPX' // SPX6900 maps to SPX for CoinDesk (becomes SPX-USD)
+        'SPX6900': 'SPX' // SPX6900 maps to SPX for CoinDesk (becomes SPX-USDT)
       };
       const actualSymbol = symbolMapping[symbol.toUpperCase()] || symbol.toUpperCase();
-      const coindeskSymbol = `${actualSymbol}-USD`;
+      const coindeskSymbol = `${actualSymbol}-USDT`;
       const prices = {};
       
       console.log(`🔍 [COINDESK BUNDLED] Fetching prices for ${coindeskSymbol} with ${timestamps.length} timestamps`);
@@ -1131,51 +1144,70 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       const oldestTimestamp = Math.min(...timestamps);
       const daysBack = Math.ceil((Date.now() - oldestTimestamp) / (1000 * 60 * 60 * 24));
       
-      const url = `https://data-api.coindesk.com/spot/v1/historical/days?market=kraken&instrument=${coindeskSymbol}&limit=${Math.min(daysBack + 10, 30)}&aggregate=1&fill=true&apply_mapping=true&response_format=JSON`;
+      // Try multiple markets in order of preference
+      const markets = ['binance', 'ascendex', 'gateio', 'mexc', 'kraken'];
       
-      console.log(`🔍 [COINDESK BUNDLED] URL: ${url}`);
-      
-      const response = await fetch(url);
-      console.log(`🔍 [COINDESK BUNDLED] Response status: ${response.status}`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log(`🔍 [COINDESK BUNDLED] Response structure:`, Object.keys(data));
-        
-        if (data && data.Data && data.Data.length > 0) {
-          console.log(`🔍 [COINDESK BUNDLED] Received ${data.Data.length} data points`);
+      for (const market of markets) {
+        try {
+          const url = `https://data-api.coindesk.com/spot/v1/historical/days?market=${market}&instrument=${coindeskSymbol}&limit=${Math.min(daysBack + 10, 30)}&aggregate=1&fill=true&apply_mapping=true&response_format=JSON`;
           
-          // Match each timestamp to closest daily data
-          for (const timestamp of timestamps) {
-            const targetTime = new Date(timestamp);
-            let closestData = data.Data[0];
-            let minTimeDiff = Math.abs(new Date(data.Data[0].TIMESTAMP * 1000) - targetTime);
+          console.log(`🔍 [COINDESK BUNDLED] Trying ${market} for ${coindeskSymbol}`);
+          console.log(`🔍 [COINDESK BUNDLED] URL: ${url}`);
+          
+          const response = await fetch(url);
+          console.log(`🔍 [COINDESK BUNDLED] ${market} response status: ${response.status}`);
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log(`🔍 [COINDESK BUNDLED] ${market} response structure:`, Object.keys(data));
             
-            for (const dayData of data.Data) {
-              const dayTime = new Date(dayData.TIMESTAMP * 1000);
-              const timeDiff = Math.abs(dayTime - targetTime);
-              if (timeDiff < minTimeDiff) {
-                minTimeDiff = timeDiff;
-                closestData = dayData;
+            if (data && data.Data && data.Data.length > 0) {
+              console.log(`🔍 [COINDESK BUNDLED] ${market} received ${data.Data.length} data points`);
+              
+              // Match each timestamp to closest daily data
+              for (const timestamp of timestamps) {
+                const targetTime = new Date(timestamp);
+                let closestData = data.Data[0];
+                let minTimeDiff = Math.abs(new Date(data.Data[0].TIMESTAMP * 1000) - targetTime);
+                
+                for (const dayData of data.Data) {
+                  const dayTime = new Date(dayData.TIMESTAMP * 1000);
+                  const timeDiff = Math.abs(dayTime - targetTime);
+                  if (timeDiff < minTimeDiff) {
+                    minTimeDiff = timeDiff;
+                    closestData = dayData;
+                  }
+                }
+                
+                const price = closestData.CLOSE;
+                if (price) {
+                  prices[timestamp] = parseFloat(price);
+                  console.log(`✅ [COINDESK BUNDLED] ${symbol} on ${market} at ${timestamp}: $${price}`);
+                }
               }
+              
+              // If we got prices, return them (don't try other markets)
+              if (Object.keys(prices).length > 0) {
+                console.log(`📊 [COINDESK BUNDLED] Returning ${Object.keys(prices).length} prices for ${symbol} from ${market}`);
+                return prices;
+              }
+            } else {
+              console.log(`⚠️ [COINDESK BUNDLED] ${market} returned no data for ${coindeskSymbol}`);
             }
-            
-            const price = closestData.CLOSE;
-            if (price) {
-              prices[timestamp] = parseFloat(price);
-              console.log(`✅ [COINDESK BUNDLED] ${symbol} at ${timestamp}: $${price}`);
-            }
+          } else {
+            const errorText = await response.text();
+            console.log(`❌ [COINDESK BUNDLED] ${market} API error ${response.status}: ${errorText.substring(0, 200)}...`);
           }
-        } else {
-          console.log(`⚠️ [COINDESK BUNDLED] No data received for ${coindeskSymbol}`);
+        } catch (marketError) {
+          console.log(`❌ [COINDESK BUNDLED] ${market} exception for ${symbol}: ${marketError.message}`);
         }
-      } else {
-        const errorText = await response.text();
-        console.log(`❌ [COINDESK BUNDLED] API error ${response.status}: ${errorText}`);
+        
+        // Small delay between market attempts
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
       
-      console.log(`📊 [COINDESK BUNDLED] Returning ${Object.keys(prices).length} prices for ${symbol}`);
-      return prices;
+      console.log(`❌ [COINDESK BUNDLED] No market found for ${symbol}`);
+      return prices; // Return empty prices object
     } catch (error) {
       console.log(`❌ [COINDESK BUNDLED] Error for ${symbol}: ${error.message}`);
       throw new Error(`CoinDesk bundled API error: ${error.message}`);
@@ -1323,25 +1355,38 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
     
     // Process posts sequentially to handle async price fetching
     for (const post of this.posts) {
-      if (post.coins && !post.coin_data) {
-        post.coin_data = {};
+      if (post.coins) {
+        // Initialize coin_data if not exists
+        if (!post.coin_data) {
+          post.coin_data = {};
+        }
         
         for (const coin of post.coins) {
-          if (coinDataCache[coin]) {
-            // Get the price at the exact time of the mention from historical APIs
-            const mentionTime = new Date(post.created_at);
-            const historicalPrice = await this.fetchHistoricalPrice(coin, mentionTime);
-            
-            post.coin_data[coin] = {
-              ...coinDataCache[coin],
-              price_at_mention: historicalPrice || coinDataCache[coin].price, // Fallback to cache if historical fails
-              timestamp: post.created_at
-            };
-            enriched++;
-            
-            // Add small delay to avoid rate limiting
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
+          // Get the price at the exact time of the mention from historical APIs
+          const mentionTime = new Date(post.created_at);
+          const historicalPrice = await this.fetchHistoricalPrice(coin, mentionTime);
+          
+          // Create coin data entry - use DegenOracle data if available, otherwise create basic structure
+          const baseCoinData = coinDataCache[coin] || {
+            symbol: coin,
+            name: coin,
+            image: null,
+            price: null,
+            volume_24h: null,
+            mcap: null,
+            price_change_24h: null
+          };
+          
+          // Always update coin_data, even if it already exists (for force-enrich)
+          post.coin_data[coin] = {
+            ...baseCoinData,
+            price_at_mention: historicalPrice || baseCoinData.price, // Use historical price if available
+            timestamp: post.created_at
+          };
+          enriched++;
+          
+          // Add small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
     }
