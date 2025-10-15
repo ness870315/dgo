@@ -613,22 +613,7 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       
       console.log(`🔍 [KOL SERVICE] Fetching historical price for $${symbol} at ${targetTime.toISOString()}`);
       
-      // Try Binance first (most reliable)
-      try {
-        console.log(`🔍 [KOL SERVICE] Trying Binance for ${symbol} at ${targetTime.toISOString()}`);
-        const binancePrice = await this.fetchBinanceHistoricalPrice(symbolUpper, targetTime);
-        if (binancePrice) {
-          console.log(`✅ [KOL SERVICE] Found Binance price for $${symbol}: $${binancePrice}`);
-          return binancePrice;
-        } else {
-          console.log(`⚠️ [KOL SERVICE] Binance returned null for ${symbol}`);
-        }
-      } catch (error) {
-        console.log(`❌ [KOL SERVICE] Binance failed for ${symbol}: ${error.message}`);
-        console.log(`❌ [KOL SERVICE] Binance error stack:`, error.stack);
-      }
-      
-      // Try CoinDesk as backup
+      // Try CoinDesk (primary free API - no location restrictions)
       try {
         console.log(`🔍 [KOL SERVICE] Trying CoinDesk for ${symbol} at ${targetTime.toISOString()}`);
         const coindeskPrice = await this.fetchCoinDeskHistoricalPrice(symbolUpper, targetTime);
@@ -653,60 +638,6 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
     }
   }
 
-  // Fetch from Binance OHLCV API
-  async fetchBinanceHistoricalPrice(symbol, targetTime) {
-    try {
-      // Convert symbol to Binance format (e.g., BTC -> BTCUSDT)
-      const binanceSymbol = `${symbol}USDT`;
-      
-      // Calculate time range (get data around target time)
-      const startTime = new Date(targetTime.getTime() - 60 * 60 * 1000); // 1 hour before
-      const endTime = new Date(targetTime.getTime() + 60 * 60 * 1000);   // 1 hour after
-      
-      const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=1h&startTime=${startTime.getTime()}&endTime=${endTime.getTime()}&limit=10`;
-      
-      console.log(`🔍 [BINANCE INDIVIDUAL] Fetching ${binanceSymbol} at ${targetTime.toISOString()}`);
-      console.log(`🔍 [BINANCE INDIVIDUAL] URL: ${url}`);
-      
-      const response = await fetch(url);
-      console.log(`🔍 [BINANCE INDIVIDUAL] Response status: ${response.status}`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log(`🔍 [BINANCE INDIVIDUAL] Received ${data.length} klines`);
-        
-        if (data && data.length > 0) {
-          // Find closest kline to target time
-          let closestKline = data[0];
-          let minTimeDiff = Math.abs(new Date(data[0][0]) - targetTime);
-          
-          for (const kline of data) {
-            const klineTime = new Date(kline[0]);
-            const timeDiff = Math.abs(klineTime - targetTime);
-            if (timeDiff < minTimeDiff) {
-              minTimeDiff = timeDiff;
-              closestKline = kline;
-            }
-          }
-          
-          // Return close price (index 4 in Binance kline format)
-          const price = parseFloat(closestKline[4]);
-          console.log(`✅ [BINANCE INDIVIDUAL] Found price for ${symbol}: $${price}`);
-          return price;
-        } else {
-          console.log(`⚠️ [BINANCE INDIVIDUAL] No klines data for ${binanceSymbol}`);
-        }
-      } else {
-        const errorText = await response.text();
-        console.log(`❌ [BINANCE INDIVIDUAL] API error ${response.status}: ${errorText}`);
-      }
-      
-      return null;
-    } catch (error) {
-      console.log(`❌ [BINANCE INDIVIDUAL] Exception for ${symbol}: ${error.message}`);
-      throw new Error(`Binance API error: ${error.message}`);
-    }
-  }
 
   // Fetch from CoinDesk API
   async fetchCoinDeskHistoricalPrice(symbol, targetTime) {
@@ -830,18 +761,7 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       
       console.log(`🔍 [KOL SERVICE] Fetching BUNDLED historical prices for $${symbol} at ${timestamps.length} timestamps using free APIs`);
       
-      // Try to get all prices from Binance first (most efficient)
-      try {
-        const binancePrices = await this.fetchBinanceBundledPrices(symbolUpper, timestamps);
-        if (Object.keys(binancePrices).length > 0) {
-          console.log(`✅ [KOL SERVICE] Got ${Object.keys(binancePrices).length} prices from Binance for ${symbol}`);
-          return binancePrices;
-        }
-      } catch (error) {
-        console.log(`⚠️ [KOL SERVICE] Binance bundled failed for ${symbol}: ${error.message}`);
-      }
-      
-      // Try CoinDesk as backup
+      // Try CoinDesk bundled (primary free API - no location restrictions)
       try {
         const coindeskPrices = await this.fetchCoinDeskBundledPrices(symbolUpper, timestamps);
         if (Object.keys(coindeskPrices).length > 0) {
@@ -869,70 +789,6 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
     }
   }
 
-  // Fetch multiple prices from Binance in single API call
-  async fetchBinanceBundledPrices(symbol, timestamps) {
-    try {
-      const binanceSymbol = `${symbol}USDT`;
-      const prices = {};
-      
-      console.log(`🔍 [BINANCE BUNDLED] Fetching prices for ${binanceSymbol} with ${timestamps.length} timestamps`);
-      
-      // Get time range covering all timestamps
-      const sortedTimestamps = [...timestamps].sort((a, b) => new Date(a) - new Date(b));
-      const startTime = new Date(sortedTimestamps[0]);
-      const endTime = new Date(sortedTimestamps[sortedTimestamps.length - 1]);
-      
-      // Add buffer time
-      startTime.setHours(startTime.getHours() - 2);
-      endTime.setHours(endTime.getHours() + 2);
-      
-      console.log(`🔍 [BINANCE BUNDLED] Time range: ${startTime.toISOString()} to ${endTime.toISOString()}`);
-      
-      const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=1h&startTime=${startTime.getTime()}&endTime=${endTime.getTime()}&limit=1000`;
-      console.log(`🔍 [BINANCE BUNDLED] URL: ${url}`);
-      
-      const response = await fetch(url);
-      console.log(`🔍 [BINANCE BUNDLED] Response status: ${response.status}`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log(`🔍 [BINANCE BUNDLED] Received ${data.length} klines`);
-        
-        if (data && data.length > 0) {
-          // Match each timestamp to closest kline
-          for (const timestamp of timestamps) {
-            const targetTime = new Date(timestamp);
-            let closestKline = data[0];
-            let minTimeDiff = Math.abs(new Date(data[0][0]) - targetTime);
-            
-            for (const kline of data) {
-              const klineTime = new Date(kline[0]);
-              const timeDiff = Math.abs(klineTime - targetTime);
-              if (timeDiff < minTimeDiff) {
-                minTimeDiff = timeDiff;
-                closestKline = kline;
-              }
-            }
-            
-            const price = parseFloat(closestKline[4]);
-            prices[timestamp] = price;
-            console.log(`✅ [BINANCE BUNDLED] ${symbol} at ${timestamp}: $${price}`);
-          }
-        } else {
-          console.log(`⚠️ [BINANCE BUNDLED] No klines data received for ${binanceSymbol}`);
-        }
-      } else {
-        const errorText = await response.text();
-        console.log(`❌ [BINANCE BUNDLED] API error ${response.status}: ${errorText}`);
-      }
-      
-      console.log(`📊 [BINANCE BUNDLED] Returning ${Object.keys(prices).length} prices for ${symbol}`);
-      return prices;
-    } catch (error) {
-      console.log(`❌ [BINANCE BUNDLED] Error for ${symbol}: ${error.message}`);
-      throw new Error(`Binance bundled API error: ${error.message}`);
-    }
-  }
 
   // Fetch multiple prices from CoinDesk in single API call
   async fetchCoinDeskBundledPrices(symbol, timestamps) {
