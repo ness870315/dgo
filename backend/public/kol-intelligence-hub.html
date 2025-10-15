@@ -1056,7 +1056,7 @@
                         .attr('r', d.size);
                     
                     group.append('image')
-                        .attr('xlink:href', d.imageUrl)
+                        .attr('href', d.imageUrl)  // Use 'href' instead of 'xlink:href' for SVG2
                         .attr('width', d.size * 2)
                         .attr('height', d.size * 2)
                         .attr('x', -d.size)
@@ -1064,6 +1064,7 @@
                         .attr('clip-path', `url(#${clipId})`)
                         .style('filter', 'drop-shadow(0 0 8px rgba(153, 69, 255, 0.6))')
                         .on('error', function() {
+                            console.log(`❌ [NETWORK] Image failed to load for ${d.label}: ${d.imageUrl}`);
                             // Fallback to circle on image load error
                             d3.select(this).remove();
                             group.append('circle')
@@ -1072,6 +1073,9 @@
                                 .attr('stroke', '#fff')
                                 .attr('stroke-width', 2)
                                 .style('filter', 'drop-shadow(0 0 8px rgba(153, 69, 255, 0.6))');
+                        })
+                        .on('load', function() {
+                            console.log(`✅ [NETWORK] Image loaded successfully for ${d.label}: ${d.imageUrl}`);
                         });
                     
                     // Border ring
@@ -1451,7 +1455,7 @@
                     },
                     update => {
                         // Update existing nodes without recreating them
-                        update.selectAll('image').attr('xlink:href', d => d.imageUrl);
+                        update.selectAll('image').attr('href', d => d.imageUrl);  // Use 'href' instead of 'xlink:href'
                         update.selectAll('text').text(d => d.label.length > 12 ? d.label.substring(0, 10) + '...' : d.label);
                         return update;
                     },
