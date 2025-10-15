@@ -574,11 +574,24 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
             logo = await this.fetchLogoFromCoinGecko(symbol);
           }
           
+          // Get the correct price field (same logic as MoralisAIChatService)
+          const finalPrice = coin.price || coin.currentPrice || coin.usdPrice || 
+                            coin.jupiterData?.price || coin.jupiterData?.usdPrice;
+          
+          console.log(`💰 [KOL SERVICE] Price fields for ${coin.symbol}:`, {
+            price: coin.price,
+            currentPrice: coin.currentPrice,
+            usdPrice: coin.usdPrice,
+            jupiterPrice: coin.jupiterData?.price,
+            jupiterUsdPrice: coin.jupiterData?.usdPrice,
+            finalPrice: finalPrice
+          });
+          
           return {
             symbol: coin.symbol,
             name: coin.name,
             image: logo,
-            price: coin.price || coin.currentPrice,
+            price: finalPrice,
             volume_24h: coin.volume24h,
             mcap: coin.marketCap,
             price_change_24h: coin.priceChange24h
@@ -1307,21 +1320,31 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
 
     // Add coin data to posts
     let enriched = 0;
-    this.posts.forEach(post => {
+    
+    // Process posts sequentially to handle async price fetching
+    for (const post of this.posts) {
       if (post.coins && !post.coin_data) {
         post.coin_data = {};
-        post.coins.forEach(coin => {
+        
+        for (const coin of post.coins) {
           if (coinDataCache[coin]) {
+            // Get the price at the exact time of the mention from historical APIs
+            const mentionTime = new Date(post.created_at);
+            const historicalPrice = await this.fetchHistoricalPrice(coin, mentionTime);
+            
             post.coin_data[coin] = {
               ...coinDataCache[coin],
-              price_at_mention: coinDataCache[coin].price,
+              price_at_mention: historicalPrice || coinDataCache[coin].price, // Fallback to cache if historical fails
               timestamp: post.created_at
             };
             enriched++;
+            
+            // Add small delay to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 100));
           }
-        });
+        }
       }
-    });
+    }
 
     if (enriched > 0) {
       await this.saveData();
