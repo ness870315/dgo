@@ -422,9 +422,34 @@ router.post('/fetch-coin-image/:symbol', async (req, res) => {
     }
     lastApiCall = Date.now();
     
-    // Try CoinGecko first
+    // Try CoinGecko with symbol mapping
     try {
-      const response = await fetch(`https://api.coingecko.com/api/v3/coins/${symbol.toLowerCase()}`);
+      // Map common symbols to CoinGecko IDs
+      const symbolMapping = {
+        'WIF': 'dogwifcoin',
+        'TRUMP': 'maga',
+        'PEPE': 'pepe',
+        'DOGE': 'dogecoin',
+        'SHIB': 'shiba-inu',
+        'BNB': 'binancecoin',
+        'BTC': 'bitcoin',
+        'ETH': 'ethereum',
+        'SOL': 'solana',
+        'USDC': 'usd-coin',
+        'USDT': 'tether',
+        'BONK': 'bonk',
+        'POPCAT': 'popcat',
+        'PNUT': 'peanut-the-squirrel',
+        'CAT': 'cat',
+        'ATOM': 'cosmos',
+        'SAFEMOON': 'safemoon',
+        'FARTCOIN': 'fartcoin'
+      };
+      
+      const coinGeckoId = symbolMapping[symbol.toUpperCase()] || symbol.toLowerCase();
+      console.log(`🔍 [KOL API] Trying CoinGecko with ID: ${coinGeckoId} for symbol: ${symbol}`);
+      
+      const response = await fetch(`https://api.coingecko.com/api/v3/coins/${coinGeckoId}`);
       if (response.ok) {
         const data = await response.json();
         if (data.image && data.image.large) {
@@ -443,80 +468,17 @@ router.post('/fetch-coin-image/:symbol', async (req, res) => {
             source: 'coingecko'
           });
         }
+      } else if (response.status === 404) {
+        console.log(`❌ [KOL API] CoinGecko: ${symbol} not found with ID: ${coinGeckoId}`);
       } else if (response.status === 429) {
-        console.log(`⚠️ [KOL API] CoinGecko rate limit hit for ${symbol}, trying Perplexity...`);
+        console.log(`⚠️ [KOL API] CoinGecko rate limit hit for ${symbol}`);
       }
     } catch (error) {
       console.log(`❌ [KOL API] CoinGecko failed for ${symbol}: ${error.message}`);
     }
     
-    // Try Perplexity as fallback
-    try {
-      const query = `Find the direct logo image URL for ${symbol} cryptocurrency. Look for URLs ending in .png, .jpg, .jpeg, .gif, or .webp. Provide only the direct image URL, not a webpage.`;
-      
-      const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.PERPLEXITY_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'sonar-pro',
-          messages: [
-            {
-              role: 'user',
-              content: query
-            }
-          ],
-          max_tokens: 150
-        })
-      });
-      
-      if (perplexityResponse.ok) {
-        const data = await perplexityResponse.json();
-        if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
-          const content = data.choices[0].message.content;
-          
-          // Try multiple patterns to find direct image URLs
-          const patterns = [
-            /https?:\/\/[^\s]+\.(png|jpg|jpeg|gif|webp)(\?[^\s]*)?/gi,
-            /https?:\/\/[^\s]*\/(?:images|logos|assets)\/[^\s]+\.(png|jpg|jpeg|gif|webp)(\?[^\s]*)?/gi,
-            /https?:\/\/[^\s]*coin[^\s]*\.(png|jpg|jpeg|gif|webp)(\?[^\s]*)?/gi
-          ];
-          
-          for (const pattern of patterns) {
-            const matches = content.match(pattern);
-            if (matches && matches.length > 0) {
-              // Take the first match that looks like a direct image URL
-              const imageUrl = matches[0];
-              console.log(`✅ [KOL API] Found Perplexity image for ${symbol}: ${imageUrl}`);
-              
-              // Cache the result
-              imageCache.set(cacheKey, {
-                imageUrl: imageUrl,
-                timestamp: Date.now(),
-                source: 'perplexity'
-              });
-              
-              return res.json({
-                success: true,
-                imageUrl: imageUrl,
-                source: 'perplexity'
-              });
-            }
-          }
-        }
-      } else if (perplexityResponse.status === 429) {
-        console.log(`⚠️ [KOL API] Perplexity rate limit hit for ${symbol}`);
-        return res.json({
-          success: false,
-          imageUrl: null,
-          message: 'Rate limited - please try again later'
-        });
-      }
-    } catch (error) {
-      console.log(`❌ [KOL API] Perplexity failed for ${symbol}: ${error.message}`);
-    }
+    // CoinGecko is the only source - no Perplexity fallback
+    console.log(`❌ [KOL API] No image found for ${symbol} from CoinGecko`);
     
     console.log(`❌ [KOL API] No image found for ${symbol}`);
     res.json({
