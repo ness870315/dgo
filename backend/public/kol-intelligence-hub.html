@@ -1871,8 +1871,25 @@
                 inspectorContent.innerHTML = `
                 <div class="space-y-6">
                     <!-- KOL Profile -->
-                    <div>
-                        <h4 class="text-xl font-bold accent-purple mb-3">@${kol.handle}</h4>
+                    <div class="flex items-center gap-4 mb-4">
+                        ${kol.profile_picture ? `
+                            <img src="${kol.profile_picture}" 
+                                 alt="${kol.handle}" 
+                                 class="w-16 h-16 rounded-full border-2 border-purple-500 object-cover"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="w-16 h-16 rounded-full border-2 border-purple-500 bg-purple-600 flex items-center justify-center text-white font-bold text-xl hidden">
+                                ${kol.handle.charAt(1).toUpperCase()}
+                            </div>
+                        ` : `
+                            <div class="w-16 h-16 rounded-full border-2 border-purple-500 bg-purple-600 flex items-center justify-center text-white font-bold text-xl">
+                                ${kol.handle.charAt(1).toUpperCase()}
+                            </div>
+                        `}
+                        <div>
+                            <h4 class="text-xl font-bold accent-purple">@${kol.handle}</h4>
+                            ${kol.followers ? `<p class="text-sm text-gray-400">${kol.followers.toLocaleString()} followers</p>` : ''}
+                        </div>
+                    </div>
                         
                         <!-- Influence Score -->
                         <div class="glass rounded-lg p-4 mb-4">
