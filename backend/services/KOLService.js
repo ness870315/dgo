@@ -605,8 +605,122 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
     }
   }
 
-  // Fetch historical price using Perplexity (for backfill or missing coins)
+  // Fetch historical price using free OHLCV APIs (much cheaper than Perplexity)
   async fetchHistoricalPrice(symbol, timestamp) {
+    try {
+      const targetTime = new Date(timestamp);
+      const symbolUpper = symbol.toUpperCase();
+      
+      console.log(`🔍 [KOL SERVICE] Fetching historical price for $${symbol} at ${targetTime.toISOString()}`);
+      
+      // Try Binance first (most reliable)
+      try {
+        const binancePrice = await this.fetchBinanceHistoricalPrice(symbolUpper, targetTime);
+        if (binancePrice) {
+          console.log(`✅ [KOL SERVICE] Found Binance price for $${symbol}: $${binancePrice}`);
+          return binancePrice;
+        }
+      } catch (error) {
+        console.log(`⚠️ [KOL SERVICE] Binance failed for ${symbol}: ${error.message}`);
+      }
+      
+      // Try CoinDesk as backup
+      try {
+        const coindeskPrice = await this.fetchCoinDeskHistoricalPrice(symbolUpper, targetTime);
+        if (coindeskPrice) {
+          console.log(`✅ [KOL SERVICE] Found CoinDesk price for $${symbol}: $${coindeskPrice}`);
+          return coindeskPrice;
+        }
+      } catch (error) {
+        console.log(`⚠️ [KOL SERVICE] CoinDesk failed for ${symbol}: ${error.message}`);
+      }
+      
+      // Fallback to Perplexity only if free APIs fail
+      console.log(`🔄 [KOL SERVICE] Free APIs failed for ${symbol}, trying Perplexity...`);
+      return await this.fetchPerplexityHistoricalPrice(symbol, timestamp);
+      
+    } catch (error) {
+      console.error(`❌ [KOL SERVICE] Error fetching historical price for ${symbol}:`, error.message);
+      return null;
+    }
+  }
+
+  // Fetch from Binance OHLCV API
+  async fetchBinanceHistoricalPrice(symbol, targetTime) {
+    try {
+      // Convert symbol to Binance format (e.g., BTC -> BTCUSDT)
+      const binanceSymbol = `${symbol}USDT`;
+      
+      // Calculate time range (get data around target time)
+      const startTime = new Date(targetTime.getTime() - 60 * 60 * 1000); // 1 hour before
+      const endTime = new Date(targetTime.getTime() + 60 * 60 * 1000);   // 1 hour after
+      
+      const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=1h&startTime=${startTime.getTime()}&endTime=${endTime.getTime()}&limit=10`;
+      
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.length > 0) {
+          // Find closest kline to target time
+          let closestKline = data[0];
+          let minTimeDiff = Math.abs(new Date(data[0][0]) - targetTime);
+          
+          for (const kline of data) {
+            const klineTime = new Date(kline[0]);
+            const timeDiff = Math.abs(klineTime - targetTime);
+            if (timeDiff < minTimeDiff) {
+              minTimeDiff = timeDiff;
+              closestKline = kline;
+            }
+          }
+          
+          // Return close price (index 4 in Binance kline format)
+          return parseFloat(closestKline[4]);
+        }
+      }
+      return null;
+    } catch (error) {
+      throw new Error(`Binance API error: ${error.message}`);
+    }
+  }
+
+  // Fetch from CoinDesk API
+  async fetchCoinDeskHistoricalPrice(symbol, targetTime) {
+    try {
+      // CoinDesk format: SYMBOL-USD
+      const coindeskSymbol = `${symbol}-USD`;
+      const daysBack = Math.ceil((Date.now() - targetTime.getTime()) / (1000 * 60 * 60 * 24));
+      
+      const url = `https://data-api.coindesk.com/spot/v1/historical/days?market=kraken&instrument=${coindeskSymbol}&limit=${Math.min(daysBack + 5, 30)}&aggregate=1&fill=true&apply_mapping=true&response_format=JSON`;
+      
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.data && data.data.length > 0) {
+          // Find closest date to target time
+          let closestData = data.data[0];
+          let minTimeDiff = Math.abs(new Date(data.data[0].datetime) - targetTime);
+          
+          for (const dayData of data.data) {
+            const dayTime = new Date(dayData.datetime);
+            const timeDiff = Math.abs(dayTime - targetTime);
+            if (timeDiff < minTimeDiff) {
+              minTimeDiff = timeDiff;
+              closestData = dayData;
+            }
+          }
+          
+          return parseFloat(closestData.close);
+        }
+      }
+      return null;
+    } catch (error) {
+      throw new Error(`CoinDesk API error: ${error.message}`);
+    }
+  }
+
+  // Fallback to Perplexity (expensive but comprehensive)
+  async fetchPerplexityHistoricalPrice(symbol, timestamp) {
     try {
       // Rate limiting
       await this.waitForRateLimit();
@@ -629,7 +743,7 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
         query = `What was the price of $${symbol} token on ${formattedDate} around ${time} UTC? Check Solana blockchain and other chains. Please provide only the USD price as a number.`;
       }
       
-      console.log(`🔍 [KOL SERVICE] Fetching historical price for $${symbol} at ${formattedDate} ${time}`);
+      console.log(`🔍 [KOL SERVICE] Fetching Perplexity historical price for $${symbol} at ${formattedDate} ${time}`);
       
       const response = await this.perplexityService.searchWithReasoning(query, {
         model: 'sonar-pro',
@@ -682,45 +796,141 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
     this.lastPerplexityCall = Date.now();
   }
 
-  // NEW: Fetch multiple historical prices for same coin in single Perplexity call
+  // NEW: Fetch multiple historical prices using free OHLCV APIs (much more efficient)
   async fetchBundledHistoricalPrices(symbol, timestamps) {
     try {
       if (!timestamps || timestamps.length === 0) return {};
       
-      // Rate limiting
-      await this.waitForRateLimit();
+      const symbolUpper = symbol.toUpperCase();
+      const prices = {};
       
-      // Sort timestamps chronologically
-      const sortedTimestamps = [...timestamps].sort((a, b) => new Date(a) - new Date(b));
+      console.log(`🔍 [KOL SERVICE] Fetching BUNDLED historical prices for $${symbol} at ${timestamps.length} timestamps using free APIs`);
       
-      // Smart blockchain detection
-      const majorCoins = ['BTC', 'ETH', 'BNB', 'XRP', 'ADA', 'DOGE', 'MATIC', 'DOT', 'AVAX', 'LINK', 'UNI', 'ATOM', 'LTC', 'BCH', 'XLM', 'ALGO', 'VET', 'ICP', 'FIL', 'HBAR', 'NEAR', 'FLOW', 'EOS', 'AAVE', 'MKR', 'SNX', 'COMP'];
-      const isMajorCoin = majorCoins.includes(symbol.toUpperCase());
-      
-      // Format timestamps for query
-      const timeStrings = sortedTimestamps.map(ts => {
-        const date = new Date(ts);
-        const formattedDate = date.toISOString().split('T')[0];
-        const time = date.toTimeString().substring(0, 5);
-        return `${formattedDate} at ${time} UTC`;
-      });
-      
-      // Construct bundled query
-      let query;
-      if (isMajorCoin) {
-        query = `What were the prices of ${symbol} cryptocurrency at these times: ${timeStrings.join(', ')}? Please provide the USD prices for each timestamp in this exact format: "YYYY-MM-DD HH:MM: $price".`;
-      } else {
-        query = `What were the prices of $${symbol} token at these times: ${timeStrings.join(', ')}? Check Solana blockchain and other chains. Please provide the USD prices for each timestamp in this exact format: "YYYY-MM-DD HH:MM: $price".`;
+      // Try to get all prices from Binance first (most efficient)
+      try {
+        const binancePrices = await this.fetchBinanceBundledPrices(symbolUpper, timestamps);
+        if (Object.keys(binancePrices).length > 0) {
+          console.log(`✅ [KOL SERVICE] Got ${Object.keys(binancePrices).length} prices from Binance for ${symbol}`);
+          return binancePrices;
+        }
+      } catch (error) {
+        console.log(`⚠️ [KOL SERVICE] Binance bundled failed for ${symbol}: ${error.message}`);
       }
       
-      console.log(`🔍 [KOL SERVICE] Fetching BUNDLED historical prices for $${symbol} at ${timestamps.length} timestamps`);
-      console.log(`🔍 [PERPLEXITY] Searching: "${query}"`);
+      // Try CoinDesk as backup
+      try {
+        const coindeskPrices = await this.fetchCoinDeskBundledPrices(symbolUpper, timestamps);
+        if (Object.keys(coindeskPrices).length > 0) {
+          console.log(`✅ [KOL SERVICE] Got ${Object.keys(coindeskPrices).length} prices from CoinDesk for ${symbol}`);
+          return coindeskPrices;
+        }
+      } catch (error) {
+        console.log(`⚠️ [KOL SERVICE] CoinDesk bundled failed for ${symbol}: ${error.message}`);
+      }
       
-      const response = await this.perplexityService.searchWithReasoning(query, {
-        model: 'sonar-pro',
-        maxTokens: 500,
-        systemPrompt: 'You are a helpful assistant that provides cryptocurrency price data. Respond with prices in the exact format requested: "YYYY-MM-DD HH:MM: $price" for each timestamp.'
-      });
+      // Fallback to individual calls if bundled APIs fail
+      console.log(`🔄 [KOL SERVICE] Free bundled APIs failed for ${symbol}, using individual calls...`);
+      for (const timestamp of timestamps) {
+        const price = await this.fetchHistoricalPrice(symbol, timestamp);
+        if (price) {
+          prices[timestamp] = price;
+        }
+      }
+      
+      return prices;
+      
+    } catch (error) {
+      console.error(`❌ [KOL SERVICE] Error fetching bundled historical prices for ${symbol}:`, error.message);
+      return {};
+    }
+  }
+
+  // Fetch multiple prices from Binance in single API call
+  async fetchBinanceBundledPrices(symbol, timestamps) {
+    try {
+      const binanceSymbol = `${symbol}USDT`;
+      const prices = {};
+      
+      // Get time range covering all timestamps
+      const sortedTimestamps = [...timestamps].sort((a, b) => new Date(a) - new Date(b));
+      const startTime = new Date(sortedTimestamps[0]);
+      const endTime = new Date(sortedTimestamps[sortedTimestamps.length - 1]);
+      
+      // Add buffer time
+      startTime.setHours(startTime.getHours() - 2);
+      endTime.setHours(endTime.getHours() + 2);
+      
+      const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=1h&startTime=${startTime.getTime()}&endTime=${endTime.getTime()}&limit=1000`;
+      
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.length > 0) {
+          // Match each timestamp to closest kline
+          for (const timestamp of timestamps) {
+            const targetTime = new Date(timestamp);
+            let closestKline = data[0];
+            let minTimeDiff = Math.abs(new Date(data[0][0]) - targetTime);
+            
+            for (const kline of data) {
+              const klineTime = new Date(kline[0]);
+              const timeDiff = Math.abs(klineTime - targetTime);
+              if (timeDiff < minTimeDiff) {
+                minTimeDiff = timeDiff;
+                closestKline = kline;
+              }
+            }
+            
+            prices[timestamp] = parseFloat(closestKline[4]);
+          }
+        }
+      }
+      return prices;
+    } catch (error) {
+      throw new Error(`Binance bundled API error: ${error.message}`);
+    }
+  }
+
+  // Fetch multiple prices from CoinDesk in single API call
+  async fetchCoinDeskBundledPrices(symbol, timestamps) {
+    try {
+      const coindeskSymbol = `${symbol}-USD`;
+      const prices = {};
+      
+      // Calculate days back for oldest timestamp
+      const oldestTimestamp = Math.min(...timestamps);
+      const daysBack = Math.ceil((Date.now() - oldestTimestamp) / (1000 * 60 * 60 * 24));
+      
+      const url = `https://data-api.coindesk.com/spot/v1/historical/days?market=kraken&instrument=${coindeskSymbol}&limit=${Math.min(daysBack + 10, 30)}&aggregate=1&fill=true&apply_mapping=true&response_format=JSON`;
+      
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.data && data.data.length > 0) {
+          // Match each timestamp to closest daily data
+          for (const timestamp of timestamps) {
+            const targetTime = new Date(timestamp);
+            let closestData = data.data[0];
+            let minTimeDiff = Math.abs(new Date(data.data[0].datetime) - targetTime);
+            
+            for (const dayData of data.data) {
+              const dayTime = new Date(dayData.datetime);
+              const timeDiff = Math.abs(dayTime - targetTime);
+              if (timeDiff < minTimeDiff) {
+                minTimeDiff = timeDiff;
+                closestData = dayData;
+              }
+            }
+            
+            prices[timestamp] = parseFloat(closestData.close);
+          }
+        }
+      }
+      return prices;
+    } catch (error) {
+      throw new Error(`CoinDesk bundled API error: ${error.message}`);
+    }
+  }
       
       if (!response || !response.content) {
         console.log(`⚠️ [KOL SERVICE] No response from Perplexity for bundled ${symbol} prices`);

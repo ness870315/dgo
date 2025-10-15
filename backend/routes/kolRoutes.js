@@ -389,10 +389,27 @@ router.post('/force-enrich', async (req, res) => {
 let lastApiCall = 0;
 const API_CALL_DELAY = 2000; // 2 seconds between calls
 
+// Cache for coin images to prevent repeated API calls
+const imageCache = new Map();
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
 // POST /api/kol/fetch-coin-image/:symbol - Fetch coin image from CoinGecko or Perplexity
 router.post('/fetch-coin-image/:symbol', async (req, res) => {
   try {
     const { symbol } = req.params;
+    
+    // Check cache first
+    const cacheKey = symbol.toUpperCase();
+    const cached = imageCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+      console.log(`💾 [KOL API] Using cached image for ${symbol}: ${cached.imageUrl}`);
+      return res.json({
+        success: true,
+        imageUrl: cached.imageUrl,
+        source: 'cache'
+      });
+    }
+    
     console.log(`🖼️ [KOL API] Fetching image for ${symbol}...`);
     
     // Rate limiting - wait if we called API recently
@@ -412,6 +429,14 @@ router.post('/fetch-coin-image/:symbol', async (req, res) => {
         const data = await response.json();
         if (data.image && data.image.large) {
           console.log(`✅ [KOL API] Found CoinGecko image for ${symbol}: ${data.image.large}`);
+          
+          // Cache the result
+          imageCache.set(cacheKey, {
+            imageUrl: data.image.large,
+            timestamp: Date.now(),
+            source: 'coingecko'
+          });
+          
           return res.json({
             success: true,
             imageUrl: data.image.large,
@@ -427,7 +452,7 @@ router.post('/fetch-coin-image/:symbol', async (req, res) => {
     
     // Try Perplexity as fallback
     try {
-      const query = `What is the logo image URL for ${symbol} cryptocurrency? Please provide only the direct image URL.`;
+      const query = `Find the direct logo image URL for ${symbol} cryptocurrency. Look for URLs ending in .png, .jpg, .jpeg, .gif, or .webp. Provide only the direct image URL, not a webpage.`;
       
       const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
@@ -443,7 +468,7 @@ router.post('/fetch-coin-image/:symbol', async (req, res) => {
               content: query
             }
           ],
-          max_tokens: 100
+          max_tokens: 150
         })
       });
       
@@ -451,15 +476,34 @@ router.post('/fetch-coin-image/:symbol', async (req, res) => {
         const data = await perplexityResponse.json();
         if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
           const content = data.choices[0].message.content;
-          // Extract URL from response
-          const urlMatch = content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp)/i);
-          if (urlMatch) {
-            console.log(`✅ [KOL API] Found Perplexity image for ${symbol}: ${urlMatch[0]}`);
-            return res.json({
-              success: true,
-              imageUrl: urlMatch[0],
-              source: 'perplexity'
-            });
+          
+          // Try multiple patterns to find direct image URLs
+          const patterns = [
+            /https?:\/\/[^\s]+\.(png|jpg|jpeg|gif|webp)(\?[^\s]*)?/gi,
+            /https?:\/\/[^\s]*\/(?:images|logos|assets)\/[^\s]+\.(png|jpg|jpeg|gif|webp)(\?[^\s]*)?/gi,
+            /https?:\/\/[^\s]*coin[^\s]*\.(png|jpg|jpeg|gif|webp)(\?[^\s]*)?/gi
+          ];
+          
+          for (const pattern of patterns) {
+            const matches = content.match(pattern);
+            if (matches && matches.length > 0) {
+              // Take the first match that looks like a direct image URL
+              const imageUrl = matches[0];
+              console.log(`✅ [KOL API] Found Perplexity image for ${symbol}: ${imageUrl}`);
+              
+              // Cache the result
+              imageCache.set(cacheKey, {
+                imageUrl: imageUrl,
+                timestamp: Date.now(),
+                source: 'perplexity'
+              });
+              
+              return res.json({
+                success: true,
+                imageUrl: imageUrl,
+                source: 'perplexity'
+              });
+            }
           }
         }
       } else if (perplexityResponse.status === 429) {
