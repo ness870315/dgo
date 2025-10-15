@@ -669,8 +669,10 @@
         // Load data from API
         async function loadData() {
             try {
-                // Clear network for fresh data load
-                clearNetwork();
+                // Only clear network if we're doing a full refresh (not just updating data)
+                if (kols.length === 0 && posts.length === 0) {
+                    clearNetwork();
+                }
                 
                 // Load KOLs
                 const kolsResponse = await fetch('/api/kol/kols');
@@ -678,8 +680,11 @@
                 
                 if (kolsResult.success) {
                     kols = kolsResult.data;
+                    console.log(`📊 Loaded ${kols.length} KOLs`);
                     updateKOLList();
                     updateKOLCount();
+                } else {
+                    console.error('❌ Failed to load KOLs:', kolsResult);
                 }
 
                 // Load posts
@@ -688,6 +693,7 @@
                 
                 if (postsResult.success) {
                     posts = postsResult.data;
+                    console.log(`📝 Loaded ${posts.length} posts`);
                     updateMomentum();
                     
                     // Load coin data for logos/prices
@@ -712,6 +718,8 @@
                     setTimeout(() => {
                         fetchMissingCoinImages();
                     }, 1000);
+                } else {
+                    console.error('❌ Failed to load posts:', postsResult);
                 }
 
                 updateLastUpdateTime();
@@ -1110,9 +1118,11 @@
 
         // Render correlation network with stability improvements
         function renderNetwork(forceUpdate = false) {
+            console.log(`🎯 renderNetwork called - posts: ${posts.length}, kols: ${kols.length}, forceUpdate: ${forceUpdate}`);
             const container = document.getElementById('networkGraph');
             
             if (posts.length === 0 || kols.length === 0) {
+                console.log('⚠️ renderNetwork: No data to render, showing empty state');
                 if (networkSimulation) {
                     networkSimulation.stop();
                     networkSimulation = null;
