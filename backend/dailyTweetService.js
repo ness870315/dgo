@@ -316,46 +316,85 @@ class DailyTweetService {
 
   // Start the daily posting scheduler
   start() {
-    if (this.isRunning) {
-      console.log('⚠️ [KOL CONTENT] Service already running');
-      return;
+    try {
+      if (this.isRunning) {
+        console.log('⚠️ [KOL CONTENT] Service already running');
+        return;
+      }
+
+      this.isRunning = true;
+      console.log('🚀 [KOL CONTENT] Service started');
+      console.log('🎤 [KOL CONTENT] Mode: Authentic KOL content (2 memecoins)');
+      console.log('📝 [KOL CONTENT] Format: Mix of singles, short threads, deep-dives');
+      console.log(`⏰ [KOL CONTENT] Active hours: ${this.activeHours.start}:00-${this.activeHours.end}:00 UTC`);
+      console.log(`📅 [KOL CONTENT] Frequency: Once per day (30-60 min apart)`);
+
+      // Schedule next post
+      this.scheduleNextPost();
+      
+      // Save running state to disk
+      this.saveState();
+      
+      console.log('✅ [KOL CONTENT] Service started successfully');
+    } catch (error) {
+      console.error('❌ [DAILY TWEET] Error starting service:', error.message);
+      this.isRunning = false;
+      throw error;
     }
-
-    this.isRunning = true;
-    console.log('🚀 [KOL CONTENT] Service started');
-    console.log('🎤 [KOL CONTENT] Mode: Authentic KOL content (2 memecoins)');
-    console.log('📝 [KOL CONTENT] Format: Mix of singles, short threads, deep-dives');
-    console.log(`⏰ [KOL CONTENT] Active hours: ${this.activeHours.start}:00-${this.activeHours.end}:00 UTC`);
-    console.log(`📅 [KOL CONTENT] Frequency: Once per day (30-60 min apart)`);
-
-    // Schedule next post
-    this.scheduleNextPost();
-    
-    // Save running state to disk
-    this.saveState();
   }
 
   // Schedule the next post check (every 15 minutes for responsive config-based posting)
   scheduleNextPost() {
-    if (!this.isRunning) return;
+    try {
+      if (!this.isRunning) {
+        console.log('⚠️ [DAILY TWEET] Service not running, skipping schedule');
+        return;
+      }
 
-    // Check every 15 minutes for configuration-based posting opportunities
-    const checkInterval = 15 * 60 * 1000; // 15 minutes
-    const nextCheckDate = new Date(Date.now() + checkInterval);
-    
-    // Store the next check time for status display
-    this.nextPostTime = nextCheckDate.toISOString();
+      // Clear any existing timeout
+      if (this.scheduledTimeout) {
+        clearTimeout(this.scheduledTimeout);
+        this.scheduledTimeout = null;
+      }
 
-    console.log(`⏰ [KOL CONTENT] Next check scheduled for: ${nextCheckDate.toISOString()}`);
+      // Check every 15 minutes for configuration-based posting opportunities
+      const checkInterval = 15 * 60 * 1000; // 15 minutes
+      const nextCheckDate = new Date(Date.now() + checkInterval);
+      
+      // Store the next check time for status display
+      this.nextPostTime = nextCheckDate.toISOString();
 
-    this.scheduledTimeout = setTimeout(async () => {
-      // Always call postKOLContent - it will delegate to KOLContentService's configuration logic
-      console.log(`🎯 [KOL CONTENT] Configuration check...`);
-      await this.postKOLContent();
+      console.log(`⏰ [KOL CONTENT] Next check scheduled for: ${nextCheckDate.toISOString()}`);
 
-      // Schedule next check
-      this.scheduleNextPost();
-    }, checkInterval);
+      this.scheduledTimeout = setTimeout(async () => {
+        try {
+          // Always call postKOLContent - it will delegate to KOLContentService's configuration logic
+          console.log(`🎯 [KOL CONTENT] Configuration check...`);
+          await this.postKOLContent();
+
+          // Schedule next check
+          this.scheduleNextPost();
+        } catch (error) {
+          console.error('❌ [DAILY TWEET] Error in scheduled check:', error.message);
+          console.log('🔄 [DAILY TWEET] Continuing with next scheduled check despite error...');
+          
+          // Schedule next check even if current one failed
+          this.scheduleNextPost();
+        }
+      }, checkInterval);
+      
+      console.log('✅ [DAILY TWEET] Next check scheduled successfully');
+    } catch (error) {
+      console.error('❌ [DAILY TWEET] Error scheduling next post:', error.message);
+      console.log('🔄 [DAILY TWEET] Retrying schedule in 5 minutes...');
+      
+      // Retry scheduling in 5 minutes if there was an error
+      setTimeout(() => {
+        if (this.isRunning) {
+          this.scheduleNextPost();
+        }
+      }, 5 * 60 * 1000);
+    }
   }
 
 
