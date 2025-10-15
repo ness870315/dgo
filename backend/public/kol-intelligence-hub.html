@@ -1208,8 +1208,13 @@
                 // Get coin image from global coinData cache
                 const coinInfo = window.coinData && window.coinData[coin];
                 
-                // Use Jupiter icon as fallback if DegenOracle image is not available
-                let imageUrl = coinInfo?.image || coinInfo?.jupiterData?.icon || null;
+                // Skip broken fotofolio.xyz URLs and prioritize working sources
+                let imageUrl = coinInfo?.image || null;
+                
+                // Only use Jupiter icon if it's not from the broken fotofolio.xyz CDN
+                if (!imageUrl && coinInfo?.jupiterData?.icon && !coinInfo.jupiterData.icon.includes('fotofolio.xyz')) {
+                    imageUrl = coinInfo.jupiterData.icon;
+                }
                 
                 // For coins without images, fetch from backend API (but don't trigger full re-render)
                 if (!imageUrl && (!coinInfo || Object.keys(coinInfo).length === 0)) {

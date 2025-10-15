@@ -561,8 +561,8 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
           let logo = coin.image || coin.logoURI;
           
           if (!logo && coin.contractAddress) {
-            // Fallback to Jupiter CDN for Solana tokens
-            logo = `https://img.fotofolio.xyz/?url=https%3A%2F%2Fraw.githubusercontent.com%2Fsolana-labs%2Ftoken-list%2Fmain%2Fassets%2Fmainnet%2F${coin.contractAddress}%2Flogo.png`;
+            // Skip Jupiter CDN - fotofolio.xyz is down (Error 522)
+            console.log(`⚠️ [KOL SERVICE] Skipping Jupiter CDN for ${symbol} - fotofolio.xyz is down`);
           }
           
           // If still no logo, try CoinGecko (cached)
@@ -606,10 +606,16 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
   }
 
   // Fetch historical price using free OHLCV APIs (much cheaper than Perplexity)
-  async fetchHistoricalPrice(symbol, timestamp) {
-    try {
-      const targetTime = new Date(timestamp);
-      const symbolUpper = symbol.toUpperCase();
+        async fetchHistoricalPrice(symbol, timestamp) {
+          try {
+            const targetTime = new Date(timestamp);
+            const symbolUpper = symbol.toUpperCase();
+            
+            // Map token names to their actual trading symbols
+            const symbolMapping = {
+              'SPX6900': 'SPX'
+            };
+            const actualSymbol = symbolMapping[symbolUpper] || symbolUpper;
       
       console.log(`🔍 [KOL SERVICE] Fetching historical price for $${symbol} at ${targetTime.toISOString()}`);
       
