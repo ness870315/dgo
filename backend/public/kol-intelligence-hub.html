@@ -1877,8 +1877,9 @@
                 
                 // Fetch price data from backend
                 const priceData = await fetchCoinPriceData(coin);
-                if (!priceData || !priceData.prices) {
-                    console.log(`⚠️ [CHART] No price data available for ${coin}`);
+                if (!priceData || !priceData.data || priceData.data.length === 0) {
+                    console.log(`⚠️ [CHART] No price data available for ${coin}, creating mentions-only chart`);
+                    createMentionsOnlyChart(coin, coinPosts);
                     return;
                 }
 
@@ -2001,14 +2002,145 @@
             }
         }
 
+        // Create a mentions-only chart when no price data is available
+        function createMentionsOnlyChart(coin, coinPosts) {
+            try {
+                console.log(`📊 [CHART] Creating mentions-only chart for ${coin}`);
+                
+                const ctx = document.getElementById(`priceChart_${coin}`);
+                if (!ctx) {
+                    console.log(`❌ [CHART] Canvas element not found for ${coin}`);
+                    return;
+                }
+
+                // Prepare timeline data from posts
+                const timelineData = coinPosts.map((post, index) => ({
+                    x: index,
+                    y: post.likes + post.retweets + post.views,
+                    timestamp: new Date(post.created_at).toLocaleDateString(),
+                    kol: post.kol_handle,
+                    sentiment: post.sentiment,
+                    engagement: post.likes + post.retweets + post.views
+                }));
+
+                // Color based on sentiment
+                const colors = timelineData.map(item => 
+                    item.sentiment > 0 ? '#14F195' : 
+                    item.sentiment < 0 ? '#FF4757' : '#FFA502'
+                );
+
+                // Destroy existing chart if it exists
+                if (window.charts && window.charts[coin]) {
+                    window.charts[coin].destroy();
+                }
+
+                window.charts = window.charts || {};
+                window.charts[coin] = new Chart(ctx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: 'KOL Mentions (Engagement)',
+                            data: timelineData,
+                            backgroundColor: colors,
+                            borderColor: colors,
+                            pointRadius: 8,
+                            pointHoverRadius: 12
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: '#ffffff'
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(20, 20, 20, 0.9)',
+                                titleColor: '#9945FF',
+                                bodyColor: '#ffffff',
+                                borderColor: '#9945FF',
+                                borderWidth: 1,
+                                callbacks: {
+                                    title: function(context) {
+                                        const item = context[0];
+                                        return `@${item.raw.kol} - ${item.raw.sentiment > 0 ? '📈 Bullish' : item.raw.sentiment < 0 ? '📉 Bearish' : '➡️ Neutral'}`;
+                                    },
+                                    label: function(context) {
+                                        const item = context.raw;
+                                        return [
+                                            `Date: ${item.timestamp}`,
+                                            `Engagement: ${item.engagement} total`,
+                                            `Sentiment: ${item.sentiment > 0 ? 'Bullish' : item.sentiment < 0 ? 'Bearish' : 'Neutral'}`
+                                        ];
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Timeline',
+                                    color: '#ffffff'
+                                },
+                                ticks: {
+                                    color: '#ffffff'
+                                },
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Engagement',
+                                    color: '#ffffff'
+                                },
+                                ticks: {
+                                    color: '#ffffff'
+                                },
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Update stats for mentions-only chart
+                const mentionsCountEl = document.getElementById(`mentionsCount_${coin}`);
+                if (mentionsCountEl) {
+                    mentionsCountEl.textContent = coinPosts.length;
+                }
+
+                const priceChangeEl = document.getElementById(`priceChange_${coin}`);
+                if (priceChangeEl) {
+                    priceChangeEl.textContent = 'N/A';
+                    priceChangeEl.className = 'text-lg font-bold accent-yellow';
+                }
+
+                const correlationEl = document.getElementById(`correlation_${coin}`);
+                if (correlationEl) {
+                    correlationEl.textContent = 'N/A';
+                }
+
+            } catch (error) {
+                console.error(`❌ [CHART] Error creating mentions-only chart for ${coin}:`, error);
+            }
+        }
+
         // Fetch price data for a coin
         async function fetchCoinPriceData(coin) {
             try {
+                console.log(`🔍 [CHART] Fetching timeline data for ${coin}...`);
                 const response = await fetch(`/api/kol/coin-timeline/${coin}`);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
                 }
                 const data = await response.json();
+                console.log(`📊 [CHART] Timeline data for ${coin}:`, data);
                 return data;
             } catch (error) {
                 console.error(`❌ [CHART] Error fetching price data for ${coin}:`, error);
@@ -2024,14 +2156,14 @@
             const mentionColors = [];
             const mentionDetails = [];
 
-            // Process price data
-            if (priceData.prices && priceData.prices.length > 0) {
-                priceData.prices.forEach(point => {
+            // Process price data from backend response
+            if (priceData.data && priceData.data.length > 0) {
+                priceData.data.forEach(point => {
                     const date = new Date(point.timestamp);
                     labels.push(date.toLocaleDateString() + ' ' + date.toLocaleTimeString());
                     priceDataPoints.push({
                         x: labels.length - 1,
-                        y: point.price
+                        y: point.priceAtMention || 0
                     });
                 });
             }
@@ -2082,30 +2214,19 @@
 
         // Calculate price impact for a post
         function calculatePriceImpact(post, priceData) {
-            if (!priceData.prices || priceData.prices.length < 2) return 0;
+            if (!priceData.data || priceData.data.length < 2) return 0;
             
             const postTime = new Date(post.created_at);
-            const prices = priceData.prices;
             
-            // Find closest price point
-            let closestIndex = 0;
-            let minDiff = Math.abs(new Date(prices[0].timestamp) - postTime);
+            // Find the exact mention in price data
+            const mentionData = priceData.data.find(item => 
+                new Date(item.timestamp).getTime() === postTime.getTime() &&
+                item.kolHandle === post.kol_handle
+            );
             
-            for (let i = 1; i < prices.length; i++) {
-                const diff = Math.abs(new Date(prices[i].timestamp) - postTime);
-                if (diff < minDiff) {
-                    minDiff = diff;
-                    closestIndex = i;
-                }
-            }
-
-            // Calculate price change after mention (24h window)
-            const beforePrice = prices[closestIndex]?.price || 0;
-            const afterIndex = Math.min(closestIndex + 24, prices.length - 1);
-            const afterPrice = prices[afterIndex]?.price || beforePrice;
-            
-            if (beforePrice > 0) {
-                return ((afterPrice - beforePrice) / beforePrice * 100).toFixed(1);
+            if (mentionData) {
+                // Use the 24h price change from the backend data
+                return mentionData.priceChange24h || 0;
             }
             
             return 0;
