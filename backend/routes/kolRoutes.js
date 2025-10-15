@@ -597,22 +597,24 @@ router.get('/alpha-scores', async (req, res) => {
   try {
     const alphaScores = kolService.getKOLAlphaScores();
     
-    // Convert Map to Object for JSON response
-    const alphaScoresObj = {};
+    // Convert Map to Array of [handle, score] pairs for JSON response
+    const alphaScoresArray = [];
     alphaScores.forEach((score, kolHandle) => {
-      alphaScoresObj[kolHandle] = {
+      alphaScoresArray.push([kolHandle, {
         alphaScore: score.alphaScore,
+        alphaTier: score.alphaTier,
         averageCorrelation: score.averageCorrelation,
         averageLeadTime: score.averageLeadTime,
+        hitRate: score.hitRate,
         totalMentions: score.totalMentions,
         successfulPredictions: score.successfulPredictions,
         coinImpacts: Object.fromEntries(score.coinImpacts)
-      };
+      }]);
     });
     
     res.json({
       success: true,
-      data: alphaScoresObj
+      data: alphaScoresArray
     });
     
   } catch (error) {

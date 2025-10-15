@@ -724,6 +724,23 @@
                     updateAlphaSignals();
                     updateStats();
                     
+                    // Load alpha scores for KOLs
+                    try {
+                        const alphaResponse = await fetch('/api/kol/alpha-scores');
+                        const alphaResult = await alphaResponse.json();
+                        if (alphaResult.success) {
+                            // Convert array back to Map for easier lookup
+                            window.kolAlphaScores = new Map();
+                            alphaResult.data.forEach(([handle, score]) => {
+                                window.kolAlphaScores.set(handle, score);
+                            });
+                            console.log(`🎯 Loaded alpha scores for ${window.kolAlphaScores.size} KOLs`);
+                        }
+                    } catch (e) {
+                        console.warn('Could not load alpha scores:', e.message);
+                        window.kolAlphaScores = new Map();
+                    }
+                    
                     // Fetch missing coin images from CoinGecko after network renders
                     setTimeout(() => {
                         fetchMissingCoinImages();
@@ -1081,6 +1098,65 @@
         }
 
         // Add visual elements to a node (extracted for stability)
+        // Alpha color mapping function
+        function getAlphaColor(tier) {
+            switch(tier) {
+                case 'S+': return '#FFD700'; // Gold for elite alpha
+                case 'S': return '#FF6B35';  // Orange for high alpha
+                case 'A': return '#14F195';  // Green for good alpha
+                case 'B': return '#00D9FF';  // Blue for moderate alpha
+                case 'C': return '#8B5CF6';  // Purple for low alpha
+                default: return '#8B5CF6';
+            }
+        }
+
+        // Alpha tooltip functions
+        function showAlphaTooltip(event, d) {
+            // Remove existing tooltip
+            hideAlphaTooltip();
+            
+            const tooltip = d3.select('body').append('div')
+                .attr('class', 'alpha-tooltip')
+                .style('position', 'absolute')
+                .style('background', 'rgba(0, 0, 0, 0.9)')
+                .style('color', 'white')
+                .style('padding', '12px')
+                .style('border-radius', '8px')
+                .style('font-size', '12px')
+                .style('border', `2px solid ${getAlphaColor(d.alphaTier)}`)
+                .style('box-shadow', '0 4px 12px rgba(0, 0, 0, 0.5)')
+                .style('pointer-events', 'none')
+                .style('z-index', '10000')
+                .style('max-width', '250px');
+            
+            const alphaScore = (d.alphaScore * 100).toFixed(1);
+            const hitRate = (d.hitRate * 100).toFixed(1);
+            const leadTime = Math.round(d.alphaScore > 0 ? 240 / d.alphaScore : 0); // Approximate lead time
+            
+            tooltip.html(`
+                <div style="font-weight: bold; color: ${getAlphaColor(d.alphaTier)}; margin-bottom: 8px;">
+                    🎯 Alpha Tier: ${d.alphaTier}
+                </div>
+                <div style="margin-bottom: 4px;">📊 Alpha Score: ${alphaScore}%</div>
+                <div style="margin-bottom: 4px;">🎯 Hit Rate: ${hitRate}%</div>
+                <div style="margin-bottom: 4px;">⚡ Avg Lead Time: ${leadTime}min</div>
+                <div style="margin-bottom: 4px;">📝 Total Mentions: ${d.count || 0}</div>
+                <div style="font-size: 10px; color: #ccc; margin-top: 8px;">
+                    Hover over other KOLs to compare alpha scores
+                </div>
+            `);
+            
+            // Position tooltip
+            const [mouseX, mouseY] = d3.pointer(event, document.body);
+            tooltip
+                .style('left', (mouseX + 10) + 'px')
+                .style('top', (mouseY - 10) + 'px');
+        }
+
+        function hideAlphaTooltip() {
+            d3.selectAll('.alpha-tooltip').remove();
+        }
+
         function addNodeVisuals(nodeGroup) {
             nodeGroup.each(function(d) {
                 const group = d3.select(this);
@@ -1127,6 +1203,34 @@
                         .attr('stroke', '#fff')
                         .attr('stroke-width', 2)
                         .style('filter', 'drop-shadow(0 0 8px rgba(153, 69, 255, 0.6))');
+                    
+                    // Add alpha indicator ring for KOLs
+                    if (d.type === 'kol' && d.alphaScore > 0) {
+                        const alphaColor = getAlphaColor(d.alphaTier);
+                        const alphaRing = group.append('circle')
+                            .attr('r', d.size + 4)
+                            .attr('fill', 'none')
+                            .attr('stroke', alphaColor)
+                            .attr('stroke-width', 3)
+                            .style('opacity', 0.8)
+                            .style('filter', `drop-shadow(0 0 6px ${alphaColor}80)`);
+                        
+                        // Add pulsing animation for high alpha KOLs
+                        if (d.alphaTier === 'S+' || d.alphaTier === 'S') {
+                            alphaRing
+                                .transition()
+                                .duration(2000)
+                                .attr('stroke-width', 5)
+                                .transition()
+                                .duration(2000)
+                                .attr('stroke-width', 3)
+                                .on('end', function() {
+                                    if (d.alphaTier === 'S+' || d.alphaTier === 'S') {
+                                        d3.select(this).transition().duration(2000).attr('stroke-width', 5);
+                                    }
+                                });
+                        }
+                    }
                 } else {
                     // Use colored circles for narratives and fallbacks
                     group.append('circle')
@@ -1135,6 +1239,34 @@
                         .attr('stroke', '#fff')
                         .attr('stroke-width', 2)
                         .style('filter', 'drop-shadow(0 0 8px rgba(153, 69, 255, 0.6))');
+                    
+                    // Add alpha indicator ring for KOLs (fallback case)
+                    if (d.type === 'kol' && d.alphaScore > 0) {
+                        const alphaColor = getAlphaColor(d.alphaTier);
+                        const alphaRing = group.append('circle')
+                            .attr('r', d.size + 4)
+                            .attr('fill', 'none')
+                            .attr('stroke', alphaColor)
+                            .attr('stroke-width', 3)
+                            .style('opacity', 0.8)
+                            .style('filter', `drop-shadow(0 0 6px ${alphaColor}80)`);
+                        
+                        // Add pulsing animation for high alpha KOLs
+                        if (d.alphaTier === 'S+' || d.alphaTier === 'S') {
+                            alphaRing
+                                .transition()
+                                .duration(2000)
+                                .attr('stroke-width', 5)
+                                .transition()
+                                .duration(2000)
+                                .attr('stroke-width', 3)
+                                .on('end', function() {
+                                    if (d.alphaTier === 'S+' || d.alphaTier === 'S') {
+                                        d3.select(this).transition().duration(2000).attr('stroke-width', 5);
+                                    }
+                                });
+                        }
+                    }
                 }
                 
                 // Add labels with better positioning
@@ -1367,6 +1499,9 @@
                     const nodeId = `kol_${handle}`;
                     const existingPos = existingPositions.get(nodeId);
                     
+                    // Get alpha score for this KOL
+                    const alphaScore = window.kolAlphaScores && window.kolAlphaScores.get(handle);
+                    
                     const node = {
                         id: nodeId,
                         label: `@${handle}`,
@@ -1375,6 +1510,9 @@
                         count: count,
                         color: '#00D9FF',
                         imageUrl: kolInfo?.profile_picture || null,  // KOL profile picture
+                        alphaScore: alphaScore?.alphaScore || 0,
+                        alphaTier: alphaScore?.alphaTier || 'C',
+                        hitRate: alphaScore?.hitRate || 0,
                         // Preserve position for stability
                         fx: existingPos ? existingPos.x : null,
                         fy: existingPos ? existingPos.y : null
@@ -1552,10 +1690,16 @@
                 node.style('opacity', n => n.id === d.id || connectedNodes.has(n.id) ? 1 : 0.3);
                 link.classed('highlighted', l => l.source.id === d.id || l.target.id === d.id)
                     .style('opacity', l => l.source.id === d.id || l.target.id === d.id ? 1 : 0.1);
+                
+                // Show alpha tooltip for KOLs
+                if (d.type === 'kol' && d.alphaScore > 0) {
+                    showAlphaTooltip(event, d);
+                }
             })
             .on('mouseout', function() {
                 node.style('opacity', 1);
                 link.classed('highlighted', false).style('opacity', 1);
+                hideAlphaTooltip();
             })
             .on('click', function(event, d) {
                 if (d.type === 'coin') {

@@ -984,19 +984,45 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       });
     });
     
-    // Calculate final alpha scores
+    // Calculate final alpha scores with enhanced metrics
     kolAlphaScores.forEach((score, kolHandle) => {
-      const avgCorrelation = Array.from(score.coinImpacts.values())
-        .reduce((sum, impact) => sum + impact.correlation, 0) / score.coinImpacts.size;
+      const impacts = Array.from(score.coinImpacts.values());
       
-      const avgLeadTime = Array.from(score.coinImpacts.values())
-        .reduce((sum, impact) => sum + impact.leadTime, 0) / score.coinImpacts.size;
+      const avgCorrelation = impacts.reduce((sum, impact) => sum + impact.correlation, 0) / impacts.length;
+      const avgLeadTime = impacts.reduce((sum, impact) => sum + impact.leadTime, 0) / impacts.length;
+      const hitRate = score.successfulPredictions / score.totalMentions;
       
+      // Enhanced alpha score calculation
+      const correlationScore = Math.max(0, avgCorrelation); // Only positive correlations count
+      const hitRateScore = hitRate;
+      const leadTimeScore = avgLeadTime > 0 ? Math.min(1, 240 / avgLeadTime) : 0; // Faster is better (max 240min)
+      const sampleSizeScore = Math.min(1, score.totalMentions / 10); // More samples = more reliable
+      
+      // Weighted alpha score
       score.averageCorrelation = avgCorrelation;
       score.averageLeadTime = avgLeadTime;
-      score.alphaScore = (score.successfulPredictions / score.totalMentions) * avgCorrelation;
+      score.hitRate = hitRate;
+      score.alphaScore = (
+        correlationScore * 0.4 +    // 40% correlation strength
+        hitRateScore * 0.3 +        // 30% prediction accuracy
+        leadTimeScore * 0.2 +       // 20% speed of prediction
+        sampleSizeScore * 0.1       // 10% sample size reliability
+      );
       
-      console.log(`🎯 [LEAD-LAG] ${kolHandle}: Alpha=${score.alphaScore.toFixed(3)}, Correlation=${avgCorrelation.toFixed(3)}, Lead=${avgLeadTime.toFixed(0)}min`);
+      // Alpha tier classification
+      if (score.alphaScore >= 0.7) {
+        score.alphaTier = 'S+'; // Elite alpha
+      } else if (score.alphaScore >= 0.5) {
+        score.alphaTier = 'S';  // High alpha
+      } else if (score.alphaScore >= 0.3) {
+        score.alphaTier = 'A';  // Good alpha
+      } else if (score.alphaScore >= 0.1) {
+        score.alphaTier = 'B';  // Moderate alpha
+      } else {
+        score.alphaTier = 'C';  // Low/no alpha
+      }
+      
+      console.log(`🎯 [LEAD-LAG] ${kolHandle}: Alpha=${score.alphaScore.toFixed(3)} (${score.alphaTier}), HitRate=${(hitRate*100).toFixed(1)}%, Correlation=${avgCorrelation.toFixed(3)}, Lead=${avgLeadTime.toFixed(0)}min`);
     });
     
     // Store results
@@ -1009,6 +1035,8 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
   calculateLeadLagTimes(mentions) {
     let totalLeadTime = 0;
     let successfulPredictions = 0;
+    let totalMagnitude = 0;
+    let leadTimeData = [];
     
     mentions.forEach(mention => {
       const priceBefore = mention.priceAtMention;
@@ -1021,50 +1049,112 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       const change4h = price4h ? (price4h - priceBefore) / priceBefore : 0;
       const change24h = price24h ? (price24h - priceBefore) / priceBefore : 0;
       
-      // Determine lead time (when significant price movement occurred)
+      // Enhanced lead time detection with multiple thresholds
       let leadTime = 0;
       let hasMovement = false;
+      let movementMagnitude = 0;
       
-      if (Math.abs(change1h) > 0.05) { // 5% threshold
+      // Check for significant movements at different timeframes
+      if (Math.abs(change1h) > 0.03) { // 3% threshold for 1h (more sensitive)
         leadTime = 60; // 1 hour
         hasMovement = true;
-      } else if (Math.abs(change4h) > 0.05) {
+        movementMagnitude = Math.abs(change1h);
+      } else if (Math.abs(change4h) > 0.05) { // 5% threshold for 4h
         leadTime = 240; // 4 hours
         hasMovement = true;
-      } else if (Math.abs(change24h) > 0.05) {
+        movementMagnitude = Math.abs(change4h);
+      } else if (Math.abs(change24h) > 0.08) { // 8% threshold for 24h (higher bar)
         leadTime = 1440; // 24 hours
         hasMovement = true;
+        movementMagnitude = Math.abs(change24h);
       }
       
       if (hasMovement) {
         totalLeadTime += leadTime;
+        totalMagnitude += movementMagnitude;
         successfulPredictions++;
+        leadTimeData.push({
+          leadTime,
+          magnitude: movementMagnitude,
+          change1h,
+          change4h,
+          change24h
+        });
       }
     });
     
+    // Calculate weighted average lead time (weighted by movement magnitude)
+    let weightedLeadTime = 0;
+    if (totalMagnitude > 0) {
+      leadTimeData.forEach(data => {
+        const weight = data.magnitude / totalMagnitude;
+        weightedLeadTime += data.leadTime * weight;
+      });
+    }
+    
     return {
       averageLeadTime: successfulPredictions > 0 ? totalLeadTime / successfulPredictions : 0,
-      successfulPredictions
+      weightedLeadTime: weightedLeadTime,
+      successfulPredictions,
+      totalMagnitude,
+      hitRate: successfulPredictions / mentions.length,
+      leadTimeData
     };
   }
 
   calculatePearsonCorrelation(mentions) {
     if (mentions.length < 2) return 0;
     
-    // Simple correlation: mention timing vs price movement magnitude
+    // Enhanced correlation analysis
+    const correlations = {
+      timingVsMovement: 0,
+      frequencyVsImpact: 0,
+      sentimentVsDirection: 0
+    };
+    
+    // 1. Timing vs Movement Magnitude Correlation
     const mentionTimes = mentions.map(m => m.mentionTime.getTime());
     const priceMovements = mentions.map(m => {
-      const change24h = m.price24h ? (m.price24h - m.priceAtMention) / m.priceAtMention : 0;
-      return Math.abs(change24h);
+      // Use the maximum movement across all timeframes
+      const change1h = m.price1h ? Math.abs((m.price1h - m.priceAtMention) / m.priceAtMention) : 0;
+      const change4h = m.price4h ? Math.abs((m.price4h - m.priceAtMention) / m.priceAtMention) : 0;
+      const change24h = m.price24h ? Math.abs((m.price24h - m.priceAtMention) / m.priceAtMention) : 0;
+      return Math.max(change1h, change4h, change24h);
     });
     
-    // Calculate Pearson correlation coefficient
-    const n = mentions.length;
-    const sumX = mentionTimes.reduce((sum, x) => sum + x, 0);
-    const sumY = priceMovements.reduce((sum, y) => sum + y, 0);
-    const sumXY = mentionTimes.reduce((sum, x, i) => sum + (x * priceMovements[i]), 0);
-    const sumX2 = mentionTimes.reduce((sum, x) => sum + (x * x), 0);
-    const sumY2 = priceMovements.reduce((sum, y) => sum + (y * y), 0);
+    correlations.timingVsMovement = this.calculatePearsonCoefficient(mentionTimes, priceMovements);
+    
+    // 2. Frequency vs Impact Correlation (mentions per day vs average impact)
+    const timeSpan = Math.max(...mentionTimes) - Math.min(...mentionTimes);
+    const days = timeSpan / (1000 * 60 * 60 * 24);
+    const frequency = mentions.length / Math.max(days, 1);
+    const averageImpact = priceMovements.reduce((sum, impact) => sum + impact, 0) / priceMovements.length;
+    
+    correlations.frequencyVsImpact = frequency * averageImpact; // Simple frequency-impact score
+    
+    // 3. Sentiment vs Direction Correlation (if sentiment data available)
+    // This would need sentiment data from posts - placeholder for now
+    correlations.sentimentVsDirection = 0;
+    
+    // Return weighted combination of correlations
+    const weights = { timing: 0.5, frequency: 0.3, sentiment: 0.2 };
+    const combinedCorrelation = 
+      correlations.timingVsMovement * weights.timing +
+      correlations.frequencyVsImpact * weights.frequency +
+      correlations.sentimentVsDirection * weights.sentiment;
+    
+    return Math.max(-1, Math.min(1, combinedCorrelation)); // Clamp between -1 and 1
+  }
+  
+  calculatePearsonCoefficient(x, y) {
+    if (x.length !== y.length || x.length < 2) return 0;
+    
+    const n = x.length;
+    const sumX = x.reduce((sum, val) => sum + val, 0);
+    const sumY = y.reduce((sum, val) => sum + val, 0);
+    const sumXY = x.reduce((sum, val, i) => sum + (val * y[i]), 0);
+    const sumX2 = x.reduce((sum, val) => sum + (val * val), 0);
+    const sumY2 = y.reduce((sum, val) => sum + (val * val), 0);
     
     const numerator = n * sumXY - sumX * sumY;
     const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
