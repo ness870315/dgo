@@ -534,4 +534,53 @@ router.post('/fetch-coin-image/:symbol', async (req, res) => {
   }
 });
 
+// POST /api/kol/test-ohlcv - Test the new OHLCV APIs
+router.post('/test-ohlcv', async (req, res) => {
+  try {
+    const { symbol } = req.body;
+    
+    if (!symbol) {
+      return res.status(400).json({
+        success: false,
+        error: 'Symbol is required'
+      });
+    }
+    
+    const service = await initializeService();
+    
+    // Test with a timestamp from 24 hours ago
+    const testTimestamp = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    
+    console.log(`🧪 [TEST] Testing OHLCV APIs for ${symbol} at ${testTimestamp.toISOString()}`);
+    
+    // Test individual price fetch
+    const price = await service.fetchHistoricalPrice(symbol, testTimestamp);
+    
+    // Test bundled price fetch (with multiple timestamps)
+    const timestamps = [
+      new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+      new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString()
+    ];
+    
+    const bundledPrices = await service.fetchBundledHistoricalPrices(symbol, timestamps);
+    
+    res.json({
+      success: true,
+      symbol: symbol,
+      testTimestamp: testTimestamp.toISOString(),
+      individualPrice: price,
+      bundledPrices: bundledPrices,
+      message: `Tested OHLCV APIs for ${symbol}`
+    });
+    
+  } catch (error) {
+    console.error('❌ [KOL API] Test OHLCV error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router;
