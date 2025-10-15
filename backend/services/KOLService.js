@@ -752,8 +752,6 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       
             console.log(`🔍 [KOL SERVICE] Fetching historical price for $${symbol} at ${targetTime.toISOString()}`);
             
-            let historicalPrice = null;
-            
             // Try CoinDesk (primary free API - no location restrictions)
             if (!skipCoinDesk.includes(symbolUpper)) {
               try {
