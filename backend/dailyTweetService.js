@@ -10,6 +10,7 @@
 // - Scheduled at 2 PM UTC (configurable below)
 
 import KOLContentService from './kolContentService.js';
+import TweetAPIPostingService from './services/TweetAPIPostingService.js';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -17,6 +18,7 @@ class DailyTweetService {
   constructor(twitterAutoPostService, backendInstance = null) {
     this.twitterAutoPostService = twitterAutoPostService;
     this.kolContentService = backendInstance ? new KOLContentService(backendInstance) : null;
+    this.tweetPostingService = new TweetAPIPostingService(); // NEW: Reliable posting service
     this.isRunning = false;
     
     // State persistence file path
@@ -255,8 +257,61 @@ class DailyTweetService {
         useOpenAI: true
       });
 
-      // Let KOLContentService handle all the posting logic based on its configuration
-      await this.kolContentService.runDailyContentCycle(this.twitterAutoPostService.oauthXService);
+      // Use the new reliable TweetAPI posting service instead of OAuth
+      console.log('🐦 [DAILY TWEET] Using TweetAPI v2 posting service for reliable posting...');
+      
+      // Test the posting service first
+      const testResult = await this.tweetPostingService.testService();
+      if (!testResult.success) {
+        console.log('❌ [DAILY TWEET] TweetAPI v2 posting service test failed, falling back to OAuth...');
+        await this.kolContentService.runDailyContentCycle(this.twitterAutoPostService.oauthXService);
+      } else {
+        console.log('✅ [DAILY TWEET] TweetAPI v2 posting service working, using for content posting...');
+        
+        // Generate content using KOLContentService but post with TweetAPI v2
+        const content = await this.kolContentService.generateDailyContent();
+        if (content && content.tweets && content.tweets.length > 0) {
+          console.log(`📤 [DAILY TWEET] Posting ${content.tweets.length} tweets using TweetAPI v2...`);
+
+          let lastTweetId = null;
+          for (let i = 0; i < content.tweets.length; i++) {
+            const tweet = content.tweets[i];
+            console.log(`📝 [DAILY TWEET] Posting tweet ${i + 1}/${content.tweets.length}: ${tweet.substring(0, 50)}...`);
+
+            if (i === 0) {
+              // Post first tweet
+              const result = await this.tweetPostingService.postTweet(tweet);
+              if (result.success) {
+                lastTweetId = result.tweet_id;
+                console.log(`✅ [DAILY TWEET] Tweet ${i + 1} posted: ${result.url}`);
+              } else {
+                console.log(`❌ [DAILY TWEET] Tweet ${i + 1} failed: ${result.error}`);
+                break;
+              }
+            } else {
+              // Reply to previous tweet for thread
+              const result = await this.tweetPostingService.postReply(tweet, lastTweetId);
+              if (result.success) {
+                lastTweetId = result.tweet_id;
+                console.log(`✅ [DAILY TWEET] Reply ${i + 1} posted: ${result.url}`);
+              } else {
+                console.log(`❌ [DAILY TWEET] Reply ${i + 1} failed: ${result.error}`);
+                break;
+              }
+            }
+
+            // Wait between tweets in a thread
+            if (i < content.tweets.length - 1) {
+              console.log('⏳ [DAILY TWEET] Waiting 3 seconds before next tweet...');
+              await new Promise(resolve => setTimeout(resolve, 3000));
+            }
+          }
+
+          console.log('✅ [DAILY TWEET] Content cycle completed with TweetAPI v2!');
+        } else {
+          console.log('❌ [DAILY TWEET] No content generated, skipping posting...');
+        }
+      }
 
       return { success: true };
     } catch (error) {
@@ -350,9 +405,47 @@ class DailyTweetService {
         return { success: false, error: 'Failed to generate content' };
       }
 
-      // Post the content directly
+      // Post the content directly using TweetAPI v2
       console.log(`\n📤 [KOL CONTENT] FORCING POST: $${content.token.symbol} (${content.format})`);
-      await this.kolContentService.postThread(content.tweets, this.twitterAutoPostService.oauthXService);
+      
+      // Test TweetAPI v2 first
+      const testResult = await this.tweetPostingService.testService();
+      if (testResult.success) {
+        console.log('✅ [KOL CONTENT] Using TweetAPI v2 for manual posting...');
+        
+        let lastTweetId = null;
+        for (let i = 0; i < content.tweets.length; i++) {
+          const tweet = content.tweets[i];
+          console.log(`📝 [KOL CONTENT] Posting tweet ${i + 1}/${content.tweets.length}...`);
+
+          if (i === 0) {
+            const result = await this.tweetPostingService.postTweet(tweet);
+            if (result.success) {
+              lastTweetId = result.tweet_id;
+              console.log(`✅ [KOL CONTENT] Tweet ${i + 1} posted: ${result.url}`);
+            } else {
+              console.log(`❌ [KOL CONTENT] Tweet ${i + 1} failed: ${result.error}`);
+              break;
+            }
+          } else {
+            const result = await this.tweetPostingService.postReply(tweet, lastTweetId);
+            if (result.success) {
+              lastTweetId = result.tweet_id;
+              console.log(`✅ [KOL CONTENT] Reply ${i + 1} posted: ${result.url}`);
+            } else {
+              console.log(`❌ [KOL CONTENT] Reply ${i + 1} failed: ${result.error}`);
+              break;
+            }
+          }
+
+          if (i < content.tweets.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 3000));
+          }
+        }
+      } else {
+        console.log('❌ [KOL CONTENT] TweetAPI v2 failed, falling back to OAuth...');
+        await this.kolContentService.postThread(content.tweets, this.twitterAutoPostService.oauthXService);
+      }
 
       // Update tracking (but don't increment daily count since this is manual override)
       this.lastTweetTime = Date.now();
@@ -371,6 +464,86 @@ class DailyTweetService {
       console.error('❌ [KOL CONTENT] Error in manual post:', error.message);
       return { success: false, error: error.message };
     }
+  }
+
+  // Test the TweetAPI v2 posting service
+  async testTweetPostingService() {
+    try {
+      console.log('🧪 [DAILY TWEET] Testing TweetAPI v2 posting service...');
+      
+      const result = await this.tweetPostingService.testService();
+      
+      if (result.success) {
+        console.log('✅ [DAILY TWEET] TweetAPI v2 posting service is working!');
+        console.log('🔗 [DAILY TWEET] Test tweet URL:', result.tweet_url);
+        return {
+          success: true,
+          service: 'TweetAPI v2',
+          message: 'Posting service is working correctly',
+          test_tweet_url: result.tweet_url
+        };
+      } else {
+        console.log('❌ [DAILY TWEET] TweetAPI v2 posting service test failed:', result.error);
+        return {
+          success: false,
+          service: 'TweetAPI v2',
+          error: result.error,
+          fallback: 'Will use OAuth X Service'
+        };
+      }
+      
+    } catch (error) {
+      console.error('💥 [DAILY TWEET] Exception testing TweetAPI posting:', error.message);
+      return {
+        success: false,
+        service: 'TweetAPI v2',
+        error: error.message,
+        fallback: 'Will use OAuth X Service'
+      };
+    }
+  }
+
+  // Get current status including posting service info
+  getStatus() {
+    const now = new Date();
+    
+    // Calculate next post time properly
+    let nextPostTime = null;
+    let nextPostIn = 0;
+    
+    if (this.isRunning) {
+      if (this.randomMode) {
+        // For random mode, calculate next random post time
+        nextPostTime = new Date(now.getTime() + this.getRandomPostTime());
+        nextPostIn = this.getRandomPostTime();
+      } else {
+        // For fixed schedule mode, use stored nextPostTime or calculate
+        if (this.nextPostTime) {
+          nextPostTime = new Date(this.nextPostTime);
+          nextPostIn = Math.max(0, nextPostTime.getTime() - now.getTime());
+        }
+      }
+    }
+    
+    return {
+      isRunning: this.isRunning,
+      randomMode: this.randomMode,
+      postsPerDay: this.postsPerDay,
+      activeHours: this.activeHours,
+      todayPostCount: this.todayPostCount,
+      lastPostDate: this.lastPostDate,
+      nextPostTime: nextPostTime,
+      nextPostIn: nextPostIn,
+      recentPosts: this.recentPosts.slice(-5), // Last 5 posts
+      primaryPostingService: 'TweetAPI v2 (Reliable with Browser Headers)',
+      fallbackPostingService: 'OAuth X Service',
+      features: [
+        'Automated posting with reliable TweetAPI v2',
+        'Fallback to OAuth X Service if TweetAPI fails',
+        'Support for threads via replies',
+        'Rate limiting and automation detection bypass'
+      ]
+    };
   }
 }
 
