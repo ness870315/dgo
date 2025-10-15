@@ -625,12 +625,25 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
         }
       } catch (error) {
         console.log(`❌ [KOL SERVICE] CoinDesk failed for ${symbol}: ${error.message}`);
-        console.log(`❌ [KOL SERVICE] CoinDesk error stack:`, error.stack);
       }
       
-      // Fallback to Perplexity only if free APIs fail
-      console.log(`🔄 [KOL SERVICE] Free APIs failed for ${symbol}, trying Perplexity...`);
-      return await this.fetchPerplexityHistoricalPrice(symbol, timestamp);
+      // Try CoinAPI.io (fallback - comprehensive coverage)
+      try {
+        console.log(`🔍 [KOL SERVICE] Trying CoinAPI.io for ${symbol} at ${targetTime.toISOString()}`);
+        const coinapiPrice = await this.fetchCoinAPIHistoricalPrice(symbolUpper, targetTime);
+        if (coinapiPrice) {
+          console.log(`✅ [KOL SERVICE] Found CoinAPI.io price for $${symbol}: $${coinapiPrice}`);
+          return coinapiPrice;
+        } else {
+          console.log(`⚠️ [KOL SERVICE] CoinAPI.io returned null for ${symbol}`);
+        }
+      } catch (error) {
+        console.log(`❌ [KOL SERVICE] CoinAPI.io failed for ${symbol}: ${error.message}`);
+      }
+      
+      // No data available from any source
+      console.log(`❌ [KOL SERVICE] No historical price data available for ${symbol}`);
+      return null;
       
     } catch (error) {
       console.error(`❌ [KOL SERVICE] Error fetching historical price for ${symbol}:`, error.message);
@@ -695,6 +708,81 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
     } catch (error) {
       console.log(`❌ [COINDESK INDIVIDUAL] Exception for ${symbol}: ${error.message}`);
       throw new Error(`CoinDesk API error: ${error.message}`);
+    }
+  }
+
+  // Fetch from CoinAPI.io
+  async fetchCoinAPIHistoricalPrice(symbol, targetTime) {
+    try {
+      if (!process.env.COINAPI_API_KEY) {
+        console.log(`⚠️ [COINAPI INDIVIDUAL] No API key configured for ${symbol}`);
+        return null;
+      }
+
+      // Try different symbol formats for CoinAPI.io
+      const symbolFormats = [
+        `BINANCE_SPOT_${symbol}_USDT`,
+        `COINBASE_SPOT_${symbol}_USD`,
+        `KRAKEN_SPOT_${symbol}_USD`,
+        `BITSTAMP_SPOT_${symbol}_USD`,
+        `GATEIO_SPOT_${symbol}_USDT`,
+        `MEXC_SPOT_${symbol}_USDT`
+      ];
+
+      for (const coinapiSymbol of symbolFormats) {
+        try {
+          // Calculate time range (get data around target time)
+          const startTime = new Date(targetTime.getTime() - 24 * 60 * 60 * 1000); // 1 day before
+          const endTime = new Date(targetTime.getTime() + 24 * 60 * 60 * 1000);   // 1 day after
+          
+          const url = `https://rest.coinapi.io/v1/ohlcv/${coinapiSymbol}/history?period_id=1DAY&time_start=${startTime.toISOString()}&time_end=${endTime.toISOString()}&limit=10`;
+          
+          console.log(`🔍 [COINAPI INDIVIDUAL] Trying ${coinapiSymbol} at ${targetTime.toISOString()}`);
+          
+          const response = await fetch(url, {
+            headers: {
+              'X-CoinAPI-Key': process.env.COINAPI_API_KEY,
+              'Accept': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            
+            if (data && data.length > 0) {
+              // Find closest OHLCV to target time
+              let closestOhlcv = data[0];
+              let minTimeDiff = Math.abs(new Date(data[0].time_period_start) - targetTime);
+              
+              for (const ohlcv of data) {
+                const ohlcvTime = new Date(ohlcv.time_period_start);
+                const timeDiff = Math.abs(ohlcvTime - targetTime);
+                if (timeDiff < minTimeDiff) {
+                  minTimeDiff = timeDiff;
+                  closestOhlcv = ohlcv;
+                }
+              }
+              
+              const price = closestOhlcv.price_close;
+              console.log(`✅ [COINAPI INDIVIDUAL] Found price for ${symbol}: $${price}`);
+              return parseFloat(price);
+            }
+          } else if (response.status === 404) {
+            // Symbol not found on this exchange, try next
+            continue;
+          } else {
+            console.log(`❌ [COINAPI INDIVIDUAL] API error ${response.status} for ${coinapiSymbol}`);
+          }
+        } catch (error) {
+          console.log(`❌ [COINAPI INDIVIDUAL] Error for ${coinapiSymbol}: ${error.message}`);
+          continue;
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.log(`❌ [COINAPI INDIVIDUAL] Exception for ${symbol}: ${error.message}`);
+      throw new Error(`CoinAPI.io API error: ${error.message}`);
     }
   }
 
@@ -796,8 +884,19 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
         console.log(`⚠️ [KOL SERVICE] CoinDesk bundled failed for ${symbol}: ${error.message}`);
       }
       
+      // Try CoinAPI.io bundled (fallback - comprehensive coverage)
+      try {
+        const coinapiPrices = await this.fetchCoinAPIBundledPrices(symbolUpper, timestamps);
+        if (Object.keys(coinapiPrices).length > 0) {
+          console.log(`✅ [KOL SERVICE] Got ${Object.keys(coinapiPrices).length} prices from CoinAPI.io for ${symbol}`);
+          return coinapiPrices;
+        }
+      } catch (error) {
+        console.log(`⚠️ [KOL SERVICE] CoinAPI.io bundled failed for ${symbol}: ${error.message}`);
+      }
+      
       // Fallback to individual calls if bundled APIs fail
-      console.log(`🔄 [KOL SERVICE] Free bundled APIs failed for ${symbol}, using individual calls...`);
+      console.log(`🔄 [KOL SERVICE] Bundled APIs failed for ${symbol}, using individual calls...`);
       for (const timestamp of timestamps) {
         const price = await this.fetchHistoricalPrice(symbol, timestamp);
         if (price) {
@@ -874,6 +973,101 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
     } catch (error) {
       console.log(`❌ [COINDESK BUNDLED] Error for ${symbol}: ${error.message}`);
       throw new Error(`CoinDesk bundled API error: ${error.message}`);
+    }
+  }
+
+  // Fetch multiple prices from CoinAPI.io in single API call
+  async fetchCoinAPIBundledPrices(symbol, timestamps) {
+    try {
+      if (!process.env.COINAPI_API_KEY) {
+        console.log(`⚠️ [COINAPI BUNDLED] No API key configured for ${symbol}`);
+        return {};
+      }
+
+      const prices = {};
+      
+      console.log(`🔍 [COINAPI BUNDLED] Fetching prices for ${symbol} with ${timestamps.length} timestamps`);
+      
+      // Try different symbol formats for CoinAPI.io
+      const symbolFormats = [
+        `BINANCE_SPOT_${symbol}_USDT`,
+        `COINBASE_SPOT_${symbol}_USD`,
+        `KRAKEN_SPOT_${symbol}_USD`,
+        `BITSTAMP_SPOT_${symbol}_USD`,
+        `GATEIO_SPOT_${symbol}_USDT`,
+        `MEXC_SPOT_${symbol}_USDT`
+      ];
+
+      for (const coinapiSymbol of symbolFormats) {
+        try {
+          // Calculate time range for all timestamps
+          const sortedTimestamps = [...timestamps].sort((a, b) => new Date(a) - new Date(b));
+          const startTime = new Date(sortedTimestamps[0]);
+          const endTime = new Date(sortedTimestamps[sortedTimestamps.length - 1]);
+          
+          // Add buffer time
+          startTime.setTime(startTime.getTime() - 24 * 60 * 60 * 1000); // 1 day before
+          endTime.setTime(endTime.getTime() + 24 * 60 * 60 * 1000);     // 1 day after
+          
+          const url = `https://rest.coinapi.io/v1/ohlcv/${coinapiSymbol}/history?period_id=1DAY&time_start=${startTime.toISOString()}&time_end=${endTime.toISOString()}&limit=100`;
+          
+          console.log(`🔍 [COINAPI BUNDLED] Trying ${coinapiSymbol}`);
+          
+          const response = await fetch(url, {
+            headers: {
+              'X-CoinAPI-Key': process.env.COINAPI_API_KEY,
+              'Accept': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            
+            if (data && data.length > 0) {
+              // Match each timestamp to closest OHLCV
+              for (const timestamp of timestamps) {
+                const targetTime = new Date(timestamp);
+                let closestOhlcv = data[0];
+                let minTimeDiff = Math.abs(new Date(data[0].time_period_start) - targetTime);
+                
+                for (const ohlcv of data) {
+                  const ohlcvTime = new Date(ohlcv.time_period_start);
+                  const timeDiff = Math.abs(ohlcvTime - targetTime);
+                  if (timeDiff < minTimeDiff) {
+                    minTimeDiff = timeDiff;
+                    closestOhlcv = ohlcv;
+                  }
+                }
+                
+                const price = closestOhlcv.price_close;
+                if (price) {
+                  prices[timestamp] = parseFloat(price);
+                  console.log(`✅ [COINAPI BUNDLED] ${symbol} at ${timestamp}: $${price}`);
+                }
+              }
+              
+              if (Object.keys(prices).length > 0) {
+                console.log(`📊 [COINAPI BUNDLED] Returning ${Object.keys(prices).length} prices for ${symbol}`);
+                return prices;
+              }
+            }
+          } else if (response.status === 404) {
+            // Symbol not found on this exchange, try next
+            continue;
+          } else {
+            console.log(`❌ [COINAPI BUNDLED] API error ${response.status} for ${coinapiSymbol}`);
+          }
+        } catch (error) {
+          console.log(`❌ [COINAPI BUNDLED] Error for ${coinapiSymbol}: ${error.message}`);
+          continue;
+        }
+      }
+      
+      console.log(`📊 [COINAPI BUNDLED] Returning ${Object.keys(prices).length} prices for ${symbol}`);
+      return prices;
+    } catch (error) {
+      console.log(`❌ [COINAPI BUNDLED] Error for ${symbol}: ${error.message}`);
+      throw new Error(`CoinAPI.io bundled API error: ${error.message}`);
     }
   }
 
