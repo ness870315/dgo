@@ -434,10 +434,6 @@ class DailyTweetService {
             await new Promise(resolve => setTimeout(resolve, 3000));
           }
         }
-      } else {
-        console.log('❌ [KOL CONTENT] TweetAPI v2 failed, falling back to OAuth...');
-        await this.kolContentService.postThread(content.tweets, this.twitterAutoPostService.oauthXService);
-      }
 
       // Update tracking (but don't increment daily count since this is manual override)
       this.lastTweetTime = Date.now();
