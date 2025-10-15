@@ -549,4 +549,91 @@ router.post('/test-ohlcv', async (req, res) => {
   }
 });
 
+// Get KOL Alpha Scores (Lead-Lag Analysis Results)
+router.get('/alpha-scores', async (req, res) => {
+  try {
+    const alphaScores = kolService.getKOLAlphaScores();
+    
+    // Convert Map to Object for JSON response
+    const alphaScoresObj = {};
+    alphaScores.forEach((score, kolHandle) => {
+      alphaScoresObj[kolHandle] = {
+        alphaScore: score.alphaScore,
+        averageCorrelation: score.averageCorrelation,
+        averageLeadTime: score.averageLeadTime,
+        totalMentions: score.totalMentions,
+        successfulPredictions: score.successfulPredictions,
+        coinImpacts: Object.fromEntries(score.coinImpacts)
+      };
+    });
+    
+    res.json({
+      success: true,
+      data: alphaScoresObj
+    });
+    
+  } catch (error) {
+    console.error(`❌ [KOL API] Error getting alpha scores:`, error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get Coin Timeline Data for Deep-Dive Page
+router.get('/coin-timeline/:symbol', async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const symbolUpper = symbol.toUpperCase();
+    
+    console.log(`📊 [KOL API] Getting timeline data for ${symbolUpper}`);
+    
+    // Get all mentions of this coin with price data
+    const coinMentions = [];
+    
+    kolService.posts.forEach(post => {
+      if (post.coins && post.coins.includes(symbolUpper) && post.coin_data && post.coin_data[symbolUpper]) {
+        const coinData = post.coin_data[symbolUpper];
+        const mentionTime = new Date(post.timestamp);
+        
+        coinMentions.push({
+          timestamp: post.timestamp,
+          mentionTime: mentionTime.toISOString(),
+          kolHandle: post.kol_handle,
+          sentiment: post.sentiment,
+          engagement: post.likes + post.retweets + post.views,
+          priceAtMention: coinData.price_at_mention,
+          price1hAfter: coinData.price_1h_after,
+          price4hAfter: coinData.price_4h_after,
+          price24hAfter: coinData.price_24h_after,
+          priceChange1h: coinData.price_1h_after ? 
+            ((coinData.price_1h_after - coinData.price_at_mention) / coinData.price_at_mention) * 100 : null,
+          priceChange4h: coinData.price_4h_after ? 
+            ((coinData.price_4h_after - coinData.price_at_mention) / coinData.price_at_mention) * 100 : null,
+          priceChange24h: coinData.price_24h_after ? 
+            ((coinData.price_24h_after - coinData.price_at_mention) / coinData.price_at_mention) * 100 : null
+        });
+      }
+    });
+    
+    // Sort by timestamp
+    coinMentions.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    
+    res.json({
+      success: true,
+      symbol: symbolUpper,
+      data: coinMentions,
+      totalMentions: coinMentions.length
+    });
+    
+  } catch (error) {
+    console.error(`❌ [KOL API] Error getting coin timeline:`, error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router;

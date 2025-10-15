@@ -47,7 +47,8 @@ class KOLService {
     this.PERPLEXITY_DELAY = 3000; // 3 seconds between Perplexity calls
     
     // Start backfill job
-    this.startBackfillJob();
+        this.startBackfillJob();
+        this.startLeadLagAnalysis();
   }
 
   async initialize() {
@@ -867,6 +868,177 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       await new Promise(resolve => setTimeout(resolve, waitTime));
     }
     this.lastPerplexityCall = Date.now();
+  }
+
+  // LEAD-LAG DETECTION SYSTEM
+  startLeadLagAnalysis() {
+    console.log('🔍 [LEAD-LAG] Starting Lead-Lag Analysis system...');
+    
+    // Run analysis every 6 hours
+    setInterval(() => {
+      this.analyzeLeadLagCorrelations();
+    }, 6 * 60 * 60 * 1000);
+    
+    // Run initial analysis
+    setTimeout(() => {
+      this.analyzeLeadLagCorrelations();
+    }, 5000);
+  }
+
+  analyzeLeadLagCorrelations() {
+    console.log('📊 [LEAD-LAG] Analyzing KOL mention → price movement correlations...');
+    
+    const kolAlphaScores = new Map();
+    const coinCorrelations = new Map();
+    
+    // Group posts by KOL and coin
+    const kolCoinData = new Map();
+    
+    this.posts.forEach(post => {
+      if (!post.coins || !post.coins.length || !post.coin_data) return;
+      
+      const kolHandle = post.kol_handle;
+      const mentionTime = new Date(post.timestamp);
+      
+      post.coins.forEach(coin => {
+        const coinData = post.coin_data[coin];
+        if (!coinData || !coinData.price_at_mention) return;
+        
+        const key = `${kolHandle}_${coin}`;
+        if (!kolCoinData.has(key)) {
+          kolCoinData.set(key, []);
+        }
+        
+        kolCoinData.get(key).push({
+          mentionTime,
+          priceAtMention: coinData.price_at_mention,
+          price1h: coinData.price_1h_after,
+          price4h: coinData.price_4h_after,
+          price24h: coinData.price_24h_after
+        });
+      });
+    });
+    
+    // Calculate lead-lag for each KOL-coin pair
+    kolCoinData.forEach((mentions, key) => {
+      const [kolHandle, coin] = key.split('_');
+      
+      if (mentions.length < 3) return; // Need at least 3 mentions for correlation
+      
+      const leadLagData = this.calculateLeadLagTimes(mentions);
+      const correlation = this.calculatePearsonCorrelation(mentions);
+      
+      if (!kolAlphaScores.has(kolHandle)) {
+        kolAlphaScores.set(kolHandle, {
+          totalMentions: 0,
+          successfulPredictions: 0,
+          averageLeadTime: 0,
+          averageCorrelation: 0,
+          coinImpacts: new Map()
+        });
+      }
+      
+      const kolScore = kolAlphaScores.get(kolHandle);
+      kolScore.totalMentions += mentions.length;
+      kolScore.successfulPredictions += leadLagData.successfulPredictions;
+      kolScore.coinImpacts.set(coin, {
+        correlation: correlation,
+        leadTime: leadLagData.averageLeadTime,
+        sampleSize: mentions.length
+      });
+    });
+    
+    // Calculate final alpha scores
+    kolAlphaScores.forEach((score, kolHandle) => {
+      const avgCorrelation = Array.from(score.coinImpacts.values())
+        .reduce((sum, impact) => sum + impact.correlation, 0) / score.coinImpacts.size;
+      
+      const avgLeadTime = Array.from(score.coinImpacts.values())
+        .reduce((sum, impact) => sum + impact.leadTime, 0) / score.coinImpacts.size;
+      
+      score.averageCorrelation = avgCorrelation;
+      score.averageLeadTime = avgLeadTime;
+      score.alphaScore = (score.successfulPredictions / score.totalMentions) * avgCorrelation;
+      
+      console.log(`🎯 [LEAD-LAG] ${kolHandle}: Alpha=${score.alphaScore.toFixed(3)}, Correlation=${avgCorrelation.toFixed(3)}, Lead=${avgLeadTime.toFixed(0)}min`);
+    });
+    
+    // Store results
+    this.kolAlphaScores = kolAlphaScores;
+    this.coinCorrelations = coinCorrelations;
+    
+    console.log(`📊 [LEAD-LAG] Analysis complete. Analyzed ${kolCoinData.size} KOL-coin pairs.`);
+  }
+
+  calculateLeadLagTimes(mentions) {
+    let totalLeadTime = 0;
+    let successfulPredictions = 0;
+    
+    mentions.forEach(mention => {
+      const priceBefore = mention.priceAtMention;
+      const price1h = mention.price1h;
+      const price4h = mention.price4h;
+      const price24h = mention.price24h;
+      
+      // Calculate price changes
+      const change1h = price1h ? (price1h - priceBefore) / priceBefore : 0;
+      const change4h = price4h ? (price4h - priceBefore) / priceBefore : 0;
+      const change24h = price24h ? (price24h - priceBefore) / priceBefore : 0;
+      
+      // Determine lead time (when significant price movement occurred)
+      let leadTime = 0;
+      let hasMovement = false;
+      
+      if (Math.abs(change1h) > 0.05) { // 5% threshold
+        leadTime = 60; // 1 hour
+        hasMovement = true;
+      } else if (Math.abs(change4h) > 0.05) {
+        leadTime = 240; // 4 hours
+        hasMovement = true;
+      } else if (Math.abs(change24h) > 0.05) {
+        leadTime = 1440; // 24 hours
+        hasMovement = true;
+      }
+      
+      if (hasMovement) {
+        totalLeadTime += leadTime;
+        successfulPredictions++;
+      }
+    });
+    
+    return {
+      averageLeadTime: successfulPredictions > 0 ? totalLeadTime / successfulPredictions : 0,
+      successfulPredictions
+    };
+  }
+
+  calculatePearsonCorrelation(mentions) {
+    if (mentions.length < 2) return 0;
+    
+    // Simple correlation: mention timing vs price movement magnitude
+    const mentionTimes = mentions.map(m => m.mentionTime.getTime());
+    const priceMovements = mentions.map(m => {
+      const change24h = m.price24h ? (m.price24h - m.priceAtMention) / m.priceAtMention : 0;
+      return Math.abs(change24h);
+    });
+    
+    // Calculate Pearson correlation coefficient
+    const n = mentions.length;
+    const sumX = mentionTimes.reduce((sum, x) => sum + x, 0);
+    const sumY = priceMovements.reduce((sum, y) => sum + y, 0);
+    const sumXY = mentionTimes.reduce((sum, x, i) => sum + (x * priceMovements[i]), 0);
+    const sumX2 = mentionTimes.reduce((sum, x) => sum + (x * x), 0);
+    const sumY2 = priceMovements.reduce((sum, y) => sum + (y * y), 0);
+    
+    const numerator = n * sumXY - sumX * sumY;
+    const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
+    
+    return denominator === 0 ? 0 : numerator / denominator;
+  }
+
+  // Get KOL alpha scores for API
+  getKOLAlphaScores() {
+    return this.kolAlphaScores || new Map();
   }
 
   // NEW: Fetch multiple historical prices using free OHLCV APIs (much more efficient)
