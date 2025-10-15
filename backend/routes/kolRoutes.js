@@ -443,7 +443,8 @@ router.post('/fetch-coin-image/:symbol', async (req, res) => {
         'CAT': 'cat',
         'ATOM': 'cosmos',
         'SAFEMOON': 'safemoon',
-        'FARTCOIN': 'fartcoin'
+        'FARTCOIN': 'fartcoin',
+        'APEX': 'apex-token'
       };
       
       const coinGeckoId = symbolMapping[symbol.toUpperCase()] || symbol.toLowerCase();

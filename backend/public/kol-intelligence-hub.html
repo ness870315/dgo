@@ -1204,11 +1204,11 @@
                 // Get coin image from global coinData cache
                 const coinInfo = window.coinData && window.coinData[coin];
                 
-                // If no image found, try to fetch from CoinGecko
-                let imageUrl = coinInfo?.image || null;
+                // Use Jupiter icon as fallback if DegenOracle image is not available
+                let imageUrl = coinInfo?.image || coinInfo?.jupiterData?.icon || null;
                 
                 // For coins without images, fetch from backend API (but don't trigger full re-render)
-                if (!imageUrl && coinInfo && Object.keys(coinInfo).length === 0) {
+                if (!imageUrl && (!coinInfo || Object.keys(coinInfo).length === 0)) {
                     fetchCoinImage(coin).then(url => {
                         if (url) {
                             // Update the specific node image without full re-render
