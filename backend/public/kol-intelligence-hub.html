@@ -430,9 +430,14 @@
                         <h2 class="text-lg font-bold accent-purple">KOL INTELLIGENCE</h2>
                         <p class="text-xs text-gray-500">Who Moves Markets</p>
                     </div>
-                    <button onclick="showSettings()" class="tooltip" data-tooltip="Settings">
-                        <i data-lucide="settings" class="w-5 h-5 text-gray-400 hover:text-purple-500 transition"></i>
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <button onclick="toggleKOLPanel()" class="tooltip" data-tooltip="Toggle Panel">
+                            <i data-lucide="panel-left-close" class="w-5 h-5 text-gray-400 hover:text-purple-500 transition"></i>
+                        </button>
+                        <button onclick="showSettings()" class="tooltip" data-tooltip="Settings">
+                            <i data-lucide="settings" class="w-5 h-5 text-gray-400 hover:text-purple-500 transition"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="text-xs text-gray-400">
                     <span id="kolCount" class="accent-purple font-semibold">0</span> Active • Updated <span id="lastUpdate">--</span>
@@ -750,7 +755,14 @@
                 return;
             }
 
-            container.innerHTML = kols.map(kol => {
+            // Sort KOLs by influence score (highest first)
+            const sortedKOLs = [...kols].sort((a, b) => {
+                const scoreA = a.influence_score || 0;
+                const scoreB = b.influence_score || 0;
+                return scoreB - scoreA; // Descending order
+            });
+
+            container.innerHTML = sortedKOLs.map(kol => {
                 const kolPosts = posts.filter(p => p.kol_handle.toLowerCase() === kol.handle.toLowerCase());
                 
                 // Calculate top coins for this KOL
@@ -1628,11 +1640,21 @@
                 
                 // Resize network graph to fill screen
                 const networkGraph = document.getElementById('networkGraph');
+                const newWidth = window.innerWidth - 40;
+                const newHeight = window.innerHeight - 120;
+                
                 networkGraph.style.cssText = `
-                    width: calc(100vw - 40px) !important;
-                    height: calc(100vh - 120px) !important;
-                    min-height: calc(100vh - 120px) !important;
+                    width: ${newWidth}px !important;
+                    height: ${newHeight}px !important;
+                    min-height: ${newHeight}px !important;
                 `;
+                
+                // Also resize any existing SVG
+                const svg = networkGraph.querySelector('svg');
+                if (svg) {
+                    svg.setAttribute('width', newWidth);
+                    svg.setAttribute('height', newHeight);
+                }
                 
                 // Re-render network to fit new size
                 setTimeout(() => {
@@ -1652,10 +1674,36 @@
                 const networkGraph = document.getElementById('networkGraph');
                 networkGraph.style.cssText = '';
                 
+                // Reset any existing SVG size
+                const svg = networkGraph.querySelector('svg');
+                if (svg) {
+                    svg.removeAttribute('width');
+                    svg.removeAttribute('height');
+                }
+                
                 // Re-render network to fit normal size
                 setTimeout(() => {
                     renderNetwork(true);
                 }, 100);
+            }
+        }
+
+        // Toggle KOL Intelligence left panel
+        function toggleKOLPanel() {
+            const leftPanel = document.querySelector('.w-80.glass.border-r.border-gray-800');
+            const toggleBtn = document.querySelector('[onclick="toggleKOLPanel()"]');
+            const icon = toggleBtn.querySelector('i');
+            
+            if (leftPanel.classList.contains('hidden')) {
+                // Show panel
+                leftPanel.classList.remove('hidden');
+                icon.setAttribute('data-lucide', 'panel-left-close');
+                lucide.createIcons();
+            } else {
+                // Hide panel
+                leftPanel.classList.add('hidden');
+                icon.setAttribute('data-lucide', 'panel-left-open');
+                lucide.createIcons();
             }
         }
 
