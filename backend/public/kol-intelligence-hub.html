@@ -1208,16 +1208,21 @@
                 // Get coin image from global coinData cache
                 const coinInfo = window.coinData && window.coinData[coin];
                 
-                // Skip broken fotofolio.xyz URLs and prioritize working sources
-                let imageUrl = coinInfo?.image || null;
+                // Skip broken fotofolio.xyz URLs completely
+                let imageUrl = null;
+                
+                // Only use image if it's not from the broken fotofolio.xyz CDN
+                if (coinInfo?.image && !coinInfo.image.includes('fotofolio.xyz')) {
+                    imageUrl = coinInfo.image;
+                }
                 
                 // Only use Jupiter icon if it's not from the broken fotofolio.xyz CDN
                 if (!imageUrl && coinInfo?.jupiterData?.icon && !coinInfo.jupiterData.icon.includes('fotofolio.xyz')) {
                     imageUrl = coinInfo.jupiterData.icon;
                 }
                 
-                // For coins without images, fetch from backend API (but don't trigger full re-render)
-                if (!imageUrl && (!coinInfo || Object.keys(coinInfo).length === 0)) {
+                // For coins without images OR with broken fotofolio.xyz URLs, fetch from backend API
+                if (!imageUrl) {
                     fetchCoinImage(coin).then(url => {
                         if (url) {
                             // Update the specific node image without full re-render
