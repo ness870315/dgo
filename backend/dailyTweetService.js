@@ -306,7 +306,6 @@ class DailyTweetService {
         } else {
           console.log('❌ [DAILY TWEET] No content generated, skipping posting...');
         }
-      }
 
       return { success: true };
     } catch (error) {
