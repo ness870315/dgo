@@ -1109,12 +1109,7 @@
             networkUpdateQueue = [];
         }
 
-        // Global variables for stable network rendering
-        let networkSimulation = null;
-        let networkNodes = [];
-        let networkLinks = [];
-        let isNetworkStable = false;
-        let networkUpdateQueue = [];
+        // Global variables for stable network rendering (declared above)
 
         // Render correlation network with stability improvements
         function renderNetwork(forceUpdate = false) {
