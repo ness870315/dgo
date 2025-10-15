@@ -472,6 +472,11 @@
 <body>
     <!-- Main Container -->
     <div class="flex h-screen">
+        <!-- TOGGLE BUTTON: Always visible -->
+        <button id="kolPanelToggle" onclick="toggleKOLPanel()" class="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 tooltip" data-tooltip="Toggle KOL Panel">
+            <i data-lucide="chevron-right" class="w-6 h-6 text-gray-400 hover:text-purple-500 transition bg-gray-900 rounded-full p-1 border border-gray-700"></i>
+        </button>
+        
         <!-- LEFT PANEL: KOL Intelligence -->
         <div class="w-80 glass border-r border-gray-800 flex flex-col">
             <!-- Header -->
@@ -482,9 +487,6 @@
                         <p class="text-xs text-gray-500">Who Moves Markets</p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button onclick="toggleKOLPanel()" class="tooltip" data-tooltip="Toggle Panel">
-                            <i data-lucide="panel-left-close" class="w-5 h-5 text-gray-400 hover:text-purple-500 transition"></i>
-                        </button>
                         <button onclick="showSettings()" class="tooltip" data-tooltip="Settings">
                             <i data-lucide="settings" class="w-5 h-5 text-gray-400 hover:text-purple-500 transition"></i>
                         </button>
@@ -1506,7 +1508,7 @@
                 });
             }
 
-            // Add coin nodes with symbol merging
+            // Add coin nodes with COMPLETE symbol merging (including all data)
             const coinData = {};
             const symbolMap = {
                 'SPX6900': 'SPX', // Merge SPX6900 into SPX
@@ -1520,10 +1522,18 @@
                         const mappedCoin = symbolMap[coin] || coin;
                         
                         if (!coinData[mappedCoin]) {
-                            coinData[mappedCoin] = { mentions: 0, kols: new Set(), narratives: new Set(), sentiment: 0, sentimentCount: 0 };
+                            coinData[mappedCoin] = { 
+                                mentions: 0, 
+                                kols: new Set(), 
+                                narratives: new Set(), 
+                                sentiment: 0, 
+                                sentimentCount: 0,
+                                originalCoins: new Set() // Track all original coin names
+                            };
                         }
                         coinData[mappedCoin].mentions++;
                         coinData[mappedCoin].kols.add(post.kol_handle);
+                        coinData[mappedCoin].originalCoins.add(coin); // Track original coin name
                         if (post.narratives) {
                             post.narratives.forEach(n => coinData[mappedCoin].narratives.add(n));
                         }
@@ -1992,7 +2002,7 @@
         // Toggle KOL Intelligence left panel
         function toggleKOLPanel() {
             const leftPanel = document.querySelector('.w-80.glass.border-r.border-gray-800');
-            const toggleBtn = document.querySelector('[onclick="toggleKOLPanel()"]');
+            const toggleBtn = document.getElementById('kolPanelToggle');
             const icon = toggleBtn.querySelector('i');
             
             if (leftPanel.classList.contains('hidden')) {
@@ -2162,8 +2172,21 @@
             const page = document.getElementById('coinDetailPage');
             const content = document.getElementById('coinDetailContent');
             
-            // Filter posts for this coin
-            const coinPosts = posts.filter(post => post.coins && post.coins.includes(coin));
+            // Symbol mapping to get all related coins
+            const symbolMap = {
+                'SPX': ['SPX', 'SPX6900'], // SPX includes both SPX and SPX6900
+                'SPX6900': ['SPX', 'SPX6900']
+            };
+            
+            // Get all related coin symbols for this coin
+            const relatedCoins = symbolMap[coin] || [coin];
+            
+            // Filter posts that mention any of the related coins
+            const coinPosts = posts.filter(post => 
+                post.coins && post.coins.some(postCoin => relatedCoins.includes(postCoin))
+            );
+            
+            console.log(`📊 Found ${coinPosts.length} posts for ${coin} (includes: ${relatedCoins.join(', ')})`);
             
             // Get KOLs who mentioned it
             const kolMentions = {};
@@ -2674,17 +2697,52 @@
             }
         }
 
-        // Fetch price data for a coin
+        // Fetch price data for a coin (with symbol merging)
         async function fetchCoinPriceData(coin) {
             try {
                 console.log(`🔍 [CHART] Fetching timeline data for ${coin}...`);
-                const response = await fetch(`/api/kol/coin-timeline/${coin}`);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                
+                // Symbol mapping to get all related coins
+                const symbolMap = {
+                    'SPX': ['SPX', 'SPX6900'], // SPX includes both SPX and SPX6900
+                    'SPX6900': ['SPX', 'SPX6900']
+                };
+                
+                // Get all related coin symbols for this coin
+                const relatedCoins = symbolMap[coin] || [coin];
+                
+                // Fetch data for all related coins and merge
+                const allData = [];
+                let totalMentions = 0;
+                
+                for (const relatedCoin of relatedCoins) {
+                    try {
+                        const response = await fetch(`/api/kol/coin-timeline/${relatedCoin}`);
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.success && data.data) {
+                                allData.push(...data.data);
+                                totalMentions += data.totalMentions || 0;
+                                console.log(`✅ [CHART] Fetched ${data.data.length} data points for ${relatedCoin}`);
+                            }
+                        }
+                    } catch (error) {
+                        console.warn(`⚠️ [CHART] Could not fetch data for ${relatedCoin}:`, error.message);
+                    }
                 }
-                const data = await response.json();
-                console.log(`📊 [CHART] Timeline data for ${coin}:`, data);
-                return data;
+                
+                // Sort by mention time
+                allData.sort((a, b) => new Date(a.mentionTime) - new Date(b.mentionTime));
+                
+                console.log(`✅ [CHART] Total merged data: ${allData.length} points for ${coin} (from ${relatedCoins.join(', ')})`);
+                
+                return {
+                    success: true,
+                    symbol: coin,
+                    data: allData,
+                    totalMentions: totalMentions
+                };
+                
             } catch (error) {
                 console.error(`❌ [CHART] Error fetching price data for ${coin}:`, error);
                 return null;
