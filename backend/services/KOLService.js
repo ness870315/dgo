@@ -616,12 +616,12 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
             
             // Map token names to their actual trading symbols
             const symbolMapping = {
-              'SPX6900': 'SPX'
+              'SPX6900': 'SPX' // SPX6900 maps to SPX for CoinDesk (becomes SPX-USD)
             };
             const actualSymbol = symbolMapping[symbolUpper] || symbolUpper;
             
             // Skip symbols that are known to not work with CoinDesk
-            const skipCoinDesk = ['SPX6900', 'SPX']; // SPX is not available on CoinDesk Kraken
+            const skipCoinDesk = []; // CoinDesk supports SPX-USD on Kraken
       
       console.log(`🔍 [KOL SERVICE] Fetching historical price for $${symbol} at ${targetTime.toISOString()}`);
       
