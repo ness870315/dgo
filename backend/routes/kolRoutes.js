@@ -636,4 +636,49 @@ router.get('/coin-timeline/:symbol', async (req, res) => {
   }
 });
 
+// Test TweetAPI v2 posting
+router.post('/test-tweetapi-v2', async (req, res) => {
+  try {
+    const { text } = req.body;
+    
+    if (!text) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing text parameter'
+      });
+    }
+    
+    console.log(`🧪 [KOL API] Testing TweetAPI v2 posting: "${text}"`);
+    
+    // Import TweetAPI v2 service dynamically to avoid startup issues
+    const TweetAPIV2Service = (await import('../services/TweetAPIV2Service.js')).default;
+    const tweetAPI = new TweetAPIV2Service();
+    
+    // Test connection first
+    const connectionTest = await tweetAPI.testConnection();
+    if (!connectionTest.success) {
+      return res.status(500).json({
+        success: false,
+        error: `TweetAPI v2 connection failed: ${connectionTest.error}`
+      });
+    }
+    
+    // Try to post tweet
+    const result = await tweetAPI.createPost(text);
+    
+    res.json({
+      success: result.success,
+      data: result,
+      connectionTest: connectionTest
+    });
+    
+  } catch (error) {
+    console.error(`❌ [KOL API] Error testing TweetAPI v2:`, error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router;
