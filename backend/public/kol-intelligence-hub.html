@@ -2285,8 +2285,22 @@
                 }
                 
                 const dateIndex = labels.findIndex(label => {
+                    // Parse the formatted label back to a date
                     const labelDate = new Date(label);
-                    return Math.abs(labelDate - postDate) < 24 * 60 * 60 * 1000; // Within 24 hours
+                    if (isNaN(labelDate.getTime())) {
+                        console.log(`⚠️ [CHART] Invalid label date: ${label}`);
+                        return false;
+                    }
+                    
+                    // More lenient matching - within 48 hours instead of 24
+                    const timeDiff = Math.abs(labelDate - postDate);
+                    const withinRange = timeDiff < 48 * 60 * 60 * 1000; // Within 48 hours
+                    
+                    if (withinRange) {
+                        console.log(`✅ [CHART] Found matching date: ${label} (diff: ${Math.round(timeDiff / (60 * 60 * 1000))}h)`);
+                    }
+                    
+                    return withinRange;
                 });
 
                 if (dateIndex >= 0) {
@@ -2313,6 +2327,33 @@
                         time: postDate.toLocaleTimeString(),
                         text: post.text.substring(0, 100) + '...'
                     });
+                } else {
+                    // Fallback: If no exact date match, add mention to the first available price point
+                    console.log(`⚠️ [CHART] No date match for ${post.kol_handle}'s post about ${coin}, using fallback`);
+                    if (priceDataPoints.length > 0) {
+                        const engagement = (post.likes || 0) + (post.retweets || 0) * 2 + (post.views || 0) / 100;
+                        const impact = calculatePriceImpact(post, priceData);
+                        
+                        mentionData.push({
+                            x: 0, // Use first price point
+                            y: priceDataPoints[0]?.y || 0
+                        });
+
+                        // Color based on sentiment
+                        let color = '#FFA502'; // Default yellow for neutral
+                        if (post.sentiment > 0) color = '#14F195'; // Green for bullish
+                        else if (post.sentiment < 0) color = '#FF4757'; // Red for bearish
+                        
+                        mentionColors.push(color);
+                        mentionDetails.push({
+                            kol: post.kol_handle,
+                            sentiment: post.sentiment,
+                            engagement: Math.round(engagement),
+                            impact: impact,
+                            time: postDate.toLocaleTimeString(),
+                            text: post.text.substring(0, 100) + '...'
+                        });
+                    }
                 }
             });
 
