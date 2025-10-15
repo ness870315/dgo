@@ -527,6 +527,9 @@
                             <button id="networkReset" onclick="resetNetwork()" class="network-control-btn" title="Reset View">
                                 <i data-lucide="refresh-cw" class="w-4 h-4 inline"></i>
                             </button>
+                            <button id="networkFullscreen" onclick="toggleNetworkFullscreen()" class="network-control-btn" title="Toggle Fullscreen">
+                                <i data-lucide="maximize" class="w-4 h-4 inline"></i>
+                            </button>
                         </div>
                     </div>
                     <div class="glass-light rounded-lg p-6 relative">
@@ -1337,7 +1340,7 @@
                 });
             });
 
-            // Add KOL nodes (top 10 by posts)
+            // Add KOL nodes (top 15 by posts to include more KOLs)
             const kolCounts = {};
             posts.forEach(post => {
                 kolCounts[post.kol_handle] = (kolCounts[post.kol_handle] || 0) + 1;
@@ -1345,7 +1348,7 @@
 
             Object.entries(kolCounts)
                 .sort((a, b) => b[1] - a[1])
-                .slice(0, 10)
+                .slice(0, 15)
                 .forEach(([handle, count]) => {
                     // Get KOL profile picture from kols array
                     const kolInfo = kols.find(k => k.handle.toLowerCase() === handle.toLowerCase());
@@ -1595,6 +1598,65 @@
 
         function resetNetwork() {
             renderNetwork();
+        }
+
+        // Toggle fullscreen for network graph
+        function toggleNetworkFullscreen() {
+            const networkSection = document.querySelector('#networkGraph').closest('section');
+            const fullscreenBtn = document.getElementById('networkFullscreen');
+            const icon = fullscreenBtn.querySelector('i');
+            
+            if (!networkSection.classList.contains('fullscreen-mode')) {
+                // Enter fullscreen
+                networkSection.classList.add('fullscreen-mode');
+                networkSection.style.cssText = `
+                    position: fixed !important;
+                    top: 0 !important;
+                    left: 0 !important;
+                    width: 100vw !important;
+                    height: 100vh !important;
+                    z-index: 9999 !important;
+                    background: rgba(0, 0, 0, 0.95) !important;
+                    backdrop-filter: blur(10px) !important;
+                    padding: 20px !important;
+                    overflow: hidden !important;
+                `;
+                
+                // Update button icon to minimize
+                icon.setAttribute('data-lucide', 'minimize');
+                lucide.createIcons();
+                
+                // Resize network graph to fill screen
+                const networkGraph = document.getElementById('networkGraph');
+                networkGraph.style.cssText = `
+                    width: calc(100vw - 40px) !important;
+                    height: calc(100vh - 120px) !important;
+                    min-height: calc(100vh - 120px) !important;
+                `;
+                
+                // Re-render network to fit new size
+                setTimeout(() => {
+                    renderNetwork(true);
+                }, 100);
+                
+            } else {
+                // Exit fullscreen
+                networkSection.classList.remove('fullscreen-mode');
+                networkSection.style.cssText = '';
+                
+                // Update button icon back to maximize
+                icon.setAttribute('data-lucide', 'maximize');
+                lucide.createIcons();
+                
+                // Reset network graph size
+                const networkGraph = document.getElementById('networkGraph');
+                networkGraph.style.cssText = '';
+                
+                // Re-render network to fit normal size
+                setTimeout(() => {
+                    renderNetwork(true);
+                }, 100);
+            }
         }
 
         // Update narrative radar
