@@ -393,10 +393,38 @@ const API_CALL_DELAY = 2000; // 2 seconds between calls
 const imageCache = new Map();
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
+// Retry tracking for failed image fetches
+const failedImageAttempts = new Map(); // symbol -> { attempts: number, lastAttempt: timestamp, blockedUntil: timestamp }
+const MAX_ATTEMPTS = 3;
+const BLOCK_DURATION = 48 * 60 * 60 * 1000; // 48 hours
+
 // POST /api/kol/fetch-coin-image/:symbol - Fetch coin image from CoinGecko or Perplexity
 router.post('/fetch-coin-image/:symbol', async (req, res) => {
   try {
     const { symbol } = req.params;
+    const symbolKey = symbol.toUpperCase();
+    
+    // Check if this symbol is currently blocked due to too many failed attempts
+    const failedAttempt = failedImageAttempts.get(symbolKey);
+    if (failedAttempt) {
+      const now = Date.now();
+      if (now < failedAttempt.blockedUntil) {
+        const remainingTime = Math.round((failedAttempt.blockedUntil - now) / (60 * 60 * 1000)); // hours
+        console.log(`🚫 [KOL API] ${symbol} is blocked for ${remainingTime} more hours due to ${failedAttempt.attempts} failed attempts`);
+        return res.json({
+          success: false,
+          imageUrl: null,
+          message: `Symbol blocked for ${remainingTime} hours due to repeated failures`,
+          blocked: true,
+          attempts: failedAttempt.attempts,
+          blockedUntil: failedAttempt.blockedUntil
+        });
+      } else {
+        // Block period expired, reset attempts
+        console.log(`🔄 [KOL API] Block period expired for ${symbol}, resetting attempts`);
+        failedImageAttempts.delete(symbolKey);
+      }
+    }
     
     // Check cache first
     const cacheKey = symbol.toUpperCase();
@@ -484,11 +512,26 @@ router.post('/fetch-coin-image/:symbol', async (req, res) => {
     // CoinGecko is the only source - no Perplexity fallback
     console.log(`❌ [KOL API] No image found for ${symbol} from CoinGecko`);
     
-    console.log(`❌ [KOL API] No image found for ${symbol}`);
+    // Track failed attempt
+    const currentAttempt = failedImageAttempts.get(symbolKey) || { attempts: 0, lastAttempt: 0 };
+    currentAttempt.attempts += 1;
+    currentAttempt.lastAttempt = Date.now();
+    
+    if (currentAttempt.attempts >= MAX_ATTEMPTS) {
+      currentAttempt.blockedUntil = Date.now() + BLOCK_DURATION;
+      console.log(`🚫 [KOL API] ${symbol} has failed ${currentAttempt.attempts} times, blocking for 48 hours`);
+    }
+    
+    failedImageAttempts.set(symbolKey, currentAttempt);
+    
+    console.log(`❌ [KOL API] No image found for ${symbol} (attempt ${currentAttempt.attempts}/${MAX_ATTEMPTS})`);
     res.json({
       success: false,
       imageUrl: null,
-      message: 'No image found'
+      message: 'No image found',
+      attempts: currentAttempt.attempts,
+      maxAttempts: MAX_ATTEMPTS,
+      willBeBlocked: currentAttempt.attempts >= MAX_ATTEMPTS
     });
     
   } catch (error) {

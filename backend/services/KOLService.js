@@ -14,6 +14,7 @@ import path from 'path';
 import axios from 'axios';
 import OpenAIService from '../openaiService.js';
 import PerplexitySonarService from './PerplexitySonarService.js';
+import TweetAPIPostingService from './TweetAPIPostingService.js';
 
 class KOLService {
   constructor() {
@@ -37,6 +38,7 @@ class KOLService {
     
     this.openaiService = new OpenAIService();
     this.perplexityService = new PerplexitySonarService();
+    this.tweetPostingService = new TweetAPIPostingService();
     
     // Logo cache (symbol -> logo URL)
     this.logosCache = new Map();
@@ -617,21 +619,28 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
               'SPX6900': 'SPX'
             };
             const actualSymbol = symbolMapping[symbolUpper] || symbolUpper;
+            
+            // Skip symbols that are known to not work with CoinDesk
+            const skipCoinDesk = ['SPX6900', 'SPX']; // SPX is not available on CoinDesk Kraken
       
       console.log(`🔍 [KOL SERVICE] Fetching historical price for $${symbol} at ${targetTime.toISOString()}`);
       
       // Try CoinDesk (primary free API - no location restrictions)
-      try {
-        console.log(`🔍 [KOL SERVICE] Trying CoinDesk for ${symbol} at ${targetTime.toISOString()}`);
-        const coindeskPrice = await this.fetchCoinDeskHistoricalPrice(symbolUpper, targetTime);
-        if (coindeskPrice) {
-          console.log(`✅ [KOL SERVICE] Found CoinDesk price for $${symbol}: $${coindeskPrice}`);
-          return coindeskPrice;
-        } else {
-          console.log(`⚠️ [KOL SERVICE] CoinDesk returned null for ${symbol}`);
+      if (!skipCoinDesk.includes(symbolUpper)) {
+        try {
+          console.log(`🔍 [KOL SERVICE] Trying CoinDesk for ${symbol} at ${targetTime.toISOString()}`);
+          const coindeskPrice = await this.fetchCoinDeskHistoricalPrice(symbolUpper, targetTime);
+          if (coindeskPrice) {
+            console.log(`✅ [KOL SERVICE] Found CoinDesk price for $${symbol}: $${coindeskPrice}`);
+            return coindeskPrice;
+          } else {
+            console.log(`⚠️ [KOL SERVICE] CoinDesk returned null for ${symbol}`);
+          }
+        } catch (error) {
+          console.log(`❌ [KOL SERVICE] CoinDesk failed for ${symbol}: ${error.message}`);
         }
-      } catch (error) {
-        console.log(`❌ [KOL SERVICE] CoinDesk failed for ${symbol}: ${error.message}`);
+      } else {
+        console.log(`⏭️ [KOL SERVICE] Skipping CoinDesk for ${symbol} (known incompatible symbol)`);
       }
       
       // Try CoinAPI.io (fallback - comprehensive coverage)
