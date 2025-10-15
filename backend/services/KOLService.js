@@ -723,7 +723,7 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       return null;
     } catch (error) {
       console.log(`❌ [COINDESK INDIVIDUAL] Exception for ${symbol}: ${error.message}`);
-      throw new Error(`CoinDesk API error: ${error.message}`);
+      return null; // Return null instead of throwing, so CoinAPI fallback can be tried
     }
   }
 
