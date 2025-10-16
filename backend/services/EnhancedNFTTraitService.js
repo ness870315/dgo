@@ -452,7 +452,7 @@ export default class EnhancedNFTTraitService {
   }
 
   /**
-   * Calculate benefits based on Wizi traits
+   * Calculate benefits based on Wizi rarity only
    */
   calculateTraitBenefits(traits) {
     const benefits = {
@@ -464,7 +464,7 @@ export default class EnhancedNFTTraitService {
     };
     
     try {
-      // Count NFTs by rarity
+      // Count NFTs by rarity - SIMPLE APPROACH
       const rarityCounts = {
         'Common': 0,
         'Uncommon': 0,
@@ -472,9 +472,8 @@ export default class EnhancedNFTTraitService {
         'Legendary': 0
       };
       
-      // Count NFTs by rarity using traitCounts
-      // traitCounts[traitType][traitValue] = count
-      const rarityTraitType = 'Rarity '; // The exact trait type name
+      // Look for rarity trait in traitCounts
+      const rarityTraitType = 'Rarity '; // The exact trait type name with space
       
       if (traits.traitCounts && traits.traitCounts[rarityTraitType]) {
         // Count NFTs by rarity
@@ -487,26 +486,30 @@ export default class EnhancedNFTTraitService {
           }
         });
       } else {
-        // Fallback: if no rarity trait found, assume all are Common
-        const totalNFTs = Object.values(traits.traitCounts).reduce((sum, traitType) => {
-          return sum + Object.values(traitType).reduce((typeSum, count) => typeSum + count, 0);
-        }, 0) / Object.keys(traits.traitCounts).length; // Average per trait type
-        
-        rarityCounts['Common'] = Math.round(totalNFTs) || 1; // At least 1 NFT
+        // If no rarity trait found, assume all NFTs are Common
+        // Count total NFTs from any trait type
+        let totalNFTs = 0;
+        if (traits.traitCounts && Object.keys(traits.traitCounts).length > 0) {
+          const firstTraitType = Object.keys(traits.traitCounts)[0];
+          totalNFTs = Object.values(traits.traitCounts[firstTraitType]).reduce((sum, count) => sum + count, 0);
+        }
+        rarityCounts['Common'] = totalNFTs || 1; // At least 1 NFT
       }
       
-      // Calculate total extended duration based on Wizi system
+      // Calculate total extended duration - CORRECT WIZI SYSTEM
       let totalExtendedDays = 0;
       
-      // Apply Wizi rarity multipliers:
-      // 1 Uncommon = 3 Days
-      // 1 Rare = 7 days  
-      // 1 Legendary = 30 days
-      // Plus multipliers: 2 uncommon = 6 days, 2 legendary = 60 days, etc.
+      // Common: 3 days
+      totalExtendedDays += rarityCounts['Common'] * 3;
       
-      totalExtendedDays += rarityCounts['Uncommon'] * 3;  // 3 days per Uncommon
-      totalExtendedDays += rarityCounts['Rare'] * 7;      // 7 days per Rare
-      totalExtendedDays += rarityCounts['Legendary'] * 30; // 30 days per Legendary
+      // Uncommon: 7 days
+      totalExtendedDays += rarityCounts['Uncommon'] * 7;
+      
+      // Rare: 15 days
+      totalExtendedDays += rarityCounts['Rare'] * 15;
+      
+      // Legendary: 30 days
+      totalExtendedDays += rarityCounts['Legendary'] * 30;
       
       // Determine highest tier
       let highestTier = 'Common';
@@ -514,39 +517,25 @@ export default class EnhancedNFTTraitService {
       else if (rarityCounts['Rare'] > 0) highestTier = 'Rare';
       else if (rarityCounts['Uncommon'] > 0) highestTier = 'Uncommon';
       
-      // Set benefits based on highest tier
-      const tierConfig = this.config.rarityMultipliers[highestTier];
-      if (tierConfig) {
-        benefits.tier = tierConfig.tier;
-        benefits.multiplier = tierConfig.multiplier;
-      }
-      
       benefits.extendedDuration = totalExtendedDays;
       benefits.rarityBreakdown = rarityCounts;
+      benefits.tier = highestTier;
       
-      // Add special features based on tier
-      if (highestTier === 'Legendary') {
-        benefits.specialFeatures.push('Exclusive Alpha Access', 'Priority Support', 'VIP Features');
-      } else if (highestTier === 'Rare') {
-        benefits.specialFeatures.push('Priority Support', 'Enhanced Analytics');
-      } else if (highestTier === 'Uncommon') {
-        benefits.specialFeatures.push('Priority Support');
-      }
-      
-      console.log(`🎨 Calculated Wizi benefits:`, {
-        totalNFTs: Object.keys(traits.allTraits).length,
+      console.log(`🎨 Wizi Rarity Calculation:`, {
         rarityBreakdown: rarityCounts,
         extendedDays: totalExtendedDays,
         tier: highestTier,
-        traitsStructure: {
-          allTraits: traits.allTraits,
-          traitCounts: traits.traitCounts,
-          rarityTraitType: rarityTraitType
+        calculation: {
+          common: `${rarityCounts['Common']} × 3 = ${rarityCounts['Common'] * 3} days`,
+          uncommon: `${rarityCounts['Uncommon']} × 7 = ${rarityCounts['Uncommon'] * 7} days`,
+          rare: `${rarityCounts['Rare']} × 15 = ${rarityCounts['Rare'] * 15} days`,
+          legendary: `${rarityCounts['Legendary']} × 30 = ${rarityCounts['Legendary'] * 30} days`,
+          total: `${totalExtendedDays} days`
         }
       });
       
     } catch (error) {
-      console.log('⚠️ Error calculating trait benefits:', error.message);
+      console.log('⚠️ Error calculating rarity benefits:', error.message);
     }
     
     return benefits;
