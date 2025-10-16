@@ -3939,17 +3939,11 @@
                 document.getElementById('viralDesc').textContent = '--';
             }
         }
-                
-                if (posts && posts.length > 0) {
-                    // Get recent posts for AI analysis (last 10 posts)
-                    const recentPosts = posts
-                        .filter(post => post.content && post.content.length > 10)
-                        .slice(0, 10);
                     
                     if (recentPosts.length > 0) {
                         try {
                             // Call AI narrative analysis API
-                            const response = await fetch('/api/ml/narrative-analysis', {
+                            // Removed orphaned code that was causing syntax error
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json',
