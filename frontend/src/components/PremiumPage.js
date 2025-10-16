@@ -159,7 +159,9 @@ export default function PremiumPage({ onBack, headerAuth }) {
             <h3 className="text-base sm:text-lg font-semibold text-white mb-3">Upgrade to Premium</h3>
             <p className="text-gray-300 text-xs sm:text-sm mb-4">Complete your secure payment below. Your account will be upgraded automatically after success.</p>
             <div className="flex justify-center">
-              <div id="helioCheckoutPremium" ref={containerRef} className="w-full max-w-xl" />
+              <div className="w-full max-w-md overflow-hidden rounded-lg border border-gray-600 bg-gray-800/50 p-4">
+                <div id="helioCheckoutPremium" ref={containerRef} className="w-full max-w-full" />
+              </div>
             </div>
             {statusMsg && (
               <div className="mt-4 text-xs sm:text-sm text-gray-300">{statusMsg}</div>

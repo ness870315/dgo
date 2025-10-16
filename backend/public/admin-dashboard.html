@@ -981,6 +981,7 @@
                             </div>
                             <div class="token-actions">
                                 <button class="btn btn-small btn-success" onclick="prefillUpgrade('${u.id}')">Upgrade</button>
+                                ${u.isPremium ? `<button class="btn btn-small btn-danger" onclick="revokeUserPremium('${u.username}')">Revoke</button>` : ''}
                             </div>
                         </div>
                     `;
@@ -994,6 +995,38 @@
         function prefillUpgrade(userId) {
             document.getElementById('upgradeUserId').value = userId;
             window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+
+        async function revokeUserPremium(username) {
+            if (!confirm(`Are you sure you want to revoke premium access for @${username}?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/revoke-premium', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        reason: 'Admin action via dashboard'
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`✅ Premium access revoked for @${username}`);
+                    // Refresh the user list to show updated status
+                    loadUsers();
+                } else {
+                    alert(`❌ Failed to revoke premium: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Error revoking premium:', error);
+                alert(`❌ Error revoking premium: ${error.message}`);
+            }
         }
 
         async function adminUpgradeUser() {
