@@ -4355,6 +4355,243 @@ class EnhancedBackend {
       }
     });
 
+    // === ENHANCED ML PREDICTIVE ANALYTICS ENDPOINTS ===
+    
+    // Initialize Enhanced Predictive Analytics Service
+    this.enhancedPredictiveAnalytics = null;
+    
+    // Get comprehensive KOL analytics with LLM insights
+    this.app.get('/api/ml/kol-analytics/:kolHandle', async (req, res) => {
+      try {
+        const { kolHandle } = req.params;
+        
+        if (!this.enhancedPredictiveAnalytics) {
+          const { default: EnhancedPredictiveAnalyticsService } = await import('./services/EnhancedPredictiveAnalyticsService.js');
+          this.enhancedPredictiveAnalytics = new EnhancedPredictiveAnalyticsService(this.oauthXService.db);
+          await this.enhancedPredictiveAnalytics.initialize();
+        }
+        
+        console.log(`🧠 [ENHANCED ML] Getting comprehensive analytics for @${kolHandle}`);
+        
+        const analytics = await this.enhancedPredictiveAnalytics.getKOLAnalytics(kolHandle);
+        
+        res.json({
+          success: true,
+          data: analytics,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error(`❌ [ENHANCED ML] KOL analytics error for ${req.params.kolHandle}:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get KOL analytics',
+          message: error.message
+        });
+      }
+    });
+    
+    // Get comprehensive token analytics with LLM insights
+    this.app.get('/api/ml/token-analytics/:coinSymbol', async (req, res) => {
+      try {
+        const { coinSymbol } = req.params;
+        
+        if (!this.enhancedPredictiveAnalytics) {
+          const { default: EnhancedPredictiveAnalyticsService } = await import('./services/EnhancedPredictiveAnalyticsService.js');
+          this.enhancedPredictiveAnalytics = new EnhancedPredictiveAnalyticsService(this.oauthXService.db);
+          await this.enhancedPredictiveAnalytics.initialize();
+        }
+        
+        console.log(`🧠 [ENHANCED ML] Getting comprehensive analytics for ${coinSymbol}`);
+        
+        const analytics = await this.enhancedPredictiveAnalytics.getTokenAnalytics(coinSymbol);
+        
+        res.json({
+          success: true,
+          data: analytics,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error(`❌ [ENHANCED ML] Token analytics error for ${req.params.coinSymbol}:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get token analytics',
+          message: error.message
+        });
+      }
+    });
+    
+    // Get market-wide analytics with LLM insights
+    this.app.get('/api/ml/market-analytics', async (req, res) => {
+      try {
+        if (!this.enhancedPredictiveAnalytics) {
+          const { default: EnhancedPredictiveAnalyticsService } = await import('./services/EnhancedPredictiveAnalyticsService.js');
+          this.enhancedPredictiveAnalytics = new EnhancedPredictiveAnalyticsService(this.oauthXService.db);
+          await this.enhancedPredictiveAnalytics.initialize();
+        }
+        
+        console.log(`🧠 [ENHANCED ML] Getting market-wide analytics`);
+        
+        const analytics = await this.enhancedPredictiveAnalytics.getMarketAnalytics();
+        
+        res.json({
+          success: true,
+          data: analytics,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error(`❌ [ENHANCED ML] Market analytics error:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get market analytics',
+          message: error.message
+        });
+      }
+    });
+    
+    // Get enhanced KOL performance predictions
+    this.app.get('/api/ml/kol-predictions/:kolHandle', async (req, res) => {
+      try {
+        const { kolHandle } = req.params;
+        
+        if (!this.enhancedPredictiveAnalytics) {
+          const { default: EnhancedPredictiveAnalyticsService } = await import('./services/EnhancedPredictiveAnalyticsService.js');
+          this.enhancedPredictiveAnalytics = new EnhancedPredictiveAnalyticsService(this.oauthXService.db);
+          await this.enhancedPredictiveAnalytics.initialize();
+        }
+        
+        console.log(`🧠 [ENHANCED ML] Getting performance predictions for @${kolHandle}`);
+        
+        const kol = this.oauthXService.db.getKOLs().find(k => k.handle === kolHandle);
+        if (!kol) {
+          return res.status(404).json({
+            success: false,
+            error: 'KOL not found',
+            message: `KOL @${kolHandle} not found in database`
+          });
+        }
+        
+        const prediction = await this.enhancedPredictiveAnalytics.enhancedKOLPredictor.predict(kol);
+        
+        res.json({
+          success: true,
+          data: prediction,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error(`❌ [ENHANCED ML] KOL prediction error for ${req.params.kolHandle}:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get KOL predictions',
+          message: error.message
+        });
+      }
+    });
+    
+    // Get enhanced token momentum forecasts
+    this.app.get('/api/ml/token-momentum/:coinSymbol', async (req, res) => {
+      try {
+        const { coinSymbol } = req.params;
+        
+        if (!this.enhancedPredictiveAnalytics) {
+          const { default: EnhancedPredictiveAnalyticsService } = await import('./services/EnhancedPredictiveAnalyticsService.js');
+          this.enhancedPredictiveAnalytics = new EnhancedPredictiveAnalyticsService(this.oauthXService.db);
+          await this.enhancedPredictiveAnalytics.initialize();
+        }
+        
+        console.log(`🧠 [ENHANCED ML] Getting momentum forecast for ${coinSymbol}`);
+        
+        // Get historical data (simplified for demo)
+        const historicalPrices = await this.hybridPriceService.getHistoricalPrices(coinSymbol, '1D', 30);
+        const kolMentions = this.oauthXService.db.getPosts().filter(p => p.coins.includes(coinSymbol));
+        const sentimentData = kolMentions.map(p => ({ timestamp: p.created_at, sentiment: p.sentiment }));
+        
+        const forecast = await this.enhancedPredictiveAnalytics.enhancedMomentumForecaster.forecastMomentum(
+          coinSymbol, 
+          historicalPrices, 
+          kolMentions, 
+          sentimentData
+        );
+        
+        res.json({
+          success: true,
+          data: forecast,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error(`❌ [ENHANCED ML] Token momentum error for ${req.params.coinSymbol}:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get token momentum',
+          message: error.message
+        });
+      }
+    });
+    
+    // Get enhanced early warning signals
+    this.app.get('/api/ml/early-warnings', async (req, res) => {
+      try {
+        if (!this.enhancedPredictiveAnalytics) {
+          const { default: EnhancedPredictiveAnalyticsService } = await import('./services/EnhancedPredictiveAnalyticsService.js');
+          this.enhancedPredictiveAnalytics = new EnhancedPredictiveAnalyticsService(this.oauthXService.db);
+          await this.enhancedPredictiveAnalytics.initialize();
+        }
+        
+        console.log(`🧠 [ENHANCED ML] Getting early warning signals`);
+        
+        const signals = await this.enhancedPredictiveAnalytics.enhancedEarlyWarningDetector.getEarlyWarningSignals();
+        
+        res.json({
+          success: true,
+          data: signals,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error(`❌ [ENHANCED ML] Early warning signals error:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get early warning signals',
+          message: error.message
+        });
+      }
+    });
+    
+    // Get ML service metrics
+    this.app.get('/api/ml/metrics', async (req, res) => {
+      try {
+        if (!this.enhancedPredictiveAnalytics) {
+          return res.json({
+            success: true,
+            data: {
+              initialized: false,
+              message: 'Enhanced Predictive Analytics Service not initialized'
+            }
+          });
+        }
+        
+        const metrics = this.enhancedPredictiveAnalytics.getMetrics();
+        
+        res.json({
+          success: true,
+          data: metrics,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error(`❌ [ENHANCED ML] Metrics error:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get ML metrics',
+          message: error.message
+        });
+      }
+    });
+
     // === AI ANALYSIS ENDPOINTS ===
     
     // Hype Trend Analysis endpoint (NO AI - just technical analysis)

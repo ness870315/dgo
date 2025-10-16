@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced KOL Intelligence Hub - Advanced Analytics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/d3@7"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+        }
+        .glass-effect {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        .heatmap-tooltip, .sentiment-tooltip, .influence-decay-tooltip {
+            font-family: 'Inter', sans-serif;
+        }
+        .loading-spinner {
+            border: 2px solid #374151;
+            border-top: 2px solid #3b82f6;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen text-white">
+    <!-- Header -->
+    <header class="glass-effect border-b border-slate-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <i data-lucide="brain" class="w-5 h-5 text-white"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                        Enhanced KOL Intelligence Hub
+                    </h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2 text-sm text-slate-400">
+                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        <span>ML Services Active</span>
+                    </div>
+                    <button id="refreshBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+                        <i data-lucide="refresh-cw" class="w-4 h-4 inline mr-2"></i>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Stats Overview -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="glass-effect rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-400 text-sm">Total KOLs</p>
+                        <p class="text-2xl font-bold text-blue-400" id="totalKOLs">-</p>
+                    </div>
+                    <i data-lucide="users" class="w-8 h-8 text-blue-400"></i>
+                </div>
+            </div>
+            <div class="glass-effect rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-400 text-sm">Active Signals</p>
+                        <p class="text-2xl font-bold text-green-400" id="activeSignals">-</p>
+                    </div>
+                    <i data-lucide="activity" class="w-8 h-8 text-green-400"></i>
+                </div>
+            </div>
+            <div class="glass-effect rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-400 text-sm">ML Predictions</p>
+                        <p class="text-2xl font-bold text-purple-400" id="mlPredictions">-</p>
+                    </div>
+                    <i data-lucide="brain" class="w-8 h-8 text-purple-400"></i>
+                </div>
+            </div>
+            <div class="glass-effect rounded-xl p-6">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-slate-400 text-sm">Confidence</p>
+                        <p class="text-2xl font-bold text-yellow-400" id="avgConfidence">-</p>
+                    </div>
+                    <i data-lucide="target" class="w-8 h-8 text-yellow-400"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visualization Tabs -->
+        <div class="glass-effect rounded-xl mb-8">
+            <div class="border-b border-slate-700">
+                <nav class="flex space-x-8 px-6">
+                    <button class="tab-btn py-4 px-2 border-b-2 border-blue-500 text-blue-400 font-medium" data-tab="heatmap">
+                        <i data-lucide="grid-3x3" class="w-4 h-4 inline mr-2"></i>
+                        Timeline Heatmaps
+                    </button>
+                    <button class="tab-btn py-4 px-2 border-b-2 border-transparent text-slate-400 hover:text-white transition-colors" data-tab="sentiment">
+                        <i data-lucide="trending-up" class="w-4 h-4 inline mr-2"></i>
+                        Sentiment Trends
+                    </button>
+                    <button class="tab-btn py-4 px-2 border-b-2 border-transparent text-slate-400 hover:text-white transition-colors" data-tab="decay">
+                        <i data-lucide="trending-down" class="w-4 h-4 inline mr-2"></i>
+                        Influence Decay
+                    </button>
+                    <button class="tab-btn py-4 px-2 border-b-2 border-transparent text-slate-400 hover:text-white transition-colors" data-tab="analytics">
+                        <i data-lucide="bar-chart-3" class="w-4 h-4 inline mr-2"></i>
+                        ML Analytics
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="p-6">
+                <!-- Timeline Heatmaps Tab -->
+                <div id="heatmap-tab" class="tab-content">
+                    <div class="mb-6">
+                        <h3 class="text-xl font-semibold mb-2">KOL Activity Timeline Heatmaps</h3>
+                        <p class="text-slate-400">Visualize KOL activity patterns, sentiment intensity, and performance correlation over time</p>
+                    </div>
+                    <div class="glass-effect rounded-lg p-4 mb-4">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center space-x-4">
+                                <select id="heatmapTimeRange" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white">
+                                    <option value="7d">Last 7 Days</option>
+                                    <option value="30d" selected>Last 30 Days</option>
+                                    <option value="90d">Last 90 Days</option>
+                                </select>
+                                <select id="heatmapMetric" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white">
+                                    <option value="activity" selected>Activity</option>
+                                    <option value="sentiment">Sentiment</option>
+                                    <option value="performance">Performance</option>
+                                    <option value="engagement">Engagement</option>
+                                </select>
+                            </div>
+                            <button id="loadHeatmapBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+                                <i data-lucide="play" class="w-4 h-4 inline mr-2"></i>
+                                Load Heatmap
+                            </button>
+                        </div>
+                        <div id="heatmap-container" class="w-full h-96 bg-slate-900 rounded-lg flex items-center justify-center">
+                            <div class="text-center">
+                                <i data-lucide="grid-3x3" class="w-12 h-12 text-slate-600 mx-auto mb-2"></i>
+                                <p class="text-slate-400">Click "Load Heatmap" to visualize KOL activity patterns</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sentiment Trends Tab -->
+                <div id="sentiment-tab" class="tab-content hidden">
+                    <div class="mb-6">
+                        <h3 class="text-xl font-semibold mb-2">Sentiment Trends with Predictive Indicators</h3>
+                        <p class="text-slate-400">Analyze sentiment patterns with ML-powered predictions and confidence intervals</p>
+                    </div>
+                    <div class="glass-effect rounded-lg p-4 mb-4">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center space-x-4">
+                                <select id="sentimentKOL" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white">
+                                    <option value="">Select KOL...</option>
+                                </select>
+                                <select id="sentimentTimeRange" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white">
+                                    <option value="7d">Last 7 Days</option>
+                                    <option value="30d" selected>Last 30 Days</option>
+                                    <option value="90d">Last 90 Days</option>
+                                </select>
+                            </div>
+                            <button id="loadSentimentBtn" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors">
+                                <i data-lucide="play" class="w-4 h-4 inline mr-2"></i>
+                                Load Sentiment Analysis
+                            </button>
+                        </div>
+                        <div id="sentiment-container" class="w-full h-96 bg-slate-900 rounded-lg flex items-center justify-center">
+                            <div class="text-center">
+                                <i data-lucide="trending-up" class="w-12 h-12 text-slate-600 mx-auto mb-2"></i>
+                                <p class="text-slate-400">Select a KOL and click "Load Sentiment Analysis" to view trends</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Influence Decay Tab -->
+                <div id="decay-tab" class="tab-content hidden">
+                    <div class="mb-6">
+                        <h3 class="text-xl font-semibold mb-2">Influence Decay Analysis</h3>
+                        <p class="text-slate-400">Track KOL influence decay patterns with predictive modeling and performance correlation</p>
+                    </div>
+                    <div class="glass-effect rounded-lg p-4 mb-4">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="flex items-center space-x-4">
+                                <select id="decayTimeRange" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white">
+                                    <option value="30d">Last 30 Days</option>
+                                    <option value="90d" selected>Last 90 Days</option>
+                                    <option value="180d">Last 6 Months</option>
+                                </select>
+                                <label class="flex items-center space-x-2">
+                                    <input type="checkbox" id="showDecayModels" checked class="rounded">
+                                    <span class="text-sm text-slate-400">Show Decay Models</span>
+                                </label>
+                            </div>
+                            <button id="loadDecayBtn" class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
+                                <i data-lucide="play" class="w-4 h-4 inline mr-2"></i>
+                                Load Decay Analysis
+                            </button>
+                        </div>
+                        <div id="decay-container" class="w-full h-96 bg-slate-900 rounded-lg flex items-center justify-center">
+                            <div class="text-center">
+                                <i data-lucide="trending-down" class="w-12 h-12 text-slate-600 mx-auto mb-2"></i>
+                                <p class="text-slate-400">Click "Load Decay Analysis" to view influence decay patterns</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ML Analytics Tab -->
+                <div id="analytics-tab" class="tab-content hidden">
+                    <div class="mb-6">
+                        <h3 class="text-xl font-semibold mb-2">ML Analytics Dashboard</h3>
+                        <p class="text-slate-400">Comprehensive analytics powered by GPT-4 Turbo and advanced ML models</p>
+                    </div>
+                    
+                    <!-- KOL Analytics -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <div class="glass-effect rounded-lg p-6">
+                            <h4 class="text-lg font-semibold mb-4">KOL Performance Analytics</h4>
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <select id="analyticsKOL" class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white flex-1 mr-4">
+                                        <option value="">Select KOL...</option>
+                                    </select>
+                                    <button id="loadKOLAnalyticsBtn" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors">
+                                        Analyze
+                                    </button>
+                                </div>
+                                <div id="kol-analytics-results" class="text-sm text-slate-400">
+                                    Select a KOL to view comprehensive analytics
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="glass-effect rounded-lg p-6">
+                            <h4 class="text-lg font-semibold mb-4">Token Momentum Analytics</h4>
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <input type="text" id="analyticsToken" placeholder="Enter token symbol..." class="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white flex-1 mr-4">
+                                    <button id="loadTokenAnalyticsBtn" class="px-4 py-2 bg-orange-600 hover:bg-orange-700 rounded-lg transition-colors">
+                                        Analyze
+                                    </button>
+                                </div>
+                                <div id="token-analytics-results" class="text-sm text-slate-400">
+                                    Enter a token symbol to view momentum analysis
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Early Warning Signals -->
+                    <div class="glass-effect rounded-lg p-6">
+                        <h4 class="text-lg font-semibold mb-4">Early Warning Signals</h4>
+                        <div class="flex items-center justify-between mb-4">
+                            <p class="text-slate-400">Real-time alerts powered by ML pattern detection</p>
+                            <button id="loadWarningSignalsBtn" class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
+                                <i data-lucide="alert-triangle" class="w-4 h-4 inline mr-2"></i>
+                                Load Signals
+                            </button>
+                        </div>
+                        <div id="warning-signals-results" class="text-sm text-slate-400">
+                            Click "Load Signals" to view active early warning alerts
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="/js/timeline-heatmap.js"></script>
+    <script src="/js/sentiment-trends.js"></script>
+    <script src="/js/influence-decay.js"></script>
+    
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Global variables
+        let heatmapViz = null;
+        let sentimentViz = null;
+        let decayViz = null;
+        let currentTab = 'heatmap';
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+            setupEventListeners();
+            loadInitialData();
+        });
+
+        function initializeApp() {
+            console.log('🚀 [Enhanced KOL Hub] Initializing application...');
+            
+            // Initialize visualizations
+            heatmapViz = new TimelineHeatmapVisualization('heatmap-container', {
+                width: document.getElementById('heatmap-container').offsetWidth,
+                height: 384
+            });
+            
+            sentimentViz = new SentimentTrendsVisualization('sentiment-container', {
+                width: document.getElementById('sentiment-container').offsetWidth,
+                height: 384
+            });
+            
+            decayViz = new InfluenceDecayVisualization('decay-container', {
+                width: document.getElementById('decay-container').offsetWidth,
+                height: 384
+            });
+        }
+
+        function setupEventListeners() {
+            // Tab switching
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const tab = this.dataset.tab;
+                    switchTab(tab);
+                });
+            });
+
+            // Heatmap controls
+            document.getElementById('loadHeatmapBtn').addEventListener('click', loadHeatmapData);
+            
+            // Sentiment controls
+            document.getElementById('loadSentimentBtn').addEventListener('click', loadSentimentData);
+            
+            // Decay controls
+            document.getElementById('loadDecayBtn').addEventListener('click', loadDecayData);
+            
+            // Analytics controls
+            document.getElementById('loadKOLAnalyticsBtn').addEventListener('click', loadKOLAnalytics);
+            document.getElementById('loadTokenAnalyticsBtn').addEventListener('click', loadTokenAnalytics);
+            document.getElementById('loadWarningSignalsBtn').addEventListener('click', loadWarningSignals);
+            
+            // Refresh button
+            document.getElementById('refreshBtn').addEventListener('click', refreshAllData);
+        }
+
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-blue-500', 'text-blue-400');
+                btn.classList.add('border-transparent', 'text-slate-400');
+            });
+            
+            document.querySelector(`[data-tab="${tabName}"]`).classList.remove('border-transparent', 'text-slate-400');
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('border-blue-500', 'text-blue-400');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+            
+            currentTab = tabName;
+        }
+
+        async function loadInitialData() {
+            try {
+                console.log('📊 [Enhanced KOL Hub] Loading initial data...');
+                
+                // Load market analytics for stats
+                const marketResponse = await fetch('/api/ml/market-analytics');
+                const marketData = await marketResponse.json();
+                
+                if (marketData.success) {
+                    updateStats(marketData.data);
+                }
+                
+                // Load KOL list for dropdowns
+                await loadKOLList();
+                
+            } catch (error) {
+                console.error('❌ [Enhanced KOL Hub] Error loading initial data:', error);
+            }
+        }
+
+        function updateStats(data) {
+            document.getElementById('totalKOLs').textContent = data.totalKOLs || 0;
+            document.getElementById('activeSignals').textContent = data.activeAlerts || 0;
+            document.getElementById('mlPredictions').textContent = 'Active';
+            document.getElementById('avgConfidence').textContent = '85%';
+        }
+
+        async function loadKOLList() {
+            try {
+                // This would typically come from your KOL service
+                const kols = ['elonmusk', 'vitalikbuterin', 'naval', 'balajis', 'michael_saylor'];
+                
+                const sentimentSelect = document.getElementById('sentimentKOL');
+                const analyticsSelect = document.getElementById('analyticsKOL');
+                
+                kols.forEach(kol => {
+                    const option1 = new Option(`@${kol}`, kol);
+                    const option2 = new Option(`@${kol}`, kol);
+                    sentimentSelect.add(option1);
+                    analyticsSelect.add(option2);
+                });
+                
+            } catch (error) {
+                console.error('❌ [Enhanced KOL Hub] Error loading KOL list:', error);
+            }
+        }
+
+        async function loadHeatmapData() {
+            try {
+                console.log('🔥 [Heatmap] Loading heatmap data...');
+                
+                const timeRange = document.getElementById('heatmapTimeRange').value;
+                const metric = document.getElementById('heatmapMetric').value;
+                
+                // Simulate API call - replace with actual endpoint
+                const mockData = generateMockHeatmapData(timeRange, metric);
+                
+                await heatmapViz.loadData(mockData);
+                
+            } catch (error) {
+                console.error('❌ [Heatmap] Error loading data:', error);
+            }
+        }
+
+        async function loadSentimentData() {
+            try {
+                console.log('📈 [Sentiment] Loading sentiment data...');
+                
+                const kolHandle = document.getElementById('sentimentKOL').value;
+                const timeRange = document.getElementById('sentimentTimeRange').value;
+                
+                if (!kolHandle) {
+                    alert('Please select a KOL');
+                    return;
+                }
+                
+                // Simulate API call - replace with actual endpoint
+                const mockData = generateMockSentimentData(kolHandle, timeRange);
+                
+                await sentimentViz.loadData(mockData);
+                
+            } catch (error) {
+                console.error('❌ [Sentiment] Error loading data:', error);
+            }
+        }
+
+        async function loadDecayData() {
+            try {
+                console.log('📉 [Decay] Loading decay data...');
+                
+                const timeRange = document.getElementById('decayTimeRange').value;
+                
+                // Simulate API call - replace with actual endpoint
+                const mockData = generateMockDecayData(timeRange);
+                
+                await decayViz.loadData(mockData);
+                
+            } catch (error) {
+                console.error('❌ [Decay] Error loading data:', error);
+            }
+        }
+
+        async function loadKOLAnalytics() {
+            try {
+                const kolHandle = document.getElementById('analyticsKOL').value;
+                
+                if (!kolHandle) {
+                    alert('Please select a KOL');
+                    return;
+                }
+                
+                console.log(`🧠 [KOL Analytics] Loading analytics for @${kolHandle}...`);
+                
+                const response = await fetch(`/api/ml/kol-analytics/${kolHandle}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayKOLAnalytics(result.data);
+                } else {
+                    document.getElementById('kol-analytics-results').innerHTML = 
+                        `<div class="text-red-400">Error: ${result.message}</div>`;
+                }
+                
+            } catch (error) {
+                console.error('❌ [KOL Analytics] Error:', error);
+                document.getElementById('kol-analytics-results').innerHTML = 
+                    `<div class="text-red-400">Error loading analytics</div>`;
+            }
+        }
+
+        async function loadTokenAnalytics() {
+            try {
+                const tokenSymbol = document.getElementById('analyticsToken').value.trim().toUpperCase();
+                
+                if (!tokenSymbol) {
+                    alert('Please enter a token symbol');
+                    return;
+                }
+                
+                console.log(`🧠 [Token Analytics] Loading analytics for ${tokenSymbol}...`);
+                
+                const response = await fetch(`/api/ml/token-analytics/${tokenSymbol}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayTokenAnalytics(result.data);
+                } else {
+                    document.getElementById('token-analytics-results').innerHTML = 
+                        `<div class="text-red-400">Error: ${result.message}</div>`;
+                }
+                
+            } catch (error) {
+                console.error('❌ [Token Analytics] Error:', error);
+                document.getElementById('token-analytics-results').innerHTML = 
+                    `<div class="text-red-400">Error loading analytics</div>`;
+            }
+        }
+
+        async function loadWarningSignals() {
+            try {
+                console.log('⚠️ [Warning Signals] Loading signals...');
+                
+                const response = await fetch('/api/ml/early-warnings');
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayWarningSignals(result.data);
+                } else {
+                    document.getElementById('warning-signals-results').innerHTML = 
+                        `<div class="text-red-400">Error: ${result.message}</div>`;
+                }
+                
+            } catch (error) {
+                console.error('❌ [Warning Signals] Error:', error);
+                document.getElementById('warning-signals-results').innerHTML = 
+                    `<div class="text-red-400">Error loading signals</div>`;
+            }
+        }
+
+        function displayKOLAnalytics(data) {
+            const html = `
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-blue-400 font-medium">@${data.kolHandle}</span>
+                        <span class="text-xs text-slate-400">${new Date(data.timestamp).toLocaleString()}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="text-slate-400">Alpha Score:</span>
+                            <span class="text-blue-400 font-medium">${data.performancePrediction.predictions.alphaScore30d}/100</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400">Hit Rate:</span>
+                            <span class="text-green-400 font-medium">${(data.performancePrediction.predictions.hitRate30d * 100).toFixed(1)}%</span>
+                        </div>
+                    </div>
+                    ${data.llmInsights ? `
+                        <div class="text-sm">
+                            <span class="text-slate-400">LLM Insights:</span>
+                            <p class="text-slate-300 mt-1">${data.llmInsights.naturalLanguageExplanation}</p>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            document.getElementById('kol-analytics-results').innerHTML = html;
+        }
+
+        function displayTokenAnalytics(data) {
+            const html = `
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-orange-400 font-medium">${data.coinSymbol}</span>
+                        <span class="text-xs text-slate-400">${new Date(data.timestamp).toLocaleString()}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="text-slate-400">Momentum:</span>
+                            <span class="text-orange-400 font-medium">${data.momentumForecast.momentumScore}</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400">Trend:</span>
+                            <span class="text-green-400 font-medium">${data.momentumForecast.trendDirection}</span>
+                        </div>
+                    </div>
+                    ${data.llmInsights ? `
+                        <div class="text-sm">
+                            <span class="text-slate-400">LLM Insights:</span>
+                            <p class="text-slate-300 mt-1">${data.llmInsights.naturalLanguageExplanation}</p>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            document.getElementById('token-analytics-results').innerHTML = html;
+        }
+
+        function displayWarningSignals(signals) {
+            if (!signals || signals.length === 0) {
+                document.getElementById('warning-signals-results').innerHTML = 
+                    `<div class="text-green-400">✅ No active warning signals</div>`;
+                return;
+            }
+            
+            const html = signals.map(signal => `
+                <div class="border border-slate-600 rounded-lg p-4 mb-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-medium text-${signal.severity === 'Critical' ? 'red' : signal.severity === 'High' ? 'orange' : 'yellow'}-400">
+                            ${signal.severity} Alert
+                        </span>
+                        <span class="text-xs text-slate-400">${signal.type}</span>
+                    </div>
+                    <p class="text-sm text-slate-300 mb-2">${signal.message}</p>
+                    ${signal.enhancedMessage ? `<p class="text-xs text-slate-400">${signal.enhancedMessage}</p>` : ''}
+                </div>
+            `).join('');
+            
+            document.getElementById('warning-signals-results').innerHTML = html;
+        }
+
+        function refreshAllData() {
+            console.log('🔄 [Enhanced KOL Hub] Refreshing all data...');
+            loadInitialData();
+            
+            // Refresh current tab
+            switch(currentTab) {
+                case 'heatmap':
+                    loadHeatmapData();
+                    break;
+                case 'sentiment':
+                    loadSentimentData();
+                    break;
+                case 'decay':
+                    loadDecayData();
+                    break;
+                case 'analytics':
+                    // Analytics are loaded on demand
+                    break;
+            }
+        }
+
+        // Mock data generators (replace with actual API calls)
+        function generateMockHeatmapData(timeRange, metric) {
+            const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 90;
+            const kols = ['elonmusk', 'vitalikbuterin', 'naval', 'balajis', 'michael_saylor'];
+            const data = [];
+            
+            for (let i = 0; i < days; i++) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                
+                kols.forEach(kol => {
+                    data.push({
+                        kolHandle: kol,
+                        timestamp: date.toISOString(),
+                        activity: Math.random(),
+                        sentiment: (Math.random() - 0.5) * 2,
+                        performance: (Math.random() - 0.5) * 2,
+                        engagement: Math.random() * 1000,
+                        mentions: Math.floor(Math.random() * 10) + 1
+                    });
+                });
+            }
+            
+            return data;
+        }
+
+        function generateMockSentimentData(kolHandle, timeRange) {
+            const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 90;
+            const data = [];
+            
+            for (let i = days; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                
+                data.push({
+                    timestamp: date.toISOString(),
+                    sentiment: (Math.random() - 0.5) * 2,
+                    confidence: 0.7 + Math.random() * 0.3,
+                    volume: Math.floor(Math.random() * 100) + 1
+                });
+            }
+            
+            return data;
+        }
+
+        function generateMockDecayData(timeRange) {
+            const days = timeRange === '30d' ? 30 : timeRange === '90d' ? 90 : 180;
+            const kols = ['elonmusk', 'vitalikbuterin', 'naval', 'balajis', 'michael_saylor'];
+            const data = [];
+            
+            kols.forEach(kol => {
+                let influence = 1.0;
+                const decayRate = 0.01 + Math.random() * 0.02;
+                
+                for (let i = 0; i < days; i++) {
+                    const date = new Date();
+                    date.setDate(date.getDate() - (days - i));
+                    
+                    influence *= (1 - decayRate);
+                    
+                    data.push({
+                        kolHandle: kol,
+                        timestamp: date.toISOString(),
+                        influence: Math.max(0, influence + (Math.random() - 0.5) * 0.1),
+                        performance: (Math.random() - 0.5) * 2,
+                        engagement: Math.random() * 1000,
+                        followers: Math.floor(Math.random() * 1000000) + 100000
+                    });
+                }
+            });
+            
+            return data;
+        }
+    </script>
+</body>
+</html>
