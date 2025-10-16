@@ -182,6 +182,48 @@
             box-shadow: 0 5px 20px rgba(153, 69, 255, 0.3);
         }
 
+        /* Analytics Tab Styles */
+        .analytics-tab {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            background: transparent;
+            border: none;
+            border-radius: 0.5rem;
+            color: #9CA3AF;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .analytics-tab:hover {
+            background: rgba(153, 69, 255, 0.1);
+            color: #9945FF;
+        }
+
+        .analytics-tab.active {
+            background: #9945FF;
+            color: white;
+            box-shadow: 0 2px 8px rgba(153, 69, 255, 0.3);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         /* Narrative Badge */
         .narrative-badge {
             display: inline-flex;
@@ -567,6 +609,236 @@
                     </div>
                 </section>
 
+                <!-- ENHANCED ANALYTICS -->
+                <section>
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="brain" class="w-5 h-5 accent-purple"></i>
+                            <h3 class="text-xl font-bold">ENHANCED ANALYTICS</h3>
+                            <span class="text-xs text-gray-500 ml-2">AI-Powered Insights & Predictions</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Analytics Tabs -->
+                    <div class="mb-6">
+                        <div class="flex space-x-1 bg-gray-900 rounded-lg p-1">
+                            <button id="analyticsTab" onclick="switchAnalyticsTab('analytics')" class="analytics-tab active">
+                                <i data-lucide="bar-chart-3" class="w-4 h-4 mr-2"></i>
+                                Analytics
+                            </button>
+                            <button id="predictionsTab" onclick="switchAnalyticsTab('predictions')" class="analytics-tab">
+                                <i data-lucide="trending-up" class="w-4 h-4 mr-2"></i>
+                                Predictions
+                            </button>
+                            <button id="visualizationsTab" onclick="switchAnalyticsTab('visualizations')" class="analytics-tab">
+                                <i data-lucide="activity" class="w-4 h-4 mr-2"></i>
+                                Visualizations
+                            </button>
+                            <button id="insightsTab" onclick="switchAnalyticsTab('insights')" class="analytics-tab">
+                                <i data-lucide="lightbulb" class="w-4 h-4 mr-2"></i>
+                                Insights
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Analytics Content -->
+                    <div id="analyticsContent" class="analytics-content">
+                        <!-- Analytics Tab -->
+                        <div id="analyticsTabContent" class="tab-content active">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- KOL Performance Analytics -->
+                                <div class="glass-light rounded-lg p-6">
+                                    <div class="flex items-center gap-2 mb-4">
+                                        <i data-lucide="users" class="w-5 h-5 accent-blue"></i>
+                                        <h4 class="text-lg font-semibold">KOL Performance Analytics</h4>
+                                    </div>
+                                    <div id="kolAnalytics" class="space-y-3">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-sm text-gray-400">Alpha Score</span>
+                                            <span class="text-lg font-bold accent-green" id="alphaScore">--</span>
+                                        </div>
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-sm text-gray-400">Hit Rate</span>
+                                            <span class="text-lg font-bold accent-blue" id="hitRate">--</span>
+                                        </div>
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-sm text-gray-400">Risk Score</span>
+                                            <span class="text-lg font-bold accent-yellow" id="riskScore">--</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Token Momentum Analysis -->
+                                <div class="glass-light rounded-lg p-6">
+                                    <div class="flex items-center gap-2 mb-4">
+                                        <i data-lucide="trending-up" class="w-5 h-5 accent-green"></i>
+                                        <h4 class="text-lg font-semibold">Token Momentum Analysis</h4>
+                                    </div>
+                                    <div id="tokenMomentum" class="space-y-3">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-sm text-gray-400">Momentum Score</span>
+                                            <span class="text-lg font-bold accent-purple" id="momentumScore">--</span>
+                                        </div>
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-sm text-gray-400">Trend Direction</span>
+                                            <span class="text-lg font-bold accent-green" id="trendDirection">--</span>
+                                        </div>
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-sm text-gray-400">Confidence</span>
+                                            <span class="text-lg font-bold accent-blue" id="confidence">--</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Predictions Tab -->
+                        <div id="predictionsTabContent" class="tab-content">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- KOL Performance Predictions -->
+                                <div class="glass-light rounded-lg p-6">
+                                    <div class="flex items-center gap-2 mb-4">
+                                        <i data-lucide="crystal-ball" class="w-5 h-5 accent-purple"></i>
+                                        <h4 class="text-lg font-semibold">KOL Performance Predictions</h4>
+                                    </div>
+                                    <div id="kolPredictions" class="space-y-3">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-sm text-gray-400">Next 7 days</span>
+                                            <span class="text-lg font-bold accent-green" id="nextWeekPrediction">--</span>
+                                        </div>
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-sm text-gray-400">Risk Level</span>
+                                            <span class="text-lg font-bold accent-yellow" id="riskLevel">--</span>
+                                        </div>
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-sm text-gray-400">Confidence</span>
+                                            <span class="text-lg font-bold accent-blue" id="predictionConfidence">--</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Early Warning Signals -->
+                                <div class="glass-light rounded-lg p-6">
+                                    <div class="flex items-center gap-2 mb-4">
+                                        <i data-lucide="alert-triangle" class="w-5 h-5 accent-red"></i>
+                                        <h4 class="text-lg font-semibold">Early Warning Signals</h4>
+                                    </div>
+                                    <div id="earlyWarnings" class="space-y-3">
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-sm text-gray-400">Active Alerts</span>
+                                            <span class="text-lg font-bold accent-green" id="activeAlerts">0</span>
+                                        </div>
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-sm text-gray-400">Market Conditions</span>
+                                            <span class="text-lg font-bold accent-blue" id="marketConditions">Stable</span>
+                                        </div>
+                                        <div class="flex justify-between items-center">
+                                            <span class="text-sm text-gray-400">Risk Level</span>
+                                            <span class="text-lg font-bold accent-green" id="overallRisk">Low</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Visualizations Tab -->
+                        <div id="visualizationsTabContent" class="tab-content">
+                            <div class="grid grid-cols-1 gap-6">
+                                <!-- Timeline Heatmap -->
+                                <div class="glass-light rounded-lg p-6">
+                                    <div class="flex items-center gap-2 mb-4">
+                                        <i data-lucide="calendar" class="w-5 h-5 accent-blue"></i>
+                                        <h4 class="text-lg font-semibold">Timeline Heatmap</h4>
+                                    </div>
+                                    <div id="timelineHeatmap" class="h-64 flex items-center justify-center">
+                                        <div class="text-center text-gray-500">
+                                            <i data-lucide="calendar" class="w-12 h-12 mx-auto mb-2 opacity-30"></i>
+                                            <p class="text-sm">Timeline heatmap visualization</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Sentiment Trends -->
+                                <div class="glass-light rounded-lg p-6">
+                                    <div class="flex items-center gap-2 mb-4">
+                                        <i data-lucide="trending-up" class="w-5 h-5 accent-green"></i>
+                                        <h4 class="text-lg font-semibold">Sentiment Trends</h4>
+                                    </div>
+                                    <div id="sentimentTrends" class="h-64 flex items-center justify-center">
+                                        <div class="text-center text-gray-500">
+                                            <i data-lucide="trending-up" class="w-12 h-12 mx-auto mb-2 opacity-30"></i>
+                                            <p class="text-sm">Sentiment trends visualization</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Influence Decay -->
+                                <div class="glass-light rounded-lg p-6">
+                                    <div class="flex items-center gap-2 mb-4">
+                                        <i data-lucide="activity" class="w-5 h-5 accent-purple"></i>
+                                        <h4 class="text-lg font-semibold">Influence Decay</h4>
+                                    </div>
+                                    <div id="influenceDecay" class="h-64 flex items-center justify-center">
+                                        <div class="text-center text-gray-500">
+                                            <i data-lucide="activity" class="w-12 h-12 mx-auto mb-2 opacity-30"></i>
+                                            <p class="text-sm">Influence decay visualization</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Insights Tab -->
+                        <div id="insightsTabContent" class="tab-content">
+                            <div class="grid grid-cols-1 gap-6">
+                                <!-- AI-Generated Insights -->
+                                <div class="glass-light rounded-lg p-6">
+                                    <div class="flex items-center gap-2 mb-4">
+                                        <i data-lucide="brain" class="w-5 h-5 accent-purple"></i>
+                                        <h4 class="text-lg font-semibold">AI-Generated Insights</h4>
+                                    </div>
+                                    <div id="aiInsights" class="space-y-3">
+                                        <div class="text-sm text-gray-300">
+                                            <i data-lucide="zap" class="w-4 h-4 inline mr-2 accent-yellow"></i>
+                                            Market sentiment is bullish with strong KOL activity
+                                        </div>
+                                        <div class="text-sm text-gray-300">
+                                            <i data-lucide="target" class="w-4 h-4 inline mr-2 accent-green"></i>
+                                            Top performers show consistent alpha generation
+                                        </div>
+                                        <div class="text-sm text-gray-300">
+                                            <i data-lucide="shield" class="w-4 h-4 inline mr-2 accent-blue"></i>
+                                            Risk levels remain manageable across all metrics
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Recommendations -->
+                                <div class="glass-light rounded-lg p-6">
+                                    <div class="flex items-center gap-2 mb-4">
+                                        <i data-lucide="lightbulb" class="w-5 h-5 accent-yellow"></i>
+                                        <h4 class="text-lg font-semibold">Recommendations</h4>
+                                    </div>
+                                    <div id="recommendations" class="space-y-3">
+                                        <div class="text-sm text-gray-300">
+                                            <i data-lucide="eye" class="w-4 h-4 inline mr-2 accent-blue"></i>
+                                            Monitor high-alpha KOLs for new opportunities
+                                        </div>
+                                        <div class="text-sm text-gray-300">
+                                            <i data-lucide="trending-up" class="w-4 h-4 inline mr-2 accent-green"></i>
+                                            Consider momentum-based entry strategies
+                                        </div>
+                                        <div class="text-sm text-gray-300">
+                                            <i data-lucide="alert-circle" class="w-4 h-4 inline mr-2 accent-yellow"></i>
+                                            Watch for early warning signals in volatile tokens
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- CORRELATION NETWORK -->
                 <section>
                     <div class="flex items-center justify-between mb-4">
@@ -725,6 +997,8 @@
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             loadData();
+            // Initialize analytics with default data
+            loadAnalyticsData('analytics');
             // Auto-refresh every 30 seconds
             setInterval(loadData, 30000);
         });
@@ -3450,6 +3724,138 @@
                 closeCoinDetail();
             }
         });
+
+        // Analytics Tab Functions
+        function switchAnalyticsTab(tabName) {
+            // Remove active class from all tabs
+            document.querySelectorAll('.analytics-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Activate selected tab
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            document.getElementById(tabName + 'TabContent').classList.add('active');
+            
+            // Load data for the selected tab
+            loadAnalyticsData(tabName);
+        }
+
+        async function loadAnalyticsData(tabName) {
+            try {
+                switch(tabName) {
+                    case 'analytics':
+                        await loadKOLAnalytics();
+                        await loadTokenMomentum();
+                        break;
+                    case 'predictions':
+                        await loadKOLPredictions();
+                        await loadEarlyWarnings();
+                        break;
+                    case 'visualizations':
+                        await loadVisualizations();
+                        break;
+                    case 'insights':
+                        await loadAIInsights();
+                        break;
+                }
+            } catch (error) {
+                console.error(`Error loading ${tabName} data:`, error);
+            }
+        }
+
+        async function loadKOLAnalytics() {
+            try {
+                // Mock data for now - will be replaced with real API calls
+                const mockData = {
+                    alphaScore: '85.2',
+                    hitRate: '78%',
+                    riskScore: 'Low'
+                };
+                
+                document.getElementById('alphaScore').textContent = mockData.alphaScore;
+                document.getElementById('hitRate').textContent = mockData.hitRate;
+                document.getElementById('riskScore').textContent = mockData.riskScore;
+            } catch (error) {
+                console.error('Error loading KOL analytics:', error);
+            }
+        }
+
+        async function loadTokenMomentum() {
+            try {
+                // Mock data for now - will be replaced with real API calls
+                const mockData = {
+                    momentumScore: '72.1',
+                    trendDirection: 'Bullish',
+                    confidence: 'High'
+                };
+                
+                document.getElementById('momentumScore').textContent = mockData.momentumScore;
+                document.getElementById('trendDirection').textContent = mockData.trendDirection;
+                document.getElementById('confidence').textContent = mockData.confidence;
+            } catch (error) {
+                console.error('Error loading token momentum:', error);
+            }
+        }
+
+        async function loadKOLPredictions() {
+            try {
+                // Mock data for now - will be replaced with real API calls
+                const mockData = {
+                    nextWeekPrediction: '+12%',
+                    riskLevel: 'Medium',
+                    predictionConfidence: '85%'
+                };
+                
+                document.getElementById('nextWeekPrediction').textContent = mockData.nextWeekPrediction;
+                document.getElementById('riskLevel').textContent = mockData.riskLevel;
+                document.getElementById('predictionConfidence').textContent = mockData.predictionConfidence;
+            } catch (error) {
+                console.error('Error loading KOL predictions:', error);
+            }
+        }
+
+        async function loadEarlyWarnings() {
+            try {
+                // Mock data for now - will be replaced with real API calls
+                const mockData = {
+                    activeAlerts: '0',
+                    marketConditions: 'Stable',
+                    overallRisk: 'Low'
+                };
+                
+                document.getElementById('activeAlerts').textContent = mockData.activeAlerts;
+                document.getElementById('marketConditions').textContent = mockData.marketConditions;
+                document.getElementById('overallRisk').textContent = mockData.overallRisk;
+            } catch (error) {
+                console.error('Error loading early warnings:', error);
+            }
+        }
+
+        async function loadVisualizations() {
+            try {
+                // Placeholder for visualization loading
+                console.log('Loading visualizations...');
+                // Will implement D3.js visualizations here
+            } catch (error) {
+                console.error('Error loading visualizations:', error);
+            }
+        }
+
+        async function loadAIInsights() {
+            try {
+                // Mock data for now - will be replaced with real API calls
+                console.log('Loading AI insights...');
+                // Will implement real AI insights here
+            } catch (error) {
+                console.error('Error loading AI insights:', error);
+            }
+        }
     </script>
 </body>
 </html>
+
