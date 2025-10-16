@@ -25,8 +25,8 @@ export default class EnhancedNFTTraitService {
       // ONLY Collection Address (Metaplex Certified Collection) - WIZI COLLECTION
       collectionAddress: process.env.NFT_COLLECTION_ADDRESS || 'F84KxuZp8g1mXsxfxZUXZN1vn1iP3KEtnkN1k4SDTvMf',
       
-      // Premium duration for NFT holders (in days)
-      premiumDuration: parseInt(process.env.NFT_PREMIUM_DURATION || '90'), // 90 days default
+      // Premium duration for NFT holders (in days) - BASE DURATION SHOULD BE 0
+      premiumDuration: parseInt(process.env.NFT_PREMIUM_DURATION || '0'), // 0 days base - only rarity counts
       
       // Subscription type identifier
       subscriptionType: 'nft_holder',
