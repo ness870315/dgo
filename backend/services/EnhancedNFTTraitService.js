@@ -472,17 +472,28 @@ export default class EnhancedNFTTraitService {
         'Legendary': 0
       };
       
-      // Count each NFT's rarity
-      Object.values(traits.allTraits).forEach(nftTraits => {
-        const rarity = nftTraits['Rarity '] || nftTraits['Rarity'] || 'Common';
-        const cleanRarity = rarity.trim();
+      // Count NFTs by rarity using traitCounts
+      // traitCounts[traitType][traitValue] = count
+      const rarityTraitType = 'Rarity '; // The exact trait type name
+      
+      if (traits.traitCounts && traits.traitCounts[rarityTraitType]) {
+        // Count NFTs by rarity
+        Object.entries(traits.traitCounts[rarityTraitType]).forEach(([rarityValue, count]) => {
+          const cleanRarity = rarityValue.trim();
+          if (rarityCounts.hasOwnProperty(cleanRarity)) {
+            rarityCounts[cleanRarity] += count;
+          } else {
+            rarityCounts['Common'] += count; // Default to Common for unknown rarities
+          }
+        });
+      } else {
+        // Fallback: if no rarity trait found, assume all are Common
+        const totalNFTs = Object.values(traits.traitCounts).reduce((sum, traitType) => {
+          return sum + Object.values(traitType).reduce((typeSum, count) => typeSum + count, 0);
+        }, 0) / Object.keys(traits.traitCounts).length; // Average per trait type
         
-        if (rarityCounts.hasOwnProperty(cleanRarity)) {
-          rarityCounts[cleanRarity]++;
-        } else {
-          rarityCounts['Common']++; // Default to Common for unknown rarities
-        }
-      });
+        rarityCounts['Common'] = Math.round(totalNFTs) || 1; // At least 1 NFT
+      }
       
       // Calculate total extended duration based on Wizi system
       let totalExtendedDays = 0;
@@ -526,7 +537,12 @@ export default class EnhancedNFTTraitService {
         totalNFTs: Object.keys(traits.allTraits).length,
         rarityBreakdown: rarityCounts,
         extendedDays: totalExtendedDays,
-        tier: highestTier
+        tier: highestTier,
+        traitsStructure: {
+          allTraits: traits.allTraits,
+          traitCounts: traits.traitCounts,
+          rarityTraitType: rarityTraitType
+        }
       });
       
     } catch (error) {
