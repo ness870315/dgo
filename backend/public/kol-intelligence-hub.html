@@ -482,11 +482,11 @@
                         <p class="text-xs text-gray-500">Who Moves Markets</p>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button id="kolPanelToggle" onclick="toggleKOLPanel()" class="tooltip absolute right-12 top-4 z-50" data-tooltip="Toggle Panel">
-                            <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400 hover:text-purple-500 transition"></i>
-                        </button>
                         <button onclick="showSettings()" class="tooltip" data-tooltip="Settings">
                             <i data-lucide="settings" class="w-5 h-5 text-gray-400 hover:text-purple-500 transition"></i>
+                        </button>
+                        <button id="kolPanelToggle" onclick="toggleKOLPanel()" class="tooltip" data-tooltip="Toggle Panel">
+                            <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400 hover:text-purple-500 transition"></i>
                         </button>
                     </div>
                 </div>
@@ -1036,9 +1036,6 @@
                 return `
                     <div class="momentum-card glass-light rounded-lg p-4 relative" onclick="openCoinDetail('${coin}')">
                         <div class="velocity-indicator ${velocity}"></div>
-                        <div class="momentum-score absolute top-2 right-2 text-xs font-bold ${momentumColor}">
-                            ${Math.round(momentumScore * 100)}%
-                        </div>
                         
                         <div class="text-2xl font-bold accent-purple mb-2">${coin}</div>
                         

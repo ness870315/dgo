@@ -1781,6 +1781,7 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       
       let backfilled = 0;
       const now = new Date();
+      const processedCoins = new Set(); // Track which coins we're processing
       
       // Group all needed timestamps by coin for bundling
       const coinTimestampMap = new Map();
@@ -2025,21 +2026,58 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
     return `kol_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
-  // Start automatic tweet fetching for all KOLs every 6 hours
+  // Start automatic tweet fetching for all KOLs every 4 hours
   startAutomaticTweetFetching() {
-    console.log('🔄 [KOL SERVICE] Starting automatic tweet fetching (every 6 hours)');
+    console.log('🔄 [KOL SERVICE] Starting automatic tweet fetching (every 4 hours)');
     
-    // Run initial fetch after 5 minutes
-    setTimeout(() => {
-      this.fetchAllKOLTweets();
-    }, 5 * 60 * 1000);
+    // Check if we need to fetch immediately based on last fetch time
+    this.checkAndFetchIfNeeded();
     
-    // Then run every 6 hours
+    // Then run every 4 hours
     this.tweetFetchInterval = setInterval(() => {
       this.fetchAllKOLTweets();
-    }, 6 * 60 * 60 * 1000); // 6 hours
+    }, 4 * 60 * 60 * 1000); // 4 hours
     
-    console.log('⏰ [KOL SERVICE] Automatic tweet fetching scheduled (every 6 hours)');
+    console.log('⏰ [KOL SERVICE] Automatic tweet fetching scheduled (every 4 hours)');
+  }
+
+  // Check if we need to fetch immediately based on last fetch time (persistent across reboots)
+  async checkAndFetchIfNeeded() {
+    try {
+      const lastFetchFile = path.join(this.dataDir, 'last-tweet-fetch.json');
+      
+      // Check if we have a last fetch time
+      let lastFetchTime = null;
+      try {
+        const lastFetchData = await fs.readFile(lastFetchFile, 'utf8');
+        const parsed = JSON.parse(lastFetchData);
+        lastFetchTime = new Date(parsed.lastFetchTime);
+        console.log(`🕐 [KOL SERVICE] Last tweet fetch: ${lastFetchTime.toISOString()}`);
+      } catch (error) {
+        console.log('🕐 [KOL SERVICE] No previous fetch time found, will fetch immediately');
+      }
+      
+      // If no last fetch or more than 4 hours ago, fetch immediately
+      const now = new Date();
+      const fourHoursAgo = new Date(now.getTime() - (4 * 60 * 60 * 1000));
+      
+      if (!lastFetchTime || lastFetchTime < fourHoursAgo) {
+        console.log('🔄 [KOL SERVICE] Fetching tweets immediately (4+ hours since last fetch)');
+        setTimeout(() => {
+          this.fetchAllKOLTweets();
+        }, 30 * 1000); // Wait 30 seconds after startup
+      } else {
+        const nextFetchIn = Math.round((lastFetchTime.getTime() + (4 * 60 * 60 * 1000) - now.getTime()) / (60 * 1000));
+        console.log(`⏰ [KOL SERVICE] Next tweet fetch in ${nextFetchIn} minutes`);
+      }
+      
+    } catch (error) {
+      console.error('❌ [KOL SERVICE] Error checking last fetch time:', error.message);
+      // Fallback: fetch immediately
+      setTimeout(() => {
+        this.fetchAllKOLTweets();
+      }, 30 * 1000);
+    }
   }
 
   // Fetch tweets for all active KOLs
@@ -2088,8 +2126,27 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
         console.log('🔄 [KOL SERVICE] Auto-fetch completed with data enrichment');
       }
       
+      // Save last fetch time for persistence across reboots
+      await this.saveLastFetchTime();
+      
     } catch (error) {
       console.error('❌ [KOL SERVICE] Error in automatic tweet fetching:', error.message);
+    }
+  }
+
+  // Save last fetch time for persistence across reboots
+  async saveLastFetchTime() {
+    try {
+      const lastFetchFile = path.join(this.dataDir, 'last-tweet-fetch.json');
+      const lastFetchData = {
+        lastFetchTime: new Date().toISOString(),
+        timestamp: Date.now()
+      };
+      
+      await fs.writeFile(lastFetchFile, JSON.stringify(lastFetchData, null, 2), 'utf8');
+      console.log(`💾 [KOL SERVICE] Last fetch time saved: ${lastFetchData.lastFetchTime}`);
+    } catch (error) {
+      console.error('❌ [KOL SERVICE] Error saving last fetch time:', error.message);
     }
   }
 
