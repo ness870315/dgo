@@ -472,11 +472,6 @@
 <body>
     <!-- Main Container -->
     <div class="flex h-screen">
-        <!-- TOGGLE BUTTON: Always visible -->
-        <button id="kolPanelToggle" onclick="toggleKOLPanel()" class="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 tooltip" data-tooltip="Toggle KOL Panel">
-            <i data-lucide="chevron-right" class="w-6 h-6 text-gray-400 hover:text-purple-500 transition bg-gray-900 rounded-full p-1 border border-gray-700"></i>
-        </button>
-        
         <!-- LEFT PANEL: KOL Intelligence -->
         <div class="w-80 glass border-r border-gray-800 flex flex-col">
             <!-- Header -->
@@ -487,6 +482,9 @@
                         <p class="text-xs text-gray-500">Who Moves Markets</p>
                     </div>
                     <div class="flex items-center gap-2">
+                        <button id="kolPanelToggle" onclick="toggleKOLPanel()" class="tooltip absolute right-12 top-4 z-50" data-tooltip="Toggle Panel">
+                            <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400 hover:text-purple-500 transition"></i>
+                        </button>
                         <button onclick="showSettings()" class="tooltip" data-tooltip="Settings">
                             <i data-lucide="settings" class="w-5 h-5 text-gray-400 hover:text-purple-500 transition"></i>
                         </button>
@@ -1046,31 +1044,24 @@
                         
                         <div class="space-y-2 text-sm">
                             <div class="flex items-center justify-between">
-                                <span class="text-gray-400 tooltip" data-tooltip="Success rate of KOL predictions for this coin. Higher = more reliable alpha signals.">Hit Rate</span>
-                                <span class="font-bold ${hitRateColor}">${Math.round(avgHitRate * 100)}%</span>
+                                <span class="text-gray-400">Mentions</span>
+                                <span class="font-bold accent-blue">${mentions}</span>
                             </div>
                             
                             <div class="flex items-center justify-between">
-                                <span class="text-gray-400 tooltip" data-tooltip="Average time (minutes) between KOL mention and price movement. Lower = faster predictions.">Lead Time</span>
-                                <span class="font-bold ${leadTimeColor}">${Math.round(avgLeadTime)}min</span>
+                                <span class="text-gray-400">KOLs</span>
+                                <span class="font-bold">${kolCount}</span>
                             </div>
                             
                             <div class="flex items-center justify-between">
-                                <span class="text-gray-400 tooltip" data-tooltip="Number of high-tier KOLs (S+/S) mentioning this coin. More = stronger consensus.">Alpha KOLs</span>
-                                <span class="font-bold accent-purple">${highAlphaKOLs}</span>
-                            </div>
-                            
-                            <div class="flex items-center justify-between">
-                                <span class="text-gray-400 tooltip" data-tooltip="Overall sentiment from KOL mentions. Positive = bullish, Negative = bearish.">Sentiment</span>
+                                <span class="text-gray-400">Sentiment</span>
                                 <span class="font-bold ${sentimentColor}">${sentimentScore > 0 ? '+' : ''}${sentimentScore}%</span>
                             </div>
                             
-                            ${alphaKOLs ? `
-                            <div class="text-xs text-gray-500 mt-2">
-                                <div class="font-bold">🎯 Alpha KOLs:</div>
-                                <div class="truncate">${alphaKOLs}</div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-400">Bullish</span>
+                                <span class="font-bold accent-green">${Math.round(bullishRatio * 100)}%</span>
                             </div>
-                            ` : ''}
                         </div>
 
                         <div class="mt-3 pt-3 border-t border-gray-700 flex items-center justify-between text-xs">
@@ -2984,7 +2975,7 @@
                                 </div>
                                 <div class="metric-card tooltip" data-tooltip="Number of successful price predictions made by KOLs for this coin. Shows actual alpha generation.">
                                     <div class="metric-value">${successfulPredictions}</div>
-                                    <div class="metric-label">✅ Predictions</div>
+                                    <div class="metric-label">✅ Successful Calls</div>
                                 </div>
                             </div>
                         </div>
