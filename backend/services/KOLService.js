@@ -866,6 +866,11 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
   // Fetch from CoinDesk API - try multiple markets
   async fetchCoinDeskHistoricalPrice(symbol, targetTime) {
     try {
+      if (!process.env.COINDESK_API_KEY) {
+        console.log(`⚠️ [COINDESK INDIVIDUAL] No API key configured for ${symbol}`);
+        return null;
+      }
+
       // CoinDesk format: SYMBOL-USDT
       const coindeskSymbol = `${symbol}-USDT`;
       const daysBack = Math.ceil((Date.now() - targetTime.getTime()) / (1000 * 60 * 60 * 24));
@@ -880,7 +885,12 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
           console.log(`🔍 [COINDESK INDIVIDUAL] Trying ${market} for ${coindeskSymbol} at ${targetTime.toISOString()}`);
           console.log(`🔍 [COINDESK INDIVIDUAL] URL: ${url}`);
           
-          const response = await fetch(url);
+          const response = await fetch(url, {
+            headers: {
+              'Authorization': `Bearer ${process.env.COINDESK_API_KEY}`,
+              'Accept': 'application/json'
+            }
+          });
           console.log(`🔍 [COINDESK INDIVIDUAL] ${market} response status: ${response.status}`);
           
           if (response.ok) {
@@ -1489,6 +1499,11 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
   // Fetch multiple prices from CoinDesk in single API call - try multiple markets
   async fetchCoinDeskBundledPrices(symbol, timestamps) {
     try {
+      if (!process.env.COINDESK_API_KEY) {
+        console.log(`⚠️ [COINDESK BUNDLED] No API key configured for ${symbol}`);
+        return {};
+      }
+
       // Apply symbol mapping (same as individual method)
       const symbolMapping = {
         'SPX6900': 'SPX' // SPX6900 maps to SPX for CoinDesk (becomes SPX-USDT)
@@ -1513,7 +1528,12 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
           console.log(`🔍 [COINDESK BUNDLED] Trying ${market} for ${coindeskSymbol}`);
           console.log(`🔍 [COINDESK BUNDLED] URL: ${url}`);
           
-          const response = await fetch(url);
+          const response = await fetch(url, {
+            headers: {
+              'Authorization': `Bearer ${process.env.COINDESK_API_KEY}`,
+              'Accept': 'application/json'
+            }
+          });
           console.log(`🔍 [COINDESK BUNDLED] ${market} response status: ${response.status}`);
           
           if (response.ok) {
