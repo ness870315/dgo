@@ -693,6 +693,16 @@ router.get('/coin-timeline/:symbol', async (req, res) => {
     // Sort by timestamp
     coinMentions.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     
+    console.log(`📊 [KOL API] Returning timeline data for ${symbolUpper}: ${coinMentions.length} mentions`);
+    if (coinMentions.length > 0) {
+      console.log(`📊 [KOL API] Sample data:`, {
+        symbol: symbolUpper,
+        firstMention: coinMentions[0],
+        priceAtMention: coinMentions[0]?.priceAtMention,
+        hasPriceData: coinMentions.filter(m => m.priceAtMention != null).length
+      });
+    }
+    
     res.json({
       success: true,
       symbol: symbolUpper,

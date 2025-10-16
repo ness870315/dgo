@@ -2710,10 +2710,16 @@
                         const response = await fetch(`/api/kol/coin-timeline/${relatedCoin}`);
                         if (response.ok) {
                             const data = await response.json();
+                            console.log(`📊 [CHART] Raw API response for ${relatedCoin}:`, data);
                             if (data.success && data.data) {
                                 allData.push(...data.data);
                                 totalMentions += data.totalMentions || 0;
                                 console.log(`✅ [CHART] Fetched ${data.data.length} data points for ${relatedCoin}`);
+                                if (data.data.length > 0) {
+                                    console.log(`📊 [CHART] Sample data point for ${relatedCoin}:`, data.data[0]);
+                                }
+                            } else {
+                                console.log(`⚠️ [CHART] No data in response for ${relatedCoin}:`, data);
                             }
                         }
                     } catch (error) {
