@@ -36,8 +36,9 @@ class TwitterMentionService {
     }
     
     // Initialize TwitterAPI.io WebSocket service (real-time mentions)
+    // Default to enabled unless explicitly disabled (more reliable and cost-effective)
     this.wsService = null;
-    if (process.env.USE_TWITTERAPIIO_WEBSOCKET === 'true' && process.env.TWITTERAPIIO_ENABLED !== 'false') {
+    if (process.env.USE_TWITTERAPIIO_WEBSOCKET !== 'false' && process.env.TWITTERAPIIO_ENABLED !== 'false') {
       try {
         this.wsService = new TwitterAPIioWebSocketService(
           process.env.TWITTERAPIIO_API_KEY,
@@ -168,8 +169,8 @@ class TwitterMentionService {
     
     this.isRunning = true;
     
-    // If WebSocket enabled, use real-time mode instead of polling
-    if (process.env.USE_TWITTERAPIIO_WEBSOCKET === 'true' && this.wsService) {
+    // If WebSocket enabled (default), use real-time mode instead of polling
+    if (this.wsService) {
       console.log('🚀 [MENTIONS] Service started - REAL-TIME MODE via WebSocket ⚡');
       console.log('   📡 Instant mention delivery (<1s latency)');
       console.log('   💰 Cost: ~$0.015/day (vs $0.22/day polling)');
