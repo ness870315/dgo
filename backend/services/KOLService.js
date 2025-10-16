@@ -1755,6 +1755,12 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
             price_change_24h: null
           };
           
+          // CRITICAL: If historicalPrice is null but we have Lead-Lag data, use the 1h price as fallback
+          if (historicalPrice === null && price1h !== null) {
+            console.log(`⚠️ [LEAD-LAG-DEBUG] Using price+1h as fallback for ${coin}: ${price1h}`);
+            historicalPrice = price1h;
+          }
+          
           // Always update coin_data, even if it already exists (for force-enrich)
           post.coin_data[coin] = {
             ...baseCoinData,

@@ -2777,10 +2777,15 @@
                     labels.push(date.toLocaleDateString() + ' ' + date.toLocaleTimeString());
                     
                     // Only add price data if available, but still show timeline
-                    if (point.priceAtMention != null && point.priceAtMention !== undefined) {
+                    // Use priceAtMention, fallback to price1hAfter if available
+                    const priceValue = point.priceAtMention !== null && point.priceAtMention !== undefined 
+                        ? point.priceAtMention 
+                        : (point.price1hAfter !== null && point.price1hAfter !== undefined ? point.price1hAfter : null);
+                    
+                    if (priceValue !== null) {
                         priceDataPoints.push({
                             x: priceDataPoints.length, // Use actual count, not labels.length
-                            y: point.priceAtMention
+                            y: priceValue
                         });
                         
                         // Add volume data if available
@@ -2800,7 +2805,7 @@
                             });
                         }
                     } else {
-                        console.log(`⚠️ [CHART] Skipping point ${index} with invalid price: ${point.priceAtMention}`);
+                        console.log(`⚠️ [CHART] Skipping point ${index} with no valid price data (priceAtMention: ${point.priceAtMention}, price1hAfter: ${point.price1hAfter})`);
                     }
                 });
             }
