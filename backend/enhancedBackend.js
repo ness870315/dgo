@@ -36,6 +36,7 @@ import TwitterAutoPostService from './twitterAutoPostService.js';
 import DailyTweetService from './dailyTweetService.js';
 import TwitterMentionService from './twitterMentionService.js';
 import NFTGatedAccessService from './nftGatedAccessService.js';
+import EnhancedNFTTraitService from './services/EnhancedNFTTraitService.js';
 import { X402PaymentHandler } from '@payai/x402-solana';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -159,6 +160,7 @@ class EnhancedBackend {
     this.aiChatService = new MoralisAIChatService(this.oauthXService, this);
     this.twitterAutoPostService = new TwitterAutoPostService(this.oauthXService);
     this.nftGatedAccessService = new NFTGatedAccessService();
+    this.enhancedNFTTraitService = new EnhancedNFTTraitService();
     this.dailyTweetService = null; // Will be initialized after OpenAI service is ready
     this.backupIntegration = null; // Will be initialized in setupServices()
     
@@ -651,8 +653,80 @@ class EnhancedBackend {
         });
         
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ NFT verification failed:', error.message);
-        res.status(500).json({ success: false, error: 'Failed to verify NFT ownership' });
+      }
+    });
+    
+    // Enhanced NFT verification with traits
+    this.app.post('/api/user/premium/verify-nft-with-traits', async (req, res) => {
+      try {
+        const { sessionId, walletAddress } = req.body;
+        
+        if (!sessionId || !walletAddress) {
+          return res.status(400).json({ success: false, error: 'Missing sessionId or walletAddress' });
+        }
+        
+        const user = await this.oauthXService.getUserBySession(sessionId);
+        if (!user) return res.status(401).json({ success: false, error: 'Invalid session' });
+        
+        // Verify NFT ownership with traits
+        const verification = await this.enhancedNFTTraitService.verifyNFTOwnershipWithTraits(walletAddress);
+        
+        if (!verification.isHolder) {
+          return res.status(403).json({ 
+            success: false, 
+            error: 'No NFTs found from the required collection',
+            isHolder: false
+          });
+        }
+        
+        // Grant Premium access with trait benefits
+        const result = await this.enhancedNFTTraitService.grantPremiumAccessWithTraits(
+          user.id,
+          walletAddress,
+          verification.nfts,
+          verification.traits,
+          this.oauthXService.db
+        );
+        
+        res.json({ 
+          success: true, 
+          premium: result,
+          isHolder: true,
+          nfts: verification.nfts,
+          traits: verification.traits,
+          traitBenefits: result.traitBenefits,
+          message: `Premium activated! You own ${verification.nfts.length} NFT(s) with ${Object.keys(verification.traits.allTraits || {}).length} trait types.`
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ NFT trait verification failed:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to verify NFT ownership with traits' });
+      }
+    });
+    
+    // Get NFT traits for a wallet (without activating premium)
+    this.app.post('/api/user/nft-traits', async (req, res) => {
+      try {
+        const { walletAddress } = req.body;
+        
+        if (!walletAddress) {
+          return res.status(400).json({ success: false, error: 'Missing walletAddress' });
+        }
+        
+        // Verify NFT ownership with traits
+        const verification = await this.enhancedNFTTraitService.verifyNFTOwnershipWithTraits(walletAddress);
+        
+        res.json({ 
+          success: true, 
+          isHolder: verification.isHolder,
+          nfts: verification.nfts,
+          traits: verification.traits,
+          method: verification.method
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ NFT traits lookup failed:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to lookup NFT traits' });
       }
     });
 
@@ -11123,6 +11197,84 @@ Thanks for using x402 payments on Twitter! 🚀`;
         res.status(500).json({
           success: false,
           error: 'Failed to fetch service status',
+          message: error.message
+        });
+      }
+    });
+
+    // Temporary Admin Endpoint for Testing
+    this.app.post('/api/admin/revoke-premium', async (req, res) => {
+      try {
+        const { username, reason = 'Admin action' } = req.body;
+        
+        if (!username) {
+          return res.status(400).json({ success: false, error: 'Username required' });
+        }
+        
+        console.log(`🔧 [ADMIN] Revoking premium access for user: ${username}`);
+        
+        // Get all users to find the target user
+        const allUsers = await this.oauthXService.db.getAllUsers();
+        const targetUser = allUsers.find(user => 
+          user.username && user.username.toLowerCase() === username.toLowerCase()
+        );
+        
+        if (!targetUser) {
+          return res.status(404).json({ 
+            success: false, 
+            error: `User "${username}" not found`,
+            availableUsers: allUsers.map(u => u.username).filter(Boolean).slice(0, 10)
+          });
+        }
+        
+        // Get current premium status
+        const currentPremium = await this.oauthXService.db.getPremiumStatus(targetUser.id);
+        
+        if (!currentPremium?.isPremium) {
+          return res.json({ 
+            success: true, 
+            message: `User "${username}" is already non-premium`,
+            currentStatus: currentPremium
+          });
+        }
+        
+        // Revoke premium access
+        const revokedPremium = await this.oauthXService.db.setPremiumStatus(targetUser.id, {
+          ...currentPremium,
+          isPremium: false,
+          subscriptionType: 'revoked_for_testing',
+          updatedAt: new Date().toISOString(),
+          revokedAt: new Date().toISOString(),
+          revokedReason: reason
+        });
+        
+        console.log(`✅ [ADMIN] Premium access revoked for ${username}`);
+        
+        res.json({
+          success: true,
+          message: `Premium access revoked for user "${username}"`,
+          user: {
+            id: targetUser.id,
+            username: targetUser.username
+          },
+          previousStatus: {
+            isPremium: currentPremium.isPremium,
+            subscriptionType: currentPremium.subscriptionType,
+            expiresAt: currentPremium.expiresAt
+          },
+          newStatus: {
+            isPremium: revokedPremium.isPremium,
+            subscriptionType: revokedPremium.subscriptionType,
+            revokedAt: revokedPremium.revokedAt,
+            revokedReason: revokedPremium.revokedReason
+          }
+        });
+        
+      } catch (error) {
+        console.error('❌ [ADMIN] Error revoking premium access:', error.message);
+        res.status(500).json({ 
+          success: false, 
+          error: 'Failed to revoke premium access',
           message: error.message
         });
       }
