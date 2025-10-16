@@ -873,7 +873,7 @@
                         <!-- Influence Score -->
                         <div class="mb-2">
                             <div class="flex items-center justify-between text-xs mb-1">
-                                <span class="text-gray-500">Influence</span>
+                                <span class="text-gray-500 tooltip" data-tooltip="Calculated from follower count, engagement rate, activity level, and crypto focus. Higher = more influential in crypto community.">Influence</span>
                                 <span class="accent-green font-semibold">${influenceScore}/100</span>
                             </div>
                             <div class="w-full bg-gray-800 h-1 rounded">
@@ -1046,22 +1046,22 @@
                         
                         <div class="space-y-2 text-sm">
                             <div class="flex items-center justify-between">
-                                <span class="text-gray-400">Hit Rate</span>
+                                <span class="text-gray-400 tooltip" data-tooltip="Success rate of KOL predictions for this coin. Higher = more reliable alpha signals.">Hit Rate</span>
                                 <span class="font-bold ${hitRateColor}">${Math.round(avgHitRate * 100)}%</span>
                             </div>
                             
                             <div class="flex items-center justify-between">
-                                <span class="text-gray-400">Lead Time</span>
+                                <span class="text-gray-400 tooltip" data-tooltip="Average time (minutes) between KOL mention and price movement. Lower = faster predictions.">Lead Time</span>
                                 <span class="font-bold ${leadTimeColor}">${Math.round(avgLeadTime)}min</span>
                             </div>
                             
                             <div class="flex items-center justify-between">
-                                <span class="text-gray-400">Alpha KOLs</span>
+                                <span class="text-gray-400 tooltip" data-tooltip="Number of high-tier KOLs (S+/S) mentioning this coin. More = stronger consensus.">Alpha KOLs</span>
                                 <span class="font-bold accent-purple">${highAlphaKOLs}</span>
                             </div>
                             
                             <div class="flex items-center justify-between">
-                                <span class="text-gray-400">Sentiment</span>
+                                <span class="text-gray-400 tooltip" data-tooltip="Overall sentiment from KOL mentions. Positive = bullish, Negative = bearish.">Sentiment</span>
                                 <span class="font-bold ${sentimentColor}">${sentimentScore > 0 ? '+' : ''}${sentimentScore}%</span>
                             </div>
                             
@@ -2962,27 +2962,27 @@
                         <div class="lead-lag-analysis">
                             <h3>🎯 Lead-Lag Analysis</h3>
                             <div class="metrics-grid">
-                                <div class="metric-card">
+                                <div class="metric-card tooltip" data-tooltip="Percentage of times KOL mentions correctly predicted price movements for this coin. Higher = more reliable predictions.">
                                     <div class="metric-value">${hitRate.toFixed(1)}%</div>
                                     <div class="metric-label">Hit Rate</div>
                                 </div>
-                                <div class="metric-card">
+                                <div class="metric-card tooltip" data-tooltip="Average time between KOL mention and price movement. Lower = faster predictions.">
                                     <div class="metric-value">${avgLeadTime.toFixed(0)}m</div>
                                     <div class="metric-label">Avg Lead Time</div>
                                 </div>
-                                <div class="metric-card">
+                                <div class="metric-card tooltip" data-tooltip="Average price change after KOL mentions. Shows the magnitude of price movements triggered by KOL activity.">
                                     <div class="metric-value">${avgPriceChange.toFixed(1)}%</div>
                                     <div class="metric-label">Avg Price Impact</div>
                                 </div>
-                                <div class="metric-card">
+                                <div class="metric-card tooltip" data-tooltip="Number of bullish mentions. Higher = more positive sentiment from KOLs.">
                                     <div class="metric-value">${bullishMentions}</div>
                                     <div class="metric-label">🚀 Bullish</div>
                                 </div>
-                                <div class="metric-card">
+                                <div class="metric-card tooltip" data-tooltip="Number of bearish mentions. Higher = more negative sentiment from KOLs.">
                                     <div class="metric-value">${bearishMentions}</div>
                                     <div class="metric-label">📉 Bearish</div>
                                 </div>
-                                <div class="metric-card">
+                                <div class="metric-card tooltip" data-tooltip="Number of successful price predictions made by KOLs for this coin. Shows actual alpha generation.">
                                     <div class="metric-value">${successfulPredictions}</div>
                                     <div class="metric-label">✅ Predictions</div>
                                 </div>
