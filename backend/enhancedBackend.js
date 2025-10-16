@@ -625,8 +625,8 @@ class EnhancedBackend {
         const user = await this.oauthXService.getUserBySession(sessionId);
         if (!user) return res.status(401).json({ success: false, error: 'Invalid session' });
         
-        // Verify NFT ownership
-        const verification = await this.nftGatedAccessService.verifyNFTOwnership(walletAddress);
+        // Verify NFT ownership with trait analysis
+        const verification = await this.enhancedNFTTraitService.verifyNFTOwnershipWithTraits(walletAddress);
         
         if (!verification.isHolder) {
           return res.status(403).json({ 
@@ -636,11 +636,12 @@ class EnhancedBackend {
           });
         }
         
-        // Grant Premium access
-        const result = await this.nftGatedAccessService.grantPremiumAccess(
+        // Grant Premium access with trait-based benefits
+        const result = await this.enhancedNFTTraitService.grantPremiumAccessWithTraits(
           user.id,
           walletAddress,
           verification.nfts,
+          verification.traits,
           this.oauthXService.db
         );
         
