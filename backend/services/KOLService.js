@@ -727,7 +727,7 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
             let historicalPrice = null;
             
             // NEW: Try Apex Exchange first (high priority for supported symbols)
-            const apexSupportedSymbols = ['APEX', 'FARTCOIN', 'BTC', 'ETH', 'SOL', 'DOGE', 'SHIB', 'WIF', 'TRUMP', 'BONK', 'POPCAT'];
+            const apexSupportedSymbols = ['APEX', 'FARTCOIN', 'BTC', 'ETH', 'SOL', 'DOGE', 'SHIB', 'WIF', 'TRUMP', 'BONK', 'POPCAT', 'PNUT', 'PUMP', 'XRP'];
             if (apexSupportedSymbols.includes(symbolUpper)) {
               try {
                 historicalPrice = await this.fetchApexExchangeHistoricalPrice(symbolUpper, targetTime);
