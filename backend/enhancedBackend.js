@@ -143,9 +143,8 @@ class EnhancedBackend {
     this.enhancedAnalyticsCache = new EnhancedAnalyticsCacheService(this.kolService);
     this.priorityQueue = new PriorityQueueService();
     
-    // Initialize Enhanced Analytics Cache Service
-    this.enhancedAnalyticsCache.startBackgroundProcessing();
-    console.log('✅ Enhanced Analytics Cache Service started');
+    // Initialize KOL Service first, then start Enhanced Analytics Cache
+    this.initializeKOLService();
     this.leaderboardEngine = new LeaderboardScoringEngine();
     this.kolTrustSystem = new EnhancedKOLTrustSystem();
     this.monthlySnapshotService = new MonthlySnapshotService();
@@ -210,6 +209,26 @@ class EnhancedBackend {
     logger.info('✅ Enhanced Backend constructor completed');
     
     // Enhanced backup system is now initialized in start() method
+  }
+
+  /**
+   * Initialize KOL Service and Enhanced Analytics Cache
+   */
+  async initializeKOLService() {
+    try {
+      console.log('🔄 Initializing KOL Service...');
+      await this.kolService.initialize();
+      console.log('✅ KOL Service initialized successfully');
+      
+      // Start Enhanced Analytics Cache Service after KOL Service is ready
+      this.enhancedAnalyticsCache.startBackgroundProcessing();
+      console.log('✅ Enhanced Analytics Cache Service started');
+    } catch (error) {
+      console.error('❌ Failed to initialize KOL Service:', error);
+      // Still start the cache service even if KOL service fails
+      this.enhancedAnalyticsCache.startBackgroundProcessing();
+      console.log('✅ Enhanced Analytics Cache Service started (with limited functionality)');
+    }
   }
 
   async loadKOLRoutes() {
