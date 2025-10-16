@@ -469,9 +469,9 @@ class EarlyWarningDetector {
     
     // Calculate correlation
     const sentiments = alignedData.map(d => d.sentiment);
-    const priceChanges = alignedData.map(d => d.priceChange);
+    const alignedPriceChanges = alignedData.map(d => d.priceChange);
     
-    return this.calculatePearsonCorrelation(sentiments, priceChanges);
+    return this.calculatePearsonCorrelation(sentiments, alignedPriceChanges);
   }
 
   /**

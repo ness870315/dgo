@@ -353,9 +353,9 @@ class TokenMomentumForecaster {
     if (patterns.length < 3) return 0;
     
     const sentiments = patterns.map(p => p.sentiment);
-    const priceChanges = patterns.map(p => p.priceChange);
+    const patternPriceChanges = patterns.map(p => p.priceChange);
     
-    return this.calculatePearsonCorrelation(sentiments, priceChanges);
+    return this.calculatePearsonCorrelation(sentiments, patternPriceChanges);
   }
 
   /**
