@@ -15,15 +15,15 @@ export default class NFTGatedAccessService {
       'confirmed'
     );
     
-    // Configure your NFT collection here
+    // Configure your NFT collection here - ONLY CHECK BY COLLECTION ADDRESS
     this.config = {
-      // Collection Creator Address (Update First Verified Creator address)
-      collectionCreator: process.env.NFT_COLLECTION_CREATOR || '2TKnLFhPwp9nnhYwMLDstyCuyW69pRWBt3PVPB9rAzU',
+      // Collection Creator Address (NOT USED - only collection address)
+      collectionCreator: '',
       
-      // OR Collection Symbol (if using Metaplex)
-      collectionSymbol: process.env.NFT_COLLECTION_SYMBOL || 'WIZI',
+      // Collection Symbol (NOT USED - only collection address)
+      collectionSymbol: '',
       
-      // OR Specific Collection Address (Metaplex Certified Collection) - WIZI COLLECTION
+      // ONLY Collection Address (Metaplex Certified Collection) - WIZI COLLECTION
       collectionAddress: process.env.NFT_COLLECTION_ADDRESS || 'F84KxuZp8g1mXsxfxZUXZN1vn1iP3KEtnkN1k4SDTvMf',
       
       // Premium duration for NFT holders (in days)
@@ -59,12 +59,7 @@ export default class NFTGatedAccessService {
         result = await this.verifyUsingMetaplexDAS(pubkey);
       }
       
-      // Method 2: Use Helius API (if available)
-      if (!result.isHolder && process.env.HELIUS_API_KEY) {
-        result = await this.verifyUsingHelius(pubkey);
-      }
-      
-      // Method 3: Direct on-chain verification (fallback)
+      // Method 2: Direct on-chain verification (fallback)
       if (!result.isHolder) {
         result = await this.verifyOnChain(pubkey);
       }
@@ -106,27 +101,12 @@ export default class NFTGatedAccessService {
       
       const assets = response.data.result.items;
       
-      // Filter by collection
+      // Filter by collection - ONLY CHECK BY COLLECTION ADDRESS
       const collectionNFTs = assets.filter(asset => {
-        // Check by collection address
+        // ONLY Check by collection address
         if (this.config.collectionAddress && asset.grouping) {
           const collection = asset.grouping.find(g => g.group_key === 'collection');
           if (collection?.group_value === this.config.collectionAddress) {
-            return true;
-          }
-        }
-        
-        // Check by creator
-        if (this.config.collectionCreator && asset.creators) {
-          const hasCreator = asset.creators.some(c => 
-            c.address === this.config.collectionCreator && c.verified
-          );
-          if (hasCreator) return true;
-        }
-        
-        // Check by symbol
-        if (this.config.collectionSymbol && asset.content?.metadata?.symbol) {
-          if (asset.content.metadata.symbol === this.config.collectionSymbol) {
             return true;
           }
         }
