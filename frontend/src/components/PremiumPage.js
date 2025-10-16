@@ -153,46 +153,47 @@ export default function PremiumPage({ onBack, headerAuth }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-          {/* Helio Payment */}
-          <div className="bg-dark-card border border-gray-700 rounded-xl p-4 sm:p-6">
-            <h3 className="text-base sm:text-lg font-semibold text-white mb-3">Upgrade to Premium</h3>
-            <p className="text-gray-300 text-xs sm:text-sm mb-4">Complete your secure payment below. Your account will be upgraded automatically after success.</p>
-            <div className="flex justify-center">
-              <div className="w-full max-w-3xl overflow-hidden rounded-lg border border-gray-600 bg-gray-800/50 p-4">
-                <div 
-                  id="helioCheckoutPremium" 
-                  ref={containerRef} 
-                  className="w-full helio-container" 
-                  style={{
-                    maxWidth: '100%', 
-                    overflow: 'hidden',
-                    boxSizing: 'border-box'
-                  }} 
-                />
-              </div>
+        {/* Upgrade to Premium - Full Width */}
+        <div className="bg-dark-card border border-gray-700 rounded-xl p-4 sm:p-6">
+          <h3 className="text-base sm:text-lg font-semibold text-white mb-3">Upgrade to Premium</h3>
+          <p className="text-gray-300 text-xs sm:text-sm mb-4">Complete your secure payment below. Your account will be upgraded automatically after success.</p>
+          <div className="flex justify-center">
+            <div className="w-full max-w-2xl overflow-hidden rounded-lg border border-gray-600 bg-gray-800/50 p-4">
+              <div 
+                id="helioCheckoutPremium" 
+                ref={containerRef} 
+                className="w-full helio-container" 
+                style={{
+                  maxWidth: '100%', 
+                  overflow: 'hidden',
+                  boxSizing: 'border-box'
+                }} 
+              />
             </div>
-            <style dangerouslySetInnerHTML={{
-              __html: `
-                .helio-container * {
-                  max-width: 100% !important;
-                  box-sizing: border-box !important;
-                }
-                .helio-container iframe {
-                  max-width: 100% !important;
-                  width: 100% !important;
-                }
-                .helio-container > div {
-                  max-width: 100% !important;
-                  overflow: hidden !important;
-                }
-              `
-            }} />
-            {statusMsg && (
-              <div className="mt-4 text-xs sm:text-sm text-gray-300">{statusMsg}</div>
-            )}
           </div>
+          <style dangerouslySetInnerHTML={{
+            __html: `
+              .helio-container * {
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+              }
+              .helio-container iframe {
+                max-width: 100% !important;
+                width: 100% !important;
+              }
+              .helio-container > div {
+                max-width: 100% !important;
+                overflow: hidden !important;
+              }
+            `
+          }} />
+          {statusMsg && (
+            <div className="mt-4 text-xs sm:text-sm text-gray-300">{statusMsg}</div>
+          )}
+        </div>
 
+        {/* NFT Holder Access and Referral Code side by side */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           {/* NFT Holder Access */}
           <NFTGatedAccess />
 
