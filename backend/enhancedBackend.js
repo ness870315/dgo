@@ -143,8 +143,9 @@ class EnhancedBackend {
     this.enhancedAnalyticsCache = new EnhancedAnalyticsCacheService(this.kolService);
     this.priorityQueue = new PriorityQueueService();
     
-    // Initialize KOL Service first, then start Enhanced Analytics Cache
-    this.initializeKOLService();
+    // Start Enhanced Analytics Cache Service immediately (will work with empty data until KOL Service loads)
+    this.enhancedAnalyticsCache.startBackgroundProcessing();
+    console.log('✅ Enhanced Analytics Cache Service started');
     this.leaderboardEngine = new LeaderboardScoringEngine();
     this.kolTrustSystem = new EnhancedKOLTrustSystem();
     this.monthlySnapshotService = new MonthlySnapshotService();
@@ -219,15 +220,8 @@ class EnhancedBackend {
       console.log('🔄 Initializing KOL Service...');
       await this.kolService.initialize();
       console.log('✅ KOL Service initialized successfully');
-      
-      // Start Enhanced Analytics Cache Service after KOL Service is ready
-      this.enhancedAnalyticsCache.startBackgroundProcessing();
-      console.log('✅ Enhanced Analytics Cache Service started');
     } catch (error) {
       console.error('❌ Failed to initialize KOL Service:', error);
-      // Still start the cache service even if KOL service fails
-      this.enhancedAnalyticsCache.startBackgroundProcessing();
-      console.log('✅ Enhanced Analytics Cache Service started (with limited functionality)');
     }
   }
 
@@ -14003,6 +13997,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
   async start() {
     try {
+      // Initialize KOL Service first (async operation)
+      await this.initializeKOLService();
+      
       // Load KOL routes first
       await this.loadKOLRoutes();
       
