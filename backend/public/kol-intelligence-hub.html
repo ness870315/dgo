@@ -476,20 +476,21 @@
         <div class="w-80 glass border-r border-gray-800 flex flex-col">
             <!-- Header -->
             <div class="p-4 border-b border-gray-800">
-                <div class="flex items-center justify-between mb-3">
-                    <div>
-                        <h2 class="text-lg font-bold accent-purple">KOL INTELLIGENCE</h2>
-                        <p class="text-xs text-gray-500">Who Moves Markets</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button onclick="showSettings()" class="tooltip" data-tooltip="Settings">
-                            <i data-lucide="settings" class="w-5 h-5 text-gray-400 hover:text-purple-500 transition"></i>
-                        </button>
-                        <button id="kolPanelToggle" onclick="toggleKOLPanel()" class="tooltip" data-tooltip="Toggle Panel">
-                            <i data-lucide="chevron-right" class="w-5 h-5 text-gray-400 hover:text-purple-500 transition"></i>
-                        </button>
-                    </div>
-                </div>
+         <div class="flex items-center justify-between mb-3">
+             <div>
+                 <h2 class="text-lg font-bold accent-purple">KOL INTELLIGENCE</h2>
+                 <p class="text-xs text-gray-500">Who Moves Markets</p>
+             </div>
+             <div class="flex items-center gap-2">
+                 <button onclick="showSettings()" class="tooltip" data-tooltip="Settings">
+                     <i data-lucide="settings" class="w-5 h-5 text-gray-400 hover:text-purple-500 transition"></i>
+                 </button>
+             </div>
+         </div>
+         <!-- Toggle button positioned in middle of panel edge -->
+         <button id="kolPanelToggle" onclick="toggleKOLPanel()" class="absolute top-1/2 -right-3 transform -translate-y-1/2 bg-gray-800 p-1 rounded-full shadow-lg z-50 tooltip" data-tooltip="Toggle Panel">
+             <i data-lucide="chevron-left" class="w-5 h-5 text-gray-400 hover:text-purple-500 transition"></i>
+         </button>
                 <div class="text-xs text-gray-400">
                     <span id="kolCount" class="accent-purple font-semibold">0</span> Active • Updated <span id="lastUpdate">--</span>
                 </div>

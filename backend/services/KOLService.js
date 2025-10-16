@@ -723,6 +723,7 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
               return cachedPrice;
             }
             
+            console.log(`⏳ [HISTORICAL-PRICE] Attempting to fetch historical price for ${symbol} at ${timestamp.toISOString()} (rounded to ${Math.floor(targetTime.getTime() / (1000 * 60 * 60))})`);
             let historicalPrice = null;
             
             // NEW: Try Apex Exchange first (high priority for supported symbols)
@@ -1738,6 +1739,11 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
           const mentionTime = new Date(post.created_at);
           const historicalPrice = await this.fetchHistoricalPrice(coin, mentionTime);
           
+          // Fetch Lead-Lag price points (1h, 4h, 24h after mention)
+          const price1h = await this.fetchHistoricalPrice(coin, new Date(mentionTime.getTime() + 60 * 60 * 1000));
+          const price4h = await this.fetchHistoricalPrice(coin, new Date(mentionTime.getTime() + 4 * 60 * 60 * 1000));
+          const price24h = await this.fetchHistoricalPrice(coin, new Date(mentionTime.getTime() + 24 * 60 * 60 * 1000));
+          
           // Create coin data entry - use DegenOracle data if available, otherwise create basic structure
           const baseCoinData = coinDataCache[coin] || {
             symbol: coin,
@@ -1753,12 +1759,19 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
           post.coin_data[coin] = {
             ...baseCoinData,
             price_at_mention: historicalPrice || baseCoinData.price, // Use historical price if available
+            price_1h_after: price1h,
+            price_4h_after: price4h,
+            price_24h_after: price24h,
             timestamp: post.created_at
           };
           enriched++;
           
+          // Debug logging for Lead-Lag analysis
+          console.log(`📊 [LEAD-LAG-DEBUG] Coin: ${coin}, MentionTime: ${mentionTime.toISOString()}`);
+          console.log(`  📈 Price@Mention: ${historicalPrice}, Price+1h: ${price1h}, Price+4h: ${price4h}, Price+24h: ${price24h}`);
+          
           // Add small delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise(resolve => setTimeout(resolve, 200));
         }
       }
     }
