@@ -159,10 +159,35 @@ export default function PremiumPage({ onBack, headerAuth }) {
             <h3 className="text-base sm:text-lg font-semibold text-white mb-3">Upgrade to Premium</h3>
             <p className="text-gray-300 text-xs sm:text-sm mb-4">Complete your secure payment below. Your account will be upgraded automatically after success.</p>
             <div className="flex justify-center">
-              <div className="w-full max-w-md overflow-hidden rounded-lg border border-gray-600 bg-gray-800/50 p-4">
-                <div id="helioCheckoutPremium" ref={containerRef} className="w-full max-w-full" />
+              <div className="w-full max-w-3xl overflow-hidden rounded-lg border border-gray-600 bg-gray-800/50 p-4">
+                <div 
+                  id="helioCheckoutPremium" 
+                  ref={containerRef} 
+                  className="w-full helio-container" 
+                  style={{
+                    maxWidth: '100%', 
+                    overflow: 'hidden',
+                    boxSizing: 'border-box'
+                  }} 
+                />
               </div>
             </div>
+            <style dangerouslySetInnerHTML={{
+              __html: `
+                .helio-container * {
+                  max-width: 100% !important;
+                  box-sizing: border-box !important;
+                }
+                .helio-container iframe {
+                  max-width: 100% !important;
+                  width: 100% !important;
+                }
+                .helio-container > div {
+                  max-width: 100% !important;
+                  overflow: hidden !important;
+                }
+              `
+            }} />
             {statusMsg && (
               <div className="mt-4 text-xs sm:text-sm text-gray-300">{statusMsg}</div>
             )}
