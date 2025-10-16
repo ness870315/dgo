@@ -5104,6 +5104,80 @@ Format as JSON:
     });
     
     // =============================
+    // KOL DATA API ENDPOINTS (for KOL Intelligence Hub)
+    // =============================
+    
+    // Get all KOLs
+    this.app.get('/api/kol/kols', async (req, res) => {
+      try {
+        const kols = await this.kolService.getKOLs();
+        res.json({
+          success: true,
+          data: kols || []
+        });
+      } catch (error) {
+        console.error('❌ Error fetching KOLs:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch KOLs'
+        });
+      }
+    });
+
+    // Get all KOL posts
+    this.app.get('/api/kol/posts', async (req, res) => {
+      try {
+        const posts = await this.kolService.getPosts();
+        res.json({
+          success: true,
+          data: posts || []
+        });
+      } catch (error) {
+        console.error('❌ Error fetching KOL posts:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch KOL posts'
+        });
+      }
+    });
+
+    // Get coin data for KOL Intelligence Hub
+    this.app.get('/api/kol/coin-data', async (req, res) => {
+      try {
+        // This would typically fetch coin metadata, logos, etc.
+        // For now, return empty object as placeholder
+        res.json({
+          success: true,
+          data: {}
+        });
+      } catch (error) {
+        console.error('❌ Error fetching coin data:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch coin data'
+        });
+      }
+    });
+
+    // Get alpha scores for KOLs
+    this.app.get('/api/kol/alpha-scores', async (req, res) => {
+      try {
+        // This would typically calculate alpha scores for KOLs
+        // For now, return empty array as placeholder
+        res.json({
+          success: true,
+          data: []
+        });
+      } catch (error) {
+        console.error('❌ Error fetching alpha scores:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch alpha scores'
+        });
+      }
+    });
+
+    // =============================
     // CACHED ENHANCED ANALYTICS API ENDPOINTS
     // =============================
     
