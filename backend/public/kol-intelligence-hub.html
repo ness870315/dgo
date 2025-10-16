@@ -4262,7 +4262,7 @@
                 container.innerHTML = '';
                 
                 // Create SVG for heatmap
-                const width = container.offsetWidth - 40;
+                const width = Math.max(container.offsetWidth - 40, 300); // Minimum width of 300px
                 const height = 200;
                 
                 const svg = d3.select(container)
@@ -4373,7 +4373,7 @@
                 container.innerHTML = '';
                 
                 // Create SVG for sentiment trends
-                const width = container.offsetWidth - 40;
+                const width = Math.max(container.offsetWidth - 40, 300); // Minimum width of 300px
                 const height = 200;
                 
                 const svg = d3.select(container)
@@ -4494,7 +4494,7 @@
                 container.innerHTML = '';
                 
                 // Create SVG for influence decay
-                const width = container.offsetWidth - 40;
+                const width = Math.max(container.offsetWidth - 40, 300); // Minimum width of 300px
                 const height = 200;
                 
                 const svg = d3.select(container)

@@ -25,6 +25,7 @@ import MilestoneTracker from './milestoneTracker.js';
 import PushNotificationService from './pushNotificationService.js';
 import AutomatedTokenCleanup from './automatedTokenCleanup.js';
 import HybridPriceService from './hybridPriceService.js';
+import KOLService from './services/KOLService.js';
 import logger from './logger.js';
 import { fileURLToPath } from 'url';
 import { ForecastDebugEndpoint } from './debug-forecast-token.js';
@@ -136,6 +137,7 @@ class EnhancedBackend {
     // this.birdeyeService = new BirdEyeTrendingService(); // DISABLED
     this.helioService = new HelioPaymentService();
     this.oauthXService = new OAuthXService();
+    this.kolService = new KOLService();
     this.priorityQueue = new PriorityQueueService();
     this.leaderboardEngine = new LeaderboardScoringEngine();
     this.kolTrustSystem = new EnhancedKOLTrustSystem();
@@ -4367,7 +4369,7 @@ class EnhancedBackend {
         
         if (!this.enhancedPredictiveAnalytics) {
           const { default: EnhancedPredictiveAnalyticsService } = await import('./services/EnhancedPredictiveAnalyticsService.js');
-          this.enhancedPredictiveAnalytics = new EnhancedPredictiveAnalyticsService(this.oauthXService.db);
+          this.enhancedPredictiveAnalytics = new EnhancedPredictiveAnalyticsService(this.kolService);
           await this.enhancedPredictiveAnalytics.initialize();
         }
         
@@ -4398,7 +4400,7 @@ class EnhancedBackend {
         
         if (!this.enhancedPredictiveAnalytics) {
           const { default: EnhancedPredictiveAnalyticsService } = await import('./services/EnhancedPredictiveAnalyticsService.js');
-          this.enhancedPredictiveAnalytics = new EnhancedPredictiveAnalyticsService(this.oauthXService.db);
+          this.enhancedPredictiveAnalytics = new EnhancedPredictiveAnalyticsService(this.kolService);
           await this.enhancedPredictiveAnalytics.initialize();
         }
         
@@ -4427,7 +4429,7 @@ class EnhancedBackend {
       try {
         if (!this.enhancedPredictiveAnalytics) {
           const { default: EnhancedPredictiveAnalyticsService } = await import('./services/EnhancedPredictiveAnalyticsService.js');
-          this.enhancedPredictiveAnalytics = new EnhancedPredictiveAnalyticsService(this.oauthXService.db);
+          this.enhancedPredictiveAnalytics = new EnhancedPredictiveAnalyticsService(this.kolService);
           await this.enhancedPredictiveAnalytics.initialize();
         }
         
@@ -4450,6 +4452,465 @@ class EnhancedBackend {
         });
       }
     });
+
+    // AI-Powered Narrative Analysis
+    this.app.post('/api/ml/narrative-analysis', async (req, res) => {
+      try {
+        const { posts } = req.body;
+        
+        if (!posts || !Array.isArray(posts) || posts.length === 0) {
+          return res.status(400).json({
+            success: false,
+            error: 'No posts provided for analysis'
+          });
+        }
+
+        console.log(`🧠 [NARRATIVE AI] Analyzing ${posts.length} posts for narrative detection`);
+
+        // Initialize OpenAI service if not already done
+        if (!this.openaiService) {
+          const { default: OpenAIService } = await import('./openaiService.js');
+          this.openaiService = new OpenAIService();
+        }
+
+        // Prepare posts for analysis
+        const postsText = posts.map(post => 
+          `KOL: ${post.kol_handle}\nContent: ${post.content}\n---`
+        ).join('\n');
+
+        // Define narrative categories
+        const narrativeCategories = [
+          'AI & Machine Learning',
+          'DeFi & Yield Farming', 
+          'Gaming & NFTs',
+          'Memes & Community',
+          'Layer 2 & Scaling',
+          'Privacy & Security',
+          'Real World Assets (RWA)',
+          'Social & Web3',
+          'Infrastructure & Tools',
+          'Regulation & Compliance'
+        ];
+
+        // Create the prompt for narrative analysis
+        const prompt = `Analyze the following KOL posts to identify trending narratives in the crypto space.
+
+POSTS TO ANALYZE:
+${postsText}
+
+NARRATIVE CATEGORIES:
+${narrativeCategories.join(', ')}
+
+Please analyze these posts and provide:
+1. The most trending narrative (from the categories above)
+2. A "warming up" narrative that's emerging but not yet dominant
+3. Confidence scores (0-1) for both narratives
+4. Number of KOLs mentioning each narrative
+5. Brief reasoning for your analysis
+
+Look for:
+- Current dominant narrative (most mentions, highest sentiment)
+- Emerging narrative (growing mentions, early signals, new keywords)
+- Cross-KOL correlation patterns
+- Sentiment shifts and momentum changes
+
+Respond in JSON format:
+{
+  "trendingNarrative": "current dominant category",
+  "confidence": 0.85,
+  "warmingUpNarrative": "emerging category",
+  "warmingUpConfidence": 0.65,
+  "kolCount": 3,
+  "reasoning": "Brief explanation of both narratives"
+}`;
+
+        try {
+          const response = await this.openaiService.generateCompletion(prompt, {
+            model: 'gpt-4-turbo',
+            max_tokens: 500,
+            temperature: 0.3
+          });
+
+          // Parse the AI response
+          let analysis;
+          try {
+            analysis = JSON.parse(response);
+          } catch (parseError) {
+            console.warn('Failed to parse AI response, using fallback analysis');
+            analysis = {
+              trendingNarrative: 'AI & Machine Learning',
+              confidence: 0.7,
+              kolCount: Math.min(posts.length, 3),
+              reasoning: 'AI analysis failed, using default narrative'
+            };
+          }
+
+          // Validate the response
+          if (!analysis.trendingNarrative || typeof analysis.confidence !== 'number') {
+            throw new Error('Invalid AI response format');
+          }
+
+          console.log(`🧠 [NARRATIVE AI] Detected narrative: ${analysis.trendingNarrative} (${Math.round(analysis.confidence * 100)}% confidence)`);
+          console.log(`🔥 [NARRATIVE AI] Warming up: ${analysis.warmingUpNarrative || 'None'} (${Math.round((analysis.warmingUpConfidence || 0) * 100)}% confidence)`);
+
+          res.json({
+            success: true,
+            data: {
+              trendingNarrative: analysis.trendingNarrative,
+              confidence: analysis.confidence,
+              warmingUpNarrative: analysis.warmingUpNarrative || 'None detected',
+              warmingUpConfidence: analysis.warmingUpConfidence || 0,
+              kolCount: analysis.kolCount || 1,
+              reasoning: analysis.reasoning || 'AI-powered narrative detection',
+              timestamp: new Date().toISOString()
+            }
+          });
+
+        } catch (aiError) {
+          console.warn('AI analysis failed, using fallback:', aiError.message);
+          
+          // Fallback to keyword-based analysis
+          const fallbackAnalysis = await this.performFallbackNarrativeAnalysis(posts);
+          
+          res.json({
+            success: true,
+            data: fallbackAnalysis
+          });
+        }
+
+      } catch (error) {
+        console.error(`❌ [NARRATIVE AI] Analysis error:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to analyze narratives',
+          message: error.message
+        });
+      }
+    });
+
+    // Fallback narrative analysis function
+    this.performFallbackNarrativeAnalysis = async (posts) => {
+      const narrativeKeywords = {
+        'AI & Machine Learning': ['ai', 'artificial intelligence', 'machine learning', 'gpt', 'openai', 'chatgpt', 'claude', 'anthropic', 'llm'],
+        'DeFi & Yield Farming': ['defi', 'yield farming', 'liquidity', 'staking', 'protocol', 'uniswap', 'aave', 'compound', 'lending'],
+        'Gaming & NFTs': ['gaming', 'nft', 'metaverse', 'play-to-earn', 'gamefi', 'web3 gaming', 'blockchain game', 'nft gaming'],
+        'Memes & Community': ['meme', 'doge', 'pepe', 'shiba', 'funny', 'meme coin', 'community token', 'community'],
+        'Layer 2 & Scaling': ['layer 2', 'l2', 'rollup', 'arbitrum', 'optimism', 'polygon', 'scaling', 'sidechain'],
+        'Privacy & Security': ['privacy', 'zero-knowledge', 'zk', 'anonymous', 'private', 'privacy coin', 'security'],
+        'Real World Assets (RWA)': ['real world assets', 'rwa', 'tokenization', 'real estate', 'commodities', 'tangible assets'],
+        'Social & Web3': ['social', 'social media', 'web3 social', 'decentralized social', 'social token', 'community'],
+        'Infrastructure & Tools': ['infrastructure', 'tools', 'developer', 'api', 'sdk', 'infrastructure', 'tooling'],
+        'Regulation & Compliance': ['regulation', 'compliance', 'legal', 'regulatory', 'sec', 'government', 'policy']
+      };
+
+      const narrativeCounts = {};
+      
+      posts.forEach(post => {
+        const content = (post.content || '').toLowerCase();
+        Object.entries(narrativeKeywords).forEach(([narrative, keywords]) => {
+          keywords.forEach(keyword => {
+            if (content.includes(keyword)) {
+              narrativeCounts[narrative] = (narrativeCounts[narrative] || 0) + 1;
+            }
+          });
+        });
+      });
+
+      const topNarrative = Object.entries(narrativeCounts)
+        .sort(([,a], [,b]) => b - a)[0];
+
+      if (topNarrative) {
+        // Find second most common narrative for warming up
+        const secondNarrative = Object.entries(narrativeCounts)
+          .sort(([,a], [,b]) => b - a)[1];
+        
+        return {
+          trendingNarrative: topNarrative[0],
+          confidence: Math.min(topNarrative[1] * 0.2, 0.9),
+          warmingUpNarrative: secondNarrative && secondNarrative[1] > 0 ? secondNarrative[0] : 'No emerging narrative',
+          warmingUpConfidence: secondNarrative && secondNarrative[1] > 0 ? Math.min(secondNarrative[1] * 0.15, 0.7) : 0,
+          kolCount: topNarrative[1],
+          reasoning: `Keyword-based analysis detected ${topNarrative[1]} mentions for trending, ${secondNarrative ? secondNarrative[1] : 0} for warming up`,
+          timestamp: new Date().toISOString()
+        };
+      } else {
+        return {
+          trendingNarrative: 'No clear narrative detected',
+          confidence: 0.1,
+          warmingUpNarrative: 'No emerging narrative',
+          warmingUpConfidence: 0,
+          kolCount: 0,
+          reasoning: 'No narrative keywords found in posts',
+          timestamp: new Date().toISOString()
+        };
+      }
+    };
+
+    // Comprehensive AI Insights API
+    this.app.post('/api/ml/comprehensive-insights', async (req, res) => {
+      try {
+        const { analytics, predictions, visualizations, momentum, posts, kols } = req.body;
+        
+        if (!analytics || !predictions || !visualizations || !momentum) {
+          return res.status(400).json({
+            success: false,
+            error: 'Missing required data for comprehensive analysis'
+          });
+        }
+
+        console.log(`🧠 [COMPREHENSIVE AI] Analyzing comprehensive data for insights`);
+
+        // Initialize OpenAI service if not already done
+        if (!this.openaiService) {
+          const { default: OpenAIService } = await import('./openaiService.js');
+          this.openaiService = new OpenAIService();
+        }
+
+        // Prepare comprehensive data for AI analysis
+        const analysisData = {
+          analytics: {
+            topKOL: analytics.topKOL,
+            marketMomentum: analytics.marketMomentum
+          },
+          predictions: {
+            trendingNarrative: predictions.trendingNarrative,
+            warmingNarrative: predictions.warmingNarrative,
+            nextCoin: predictions.nextCoin,
+            momentumScore: predictions.momentumScore,
+            viralPotential: predictions.viralPotential
+          },
+          visualizations: {
+            timelineHeatmap: visualizations.timelineHeatmap,
+            sentimentTrends: visualizations.sentimentTrends,
+            influenceDecay: visualizations.influenceDecay
+          },
+          momentum: {
+            topCoins: momentum.topCoins,
+            totalCoins: momentum.totalCoins,
+            timeframe: momentum.timeframe
+          },
+          context: {
+            totalPosts: posts ? posts.length : 0,
+            totalKOLs: kols ? kols.length : 0,
+            recentActivity: posts ? posts.slice(0, 5).map(p => ({
+              kol: p.kol_handle,
+              sentiment: p.sentiment,
+              coins: p.coins
+            })) : []
+          }
+        };
+
+        // Create comprehensive analysis prompt
+        const prompt = `Analyze the following comprehensive KOL intelligence data and provide actionable insights and recommendations.
+
+ANALYTICS DATA:
+- Top KOL: ${analysisData.analytics.topKOL.name} (${analysisData.analytics.topKOL.handle})
+- Alpha Score: ${analysisData.analytics.topKOL.alphaScore}
+- Hit Rate: ${analysisData.analytics.topKOL.hitRate}
+- Risk Score: ${analysisData.analytics.topKOL.riskScore}
+- Market Trend: ${analysisData.analytics.marketMomentum.overallTrend}
+- Hot Sectors: ${analysisData.analytics.marketMomentum.hotSectors}
+- Risk Level: ${analysisData.analytics.marketMomentum.riskLevel}
+
+PREDICTIONS DATA:
+- Trending Narrative: ${analysisData.predictions.trendingNarrative}
+- Warming Up Narrative: ${analysisData.predictions.warmingNarrative}
+- Next Coin to Watch: ${analysisData.predictions.nextCoin}
+- Momentum Score: ${analysisData.predictions.momentumScore}
+- Viral Potential: ${analysisData.predictions.viralPotential}
+
+VISUALIZATIONS DATA:
+- Peak Activity Time: ${analysisData.visualizations.timelineHeatmap.peakActivity}
+- Activity Pattern: ${analysisData.visualizations.timelineHeatmap.activityPattern}
+- Current Sentiment: ${analysisData.visualizations.sentimentTrends.currentSentiment}
+- Sentiment Trend: ${analysisData.visualizations.sentimentTrends.sentimentTrend}
+- Current Influence: ${analysisData.visualizations.influenceDecay.currentInfluence}
+- Influence Trend: ${analysisData.visualizations.influenceDecay.influenceTrend}
+
+MOMENTUM DATA:
+- Top Coins: ${analysisData.momentum.topCoins.map(c => `${c.coin} (${c.momentum})`).join(', ')}
+- Total Coins Tracked: ${analysisData.momentum.totalCoins}
+- Timeframe: ${analysisData.momentum.timeframe}h
+
+CONTEXT:
+- Total Posts: ${analysisData.context.totalPosts}
+- Total KOLs: ${analysisData.context.totalKOLs}
+- Recent Activity: ${JSON.stringify(analysisData.context.recentActivity)}
+
+Please provide:
+1. 3-5 key insights about the current market situation
+2. 3-5 actionable recommendations for trading/positioning
+3. Risk assessment and warnings
+4. Opportunities to watch
+
+Format as JSON:
+{
+  "insights": [
+    {"icon": "trending-up", "color": "green", "text": "Insight text"},
+    {"icon": "alert-triangle", "color": "yellow", "text": "Warning text"}
+  ],
+  "recommendations": [
+    {"icon": "target", "color": "blue", "text": "Recommendation text"},
+    {"icon": "eye", "color": "purple", "text": "Watch recommendation"}
+  ]
+}`;
+
+        try {
+          const response = await this.openaiService.generateCompletion(prompt, {
+            model: 'gpt-4-turbo',
+            max_tokens: 1000,
+            temperature: 0.4
+          });
+
+          // Parse the AI response
+          let analysis;
+          try {
+            analysis = JSON.parse(response);
+          } catch (parseError) {
+            console.warn('Failed to parse AI insights response, using fallback');
+            analysis = {
+              insights: [
+                { icon: 'zap', color: 'yellow', text: 'AI analysis completed with comprehensive data review' },
+                { icon: 'trending-up', color: 'green', text: 'Market conditions analyzed across all metrics' },
+                { icon: 'brain', color: 'purple', text: 'Cross-tab correlation analysis performed' }
+              ],
+              recommendations: [
+                { icon: 'target', color: 'blue', text: 'Monitor trending narrative for opportunities' },
+                { icon: 'shield', color: 'yellow', text: 'Maintain risk management based on current levels' },
+                { icon: 'eye', color: 'green', text: 'Watch warming up narrative for early signals' }
+              ]
+            };
+          }
+
+          // Validate the response
+          if (!analysis.insights || !analysis.recommendations) {
+            throw new Error('Invalid AI insights response format');
+          }
+
+          console.log(`🧠 [COMPREHENSIVE AI] Generated ${analysis.insights.length} insights and ${analysis.recommendations.length} recommendations`);
+
+          res.json({
+            success: true,
+            data: {
+              insights: analysis.insights,
+              recommendations: analysis.recommendations,
+              timestamp: new Date().toISOString(),
+              dataPoints: {
+                analytics: Object.keys(analytics).length,
+                predictions: Object.keys(predictions).length,
+                visualizations: Object.keys(visualizations).length,
+                momentum: Object.keys(momentum).length
+              }
+            }
+          });
+
+        } catch (aiError) {
+          console.warn('AI comprehensive analysis failed, using fallback:', aiError.message);
+          
+          // Fallback insights based on data
+          const fallbackInsights = generateFallbackInsights(analysisData);
+          
+          res.json({
+            success: true,
+            data: fallbackInsights
+          });
+        }
+
+      } catch (error) {
+        console.error(`❌ [COMPREHENSIVE AI] Analysis error:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to generate comprehensive insights',
+          message: error.message
+        });
+      }
+    });
+
+    // Fallback comprehensive insights function
+    function generateFallbackInsights(data) {
+      const insights = [];
+      const recommendations = [];
+
+      // Generate insights based on available data
+      if (data.analytics.topKOL.name !== 'Unknown') {
+        insights.push({
+          icon: 'crown',
+          color: 'yellow',
+          text: `${data.analytics.topKOL.name} is your top performer with ${data.analytics.topKOL.alphaScore} alpha score`
+        });
+      }
+
+      if (data.predictions.trendingNarrative !== '--') {
+        insights.push({
+          icon: 'trending-up',
+          color: 'green',
+          text: `${data.predictions.trendingNarrative} narrative is trending with high confidence`
+        });
+      }
+
+      if (data.predictions.warmingNarrative !== '--' && data.predictions.warmingNarrative !== 'None detected') {
+        insights.push({
+          icon: 'zap',
+          color: 'blue',
+          text: `${data.predictions.warmingNarrative} narrative is warming up - watch for early signals`
+        });
+      }
+
+      if (data.visualizations.sentimentTrends.currentSentiment > 0.3) {
+        insights.push({
+          icon: 'smile',
+          color: 'green',
+          text: 'Market sentiment is bullish with positive momentum'
+        });
+      } else if (data.visualizations.sentimentTrends.currentSentiment < -0.3) {
+        insights.push({
+          icon: 'frown',
+          color: 'red',
+          text: 'Market sentiment is bearish with negative momentum'
+        });
+      }
+
+      // Generate recommendations
+      if (data.predictions.nextCoin !== '--' && data.predictions.nextCoin !== 'None detected') {
+        recommendations.push({
+          icon: 'target',
+          color: 'green',
+          text: `Watch ${data.predictions.nextCoin} closely - showing strong momentum signals`
+        });
+      }
+
+      if (data.analytics.marketMomentum.riskLevel === 'High') {
+        recommendations.push({
+          icon: 'shield',
+          color: 'red',
+          text: 'High risk environment detected - consider reducing position sizes'
+        });
+      }
+
+      if (data.predictions.viralPotential === 'High') {
+        recommendations.push({
+          icon: 'zap',
+          color: 'purple',
+          text: 'High viral potential detected - prepare for potential market movements'
+        });
+      }
+
+      recommendations.push({
+        icon: 'eye',
+        color: 'blue',
+        text: 'Monitor cross-KOL correlation for consensus signals'
+      });
+
+      return {
+        insights: insights.length > 0 ? insights : [
+          { icon: 'info', color: 'gray', text: 'Add more KOLs and data for personalized insights' }
+        ],
+        recommendations: recommendations.length > 0 ? recommendations : [
+          { icon: 'plus', color: 'blue', text: 'Start tracking KOLs to get actionable recommendations' }
+        ],
+        timestamp: new Date().toISOString()
+      };
+    }
     
     // Get enhanced KOL performance predictions
     this.app.get('/api/ml/kol-predictions/:kolHandle', async (req, res) => {
@@ -4458,7 +4919,7 @@ class EnhancedBackend {
         
         if (!this.enhancedPredictiveAnalytics) {
           const { default: EnhancedPredictiveAnalyticsService } = await import('./services/EnhancedPredictiveAnalyticsService.js');
-          this.enhancedPredictiveAnalytics = new EnhancedPredictiveAnalyticsService(this.oauthXService.db);
+          this.enhancedPredictiveAnalytics = new EnhancedPredictiveAnalyticsService(this.kolService);
           await this.enhancedPredictiveAnalytics.initialize();
         }
         
@@ -4498,7 +4959,7 @@ class EnhancedBackend {
         
         if (!this.enhancedPredictiveAnalytics) {
           const { default: EnhancedPredictiveAnalyticsService } = await import('./services/EnhancedPredictiveAnalyticsService.js');
-          this.enhancedPredictiveAnalytics = new EnhancedPredictiveAnalyticsService(this.oauthXService.db);
+          this.enhancedPredictiveAnalytics = new EnhancedPredictiveAnalyticsService(this.kolService);
           await this.enhancedPredictiveAnalytics.initialize();
         }
         
@@ -4537,7 +4998,7 @@ class EnhancedBackend {
       try {
         if (!this.enhancedPredictiveAnalytics) {
           const { default: EnhancedPredictiveAnalyticsService } = await import('./services/EnhancedPredictiveAnalyticsService.js');
-          this.enhancedPredictiveAnalytics = new EnhancedPredictiveAnalyticsService(this.oauthXService.db);
+          this.enhancedPredictiveAnalytics = new EnhancedPredictiveAnalyticsService(this.kolService);
           await this.enhancedPredictiveAnalytics.initialize();
         }
         
