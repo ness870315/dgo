@@ -726,51 +726,25 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
             console.log(`⏳ [HISTORICAL-PRICE] Attempting to fetch historical price for ${symbol} at ${timestamp.toISOString()} (rounded to ${Math.floor(targetTime.getTime() / (1000 * 60 * 60))})`);
             let historicalPrice = null;
             
-            // NEW: Try Apex Exchange first (high priority for supported symbols)
-            const apexSupportedSymbols = ['APEX', 'FARTCOIN', 'BTC', 'ETH', 'SOL', 'DOGE', 'SHIB', 'WIF', 'TRUMP', 'BONK', 'POPCAT', 'PNUT', 'PUMP', 'XRP'];
-            if (apexSupportedSymbols.includes(symbolUpper)) {
-              try {
-                historicalPrice = await this.fetchApexExchangeHistoricalPrice(symbolUpper, targetTime);
-                if (historicalPrice) {
-                  console.log(`✅ [KOL SERVICE] Found Apex Exchange price for $${symbol}: $${historicalPrice}`);
-                  // Cache the result
-                  this.historicalPricesCache.set(cacheKey, historicalPrice);
-                  return historicalPrice;
-                }
-              } catch (error) {
-                console.log(`❌ [KOL SERVICE] Apex Exchange failed for ${symbol}: ${error.message}`);
-              }
-            }
-            
-            // Map token names to their actual trading symbols
-            const symbolMapping = {
-              'SPX6900': 'SPX' // SPX6900 maps to SPX for CoinDesk (becomes SPX-USD)
-            };
-            const actualSymbol = symbolMapping[symbolUpper] || symbolUpper;
-            
-            // Skip symbols that are known to not work with CoinDesk
-            const skipCoinDesk = []; // CoinDesk supports SPX-USD on Kraken
-      
             console.log(`🔍 [KOL SERVICE] Fetching historical price for $${symbol} at ${targetTime.toISOString()}`);
             
-            // Try CoinDesk (primary free API - no location restrictions)
-            if (!skipCoinDesk.includes(symbolUpper)) {
-              try {
-                console.log(`🔍 [KOL SERVICE] Trying CoinDesk for ${symbol} at ${targetTime.toISOString()}`);
-                historicalPrice = await this.fetchCoinDeskHistoricalPrice(symbolUpper, targetTime);
-                if (historicalPrice) {
-                  console.log(`✅ [KOL SERVICE] Found CoinDesk price for $${symbol}: $${historicalPrice}`);
-                } else {
-                  console.log(`⚠️ [KOL SERVICE] CoinDesk returned null for ${symbol}`);
-                }
-              } catch (error) {
-                console.log(`❌ [KOL SERVICE] CoinDesk failed for ${symbol}: ${error.message}`);
+            // 1. Try APEX API first (primary)
+            try {
+              console.log(`🔍 [KOL SERVICE] Trying APEX API for ${symbol} at ${targetTime.toISOString()}`);
+              historicalPrice = await this.fetchApexExchangeHistoricalPrice(symbolUpper, targetTime);
+              if (historicalPrice) {
+                console.log(`✅ [KOL SERVICE] Found APEX API price for $${symbol}: $${historicalPrice}`);
+                // Cache the result
+                this.historicalPricesCache.set(cacheKey, historicalPrice);
+                return historicalPrice;
+              } else {
+                console.log(`⚠️ [KOL SERVICE] APEX API returned null for ${symbol}`);
               }
-            } else {
-              console.log(`⏭️ [KOL SERVICE] Skipping CoinDesk for ${symbol} (known incompatible symbol)`);
+            } catch (error) {
+              console.log(`❌ [KOL SERVICE] APEX API failed for ${symbol}: ${error.message}`);
             }
             
-            // Try CoinAPI.io (fallback - comprehensive coverage)
+            // 2. Try CoinAPI.io (fallback)
             if (!historicalPrice) {
               try {
                 console.log(`🔍 [KOL SERVICE] Trying CoinAPI.io for ${symbol} at ${targetTime.toISOString()}`);
@@ -782,6 +756,21 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
                 }
               } catch (error) {
                 console.log(`❌ [KOL SERVICE] CoinAPI.io failed for ${symbol}: ${error.message}`);
+              }
+            }
+            
+            // 3. Try CoinDesk API (final fallback)
+            if (!historicalPrice) {
+              try {
+                console.log(`🔍 [KOL SERVICE] Trying CoinDesk API for ${symbol} at ${targetTime.toISOString()}`);
+                historicalPrice = await this.fetchCoinDeskHistoricalPrice(symbolUpper, targetTime);
+                if (historicalPrice) {
+                  console.log(`✅ [KOL SERVICE] Found CoinDesk API price for $${symbol}: $${historicalPrice}`);
+                } else {
+                  console.log(`⚠️ [KOL SERVICE] CoinDesk API returned null for ${symbol}`);
+                }
+              } catch (error) {
+                console.log(`❌ [KOL SERVICE] CoinDesk API failed for ${symbol}: ${error.message}`);
               }
             }
             
@@ -1367,34 +1356,20 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       const symbolUpper = symbol.toUpperCase();
       const prices = {};
       
-      console.log(`🔍 [KOL SERVICE] Fetching BUNDLED historical prices for $${symbol} at ${timestamps.length} timestamps using free APIs`);
+      console.log(`🔍 [KOL SERVICE] Fetching BUNDLED historical prices for $${symbol} at ${timestamps.length} timestamps using APEX → CoinAPI → CoinDesk hierarchy`);
       
-      // NEW: Try Apex Exchange bundled first (high priority for supported symbols)
-      const apexSupportedSymbols = ['APEX', 'FARTCOIN', 'BTC', 'ETH', 'SOL', 'DOGE', 'SHIB', 'WIF', 'TRUMP', 'BONK', 'POPCAT'];
-      if (apexSupportedSymbols.includes(symbolUpper)) {
-        try {
-          const apexPrices = await this.fetchApexExchangeBundledPrices(symbolUpper, timestamps);
-          if (Object.keys(apexPrices).length > 0) {
-            console.log(`✅ [KOL SERVICE] Got ${Object.keys(apexPrices).length} prices from Apex Exchange for ${symbol}`);
-            return apexPrices;
-          }
-        } catch (error) {
-          console.log(`⚠️ [KOL SERVICE] Apex Exchange bundled failed for ${symbol}: ${error.message}`);
-        }
-      }
-      
-      // Try CoinDesk bundled (primary free API - no location restrictions)
+      // 1. Try APEX API bundled first (primary)
       try {
-        const coindeskPrices = await this.fetchCoinDeskBundledPrices(symbolUpper, timestamps);
-        if (Object.keys(coindeskPrices).length > 0) {
-          console.log(`✅ [KOL SERVICE] Got ${Object.keys(coindeskPrices).length} prices from CoinDesk for ${symbol}`);
-          return coindeskPrices;
+        const apexPrices = await this.fetchApexExchangeBundledPrices(symbolUpper, timestamps);
+        if (Object.keys(apexPrices).length > 0) {
+          console.log(`✅ [KOL SERVICE] Got ${Object.keys(apexPrices).length} prices from APEX API for ${symbol}`);
+          return apexPrices;
         }
       } catch (error) {
-        console.log(`⚠️ [KOL SERVICE] CoinDesk bundled failed for ${symbol}: ${error.message}`);
+        console.log(`⚠️ [KOL SERVICE] APEX API bundled failed for ${symbol}: ${error.message}`);
       }
       
-      // Try CoinAPI.io bundled (fallback - comprehensive coverage)
+      // 2. Try CoinAPI.io bundled (fallback)
       try {
         const coinapiPrices = await this.fetchCoinAPIBundledPrices(symbolUpper, timestamps);
         if (Object.keys(coinapiPrices).length > 0) {
@@ -1403,6 +1378,17 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
         }
       } catch (error) {
         console.log(`⚠️ [KOL SERVICE] CoinAPI.io bundled failed for ${symbol}: ${error.message}`);
+      }
+      
+      // 3. Try CoinDesk bundled (final fallback)
+      try {
+        const coindeskPrices = await this.fetchCoinDeskBundledPrices(symbolUpper, timestamps);
+        if (Object.keys(coindeskPrices).length > 0) {
+          console.log(`✅ [KOL SERVICE] Got ${Object.keys(coindeskPrices).length} prices from CoinDesk API for ${symbol}`);
+          return coindeskPrices;
+        }
+      } catch (error) {
+        console.log(`⚠️ [KOL SERVICE] CoinDesk API bundled failed for ${symbol}: ${error.message}`);
       }
       
       // Fallback to individual calls if bundled APIs fail
