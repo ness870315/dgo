@@ -3820,52 +3820,43 @@
 
         async function loadKOLAnalytics() {
             try {
-                // Call the actual API endpoint for KOL analytics
-                if (kols && kols.length > 0) {
-                    // Get the first KOL handle to test with
-                    const kolHandle = kols[0].handle;
+                // Call the cached API endpoint for KOL analytics
+                const response = await fetch('/api/cached/kol-performance');
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    const analytics = data.data;
                     
-                    const response = await fetch(`/api/ml/kol-analytics/${kolHandle}`);
-                    const data = await response.json();
+                    // Update top performing KOL display
+                    document.getElementById('topKOLName').textContent = analytics.topKOL.name;
+                    document.getElementById('topKOLHandle').textContent = '@' + analytics.topKOL.handle;
+                    document.getElementById('alphaScore').textContent = analytics.topKOL.alphaScore.toFixed(1);
+                    document.getElementById('alphaScoreDesc').textContent = `vs market avg (last 30d)`;
+                    document.getElementById('hitRate').textContent = analytics.topKOL.hitRate + '%';
+                    document.getElementById('hitRateDesc').textContent = `profitable calls (${analytics.topKOL.totalPosts} calls)`;
                     
-                    if (data.success && data.data) {
-                        const analytics = data.data;
-                        
-                        document.getElementById('topKOLName').textContent = analytics.kolName || 'Unknown';
-                        document.getElementById('topKOLHandle').textContent = `@${analytics.kolHandle || 'unknown'}`;
-                        document.getElementById('alphaScore').textContent = `${analytics.alphaScore?.toFixed(1) || '--'}%`;
-                        document.getElementById('alphaScoreDesc').textContent = analytics.alphaScoreDesc || 'vs market avg (last 30d)';
-                        document.getElementById('hitRate').textContent = `${analytics.hitRate?.toFixed(0) || '--'}%`;
-                        document.getElementById('hitRateDesc').textContent = analytics.hitRateDesc || 'profitable calls';
-                        document.getElementById('riskScore').textContent = analytics.riskScore || 'Medium';
-                        document.getElementById('riskScoreDesc').textContent = analytics.riskScoreDesc || 'risk assessment';
-                    } else {
-                        // Fallback to mock data if API fails
-                        const topKOL = kols[0];
-                        const mockAlphaScore = Math.random() * 100;
-                        
-                        document.getElementById('topKOLName').textContent = topKOL.name || topKOL.handle || 'Unknown';
-                        document.getElementById('topKOLHandle').textContent = `@${topKOL.handle || 'unknown'}`;
-                        document.getElementById('alphaScore').textContent = `${mockAlphaScore.toFixed(1)}%`;
-                        document.getElementById('alphaScoreDesc').textContent = 'vs market avg (last 30d)';
-                        document.getElementById('hitRate').textContent = `${Math.floor(Math.random() * 40 + 60)}%`;
-                        document.getElementById('hitRateDesc').textContent = `profitable calls (${Math.floor(Math.random() * 20 + 10)} calls)`;
-                        document.getElementById('riskScore').textContent = mockAlphaScore > 80 ? 'Low' : mockAlphaScore > 60 ? 'Medium' : 'High';
-                        document.getElementById('riskScoreDesc').textContent = `${(Math.random() * 5).toFixed(1)}% avg drawdown`;
+                    // Determine risk level display
+                    let riskLevel = 'Low';
+                    let riskColor = 'text-green-600';
+                    if (analytics.topKOL.riskScore > 70) {
+                        riskLevel = 'High';
+                        riskColor = 'text-red-600';
+                    } else if (analytics.topKOL.riskScore > 40) {
+                        riskLevel = 'Medium';
+                        riskColor = 'text-yellow-600';
                     }
+                    
+                    document.getElementById('riskScore').textContent = riskLevel;
+                    document.getElementById('riskScore').className = `text-lg font-semibold ${riskColor}`;
+                    document.getElementById('riskScoreDesc').textContent = `${analytics.topKOL.riskScore.toFixed(1)}% avg drawdown`;
+                    
+                    console.log('✅ [CACHED ANALYTICS] KOL Performance loaded successfully');
                 } else {
-                    // No KOLs available
-                    document.getElementById('topKOLName').textContent = 'No KOLs';
-                    document.getElementById('topKOLHandle').textContent = 'Add KOLs to see data';
-                    document.getElementById('alphaScore').textContent = '--';
-                    document.getElementById('alphaScoreDesc').textContent = '--';
-                    document.getElementById('hitRate').textContent = '--';
-                    document.getElementById('hitRateDesc').textContent = '--';
-                    document.getElementById('riskScore').textContent = '--';
-                    document.getElementById('riskScoreDesc').textContent = '--';
+                    throw new Error(data.error || 'Failed to load KOL analytics');
                 }
             } catch (error) {
-                console.error('Error loading KOL analytics:', error);
+                console.error('❌ [CACHED ANALYTICS] KOL analytics error:', error.message);
+                
                 // Show error state
                 document.getElementById('topKOLName').textContent = 'Error';
                 document.getElementById('topKOLHandle').textContent = '--';
@@ -3880,8 +3871,8 @@
 
         async function loadTokenMomentum() {
             try {
-                // Call the actual API endpoint for market analytics
-                const response = await fetch('/api/ml/market-analytics');
+                // Call the cached API endpoint for market analytics
+                const response = await fetch('/api/cached/market-momentum');
                 const data = await response.json();
                 
                 if (data.success && data.data) {
@@ -3893,70 +3884,14 @@
                     document.getElementById('hotSectorsDesc').textContent = analytics.hotSectorsDesc || 'No trending sectors';
                     document.getElementById('riskLevel').textContent = analytics.riskLevel || 'Medium';
                     document.getElementById('riskLevelDesc').textContent = analytics.riskLevelDesc || 'Risk assessment';
+                    
+                    console.log('✅ [CACHED ANALYTICS] Market Momentum loaded successfully');
                 } else {
-                    // Fallback to mock data if API fails
-                    let overallTrend = 'Neutral';
-                    let avgGain = 0;
-                    let hotSectors = 'None';
-                    let riskLevel = 'Medium';
-                    let volatility = 0;
-                    
-                    if (posts && posts.length > 0) {
-                        // Calculate overall sentiment trend
-                        const sentiments = posts.map(post => post.sentiment || 0);
-                        const avgSentiment = sentiments.reduce((sum, s) => sum + s, 0) / sentiments.length;
-                        
-                        // Mock market calculations based on sentiment
-                        avgGain = (avgSentiment + 1) * 5; // Convert -1 to 1 sentiment to -5% to +15% gain
-                        
-                        if (avgGain > 8) {
-                            overallTrend = 'Bullish';
-                        } else if (avgGain < 2) {
-                            overallTrend = 'Bearish';
-                        } else {
-                            overallTrend = 'Neutral';
-                        }
-                        
-                        // Determine hot sectors based on coin mentions
-                        const coinCounts = {};
-                        posts.forEach(post => {
-                            if (post.coins) {
-                                post.coins.forEach(coin => {
-                                    coinCounts[coin] = (coinCounts[coin] || 0) + 1;
-                                });
-                            }
-                        });
-                        
-                        const topCoins = Object.entries(coinCounts)
-                            .sort(([,a], [,b]) => b - a)
-                            .slice(0, 2)
-                            .map(([coin]) => coin);
-                        
-                        if (topCoins.length > 0) {
-                            hotSectors = topCoins.join(', ');
-                        }
-                        
-                        // Calculate risk level based on volatility
-                        volatility = Math.abs(avgSentiment) * 20; // Convert sentiment volatility to percentage
-                        
-                        if (volatility < 10) {
-                            riskLevel = 'Low';
-                        } else if (volatility < 20) {
-                            riskLevel = 'Medium';
-                        } else {
-                            riskLevel = 'High';
-                        }
-                    }
-                    
-                    document.getElementById('overallTrend').textContent = overallTrend;
-                    document.getElementById('overallTrendDesc').textContent = `${avgGain.toFixed(1)}% avg gain`;
-                    document.getElementById('hotSectors').textContent = hotSectors;
-                    document.getElementById('hotSectorsDesc').textContent = hotSectors === 'None' ? 'No trending sectors' : 'Most mentioned';
-                    document.getElementById('riskLevel').textContent = riskLevel;
-                    document.getElementById('riskLevelDesc').textContent = `${volatility.toFixed(1)}% volatility`;
+                    throw new Error(data.error || 'Failed to load market momentum');
                 }
             } catch (error) {
-                console.error('Error loading token momentum:', error);
+                console.error('❌ [CACHED ANALYTICS] Market momentum error:', error.message);
+                
                 // Show error state
                 document.getElementById('overallTrend').textContent = 'Error';
                 document.getElementById('overallTrendDesc').textContent = 'Failed to load';
@@ -3969,15 +3904,41 @@
 
         async function loadKOLPredictions() {
             try {
-                // Analyze narratives from KOL posts using AI
-                let trendingNarrative = 'None detected';
-                let narrativeConfidence = '0%';
-                let warmingNarrative = 'None detected';
-                let warmingConfidence = '0%';
-                let correlationScore = '0%';
-                let correlationDesc = 'No correlation';
-                let viralPotential = 'Low';
-                let viralDesc = 'No viral signals';
+                // Call the cached API endpoint for predictions
+                const response = await fetch('/api/cached/predictions');
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    const predictions = data.data;
+                    
+                    // Update narrative predictions
+                    document.getElementById('trendingNarrative').textContent = predictions.trendingNarrative || 'None detected';
+                    document.getElementById('narrativeConfidence').textContent = predictions.narrativeConfidence || '0%';
+                    document.getElementById('warmingNarrative').textContent = predictions.warmingNarrative || 'None detected';
+                    document.getElementById('warmingConfidence').textContent = predictions.warmingConfidence || '0%';
+                    document.getElementById('correlationScore').textContent = predictions.correlationScore || '0%';
+                    document.getElementById('correlationDesc').textContent = predictions.correlationDesc || 'No correlation';
+                    document.getElementById('viralPotential').textContent = predictions.viralPotential || 'Low';
+                    document.getElementById('viralDesc').textContent = predictions.viralDesc || 'No viral signals';
+                    
+                    console.log('✅ [CACHED ANALYTICS] Predictions loaded successfully');
+                } else {
+                    throw new Error(data.error || 'Failed to load predictions');
+                }
+            } catch (error) {
+                console.error('❌ [CACHED ANALYTICS] Predictions error:', error.message);
+                
+                // Show error state
+                document.getElementById('trendingNarrative').textContent = 'Error';
+                document.getElementById('narrativeConfidence').textContent = '--';
+                document.getElementById('warmingNarrative').textContent = 'Error';
+                document.getElementById('warmingConfidence').textContent = '--';
+                document.getElementById('correlationScore').textContent = '--';
+                document.getElementById('correlationDesc').textContent = 'Failed to load';
+                document.getElementById('viralPotential').textContent = '--';
+                document.getElementById('viralDesc').textContent = '--';
+            }
+        }
                 
                 if (posts && posts.length > 0) {
                     // Get recent posts for AI analysis (last 10 posts)

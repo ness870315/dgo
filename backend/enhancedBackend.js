@@ -26,6 +26,7 @@ import PushNotificationService from './pushNotificationService.js';
 import AutomatedTokenCleanup from './automatedTokenCleanup.js';
 import HybridPriceService from './hybridPriceService.js';
 import KOLService from './services/KOLService.js';
+import EnhancedAnalyticsCacheService from './services/EnhancedAnalyticsCacheService.js';
 import logger from './logger.js';
 import { fileURLToPath } from 'url';
 import { ForecastDebugEndpoint } from './debug-forecast-token.js';
@@ -138,7 +139,12 @@ class EnhancedBackend {
     this.helioService = new HelioPaymentService();
     this.oauthXService = new OAuthXService();
     this.kolService = new KOLService();
+    this.enhancedAnalyticsCache = new EnhancedAnalyticsCacheService(this.kolService);
     this.priorityQueue = new PriorityQueueService();
+    
+    // Initialize Enhanced Analytics Cache Service
+    this.enhancedAnalyticsCache.startBackgroundProcessing();
+    console.log('✅ Enhanced Analytics Cache Service started');
     this.leaderboardEngine = new LeaderboardScoringEngine();
     this.kolTrustSystem = new EnhancedKOLTrustSystem();
     this.monthlySnapshotService = new MonthlySnapshotService();
@@ -5017,6 +5023,209 @@ Format as JSON:
         res.status(500).json({
           success: false,
           error: 'Failed to get early warning signals',
+          message: error.message
+        });
+      }
+    });
+    
+    // =============================
+    // CACHED ENHANCED ANALYTICS API ENDPOINTS
+    // =============================
+    
+    // Get cached KOL Performance Analytics
+    this.app.get('/api/cached/kol-performance', async (req, res) => {
+      try {
+        const cachedData = this.enhancedAnalyticsCache.getCachedAnalytics('KOL_PERFORMANCE');
+        
+        if (!cachedData) {
+          return res.status(404).json({
+            success: false,
+            error: 'KOL Performance analytics not available',
+            message: 'Analytics are being processed, please try again in a few minutes'
+          });
+        }
+        
+        res.json({
+          success: true,
+          data: cachedData,
+          cached: true,
+          processedAt: cachedData.processedAt
+        });
+        
+      } catch (error) {
+        console.error('❌ [CACHED ANALYTICS] KOL Performance error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get KOL Performance analytics',
+          message: error.message
+        });
+      }
+    });
+    
+    // Get cached Market Momentum Analytics
+    this.app.get('/api/cached/market-momentum', async (req, res) => {
+      try {
+        const cachedData = this.enhancedAnalyticsCache.getCachedAnalytics('MARKET_MOMENTUM');
+        
+        if (!cachedData) {
+          return res.status(404).json({
+            success: false,
+            error: 'Market Momentum analytics not available',
+            message: 'Analytics are being processed, please try again in a few minutes'
+          });
+        }
+        
+        res.json({
+          success: true,
+          data: cachedData,
+          cached: true,
+          processedAt: cachedData.processedAt
+        });
+        
+      } catch (error) {
+        console.error('❌ [CACHED ANALYTICS] Market Momentum error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get Market Momentum analytics',
+          message: error.message
+        });
+      }
+    });
+    
+    // Get cached Predictions Analytics
+    this.app.get('/api/cached/predictions', async (req, res) => {
+      try {
+        const cachedData = this.enhancedAnalyticsCache.getCachedAnalytics('PREDICTIONS');
+        
+        if (!cachedData) {
+          return res.status(404).json({
+            success: false,
+            error: 'Predictions analytics not available',
+            message: 'Analytics are being processed, please try again in a few minutes'
+          });
+        }
+        
+        res.json({
+          success: true,
+          data: cachedData,
+          cached: true,
+          processedAt: cachedData.processedAt
+        });
+        
+      } catch (error) {
+        console.error('❌ [CACHED ANALYTICS] Predictions error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get Predictions analytics',
+          message: error.message
+        });
+      }
+    });
+    
+    // Get cached Visualizations Data
+    this.app.get('/api/cached/visualizations', async (req, res) => {
+      try {
+        const cachedData = this.enhancedAnalyticsCache.getCachedAnalytics('VISUALIZATIONS');
+        
+        if (!cachedData) {
+          return res.status(404).json({
+            success: false,
+            error: 'Visualizations data not available',
+            message: 'Analytics are being processed, please try again in a few minutes'
+          });
+        }
+        
+        res.json({
+          success: true,
+          data: cachedData,
+          cached: true,
+          processedAt: cachedData.processedAt
+        });
+        
+      } catch (error) {
+        console.error('❌ [CACHED ANALYTICS] Visualizations error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get Visualizations data',
+          message: error.message
+        });
+      }
+    });
+    
+    // Get cached Comprehensive Insights
+    this.app.get('/api/cached/insights', async (req, res) => {
+      try {
+        const cachedData = this.enhancedAnalyticsCache.getCachedAnalytics('INSIGHTS');
+        
+        if (!cachedData) {
+          return res.status(404).json({
+            success: false,
+            error: 'Comprehensive insights not available',
+            message: 'Analytics are being processed, please try again in a few minutes'
+          });
+        }
+        
+        res.json({
+          success: true,
+          data: cachedData,
+          cached: true,
+          processedAt: cachedData.processedAt
+        });
+        
+      } catch (error) {
+        console.error('❌ [CACHED ANALYTICS] Insights error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get Comprehensive insights',
+          message: error.message
+        });
+      }
+    });
+    
+    // Get cache status and statistics
+    this.app.get('/api/cached/status', async (req, res) => {
+      try {
+        const cacheStatus = this.enhancedAnalyticsCache.getCacheStatus();
+        const isProcessing = this.enhancedAnalyticsCache.isProcessing;
+        
+        res.json({
+          success: true,
+          data: {
+            cacheStatus,
+            isProcessing,
+            cacheTTL: this.enhancedAnalyticsCache.CACHE_TTL,
+            processingInterval: this.enhancedAnalyticsCache.processingInterval ? 'active' : 'inactive'
+          }
+        });
+        
+      } catch (error) {
+        console.error('❌ [CACHED ANALYTICS] Status error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get cache status',
+          message: error.message
+        });
+      }
+    });
+    
+    // Force refresh specific analytics (admin endpoint)
+    this.app.post('/api/cached/refresh/:type', async (req, res) => {
+      try {
+        const { type } = req.params;
+        
+        const result = await this.enhancedAnalyticsCache.refreshAnalytics(type);
+        
+        res.json({
+          success: true,
+          data: result,
+          message: `${type} analytics refreshed successfully`
+        });
+        
+      } catch (error) {
+        console.error(`❌ [CACHED ANALYTICS] Refresh ${req.params.type} error:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: `Failed to refresh ${req.params.type} analytics`,
           message: error.message
         });
       }
