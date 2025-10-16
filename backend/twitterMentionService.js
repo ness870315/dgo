@@ -21,20 +21,23 @@ class TwitterMentionService {
     this.x402Service = new X402MerchantService();
     
     // Initialize TwitterAPI.io REST service (for read-only operations)
+    // Default to enabled unless explicitly disabled (more reliable than OAuth)
     this.twitterAPIio = null;
-    if (process.env.TWITTERAPIIO_ENABLED === 'true') {
+    if (process.env.TWITTERAPIIO_ENABLED !== 'false') {
       try {
         this.twitterAPIio = new TwitterAPIioService();
-        console.log('✅ [MENTIONS] TwitterAPI.io REST service initialized');
+        console.log('✅ [MENTIONS] TwitterAPI.io REST service initialized (default)');
       } catch (error) {
         console.error('❌ [MENTIONS] Failed to initialize TwitterAPI.io:', error.message);
         console.log('   Falling back to OAuth for all operations');
       }
+    } else {
+      console.log('⚠️ [MENTIONS] TwitterAPI.io disabled by environment variable');
     }
     
     // Initialize TwitterAPI.io WebSocket service (real-time mentions)
     this.wsService = null;
-    if (process.env.USE_TWITTERAPIIO_WEBSOCKET === 'true' && process.env.TWITTERAPIIO_ENABLED === 'true') {
+    if (process.env.USE_TWITTERAPIIO_WEBSOCKET === 'true' && process.env.TWITTERAPIIO_ENABLED !== 'false') {
       try {
         this.wsService = new TwitterAPIioWebSocketService(
           process.env.TWITTERAPIIO_API_KEY,
@@ -253,9 +256,10 @@ class TwitterMentionService {
 
   // Fetch mentions from Twitter API (adapter pattern with feature flag)
   async fetchMentions() {
-    // Try TwitterAPI.io first if enabled
-    if (process.env.USE_TWITTERAPIIO_MENTIONS === 'true' && this.twitterAPIio) {
+    // Try TwitterAPI.io first if enabled (RECOMMENDED - more reliable)
+    if (this.twitterAPIio) {
       try {
+        console.log('📡 [MENTIONS] Using TwitterAPI.io for mentions (recommended)...');
         return await this.fetchMentionsFromTwitterAPIio();
       } catch (error) {
         console.error('❌ [MENTIONS] TwitterAPI.io failed, falling back to OAuth:', error.message);
@@ -263,7 +267,8 @@ class TwitterMentionService {
       }
     }
     
-    // Use OAuth (current implementation)
+    // Use OAuth (fallback - currently failing with 401/429)
+    console.log('⚠️ [MENTIONS] Using OAuth fallback (may fail with token issues)...');
     return await this.fetchMentionsFromOAuth();
   }
 
@@ -326,6 +331,17 @@ class TwitterMentionService {
       
     } catch (error) {
       console.error('❌ [MENTIONS] Error fetching mentions:', error.message);
+      console.error('❌ [MENTIONS] OAuth mentions failed, falling back to TwitterAPI.io...');
+      
+      // Fallback to TwitterAPI.io if OAuth fails
+      if (this.twitterAPIio) {
+        try {
+          return await this.fetchMentionsFromTwitterAPIio();
+        } catch (fallbackError) {
+          console.error('❌ [MENTIONS] TwitterAPI.io fallback also failed:', fallbackError.message);
+        }
+      }
+      
       return [];
     }
   }
