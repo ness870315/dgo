@@ -569,5 +569,3 @@ export default class EnhancedNFTTraitService {
     return benefits;
   }
 }
-
-export default EnhancedNFTTraitService;
