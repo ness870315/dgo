@@ -18,13 +18,13 @@ export default class NFTGatedAccessService {
     // Configure your NFT collection here
     this.config = {
       // Collection Creator Address (Update First Verified Creator address)
-      collectionCreator: process.env.NFT_COLLECTION_CREATOR || '',
+      collectionCreator: process.env.NFT_COLLECTION_CREATOR || '2TKnLFhPwp9nnhYwMLDstyCuyW69pRWBt3PVPB9rAzU',
       
       // OR Collection Symbol (if using Metaplex)
-      collectionSymbol: process.env.NFT_COLLECTION_SYMBOL || '',
+      collectionSymbol: process.env.NFT_COLLECTION_SYMBOL || 'WIZI',
       
-      // OR Specific Collection Address (Metaplex Certified Collection)
-      collectionAddress: process.env.NFT_COLLECTION_ADDRESS || '',
+      // OR Specific Collection Address (Metaplex Certified Collection) - WIZI COLLECTION
+      collectionAddress: process.env.NFT_COLLECTION_ADDRESS || 'F84KxuZp8g1mXsxfxZUXZN1vn1iP3KEtnkN1k4SDTvMf',
       
       // Premium duration for NFT holders (in days)
       premiumDuration: parseInt(process.env.NFT_PREMIUM_DURATION || '90'), // 90 days default
