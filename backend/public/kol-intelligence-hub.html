@@ -719,7 +719,7 @@
                         
                         <!-- Predictions Tab -->
                         <div id="predictionsTabContent" class="tab-content">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                                 <!-- Narrative Predictions -->
                                 <div class="glass-light rounded-lg p-6">
                                     <div class="flex items-center gap-2 mb-4">
@@ -4218,19 +4218,24 @@
 
         async function loadVisualizations() {
             try {
-                console.log('Loading visualizations...');
+                console.log('🎨 Loading visualizations...');
                 
                 // Load Timeline Heatmap
+                console.log('🎨 Loading Timeline Heatmap...');
                 await loadTimelineHeatmap();
                 
                 // Load Sentiment Trends
+                console.log('🎨 Loading Sentiment Trends...');
                 await loadSentimentTrends();
                 
                 // Load Influence Decay
+                console.log('🎨 Loading Influence Decay...');
                 await loadInfluenceDecay();
                 
+                console.log('✅ Visualizations loaded successfully');
+                
             } catch (error) {
-                console.error('Error loading visualizations:', error);
+                console.error('❌ Error loading visualizations:', error);
             }
         }
 
@@ -4681,12 +4686,19 @@
 
         async function loadAIInsights() {
             try {
-                console.log('Loading AI insights...');
+                console.log('🧠 Loading AI insights...');
                 
                 // Collect data from all tabs
+                console.log('🧠 Collecting analytics data...');
                 const analyticsData = await collectAnalyticsData();
+                
+                console.log('🧠 Collecting predictions data...');
                 const predictionsData = await collectPredictionsData();
+                
+                console.log('🧠 Collecting visualizations data...');
                 const visualizationsData = await collectVisualizationsData();
+                
+                console.log('🧠 Collecting momentum data...');
                 const momentumData = await collectMomentumData();
                 
                 // Call AI insights API
