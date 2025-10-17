@@ -407,6 +407,33 @@ class ProfessionalChartService {
         console.log(`🗑️ [PROFESSIONAL] Cleared all caches`);
     }
     /**
+     * Get chart data with time range filter
+     */
+    async getChartDataWithTimeRange(tokenAddress, timeframe = '5min', startTime, endTime) {
+        console.log(`🎯 [PROFESSIONAL] Getting ${timeframe} chart with time range for ${tokenAddress.substring(0, 8)}`);
+        
+        // Get the full chart data first
+        const fullData = await this.getChartData(tokenAddress, timeframe);
+        
+        if (!fullData || !fullData.ohlcv || fullData.ohlcv.length === 0) {
+            return fullData;
+        }
+        
+        // Filter by time range
+        const filteredOHLCV = fullData.ohlcv.filter(candle => {
+            const candleTime = candle.timestamp / 1000; // Convert to seconds
+            return candleTime >= startTime && candleTime <= endTime;
+        });
+        
+        console.log(`📊 [PROFESSIONAL] Filtered ${filteredOHLCV.length} candles from ${fullData.ohlcv.length} total`);
+        
+        return {
+            ...fullData,
+            ohlcv: filteredOHLCV
+        };
+    }
+
+    /**
      * Get current price for a token
      */
     async getCurrentPrice(tokenAddress) {

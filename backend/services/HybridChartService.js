@@ -109,7 +109,7 @@ class HybridChartService {
             console.log(`${logPrefix} 🚀 Trying Helius RPC...`);
             this.dataSourceStats.helius.calls++;
             
-            const heliusData = await this.smartChartService.getChartDataWithTimeRange(tokenAddress, timeframe, startTime, endTime);
+            const heliusData = await this.professionalChartService.getChartDataWithTimeRange(tokenAddress, timeframe, startTime, endTime);
             
             if (heliusData && heliusData.ohlcv && heliusData.ohlcv.length > 0) {
                 this.dataSourceStats.helius.success++;
