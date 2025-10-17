@@ -376,32 +376,17 @@ function SvgOHLCVArea({
           
           console.log(`📈 ALL timeframe: Got ${data.length} data points from creation to now`);
         } else {
-          // Try primary timeframe first
-          res = await chartService.getPriceChartRD(contract, timeframe);
+          // Use Professional Chart Architecture
+          console.log(`📊 Using Professional Chart Architecture for ${timeframe}`);
+          res = await chartService.getPriceChart(contract, timeframe, limit, tier);
           data = Array.isArray(res?.data) ? res.data : [];
-        }
-        
-        // If insufficient data and we have fallback options, try aggregation
-        if (data.length < 50 && FALLBACK_TF[timeframe]) {
-          console.log(`⚠️ Insufficient ${timeframe} data (${data.length} points), trying aggregation fallback...`);
           
-          for (const fallbackTf of FALLBACK_TF[timeframe]) {
-            try {
-              const fallbackRes = await chartService.getPriceChartRD(contract, fallbackTf);
-              const fallbackData = Array.isArray(fallbackRes?.data) ? fallbackRes.data : [];
-              
-              if (fallbackData.length > data.length) {
-                console.log(`✅ Using ${fallbackTf} data (${fallbackData.length} points) aggregated to ${timeframe}`);
-                data = aggregateOhlc(fallbackData, timeframe);
-                break;
-              }
-            } catch (fallbackError) {
-              console.log(`⚠️ Fallback ${fallbackTf} failed:`, fallbackError.message);
-            }
-          }
+          console.log(`📈 Professional Architecture: Got ${data.length} candles`);
         }
 
         if (!alive) return;
+        console.log(`🔍 [DEBUG] Raw data received:`, data.length, 'points');
+        console.log(`🔍 [DEBUG] Sample data point:`, data[0]);
         setRawData(data);
         
         // Data loaded successfully
@@ -446,10 +431,13 @@ function SvgOHLCVArea({
 
   // Process data: normalize, window, and transform
   const processedData = useMemo(() => {
+    console.log(`🔍 [DEBUG] Processing data:`, rawData.length, 'raw points');
     if (!rawData.length) return [];
     
     const normalized = normalizeOHLC(rawData, timeframe);
+    console.log(`🔍 [DEBUG] Normalized:`, normalized.length, 'points');
     const windowed = sliceWindow(normalized, timeframe);
+    console.log(`🔍 [DEBUG] Windowed:`, windowed.length, 'points');
     
     // Transform to market cap if needed
     if (displayMode === 'mcap') {
@@ -486,8 +474,10 @@ function SvgOHLCVArea({
 
   // Track price direction changes
   useEffect(() => {
+    console.log(`🔍 [DEBUG] Price direction effect:`, processedData.length, 'processed points');
     if (processedData.length > 0) {
       const currentPrice = processedData[processedData.length - 1].close;
+      console.log(`🔍 [DEBUG] Current price:`, currentPrice, 'Last price:', lastPrice);
       
       if (lastPrice !== null) {
         if (currentPrice > lastPrice) {
