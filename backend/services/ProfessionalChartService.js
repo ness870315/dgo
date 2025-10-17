@@ -434,6 +434,40 @@ class ProfessionalChartService {
     }
 
     /**
+     * Get recent transactions for a token
+     */
+    async getRecentTransactions(tokenAddress, limit = 20) {
+        console.log(`🎯 [PROFESSIONAL] Getting recent transactions for ${tokenAddress.substring(0, 8)}`);
+        
+        // Check if we have cached data
+        let cached = this.chartCache.get(tokenAddress);
+        
+        // If not in memory, try to load from persistent storage
+        if (!cached) {
+            cached = await this.loadFromPersistentCache(tokenAddress);
+        }
+        
+        // If we have cached data, get recent buy/sell transactions
+        if (cached && cached.buySellData && cached.buySellData.length > 0) {
+            const recentTransactions = cached.buySellData
+                .sort((a, b) => b.timestamp - a.timestamp) // Sort by newest first
+                .slice(0, limit);
+            
+            console.log(`✅ [PROFESSIONAL] Returning ${recentTransactions.length} recent transactions from cache`);
+            return recentTransactions;
+        }
+        
+        // If no cached data, try to get from Helius directly
+        try {
+            console.log(`🔄 [PROFESSIONAL] No cached data, fetching recent transactions from Helius...`);
+            return await this.helius.getRecentTransactions(tokenAddress, limit);
+        } catch (error) {
+            console.log(`❌ [PROFESSIONAL] Failed to get recent transactions from Helius: ${error.message}`);
+            return [];
+        }
+    }
+
+    /**
      * Get current price for a token
      */
     async getCurrentPrice(tokenAddress) {

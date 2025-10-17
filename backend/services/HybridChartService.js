@@ -94,7 +94,7 @@ class HybridChartService {
         } catch (error) {
             this.dataSourceStats.moralis.errors++;
             console.log(`${logPrefix} ❌ Moralis FAILED: ${error.message}`);
-            throw new Error(`All data sources failed: Helius (${this.dataSourceStats.helius.errors}), Moralis (${this.dataSourceStats.moralis.errors})`);
+            throw new Error(`All data sources failed: Professional (${this.dataSourceStats.professional.errors}), Moralis (${this.dataSourceStats.moralis.errors})`);
         }
     }
 
@@ -105,17 +105,17 @@ class HybridChartService {
         console.log(`${logPrefix} 📅 Range: ${new Date(startTime * 1000).toISOString()} to ${new Date(endTime * 1000).toISOString()}`);
         
         try {
-            // Try Helius first
-            console.log(`${logPrefix} 🚀 Trying Helius RPC...`);
-            this.dataSourceStats.helius.calls++;
+            // Try Professional Chart Service first
+            console.log(`${logPrefix} 🚀 Trying Professional Chart Service...`);
+            this.dataSourceStats.professional.calls++;
             
             const heliusData = await this.professionalChartService.getChartDataWithTimeRange(tokenAddress, timeframe, startTime, endTime);
             
             if (heliusData && heliusData.ohlcv && heliusData.ohlcv.length > 0) {
-                this.dataSourceStats.helius.success++;
-                console.log(`${logPrefix} ✅ Helius SUCCESS: ${heliusData.ohlcv.length} candles`);
+                this.dataSourceStats.professional.success++;
+                console.log(`${logPrefix} ✅ Professional SUCCESS: ${heliusData.ohlcv.length} candles`);
                 
-                heliusData.dataSource = 'helius';
+                heliusData.dataSource = 'professional';
                 heliusData.dataSourceStats = this.dataSourceStats;
                 
                 return heliusData;
@@ -230,14 +230,14 @@ class HybridChartService {
         const logPrefix = `[TX] ${tokenAddress.substring(0, 8)}`;
         
         try {
-            // Try Helius first
-            console.log(`${logPrefix} 🚀 Getting recent transactions from Helius...`);
-            this.dataSourceStats.helius.calls++;
+            // Try Professional Chart Service first
+            console.log(`${logPrefix} 🚀 Getting recent transactions from Professional Chart Service...`);
+            this.dataSourceStats.professional.calls++;
             
-            const heliusTxs = await this.smartChartService.getRecentTransactions(tokenAddress, limit);
+            const heliusTxs = await this.professionalChartService.getRecentTransactions(tokenAddress, limit);
             
             if (heliusTxs && heliusTxs.length > 0) {
-                this.dataSourceStats.helius.success++;
+                this.dataSourceStats.professional.success++;
                 console.log(`${logPrefix} ✅ Helius SUCCESS: ${heliusTxs.length} transactions`);
                 
                 return {
