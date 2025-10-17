@@ -682,12 +682,10 @@ function SvgOHLCVArea({
 
         {/* Enhanced Real-time Blinking Dot */}
         {processedData.length > 0 && (() => {
-          const latestData = processedData[processedData.length - 1];
-          const previousData = processedData.length > 1 ? processedData[processedData.length - 2] : null;
-          
-          // Calculate price change percentage
-          const priceChange = previousData ? 
-            ((latestData.close - previousData.close) / previousData.close) * 100 : 0;
+          // Use current price change from token data instead of chart timeframe change
+          const priceChange = token?.jupiterData?.stats24h?.priceChange || 
+                             token?.priceChange24h || 
+                             token?.stats24h?.priceChange || 0;
           
           // Determine blink speed based on change magnitude
           const getBlinkSpeed = (change) => {

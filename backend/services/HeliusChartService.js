@@ -1,5 +1,5 @@
 import fetch from 'node-fetch';
-import EnhancedHeliusBackfill from './EnhancedHeliusBackfill.js';
+import EnhancedHeliusBackfill from './EnhancedHeliusBackfill';
 
 class HeliusChartService {
     constructor(apiKey) {
