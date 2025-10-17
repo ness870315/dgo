@@ -3939,34 +3939,7 @@
                 document.getElementById('viralDesc').textContent = '--';
             }
         }
-                    
-                    // Removed orphaned code that was causing syntax error
-                                    } else if (correlationPercent > 40) {
-                                        viralPotential = 'Medium';
-                                        viralDesc = 'Growing momentum';
-                                    } else {
-                                        viralPotential = 'Low';
-                                        viralDesc = 'Early stage';
-                                    }
-                                }
-                            } else {
-                                console.warn('AI narrative analysis failed, falling back to keyword analysis');
-                                await fallbackNarrativeAnalysis();
-                            }
-                        } catch (error) {
-                            console.warn('AI narrative analysis error, falling back to keyword analysis:', error);
-                            await fallbackNarrativeAnalysis();
-                        }
-                    }
-                }
-                
-                // Fallback function for when AI analysis fails
-                async function fallbackNarrativeAnalysis() {
-                    const narrativeKeywords = {
-                        'AI': ['ai', 'artificial intelligence', 'machine learning', 'gpt', 'openai', 'chatgpt', 'claude', 'anthropic'],
-                        'DeFi': ['defi', 'yield farming', 'liquidity', 'staking', 'protocol', 'uniswap', 'aave', 'compound'],
-                        'Gaming': ['gaming', 'nft', 'metaverse', 'play-to-earn', 'gamefi', 'web3 gaming', 'blockchain game'],
-                        'Memes': ['meme', 'doge', 'pepe', 'shiba', 'funny', 'meme coin', 'community token'],
+                // Removed orphaned fallback function
                         'Layer 2': ['layer 2', 'l2', 'rollup', 'arbitrum', 'optimism', 'polygon', 'scaling'],
                         'Privacy': ['privacy', 'zero-knowledge', 'zk', 'anonymous', 'private', 'privacy coin'],
                         'RWA': ['real world assets', 'rwa', 'tokenization', 'real estate', 'commodities'],
