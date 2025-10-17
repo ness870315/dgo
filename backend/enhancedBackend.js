@@ -11205,7 +11205,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const afterTime = after ? parseInt(after) : null;
 
         console.log(`📊 [HYBRID-CHART] Fetching ${timeframe} data for ${contract.substring(0, 8)}...`);
-        console.log(`📊 [HYBRID-CHART] Params: limit=${parsedLimit}, before=${beforeTime}, after=${afterTime}, tier=${tier}`);
+        console.log(`📊 [HYBRID-CHART] Params: limit=${parsedLimit}, before=${beforeTime}, after=${afterTime}`);
 
         let chartData;
         
@@ -11222,8 +11222,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           chartData = await this.hybridChartService.getChartData(
             contract, 
             timeframe, 
-            parsedLimit, 
-            tier
+            parsedLimit
           );
         }
 
@@ -11246,7 +11245,6 @@ Thanks for using x402 payments on Twitter! 🚀`;
           metadata: {
             timeframe,
             count: chartData.ohlcv.length,
-            tier,
             dataSource: chartData.dataSource,
             dataSourceStats: chartData.dataSourceStats,
             timestamp: new Date().toISOString()
