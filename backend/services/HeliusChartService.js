@@ -86,51 +86,55 @@ class HeliusChartService {
 
         transactions.forEach(tx => {
             if (tx.type === 'SWAP' && tx.tokenTransfers && Array.isArray(tx.tokenTransfers)) {
-                // Extract SOL transfers (native token)
-                const solTransfers = tx.tokenTransfers.filter(t => 
-                    t.mint === 'So11111111111111111111111111111111111111112'
-                );
-                
                 // Extract target token transfers
                 const tokenTransfers = tx.tokenTransfers.filter(t => 
                     t.mint === tokenAddress
                 );
 
-                if (solTransfers.length > 0 && tokenTransfers.length > 0) {
-                    const solAmount = solTransfers.reduce((sum, t) => sum + parseFloat(t.tokenAmount || 0), 0);
-                    const tokenAmount = tokenTransfers.reduce((sum, t) => sum + parseFloat(t.tokenAmount || 0), 0);
+                if (tokenTransfers.length > 0) {
+                    // Find the base token (SOL, USDC, etc.) that's being swapped
+                    const baseTokens = ['So11111111111111111111111111111111111111112', // SOL
+                                      'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+                                      'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB']; // USDT
                     
-                    if (tokenAmount > 0 && solAmount > 0) {
-                        const price = solAmount / tokenAmount;
-                        
-                        // Fix timestamp (convert from seconds to milliseconds if needed)
-                        let timestamp = tx.timestamp || Date.now();
-                        if (timestamp < 10000000000) { // Unix timestamp in seconds
-                            timestamp = timestamp * 1000;
-                        }
-                        
-                        priceData.push({
-                            timestamp,
-                            price,
-                            volume: tokenAmount,
-                            type: 'swap',
-                            signature: tx.signature
-                        });
+                    const baseTransfers = tx.tokenTransfers.filter(t => 
+                        baseTokens.includes(t.mint)
+                    );
 
-                        // Determine buy/sell based on direction
-                        const isBuy = solTransfers.some(t => 
-                            t.fromUserAccount === tokenAddress
-                        );
+                    if (baseTransfers.length > 0) {
+                        const baseAmount = baseTransfers.reduce((sum, t) => sum + parseFloat(t.tokenAmount || 0), 0);
+                        const tokenAmount = tokenTransfers.reduce((sum, t) => sum + parseFloat(t.tokenAmount || 0), 0);
                         
-                        buySellData.push({
-                            timestamp,
-                            type: isBuy ? 'BUY' : 'SELL',
-                            amount: tokenAmount,
-                            price,
-                            signature: tx.signature,
-                            source: tx.source,
-                            description: tx.description
-                        });
+                        if (tokenAmount > 0 && baseAmount > 0) {
+                            const price = baseAmount / tokenAmount;
+                            
+                            // Fix timestamp (convert from seconds to milliseconds if needed)
+                            let timestamp = tx.timestamp || Date.now();
+                            if (timestamp < 10000000000) { // Unix timestamp in seconds
+                                timestamp = timestamp * 1000;
+                            }
+                            
+                            priceData.push({
+                                timestamp,
+                                price,
+                                volume: tokenAmount,
+                                type: 'swap',
+                                signature: tx.signature,
+                                source: tx.source,
+                                description: tx.description
+                            });
+                            
+                            // Determine if it's a buy or sell based on token flow direction
+                            const isBuy = tokenTransfers.some(t => t.toUserAccount !== t.fromUserAccount);
+                            buySellData.push({
+                                timestamp,
+                                type: isBuy ? 'BUY' : 'SELL',
+                                amount: tokenAmount,
+                                price,
+                                signature: tx.signature,
+                                source: tx.source
+                            });
+                        }
                     }
                 }
             }
