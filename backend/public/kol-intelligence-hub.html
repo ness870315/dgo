@@ -3940,24 +3940,7 @@
             }
         }
                     
-                    if (recentPosts.length > 0) {
-                        try {
-                            // Removed orphaned code that was causing syntax error
-                                    
-                                    // Handle warming up narrative
-                                    warmingNarrative = analysis.data.warmingUpNarrative || 'None detected';
-                                    warmingConfidence = `${Math.round((analysis.data.warmingUpConfidence || 0) * 100)}%`;
-                                    
-                                    // Calculate cross-KOL correlation
-                                    const uniqueKOLs = new Set(posts.map(post => post.kol_handle));
-                                    const correlationPercent = Math.min((analysis.data.kolCount / uniqueKOLs.size) * 100, 100);
-                                    correlationScore = `${correlationPercent.toFixed(0)}%`;
-                                    correlationDesc = `${analysis.data.kolCount} KOLs mentioning`;
-                                    
-                                    // Calculate viral potential
-                                    if (correlationPercent > 70) {
-                                        viralPotential = 'High';
-                                        viralDesc = 'Strong consensus';
+                    // Removed orphaned code that was causing syntax error
                                     } else if (correlationPercent > 40) {
                                         viralPotential = 'Medium';
                                         viralDesc = 'Growing momentum';
