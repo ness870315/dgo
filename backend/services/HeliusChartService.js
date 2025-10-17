@@ -50,14 +50,17 @@ class HeliusChartService {
     async getTransactionHistory(address, limit = 100) {
         try {
             const url = `${this.baseUrl}/addresses/${address}/transactions/?api-key=${this.apiKey}&limit=${limit}`;
+            console.log(`🔍 [HELIUS] Fetching transactions for ${address.substring(0, 8)}... (limit=${limit})`);
             const response = await this.makeRequest(url);
             
             if (response.status === 200 && response.data) {
+                console.log(`✅ [HELIUS] Got ${response.data.length} raw transactions for ${address.substring(0, 8)}`);
                 return response.data;
             }
+            console.log(`⚠️ [HELIUS] No transaction data returned for ${address.substring(0, 8)}`);
             return [];
         } catch (error) {
-            console.error('Error fetching transaction history:', error.message);
+            console.error(`❌ [HELIUS] Error fetching transaction history for ${address.substring(0, 8)}:`, error.message);
             return [];
         }
     }
@@ -65,14 +68,17 @@ class HeliusChartService {
     async parseTransactions(signatures) {
         try {
             const url = `${this.baseUrl}/transactions/?api-key=${this.apiKey}`;
+            console.log(`🔍 [HELIUS] Parsing ${signatures.length} transaction signatures...`);
             const response = await this.makeRequest(url, {
                 method: 'POST',
                 body: { transactions: signatures }
             });
             
             if (response.status === 200 && response.data) {
+                console.log(`✅ [HELIUS] Parsed ${response.data.length} detailed transactions`);
                 return response.data;
             }
+            console.log(`⚠️ [HELIUS] No parsed transaction data returned`);
             return [];
         } catch (error) {
             console.error('Error parsing transactions:', error.message);
