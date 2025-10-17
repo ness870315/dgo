@@ -16,15 +16,6 @@ const WINDOW_BY_TF = {
   'ALL': 500     // All time since token creation
 };
 
-// Aggregation fallback ladder
-const FALLBACK_TF = {
-  '15MIN': ['5MIN', '1MIN'],
-  '1H': ['15MIN', '5MIN', '1MIN'],
-  '4H': ['1H', '15MIN', '5MIN'],
-  '1D': ['4H', '1H', '15MIN'],
-  'ALL': ['1D', '4H', '1H']  // All time can fall back to daily data
-};
-
 // Dynamic Y-axis formatting
 function pickPriceFormat(last) {
   if (last >= 1)   return { decimals: 6, unit: '' };
@@ -61,31 +52,6 @@ function fmtPrice(v, format) {
   } else {
     return v.toFixed(Math.min(decimals, 9));
   }
-}
-
-// OHLCV Aggregation for fallback
-function aggregateOhlc(rows, targetTf) {
-  const target = TF_SEC[targetTf];
-  if (!target) return rows;
-  
-  const byBucket = new Map();
-
-  for (const r of rows) {
-    if (!Number.isFinite(r.time)) continue;
-    const t0 = Math.floor(r.time / target) * target;
-    let a = byBucket.get(t0);
-    if (!a) {
-      a = { time: t0, open: r.open, high: r.high, low: r.low, close: r.close, volume: r.volume ?? 0 };
-      byBucket.set(t0, a);
-    } else {
-      a.high = Math.max(a.high, r.high);
-      a.low  = Math.min(a.low,  r.low);
-      a.close = r.close;
-      a.volume = (a.volume ?? 0) + (r.volume ?? 0);
-    }
-  }
-
-  return [...byBucket.values()].sort((a,b)=>a.time-b.time);
 }
 
 // Normalize OHLC data with proper bucketing and deduplication
