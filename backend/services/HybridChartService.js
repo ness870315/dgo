@@ -55,7 +55,7 @@ class HybridChartService {
         this.dataSourceStats.moralis.calls++;
         
         try {
-            const moralisData = await this.hybridPriceService.getHistoricalPrices(tokenAddress, timeframe, limit, null, null, 'RD');
+            const moralisData = await this.hybridPriceService.getHistoricalPrices(tokenAddress, timeframe, limit, null, null);
             
             if (moralisData && moralisData.length > 0) {
                 const duration = Date.now() - startTime;
@@ -131,7 +131,7 @@ class HybridChartService {
         this.dataSourceStats.moralis.calls++;
         
         try {
-            const moralisData = await this.hybridPriceService.getHistoricalPrices(tokenAddress, timeframe, 500, startTime, endTime, 'RD');
+            const moralisData = await this.hybridPriceService.getHistoricalPrices(tokenAddress, timeframe, 500, startTime, endTime);
             
             if (moralisData && moralisData.length > 0) {
                 this.dataSourceStats.moralis.success++;

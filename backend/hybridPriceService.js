@@ -295,23 +295,22 @@ class HybridPriceService {
    * Based on TradingView best practices: MV/RD/MP system
    * All tokens are memecoins - optimized for memecoin trading
    */
-  getOptimalCandleCount(timeframe, tier = 'RD') {
+  getOptimalCandleCount(timeframe) {
     const candleCounts = {
-      '1MIN': { MV: 300, RD: 1440, MP: 5000 },  // ~24 hours
-      '5MIN': { MV: 300, RD: 1000, MP: 3000 },  // ~3.5 days  
-      '15MIN': { MV: 300, RD: 1000, MP: 3000 }, // ~10.4 days
-      '1H': { MV: 300, RD: 1000, MP: 2000 },    // ~41.7 days
-      '4H': { MV: 300, RD: 800, MP: 2000 },     // ~133 days
-      '1D': { MV: 300, RD: 750, MP: 1500 },     // ~2.1 years
-      '1W': { MV: 300, RD: 260, MP: 520 },      // ~5 years
-      '1M': { MV: 300, RD: 120, MP: 240 },      // ~10 years
-      '3M': { MV: 300, RD: 120, MP: 240 },      // ~30 years
-      '1Y': { MV: 300, RD: 120, MP: 240 },      // ~120 years
-      'ALL': { MV: 300, RD: 240, MP: 480 }      // All time
+      '1MIN': 100,   // 4 hours (100 bars - Helius limit)
+      '5MIN': 96,    // 8 hours (96 bars)  
+      '15MIN': 48,   // 12 hours (48 bars)
+      '1H': 168,     // 7 days (168 bars)
+      '4H': 90,      // 15 days (90 bars)
+      '1D': 90,      // 90 days (90 bars)
+      '1W': 52,      // 1 year (52 bars)
+      '1M': 24,      // 2 years (24 bars)
+      '3M': 12,      // 3 years (12 bars)
+      '1Y': 5,       // 5 years (5 bars)
+      'ALL': 500     // All time since token creation
     };
     
-    const timeframeCounts = candleCounts[timeframe] || candleCounts['1D'];
-    return timeframeCounts[tier] || timeframeCounts.RD;
+    return candleCounts[timeframe] || candleCounts['1D'];
   }
 
   /**
@@ -324,18 +323,17 @@ class HybridPriceService {
    * @param {string} tier - MV/RD/MP tier for memecoin optimization
    * @returns {Object} Chart data in TradingView format
    */
-  async getHistoricalPrices(contractAddress, timeframe = '1D', limit = null, beforeTime = null, afterTime = null, tier = 'RD') {
-    // Use optimal candle count if limit not specified (memecoin optimized)
-    const optimalLimit = limit || this.getOptimalCandleCount(timeframe, tier);
+  async getHistoricalPrices(contractAddress, timeframe = '1D', limit = null, beforeTime = null, afterTime = null) {
+    // Use optimal candle count if limit not specified
+    const optimalLimit = limit || this.getOptimalCandleCount(timeframe);
     
     const logParams = { 
       candles: optimalLimit, 
       timeframe,
-      tier: tier,
       before: beforeTime ? new Date(beforeTime * 1000).toISOString() : null,
       after: afterTime ? new Date(afterTime * 1000).toISOString() : null
     };
-    console.log(`📊 Loading chart data (${tier} tier):`, logParams);
+    console.log(`📊 Loading chart data:`, logParams);
     
     try {
       // Try multiple data sources in order of preference
