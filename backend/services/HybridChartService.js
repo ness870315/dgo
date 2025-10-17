@@ -166,6 +166,40 @@ class HybridChartService {
     async getRecentTransactions(tokenAddress, limit = 10) {
         return await this.fastChartService.getRecentTransactions(tokenAddress, limit);
     }
+
+    /**
+     * Force backfill for a specific token
+     */
+    async forceBackfill(tokenAddress) {
+        console.log(`🔄 [HYBRID] Force backfill for ${tokenAddress.substring(0, 8)}`);
+        
+        try {
+            // Add token to background worker
+            await this.addToken(tokenAddress);
+            
+            // Get current price data to trigger processing
+            const priceData = await this.getCurrentPrice(tokenAddress);
+            
+            // Get chart data to ensure background worker processes it
+            const chartData = await this.getChartData(tokenAddress, '5MIN', 10);
+            
+            return {
+                success: true,
+                priceData: priceData ? [priceData] : [],
+                buySellData: [],
+                message: `Force backfill initiated for ${tokenAddress.substring(0, 8)}`
+            };
+            
+        } catch (error) {
+            console.error(`❌ [HYBRID] Force backfill failed for ${tokenAddress.substring(0, 8)}:`, error.message);
+            return {
+                success: false,
+                priceData: [],
+                buySellData: [],
+                error: error.message
+            };
+        }
+    }
 }
 
 export default HybridChartService;
