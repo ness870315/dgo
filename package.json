@@ -33,6 +33,7 @@
   "license": "ISC",
   "dependencies": {
     "apify-client": "^2.16.0",
-    "axios": "^1.12.2"
+    "axios": "^1.12.2",
+    "sqlite3": "^5.1.7"
   }
 }

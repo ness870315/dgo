@@ -11474,6 +11474,126 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
+    // Fast Chart Architecture endpoints
+
+    // Get database statistics
+    this.app.get('/api/charts/database/stats', async (req, res) => {
+      try {
+        const dbStats = await this.hybridChartService.getDatabaseStats();
+        
+        res.json({
+          success: true,
+          data: dbStats,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Database stats error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get database statistics',
+          message: error.message
+        });
+      }
+    });
+
+    // Get background worker status
+    this.app.get('/api/charts/worker/status', async (req, res) => {
+      try {
+        const workerStatus = await this.hybridChartService.getWorkerStatus();
+        
+        res.json({
+          success: true,
+          data: workerStatus,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Worker status error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get worker status',
+          message: error.message
+        });
+      }
+    });
+
+    // Add token to background worker
+    this.app.post('/api/charts/worker/add-token', async (req, res) => {
+      try {
+        const { tokenAddress } = req.body;
+        
+        if (!tokenAddress) {
+          return res.status(400).json({
+            success: false,
+            error: 'Token address is required'
+          });
+        }
+
+        console.log(`➕ [FAST-CHART] Adding token ${tokenAddress.substring(0, 8)} to background worker`);
+        
+        const result = await this.hybridChartService.addToken(tokenAddress);
+        
+        res.json({
+          success: true,
+          data: result,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Add token error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to add token to background worker',
+          message: error.message
+        });
+      }
+    });
+
+    // Refresh token data
+    this.app.post('/api/charts/refresh/:contract', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        
+        console.log(`🔄 [FAST-CHART] Refreshing data for ${contract.substring(0, 8)}`);
+        
+        const result = await this.hybridChartService.refreshToken(contract);
+        
+        res.json({
+          success: true,
+          data: result,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Refresh error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to refresh token data',
+          message: error.message
+        });
+      }
+    });
+
+    // Get recent transactions for a token
+    this.app.get('/api/charts/:contract/transactions', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        const { limit = 10 } = req.query;
+        
+        const transactions = await this.hybridChartService.getRecentTransactions(contract, parseInt(limit));
+        
+        res.json({
+          success: true,
+          data: transactions,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Transactions error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get recent transactions',
+          message: error.message
+        });
+      }
+    });
+
     // Temporary Admin Endpoint for Testing
     this.app.post('/api/admin/revoke-premium', async (req, res) => {
       try {

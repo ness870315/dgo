@@ -1,219 +1,170 @@
-import ProfessionalChartService from './ProfessionalChartService.js';
-import HybridPriceService from '../hybridPriceService.js';
+import FastChartService from './FastChartService.js';
+import ChartBackgroundWorker from './ChartBackgroundWorker.js';
 
 class HybridChartService {
     constructor(heliusApiKey, moralisApiKey) {
-        this.professionalChartService = new ProfessionalChartService(heliusApiKey);
-        this.hybridPriceService = new HybridPriceService();
+        this.fastChartService = new FastChartService();
+        this.backgroundWorker = new ChartBackgroundWorker(heliusApiKey);
         this.dataSourceStats = {
-            professional: { calls: 0, success: 0, errors: 0 },
+            database: { calls: 0, success: 0, errors: 0 },
             moralis: { calls: 0, success: 0, errors: 0 }
         };
         
-        console.log('🔄 HybridChartService initialized with Professional Architecture');
-        console.log('   Primary: Professional Chart Service (complete backfill + timeframe generation)');
-        console.log('   Fallback: Moralis OHLCV (aggregated data)');
+        console.log('⚡ HybridChartService initialized with Fast Architecture');
+        console.log('   Primary: Fast Chart Service (instant database access)');
+        console.log('   Background: Continuous data ingestion');
+        console.log('   Fallback: Moralis OHLCV (when database empty)');
+        
+        // Start background worker
+        this.startBackgroundWorker();
+    }
+
+    async startBackgroundWorker() {
+        try {
+            await this.backgroundWorker.start();
+            console.log('✅ Background worker started');
+        } catch (error) {
+            console.error('❌ Failed to start background worker:', error.message);
+        }
     }
 
     async getChartData(tokenAddress, timeframe = '5MIN', limit = null) {
         const startTime = Date.now();
         const logPrefix = `[CHART] ${tokenAddress.substring(0, 8)} (${timeframe})`;
         
-        console.log(`${logPrefix} 🔄 Fetching chart data...`);
+        console.log(`${logPrefix} ⚡ Getting chart data instantly...`);
         
         try {
-            // Try Professional Chart Service first (primary)
-            console.log(`${logPrefix} 🚀 Trying Professional Chart Service...`);
-            this.dataSourceStats.professional.calls++;
+            // Use Fast Chart Service (instant database access)
+            this.dataSourceStats.database.calls++;
             
-            const professionalData = await this.professionalChartService.getChartData(tokenAddress, timeframe.toLowerCase(), limit);
+            const chartData = await this.fastChartService.getChartData(tokenAddress, timeframe, limit);
             
-            if (professionalData && professionalData.ohlcv && professionalData.ohlcv.length > 0) {
+            if (chartData && chartData.ohlcv && chartData.ohlcv.length > 0) {
                 const duration = Date.now() - startTime;
-                this.dataSourceStats.professional.success++;
+                this.dataSourceStats.database.success++;
                 
-                console.log(`${logPrefix} ✅ Professional SUCCESS: ${professionalData.ohlcv.length} candles in ${duration}ms`);
-                console.log(`${logPrefix} 📊 Data: ${professionalData.priceData.length} price points, ${professionalData.buySellData.length} transactions`);
-                console.log(`${logPrefix} 📊 Source: ${professionalData.source}, Cached: ${professionalData.cached}, Batches: ${professionalData.batches}`);
+                console.log(`${logPrefix} ✅ FAST SUCCESS: ${chartData.ohlcv.length} candles in ${duration}ms`);
+                console.log(`${logPrefix} 📊 Source: ${chartData.source}, DataSource: ${chartData.dataSource}`);
                 
                 // Add data source metadata
-                professionalData.dataSource = 'professional';
-                professionalData.dataSourceStats = this.dataSourceStats;
+                chartData.dataSourceStats = this.dataSourceStats;
+                chartData.responseTime = duration;
                 
-                return professionalData;
+                return chartData;
             } else {
-                console.log(`${logPrefix} ⚠️ Professional returned empty data, trying Moralis...`);
+                console.log(`${logPrefix} ⚠️ Fast service returned empty data`);
+                this.dataSourceStats.database.errors++;
+                return { ohlcv: [], priceData: [], buySellData: [], source: 'none', cached: false };
             }
             
         } catch (error) {
-            this.dataSourceStats.professional.errors++;
-            console.log(`${logPrefix} ❌ Professional FAILED: ${error.message}`);
+            this.dataSourceStats.database.errors++;
+            console.error(`${logPrefix} ❌ Fast service FAILED:`, error.message);
+            return { ohlcv: [], priceData: [], buySellData: [], source: 'none', cached: false };
         }
-        
-        // Fallback to Moralis
-        console.log(`${logPrefix} 🔄 Falling back to Moralis...`);
-        this.dataSourceStats.moralis.calls++;
-        
-        try {
-            const moralisData = await this.hybridPriceService.getHistoricalPrices(tokenAddress, timeframe, limit, null, null);
-            
-            if (moralisData && moralisData.length > 0) {
-                const duration = Date.now() - startTime;
-                this.dataSourceStats.moralis.success++;
-                
-                console.log(`${logPrefix} ✅ Moralis SUCCESS: ${moralisData.length} candles in ${duration}ms`);
-                
-                // Convert Moralis format to Helius format for consistency
-                const convertedData = {
-                    ohlcv: moralisData.map(candle => ({
-                        timestamp: candle.time,
-                        open: candle.open,
-                        high: candle.high,
-                        low: candle.low,
-                        close: candle.close,
-                        volume: candle.volume || 0
-                    })),
-                    priceData: moralisData.map(candle => ({
-                        timestamp: candle.time,
-                        price: candle.close,
-                        volume: candle.volume || 0,
-                        type: 'aggregated'
-                    })),
-                    buySellData: [], // Moralis doesn't provide this directly
-                    source: 'moralis',
-                    cached: false,
-                    dataSourceStats: this.dataSourceStats
-                };
-                return convertedData;
-            } else {
-                console.log(`${logPrefix} ⚠️ Moralis also returned empty data.`);
-            }
-        } catch (error) {
-            this.dataSourceStats.moralis.errors++;
-            console.error(`${logPrefix} ❌ Moralis FAILED: ${error.message}`);
-        }
-        
-        return { ohlcv: [], priceData: [], buySellData: [], source: 'none', cached: false, dataSourceStats: this.dataSourceStats };
     }
 
     async getChartDataWithTimeRange(tokenAddress, timeframe, startTime, endTime) {
         const logPrefix = `[CHART-RANGE] ${tokenAddress.substring(0, 8)} (${timeframe})`;
-        console.log(`${logPrefix} 🔄 Fetching chart data for range...`);
-        
+        console.log(`${logPrefix} ⚡ Getting chart data for range...`);
+
         try {
-            // Use HybridPriceService (Moralis OHLCV)
-            console.log(`${logPrefix} 🚀 Using Moralis OHLCV...`);
-            this.dataSourceStats.moralis.calls++;
-            
-            const moralisData = await this.hybridPriceService.getHistoricalPrices(tokenAddress, timeframe, 500, startTime, endTime);
-            
-            if (moralisData && moralisData.length > 0) {
-                this.dataSourceStats.moralis.success++;
-                
-                console.log(`${logPrefix} ✅ Moralis SUCCESS: ${moralisData.length} candles`);
-                
-                // Convert Moralis format to consistent format
-                const convertedData = {
-                    ohlcv: moralisData.map(candle => ({
-                        timestamp: candle.time,
-                        open: candle.open,
-                        high: candle.high,
-                        low: candle.low,
-                        close: candle.close,
-                        volume: candle.volume || 0
-                    })),
-                    priceData: moralisData.map(candle => ({
-                        timestamp: candle.time,
-                        price: candle.close,
-                        volume: candle.volume || 0,
-                        type: 'aggregated'
-                    })),
-                    buySellData: [], // Moralis doesn't provide this directly
-                    source: 'moralis',
-                    cached: false,
-                    dataSourceStats: this.dataSourceStats
-                };
-                
-                return convertedData;
+            // Use Fast Chart Service for range queries
+            this.dataSourceStats.database.calls++;
+            const chartData = await this.fastChartService.getChartDataWithTimeRange(tokenAddress, timeframe, startTime, endTime);
+
+            if (chartData && chartData.ohlcv && chartData.ohlcv.length > 0) {
+                this.dataSourceStats.database.success++;
+                chartData.dataSourceStats = this.dataSourceStats;
+                return chartData;
             } else {
-                console.log(`${logPrefix} ⚠️ Moralis returned empty data`);
+                console.log(`${logPrefix} ⚠️ Fast service returned empty data for range`);
+                this.dataSourceStats.database.errors++;
+                return { ohlcv: [], priceData: [], buySellData: [], source: 'none', cached: false };
             }
-            
         } catch (error) {
-            this.dataSourceStats.moralis.errors++;
-            console.log(`${logPrefix} ❌ Moralis FAILED: ${error.message}`);
+            this.dataSourceStats.database.errors++;
+            console.error(`${logPrefix} ❌ Fast service range FAILED:`, error.message);
+            return { ohlcv: [], priceData: [], buySellData: [], source: 'none', cached: false };
         }
-        
-        return { ohlcv: [], priceData: [], buySellData: [], source: 'none', cached: false, dataSourceStats: this.dataSourceStats };
+    }
+
+    async getPriceChart(tokenAddress, timeframe = '5MIN', limit = null) {
+        return this.getChartData(tokenAddress, timeframe, limit);
     }
 
     async getCurrentPrice(tokenAddress) {
         const logPrefix = `[CURRENT-PRICE] ${tokenAddress.substring(0, 8)}`;
-        console.log(`${logPrefix} 🔄 Fetching current price...`);
+        console.log(`${logPrefix} ⚡ Getting current price...`);
         
         try {
-            // Use HybridPriceService for current price
-            const priceData = await this.hybridPriceService.getCurrentPrice(tokenAddress);
+            // Use Fast Chart Service for current price
+            this.dataSourceStats.database.calls++;
+            const priceData = await this.fastChartService.getCurrentPrice(tokenAddress);
             
             if (priceData && priceData.price) {
-                console.log(`${logPrefix} ✅ Current price: $${priceData.price}`);
-                return priceData;
+                this.dataSourceStats.database.success++;
+                console.log(`${logPrefix} ✅ Database price: $${priceData.price}`);
+                return { ...priceData, source: 'database' };
             } else {
-                console.log(`${logPrefix} ⚠️ No current price data`);
+                console.log(`${logPrefix} ⚠️ No database price, falling back to Moralis`);
+                this.dataSourceStats.database.errors++;
             }
             
         } catch (error) {
-            console.log(`${logPrefix} ❌ FAILED: ${error.message}`);
+            this.dataSourceStats.database.errors++;
+            console.error(`${logPrefix} ❌ Database price FAILED:`, error.message);
         }
         
-        return { price: null, timestamp: null, volume: null };
+        // Fallback to Moralis
+        try {
+            this.dataSourceStats.moralis.calls++;
+            const moralisPrice = await this.fastChartService.getMoralisFallback(tokenAddress, '1MIN', 1);
+            
+            if (moralisPrice && moralisPrice.priceData && moralisPrice.priceData.length > 0) {
+                this.dataSourceStats.moralis.success++;
+                const latest = moralisPrice.priceData[moralisPrice.priceData.length - 1];
+                console.log(`${logPrefix} ✅ Moralis price: $${latest.price}`);
+                return { ...latest, source: 'moralis' };
+            }
+        } catch (error) {
+            this.dataSourceStats.moralis.errors++;
+            console.error(`${logPrefix} ❌ Moralis price FAILED:`, error.message);
+        }
+        
+        return { price: null, timestamp: null, volume: null, source: 'none' };
     }
 
     getDataSourceStats() {
         return this.dataSourceStats;
     }
 
-    // Professional Chart Service methods
-    async forceBackfill(tokenAddress) {
-        return await this.professionalChartService.performCompleteBackfill(tokenAddress);
+    // Background Worker methods
+    async addToken(tokenAddress) {
+        console.log(`➕ Adding token ${tokenAddress.substring(0, 8)} to background worker`);
+        return await this.backgroundWorker.addToken(tokenAddress);
     }
 
-    async clearCache(tokenAddress = null) {
-        if (tokenAddress) {
-            this.professionalChartService.clearCache(tokenAddress);
-        } else {
-            this.professionalChartService.clearAllCaches();
-        }
-        return true;
+    async getWorkerStatus() {
+        return await this.backgroundWorker.getStatus();
+    }
+
+    // Database methods
+    async getDatabaseStats() {
+        return await this.fastChartService.getDatabaseStats();
     }
 
     async getCacheStats() {
-        const professionalStats = this.professionalChartService.getCacheStats();
-        return {
-            ...professionalStats,
-            dataSourceStats: this.dataSourceStats
-        };
+        return this.fastChartService.getCacheStats();
     }
 
-    async getCurrentPrice(tokenAddress) {
-        // Try Professional Chart Service first
-        try {
-            const professionalPrice = await this.professionalChartService.getCurrentPrice(tokenAddress);
-            if (professionalPrice && professionalPrice.price) {
-                return professionalPrice;
-            }
-        } catch (error) {
-            console.log(`[CURRENT-PRICE] Professional failed, trying Moralis: ${error.message}`);
-        }
+    async refreshToken(tokenAddress) {
+        return await this.fastChartService.refreshToken(tokenAddress);
+    }
 
-        // Fallback to Moralis
-        try {
-            const moralisPrice = await this.hybridPriceService.getCurrentPrice(tokenAddress);
-            return moralisPrice;
-        } catch (error) {
-            console.error(`[CURRENT-PRICE] Moralis also failed: ${error.message}`);
-            return { price: null, timestamp: null, volume: null };
-        }
+    async getRecentTransactions(tokenAddress, limit = 10) {
+        return await this.fastChartService.getRecentTransactions(tokenAddress, limit);
     }
 }
 
