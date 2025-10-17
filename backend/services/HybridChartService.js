@@ -3,7 +3,7 @@ import ChartBackgroundWorker from './ChartBackgroundWorker.js';
 
 class HybridChartService {
     constructor(heliusApiKey, moralisApiKey) {
-        this.fastChartService = new FastChartService();
+        this.fastChartService = new FastChartService(this); // Pass self reference
         this.backgroundWorker = new ChartBackgroundWorker(heliusApiKey);
         this.dataSourceStats = {
             database: { calls: 0, success: 0, errors: 0 },

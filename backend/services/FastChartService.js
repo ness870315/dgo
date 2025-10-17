@@ -8,9 +8,10 @@ import HybridPriceService from '../hybridPriceService.js';
  * Historical data never expires
  */
 class FastChartService {
-    constructor() {
+    constructor(hybridChartService = null) {
         this.chartDb = new ChartDatabase();
         this.hybridService = new HybridPriceService();
+        this.hybridChartService = hybridChartService; // Reference to HybridChartService for background worker access
         this.cacheStats = {
             hits: 0,
             misses: 0,
@@ -20,6 +21,7 @@ class FastChartService {
         console.log('⚡ FastChartService initialized');
         console.log('   Data source: Centralized database (instant)');
         console.log('   Fallback chain: Helius → Moralis → DexScreener');
+        console.log(`   Background worker access: ${hybridChartService ? 'Available' : 'Not available'}`);
     }
 
     /**
@@ -124,11 +126,56 @@ class FastChartService {
         console.log(`${logPrefix} 🔄 Fallback chain: Helius → Moralis → DexScreener`);
 
         try {
-            // Use HybridPriceService which implements the full fallback chain
+            // First try Helius (Professional Chart Service)
+            console.log(`${logPrefix} 🚀 Trying Helius first...`);
+            
+            // Get pool address for Helius
+            let poolAddress = await this.chartDb.getPoolAddress(tokenAddress);
+            if (!poolAddress) {
+                poolAddress = await this.discoverPoolAddress(tokenAddress);
+                if (!poolAddress) {
+                    console.log(`${logPrefix} ⚠️ No pool address found, skipping Helius`);
+                }
+            }
+            
+            if (poolAddress) {
+                try {
+                    // Import ProfessionalChartService dynamically to avoid circular dependencies
+                    const { default: ProfessionalChartService } = await import('./ProfessionalChartService.js');
+                    const heliusApiKey = process.env.HELIUS_API_KEY;
+                    
+                    if (heliusApiKey) {
+                        const professionalService = new ProfessionalChartService(heliusApiKey);
+                        const heliusData = await professionalService.getChartData(tokenAddress, timeframe, limit);
+                        
+                        if (heliusData && heliusData.ohlcv && heliusData.ohlcv.length > 0) {
+                            console.log(`${logPrefix} ✅ Helius successful: ${heliusData.ohlcv.length} candles`);
+                            
+                            // Store the data in database for future use
+                            await this.chartDb.storePoolAddress(tokenAddress, poolAddress);
+                            
+                            return {
+                                ohlcv: heliusData.ohlcv,
+                                priceData: heliusData.priceData || [],
+                                buySellData: heliusData.buySellData || [],
+                                source: 'helius',
+                                cached: false,
+                                dataSource: 'helius',
+                                responseTime: Date.now()
+                            };
+                        }
+                    }
+                } catch (heliusError) {
+                    console.log(`${logPrefix} ⚠️ Helius failed: ${heliusError.message}`);
+                }
+            }
+            
+            // Fallback to Moralis if Helius fails
+            console.log(`${logPrefix} 🔄 Helius failed, trying Moralis...`);
             const fallbackData = await this.hybridService.getHistoricalPrices(tokenAddress, timeframe, limit);
             
             if (fallbackData && fallbackData.length > 0) {
-                console.log(`${logPrefix} ✅ Fallback successful: ${fallbackData.length} candles`);
+                console.log(`${logPrefix} ✅ Moralis successful: ${fallbackData.length} candles`);
                 
                 return {
                     ohlcv: fallbackData.map(candle => ({
@@ -143,12 +190,12 @@ class FastChartService {
                         timestamp: candle.time,
                         price: candle.close,
                         volume: candle.volume || 0,
-                        type: 'fallback'
+                        type: 'moralis'
                     })),
                     buySellData: [],
-                    source: 'fallback',
+                    source: 'moralis',
                     cached: false,
-                    dataSource: 'fallback',
+                    dataSource: 'moralis',
                     responseTime: Date.now()
                 };
             } else {
@@ -291,22 +338,26 @@ class FastChartService {
      */
     async triggerBackgroundBackfill(tokenAddress) {
         try {
-            // Import the background worker dynamically to avoid circular dependencies
-            const { default: ChartBackgroundWorker } = await import('./ChartBackgroundWorker.js');
-            
-            // Get the Helius API key from environment
-            const heliusApiKey = process.env.HELIUS_API_KEY;
-            if (!heliusApiKey) {
-                console.warn('⚠️ HELIUS_API_KEY not found, cannot trigger background backfill');
-                return;
+            if (this.hybridChartService) {
+                // Use the existing background worker from HybridChartService
+                console.log(`🚀 Adding ${tokenAddress.substring(0, 8)} to existing background worker...`);
+                await this.hybridChartService.addToken(tokenAddress);
+                console.log(`✅ Token ${tokenAddress.substring(0, 8)} added to background worker`);
+            } else {
+                console.warn(`⚠️ No HybridChartService reference, cannot trigger background backfill for ${tokenAddress.substring(0, 8)}`);
+                
+                // Fallback: Create a temporary worker (not ideal but better than nothing)
+                const { default: ChartBackgroundWorker } = await import('./ChartBackgroundWorker.js');
+                const heliusApiKey = process.env.HELIUS_API_KEY;
+                
+                if (heliusApiKey) {
+                    const worker = new ChartBackgroundWorker(heliusApiKey);
+                    await worker.addToken(tokenAddress);
+                    console.log(`✅ Fallback: Background backfill triggered for ${tokenAddress.substring(0, 8)}`);
+                } else {
+                    console.warn('⚠️ HELIUS_API_KEY not found, cannot trigger background backfill');
+                }
             }
-
-            // Create a temporary worker instance to add the token
-            const worker = new ChartBackgroundWorker(heliusApiKey);
-            await worker.addToken(tokenAddress);
-            
-            console.log(`✅ Background backfill triggered for ${tokenAddress.substring(0, 8)}`);
-            
         } catch (error) {
             console.error(`❌ Failed to trigger background backfill for ${tokenAddress.substring(0, 8)}:`, error.message);
             throw error;
