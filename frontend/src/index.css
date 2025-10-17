@@ -61,6 +61,86 @@ code {
   background: radial-gradient(circle at center, rgba(153, 69, 255, 0.1) 0%, transparent 70%);
 }
 
+/* Real-time Chart Blinking Animations */
+@keyframes blink-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes blink-medium {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+@keyframes blink-fast {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.1; }
+}
+
+.realtime-glow.blink-slow {
+  animation: blink-slow 2s infinite;
+}
+
+.realtime-glow.blink-medium {
+  animation: blink-medium 1s infinite;
+}
+
+.realtime-glow.blink-fast {
+  animation: blink-fast 0.5s infinite;
+}
+
+.realtime-dot.blink-slow {
+  animation: blink-slow 2s infinite;
+}
+
+.realtime-dot.blink-medium {
+  animation: blink-medium 1s infinite;
+}
+
+.realtime-dot.blink-fast {
+  animation: blink-fast 0.5s infinite;
+}
+
+.realtime-dot-inner.blink-slow {
+  animation: blink-slow 2s infinite;
+}
+
+.realtime-dot-inner.blink-medium {
+  animation: blink-medium 1s infinite;
+}
+
+.realtime-dot-inner.blink-fast {
+  animation: blink-fast 0.5s infinite;
+}
+
+.realtime-arrow.blink-slow {
+  animation: blink-slow 2s infinite;
+}
+
+.realtime-arrow.blink-medium {
+  animation: blink-medium 1s infinite;
+}
+
+.realtime-arrow.blink-fast {
+  animation: blink-fast 0.5s infinite;
+}
+
+.realtime-change.blink-slow {
+  animation: blink-slow 2s infinite;
+}
+
+.realtime-change.blink-medium {
+  animation: blink-medium 1s infinite;
+}
+
+.realtime-change.blink-fast {
+  animation: blink-fast 0.5s infinite;
+}
+
+.realtime-timestamp {
+  animation: blink-slow 3s infinite;
+}
+
 /* PWA Mobile Optimizations */
 @media (max-width: 768px) {
   /* Prevent horizontal scroll */

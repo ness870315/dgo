@@ -680,60 +680,127 @@ function SvgOHLCVArea({
           strokeWidth="2"
         />
 
-        {/* Blinking point at the end of the line */}
-        {processedData.length > 0 && (
-          <g>
-            {/* Outer glow circle - color based on direction */}
-            <circle
-              cx={x(processedData[processedData.length - 1].time)}
-              cy={y(processedData[processedData.length - 1].close)}
-              r="8"
-              fill={
-                priceDirection === 'up' ? 'rgba(34, 197, 94, 0.3)' : // Green for up
-                priceDirection === 'down' ? 'rgba(239, 68, 68, 0.3)' : // Red for down
-                'rgba(255, 46, 161, 0.3)' // Pink for neutral
-              }
-              className="animate-pulse"
-            />
-            {/* Main blinking point - color based on direction */}
-            <circle
-              cx={x(processedData[processedData.length - 1].time)}
-              cy={y(processedData[processedData.length - 1].close)}
-              r="4"
-              fill={
-                priceDirection === 'up' ? '#22c55e' : // Green for up
-                priceDirection === 'down' ? '#ef4444' : // Red for down
-                '#ff2ea1' // Pink for neutral
-              }
-              className="animate-pulse"
-            />
-            {/* Inner highlight */}
-            <circle
-              cx={x(processedData[processedData.length - 1].time)}
-              cy={y(processedData[processedData.length - 1].close)}
-              r="2"
-              fill="white"
-              className="animate-pulse"
-            />
-            {/* Direction indicator arrow */}
-            {priceDirection !== 'neutral' && (
-              <text
-                x={x(processedData[processedData.length - 1].time)}
-                y={y(processedData[processedData.length - 1].close) - 12}
+        {/* Enhanced Real-time Blinking Dot */}
+        {processedData.length > 0 && (() => {
+          const latestData = processedData[processedData.length - 1];
+          const previousData = processedData.length > 1 ? processedData[processedData.length - 2] : null;
+          
+          // Calculate price change percentage
+          const priceChange = previousData ? 
+            ((latestData.close - previousData.close) / previousData.close) * 100 : 0;
+          
+          // Determine blink speed based on change magnitude
+          const getBlinkSpeed = (change) => {
+            const absChange = Math.abs(change);
+            if (absChange >= 5) return 'blink-fast';      // 5%+ = fast blink
+            if (absChange >= 1) return 'blink-medium';    // 1-5% = medium blink
+            return 'blink-slow';                          // <1% = slow blink
+          };
+          
+          // Determine dot size based on change magnitude
+          const getDotSize = (change) => {
+            const absChange = Math.abs(change);
+            if (absChange >= 5) return { outer: 10, main: 6, inner: 3 };      // Large change = bigger dot
+            if (absChange >= 1) return { outer: 8, main: 5, inner: 2.5 };     // Medium change = medium dot
+            return { outer: 6, main: 4, inner: 2 };                           // Small change = normal dot
+          };
+          
+          const blinkSpeed = getBlinkSpeed(priceChange);
+          const dotSize = getDotSize(priceChange);
+          const isSignificantChange = Math.abs(priceChange) >= 0.1; // Show details for changes >= 0.1%
+          
+          return (
+            <g>
+              {/* Outer glow circle with dynamic size */}
+              <circle
+                cx={x(latestData.time)}
+                cy={y(latestData.close)}
+                r={dotSize.outer}
                 fill={
-                  priceDirection === 'up' ? '#22c55e' : '#ef4444'
+                  priceDirection === 'up' ? 'rgba(34, 197, 94, 0.3)' : // Green for up
+                  priceDirection === 'down' ? 'rgba(239, 68, 68, 0.3)' : // Red for down
+                  'rgba(255, 46, 161, 0.3)' // Pink for neutral
                 }
-                fontSize="12"
+                className={`realtime-glow ${blinkSpeed}`}
+              />
+              
+              {/* Main blinking point with dynamic size */}
+              <circle
+                cx={x(latestData.time)}
+                cy={y(latestData.close)}
+                r={dotSize.main}
+                fill={
+                  priceDirection === 'up' ? '#22c55e' : // Green for up
+                  priceDirection === 'down' ? '#ef4444' : // Red for down
+                  '#ff2ea1' // Pink for neutral
+                }
+                className={`realtime-dot ${blinkSpeed}`}
+                stroke="white"
+                strokeWidth="1"
+              />
+              
+              {/* Inner highlight with dynamic size */}
+              <circle
+                cx={x(latestData.time)}
+                cy={y(latestData.close)}
+                r={dotSize.inner}
+                fill="white"
+                className={`realtime-dot-inner ${blinkSpeed}`}
+              />
+              
+              {/* Direction indicator arrow with dynamic size */}
+              {priceDirection !== 'neutral' && (
+                <text
+                  x={x(latestData.time)}
+                  y={y(latestData.close) - 15}
+                  fill={
+                    priceDirection === 'up' ? '#22c55e' : '#ef4444'
+                  }
+                  fontSize={Math.abs(priceChange) >= 5 ? "14" : "12"}
+                  textAnchor="middle"
+                  fontFamily="system-ui,sans-serif"
+                  fontWeight="bold"
+                  className={`realtime-arrow ${blinkSpeed}`}
+                >
+                  {priceDirection === 'up' ? '▲' : '▼'}
+                </text>
+              )}
+              
+              {/* Price change percentage display */}
+              {isSignificantChange && (
+                <text
+                  x={x(latestData.time)}
+                  y={y(latestData.close) - 30}
+                  fill={
+                    priceDirection === 'up' ? '#22c55e' : 
+                    priceDirection === 'down' ? '#ef4444' : 
+                    '#ff2ea1'
+                  }
+                  fontSize="10"
+                  textAnchor="middle"
+                  fontFamily="system-ui,sans-serif"
+                  fontWeight="bold"
+                  className={`realtime-change ${blinkSpeed}`}
+                >
+                  {priceDirection === 'up' ? '+' : ''}{priceChange.toFixed(2)}%
+                </text>
+              )}
+              
+              {/* Real-time timestamp indicator */}
+              <text
+                x={x(latestData.time)}
+                y={y(latestData.close) + 20}
+                fill="rgba(255,255,255,0.6)"
+                fontSize="8"
                 textAnchor="middle"
                 fontFamily="system-ui,sans-serif"
-                fontWeight="bold"
-                className="animate-pulse"
+                className="realtime-timestamp"
               >
-                {priceDirection === 'up' ? '▲' : '▼'}
+                LIVE
               </text>
-            )}
-          </g>
-        )}
+            </g>
+          );
+        })()}
 
         {/* Y-axis labels */}
         {yTicks.map(tick => (
