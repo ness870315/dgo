@@ -1,151 +1,73 @@
-import sqlite3 from 'sqlite3';
+import fs from 'fs/promises';
 import path from 'path';
-import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
- * Centralized Chart Database
+ * Centralized Chart Database (File-based JSON)
  * Stores all chart data permanently with incremental updates
  * Multiple users access the same cached data - no duplicate API calls
+ * Uses JSON files instead of SQLite for better compatibility
  */
 class ChartDatabase {
     constructor() {
-        this.dbPath = path.join(process.cwd(), 'data', 'charts.db');
+        this.dataDir = path.join(process.cwd(), 'data');
+        this.dbFile = path.join(this.dataDir, 'charts.json');
+        this.data = {
+            swaps: new Map(),
+            candles: new Map(),
+            pools: new Map(),
+            backfillProgress: new Map()
+        };
         this.ensureDataDir();
-        this.db = null;
-        this.initializeDatabase();
+        this.loadData();
     }
 
-    ensureDataDir() {
-        const dataDir = path.join(process.cwd(), 'data');
-        if (!fs.existsSync(dataDir)) {
-            fs.mkdirSync(dataDir, { recursive: true });
+    async ensureDataDir() {
+        try {
+            await fs.mkdir(this.dataDir, { recursive: true });
+        } catch (error) {
+            console.error('❌ Failed to create data directory:', error.message);
         }
     }
 
-    initializeDatabase() {
-        return new Promise((resolve, reject) => {
-            this.db = new sqlite3.Database(this.dbPath, (err) => {
-                if (err) {
-                    console.error('❌ Database connection failed:', err.message);
-                    reject(err);
-                } else {
-                    console.log('✅ Chart database connected');
-                    this.createTables().then(resolve).catch(reject);
-                }
-            });
-        });
-    }
-
-    async createTables() {
-        const tables = [
-            // Raw swap transactions (never expires)
-            `CREATE TABLE IF NOT EXISTS swaps (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                signature TEXT UNIQUE NOT NULL,
-                pool_address TEXT NOT NULL,
-                timestamp INTEGER NOT NULL,
-                price REAL NOT NULL,
-                volume_usd REAL NOT NULL,
-                source TEXT,
-                raw_data TEXT,
-                created_at INTEGER DEFAULT (strftime('%s', 'now'))
-            )`,
-
-            // Materialized candles (pre-computed OHLCV)
-            `CREATE TABLE IF NOT EXISTS candles (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                pool_address TEXT NOT NULL,
-                timeframe TEXT NOT NULL,
-                timestamp INTEGER NOT NULL,
-                open REAL NOT NULL,
-                high REAL NOT NULL,
-                low REAL NOT NULL,
-                close REAL NOT NULL,
-                volume REAL NOT NULL,
-                created_at INTEGER DEFAULT (strftime('%s', 'now')),
-                updated_at INTEGER DEFAULT (strftime('%s', 'now')),
-                UNIQUE(pool_address, timeframe, timestamp)
-            )`,
-
-            // Pool metadata (cache pool addresses)
-            `CREATE TABLE IF NOT EXISTS pools (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                token_mint TEXT UNIQUE NOT NULL,
-                pool_address TEXT NOT NULL,
-                dex_source TEXT,
-                liquidity_usd REAL,
-                is_active BOOLEAN DEFAULT 1,
-                created_at INTEGER DEFAULT (strftime('%s', 'now')),
-                updated_at INTEGER DEFAULT (strftime('%s', 'now'))
-            )`,
-
-            // Backfill progress tracking
-            `CREATE TABLE IF NOT EXISTS backfill_progress (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                pool_address TEXT UNIQUE NOT NULL,
-                last_processed_signature TEXT,
-                last_processed_timestamp INTEGER,
-                total_swaps INTEGER DEFAULT 0,
-                last_backfill_at INTEGER DEFAULT (strftime('%s', 'now')),
-                created_at INTEGER DEFAULT (strftime('%s', 'now'))
-            )`
-        ];
-
-        for (const sql of tables) {
-            await this.run(sql);
+    async loadData() {
+        try {
+            const data = await fs.readFile(this.dbFile, 'utf8');
+            const parsed = JSON.parse(data);
+            
+            // Convert arrays back to Maps
+            this.data.swaps = new Map(parsed.swaps || []);
+            this.data.candles = new Map(parsed.candles || []);
+            this.data.pools = new Map(parsed.pools || []);
+            this.data.backfillProgress = new Map(parsed.backfillProgress || []);
+            
+            console.log('✅ Chart database loaded from file');
+        } catch (error) {
+            if (error.code !== 'ENOENT') {
+                console.error('❌ Failed to load database:', error.message);
+            }
+            console.log('📊 Starting with empty database');
         }
+    }
 
-        // Create indexes for performance
-        const indexes = [
-            'CREATE INDEX IF NOT EXISTS idx_swaps_pool_timestamp ON swaps(pool_address, timestamp)',
-            'CREATE INDEX IF NOT EXISTS idx_swaps_signature ON swaps(signature)',
-            'CREATE INDEX IF NOT EXISTS idx_candles_pool_timeframe ON candles(pool_address, timeframe)',
-            'CREATE INDEX IF NOT EXISTS idx_candles_timestamp ON candles(timestamp)',
-            'CREATE INDEX IF NOT EXISTS idx_pools_token_mint ON pools(token_mint)',
-            'CREATE INDEX IF NOT EXISTS idx_backfill_pool ON backfill_progress(pool_address)'
-        ];
-
-        for (const sql of indexes) {
-            await this.run(sql);
+    async saveData() {
+        try {
+            // Convert Maps to arrays for JSON serialization
+            const dataToSave = {
+                swaps: Array.from(this.data.swaps.entries()),
+                candles: Array.from(this.data.candles.entries()),
+                pools: Array.from(this.data.pools.entries()),
+                backfillProgress: Array.from(this.data.backfillProgress.entries()),
+                lastUpdated: Date.now()
+            };
+            
+            await fs.writeFile(this.dbFile, JSON.stringify(dataToSave, null, 2));
+        } catch (error) {
+            console.error('❌ Failed to save database:', error.message);
         }
-
-        console.log('✅ Chart database tables created');
-    }
-
-    run(sql, params = []) {
-        return new Promise((resolve, reject) => {
-            this.db.run(sql, params, function(err) {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve({ id: this.lastID, changes: this.changes });
-                }
-            });
-        });
-    }
-
-    get(sql, params = []) {
-        return new Promise((resolve, reject) => {
-            this.db.get(sql, params, (err, row) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(row);
-                }
-            });
-        });
-    }
-
-    all(sql, params = []) {
-        return new Promise((resolve, reject) => {
-            this.db.all(sql, params, (err, rows) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    resolve(rows);
-                }
-            });
-        });
     }
 
     /**
@@ -154,30 +76,21 @@ class ChartDatabase {
     async storeSwaps(swaps) {
         if (!swaps || swaps.length === 0) return;
 
-        const stmt = this.db.prepare(`
-            INSERT OR IGNORE INTO swaps 
-            (signature, pool_address, timestamp, price, volume_usd, source, raw_data)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `);
-
         for (const swap of swaps) {
-            await new Promise((resolve, reject) => {
-                stmt.run([
-                    swap.signature,
-                    swap.poolAddress,
-                    swap.timestamp,
-                    swap.price,
-                    swap.volumeUsd,
-                    swap.source,
-                    JSON.stringify(swap.rawData)
-                ], function(err) {
-                    if (err) reject(err);
-                    else resolve();
-                });
+            const key = `${swap.poolAddress}_${swap.signature}`;
+            this.data.swaps.set(key, {
+                signature: swap.signature,
+                poolAddress: swap.poolAddress,
+                timestamp: swap.timestamp,
+                price: swap.price,
+                volumeUsd: swap.volumeUsd,
+                source: swap.source,
+                rawData: swap.rawData,
+                createdAt: Date.now()
             });
         }
 
-        stmt.finalize();
+        await this.saveData();
         console.log(`💾 Stored ${swaps.length} swaps in database`);
     }
 
@@ -186,31 +99,29 @@ class ChartDatabase {
      * Returns pre-computed OHLCV data instantly
      */
     async getCandles(poolAddress, timeframe, limit = null) {
-        let sql = `
-            SELECT timestamp, open, high, low, close, volume
-            FROM candles 
-            WHERE pool_address = ? AND timeframe = ?
-            ORDER BY timestamp DESC
-        `;
+        const candles = [];
         
-        const params = [poolAddress, timeframe];
-        
-        if (limit) {
-            sql += ` LIMIT ?`;
-            params.push(limit);
+        for (const [key, candle] of this.data.candles.entries()) {
+            if (candle.poolAddress === poolAddress && candle.timeframe === timeframe) {
+                candles.push({
+                    timestamp: candle.timestamp * 1000, // Convert to milliseconds for frontend
+                    open: candle.open,
+                    high: candle.high,
+                    low: candle.low,
+                    close: candle.close,
+                    volume: candle.volume
+                });
+            }
         }
 
-        const candles = await this.all(sql, params);
+        // Sort by timestamp and apply limit
+        candles.sort((a, b) => a.timestamp - b.timestamp);
         
-        // Convert to standard format
-        return candles.map(candle => ({
-            timestamp: candle.timestamp * 1000, // Convert to milliseconds for frontend
-            open: candle.open,
-            high: candle.high,
-            low: candle.low,
-            close: candle.close,
-            volume: candle.volume
-        })).reverse(); // Return in chronological order
+        if (limit) {
+            return candles.slice(-limit).reverse(); // Return in chronological order
+        }
+        
+        return candles.reverse(); // Return in chronological order
     }
 
     /**
@@ -220,12 +131,16 @@ class ChartDatabase {
         console.log(`🔄 Updating candles for ${poolAddress.substring(0, 8)} (${timeframe})`);
 
         // Get all swaps for this pool
-        const swaps = await this.all(`
-            SELECT timestamp, price, volume_usd
-            FROM swaps 
-            WHERE pool_address = ?
-            ORDER BY timestamp ASC
-        `, [poolAddress]);
+        const swaps = [];
+        for (const [key, swap] of this.data.swaps.entries()) {
+            if (swap.poolAddress === poolAddress) {
+                swaps.push({
+                    timestamp: swap.timestamp,
+                    price: swap.price,
+                    volume_usd: swap.volumeUsd
+                });
+            }
+        }
 
         if (swaps.length === 0) {
             console.log(`⚠️ No swaps found for ${poolAddress.substring(0, 8)}`);
@@ -237,22 +152,21 @@ class ChartDatabase {
 
         // Store/update candles in database
         for (const candle of candles) {
-            await this.run(`
-                INSERT OR REPLACE INTO candles 
-                (pool_address, timeframe, timestamp, open, high, low, close, volume, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now'))
-            `, [
+            const key = `${poolAddress}_${timeframe}_${candle.timestamp}`;
+            this.data.candles.set(key, {
                 poolAddress,
                 timeframe,
-                candle.timestamp,
-                candle.open,
-                candle.high,
-                candle.low,
-                candle.close,
-                candle.volume
-            ]);
+                timestamp: candle.timestamp,
+                open: candle.open,
+                high: candle.high,
+                low: candle.low,
+                close: candle.close,
+                volume: candle.volume,
+                updatedAt: Date.now()
+            });
         }
 
+        await this.saveData();
         console.log(`✅ Updated ${candles.length} candles for ${poolAddress.substring(0, 8)} (${timeframe})`);
     }
 
@@ -292,12 +206,16 @@ class ChartDatabase {
      * Store pool address for a token
      */
     async storePoolAddress(tokenMint, poolAddress, dexSource = null, liquidityUsd = null) {
-        await this.run(`
-            INSERT OR REPLACE INTO pools 
-            (token_mint, pool_address, dex_source, liquidity_usd, updated_at)
-            VALUES (?, ?, ?, ?, strftime('%s', 'now'))
-        `, [tokenMint, poolAddress, dexSource, liquidityUsd]);
+        this.data.pools.set(tokenMint, {
+            tokenMint,
+            poolAddress,
+            dexSource,
+            liquidityUsd,
+            isActive: true,
+            updatedAt: Date.now()
+        });
 
+        await this.saveData();
         console.log(`💾 Stored pool address for ${tokenMint.substring(0, 8)}: ${poolAddress.substring(0, 8)}`);
     }
 
@@ -305,48 +223,42 @@ class ChartDatabase {
      * Get pool address for a token
      */
     async getPoolAddress(tokenMint) {
-        const pool = await this.get(`
-            SELECT pool_address FROM pools 
-            WHERE token_mint = ? AND is_active = 1
-            ORDER BY liquidity_usd DESC
-        `, [tokenMint]);
-
-        return pool ? pool.pool_address : null;
+        const pool = this.data.pools.get(tokenMint);
+        return pool ? pool.poolAddress : null;
     }
 
     /**
      * Update backfill progress
      */
     async updateBackfillProgress(poolAddress, lastSignature, lastTimestamp, totalSwaps) {
-        await this.run(`
-            INSERT OR REPLACE INTO backfill_progress 
-            (pool_address, last_processed_signature, last_processed_timestamp, total_swaps, last_backfill_at)
-            VALUES (?, ?, ?, ?, strftime('%s', 'now'))
-        `, [poolAddress, lastSignature, lastTimestamp, totalSwaps]);
+        this.data.backfillProgress.set(poolAddress, {
+            poolAddress,
+            lastSignature,
+            lastTimestamp,
+            totalSwaps,
+            lastBackfillAt: Date.now()
+        });
+
+        await this.saveData();
     }
 
     /**
      * Get backfill progress
      */
     async getBackfillProgress(poolAddress) {
-        return await this.get(`
-            SELECT * FROM backfill_progress WHERE pool_address = ?
-        `, [poolAddress]);
+        return this.data.backfillProgress.get(poolAddress);
     }
 
     /**
      * Get database statistics
      */
     async getStats() {
-        const stats = await this.all(`
-            SELECT 
-                (SELECT COUNT(*) FROM swaps) as total_swaps,
-                (SELECT COUNT(*) FROM candles) as total_candles,
-                (SELECT COUNT(*) FROM pools) as total_pools,
-                (SELECT COUNT(DISTINCT pool_address) FROM swaps) as active_pools
-        `);
-
-        return stats[0];
+        return {
+            total_swaps: this.data.swaps.size,
+            total_candles: this.data.candles.size,
+            total_pools: this.data.pools.size,
+            active_pools: Array.from(this.data.pools.values()).filter(p => p.isActive).length
+        };
     }
 
     getTimeframeMinutes(timeframe) {
@@ -362,10 +274,7 @@ class ChartDatabase {
     }
 
     close() {
-        if (this.db) {
-            this.db.close();
-            console.log('🔒 Chart database closed');
-        }
+        console.log('🔒 Chart database closed');
     }
 }
 
