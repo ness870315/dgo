@@ -84,7 +84,11 @@ class HeliusChartService {
         const priceData = [];
         const buySellData = [];
 
-        transactions.forEach(tx => {
+        console.log(`🔍 [HELIUS] Extracting price data from ${transactions.length} transactions for ${tokenAddress.substring(0, 8)}...`);
+
+        transactions.forEach((tx, index) => {
+            console.log(`🔍 [HELIUS] Transaction ${index + 1}: type=${tx.type}, source=${tx.source}, tokenTransfers=${tx.tokenTransfers?.length || 0}`);
+            
             if (tx.type === 'SWAP' && tx.tokenTransfers && Array.isArray(tx.tokenTransfers)) {
                 // Extract SOL transfers (native token)
                 const solTransfers = tx.tokenTransfers.filter(t => 
@@ -140,7 +144,10 @@ class HeliusChartService {
     }
 
     generateOHLCVData(priceData, timeframe = '1h') {
+        console.log(`🔍 [HELIUS] Generating OHLCV data from ${priceData.length} price points for timeframe ${timeframe}`);
+        
         if (!priceData || priceData.length === 0) {
+            console.log(`⚠️ [HELIUS] No price data available for OHLCV generation`);
             return [];
         }
 
@@ -182,6 +189,7 @@ class HeliusChartService {
             ohlcv.push(currentCandle);
         }
 
+        console.log(`✅ [HELIUS] Generated ${ohlcv.length} OHLCV candles from ${priceData.length} price points`);
         return ohlcv;
     }
 
