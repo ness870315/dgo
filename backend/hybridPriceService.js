@@ -800,7 +800,7 @@ class HybridPriceService {
         fromDate = new Date(now.getTime() - 120 * 365 * 24 * 60 * 60 * 1000).toISOString(); // 120 years
         break;
       case 'ALL':
-        fromDate = new Date(now.getTime() - 200 * 365 * 24 * 60 * 60 * 1000).toISOString(); // 200 years
+        fromDate = new Date(now.getTime() - 2 * 365 * 24 * 60 * 60 * 1000).toISOString(); // 2 years (reasonable for crypto)
         break;
       default:
         fromDate = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString(); // Default to 1 day
