@@ -528,7 +528,6 @@ class ChartService {
     try {
       const params = new URLSearchParams({
         timeframe: timeframe,
-        tier: 'RD',
         limit: '1000',
         from: fromTimestamp.toString(),
         to: toTimestamp.toString()
