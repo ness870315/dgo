@@ -214,9 +214,9 @@ class ChartService {
   }
 
   /**
-   * Returns the recommended RD bar count for a timeframe
+   * Returns the default bar count for a timeframe
    */
-  getRDLimit(timeframe) {
+  getDefaultLimit(timeframe) {
     return this.getOptimalLimitForTier(timeframe, 'RD');
   }
 
@@ -224,10 +224,10 @@ class ChartService {
    * Get price chart with RD limit and auto-top-up if server returns too few bars
    */
   async getPriceChartRD(contractAddress, timeframe) {
-    const desired = this.getRDLimit(timeframe); // e.g., 1000 for 15MIN
+    const desired = this.getDefaultLimit(timeframe); // e.g., 1000 for 15MIN
 
     
-    const base = await this.getPriceChart(contractAddress, timeframe, desired, 'RD');
+    const base = await this.getPriceChart(contractAddress, timeframe, desired);
 
     // If server gave us way less (e.g., only 24 bars), try backfilling older bars
     if (Array.isArray(base?.data) && base.data.length < Math.min(200, desired)) {
@@ -479,25 +479,23 @@ class ChartService {
    * @param {string} contractAddress - Token contract address
    * @param {string} timeframe - Timeframe: '1MIN', '5MIN', '15MIN', '1H', '4H', '1D', '1W', '1M'
    * @param {number} limit - Number of data points (auto-optimized if not specified)
-   * @param {string} tier - MV/RD/MP tier for memecoin optimization
    * @returns {Promise<Object>} Chart data response
    */
-  async getPriceChart(contractAddress, timeframe = '5MIN', limit = null, tier = 'RD') {
+  async getPriceChart(contractAddress, timeframe = '5MIN', limit = null) {
     try {
-      // Check cache first (tier-specific)
-      const cached = this.getCachedChart(contractAddress, timeframe, tier);
+      // Check cache first
+      const cached = this.getCachedChart(contractAddress, timeframe);
       if (cached) {
         return cached;
       }
 
-      // If limit not provided, use RD for this timeframe
-      const effLimit = Number.isFinite(limit) ? limit : this.getRDLimit(timeframe);
+      // If limit not provided, use default for this timeframe
+      const effLimit = Number.isFinite(limit) ? limit : this.getDefaultLimit(timeframe);
 
-      // Fetch from API with tier parameter
+      // Fetch from API
       const params = new URLSearchParams({
         timeframe: timeframe,
-        tier: tier,
-        limit: String(effLimit)  // ensure server gets the count
+        limit: String(effLimit)
       });
         
       const response = await fetch(`${this.API_BASE}/api/tokens/${contractAddress}/price-chart?${params}`);
@@ -508,8 +506,8 @@ class ChartService {
       
       const data = await response.json();
       
-      // Cache the result with tier
-      this.setCachedChart(contractAddress, timeframe, data, tier);
+      // Cache the result
+      this.setCachedChart(contractAddress, timeframe, data);
       
       return data;
     } catch (error) {
@@ -631,7 +629,8 @@ class ChartService {
       timeframes: {},
       oldestEntry: null,
       newestEntry: null
-      eframe
+    };
+    
     entries.forEach(([key, entry]) => {
       const timeframe = entry.timeframe || 'unknown';
       if (!stats.timeframes[timeframe]) {

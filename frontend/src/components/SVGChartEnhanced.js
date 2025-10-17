@@ -344,7 +344,7 @@ function SvgOHLCVArea({
         } else {
           // Use Professional Chart Architecture
           console.log(`📊 Using Professional Chart Architecture for ${timeframe}`);
-          res = await chartService.getPriceChart(contract, timeframe, limit, tier);
+          res = await chartService.getPriceChart(contract, timeframe);
           data = Array.isArray(res?.data) ? res.data : [];
           
           console.log(`📈 Professional Architecture: Got ${data.length} candles`);
