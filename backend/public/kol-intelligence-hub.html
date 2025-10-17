@@ -3941,8 +3941,6 @@
         }
 
         // Removed orphaned code that was causing syntax errors
-                    
-                    const narratives = [];
                     posts.forEach(post => {
                         const content = (post.content || '').toLowerCase();
                         Object.entries(narrativeKeywords).forEach(([narrative, keywords]) => {
