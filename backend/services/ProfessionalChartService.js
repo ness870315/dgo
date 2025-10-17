@@ -1,26 +1,93 @@
 import HeliusChartService from './HeliusChartService.js';
+import fs from 'fs/promises';
+import path from 'path';
 
 /**
  * Professional Chart Data Architecture
  * Based on how DexScreener and TradingView handle chart data
  * 
  * Architecture:
- * 1. Complete Historical Backfill → Cache ALL data
+ * 1. Complete Historical Backfill → Cache ALL data PERMANENTLY
  * 2. Timeframe Generation → Create any timeframe from cached data
  * 3. Real-time Updates → Incremental updates when user stays on chart
+ * 4. Persistent Storage → Charts never expire, saved to disk
  */
 class ProfessionalChartService {
     constructor(heliusApiKey) {
         this.helius = new HeliusChartService(heliusApiKey);
-        this.chartCache = new Map(); // Complete historical data cache
+        this.chartCache = new Map(); // Complete historical data cache (NO EXPIRATION)
         this.updateIntervals = new Map(); // Track active update intervals
-        this.maxCacheAge = 5 * 60 * 1000; // 5 minutes cache expiry
+        this.cacheDir = path.join(process.cwd(), 'data', 'chart-cache');
+        this.maxCacheAge = 24 * 60 * 60 * 1000; // 24 hours - only for file cache refresh
+        
+        // Ensure cache directory exists
+        this.ensureCacheDir();
+        
+        console.log('📊 ProfessionalChartService initialized with PERSISTENT CACHE');
+        console.log(`📁 Cache directory: ${this.cacheDir}`);
+        console.log('🔄 Charts will NEVER expire - data persists forever');
     }
 
     /**
-     * Step 1: Complete Historical Backfill (with pagination)
-     * Fetch ALL available transaction data for a token using multiple API calls
+     * Ensure cache directory exists
      */
+    async ensureCacheDir() {
+        try {
+            await fs.mkdir(this.cacheDir, { recursive: true });
+        } catch (error) {
+            console.error('❌ Failed to create cache directory:', error.message);
+        }
+    }
+
+    /**
+     * Atomic file write - prevents data corruption
+     */
+    async atomicWrite(filePath, data) {
+        const tempPath = filePath + '.tmp';
+        try {
+            // Write to temporary file first
+            await fs.writeFile(tempPath, JSON.stringify(data, null, 2));
+            // Atomic rename (atomic operation on most filesystems)
+            await fs.rename(tempPath, filePath);
+        } catch (error) {
+            // Clean up temp file if rename failed
+            try {
+                await fs.unlink(tempPath);
+            } catch (cleanupError) {
+                // Ignore cleanup errors
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Atomic file read with fallback
+     */
+    async atomicRead(filePath) {
+        try {
+            const data = await fs.readFile(filePath, 'utf8');
+            return JSON.parse(data);
+        } catch (error) {
+            // If main file fails, try temp file (in case of interrupted write)
+            try {
+                const tempPath = filePath + '.tmp';
+                const tempData = await fs.readFile(tempPath, 'utf8');
+                // Move temp file to main file
+                await fs.rename(tempPath, filePath);
+                return JSON.parse(tempData);
+            } catch (tempError) {
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Get cache file path for a token
+     */
+    getCacheFilePath(tokenAddress) {
+        const safeAddress = tokenAddress.replace(/[^a-zA-Z0-9]/g, '_');
+        return path.join(this.cacheDir, `${safeAddress}.json`);
+    }
     async backfillCompleteHistory(tokenAddress) {
         console.log(`🔄 [PROFESSIONAL] Starting complete history backfill for ${tokenAddress.substring(0, 8)}`);
         
@@ -73,17 +140,25 @@ class ProfessionalChartService {
 
             console.log(`📊 [PROFESSIONAL] Complete: ${allTransactions.length} transactions, ${allPriceData.length} price points`);
 
-            // Cache the complete dataset
-            this.chartCache.set(tokenAddress, {
+            // Cache the complete dataset (in-memory + persistent)
+            const cacheData = {
                 priceData: allPriceData,
                 buySellData: allBuySellData,
                 lastUpdated: Date.now(),
                 transactionCount: allTransactions.length,
                 batches: callCount,
-                lastTransactionSignature: allTransactions[0]?.signature // Track newest transaction
-            });
+                version: 1 // For future schema migrations
+            };
 
-            console.log(`✅ [PROFESSIONAL] Complete history cached for ${tokenAddress.substring(0, 8)} (${callCount} batches)`);
+            // Atomic write to persistent storage
+            const filePath = this.getCacheFilePath(tokenAddress);
+            await this.atomicWrite(filePath, cacheData);
+
+            // Update in-memory cache
+            this.chartCache.set(tokenAddress, cacheData);
+
+            console.log(`✅ [PROFESSIONAL] Complete history cached PERMANENTLY for ${tokenAddress.substring(0, 8)} (${callCount} batches)`);
+            console.log(`📁 Persistent cache: ${filePath}`);
             return { priceData: allPriceData, buySellData: allBuySellData };
 
         } catch (error) {
@@ -149,15 +224,22 @@ class ProfessionalChartService {
         const updatedPriceData = [...newPriceData, ...cached.priceData];
         const updatedBuySellData = [...newBuySellData, ...cached.buySellData];
 
-        // Update cache
-        this.chartCache.set(tokenAddress, {
+        // Create updated cache data
+        const updatedCacheData = {
             priceData: updatedPriceData,
             buySellData: updatedBuySellData,
             lastUpdated: Date.now(),
             transactionCount: cached.transactionCount + parsedTxs.length,
             batches: cached.batches,
-            lastTransactionSignature: newTxs[0]?.signature // Update newest transaction
-        });
+            version: cached.version || 1
+        };
+
+        // Atomic write to persistent storage
+        const filePath = this.getCacheFilePath(tokenAddress);
+        await this.atomicWrite(filePath, updatedCacheData);
+
+        // Update in-memory cache
+        this.chartCache.set(tokenAddress, updatedCacheData);
 
         console.log(`✅ [PROFESSIONAL] Cache updated: ${updatedPriceData.length} total price points (+${newPriceData.length} new)`);
         return { 
@@ -168,21 +250,51 @@ class ProfessionalChartService {
     }
 
     /**
+     * Load cached data from persistent storage
+     */
+    async loadFromPersistentCache(tokenAddress) {
+        const filePath = this.getCacheFilePath(tokenAddress);
+        try {
+            const cachedData = await this.atomicRead(filePath);
+            if (cachedData && cachedData.priceData && cachedData.priceData.length > 0) {
+                // Check if cache is still fresh (within 24 hours)
+                const cacheAge = Date.now() - cachedData.lastUpdated;
+                if (cacheAge < this.maxCacheAge) {
+                    this.chartCache.set(tokenAddress, cachedData);
+                    console.log(`📁 [CACHE] Loaded ${cachedData.priceData.length} price points from persistent storage for ${tokenAddress.substring(0, 8)}`);
+                    return cachedData;
+                } else {
+                    console.log(`⚠️ [CACHE] Persistent cache expired for ${tokenAddress.substring(0, 8)} (${Math.round(cacheAge / (60 * 60 * 1000))}h old)`);
+                }
+            }
+        } catch (error) {
+            console.log(`⚠️ [CACHE] Failed to load persistent cache for ${tokenAddress.substring(0, 8)}:`, error.message);
+        }
+        return null;
+    }
+
+    /**
      * Step 4: Get Chart Data (Professional Method)
-     * 1. Check if we have complete data cached
+     * 1. Check if we have complete data cached (in-memory first, then persistent)
      * 2. If not, backfill complete history
      * 3. Generate timeframe from cached data
      */
     async getChartData(tokenAddress, timeframe = '5min', limit = 100) {
         console.log(`🎯 [PROFESSIONAL] Getting ${timeframe} chart for ${tokenAddress.substring(0, 8)}`);
         
-        // Check if we have cached data
-        const cached = this.chartCache.get(tokenAddress);
-        const cacheAge = cached ? Date.now() - cached.lastUpdated : Infinity;
-
-        if (!cached || cacheAge > this.maxCacheAge) {
-            console.log(`🔄 [PROFESSIONAL] Cache miss or expired, backfilling complete history`);
+        // Check if we have cached data (in-memory first)
+        let cached = this.chartCache.get(tokenAddress);
+        
+        // If not in memory, try to load from persistent storage
+        if (!cached) {
+            cached = await this.loadFromPersistentCache(tokenAddress);
+        }
+        
+        // If still no cache, perform complete backfill
+        if (!cached) {
+            console.log(`🔄 [PROFESSIONAL] No cache found, backfilling complete history`);
             await this.backfillCompleteHistory(tokenAddress);
+            cached = this.chartCache.get(tokenAddress);
         }
 
         // Generate timeframe from cached data
