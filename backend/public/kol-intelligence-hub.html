@@ -3942,28 +3942,7 @@
                     
                     if (recentPosts.length > 0) {
                         try {
-                            // Call AI narrative analysis API
                             // Removed orphaned code that was causing syntax error
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({
-                                    posts: recentPosts.map(post => ({
-                                        content: post.content,
-                                        kol_handle: post.kol_handle,
-                                        timestamp: post.timestamp
-                                    })),
-                                    includeWarmingUp: true
-                                })
-                            });
-                            
-                            if (response.ok) {
-                                const analysis = await response.json();
-                                
-                                if (analysis.success && analysis.data) {
-                                    trendingNarrative = analysis.data.trendingNarrative || 'None detected';
-                                    narrativeConfidence = `${Math.round(analysis.data.confidence * 100)}%`;
                                     
                                     // Handle warming up narrative
                                     warmingNarrative = analysis.data.warmingUpNarrative || 'None detected';
