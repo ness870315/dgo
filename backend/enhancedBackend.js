@@ -5202,8 +5202,9 @@ Format as JSON:
     // CACHED ENHANCED ANALYTICS API ENDPOINTS
     // =============================
     
-    // Get cached KOL Performance Analytics
-    // DISABLED: this.app.get('/api/cached/kol-performance', async (req, res) => {
+    // DISABLED: Get cached KOL Performance Analytics
+    /*
+    this.app.get('/api/cached/kol-performance', async (req, res) => {
       try {
         const cachedData = this.enhancedAnalyticsCache.getCachedAnalytics('KOL_PERFORMANCE');
         
@@ -5231,9 +5232,11 @@ Format as JSON:
         });
       }
     });
+    */
     
-    // Get cached Market Momentum Analytics
-    // DISABLED: this.app.get('/api/cached/market-momentum', async (req, res) => {
+    // DISABLED: Get cached Market Momentum Analytics
+    /*
+    this.app.get('/api/cached/market-momentum', async (req, res) => {
       try {
         const cachedData = this.enhancedAnalyticsCache.getCachedAnalytics('MARKET_MOMENTUM');
         
@@ -5261,6 +5264,7 @@ Format as JSON:
         });
       }
     });
+    */
     
     // Get cached Predictions Analytics
     this.app.get('/api/cached/predictions', async (req, res) => {
