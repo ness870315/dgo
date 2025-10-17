@@ -338,12 +338,12 @@ class EnhancedBackend {
             </div>
         </div>
         
-        <a href="/kol-intelligence-hub.html" class="cta-button">
-            🎯 Launch Intelligence Hub
+        <a href="/admin-dashboard.html" class="cta-button">
+            🎯 Launch Admin Dashboard
         </a>
         
         <p style="margin-top: 30px; color: #666; font-size: 0.9em;">
-            Revolutionary KOL intelligence platform
+            KOL Intelligence Hub is temporarily disabled
         </p>
     </div>
 </body>
@@ -4555,7 +4555,8 @@ class EnhancedBackend {
     });
     */
 
-    // AI-Powered Narrative Analysis
+    // DISABLED: AI-Powered Narrative Analysis
+    /*
     this.app.post('/api/ml/narrative-analysis', async (req, res) => {
       try {
         const { posts } = req.body;
@@ -4748,7 +4749,8 @@ Respond in JSON format:
       }
     };
 
-    // Comprehensive AI Insights API
+    // DISABLED: Comprehensive AI Insights API
+    /*
     this.app.post('/api/ml/comprehensive-insights', async (req, res) => {
       try {
         const { analytics, predictions, visualizations, momentum, posts, kols } = req.body;
