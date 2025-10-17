@@ -16,6 +16,7 @@ class ChartBackgroundWorker {
         this.processedPools = new Set();
         this.updateInterval = 30000; // 30 seconds
         this.backfillInterval = 300000; // 5 minutes
+        this.realtimeInterval = 10000; // 10 seconds for active pools
     }
 
     /**
@@ -42,7 +43,10 @@ class ChartBackgroundWorker {
         // Start periodic backfills
         this.startPeriodicBackfills();
 
-        console.log('✅ Background worker started');
+        // Start real-time updates for active pools
+        this.startRealtimeUpdates();
+
+        console.log('✅ Background worker started with real-time updates');
     }
 
     /**
@@ -128,6 +132,26 @@ class ChartBackgroundWorker {
     }
 
     /**
+     * Start real-time updates for active pools (every 10 seconds)
+     */
+    startRealtimeUpdates() {
+        const realtimeLoop = async () => {
+            if (!this.isRunning) return;
+
+            try {
+                await this.realtimeUpdate();
+            } catch (error) {
+                console.error('❌ Real-time update failed:', error.message);
+            }
+
+            // Schedule next real-time update
+            setTimeout(realtimeLoop, this.realtimeInterval);
+        };
+
+        realtimeLoop();
+    }
+
+    /**
      * Update all active pools with new data
      */
     async updateAllPools() {
@@ -167,7 +191,7 @@ class ChartBackgroundWorker {
 
         try {
             // Get new swaps since last update
-            const candles = await this.heliusBackfill.backfillHeliusOHLCV({
+            const result = await this.heliusBackfill.backfillHeliusOHLCV({
                 poolAddress,
                 fromTs,
                 toTs,
@@ -175,15 +199,20 @@ class ChartBackgroundWorker {
                 source: 'RAYDIUM'
             });
 
-            if (candles.length === 0) {
+            if (result.candles.length === 0) {
                 return; // No new data
             }
 
-            // Convert candles back to swaps for storage
-            const newSwaps = this.candlesToSwaps(candles, poolAddress);
-            
-            // Store new swaps
-            await this.chartDb.storeSwaps(newSwaps);
+            // Store new raw swaps (if available)
+            if (result.rawSwaps && result.rawSwaps.length > 0) {
+                await this.chartDb.storeSwaps(result.rawSwaps);
+                console.log(`💾 Stored ${result.rawSwaps.length} new raw swaps for ${poolAddress.substring(0, 8)}`);
+            } else {
+                // Fallback: Convert candles back to swaps for storage
+                const newSwaps = this.candlesToSwaps(result.candles, poolAddress);
+                await this.chartDb.storeSwaps(newSwaps);
+                console.log(`💾 Converted ${newSwaps.length} candles to swaps for ${poolAddress.substring(0, 8)}`);
+            }
 
             // Update materialized candles for all timeframes
             const timeframes = ['1MIN', '5MIN', '15MIN', '1H', '4H', '1D'];
@@ -192,18 +221,47 @@ class ChartBackgroundWorker {
             }
 
             // Update progress
-            const latestCandle = candles[candles.length - 1];
+            const latestCandle = result.candles[result.candles.length - 1];
+            const newSwapsCount = result.rawSwaps ? result.rawSwaps.length : result.candles.length;
             await this.chartDb.updateBackfillProgress(
                 poolAddress,
                 `update_${Date.now()}`, // Placeholder signature
                 latestCandle.time,
-                progress.total_swaps + newSwaps.length
+                progress.total_swaps + newSwapsCount
             );
 
-            console.log(`✅ Updated ${poolAddress.substring(0, 8)}: ${newSwaps.length} new swaps`);
+            console.log(`✅ Updated ${poolAddress.substring(0, 8)}: ${newSwapsCount} new swaps`);
 
         } catch (error) {
             console.error(`❌ Update failed for ${poolAddress.substring(0, 8)}:`, error.message);
+        }
+    }
+
+    /**
+     * Real-time update for active pools (every 10 seconds)
+     * This ensures we catch new transactions quickly
+     */
+    async realtimeUpdate() {
+        const activePools = [];
+        for (const [tokenMint, poolData] of this.chartDb.data.pools.entries()) {
+            if (poolData.isActive) {
+                activePools.push({
+                    token_mint: tokenMint,
+                    pool_address: poolData.poolAddress
+                });
+            }
+        }
+
+        if (activePools.length === 0) return;
+
+        console.log(`⚡ Real-time update for ${activePools.length} active pools...`);
+
+        for (const pool of activePools) {
+            try {
+                await this.updatePool(pool.pool_address);
+            } catch (error) {
+                console.error(`❌ Real-time update failed for ${pool.pool_address.substring(0, 8)}:`, error.message);
+            }
         }
     }
 
