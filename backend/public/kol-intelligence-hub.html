@@ -3941,8 +3941,38 @@
         }
 
         // Removed orphaned code that was causing syntax errors
-                    
-                    const narratives = [];
+        
+        // Fallback narrative analysis function
+        async function fallbackNarrativeAnalysis() {
+            try {
+                // Declare variables that were missing
+                let trendingNarrative = 'None detected';
+                let narrativeConfidence = '0%';
+                let warmingNarrative = 'None detected';
+                let warmingConfidence = '0%';
+                let correlationScore = '0%';
+                let correlationDesc = 'No correlation';
+                let viralPotential = 'Low';
+                let viralDesc = 'No viral signals';
+                
+                // Get posts data
+                const postsResponse = await fetch('/api/kol/posts');
+                const postsData = await postsResponse.json();
+                const posts = postsData.success ? postsData.data : [];
+                
+                // Define narrative keywords
+                const narrativeKeywords = {
+                    'AI': ['ai', 'artificial intelligence', 'machine learning', 'gpt', 'openai', 'chatgpt', 'claude', 'anthropic'],
+                    'DeFi': ['defi', 'yield farming', 'liquidity', 'staking', 'protocol', 'uniswap', 'aave', 'compound'],
+                    'Gaming': ['gaming', 'nft', 'metaverse', 'play-to-earn', 'gamefi', 'web3 gaming', 'blockchain game'],
+                    'Memes': ['meme', 'doge', 'pepe', 'shiba', 'funny', 'meme coin', 'community token'],
+                    'Layer 2': ['layer 2', 'l2', 'rollup', 'arbitrum', 'optimism', 'polygon', 'scaling'],
+                    'Privacy': ['privacy', 'zero-knowledge', 'zk', 'anonymous', 'private', 'privacy coin'],
+                    'RWA': ['real world assets', 'rwa', 'tokenization', 'real estate', 'commodities'],
+                    'Social': ['social', 'social media', 'web3 social', 'decentralized social', 'social token']
+                };
+                
+                const narratives = [];
                     posts.forEach(post => {
                         const content = (post.content || '').toLowerCase();
                         Object.entries(narrativeKeywords).forEach(([narrative, keywords]) => {
@@ -4004,6 +4034,7 @@
                 document.getElementById('correlationDesc').textContent = correlationDesc;
                 document.getElementById('viralPotential').textContent = viralPotential;
                 document.getElementById('viralDesc').textContent = viralDesc;
+                }
             } catch (error) {
                 console.error('Error loading narrative predictions:', error);
             }
