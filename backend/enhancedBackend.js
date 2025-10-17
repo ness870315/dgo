@@ -27,7 +27,7 @@ import AutomatedTokenCleanup from './automatedTokenCleanup.js';
 import HybridPriceService from './hybridPriceService.js';
 import HybridChartService from './services/HybridChartService.js';
 import KOLService from './services/KOLService.js';
-import EnhancedAnalyticsCacheService from './services/EnhancedAnalyticsCacheService.js';
+// DISABLED: import EnhancedAnalyticsCacheService from './services/EnhancedAnalyticsCacheService.js';
 import logger from './logger.js';
 import { fileURLToPath } from 'url';
 import { ForecastDebugEndpoint } from './debug-forecast-token.js';
@@ -141,12 +141,13 @@ class EnhancedBackend {
     this.helioService = new HelioPaymentService();
     this.oauthXService = new OAuthXService();
     this.kolService = new KOLService();
-    this.enhancedAnalyticsCache = new EnhancedAnalyticsCacheService(this.kolService);
+    // DISABLED: Enhanced Analytics Cache Service
+    // this.enhancedAnalyticsCache = new EnhancedAnalyticsCacheService(this.kolService);
     this.priorityQueue = new PriorityQueueService();
     
-    // Start Enhanced Analytics Cache Service immediately (will work with empty data until KOL Service loads)
-    this.enhancedAnalyticsCache.startBackgroundProcessing();
-    console.log('✅ Enhanced Analytics Cache Service started');
+    // DISABLED: Start Enhanced Analytics Cache Service immediately (will work with empty data until KOL Service loads)
+    // this.enhancedAnalyticsCache.startBackgroundProcessing();
+    console.log('⚠️ Enhanced Analytics Cache Service DISABLED');
     this.leaderboardEngine = new LeaderboardScoringEngine();
     this.kolTrustSystem = new EnhancedKOLTrustSystem();
     this.monthlySnapshotService = new MonthlySnapshotService();
@@ -4457,8 +4458,8 @@ class EnhancedBackend {
     // Initialize Enhanced Predictive Analytics Service
     this.enhancedPredictiveAnalytics = null;
     
-    // Get comprehensive KOL analytics with LLM insights
-    this.app.get('/api/ml/kol-analytics/:kolHandle', async (req, res) => {
+    // Get comprehensive KOL analytics with LLM insights (DISABLED)
+    // this.app.get('/api/ml/kol-analytics/:kolHandle', async (req, res) => {
       try {
         const { kolHandle } = req.params;
         
@@ -5196,7 +5197,7 @@ Format as JSON:
     // =============================
     
     // Get cached KOL Performance Analytics
-    this.app.get('/api/cached/kol-performance', async (req, res) => {
+    // DISABLED: this.app.get('/api/cached/kol-performance', async (req, res) => {
       try {
         const cachedData = this.enhancedAnalyticsCache.getCachedAnalytics('KOL_PERFORMANCE');
         
@@ -5226,7 +5227,7 @@ Format as JSON:
     });
     
     // Get cached Market Momentum Analytics
-    this.app.get('/api/cached/market-momentum', async (req, res) => {
+    // DISABLED: this.app.get('/api/cached/market-momentum', async (req, res) => {
       try {
         const cachedData = this.enhancedAnalyticsCache.getCachedAnalytics('MARKET_MOMENTUM');
         

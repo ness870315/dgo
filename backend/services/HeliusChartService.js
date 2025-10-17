@@ -186,15 +186,20 @@ class HeliusChartService {
     }
 
     getTimeframeMs(timeframe) {
+        // Convert uppercase timeframes to lowercase for internal use
+        const normalizedTimeframe = timeframe.toLowerCase();
         const timeframes = {
-            '1m': 60 * 1000,
-            '5m': 5 * 60 * 1000,
-            '15m': 15 * 60 * 1000,
+            '1min': 60 * 1000,
+            '5min': 5 * 60 * 1000,
+            '15min': 15 * 60 * 1000,
             '1h': 60 * 60 * 1000,
             '4h': 4 * 60 * 60 * 1000,
-            '1d': 24 * 60 * 60 * 1000
+            '1d': 24 * 60 * 60 * 1000,
+            '1w': 7 * 24 * 60 * 60 * 1000,
+            '1m': 30 * 24 * 60 * 60 * 1000,
+            'all': 4 * 60 * 60 * 1000 // ALL uses 4H intervals
         };
-        return timeframes[timeframe] || timeframes['1h'];
+        return timeframes[normalizedTimeframe] || timeframes['1h'];
     }
 
     async getChartData(tokenAddress, timeframe = '1h', limit = 100) {
