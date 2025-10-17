@@ -49,7 +49,7 @@ class HeliusChartService {
     }
 
     /**
-     * Parse transactions to extract price data for SOL, USDT, and USDC
+     * Parse transactions to extract price data from tokenTransfers
      */
     parseTransactions(transactions) {
         const logPrefix = '[HELIUS-PARSE]';
@@ -67,67 +67,55 @@ class HeliusChartService {
         
         for (const tx of transactions) {
             try {
-                // Look for swap transactions
-                if (tx.type === 'SWAP' && tx.events?.swap) {
-                    const swap = tx.events.swap;
+                // Look for transactions with tokenTransfers (swaps)
+                if (tx.tokenTransfers && tx.tokenTransfers.length >= 2) {
+                    const transfers = tx.tokenTransfers;
                     
-                    // Extract price information for different base tokens
-                    let price = null;
-                    let volume = null;
-                    let baseToken = null;
-                    let tokenAmount = null;
+                    // Find base token and target token transfers
+                    let baseTransfer = null;
+                    let targetTransfer = null;
                     
-                    // Check for SOL swaps
-                    if (swap.nativeInput && swap.nativeOutput) {
-                        price = swap.nativeOutput / swap.nativeInput;
-                        volume = swap.nativeInput;
-                        baseToken = 'SOL';
-                        tokenAmount = swap.nativeOutput;
-                    }
-                    // Check for USDC swaps
-                    else if (swap.tokenInputs && swap.tokenOutputs) {
-                        for (const input of swap.tokenInputs) {
-                            if (BASE_TOKENS[input.mint]) {
-                                baseToken = BASE_TOKENS[input.mint];
-                                volume = input.uiTokenAmount?.uiAmount || 0;
-                                
-                                // Find corresponding output
-                                for (const output of swap.tokenOutputs) {
-                                    if (output.mint !== input.mint) {
-                                        tokenAmount = output.uiTokenAmount?.uiAmount || 0;
-                                        price = tokenAmount / volume;
-                                        break;
-                                    }
-                                }
-                                break;
-                            }
+                    for (const transfer of transfers) {
+                        if (BASE_TOKENS[transfer.mint]) {
+                            baseTransfer = transfer;
+                        } else if (transfer.mint !== 'So11111111111111111111111111111111111111112') {
+                            targetTransfer = transfer;
                         }
                     }
                     
-                    if (price && volume && baseToken) {
-                        priceData.push({
-                            timestamp: tx.timestamp,
-                            price: price,
-                            volume: volume,
-                            baseToken: baseToken,
-                            tokenAmount: tokenAmount,
-                            type: 'swap'
-                        });
+                    // If we found both base and target transfers, calculate price
+                    if (baseTransfer && targetTransfer) {
+                        const baseToken = BASE_TOKENS[baseTransfer.mint];
+                        const baseAmount = baseTransfer.tokenAmount;
+                        const targetAmount = targetTransfer.tokenAmount;
                         
-                        // Determine if it's a buy or sell
-                        // Buy: Token amount > Volume (getting more tokens for same base)
-                        // Sell: Token amount < Volume (getting less tokens for same base)
-                        const isBuy = tokenAmount > volume;
-                        buySellData.push({
-                            timestamp: tx.timestamp,
-                            type: isBuy ? 'buy' : 'sell',
-                            volume: volume,
-                            price: price,
-                            baseToken: baseToken,
-                            tokenAmount: tokenAmount
-                        });
-                        
-                        console.log(`${logPrefix} 📊 ${baseToken} swap: ${volume} ${baseToken} → ${tokenAmount} tokens @ $${price.toFixed(6)}`);
+                        if (baseAmount > 0 && targetAmount > 0) {
+                            const price = baseAmount / targetAmount; // Price per token in base currency
+                            
+                            priceData.push({
+                                timestamp: tx.timestamp * 1000, // Convert to milliseconds
+                                price: price,
+                                volume: baseAmount,
+                                baseToken: baseToken,
+                                tokenAmount: targetAmount,
+                                type: 'swap'
+                            });
+                            
+                            // Determine if it's a buy or sell based on transfer direction
+                            // Buy: Receiving target tokens (positive targetAmount)
+                            // Sell: Sending target tokens (negative targetAmount)
+                            const isBuy = targetAmount > 0;
+                            buySellData.push({
+                                timestamp: tx.timestamp * 1000,
+                                type: isBuy ? 'buy' : 'sell',
+                                volume: baseAmount,
+                                price: price,
+                                baseToken: baseToken,
+                                tokenAmount: targetAmount
+                            });
+                            
+                            console.log(`${logPrefix} 📊 ${baseToken} swap: ${baseAmount} ${baseToken} → ${targetAmount} tokens @ $${price.toFixed(6)}`);
+                        }
                     }
                 }
             } catch (error) {
@@ -181,7 +169,7 @@ class HeliusChartService {
     }
 
     /**
-     * Get current price from recent transactions (SOL, USDT, USDC)
+     * Get current price from recent transactions
      */
     async getCurrentPrice(tokenAddress) {
         const logPrefix = `[HELIUS-CURRENT] ${tokenAddress.substring(0, 8)}`;
