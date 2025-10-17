@@ -406,6 +406,51 @@ class ProfessionalChartService {
         this.updateIntervals.clear();
         console.log(`🗑️ [PROFESSIONAL] Cleared all caches`);
     }
+    /**
+     * Get current price for a token
+     */
+    async getCurrentPrice(tokenAddress) {
+        console.log(`🎯 [PROFESSIONAL] Getting current price for ${tokenAddress.substring(0, 8)}`);
+        
+        // Check if we have cached data
+        let cached = this.chartCache.get(tokenAddress);
+        
+        // If not in memory, try to load from persistent storage
+        if (!cached) {
+            cached = await this.loadFromPersistentCache(tokenAddress);
+        }
+        
+        // If we have cached data, get the latest price
+        if (cached && cached.priceData && cached.priceData.length > 0) {
+            const latestPrice = cached.priceData[cached.priceData.length - 1];
+            console.log(`✅ [PROFESSIONAL] Current price from cache: ${latestPrice.price.toFixed(8)} SOL`);
+            return {
+                price: latestPrice.price,
+                timestamp: latestPrice.timestamp,
+                volume: latestPrice.volume || 0,
+                source: 'helius'
+            };
+        }
+        
+        // If no cached data, try to get current price from Helius directly
+        try {
+            console.log(`🔄 [PROFESSIONAL] No cached data, fetching current price from Helius...`);
+            const currentPrice = await this.helius.getCurrentPrice(tokenAddress);
+            if (currentPrice) {
+                console.log(`✅ [PROFESSIONAL] Current price from Helius: ${currentPrice.toFixed(8)} SOL`);
+                return {
+                    price: currentPrice,
+                    timestamp: Date.now(),
+                    volume: 0,
+                    source: 'helius'
+                };
+            }
+        } catch (error) {
+            console.log(`❌ [PROFESSIONAL] Failed to get current price from Helius: ${error.message}`);
+        }
+        
+        return null;
+    }
 }
 
 export default ProfessionalChartService;

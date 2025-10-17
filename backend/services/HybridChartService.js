@@ -172,21 +172,23 @@ class HybridChartService {
         const logPrefix = `[PRICE] ${tokenAddress.substring(0, 8)}`;
         
         try {
-            // Try Helius first
-            console.log(`${logPrefix} 🚀 Getting current price from Helius...`);
-            this.dataSourceStats.helius.calls++;
+            // Try Professional Chart Service first
+            console.log(`${logPrefix} 🚀 Getting current price from Professional Chart Service...`);
+            this.dataSourceStats.professional.calls++;
             
-            const heliusPrice = await this.smartChartService.getCurrentPrice(tokenAddress);
+            const professionalPrice = await this.professionalChartService.getCurrentPrice(tokenAddress);
             
-            if (heliusPrice && heliusPrice.price > 0) {
-                this.dataSourceStats.helius.success++;
-                console.log(`${logPrefix} ✅ Helius SUCCESS: ${heliusPrice.price.toFixed(8)} SOL`);
+            if (professionalPrice && professionalPrice.price > 0) {
+                this.dataSourceStats.professional.success++;
+                console.log(`${logPrefix} ✅ Professional SUCCESS: ${professionalPrice.price.toFixed(8)} SOL`);
                 
                 return {
-                    ...heliusPrice,
-                    dataSource: 'helius',
+                    ...professionalPrice,
+                    dataSource: 'professional',
                     dataSourceStats: this.dataSourceStats
                 };
+            } else {
+                console.log(`${logPrefix} ⚠️ Professional returned empty price, trying Moralis...`);
             }
             
         } catch (error) {
