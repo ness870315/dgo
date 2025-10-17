@@ -11191,7 +11191,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     this.app.get('/api/tokens/:contract/price-chart', async (req, res) => {
       try {
         const { contract } = req.params;
-        const { timeframe = '5MIN', limit, before, after, tier = 'RD' } = req.query;
+        const { timeframe = '5MIN', limit, before, after } = req.query;
 
         if (!contract) {
           return res.status(400).json({ 
