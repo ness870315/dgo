@@ -3941,6 +3941,7 @@
         }
 
         // Removed orphaned code that was causing syntax errors
+<<<<<<< HEAD
         
         // Fallback narrative analysis function
         async function fallbackNarrativeAnalysis() {
@@ -3973,6 +3974,8 @@
                 };
                 
                 const narratives = [];
+=======
+>>>>>>> f26b319c6150149aad4f84fcdacf2b6fb76ee819
                     posts.forEach(post => {
                         const content = (post.content || '').toLowerCase();
                         Object.entries(narrativeKeywords).forEach(([narrative, keywords]) => {
@@ -4034,7 +4037,6 @@
                 document.getElementById('correlationDesc').textContent = correlationDesc;
                 document.getElementById('viralPotential').textContent = viralPotential;
                 document.getElementById('viralDesc').textContent = viralDesc;
-                }
             } catch (error) {
                 console.error('Error loading narrative predictions:', error);
             }
