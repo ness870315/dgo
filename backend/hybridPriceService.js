@@ -998,6 +998,27 @@ class HybridPriceService {
   }
 
   /**
+   * Get fallback timeframe for insufficient data
+   */
+  getFallbackTimeframe(timeframe) {
+    const fallbackMap = {
+      '1MIN': '1MIN',    // No fallback for 1MIN
+      '5MIN': '1MIN',    // Fallback to 1MIN
+      '15MIN': '5MIN',   // Fallback to 5MIN
+      '1H': '15MIN',     // Fallback to 15MIN
+      '4H': '1H',        // Fallback to 1H
+      '1D': '4H',        // Fallback to 4H
+      '1W': '1D',        // Fallback to 1D
+      '1M': '1W',        // Fallback to 1W
+      '3M': '1M',        // Fallback to 1M
+      '1Y': '3M',        // Fallback to 3M
+      'ALL': '1Y'        // Fallback to 1Y
+    };
+    
+    return fallbackMap[timeframe] || '1H';
+  }
+
+  /**
    * Check if service is properly configured
    */
   isConfigured() {
