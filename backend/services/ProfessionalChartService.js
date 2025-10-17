@@ -435,13 +435,13 @@ class ProfessionalChartService {
         // If no cached data, try to get current price from Helius directly
         try {
             console.log(`🔄 [PROFESSIONAL] No cached data, fetching current price from Helius...`);
-            const currentPrice = await this.helius.getCurrentPrice(tokenAddress);
-            if (currentPrice) {
-                console.log(`✅ [PROFESSIONAL] Current price from Helius: ${currentPrice.toFixed(8)} SOL`);
+            const currentPriceData = await this.helius.getCurrentPrice(tokenAddress);
+            if (currentPriceData && currentPriceData.price) {
+                console.log(`✅ [PROFESSIONAL] Current price from Helius: ${currentPriceData.price.toFixed(8)} SOL`);
                 return {
-                    price: currentPrice,
-                    timestamp: Date.now(),
-                    volume: 0,
+                    price: currentPriceData.price,
+                    timestamp: currentPriceData.timestamp || Date.now(),
+                    volume: currentPriceData.volume || 0,
                     source: 'helius'
                 };
             }

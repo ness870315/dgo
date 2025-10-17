@@ -15,7 +15,7 @@ class HybridChartService {
         console.log('   Fallback: Moralis OHLCV (aggregated data)');
     }
 
-    async getChartData(tokenAddress, timeframe = '5MIN', limit = null, tier = 'RD') {
+    async getChartData(tokenAddress, timeframe = '5MIN', limit = null) {
         const startTime = Date.now();
         const logPrefix = `[CHART] ${tokenAddress.substring(0, 8)} (${timeframe})`;
         
@@ -55,7 +55,7 @@ class HybridChartService {
         this.dataSourceStats.moralis.calls++;
         
         try {
-            const moralisData = await this.hybridPriceService.getHistoricalPrices(tokenAddress, timeframe, limit, null, null, tier);
+            const moralisData = await this.hybridPriceService.getHistoricalPrices(tokenAddress, timeframe, limit, null, null);
             
             if (moralisData && moralisData.length > 0) {
                 const duration = Date.now() - startTime;
