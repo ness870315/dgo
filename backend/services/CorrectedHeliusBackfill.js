@@ -100,13 +100,21 @@ class CorrectedHeliusBackfill {
                 totalSwaps++;
                 const { price, volUsd } = swapData;
 
+                // Extract more detailed swap information
+                const swapDetails = this.extractDetailedSwapData(tx, price, volUsd);
+                
                 // Store raw swap data for TX table
                 this.collectedSwaps.push({
                     signature: tx.signature,
                     poolAddress: poolAddress,
-                    timestamp: ts,
+                    timestamp: ts * 1000, // Convert to milliseconds
+                    type: 'SWAP',
                     price: price,
-                    volumeUsd: volUsd,
+                    baseToken: swapDetails.baseToken,
+                    baseAmount: swapDetails.baseAmount,
+                    tokenAmount: swapDetails.tokenAmount,
+                    usdValue: volUsd,
+                    maker: swapDetails.maker,
                     source: 'helius',
                     rawData: JSON.stringify(tx) // Store full transaction data
                 });
@@ -231,6 +239,53 @@ class CorrectedHeliusBackfill {
             case '1D': return 1440;
             default: return 5;
         }
+    }
+
+    /**
+     * Extract detailed swap data for better transaction information
+     */
+    extractDetailedSwapData(tx, price, volUsd) {
+        const USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+        const SOL = 'So11111111111111111111111111111111111111112';
+        
+        let baseToken = 'SOL';
+        let baseAmount = 0;
+        let tokenAmount = 0;
+        let maker = 'UNKNOWN';
+        
+        // Try to extract from token transfers
+        if (tx.tokenTransfers && tx.tokenTransfers.length >= 2) {
+            const solTransfer = tx.tokenTransfers.find(t => t.mint === SOL);
+            const usdcTransfer = tx.tokenTransfers.find(t => t.mint === USDC);
+            const otherTransfer = tx.tokenTransfers.find(t => t.mint !== SOL && t.mint !== USDC);
+            
+            if (solTransfer && otherTransfer) {
+                baseToken = 'SOL';
+                baseAmount = solTransfer.tokenAmount;
+                tokenAmount = otherTransfer.tokenAmount;
+                maker = solTransfer.fromUserAccount || 'UNKNOWN';
+            } else if (usdcTransfer && otherTransfer) {
+                baseToken = 'USDC';
+                baseAmount = usdcTransfer.tokenAmount;
+                tokenAmount = otherTransfer.tokenAmount;
+                maker = usdcTransfer.fromUserAccount || 'UNKNOWN';
+            }
+        }
+        
+        // Fallback: calculate from price and volume
+        if (baseAmount === 0 || tokenAmount === 0) {
+            if (price > 0) {
+                baseAmount = volUsd / price;
+                tokenAmount = volUsd / price;
+            }
+        }
+        
+        return {
+            baseToken,
+            baseAmount,
+            tokenAmount,
+            maker
+        };
     }
 
     /**
