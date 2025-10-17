@@ -140,7 +140,8 @@ class EnhancedBackend {
     // this.birdeyeService = new BirdEyeTrendingService(); // DISABLED
     this.helioService = new HelioPaymentService();
     this.oauthXService = new OAuthXService();
-    this.kolService = new KOLService();
+    // DISABLED: KOL Service (was making CoinAPI/CoinDesk calls)
+    // this.kolService = new KOLService();
     // DISABLED: Enhanced Analytics Cache Service
     // this.enhancedAnalyticsCache = new EnhancedAnalyticsCacheService(this.kolService);
     this.priorityQueue = new PriorityQueueService();
@@ -217,6 +218,8 @@ class EnhancedBackend {
   /**
    * Initialize KOL Service and Enhanced Analytics Cache
    */
+  // DISABLED: Initialize KOL Service (was making CoinAPI/CoinDesk calls)
+  /*
   async initializeKOLService() {
     try {
       console.log('🔄 Initializing KOL Service...');
@@ -226,6 +229,7 @@ class EnhancedBackend {
       console.error('❌ Failed to initialize KOL Service:', error);
     }
   }
+  */
 
   async loadKOLRoutes() {
     try {
@@ -5130,7 +5134,8 @@ Format as JSON:
     // KOL DATA API ENDPOINTS (for KOL Intelligence Hub)
     // =============================
     
-    // Get all KOLs
+    // DISABLED: Get all KOLs
+    /*
     this.app.get('/api/kol/kols', async (req, res) => {
       try {
         const kols = await this.kolService.getKOLs();
@@ -5146,8 +5151,10 @@ Format as JSON:
         });
       }
     });
+    */
 
-    // Get all KOL posts
+    // DISABLED: Get all KOL posts
+    /*
     this.app.get('/api/kol/posts', async (req, res) => {
       try {
         const posts = await this.kolService.getPosts();
@@ -5163,6 +5170,7 @@ Format as JSON:
         });
       }
     });
+    */
 
     // Get coin data for KOL Intelligence Hub
     this.app.get('/api/kol/coin-data', async (req, res) => {
