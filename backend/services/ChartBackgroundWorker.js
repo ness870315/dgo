@@ -295,8 +295,45 @@ class ChartBackgroundWorker {
     }
 
     /**
-     * Add a new token/pool to the system
+     * Re-backfill existing tokens that only have candles (not raw swaps)
+     * This ensures all tokens have real transaction data for the TX table
      */
+    async reBackfillExistingTokens() {
+        console.log('🔄 Re-backfilling existing tokens with raw swaps...');
+        
+        const tokensToReBackfill = [];
+        
+        for (const [tokenMint, poolData] of this.chartDb.data.pools.entries()) {
+            if (poolData.isActive) {
+                // Check if this token has real swaps or just candles
+                const swaps = await this.chartDb.getRecentSwaps(poolData.poolAddress, 1);
+                
+                if (swaps.length === 0) {
+                    tokensToReBackfill.push({
+                        tokenMint,
+                        poolAddress: poolData.poolAddress
+                    });
+                }
+            }
+        }
+        
+        console.log(`📊 Found ${tokensToReBackfill.length} tokens needing raw swap re-backfill`);
+        
+        for (const token of tokensToReBackfill) {
+            try {
+                console.log(`🔄 Re-backfilling ${token.tokenMint.substring(0, 8)} with raw swaps...`);
+                await this.backfillPool(token.poolAddress, token.tokenMint);
+                
+                // Small delay between tokens
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+            } catch (error) {
+                console.error(`❌ Re-backfill failed for ${token.tokenMint.substring(0, 8)}:`, error.message);
+            }
+        }
+        
+        console.log('✅ Re-backfill of existing tokens completed');
+    }
     async addToken(tokenMint) {
         console.log(`➕ Adding token ${tokenMint.substring(0, 8)} to background worker`);
 

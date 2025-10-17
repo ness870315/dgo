@@ -11661,6 +11661,29 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
+    // Re-backfill existing tokens with raw swaps
+    this.app.post('/api/charts/re-backfill', async (req, res) => {
+      try {
+        console.log('🔄 [RE-BACKFILL] Starting re-backfill of existing tokens...');
+        
+        await this.hybridChartService.backgroundWorker.reBackfillExistingTokens();
+        
+        res.json({
+          success: true,
+          message: 'Re-backfill completed successfully',
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Re-backfill error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to re-backfill existing tokens',
+          message: error.message
+        });
+      }
+    });
+
     // Temporary Admin Endpoint for Testing
     this.app.post('/api/admin/revoke-premium', async (req, res) => {
       try {
