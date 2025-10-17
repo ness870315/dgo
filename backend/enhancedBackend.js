@@ -11594,6 +11594,73 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
+    // Get recent swaps for TX table
+    this.app.get('/api/charts/swaps/:token', async (req, res) => {
+      try {
+        const { token } = req.params;
+        const { limit = 50, since } = req.query;
+        
+        console.log(`📊 [SWAPS-API] Fetching swaps for ${token.substring(0, 8)}...`);
+        console.log(`   Limit: ${limit}, Since: ${since || 'all'}`);
+        
+        // Get pool address for the token
+        const poolAddress = await this.hybridChartService.fastChartService.chartDb.getPoolAddress(token);
+        
+        if (!poolAddress) {
+          console.log(`⚠️ [SWAPS-API] No pool address found for ${token.substring(0, 8)}`);
+          return res.json({
+            success: true,
+            swaps: [],
+            source: 'none',
+            lastUpdate: Date.now(),
+            totalSwaps: 0,
+            message: 'No pool address found - token may not be trading yet'
+          });
+        }
+        
+        // Get recent swaps from database
+        const sinceTimestamp = since ? parseInt(since) / 1000 : null; // Convert ms to seconds
+        const swaps = await this.hybridChartService.fastChartService.chartDb.getRecentSwaps(
+          poolAddress, 
+          parseInt(limit), 
+          sinceTimestamp
+        );
+        
+        console.log(`✅ [SWAPS-API] Retrieved ${swaps.length} swaps for ${token.substring(0, 8)}`);
+        
+        // Format swaps for frontend
+        const formattedSwaps = swaps.map(swap => ({
+          signature: swap.signature,
+          timestamp: swap.timestamp,
+          type: swap.type,
+          usdValue: swap.volumeUsd,
+          tokenAmount: swap.tokenAmount,
+          baseAmount: swap.baseAmount,
+          baseToken: swap.baseToken,
+          price: swap.price,
+          maker: swap.maker,
+          source: swap.source
+        }));
+        
+        res.json({
+          success: true,
+          swaps: formattedSwaps,
+          source: 'helius',
+          lastUpdate: Date.now(),
+          totalSwaps: swaps.length,
+          poolAddress: poolAddress.substring(0, 8) + '...'
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Swaps API error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get recent swaps',
+          message: error.message
+        });
+      }
+    });
+
     // Temporary Admin Endpoint for Testing
     this.app.post('/api/admin/revoke-premium', async (req, res) => {
       try {

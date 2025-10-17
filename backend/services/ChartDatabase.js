@@ -125,6 +125,99 @@ class ChartDatabase {
     }
 
     /**
+     * Get recent swaps for a pool (for TX table)
+     * Returns individual swap transactions with buy/sell detection
+     */
+    async getRecentSwaps(poolAddress, limit = 50, sinceTimestamp = null) {
+        const swaps = [];
+        
+        for (const [key, swap] of this.data.swaps.entries()) {
+            if (swap.poolAddress === poolAddress) {
+                // Filter by timestamp if provided
+                if (sinceTimestamp && swap.timestamp <= sinceTimestamp) {
+                    continue;
+                }
+                
+                // Determine buy/sell type from raw data
+                let type = 'unknown';
+                let tokenAmount = 0;
+                let baseAmount = 0;
+                let baseToken = 'SOL';
+                
+                // Try to extract buy/sell info from raw data
+                if (swap.rawData) {
+                    try {
+                        const raw = typeof swap.rawData === 'string' ? JSON.parse(swap.rawData) : swap.rawData;
+                        
+                        // Look for token transfers to determine direction
+                        if (raw.tokenTransfers && raw.tokenTransfers.length >= 2) {
+                            const transfers = raw.tokenTransfers;
+                            
+                            // Find the largest transfer amounts (ignore fees)
+                            let maxTokenTransfer = 0;
+                            let maxBaseTransfer = 0;
+                            
+                            for (const transfer of transfers) {
+                                const amount = Math.abs(transfer.tokenAmount || 0);
+                                
+                                // Check if this is a base token (SOL, USDC, USDT)
+                                if (transfer.mint === 'So11111111111111111111111111111111111111112' || // SOL
+                                    transfer.mint === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' || // USDC
+                                    transfer.mint === 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB') { // USDT
+                                    
+                                    maxBaseTransfer = Math.max(maxBaseTransfer, amount);
+                                    if (transfer.mint === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v') baseToken = 'USDC';
+                                    else if (transfer.mint === 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB') baseToken = 'USDT';
+                                } else {
+                                    maxTokenTransfer = Math.max(maxTokenTransfer, amount);
+                                }
+                            }
+                            
+                            // Determine buy/sell based on transfer direction
+                            // Buy: receiving tokens (positive token amount)
+                            // Sell: sending tokens (negative token amount)
+                            const tokenTransfer = transfers.find(t => t.mint !== 'So11111111111111111111111111111111111111112' && 
+                                                                    t.mint !== 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' && 
+                                                                    t.mint !== 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB');
+                            
+                            if (tokenTransfer) {
+                                type = tokenTransfer.tokenAmount > 0 ? 'buy' : 'sell';
+                                tokenAmount = Math.abs(tokenTransfer.tokenAmount || 0);
+                                baseAmount = maxBaseTransfer;
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('⚠️ Failed to parse swap raw data:', error.message);
+                    }
+                }
+                
+                swaps.push({
+                    signature: swap.signature,
+                    timestamp: swap.timestamp * 1000, // Convert to milliseconds
+                    type: type,
+                    price: swap.price,
+                    volumeUsd: swap.volumeUsd,
+                    tokenAmount: tokenAmount,
+                    baseAmount: baseAmount,
+                    baseToken: baseToken,
+                    maker: swap.signature.substring(0, 6) + '...', // Shortened signature as maker
+                    source: swap.source,
+                    createdAt: swap.createdAt
+                });
+            }
+        }
+
+        // Sort by timestamp (newest first) and apply limit
+        swaps.sort((a, b) => b.timestamp - a.timestamp);
+        
+        if (limit) {
+            return swaps.slice(0, limit);
+        }
+        
+        return swaps;
+    }
+
+    /**
      * Update materialized candles with new swaps
      */
     async updateCandles(poolAddress, timeframe) {
