@@ -61,9 +61,15 @@ class ChartBackgroundWorker {
 
         try {
             // Get all pools from database
-            const pools = await this.chartDb.all(`
-                SELECT token_mint, pool_address FROM pools WHERE is_active = 1
-            `);
+            const pools = [];
+            for (const [tokenMint, poolData] of this.chartDb.data.pools.entries()) {
+                if (poolData.isActive) {
+                    pools.push({
+                        token_mint: tokenMint,
+                        pool_address: poolData.poolAddress
+                    });
+                }
+            }
 
             console.log(`📊 Found ${pools.length} pools for initial backfill`);
 
@@ -125,9 +131,15 @@ class ChartBackgroundWorker {
      * Update all active pools with new data
      */
     async updateAllPools() {
-        const pools = await this.chartDb.all(`
-            SELECT token_mint, pool_address FROM pools WHERE is_active = 1
-        `);
+        const pools = [];
+        for (const [tokenMint, poolData] of this.chartDb.data.pools.entries()) {
+            if (poolData.isActive) {
+                pools.push({
+                    token_mint: tokenMint,
+                    pool_address: poolData.poolAddress
+                });
+            }
+        }
 
         console.log(`🔄 Updating ${pools.length} pools...`);
 
@@ -201,13 +213,22 @@ class ChartBackgroundWorker {
     async periodicBackfill() {
         console.log('🔄 Starting periodic backfill...');
 
-        const pools = await this.chartDb.all(`
-            SELECT p.token_mint, p.pool_address, bp.last_backfill_at
-            FROM pools p
-            LEFT JOIN backfill_progress bp ON p.pool_address = bp.pool_address
-            WHERE p.is_active = 1
-            AND (bp.last_backfill_at IS NULL OR bp.last_backfill_at < strftime('%s', 'now', '-5 minutes'))
-        `);
+        const pools = [];
+        const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+        
+        for (const [tokenMint, poolData] of this.chartDb.data.pools.entries()) {
+            if (poolData.isActive) {
+                const progress = this.chartDb.data.backfillProgress.get(poolData.poolAddress);
+                const needsBackfill = !progress || !progress.lastBackfillAt || progress.lastBackfillAt < fiveMinutesAgo;
+                
+                if (needsBackfill) {
+                    pools.push({
+                        token_mint: tokenMint,
+                        pool_address: poolData.poolAddress
+                    });
+                }
+            }
+        }
 
         console.log(`📊 Found ${pools.length} pools needing backfill`);
 
