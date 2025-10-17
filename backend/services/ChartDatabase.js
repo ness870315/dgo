@@ -77,16 +77,26 @@ class ChartDatabase {
         if (!swaps || swaps.length === 0) return;
 
         for (const swap of swaps) {
-            const key = `${swap.poolAddress}_${swap.signature}`;
+            // Use signature as key if no poolAddress, or create a composite key
+            const key = swap.poolAddress ? 
+                `${swap.poolAddress}_${swap.signature}` : 
+                swap.signature;
+                
             this.data.swaps.set(key, {
                 signature: swap.signature,
-                poolAddress: swap.poolAddress,
+                poolAddress: swap.poolAddress || 'UNKNOWN',
                 timestamp: swap.timestamp,
                 price: swap.price,
-                volumeUsd: swap.volumeUsd,
-                source: swap.source,
-                rawData: swap.rawData,
-                createdAt: Date.now()
+                volumeUsd: swap.usdValue || swap.volumeUsd,
+                source: swap.source || 'helius',
+                rawData: swap,
+                createdAt: Date.now(),
+                // Additional fields from our parsing
+                type: swap.type,
+                baseToken: swap.baseToken,
+                baseAmount: swap.baseAmount,
+                tokenAmount: swap.tokenAmount,
+                maker: swap.maker
             });
         }
 
@@ -346,11 +356,24 @@ class ChartDatabase {
      * Get database statistics
      */
     async getStats() {
+        const totalTokens = this.data.pools.size;
+        const totalSwaps = Array.from(this.data.swaps.values()).reduce((sum, swaps) => sum + swaps.length, 0);
+        const totalCandles = Array.from(this.data.candles.values()).reduce((sum, candles) => sum + candles.length, 0);
+        
+        const cachedTokens = Array.from(this.data.pools.entries()).map(([tokenAddress, poolData]) => ({
+            tokenAddress,
+            swaps: this.data.swaps.get(tokenAddress)?.length || 0,
+            candles: this.data.candles.get(tokenAddress)?.length || 0,
+            isActive: poolData.isActive
+        }));
+        
         return {
-            total_swaps: this.data.swaps.size,
-            total_candles: this.data.candles.size,
-            total_pools: this.data.pools.size,
-            active_pools: Array.from(this.data.pools.values()).filter(p => p.isActive).length
+            totalTokens,
+            totalSwaps,
+            totalCandles,
+            totalPools: this.data.pools.size,
+            activePools: Array.from(this.data.pools.values()).filter(p => p.isActive).length,
+            cachedTokens
         };
     }
 

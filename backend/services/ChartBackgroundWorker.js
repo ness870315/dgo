@@ -205,7 +205,12 @@ class ChartBackgroundWorker {
 
             // Store new raw swaps (if available)
             if (result.rawSwaps && result.rawSwaps.length > 0) {
-                await this.chartDb.storeSwaps(result.rawSwaps);
+                // Ensure swaps have poolAddress
+                const swapsWithPool = result.rawSwaps.map(swap => ({
+                    ...swap,
+                    poolAddress: poolAddress
+                }));
+                await this.chartDb.storeSwaps(swapsWithPool);
                 console.log(`💾 Stored ${result.rawSwaps.length} new raw swaps for ${poolAddress.substring(0, 8)}`);
             } else {
                 // Fallback: Convert candles back to swaps for storage
@@ -326,7 +331,12 @@ class ChartBackgroundWorker {
 
             // Store raw swaps directly (not converted from candles)
             if (result.rawSwaps && result.rawSwaps.length > 0) {
-                await this.chartDb.storeSwaps(result.rawSwaps);
+                // Ensure swaps have poolAddress
+                const swapsWithPool = result.rawSwaps.map(swap => ({
+                    ...swap,
+                    poolAddress: poolAddress
+                }));
+                await this.chartDb.storeSwaps(swapsWithPool);
                 console.log(`💾 Stored ${result.rawSwaps.length} raw swaps for ${poolAddress.substring(0, 8)}`);
             }
 
