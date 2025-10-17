@@ -5,7 +5,7 @@ import chartService from "../services/chartService";
 const TF_SEC = { '1MIN':60,'5MIN':300,'15MIN':900,'1H':3600,'4H':14400,'1D':86400,'1W':604800,'1M':2592000,'ALL':14400 };
 
 const WINDOW_BY_TF = {
-  '1MIN': 240,   // 4h window (matches backend RD: 240)
+  '1MIN': 100,   // 4h window (Helius API limit)
   '5MIN': 96,    // 8h window (matches backend RD: 96)  
   '15MIN': 48,   // 12 hours window (matches backend RD: 48)
   '1H': 168,     // 7 days window (matches backend RD: 168)

@@ -50,14 +50,11 @@ class HeliusChartService {
     async getTransactionHistory(address, limit = 100) {
         try {
             const url = `${this.baseUrl}/addresses/${address}/transactions/?api-key=${this.apiKey}&limit=${limit}`;
-            console.log(`🔍 [HELIUS] Fetching transactions for ${address.substring(0, 8)}... (limit=${limit})`);
             const response = await this.makeRequest(url);
             
             if (response.status === 200 && response.data) {
-                console.log(`✅ [HELIUS] Got ${response.data.length} raw transactions for ${address.substring(0, 8)}`);
                 return response.data;
             }
-            console.log(`⚠️ [HELIUS] No transaction data returned for ${address.substring(0, 8)}`);
             return [];
         } catch (error) {
             console.error(`❌ [HELIUS] Error fetching transaction history for ${address.substring(0, 8)}:`, error.message);
@@ -68,17 +65,14 @@ class HeliusChartService {
     async parseTransactions(signatures) {
         try {
             const url = `${this.baseUrl}/transactions/?api-key=${this.apiKey}`;
-            console.log(`🔍 [HELIUS] Parsing ${signatures.length} transaction signatures...`);
             const response = await this.makeRequest(url, {
                 method: 'POST',
                 body: { transactions: signatures }
             });
             
             if (response.status === 200 && response.data) {
-                console.log(`✅ [HELIUS] Parsed ${response.data.length} detailed transactions`);
                 return response.data;
             }
-            console.log(`⚠️ [HELIUS] No parsed transaction data returned`);
             return [];
         } catch (error) {
             console.error('Error parsing transactions:', error.message);
@@ -90,11 +84,7 @@ class HeliusChartService {
         const priceData = [];
         const buySellData = [];
 
-        console.log(`🔍 [HELIUS] Extracting price data from ${transactions.length} transactions for ${tokenAddress.substring(0, 8)}...`);
-
-        transactions.forEach((tx, index) => {
-            console.log(`🔍 [HELIUS] Transaction ${index + 1}: type=${tx.type}, source=${tx.source}, tokenTransfers=${tx.tokenTransfers?.length || 0}`);
-            
+        transactions.forEach(tx => {
             if (tx.type === 'SWAP' && tx.tokenTransfers && Array.isArray(tx.tokenTransfers)) {
                 // Extract SOL transfers (native token)
                 const solTransfers = tx.tokenTransfers.filter(t => 
@@ -150,10 +140,7 @@ class HeliusChartService {
     }
 
     generateOHLCVData(priceData, timeframe = '1h') {
-        console.log(`🔍 [HELIUS] Generating OHLCV data from ${priceData.length} price points for timeframe ${timeframe}`);
-        
         if (!priceData || priceData.length === 0) {
-            console.log(`⚠️ [HELIUS] No price data available for OHLCV generation`);
             return [];
         }
 
@@ -195,7 +182,6 @@ class HeliusChartService {
             ohlcv.push(currentCandle);
         }
 
-        console.log(`✅ [HELIUS] Generated ${ohlcv.length} OHLCV candles from ${priceData.length} price points`);
         return ohlcv;
     }
 

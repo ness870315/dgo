@@ -255,7 +255,7 @@ class ChartService {
    */
   getOptimalLimitForTier(timeframe, tier = 'RD') {
     const limits = {
-      '1MIN': { MV: 150, RD: 240, MP: 1000 },   // 4 hours (240 bars)
+      '1MIN': { MV: 150, RD: 100, MP: 1000 },   // 4 hours (100 bars - Helius limit)
       '5MIN': { MV: 150, RD: 96, MP: 500 },    // 8 hours (96 bars)  
       '15MIN': { MV: 150, RD: 48, MP: 500 },   // 12 hours (48 bars)
       '1H': { MV: 200, RD: 168, MP: 800 },     // 7 days (168 bars)
