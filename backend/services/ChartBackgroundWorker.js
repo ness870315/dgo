@@ -253,7 +253,7 @@ class ChartBackgroundWorker {
 
         try {
             // Get swaps from Helius
-            const candles = await this.heliusBackfill.backfillHeliusOHLCV({
+            const result = await this.heliusBackfill.backfillHeliusOHLCV({
                 poolAddress,
                 fromTs,
                 toTs,
@@ -261,14 +261,16 @@ class ChartBackgroundWorker {
                 source: 'RAYDIUM'
             });
 
-            if (candles.length === 0) {
+            if (result.candles.length === 0) {
                 console.log(`⚠️ No data found for ${poolAddress.substring(0, 8)}`);
                 return;
             }
 
-            // Convert to swaps and store
-            const swaps = this.candlesToSwaps(candles, poolAddress);
-            await this.chartDb.storeSwaps(swaps);
+            // Store raw swaps directly (not converted from candles)
+            if (result.rawSwaps && result.rawSwaps.length > 0) {
+                await this.chartDb.storeSwaps(result.rawSwaps);
+                console.log(`💾 Stored ${result.rawSwaps.length} raw swaps for ${poolAddress.substring(0, 8)}`);
+            }
 
             // Update materialized candles
             const timeframes = ['1MIN', '5MIN', '15MIN', '1H', '4H', '1D'];
@@ -277,15 +279,15 @@ class ChartBackgroundWorker {
             }
 
             // Update progress
-            const latestCandle = candles[candles.length - 1];
+            const latestCandle = result.candles[result.candles.length - 1];
             await this.chartDb.updateBackfillProgress(
                 poolAddress,
                 `backfill_${Date.now()}`,
                 latestCandle.time,
-                swaps.length
+                result.rawSwaps.length
             );
 
-            console.log(`✅ Backfilled ${poolAddress.substring(0, 8)}: ${swaps.length} swaps`);
+            console.log(`✅ Backfilled ${poolAddress.substring(0, 8)}: ${result.rawSwaps.length} swaps`);
 
         } catch (error) {
             console.error(`❌ Backfill failed for ${poolAddress.substring(0, 8)}:`, error.message);

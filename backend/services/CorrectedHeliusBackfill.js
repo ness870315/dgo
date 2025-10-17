@@ -31,6 +31,7 @@ class CorrectedHeliusBackfill {
         const stepMin = this.getTimeframeMinutes(timeframe);
         const buckets = new Map(); // key = bucket start (unix sec)
         const seen = new Set(); // dedupe by signature
+        this.collectedSwaps = []; // Store raw swap data for TX table
         let before = undefined;
         const USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
         let pageCount = 0;
@@ -99,6 +100,17 @@ class CorrectedHeliusBackfill {
                 totalSwaps++;
                 const { price, volUsd } = swapData;
 
+                // Store raw swap data for TX table
+                this.collectedSwaps.push({
+                    signature: tx.signature,
+                    poolAddress: poolAddress,
+                    timestamp: ts,
+                    price: price,
+                    volumeUsd: volUsd,
+                    source: 'helius',
+                    rawData: JSON.stringify(tx) // Store full transaction data
+                });
+
                 // Fix #4: Normalize timestamps (using seconds consistently)
                 const bucketMin = Math.floor((ts / 60) / stepMin) * stepMin;
                 const bucketTime = bucketMin * 60;
@@ -145,7 +157,16 @@ class CorrectedHeliusBackfill {
             console.log(`   Time span: ${timeSpan.toFixed(2)} days`);
         }
 
-        return candles;
+        return {
+            candles: candles,
+            rawSwaps: this.collectedSwaps, // Return the raw swap data
+            metadata: {
+                pagesProcessed: pageCount,
+                totalTransactions: totalTransactions,
+                totalSwaps: totalSwaps,
+                candlesGenerated: candles.length
+            }
+        };
     }
 
     /**
