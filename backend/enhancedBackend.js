@@ -25,6 +25,7 @@ import MilestoneTracker from './milestoneTracker.js';
 import PushNotificationService from './pushNotificationService.js';
 import AutomatedTokenCleanup from './automatedTokenCleanup.js';
 import HybridPriceService from './hybridPriceService.js';
+import HybridChartService from './services/HybridChartService.js';
 import KOLService from './services/KOLService.js';
 import EnhancedAnalyticsCacheService from './services/EnhancedAnalyticsCacheService.js';
 import logger from './logger.js';
@@ -11158,12 +11159,18 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
     // Initialize Hybrid Price Service
     this.hybridPriceService = new HybridPriceService();
+    
+    // Initialize Hybrid Chart Service (Helius + Moralis)
+    this.hybridChartService = new HybridChartService(
+      process.env.HELIUS_API_KEY,
+      process.env.MORALIS_API_KEY
+    );
 
-    // Get historical price data for a token
+    // Get historical price data for a token (Helius + Moralis)
     this.app.get('/api/tokens/:contract/price-chart', async (req, res) => {
       try {
         const { contract } = req.params;
-        const { timeframe = '1D', limit, before, after, tier = 'RD' } = req.query;
+        const { timeframe = '5MIN', limit, before, after, tier = 'RD' } = req.query;
 
         if (!contract) {
           return res.status(400).json({ 
@@ -11172,47 +11179,70 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        const parsedLimit = limit ? parseInt(limit) : null; // Auto-optimize if null
+        const parsedLimit = limit ? parseInt(limit) : null;
         const beforeTime = before ? parseInt(before) : null;
         const afterTime = after ? parseInt(after) : null;
 
-        console.log(`[🛡️ Enhanced Backend] 📈 Price chart request for ${contract.substring(0, 8)} (${timeframe})`, {
-          limit: parsedLimit,
-          tier: tier,
-          before: beforeTime ? new Date(beforeTime * 1000).toISOString() : null,
-          after: afterTime ? new Date(afterTime * 1000).toISOString() : null
-        });
+        console.log(`📊 [HYBRID-CHART] Fetching ${timeframe} data for ${contract.substring(0, 8)}...`);
+        console.log(`📊 [HYBRID-CHART] Params: limit=${parsedLimit}, before=${beforeTime}, after=${afterTime}, tier=${tier}`);
 
-        // Get historical price data using hybrid service with tier support
-        const chartData = await this.hybridPriceService.getHistoricalPrices(
-          contract, 
-          timeframe, 
-          parsedLimit,
-          beforeTime,
-          afterTime,
-          tier
-        );
+        let chartData;
+        
+        if (beforeTime || afterTime) {
+          // Time-filtered request
+          chartData = await this.hybridChartService.getChartDataWithTimeRange(
+            contract, 
+            timeframe, 
+            beforeTime, 
+            afterTime
+          );
+        } else {
+          // Regular request
+          chartData = await this.hybridChartService.getChartData(
+            contract, 
+            timeframe, 
+            parsedLimit, 
+            tier
+          );
+        }
+
+        if (!chartData || !chartData.ohlcv || chartData.ohlcv.length === 0) {
+          return res.status(404).json({
+            success: false,
+            error: 'No chart data available',
+            message: 'No price data found for this token and timeframe'
+          });
+        }
+
+        console.log(`📊 [HYBRID-CHART] ✅ Success: ${chartData.ohlcv.length} candles from ${chartData.dataSource}`);
 
         res.json({
           success: true,
           contract: contract,
           timeframe: timeframe,
-          data: chartData,
-          count: chartData.length,
-          timestamp: new Date().toISOString()
+          data: chartData.ohlcv,
+          count: chartData.ohlcv.length,
+          metadata: {
+            timeframe,
+            count: chartData.ohlcv.length,
+            tier,
+            dataSource: chartData.dataSource,
+            dataSourceStats: chartData.dataSourceStats,
+            timestamp: new Date().toISOString()
+          }
         });
 
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Price chart error:', error.message);
+        console.error('[🛡️ Enhanced Backend] ❌ Hybrid chart error:', error.message);
         res.status(500).json({
           success: false,
-          error: 'Failed to fetch price chart data',
+          error: 'Failed to fetch chart data',
           message: error.message
         });
       }
     });
 
-    // Get current price for a token
+    // Get current price for a token (Helius + Moralis)
     this.app.get('/api/tokens/:contract/current-price', async (req, res) => {
       try {
         const { contract } = req.params;
@@ -11224,21 +11254,26 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        console.log(`[🛡️ Enhanced Backend] 💰 Current price request for ${contract.substring(0, 8)}`);
+        console.log(`📊 [HYBRID-PRICE] Getting current price for ${contract.substring(0, 8)}...`);
 
-        // Get current price using hybrid service
-        const priceData = await this.hybridPriceService.getCurrentPrice(contract);
+        // Get current price using hybrid chart service
+        const priceData = await this.hybridChartService.getCurrentPrice(contract);
+
+        console.log(`📊 [HYBRID-PRICE] ✅ Success: ${priceData.price.toFixed(8)} SOL from ${priceData.dataSource}`);
 
         res.json({
           success: true,
           contract: contract,
           price: priceData.price,
           timestamp: priceData.timestamp,
+          volume: priceData.volume,
+          dataSource: priceData.dataSource,
+          dataSourceStats: priceData.dataSourceStats,
           fetchedAt: new Date().toISOString()
         });
 
       } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Current price error:', error.message);
+        console.error('[🛡️ Enhanced Backend] ❌ Hybrid price error:', error.message);
         res.status(500).json({
           success: false,
           error: 'Failed to fetch current price',

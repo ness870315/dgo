@@ -11,7 +11,7 @@ const PriceChartModal = ({ token, onClose }) => {
   const [priceChange, setPriceChange] = useState(0);
   const [showTechnicalAnalysis, setShowTechnicalAnalysis] = useState(false);
   const [chartData, setChartData] = useState(null);
-  const [timeframe, setTimeframe] = useState('1D');
+  const [timeframe, setTimeframe] = useState('5MIN');
   const [volume, setVolume] = useState(0);
   const [tokenAnalytics, setTokenAnalytics] = useState(null);
   

@@ -829,7 +829,7 @@ function SvgOHLCVArea({
 
 // Main SVGChart wrapper component
 export default function SVGChart({ token, onClose, onChartDataChange, onTimeframeChange }) {
-  const [timeframe, setTimeframe] = useState('1MIN');
+  const [timeframe, setTimeframe] = useState('5MIN');
   const [displayMode, setDisplayMode] = useState('price');
   const [timezone, setTimezone] = useState('UTC');
 

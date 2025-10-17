@@ -1,0 +1,320 @@
+import SmartChartService from './SmartChartService.js';
+import HybridPriceService from '../hybridPriceService.js';
+
+class HybridChartService {
+    constructor(heliusApiKey, moralisApiKey) {
+        this.smartChartService = new SmartChartService(heliusApiKey);
+        this.hybridPriceService = new HybridPriceService();
+        this.dataSourceStats = {
+            helius: { calls: 0, success: 0, errors: 0 },
+            moralis: { calls: 0, success: 0, errors: 0 }
+        };
+        
+        console.log('🔄 HybridChartService initialized');
+        console.log('   Primary: Helius RPC (real-time transactions)');
+        console.log('   Fallback: Moralis OHLCV (aggregated data)');
+    }
+
+    async getChartData(tokenAddress, timeframe = '5MIN', limit = null, tier = 'RD') {
+        const startTime = Date.now();
+        const logPrefix = `[CHART] ${tokenAddress.substring(0, 8)} (${timeframe})`;
+        
+        console.log(`${logPrefix} 🔄 Fetching chart data...`);
+        
+        try {
+            // Try Helius first (primary)
+            console.log(`${logPrefix} 🚀 Trying Helius RPC...`);
+            this.dataSourceStats.helius.calls++;
+            
+            const heliusData = await this.smartChartService.getChartData(tokenAddress, timeframe, limit, tier);
+            
+            if (heliusData && heliusData.ohlcv && heliusData.ohlcv.length > 0) {
+                const duration = Date.now() - startTime;
+                this.dataSourceStats.helius.success++;
+                
+                console.log(`${logPrefix} ✅ Helius SUCCESS: ${heliusData.ohlcv.length} candles in ${duration}ms`);
+                console.log(`${logPrefix} 📊 Data: ${heliusData.priceData.length} price points, ${heliusData.buySellData.length} transactions`);
+                
+                // Add data source metadata
+                heliusData.dataSource = 'helius';
+                heliusData.dataSourceStats = this.dataSourceStats;
+                
+                return heliusData;
+            } else {
+                console.log(`${logPrefix} ⚠️ Helius returned empty data, trying Moralis...`);
+            }
+            
+        } catch (error) {
+            this.dataSourceStats.helius.errors++;
+            console.log(`${logPrefix} ❌ Helius FAILED: ${error.message}`);
+        }
+        
+        // Fallback to Moralis
+        console.log(`${logPrefix} 🔄 Falling back to Moralis...`);
+        this.dataSourceStats.moralis.calls++;
+        
+        try {
+            const moralisData = await this.hybridPriceService.getHistoricalPrices(tokenAddress, timeframe, limit, null, null, tier);
+            
+            if (moralisData && moralisData.length > 0) {
+                const duration = Date.now() - startTime;
+                this.dataSourceStats.moralis.success++;
+                
+                console.log(`${logPrefix} ✅ Moralis SUCCESS: ${moralisData.length} candles in ${duration}ms`);
+                
+                // Convert Moralis format to Helius format for consistency
+                const convertedData = {
+                    ohlcv: moralisData.map(candle => ({
+                        timestamp: candle.time,
+                        open: candle.open,
+                        high: candle.high,
+                        low: candle.low,
+                        close: candle.close,
+                        volume: candle.volume || 0
+                    })),
+                    priceData: moralisData.map(candle => ({
+                        timestamp: candle.time,
+                        price: candle.close,
+                        volume: candle.volume || 0,
+                        type: 'aggregated'
+                    })),
+                    buySellData: [], // Moralis doesn't provide individual transactions
+                    dataSource: 'moralis',
+                    dataSourceStats: this.dataSourceStats
+                };
+                
+                return convertedData;
+            } else {
+                this.dataSourceStats.moralis.errors++;
+                console.log(`${logPrefix} ❌ Moralis FAILED: No data available`);
+                throw new Error('No chart data available from any source');
+            }
+            
+        } catch (error) {
+            this.dataSourceStats.moralis.errors++;
+            console.log(`${logPrefix} ❌ Moralis FAILED: ${error.message}`);
+            throw new Error(`All data sources failed: Helius (${this.dataSourceStats.helius.errors}), Moralis (${this.dataSourceStats.moralis.errors})`);
+        }
+    }
+
+    async getChartDataWithTimeRange(tokenAddress, timeframe, startTime, endTime) {
+        const logPrefix = `[CHART-RANGE] ${tokenAddress.substring(0, 8)} (${timeframe})`;
+        
+        console.log(`${logPrefix} 🔄 Fetching chart data with time range...`);
+        console.log(`${logPrefix} 📅 Range: ${new Date(startTime * 1000).toISOString()} to ${new Date(endTime * 1000).toISOString()}`);
+        
+        try {
+            // Try Helius first
+            console.log(`${logPrefix} 🚀 Trying Helius RPC...`);
+            this.dataSourceStats.helius.calls++;
+            
+            const heliusData = await this.smartChartService.getChartDataWithTimeRange(tokenAddress, timeframe, startTime, endTime);
+            
+            if (heliusData && heliusData.ohlcv && heliusData.ohlcv.length > 0) {
+                this.dataSourceStats.helius.success++;
+                console.log(`${logPrefix} ✅ Helius SUCCESS: ${heliusData.ohlcv.length} candles`);
+                
+                heliusData.dataSource = 'helius';
+                heliusData.dataSourceStats = this.dataSourceStats;
+                
+                return heliusData;
+            }
+            
+        } catch (error) {
+            this.dataSourceStats.helius.errors++;
+            console.log(`${logPrefix} ❌ Helius FAILED: ${error.message}`);
+        }
+        
+        // Fallback to Moralis
+        console.log(`${logPrefix} 🔄 Falling back to Moralis...`);
+        this.dataSourceStats.moralis.calls++;
+        
+        try {
+            const moralisData = await this.hybridPriceService.getHistoricalPrices(tokenAddress, timeframe, 500, endTime, startTime);
+            
+            if (moralisData && moralisData.length > 0) {
+                this.dataSourceStats.moralis.success++;
+                console.log(`${logPrefix} ✅ Moralis SUCCESS: ${moralisData.length} candles`);
+                
+                const convertedData = {
+                    ohlcv: moralisData.map(candle => ({
+                        timestamp: candle.time,
+                        open: candle.open,
+                        high: candle.high,
+                        low: candle.low,
+                        close: candle.close,
+                        volume: candle.volume || 0
+                    })),
+                    priceData: moralisData.map(candle => ({
+                        timestamp: candle.time,
+                        price: candle.close,
+                        volume: candle.volume || 0,
+                        type: 'aggregated'
+                    })),
+                    buySellData: [],
+                    dataSource: 'moralis',
+                    dataSourceStats: this.dataSourceStats
+                };
+                
+                return convertedData;
+            }
+            
+        } catch (error) {
+            this.dataSourceStats.moralis.errors++;
+            console.log(`${logPrefix} ❌ Moralis FAILED: ${error.message}`);
+        }
+        
+        throw new Error('No chart data available from any source');
+    }
+
+    async getCurrentPrice(tokenAddress) {
+        const logPrefix = `[PRICE] ${tokenAddress.substring(0, 8)}`;
+        
+        try {
+            // Try Helius first
+            console.log(`${logPrefix} 🚀 Getting current price from Helius...`);
+            this.dataSourceStats.helius.calls++;
+            
+            const heliusPrice = await this.smartChartService.getCurrentPrice(tokenAddress);
+            
+            if (heliusPrice && heliusPrice.price > 0) {
+                this.dataSourceStats.helius.success++;
+                console.log(`${logPrefix} ✅ Helius SUCCESS: ${heliusPrice.price.toFixed(8)} SOL`);
+                
+                return {
+                    ...heliusPrice,
+                    dataSource: 'helius',
+                    dataSourceStats: this.dataSourceStats
+                };
+            }
+            
+        } catch (error) {
+            this.dataSourceStats.helius.errors++;
+            console.log(`${logPrefix} ❌ Helius FAILED: ${error.message}`);
+        }
+        
+        // Fallback to Moralis
+        console.log(`${logPrefix} 🔄 Falling back to Moralis for current price...`);
+        this.dataSourceStats.moralis.calls++;
+        
+        try {
+            const moralisData = await this.hybridPriceService.getHistoricalPrices(tokenAddress, '1MIN', 1);
+            
+            if (moralisData && moralisData.length > 0) {
+                const latest = moralisData[moralisData.length - 1];
+                this.dataSourceStats.moralis.success++;
+                
+                console.log(`${logPrefix} ✅ Moralis SUCCESS: ${latest.close.toFixed(8)} SOL`);
+                
+                return {
+                    price: latest.close,
+                    timestamp: latest.time,
+                    volume: latest.volume || 0,
+                    dataSource: 'moralis',
+                    dataSourceStats: this.dataSourceStats
+                };
+            }
+            
+        } catch (error) {
+            this.dataSourceStats.moralis.errors++;
+            console.log(`${logPrefix} ❌ Moralis FAILED: ${error.message}`);
+        }
+        
+        throw new Error('No current price available from any source');
+    }
+
+    async getRecentTransactions(tokenAddress, limit = 20) {
+        const logPrefix = `[TX] ${tokenAddress.substring(0, 8)}`;
+        
+        try {
+            // Try Helius first
+            console.log(`${logPrefix} 🚀 Getting recent transactions from Helius...`);
+            this.dataSourceStats.helius.calls++;
+            
+            const heliusTxs = await this.smartChartService.getRecentTransactions(tokenAddress, limit);
+            
+            if (heliusTxs && heliusTxs.length > 0) {
+                this.dataSourceStats.helius.success++;
+                console.log(`${logPrefix} ✅ Helius SUCCESS: ${heliusTxs.length} transactions`);
+                
+                return {
+                    transactions: heliusTxs,
+                    dataSource: 'helius',
+                    dataSourceStats: this.dataSourceStats
+                };
+            }
+            
+        } catch (error) {
+            this.dataSourceStats.helius.errors++;
+            console.log(`${logPrefix} ❌ Helius FAILED: ${error.message}`);
+        }
+        
+        // Moralis doesn't provide individual transactions, return empty
+        console.log(`${logPrefix} ⚠️ Moralis doesn't provide individual transactions`);
+        
+        return {
+            transactions: [],
+            dataSource: 'none',
+            dataSourceStats: this.dataSourceStats
+        };
+    }
+
+    // Subscribe to real-time updates (Helius only)
+    async subscribeToRealTimeUpdates(tokenAddress, timeframe, callback) {
+        const logPrefix = `[REALTIME] ${tokenAddress.substring(0, 8)} (${timeframe})`;
+        
+        console.log(`${logPrefix} 🚀 Subscribing to real-time updates (Helius only)...`);
+        
+        try {
+            const unsubscribe = await this.smartChartService.subscribeToRealTimeUpdates(tokenAddress, timeframe, (data) => {
+                console.log(`${logPrefix} 📡 Real-time update: ${data.priceData.length} price points`);
+                callback({
+                    ...data,
+                    dataSource: 'helius',
+                    dataSourceStats: this.dataSourceStats
+                });
+            });
+            
+            console.log(`${logPrefix} ✅ Real-time subscription active`);
+            return unsubscribe;
+            
+        } catch (error) {
+            console.log(`${logPrefix} ❌ Real-time subscription failed: ${error.message}`);
+            throw error;
+        }
+    }
+
+    // Get service status
+    getStatus() {
+        return {
+            service: 'HybridChartService',
+            primary: 'Helius RPC',
+            fallback: 'Moralis OHLCV',
+            stats: this.dataSourceStats,
+            timestamp: new Date().toISOString()
+        };
+    }
+
+    // Get data source statistics
+    getDataSourceStats() {
+        const totalCalls = this.dataSourceStats.helius.calls + this.dataSourceStats.moralis.calls;
+        const heliusSuccessRate = this.dataSourceStats.helius.calls > 0 ? 
+            (this.dataSourceStats.helius.success / this.dataSourceStats.helius.calls * 100).toFixed(1) : 0;
+        const moralisSuccessRate = this.dataSourceStats.moralis.calls > 0 ? 
+            (this.dataSourceStats.moralis.success / this.dataSourceStats.moralis.calls * 100).toFixed(1) : 0;
+        
+        return {
+            totalCalls,
+            helius: {
+                ...this.dataSourceStats.helius,
+                successRate: `${heliusSuccessRate}%`
+            },
+            moralis: {
+                ...this.dataSourceStats.moralis,
+                successRate: `${moralisSuccessRate}%`
+            }
+        };
+    }
+}
+
+export default HybridChartService;
