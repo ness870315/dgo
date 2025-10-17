@@ -14183,8 +14183,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
   async start() {
     try {
-      // Initialize KOL Service first (async operation)
-      await this.initializeKOLService();
+      // DISABLED: Initialize KOL Service (was making CoinAPI/CoinDesk calls)
+      // await this.initializeKOLService();
       
       // Load KOL routes first
       await this.loadKOLRoutes();
