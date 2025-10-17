@@ -131,7 +131,7 @@ class HybridChartService {
         this.dataSourceStats.moralis.calls++;
         
         try {
-            const moralisData = await this.hybridPriceService.getHistoricalPrices(tokenAddress, timeframe, 500, endTime, startTime);
+            const moralisData = await this.hybridPriceService.getHistoricalPrices(tokenAddress, timeframe, 500, startTime, endTime, 'RD');
             
             if (moralisData && moralisData.length > 0) {
                 this.dataSourceStats.moralis.success++;
