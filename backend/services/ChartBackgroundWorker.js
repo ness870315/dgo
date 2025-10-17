@@ -181,8 +181,11 @@ class ChartBackgroundWorker {
      */
     async updatePool(poolAddress) {
         const progress = await this.chartDb.getBackfillProgress(poolAddress);
+        
+        // If no progress exists, start initial backfill
         if (!progress) {
-            console.log(`⚠️ No backfill progress found for ${poolAddress.substring(0, 8)}, skipping update`);
+            console.log(`🔄 No backfill progress found for ${poolAddress.substring(0, 8)}, starting initial backfill`);
+            await this.backfillPool(poolAddress, 'UNKNOWN'); // Token mint not needed for backfill
             return;
         }
 

@@ -1,4 +1,5 @@
 import fetch from 'node-fetch';
+import EnhancedHeliusBackfill from './EnhancedHeliusBackfill.js';
 
 class HeliusChartService {
     constructor(apiKey) {
@@ -6,9 +7,11 @@ class HeliusChartService {
         this.baseUrl = 'https://api.helius.xyz/v0';
         this.cache = new Map();
         this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
+        this.enhancedBackfill = new EnhancedHeliusBackfill(apiKey);
         
         console.log('🔗 HeliusChartService initialized');
         console.log(`   API Key: ${apiKey ? '✅ Configured' : '❌ Missing'}`);
+        console.log(`   Enhanced Backfill: ✅ Available`);
     }
 
     /**
@@ -40,6 +43,13 @@ class HeliusChartService {
             const data = await response.json();
             console.log(`${logPrefix} ✅ Received ${data.length} transactions`);
             
+            // Log timestamp range for debugging
+            if (data.length > 0) {
+                const firstTx = data[0];
+                const lastTx = data[data.length - 1];
+                console.log(`${logPrefix} 📅 Time range: ${new Date(firstTx.timestamp * 1000).toISOString()} to ${new Date(lastTx.timestamp * 1000).toISOString()}`);
+            }
+            
             return data;
             
         } catch (error) {
@@ -51,7 +61,7 @@ class HeliusChartService {
     /**
      * Parse transactions to extract price data from tokenTransfers
      */
-    parseTransactions(transactions) {
+    parseTransactions(transactions, targetTokenAddress) {
         const logPrefix = '[HELIUS-PARSE]';
         console.log(`${logPrefix} 🔄 Parsing ${transactions.length} transactions...`);
         
@@ -71,50 +81,63 @@ class HeliusChartService {
                 if (tx.tokenTransfers && tx.tokenTransfers.length >= 2) {
                     const transfers = tx.tokenTransfers;
                     
-                    // Find base token and target token transfers
-                    let baseTransfer = null;
-                    let targetTransfer = null;
-                    
+                    // Group transfers by mint to find swap pairs
+                    const transfersByMint = {};
                     for (const transfer of transfers) {
-                        if (BASE_TOKENS[transfer.mint]) {
-                            baseTransfer = transfer;
-                        } else if (transfer.mint !== 'So11111111111111111111111111111111111111112') {
-                            targetTransfer = transfer;
+                        if (!transfersByMint[transfer.mint]) {
+                            transfersByMint[transfer.mint] = [];
                         }
+                        transfersByMint[transfer.mint].push(transfer);
                     }
                     
-                    // If we found both base and target transfers, calculate price
-                    if (baseTransfer && targetTransfer) {
-                        const baseToken = BASE_TOKENS[baseTransfer.mint];
-                        const baseAmount = baseTransfer.tokenAmount;
-                        const targetAmount = targetTransfer.tokenAmount;
-                        
-                        if (baseAmount > 0 && targetAmount > 0) {
-                            const price = baseAmount / targetAmount; // Price per token in base currency
+                    // Look for swap pairs: base token ↔ target token
+                    for (const [mint, mintTransfers] of Object.entries(transfersByMint)) {
+                        if (BASE_TOKENS[mint]) {
+                            // This is a base token, look for corresponding target token transfers
+                            const baseToken = BASE_TOKENS[mint];
                             
-                            priceData.push({
-                                timestamp: tx.timestamp * 1000, // Convert to milliseconds
-                                price: price,
-                                volume: baseAmount,
-                                baseToken: baseToken,
-                                tokenAmount: targetAmount,
-                                type: 'swap'
-                            });
-                            
-                            // Determine if it's a buy or sell based on transfer direction
-                            // Buy: Receiving target tokens (positive targetAmount)
-                            // Sell: Sending target tokens (negative targetAmount)
-                            const isBuy = targetAmount > 0;
-                            buySellData.push({
-                                timestamp: tx.timestamp * 1000,
-                                type: isBuy ? 'buy' : 'sell',
-                                volume: baseAmount,
-                                price: price,
-                                baseToken: baseToken,
-                                tokenAmount: targetAmount
-                            });
-                            
-                            console.log(`${logPrefix} 📊 ${baseToken} swap: ${baseAmount} ${baseToken} → ${targetAmount} tokens @ $${price.toFixed(6)}`);
+                            if (transfersByMint[targetTokenAddress]) {
+                                const targetTransfers = transfersByMint[targetTokenAddress];
+                                
+                                // Find the largest swap amounts (ignore small amounts that might be fees)
+                                const baseAmount = Math.max(...mintTransfers.map(t => Math.abs(t.tokenAmount)));
+                                const targetAmount = Math.max(...targetTransfers.map(t => Math.abs(t.tokenAmount)));
+                                
+                                if (baseAmount > 0 && targetAmount > 0) {
+                                    // Price = baseAmount / targetAmount (how much base token per target token)
+                                    const price = baseAmount / targetAmount;
+                                    
+                                    // Only include reasonable price ranges (filter out extreme outliers)
+                                    if (price > 0.000001 && price < 1000000) {
+                                        priceData.push({
+                                            timestamp: tx.timestamp * 1000, // Convert to milliseconds
+                                            price: price,
+                                            volume: baseAmount,
+                                            baseToken: baseToken,
+                                            tokenAmount: targetAmount,
+                                            type: 'swap'
+                                        });
+
+                                        // Determine buy/sell based on transfer direction
+                                        // Buy: receiving target tokens (positive amount)
+                                        // Sell: sending target tokens (negative amount)
+                                        const isBuy = targetTransfers.some(t => t.tokenAmount > 0);
+                                        
+                                        buySellData.push({
+                                            timestamp: tx.timestamp * 1000,
+                                            type: isBuy ? 'buy' : 'sell',
+                                            volume: baseAmount,
+                                            price: price,
+                                            baseToken: baseToken,
+                                            tokenAmount: targetAmount
+                                        });
+
+                                        console.log(`${logPrefix} 📊 ${baseToken} swap: ${baseAmount} ${baseToken} → ${targetAmount} tokens @ $${price.toFixed(6)}`);
+                                    } else {
+                                        console.log(`${logPrefix} ⚠️ Filtered extreme price: $${price.toFixed(6)} (${baseAmount} ${baseToken} / ${targetAmount} tokens)`);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -246,6 +269,114 @@ class HeliusChartService {
     clearCache() {
         this.cache.clear();
         console.log('🗑️ HeliusChartService cache cleared');
+    }
+
+    /**
+     * Enhanced backfill using pool addresses and SWAP filtering
+     * This provides complete historical data, not just recent transactions
+     */
+    async getEnhancedChartData(opts) {
+        const {
+            poolAddresses, // Array of pool addresses for the token
+            mint, // Token mint address (for logging)
+            timeframe = '5MIN',
+            days = 7, // Number of days to backfill
+            sources = ['RAYDIUM', 'ORCA', 'JUPITER']
+        } = opts;
+
+        const logPrefix = `[ENHANCED] ${mint.substring(0, 8)}`;
+        console.log(`${logPrefix} 🔄 Starting enhanced chart data fetch...`);
+        console.log(`   Pools: ${poolAddresses.length}`);
+        console.log(`   Timeframe: ${timeframe}`);
+        console.log(`   Days: ${days}`);
+        console.log(`   Sources: ${sources.join(', ')}`);
+
+        try {
+            const now = Math.floor(Date.now() / 1000);
+            const fromTs = now - (days * 24 * 60 * 60);
+            const toTs = now;
+
+            let candles;
+            if (poolAddresses.length === 1) {
+                // Single pool
+                candles = await this.enhancedBackfill.backfillOHLCV({
+                    address: poolAddresses[0],
+                    fromTs,
+                    toTs,
+                    timeframe,
+                    sources
+                });
+            } else {
+                // Multiple pools
+                candles = await this.enhancedBackfill.backfillMultiplePools({
+                    poolAddresses,
+                    mint,
+                    fromTs,
+                    toTs,
+                    timeframe,
+                    sources
+                });
+            }
+
+            console.log(`${logPrefix} ✅ Enhanced backfill complete: ${candles.length} candles`);
+
+            // Convert to our standard format
+            const ohlcv = candles.map(candle => ({
+                timestamp: candle.time * 1000, // Convert to milliseconds
+                open: candle.open,
+                high: candle.high,
+                low: candle.low,
+                close: candle.close,
+                volume: candle.volume
+            }));
+
+            // Generate price data and buy/sell data from candles
+            const priceData = ohlcv.map(candle => ({
+                timestamp: candle.timestamp,
+                price: candle.close,
+                volume: candle.volume,
+                type: 'enhanced'
+            }));
+
+            const buySellData = []; // Enhanced backfill doesn't provide individual buy/sell events
+
+            return {
+                ohlcv,
+                priceData,
+                buySellData,
+                source: 'enhanced',
+                cached: false,
+                totalDataPoints: candles.length,
+                timeSpan: days
+            };
+
+        } catch (error) {
+            console.error(`${logPrefix} ❌ Enhanced backfill failed:`, error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * Get chart data with automatic fallback
+     * 1. Try enhanced backfill (if pool addresses provided)
+     * 2. Fall back to regular transaction parsing
+     */
+    async getChartDataWithFallback(opts) {
+        const { poolAddresses, mint, ...otherOpts } = opts;
+
+        // If we have pool addresses, try enhanced backfill first
+        if (poolAddresses && poolAddresses.length > 0) {
+            try {
+                console.log(`🔄 [FALLBACK] Trying enhanced backfill for ${mint.substring(0, 8)}...`);
+                return await this.getEnhancedChartData(opts);
+            } catch (error) {
+                console.log(`⚠️ [FALLBACK] Enhanced backfill failed, trying regular method: ${error.message}`);
+            }
+        }
+
+        // Fall back to regular method
+        console.log(`🔄 [FALLBACK] Using regular transaction parsing for ${mint.substring(0, 8)}...`);
+        return await this.getChartData(mint, otherOpts.timeframe || '5MIN', otherOpts.limit);
     }
 }
 

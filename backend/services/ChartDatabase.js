@@ -357,13 +357,13 @@ class ChartDatabase {
      */
     async getStats() {
         const totalTokens = this.data.pools.size;
-        const totalSwaps = Array.from(this.data.swaps.values()).reduce((sum, swaps) => sum + swaps.length, 0);
-        const totalCandles = Array.from(this.data.candles.values()).reduce((sum, candles) => sum + candles.length, 0);
+        const totalSwaps = this.data.swaps.size; // Each entry is a single swap
+        const totalCandles = this.data.candles.size; // Each entry is a single candle
         
         const cachedTokens = Array.from(this.data.pools.entries()).map(([tokenAddress, poolData]) => ({
             tokenAddress,
-            swaps: this.data.swaps.get(tokenAddress)?.length || 0,
-            candles: this.data.candles.get(tokenAddress)?.length || 0,
+            swaps: Array.from(this.data.swaps.values()).filter(s => s.poolAddress === poolData.poolAddress).length,
+            candles: Array.from(this.data.candles.values()).filter(c => c.poolAddress === poolData.poolAddress).length,
             isActive: poolData.isActive
         }));
         
@@ -375,6 +375,20 @@ class ChartDatabase {
             activePools: Array.from(this.data.pools.values()).filter(p => p.isActive).length,
             cachedTokens
         };
+    }
+
+    /**
+     * Mark a pool as active for background processing
+     */
+    async markPoolActive(tokenAddress, poolAddress) {
+        this.data.pools.set(tokenAddress, {
+            poolAddress,
+            isActive: true,
+            createdAt: Date.now(),
+            lastUpdated: Date.now()
+        });
+        await this.saveData();
+        console.log(`✅ Marked pool ${poolAddress.substring(0, 8)} as active for ${tokenAddress.substring(0, 8)}`);
     }
 
     getTimeframeMinutes(timeframe) {
