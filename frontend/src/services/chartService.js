@@ -482,7 +482,7 @@ class ChartService {
    * @param {string} tier - MV/RD/MP tier for memecoin optimization
    * @returns {Promise<Object>} Chart data response
    */
-  async getPriceChart(contractAddress, timeframe = '1D', limit = null, tier = 'RD') {
+  async getPriceChart(contractAddress, timeframe = '5MIN', limit = null, tier = 'RD') {
     try {
       // Check cache first (tier-specific)
       const cached = this.getCachedChart(contractAddress, timeframe, tier);
@@ -631,9 +631,7 @@ class ChartService {
       timeframes: {},
       oldestEntry: null,
       newestEntry: null
-    };
-    
-    // Group by timeframe
+      eframe
     entries.forEach(([key, entry]) => {
       const timeframe = entry.timeframe || 'unknown';
       if (!stats.timeframes[timeframe]) {
