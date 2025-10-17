@@ -45,6 +45,16 @@ class FastChartService {
                     this.cacheStats.fallbacks++;
                     return await this.getMoralisFallback(tokenAddress, timeframe, limit);
                 }
+                
+                // Store the discovered pool address
+                await this.chartDb.storePoolAddress(tokenAddress, poolAddress);
+                console.log(`💾 Stored pool address for ${tokenAddress.substring(0, 8)}: ${poolAddress.substring(0, 8)}`);
+                
+                // Trigger background worker to start backfilling this token
+                console.log(`🚀 Triggering background backfill for ${tokenAddress.substring(0, 8)}...`);
+                this.triggerBackgroundBackfill(tokenAddress).catch(err => 
+                    console.warn(`⚠️ Background backfill trigger failed: ${err.message}`)
+                );
             }
 
             // 2. Get candles from database (instant)
@@ -273,6 +283,34 @@ class FastChartService {
         // This would query the swaps table for recent transactions
         // For now, return empty array
         return [];
+    }
+
+    /**
+     * Trigger background worker to start backfilling a token
+     * This is called when a new token is discovered
+     */
+    async triggerBackgroundBackfill(tokenAddress) {
+        try {
+            // Import the background worker dynamically to avoid circular dependencies
+            const { default: ChartBackgroundWorker } = await import('./ChartBackgroundWorker.js');
+            
+            // Get the Helius API key from environment
+            const heliusApiKey = process.env.HELIUS_API_KEY;
+            if (!heliusApiKey) {
+                console.warn('⚠️ HELIUS_API_KEY not found, cannot trigger background backfill');
+                return;
+            }
+
+            // Create a temporary worker instance to add the token
+            const worker = new ChartBackgroundWorker(heliusApiKey);
+            await worker.addToken(tokenAddress);
+            
+            console.log(`✅ Background backfill triggered for ${tokenAddress.substring(0, 8)}`);
+            
+        } catch (error) {
+            console.error(`❌ Failed to trigger background backfill for ${tokenAddress.substring(0, 8)}:`, error.message);
+            throw error;
+        }
     }
 }
 
