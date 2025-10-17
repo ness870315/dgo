@@ -6,11 +6,11 @@ const TF_SEC = { '1MIN':60,'5MIN':300,'15MIN':900,'1H':3600,'4H':14400,'1D':8640
 
 const WINDOW_BY_TF = {
   '1MIN': 100,   // 4h window (Helius API limit)
-  '5MIN': 96,    // 8h window (matches backend RD: 96)  
-  '15MIN': 48,   // 12 hours window (matches backend RD: 48)
-  '1H': 168,     // 7 days window (matches backend RD: 168)
-  '4H': 90,      // 15 days window (matches backend RD: 90)
-  '1D': 90,      // 90 days window (matches backend RD: 90)
+  '5MIN': 96,    // 8h window  
+  '15MIN': 48,   // 12 hours window
+  '1H': 168,     // 7 days window
+  '4H': 90,      // 15 days window
+  '1D': 90,      // 90 days window
   '1W': 156,     // ~3 years
   '1M': 120,     // ~10 years
   'ALL': 500     // All time since token creation

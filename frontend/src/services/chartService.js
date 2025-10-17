@@ -217,11 +217,11 @@ class ChartService {
    * Returns the default bar count for a timeframe
    */
   getDefaultLimit(timeframe) {
-    return this.getOptimalLimitForTier(timeframe, 'RD');
+    return this.getOptimalLimitForTimeframe(timeframe);
   }
 
   /**
-   * Get price chart with RD limit and auto-top-up if server returns too few bars
+   * Get price chart with default limit and auto-top-up if server returns too few bars
    */
   async getPriceChartRD(contractAddress, timeframe) {
     const desired = this.getDefaultLimit(timeframe); // e.g., 1000 for 15MIN
@@ -235,7 +235,7 @@ class ChartService {
       const oldest = base.data[0]?.time;
       if (oldest) {
         try {
-          const older = await this.loadOlderBars(contractAddress, timeframe, oldest, 'MP');
+          const older = await this.loadOlderBars(contractAddress, timeframe, oldest);
           if (older?.data?.length > base.data.length) {
 
             return older; // merged in loadOlderBars
@@ -251,32 +251,31 @@ class ChartService {
   }
 
   /**
-   * Get optimal limit for MV/RD/MP tier system (memecoin optimized)
+   * Get optimal limit for timeframe (simplified)
    */
-  getOptimalLimitForTier(timeframe, tier = 'RD') {
+  getOptimalLimitForTimeframe(timeframe) {
     const limits = {
-      '1MIN': { MV: 150, RD: 100, MP: 1000 },   // 4 hours (100 bars - Helius limit)
-      '5MIN': { MV: 150, RD: 96, MP: 500 },    // 8 hours (96 bars)  
-      '15MIN': { MV: 150, RD: 48, MP: 500 },   // 12 hours (48 bars)
-      '1H': { MV: 200, RD: 168, MP: 800 },     // 7 days (168 bars)
-      '4H': { MV: 200, RD: 90, MP: 400 },      // 15 days (90 bars)
-      '1D': { MV: 200, RD: 90, MP: 300 },      // 90 days (90 bars)
-      '1W': { MV: 300, RD: 260, MP: 520 },     // ~5 years
-      '1M': { MV: 300, RD: 120, MP: 240 },     // ~10 years
-      '3M': { MV: 300, RD: 120, MP: 240 },     // ~30 years
-      '1Y': { MV: 300, RD: 120, MP: 240 },     // ~120 years
-      'ALL': { MV: 300, RD: 500, MP: 1000 }    // All time since token creation
+      '1MIN': 100,   // 4 hours (100 bars - Helius limit)
+      '5MIN': 96,    // 8 hours (96 bars)  
+      '15MIN': 48,   // 12 hours (48 bars)
+      '1H': 168,     // 7 days (168 bars)
+      '4H': 90,      // 15 days (90 bars)
+      '1D': 90,      // 90 days (90 bars)
+      '1W': 260,     // ~5 years
+      '1M': 120,     // ~10 years
+      '3M': 120,     // ~30 years
+      '1Y': 120,     // ~120 years
+      'ALL': 500     // All time since token creation
     };
     
-    const timeframeLimits = limits[timeframe] || limits['1D'];
-    return timeframeLimits[tier] || timeframeLimits.RD;
+    return limits[timeframe] || limits['1D'];
   }
 
   /**
-   * Get cache key for chart data (include tier to prevent collisions)
+   * Get cache key for chart data
    */
-  getCacheKey(contractAddress, timeframe, tier = 'RD') {
-    return `${contractAddress}_${timeframe}_${tier}`;
+  getCacheKey(contractAddress, timeframe) {
+    return `${contractAddress}_${timeframe}`;
   }
 
   /**
@@ -298,8 +297,8 @@ class ChartService {
   /**
    * Get cached chart data if available and valid
    */
-  getCachedChart(contractAddress, timeframe, tier = 'RD') {
-    const cacheKey = this.getCacheKey(contractAddress, timeframe, tier);
+  getCachedChart(contractAddress, timeframe) {
+    const cacheKey = this.getCacheKey(contractAddress, timeframe);
     const cached = this.chartCache.get(cacheKey);
     
     if (this.isCacheValid(cached, timeframe)) {
@@ -313,8 +312,8 @@ class ChartService {
   /**
    * Cache chart data (atomic and persistent) with cleanup and trimming
    */
-  setCachedChart(contractAddress, timeframe, data, tier = 'RD') {
-    const cacheKey = this.getCacheKey(contractAddress, timeframe, tier);
+  setCachedChart(contractAddress, timeframe, data) {
+    const cacheKey = this.getCacheKey(contractAddress, timeframe);
 
     // Trim data series to prevent unbounded arrays
     const trimmed = Array.isArray(data?.data) ? this.trimSeries(timeframe, data.data) : data?.data;
@@ -325,8 +324,7 @@ class ChartService {
       timestamp: Date.now(),
       oldestTime: trimmedData?.data?.[0]?.time || null,
       newestTime: trimmedData?.data?.[trimmedData?.data?.length - 1]?.time || null,
-      timeframe: timeframe,
-      tier: tier
+      timeframe: timeframe
     });
 
     // Atomic write to persistent storage (includes cleanup)
@@ -336,22 +334,21 @@ class ChartService {
   }
 
   /**
-   * Lazy load older bars when user scrolls left (MP tier for extended history)
+   * Lazy load older bars when user scrolls left (for extended history)
    * @param {string} contractAddress - Token contract address
    * @param {string} timeframe - Current timeframe
    * @param {number} beforeTime - Load bars before this timestamp
-   * @param {string} tier - MV/RD/MP tier ('MP' for lazy loading)
    */
-  async loadOlderBars(contractAddress, timeframe, beforeTime, tier = 'MP', chunkSize = null) {
+  async loadOlderBars(contractAddress, timeframe, beforeTime, chunkSize = null) {
     try {
-      // Get optimal limit for the tier (MP = max prefetch for lazy loading)
-      // Use chunkSize if provided, otherwise use tier-based limit
-      const optimalLimit = chunkSize || this.getOptimalLimitForTier(timeframe, tier);
+      // Get optimal limit for extended history
+      // Use chunkSize if provided, otherwise use timeframe-based limit
+      const optimalLimit = chunkSize || this.getOptimalLimitForTimeframe(timeframe);
       
 
       
       const response = await fetch(
-        `${this.API_BASE}/api/tokens/${contractAddress}/price-chart?timeframe=${timeframe}&limit=${optimalLimit}&before=${beforeTime}&tier=${tier}`
+        `${this.API_BASE}/api/tokens/${contractAddress}/price-chart?timeframe=${timeframe}&limit=${optimalLimit}&before=${beforeTime}`
       );
       
       if (!response.ok) {
@@ -361,7 +358,7 @@ class ChartService {
       const olderData = await response.json();
       
       // Merge with existing cached data
-      const cacheKey = this.getCacheKey(contractAddress, timeframe, tier);
+      const cacheKey = this.getCacheKey(contractAddress, timeframe);
       const existing = this.chartCache.get(cacheKey);
       
       if (existing && olderData?.data?.length > 0) {
@@ -403,7 +400,7 @@ class ChartService {
    */
   async appendNewCandles(contractAddress, timeframe) {
     try {
-      const cacheKey = this.getCacheKey(contractAddress, timeframe, 'RD');
+      const cacheKey = this.getCacheKey(contractAddress, timeframe);
       const existing = this.chartCache.get(cacheKey);
       
       if (!existing || !existing.newestTime) {

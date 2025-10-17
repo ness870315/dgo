@@ -292,8 +292,7 @@ class HybridPriceService {
 
   /**
    * Get optimal number of candles per timeframe for snappy charts
-   * Based on TradingView best practices: MV/RD/MP system
-   * All tokens are memecoins - optimized for memecoin trading
+   * Based on TradingView best practices
    */
   getOptimalCandleCount(timeframe) {
     const candleCounts = {
@@ -320,7 +319,6 @@ class HybridPriceService {
    * @param {number} limit - Number of data points (auto-optimized if not specified)
    * @param {number} beforeTime - Load data before this timestamp (for lazy loading)
    * @param {number} afterTime - Load data after this timestamp (for diff-append)
-   * @param {string} tier - MV/RD/MP tier for memecoin optimization
    * @returns {Object} Chart data in TradingView format
    */
   async getHistoricalPrices(contractAddress, timeframe = '1D', limit = null, beforeTime = null, afterTime = null) {
