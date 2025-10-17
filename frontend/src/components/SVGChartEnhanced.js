@@ -321,6 +321,8 @@ function SvgOHLCVArea({
   const [err, setErr] = useState(null);
   const [mousePos, setMousePos] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [priceDirection, setPriceDirection] = useState('neutral'); // 'up', 'down', 'neutral'
+  const [lastPrice, setLastPrice] = useState(null);
   
   // Removed dynamic loading states (no longer needed)
   
@@ -481,6 +483,25 @@ function SvgOHLCVArea({
     
     return windowed;
   }, [rawData, timeframe, displayMode, circulatingSupply, token]);
+
+  // Track price direction changes
+  useEffect(() => {
+    if (processedData.length > 0) {
+      const currentPrice = processedData[processedData.length - 1].close;
+      
+      if (lastPrice !== null) {
+        if (currentPrice > lastPrice) {
+          setPriceDirection('up');
+        } else if (currentPrice < lastPrice) {
+          setPriceDirection('down');
+        } else {
+          setPriceDirection('neutral');
+        }
+      }
+      
+      setLastPrice(currentPrice);
+    }
+  }, [processedData, lastPrice]);
 
   // Enhanced scaling and formatting
   const { x, y, yTicks, xTicks, priceFormat, yFormatter, height, padding, plotW, plotH, tMin, tMax, yDomainMin, yDomainMax } = useMemo(() => {
@@ -702,6 +723,61 @@ function SvgOHLCVArea({
           stroke="#ff2ea1"
           strokeWidth="2"
         />
+
+        {/* Blinking point at the end of the line */}
+        {processedData.length > 0 && (
+          <g>
+            {/* Outer glow circle - color based on direction */}
+            <circle
+              cx={x(processedData[processedData.length - 1].time)}
+              cy={y(processedData[processedData.length - 1].close)}
+              r="8"
+              fill={
+                priceDirection === 'up' ? 'rgba(34, 197, 94, 0.3)' : // Green for up
+                priceDirection === 'down' ? 'rgba(239, 68, 68, 0.3)' : // Red for down
+                'rgba(255, 46, 161, 0.3)' // Pink for neutral
+              }
+              className="animate-pulse"
+            />
+            {/* Main blinking point - color based on direction */}
+            <circle
+              cx={x(processedData[processedData.length - 1].time)}
+              cy={y(processedData[processedData.length - 1].close)}
+              r="4"
+              fill={
+                priceDirection === 'up' ? '#22c55e' : // Green for up
+                priceDirection === 'down' ? '#ef4444' : // Red for down
+                '#ff2ea1' // Pink for neutral
+              }
+              className="animate-pulse"
+            />
+            {/* Inner highlight */}
+            <circle
+              cx={x(processedData[processedData.length - 1].time)}
+              cy={y(processedData[processedData.length - 1].close)}
+              r="2"
+              fill="white"
+              className="animate-pulse"
+            />
+            {/* Direction indicator arrow */}
+            {priceDirection !== 'neutral' && (
+              <text
+                x={x(processedData[processedData.length - 1].time)}
+                y={y(processedData[processedData.length - 1].close) - 12}
+                fill={
+                  priceDirection === 'up' ? '#22c55e' : '#ef4444'
+                }
+                fontSize="12"
+                textAnchor="middle"
+                fontFamily="system-ui,sans-serif"
+                fontWeight="bold"
+                className="animate-pulse"
+              >
+                {priceDirection === 'up' ? '▲' : '▼'}
+              </text>
+            )}
+          </g>
+        )}
 
         {/* Y-axis labels */}
         {yTicks.map(tick => (

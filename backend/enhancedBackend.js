@@ -11336,6 +11336,136 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
+    // Professional Chart Architecture Endpoints
+    
+    // Get professional chart cache statistics
+    this.app.get('/api/charts/professional/cache-stats', async (req, res) => {
+      try {
+        const cacheStats = this.hybridChartService.getCacheStats();
+        
+        res.json({
+          success: true,
+          data: cacheStats,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Cache stats error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch cache statistics',
+          message: error.message
+        });
+      }
+    });
+
+    // Force complete backfill for a token
+    this.app.post('/api/charts/professional/backfill/:contract', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        
+        if (!contract) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Contract address required' 
+          });
+        }
+        
+        console.log(`🔄 [PROFESSIONAL] Force backfill for ${contract.substring(0, 8)}`);
+        
+        const result = await this.hybridChartService.forceBackfill(contract);
+        
+        res.json({
+          success: true,
+          data: {
+            pricePoints: result.priceData.length,
+            buySellEvents: result.buySellData.length,
+            contract: contract.substring(0, 8) + '...'
+          },
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Force backfill error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to force backfill',
+          message: error.message
+        });
+      }
+    });
+
+    // Clear cache for a specific token
+    this.app.delete('/api/charts/professional/cache/:contract', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        
+        if (!contract) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Contract address required' 
+          });
+        }
+        
+        console.log(`🗑️ [PROFESSIONAL] Clearing cache for ${contract.substring(0, 8)}`);
+        
+        this.hybridChartService.clearCache(contract);
+        
+        res.json({
+          success: true,
+          message: `Cache cleared for ${contract.substring(0, 8)}...`,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Clear cache error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to clear cache',
+          message: error.message
+        });
+      }
+    });
+
+    // Clear all caches
+    this.app.delete('/api/charts/professional/cache', async (req, res) => {
+      try {
+        console.log(`🗑️ [PROFESSIONAL] Clearing all caches`);
+        
+        this.hybridChartService.clearAllCaches();
+        
+        res.json({
+          success: true,
+          message: 'All caches cleared',
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Clear all caches error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to clear all caches',
+          message: error.message
+        });
+      }
+    });
+
+    // Get professional chart data source statistics
+    this.app.get('/api/charts/professional/stats', async (req, res) => {
+      try {
+        const stats = this.hybridChartService.getDataSourceStats();
+        
+        res.json({
+          success: true,
+          data: stats,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Professional stats error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch professional statistics',
+          message: error.message
+        });
+      }
+    });
+
     // Temporary Admin Endpoint for Testing
     this.app.post('/api/admin/revoke-premium', async (req, res) => {
       try {

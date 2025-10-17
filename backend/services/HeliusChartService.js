@@ -151,7 +151,27 @@ class HeliusChartService {
         // Sort by timestamp
         const sortedData = priceData.sort((a, b) => a.timestamp - b.timestamp);
         const ohlcv = [];
-        const timeframeMs = this.getTimeframeMs(timeframe);
+        
+        // For ALL timeframe, use adaptive intervals based on data density
+        let timeframeMs;
+        if (timeframe.toLowerCase() === 'all') {
+            const timeSpan = sortedData[sortedData.length - 1].timestamp - sortedData[0].timestamp;
+            const dataPoints = sortedData.length;
+            
+            // Adaptive interval: aim for 20-50 candles
+            if (dataPoints < 20) {
+                timeframeMs = timeSpan / Math.max(1, dataPoints - 1); // Use all data points
+            } else if (dataPoints < 100) {
+                timeframeMs = timeSpan / 20; // 20 candles
+            } else {
+                timeframeMs = timeSpan / 50; // 50 candles max
+            }
+            
+            // Ensure minimum interval of 1 minute
+            timeframeMs = Math.max(timeframeMs, 60 * 1000);
+        } else {
+            timeframeMs = this.getTimeframeMs(timeframe);
+        }
         
         let currentCandle = null;
         let lastTimestamp = null;

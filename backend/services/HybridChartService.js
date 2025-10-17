@@ -1,17 +1,17 @@
-import SmartChartService from './SmartChartService.js';
+import ProfessionalChartService from './ProfessionalChartService.js';
 import HybridPriceService from '../hybridPriceService.js';
 
 class HybridChartService {
     constructor(heliusApiKey, moralisApiKey) {
-        this.smartChartService = new SmartChartService(heliusApiKey);
+        this.professionalChartService = new ProfessionalChartService(heliusApiKey);
         this.hybridPriceService = new HybridPriceService();
         this.dataSourceStats = {
-            helius: { calls: 0, success: 0, errors: 0 },
+            professional: { calls: 0, success: 0, errors: 0 },
             moralis: { calls: 0, success: 0, errors: 0 }
         };
         
-        console.log('🔄 HybridChartService initialized');
-        console.log('   Primary: Helius RPC (real-time transactions)');
+        console.log('🔄 HybridChartService initialized with Professional Architecture');
+        console.log('   Primary: Professional Chart Service (complete backfill + timeframe generation)');
         console.log('   Fallback: Moralis OHLCV (aggregated data)');
     }
 
@@ -22,31 +22,32 @@ class HybridChartService {
         console.log(`${logPrefix} 🔄 Fetching chart data...`);
         
         try {
-            // Try Helius first (primary)
-            console.log(`${logPrefix} 🚀 Trying Helius RPC...`);
-            this.dataSourceStats.helius.calls++;
+            // Try Professional Chart Service first (primary)
+            console.log(`${logPrefix} 🚀 Trying Professional Chart Service...`);
+            this.dataSourceStats.professional.calls++;
             
-            const heliusData = await this.smartChartService.getChartData(tokenAddress, timeframe, limit, tier);
+            const professionalData = await this.professionalChartService.getChartData(tokenAddress, timeframe.toLowerCase(), limit);
             
-            if (heliusData && heliusData.ohlcv && heliusData.ohlcv.length > 0) {
+            if (professionalData && professionalData.ohlcv && professionalData.ohlcv.length > 0) {
                 const duration = Date.now() - startTime;
-                this.dataSourceStats.helius.success++;
+                this.dataSourceStats.professional.success++;
                 
-                console.log(`${logPrefix} ✅ Helius SUCCESS: ${heliusData.ohlcv.length} candles in ${duration}ms`);
-                console.log(`${logPrefix} 📊 Data: ${heliusData.priceData.length} price points, ${heliusData.buySellData.length} transactions`);
+                console.log(`${logPrefix} ✅ Professional SUCCESS: ${professionalData.ohlcv.length} candles in ${duration}ms`);
+                console.log(`${logPrefix} 📊 Data: ${professionalData.priceData.length} price points, ${professionalData.buySellData.length} transactions`);
+                console.log(`${logPrefix} 📊 Source: ${professionalData.source}, Cached: ${professionalData.cached}, Batches: ${professionalData.batches}`);
                 
                 // Add data source metadata
-                heliusData.dataSource = 'helius';
-                heliusData.dataSourceStats = this.dataSourceStats;
+                professionalData.dataSource = 'professional';
+                professionalData.dataSourceStats = this.dataSourceStats;
                 
-                return heliusData;
+                return professionalData;
             } else {
-                console.log(`${logPrefix} ⚠️ Helius returned empty data, trying Moralis...`);
+                console.log(`${logPrefix} ⚠️ Professional returned empty data, trying Moralis...`);
             }
             
         } catch (error) {
-            this.dataSourceStats.helius.errors++;
-            console.log(`${logPrefix} ❌ Helius FAILED: ${error.message}`);
+            this.dataSourceStats.professional.errors++;
+            console.log(`${logPrefix} ❌ Professional FAILED: ${error.message}`);
         }
         
         // Fallback to Moralis
@@ -121,8 +122,8 @@ class HybridChartService {
             }
             
         } catch (error) {
-            this.dataSourceStats.helius.errors++;
-            console.log(`${logPrefix} ❌ Helius FAILED: ${error.message}`);
+            this.dataSourceStats.professional.errors++;
+            console.log(`${logPrefix} ❌ Professional FAILED: ${error.message}`);
         }
         
         // Fallback to Moralis
@@ -189,8 +190,8 @@ class HybridChartService {
             }
             
         } catch (error) {
-            this.dataSourceStats.helius.errors++;
-            console.log(`${logPrefix} ❌ Helius FAILED: ${error.message}`);
+            this.dataSourceStats.professional.errors++;
+            console.log(`${logPrefix} ❌ Professional FAILED: ${error.message}`);
         }
         
         // Fallback to Moralis
@@ -245,8 +246,8 @@ class HybridChartService {
             }
             
         } catch (error) {
-            this.dataSourceStats.helius.errors++;
-            console.log(`${logPrefix} ❌ Helius FAILED: ${error.message}`);
+            this.dataSourceStats.professional.errors++;
+            console.log(`${logPrefix} ❌ Professional FAILED: ${error.message}`);
         }
         
         // Moralis doesn't provide individual transactions, return empty
@@ -297,23 +298,68 @@ class HybridChartService {
 
     // Get data source statistics
     getDataSourceStats() {
-        const totalCalls = this.dataSourceStats.helius.calls + this.dataSourceStats.moralis.calls;
-        const heliusSuccessRate = this.dataSourceStats.helius.calls > 0 ? 
-            (this.dataSourceStats.helius.success / this.dataSourceStats.helius.calls * 100).toFixed(1) : 0;
+        const totalCalls = this.dataSourceStats.professional.calls + this.dataSourceStats.moralis.calls;
+        const professionalSuccessRate = this.dataSourceStats.professional.calls > 0 ? 
+            (this.dataSourceStats.professional.success / this.dataSourceStats.professional.calls * 100).toFixed(1) : 0;
         const moralisSuccessRate = this.dataSourceStats.moralis.calls > 0 ? 
             (this.dataSourceStats.moralis.success / this.dataSourceStats.moralis.calls * 100).toFixed(1) : 0;
         
         return {
             totalCalls,
-            helius: {
-                ...this.dataSourceStats.helius,
-                successRate: `${heliusSuccessRate}%`
+            professional: {
+                ...this.dataSourceStats.professional,
+                successRate: `${professionalSuccessRate}%`
             },
             moralis: {
                 ...this.dataSourceStats.moralis,
                 successRate: `${moralisSuccessRate}%`
             }
         };
+    }
+
+    // Professional Architecture Methods
+    
+    /**
+     * Start real-time updates for a token
+     */
+    startRealTimeUpdates(tokenAddress, callback) {
+        return this.professionalChartService.startRealTimeUpdates(tokenAddress, callback);
+    }
+
+    /**
+     * Stop real-time updates for a token
+     */
+    stopRealTimeUpdates(tokenAddress) {
+        return this.professionalChartService.stopRealTimeUpdates(tokenAddress);
+    }
+
+    /**
+     * Get cache statistics
+     */
+    getCacheStats() {
+        return this.professionalChartService.getCacheStats();
+    }
+
+    /**
+     * Clear cache for a specific token
+     */
+    clearCache(tokenAddress) {
+        return this.professionalChartService.clearCache(tokenAddress);
+    }
+
+    /**
+     * Clear all caches
+     */
+    clearAllCaches() {
+        return this.professionalChartService.clearAllCaches();
+    }
+
+    /**
+     * Force complete backfill for a token
+     */
+    async forceBackfill(tokenAddress) {
+        console.log(`🔄 [HYBRID] Force backfill for ${tokenAddress.substring(0, 8)}`);
+        return await this.professionalChartService.backfillCompleteHistory(tokenAddress);
     }
 }
 
