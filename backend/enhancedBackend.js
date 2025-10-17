@@ -4458,8 +4458,9 @@ class EnhancedBackend {
     // Initialize Enhanced Predictive Analytics Service
     this.enhancedPredictiveAnalytics = null;
     
-    // Get comprehensive KOL analytics with LLM insights (DISABLED)
-    // this.app.get('/api/ml/kol-analytics/:kolHandle', async (req, res) => {
+    // DISABLED: Get comprehensive KOL analytics with LLM insights
+    /*
+    this.app.get('/api/ml/kol-analytics/:kolHandle', async (req, res) => {
       try {
         const { kolHandle } = req.params;
         
@@ -4488,8 +4489,10 @@ class EnhancedBackend {
         });
       }
     });
+    */
     
-    // Get comprehensive token analytics with LLM insights
+    // DISABLED: Get comprehensive token analytics with LLM insights
+    /*
     this.app.get('/api/ml/token-analytics/:coinSymbol', async (req, res) => {
       try {
         const { coinSymbol } = req.params;
@@ -4519,8 +4522,10 @@ class EnhancedBackend {
         });
       }
     });
+    */
     
-    // Get market-wide analytics with LLM insights
+    // DISABLED: Get market-wide analytics with LLM insights
+    /*
     this.app.get('/api/ml/market-analytics', async (req, res) => {
       try {
         if (!this.enhancedPredictiveAnalytics) {
@@ -4548,6 +4553,7 @@ class EnhancedBackend {
         });
       }
     });
+    */
 
     // AI-Powered Narrative Analysis
     this.app.post('/api/ml/narrative-analysis', async (req, res) => {
