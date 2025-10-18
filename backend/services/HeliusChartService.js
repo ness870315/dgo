@@ -30,6 +30,11 @@ class HeliusChartService {
      * Get transaction history for a token
      */
     async getTransactionHistory(tokenAddress, limit = 1000, before = null) {
+        // Validate token address
+        if (!tokenAddress || tokenAddress.length < 32) {
+            throw new Error(`Invalid token address: ${tokenAddress} (too short)`);
+        }
+        
         const logPrefix = `[HELIUS] ${tokenAddress.substring(0, 8)}`;
         console.log(`${logPrefix} 🔄 Fetching transaction history...`);
         
