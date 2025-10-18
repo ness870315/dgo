@@ -1,6 +1,7 @@
 import OptimizedHeliusBackfill from './OptimizedHeliusBackfill.js';
 import ChartDatabase from './ChartDatabase.js';
 import HybridPriceService from '../hybridPriceService.js';
+import RealTimeTransactionService from './RealTimeTransactionService.js';
 
 /**
  * Background Worker for Continuous Chart Data Ingestion
@@ -12,6 +13,7 @@ class ChartBackgroundWorker {
         this.heliusBackfill = new OptimizedHeliusBackfill(heliusApiKey);
         this.chartDb = new ChartDatabase();
         this.hybridService = new HybridPriceService();
+        this.realTimeService = new RealTimeTransactionService(heliusApiKey, this);
         this.isRunning = false;
         this.processedPools = new Set();
         this.runningBackfills = new Set(); // Track active backfill processes
@@ -528,6 +530,12 @@ class ChartBackgroundWorker {
         console.log('🛑 Stopping Chart Background Worker...');
         this.isRunning = false;
         this.stopAllBackfills();
+        
+        // Disconnect real-time service
+        if (this.realTimeService) {
+            this.realTimeService.disconnect();
+        }
+        
         console.log('✅ Background worker stopped');
     }
 
@@ -537,6 +545,52 @@ class ChartBackgroundWorker {
     stopAllBackfills() {
         console.log(`🛑 Stopping ${this.runningBackfills.size} running backfills...`);
         this.runningBackfills.clear();
+    }
+
+    /**
+     * Start real-time monitoring for a pool
+     * Called when a user opens a chart
+     */
+    async startRealTimeMonitoring(poolAddress, tokenAddress) {
+        if (!this.realTimeService) {
+            console.log('⚠️ Real-time service not available');
+            return;
+        }
+        
+        try {
+            await this.realTimeService.startMonitoringPool(poolAddress, tokenAddress);
+            console.log(`🔌 [WORKER] Started real-time monitoring for ${poolAddress.substring(0, 8)}`);
+        } catch (error) {
+            console.error(`❌ [WORKER] Failed to start real-time monitoring:`, error.message);
+        }
+    }
+
+    /**
+     * Stop real-time monitoring for a pool
+     * Called when a user closes a chart
+     */
+    async stopRealTimeMonitoring(poolAddress) {
+        if (!this.realTimeService) {
+            return;
+        }
+        
+        try {
+            await this.realTimeService.stopMonitoringPool(poolAddress);
+            console.log(`🔌 [WORKER] Stopped real-time monitoring for ${poolAddress.substring(0, 8)}`);
+        } catch (error) {
+            console.error(`❌ [WORKER] Failed to stop real-time monitoring:`, error.message);
+        }
+    }
+
+    /**
+     * Get real-time service statistics
+     */
+    getRealTimeStats() {
+        if (!this.realTimeService) {
+            return { error: 'Real-time service not available' };
+        }
+        
+        return this.realTimeService.getStats();
     }
 
     /**

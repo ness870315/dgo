@@ -11403,6 +11403,86 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
+    // Real-time Transaction Endpoints
+    
+    // Get real-time transactions for a token (for TX table)
+    this.app.get('/api/tokens/:contract/transactions', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        const { limit = 50, sinceTimestamp } = req.query;
+
+        if (!contract) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Contract address is required' 
+          });
+        }
+
+        console.log(`📊 [TX-TABLE] Fetching transactions for ${contract.substring(0, 8)}...`);
+
+        // Get pool address for this token
+        const poolAddress = await this.hybridChartService.fastChartService.chartDb.getPoolAddress(contract);
+        
+        if (!poolAddress) {
+          return res.status(404).json({
+            success: false,
+            error: 'Pool address not found',
+            message: 'No pool data available for this token'
+          });
+        }
+
+        // Get recent swaps from database
+        const swaps = await this.hybridChartService.fastChartService.chartDb.getRecentSwaps(
+          poolAddress, 
+          parseInt(limit),
+          sinceTimestamp ? parseInt(sinceTimestamp) : null
+        );
+
+        console.log(`📊 [TX-TABLE] ✅ Found ${swaps.length} transactions`);
+
+        res.json({
+          success: true,
+          contract: contract,
+          poolAddress: poolAddress.substring(0, 8) + '...',
+          transactions: swaps,
+          count: swaps.length,
+          metadata: {
+            timestamp: new Date().toISOString(),
+            source: 'database'
+          }
+        });
+
+      } catch (error) {
+        console.error(`❌ [TX-TABLE] Error fetching transactions:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch transactions',
+          message: error.message
+        });
+      }
+    });
+
+    // Get real-time WebSocket statistics
+    this.app.get('/api/tokens/realtime-stats', async (req, res) => {
+      try {
+        const stats = this.hybridChartService.backgroundWorker.getRealTimeStats();
+        
+        res.json({
+          success: true,
+          data: stats,
+          timestamp: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error(`❌ [REALTIME-STATS] Error:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get real-time stats',
+          message: error.message
+        });
+      }
+    });
+
     // Professional Chart Architecture Endpoints
     
     // Get professional chart cache statistics

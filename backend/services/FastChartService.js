@@ -75,6 +75,12 @@ class FastChartService {
                 
                 console.log(`${logPrefix} ✅ DATABASE HIT: ${candles.length} candles in ${duration}ms`);
                 
+                // Start real-time monitoring for this pool (CENTRALIZED - shared across all users)
+                if (this.hybridChartService && this.hybridChartService.backgroundWorker) {
+                    this.hybridChartService.backgroundWorker.startRealTimeMonitoring(poolAddress, correctedAddress)
+                        .catch(err => console.warn(`⚠️ Failed to start real-time monitoring: ${err.message}`));
+                }
+                
                 return {
                     ohlcv: candles,
                     priceData: candles.map(c => ({
@@ -93,6 +99,13 @@ class FastChartService {
             } else {
                 console.log(`${logPrefix} ⚠️ No candles in database, falling back to Moralis`);
                 this.cacheStats.misses++;
+                
+                // Start real-time monitoring even if no data yet (CENTRALIZED - shared across all users)
+                if (this.hybridChartService && this.hybridChartService.backgroundWorker) {
+                    this.hybridChartService.backgroundWorker.startRealTimeMonitoring(poolAddress, correctedAddress)
+                        .catch(err => console.warn(`⚠️ Failed to start real-time monitoring: ${err.message}`));
+                }
+                
                 return await this.getMoralisFallback(tokenAddress, timeframe, limit);
             }
 
