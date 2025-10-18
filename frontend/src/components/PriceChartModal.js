@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, ChevronDown, TrendingUp } from 'lucide-react';
 import chartService from '../services/chartService';
 import SVGChart from './SVGChartEnhanced';
@@ -15,26 +15,26 @@ const PriceChartModal = ({ token, onClose }) => {
   const [volume, setVolume] = useState(0);
   const [tokenAnalytics, setTokenAnalytics] = useState(null);
   
+  // Use ref to track previous price for accurate change calculation
+  const previousPriceRef = useRef(null);
+  
   const isPremiumUser = isAuthenticated && user?.isPremium;
 
   const handlePriceUpdate = (priceData) => {
     console.log(`📡 [PRICE-MODAL] 🚀 Real-time price update received:`, priceData);
     
-    // Update the current price in the modal
-    setCurrentPrice(priceData.price);
-    
-    // Calculate price change if we have previous data
-    if (currentPrice && currentPrice !== priceData.price) {
-      const change = ((priceData.price - currentPrice) / currentPrice) * 100;
+    // Calculate price change using the ref (previous price)
+    if (previousPriceRef.current !== null && previousPriceRef.current !== priceData.price) {
+      const change = ((priceData.price - previousPriceRef.current) / previousPriceRef.current) * 100;
       setPriceChange(change);
+      console.log(`📡 [PRICE-MODAL] 📊 Price change: ${change.toFixed(2)}% (${previousPriceRef.current} → ${priceData.price})`);
     }
     
-    // Update the token object with the new price
-    if (token && token.contractAddress === priceData.contract) {
-      // Update the token's price in the parent component
-      // This will be handled by the parent component
-      console.log(`📡 [PRICE-MODAL] ✅ Updated price for ${token.symbol}: ${priceData.price}`);
-    }
+    // Update the current price and ref
+    setCurrentPrice(priceData.price);
+    previousPriceRef.current = priceData.price;
+    
+    console.log(`📡 [PRICE-MODAL] ✅ Updated price for ${token.symbol}: ${priceData.price}`);
   };
 
   useEffect(() => {
@@ -55,6 +55,8 @@ const PriceChartModal = ({ token, onClose }) => {
       const response = await chartService.getCurrentPrice(token.contractAddress);
       if (response.success) {
         setCurrentPrice(response.price);
+        previousPriceRef.current = response.price; // Initialize the ref with initial price
+        console.log(`📡 [PRICE-MODAL] 📊 Initial price loaded: ${response.price}`);
       }
     } catch (error) {
       console.error('Failed to load current price:', error);
