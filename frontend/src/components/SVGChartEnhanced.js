@@ -452,17 +452,7 @@ function SvgOHLCVArea({
       realTimeService.stopLiveUpdates(contract);
       setIsLiveUpdatesActive(false);
     };
-  }, [contract, timeframe, rawData, realTimeService, onPriceUpdate]);
-
-  // Cleanup on component unmount
-  useEffect(() => {
-    return () => {
-      if (contract) {
-        console.log(`📡 [CHART] Component unmounting, cleaning up real-time updates for ${contract.substring(0, 8)}...`);
-        realTimeService.stopLiveUpdates(contract);
-      }
-    };
-  }, [contract, realTimeService]);
+  }, [contract, timeframe, realTimeService, onPriceUpdate]); // Removed rawData from dependencies to prevent unnecessary cleanup
 
   // Separate effect for Jupiter data fetching (only when switching to market cap mode)
   useEffect(() => {
