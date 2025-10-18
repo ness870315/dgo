@@ -689,8 +689,13 @@ function SvgOHLCVArea({
 
   return (
     <div ref={wrapRef} className="w-full relative">
-      
-      
+      {/* Live Updates Indicator */}
+      {isLiveUpdatesActive && (
+        <div className="absolute top-4 right-4 z-10 flex items-center space-x-2 px-3 py-1 bg-green-900/30 border border-green-500/50 rounded-full">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+          <span className="text-xs text-green-400 font-medium">LIVE</span>
+        </div>
+      )}
       
       <svg 
         width={width} 
@@ -1024,14 +1029,6 @@ export default function SVGChart({ token, onClose, onChartDataChange, onTimefram
     <div className="w-full space-y-4">
       {/* Enhanced Controls */}
       <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-gray-800 rounded-lg">
-        {/* Live Updates Indicator */}
-        {isLiveUpdatesActive && (
-          <div className="flex items-center space-x-2 px-3 py-1 bg-green-900/30 border border-green-500/50 rounded-full">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-xs text-green-400 font-medium">LIVE</span>
-          </div>
-        )}
-        
         {/* Timeframe Controls */}
         <div className="flex items-center space-x-2">
           <span className="text-sm text-gray-400">Timeframe:</span>
