@@ -462,10 +462,12 @@ function SvgOHLCVArea({
 
     // Cleanup
     return () => {
-      console.log(`📡 [CHART] Stopping real-time updates for ${contract.substring(0, 8)}...`);
+      console.log(`📡 [CHART] CLEANUP: Stopping real-time updates for ${contract.substring(0, 8)}...`);
+      console.log(`📡 [CHART] CLEANUP: isMonitoringRef.current = ${isMonitoringRef.current}`);
       realTimeService.stopLiveUpdates(contract);
       setIsLiveUpdatesActive(false);
       isMonitoringRef.current = false;
+      console.log(`📡 [CHART] CLEANUP: ✅ Cleanup completed for ${contract.substring(0, 8)}`);
     };
   }, [contract, timeframe, realTimeService]); // Removed onPriceUpdate from dependencies to prevent unnecessary cleanup
 
@@ -1041,6 +1043,15 @@ export default function SVGChart({ token, onClose, onChartDataChange, onTimefram
   const [timezone, setTimezone] = useState('UTC');
 
   const contract = token?.contractAddress || token?.contract || token?.mint || token?.address;
+
+  // Debug: Log component mount/unmount
+  useEffect(() => {
+    console.log(`📊 [SVGChart] Component MOUNTED for ${contract?.substring(0, 8)}...`);
+    
+    return () => {
+      console.log(`📊 [SVGChart] Component UNMOUNTING for ${contract?.substring(0, 8)}...`);
+    };
+  }, [contract]);
 
   // Notify parent when timeframe changes
   useEffect(() => {
