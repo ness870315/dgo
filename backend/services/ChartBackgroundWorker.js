@@ -379,7 +379,7 @@ class ChartBackgroundWorker {
 
         const progress = await this.chartDb.getBackfillProgress(poolAddress);
         const toTs = Math.floor(Date.now() / 1000);
-        const fromTs = progress ? progress.last_processed_timestamp : (toTs - 30 * 24 * 3600); // 30 days if no progress
+        const fromTs = progress ? progress.last_processed_timestamp : (toTs - 7 * 24 * 3600); // 7 days if no progress
 
         try {
             // Get swaps from Helius
