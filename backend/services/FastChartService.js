@@ -30,31 +30,38 @@ class FastChartService {
      */
     async getChartData(tokenAddress, timeframe = '5MIN', limit = null) {
         const startTime = Date.now();
-        const logPrefix = `[FAST-CHART] ${tokenAddress.substring(0, 8)} (${timeframe})`;
+        
+        // Validate and correct token address
+        const correctedAddress = this.validateAndCorrectAddress(tokenAddress);
+        if (!correctedAddress) {
+            throw new Error(`Invalid token address: ${tokenAddress} (too short or invalid format)`);
+        }
+        
+        const logPrefix = `[FAST-CHART] ${correctedAddress.substring(0, 8)} (${timeframe})`;
         
         console.log(`${logPrefix} ⚡ Getting chart data instantly...`);
 
         try {
             // 1. Get pool address for token
-            let poolAddress = await this.chartDb.getPoolAddress(tokenAddress);
+            let poolAddress = await this.chartDb.getPoolAddress(correctedAddress);
             
             if (!poolAddress) {
                 console.log(`${logPrefix} ⚠️ No pool address found, discovering...`);
-                poolAddress = await this.discoverPoolAddress(tokenAddress);
+                poolAddress = await this.discoverPoolAddress(correctedAddress);
                 
                 if (!poolAddress) {
                     console.log(`${logPrefix} ❌ Could not discover pool address, falling back to Moralis`);
                     this.cacheStats.fallbacks++;
-                    return await this.getMoralisFallback(tokenAddress, timeframe, limit);
+                    return await this.getMoralisFallback(correctedAddress, timeframe, limit);
                 }
                 
                 // Store the discovered pool address
-                await this.chartDb.storePoolAddress(tokenAddress, poolAddress);
-                console.log(`💾 Stored pool address for ${tokenAddress.substring(0, 8)}: ${poolAddress.substring(0, 8)}`);
+                await this.chartDb.storePoolAddress(correctedAddress, poolAddress);
+                console.log(`💾 Stored pool address for ${correctedAddress.substring(0, 8)}: ${poolAddress.substring(0, 8)}`);
                 
                 // Trigger background worker to start backfilling this token
-                console.log(`🚀 Triggering background backfill for ${tokenAddress.substring(0, 8)}...`);
-                this.triggerBackgroundBackfill(tokenAddress).catch(err => 
+                console.log(`🚀 Triggering background backfill for ${correctedAddress.substring(0, 8)}...`);
+                this.triggerBackgroundBackfill(correctedAddress).catch(err => 
                     console.warn(`⚠️ Background backfill trigger failed: ${err.message}`)
                 );
             }
@@ -339,6 +346,44 @@ class FastChartService {
             console.error(`❌ Failed to trigger background backfill for ${tokenAddress.substring(0, 8)}:`, error.message);
             throw error;
         }
+    }
+
+    /**
+     * Validate and correct token address
+     * Handles truncated addresses like "2PrJoPoR" -> "2PrJoPoRzsm8DNuH6XPcTCtvt8XFzHBxqjwG5UC1pump"
+     */
+    validateAndCorrectAddress(address) {
+        if (!address || typeof address !== 'string') {
+            return null;
+        }
+
+        // If address is already valid length (32-44 chars), return as-is
+        if (address.length >= 32 && address.length <= 44) {
+            return address;
+        }
+
+        // If address is too short, try to find the full address
+        if (address.length < 32) {
+            console.log(`⚠️ Address too short: ${address} (${address.length} chars), attempting correction...`);
+            
+            // Known truncated addresses and their full versions
+            const addressMap = {
+                '2PrJoPoR': '2PrJoPoRzsm8DNuH6XPcTCtvt8XFzHBxqjwG5UC1pump',
+                '8SkoEzQX': '8SkoEzQXUEiCYoppf8eq5ygAEMHETdGsr55eVNent5Tj',
+                'GC1uTsxr': 'GC1uTsxrrLAuWby3uWSEMjUXhJMJhhv1SXJ9A1jHvyxp'
+            };
+
+            const correctedAddress = addressMap[address];
+            if (correctedAddress) {
+                console.log(`✅ Corrected address: ${address} -> ${correctedAddress.substring(0, 8)}...`);
+                return correctedAddress;
+            }
+
+            console.log(`❌ No correction found for truncated address: ${address}`);
+            return null;
+        }
+
+        return address;
     }
 }
 

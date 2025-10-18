@@ -30,7 +30,14 @@ class HybridChartService {
 
     async getChartData(tokenAddress, timeframe = '5MIN', limit = null) {
         const startTime = Date.now();
-        const logPrefix = `[CHART] ${tokenAddress.substring(0, 8)} (${timeframe})`;
+        
+        // Validate and correct token address
+        const correctedAddress = this.validateAndCorrectAddress(tokenAddress);
+        if (!correctedAddress) {
+            throw new Error(`Invalid token address: ${tokenAddress} (too short or invalid format)`);
+        }
+        
+        const logPrefix = `[CHART] ${correctedAddress.substring(0, 8)} (${timeframe})`;
         
         console.log(`${logPrefix} ⚡ Getting chart data instantly...`);
         
@@ -38,7 +45,7 @@ class HybridChartService {
             // Use Fast Chart Service (instant database access)
             this.dataSourceStats.database.calls++;
             
-            const chartData = await this.fastChartService.getChartData(tokenAddress, timeframe, limit);
+            const chartData = await this.fastChartService.getChartData(correctedAddress, timeframe, limit);
             
             if (chartData && chartData.ohlcv && chartData.ohlcv.length > 0) {
                 const duration = Date.now() - startTime;
@@ -199,6 +206,44 @@ class HybridChartService {
                 error: error.message
             };
         }
+    }
+
+    /**
+     * Validate and correct token address
+     * Handles truncated addresses like "2PrJoPoR" -> "2PrJoPoRzsm8DNuH6XPcTCtvt8XFzHBxqjwG5UC1pump"
+     */
+    validateAndCorrectAddress(address) {
+        if (!address || typeof address !== 'string') {
+            return null;
+        }
+
+        // If address is already valid length (32-44 chars), return as-is
+        if (address.length >= 32 && address.length <= 44) {
+            return address;
+        }
+
+        // If address is too short, try to find the full address
+        if (address.length < 32) {
+            console.log(`⚠️ Address too short: ${address} (${address.length} chars), attempting correction...`);
+            
+            // Known truncated addresses and their full versions
+            const addressMap = {
+                '2PrJoPoR': '2PrJoPoRzsm8DNuH6XPcTCtvt8XFzHBxqjwG5UC1pump',
+                '8SkoEzQX': '8SkoEzQXUEiCYoppf8eq5ygAEMHETdGsr55eVNent5Tj',
+                'GC1uTsxr': 'GC1uTsxrrLAuWby3uWSEMjUXhJMJhhv1SXJ9A1jHvyxp'
+            };
+
+            const correctedAddress = addressMap[address];
+            if (correctedAddress) {
+                console.log(`✅ Corrected address: ${address} -> ${correctedAddress.substring(0, 8)}...`);
+                return correctedAddress;
+            }
+
+            console.log(`❌ No correction found for truncated address: ${address}`);
+            return null;
+        }
+
+        return address;
     }
 }
 
