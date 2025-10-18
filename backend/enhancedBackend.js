@@ -11483,6 +11483,75 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
+    // Real-time chart updates endpoint (for polling)
+    this.app.get('/api/tokens/:contract/live-updates', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        const { sinceTimestamp } = req.query;
+
+        console.log(`📡 [LIVE-UPDATES] Fetching updates for ${contract.substring(0, 8)}...`);
+
+        // Get pool address for this token
+        const poolAddress = await this.hybridChartService.fastChartService.chartDb.getPoolAddress(contract);
+        
+        if (!poolAddress) {
+          return res.status(404).json({
+            success: false,
+            error: 'Pool address not found',
+            message: 'No pool data available for this token'
+          });
+        }
+
+        // Get recent swaps since the given timestamp
+        const swaps = await this.hybridChartService.fastChartService.chartDb.getRecentSwaps(
+          poolAddress, 
+          50, // Limit to recent swaps
+          sinceTimestamp ? parseInt(sinceTimestamp) : null
+        );
+
+        // Get latest candles for all timeframes
+        const timeframes = ['1MIN', '5MIN', '15MIN', '1H', '4H', '1D'];
+        const latestCandles = {};
+        
+        for (const timeframe of timeframes) {
+          const candles = await this.hybridChartService.fastChartService.chartDb.getCandles(
+            poolAddress, 
+            timeframe, 
+            1 // Just the latest candle
+          );
+          if (candles && candles.length > 0) {
+            latestCandles[timeframe] = candles[0];
+          }
+        }
+
+        console.log(`📡 [LIVE-UPDATES] ✅ Found ${swaps.length} new swaps, ${Object.keys(latestCandles).length} updated candles`);
+
+        res.json({
+          success: true,
+          contract: contract,
+          poolAddress: poolAddress.substring(0, 8) + '...',
+          updates: {
+            newSwaps: swaps,
+            latestCandles: latestCandles,
+            timestamp: new Date().toISOString()
+          },
+          metadata: {
+            swapsCount: swaps.length,
+            candlesCount: Object.keys(latestCandles).length,
+            source: 'realtime'
+          }
+        });
+
+      } catch (error) {
+        console.error(`❌ [LIVE-UPDATES] Error:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get live updates',
+          message: error.message
+        });
+      }
+    });
+
     // Professional Chart Architecture Endpoints
     
     // Get professional chart cache statistics

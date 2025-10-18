@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import chartService from "../services/chartService";
+import RealTimeChartService from "../services/realTimeChartService";
 
 // ------- Enhanced helpers with aggregation support
 const TF_SEC = { '1MIN':60,'5MIN':300,'15MIN':900,'1H':3600,'4H':14400,'1D':86400,'1W':604800,'1M':2592000,'ALL':14400 };
@@ -290,6 +291,10 @@ function SvgOHLCVArea({
   const [priceDirection, setPriceDirection] = useState('neutral'); // 'up', 'down', 'neutral'
   const [lastPrice, setLastPrice] = useState(null);
   
+  // Real-time updates
+  const [realTimeService] = useState(() => new RealTimeChartService());
+  const [isLiveUpdatesActive, setIsLiveUpdatesActive] = useState(false);
+  
   // Removed dynamic loading states (no longer needed)
   
   // Removed all zoom/drag states
@@ -366,6 +371,58 @@ function SvgOHLCVArea({
     fetchWithFallback();
     return () => { alive = false; };
   }, [contract, timeframe, token]); // Removed displayMode - no need to refetch data
+
+  // Real-time updates effect
+  useEffect(() => {
+    if (!contract || !rawData || rawData.length === 0) return;
+
+    console.log(`📡 [CHART] Starting real-time updates for ${contract.substring(0, 8)}...`);
+    setIsLiveUpdatesActive(true);
+
+    // Start real-time updates
+    realTimeService.startLiveUpdates(contract, (updateData) => {
+      console.log(`📡 [CHART] Received real-time update:`, updateData);
+      
+      const { newSwaps, latestCandles, timestamp } = updateData;
+      
+      // Update chart data with new candles
+      if (latestCandles && latestCandles[timeframe]) {
+        const newCandle = latestCandles[timeframe];
+        
+        // Check if this candle is newer than our current data
+        const currentLastCandle = rawData[rawData.length - 1];
+        if (currentLastCandle && newCandle.timestamp > currentLastCandle.timestamp) {
+          // Add new candle to the end
+          setRawData(prevData => [...prevData, newCandle]);
+          
+          // Update price direction
+          if (currentLastCandle.close !== undefined && newCandle.close !== undefined) {
+            const direction = newCandle.close > currentLastCandle.close ? 'up' : 'down';
+            setPriceDirection(direction);
+            setLastPrice(newCandle.close);
+          }
+          
+          console.log(`📡 [CHART] ✅ Added new candle for ${timeframe}: ${newCandle.close}`);
+        } else if (currentLastCandle && newCandle.timestamp === currentLastCandle.timestamp) {
+          // Update existing candle
+          setRawData(prevData => {
+            const newData = [...prevData];
+            newData[newData.length - 1] = newCandle;
+            return newData;
+          });
+          
+          console.log(`📡 [CHART] ✅ Updated existing candle for ${timeframe}: ${newCandle.close}`);
+        }
+      }
+    });
+
+    // Cleanup
+    return () => {
+      console.log(`📡 [CHART] Stopping real-time updates for ${contract.substring(0, 8)}...`);
+      realTimeService.stopLiveUpdates(contract);
+      setIsLiveUpdatesActive(false);
+    };
+  }, [contract, timeframe, rawData, realTimeService]);
 
   // Separate effect for Jupiter data fetching (only when switching to market cap mode)
   useEffect(() => {
@@ -957,6 +1014,14 @@ export default function SVGChart({ token, onClose, onChartDataChange, onTimefram
     <div className="w-full space-y-4">
       {/* Enhanced Controls */}
       <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-gray-800 rounded-lg">
+        {/* Live Updates Indicator */}
+        {isLiveUpdatesActive && (
+          <div className="flex items-center space-x-2 px-3 py-1 bg-green-900/30 border border-green-500/50 rounded-full">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-xs text-green-400 font-medium">LIVE</span>
+          </div>
+        )}
+        
         {/* Timeframe Controls */}
         <div className="flex items-center space-x-2">
           <span className="text-sm text-gray-400">Timeframe:</span>
