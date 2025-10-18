@@ -558,10 +558,26 @@ class ChartBackgroundWorker {
         }
         
         try {
+            // Add a small delay to prevent race conditions
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
             await this.realTimeService.startMonitoringPool(poolAddress, tokenAddress);
             console.log(`🔌 [WORKER] Started real-time monitoring for ${poolAddress.substring(0, 8)}`);
         } catch (error) {
             console.error(`❌ [WORKER] Failed to start real-time monitoring:`, error.message);
+            
+            // If it's a connection issue, try again after a delay
+            if (error.message.includes('WebSocket') || error.message.includes('connection')) {
+                console.log(`🔄 [WORKER] Retrying real-time monitoring in 2 seconds...`);
+                setTimeout(async () => {
+                    try {
+                        await this.realTimeService.startMonitoringPool(poolAddress, tokenAddress);
+                        console.log(`🔌 [WORKER] ✅ Retry successful for ${poolAddress.substring(0, 8)}`);
+                    } catch (retryError) {
+                        console.error(`❌ [WORKER] Retry failed:`, retryError.message);
+                    }
+                }, 2000);
+            }
         }
     }
 

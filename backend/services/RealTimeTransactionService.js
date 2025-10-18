@@ -50,9 +50,21 @@ class RealTimeTransactionService {
             return poolData.subscriptionId;
         }
         
-        // Ensure WebSocket connection
-        if (!this.isConnected) {
+        // Ensure WebSocket connection is fully established
+        if (!this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            console.log(`🔌 [WS] Establishing WebSocket connection...`);
             await this.connect();
+            
+            // Wait for connection to be fully established
+            let attempts = 0;
+            while ((!this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) && attempts < 10) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+            
+            if (!this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                throw new Error('Failed to establish WebSocket connection');
+            }
         }
         
         // Subscribe to account changes
@@ -170,15 +182,15 @@ class RealTimeTransactionService {
      * Subscribe to account changes for a pool
      */
     async subscribeToPool(poolAddress) {
-        if (!this.isConnected) {
+        if (!this.isConnected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
             throw new Error('WebSocket not connected');
         }
         
-        const subscriptionId = ++this.subscriptionCounter;
+        const requestId = ++this.subscriptionCounter;
         
         const subscribeMessage = {
             "jsonrpc": "2.0",
-            "id": subscriptionId,
+            "id": requestId,
             "method": "accountSubscribe",
             "params": [
                 poolAddress,
@@ -189,10 +201,25 @@ class RealTimeTransactionService {
             ]
         };
         
-        console.log(`🔌 [WS] Subscribing to ${poolAddress.substring(0, 8)} with ID ${subscriptionId}`);
+        console.log(`🔌 [WS] Subscribing to ${poolAddress.substring(0, 8)} with request ID ${requestId}`);
+        
+        // Store the pending subscription
+        this.pendingSubscriptions = this.pendingSubscriptions || new Map();
+        this.pendingSubscriptions.set(requestId, poolAddress);
+        
         this.ws.send(JSON.stringify(subscribeMessage));
         
-        return subscriptionId;
+        // Wait for subscription confirmation
+        return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                this.pendingSubscriptions.delete(requestId);
+                reject(new Error('Subscription timeout'));
+            }, 5000);
+            
+            // Store the resolve function to be called when we get the confirmation
+            this.subscriptionResolvers = this.subscriptionResolvers || new Map();
+            this.subscriptionResolvers.set(requestId, { resolve, reject, timeout });
+        });
     }
 
     /**
@@ -222,8 +249,30 @@ class RealTimeTransactionService {
             const message = JSON.parse(data.toString());
             
             // Handle subscription confirmation
-            if (message.result && typeof message.result === 'number') {
-                console.log(`🔌 [WS] ✅ Subscription confirmed: ${message.result}`);
+            if (message.result && typeof message.result === 'number' && message.id) {
+                const requestId = message.id;
+                const subscriptionId = message.result;
+                
+                console.log(`🔌 [WS] ✅ Subscription confirmed: ${subscriptionId} for request ${requestId}`);
+                
+                // Resolve the pending subscription
+                if (this.subscriptionResolvers && this.subscriptionResolvers.has(requestId)) {
+                    const { resolve, timeout } = this.subscriptionResolvers.get(requestId);
+                    clearTimeout(timeout);
+                    this.subscriptionResolvers.delete(requestId);
+                    resolve(subscriptionId);
+                }
+                
+                // Update the monitored pool with the actual subscription ID
+                if (this.pendingSubscriptions && this.pendingSubscriptions.has(requestId)) {
+                    const poolAddress = this.pendingSubscriptions.get(requestId);
+                    this.pendingSubscriptions.delete(requestId);
+                    
+                    if (this.monitoredPools.has(poolAddress)) {
+                        this.monitoredPools.get(poolAddress).subscriptionId = subscriptionId;
+                    }
+                }
+                
                 return;
             }
             
