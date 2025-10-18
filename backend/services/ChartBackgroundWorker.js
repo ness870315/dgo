@@ -200,7 +200,7 @@ class ChartBackgroundWorker {
                 fromTs,
                 toTs,
                 timeframe: '1MIN', // Get finest granularity
-                source: 'RAYDIUM'
+                targetTokenMint: null // Will auto-detect token from transfers
             });
 
             if (result.candles.length === 0) {
@@ -398,7 +398,7 @@ class ChartBackgroundWorker {
                 fromTs,
                 toTs,
                 timeframe: '1MIN',
-                source: 'RAYDIUM'
+                targetTokenMint: null // Will auto-detect token from transfers
             });
 
             if (result.candles.length === 0) {

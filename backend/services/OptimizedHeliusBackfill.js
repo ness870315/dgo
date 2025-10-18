@@ -47,8 +47,8 @@ export default class OptimizedHeliusBackfill {
     async getTransactionDetails(signatures) {
         if (signatures.length === 0) return [];
         
-        // Add rate limiting delay
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // Add rate limiting delay - longer delay for fewer calls
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         const response = await fetch(this.transactionsUrl, {
             method: 'POST',
@@ -59,8 +59,8 @@ export default class OptimizedHeliusBackfill {
         const data = await response.json();
         if (data.error) {
             if (data.error.message.includes('rate limited')) {
-                console.log(`⏳ [OPTIMIZED-BACKFILL] Rate limited, waiting 2 seconds...`);
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                console.log(`⏳ [OPTIMIZED-BACKFILL] Rate limited, waiting 5 seconds...`);
+                await new Promise(resolve => setTimeout(resolve, 5000));
                 // Retry once
                 const retryResponse = await fetch(this.transactionsUrl, {
                     method: 'POST',
@@ -80,7 +80,7 @@ export default class OptimizedHeliusBackfill {
     /**
      * Extract swap data from a transaction
      */
-    extractSwapData(tx) {
+    extractSwapData(tx, targetTokenMint = null, poolAddress = null) {
         if (tx.type !== 'SWAP' || !tx.tokenTransfers) return null;
         
         // Find SOL and USDC transfers
@@ -90,9 +90,18 @@ export default class OptimizedHeliusBackfill {
         const usdcTransfer = tx.tokenTransfers.find(t => 
             t.mint === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
         );
-        const tokenTransfer = tx.tokenTransfers.find(t => 
-            t.mint === '2PrJoPoRzsm8DNuH6XPcTCtvt8XFzHBxqjwG5UC1pump'
-        );
+        
+        // Find the target token transfer (if specified) or any non-SOL/USDC token
+        let tokenTransfer;
+        if (targetTokenMint) {
+            tokenTransfer = tx.tokenTransfers.find(t => t.mint === targetTokenMint);
+        } else {
+            // Find any token that's not SOL or USDC
+            tokenTransfer = tx.tokenTransfers.find(t => 
+                t.mint !== 'So11111111111111111111111111111111111111112' &&
+                t.mint !== 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
+            );
+        }
         
         if (!solTransfer || !tokenTransfer) return null;
         
@@ -108,7 +117,7 @@ export default class OptimizedHeliusBackfill {
             solAmount: solTransfer.tokenAmount,
             tokenAmount: tokenTransfer.tokenAmount,
             usdcAmount: usdcTransfer?.tokenAmount || 0,
-            poolAddress: tx.tokenTransfers[0]?.fromUserAccount || tx.tokenTransfers[0]?.toUserAccount,
+            poolAddress: poolAddress || tx.tokenTransfers[0]?.fromUserAccount || tx.tokenTransfers[0]?.toUserAccount,
             maker: tx.tokenTransfers[0]?.fromUserAccount,
             source: 'helius',
             rawData: JSON.stringify(tx)
@@ -119,7 +128,7 @@ export default class OptimizedHeliusBackfill {
      * Main backfill method using the optimized approach
      */
     async backfillHeliusOHLCV(options) {
-        const { poolAddress, fromTs, toTs, timeframe = '1MIN' } = options;
+        const { poolAddress, fromTs, toTs, timeframe = '1MIN', targetTokenMint = null } = options;
         
         console.log(`🔄 [OPTIMIZED-BACKFILL] Starting optimized backfill for ${poolAddress.substring(0, 8)}`);
         console.log(`   Timeframe: ${timeframe}`);
@@ -140,7 +149,7 @@ export default class OptimizedHeliusBackfill {
                 console.log(`📦 [OPTIMIZED-BACKFILL] Fetching page ${pageCount}...`);
                 
                 const signatures = await this.getSignaturesForAddress(poolAddress, {
-                    limit: 1000,
+                    limit: 1000, // Keep at 1000 (Helius max)
                     before,
                     commitment: 'finalized'
                 });
@@ -156,8 +165,8 @@ export default class OptimizedHeliusBackfill {
                     break;
                 }
                 
-                // Step 2: Get transaction details in batches of 25 (very conservative)
-                const batchSize = 25;
+                // Step 2: Get transaction details in batches of 100 (more efficient)
+                const batchSize = 100;
                 for (let i = 0; i < signatures.length; i += batchSize) {
                     const batch = signatures.slice(i, i + batchSize);
                     const batchSignatures = batch.map(s => s.signature);
@@ -169,7 +178,7 @@ export default class OptimizedHeliusBackfill {
                     // Step 3: Extract swap data
                     for (const tx of transactions) {
                         if (tx.timestamp && tx.timestamp >= fromTs && tx.timestamp <= toTs) {
-                            const swapData = this.extractSwapData(tx);
+                            const swapData = this.extractSwapData(tx, targetTokenMint, poolAddress);
                             if (swapData) {
                                 swaps.push(swapData);
                                 totalSwaps++;
@@ -181,10 +190,10 @@ export default class OptimizedHeliusBackfill {
                 // Set up for next page
                 before = signatures[signatures.length - 1].signature;
                 
-                // Rate limiting - more conservative
-                if (pageCount % 5 === 0) {
-                    console.log(`⏳ [OPTIMIZED-BACKFILL] Rate limiting, waiting 2 seconds...`);
-                    await new Promise(resolve => setTimeout(resolve, 2000));
+                // Rate limiting - longer delays between pages
+                if (pageCount % 3 === 0) {
+                    console.log(`⏳ [OPTIMIZED-BACKFILL] Rate limiting, waiting 5 seconds...`);
+                    await new Promise(resolve => setTimeout(resolve, 5000));
                 }
             }
             

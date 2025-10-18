@@ -21,8 +21,18 @@ class ChartDatabase {
             pools: new Map(),
             backfillProgress: new Map()
         };
+        this.isLoaded = false;
         this.ensureDataDir();
         this.loadData();
+    }
+
+    /**
+     * Ensure data is loaded before operations
+     */
+    async ensureLoaded() {
+        if (!this.isLoaded) {
+            await this.loadData();
+        }
     }
 
     async ensureDataDir() {
@@ -44,12 +54,14 @@ class ChartDatabase {
             this.data.pools = new Map(parsed.pools || []);
             this.data.backfillProgress = new Map(parsed.backfillProgress || []);
             
+            this.isLoaded = true;
             console.log('✅ Chart database loaded from file');
         } catch (error) {
             if (error.code !== 'ENOENT') {
                 console.error('❌ Failed to load database:', error.message);
             }
             console.log('📊 Starting with empty database');
+            this.isLoaded = true; // Mark as loaded even if empty
         }
     }
 
@@ -74,6 +86,7 @@ class ChartDatabase {
      * Store raw swap transactions
      */
     async storeSwaps(swaps) {
+        await this.ensureLoaded();
         if (!swaps || swaps.length === 0) return;
 
         for (const swap of swaps) {
@@ -109,6 +122,7 @@ class ChartDatabase {
      * Returns pre-computed OHLCV data instantly
      */
     async getCandles(poolAddress, timeframe, limit = null) {
+        await this.ensureLoaded();
         const candles = [];
         
         for (const [key, candle] of this.data.candles.entries()) {
@@ -139,6 +153,7 @@ class ChartDatabase {
      * Returns individual swap transactions with buy/sell detection
      */
     async getRecentSwaps(poolAddress, limit = 50, sinceTimestamp = null) {
+        await this.ensureLoaded();
         const swaps = [];
         
         for (const [key, swap] of this.data.swaps.entries()) {
@@ -212,6 +227,7 @@ class ChartDatabase {
                     baseToken: baseToken,
                     maker: swap.signature.substring(0, 6) + '...', // Shortened signature as maker
                     source: swap.source,
+                    poolAddress: swap.poolAddress, // Add poolAddress to returned data
                     createdAt: swap.createdAt
                 });
             }
@@ -356,6 +372,7 @@ class ChartDatabase {
      * Get database statistics
      */
     async getStats() {
+        await this.ensureLoaded();
         const totalTokens = this.data.pools.size;
         const totalSwaps = this.data.swaps.size; // Each entry is a single swap
         const totalCandles = this.data.candles.size; // Each entry is a single candle
