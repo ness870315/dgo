@@ -295,6 +295,7 @@ function SvgOHLCVArea({
   // Real-time updates
   const [realTimeService] = useState(() => new RealTimeChartService());
   const [isLiveUpdatesActive, setIsLiveUpdatesActive] = useState(false);
+  const isMonitoringRef = useRef(false);
   
   // Removed dynamic loading states (no longer needed)
   
@@ -377,8 +378,15 @@ function SvgOHLCVArea({
   useEffect(() => {
     if (!contract || !rawData || rawData.length === 0) return;
 
+    // Prevent duplicate monitoring
+    if (isMonitoringRef.current) {
+      console.log(`📡 [CHART] Already monitoring ${contract.substring(0, 8)}, skipping duplicate start`);
+      return;
+    }
+
     console.log(`📡 [CHART] Starting real-time updates for ${contract.substring(0, 8)}...`);
     setIsLiveUpdatesActive(true);
+    isMonitoringRef.current = true;
 
     // Start real-time updates
     realTimeService.startLiveUpdates(contract, (updateData) => {
@@ -451,6 +459,7 @@ function SvgOHLCVArea({
       console.log(`📡 [CHART] Stopping real-time updates for ${contract.substring(0, 8)}...`);
       realTimeService.stopLiveUpdates(contract);
       setIsLiveUpdatesActive(false);
+      isMonitoringRef.current = false;
     };
   }, [contract, timeframe, realTimeService, onPriceUpdate]); // Removed rawData from dependencies to prevent unnecessary cleanup
 
