@@ -408,6 +408,22 @@ function SvgOHLCVArea({
       
       const { newSwaps, latestCandles, timestamp } = updateData;
       
+      // 🚀 PRIORITY: Use latest swap price for real-time updates (more accurate than candle close)
+      let latestPrice = null;
+      let latestDirection = 'neutral';
+      
+      if (newSwaps && newSwaps.length > 0) {
+        // Get the most recent swap (highest timestamp)
+        const latestSwap = newSwaps.reduce((latest, swap) => {
+          return swap.timestamp > latest.timestamp ? swap : latest;
+        });
+        
+        latestPrice = latestSwap.price;
+        latestDirection = latestSwap.type === 'buy' ? 'up' : 'down';
+        
+        console.log(`📡 [CHART] 🚀 Using latest swap price: ${latestPrice} (${latestSwap.type})`);
+      }
+      
       // Update chart data with new candles
       if (latestCandles && latestCandles[timeframe]) {
         const newCandle = latestCandles[timeframe];
@@ -418,25 +434,27 @@ function SvgOHLCVArea({
           // Add new candle to the end
           setRawData(prevData => [...prevData, newCandle]);
           
-          // Update price direction
-          if (currentLastCandle.close !== undefined && newCandle.close !== undefined) {
-            const direction = newCandle.close > currentLastCandle.close ? 'up' : 'down';
+          // Use swap price if available, otherwise use candle close
+          const priceToUse = latestPrice || newCandle.close;
+          const direction = latestPrice ? latestDirection : (newCandle.close > currentLastCandle.close ? 'up' : 'down');
+          
+          if (currentLastCandle.close !== undefined && priceToUse !== undefined) {
             setPriceDirection(direction);
-            setLastPrice(newCandle.close);
+            setLastPrice(priceToUse);
             
             // 🚀 CRITICAL: Update the main token price for UI consistency
             if (onPriceUpdateRef.current && typeof onPriceUpdateRef.current === 'function') {
-              console.log(`📡 [CHART] 🚀 Updating main token price: ${newCandle.close}`);
+              console.log(`📡 [CHART] 🚀 Updating main token price: ${priceToUse} (source: ${latestPrice ? 'swap' : 'candle'})`);
               onPriceUpdateRef.current({
                 contract: contract,
-                price: newCandle.close,
+                price: priceToUse,
                 direction: direction,
-                timestamp: newCandle.timestamp
+                timestamp: latestPrice ? Date.now() : newCandle.timestamp
               });
             }
           }
           
-          console.log(`📡 [CHART] ✅ Added new candle for ${timeframe}: ${newCandle.close}`);
+          console.log(`📡 [CHART] ✅ Added new candle for ${timeframe}: ${priceToUse}`);
         } else if (currentLastCandle && newCandle.timestamp === currentLastCandle.timestamp) {
           // Update existing candle
           setRawData(prevData => {
@@ -445,27 +463,46 @@ function SvgOHLCVArea({
             return newData;
           });
           
-          // Update price direction for existing candle update
-          if (currentLastCandle.close !== undefined && newCandle.close !== undefined) {
-            const direction = newCandle.close > currentLastCandle.close ? 'up' : 'down';
+          // Use swap price if available, otherwise use candle close
+          const priceToUse = latestPrice || newCandle.close;
+          const direction = latestPrice ? latestDirection : (newCandle.close > currentLastCandle.close ? 'up' : 'down');
+          
+          if (currentLastCandle.close !== undefined && priceToUse !== undefined) {
             setPriceDirection(direction);
-            setLastPrice(newCandle.close);
+            setLastPrice(priceToUse);
             
             // 🚀 CRITICAL: Update the main token price for UI consistency
             if (onPriceUpdateRef.current && typeof onPriceUpdateRef.current === 'function') {
-              console.log(`📡 [CHART] 🚀 Updating main token price (existing candle): ${newCandle.close}`);
+              console.log(`📡 [CHART] 🚀 Updating main token price (existing candle): ${priceToUse} (source: ${latestPrice ? 'swap' : 'candle'})`);
               onPriceUpdateRef.current({
                 contract: contract,
-                price: newCandle.close,
+                price: priceToUse,
                 direction: direction,
-                timestamp: newCandle.timestamp
+                timestamp: latestPrice ? Date.now() : newCandle.timestamp
               });
             }
           }
           
-          console.log(`📡 [CHART] ✅ Updated existing candle for ${timeframe}: ${newCandle.close}`);
+          console.log(`📡 [CHART] ✅ Updated existing candle for ${timeframe}: ${priceToUse}`);
+        }
+      } else if (latestPrice) {
+        // If no new candles but we have swap data, still update the price
+        setPriceDirection(latestDirection);
+        setLastPrice(latestPrice);
+        
+        // 🚀 CRITICAL: Update the main token price for UI consistency
+        if (onPriceUpdateRef.current && typeof onPriceUpdateRef.current === 'function') {
+          console.log(`📡 [CHART] 🚀 Updating main token price (swap only): ${latestPrice}`);
+          onPriceUpdateRef.current({
+            contract: contract,
+            price: latestPrice,
+            direction: latestDirection,
+            timestamp: Date.now()
+          });
         }
       }
+      
+      console.log(`📡 [CHART] ✅ Processed real-time update: ${latestPrice ? `swap price ${latestPrice}` : 'candle update'}`);
     });
 
     // Cleanup
