@@ -324,7 +324,7 @@ class RealTimeTransactionService {
             console.log(`🔌 [WS] 📊 Slot: ${notification.result.context?.slot}`);
             
             // Extract transaction data
-            const txData = this.extractTransactionData(notification, poolAddress);
+            const txData = await this.extractTransactionData(notification, poolAddress);
             
             if (txData) {
                 // Store immediately in background worker
@@ -339,28 +339,168 @@ class RealTimeTransactionService {
     /**
      * Extract transaction data from account notification
      */
-    extractTransactionData(notification, poolAddress) {
+    async extractTransactionData(notification, poolAddress) {
         try {
             const accountData = notification.result.value;
+            const slot = notification.result.context?.slot;
             
-            // For now, we'll create a basic transaction record
-            // In a full implementation, you'd parse the account data to extract swap details
-            const txData = {
-                signature: `realtime_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-                timestamp: Math.floor(Date.now() / 1000),
-                poolAddress: poolAddress,
-                slot: accountData.context?.slot,
-                lamports: accountData.lamports,
-                owner: accountData.owner,
-                space: accountData.space,
-                source: 'websocket_realtime',
-                rawData: JSON.stringify(accountData)
-            };
+            console.log(`🔌 [WS] 🔍 Processing account data for slot ${slot}`);
             
-            return txData;
+            // Get the actual transaction from the slot
+            const transaction = await this.getTransactionFromSlot(slot, poolAddress);
+            
+            if (!transaction) {
+                console.log(`🔌 [WS] ⚠️ No transaction found for slot ${slot}`);
+                return null;
+            }
+            
+            // Extract swap data from the transaction
+            const swapData = await this.extractSwapFromTransaction(transaction, poolAddress);
+            
+            if (swapData) {
+                console.log(`🔌 [WS] ✅ Extracted swap: ${swapData.type} ${swapData.tokenAmount} tokens at $${swapData.price.toFixed(8)}`);
+                return swapData;
+            }
+            
+            return null;
             
         } catch (error) {
             console.error('🔌 [WS] ❌ Failed to extract transaction data:', error.message);
+            return null;
+        }
+    }
+    
+    /**
+     * Get transaction from slot using Helius API
+     */
+    async getTransactionFromSlot(slot, poolAddress) {
+        try {
+            const response = await fetch(`https://mainnet.helius-rpc.com/?api-key=${this.heliusApiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    jsonrpc: '2.0',
+                    id: 1,
+                    method: 'getSignaturesForAddress',
+                    params: [
+                        poolAddress,
+                        {
+                            limit: 10,
+                            commitment: 'confirmed'
+                        }
+                    ]
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.result && data.result.length > 0) {
+                // Get the most recent transaction
+                const signature = data.result[0].signature;
+                
+                // Get full transaction details
+                const txResponse = await fetch(`https://mainnet.helius-rpc.com/?api-key=${this.heliusApiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        id: 1,
+                        method: 'getTransaction',
+                        params: [
+                            signature,
+                            {
+                                encoding: 'jsonParsed',
+                                commitment: 'confirmed'
+                            }
+                        ]
+                    })
+                });
+                
+                const txData = await txResponse.json();
+                return txData.result;
+            }
+            
+            return null;
+            
+        } catch (error) {
+            console.error('🔌 [WS] ❌ Failed to get transaction from slot:', error.message);
+            return null;
+        }
+    }
+    
+    /**
+     * Extract swap data from transaction
+     */
+    async extractSwapFromTransaction(transaction, poolAddress) {
+        try {
+            if (!transaction || !transaction.meta || !transaction.transaction) {
+                return null;
+            }
+            
+            const meta = transaction.meta;
+            const message = transaction.transaction.message;
+            
+            // Check if this is a swap transaction
+            if (!meta.preTokenBalances || !meta.postTokenBalances) {
+                return null;
+            }
+            
+            // Find token transfers
+            const preBalances = meta.preTokenBalances;
+            const postBalances = meta.postTokenBalances;
+            
+            // Look for SOL and token balance changes
+            let solChange = 0;
+            let tokenChange = 0;
+            let tokenMint = null;
+            
+            // Check SOL balance changes
+            const preSolBalance = meta.preBalances[0] || 0;
+            const postSolBalance = meta.postBalances[0] || 0;
+            solChange = postSolBalance - preSolBalance;
+            
+            // Check token balance changes
+            for (let i = 0; i < preBalances.length; i++) {
+                const preBalance = preBalances[i];
+                const postBalance = postBalances[i];
+                
+                if (preBalance && postBalance && preBalance.mint === postBalance.mint) {
+                    const change = postBalance.uiTokenAmount.uiAmount - preBalance.uiTokenAmount.uiAmount;
+                    if (Math.abs(change) > 0) {
+                        tokenChange = change;
+                        tokenMint = preBalance.mint;
+                        break;
+                    }
+                }
+            }
+            
+            if (solChange === 0 || tokenChange === 0) {
+                return null;
+            }
+            
+            // Determine swap type and calculate price
+            const isBuy = solChange < 0; // SOL going out = buy
+            const solAmount = Math.abs(solChange) / 1e9; // Convert lamports to SOL
+            const tokenAmount = Math.abs(tokenChange);
+            const price = solAmount / tokenAmount;
+            
+            return {
+                signature: transaction.transaction.signatures[0],
+                timestamp: Math.floor(Date.now() / 1000),
+                type: isBuy ? 'buy' : 'sell',
+                price: price,
+                volume: solAmount * 200, // Approximate USD volume
+                solAmount: solAmount,
+                tokenAmount: tokenAmount,
+                tokenMint: tokenMint,
+                poolAddress: poolAddress,
+                maker: message.accountKeys[0], // First account is usually the maker
+                source: 'helius_realtime',
+                rawData: JSON.stringify(transaction)
+            };
+            
+        } catch (error) {
+            console.error('🔌 [WS] ❌ Failed to extract swap from transaction:', error.message);
             return null;
         }
     }
