@@ -140,33 +140,10 @@ class FastChartService {
             
             if (poolAddress) {
                 try {
-                    // Import ProfessionalChartService dynamically to avoid circular dependencies
-                    const { default: ProfessionalChartService } = await import('./ProfessionalChartService.js');
-                    const heliusApiKey = process.env.HELIUS_API_KEY;
-                    
-                    if (heliusApiKey) {
-                        const professionalService = new ProfessionalChartService(heliusApiKey);
-                        const heliusData = await professionalService.getChartData(tokenAddress, timeframe, limit);
-                        
-                        if (heliusData && heliusData.ohlcv && heliusData.ohlcv.length > 0) {
-                            console.log(`${logPrefix} ✅ Helius successful: ${heliusData.ohlcv.length} candles`);
-                            
-                            // Store the data in database for future use
-                            await this.chartDb.storePoolAddress(tokenAddress, poolAddress);
-                            
-                            return {
-                                ohlcv: heliusData.ohlcv,
-                                priceData: heliusData.priceData || [],
-                                buySellData: heliusData.buySellData || [],
-                                source: 'helius',
-                                cached: false,
-                                dataSource: 'helius',
-                                responseTime: Date.now()
-                            };
-                        }
-                    }
-                } catch (heliusError) {
-                    console.log(`${logPrefix} ⚠️ Helius failed: ${heliusError.message}`);
+                    // Skip ProfessionalChartService - use direct Helius API instead
+                    console.log(`${logPrefix} ⚠️ Skipping ProfessionalChartService (too slow), trying Moralis directly...`);
+                } catch (error) {
+                    console.log(`${logPrefix} ⚠️ Error: ${error.message}`);
                 }
             }
             
