@@ -17,12 +17,12 @@ class HeliusChartService {
 
     async loadEnhancedBackfill(apiKey) {
         try {
-            const { default: CorrectedHeliusBackfill } = await import('./CorrectedHeliusBackfill.js');
-            this.enhancedBackfill = new CorrectedHeliusBackfill(apiKey);
-            console.log(`   Enhanced Backfill: ✅ Available`);
+            const { default: OptimizedHeliusBackfill } = await import('./OptimizedHeliusBackfill.js');
+            this.enhancedBackfill = new OptimizedHeliusBackfill(apiKey);
+            console.log(`   Optimized Backfill: ✅ Available`);
         } catch (error) {
             this.enhancedBackfill = null;
-            console.log(`   Enhanced Backfill: ⚠️ Not Available (${error.message})`);
+            console.log(`   Optimized Backfill: ⚠️ Not Available (${error.message})`);
         }
     }
 

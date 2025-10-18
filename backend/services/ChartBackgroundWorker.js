@@ -1,4 +1,4 @@
-import CorrectedHeliusBackfill from './CorrectedHeliusBackfill.js';
+import OptimizedHeliusBackfill from './OptimizedHeliusBackfill.js';
 import ChartDatabase from './ChartDatabase.js';
 import HybridPriceService from '../hybridPriceService.js';
 
@@ -9,7 +9,7 @@ import HybridPriceService from '../hybridPriceService.js';
  */
 class ChartBackgroundWorker {
     constructor(heliusApiKey) {
-        this.heliusBackfill = new CorrectedHeliusBackfill(heliusApiKey);
+        this.heliusBackfill = new OptimizedHeliusBackfill(heliusApiKey);
         this.chartDb = new ChartDatabase();
         this.hybridService = new HybridPriceService();
         this.isRunning = false;
