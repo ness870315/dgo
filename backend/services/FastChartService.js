@@ -129,7 +129,13 @@ class FastChartService {
      * Fallback chain: Helius → Moralis → DexScreener
      */
     async getMoralisFallback(tokenAddress, timeframe, limit) {
-        const logPrefix = `[FALLBACK-CHAIN] ${tokenAddress.substring(0, 8)}`;
+        // Validate and correct token address
+        const correctedAddress = this.validateAndCorrectAddress(tokenAddress);
+        if (!correctedAddress) {
+            throw new Error(`Invalid token address: ${tokenAddress} (too short or invalid format)`);
+        }
+        
+        const logPrefix = `[FALLBACK-CHAIN] ${correctedAddress.substring(0, 8)}`;
         console.log(`${logPrefix} 🔄 Fallback chain: Helius → Moralis → DexScreener`);
 
         try {
@@ -137,9 +143,9 @@ class FastChartService {
             console.log(`${logPrefix} 🚀 Trying Helius first...`);
             
             // Get pool address for Helius
-            let poolAddress = await this.chartDb.getPoolAddress(tokenAddress);
+            let poolAddress = await this.chartDb.getPoolAddress(correctedAddress);
             if (!poolAddress) {
-                poolAddress = await this.discoverPoolAddress(tokenAddress);
+                poolAddress = await this.discoverPoolAddress(correctedAddress);
                 if (!poolAddress) {
                     console.log(`${logPrefix} ⚠️ No pool address found, skipping Helius`);
                 }
@@ -156,7 +162,7 @@ class FastChartService {
             
             // Fallback to Moralis if Helius fails
             console.log(`${logPrefix} 🔄 Helius failed, trying Moralis...`);
-            const fallbackData = await this.hybridService.getHistoricalPrices(tokenAddress, timeframe, limit);
+            const fallbackData = await this.hybridService.getHistoricalPrices(correctedAddress, timeframe, limit);
             
             if (fallbackData && fallbackData.length > 0) {
                 console.log(`${logPrefix} ✅ Moralis successful: ${fallbackData.length} candles`);
@@ -370,7 +376,8 @@ class FastChartService {
             const addressMap = {
                 '2PrJoPoR': '2PrJoPoRzsm8DNuH6XPcTCtvt8XFzHBxqjwG5UC1pump',
                 '8SkoEzQX': '8SkoEzQXUEiCYoppf8eq5ygAEMHETdGsr55eVNent5Tj',
-                'GC1uTsxr': 'GC1uTsxrrLAuWby3uWSEMjUXhJMJhhv1SXJ9A1jHvyxp'
+                'GC1uTsxr': 'GC1uTsxrrLAuWby3uWSEMjUXhJMJhhv1SXJ9A1jHvyxp',
+                'C2omVhcv': 'C2omVhcvt3DDY77S2KZzawFJQeETZofgZ4eNWWkXpump'
             };
 
             const correctedAddress = addressMap[address];

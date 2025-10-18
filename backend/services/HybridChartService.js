@@ -230,7 +230,8 @@ class HybridChartService {
             const addressMap = {
                 '2PrJoPoR': '2PrJoPoRzsm8DNuH6XPcTCtvt8XFzHBxqjwG5UC1pump',
                 '8SkoEzQX': '8SkoEzQXUEiCYoppf8eq5ygAEMHETdGsr55eVNent5Tj',
-                'GC1uTsxr': 'GC1uTsxrrLAuWby3uWSEMjUXhJMJhhv1SXJ9A1jHvyxp'
+                'GC1uTsxr': 'GC1uTsxrrLAuWby3uWSEMjUXhJMJhhv1SXJ9A1jHvyxp',
+                'C2omVhcv': 'C2omVhcvt3DDY77S2KZzawFJQeETZofgZ4eNWWkXpump'
             };
 
             const correctedAddress = addressMap[address];
