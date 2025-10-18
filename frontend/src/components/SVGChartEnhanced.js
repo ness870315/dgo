@@ -477,7 +477,7 @@ function SvgOHLCVArea({
       isMonitoringRef.current = false;
       console.log(`📡 [CHART] CLEANUP: ✅ Cleanup completed for ${contract.substring(0, 8)}`);
     };
-  }, [contract, timeframe]); // Removed realTimeService from dependencies since it's now a ref
+  }, [contract, timeframe, rawData]); // Added rawData to dependencies so effect runs when data is loaded
 
   // Separate effect for Jupiter data fetching (only when switching to market cap mode)
   useEffect(() => {
