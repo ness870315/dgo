@@ -24,6 +24,7 @@ class RealTimeChartService {
      */
     startLiveUpdates(tokenAddress, callback) {
         console.log(`📡 [FRONTEND] Starting live updates for ${tokenAddress.substring(0, 8)}...`);
+        console.log(`📡 [FRONTEND] Current polling tokens:`, Array.from(this.pollingTokens).map(t => t.substring(0, 8)));
         
         // Prevent duplicate monitoring for the same token
         if (this.pollingTokens.has(tokenAddress)) {
@@ -47,9 +48,15 @@ class RealTimeChartService {
      */
     stopLiveUpdates(tokenAddress) {
         console.log(`📡 [FRONTEND] Stopping live updates for ${tokenAddress.substring(0, 8)}...`);
+        console.log(`📡 [FRONTEND] Current polling tokens before stop:`, Array.from(this.pollingTokens).map(t => t.substring(0, 8)));
         
-        // Only notify backend if this token was actually being monitored
+        // Check if this token was being monitored BEFORE removing it
         const wasMonitoring = this.pollingTokens.has(tokenAddress);
+        
+        // Remove from tracking first
+        this.pollingTokens.delete(tokenAddress);
+        this.updateCallbacks.delete(tokenAddress);
+        this.lastUpdateTimestamps.delete(tokenAddress);
         
         if (wasMonitoring) {
             // Notify backend to stop WebSocket monitoring
@@ -59,10 +66,6 @@ class RealTimeChartService {
         } else {
             console.log(`📡 [FRONTEND] Token ${tokenAddress.substring(0, 8)} was not being monitored, skipping backend notification`);
         }
-        
-        this.pollingTokens.delete(tokenAddress);
-        this.updateCallbacks.delete(tokenAddress);
-        this.lastUpdateTimestamps.delete(tokenAddress);
         
         if (this.pollingTokens.size === 0) {
             this.stopPolling();
