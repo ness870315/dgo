@@ -293,7 +293,7 @@ function SvgOHLCVArea({
   const [lastPrice, setLastPrice] = useState(null);
   
   // Real-time updates
-  const [realTimeService] = useState(() => new RealTimeChartService());
+  const realTimeServiceRef = useRef(new RealTimeChartService());
   const [isLiveUpdatesActive, setIsLiveUpdatesActive] = useState(false);
   const isMonitoringRef = useRef(false);
   const onPriceUpdateRef = useRef(onPriceUpdate);
@@ -395,7 +395,7 @@ function SvgOHLCVArea({
     isMonitoringRef.current = true;
 
     // Start real-time updates
-    realTimeService.startLiveUpdates(contract, (updateData) => {
+    realTimeServiceRef.current.startLiveUpdates(contract, (updateData) => {
       console.log(`📡 [CHART] Received real-time update:`, updateData);
       
       const { newSwaps, latestCandles, timestamp } = updateData;
@@ -464,12 +464,12 @@ function SvgOHLCVArea({
     return () => {
       console.log(`📡 [CHART] CLEANUP: Stopping real-time updates for ${contract.substring(0, 8)}...`);
       console.log(`📡 [CHART] CLEANUP: isMonitoringRef.current = ${isMonitoringRef.current}`);
-      realTimeService.stopLiveUpdates(contract);
+      realTimeServiceRef.current.stopLiveUpdates(contract);
       setIsLiveUpdatesActive(false);
       isMonitoringRef.current = false;
       console.log(`📡 [CHART] CLEANUP: ✅ Cleanup completed for ${contract.substring(0, 8)}`);
     };
-  }, [contract, timeframe, realTimeService]); // Removed onPriceUpdate from dependencies to prevent unnecessary cleanup
+  }, [contract, timeframe]); // Removed realTimeService from dependencies since it's now a ref
 
   // Separate effect for Jupiter data fetching (only when switching to market cap mode)
   useEffect(() => {
@@ -1052,6 +1052,17 @@ export default function SVGChart({ token, onClose, onChartDataChange, onTimefram
       console.log(`📊 [SVGChart] Component UNMOUNTING for ${contract?.substring(0, 8)}...`);
     };
   }, [contract]);
+
+  // CRITICAL: Separate cleanup effect that runs on component unmount
+  useEffect(() => {
+    return () => {
+      console.log(`📡 [SVGChart] FORCE CLEANUP: Component unmounting, stopping all real-time updates for ${contract?.substring(0, 8)}...`);
+      if (contract && realTimeServiceRef.current) {
+        realTimeServiceRef.current.stopLiveUpdates(contract);
+        console.log(`📡 [SVGChart] FORCE CLEANUP: ✅ Stopped real-time updates for ${contract.substring(0, 8)}`);
+      }
+    };
+  }, []); // Empty dependency array - runs only on mount/unmount
 
   // Notify parent when timeframe changes
   useEffect(() => {
