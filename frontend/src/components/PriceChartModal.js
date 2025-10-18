@@ -39,7 +39,8 @@ const PriceChartModal = ({ token, onClose }) => {
 
   useEffect(() => {
     if (token?.contractAddress) {
-      loadCurrentPrice();
+      // Load initial price from Jupiter API (more reliable than our cached data)
+      loadCurrentPriceFromJupiter();
       loadTokenAnalytics();
     }
   }, [token?.contractAddress]);
@@ -49,6 +50,27 @@ const PriceChartModal = ({ token, onClose }) => {
       updateVolumeForTimeframe();
     }
   }, [timeframe, tokenAnalytics]);
+
+  const loadCurrentPriceFromJupiter = async () => {
+    try {
+      console.log(`📡 [PRICE-MODAL] Loading initial price from Jupiter API...`);
+      const response = await fetch(`https://api.degen-oracle.com/api/jupiter/raw/${token.contractAddress}`);
+      const data = await response.json();
+      
+      if (data.success && data.data?.[0]?.usdPrice) {
+        const jupiterPrice = data.data[0].usdPrice;
+        setCurrentPrice(jupiterPrice);
+        previousPriceRef.current = jupiterPrice; // Initialize the ref with Jupiter price
+        console.log(`📡 [PRICE-MODAL] ✅ Initial price loaded from Jupiter: ${jupiterPrice}`);
+      } else {
+        console.log(`📡 [PRICE-MODAL] ⚠️ Failed to get Jupiter price, falling back to chart service`);
+        loadCurrentPrice(); // Fallback to original method
+      }
+    } catch (error) {
+      console.error('Failed to load current price from Jupiter:', error);
+      loadCurrentPrice(); // Fallback to original method
+    }
+  };
 
   const loadCurrentPrice = async () => {
     try {
