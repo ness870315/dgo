@@ -687,6 +687,9 @@ function SvgOHLCVArea({
                              token?.priceChange24h || 
                              token?.stats24h?.priceChange || 0;
           
+          // Get latest data point for positioning the dot
+          const latestData = processedData[processedData.length - 1];
+          
           // Determine blink speed based on change magnitude
           const getBlinkSpeed = (change) => {
             const absChange = Math.abs(change);
