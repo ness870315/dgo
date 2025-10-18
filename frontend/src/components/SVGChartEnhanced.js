@@ -296,6 +296,12 @@ function SvgOHLCVArea({
   const [realTimeService] = useState(() => new RealTimeChartService());
   const [isLiveUpdatesActive, setIsLiveUpdatesActive] = useState(false);
   const isMonitoringRef = useRef(false);
+  const onPriceUpdateRef = useRef(onPriceUpdate);
+  
+  // Update ref when prop changes
+  useEffect(() => {
+    onPriceUpdateRef.current = onPriceUpdate;
+  }, [onPriceUpdate]);
   
   // Removed dynamic loading states (no longer needed)
   
@@ -411,9 +417,9 @@ function SvgOHLCVArea({
             setLastPrice(newCandle.close);
             
             // 🚀 CRITICAL: Update the main token price for UI consistency
-            if (onPriceUpdate && typeof onPriceUpdate === 'function') {
+            if (onPriceUpdateRef.current && typeof onPriceUpdateRef.current === 'function') {
               console.log(`📡 [CHART] 🚀 Updating main token price: ${newCandle.close}`);
-              onPriceUpdate({
+              onPriceUpdateRef.current({
                 contract: contract,
                 price: newCandle.close,
                 direction: direction,
@@ -438,9 +444,9 @@ function SvgOHLCVArea({
             setLastPrice(newCandle.close);
             
             // 🚀 CRITICAL: Update the main token price for UI consistency
-            if (onPriceUpdate && typeof onPriceUpdate === 'function') {
+            if (onPriceUpdateRef.current && typeof onPriceUpdateRef.current === 'function') {
               console.log(`📡 [CHART] 🚀 Updating main token price (existing candle): ${newCandle.close}`);
-              onPriceUpdate({
+              onPriceUpdateRef.current({
                 contract: contract,
                 price: newCandle.close,
                 direction: direction,
@@ -461,7 +467,7 @@ function SvgOHLCVArea({
       setIsLiveUpdatesActive(false);
       isMonitoringRef.current = false;
     };
-  }, [contract, timeframe, realTimeService, onPriceUpdate]); // Removed rawData from dependencies to prevent unnecessary cleanup
+  }, [contract, timeframe, realTimeService]); // Removed onPriceUpdate from dependencies to prevent unnecessary cleanup
 
   // Separate effect for Jupiter data fetching (only when switching to market cap mode)
   useEffect(() => {
