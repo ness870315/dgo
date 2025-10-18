@@ -382,7 +382,15 @@ function SvgOHLCVArea({
 
   // Real-time updates effect
   useEffect(() => {
-    if (!contract || !rawData || rawData.length === 0) return;
+    console.log(`📡 [CHART] useEffect triggered for ${contract?.substring(0, 8)}`);
+    console.log(`📡 [CHART] contract:`, contract?.substring(0, 8));
+    console.log(`📡 [CHART] rawData length:`, rawData?.length);
+    console.log(`📡 [CHART] isMonitoringRef.current:`, isMonitoringRef.current);
+    
+    if (!contract || !rawData || rawData.length === 0) {
+      console.log(`📡 [CHART] Early return: contract=${!!contract}, rawData=${!!rawData}, length=${rawData?.length}`);
+      return;
+    }
 
     // Prevent duplicate monitoring
     if (isMonitoringRef.current) {
