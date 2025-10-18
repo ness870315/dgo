@@ -240,8 +240,72 @@ class ChartBackgroundWorker {
 
             console.log(`✅ Updated ${poolAddress.substring(0, 8)}: ${newSwapsCount} new swaps`);
 
+            // Update current price from latest swaps
+            await this.updateCurrentPriceFromSwaps(poolAddress);
+
         } catch (error) {
             console.error(`❌ Update failed for ${poolAddress.substring(0, 8)}:`, error.message);
+        }
+    }
+
+    /**
+     * Update current price from latest swaps
+     */
+    async updateCurrentPriceFromSwaps(poolAddress) {
+        try {
+            // Get latest swaps for this pool
+            const recentSwaps = await this.chartDb.getRecentSwaps(poolAddress, 10); // Last 10 swaps
+            
+            if (recentSwaps.length === 0) return;
+
+            // Calculate current price from latest swaps
+            const latestSwap = recentSwaps[recentSwaps.length - 1];
+            const currentPrice = latestSwap.price || latestSwap.close || 0;
+
+            if (currentPrice <= 0) return;
+
+            // Find the token mint for this pool
+            const tokenMint = this.findTokenMintByPool(poolAddress);
+            if (!tokenMint) return;
+
+            // Update the token cache with new current price
+            await this.updateTokenCurrentPrice(tokenMint, currentPrice);
+
+            console.log(`💰 Updated current price for ${tokenMint.substring(0, 8)}: $${currentPrice}`);
+
+        } catch (error) {
+            console.error(`❌ Failed to update current price for ${poolAddress.substring(0, 8)}:`, error.message);
+        }
+    }
+
+    /**
+     * Find token mint by pool address
+     */
+    findTokenMintByPool(poolAddress) {
+        for (const [tokenMint, poolData] of this.chartDb.data.pools.entries()) {
+            if (poolData.poolAddress === poolAddress) {
+                return tokenMint;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Update token current price in the main token cache
+     */
+    async updateTokenCurrentPrice(tokenMint, newPrice) {
+        try {
+            // This would need to be integrated with the main token cache
+            // For now, we'll emit an event that can be caught by the main backend
+            if (typeof process !== 'undefined' && process.emit) {
+                process.emit('tokenPriceUpdate', {
+                    tokenMint,
+                    newPrice,
+                    timestamp: Date.now()
+                });
+            }
+        } catch (error) {
+            console.error(`❌ Failed to update token cache for ${tokenMint}:`, error.message);
         }
     }
 

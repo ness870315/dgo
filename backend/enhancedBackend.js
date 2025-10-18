@@ -11187,6 +11187,65 @@ Thanks for using x402 payments on Twitter! 🚀`;
       process.env.MORALIS_API_KEY
     );
 
+    // Listen for real-time price updates from background worker
+    process.on('tokenPriceUpdate', async (data) => {
+      try {
+        const { tokenMint, newPrice, timestamp } = data;
+        console.log(`💰 Real-time price update: ${tokenMint.substring(0, 8)} = $${newPrice}`);
+        
+        // Update token cache with new price
+        await this.updateTokenPriceInCache(tokenMint, newPrice);
+        
+      } catch (error) {
+        console.error('❌ Failed to handle price update:', error.message);
+      }
+    });
+
+    // Method to update token price in cache
+    this.updateTokenPriceInCache = async (tokenMint, newPrice) => {
+      try {
+        const tokens = await this.getTokensFromCache();
+        const tokenIndex = tokens.findIndex(t => 
+          t.contractAddress?.toLowerCase() === tokenMint.toLowerCase() ||
+          t.mint?.toLowerCase() === tokenMint.toLowerCase()
+        );
+        
+        if (tokenIndex !== -1) {
+          const token = tokens[tokenIndex];
+          
+          // Update current price
+          token.currentPrice = newPrice;
+          token.price = newPrice;
+          
+          // Update Jupiter data if available
+          if (token.jupiterData) {
+            token.jupiterData.usdPrice = newPrice;
+          }
+          
+          // Calculate new price change percentage
+          const oldPrice = token.previousPrice || token.currentPrice;
+          if (oldPrice && oldPrice > 0) {
+            const priceChange = ((newPrice - oldPrice) / oldPrice) * 100;
+            
+            // Update price change in Jupiter stats
+            if (token.jupiterData?.stats24h) {
+              token.jupiterData.stats24h.priceChange = priceChange;
+            }
+            
+            // Store previous price for next calculation
+            token.previousPrice = oldPrice;
+          }
+          
+          // Save updated tokens
+          await this.saveTokensToCache(tokens);
+          
+          console.log(`✅ Updated token cache: ${token.symbol} = $${newPrice} (${tokenIndex})`);
+        }
+      } catch (error) {
+        console.error('❌ Failed to update token cache:', error.message);
+      }
+    };
+
     // Get historical price data for a token (Helius + Moralis)
     this.app.get('/api/tokens/:contract/price-chart', async (req, res) => {
       try {
