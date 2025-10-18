@@ -41,6 +41,7 @@ class RealTimeTransactionService {
      */
     async startMonitoringPool(poolAddress, tokenAddress) {
         console.log(`🔌 [WS] Starting monitoring for ${poolAddress.substring(0, 8)} (${tokenAddress.substring(0, 8)})`);
+        console.log(`🔌 [WS] Current monitored pools before start:`, Array.from(this.monitoredPools.keys()).map(p => p.substring(0, 8)));
         
         // Check if already monitoring
         if (this.monitoredPools.has(poolAddress)) {
@@ -91,6 +92,7 @@ class RealTimeTransactionService {
      */
     async stopMonitoringPool(poolAddress) {
         console.log(`🔌 [WS] Stopping monitoring for ${poolAddress.substring(0, 8)}`);
+        console.log(`🔌 [WS] Current monitored pools:`, Array.from(this.monitoredPools.keys()).map(p => p.substring(0, 8)));
         
         const poolData = this.monitoredPools.get(poolAddress);
         if (!poolData) {
