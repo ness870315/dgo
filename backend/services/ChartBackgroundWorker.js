@@ -10,16 +10,35 @@ import RealTimeTransactionService from './RealTimeTransactionService.js';
  */
 class ChartBackgroundWorker {
     constructor(heliusApiKey) {
-        this.heliusBackfill = new OptimizedHeliusBackfill(heliusApiKey);
-        this.chartDb = new ChartDatabase();
-        this.hybridService = new HybridPriceService();
-        this.realTimeService = new RealTimeTransactionService(heliusApiKey, this);
-        this.isRunning = false;
-        this.processedPools = new Set();
-        this.runningBackfills = new Set(); // Track active backfill processes
-        this.updateInterval = 30000; // 30 seconds
-        this.backfillInterval = 300000; // 5 minutes
-        this.realtimeInterval = 10000; // 10 seconds for active pools
+        try {
+            console.log('🔄 Initializing ChartBackgroundWorker...');
+            console.log(`   Helius API Key: ${heliusApiKey ? '✅ Set' : '❌ Missing'}`);
+            
+            this.heliusBackfill = new OptimizedHeliusBackfill(heliusApiKey);
+            console.log('✅ OptimizedHeliusBackfill initialized');
+            
+            this.chartDb = new ChartDatabase();
+            console.log('✅ ChartDatabase initialized');
+            
+            this.hybridService = new HybridPriceService();
+            console.log('✅ HybridPriceService initialized');
+            
+            this.realTimeService = new RealTimeTransactionService(heliusApiKey, this);
+            console.log('✅ RealTimeTransactionService initialized');
+            
+            this.isRunning = false;
+            this.processedPools = new Set();
+            this.runningBackfills = new Set(); // Track active backfill processes
+            this.updateInterval = 30000; // 30 seconds
+            this.backfillInterval = 300000; // 5 minutes
+            this.realtimeInterval = 10000; // 10 seconds for active pools
+            
+            console.log('✅ ChartBackgroundWorker initialized successfully');
+        } catch (error) {
+            console.error('❌ Failed to initialize ChartBackgroundWorker:', error.message);
+            console.error('Stack:', error.stack);
+            throw error;
+        }
     }
 
     /**

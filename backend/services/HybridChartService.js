@@ -3,20 +3,34 @@ import ChartBackgroundWorker from './ChartBackgroundWorker.js';
 
 class HybridChartService {
     constructor(heliusApiKey, moralisApiKey) {
-        this.fastChartService = new FastChartService(this); // Pass self reference
-        this.backgroundWorker = new ChartBackgroundWorker(heliusApiKey);
-        this.dataSourceStats = {
-            database: { calls: 0, success: 0, errors: 0 },
-            moralis: { calls: 0, success: 0, errors: 0 }
-        };
-        
-        console.log('⚡ HybridChartService initialized with Fast Architecture');
-        console.log('   Primary: Fast Chart Service (instant database access)');
-        console.log('   Background: Continuous data ingestion');
-        console.log('   Fallback: Moralis OHLCV (when database empty)');
-        
-        // Start background worker
-        this.startBackgroundWorker();
+        try {
+            console.log('⚡ Initializing HybridChartService...');
+            console.log(`   Helius API Key: ${heliusApiKey ? '✅ Set' : '❌ Missing'}`);
+            console.log(`   Moralis API Key: ${moralisApiKey ? '✅ Set' : '❌ Missing'}`);
+            
+            this.fastChartService = new FastChartService(this); // Pass self reference
+            console.log('✅ FastChartService initialized');
+            
+            this.backgroundWorker = new ChartBackgroundWorker(heliusApiKey);
+            console.log('✅ ChartBackgroundWorker initialized');
+            
+            this.dataSourceStats = {
+                database: { calls: 0, success: 0, errors: 0 },
+                moralis: { calls: 0, success: 0, errors: 0 }
+            };
+            
+            console.log('⚡ HybridChartService initialized with Fast Architecture');
+            console.log('   Primary: Fast Chart Service (instant database access)');
+            console.log('   Background: Continuous data ingestion');
+            console.log('   Fallback: Moralis OHLCV (when database empty)');
+            
+            // Start background worker
+            this.startBackgroundWorker();
+        } catch (error) {
+            console.error('❌ Failed to initialize HybridChartService:', error.message);
+            console.error('Stack:', error.stack);
+            throw error;
+        }
     }
 
     async startBackgroundWorker() {
