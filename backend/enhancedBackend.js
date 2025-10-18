@@ -11552,6 +11552,47 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
+    // Chart close notification endpoint
+    this.app.post('/api/tokens/:contract/close-chart', async (req, res) => {
+      try {
+        const { contract } = req.params;
+
+        console.log(`📡 [CHART-CLOSE] User closing chart for ${contract.substring(0, 8)}...`);
+
+        // Get pool address for this token
+        const poolAddress = await this.hybridChartService.fastChartService.chartDb.getPoolAddress(contract);
+        
+        if (!poolAddress) {
+          return res.status(404).json({
+            success: false,
+            error: 'Pool address not found',
+            message: 'No pool data available for this token'
+          });
+        }
+
+        // Stop real-time monitoring for this pool
+        await this.hybridChartService.backgroundWorker.stopRealTimeMonitoring(poolAddress);
+
+        console.log(`📡 [CHART-CLOSE] ✅ Stopped real-time monitoring for ${poolAddress.substring(0, 8)}`);
+
+        res.json({
+          success: true,
+          contract: contract,
+          poolAddress: poolAddress.substring(0, 8) + '...',
+          message: 'Chart closed and WebSocket monitoring stopped',
+          timestamp: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error(`❌ [CHART-CLOSE] Error:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to close chart',
+          message: error.message
+        });
+      }
+    });
+
     // Professional Chart Architecture Endpoints
     
     // Get professional chart cache statistics

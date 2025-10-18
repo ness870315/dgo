@@ -41,6 +41,11 @@ class RealTimeChartService {
     stopLiveUpdates(tokenAddress) {
         console.log(`📡 [FRONTEND] Stopping live updates for ${tokenAddress.substring(0, 8)}...`);
         
+        // Notify backend to stop WebSocket monitoring
+        this.notifyBackendChartClose(tokenAddress).catch(error => {
+            console.error(`📡 [FRONTEND] Failed to notify backend of chart close:`, error.message);
+        });
+        
         this.pollingTokens.delete(tokenAddress);
         this.updateCallbacks.delete(tokenAddress);
         this.lastUpdateTimestamps.delete(tokenAddress);
@@ -50,6 +55,34 @@ class RealTimeChartService {
         }
         
         console.log(`📡 [FRONTEND] ✅ Live updates stopped for ${tokenAddress.substring(0, 8)}`);
+    }
+
+    /**
+     * Notify backend that chart is being closed
+     */
+    async notifyBackendChartClose(tokenAddress) {
+        try {
+            const url = `${this.API_BASE}/api/tokens/${tokenAddress}/close-chart`;
+            console.log(`📡 [FRONTEND] Notifying backend of chart close: ${url}`);
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log(`📡 [FRONTEND] ✅ Backend notified:`, data.message);
+            
+        } catch (error) {
+            console.error(`📡 [FRONTEND] ❌ Failed to notify backend:`, error.message);
+            throw error;
+        }
     }
 
     /**
