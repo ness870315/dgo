@@ -281,7 +281,8 @@ function SvgOHLCVArea({
   timezone = 'UTC',
   token = null,
   onChartDataChange = null,
-  onPriceUpdate = null
+  onPriceUpdate = null,
+  realTimeServiceRef
 }) {
   const wrapRef = useRef(null);
   const [width, setWidth] = useState(800);
@@ -293,7 +294,6 @@ function SvgOHLCVArea({
   const [lastPrice, setLastPrice] = useState(null);
   
   // Real-time updates
-  const realTimeServiceRef = useRef(new RealTimeChartService());
   const [isLiveUpdatesActive, setIsLiveUpdatesActive] = useState(false);
   const isMonitoringRef = useRef(false);
   const onPriceUpdateRef = useRef(onPriceUpdate);
@@ -1043,6 +1043,9 @@ export default function SVGChart({ token, onClose, onChartDataChange, onTimefram
   const [timezone, setTimezone] = useState('UTC');
 
   const contract = token?.contractAddress || token?.contract || token?.mint || token?.address;
+  
+  // Real-time service ref for cleanup
+  const realTimeServiceRef = useRef(new RealTimeChartService());
 
   // Debug: Log component mount/unmount
   useEffect(() => {
@@ -1163,6 +1166,7 @@ export default function SVGChart({ token, onClose, onChartDataChange, onTimefram
         token={token}
         onChartDataChange={onChartDataChange}
         onPriceUpdate={onPriceUpdate}
+        realTimeServiceRef={realTimeServiceRef}
       />
     </div>
   );
