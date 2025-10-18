@@ -48,10 +48,10 @@ class CorrectedHeliusBackfill {
             url.searchParams.set('commitment', 'finalized');
             url.searchParams.set('type', 'SWAP');
             
-            // Fix #1: Single source, not array
-            if (source) {
-                url.searchParams.set('source', source);
-            }
+            // Fix #1: Single source, not array - REMOVED source parameter
+            // if (source) {
+            //     url.searchParams.set('source', source);
+            // }
             
             if (before) {
                 url.searchParams.set('before', before);
@@ -168,12 +168,10 @@ class CorrectedHeliusBackfill {
         return {
             candles: candles,
             rawSwaps: this.collectedSwaps, // Return the raw swap data
-            metadata: {
-                pagesProcessed: pageCount,
-                totalTransactions: totalTransactions,
-                totalSwaps: totalSwaps,
-                candlesGenerated: candles.length
-            }
+            pagesProcessed: pageCount,
+            totalTransactions: totalTransactions,
+            totalSwaps: totalSwaps,
+            candlesGenerated: candles.length
         };
     }
 
