@@ -11182,10 +11182,18 @@ Thanks for using x402 payments on Twitter! 🚀`;
     this.hybridPriceService = new HybridPriceService();
     
     // Initialize Hybrid Chart Service (Professional Architecture)
-    this.hybridChartService = new HybridChartService(
-      process.env.HELIUS_API_KEY,
-      process.env.MORALIS_API_KEY
-    );
+    try {
+      console.log('⚡ Initializing Hybrid Chart Service...');
+      this.hybridChartService = new HybridChartService(
+        process.env.HELIUS_API_KEY,
+        process.env.MORALIS_API_KEY
+      );
+      console.log('✅ Hybrid Chart Service initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize Hybrid Chart Service:', error.message);
+      console.error('Stack:', error.stack);
+      this.hybridChartService = null; // Set to null so endpoints can handle gracefully
+    }
 
     // Listen for real-time price updates from background worker
     process.on('tokenPriceUpdate', async (data) => {
@@ -11481,6 +11489,31 @@ Thanks for using x402 payments on Twitter! 🚀`;
           message: error.message
         });
       }
+    });
+
+    // Health check endpoint for debugging
+    this.app.get('/api/health/chart-services', (req, res) => {
+      const health = {
+        timestamp: new Date().toISOString(),
+        services: {
+          hybridChartService: {
+            available: !!this.hybridChartService,
+            fastChartService: !!this.hybridChartService?.fastChartService,
+            backgroundWorker: !!this.hybridChartService?.backgroundWorker,
+            chartDb: !!this.hybridChartService?.fastChartService?.chartDb
+          },
+          hybridPriceService: {
+            available: !!this.hybridPriceService
+          },
+          environment: {
+            heliusApiKey: !!process.env.HELIUS_API_KEY,
+            moralisApiKey: !!process.env.MORALIS_API_KEY,
+            nodeEnv: process.env.NODE_ENV || 'undefined'
+          }
+        }
+      };
+      
+      res.json(health);
     });
 
     // Real-time chart updates endpoint (for polling)
