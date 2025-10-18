@@ -1,5 +1,5 @@
 import fetch from 'node-fetch';
-import EnhancedHeliusBackfill from './EnhancedHeliusBackfill';
+import EnhancedHeliusBackfill from './EnhancedHeliusBackfill.js';
 
 class HeliusChartService {
     constructor(apiKey) {
@@ -7,11 +7,18 @@ class HeliusChartService {
         this.baseUrl = 'https://api.helius.xyz/v0';
         this.cache = new Map();
         this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
-        this.enhancedBackfill = new EnhancedHeliusBackfill(apiKey);
-        
-        console.log('🔗 HeliusChartService initialized');
-        console.log(`   API Key: ${apiKey ? '✅ Configured' : '❌ Missing'}`);
-        console.log(`   Enhanced Backfill: ✅ Available`);
+        // Initialize enhanced backfill if available
+        try {
+            this.enhancedBackfill = new EnhancedHeliusBackfill(apiKey);
+            console.log('🔗 HeliusChartService initialized');
+            console.log(`   API Key: ${apiKey ? '✅ Configured' : '❌ Missing'}`);
+            console.log(`   Enhanced Backfill: ✅ Available`);
+        } catch (error) {
+            this.enhancedBackfill = null;
+            console.log('🔗 HeliusChartService initialized');
+            console.log(`   API Key: ${apiKey ? '✅ Configured' : '❌ Missing'}`);
+            console.log(`   Enhanced Backfill: ⚠️ Not Available (${error.message})`);
+        }
     }
 
     /**
@@ -297,6 +304,11 @@ class HeliusChartService {
             const toTs = now;
 
             let candles;
+            if (!this.enhancedBackfill) {
+                console.log(`[HELIUS] ${tokenAddress.substring(0, 8)} ⚠️ Enhanced backfill not available, skipping`);
+                return [];
+            }
+
             if (poolAddresses.length === 1) {
                 // Single pool
                 candles = await this.enhancedBackfill.backfillOHLCV({
