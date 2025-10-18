@@ -14,6 +14,7 @@ class ChartBackgroundWorker {
         this.hybridService = new HybridPriceService();
         this.isRunning = false;
         this.processedPools = new Set();
+        this.runningBackfills = new Set(); // Track active backfill processes
         this.updateInterval = 30000; // 30 seconds
         this.backfillInterval = 300000; // 5 minutes
         this.realtimeInterval = 10000; // 10 seconds for active pools
@@ -375,13 +376,22 @@ class ChartBackgroundWorker {
      * Full backfill for a pool
      */
     async backfillPool(poolAddress, tokenMint) {
-        console.log(`🔄 Backfilling ${poolAddress.substring(0, 8)} (${tokenMint.substring(0, 8)})`);
+        // Prevent concurrent backfills for the same pool
+        if (this.runningBackfills.has(poolAddress)) {
+            console.log(`⚠️ Backfill already running for ${poolAddress.substring(0, 8)}, skipping...`);
+            return;
+        }
 
-        const progress = await this.chartDb.getBackfillProgress(poolAddress);
-        const toTs = Math.floor(Date.now() / 1000);
-        const fromTs = progress ? progress.last_processed_timestamp : (toTs - 7 * 24 * 3600); // 7 days if no progress
+        console.log(`🔄 Backfilling ${poolAddress.substring(0, 8)} (${tokenMint.substring(0, 8)})`);
+        
+        // Mark this pool as being processed
+        this.runningBackfills.add(poolAddress);
 
         try {
+            const progress = await this.chartDb.getBackfillProgress(poolAddress);
+            const toTs = Math.floor(Date.now() / 1000);
+            const fromTs = progress ? progress.last_processed_timestamp : (toTs - 7 * 24 * 3600); // 7 days if no progress
+
             // Get swaps from Helius
             const result = await this.heliusBackfill.backfillHeliusOHLCV({
                 poolAddress,
@@ -426,6 +436,9 @@ class ChartBackgroundWorker {
 
         } catch (error) {
             console.error(`❌ Backfill failed for ${poolAddress.substring(0, 8)}:`, error.message);
+        } finally {
+            // Always remove from running backfills, even if there was an error
+            this.runningBackfills.delete(poolAddress);
         }
     }
 
@@ -506,6 +519,34 @@ class ChartBackgroundWorker {
             source: 'RAYDIUM',
             rawData: candle
         }));
+    }
+
+    /**
+     * Stop the background worker
+     */
+    stop() {
+        console.log('🛑 Stopping Chart Background Worker...');
+        this.isRunning = false;
+        this.stopAllBackfills();
+        console.log('✅ Background worker stopped');
+    }
+
+    /**
+     * Stop all running backfills
+     */
+    stopAllBackfills() {
+        console.log(`🛑 Stopping ${this.runningBackfills.size} running backfills...`);
+        this.runningBackfills.clear();
+    }
+
+    /**
+     * Get status of running backfills
+     */
+    getBackfillStatus() {
+        return {
+            running: Array.from(this.runningBackfills),
+            count: this.runningBackfills.size
+        };
     }
 
     /**

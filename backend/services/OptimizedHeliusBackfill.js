@@ -48,7 +48,7 @@ export default class OptimizedHeliusBackfill {
         if (signatures.length === 0) return [];
         
         // Add rate limiting delay
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 200));
         
         const response = await fetch(this.transactionsUrl, {
             method: 'POST',
@@ -156,8 +156,8 @@ export default class OptimizedHeliusBackfill {
                     break;
                 }
                 
-                // Step 2: Get transaction details in batches of 50 (more conservative)
-                const batchSize = 50;
+                // Step 2: Get transaction details in batches of 25 (very conservative)
+                const batchSize = 25;
                 for (let i = 0; i < signatures.length; i += batchSize) {
                     const batch = signatures.slice(i, i + batchSize);
                     const batchSignatures = batch.map(s => s.signature);
