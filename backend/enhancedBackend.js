@@ -11497,6 +11497,34 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
         console.log(`📡 [LIVE-UPDATES] Fetching updates for ${contract.substring(0, 8)}...`);
 
+        // Check if hybridChartService is available
+        if (!this.hybridChartService) {
+          console.error(`❌ [LIVE-UPDATES] hybridChartService not available`);
+          return res.status(500).json({
+            success: false,
+            error: 'Chart service not available',
+            message: 'Backend service not properly initialized'
+          });
+        }
+
+        if (!this.hybridChartService.fastChartService) {
+          console.error(`❌ [LIVE-UPDATES] fastChartService not available`);
+          return res.status(500).json({
+            success: false,
+            error: 'Fast chart service not available',
+            message: 'Chart service not properly initialized'
+          });
+        }
+
+        if (!this.hybridChartService.fastChartService.chartDb) {
+          console.error(`❌ [LIVE-UPDATES] chartDb not available`);
+          return res.status(500).json({
+            success: false,
+            error: 'Chart database not available',
+            message: 'Database service not properly initialized'
+          });
+        }
+
         // Get pool address for this token
         const poolAddress = await this.hybridChartService.fastChartService.chartDb.getPoolAddress(contract);
         
@@ -11550,10 +11578,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
       } catch (error) {
         console.error(`❌ [LIVE-UPDATES] Error:`, error.message);
+        console.error(`❌ [LIVE-UPDATES] Stack:`, error.stack);
         res.status(500).json({
           success: false,
           error: 'Failed to get live updates',
-          message: error.message
+          message: error.message,
+          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
       }
     });
@@ -11570,6 +11600,43 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const { contract } = req.params;
 
         console.log(`📡 [CHART-CLOSE] User closing chart for ${contract.substring(0, 8)}...`);
+
+        // Check if hybridChartService is available
+        if (!this.hybridChartService) {
+          console.error(`❌ [CHART-CLOSE] hybridChartService not available`);
+          return res.status(500).json({
+            success: false,
+            error: 'Chart service not available',
+            message: 'Backend service not properly initialized'
+          });
+        }
+
+        if (!this.hybridChartService.fastChartService) {
+          console.error(`❌ [CHART-CLOSE] fastChartService not available`);
+          return res.status(500).json({
+            success: false,
+            error: 'Fast chart service not available',
+            message: 'Chart service not properly initialized'
+          });
+        }
+
+        if (!this.hybridChartService.fastChartService.chartDb) {
+          console.error(`❌ [CHART-CLOSE] chartDb not available`);
+          return res.status(500).json({
+            success: false,
+            error: 'Chart database not available',
+            message: 'Database service not properly initialized'
+          });
+        }
+
+        if (!this.hybridChartService.backgroundWorker) {
+          console.error(`❌ [CHART-CLOSE] backgroundWorker not available`);
+          return res.status(500).json({
+            success: false,
+            error: 'Background worker not available',
+            message: 'Background worker not properly initialized'
+          });
+        }
 
         // Get pool address for this token
         const poolAddress = await this.hybridChartService.fastChartService.chartDb.getPoolAddress(contract);
@@ -11597,10 +11664,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
       } catch (error) {
         console.error(`❌ [CHART-CLOSE] Error:`, error.message);
+        console.error(`❌ [CHART-CLOSE] Stack:`, error.stack);
         res.status(500).json({
           success: false,
           error: 'Failed to close chart',
-          message: error.message
+          message: error.message,
+          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
       }
     });
