@@ -1,5 +1,4 @@
 import fetch from 'node-fetch';
-import EnhancedHeliusBackfill from './EnhancedHeliusBackfill.js';
 
 class HeliusChartService {
     constructor(apiKey) {
@@ -7,16 +6,22 @@ class HeliusChartService {
         this.baseUrl = 'https://api.helius.xyz/v0';
         this.cache = new Map();
         this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
-        // Initialize enhanced backfill if available
+        this.enhancedBackfill = null; // Will be loaded dynamically
+        
+        console.log('🔗 HeliusChartService initialized');
+        console.log(`   API Key: ${apiKey ? '✅ Configured' : '❌ Missing'}`);
+        
+        // Load enhanced backfill dynamically
+        this.loadEnhancedBackfill(apiKey);
+    }
+
+    async loadEnhancedBackfill(apiKey) {
         try {
-            this.enhancedBackfill = new EnhancedHeliusBackfill(apiKey);
-            console.log('🔗 HeliusChartService initialized');
-            console.log(`   API Key: ${apiKey ? '✅ Configured' : '❌ Missing'}`);
+            const { default: CorrectedHeliusBackfill } = await import('./CorrectedHeliusBackfill.js');
+            this.enhancedBackfill = new CorrectedHeliusBackfill(apiKey);
             console.log(`   Enhanced Backfill: ✅ Available`);
         } catch (error) {
             this.enhancedBackfill = null;
-            console.log('🔗 HeliusChartService initialized');
-            console.log(`   API Key: ${apiKey ? '✅ Configured' : '❌ Missing'}`);
             console.log(`   Enhanced Backfill: ⚠️ Not Available (${error.message})`);
         }
     }
@@ -311,22 +316,21 @@ class HeliusChartService {
 
             if (poolAddresses.length === 1) {
                 // Single pool
-                candles = await this.enhancedBackfill.backfillOHLCV({
-                    address: poolAddresses[0],
+                candles = await this.enhancedBackfill.backfillHeliusOHLCV({
+                    poolAddress: poolAddresses[0],
                     fromTs,
                     toTs,
                     timeframe,
-                    sources
+                    source: sources && sources.length > 0 ? sources[0] : undefined
                 });
             } else {
                 // Multiple pools
-                candles = await this.enhancedBackfill.backfillMultiplePools({
-                    poolAddresses,
-                    mint,
+                candles = await this.enhancedBackfill.backfillMultipleSources({
+                    poolAddress: poolAddresses[0], // Use first pool for multi-source
                     fromTs,
                     toTs,
                     timeframe,
-                    sources
+                    sources: sources || ['RAYDIUM', 'ORCA', 'JUPITER']
                 });
             }
 
