@@ -17,6 +17,26 @@ const PriceChartModal = ({ token, onClose }) => {
   
   const isPremiumUser = isAuthenticated && user?.isPremium;
 
+  const handlePriceUpdate = (priceData) => {
+    console.log(`📡 [PRICE-MODAL] 🚀 Real-time price update received:`, priceData);
+    
+    // Update the current price in the modal
+    setCurrentPrice(priceData.price);
+    
+    // Calculate price change if we have previous data
+    if (currentPrice && currentPrice !== priceData.price) {
+      const change = ((priceData.price - currentPrice) / currentPrice) * 100;
+      setPriceChange(change);
+    }
+    
+    // Update the token object with the new price
+    if (token && token.contractAddress === priceData.contract) {
+      // Update the token's price in the parent component
+      // This will be handled by the parent component
+      console.log(`📡 [PRICE-MODAL] ✅ Updated price for ${token.symbol}: ${priceData.price}`);
+    }
+  };
+
   useEffect(() => {
     if (token?.contractAddress) {
       loadCurrentPrice();
@@ -219,6 +239,7 @@ const PriceChartModal = ({ token, onClose }) => {
             onClose={onClose}
             onChartDataChange={setChartData}
             onTimeframeChange={setTimeframe}
+            onPriceUpdate={handlePriceUpdate}
           />
         </div>
       </div>

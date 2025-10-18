@@ -280,7 +280,8 @@ function SvgOHLCVArea({
   circulatingSupply = 0,
   timezone = 'UTC',
   token = null,
-  onChartDataChange = null
+  onChartDataChange = null,
+  onPriceUpdate = null
 }) {
   const wrapRef = useRef(null);
   const [width, setWidth] = useState(800);
@@ -400,6 +401,17 @@ function SvgOHLCVArea({
             const direction = newCandle.close > currentLastCandle.close ? 'up' : 'down';
             setPriceDirection(direction);
             setLastPrice(newCandle.close);
+            
+            // 🚀 CRITICAL: Update the main token price for UI consistency
+            if (onPriceUpdate && typeof onPriceUpdate === 'function') {
+              console.log(`📡 [CHART] 🚀 Updating main token price: ${newCandle.close}`);
+              onPriceUpdate({
+                contract: contract,
+                price: newCandle.close,
+                direction: direction,
+                timestamp: newCandle.timestamp
+              });
+            }
           }
           
           console.log(`📡 [CHART] ✅ Added new candle for ${timeframe}: ${newCandle.close}`);
@@ -410,6 +422,24 @@ function SvgOHLCVArea({
             newData[newData.length - 1] = newCandle;
             return newData;
           });
+          
+          // Update price direction for existing candle update
+          if (currentLastCandle.close !== undefined && newCandle.close !== undefined) {
+            const direction = newCandle.close > currentLastCandle.close ? 'up' : 'down';
+            setPriceDirection(direction);
+            setLastPrice(newCandle.close);
+            
+            // 🚀 CRITICAL: Update the main token price for UI consistency
+            if (onPriceUpdate && typeof onPriceUpdate === 'function') {
+              console.log(`📡 [CHART] 🚀 Updating main token price (existing candle): ${newCandle.close}`);
+              onPriceUpdate({
+                contract: contract,
+                price: newCandle.close,
+                direction: direction,
+                timestamp: newCandle.timestamp
+              });
+            }
+          }
           
           console.log(`📡 [CHART] ✅ Updated existing candle for ${timeframe}: ${newCandle.close}`);
         }
@@ -422,7 +452,7 @@ function SvgOHLCVArea({
       realTimeService.stopLiveUpdates(contract);
       setIsLiveUpdatesActive(false);
     };
-  }, [contract, timeframe, rawData, realTimeService]);
+  }, [contract, timeframe, rawData, realTimeService, onPriceUpdate]);
 
   // Cleanup on component unmount
   useEffect(() => {
@@ -1000,7 +1030,7 @@ function SvgOHLCVArea({
 }
 
 // Main SVGChart wrapper component
-export default function SVGChart({ token, onClose, onChartDataChange, onTimeframeChange }) {
+export default function SVGChart({ token, onClose, onChartDataChange, onTimeframeChange, onPriceUpdate }) {
   const [timeframe, setTimeframe] = useState('5MIN');
   const [displayMode, setDisplayMode] = useState('price');
   const [timezone, setTimezone] = useState('UTC');
@@ -1105,6 +1135,7 @@ export default function SVGChart({ token, onClose, onChartDataChange, onTimefram
         timezone={timezone}
         token={token}
         onChartDataChange={onChartDataChange}
+        onPriceUpdate={onPriceUpdate}
       />
     </div>
   );
