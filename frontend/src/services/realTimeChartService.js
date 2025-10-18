@@ -5,7 +5,7 @@
 class RealTimeChartService {
     constructor() {
         this.API_BASE = process.env.NODE_ENV === 'production' 
-            ? 'https://your-production-domain.com' 
+            ? 'https://degen-oracle.com' 
             : 'http://localhost:3001';
         
         this.pollingInterval = 2000; // Poll every 2 seconds

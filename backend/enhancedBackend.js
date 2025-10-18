@@ -11484,7 +11484,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
     });
 
     // Real-time chart updates endpoint (for polling)
-    this.app.get('/api/tokens/:contract/live-updates', async (req, res) => {
+    this.app.get('/api/tokens/:contract/live-updates', (req, res, next) => {
+      // Add CORS headers
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+      next();
+    }, async (req, res) => {
       try {
         const { contract } = req.params;
         const { sinceTimestamp } = req.query;
@@ -11553,7 +11559,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
     });
 
     // Chart close notification endpoint
-    this.app.post('/api/tokens/:contract/close-chart', async (req, res) => {
+    this.app.post('/api/tokens/:contract/close-chart', (req, res, next) => {
+      // Add CORS headers
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+      next();
+    }, async (req, res) => {
       try {
         const { contract } = req.params;
 
@@ -11591,6 +11603,21 @@ Thanks for using x402 payments on Twitter! 🚀`;
           message: error.message
         });
       }
+    });
+
+    // OPTIONS handler for CORS preflight
+    this.app.options('/api/tokens/:contract/live-updates', (req, res) => {
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+      res.sendStatus(200);
+    });
+
+    this.app.options('/api/tokens/:contract/close-chart', (req, res) => {
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+      res.sendStatus(200);
     });
 
     // Professional Chart Architecture Endpoints
