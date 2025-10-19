@@ -1,3 +1,0 @@
-# Cloudflare Pages redirects for SPA routing
-/staking/* /index.html 200
-/staking/ai-lst-router/* /index.html 200
