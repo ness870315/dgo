@@ -11624,68 +11624,107 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // ========================================
 
     // Get bonding tokens (for Trenches filter)
-    // Get bonding tokens (for Trenches filter) - Fetch from jupiter-service
+    // Get bonding tokens (for Trenches filter) - Read from Jupiter Service cache files
     this.app.get('/api/tokens/bonding', async (req, res) => {
       try {
         const { limit = 50, proximityLevel } = req.query;
         
-        console.log(`[🛡️ Enhanced Backend] 🚨 Getting bonding tokens from jupiter-service (limit: ${limit}, proximity: ${proximityLevel || 'all'})...`);
+        console.log(`[🛡️ Enhanced Backend] 🚨 Getting bonding tokens from cache files (limit: ${limit}, proximity: ${proximityLevel || 'all'})...`);
         
-        // Fetch from jupiter-service
-        const jupiterServiceUrl = process.env.JUPITER_SERVICE_URL || 'http://localhost:3000';
-        let apiUrl = `${jupiterServiceUrl}/api/bonding-tokens?limit=${limit}`;
+        // Read from Jupiter Service cache files
+        const fs = await import('fs/promises');
+        const path = await import('path');
         
-        if (proximityLevel) {
-          apiUrl += `&proximityLevel=${proximityLevel}`;
-        }
+        const cacheFile = '/var/data/PreBonded-cache.json';
         
-        const response = await fetch(apiUrl);
-        const data = await response.json();
-        
-        if (!response.ok) {
-          return res.status(response.status).json({
-            success: false,
-            error: data.error || 'Failed to fetch bonding tokens from jupiter-service'
+        try {
+          const cacheData = await fs.readFile(cacheFile, 'utf8');
+          const parsedData = JSON.parse(cacheData);
+          
+          if (!parsedData.tokens || !Array.isArray(parsedData.tokens)) {
+            return res.json({
+              success: true,
+              tokens: [],
+              count: 0,
+              totalCount: 0,
+              proximityLevel: proximityLevel || 'all',
+              source: 'cache-files',
+              message: 'No bonding tokens found in cache'
+            });
+          }
+          
+          let filteredTokens = parsedData.tokens;
+          
+          // Filter by proximity level if specified
+          if (proximityLevel) {
+            filteredTokens = parsedData.tokens.filter(token => {
+              const progress = parseFloat(token.bondingCurveProgress) || 0;
+              switch (proximityLevel) {
+                case 'IMMINENT_GRADUATION':
+                  return progress >= 95;
+                case 'VERY_CLOSE_TO_GRADUATION':
+                  return progress >= 85 && progress < 95;
+                case 'CLOSE_TO_GRADUATION':
+                  return progress >= 70 && progress < 85;
+                case 'APPROACHING_GRADUATION':
+                  return progress >= 50 && progress < 70;
+                case 'FAR_FROM_GRADUATION':
+                  return progress < 50;
+                default:
+                  return true;
+              }
+            });
+          }
+          
+          // Apply limit
+          const limitedTokens = filteredTokens.slice(0, parseInt(limit));
+          
+          // Transform tokens for frontend
+          const transformedTokens = limitedTokens.map(token => ({
+            tokenAddress: token.tokenAddress,
+            name: token.name,
+            symbol: token.symbol,
+            logo: token.logo,
+            decimals: token.decimals,
+            priceNative: token.priceNative,
+            priceUsd: token.priceUsd,
+            liquidity: token.liquidity,
+            fullyDilutedValuation: token.fullyDilutedValuation,
+            bondingCurveProgress: token.bondingCurveProgress,
+            graduationProximity: token.graduationProximity || 'FAR_FROM_GRADUATION',
+            trackingData: token.trackingData
+          }));
+          
+          console.log(`✅ [Bonding Tokens] Retrieved ${transformedTokens.length} tokens from cache`);
+          
+          res.json({
+            success: true,
+            tokens: transformedTokens,
+            count: transformedTokens.length,
+            totalCount: parsedData.tokens.length,
+            proximityLevel: proximityLevel || 'all',
+            source: 'cache-files',
+            lastUpdated: parsedData.timestamp
+          });
+          
+        } catch (fileError) {
+          console.log(`⚠️ [Bonding Tokens] Cache file not found or empty: ${fileError.message}`);
+          res.json({
+            success: true,
+            tokens: [],
+            count: 0,
+            totalCount: 0,
+            proximityLevel: proximityLevel || 'all',
+            source: 'cache-files',
+            message: 'Cache file not available yet - Jupiter Service may still be initializing'
           });
         }
-        
-        if (!data.success) {
-          return res.status(500).json({
-            success: false,
-            error: data.error || 'Failed to get bonding tokens'
-          });
-        }
-        
-        // Transform data to match frontend expectations
-        const transformedTokens = data.tokens.map(token => ({
-          tokenAddress: token.tokenAddress,
-          name: token.name,
-          symbol: token.symbol,
-          logo: token.logo,
-          decimals: token.decimals,
-          priceNative: token.priceNative,
-          priceUsd: token.priceUsd,
-          liquidity: token.liquidity,
-          fullyDilutedValuation: token.fullyDilutedValuation,
-          bondingCurveProgress: token.bondingCurveProgress,
-          graduationProximity: token.graduationProximity || 'FAR_FROM_GRADUATION',
-          trackingData: token.trackingData
-        }));
-        
-        res.json({
-          success: true,
-          tokens: transformedTokens,
-          count: transformedTokens.length,
-          totalCount: data.count,
-          proximityLevel: proximityLevel || 'all',
-          source: 'jupiter-service'
-        });
         
       } catch (error) {
-        console.error('❌ Failed to get bonding tokens from jupiter-service:', error.message);
+        console.error('❌ Failed to get bonding tokens from cache files:', error.message);
         res.status(500).json({
           success: false,
-          error: 'Failed to get bonding tokens from jupiter-service'
+          error: 'Failed to get bonding tokens from cache files'
         });
       }
     });
