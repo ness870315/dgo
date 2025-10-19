@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Search, Filter, TrendingUp, RefreshCw, Settings, Star, Bot } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import dgoLogo from '../assets/dgo.png';
 
 const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, authButton, onWatchlistClick, onApifyTestClick, onAIChatClick, user }) => {
@@ -159,6 +160,16 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Navigation Links */}
+              <div className="flex items-center space-x-4">
+                <Link
+                  to="/staking"
+                  className="px-3 py-2 text-sm font-medium text-solana-purple hover:text-solana-purple/80 transition-colors border border-solana-purple/30 rounded-lg hover:border-solana-purple/50"
+                >
+                  🧠 AI Staking
+                </Link>
               </div>
 
               {/* Authentication Button */}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
 import BubbleMap from './components/BubbleMap';
 import TokenRankedList from './components/TokenRankedList';
@@ -19,6 +20,8 @@ import X402FuelPaymentPage from './components/X402FuelPaymentPage';
 import MobilePushNotification from './components/MobilePushNotification';
 import AIChatModal from './components/AIChatModal';
 import FloatingChatButton from './components/FloatingChatButton';
+import AIStakingLandingPage from './components/AIStakingLandingPage';
+import AILiquidStakingRouter from './components/AILiquidStakingRouter';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import tokenService from './services/tokenService';
 import pushNotificationService from './services/pushNotificationService';
@@ -1395,9 +1398,18 @@ function AppContent() {
 
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <Router>
+      <AuthProvider>
+        <Routes>
+          {/* Staking Routes */}
+          <Route path="/staking" element={<AIStakingLandingPage />} />
+          <Route path="/staking/ai-lst-router" element={<AILiquidStakingRouter />} />
+          
+          {/* Main App Route */}
+          <Route path="/*" element={<AppContent />} />
+        </Routes>
+      </AuthProvider>
+    </Router>
   );
 }
 
