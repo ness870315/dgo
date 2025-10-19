@@ -1,9 +1,13 @@
 import axios from 'axios';
+import fs from 'fs/promises';
+import path from 'path';
 
 const API_BASE = process.env.API_BASE || 'https://api.degen-oracle.com';
 const JUPITER_API_KEY = process.env.JUPITER_API_KEY || '';
+const MORALIS_API_KEY = process.env.MORALIS_API_KEY || '';
 const INTERNAL_TOKEN = process.env.INTERNAL_TOKEN || process.env.DISCOVERY_INTERNAL_TOKEN;
 const INTERVAL_MS = parseInt(process.env.DISCOVERY_INTERVAL_MS || '21600000', 10); // 6 hours default
+const BONDING_INTERVAL_MS = parseInt(process.env.BONDING_INTERVAL_MS || '1800000', 10); // 30 minutes default
 const RUN_ON_START = (process.env.DISCOVERY_RUN_ON_START || 'true') === 'true';
 
 const FORCE_LITE_API = (process.env.FORCE_LITE_API || 'true') === 'true';
@@ -141,6 +145,105 @@ async function importToBackend({ source, category, interval, tokens }) {
   return res.data;
 }
 
+// ========================================
+// BONDING TOKENS FUNCTIONS
+// ========================================
+
+async function fetchBondingTokens() {
+  if (!MORALIS_API_KEY) {
+    console.warn('⚠️ No MORALIS_API_KEY set; skipping bonding tokens fetch');
+    return [];
+  }
+  
+  try {
+    console.log('🚨 [BondingTokens] Fetching bonding tokens from Moralis...');
+    const url = 'https://solana-gateway.moralis.io/token/mainnet/exchange/pumpfun/bonding';
+    const response = await axios.get(url, {
+      headers: {
+        'accept': 'application/json',
+        'X-API-Key': MORALIS_API_KEY
+      },
+      params: { limit: 100 },
+      timeout: 30000
+    });
+    
+    if (response.data && response.data.result) {
+      const tokens = response.data.result;
+      console.log(`✅ [BondingTokens] Fetched ${tokens.length} bonding tokens from Moralis`);
+      
+      // Deduplicate tokens
+      const uniqueTokens = deduplicateTokens(tokens);
+      console.log(`🔄 [BondingTokens] Deduplication: ${tokens.length} → ${uniqueTokens.length} unique tokens`);
+      
+      return uniqueTokens;
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('❌ [BondingTokens] Error fetching bonding tokens:', error.message);
+    return [];
+  }
+}
+
+function deduplicateTokens(tokens) {
+  const seen = new Set();
+  const uniqueTokens = [];
+  for (const token of tokens) {
+    if (!seen.has(token.tokenAddress)) {
+      seen.add(token.tokenAddress);
+      uniqueTokens.push(token);
+    } else {
+      console.log(`🔄 [BondingTokens] Duplicate token removed: ${token.symbol} (${token.tokenAddress.substring(0, 8)}...)`);
+    }
+  }
+  return uniqueTokens;
+}
+
+async function saveBondingTokensToCache(tokens) {
+  try {
+    const dataDir = '/var/data';
+    const cacheFile = path.join(dataDir, 'PreBonded-cache.json');
+    
+    // Ensure data directory exists
+    try {
+      await fs.mkdir(dataDir, { recursive: true });
+    } catch (error) {
+      // Directory might already exist
+    }
+    
+    const cacheData = {
+      timestamp: new Date().toISOString(),
+      tokens: tokens,
+      count: tokens.length
+    };
+    
+    await fs.writeFile(cacheFile, JSON.stringify(cacheData, null, 2));
+    console.log(`💾 [BondingTokens] Saved ${tokens.length} tokens to ${cacheFile}`);
+    
+    return true;
+  } catch (error) {
+    console.error('❌ [BondingTokens] Error saving cache:', error.message);
+    return false;
+  }
+}
+
+async function runBondingTokensDiscovery() {
+  try {
+    console.log('🚨 [BondingTokens] Starting bonding tokens discovery...');
+    
+    const tokens = await fetchBondingTokens();
+    if (tokens.length > 0) {
+      await saveBondingTokensToCache(tokens);
+      console.log(`✅ [BondingTokens] Discovery completed: ${tokens.length} tokens cached`);
+    } else {
+      console.log('⚠️ [BondingTokens] No tokens fetched');
+    }
+    
+  } catch (error) {
+    console.error('❌ [BondingTokens] Discovery failed:', error.message);
+  }
+}
+
 async function runOnce() {
   const startedAt = new Date();
   let totalFetched = 0;
@@ -264,11 +367,20 @@ async function main() {
   console.log('🚀 Jupiter Discovery Service starting...');
   console.log('   API_BASE =', API_BASE);
   console.log('   INTERVAL_MS =', INTERVAL_MS);
+  console.log('   BONDING_INTERVAL_MS =', BONDING_INTERVAL_MS);
   console.log('   RUN_ON_START =', RUN_ON_START);
+  console.log('   MORALIS_API_KEY =', MORALIS_API_KEY ? 'SET' : 'NOT SET');
+  
   if (RUN_ON_START) {
     await runOnce();
+    await runBondingTokensDiscovery();
   }
+  
+  // Schedule Jupiter token discovery (every 6 hours)
   setInterval(runOnce, INTERVAL_MS);
+  
+  // Schedule bonding tokens discovery (every 30 minutes)
+  setInterval(runBondingTokensDiscovery, BONDING_INTERVAL_MS);
 }
 
 main().catch(err => {

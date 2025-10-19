@@ -9,6 +9,7 @@ import LSTRegistryService from './modules/lst-registry/LSTRegistryService.js';
 import PortfolioAnalyzerService from './modules/portfolio-analyzer/PortfolioAnalyzerService.js';
 import AIStrategyEngineService from './modules/ai-strategy-engine/AIStrategyEngineService.js';
 import TransactionBuilderService from './modules/transaction-builder/TransactionBuilderService.js';
+import BondingTokensAPI from './modules/bonding-tokens/BondingTokensAPI.js';
 
 // Load environment variables
 dotenv.config();
@@ -51,6 +52,7 @@ class EnhancedJupiterDiscoveryService {
     this.portfolioAnalyzerService = new PortfolioAnalyzerService();
     this.aiStrategyEngineService = new AIStrategyEngineService();
     this.transactionBuilderService = new TransactionBuilderService();
+    this.bondingTokensAPI = new BondingTokensAPI();
     
     this.setupMiddleware();
     this.setupRoutes();
@@ -75,7 +77,7 @@ class EnhancedJupiterDiscoveryService {
     // Internal token authentication middleware
     this.app.use((req, res, next) => {
       // Skip authentication for health checks and public endpoints
-      if (req.path === '/health' || req.path === '/' || req.path.startsWith('/api/lsts') || req.path.startsWith('/api/portfolio')) {
+      if (req.path === '/health' || req.path === '/' || req.path.startsWith('/api/lsts') || req.path.startsWith('/api/portfolio') || req.path.startsWith('/api/bonding-tokens')) {
         return next();
       }
       
@@ -142,7 +144,8 @@ class EnhancedJupiterDiscoveryService {
           lstRegistry: 'active',
           portfolioAnalyzer: 'active',
           aiStrategyEngine: 'active',
-          transactionBuilder: 'active'
+          transactionBuilder: 'active',
+          bondingTokens: 'active'
         }
       });
     });
@@ -173,6 +176,10 @@ class EnhancedJupiterDiscoveryService {
           transactionBuilder: {
             description: 'Transaction building and execution',
             endpoints: '/api/transactions'
+          },
+          bondingTokens: {
+            description: 'Pre-bonding token monitoring and graduation alerts',
+            endpoints: '/api/bonding-tokens'
           }
         },
         documentation: 'https://docs.degen-oracle.com/jupiter-discovery'
@@ -190,6 +197,9 @@ class EnhancedJupiterDiscoveryService {
     
     // Transaction Builder routes
     this.app.use('/api/transactions', this.transactionBuilderService.getRouter());
+    
+    // Bonding Tokens routes
+    this.app.use('/api/bonding-tokens', this.bondingTokensAPI.getRouter());
 
     // Internal portfolio analysis endpoint for enhancedBackend
     this.app.post('/api/internal/portfolio/analyze', async (req, res) => {
@@ -225,7 +235,7 @@ class EnhancedJupiterDiscoveryService {
         success: false,
         error: 'Endpoint not found',
         path: req.originalUrl,
-        availableModules: ['/api/lsts', '/api/portfolio', '/api/strategy', '/api/transactions']
+        availableModules: ['/api/lsts', '/api/portfolio', '/api/strategy', '/api/transactions', '/api/bonding-tokens']
       });
     });
   }
@@ -262,6 +272,7 @@ class EnhancedJupiterDiscoveryService {
       await this.portfolioAnalyzerService.initialize();
       await this.aiStrategyEngineService.initialize();
       await this.transactionBuilderService.initialize();
+      await this.bondingTokensAPI.initialize();
       
       console.log('✅ [Enhanced Jupiter Discovery] All modules initialized');
     } catch (error) {
@@ -288,6 +299,7 @@ class EnhancedJupiterDiscoveryService {
         console.log(`📊 [Enhanced Jupiter Discovery] Portfolio Analyzer: http://localhost:${this.port}/api/portfolio`);
         console.log(`🧠 [Enhanced Jupiter Discovery] AI Strategy Engine: http://localhost:${this.port}/api/strategy`);
         console.log(`🔨 [Enhanced Jupiter Discovery] Transaction Builder: http://localhost:${this.port}/api/transactions`);
+        console.log(`🚨 [Enhanced Jupiter Discovery] Bonding Tokens: http://localhost:${this.port}/api/bonding-tokens`);
       });
 
       // Start trending token discovery (existing functionality)
@@ -689,7 +701,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   service.start().catch(error => {
     console.error('❌ [Enhanced Jupiter Discovery] Service failed to start:', error.message);
     process.exit(1);
-  }
+  });
+}
 
   /**
    * Analyze portfolio and send data to enhancedBackend
