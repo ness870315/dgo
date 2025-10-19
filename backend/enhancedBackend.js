@@ -12651,6 +12651,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
       }
     });
+
   }
 
   setupBackgroundTasks() {
