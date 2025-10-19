@@ -164,12 +164,13 @@ const Header = ({ onSearch, onFilter, onRefresh, isLoading, onSettingsClick, aut
 
               {/* Navigation Links */}
               <div className="flex items-center space-x-4">
-                <Link
+                {/* Temporarily hidden until Moralis API integration is fully tested */}
+                {/* <Link
                   to="/staking"
                   className="px-3 py-2 text-sm font-medium text-solana-purple hover:text-solana-purple/80 transition-colors border border-solana-purple/30 rounded-lg hover:border-solana-purple/50"
                 >
                   🧠 AI Staking
-                </Link>
+                </Link> */}
               </div>
 
               {/* Authentication Button */}
