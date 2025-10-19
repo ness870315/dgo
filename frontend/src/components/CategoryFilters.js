@@ -14,7 +14,8 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
     highCap: false,   // ≥$100M market cap
     midCap: false,    // ≥$5M to ≤$10M market cap
     smallCap: false,  // >$500K to <$5M market cap
-    microCap: false   // $30K to $500K market cap
+    microCap: false,  // $30K to $500K market cap
+    trenches: false   // 🚨 Pre-bonding tokens close to graduation
   };
 
   const handleCategoryToggle = (category) => {
@@ -27,6 +28,7 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
       midCap: false,
       smallCap: false,
       microCap: false,
+      trenches: false,
       [category]: true // Enable only the clicked filter
     };
     
@@ -66,6 +68,11 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
           title: '🔍 Micro Cap',
           description: 'MCap $30K-$500K • Micro tokens'
         };
+      case 'trenches':
+        return {
+          title: '🚨 Trenches',
+          description: 'Pre-bonding tokens • Close to graduation'
+        };
       // Removed volatile/stable per product update
       default:
         return { title: key, description: '' };
@@ -81,6 +88,7 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
     if (activeKey === 'midCap') return '🏢 Mid Cap';
     if (activeKey === 'smallCap') return '💎 Small Cap';
     if (activeKey === 'microCap') return '🔍 Micro Cap';
+    if (activeKey === 'trenches') return '🚨 Trenches';
     return 'Categories';
   };
 
@@ -117,6 +125,7 @@ const CategoryFilters = ({ onFiltersChange, currentFilters }) => {
                 {key === 'midCap' && '🏢 Mid Cap'}
                 {key === 'smallCap' && '💎 Small Cap'}
                 {key === 'microCap' && '🔍 Micro Cap'}
+                {key === 'trenches' && '🚨 Trenches'}
                 {/* volatile/stable removed */}
               </button>
 

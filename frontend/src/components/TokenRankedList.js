@@ -1,6 +1,7 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, Minus, Star, Flame } from 'lucide-react';
 import { getStatusFromScore } from '../utils/statusUtils';
+import GraduationStatusBar from './GraduationStatusBar';
 
 const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
   // Sort tokens by overall score (highest first)
@@ -205,6 +206,18 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
                     </div>
                   </div>
                 </div>
+
+                {/* Graduation Status Bar for Bonding Tokens */}
+                {token.isBondingToken && (
+                  <div className="mt-3 px-2">
+                    <GraduationStatusBar 
+                      bondingProgress={token.bondingProgress}
+                      proximityLevel={token.proximityLevel}
+                      showLabel={false}
+                      compact={true}
+                    />
+                  </div>
+                )}
 
                 {/* Desktop Layout */}
                 <div className="hidden sm:block">

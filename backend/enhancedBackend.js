@@ -27,6 +27,7 @@ import AutomatedTokenCleanup from './automatedTokenCleanup.js';
 import HybridPriceService from './hybridPriceService.js';
 import HybridChartService from './services/HybridChartService.js';
 import KOLService from './services/KOLService.js';
+import BondingTokensService from './services/BondingTokensService.js';
 // DISABLED: import EnhancedAnalyticsCacheService from './services/EnhancedAnalyticsCacheService.js';
 import logger from './logger.js';
 import { fileURLToPath } from 'url';
@@ -11425,6 +11426,18 @@ Thanks for using x402 payments on Twitter! 🚀`;
       this.hybridChartService = null; // Set to null so endpoints can handle gracefully
     }
 
+    // Initialize BondingTokensService
+    try {
+      console.log('🔄 Initializing BondingTokensService...');
+      this.bondingTokensService = new BondingTokensService(process.env.MORALIS_API_KEY);
+      console.log('✅ BondingTokensService initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize BondingTokensService:', error.message);
+      console.error('Stack:', error.stack);
+      console.error('⚠️ Backend will continue without bonding tokens service');
+      this.bondingTokensService = null;
+    }
+
     // Listen for real-time price updates from background worker
     process.on('tokenPriceUpdate', async (data) => {
       try {
@@ -11615,6 +11628,172 @@ Thanks for using x402 payments on Twitter! 🚀`;
           success: false,
           error: 'Failed to fetch timeframes',
           message: error.message
+        });
+      }
+    });
+
+    // ========================================
+    // 🚨 BONDING TOKENS ENDPOINTS
+    // ========================================
+
+    // Get bonding tokens (for Trenches filter)
+    this.app.get('/api/tokens/bonding', async (req, res) => {
+      try {
+        const { limit = 50, proximityLevel } = req.query;
+        
+        console.log(`[🛡️ Enhanced Backend] 🚨 Getting bonding tokens (limit: ${limit}, proximity: ${proximityLevel || 'all'})...`);
+        
+        if (!this.bondingTokensService) {
+          return res.status(503).json({
+            success: false,
+            error: 'BondingTokensService not available'
+          });
+        }
+
+        let result;
+        if (proximityLevel) {
+          // Get tokens by specific proximity level
+          result = await this.bondingTokensService.getTokensByProximityLevel(proximityLevel);
+        } else {
+          // Get all tracked tokens sorted by proximity
+          result = await this.bondingTokensService.getTokensByProximityLevel();
+        }
+
+        if (!result.success) {
+          return res.status(500).json({
+            success: false,
+            error: result.error || 'Failed to get bonding tokens'
+          });
+        }
+
+        // Limit results
+        const limitedTokens = result.tokens.slice(0, parseInt(limit));
+
+        res.json({
+          success: true,
+          tokens: limitedTokens,
+          count: limitedTokens.length,
+          totalCount: result.count,
+          proximityLevel: proximityLevel || 'all'
+        });
+
+      } catch (error) {
+        console.error('❌ Failed to get bonding tokens:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get bonding tokens'
+        });
+      }
+    });
+
+    // Get bonding token details by address
+    this.app.get('/api/tokens/:contract/bonding', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        
+        console.log(`[🛡️ Enhanced Backend] 🚨 Getting bonding details for: ${contract}...`);
+        
+        if (!this.bondingTokensService) {
+          return res.status(503).json({
+            success: false,
+            error: 'BondingTokensService not available'
+          });
+        }
+
+        // Get bonding status for specific token
+        const statusResult = await this.bondingTokensService.getBondingStatus(contract);
+        
+        if (!statusResult.success) {
+          return res.status(404).json({
+            success: false,
+            error: 'Token not found in bonding curve'
+          });
+        }
+
+        res.json({
+          success: true,
+          bondingData: statusResult.data
+        });
+
+      } catch (error) {
+        console.error('❌ Failed to get bonding token details:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get bonding token details'
+        });
+      }
+    });
+
+    // Get bonding tokens statistics
+    this.app.get('/api/tokens/bonding/stats', async (req, res) => {
+      try {
+        console.log(`[🛡️ Enhanced Backend] 📊 Getting bonding tokens statistics...`);
+        
+        if (!this.bondingTokensService) {
+          return res.status(503).json({
+            success: false,
+            error: 'BondingTokensService not available'
+          });
+        }
+
+        const statsResult = await this.bondingTokensService.getTrackingStats();
+        
+        if (!statsResult.success) {
+          return res.status(500).json({
+            success: false,
+            error: statsResult.error || 'Failed to get bonding statistics'
+          });
+        }
+
+        res.json({
+          success: true,
+          stats: statsResult.stats
+        });
+
+      } catch (error) {
+        console.error('❌ Failed to get bonding statistics:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get bonding statistics'
+        });
+      }
+    });
+
+    // Get graduation alerts
+    this.app.get('/api/tokens/bonding/alerts', async (req, res) => {
+      try {
+        const { threshold = 95 } = req.query;
+        
+        console.log(`[🛡️ Enhanced Backend] 🚨 Getting graduation alerts (threshold: ${threshold}%)...`);
+        
+        if (!this.bondingTokensService) {
+          return res.status(503).json({
+            success: false,
+            error: 'BondingTokensService not available'
+          });
+        }
+
+        const alertsResult = await this.bondingTokensService.getEnhancedGraduationAlerts(parseInt(threshold));
+        
+        if (!alertsResult.success) {
+          return res.status(500).json({
+            success: false,
+            error: alertsResult.error || 'Failed to get graduation alerts'
+          });
+        }
+
+        res.json({
+          success: true,
+          alerts: alertsResult.alerts,
+          trackingSummary: alertsResult.trackingSummary,
+          threshold: parseInt(threshold)
+        });
+
+      } catch (error) {
+        console.error('❌ Failed to get graduation alerts:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get graduation alerts'
         });
       }
     });

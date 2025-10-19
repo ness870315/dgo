@@ -22,6 +22,7 @@ import AIChatModal from './components/AIChatModal';
 import FloatingChatButton from './components/FloatingChatButton';
 import AIStakingLandingPageSimple from './components/AIStakingLandingPageSimple';
 import AILiquidStakingRouter from './components/AILiquidStakingRouter';
+import PreTokenDetail from './components/PreTokenDetail';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { WalletContextProvider } from './contexts/WalletContext';
 import tokenService from './services/tokenService';
@@ -266,12 +267,20 @@ function AppContent() {
     midCap: false,
     smallCap: false,
     microCap: false,
+    trenches: false,
     volatile: false,
     stable: false
   });
 
   // View toggle state
   const [currentView, setCurrentView] = useState('bubbles'); // 'bubbles' or 'list'
+  
+  // Bonding tokens state
+  const [bondingTokens, setBondingTokens] = useState([]);
+  const [bondingTokensLoading, setBondingTokensLoading] = useState(false);
+  
+  // PreTokenDetail modal state
+  const [showPreTokenDetail, setShowPreTokenDetail] = useState(false);
 
   // Apply category filters function (mutually exclusive filters)
   const applyCategoryFilters = useCallback((tokenData, categories) => {
@@ -529,6 +538,13 @@ function AppContent() {
       return microCapTokens;
     }
     
+    if (categories.trenches) {
+      // Trenches: Pre-bonding tokens close to graduation
+      // This will be handled by a separate API call to get bonding tokens
+      // For now, return empty array - the actual data will come from the bonding API
+      return [];
+    }
+    
     if (categories.volatile) {
       const volatileTokens = tokenData.filter(token => Math.abs(token.priceChange24h || 0) > 5);
       return volatileTokens;
@@ -546,6 +562,28 @@ function AppContent() {
   // Apply filters and search
   const applyFiltersAndSearch = useCallback((tokenData, currentFilters, currentSearchTerm) => {
     
+    // Special handling for Trenches filter - use bonding tokens
+    if (categoryFilters.trenches) {
+      if (bondingTokensLoading) {
+        setFilteredTokens([]);
+        return;
+      }
+      
+      // Use bonding tokens instead of regular tokens
+      let filtered = bondingTokens;
+      
+      // Apply search if present
+      if (currentSearchTerm && currentSearchTerm.trim()) {
+        filtered = tokenService.searchTokens(filtered, currentSearchTerm);
+      }
+      
+      // Apply filters and sorting
+      filtered = tokenService.filterTokens(filtered, currentFilters);
+      filtered = tokenService.sortTokens(filtered, currentFilters.sortBy);
+      setFilteredTokens(filtered);
+      return;
+    }
+    
     // If there's a search term, SEARCH OVERRIDES ALL FILTERS
     if (currentSearchTerm && currentSearchTerm.trim()) {
       let filtered = tokenService.searchTokens(tokenData, currentSearchTerm);
@@ -560,7 +598,60 @@ function AppContent() {
     filtered = applyCategoryFilters(filtered, categoryFilters);
     filtered = tokenService.sortTokens(filtered, currentFilters.sortBy);
     setFilteredTokens(filtered);
-  }, [categoryFilters, applyCategoryFilters]);
+  }, [categoryFilters, applyCategoryFilters, bondingTokens, bondingTokensLoading]);
+
+  // Fetch bonding tokens for Trenches filter
+  const fetchBondingTokens = useCallback(async () => {
+    try {
+      setBondingTokensLoading(true);
+      const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+      
+      const response = await fetch(`${apiBase}/api/tokens/bonding?limit=100`);
+      const data = await response.json();
+      
+      if (data.success) {
+        // Transform bonding tokens to match our token format
+        const transformedTokens = data.tokens.map(token => ({
+          contractAddress: token.tokenAddress,
+          symbol: token.symbol,
+          name: token.name,
+          logo: token.logo,
+          decimals: token.decimals,
+          bondingProgress: token.lastProgress,
+          proximityLevel: token.currentProximity,
+          liquidity: token.liquidity || 0,
+          fullyDilutedValuation: token.fullyDilutedValuation || 0,
+          priceUsd: token.priceUsd || 0,
+          priceNative: token.priceNative || 0,
+          firstSeen: token.firstSeen,
+          totalProgressGained: token.totalProgressGained,
+          graduationAlerts: token.graduationAlerts,
+          // Add mock data for compatibility
+          score: 8.5, // High score for bonding tokens
+          marketCap: token.fullyDilutedValuation || 0,
+          volume24h: token.liquidity || 0,
+          priceChange24h: 0,
+          twitter: null,
+          website: null,
+          telegram: null,
+          discord: null,
+          // Mark as bonding token
+          isBondingToken: true
+        }));
+        
+        setBondingTokens(transformedTokens);
+        console.log(`🚨 Loaded ${transformedTokens.length} bonding tokens for Trenches filter`);
+      } else {
+        console.error('Failed to fetch bonding tokens:', data.error);
+        setBondingTokens([]);
+      }
+    } catch (error) {
+      console.error('Error fetching bonding tokens:', error);
+      setBondingTokens([]);
+    } finally {
+      setBondingTokensLoading(false);
+    }
+  }, []);
 
   // Load initial data
   // showLoading: true = show loading spinner (initial load, manual refresh)
@@ -613,7 +704,14 @@ function AppContent() {
 
   // Handle token selection
   const handleTokenSelect = useCallback((token) => {
-    setSelectedToken(token);
+    // Check if this is a bonding token
+    if (token.isBondingToken) {
+      setSelectedToken(token);
+      setShowPreTokenDetail(true);
+    } else {
+      setSelectedToken(token);
+      setShowPreTokenDetail(false);
+    }
   }, []);
 
   // Handle refresh
@@ -915,6 +1013,13 @@ function AppContent() {
   useEffect(() => {
     loadTokens();
   }, [loadTokens]);
+
+  // Fetch bonding tokens when Trenches filter is selected
+  useEffect(() => {
+    if (categoryFilters.trenches) {
+      fetchBondingTokens();
+    }
+  }, [categoryFilters.trenches, fetchBondingTokens]);
 
   // Check for push notification support and show request
   // DISABLED: Push notifications are currently disabled
@@ -1347,12 +1452,24 @@ function AppContent() {
       </main>
 
       {/* Token Details Modal */}
-      {selectedToken && (
+      {selectedToken && !showPreTokenDetail && (
         <TokenDetails
           token={selectedToken}
           fueledTokens={fueledTokens}
           onClose={() => setSelectedToken(null)}
           onTokenUpdated={handleTokenUpdated}
+        />
+      )}
+
+      {/* PreTokenDetail Modal for Bonding Tokens */}
+      {selectedToken && showPreTokenDetail && (
+        <PreTokenDetail
+          token={selectedToken}
+          onClose={() => {
+            setSelectedToken(null);
+            setShowPreTokenDetail(false);
+          }}
+          onNavigateToPremium={() => setShowPremium(true)}
         />
       )}
 
