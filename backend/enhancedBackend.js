@@ -6281,7 +6281,7 @@ Format as JSON:
         
         let paymentRequirements;
         try {
-          paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements({
+          const routeConfig = {
             amount: paymentAmount * 1e6, // Convert to lamports (USDC has 6 decimals)
             asset: {
               mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
@@ -6294,7 +6294,9 @@ Format as JSON:
               maxTimeoutSeconds: 300,
               mimeType: 'application/json'
             }
-          });
+          };
+          
+          paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements(routeConfig);
           console.log('[🧠 x402 AI Router] ✅ Payment requirements created successfully');
         } catch (createError) {
           console.log('[🧠 x402 AI Router] ❌ Failed to create payment requirements:', createError.message);
