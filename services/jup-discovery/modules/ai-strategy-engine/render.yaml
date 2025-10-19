@@ -1,0 +1,27 @@
+# Render Deployment Configuration for AI Strategy Engine Service
+# This file configures the AI Strategy Engine service under jup-discovery project
+
+services:
+  - type: web
+    name: ai-strategy-engine-service
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    plan: starter
+    envVars:
+      - key: PORT
+        value: 3003
+      - key: NODE_ENV
+        value: production
+      - key: OPENAI_API_KEY
+        sync: false  # Set this in Render dashboard
+      - key: OPENAI_BASE_URL
+        value: https://api.openai.com/v1
+      - key: OPENAI_MODEL
+        value: gpt-4
+      - key: LST_REGISTRY_URL
+        value: https://lst-registry-service.onrender.com
+      - key: PORTFOLIO_ANALYZER_URL
+        value: https://portfolio-analyzer-service.onrender.com
+      - key: ALLOWED_ORIGINS
+        value: https://enhanced-backend.onrender.com,https://your-frontend-domain.com

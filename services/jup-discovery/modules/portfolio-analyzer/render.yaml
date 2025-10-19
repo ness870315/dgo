@@ -1,0 +1,21 @@
+# Render Deployment Configuration for Portfolio Analyzer Service
+# This file configures the Portfolio Analyzer service under jup-discovery project
+
+services:
+  - type: web
+    name: portfolio-analyzer-service
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    plan: starter
+    envVars:
+      - key: PORT
+        value: 3002
+      - key: NODE_ENV
+        value: production
+      - key: MORALIS_API_KEY
+        sync: false  # Set this in Render dashboard
+      - key: LST_REGISTRY_URL
+        value: https://lst-registry-service.onrender.com
+      - key: ALLOWED_ORIGINS
+        value: https://enhanced-backend.onrender.com,https://your-frontend-domain.com

@@ -1,0 +1,21 @@
+# Render Deployment Configuration for LST Registry Service
+# This file configures the LST Registry service under jup-discovery project
+
+services:
+  - type: web
+    name: lst-registry-service
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    plan: starter
+    envVars:
+      - key: PORT
+        value: 3001
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        sync: false  # Set this in Render dashboard
+      - key: SOLANA_RPC_URL
+        value: https://api.mainnet-beta.solana.com
+      - key: ALLOWED_ORIGINS
+        value: https://enhanced-backend.onrender.com,https://your-frontend-domain.com

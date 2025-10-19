@@ -1,0 +1,23 @@
+# Render Deployment Configuration for Transaction Builder Service
+# This file configures the Transaction Builder service under jup-discovery project
+
+services:
+  - type: web
+    name: transaction-builder-service
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    plan: starter
+    envVars:
+      - key: PORT
+        value: 3004
+      - key: NODE_ENV
+        value: production
+      - key: SOLANA_RPC_URL
+        value: https://api.mainnet-beta.solana.com
+      - key: JUPITER_API_URL
+        value: https://quote-api.jup.ag/v6
+      - key: SANCTUM_ROUTER_URL
+        value: https://api.sanctum.so/v1
+      - key: ALLOWED_ORIGINS
+        value: https://enhanced-backend.onrender.com,https://your-frontend-domain.com

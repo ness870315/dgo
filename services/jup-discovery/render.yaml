@@ -1,0 +1,48 @@
+# Render Deployment Configuration for Enhanced Jupiter Discovery Service
+# This file configures the enhanced jup-discovery service on Render
+# Combines trending token discovery + AI Liquid Staking Router
+
+services:
+  - type: web
+    name: enhanced-jup-discovery
+    env: node
+    buildCommand: npm install
+    startCommand: node enhanced-index.js
+    plan: starter
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+      - key: API_BASE
+        value: https://api.degen-oracle.com
+      - key: JUPITER_API_KEY
+        sync: false  # Set this in Render dashboard
+      - key: INTERNAL_TOKEN
+        sync: false  # Set this in Render dashboard
+      - key: DISCOVERY_INTERVAL_MS
+        value: 21600000  # 6 hours
+      - key: DISCOVERY_RUN_ON_START
+        value: true
+      - key: FORCE_LITE_API
+        value: true
+      - key: DISCOVERY_LIMIT
+        value: 20
+      - key: MONGODB_URI
+        sync: false  # Set this in Render dashboard
+      - key: SOLANA_RPC_URL
+        value: https://api.mainnet-beta.solana.com
+      - key: MORALIS_API_KEY
+        sync: false  # Set this in Render dashboard
+      - key: OPENAI_API_KEY
+        sync: false  # Set this in Render dashboard
+      - key: OPENAI_BASE_URL
+        value: https://api.openai.com/v1
+      - key: OPENAI_MODEL
+        value: gpt-4
+      - key: JUPITER_API_URL
+        value: https://quote-api.jup.ag/v6
+      - key: SANCTUM_ROUTER_URL
+        value: https://api.sanctum.so/v1
+      - key: ALLOWED_ORIGINS
+        value: https://enhanced-backend.onrender.com,https://your-frontend-domain.com

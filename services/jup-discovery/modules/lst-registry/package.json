@@ -1,0 +1,41 @@
+{
+  "name": "lst-registry-service",
+  "version": "1.0.0",
+  "description": "Liquid Staking Token Registry Service for DeGen Oracle",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "jest",
+    "lint": "eslint .",
+    "sync": "node scripts/sync-lst-data.js"
+  },
+  "keywords": [
+    "solana",
+    "liquid-staking",
+    "lst",
+    "defi",
+    "sanctum",
+    "jupiter"
+  ],
+  "author": "DeGen Oracle Team",
+  "license": "MIT",
+  "dependencies": {
+    "@solana/web3.js": "^1.98.4",
+    "@solana/spl-token": "^0.4.1",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "mongoose": "^8.18.0",
+    "node-fetch": "^3.3.2",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "jest": "^29.7.0",
+    "eslint": "^8.57.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
