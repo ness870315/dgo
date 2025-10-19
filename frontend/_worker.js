@@ -119,8 +119,16 @@ export default {
       });
     }
     
-    // For all other requests, fetch from assets (your React SPA)
-    return env.ASSETS.fetch(request);
+    // Handle SPA routing - serve index.html for all non-asset routes
+    if (url.pathname.startsWith('/static/') || url.pathname.includes('.')) {
+      // Serve static assets normally
+      return env.ASSETS.fetch(request);
+    } else {
+      // For all other routes (including /staking), serve the main index.html
+      // This allows React Router to handle client-side routing
+      const indexRequest = new Request(new URL('/', url.origin).toString(), request);
+      return env.ASSETS.fetch(indexRequest);
+    }
   }
 };
 
