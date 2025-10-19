@@ -191,6 +191,34 @@ class EnhancedJupiterDiscoveryService {
     // Transaction Builder routes
     this.app.use('/api/transactions', this.transactionBuilderService.getRouter());
 
+    // Internal portfolio analysis endpoint for enhancedBackend
+    this.app.post('/api/internal/portfolio/analyze', async (req, res) => {
+      try {
+        const { walletAddress } = req.body;
+        
+        if (!walletAddress || walletAddress.length < 32) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid wallet address'
+          });
+        }
+        
+        console.log(`🔄 [Jup-Discovery] Internal portfolio analysis request for ${walletAddress}`);
+        
+        // Process the portfolio analysis request
+        const result = await this.processPortfolioRequest(walletAddress);
+        
+        res.json(result);
+        
+      } catch (error) {
+        console.error(`❌ [Jup-Discovery] Internal portfolio analysis failed:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
     // 404 handler
     this.app.use('*', (req, res) => {
       res.status(404).json({
@@ -549,6 +577,110 @@ class EnhancedJupiterDiscoveryService {
     console.log(`🎯 Discovery cycle completed in ${((Date.now() - startedAt.getTime())/1000).toFixed(1)}s: fetched=${totalFetched}, candidates=${totalCandidates}, imported=${totalImported}, boosted=${totalBoosted}`);
     console.log('⏳ Sleeping 6 hours before next cycle...');
   }
+
+  /**
+   * Analyze portfolio and send data to enhancedBackend
+   * This method is called by enhancedBackend when it needs real portfolio data
+   */
+  async analyzePortfolioAndSend(walletAddress) {
+    try {
+      console.log(`📊 [Jup-Discovery] Analyzing portfolio for ${walletAddress}`);
+      
+      // Initialize services if not already done
+      if (!this.portfolioAnalyzerService.moralisApiKey) {
+        await this.portfolioAnalyzerService.initialize();
+      }
+      
+      // Analyze the portfolio using Moralis API
+      const portfolio = await this.portfolioAnalyzerService.analyzePortfolio(walletAddress);
+      
+      // Generate strategy using AI Strategy Engine
+      const strategy = await this.aiStrategyEngineService.generateStrategy(walletAddress, 'basic', {});
+      
+      // Send data to enhancedBackend via internal API
+      const result = await this.sendPortfolioDataToBackend(walletAddress, portfolio, strategy);
+      
+      console.log(`✅ [Jup-Discovery] Portfolio analysis complete for ${walletAddress}`);
+      console.log(`  - SOL: ${portfolio.solBalance.sol.toFixed(4)} SOL`);
+      console.log(`  - LSTs: ${portfolio.lstHoldings.length} tokens`);
+      console.log(`  - Current Yield: ${portfolio.currentYield.toFixed(2)}%`);
+      console.log(`  - Total Value: $${portfolio.totalValue.toFixed(2)}`);
+      console.log(`  - Strategy Generated: ${strategy.type}`);
+      
+      return {
+        success: true,
+        portfolio,
+        strategy,
+        backendResult: result
+      };
+      
+    } catch (error) {
+      console.error(`❌ [Jup-Discovery] Portfolio analysis failed for ${walletAddress}:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Send portfolio data to enhancedBackend via internal API
+   */
+  async sendPortfolioDataToBackend(walletAddress, portfolio, strategy) {
+    try {
+      if (!INTERNAL_TOKEN) {
+        console.warn('⚠️ No INTERNAL_TOKEN set; cannot send portfolio data to backend');
+        return { success: false, error: 'No token' };
+      }
+      
+      const url = `${API_BASE}/api/internal/portfolio/import`;
+      const payload = {
+        walletAddress,
+        portfolioData: portfolio,
+        strategyData: strategy
+      };
+      
+      console.log(`📤 [Jup-Discovery] Sending portfolio data to enhancedBackend for ${walletAddress}`);
+      
+      const response = await axios.post(url, payload, {
+        headers: { 
+          'Content-Type': 'application/json', 
+          'X-Internal-Token': INTERNAL_TOKEN 
+        },
+        timeout: 20000
+      });
+      
+      console.log(`✅ [Jup-Discovery] Portfolio data sent successfully for ${walletAddress}`);
+      return response.data;
+      
+    } catch (error) {
+      console.error(`❌ [Jup-Discovery] Failed to send portfolio data for ${walletAddress}:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Process portfolio analysis request from enhancedBackend
+   * This endpoint is called by enhancedBackend when it needs real portfolio data
+   */
+  async processPortfolioRequest(walletAddress) {
+    try {
+      console.log(`🔄 [Jup-Discovery] Processing portfolio request for ${walletAddress}`);
+      
+      // Analyze portfolio and send to backend
+      const result = await this.analyzePortfolioAndSend(walletAddress);
+      
+      return {
+        success: true,
+        message: `Portfolio analysis completed for ${walletAddress}`,
+        data: result
+      };
+      
+    } catch (error) {
+      console.error(`❌ [Jup-Discovery] Portfolio request processing failed for ${walletAddress}:`, error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
 }
 
 // Start the service if this file is run directly
@@ -557,7 +689,109 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   service.start().catch(error => {
     console.error('❌ [Enhanced Jupiter Discovery] Service failed to start:', error.message);
     process.exit(1);
-  });
-}
+  }
 
-export default EnhancedJupiterDiscoveryService;
+  /**
+   * Analyze portfolio and send data to enhancedBackend
+   * This method is called by enhancedBackend when it needs real portfolio data
+   */
+  async analyzePortfolioAndSend(walletAddress) {
+    try {
+      console.log(`📊 [Jup-Discovery] Analyzing portfolio for ${walletAddress}`);
+      
+      // Initialize services if not already done
+      if (!this.portfolioAnalyzerService.moralisApiKey) {
+        await this.portfolioAnalyzerService.initialize();
+      }
+      
+      // Analyze the portfolio using Moralis API
+      const portfolio = await this.portfolioAnalyzerService.analyzePortfolio(walletAddress);
+      
+      // Generate strategy using AI Strategy Engine
+      const strategy = await this.aiStrategyEngineService.generateStrategy(walletAddress, 'basic', {});
+      
+      // Send data to enhancedBackend via internal API
+      const result = await this.sendPortfolioDataToBackend(walletAddress, portfolio, strategy);
+      
+      console.log(`✅ [Jup-Discovery] Portfolio analysis complete for ${walletAddress}`);
+      console.log(`  - SOL: ${portfolio.solBalance.sol.toFixed(4)} SOL`);
+      console.log(`  - LSTs: ${portfolio.lstHoldings.length} tokens`);
+      console.log(`  - Current Yield: ${portfolio.currentYield.toFixed(2)}%`);
+      console.log(`  - Total Value: $${portfolio.totalValue.toFixed(2)}`);
+      console.log(`  - Strategy Generated: ${strategy.type}`);
+      
+      return {
+        success: true,
+        portfolio,
+        strategy,
+        backendResult: result
+      };
+      
+    } catch (error) {
+      console.error(`❌ [Jup-Discovery] Portfolio analysis failed for ${walletAddress}:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Send portfolio data to enhancedBackend via internal API
+   */
+  async sendPortfolioDataToBackend(walletAddress, portfolio, strategy) {
+    try {
+      if (!INTERNAL_TOKEN) {
+        console.warn('⚠️ No INTERNAL_TOKEN set; cannot send portfolio data to backend');
+        return { success: false, error: 'No token' };
+      }
+      
+      const url = `${API_BASE}/api/internal/portfolio/import`;
+      const payload = {
+        walletAddress,
+        portfolioData: portfolio,
+        strategyData: strategy
+      };
+      
+      console.log(`📤 [Jup-Discovery] Sending portfolio data to enhancedBackend for ${walletAddress}`);
+      
+      const response = await axios.post(url, payload, {
+        headers: { 
+          'Content-Type': 'application/json', 
+          'X-Internal-Token': INTERNAL_TOKEN 
+        },
+        timeout: 20000
+      });
+      
+      console.log(`✅ [Jup-Discovery] Portfolio data sent successfully for ${walletAddress}`);
+      return response.data;
+      
+    } catch (error) {
+      console.error(`❌ [Jup-Discovery] Failed to send portfolio data for ${walletAddress}:`, error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Process portfolio analysis request from enhancedBackend
+   * This endpoint is called by enhancedBackend when it needs real portfolio data
+   */
+  async processPortfolioRequest(walletAddress) {
+    try {
+      console.log(`🔄 [Jup-Discovery] Processing portfolio request for ${walletAddress}`);
+      
+      // Analyze portfolio and send to backend
+      const result = await this.analyzePortfolioAndSend(walletAddress);
+      
+      return {
+        success: true,
+        message: `Portfolio analysis completed for ${walletAddress}`,
+        data: result
+      };
+      
+    } catch (error) {
+      console.error(`❌ [Jup-Discovery] Portfolio request processing failed for ${walletAddress}:`, error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+}

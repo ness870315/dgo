@@ -12463,8 +12463,71 @@ Thanks for using x402 payments on Twitter! 🚀`;
         
         console.log(`📊 [Portfolio API] Analyzing portfolio for ${walletAddress}`);
         
-        // For now, return mock data until jup-discovery background worker is set up
-        // TODO: Replace with real data from jup-discovery background worker
+        // Check if we have cached data from jup-discovery background worker
+        if (this.portfolioCache && this.portfolioCache.has(walletAddress)) {
+          const cached = this.portfolioCache.get(walletAddress);
+          const ageMinutes = (Date.now() - cached.timestamp) / (1000 * 60);
+          
+          if (ageMinutes < 5) { // Use cached data if less than 5 minutes old
+            console.log(`📊 [Portfolio API] Using cached data (${ageMinutes.toFixed(1)} minutes old)`);
+            return res.json({
+              success: true,
+              sol: cached.portfolioData.solBalance?.sol || 0,
+              lsts: cached.portfolioData.lstHoldings?.map(lst => ({
+                symbol: lst.symbol,
+                amount: lst.amount,
+                apr: lst.apr || 0
+              })) || [],
+              totalValue: cached.portfolioData.totalValue || 0,
+              currentYield: cached.portfolioData.currentYield || 0,
+              insights: cached.portfolioData.insights || [],
+              timestamp: cached.portfolioData.timestamp || new Date().toISOString()
+            });
+          }
+        }
+        
+        // Request fresh data from jup-discovery background worker
+        console.log(`📊 [Portfolio API] Requesting fresh data from jup-discovery for ${walletAddress}`);
+        
+        try {
+          // Call jup-discovery service to analyze portfolio
+          const jupDiscoveryUrl = process.env.JUP_DISCOVERY_URL || 'http://localhost:3001';
+          const response = await fetch(`${jupDiscoveryUrl}/api/internal/portfolio/analyze`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Internal-Token': process.env.INTERNAL_TOKEN || process.env.DISCOVERY_INTERNAL_TOKEN
+            },
+            body: JSON.stringify({ walletAddress })
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log(`✅ [Portfolio API] Received fresh data from jup-discovery for ${walletAddress}`);
+            
+            // Return the fresh data
+            return res.json({
+              success: true,
+              sol: result.data.portfolio.solBalance?.sol || 0,
+              lsts: result.data.portfolio.lstHoldings?.map(lst => ({
+                symbol: lst.symbol,
+                amount: lst.amount,
+                apr: lst.apr || 0
+              })) || [],
+              totalValue: result.data.portfolio.totalValue || 0,
+              currentYield: result.data.portfolio.currentYield || 0,
+              insights: result.data.portfolio.insights || [],
+              timestamp: result.data.portfolio.timestamp || new Date().toISOString()
+            });
+          } else {
+            console.warn(`⚠️ [Portfolio API] jup-discovery returned ${response.status}, falling back to mock data`);
+          }
+        } catch (error) {
+          console.warn(`⚠️ [Portfolio API] jup-discovery call failed: ${error.message}, falling back to mock data`);
+        }
+        
+        // Fallback to mock data if jup-discovery is not available
+        console.log(`📊 [Portfolio API] Using mock data for ${walletAddress}`);
         const mockPortfolio = {
           success: true,
           sol: 31.0,
