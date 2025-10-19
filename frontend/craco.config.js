@@ -14,6 +14,7 @@ module.exports = {
         "os": require.resolve("os-browserify"),
         "buffer": require.resolve("buffer"),
         "process": require.resolve("process/browser.js"),
+        "vm": require.resolve("vm-browserify"),
       };
 
       // Add plugins for global variables
