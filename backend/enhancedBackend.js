@@ -6225,136 +6225,47 @@ Format as JSON:
         
         console.log('[🧠 x402 AI Router] 💳 Strategy execution requested for strategy:', strategyId);
         
-        // Get strategy from enhanced jup-discovery service using existing communication pattern
-        console.log('[🧠 x402 AI Router] Getting strategy from enhanced jup-discovery service...');
+        // Get strategy from enhanced jup-discovery background worker
+        console.log('[🧠 x402 AI Router] Getting strategy from enhanced jup-discovery background worker...');
         
-        const jupDiscoveryUrl = process.env.JUP_DISCOVERY_URL || 'http://localhost:3000';
-        const internalToken = process.env.INTERNAL_TOKEN;
+        // Since jup-discovery is a background worker, we'll create a mock strategy for now
+        // In production, this would be retrieved from database or via direct module integration
+        console.log('[🧠 x402 AI Router] Creating mock strategy for testing (background worker pattern)');
         
-        if (!internalToken) {
-          return res.status(503).json({ 
-            success: false, 
-            error: 'Internal token not configured' 
-          });
-        }
-        
-        // Get strategy from enhanced jup-discovery service
-        const strategyResponse = await fetch(`${jupDiscoveryUrl}/api/strategy/strategy/${strategyId}`, {
-          headers: {
-            'Authorization': `Bearer ${internalToken}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (!strategyResponse.ok) {
-          console.log('[🧠 x402 AI Router] Strategy not found, creating mock strategy for testing');
-          // For testing purposes, create a mock strategy
-          const strategy = {
-            id: strategyId,
-            name: 'AI Generated Strategy',
-            type: 'basic',
-            expectedYield: 6.2,
-            currentYield: 5.1,
-            improvement: 1.1,
-            riskScore: 4.8,
-            allocation: [
-              {
-                symbol: 'jitoSOL',
-                name: 'Jito Staked SOL',
-                percentage: 50,
-                amount: 28.25,
-                apr: 5.8,
-                riskScore: 3.2,
-                reasoning: 'High APR with low risk'
-              }
-            ],
-            actions: [
-              {
-                type: 'swap',
-                from: 'SOL',
-                to: 'jitoSOL',
-                amount: 28.25,
-                reasoning: 'Convert unstacked SOL to high-yield LST'
-              }
-            ],
-            risks: ['Validator slashing risk', 'Liquidity risk'],
-            benefits: ['Higher yield', 'Diversified exposure'],
-            cost: 1.20,
-            generatedAt: new Date().toISOString()
-          };
-          
-          // Determine payment amount based on strategy type
-          const paymentAmount = strategy.type === 'basic' ? 1.20 : 2.00;
-          
-          // If no X-PAYMENT header, return 402 Payment Required
-          if (!xPaymentHeader) {
-            console.log('[🧠 x402 AI Router] 💰 Returning 402 Payment Required for strategy execution');
-            
-            const paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements({
-              amount: paymentAmount * 1e6, // Convert to lamports (USDC has 6 decimals)
-              asset: {
-                mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
-                decimals: 6
-              },
-              network: 'solana',
-              config: {
-                resource: `https://api.degen-oracle.com/api/x402/execute-strategy/${strategyId}`,
-                description: `${strategy.name} - AI Liquid Staking Optimization`,
-                maxTimeoutSeconds: 300,
-                mimeType: 'application/json'
-              }
-            });
-            
-            const response402 = this.x402PaymentHandler.create402Response(paymentRequirements);
-            return res.status(response402.status).json(response402.body);
-          }
-          
-          // Verify and settle payment
-          console.log('[🧠 x402 AI Router] 🔍 Verifying payment...');
-          const verifyResult = await this.x402PaymentHandler.verifyPayment(xPaymentHeader, paymentRequirements);
-          if (verifyResult !== true) {
-            console.log('[🧠 x402 AI Router] ❌ Payment verification failed');
-            return res.status(402).json({ 
-              success: false, 
-              error: 'Payment verification failed' 
-            });
-          }
-          
-          console.log('[🧠 x402 AI Router] 💰 Settling payment...');
-          const settleResult = await this.x402PaymentHandler.settlePayment(xPaymentHeader, paymentRequirements);
-          if (settleResult !== true) {
-            console.log('[🧠 x402 AI Router] ❌ Payment settlement failed');
-            return res.status(500).json({ 
-              success: false, 
-              error: 'Payment settlement failed' 
-            });
-          }
-          
-          console.log('[🧠 x402 AI Router] ✅ Payment successful, returning strategy and transactions');
-          
-          // Payment successful - return strategy with transactions
-          res.json({
-            success: true,
-            strategy: strategy,
-            transactions: strategy.transactions || [],
-            payment: {
-              amount: paymentAmount,
-              currency: 'USDC',
-              status: 'completed',
-              transactionHash: `payai_${strategyId.substring(0, 16)}`
-            },
-            execution: {
-              readyToExecute: true,
-              singleTransaction: true,
-              requiresSignature: true
+        // For testing purposes, create a mock strategy
+        const strategy = {
+          id: strategyId,
+          name: 'AI Generated Strategy',
+          type: 'basic',
+          expectedYield: 6.2,
+          currentYield: 5.1,
+          improvement: 1.1,
+          riskScore: 4.8,
+          allocation: [
+            {
+              symbol: 'jitoSOL',
+              name: 'Jito Staked SOL',
+              percentage: 50,
+              amount: 28.25,
+              apr: 5.8,
+              riskScore: 3.2,
+              reasoning: 'High APR with low risk'
             }
-          });
-          
-          return;
-        }
-        
-        const strategyData = await strategyResponse.json();
-        const strategy = strategyData.data;
+          ],
+          actions: [
+            {
+              type: 'swap',
+              from: 'SOL',
+              to: 'jitoSOL',
+              amount: 28.25,
+              reasoning: 'Convert unstacked SOL to high-yield LST'
+            }
+          ],
+          risks: ['Validator slashing risk', 'Liquidity risk'],
+          benefits: ['Higher yield', 'Diversified exposure'],
+          cost: 1.20,
+          generatedAt: new Date().toISOString()
+        };
         
         // Determine payment amount based on strategy type
         const paymentAmount = strategy.type === 'basic' ? 1.20 : 2.00;
@@ -6409,7 +6320,7 @@ Format as JSON:
         res.json({
           success: true,
           strategy: strategy,
-          transactions: strategy.transactions,
+          transactions: strategy.transactions || [],
           payment: {
             amount: paymentAmount,
             currency: 'USDC',
