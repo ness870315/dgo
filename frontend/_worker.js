@@ -127,9 +127,35 @@ export default {
     } else {
       // For all other routes (including /staking), serve index.html
       // This allows React Router to handle the routing
-      const indexUrl = new URL('/', url.origin);
-      const indexRequest = new Request(indexUrl.toString(), request);
-      return env.ASSETS.fetch(indexRequest);
+      try {
+        const indexUrl = new URL('/', url.origin);
+        const indexRequest = new Request(indexUrl.toString(), request);
+        return await env.ASSETS.fetch(indexRequest);
+      } catch (error) {
+        // Fallback: return a simple HTML response
+        return new Response(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Degen Oracle - AI Staking</title>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+            </head>
+            <body>
+              <h1>Loading Degen Oracle...</h1>
+              <p>If this page doesn't load properly, there might be a Worker configuration issue.</p>
+              <script>
+                // Redirect to main site
+                setTimeout(() => {
+                  window.location.href = 'https://degen-oracle.com';
+                }, 2000);
+              </script>
+            </body>
+          </html>
+        `, {
+          headers: { 'Content-Type': 'text/html' }
+        });
+      }
     }
   }
 };
