@@ -126,12 +126,14 @@ export default {
     } else {
       // For all other routes (including /staking), serve the main index.html
       // This allows React Router to handle client-side routing
-      const indexUrl = new URL('/', url.origin);
-      const indexRequest = new Request(indexUrl.toString(), {
-        method: request.method,
-        headers: request.headers
-      });
-      return env.ASSETS.fetch(indexRequest);
+      try {
+        const indexUrl = new URL('/', url.origin);
+        const indexRequest = new Request(indexUrl.toString());
+        return await env.ASSETS.fetch(indexRequest);
+      } catch (error) {
+        // Fallback: serve the original request
+        return env.ASSETS.fetch(request);
+      }
     }
   }
 };
