@@ -20,6 +20,7 @@ class PortfolioAnalyzerAPI {
   setupRoutes() {
     // Portfolio analysis endpoints
     this.router.get('/analyze/:walletAddress', this.analyzePortfolio.bind(this));
+    this.router.post('/analyze', this.analyzePortfolioPost.bind(this)); // POST endpoint for frontend
     this.router.get('/summary/:walletAddress', this.getPortfolioSummary.bind(this));
     this.router.get('/compare/:walletAddress', this.compareToOptimal.bind(this));
     
@@ -33,7 +34,7 @@ class PortfolioAnalyzerAPI {
   }
 
   /**
-   * Analyze complete portfolio
+   * Analyze complete portfolio (GET)
    */
   async analyzePortfolio(req, res) {
     try {
@@ -57,6 +58,52 @@ class PortfolioAnalyzerAPI {
       
     } catch (error) {
       console.error(`❌ [Portfolio API] Analysis failed for ${req.params.walletAddress}:`, error.message);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Analyze complete portfolio (POST) - for frontend integration
+   */
+  async analyzePortfolioPost(req, res) {
+    try {
+      const { walletAddress, includeTokens = true, includeLSTs = true } = req.body;
+      
+      if (!walletAddress || walletAddress.length < 32) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid wallet address'
+        });
+      }
+      
+      console.log(`📊 [Portfolio API] POST Analyzing portfolio for ${walletAddress}`);
+      console.log(`  - Include tokens: ${includeTokens}`);
+      console.log(`  - Include LSTs: ${includeLSTs}`);
+      
+      const portfolio = await this.portfolioAnalyzer.analyzePortfolio(walletAddress);
+      
+      // Format response for frontend
+      const response = {
+        success: true,
+        sol: portfolio.solBalance?.sol || 0,
+        lsts: portfolio.lstHoldings?.map(lst => ({
+          symbol: lst.symbol,
+          amount: lst.balance,
+          apr: lst.apr || 0
+        })) || [],
+        totalValue: portfolio.totalValue || 0,
+        currentYield: portfolio.currentYield || 0,
+        insights: portfolio.insights || [],
+        timestamp: portfolio.timestamp || new Date().toISOString()
+      };
+      
+      res.json(response);
+      
+    } catch (error) {
+      console.error(`❌ [Portfolio API] POST Analysis failed for ${req.body.walletAddress}:`, error.message);
       res.status(500).json({
         success: false,
         error: error.message

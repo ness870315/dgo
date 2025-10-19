@@ -875,6 +875,16 @@ Focus on:
       entries: Array.from(this.strategyCache.keys())
     };
   }
+
+  /**
+   * Get router for Express integration
+   */
+  getRouter() {
+    // Import AIStrategyEngineAPI dynamically to avoid circular imports
+    const AIStrategyEngineAPI = require('./AIStrategyEngineAPI.js').default;
+    const api = new AIStrategyEngineAPI(this);
+    return api.getRouter();
+  }
 }
 
 export default AIStrategyEngineService;

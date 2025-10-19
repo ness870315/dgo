@@ -520,6 +520,16 @@ class PortfolioAnalyzerService {
       entries: Array.from(this.portfolioCache.keys())
     };
   }
+
+  /**
+   * Get router for Express integration
+   */
+  getRouter() {
+    // Import PortfolioAnalyzerAPI dynamically to avoid circular imports
+    const PortfolioAnalyzerAPI = require('./PortfolioAnalyzerAPI.js').default;
+    const api = new PortfolioAnalyzerAPI(this);
+    return api.getRouter();
+  }
 }
 
 export default PortfolioAnalyzerService;
