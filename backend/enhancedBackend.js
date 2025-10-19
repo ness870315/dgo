@@ -39,8 +39,8 @@ import TwitterMentionService from './twitterMentionService.js';
 import NFTGatedAccessService from './nftGatedAccessService.js';
 import EnhancedNFTTraitService from './services/EnhancedNFTTraitService.js';
 import { X402PaymentHandler } from '@payai/x402-solana';
-import PortfolioAnalyzerService from './services/portfolio-analyzer/PortfolioAnalyzerService.js';
-import AIStrategyEngineService from './services/ai-strategy-engine/AIStrategyEngineService.js';
+// Portfolio analysis services are handled by jup-discovery background worker
+// No direct imports needed - data comes via internal API endpoints
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -158,9 +158,8 @@ class EnhancedBackend {
     this.hypeTrendAnalysis = new HypeTrendAnalysis();
     this.aiHypePrediction = new AIHypePredictionService();
     
-    // Initialize AI Liquid Staking Router services
-    this.portfolioAnalyzer = new PortfolioAnalyzerService();
-    this.aiStrategyEngine = new AIStrategyEngineService();
+    // AI Liquid Staking Router services are handled by jup-discovery background worker
+    // Data comes via internal API endpoints, no direct service initialization needed
     this.callThesisGenerator = new CallThesisGenerator();
     this.milestoneTracker = new MilestoneTracker();
     this.pushNotificationService = new PushNotificationService();
