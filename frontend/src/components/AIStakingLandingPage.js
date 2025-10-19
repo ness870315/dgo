@@ -231,9 +231,9 @@ const AIStakingLandingPage = () => {
               © 2024 Degen Oracle. All rights reserved.
             </div>
             <div className="flex space-x-6 text-sm text-gray-400">
-              <a href="#" className="hover:text-solana-purple transition-colors">Privacy</a>
-              <a href="#" className="hover:text-solana-purple transition-colors">Terms</a>
-              <a href="#" className="hover:text-solana-purple transition-colors">Support</a>
+              <button className="hover:text-solana-purple transition-colors">Privacy</button>
+              <button className="hover:text-solana-purple transition-colors">Terms</button>
+              <button className="hover:text-solana-purple transition-colors">Support</button>
             </div>
           </div>
         </div>
