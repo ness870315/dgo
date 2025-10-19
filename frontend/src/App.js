@@ -1398,8 +1398,8 @@ function AppContent() {
 
 function App() {
   return (
-    <Router>
-      <AuthProvider>
+    <AuthProvider>
+      <Router>
         <Routes>
           {/* Staking Routes - Must come before catch-all */}
           <Route path="/staking" element={<AIStakingLandingPageSimple />} />
@@ -1408,8 +1408,8 @@ function App() {
           {/* Main App Route - Catch-all must be last */}
           <Route path="*" element={<AppContent />} />
         </Routes>
-      </AuthProvider>
-    </Router>
+      </Router>
+    </AuthProvider>
   );
 }
 
