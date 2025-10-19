@@ -3,21 +3,23 @@ import LSTRegistryService from '../lst-registry/LSTRegistryService.js';
 import PortfolioAnalyzerService from '../portfolio-analyzer/PortfolioAnalyzerService.js';
 import { computeLstMetrics } from './metrics.js';
 import { generateStrategyCandidates } from './scorer.js';
-import { generateStrategySelection } from './ai-strategy.js';
+import { generateLLMCandidates } from './llm-candidates.js';
+import { analyzeAllCandidates, generateFinalSelection } from './strategy-analysis.js';
 import { buildUnsignedExecutionTxs } from './tx-builder.js';
 import { SafetyConstraints } from './types.js';
 
 /**
- * AI Strategy Engine Service - Deterministic Safety-First Architecture
+ * AI Strategy Engine Service - Hybrid Deterministic + LLM Architecture
  * 
- * This service uses deterministic computation with LLM explanation only.
- * All numbers, weights, and allocations are computed by code, not LLM.
+ * This service combines deterministic computation with LLM creativity while maintaining safety.
  * 
  * Flow:
  * 1. Compute LST metrics with safety rails
- * 2. Generate 3 candidate portfolios (A/B/C) deterministically
- * 3. LLM selects one and explains (no number invention)
- * 4. Build transactions with re-quote validation
+ * 2. Generate 3 deterministic candidates (A/B/C)
+ * 3. Generate 3 LLM candidates (D/E/F) - Phase 1.5
+ * 4. Compare and analyze all 6 candidates
+ * 5. Select best candidate based on user profile
+ * 6. Build transactions with re-quote validation
  */
 class AIStrategyEngineService {
   constructor() {
@@ -181,17 +183,17 @@ class AIStrategyEngineService {
   }
 
   /**
-   * Generate AI strategy using deterministic computation + LLM selection
+   * Generate AI strategy using hybrid deterministic + LLM approach
    */
   async generateStrategy(walletAddress, strategyType = 'basic', userPreferences = {}) {
     try {
-      console.log(`🧠 [AI Strategy Engine] Generating ${strategyType} strategy for ${walletAddress}`);
+      console.log(`🧠 [AI Strategy Engine] Generating hybrid ${strategyType} strategy for ${walletAddress}`);
       
       // Check cache first
-      const cacheKey = `strategy_${walletAddress}_${strategyType}`;
+      const cacheKey = `hybrid_strategy_${walletAddress}_${strategyType}`;
       const cached = this.strategyCache.get(cacheKey);
       if (cached && (Date.now() - cached.timestamp) < this.cacheTimeout) {
-        console.log('🧠 [AI Strategy Engine] Using cached strategy');
+        console.log('🧠 [AI Strategy Engine] Using cached hybrid strategy');
         return cached.data;
       }
       
@@ -207,9 +209,11 @@ class AIStrategyEngineService {
       }
       
       // Step 3: Generate deterministic candidates (A/B/C)
-      const candidates = generateStrategyCandidates(lstMetrics, strategyType);
+      console.log('🔢 [AI Strategy Engine] Generating deterministic candidates...');
+      const deterministicCandidates = generateStrategyCandidates(lstMetrics, strategyType);
       
-      // Step 4: LLM selection and explanation
+      // Step 4: Generate LLM candidates (D/E/F) - Phase 1.5
+      console.log('🤖 [AI Strategy Engine] Generating LLM candidates (Phase 1.5)...');
       const userProfile = {
         walletAddress,
         totalValueSOL: portfolio.totalValue,
@@ -218,18 +222,24 @@ class AIStrategyEngineService {
         strategyType
       };
       
-      const metricsSummary = this.computeMetricsSummary(lstMetrics);
       const openaiConfig = {
         apiKey: this.openaiApiKey,
         baseUrl: this.openaiBaseUrl,
         model: this.model
       };
       
-      const llmSelection = await generateStrategySelection(userProfile, candidates, metricsSummary, openaiConfig);
+      const llmCandidates = await generateLLMCandidates(lstMetrics, userProfile, strategyType, openaiConfig);
       
-      // Step 5: Build final strategy plan
-      const selectedCandidate = candidates[llmSelection.pick];
-      const strategy = this.buildStrategyPlan(selectedCandidate, llmSelection, portfolio, strategyType);
+      // Step 5: Analyze and compare all 6 candidates
+      console.log('📊 [AI Strategy Engine] Analyzing all 6 candidates...');
+      const analysis = analyzeAllCandidates(deterministicCandidates, llmCandidates, lstMetrics);
+      
+      // Step 6: Generate final selection
+      console.log('🎯 [AI Strategy Engine] Generating final selection...');
+      const finalSelection = generateFinalSelection(analysis, userProfile);
+      
+      // Step 7: Build final strategy plan
+      const strategy = this.buildHybridStrategyPlan(finalSelection, portfolio, strategyType, analysis);
       
       // Cache the result
       this.strategyCache.set(cacheKey, {
@@ -237,17 +247,18 @@ class AIStrategyEngineService {
         timestamp: Date.now()
       });
       
-      console.log(`✅ [AI Strategy Engine] Strategy generated for ${walletAddress}`);
+      console.log(`✅ [AI Strategy Engine] Hybrid strategy generated for ${walletAddress}`);
       console.log(`  - Type: ${strategyType}`);
-      console.log(`  - Selected: ${llmSelection.pick}`);
+      console.log(`  - Selected: ${finalSelection.selectedCandidate} (${finalSelection.candidateData.source})`);
       console.log(`  - Expected Yield: ${strategy.expectedYield.toFixed(2)}%`);
       console.log(`  - Risk Score: ${strategy.riskScore.toFixed(1)}/10`);
       console.log(`  - Assets: ${strategy.allocation.length}`);
+      console.log(`  - Analysis: ${analysis.insights.deterministicStrengths.length} deterministic insights, ${analysis.insights.llmStrengths.length} LLM insights`);
       
       return strategy;
       
     } catch (error) {
-      console.error(`❌ [AI Strategy Engine] Strategy generation failed for ${walletAddress}:`, error.message);
+      console.error(`❌ [AI Strategy Engine] Hybrid strategy generation failed for ${walletAddress}:`, error.message);
       throw error;
     }
   }
@@ -334,22 +345,22 @@ class AIStrategyEngineService {
   }
   
   /**
-   * Build final strategy plan from selected candidate
+   * Build hybrid strategy plan from final selection
    */
-  buildStrategyPlan(selectedCandidate, llmSelection, portfolio, strategyType) {
-    const strategyId = `strategy_${Date.now()}_${llmSelection.pick}`;
+  buildHybridStrategyPlan(finalSelection, portfolio, strategyType, analysis) {
+    const { selectedCandidate, candidateData, selectionReasoning } = finalSelection;
+    const strategyId = `hybrid_strategy_${Date.now()}_${selectedCandidate}`;
     const cost = this.strategyTypes[strategyType].price;
     
     // Build allocation array
-    const allocation = Object.entries(selectedCandidate.weights).map(([symbol, percentage]) => {
-      const lstMetrics = selectedCandidate.lstMetrics?.find(m => m.symbol === symbol);
+    const allocation = Object.entries(candidateData.weights).map(([symbol, percentage]) => {
       return {
         symbol,
         percentage: Math.round(percentage * 100) / 100, // Round to 2 decimal places
         amount: portfolio.solBalance.sol * percentage,
-        apr: lstMetrics?.apr || 0,
-        tvlUSD: lstMetrics?.tvlUSD || 0,
-        reasoning: this.getReasoningForSymbol(symbol, percentage, llmSelection.pick)
+        apr: candidateData.analysis?.expectedYield || 0,
+        tvlUSD: 0, // Will be filled from metrics
+        reasoning: this.getReasoningForSymbol(symbol, percentage, selectedCandidate)
       };
     });
     
@@ -364,20 +375,20 @@ class AIStrategyEngineService {
     
     return {
       id: strategyId,
-      name: llmSelection.title,
+      name: candidateData.name || `Hybrid ${selectedCandidate} Strategy`,
       type: strategyType,
       currentYield: portfolio.currentYield,
-      expectedYield: Math.round(selectedCandidate.expectedYield * 100) / 100,
-      improvement: Math.round((selectedCandidate.expectedYield - portfolio.currentYield) * 100) / 100,
-      riskScore: Math.round(selectedCandidate.riskScore * 10) / 10,
+      expectedYield: Math.round(candidateData.analysis?.expectedYield * 100) / 100,
+      improvement: Math.round((candidateData.analysis?.expectedYield - portfolio.currentYield) * 100) / 100,
+      riskScore: Math.round(candidateData.analysis?.riskScore * 10) / 10,
       allocation,
       actions,
-      risks: llmSelection.risks,
-      benefits: this.getBenefitsForStrategy(llmSelection.pick, selectedCandidate),
+      risks: this.getRisksForStrategy(selectedCandidate, candidateData),
+      benefits: this.getBenefitsForStrategy(selectedCandidate, candidateData),
       narrative: {
-        title: llmSelection.title,
-        summary: llmSelection.summary,
-        risks: llmSelection.risks
+        title: candidateData.name || `Hybrid ${selectedCandidate} Strategy`,
+        summary: candidateData.reasoning || selectionReasoning,
+        risks: this.getRisksForStrategy(selectedCandidate, candidateData)
       },
       guards: {
         maxSlippageBps: SafetyConstraints.maxSlippageBps,
@@ -387,7 +398,25 @@ class AIStrategyEngineService {
       asOfMs: Date.now(),
       strategyType,
       cost,
-      generatedAt: new Date().toISOString()
+      generatedAt: new Date().toISOString(),
+      
+      // Hybrid-specific fields
+      hybridAnalysis: {
+        selectedCandidate,
+        source: candidateData.source,
+        selectionReasoning,
+        rankings: finalSelection.analysis.rankings,
+        alternatives: finalSelection.alternatives,
+        insights: {
+          deterministicStrengths: analysis.insights.deterministicStrengths,
+          llmStrengths: analysis.insights.llmStrengths,
+          hybridOpportunities: analysis.insights.hybridOpportunities
+        },
+        allCandidates: {
+          deterministic: Object.keys(analysis.candidates).filter(k => ['A', 'B', 'C'].includes(k)),
+          llm: Object.keys(analysis.candidates).filter(k => ['D', 'E', 'F'].includes(k))
+        }
+      }
     };
   }
   
@@ -429,10 +458,29 @@ class AIStrategyEngineService {
     const benefits = {
       A: ['Maximum yield optimization', 'Top APR selection', 'Simple allocation'],
       B: ['Balanced risk-return', 'High liquidity', 'Strong diversification'],
-      C: ['Discount capture', 'Market inefficiency', 'Premium arbitrage']
+      C: ['Discount capture', 'Market inefficiency', 'Premium arbitrage'],
+      D: ['Emerging LST exposure', 'Growth potential', 'Innovation focus'],
+      E: ['Decentralization priority', 'Risk distribution', 'Validator diversity'],
+      F: ['Market inefficiency capture', 'Arbitrage opportunities', 'Dynamic allocation']
     };
     
     return benefits[strategyPick] || ['Optimized allocation', 'Risk management', 'Yield enhancement'];
+  }
+  
+  /**
+   * Get risks for strategy
+   */
+  getRisksForStrategy(strategyPick, candidate) {
+    const risks = {
+      A: ['High concentration risk', 'APR volatility', 'Market timing risk'],
+      B: ['Moderate risk across assets', 'Liquidity dependency', 'Validator slashing'],
+      C: ['Discount volatility', 'Market inefficiency risk', 'Timing sensitivity'],
+      D: ['Emerging protocol risk', 'Unproven validators', 'Higher volatility'],
+      E: ['Decentralization trade-offs', 'Complex risk management', 'Validator coordination'],
+      F: ['Market timing risk', 'Arbitrage competition', 'Dynamic rebalancing needs']
+    };
+    
+    return risks[strategyPick] || ['Validator slashing risk', 'Liquidity risk', 'Smart contract risk'];
   }
 
   /**
