@@ -20,8 +20,7 @@ import X402FuelPaymentPage from './components/X402FuelPaymentPage';
 import MobilePushNotification from './components/MobilePushNotification';
 import AIChatModal from './components/AIChatModal';
 import FloatingChatButton from './components/FloatingChatButton';
-import AIStakingLandingPage from './components/AIStakingLandingPage';
-import AILiquidStakingRouter from './components/AILiquidStakingRouter';
+import TestStakingPage from './components/TestStakingPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import tokenService from './services/tokenService';
 import pushNotificationService from './services/pushNotificationService';
@@ -1402,8 +1401,8 @@ function App() {
       <AuthProvider>
         <Routes>
           {/* Staking Routes */}
-          <Route path="/staking" element={<AIStakingLandingPage />} />
-          <Route path="/staking/ai-lst-router" element={<AILiquidStakingRouter />} />
+          <Route path="/staking" element={<TestStakingPage />} />
+          <Route path="/staking/ai-lst-router" element={<TestStakingPage />} />
           
           {/* Main App Route */}
           <Route path="/*" element={<AppContent />} />
