@@ -39,6 +39,8 @@ import TwitterMentionService from './twitterMentionService.js';
 import NFTGatedAccessService from './nftGatedAccessService.js';
 import EnhancedNFTTraitService from './services/EnhancedNFTTraitService.js';
 import { X402PaymentHandler } from '@payai/x402-solana';
+import PortfolioAnalyzerService from './services/portfolio-analyzer/PortfolioAnalyzerService.js';
+import AIStrategyEngineService from './services/ai-strategy-engine/AIStrategyEngineService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -155,6 +157,10 @@ class EnhancedBackend {
     this.socialContextAI = new SocialContextAI();
     this.hypeTrendAnalysis = new HypeTrendAnalysis();
     this.aiHypePrediction = new AIHypePredictionService();
+    
+    // Initialize AI Liquid Staking Router services
+    this.portfolioAnalyzer = new PortfolioAnalyzerService();
+    this.aiStrategyEngine = new AIStrategyEngineService();
     this.callThesisGenerator = new CallThesisGenerator();
     this.milestoneTracker = new MilestoneTracker();
     this.pushNotificationService = new PushNotificationService();
@@ -12439,6 +12445,210 @@ Thanks for using x402 payments on Twitter! 🚀`;
           success: false,
           error: 'Failed to update cleanup interval',
           message: error.message
+        });
+      }
+    });
+
+    // AI Liquid Staking Router - Portfolio Analysis Endpoints
+    this.app.post('/api/portfolio/analyze', async (req, res) => {
+      try {
+        const { walletAddress, includeTokens = true, includeLSTs = true } = req.body;
+        
+        if (!walletAddress || walletAddress.length < 32) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid wallet address'
+          });
+        }
+        
+        console.log(`📊 [Portfolio API] Analyzing portfolio for ${walletAddress}`);
+        console.log(`  - Include tokens: ${includeTokens}`);
+        console.log(`  - Include LSTs: ${includeLSTs}`);
+        
+        const portfolio = await this.portfolioAnalyzer.analyzePortfolio(walletAddress);
+        
+        // Format response for frontend
+        const response = {
+          success: true,
+          sol: portfolio.solBalance?.sol || 0,
+          lsts: portfolio.lstHoldings?.map(lst => ({
+            symbol: lst.symbol,
+            amount: lst.balance,
+            apr: lst.apr || 0
+          })) || [],
+          totalValue: portfolio.totalValue || 0,
+          currentYield: portfolio.currentYield || 0,
+          insights: portfolio.insights || [],
+          timestamp: portfolio.timestamp || new Date().toISOString()
+        };
+        
+        res.json(response);
+        
+      } catch (error) {
+        console.error(`❌ [Portfolio API] Analysis failed for ${req.body.walletAddress}:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // AI Liquid Staking Router - Strategy Generation Endpoints
+    this.app.post('/api/strategy/generate', async (req, res) => {
+      try {
+        const { walletAddress, portfolioData, strategyType = 'basic', preferences = {} } = req.body;
+        
+        if (!walletAddress || walletAddress.length < 32) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid wallet address'
+          });
+        }
+        
+        console.log(`🧠 [Strategy API] Generating ${strategyType} strategy for ${walletAddress}`);
+        
+        const strategy = await this.aiStrategyEngine.generateStrategy(walletAddress, strategyType, preferences);
+        
+        res.json(strategy);
+        
+      } catch (error) {
+        console.error(`❌ [Strategy API] Generation failed for ${req.body.walletAddress}:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Portfolio Analysis endpoints (receives data from jup-discovery background worker)
+    this.app.post('/api/portfolio/analyze', async (req, res) => {
+      try {
+        const { walletAddress, includeTokens = true, includeLSTs = true } = req.body;
+        
+        if (!walletAddress || walletAddress.length < 32) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid wallet address'
+          });
+        }
+        
+        console.log(`📊 [Portfolio API] Analyzing portfolio for ${walletAddress}`);
+        
+        // For now, return mock data until jup-discovery background worker is set up
+        // TODO: Replace with real data from jup-discovery background worker
+        const mockPortfolio = {
+          success: true,
+          sol: 31.0,
+          lsts: [
+            { symbol: 'jitoSOL', amount: 5.2, apr: 5.8 },
+            { symbol: 'mSOL', amount: 3.8, apr: 5.6 }
+          ],
+          totalValue: 40.0,
+          currentYield: 4.2,
+          insights: [],
+          timestamp: new Date().toISOString()
+        };
+        
+        res.json(mockPortfolio);
+        
+      } catch (error) {
+        console.error(`❌ [Portfolio API] Analysis failed:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Strategy Generation endpoint (receives data from jup-discovery background worker)
+    this.app.post('/api/strategy/generate', async (req, res) => {
+      try {
+        const { walletAddress, portfolioData, strategyType = 'basic', preferences = {} } = req.body;
+        
+        if (!walletAddress || walletAddress.length < 32) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid wallet address'
+          });
+        }
+        
+        console.log(`🧠 [Strategy API] Generating ${strategyType} strategy for ${walletAddress}`);
+        
+        // For now, return mock strategy until jup-discovery background worker is set up
+        // TODO: Replace with real strategy from jup-discovery background worker
+        const mockStrategy = {
+          id: `strategy-${Date.now()}`,
+          type: strategyType,
+          currentYield: portfolioData?.currentYield || 4.2,
+          expectedYield: strategyType === 'basic' ? 6.2 : 7.5,
+          improvement: strategyType === 'basic' ? 2.0 : 3.3,
+          riskScore: strategyType === 'basic' ? 4.8 : 6.5,
+          allocation: [
+            { symbol: 'jitoSOL', name: 'Jito Staked SOL', percentage: 50, amount: (portfolioData?.sol || 31) * 0.5, apr: 5.8, riskScore: 3.2, reasoning: 'High APR with low risk' },
+            { symbol: 'mSOL', name: 'Marinade Staked SOL', percentage: 30, amount: (portfolioData?.sol || 31) * 0.3, apr: 5.6, riskScore: 2.8, reasoning: 'Diversified validator network' },
+            { symbol: 'bSOL', name: 'BlazeStake SOL', percentage: 20, amount: (portfolioData?.sol || 31) * 0.2, apr: 5.9, riskScore: 3.5, reasoning: 'Community-driven with high yield' }
+          ],
+          actions: [
+            { type: 'swap', from: 'SOL', to: 'jitoSOL', amount: (portfolioData?.sol || 31) * 0.5, reasoning: 'Convert unstacked SOL to high-yield LST' },
+            { type: 'swap', from: 'SOL', to: 'mSOL', amount: (portfolioData?.sol || 31) * 0.3, reasoning: 'Diversify across validator networks' },
+            { type: 'swap', from: 'SOL', to: 'bSOL', amount: (portfolioData?.sol || 31) * 0.2, reasoning: 'Add community-driven LST for higher yield' }
+          ],
+          risks: ['Validator slashing risk', 'Liquidity risk'],
+          benefits: ['Higher yield', 'Diversified exposure', 'MEV rewards'],
+          cost: strategyType === 'basic' ? 1.20 : 2.00,
+          generatedAt: new Date().toISOString()
+        };
+        
+        res.json(mockStrategy);
+        
+      } catch (error) {
+        console.error(`❌ [Strategy API] Generation failed:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Internal endpoint for jup-discovery background worker to send portfolio data
+    this.app.post('/api/internal/portfolio/import', async (req, res) => {
+      try {
+        const internalToken = process.env.INTERNAL_TOKEN || process.env.DISCOVERY_INTERNAL_TOKEN;
+        const providedToken = req.headers['x-internal-token'] || req.query.token;
+
+        if (!internalToken) {
+          return res.status(503).json({ success: false, error: 'Internal import not configured (no INTERNAL_TOKEN)' });
+        }
+        if (!providedToken || providedToken !== internalToken) {
+          return res.status(403).json({ success: false, error: 'Forbidden' });
+        }
+
+        const { walletAddress, portfolioData, strategyData } = req.body || {};
+        
+        console.log(`📊 [Portfolio Import] Received portfolio data for ${walletAddress}`);
+        
+        // Store the portfolio data in memory cache for the frontend to retrieve
+        if (!this.portfolioCache) {
+          this.portfolioCache = new Map();
+        }
+        
+        this.portfolioCache.set(walletAddress, {
+          portfolioData,
+          strategyData,
+          timestamp: Date.now()
+        });
+        
+        res.json({
+          success: true,
+          message: `Portfolio data imported for ${walletAddress}`,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error(`❌ [Portfolio Import] Import failed:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
         });
       }
     });
