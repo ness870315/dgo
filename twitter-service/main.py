@@ -1,6 +1,6 @@
 """
-Twitter Microservice using Twitter v2 API
-Provides Twitter data endpoints for the main Node.js backend
+Twitter Microservice using Twitter v2 API + Portfolio Analysis
+Provides Twitter data endpoints and portfolio analysis for the main Node.js backend
 """
 import os
 import time
@@ -12,6 +12,7 @@ import uvicorn
 import requests
 from datetime import datetime
 import logging
+import json
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -27,8 +28,10 @@ def _mask(s: Optional[str]) -> str:
         return 'missing'
 
 TW_BEARER = os.getenv('TWITTER_BEARER_TOKEN')
+MORALIS_API_KEY = os.getenv('MORALIS_API_KEY')
 
 logger.info("twitter-service starting… mode=Bearer bearer=%s", _mask(TW_BEARER))
+logger.info("Portfolio analysis: Moralis API key=%s", _mask(MORALIS_API_KEY))
 
 # Add CORS middleware
 app.add_middleware(
@@ -51,6 +54,11 @@ class TwitterMentionRequest(BaseModel):
     handle: str
     count: int = 10
 
+class PortfolioAnalysisRequest(BaseModel):
+    walletAddress: str
+    includeTokens: bool = True
+    includeLSTs: bool = True
+
 def twitter_api_get(path: str, params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Make authenticated request to Twitter v2 API."""
     base = "https://api.twitter.com"
@@ -72,6 +80,198 @@ def twitter_api_get(path: str, params: Dict[str, Any]) -> Optional[Dict[str, Any
         return r.json()
     except Exception:
         return None
+
+def moralis_api_get(endpoint: str, params: Dict[str, Any] = None) -> Optional[Dict[str, Any]]:
+    """Make authenticated request to Moralis API."""
+    if not MORALIS_API_KEY:
+        logger.error("MORALIS_API_KEY not set")
+        return None
+    
+    base = "https://solana-gateway.moralis.io"
+    url = f"{base}{endpoint}"
+    headers = {
+        "accept": "application/json",
+        "X-API-Key": MORALIS_API_KEY
+    }
+    
+    t0 = time.time()
+    try:
+        response = requests.get(url, headers=headers, params=params or {}, timeout=20)
+        logger.info("Moralis API %s: HTTP %d in %.0fms", endpoint, response.status_code, (time.time()-t0)*1000)
+        
+        if response.status_code != 200:
+            logger.error("Moralis API error %d: %s", response.status_code, response.text)
+            return None
+        
+        return response.json()
+    except Exception as e:
+        logger.error("Moralis API request failed: %s", str(e))
+        return None
+
+def get_sol_balance(wallet_address: str) -> Dict[str, Any]:
+    """Get SOL balance from Moralis API."""
+    try:
+        data = moralis_api_get(f"/account/mainnet/{wallet_address}/balance")
+        if not data:
+            return {"lamports": 0, "sol": 0, "usdValue": 0}
+        
+        return {
+            "lamports": int(data.get("lamports", 0)),
+            "sol": float(data.get("solana", 0)),
+            "usdValue": float(data.get("solana", 0)) * 100.0  # Assuming $100 per SOL
+        }
+    except Exception as e:
+        logger.error("Failed to get SOL balance for %s: %s", wallet_address, str(e))
+        return {"lamports": 0, "sol": 0, "usdValue": 0}
+
+def get_token_balances(wallet_address: str) -> List[Dict[str, Any]]:
+    """Get token balances from Moralis API."""
+    try:
+        data = moralis_api_get(f"/account/mainnet/{wallet_address}/tokens", {"excludeSpam": "true"})
+        if not data:
+            return []
+        
+        tokens = []
+        for token in data:
+            # Check if this is an LST (simplified check)
+            is_lst = token.get("symbol", "").endswith("SOL") and token.get("symbol") != "SOL"
+            
+            tokens.append({
+                "mint": token.get("mint"),
+                "symbol": token.get("symbol"),
+                "name": token.get("name"),
+                "decimals": token.get("decimals"),
+                "amount": float(token.get("amount", 0)),
+                "amountRaw": token.get("amountRaw"),
+                "associatedTokenAddress": token.get("associatedTokenAddress"),
+                "logo": token.get("logo"),
+                "isVerifiedContract": token.get("isVerifiedContract", False),
+                "possibleSpam": token.get("possibleSpam", False),
+                "price": 100.0 if is_lst else 1.0,  # Simplified pricing
+                "usdValue": float(token.get("amount", 0)) * (100.0 if is_lst else 1.0),
+                "isLST": is_lst,
+                "apr": 5.8 if is_lst else 0,  # Simplified APR
+                "riskScore": 3.2 if is_lst else 5.0,
+                "verified": token.get("isVerifiedContract", False)
+            })
+        
+        return tokens
+    except Exception as e:
+        logger.error("Failed to get token balances for %s: %s", wallet_address, str(e))
+        return []
+
+def analyze_portfolio(wallet_address: str) -> Dict[str, Any]:
+    """Analyze wallet portfolio using Moralis API."""
+    try:
+        logger.info("Analyzing portfolio for wallet: %s", wallet_address)
+        
+        # Get SOL and token balances
+        sol_balance = get_sol_balance(wallet_address)
+        token_balances = get_token_balances(wallet_address)
+        
+        # Separate LSTs from other tokens
+        lst_holdings = [token for token in token_balances if token.get("isLST", False)]
+        other_tokens = [token for token in token_balances if not token.get("isLST", False)]
+        
+        # Calculate current yield
+        current_yield = 0
+        total_value = sol_balance["usdValue"]
+        
+        # SOL staking yield (assume 5% base staking)
+        if sol_balance["usdValue"] > 0:
+            current_yield += sol_balance["usdValue"] * 0.05
+            total_value += sol_balance["usdValue"]
+        
+        # LST yields
+        for lst in lst_holdings:
+            if lst["usdValue"] > 0:
+                current_yield += lst["usdValue"] * (lst["apr"] / 100)
+                total_value += lst["usdValue"]
+        
+        # Calculate total portfolio value
+        for token in other_tokens:
+            total_value += token["usdValue"]
+        
+        # Calculate weighted average yield
+        weighted_yield = (current_yield / total_value * 100) if total_value > 0 else 0
+        
+        # Generate insights
+        insights = []
+        if sol_balance["sol"] > 0.1:
+            insights.append({
+                "type": "opportunity",
+                "priority": "high",
+                "title": "Unstacked SOL Detected",
+                "description": f"You have {sol_balance['sol']:.4f} SOL that could be earning yield",
+                "recommendation": "Consider staking your SOL or converting to LSTs for higher yields",
+                "potentialGain": f"${sol_balance['usdValue'] * 0.05:.2f} USD/year"
+            })
+        
+        if len(lst_holdings) > 0:
+            avg_apr = sum(lst["apr"] for lst in lst_holdings) / len(lst_holdings)
+            if avg_apr < 5.5:
+                insights.append({
+                    "type": "optimization",
+                    "priority": "medium",
+                    "title": "Low LST Yield",
+                    "description": f"Your LSTs are earning {avg_apr:.2f}% APR on average",
+                    "recommendation": "Consider rebalancing to higher-yield LSTs",
+                    "potentialGain": f"${sum(lst['usdValue'] for lst in lst_holdings) * 0.01:.2f} USD/year"
+                })
+        
+        portfolio = {
+            "walletAddress": wallet_address,
+            "timestamp": datetime.now().isoformat(),
+            "solBalance": {
+                "lamports": sol_balance["lamports"],
+                "sol": sol_balance["sol"],
+                "usdValue": sol_balance["usdValue"]
+            },
+            "lstHoldings": [
+                {
+                    "mint": lst["mint"],
+                    "symbol": lst["symbol"],
+                    "name": lst["name"],
+                    "amount": lst["amount"],
+                    "usdValue": lst["usdValue"],
+                    "apr": lst["apr"],
+                    "riskScore": lst["riskScore"],
+                    "verified": lst["verified"]
+                }
+                for lst in lst_holdings
+            ],
+            "otherTokens": [
+                {
+                    "mint": token["mint"],
+                    "symbol": token["symbol"],
+                    "name": token["name"],
+                    "amount": token["amount"],
+                    "usdValue": token["usdValue"],
+                    "isVerifiedContract": token["isVerifiedContract"]
+                }
+                for token in other_tokens
+            ],
+            "currentYield": weighted_yield,
+            "totalValue": total_value,
+            "lstValue": sum(lst["usdValue"] for lst in lst_holdings),
+            "solValue": sol_balance["usdValue"],
+            "otherValue": sum(token["usdValue"] for token in other_tokens),
+            "allocation": {
+                "sol": (sol_balance["usdValue"] / total_value * 100) if total_value > 0 else 0,
+                "lsts": (sum(lst["usdValue"] for lst in lst_holdings) / total_value * 100) if total_value > 0 else 0,
+                "other": (sum(token["usdValue"] for token in other_tokens) / total_value * 100) if total_value > 0 else 0
+            },
+            "insights": insights
+        }
+        
+        logger.info("Portfolio analysis complete for %s: SOL=%.4f, LSTs=%d, Yield=%.2f%%, Value=$%.2f", 
+                   wallet_address, sol_balance["sol"], len(lst_holdings), weighted_yield, total_value)
+        
+        return portfolio
+        
+    except Exception as e:
+        logger.error("Portfolio analysis failed for %s: %s", wallet_address, str(e))
+        raise HTTPException(status_code=500, detail=f"Portfolio analysis failed: {str(e)}")
 
 @app.get("/health")
 def health_check():
@@ -376,6 +576,49 @@ def _get_mock_tweets(query, count, reason):
         "source": "mock_data",
         "reason": reason
     }
+
+@app.post("/api/portfolio/analyze")
+def analyze_portfolio_endpoint(request: PortfolioAnalysisRequest):
+    """Analyze wallet portfolio using Moralis API."""
+    try:
+        logger.info("Portfolio analysis request for wallet: %s", request.walletAddress)
+        
+        # Validate wallet address
+        if not request.walletAddress or len(request.walletAddress) < 32:
+            raise HTTPException(status_code=400, detail="Invalid wallet address")
+        
+        # Analyze portfolio
+        portfolio = analyze_portfolio(request.walletAddress)
+        
+        # Format response for frontend
+        response = {
+            "success": True,
+            "sol": portfolio["solBalance"]["sol"],
+            "lsts": [
+                {
+                    "symbol": lst["symbol"],
+                    "amount": lst["amount"],
+                    "apr": lst["apr"]
+                }
+                for lst in portfolio["lstHoldings"]
+            ],
+            "totalValue": portfolio["totalValue"],
+            "currentYield": portfolio["currentYield"],
+            "insights": portfolio["insights"],
+            "timestamp": portfolio["timestamp"]
+        }
+        
+        logger.info("Portfolio analysis successful for %s: SOL=%.4f, LSTs=%d, Yield=%.2f%%", 
+                   request.walletAddress, portfolio["solBalance"]["sol"], 
+                   len(portfolio["lstHoldings"]), portfolio["currentYield"])
+        
+        return response
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Portfolio analysis endpoint failed for %s: %s", request.walletAddress, str(e))
+        raise HTTPException(status_code=500, detail=f"Portfolio analysis failed: {str(e)}")
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))

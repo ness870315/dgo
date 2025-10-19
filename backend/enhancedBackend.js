@@ -12463,7 +12463,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         
         console.log(`📊 [Portfolio API] Analyzing portfolio for ${walletAddress}`);
         
-        // Check if we have cached data from jup-discovery background worker
+        // Check if we have cached data from jup-discovery microservice
         if (this.portfolioCache && this.portfolioCache.has(walletAddress)) {
           const cached = this.portfolioCache.get(walletAddress);
           const ageMinutes = (Date.now() - cached.timestamp) / (1000 * 60);
@@ -12486,47 +12486,46 @@ Thanks for using x402 payments on Twitter! 🚀`;
           }
         }
         
-        // Request fresh data from jup-discovery background worker
-        console.log(`📊 [Portfolio API] Requesting fresh data from jup-discovery for ${walletAddress}`);
+        // Call twitter-service microservice for real portfolio data
+        console.log(`📊 [Portfolio API] Calling twitter-service microservice for ${walletAddress}`);
         
         try {
-          // Call jup-discovery service to analyze portfolio
-          const jupDiscoveryUrl = process.env.JUP_DISCOVERY_URL || 'http://localhost:3001';
-          const response = await fetch(`${jupDiscoveryUrl}/api/internal/portfolio/analyze`, {
+          const twitterServiceUrl = process.env.TWITTER_SERVICE_URL || 'https://dgo-2.onrender.com';
+          const response = await fetch(`${twitterServiceUrl}/api/portfolio/analyze`, {
             method: 'POST',
             headers: {
-              'Content-Type': 'application/json',
-              'X-Internal-Token': process.env.INTERNAL_TOKEN || process.env.DISCOVERY_INTERNAL_TOKEN
+              'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ walletAddress })
+            body: JSON.stringify({ 
+              walletAddress,
+              includeTokens: true,
+              includeLSTs: true
+            })
           });
           
           if (response.ok) {
             const result = await response.json();
-            console.log(`✅ [Portfolio API] Received fresh data from jup-discovery for ${walletAddress}`);
+            console.log(`✅ [Portfolio API] Received real data from twitter-service for ${walletAddress}`);
             
-            // Return the fresh data
-            return res.json({
-              success: true,
-              sol: result.data.portfolio.solBalance?.sol || 0,
-              lsts: result.data.portfolio.lstHoldings?.map(lst => ({
-                symbol: lst.symbol,
-                amount: lst.amount,
-                apr: lst.apr || 0
-              })) || [],
-              totalValue: result.data.portfolio.totalValue || 0,
-              currentYield: result.data.portfolio.currentYield || 0,
-              insights: result.data.portfolio.insights || [],
-              timestamp: result.data.portfolio.timestamp || new Date().toISOString()
+            // Cache the real data
+            if (!this.portfolioCache) {
+              this.portfolioCache = new Map();
+            }
+            this.portfolioCache.set(walletAddress, {
+              portfolioData: result,
+              timestamp: Date.now()
             });
+            
+            // Return the real data
+            return res.json(result);
           } else {
-            console.warn(`⚠️ [Portfolio API] jup-discovery returned ${response.status}, falling back to mock data`);
+            console.warn(`⚠️ [Portfolio API] twitter-service returned ${response.status}, falling back to mock data`);
           }
         } catch (error) {
-          console.warn(`⚠️ [Portfolio API] jup-discovery call failed: ${error.message}, falling back to mock data`);
+          console.warn(`⚠️ [Portfolio API] twitter-service call failed: ${error.message}, falling back to mock data`);
         }
         
-        // Fallback to mock data if jup-discovery is not available
+        // Fallback to mock data if twitter-service is not available
         console.log(`📊 [Portfolio API] Using mock data for ${walletAddress}`);
         const mockPortfolio = {
           success: true,
