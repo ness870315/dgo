@@ -4,4 +4,4 @@ main = "./_worker.js"
 
 [assets]
 binding = "ASSETS"
-dir = "./build"
+directory = "./build"
