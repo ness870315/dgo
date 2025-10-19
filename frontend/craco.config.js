@@ -13,14 +13,14 @@ module.exports = {
         "https": require.resolve("https-browserify"),
         "os": require.resolve("os-browserify"),
         "buffer": require.resolve("buffer"),
-        "process": require.resolve("process/browser"),
+        "process": require.resolve("process/browser.js"),
       };
 
       // Add plugins for global variables
       webpackConfig.plugins = [
         ...webpackConfig.plugins,
         new webpack.ProvidePlugin({
-          process: 'process/browser',
+          process: 'process/browser.js',
           Buffer: ['buffer', 'Buffer'],
         }),
       ];
