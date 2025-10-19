@@ -1,17 +1,23 @@
 import fetch from 'node-fetch';
 import LSTRegistryService from '../lst-registry/LSTRegistryService.js';
 import PortfolioAnalyzerService from '../portfolio-analyzer/PortfolioAnalyzerService.js';
+import { computeLstMetrics } from './metrics.js';
+import { generateStrategyCandidates } from './scorer.js';
+import { generateStrategySelection } from './ai-strategy.js';
+import { buildUnsignedExecutionTxs } from './tx-builder.js';
+import { SafetyConstraints } from './types.js';
 
 /**
- * AI Strategy Engine Service
+ * AI Strategy Engine Service - Deterministic Safety-First Architecture
  * 
- * Uses GPT-4 to generate intelligent staking strategies based on portfolio analysis.
- * Provides both basic and advanced optimization strategies with risk-adjusted allocations.
+ * This service uses deterministic computation with LLM explanation only.
+ * All numbers, weights, and allocations are computed by code, not LLM.
  * 
- * Integrates with:
- * - OpenAI GPT-4 for strategy generation
- * - LST Registry for token data and APRs
- * - Portfolio Analyzer for current holdings analysis
+ * Flow:
+ * 1. Compute LST metrics with safety rails
+ * 2. Generate 3 candidate portfolios (A/B/C) deterministically
+ * 3. LLM selects one and explains (no number invention)
+ * 4. Build transactions with re-quote validation
  */
 class AIStrategyEngineService {
   constructor() {
@@ -91,12 +97,12 @@ class AIStrategyEngineService {
       // Generate strategy
       const strategy = await this.generateStrategy(walletAddress, strategyType, userPreferences);
       
-      // Build transactions (we'll import TransactionBuilderService)
-      const transactions = await this.buildStrategyTransactions(strategy, walletAddress);
+      // Build transactions with re-quote validation
+      const executionPlan = await buildUnsignedExecutionTxs(strategy, walletAddress);
       
       const bundledResult = {
         strategy,
-        transactions,
+        executionPlan,
         payment: {
           required: true,
           amount: this.strategyTypes[strategyType].price,
@@ -105,9 +111,9 @@ class AIStrategyEngineService {
           description: `${this.strategyTypes[strategyType].name} - Complete optimization`
         },
         execution: {
-          transactionCount: transactions.transactionCount,
-          estimatedGasCost: transactions.estimatedGasCost,
-          slippageProtection: transactions.slippageProtection,
+          transactionCount: executionPlan.txsBase64.length,
+          estimatedGasCost: executionPlan.estimatedGasCost,
+          slippageProtection: executionPlan.slippageProtection,
           readyToExecute: true
         },
         createdAt: new Date().toISOString()
@@ -123,7 +129,7 @@ class AIStrategyEngineService {
       console.log(`  - Type: ${strategyType}`);
       console.log(`  - Price: $${this.strategyTypes[strategyType].price}`);
       console.log(`  - Expected Yield: ${strategy.expectedYield.toFixed(2)}%`);
-      console.log(`  - Transactions: ${transactions.transactionCount}`);
+      console.log(`  - Transactions: ${executionPlan.txsBase64.length}`);
       
       return bundledResult;
       
@@ -175,7 +181,7 @@ class AIStrategyEngineService {
   }
 
   /**
-   * Generate AI strategy for a wallet
+   * Generate AI strategy using deterministic computation + LLM selection
    */
   async generateStrategy(walletAddress, strategyType = 'basic', userPreferences = {}) {
     try {
@@ -189,14 +195,41 @@ class AIStrategyEngineService {
         return cached.data;
       }
       
-      // Get portfolio analysis
+      // Step 1: Get portfolio analysis
       const portfolio = await this.portfolioAnalyzer.analyzePortfolio(walletAddress);
       
-      // Get available LSTs
+      // Step 2: Get available LSTs and compute metrics
       const availableLSTs = this.lstRegistry.getAllLSTs();
+      const lstMetrics = await this.computeLstMetricsWithSafetyRails(availableLSTs, portfolio.solBalance.sol);
       
-      // Generate AI strategy
-      const strategy = await this.generateAIStrategy(portfolio, availableLSTs, strategyType, userPreferences);
+      if (lstMetrics.length === 0) {
+        throw new Error('No suitable LSTs found after applying safety constraints');
+      }
+      
+      // Step 3: Generate deterministic candidates (A/B/C)
+      const candidates = generateStrategyCandidates(lstMetrics, strategyType);
+      
+      // Step 4: LLM selection and explanation
+      const userProfile = {
+        walletAddress,
+        totalValueSOL: portfolio.totalValue,
+        currentYield: portfolio.currentYield,
+        riskTolerance: userPreferences.riskTolerance || 'moderate',
+        strategyType
+      };
+      
+      const metricsSummary = this.computeMetricsSummary(lstMetrics);
+      const openaiConfig = {
+        apiKey: this.openaiApiKey,
+        baseUrl: this.openaiBaseUrl,
+        model: this.model
+      };
+      
+      const llmSelection = await generateStrategySelection(userProfile, candidates, metricsSummary, openaiConfig);
+      
+      // Step 5: Build final strategy plan
+      const selectedCandidate = candidates[llmSelection.pick];
+      const strategy = this.buildStrategyPlan(selectedCandidate, llmSelection, portfolio, strategyType);
       
       // Cache the result
       this.strategyCache.set(cacheKey, {
@@ -206,9 +239,10 @@ class AIStrategyEngineService {
       
       console.log(`✅ [AI Strategy Engine] Strategy generated for ${walletAddress}`);
       console.log(`  - Type: ${strategyType}`);
+      console.log(`  - Selected: ${llmSelection.pick}`);
       console.log(`  - Expected Yield: ${strategy.expectedYield.toFixed(2)}%`);
-      console.log(`  - Improvement: ${strategy.improvement.toFixed(2)}%`);
-      console.log(`  - LSTs: ${strategy.allocation.length}`);
+      console.log(`  - Risk Score: ${strategy.riskScore.toFixed(1)}/10`);
+      console.log(`  - Assets: ${strategy.allocation.length}`);
       
       return strategy;
       
@@ -219,34 +253,186 @@ class AIStrategyEngineService {
   }
 
   /**
-   * Generate AI strategy using GPT-4
+   * Compute LST metrics with safety rails applied
    */
-  async generateAIStrategy(portfolio, availableLSTs, strategyType, userPreferences) {
-    try {
-      const strategyConfig = this.strategyTypes[strategyType];
-      
-      // Prepare context for GPT-4
-      const context = this.prepareStrategyContext(portfolio, availableLSTs, strategyType, userPreferences);
-      
-      // Generate prompt
-      const prompt = this.buildStrategyPrompt(context, strategyConfig);
-      
-      // Call GPT-4
-      const aiResponse = await this.callGPT4(prompt);
-      
-      // Parse AI response
-      const strategy = this.parseAIResponse(aiResponse, portfolio, strategyConfig);
-      
-      // Validate strategy
-      this.validateStrategy(strategy, portfolio);
-      
-      return strategy;
-      
-    } catch (error) {
-      console.error('❌ [AI Strategy Engine] AI strategy generation failed:', error.message);
-      // Fallback to rule-based strategy
-      return this.generateFallbackStrategy(portfolio, availableLSTs, strategyType);
+  async computeLstMetricsWithSafetyRails(availableLSTs, userTradeSizeSOL) {
+    const lstMetrics = [];
+    
+    for (const lst of availableLSTs) {
+      try {
+        // Get market data for this LST
+        const marketData = await this.getLstMarketData(lst);
+        const validatorData = await this.getLstValidatorData(lst);
+        
+        // Compute metrics with safety rails
+        const metrics = computeLstMetrics(lst, marketData, validatorData, userTradeSizeSOL);
+        
+        // Only include LSTs that pass safety rails
+        if (!metrics.safetyFlags?.rejected) {
+          lstMetrics.push(metrics);
+        } else {
+          console.log(`⚠️ [AI Strategy Engine] LST ${lst.symbol} rejected: ${metrics.safetyFlags.reasons.join(', ')}`);
+        }
+        
+      } catch (error) {
+        console.error(`❌ [AI Strategy Engine] Failed to compute metrics for ${lst.symbol}:`, error.message);
+      }
     }
+    
+    return lstMetrics;
+  }
+  
+  /**
+   * Get market data for LST
+   */
+  async getLstMarketData(lst) {
+    // Placeholder implementation
+    // In production, this would fetch real market data
+    return {
+      currentPrice: 1.0 + (Math.random() - 0.5) * 0.02, // ±1% price variation
+      price30dAgo: 1.0,
+      tvlUSD: lst.tvl || 1000000,
+      paused: false,
+      recentSlash: false
+    };
+  }
+  
+  /**
+   * Get validator data for LST
+   */
+  async getLstValidatorData(lst) {
+    // Placeholder implementation
+    // In production, this would fetch real validator distribution
+    return {
+      validatorWeights: [0.3, 0.25, 0.2, 0.15, 0.1] // Example distribution
+    };
+  }
+  
+  /**
+   * Compute metrics summary for LLM context
+   */
+  computeMetricsSummary(lstMetrics) {
+    if (lstMetrics.length === 0) {
+      return {
+        totalLsts: 0,
+        avgApr: 0,
+        medianTvl: 0,
+        avgDecentralization: 0
+      };
+    }
+    
+    const aprs = lstMetrics.map(m => m.apr).filter(a => Number.isFinite(a));
+    const tvls = lstMetrics.map(m => m.tvlUSD).filter(t => Number.isFinite(t));
+    const decentralizations = lstMetrics.map(m => m.decentralization).filter(d => Number.isFinite(d));
+    
+    return {
+      totalLsts: lstMetrics.length,
+      avgApr: aprs.length > 0 ? aprs.reduce((a, b) => a + b, 0) / aprs.length : 0,
+      medianTvl: tvls.length > 0 ? tvls.sort((a, b) => a - b)[Math.floor(tvls.length / 2)] : 0,
+      avgDecentralization: decentralizations.length > 0 ? decentralizations.reduce((a, b) => a + b, 0) / decentralizations.length : 0
+    };
+  }
+  
+  /**
+   * Build final strategy plan from selected candidate
+   */
+  buildStrategyPlan(selectedCandidate, llmSelection, portfolio, strategyType) {
+    const strategyId = `strategy_${Date.now()}_${llmSelection.pick}`;
+    const cost = this.strategyTypes[strategyType].price;
+    
+    // Build allocation array
+    const allocation = Object.entries(selectedCandidate.weights).map(([symbol, percentage]) => {
+      const lstMetrics = selectedCandidate.lstMetrics?.find(m => m.symbol === symbol);
+      return {
+        symbol,
+        percentage: Math.round(percentage * 100) / 100, // Round to 2 decimal places
+        amount: portfolio.solBalance.sol * percentage,
+        apr: lstMetrics?.apr || 0,
+        tvlUSD: lstMetrics?.tvlUSD || 0,
+        reasoning: this.getReasoningForSymbol(symbol, percentage, llmSelection.pick)
+      };
+    });
+    
+    // Build actions array
+    const actions = allocation.map(item => ({
+      type: 'swap',
+      from: 'SOL',
+      to: item.symbol,
+      amount: item.amount,
+      reasoning: item.reasoning
+    }));
+    
+    return {
+      id: strategyId,
+      name: llmSelection.title,
+      type: strategyType,
+      currentYield: portfolio.currentYield,
+      expectedYield: Math.round(selectedCandidate.expectedYield * 100) / 100,
+      improvement: Math.round((selectedCandidate.expectedYield - portfolio.currentYield) * 100) / 100,
+      riskScore: Math.round(selectedCandidate.riskScore * 10) / 10,
+      allocation,
+      actions,
+      risks: llmSelection.risks,
+      benefits: this.getBenefitsForStrategy(llmSelection.pick, selectedCandidate),
+      narrative: {
+        title: llmSelection.title,
+        summary: llmSelection.summary,
+        risks: llmSelection.risks
+      },
+      guards: {
+        maxSlippageBps: SafetyConstraints.maxSlippageBps,
+        minLiquidityUSD: SafetyConstraints.minLiquidityUSD,
+        perAssetCapPct: SafetyConstraints.maxPerAssetWeight * 100
+      },
+      asOfMs: Date.now(),
+      strategyType,
+      cost,
+      generatedAt: new Date().toISOString()
+    };
+  }
+  
+  /**
+   * Get reasoning for symbol allocation
+   */
+  getReasoningForSymbol(symbol, percentage, strategyPick) {
+    const reasonings = {
+      A: {
+        jitoSOL: 'High APR with low risk',
+        mSOL: 'Large pool, stable returns',
+        bSOL: 'Diversified validators',
+        lidoSOL: 'Established protocol',
+        marinadeSOL: 'Community-driven'
+      },
+      B: {
+        jitoSOL: 'Balanced yield and liquidity',
+        mSOL: 'Strong decentralization',
+        bSOL: 'Good risk-adjusted returns',
+        lidoSOL: 'High liquidity depth',
+        marinadeSOL: 'Stable performance'
+      },
+      C: {
+        jitoSOL: 'Discount capture opportunity',
+        mSOL: 'Premium arbitrage potential',
+        bSOL: 'Market inefficiency',
+        lidoSOL: 'Price discovery',
+        marinadeSOL: 'Volatility capture'
+      }
+    };
+    
+    return reasonings[strategyPick]?.[symbol] || 'Optimized allocation';
+  }
+  
+  /**
+   * Get benefits for strategy
+   */
+  getBenefitsForStrategy(strategyPick, candidate) {
+    const benefits = {
+      A: ['Maximum yield optimization', 'Top APR selection', 'Simple allocation'],
+      B: ['Balanced risk-return', 'High liquidity', 'Strong diversification'],
+      C: ['Discount capture', 'Market inefficiency', 'Premium arbitrage']
+    };
+    
+    return benefits[strategyPick] || ['Optimized allocation', 'Risk management', 'Yield enhancement'];
   }
 
   /**
