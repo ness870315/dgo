@@ -372,8 +372,14 @@ async function main() {
   console.log('   MORALIS_API_KEY =', MORALIS_API_KEY ? 'SET' : 'NOT SET');
   
   if (RUN_ON_START) {
-    await runOnce();
-    await runBondingTokensDiscovery();
+    // Run both discoveries independently
+    runOnce().catch(error => {
+      console.error('❌ [Jupiter Discovery] Failed:', error.message);
+    });
+    
+    runBondingTokensDiscovery().catch(error => {
+      console.error('❌ [Bonding Discovery] Failed:', error.message);
+    });
   }
   
   // Schedule Jupiter token discovery (every 6 hours)
