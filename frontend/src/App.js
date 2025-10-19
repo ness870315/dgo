@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
 import BubbleMap from './components/BubbleMap';
 import TokenRankedList from './components/TokenRankedList';
@@ -1401,12 +1401,12 @@ function App() {
     <Router>
       <AuthProvider>
         <Routes>
-          {/* Staking Routes */}
+          {/* Staking Routes - Must come before catch-all */}
           <Route path="/staking" element={<AIStakingLandingPageSimple />} />
           <Route path="/staking/ai-lst-router" element={<AILiquidStakingRouter />} />
           
-          {/* Main App Route */}
-          <Route path="/*" element={<AppContent />} />
+          {/* Main App Route - Catch-all must be last */}
+          <Route path="*" element={<AppContent />} />
         </Routes>
       </AuthProvider>
     </Router>
