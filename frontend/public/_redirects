@@ -1,2 +1,3 @@
-# Cloudflare Pages handles SPA routing automatically
-# Fuel sharing is handled by Cloudflare Pages Functions in /functions/fuel/[fuelType]/[symbol].js
+# Cloudflare Pages redirects for SPA routing
+/staking/* /index.html 200
+/staking/ai-lst-router/* /index.html 200
