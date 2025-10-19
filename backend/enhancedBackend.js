@@ -6271,20 +6271,39 @@ Format as JSON:
         const paymentAmount = strategy.type === 'basic' ? 1.20 : 2.00;
         
         // Create payment requirements (needed for both 402 response and payment verification)
-        const paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements({
-          amount: paymentAmount * 1e6, // Convert to lamports (USDC has 6 decimals)
-          asset: {
-            mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
-            decimals: 6
-          },
-          network: 'solana',
-          config: {
-            resource: `https://api.degen-oracle.com/api/x402/execute-strategy/${strategyId}`,
-            description: `${strategy.name} - AI Liquid Staking Optimization`,
-            maxTimeoutSeconds: 300,
-            mimeType: 'application/json'
-          }
-        });
+        if (!this.x402PaymentHandler) {
+          console.log('[🧠 x402 AI Router] ❌ x402PaymentHandler not initialized');
+          return res.status(500).json({ 
+            success: false, 
+            error: 'Payment handler not initialized' 
+          });
+        }
+        
+        let paymentRequirements;
+        try {
+          paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements({
+            amount: paymentAmount * 1e6, // Convert to lamports (USDC has 6 decimals)
+            asset: {
+              mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+              decimals: 6
+            },
+            network: 'solana',
+            config: {
+              resource: `https://api.degen-oracle.com/api/x402/execute-strategy/${strategyId}`,
+              description: `${strategy.name} - AI Liquid Staking Optimization`,
+              maxTimeoutSeconds: 300,
+              mimeType: 'application/json'
+            }
+          });
+          console.log('[🧠 x402 AI Router] ✅ Payment requirements created successfully');
+        } catch (createError) {
+          console.log('[🧠 x402 AI Router] ❌ Failed to create payment requirements:', createError.message);
+          return res.status(500).json({ 
+            success: false, 
+            error: 'Failed to create payment requirements',
+            message: createError.message 
+          });
+        }
         
         // If no X-PAYMENT header, return 402 Payment Required
         if (!xPaymentHeader) {
