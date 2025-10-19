@@ -2,5 +2,6 @@ name = "dgo"
 compatibility_date = "2024-01-01"
 main = "./_worker.js"
 
-[site]
-bucket = "./build"
+[assets]
+binding = "ASSETS"
+dir = "./build"
