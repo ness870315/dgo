@@ -119,22 +119,8 @@ export default {
       });
     }
     
-    // Handle SPA routing - serve index.html for all non-asset routes
-    if (url.pathname.startsWith('/static/') || url.pathname.includes('.')) {
-      // Serve static assets normally
-      return env.ASSETS.fetch(request);
-    } else {
-      // For all other routes (including /staking), serve the main index.html
-      // This allows React Router to handle client-side routing
-      try {
-        const indexUrl = new URL('/', url.origin);
-        const indexRequest = new Request(indexUrl.toString());
-        return await env.ASSETS.fetch(indexRequest);
-      } catch (error) {
-        // Fallback: serve the original request
-        return env.ASSETS.fetch(request);
-      }
-    }
+    // For all other requests, fetch from assets (your React SPA)
+    return env.ASSETS.fetch(request);
   }
 };
 
