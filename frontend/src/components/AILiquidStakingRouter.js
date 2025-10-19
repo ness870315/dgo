@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 
 const AILiquidStakingRouter = () => {
+  const { publicKey, connected, connecting, disconnect } = useWallet();
   const [step, setStep] = useState('connect'); // connect, analyze, strategy, payment, execute, confirmation
-  const [walletConnected, setWalletConnected] = useState(false);
-  const [walletAddress, setWalletAddress] = useState('');
   const [walletData, setWalletData] = useState(null);
   const [strategyType, setStrategyType] = useState('basic'); // basic or advanced
   const [strategy, setStrategy] = useState(null);
@@ -12,23 +13,25 @@ const AILiquidStakingRouter = () => {
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [executionComplete, setExecutionComplete] = useState(false);
 
-  const connectWallet = () => {
-    // Mock wallet connection - in real app, this would use wallet adapter
-    setWalletAddress('82ytegx28N1rhU7e4rxY8MKoCTmuyZcuctx8LJL87Un8');
-    setWalletConnected(true);
-    setStep('analyze');
-    
-    // Mock wallet data - in real app, this would scan the wallet
-    setWalletData({
-      sol: 31.0,
-      lsts: [
-        { symbol: 'jitoSOL', amount: 5.2, apr: 5.8 },
-        { symbol: 'mSOL', amount: 3.8, apr: 5.6 }
-      ],
-      totalValue: 40.0,
-      currentYield: 4.2
-    });
-  };
+  // Update step when wallet connects
+  useEffect(() => {
+    if (connected && publicKey) {
+      setStep('analyze');
+      // Mock wallet data - in real app, this would scan the wallet
+      setWalletData({
+        sol: 31.0,
+        lsts: [
+          { symbol: 'jitoSOL', amount: 5.2, apr: 5.8 },
+          { symbol: 'mSOL', amount: 3.8, apr: 5.6 }
+        ],
+        totalValue: 40.0,
+        currentYield: 4.2
+      });
+    } else {
+      setStep('connect');
+      setWalletData(null);
+    }
+  }, [connected, publicKey]);
 
   const analyzePortfolio = () => {
     setStep('strategy');
@@ -105,13 +108,14 @@ const AILiquidStakingRouter = () => {
 
   const resetFlow = () => {
     setStep('connect');
-    setWalletConnected(false);
-    setWalletAddress('');
     setWalletData(null);
     setStrategyType('basic');
     setStrategy(null);
     setPaymentComplete(false);
     setExecutionComplete(false);
+    if (connected) {
+      disconnect();
+    }
   };
 
   return (
@@ -167,12 +171,17 @@ const AILiquidStakingRouter = () => {
             <p className="text-xl text-gray-400 mb-12 max-w-2xl mx-auto">
               Connect your Phantom, Solflare, or Backpack wallet to analyze your portfolio
             </p>
-            <button
-              onClick={connectWallet}
-              className="px-12 py-6 bg-gradient-to-r from-solana-purple to-solana-green text-white font-bold text-xl rounded-xl hover:from-solana-purple/80 hover:to-solana-green/80 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-solana-purple/25"
-            >
-              🔗 Connect Wallet
-            </button>
+            
+            <div className="flex justify-center">
+              <WalletMultiButton className="!bg-gradient-to-r !from-solana-purple !to-solana-green !text-white !font-bold !text-xl !rounded-xl !px-12 !py-6 hover:!from-solana-purple/80 hover:!to-solana-green/80 !transition-all !duration-300 !transform hover:!scale-105 !shadow-lg hover:!shadow-solana-purple/25" />
+            </div>
+            
+            {connecting && (
+              <div className="mt-6">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-solana-purple mx-auto mb-4"></div>
+                <p className="text-gray-400">Connecting to wallet...</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -182,7 +191,7 @@ const AILiquidStakingRouter = () => {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-3xl font-bold text-white mb-2">Portfolio Analysis</h2>
-                <p className="text-gray-300">Wallet: {walletAddress.slice(0, 8)}...{walletAddress.slice(-8)}</p>
+                <p className="text-gray-300">Wallet: {publicKey?.toString().slice(0, 8)}...{publicKey?.toString().slice(-8)}</p>
               </div>
               <div className="text-right">
                 <div className="text-sm text-gray-400">Total Value</div>

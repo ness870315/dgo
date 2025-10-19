@@ -23,6 +23,7 @@ import FloatingChatButton from './components/FloatingChatButton';
 import AIStakingLandingPageSimple from './components/AIStakingLandingPageSimple';
 import AILiquidStakingRouter from './components/AILiquidStakingRouter';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { WalletContextProvider } from './contexts/WalletContext';
 import tokenService from './services/tokenService';
 import pushNotificationService from './services/pushNotificationService';
 import './App.css';
@@ -1398,18 +1399,20 @@ function AppContent() {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          {/* Staking Routes - Must come before catch-all */}
-          <Route path="/staking" element={<AIStakingLandingPageSimple />} />
-          <Route path="/staking/ai-lst-router" element={<AILiquidStakingRouter />} />
-          
-          {/* Main App Route - Catch-all must be last */}
-          <Route path="*" element={<AppContent />} />
-        </Routes>
-      </Router>
-    </AuthProvider>
+    <WalletContextProvider>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            {/* Staking Routes - Must come before catch-all */}
+            <Route path="/staking" element={<AIStakingLandingPageSimple />} />
+            <Route path="/staking/ai-lst-router" element={<AILiquidStakingRouter />} />
+            
+            {/* Main App Route - Catch-all must be last */}
+            <Route path="*" element={<AppContent />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </WalletContextProvider>
   );
 }
 
