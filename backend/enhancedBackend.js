@@ -6282,10 +6282,12 @@ Format as JSON:
         let paymentRequirements;
         try {
           const routeConfig = {
-            amount: paymentAmount * 1e6, // Convert to lamports (USDC has 6 decimals)
-            asset: {
-              mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
-              decimals: 6
+            price: {
+              amount: (BigInt(Math.round(paymentAmount * 1e6))).toString(),
+              asset: {
+                address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+                decimals: 6
+              }
             },
             network: 'solana',
             config: {
