@@ -1,0 +1,27 @@
+{
+  "name": "bonding-tokens-service",
+  "version": "1.0.0",
+  "description": "Bonding Tokens Service for Jupiter Discovery - Monitors pre-bonded tokens and graduation status",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "test": "node test-service.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1"
+  },
+  "keywords": [
+    "bonding-tokens",
+    "pump-fun",
+    "graduation-monitoring",
+    "moralis",
+    "solana"
+  ],
+  "author": "Jupiter Discovery Team",
+  "license": "MIT"
+}

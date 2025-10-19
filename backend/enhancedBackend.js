@@ -27,7 +27,6 @@ import AutomatedTokenCleanup from './automatedTokenCleanup.js';
 import HybridPriceService from './hybridPriceService.js';
 import HybridChartService from './services/HybridChartService.js';
 import KOLService from './services/KOLService.js';
-import BondingTokensService from './services/BondingTokensService.js';
 // DISABLED: import EnhancedAnalyticsCacheService from './services/EnhancedAnalyticsCacheService.js';
 import logger from './logger.js';
 import { fileURLToPath } from 'url';
@@ -11426,18 +11425,6 @@ Thanks for using x402 payments on Twitter! 🚀`;
       this.hybridChartService = null; // Set to null so endpoints can handle gracefully
     }
 
-    // Initialize BondingTokensService
-    try {
-      console.log('🔄 Initializing BondingTokensService...');
-      this.bondingTokensService = new BondingTokensService(process.env.MORALIS_API_KEY);
-      console.log('✅ BondingTokensService initialized successfully');
-    } catch (error) {
-      console.error('❌ Failed to initialize BondingTokensService:', error.message);
-      console.error('Stack:', error.stack);
-      console.error('⚠️ Backend will continue without bonding tokens service');
-      this.bondingTokensService = null;
-    }
-
     // Listen for real-time price updates from background worker
     process.on('tokenPriceUpdate', async (data) => {
       try {
@@ -11637,163 +11624,197 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // ========================================
 
     // Get bonding tokens (for Trenches filter)
+    // Get bonding tokens (for Trenches filter) - Fetch from jupiter-service
     this.app.get('/api/tokens/bonding', async (req, res) => {
       try {
         const { limit = 50, proximityLevel } = req.query;
         
-        console.log(`[🛡️ Enhanced Backend] 🚨 Getting bonding tokens (limit: ${limit}, proximity: ${proximityLevel || 'all'})...`);
+        console.log(`[🛡️ Enhanced Backend] 🚨 Getting bonding tokens from jupiter-service (limit: ${limit}, proximity: ${proximityLevel || 'all'})...`);
         
-        if (!this.bondingTokensService) {
-          return res.status(503).json({
+        // Fetch from jupiter-service
+        const jupiterServiceUrl = process.env.JUPITER_SERVICE_URL || 'http://localhost:3000';
+        let apiUrl = `${jupiterServiceUrl}/api/bonding-tokens?limit=${limit}`;
+        
+        if (proximityLevel) {
+          apiUrl += `&proximityLevel=${proximityLevel}`;
+        }
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        if (!response.ok) {
+          return res.status(response.status).json({
             success: false,
-            error: 'BondingTokensService not available'
+            error: data.error || 'Failed to fetch bonding tokens from jupiter-service'
           });
         }
-
-        let result;
-        if (proximityLevel) {
-          // Get tokens by specific proximity level
-          result = await this.bondingTokensService.getTokensByProximityLevel(proximityLevel);
-        } else {
-          // Get all tracked tokens sorted by proximity
-          result = await this.bondingTokensService.getTokensByProximityLevel();
-        }
-
-        if (!result.success) {
+        
+        if (!data.success) {
           return res.status(500).json({
             success: false,
-            error: result.error || 'Failed to get bonding tokens'
+            error: data.error || 'Failed to get bonding tokens'
           });
         }
-
-        // Limit results
-        const limitedTokens = result.tokens.slice(0, parseInt(limit));
-
+        
+        // Transform data to match frontend expectations
+        const transformedTokens = data.tokens.map(token => ({
+          tokenAddress: token.tokenAddress,
+          name: token.name,
+          symbol: token.symbol,
+          logo: token.logo,
+          decimals: token.decimals,
+          priceNative: token.priceNative,
+          priceUsd: token.priceUsd,
+          liquidity: token.liquidity,
+          fullyDilutedValuation: token.fullyDilutedValuation,
+          bondingCurveProgress: token.bondingCurveProgress,
+          graduationProximity: token.graduationProximity || 'FAR_FROM_GRADUATION',
+          trackingData: token.trackingData
+        }));
+        
         res.json({
           success: true,
-          tokens: limitedTokens,
-          count: limitedTokens.length,
-          totalCount: result.count,
-          proximityLevel: proximityLevel || 'all'
+          tokens: transformedTokens,
+          count: transformedTokens.length,
+          totalCount: data.count,
+          proximityLevel: proximityLevel || 'all',
+          source: 'jupiter-service'
         });
-
+        
       } catch (error) {
-        console.error('❌ Failed to get bonding tokens:', error.message);
+        console.error('❌ Failed to get bonding tokens from jupiter-service:', error.message);
         res.status(500).json({
           success: false,
-          error: 'Failed to get bonding tokens'
+          error: 'Failed to get bonding tokens from jupiter-service'
         });
       }
     });
 
-    // Get bonding token details by address
+    // Get bonding token details by address - Fetch from jupiter-service
     this.app.get('/api/tokens/:contract/bonding', async (req, res) => {
       try {
         const { contract } = req.params;
         
-        console.log(`[🛡️ Enhanced Backend] 🚨 Getting bonding details for: ${contract}...`);
+        console.log(`[🛡️ Enhanced Backend] 🚨 Getting bonding details from jupiter-service for: ${contract}...`);
         
-        if (!this.bondingTokensService) {
-          return res.status(503).json({
+        // Fetch from jupiter-service
+        const jupiterServiceUrl = process.env.JUPITER_SERVICE_URL || 'http://localhost:3000';
+        const apiUrl = `${jupiterServiceUrl}/api/bonding-tokens/${contract}/status`;
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        if (!response.ok) {
+          return res.status(response.status).json({
             success: false,
-            error: 'BondingTokensService not available'
+            error: data.error || 'Failed to fetch bonding details from jupiter-service'
           });
         }
-
-        // Get bonding status for specific token
-        const statusResult = await this.bondingTokensService.getBondingStatus(contract);
         
-        if (!statusResult.success) {
+        if (!data.success) {
           return res.status(404).json({
             success: false,
             error: 'Token not found in bonding curve'
           });
         }
-
+        
         res.json({
           success: true,
-          bondingData: statusResult.data
+          bondingData: data.data,
+          source: 'jupiter-service'
         });
-
+        
       } catch (error) {
-        console.error('❌ Failed to get bonding token details:', error.message);
+        console.error('❌ Failed to get bonding token details from jupiter-service:', error.message);
         res.status(500).json({
           success: false,
-          error: 'Failed to get bonding token details'
+          error: 'Failed to get bonding token details from jupiter-service'
         });
       }
     });
 
-    // Get bonding tokens statistics
+    // Get bonding tokens statistics - Fetch from jupiter-service
     this.app.get('/api/tokens/bonding/stats', async (req, res) => {
       try {
-        console.log(`[🛡️ Enhanced Backend] 📊 Getting bonding tokens statistics...`);
+        console.log(`[🛡️ Enhanced Backend] 📊 Getting bonding tokens statistics from jupiter-service...`);
         
-        if (!this.bondingTokensService) {
-          return res.status(503).json({
+        // Fetch from jupiter-service
+        const jupiterServiceUrl = process.env.JUPITER_SERVICE_URL || 'http://localhost:3000';
+        const apiUrl = `${jupiterServiceUrl}/api/bonding-tokens/stats`;
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        if (!response.ok) {
+          return res.status(response.status).json({
             success: false,
-            error: 'BondingTokensService not available'
+            error: data.error || 'Failed to fetch bonding statistics from jupiter-service'
           });
         }
-
-        const statsResult = await this.bondingTokensService.getTrackingStats();
         
-        if (!statsResult.success) {
+        if (!data.success) {
           return res.status(500).json({
             success: false,
-            error: statsResult.error || 'Failed to get bonding statistics'
+            error: data.error || 'Failed to get bonding statistics'
           });
         }
-
+        
         res.json({
           success: true,
-          stats: statsResult.stats
+          stats: data.stats,
+          source: 'jupiter-service'
         });
-
+        
       } catch (error) {
-        console.error('❌ Failed to get bonding statistics:', error.message);
+        console.error('❌ Failed to get bonding statistics from jupiter-service:', error.message);
         res.status(500).json({
           success: false,
-          error: 'Failed to get bonding statistics'
+          error: 'Failed to get bonding statistics from jupiter-service'
         });
       }
     });
 
     // Get graduation alerts
+    // Get graduation alerts - Fetch from jupiter-service
     this.app.get('/api/tokens/bonding/alerts', async (req, res) => {
       try {
         const { threshold = 95 } = req.query;
         
-        console.log(`[🛡️ Enhanced Backend] 🚨 Getting graduation alerts (threshold: ${threshold}%)...`);
+        console.log(`[🛡️ Enhanced Backend] 🚨 Getting graduation alerts from jupiter-service (threshold: ${threshold}%)...`);
         
-        if (!this.bondingTokensService) {
-          return res.status(503).json({
+        // Fetch from jupiter-service
+        const jupiterServiceUrl = process.env.JUPITER_SERVICE_URL || 'http://localhost:3000';
+        const apiUrl = `${jupiterServiceUrl}/api/bonding-tokens/alerts?threshold=${threshold}`;
+        
+        const response = await fetch(apiUrl);
+        const data = await response.json();
+        
+        if (!response.ok) {
+          return res.status(response.status).json({
             success: false,
-            error: 'BondingTokensService not available'
+            error: data.error || 'Failed to fetch graduation alerts from jupiter-service'
           });
         }
-
-        const alertsResult = await this.bondingTokensService.getEnhancedGraduationAlerts(parseInt(threshold));
         
-        if (!alertsResult.success) {
+        if (!data.success) {
           return res.status(500).json({
             success: false,
-            error: alertsResult.error || 'Failed to get graduation alerts'
+            error: data.error || 'Failed to get graduation alerts'
           });
         }
-
+        
         res.json({
           success: true,
-          alerts: alertsResult.alerts,
-          trackingSummary: alertsResult.trackingSummary,
-          threshold: parseInt(threshold)
+          alerts: data.alerts,
+          count: data.count,
+          source: 'jupiter-service'
         });
-
+        
       } catch (error) {
-        console.error('❌ Failed to get graduation alerts:', error.message);
+        console.error('❌ Failed to get graduation alerts from jupiter-service:', error.message);
         res.status(500).json({
           success: false,
-          error: 'Failed to get graduation alerts'
+          error: 'Failed to get graduation alerts from jupiter-service'
         });
       }
     });

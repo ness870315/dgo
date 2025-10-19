@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: bonding-tokens-service
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: MORALIS_API_KEY
+        sync: false
+    healthCheckPath: /health
