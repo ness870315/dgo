@@ -6270,24 +6270,25 @@ Format as JSON:
         // Determine payment amount based on strategy type
         const paymentAmount = strategy.type === 'basic' ? 1.20 : 2.00;
         
+        // Create payment requirements (needed for both 402 response and payment verification)
+        const paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements({
+          amount: paymentAmount * 1e6, // Convert to lamports (USDC has 6 decimals)
+          asset: {
+            mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+            decimals: 6
+          },
+          network: 'solana',
+          config: {
+            resource: `https://api.degen-oracle.com/api/x402/execute-strategy/${strategyId}`,
+            description: `${strategy.name} - AI Liquid Staking Optimization`,
+            maxTimeoutSeconds: 300,
+            mimeType: 'application/json'
+          }
+        });
+        
         // If no X-PAYMENT header, return 402 Payment Required
         if (!xPaymentHeader) {
           console.log('[🧠 x402 AI Router] 💰 Returning 402 Payment Required for strategy execution');
-          
-          const paymentRequirements = await this.x402PaymentHandler.createPaymentRequirements({
-            amount: paymentAmount * 1e6, // Convert to lamports (USDC has 6 decimals)
-            asset: {
-              mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
-              decimals: 6
-            },
-            network: 'solana',
-            config: {
-              resource: `https://api.degen-oracle.com/api/x402/execute-strategy/${strategyId}`,
-              description: `${strategy.name} - AI Liquid Staking Optimization`,
-              maxTimeoutSeconds: 300,
-              mimeType: 'application/json'
-            }
-          });
           
           const response402 = this.x402PaymentHandler.create402Response(paymentRequirements);
           return res.status(response402.status).json(response402.body);
