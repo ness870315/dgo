@@ -127,8 +127,8 @@ export default {
     } else {
       // For all other routes (including /staking), serve index.html
       // This allows React Router to handle the routing
-      const indexRequest = new Request(new URL('/', url.origin).toString());
-      return env.ASSETS.fetch(indexRequest);
+      const indexUrl = url.origin + '/';
+      return env.ASSETS.fetch(indexUrl);
     }
   }
 };
