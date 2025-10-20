@@ -211,19 +211,59 @@ async function saveBondingTokensToCache(tokens) {
       // Directory might already exist
     }
     
+    // Process tokens with graduation proximity
+    const processedTokens = tokens.map(token => ({
+      ...token,
+      graduationProximity: calculateGraduationProximity(token.bondingCurveProgress)
+    }));
+    
     const cacheData = {
       timestamp: new Date().toISOString(),
-      tokens: tokens,
-      count: tokens.length
+      tokens: processedTokens,
+      count: processedTokens.length
     };
     
     await fs.writeFile(cacheFile, JSON.stringify(cacheData, null, 2));
-    console.log(`💾 [BondingTokens] Saved ${tokens.length} tokens to ${cacheFile}`);
+    console.log(`💾 [BondingTokens] Saved ${processedTokens.length} tokens to ${cacheFile}`);
+    
+    // Also send to backend
+    await importBondingTokensToBackend(processedTokens);
     
     return true;
   } catch (error) {
     console.error('❌ [BondingTokens] Error saving cache:', error.message);
     return false;
+  }
+}
+
+function calculateGraduationProximity(progress) {
+  const progressNum = parseFloat(progress) || 0;
+  
+  if (progressNum >= 95) return 'IMMINENT_GRADUATION';
+  if (progressNum >= 85) return 'VERY_CLOSE_TO_GRADUATION';
+  if (progressNum >= 70) return 'CLOSE_TO_GRADUATION';
+  if (progressNum >= 50) return 'APPROACHING_GRADUATION';
+  return 'FAR_FROM_GRADUATION';
+}
+
+async function importBondingTokensToBackend(tokens) {
+  if (!INTERNAL_TOKEN) {
+    console.warn('⚠️ [BondingTokens] No INTERNAL_TOKEN set; skipping backend import');
+    return { success: false, error: 'No token' };
+  }
+  
+  try {
+    const url = `${API_BASE}/api/internal/bonding-tokens/import`;
+    const res = await axios.post(url, { tokens }, {
+      headers: { 'Content-Type': 'application/json', 'X-Internal-Token': INTERNAL_TOKEN },
+      timeout: 20000
+    });
+    
+    console.log(`✅ [BondingTokens] Imported ${tokens.length} tokens to backend`);
+    return res.data;
+  } catch (error) {
+    console.error('❌ [BondingTokens] Error importing to backend:', error.message);
+    return { success: false, error: error.message };
   }
 }
 
