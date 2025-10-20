@@ -194,15 +194,17 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, isTrenchesF
                         </div>
                       </div>
 
-                      {/* Mentions */}
-                      <div className="text-center">
-                        <div className="text-white font-semibold text-xs">
-                          {mentions}
+                      {/* Mentions - Hide for Trenches filter */}
+                      {!isTrenchesFilter && (
+                        <div className="text-center">
+                          <div className="text-white font-semibold text-xs">
+                            {mentions}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            Mentions
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-400">
-                          Mentions
-                        </div>
-                      </div>
+                      )}
 
                       {/* Arrow */}
                       <div className="text-gray-400 group-hover:text-solana-purple transition-colors">
@@ -277,15 +279,17 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, isTrenchesF
 
                     {/* Right side - Stats */}
                     <div className="flex items-center space-x-6">
-                      {/* Score */}
-                      <div className="text-center">
-                        <div className={`text-2xl font-bold ${scoreColor}`}>
-                          {score.toFixed(1)}
+                      {/* Score - Hide for Trenches filter */}
+                      {!isTrenchesFilter && (
+                        <div className="text-center">
+                          <div className={`text-2xl font-bold ${scoreColor}`}>
+                            {score.toFixed(1)}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            {scoreLabel}
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-400">
-                          {scoreLabel}
-                        </div>
-                      </div>
+                      )}
 
                       {/* Price Change */}
                       <div className="text-center">
@@ -307,15 +311,17 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, isTrenchesF
                         </div>
                       </div>
 
-                      {/* Mentions */}
-                      <div className="text-center">
-                        <div className="text-white font-semibold">
-                          {mentions}
+                      {/* Mentions - Hide for Trenches filter */}
+                      {!isTrenchesFilter && (
+                        <div className="text-center">
+                          <div className="text-white font-semibold">
+                            {mentions}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            Mentions
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-400">
-                          Mentions
-                        </div>
-                      </div>
+                      )}
 
                       {/* Arrow indicator */}
                       <div className="text-gray-400 group-hover:text-solana-purple transition-colors">
