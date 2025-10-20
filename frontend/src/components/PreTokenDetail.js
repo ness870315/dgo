@@ -263,7 +263,7 @@ const PreTokenDetail = ({ token, onClose, onNavigateToPremium }) => {
                     <span className="text-gray-400">Contract</span>
                     <div className="flex items-center space-x-2">
                       <span className="text-white font-mono text-sm">
-                        {(token.contractAddress || token.tokenAddress)?.substring(0, 8)}...{(token.contractAddress || token.tokenAddress)?.substring(-8)}
+                        {(token.contractAddress || token.tokenAddress)?.substring(0, 8)}...{(token.contractAddress || token.tokenAddress)?.slice(-8)}
                       </span>
                       <button
                         onClick={copyContractAddress}
