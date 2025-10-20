@@ -2356,6 +2356,10 @@ class EnhancedBackend {
         const jsonData = JSON.stringify(filteredTokens, null, 2);
         
         try {
+          // 🚨 CRITICAL FIX: Ensure cache directory exists before atomic write
+          const cacheDir = path.dirname(cachePath);
+          await fs.mkdir(cacheDir, { recursive: true });
+          
           await fs.writeFile(tempPath, jsonData, 'utf8');
           await fs.rename(tempPath, cachePath);
         } catch (error) {
@@ -7939,6 +7943,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const jsonData = JSON.stringify(filteredTokens, null, 2);
         
         try {
+          // 🚨 CRITICAL FIX: Ensure cache directory exists before atomic write
+          const cacheDir = path.dirname(cachePath);
+          await fs.mkdir(cacheDir, { recursive: true });
+          
           await fs.writeFile(tempPath, jsonData, 'utf8');
           await fs.rename(tempPath, cachePath);
         } catch (error) {
@@ -8021,6 +8029,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const jsonData = JSON.stringify(filteredTokens, null, 2);
         
         try {
+          // 🚨 CRITICAL FIX: Ensure cache directory exists before atomic write
+          const cacheDir = path.dirname(cachePath);
+          await fs.mkdir(cacheDir, { recursive: true });
+          
           await fs.writeFile(tempPath, jsonData, 'utf8');
           await fs.rename(tempPath, cachePath);
         } catch (error) {
@@ -14165,6 +14177,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
       const tempPath = cachePath + '.tmp';
       const jsonData = JSON.stringify(tokens, null, 2);
       
+      // 🚨 CRITICAL FIX: Ensure cache directory exists before atomic write
+      const cacheDir = path.dirname(cachePath);
+      await fs.mkdir(cacheDir, { recursive: true });
+      
       // Write to temporary file
       await fs.writeFile(tempPath, jsonData, 'utf8');
       
@@ -14430,6 +14446,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const jsonData = JSON.stringify(tokens, null, 2);
         
         try {
+          // 🚨 CRITICAL FIX: Ensure cache directory exists before atomic write
+          const cacheDir = path.dirname(cachePath);
+          await fs.mkdir(cacheDir, { recursive: true });
+          
           await fs.writeFile(tempPath, jsonData, 'utf8');
           await fs.rename(tempPath, cachePath);
           console.log(`[🛡️ Enhanced Backend] ✅ Jupiter update complete: ${updated} tokens updated, ${errors} errors`);
@@ -14871,6 +14891,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
       const jsonData = JSON.stringify([], null, 2);
       
       try {
+        // 🚨 CRITICAL FIX: Ensure cache directory exists before atomic write
+        const cacheDir = path.dirname(cachePath);
+        await fs.mkdir(cacheDir, { recursive: true });
+        
         await fs.writeFile(tempPath, jsonData, 'utf8');
         await fs.rename(tempPath, cachePath);
         console.log(`[🛡️ Enhanced Backend] 🗑️ Cache cleared at: ${cachePath}`);

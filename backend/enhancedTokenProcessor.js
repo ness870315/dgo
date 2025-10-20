@@ -1269,6 +1269,9 @@ class EnhancedTokenProcessor {
       const jsonData = JSON.stringify(finalUniqueTokens, null, 2);
       
       try {
+        // 🚨 CRITICAL FIX: Ensure cache directory exists before atomic write
+        await fs.mkdir(this.cacheDir, { recursive: true });
+        
         await fs.writeFile(tempPath, jsonData, 'utf8');
         await fs.rename(tempPath, cachePath);
       } catch (error) {
@@ -2525,6 +2528,9 @@ class EnhancedTokenProcessor {
       const jsonData = JSON.stringify(tokens, null, 2);
       
       try {
+        // 🚨 CRITICAL FIX: Ensure cache directory exists before atomic write
+        await fs.mkdir(this.cacheDir, { recursive: true });
+        
         await fs.writeFile(tempPath, jsonData, 'utf8');
         await fs.rename(tempPath, cachePath);
       console.log(`💾 Paid token ${token.symbol} saved to cache`);
