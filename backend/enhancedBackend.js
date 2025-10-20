@@ -11502,14 +11502,14 @@ Thanks for using x402 payments on Twitter! 🚀`;
       this.hybridChartService = null; // Set to null so endpoints can handle gracefully
     }
 
-    // Schedule bonding token validation to run every hour
+    // Schedule bonding token validation to run every 5 minutes
     this.scheduleBondingValidation = () => {
       if (!this.bondingValidationService) {
         console.log('⚠️ Bonding validation service not available, skipping scheduling');
         return;
       }
       
-      console.log('⏰ Scheduling bonding token validation every hour');
+      console.log('⏰ Scheduling bonding token validation every 5 minutes');
       
       // Run validation immediately on startup
       setTimeout(async () => {
@@ -11521,7 +11521,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
       }, 30000); // Wait 30 seconds after startup
       
-      // Schedule to run every hour (3600000 ms)
+      // Schedule to run every 5 minutes (300000 ms)
       setInterval(async () => {
         try {
           console.log('⏰ Running scheduled bonding token validation...');
@@ -11530,7 +11530,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         } catch (error) {
           console.error('❌ Scheduled bonding validation failed:', error.message);
         }
-      }, 3600000); // 1 hour
+      }, 300000); // 5 minutes
     };
 
     // Initialize Bonding Token Validation Service

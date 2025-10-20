@@ -9,8 +9,8 @@ class BondingTokenValidationService {
   constructor() {
     this.cachePath = '/var/data/PreBonded-BackendCache.json';
     this.jupiterApiUrl = 'https://lite-api.jup.ag/tokens/v2/search';
-    this.batchSize = 100; // Jupiter API limit
-    this.requestDelay = 100; // ms between requests
+    this.batchSize = 100; // Jupiter API limit (process 100 tokens per batch)
+    this.batchDelay = 60000; // 1 minute (60000ms) delay between batches
   }
 
   /**
@@ -114,9 +114,13 @@ class BondingTokenValidationService {
                 name: token.name,
                 symbol: token.symbol,
                 bondingCurve: token.bondingCurve,
+                bondingCurveProgress: bondingCurveValue, // Numeric value for graduation bar
                 launchpad: token.launchpad,
                 stats5m: token.stats5m || {},
-                priceChange5m: token.stats5m?.priceChange || 0
+                priceChange5m: token.stats5m?.priceChange || 0,
+                mcap: token.mcap || null,
+                usdPrice: token.usdPrice || null,
+                price: token.usdPrice || null // Alias for compatibility
               });
             } else if (isFullyGraduated) {
               console.log(`[BondingValidation] 🎓 ${address}: bondingCurve = ${token.bondingCurve} (100%) - MIGRATE`);
@@ -142,9 +146,10 @@ class BondingTokenValidationService {
             }
           });
           
-          // Small delay between batches to respect rate limits
+          // Wait 1 minute between batches to respect rate limits and avoid overwhelming Jupiter API
           if (i + this.batchSize < tokenAddresses.length) {
-            await new Promise(resolve => setTimeout(resolve, this.requestDelay));
+            console.log(`[BondingValidation] ⏳ Waiting 1 minute before processing next batch...`);
+            await new Promise(resolve => setTimeout(resolve, this.batchDelay));
           }
           
         } catch (error) {
@@ -222,8 +227,13 @@ class BondingTokenValidationService {
         const originalToken = addressToToken[result.address];
         return {
           ...originalToken,
-          // Update bonding curve progress from Jupiter
-          bondingCurveProgress: result.bondingCurve,
+          // Update bonding curve progress from Jupiter (for graduation bar)
+          bondingCurveProgress: result.bondingCurveProgress,
+          bondingCurve: result.bondingCurve,
+          // Update price data from Jupiter
+          mcap: result.mcap || originalToken.mcap,
+          usdPrice: result.usdPrice || originalToken.usdPrice,
+          price: result.price || originalToken.price,
           // Update price change data from Jupiter
           priceChange5m: result.priceChange5m,
           stats5m: result.stats5m,
