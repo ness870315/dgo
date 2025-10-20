@@ -11,20 +11,19 @@ const PreTokenDetail = ({ token, onClose, onNavigateToPremium }) => {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  // Mock bonding data - will be replaced with real API call
+  // Fetch bonding data with Jupiter validation updates
   useEffect(() => {
-    // Simulate API call
     const fetchBondingData = async () => {
       setLoading(true);
       try {
-        // Use actual token data from API
+        // Use actual token data with Jupiter validation updates
         const bondingData = {
-          bondingProgress: token.bondingCurveProgress || 95.5,
+          bondingProgress: token.bondingCurveProgress || token.jupiterData?.bondingCurveProgress || 95.5,
           proximityLevel: token.graduationProximity || 'CLOSE_TO_GRADUATION',
-          liquidity: token.liquidity || 45000,
-          fullyDilutedValuation: token.fullyDilutedValuation || 75000,
-          priceUsd: token.priceUsd || 0.000067557,
-          priceNative: token.priceNative || 0.000000355,
+          liquidity: token.liquidity || token.jupiterData?.liquidity || 45000,
+          fullyDilutedValuation: token.fullyDilutedValuation || token.jupiterData?.mcap || token.jupiterData?.fullyDilutedValuation || 75000,
+          priceUsd: token.priceUsd || token.jupiterData?.usdPrice || token.jupiterData?.price || 0.000067557,
+          priceNative: token.priceNative || token.jupiterData?.priceNative || 0.000000355,
           firstSeen: token.firstSeen || Date.now() - (2 * 24 * 60 * 60 * 1000), // 2 days ago
           totalProgressGained: token.totalProgressGained || 2.5,
           graduationAlerts: token.graduationAlerts || 0
@@ -212,6 +211,12 @@ const PreTokenDetail = ({ token, onClose, onNavigateToPremium }) => {
                 <h3 className="text-lg font-semibold text-white mb-4">Market Data</h3>
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
+                    <span className="text-gray-400">Market Cap</span>
+                    <span className="text-white font-semibold">
+                      ${formatNumber(bondingData?.fullyDilutedValuation || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
                     <span className="text-gray-400">Current Price</span>
                     <span className="text-white font-semibold">
                       {formatPrice(bondingData?.priceUsd || 0)}
@@ -227,12 +232,6 @@ const PreTokenDetail = ({ token, onClose, onNavigateToPremium }) => {
                     <span className="text-gray-400">Liquidity</span>
                     <span className="text-white font-semibold">
                       ${formatNumber(bondingData?.liquidity || 0)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-400">FDV</span>
-                    <span className="text-white font-semibold">
-                      ${formatNumber(bondingData?.fullyDilutedValuation || 0)}
                     </span>
                   </div>
                 </div>

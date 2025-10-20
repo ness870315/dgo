@@ -11626,6 +11626,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Get historical price data for a token (Helius + Moralis)
     this.app.get('/api/tokens/:contract/price-chart', async (req, res) => {
       try {
+        console.log(`🔍 [PRICE-CHART] Endpoint reached for contract: ${req.params.contract}`);
+        console.log(`🔍 [PRICE-CHART] Query params:`, req.query);
+        
         const { contract } = req.params;
         const { timeframe = '5MIN', limit, before, after, preBonding } = req.query;
 
