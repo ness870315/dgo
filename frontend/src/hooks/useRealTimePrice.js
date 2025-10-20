@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import RealTimePriceClient from './RealTimePriceClient.js';
+import RealTimePriceClient from '../services/RealTimePriceClient.js';
 
 export const useRealTimePrice = (tokenAddress) => {
   const [priceData, setPriceData] = useState(null);
