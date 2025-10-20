@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 /**
  * Standalone Moralis service for pre-bonding tokens
@@ -195,5 +195,5 @@ class PreBondingMoralisService {
   }
 }
 
-module.exports = PreBondingMoralisService;
+export default PreBondingMoralisService;
 

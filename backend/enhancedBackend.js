@@ -28,6 +28,7 @@ import HybridPriceService from './hybridPriceService.js';
 import HybridChartService from './services/HybridChartService.js';
 import KOLService from './services/KOLService.js';
 import BondingTokenValidationService from './services/BondingTokenValidationService.js';
+import PreBondingMoralisService from './services/PreBondingMoralisService.js';
 // DISABLED: import EnhancedAnalyticsCacheService from './services/EnhancedAnalyticsCacheService.js';
 import logger from './logger.js';
 import { fileURLToPath } from 'url';
@@ -11483,7 +11484,6 @@ Thanks for using x402 payments on Twitter! 🚀`;
     this.hybridPriceService = new HybridPriceService();
     
     // Initialize Pre-Bonding Moralis Service (standalone, no chart infrastructure)
-    const PreBondingMoralisService = require('./services/PreBondingMoralisService');
     this.preBondingMoralisService = new PreBondingMoralisService();
     
     // Initialize Hybrid Chart Service (Professional Architecture)
