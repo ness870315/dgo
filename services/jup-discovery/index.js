@@ -306,8 +306,26 @@ async function saveBondingTokensToCache(tokens) {
       count: processedTokens.length
     };
     
-    await fs.writeFile(cacheFile, JSON.stringify(cacheData, null, 2));
-    console.log(`💾 [BondingTokens] Saved ${processedTokens.length} tokens to ${cacheFile}`);
+    // 🚨 CRITICAL FIX: Use atomic write to prevent data loss
+    const tempPath = cacheFile + '.tmp';
+    const jsonData = JSON.stringify(cacheData, null, 2);
+    
+    try {
+      // Ensure cache directory exists before atomic write
+      const cacheDir = path.dirname(cacheFile);
+      await fs.mkdir(cacheDir, { recursive: true });
+      
+      await fs.writeFile(tempPath, jsonData, 'utf8');
+      await fs.rename(tempPath, cacheFile);
+    } catch (error) {
+      // Cleanup temp file if it exists
+      try {
+        await fs.unlink(tempPath);
+      } catch (_) {}
+      throw error;
+    }
+    
+    console.log(`💾 [BondingTokens] Saved ${processedTokens.length} tokens to ${cacheFile} (atomic write)`);
     
     // Also send to backend
     await importBondingTokensToBackend(processedTokens);
@@ -457,7 +475,7 @@ async function migrateGraduatedTokens(graduatedTokens) {
       lastUpdated: new Date().toISOString()
     }));
     
-    // Atomic write: Add migrated tokens to main cache
+    // 🚨 CRITICAL FIX: Atomic write: Add migrated tokens to main cache
     const updatedTokenCache = {
       ...tokenCacheData,
       tokens: [...tokenCacheData.tokens, ...migratedTokens],
@@ -465,8 +483,25 @@ async function migrateGraduatedTokens(graduatedTokens) {
       migratedTokens: (tokenCacheData.migratedTokens || 0) + migratedTokens.length
     };
     
-    await fs.writeFile(tokenCacheFile, JSON.stringify(updatedTokenCache, null, 2));
-    console.log(`✅ [Migration] Migrated ${migratedTokens.length} tokens to main cache`);
+    const tempPath = tokenCacheFile + '.tmp';
+    const jsonData = JSON.stringify(updatedTokenCache, null, 2);
+    
+    try {
+      // Ensure cache directory exists before atomic write
+      const cacheDir = path.dirname(tokenCacheFile);
+      await fs.mkdir(cacheDir, { recursive: true });
+      
+      await fs.writeFile(tempPath, jsonData, 'utf8');
+      await fs.rename(tempPath, tokenCacheFile);
+    } catch (error) {
+      // Cleanup temp file if it exists
+      try {
+        await fs.unlink(tempPath);
+      } catch (_) {}
+      throw error;
+    }
+    
+    console.log(`✅ [Migration] Migrated ${migratedTokens.length} tokens to main cache (atomic write)`);
     
     return migratedTokens;
     
@@ -489,8 +524,26 @@ async function updateBondingCache(remainingTokens) {
       graduatedCount: 0 // Reset counter
     };
     
-    await fs.writeFile(cacheFile, JSON.stringify(updatedCache, null, 2));
-    console.log(`✅ [Bonding Cache] Updated: ${remainingTokens.length} tokens remaining`);
+    // 🚨 CRITICAL FIX: Use atomic write to prevent data loss
+    const tempPath = cacheFile + '.tmp';
+    const jsonData = JSON.stringify(updatedCache, null, 2);
+    
+    try {
+      // Ensure cache directory exists before atomic write
+      const cacheDir = path.dirname(cacheFile);
+      await fs.mkdir(cacheDir, { recursive: true });
+      
+      await fs.writeFile(tempPath, jsonData, 'utf8');
+      await fs.rename(tempPath, cacheFile);
+    } catch (error) {
+      // Cleanup temp file if it exists
+      try {
+        await fs.unlink(tempPath);
+      } catch (_) {}
+      throw error;
+    }
+    
+    console.log(`✅ [Bonding Cache] Updated: ${remainingTokens.length} tokens remaining (atomic write)`);
     
   } catch (error) {
     console.error('❌ [Bonding Cache] Error updating bonding cache:', error.message);

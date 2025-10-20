@@ -38,8 +38,26 @@ class BondingTokenValidationService {
         totalTokens: tokens.length
       };
       
-      await fs.writeFile(this.cachePath, JSON.stringify(cache, null, 2));
-      console.log(`[BondingValidation] ✅ Saved ${tokens.length} tokens to backend cache`);
+      // 🚨 CRITICAL FIX: Use atomic write to prevent data loss
+      const tempPath = this.cachePath + '.tmp';
+      const jsonData = JSON.stringify(cache, null, 2);
+      
+      try {
+        // Ensure cache directory exists before atomic write
+        const cacheDir = path.dirname(this.cachePath);
+        await fs.mkdir(cacheDir, { recursive: true });
+        
+        await fs.writeFile(tempPath, jsonData, 'utf8');
+        await fs.rename(tempPath, this.cachePath);
+      } catch (error) {
+        // Cleanup temp file if it exists
+        try {
+          await fs.unlink(tempPath);
+        } catch (_) {}
+        throw error;
+      }
+      
+      console.log(`[BondingValidation] ✅ Saved ${tokens.length} tokens to backend cache (atomic write)`);
     } catch (error) {
       console.error('[BondingValidation] ❌ Failed to save bonding tokens:', error.message);
       throw error;

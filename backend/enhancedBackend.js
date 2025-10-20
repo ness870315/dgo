@@ -11827,8 +11827,26 @@ Thanks for using x402 payments on Twitter! 🚀`;
           source: 'jupiter-service'
         };
         
-        await fs.writeFile(cacheFile, JSON.stringify(cacheData, null, 2));
-        console.log(`💾 [Bonding Import] Saved ${tokens.length} tokens to backend cache`);
+        // 🚨 CRITICAL FIX: Use atomic write to prevent data loss
+        const tempPath = cacheFile + '.tmp';
+        const jsonData = JSON.stringify(cacheData, null, 2);
+        
+        try {
+          // Ensure cache directory exists before atomic write
+          const cacheDir = path.dirname(cacheFile);
+          await fs.mkdir(cacheDir, { recursive: true });
+          
+          await fs.writeFile(tempPath, jsonData, 'utf8');
+          await fs.rename(tempPath, cacheFile);
+        } catch (error) {
+          // Cleanup temp file if it exists
+          try {
+            await fs.unlink(tempPath);
+          } catch (_) {}
+          throw error;
+        }
+        
+        console.log(`💾 [Bonding Import] Saved ${tokens.length} tokens to backend cache (atomic write)`);
         
         res.json({
           success: true,
