@@ -610,6 +610,20 @@ function AppContent() {
       const data = await response.json();
       
       if (data.success) {
+        // Check if any tokens were removed (graduated)
+        const previousTokenAddresses = bondingTokens.map(t => t.contractAddress);
+        const currentTokenAddresses = data.tokens.map(t => t.tokenAddress);
+        
+        const graduatedTokens = previousTokenAddresses.filter(addr => 
+          !currentTokenAddresses.includes(addr)
+        );
+        
+        if (graduatedTokens.length > 0) {
+          console.log(`🎓 [Frontend] ${graduatedTokens.length} tokens graduated and migrated!`);
+          console.log(`🎓 [Frontend] Graduated tokens:`, graduatedTokens);
+          // Tokens automatically disappear from Trenches filter
+        }
+        
         // Transform bonding tokens to match our token format
         const transformedTokens = data.tokens.map(token => ({
           contractAddress: token.tokenAddress,
@@ -653,7 +667,7 @@ function AppContent() {
     } finally {
       setBondingTokensLoading(false);
     }
-  }, []);
+  }, [bondingTokens]);
 
   // Load initial data
   // showLoading: true = show loading spinner (initial load, manual refresh)

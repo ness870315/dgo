@@ -11758,6 +11758,91 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
+    // Handle graduated tokens notification from Jupiter Service
+    this.app.post('/api/internal/bonding-tokens/graduated', async (req, res) => {
+      try {
+        const internalToken = process.env.INTERNAL_TOKEN || process.env.DISCOVERY_INTERNAL_TOKEN;
+        const providedToken = req.headers['x-internal-token'] || req.query.token;
+
+        if (!internalToken) {
+          return res.status(503).json({ success: false, error: 'Internal graduation handler not configured (no INTERNAL_TOKEN)' });
+        }
+        if (!providedToken || providedToken !== internalToken) {
+          return res.status(403).json({ success: false, error: 'Forbidden' });
+        }
+
+        const { graduatedTokens } = req.body || {};
+        if (!Array.isArray(graduatedTokens)) {
+          return res.status(400).json({ success: false, error: 'Invalid payload: graduatedTokens[] required' });
+        }
+
+        console.log(`🎓 [Graduation Handler] Received ${graduatedTokens.length} graduated tokens from Jupiter Service`);
+
+        // Read backend bonding cache
+        const fs = await import('fs/promises');
+        const path = await import('path');
+        
+        const cacheFile = '/var/data/PreBonded-BackendCache.json';
+        
+        try {
+          const cacheData = await fs.readFile(cacheFile, 'utf8');
+          const parsedData = JSON.parse(cacheData);
+          
+          if (!parsedData.tokens || !Array.isArray(parsedData.tokens)) {
+            return res.json({
+              success: true,
+              removedCount: 0,
+              remainingCount: 0,
+              message: 'No bonding tokens in backend cache'
+            });
+          }
+          
+          // Remove graduated tokens from backend cache
+          const remainingTokens = parsedData.tokens.filter(token => 
+            !graduatedTokens.includes(token.tokenAddress)
+          );
+          
+          const removedCount = parsedData.tokens.length - remainingTokens.length;
+          
+          // Update backend cache
+          const updatedCache = {
+            ...parsedData,
+            tokens: remainingTokens,
+            count: remainingTokens.length,
+            lastUpdated: new Date().toISOString(),
+            graduatedTokens: graduatedTokens
+          };
+          
+          await fs.writeFile(cacheFile, JSON.stringify(updatedCache, null, 2));
+          console.log(`🎓 [Graduation Handler] Removed ${removedCount} graduated tokens from backend cache`);
+          
+          res.json({
+            success: true,
+            removedCount: removedCount,
+            remainingCount: remainingTokens.length,
+            graduatedTokens: graduatedTokens,
+            message: 'Graduated tokens removed from backend cache'
+          });
+          
+        } catch (fileError) {
+          console.log(`⚠️ [Graduation Handler] Backend cache file not found: ${fileError.message}`);
+          res.json({
+            success: true,
+            removedCount: 0,
+            remainingCount: 0,
+            message: 'Backend cache not available'
+          });
+        }
+        
+      } catch (error) {
+        console.error('❌ Graduation handler error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to handle graduated tokens'
+        });
+      }
+    });
+
     // Get bonding token details by address - Fetch from jupiter-service
     this.app.get('/api/tokens/:contract/bonding', async (req, res) => {
       try {

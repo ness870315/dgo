@@ -267,6 +267,173 @@ async function importBondingTokensToBackend(tokens) {
   }
 }
 
+async function checkForGraduatedTokens() {
+  try {
+    console.log('🎓 [Graduation] Checking for graduated tokens...');
+    
+    // Read current bonding tokens
+    const cacheFile = '/var/data/PreBonded-cache.json';
+    
+    try {
+      const cacheData = JSON.parse(await fs.readFile(cacheFile, 'utf8'));
+      
+      if (!cacheData.tokens || !Array.isArray(cacheData.tokens)) {
+        console.log('🎓 [Graduation] No bonding tokens to check');
+        return;
+      }
+      
+      const graduatedTokens = [];
+      const remainingTokens = [];
+      
+      // Check each token for graduation (100% progress)
+      for (const token of cacheData.tokens) {
+        const progress = parseFloat(token.bondingCurveProgress) || 0;
+        
+        if (progress >= 100) {
+          // Token graduated - prepare for migration
+          graduatedTokens.push({
+            ...token,
+            graduationDate: new Date().toISOString(),
+            migratedFrom: 'bonding-curve',
+            originalProgress: progress
+          });
+          console.log(`🎓 [Graduation] Token ${token.symbol} (${token.tokenAddress}) graduated at ${progress}%`);
+        } else {
+          remainingTokens.push(token);
+        }
+      }
+      
+      if (graduatedTokens.length > 0) {
+        console.log(`🎓 [Graduation] Found ${graduatedTokens.length} graduated tokens`);
+        
+        // Migrate graduated tokens to main token cache
+        await migrateGraduatedTokens(graduatedTokens);
+        
+        // Update bonding cache with remaining tokens
+        await updateBondingCache(remainingTokens);
+        
+        // Notify backend to update its cache
+        await notifyBackendOfGraduations(graduatedTokens);
+        
+        console.log(`✅ [Graduation] Migration completed: ${graduatedTokens.length} tokens graduated`);
+      } else {
+        console.log('🎓 [Graduation] No tokens ready for graduation');
+      }
+      
+    } catch (fileError) {
+      console.log('🎓 [Graduation] No bonding cache file found yet');
+    }
+    
+  } catch (error) {
+    console.error('❌ [Graduation] Error checking for graduated tokens:', error.message);
+  }
+}
+
+async function migrateGraduatedTokens(graduatedTokens) {
+  try {
+    console.log(`🔄 [Migration] Migrating ${graduatedTokens.length} graduated tokens to main cache...`);
+    
+    // Read main token cache
+    const tokenCacheFile = '/var/data/dgo/cache/tokens-cache.json';
+    
+    let tokenCacheData;
+    try {
+      tokenCacheData = JSON.parse(await fs.readFile(tokenCacheFile, 'utf8'));
+    } catch (fileError) {
+      // Create new cache if it doesn't exist
+      tokenCacheData = {
+        tokens: [],
+        lastUpdated: new Date().toISOString(),
+        migratedTokens: 0
+      };
+    }
+    
+    // Transform bonding token to normal token format
+    const migratedTokens = graduatedTokens.map(token => ({
+      contractAddress: token.tokenAddress,
+      symbol: token.symbol,
+      name: token.name,
+      logo: token.logo,
+      decimals: token.decimals,
+      priceUsd: token.priceUsd,
+      priceNative: token.priceNative,
+      marketCap: token.fullyDilutedValuation,
+      volume24h: token.liquidity,
+      // Add graduation metadata
+      graduationDate: token.graduationDate,
+      migratedFrom: token.migratedFrom,
+      originalProgress: token.originalProgress,
+      // Add normal token fields
+      score: 9.0, // High score for graduated tokens
+      priceChange24h: 0,
+      twitter: null,
+      website: null,
+      telegram: null,
+      discord: null,
+      // Add timestamp
+      lastUpdated: new Date().toISOString()
+    }));
+    
+    // Atomic write: Add migrated tokens to main cache
+    const updatedTokenCache = {
+      ...tokenCacheData,
+      tokens: [...tokenCacheData.tokens, ...migratedTokens],
+      lastUpdated: new Date().toISOString(),
+      migratedTokens: (tokenCacheData.migratedTokens || 0) + migratedTokens.length
+    };
+    
+    await fs.writeFile(tokenCacheFile, JSON.stringify(updatedTokenCache, null, 2));
+    console.log(`✅ [Migration] Migrated ${migratedTokens.length} tokens to main cache`);
+    
+  } catch (error) {
+    console.error('❌ [Migration] Error migrating graduated tokens:', error.message);
+  }
+}
+
+async function updateBondingCache(remainingTokens) {
+  try {
+    console.log(`🔄 [Bonding Cache] Updating with ${remainingTokens.length} remaining tokens...`);
+    
+    // Update Jupiter Service cache
+    const cacheFile = '/var/data/PreBonded-cache.json';
+    const updatedCache = {
+      timestamp: new Date().toISOString(),
+      tokens: remainingTokens,
+      count: remainingTokens.length,
+      graduatedCount: 0 // Reset counter
+    };
+    
+    await fs.writeFile(cacheFile, JSON.stringify(updatedCache, null, 2));
+    console.log(`✅ [Bonding Cache] Updated: ${remainingTokens.length} tokens remaining`);
+    
+  } catch (error) {
+    console.error('❌ [Bonding Cache] Error updating bonding cache:', error.message);
+  }
+}
+
+async function notifyBackendOfGraduations(graduatedTokens) {
+  if (!INTERNAL_TOKEN) {
+    console.warn('⚠️ [Backend Notification] No INTERNAL_TOKEN set; skipping backend notification');
+    return { success: false, error: 'No token' };
+  }
+  
+  try {
+    const url = `${API_BASE}/api/internal/bonding-tokens/graduated`;
+    const response = await axios.post(url, { 
+      graduatedTokens: graduatedTokens.map(t => t.tokenAddress) 
+    }, {
+      headers: { 'Content-Type': 'application/json', 'X-Internal-Token': INTERNAL_TOKEN },
+      timeout: 20000
+    });
+    
+    console.log(`📡 [Backend Notification] Notified backend of ${graduatedTokens.length} graduated tokens`);
+    return response.data;
+  } catch (error) {
+    console.error('❌ [Backend Notification] Error notifying backend:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
 async function runBondingTokensDiscovery() {
   try {
     console.log('🚨 [BondingTokens] Starting bonding tokens discovery...');
@@ -412,13 +579,17 @@ async function main() {
   console.log('   MORALIS_API_KEY =', MORALIS_API_KEY ? 'SET' : 'NOT SET');
   
   if (RUN_ON_START) {
-    // Run both discoveries independently
+    // Run all discoveries independently
     runOnce().catch(error => {
       console.error('❌ [Jupiter Discovery] Failed:', error.message);
     });
     
     runBondingTokensDiscovery().catch(error => {
       console.error('❌ [Bonding Discovery] Failed:', error.message);
+    });
+    
+    checkForGraduatedTokens().catch(error => {
+      console.error('❌ [Graduation Check] Failed:', error.message);
     });
   }
   
@@ -427,6 +598,9 @@ async function main() {
   
   // Schedule bonding tokens discovery (every 30 minutes)
   setInterval(runBondingTokensDiscovery, BONDING_INTERVAL_MS);
+  
+  // Schedule graduation check (every 10 minutes)
+  setInterval(checkForGraduatedTokens, 10 * 60 * 1000);
 }
 
 main().catch(err => {
