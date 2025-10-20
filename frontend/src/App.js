@@ -565,11 +565,6 @@ function AppContent() {
     
     // Special handling for Trenches filter - use bonding tokens
     if (categoryFilters.trenches) {
-      if (bondingTokensLoading) {
-        setFilteredTokens([]);
-        return;
-      }
-      
       // Use bonding tokens instead of regular tokens
       let filtered = bondingTokens;
       
@@ -1050,6 +1045,13 @@ function AppContent() {
   useEffect(() => {
     loadTokens();
   }, [loadTokens]);
+
+  // Auto-switch to list view when Trenches filter is activated
+  useEffect(() => {
+    if (categoryFilters.trenches && currentView === 'bubbles') {
+      setCurrentView('list');
+    }
+  }, [categoryFilters.trenches, currentView]);
 
   // Live updates for bonding tokens (every 30 seconds)
   useEffect(() => {
