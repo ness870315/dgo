@@ -12,17 +12,14 @@ class RealTimePriceService {
     try {
       console.log('🚀 [RealTimePrice] Initializing real-time price service...');
       
-      // Initialize backend WebSocket server
+      // Initialize backend WebSocket server only
       this.backendWebSocketServer.initialize();
-      
-      // Connect to CoinVera
-      await this.coinVeraService.connect();
       
       // Set up event handlers
       this.setupEventHandlers();
       
       this.isInitialized = true;
-      console.log('✅ [RealTimePrice] Real-time price service initialized');
+      console.log('✅ [RealTimePrice] Real-time price service initialized (CoinVera will connect on demand)');
       
     } catch (error) {
       console.error('❌ [RealTimePrice] Failed to initialize:', error.message);
@@ -47,8 +44,20 @@ class RealTimePriceService {
     });
 
     // Handle frontend token subscriptions
-    this.backendWebSocketServer.on('tokenSubscription', ({ clientId, tokenAddress }) => {
+    this.backendWebSocketServer.on('tokenSubscription', async ({ clientId, tokenAddress }) => {
       console.log(`📤 [RealTimePrice] Frontend client ${clientId} subscribed to ${tokenAddress}`);
+      
+      // Connect to CoinVera if not already connected
+      if (!this.coinVeraService.isConnected) {
+        try {
+          console.log('🔌 [RealTimePrice] Connecting to CoinVera for first subscription...');
+          await this.coinVeraService.connect();
+          console.log('✅ [RealTimePrice] CoinVera connected successfully');
+        } catch (error) {
+          console.error('❌ [RealTimePrice] Failed to connect to CoinVera:', error.message);
+          return;
+        }
+      }
       
       // Subscribe to CoinVera for this token if not already subscribed
       if (!this.coinVeraService.isTokenSubscribed(tokenAddress)) {
@@ -66,6 +75,13 @@ class RealTimePriceService {
         // No more frontend clients subscribed, unsubscribe from CoinVera
         this.coinVeraService.unsubscribeFromToken(tokenAddress);
         console.log(`📤 [RealTimePrice] Unsubscribed from CoinVera for ${tokenAddress} (no more frontend clients)`);
+        
+        // If no tokens are subscribed, disconnect from CoinVera
+        const allSubscribedTokens = this.coinVeraService.getSubscribedTokens();
+        if (allSubscribedTokens.length === 0) {
+          console.log('🔌 [RealTimePrice] No more tokens subscribed, disconnecting from CoinVera');
+          this.coinVeraService.disconnect();
+        }
       }
     });
   }
