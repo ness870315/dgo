@@ -15761,8 +15761,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
     try {
       console.log('🚀 Initializing Real-Time Price Service...');
       
-      // Get the HTTP server instance
-      const server = this.app.listen ? this.app._httpServer : null;
+      // Get the HTTP server instance from the running server
+      const server = this.server;
       if (!server) {
         console.error('❌ Cannot initialize Real-Time Price Service: HTTP server not available');
         return;
@@ -15901,7 +15901,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       const host = '0.0.0.0';
       console.log(`[Startup] Binding server on ${host}:${this.port}`);
       this.app.get('/', (req, res) => res.redirect('/health'));
-      this.app.listen(this.port, host, () => {
+      this.server = this.app.listen(this.port, host, () => {
         const isProduction = process.env.NODE_ENV === 'production';
         const baseUrl = isProduction ? 'https://api.degen-oracle.com' : `http://localhost:${this.port}`;
 
