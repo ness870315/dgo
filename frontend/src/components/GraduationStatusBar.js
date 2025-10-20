@@ -15,9 +15,9 @@ const GraduationStatusBar = ({
     switch (level) {
       case 'IMMINENT_GRADUATION':
         return {
-          color: 'bg-red-500',
-          textColor: 'text-red-400',
-          icon: AlertTriangle,
+          color: 'bg-green-500',
+          textColor: 'text-green-400',
+          icon: CheckCircle,
           label: 'IMMINENT',
           description: 'Graduation imminent'
         };
@@ -128,19 +128,19 @@ const GraduationStatusBar = ({
         </div>
         <div className="flex items-center space-x-1">
           <div className="w-2 h-2 bg-blue-500 rounded-full" />
-          <span className="text-gray-400">90%</span>
+          <span className="text-gray-400">25%</span>
         </div>
         <div className="flex items-center space-x-1">
           <div className="w-2 h-2 bg-yellow-500 rounded-full" />
-          <span className="text-gray-400">95%</span>
+          <span className="text-gray-400">50%</span>
         </div>
         <div className="flex items-center space-x-1">
           <div className="w-2 h-2 bg-orange-500 rounded-full" />
-          <span className="text-gray-400">97%</span>
+          <span className="text-gray-400">75%</span>
         </div>
         <div className="flex items-center space-x-1">
-          <div className="w-2 h-2 bg-red-500 rounded-full" />
-          <span className="text-gray-400">99%</span>
+          <div className="w-2 h-2 bg-green-500 rounded-full" />
+          <span className="text-gray-400">100%</span>
         </div>
       </div>
     </div>

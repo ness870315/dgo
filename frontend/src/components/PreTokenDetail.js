@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { X, Twitter, ExternalLink, Star, AlertTriangle, TrendingUp, Clock } from 'lucide-react';
+import { X, Twitter, ExternalLink, Star, AlertTriangle, TrendingUp, Clock, Copy, Users } from 'lucide-react';
 import GraduationStatusBar from './GraduationStatusBar';
-import PriceChartModal from './PriceChartModal';
+import PreBondingChart from './PreBondingChart';
 
 const PreTokenDetail = ({ token, onClose, onNavigateToPremium }) => {
   const [showPriceChart, setShowPriceChart] = useState(false);
   const [bondingData, setBondingData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [holdersData, setHoldersData] = useState(null);
+  const [holdersLoading, setHoldersLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Mock bonding data - will be replaced with real API call
   useEffect(() => {
@@ -74,6 +77,33 @@ const PreTokenDetail = ({ token, onClose, onNavigateToPremium }) => {
   const getDaysTracked = () => {
     if (!bondingData?.firstSeen) return 0;
     return Math.floor((Date.now() - bondingData.firstSeen) / (24 * 60 * 60 * 1000));
+  };
+
+  const copyContractAddress = async () => {
+    try {
+      await navigator.clipboard.writeText(token.contractAddress);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy contract address:', error);
+    }
+  };
+
+  const fetchHolders = async () => {
+    setHoldersLoading(true);
+    try {
+      const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+      const response = await fetch(`${apiBase}/api/tokens/${token.contractAddress}/holders`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setHoldersData(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch holders:', error);
+    } finally {
+      setHoldersLoading(false);
+    }
   };
 
   const getProximityIcon = (level) => {
@@ -227,13 +257,14 @@ const PreTokenDetail = ({ token, onClose, onNavigateToPremium }) => {
                     <span className="text-gray-400">Contract</span>
                     <div className="flex items-center space-x-2">
                       <span className="text-white font-mono text-sm">
-                        {token.tokenAddress?.substring(0, 8)}...{token.tokenAddress?.substring(-8)}
+                        {token.contractAddress?.substring(0, 8)}...{token.contractAddress?.substring(-8)}
                       </span>
                       <button
-                        onClick={() => window.open(`https://solscan.io/token/${token.tokenAddress}`, '_blank')}
-                        className="text-solana-purple hover:text-purple-300"
+                        onClick={copyContractAddress}
+                        className={`${copied ? 'text-green-400' : 'text-gray-400'} hover:text-white transition-colors`}
+                        title={copied ? 'Copied!' : 'Copy contract address'}
                       >
-                        <ExternalLink size={16} />
+                        <Copy size={16} />
                       </button>
                     </div>
                   </div>
@@ -264,11 +295,12 @@ const PreTokenDetail = ({ token, onClose, onNavigateToPremium }) => {
               </button>
               
               <button
-                onClick={() => window.open(`https://solscan.io/token/${token.tokenAddress}`, '_blank')}
-                className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors flex items-center space-x-2"
+                onClick={fetchHolders}
+                disabled={holdersLoading}
+                className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors flex items-center space-x-2 disabled:opacity-50"
               >
-                <ExternalLink size={20} />
-                <span>View on Solscan</span>
+                <Users size={20} />
+                <span>{holdersLoading ? 'Loading...' : 'Holders'}</span>
               </button>
 
               {token.twitter && (
@@ -300,9 +332,9 @@ const PreTokenDetail = ({ token, onClose, onNavigateToPremium }) => {
         </div>
       </div>
 
-      {/* Price Chart Modal */}
+      {/* Pre-Bonding Chart Modal */}
       {showPriceChart && (
-        <PriceChartModal 
+        <PreBondingChart 
           token={token} 
           onClose={() => setShowPriceChart(false)} 
         />
