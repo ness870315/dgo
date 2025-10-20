@@ -11611,7 +11611,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     this.app.get('/api/tokens/:contract/price-chart', async (req, res) => {
       try {
         const { contract } = req.params;
-        const { timeframe = '5MIN', limit, before, after } = req.query;
+        const { timeframe = '5MIN', limit, before, after, preBonding } = req.query;
 
         if (!contract) {
           return res.status(400).json({ 
@@ -11623,13 +11623,36 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const parsedLimit = limit ? parseInt(limit) : null;
         const beforeTime = before ? parseInt(before) : null;
         const afterTime = after ? parseInt(after) : null;
+        const isPreBonding = preBonding === 'true';
 
-        console.log(`📊 [HYBRID-CHART] Fetching ${timeframe} data for ${contract.substring(0, 8)}...`);
-        console.log(`📊 [HYBRID-CHART] Params: limit=${parsedLimit}, before=${beforeTime}, after=${afterTime}`);
+        if (isPreBonding) {
+          console.log(`📊 [PRE-BONDING-CHART] Fetching ${timeframe} Moralis-only data for ${contract.substring(0, 8)}...`);
+        } else {
+          console.log(`📊 [HYBRID-CHART] Fetching ${timeframe} data for ${contract.substring(0, 8)}...`);
+          console.log(`📊 [HYBRID-CHART] Params: limit=${parsedLimit}, before=${beforeTime}, after=${afterTime}`);
+        }
 
         let chartData;
         
-        if (beforeTime || afterTime) {
+        // For pre-bonding tokens, use Moralis-only (skip Helius/real-time monitoring)
+        if (isPreBonding) {
+          // Use Moralis directly via hybridPriceService (no Helius backfill/monitoring)
+          const moralisData = await this.hybridPriceService.getMoralisPriceData(
+            contract,
+            timeframe,
+            parsedLimit || 100,
+            beforeTime,
+            afterTime
+          );
+          
+          chartData = {
+            ohlcv: moralisData || [],
+            dataSource: 'moralis',
+            dataSourceStats: {
+              moralis: moralisData ? moralisData.length : 0
+            }
+          };
+        } else if (beforeTime || afterTime) {
           // Time-filtered request
           chartData = await this.hybridChartService.getChartDataWithTimeRange(
             contract, 

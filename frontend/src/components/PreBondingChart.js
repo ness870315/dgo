@@ -16,7 +16,8 @@ const PreBondingChart = ({ token, onClose }) => {
     
     try {
       const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-      const response = await fetch(`${apiBase}/api/tokens/${token.contractAddress || token.tokenAddress}/price-chart?timeframe=5MIN&limit=100`);
+      // Add preBonding=true to tell backend to use Moralis-only and skip Helius monitoring
+      const response = await fetch(`${apiBase}/api/tokens/${token.contractAddress || token.tokenAddress}/price-chart?timeframe=5MIN&limit=100&preBonding=true`);
       const data = await response.json();
       
       if (data.success && data.data && data.data.length > 0) {
