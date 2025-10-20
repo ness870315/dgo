@@ -599,12 +599,16 @@ function AppContent() {
     filtered = applyCategoryFilters(filtered, categoryFilters);
     filtered = tokenService.sortTokens(filtered, currentFilters.sortBy);
     setFilteredTokens(filtered);
-  }, [categoryFilters, applyCategoryFilters, bondingTokens, bondingTokensLoading]);
+  }, [categoryFilters, applyCategoryFilters, bondingTokens]);
 
   // Fetch bonding tokens for Trenches filter
-  const fetchBondingTokens = useCallback(async () => {
+  const fetchBondingTokens = useCallback(async (isInitialLoad = false) => {
     try {
-      setBondingTokensLoading(true);
+      // Only show loading state on initial load, not on background updates
+      if (isInitialLoad) {
+        setBondingTokensLoading(true);
+      }
+      
       const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
       
       const response = await fetch(`${apiBase}/api/tokens/bonding?limit=100`);
@@ -656,20 +660,33 @@ function AppContent() {
           lastUpdated: Date.now()
         }));
         
-        setBondingTokens(transformedTokens);
-        bondingTokensRef.current = transformedTokens;
-        console.log(`🚨 Loaded ${transformedTokens.length} bonding tokens for Trenches filter (Live updates enabled)`);
+        // Only update state if data has actually changed
+        const hasDataChanged = JSON.stringify(transformedTokens) !== JSON.stringify(bondingTokensRef.current);
+        
+        if (hasDataChanged) {
+          setBondingTokens(transformedTokens);
+          bondingTokensRef.current = transformedTokens;
+          console.log(`🚨 Updated ${transformedTokens.length} bonding tokens for Trenches filter`);
+        } else if (isInitialLoad) {
+          console.log(`🚨 Loaded ${transformedTokens.length} bonding tokens for Trenches filter (no changes)`);
+        }
       } else {
         console.error('Failed to fetch bonding tokens:', data.error);
-        setBondingTokens([]);
-        bondingTokensRef.current = [];
+        if (isInitialLoad) {
+          setBondingTokens([]);
+          bondingTokensRef.current = [];
+        }
       }
     } catch (error) {
       console.error('Error fetching bonding tokens:', error);
-      setBondingTokens([]);
-      bondingTokensRef.current = [];
+      if (isInitialLoad) {
+        setBondingTokens([]);
+        bondingTokensRef.current = [];
+      }
     } finally {
-      setBondingTokensLoading(false);
+      if (isInitialLoad) {
+        setBondingTokensLoading(false);
+      }
     }
   }, []);
 
@@ -1036,18 +1053,25 @@ function AppContent() {
 
   // Live updates for bonding tokens (every 30 seconds)
   useEffect(() => {
-    if (!categoryFilters.trenches) return;
+    if (!categoryFilters.trenches) {
+      setBondingTokens([]);
+      bondingTokensRef.current = [];
+      setBondingTokensLoading(false);
+      return;
+    }
 
     // Initial fetch
-    fetchBondingTokens();
+    fetchBondingTokens(true);
 
-    // Set up polling for live updates
+    // Set up polling for live updates (only if trenches is active)
     const interval = setInterval(() => {
-      fetchBondingTokens();
+      if (categoryFilters.trenches) {
+        fetchBondingTokens(false); // Background update, no loading state
+      }
     }, 30000); // Update every 30 seconds
 
     return () => clearInterval(interval);
-  }, [categoryFilters.trenches, fetchBondingTokens]);
+  }, [categoryFilters.trenches]); // Remove fetchBondingTokens from dependencies to prevent re-runs
 
   // Check for push notification support and show request
   // DISABLED: Push notifications are currently disabled
