@@ -81,7 +81,8 @@ const PreTokenDetail = ({ token, onClose, onNavigateToPremium }) => {
 
   const copyContractAddress = async () => {
     try {
-      await navigator.clipboard.writeText(token.contractAddress);
+      const address = token.contractAddress || token.tokenAddress;
+      await navigator.clipboard.writeText(address);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
@@ -93,14 +94,19 @@ const PreTokenDetail = ({ token, onClose, onNavigateToPremium }) => {
     setHoldersLoading(true);
     try {
       const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-      const response = await fetch(`${apiBase}/api/tokens/${token.contractAddress}/holders`);
+      const response = await fetch(`${apiBase}/api/tokens/${token.contractAddress || token.tokenAddress}/holders`);
       const data = await response.json();
       
       if (data.success) {
         setHoldersData(data);
+        console.log('Holders data:', data);
+      } else {
+        console.log('Holders endpoint not available for bonding tokens');
+        setHoldersData({ message: 'Holders data not available for pre-bonding tokens' });
       }
     } catch (error) {
-      console.error('Failed to fetch holders:', error);
+      console.log('Holders endpoint not available for bonding tokens:', error.message);
+      setHoldersData({ message: 'Holders data not available for pre-bonding tokens' });
     } finally {
       setHoldersLoading(false);
     }
@@ -257,7 +263,7 @@ const PreTokenDetail = ({ token, onClose, onNavigateToPremium }) => {
                     <span className="text-gray-400">Contract</span>
                     <div className="flex items-center space-x-2">
                       <span className="text-white font-mono text-sm">
-                        {token.contractAddress?.substring(0, 8)}...{token.contractAddress?.substring(-8)}
+                        {(token.contractAddress || token.tokenAddress)?.substring(0, 8)}...{(token.contractAddress || token.tokenAddress)?.substring(-8)}
                       </span>
                       <button
                         onClick={copyContractAddress}

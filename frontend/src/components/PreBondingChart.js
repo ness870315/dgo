@@ -16,17 +16,17 @@ const PreBondingChart = ({ token, onClose }) => {
     
     try {
       const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-      const response = await fetch(`${apiBase}/api/tokens/${token.contractAddress}/chart?timeframe=5m&source=moralis`);
+      const response = await fetch(`${apiBase}/api/tokens/${token.contractAddress || token.tokenAddress}/chart?timeframe=5m&source=moralis`);
       const data = await response.json();
       
       if (data.success && data.candles && data.candles.length > 0) {
         setChartData(data.candles);
       } else {
-        setError('No chart data available');
+        setError('Chart data not available for pre-bonding tokens');
       }
     } catch (err) {
-      console.error('Failed to fetch chart data:', err);
-      setError('Failed to load chart data');
+      console.log('Chart endpoint not available for bonding tokens:', err.message);
+      setError('Chart data not available for pre-bonding tokens');
     } finally {
       setLoading(false);
     }

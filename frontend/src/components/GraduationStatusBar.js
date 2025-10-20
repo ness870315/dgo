@@ -127,15 +127,15 @@ const GraduationStatusBar = ({
           <span className="text-gray-400">0%</span>
         </div>
         <div className="flex items-center space-x-1">
-          <div className="w-2 h-2 bg-blue-500 rounded-full" />
+          <div className="w-2 h-2 bg-red-500 rounded-full" />
           <span className="text-gray-400">25%</span>
         </div>
         <div className="flex items-center space-x-1">
-          <div className="w-2 h-2 bg-yellow-500 rounded-full" />
+          <div className="w-2 h-2 bg-orange-500 rounded-full" />
           <span className="text-gray-400">50%</span>
         </div>
         <div className="flex items-center space-x-1">
-          <div className="w-2 h-2 bg-orange-500 rounded-full" />
+          <div className="w-2 h-2 bg-yellow-500 rounded-full" />
           <span className="text-gray-400">75%</span>
         </div>
         <div className="flex items-center space-x-1">
