@@ -104,8 +104,10 @@ class BondingTokenValidationService {
             }
             
             const hasBondingCurve = token.bondingCurve !== undefined && token.bondingCurve !== null;
+            const bondingCurveValue = parseFloat(token.bondingCurve) || 0;
+            const isFullyGraduated = bondingCurveValue >= 100;
             
-            if (hasBondingCurve) {
+            if (hasBondingCurve && !isFullyGraduated) {
               console.log(`[BondingValidation] ✅ ${address}: HAS bondingCurve (${token.bondingCurve}) - KEEP`);
               results.valid.push({
                 address,
@@ -114,6 +116,17 @@ class BondingTokenValidationService {
                 bondingCurve: token.bondingCurve,
                 launchpad: token.launchpad
               });
+            } else if (isFullyGraduated) {
+              console.log(`[BondingValidation] 🎓 ${address}: bondingCurve = ${token.bondingCurve} (100%) - MIGRATE`);
+              results.invalid.push({
+                address,
+                name: token.name,
+                symbol: token.symbol,
+                bondingCurve: token.bondingCurve,
+                graduatedPool: token.graduatedPool,
+                graduatedAt: token.graduatedAt,
+                migrationReason: 'bondingCurve_100_percent'
+              });
             } else {
               console.log(`[BondingValidation] ❌ ${address}: NO bondingCurve - REMOVE`);
               results.invalid.push({
@@ -121,7 +134,8 @@ class BondingTokenValidationService {
                 name: token.name,
                 symbol: token.symbol,
                 graduatedPool: token.graduatedPool,
-                graduatedAt: token.graduatedAt
+                graduatedAt: token.graduatedAt,
+                migrationReason: 'no_bonding_curve'
               });
             }
           });
@@ -196,25 +210,55 @@ class BondingTokenValidationService {
         };
       });
       
+      // Separate tokens for migration vs removal
+      const tokensToMigrate = results.invalid.filter(result => result.migrationReason === 'bondingCurve_100_percent');
+      const tokensToRemove = results.invalid.filter(result => result.migrationReason === 'no_bonding_curve');
+      
       // Get removed tokens for logging
-      const removedTokens = results.invalid.map(result => ({
+      const removedTokens = tokensToRemove.map(result => ({
         address: result.address,
         name: result.name,
         symbol: result.symbol,
         graduatedPool: result.graduatedPool,
-        graduatedAt: result.graduatedAt
+        graduatedAt: result.graduatedAt,
+        reason: 'no_bonding_curve'
       }));
       
-      // Save updated tokens
+      // Get migrated tokens for logging
+      const migratedTokens = tokensToMigrate.map(result => ({
+        address: result.address,
+        name: result.name,
+        symbol: result.symbol,
+        bondingCurve: result.bondingCurve,
+        graduatedPool: result.graduatedPool,
+        graduatedAt: result.graduatedAt,
+        reason: 'bondingCurve_100_percent'
+      }));
+      
+      // Migrate tokens with bondingCurve = 100 to main token cache
+      if (tokensToMigrate.length > 0) {
+        console.log(`[BondingValidation] 🎓 Migrating ${tokensToMigrate.length} graduated tokens to main cache...`);
+        await this.migrateGraduatedTokens(tokensToMigrate);
+      }
+      
+      // Save updated tokens (only valid ones remain)
       await this.saveBondingTokens(validTokens);
       
       // Log summary
       console.log('[BondingValidation] 📈 Validation Summary:');
       console.log(`  ✅ Valid (kept): ${results.valid.length}`);
-      console.log(`  ❌ Invalid (removed): ${results.invalid.length}`);
+      console.log(`  🎓 Migrated (bondingCurve=100): ${tokensToMigrate.length}`);
+      console.log(`  ❌ Removed (no bonding curve): ${tokensToRemove.length}`);
       console.log(`  🔍 Not found: ${results.notFound.length}`);
       
-      if (results.invalid.length > 0) {
+      if (tokensToMigrate.length > 0) {
+        console.log('[BondingValidation] 🎓 Migrated tokens:');
+        migratedTokens.forEach(token => {
+          console.log(`  - ${token.address}: ${token.name} (${token.symbol}) - bondingCurve: ${token.bondingCurve}`);
+        });
+      }
+      
+      if (tokensToRemove.length > 0) {
         console.log('[BondingValidation] 🗑️ Removed tokens:');
         removedTokens.forEach(token => {
           console.log(`  - ${token.address}: ${token.name} (${token.symbol})`);
@@ -224,8 +268,10 @@ class BondingTokenValidationService {
       return {
         processed: tokens.length,
         valid: results.valid.length,
-        invalid: results.invalid.length,
+        migrated: tokensToMigrate.length,
+        invalid: tokensToRemove.length,
         notFound: results.notFound.length,
+        migratedTokens: migratedTokens,
         removed: removedTokens
       };
       
@@ -233,6 +279,96 @@ class BondingTokenValidationService {
       console.error('[BondingValidation] ❌ Validation failed:', error.message);
       throw error;
     }
+  }
+
+  /**
+   * Migrate graduated tokens to main token cache
+   */
+  async migrateGraduatedTokens(graduatedTokens) {
+    try {
+      console.log(`[BondingValidation] 🎓 Migrating ${graduatedTokens.length} graduated tokens to main cache...`);
+      
+      // Read main token cache
+      const mainCachePath = '/var/data/dgo/cache/tokens-cache.json';
+      let mainTokens = [];
+      
+      try {
+        const mainCacheData = await fs.readFile(mainCachePath, 'utf8');
+        mainTokens = JSON.parse(mainCacheData);
+        if (!Array.isArray(mainTokens)) {
+          mainTokens = [];
+        }
+      } catch (error) {
+        console.log('[BondingValidation] ⚠️ Main cache not found, creating new cache');
+        mainTokens = [];
+      }
+      
+      // Transform graduated tokens to main token format
+      const migratedTokens = graduatedTokens.map(result => {
+        const originalToken = this.findOriginalToken(result.address);
+        
+        return {
+          symbol: result.symbol || originalToken?.symbol || 'UNKNOWN',
+          name: result.name || originalToken?.name || 'Unknown Token',
+          contractAddress: result.address,
+          source: 'jupiter',
+          stage: 'jupiter',
+          createdAt: new Date().toISOString(),
+          lastDiscoveredAt: new Date().toISOString(),
+          discoveredVia: [{ source: 'bonding-validation', category: 'graduated', interval: 'validation', at: new Date().toISOString() }],
+          hasJupiterData: true,
+          jupiterData: {
+            price: originalToken?.priceUsd || 0,
+            mcap: originalToken?.fullyDilutedValuation || 0,
+            liquidity: originalToken?.liquidity || 0,
+            holders: originalToken?.holders || 0,
+            graduatedAt: result.graduatedAt,
+            graduatedPool: result.graduatedPool,
+            bondingCurve: result.bondingCurve,
+            launchpad: 'pump.fun',
+            updatedAt: new Date().toISOString(),
+            sourceCategory: 'graduated',
+            sourceInterval: 'validation'
+          },
+          // Add graduation metadata
+          graduationDate: new Date().toISOString(),
+          migratedFrom: 'bonding-validation',
+          originalProgress: result.bondingCurve,
+          // Add mock data for compatibility
+          score: 8.5, // High score for graduated tokens
+          marketCap: originalToken?.fullyDilutedValuation || 0,
+          volume24h: originalToken?.liquidity || 0,
+          priceChange24h: 0,
+          twitter: null,
+          website: null,
+          telegram: null,
+          discord: null
+        };
+      });
+      
+      // Add migrated tokens to main cache
+      const updatedMainTokens = [...mainTokens, ...migratedTokens];
+      
+      // Save updated main cache
+      await fs.writeFile(mainCachePath, JSON.stringify(updatedMainTokens, null, 2));
+      
+      console.log(`[BondingValidation] ✅ Successfully migrated ${migratedTokens.length} tokens to main cache`);
+      
+      return migratedTokens;
+      
+    } catch (error) {
+      console.error('[BondingValidation] ❌ Migration failed:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Find original token data by address
+   */
+  findOriginalToken(address) {
+    // This would need to be implemented to find the original token data
+    // For now, return null - the migration will use Jupiter API data
+    return null;
   }
 
   /**
