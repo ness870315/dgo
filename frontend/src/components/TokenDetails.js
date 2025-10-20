@@ -4,6 +4,7 @@ import kolCallsService from '../services/kolCallsService';
 import watchlistService from '../services/watchlistService';
 import priorityService from '../services/priorityService';
 import { useAuth } from '../contexts/AuthContext';
+import { useRealTimePrice } from '../hooks/useRealTimePrice';
 import EnhancedCallModal from './EnhancedCallModal';
 import PriceChartModal from './PriceChartModal';
 import HoldersInsightsModal from './HoldersInsightsModal';
@@ -34,6 +35,17 @@ const AICodeLine = ({ text, delay }) => {
 
 const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, onTokenUpdated }) => {
   const { isAuthenticated } = useAuth();
+  
+  // Real-time price updates
+  const { 
+    priceData, 
+    isConnected, 
+    isSubscribed, 
+    formatPrice, 
+    formatLiquidity,
+    getPriceUsd,
+    getLiquidity
+  } = useRealTimePrice(token?.contractAddress || token?.tokenAddress);
   const [isInWatchlist, setIsInWatchlist] = useState(false);
   const [showFuelModal, setShowFuelModal] = useState(false);
   const [selectedFuel, setSelectedFuel] = useState(null);
@@ -1137,6 +1149,11 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                   <span className="text-white font-bold text-base text-center relative z-10">
                     ${formatNumber(token?.jupiterData?.mcap || token?.marketCap)}
                   </span>
+                  {isConnected && isSubscribed && (
+                    <div className="text-xs text-green-400 mt-1 relative z-10">
+                      📡 Live
+                    </div>
+                  )}
                   <div className="flex items-center mt-1 relative z-10">
                     <span className={`text-xs font-medium ${
                       (token?.jupiterData?.stats24h?.priceChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'
@@ -1152,8 +1169,13 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                   <div className="absolute inset-0 bg-gradient-to-br from-green-600/5 to-transparent"></div>
                   <span className="text-green-200 text-sm mb-1 relative z-10">📈 Price</span>
                   <span className="text-white font-bold text-base text-center relative z-10">
-                    ${formatPrice(token?.jupiterData?.usdPrice || token?.price)}
+                    {formatPrice(getPriceUsd() || token?.jupiterData?.usdPrice || token?.price)}
                   </span>
+                  {isConnected && isSubscribed && priceData && (
+                    <div className="text-xs text-green-400 mt-1 relative z-10">
+                      📡 Live
+                    </div>
+                  )}
                   <div className="flex items-center mt-1 relative z-10">
                     <span className={`text-xs font-medium ${
                       (token?.jupiterData?.stats24h?.priceChangePercentage || 0) >= 0 ? 'text-green-400' : 'text-red-400'
@@ -1169,8 +1191,13 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                   <div className="absolute inset-0 bg-gradient-to-br from-purple-600/5 to-transparent"></div>
                   <span className="text-purple-200 text-sm mb-1 relative z-10">💰 Liquidity</span>
                   <span className="text-white font-bold text-base text-center relative z-10">
-                    ${formatNumber(token?.jupiterData?.liquidity)}
+                    {formatLiquidity(getLiquidity() || token?.jupiterData?.liquidity)}
                   </span>
+                  {isConnected && isSubscribed && priceData && (
+                    <div className="text-xs text-green-400 mt-1 relative z-10">
+                      📡 Live
+                    </div>
+                  )}
                   <div className="flex items-center mt-1 relative z-10">
                     <span className={`text-xs font-medium ${
                       (token?.jupiterData?.stats24h?.liquidityChange || 0) >= 0 ? 'text-green-400' : 'text-red-400'

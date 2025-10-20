@@ -29,6 +29,7 @@ import HybridChartService from './services/HybridChartService.js';
 import KOLService from './services/KOLService.js';
 import BondingTokenValidationService from './services/BondingTokenValidationService.js';
 import PreBondingMoralisService from './services/PreBondingMoralisService.js';
+import RealTimePriceService from './services/RealTimePriceService.js';
 // DISABLED: import EnhancedAnalyticsCacheService from './services/EnhancedAnalyticsCacheService.js';
 import logger from './logger.js';
 import { fileURLToPath } from 'url';
@@ -11498,6 +11499,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Initialize Pre-Bonding Moralis Service (standalone, no chart infrastructure)
     this.preBondingMoralisService = new PreBondingMoralisService();
     
+    // Initialize Real-Time Price Service
+    this.realTimePriceService = null; // Will be initialized after server starts
+    
     // Initialize Hybrid Chart Service (Professional Architecture)
     try {
       console.log('⚡ Initializing Hybrid Chart Service...');
@@ -15753,6 +15757,29 @@ Thanks for using x402 payments on Twitter! 🚀`;
     }
   }
 
+  async initializeRealTimePriceService() {
+    try {
+      console.log('🚀 Initializing Real-Time Price Service...');
+      
+      // Get the HTTP server instance
+      const server = this.app.listen ? this.app._httpServer : null;
+      if (!server) {
+        console.error('❌ Cannot initialize Real-Time Price Service: HTTP server not available');
+        return;
+      }
+      
+      this.realTimePriceService = new RealTimePriceService(server);
+      await this.realTimePriceService.initialize();
+      
+      console.log('✅ Real-Time Price Service initialized successfully');
+      console.log('📡 WebSocket endpoint available at: /ws');
+      
+    } catch (error) {
+      console.error('❌ Failed to initialize Real-Time Price Service:', error.message);
+      console.error('⚠️ Backend will continue without real-time price updates');
+    }
+  }
+
   async start() {
     try {
       // DISABLED: Initialize KOL Service (was making CoinAPI/CoinDesk calls)
@@ -15885,6 +15912,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
         console.log(`📱 Admin Dashboard: ${baseUrl}/admin-dashboard.html`);
 
         this.isRunning = true;
+        
+        // Initialize Real-Time Price Service after server starts
+        this.initializeRealTimePriceService();
 
         // Defer Enhanced Backup System initialization so health checks pass quickly
         setTimeout(async () => {
