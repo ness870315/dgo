@@ -94,19 +94,19 @@ const PreTokenDetail = ({ token, onClose, onNavigateToPremium }) => {
     setHoldersLoading(true);
     try {
       const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-      const response = await fetch(`${apiBase}/api/tokens/${token.contractAddress || token.tokenAddress}/holders`);
+      const response = await fetch(`${apiBase}/api/tokens/${token.contractAddress || token.tokenAddress}/holders/insights`);
       const data = await response.json();
       
-      if (data.success) {
-        setHoldersData(data);
-        console.log('Holders data:', data);
+      if (data.success && data.data) {
+        setHoldersData(data.data);
+        console.log('Holders data:', data.data);
       } else {
-        console.log('Holders endpoint not available for bonding tokens');
-        setHoldersData({ message: 'Holders data not available for pre-bonding tokens' });
+        console.log('Holders endpoint returned no data');
+        setHoldersData({ message: 'Holders data not available' });
       }
     } catch (error) {
-      console.log('Holders endpoint not available for bonding tokens:', error.message);
-      setHoldersData({ message: 'Holders data not available for pre-bonding tokens' });
+      console.log('Failed to fetch holders data:', error.message);
+      setHoldersData({ message: 'Failed to load holders data' });
     } finally {
       setHoldersLoading(false);
     }
