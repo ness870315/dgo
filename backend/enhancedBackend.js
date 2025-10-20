@@ -7295,53 +7295,6 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
-    // Simple holders endpoint for bonding tokens
-    this.app.get('/api/tokens/:contract/holders', async (req, res) => {
-      try {
-        const { contract } = req.params;
-        
-        console.log(`[🛡️ Enhanced Backend] 📊 Fetching holders for bonding token: ${contract}`);
-        
-        // For bonding tokens, return a simple response indicating data not available
-        res.json({
-          success: true,
-          message: 'Holders data not available for pre-bonding tokens',
-          contract: contract,
-          type: 'pre-bonding',
-          note: 'Holders data will be available after graduation'
-        });
-        
-      } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Get holders error:', error.message);
-        res.status(500).json({ success: false, error: 'Failed to fetch holders data' });
-      }
-    });
-
-    // Simple chart endpoint for bonding tokens
-    this.app.get('/api/tokens/:contract/chart', async (req, res) => {
-      try {
-        const { contract } = req.params;
-        const { timeframe = '5m', source = 'moralis' } = req.query;
-        
-        console.log(`[🛡️ Enhanced Backend] 📊 Fetching chart for bonding token: ${contract} (${timeframe}, ${source})`);
-        
-        // For bonding tokens, return a simple response indicating data not available
-        res.json({
-          success: true,
-          message: 'Chart data not available for pre-bonding tokens',
-          contract: contract,
-          timeframe: timeframe,
-          source: source,
-          type: 'pre-bonding',
-          note: 'Chart data will be available after graduation',
-          candles: []
-        });
-        
-      } catch (error) {
-        console.error('[🛡️ Enhanced Backend] ❌ Get chart error:', error.message);
-        res.status(500).json({ success: false, error: 'Failed to fetch chart data' });
-      }
-    });
 
     // Holder Insights API Endpoints
     this.app.get('/api/tokens/:contract/holders/top', async (req, res) => {
