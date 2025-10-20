@@ -134,7 +134,10 @@ const PreBondingChart = ({ token, onClose }) => {
         
         {/* Chart Info */}
         <div className="text-xs text-gray-400 text-center">
-          Simplified 5-minute chart • Data from Moralis
+          {chartData[0]?.timeframe === 'dexscreen-synthetic' 
+            ? 'Synthetic chart data • Source: DexScreener' 
+            : `Simplified chart data • Source: Moralis (${chartData[0]?.timeframe || '5min'})`
+          }
         </div>
       </div>
     );
