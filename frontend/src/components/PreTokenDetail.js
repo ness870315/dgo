@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { X, Twitter, ExternalLink, Star, AlertTriangle, TrendingUp, Clock, Copy, Users } from 'lucide-react';
 import GraduationStatusBar from './GraduationStatusBar';
 import PreBondingChart from './PreBondingChart';
+import HoldersInsightsModal from './HoldersInsightsModal';
 
 const PreTokenDetail = ({ token, onClose, onNavigateToPremium }) => {
   const [showPriceChart, setShowPriceChart] = useState(false);
+  const [showHoldersModal, setShowHoldersModal] = useState(false);
   const [bondingData, setBondingData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [holdersData, setHoldersData] = useState(null);
-  const [holdersLoading, setHoldersLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
   // Mock bonding data - will be replaced with real API call
@@ -91,25 +91,8 @@ const PreTokenDetail = ({ token, onClose, onNavigateToPremium }) => {
   };
 
   const fetchHolders = async () => {
-    setHoldersLoading(true);
-    try {
-      const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
-      const response = await fetch(`${apiBase}/api/tokens/${token.contractAddress || token.tokenAddress}/holders/insights`);
-      const data = await response.json();
-      
-      if (data.success && data.data) {
-        setHoldersData(data.data);
-        console.log('Holders data:', data.data);
-      } else {
-        console.log('Holders endpoint returned no data');
-        setHoldersData({ message: 'Holders data not available' });
-      }
-    } catch (error) {
-      console.log('Failed to fetch holders data:', error.message);
-      setHoldersData({ message: 'Failed to load holders data' });
-    } finally {
-      setHoldersLoading(false);
-    }
+    // Open the modal immediately - it will handle loading state
+    setShowHoldersModal(true);
   };
 
   const getProximityIcon = (level) => {
@@ -302,11 +285,10 @@ const PreTokenDetail = ({ token, onClose, onNavigateToPremium }) => {
               
               <button
                 onClick={fetchHolders}
-                disabled={holdersLoading}
-                className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors flex items-center space-x-2 disabled:opacity-50"
+                className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors flex items-center space-x-2"
               >
                 <Users size={20} />
-                <span>{holdersLoading ? 'Loading...' : 'Holders'}</span>
+                <span>Holders</span>
               </button>
 
               {token.twitter && (
@@ -343,6 +325,14 @@ const PreTokenDetail = ({ token, onClose, onNavigateToPremium }) => {
         <PreBondingChart 
           token={token} 
           onClose={() => setShowPriceChart(false)} 
+        />
+      )}
+
+      {/* Holders Insights Modal */}
+      {showHoldersModal && (
+        <HoldersInsightsModal 
+          token={token} 
+          onClose={() => setShowHoldersModal(false)} 
         />
       )}
     </>
