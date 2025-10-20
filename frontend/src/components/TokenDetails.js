@@ -69,6 +69,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
   const [appliedFuelType, setAppliedFuelType] = useState(null);
   const [fuelImageDataURL, setFuelImageDataURL] = useState('');
 
+  // Jupiter Plugin state
+  const [jupiterInitialized, setJupiterInitialized] = useState(false);
+
   // Check if token is fueled and get fuel multiplier
   const getFuelMultiplier = () => {
     if (!token?.symbol || !fueledTokens?.length) return null;
@@ -675,6 +678,61 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
     }
   }, [token]);
 
+  // Initialize Jupiter Plugin
+  useEffect(() => {
+    const initializeJupiter = async () => {
+      // Check if Jupiter is available
+      if (typeof window !== 'undefined' && window.Jupiter && token?.contractAddress) {
+        try {
+          // Wait a bit for the DOM to be ready
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          window.Jupiter.init({
+            displayMode: "integrated",
+            integratedTargetId: "jupiter-swap-container",
+            formProps: {
+              initialInputMint: "So11111111111111111111111111111111111111112", // SOL
+              initialOutputMint: token.contractAddress, // Current token
+              swapMode: "ExactInOrOut"
+            },
+            containerStyles: {
+              width: "100%",
+              height: "400px",
+              borderRadius: "12px",
+              backgroundColor: "transparent"
+            },
+            onSuccess: ({ txid, swapResult, quoteResponseMeta }) => {
+              console.log("✅ Jupiter swap successful:", txid);
+              // You can add success notification here
+            },
+            onSwapError: ({ error, quoteResponseMeta }) => {
+              console.error("❌ Jupiter swap failed:", error);
+              // You can add error notification here
+            }
+          });
+          
+          setJupiterInitialized(true);
+          console.log("🚀 Jupiter Plugin initialized for token:", token.symbol);
+        } catch (error) {
+          console.error("❌ Failed to initialize Jupiter Plugin:", error);
+        }
+      }
+    };
+
+    initializeJupiter();
+
+    // Cleanup function
+    return () => {
+      if (typeof window !== 'undefined' && window.Jupiter && jupiterInitialized) {
+        try {
+          window.Jupiter.close();
+        } catch (error) {
+          console.error("❌ Error closing Jupiter Plugin:", error);
+        }
+      }
+    };
+  }, [token?.contractAddress, token?.symbol]);
+
   const uniqueMentionsCount = React.useMemo(() => {
     const authors = new Set();
     aggregatedTweets.forEach(tw => {
@@ -1179,7 +1237,17 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
               </div>
             </div>
 
-          {/* 🔍 Section 2 – Insights (Market Data) */}
+          {/* 🚀 Section 2 – Jupiter Swap Integration */}
+          <div className="bg-gray-800 rounded-lg p-3 border border-gray-600">
+            <h3 className="text-lg font-bold mb-3 text-white flex items-center">
+              🚀 Swap {token?.symbol || 'Token'}
+            </h3>
+            <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
+              <div id="jupiter-swap-container" className="jupiter-integrated" />
+            </div>
+          </div>
+
+          {/* 🔍 Section 3 – Insights (Market Data) */}
           <div className="bg-gray-800 rounded-lg p-3 border border-gray-600">
             <h3 className="text-lg font-bold mb-3 text-white flex items-center">
               🔍 Insights (Market Data)

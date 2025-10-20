@@ -1330,6 +1330,13 @@ Market meme:`;
       } else {
         // Use the specified content type
         selectedFormat = contentType;
+        
+        // Map crypto-tech-news to news (they're the same)
+        if (selectedFormat === 'crypto-tech-news') {
+          selectedFormat = 'news';
+          console.log(`📝 [KOL CONTENT] FORCE Mapping crypto-tech-news → news`);
+        }
+        
         console.log(`📝 [KOL CONTENT] FORCE Using specified format: ${selectedFormat}`);
       }
 

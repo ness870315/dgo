@@ -2,6 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Jupiter Plugin Integration Styles */
+.jupiter-integrated {
+  background: transparent !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+}
+
+/* Customize Jupiter Plugin colors to match our dark theme */
+:root {
+  --jupiter-plugin-primary: 199, 242, 132;
+  --jupiter-plugin-background: 16, 23, 31;
+  --jupiter-plugin-primaryText: 232, 249, 255;
+  --jupiter-plugin-warning: 251, 191, 36;
+  --jupiter-plugin-interactive: 33, 42, 54;
+  --jupiter-plugin-module: 16, 23, 31;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
