@@ -15768,7 +15768,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
         return;
       }
       
+      console.log('📡 Creating RealTimePriceService instance...');
       this.realTimePriceService = new RealTimePriceService(server);
+      
+      console.log('📡 Initializing RealTimePriceService...');
       await this.realTimePriceService.initialize();
       
       console.log('✅ Real-Time Price Service initialized successfully');
@@ -15776,6 +15779,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       
     } catch (error) {
       console.error('❌ Failed to initialize Real-Time Price Service:', error.message);
+      console.error('❌ Error stack:', error.stack);
       console.error('⚠️ Backend will continue without real-time price updates');
     }
   }
@@ -15914,7 +15918,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
         this.isRunning = true;
         
         // Initialize Real-Time Price Service after server starts
-        this.initializeRealTimePriceService();
+        try {
+          this.initializeRealTimePriceService();
+        } catch (error) {
+          console.error('❌ Failed to initialize Real-Time Price Service:', error.message);
+          console.error('⚠️ Backend will continue without real-time price updates');
+        }
 
         // Defer Enhanced Backup System initialization so health checks pass quickly
         setTimeout(async () => {
