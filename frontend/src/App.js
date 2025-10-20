@@ -659,9 +659,30 @@ function AppContent() {
         const hasDataChanged = JSON.stringify(transformedTokens) !== JSON.stringify(bondingTokensRef.current);
         
         if (hasDataChanged) {
-          setBondingTokens(transformedTokens);
-          bondingTokensRef.current = transformedTokens;
-          console.log(`🚨 Updated ${transformedTokens.length} bonding tokens for Trenches filter`);
+          // Check if the change is meaningful (not just timestamp updates)
+          const meaningfulChange = transformedTokens.length !== bondingTokensRef.current.length ||
+            transformedTokens.some((token, index) => {
+              const prevToken = bondingTokensRef.current[index];
+              if (!prevToken) return true; // New token
+              return token.bondingCurveProgress !== prevToken.bondingCurveProgress ||
+                     token.graduationProximity !== prevToken.graduationProximity ||
+                     token.priceUsd !== prevToken.priceUsd ||
+                     token.liquidity !== prevToken.liquidity;
+            });
+          
+          if (meaningfulChange) {
+            setBondingTokens(transformedTokens);
+            bondingTokensRef.current = transformedTokens;
+            if (isInitialLoad) {
+              console.log(`🚨 Loaded ${transformedTokens.length} bonding tokens for Trenches filter`);
+            }
+          } else {
+            // Only update the ref for timestamp changes, don't trigger re-render
+            bondingTokensRef.current = transformedTokens;
+            if (isInitialLoad) {
+              console.log(`🚨 Loaded ${transformedTokens.length} bonding tokens for Trenches filter (timestamp only)`);
+            }
+          }
         } else if (isInitialLoad) {
           console.log(`🚨 Loaded ${transformedTokens.length} bonding tokens for Trenches filter (no changes)`);
         }
