@@ -14,10 +14,10 @@ const PreTokenDetail = ({ token, onClose, onNavigateToPremium }) => {
     const fetchBondingData = async () => {
       setLoading(true);
       try {
-        // TODO: Replace with actual API call to backend
-        const mockData = {
-          bondingProgress: token.bondingProgress || 95.5,
-          proximityLevel: token.proximityLevel || 'CLOSE_TO_GRADUATION',
+        // Use actual token data from API
+        const bondingData = {
+          bondingProgress: token.bondingCurveProgress || 95.5,
+          proximityLevel: token.graduationProximity || 'CLOSE_TO_GRADUATION',
           liquidity: token.liquidity || 45000,
           fullyDilutedValuation: token.fullyDilutedValuation || 75000,
           priceUsd: token.priceUsd || 0.000067557,
@@ -27,7 +27,7 @@ const PreTokenDetail = ({ token, onClose, onNavigateToPremium }) => {
           graduationAlerts: token.graduationAlerts || 0
         };
         
-        setBondingData(mockData);
+        setBondingData(bondingData);
       } catch (error) {
         console.error('Failed to fetch bonding data:', error);
       } finally {

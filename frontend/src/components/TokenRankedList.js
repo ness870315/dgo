@@ -208,11 +208,11 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
                 </div>
 
                 {/* Graduation Status Bar for Bonding Tokens */}
-                {token.isBondingToken && (
+                {token.bondingCurveProgress && (
                   <div className="mt-3 px-2">
                     <GraduationStatusBar 
-                      bondingProgress={token.bondingProgress}
-                      proximityLevel={token.proximityLevel}
+                      bondingProgress={token.bondingCurveProgress}
+                      proximityLevel={token.graduationProximity}
                       showLabel={false}
                       compact={true}
                     />

@@ -704,8 +704,8 @@ function AppContent() {
 
   // Handle token selection
   const handleTokenSelect = useCallback((token) => {
-    // Check if this is a bonding token
-    if (token.isBondingToken) {
+    // Check if this is a bonding token (has bondingCurveProgress property)
+    if (token.bondingCurveProgress !== undefined) {
       setSelectedToken(token);
       setShowPreTokenDetail(true);
     } else {
