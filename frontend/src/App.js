@@ -278,6 +278,7 @@ function AppContent() {
   // Bonding tokens state
   const [bondingTokens, setBondingTokens] = useState([]);
   const [bondingTokensLoading, setBondingTokensLoading] = useState(false);
+  const bondingTokensRef = useRef([]);
   
   // PreTokenDetail modal state
   const [showPreTokenDetail, setShowPreTokenDetail] = useState(false);
@@ -611,7 +612,7 @@ function AppContent() {
       
       if (data.success) {
         // Check if any tokens were removed (graduated)
-        const previousTokenAddresses = bondingTokens.map(t => t.contractAddress);
+        const previousTokenAddresses = bondingTokensRef.current.map(t => t.contractAddress);
         const currentTokenAddresses = data.tokens.map(t => t.tokenAddress);
         
         const graduatedTokens = previousTokenAddresses.filter(addr => 
@@ -656,18 +657,21 @@ function AppContent() {
         }));
         
         setBondingTokens(transformedTokens);
+        bondingTokensRef.current = transformedTokens;
         console.log(`🚨 Loaded ${transformedTokens.length} bonding tokens for Trenches filter (Live updates enabled)`);
       } else {
         console.error('Failed to fetch bonding tokens:', data.error);
         setBondingTokens([]);
+        bondingTokensRef.current = [];
       }
     } catch (error) {
       console.error('Error fetching bonding tokens:', error);
       setBondingTokens([]);
+      bondingTokensRef.current = [];
     } finally {
       setBondingTokensLoading(false);
     }
-  }, [bondingTokens]);
+  }, []);
 
   // Load initial data
   // showLoading: true = show loading spinner (initial load, manual refresh)
