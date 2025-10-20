@@ -118,13 +118,13 @@ class DexscreenerApiService {
         );
         
         if (isStableVariation) {
-          console.log(`🚫 [DEXSCREENER FILTER] ✅ EXCLUDED stable variation: ${symbol} (original: "${originalSymbol}")`);
+          // Excluded stable variation
           continue;
         }
 
         discoveredTokens.set(symbol, pair);
         processedPairs.add(pair.pairAddress);
-        console.log(`🎯 Discovered trending Solana token: ${symbol} ($${volume24h?.toLocaleString()} vol)`);
+        // Discovered trending token
       }
 
       // Convert to array and sort by volume (trending)

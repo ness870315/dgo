@@ -11482,6 +11482,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Initialize Hybrid Price Service
     this.hybridPriceService = new HybridPriceService();
     
+    // Initialize Pre-Bonding Moralis Service (standalone, no chart infrastructure)
+    const PreBondingMoralisService = require('./services/PreBondingMoralisService');
+    this.preBondingMoralisService = new PreBondingMoralisService();
+    
     // Initialize Hybrid Chart Service (Professional Architecture)
     try {
       console.log('⚡ Initializing Hybrid Chart Service...');
@@ -11634,10 +11638,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
         let chartData;
         
-        // For pre-bonding tokens, use Moralis-only (skip Helius/real-time monitoring)
+        // For pre-bonding tokens, use standalone Moralis service (NO chart infrastructure)
         if (isPreBonding) {
-          // Use Moralis directly via hybridPriceService (no Helius backfill/monitoring)
-          const moralisData = await this.hybridPriceService.getMoralisPriceData(
+          // Use standalone PreBondingMoralisService - no database, no workers, no WebSocket
+          const moralisData = await this.preBondingMoralisService.getChartData(
             contract,
             timeframe,
             parsedLimit || 100,
@@ -11647,7 +11651,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           
           chartData = {
             ohlcv: moralisData || [],
-            dataSource: 'moralis',
+            dataSource: 'moralis-standalone',
             dataSourceStats: {
               moralis: moralisData ? moralisData.length : 0
             }

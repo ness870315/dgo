@@ -108,7 +108,7 @@ class BondingTokenValidationService {
             const isFullyGraduated = bondingCurveValue >= 100;
             
             if (hasBondingCurve && !isFullyGraduated) {
-              console.log(`[BondingValidation] ✅ ${address}: HAS bondingCurve (${token.bondingCurve}) - KEEP`);
+              // Token still has bonding curve - keep it
               results.valid.push({
                 address,
                 name: token.name,
