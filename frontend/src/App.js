@@ -636,11 +636,13 @@ function AppContent() {
           telegram: null,
           discord: null,
           // Mark as bonding token
-          isBondingToken: true
+          isBondingToken: true,
+          // Add timestamp for live updates
+          lastUpdated: Date.now()
         }));
         
         setBondingTokens(transformedTokens);
-        console.log(`🚨 Loaded ${transformedTokens.length} bonding tokens for Trenches filter`);
+        console.log(`🚨 Loaded ${transformedTokens.length} bonding tokens for Trenches filter (Live updates enabled)`);
       } else {
         console.error('Failed to fetch bonding tokens:', data.error);
         setBondingTokens([]);
@@ -1014,11 +1016,19 @@ function AppContent() {
     loadTokens();
   }, [loadTokens]);
 
-  // Fetch bonding tokens when Trenches filter is selected
+  // Live updates for bonding tokens (every 30 seconds)
   useEffect(() => {
-    if (categoryFilters.trenches) {
+    if (!categoryFilters.trenches) return;
+
+    // Initial fetch
+    fetchBondingTokens();
+
+    // Set up polling for live updates
+    const interval = setInterval(() => {
       fetchBondingTokens();
-    }
+    }, 30000); // Update every 30 seconds
+
+    return () => clearInterval(interval);
   }, [categoryFilters.trenches, fetchBondingTokens]);
 
   // Check for push notification support and show request

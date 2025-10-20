@@ -60,18 +60,24 @@ const GraduationStatusBar = ({
   const config = getProximityConfig(proximityLevel);
   const IconComponent = config.icon;
 
+  // Determine if we should show green check (100% progress)
+  const isComplete = progress >= 100;
+  const displayIcon = isComplete ? CheckCircle : IconComponent;
+  const displayColor = isComplete ? 'bg-green-500' : config.color;
+  const displayTextColor = isComplete ? 'text-green-400' : config.textColor;
+
   if (compact) {
     return (
       <div className="flex items-center space-x-2">
         <div className="flex-1 bg-gray-700 rounded-full h-2 overflow-hidden">
           <div 
-            className={`h-full transition-all duration-300 ${config.color}`}
+            className={`h-full transition-all duration-300 ${displayColor}`}
             style={{ width: `${progress}%` }}
           />
         </div>
         <div className="flex items-center space-x-1">
-          <IconComponent size={12} className={config.textColor} />
-          <span className={`text-xs font-medium ${config.textColor}`}>
+          {React.createElement(displayIcon, { size: 12, className: displayTextColor })}
+          <span className={`text-xs font-medium ${displayTextColor}`}>
             {progress.toFixed(1)}%
           </span>
         </div>
@@ -86,9 +92,9 @@ const GraduationStatusBar = ({
         <div className="flex items-center justify-between">
           {showLabel && (
             <div className="flex items-center space-x-2">
-              <IconComponent size={16} className={config.textColor} />
-              <span className={`text-sm font-medium ${config.textColor}`}>
-                {config.label}
+              {React.createElement(displayIcon, { size: 16, className: displayTextColor })}
+              <span className={`text-sm font-medium ${displayTextColor}`}>
+                {isComplete ? 'COMPLETE' : config.label}
               </span>
             </div>
           )}
@@ -99,7 +105,7 @@ const GraduationStatusBar = ({
         
         <div className="bg-gray-700 rounded-full h-3 overflow-hidden">
           <div 
-            className={`h-full transition-all duration-500 ${config.color} relative`}
+            className={`h-full transition-all duration-500 ${displayColor} relative`}
             style={{ width: `${progress}%` }}
           >
             {/* Gradient effect for better visual appeal */}

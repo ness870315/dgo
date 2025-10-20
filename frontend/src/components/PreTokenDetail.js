@@ -39,21 +39,35 @@ const PreTokenDetail = ({ token, onClose, onNavigateToPremium }) => {
   }, [token]);
 
   const formatNumber = (num) => {
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + 'M';
-    } else if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'K';
+    // Convert to number if it's a string
+    const numValue = typeof num === 'string' ? parseFloat(num) : num;
+    
+    if (isNaN(numValue)) {
+      return '0.00';
     }
-    return num.toFixed(2);
+    
+    if (numValue >= 1000000) {
+      return (numValue / 1000000).toFixed(1) + 'M';
+    } else if (numValue >= 1000) {
+      return (numValue / 1000).toFixed(1) + 'K';
+    }
+    return numValue.toFixed(2);
   };
 
   const formatPrice = (price) => {
-    if (price < 0.000001) {
-      return `$${price.toExponential(2)}`;
-    } else if (price < 0.01) {
-      return `$${price.toFixed(6)}`;
+    // Convert to number if it's a string
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+    
+    if (isNaN(numPrice)) {
+      return '$0.000000';
+    }
+    
+    if (numPrice < 0.000001) {
+      return `$${numPrice.toExponential(2)}`;
+    } else if (numPrice < 0.01) {
+      return `$${numPrice.toFixed(6)}`;
     } else {
-      return `$${price.toFixed(4)}`;
+      return `$${numPrice.toFixed(4)}`;
     }
   };
 
