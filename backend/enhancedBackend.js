@@ -5979,7 +5979,8 @@ Format as JSON:
 
             if (!contract || contract.length < 10) { skipped++; continue; }
             if (stableSymbols.has(symbol)) { skipped++; continue; }
-            if (!c.graduatedAt) { skipped++; continue; }
+            // Remove graduatedAt requirement - many legitimate tokens don't have this field
+            // if (!c.graduatedAt) { skipped++; continue; }
             // TTL suppression
             const lower = contract.toLowerCase();
             const lastSeen = recentMap[lower] || 0;
