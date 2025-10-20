@@ -11549,21 +11549,6 @@ Thanks for using x402 payments on Twitter! 🚀`;
       this.hybridChartService = null; // Set to null so endpoints can handle gracefully
     }
 
-    // Initialize Bonding Token Validation Service
-    try {
-      console.log('🔍 Initializing Bonding Token Validation Service...');
-      this.bondingValidationService = new BondingTokenValidationService();
-      console.log('✅ Bonding Token Validation Service initialized successfully');
-      
-      // Schedule validation to run every hour
-      this.scheduleBondingValidation();
-      
-    } catch (error) {
-      console.error('❌ Failed to initialize Bonding Token Validation Service:', error.message);
-      console.error('⚠️ Backend will continue without bonding validation');
-      this.bondingValidationService = null;
-    }
-
     // Schedule bonding token validation to run every hour
     this.scheduleBondingValidation = () => {
       if (!this.bondingValidationService) {
@@ -11594,6 +11579,21 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
       }, 3600000); // 1 hour
     };
+
+    // Initialize Bonding Token Validation Service
+    try {
+      console.log('🔍 Initializing Bonding Token Validation Service...');
+      this.bondingValidationService = new BondingTokenValidationService();
+      console.log('✅ Bonding Token Validation Service initialized successfully');
+      
+      // Schedule validation to run every hour
+      this.scheduleBondingValidation();
+      
+    } catch (error) {
+      console.error('❌ Failed to initialize Bonding Token Validation Service:', error.message);
+      console.error('⚠️ Backend will continue without bonding validation');
+      this.bondingValidationService = null;
+    }
 
     // Listen for real-time price updates from background worker
     process.on('tokenPriceUpdate', async (data) => {
