@@ -598,13 +598,6 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
     return (num >= 0 ? '+' : '') + num.toFixed(2) + '%';
   };
 
-  const formatPrice = (price) => {
-    if (!price || isNaN(price)) return 'N/A';
-    if (price < 0.000001) return price.toExponential(4);
-    if (price < 0.01) return price.toFixed(6);
-    if (price < 1) return price.toFixed(4);
-    return price.toFixed(2);
-  };
 
   const handleConfirmCall = async (callData) => {
 
