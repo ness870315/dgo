@@ -1076,21 +1076,13 @@ function AppContent() {
 
   // Live updates for bonding tokens (every 30 seconds)
   useEffect(() => {
-    if (!categoryFilters.trenches) {
-      setBondingTokens([]);
-      bondingTokensRef.current = [];
-      setBondingTokensLoading(false);
-      return;
-    }
+    // Always load bonding tokens for global search, but only show loading state for Trenches filter
+    const isInitialLoad = categoryFilters.trenches;
+    fetchBondingTokens(isInitialLoad);
 
-    // Initial fetch
-    fetchBondingTokens(true);
-
-    // Set up polling for live updates (only if trenches is active)
+    // Set up polling for live updates (always active for global search)
     const interval = setInterval(() => {
-      if (categoryFilters.trenches) {
-        fetchBondingTokens(false); // Background update, no loading state
-      }
+      fetchBondingTokens(false); // Background update, no loading state
     }, 30000); // Update every 30 seconds
 
     return () => clearInterval(interval);
