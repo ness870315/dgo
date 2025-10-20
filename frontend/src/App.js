@@ -563,26 +563,23 @@ function AppContent() {
   // Apply filters and search
   const applyFiltersAndSearch = useCallback((tokenData, currentFilters, currentSearchTerm) => {
     
-    // Special handling for Trenches filter - use bonding tokens
-    if (categoryFilters.trenches) {
-      // Use bonding tokens instead of regular tokens
-      let filtered = bondingTokens;
-      
-      // Apply search if present
-      if (currentSearchTerm && currentSearchTerm.trim()) {
-        filtered = tokenService.searchTokens(filtered, currentSearchTerm);
-      }
-      
-      // Apply filters and sorting
+    // If there's a search term, SEARCH OVERRIDES ALL FILTERS - search globally across ALL tokens
+    if (currentSearchTerm && currentSearchTerm.trim()) {
+      // Combine regular tokens and bonding tokens for global search
+      const allTokens = [...tokenData, ...bondingTokens];
+      let filtered = tokenService.searchTokens(allTokens, currentSearchTerm);
       filtered = tokenService.filterTokens(filtered, currentFilters);
       filtered = tokenService.sortTokens(filtered, currentFilters.sortBy);
       setFilteredTokens(filtered);
       return;
     }
     
-    // If there's a search term, SEARCH OVERRIDES ALL FILTERS
-    if (currentSearchTerm && currentSearchTerm.trim()) {
-      let filtered = tokenService.searchTokens(tokenData, currentSearchTerm);
+    // Special handling for Trenches filter - use bonding tokens
+    if (categoryFilters.trenches) {
+      // Use bonding tokens instead of regular tokens
+      let filtered = bondingTokens;
+      
+      // Apply filters and sorting
       filtered = tokenService.filterTokens(filtered, currentFilters);
       filtered = tokenService.sortTokens(filtered, currentFilters.sortBy);
       setFilteredTokens(filtered);
@@ -746,10 +743,9 @@ function AppContent() {
   // Handle search
   const handleSearch = useCallback((term) => {
     setSearchTerm(term);
-    // Use bonding tokens if Trenches filter is active, otherwise use regular tokens
-    const tokenData = categoryFilters.trenches ? bondingTokens : tokens;
-    applyFiltersAndSearch(tokenData, filters, term);
-  }, [tokens, bondingTokens, filters, applyFiltersAndSearch, categoryFilters.trenches]);
+    // Search is now global - always use regular tokens as base, search will combine with bonding tokens
+    applyFiltersAndSearch(tokens, filters, term);
+  }, [tokens, filters, applyFiltersAndSearch]);
 
   // Handle filter changes
   const handleFilter = useCallback((newFilters) => {
