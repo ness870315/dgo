@@ -991,7 +991,7 @@ class EnhancedTokenProcessor {
         token.stage === 'jupiter' && 
         token.hasJupiterData &&
         token.lastDiscoveredAt && 
-        (Date.now() - new Date(token.lastDiscoveredAt).getTime()) < (5 * 60 * 1000) && // Within last 5 minutes
+        (Date.now() - new Date(token.lastDiscoveredAt).getTime()) < (30 * 60 * 1000) && // Within last 30 minutes (increased from 5 minutes)
         !stableSymbols.has(token.symbol?.toUpperCase()) // Exclude stable tokens
       );
       
@@ -1001,7 +1001,7 @@ class EnhancedTokenProcessor {
         token.stage === 'jupiter' && 
         token.hasJupiterData &&
         token.lastDiscoveredAt && 
-        (Date.now() - new Date(token.lastDiscoveredAt).getTime()) < (5 * 60 * 1000) &&
+        (Date.now() - new Date(token.lastDiscoveredAt).getTime()) < (30 * 60 * 1000) &&
         stableSymbols.has(token.symbol?.toUpperCase())
       );
       
