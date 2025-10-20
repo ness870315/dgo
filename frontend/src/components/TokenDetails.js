@@ -699,7 +699,12 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
               width: "100%",
               height: "400px",
               borderRadius: "12px",
-              backgroundColor: "transparent"
+              backgroundColor: "transparent",
+              maxWidth: "none"
+            },
+            branding: {
+              logoUri: "", // Remove Jupiter logo
+              name: "Degen Oracle" // Replace with our branding
             },
             onSuccess: ({ txid, swapResult, quoteResponseMeta }) => {
               console.log("✅ Jupiter swap successful:", txid);

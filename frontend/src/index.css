@@ -7,16 +7,48 @@
   background: transparent !important;
   border-radius: 12px !important;
   overflow: hidden !important;
+  width: 100% !important;
+  max-width: 100% !important;
 }
 
-/* Customize Jupiter Plugin colors to match our dark theme */
+/* Make Jupiter Plugin wider/slimmer */
+.jupiter-integrated .jupiter-container {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+/* Customize Jupiter Plugin colors to match Degen Oracle purple theme */
 :root {
-  --jupiter-plugin-primary: 199, 242, 132;
-  --jupiter-plugin-background: 16, 23, 31;
-  --jupiter-plugin-primaryText: 232, 249, 255;
-  --jupiter-plugin-warning: 251, 191, 36;
-  --jupiter-plugin-interactive: 33, 42, 54;
-  --jupiter-plugin-module: 16, 23, 31;
+  --jupiter-plugin-primary: 139, 92, 246; /* Purple-500 to match Degen Oracle */
+  --jupiter-plugin-background: 16, 23, 31; /* Dark background */
+  --jupiter-plugin-primaryText: 232, 249, 255; /* Light text */
+  --jupiter-plugin-warning: 251, 191, 36; /* Yellow warnings */
+  --jupiter-plugin-interactive: 33, 42, 54; /* Interactive elements */
+  --jupiter-plugin-module: 16, 23, 31; /* Module backgrounds */
+}
+
+/* Hide Jupiter branding elements */
+.jupiter-integrated [data-testid="jupiter-logo"],
+.jupiter-integrated .jupiter-logo,
+.jupiter-integrated .powered-by-jupiter,
+.jupiter-integrated [class*="powered"],
+.jupiter-integrated [class*="jupiter-branding"] {
+  display: none !important;
+}
+
+/* Style the Connect Wallet button to be purple */
+.jupiter-integrated button[class*="connect"],
+.jupiter-integrated button[class*="wallet"],
+.jupiter-integrated .connect-wallet-button {
+  background-color: rgb(139, 92, 246) !important; /* Purple-500 */
+  color: white !important;
+  border: none !important;
+}
+
+.jupiter-integrated button[class*="connect"]:hover,
+.jupiter-integrated button[class*="wallet"]:hover,
+.jupiter-integrated .connect-wallet-button:hover {
+  background-color: rgb(124, 58, 237) !important; /* Purple-600 on hover */
 }
 
 body {
