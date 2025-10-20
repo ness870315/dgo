@@ -557,16 +557,7 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
         
         console.log('🔍 RAW API RESPONSE:', JSON.stringify(result, null, 2));
         
-        // Handle pre-bonding tokens gracefully
-        if (result.success && result.type === 'pre-bonding') {
-          console.log('ℹ️ Pre-bonding token detected - showing informational message');
-          setData({
-            isPreBonding: true,
-            message: result.message,
-            note: result.note,
-            contract: result.contract
-          });
-        } else if (result.success && result.data) {
+        if (result.success && result.data) {
           console.log('✅ Holder insights loaded:', result.data);
           if (result.data.topHolders?.holders) {
             console.log('🔍 RAW TOP HOLDERS DATA:', JSON.stringify(result.data.topHolders.holders.slice(0, 3), null, 2));

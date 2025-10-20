@@ -358,14 +358,6 @@ function SvgOHLCVArea({
           // Use Professional Chart Architecture
           console.log(`📊 Using Professional Chart Architecture for ${timeframe}`);
           res = await chartService.getPriceChart(contract, timeframe);
-          
-          // Handle pre-bonding tokens
-          if (res?.type === 'pre-bonding') {
-            console.log(`ℹ️ Pre-bonding token detected - showing informational message`);
-            setErr(`Pre-bonding token: ${res.message}`);
-            return;
-          }
-          
           data = Array.isArray(res?.data) ? res.data : [];
           
           console.log(`📈 Professional Architecture: Got ${data.length} candles`);

@@ -11667,38 +11667,6 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        // Check if this is a pre-bonding token
-        const fs = await import('fs/promises');
-        const path = await import('path');
-        
-        try {
-          const bondingCachePath = '/var/data/PreBonded-BackendCache.json';
-          const bondingData = await fs.readFile(bondingCachePath, 'utf8');
-          const parsedBondingData = JSON.parse(bondingData);
-          
-          if (parsedBondingData.tokens && Array.isArray(parsedBondingData.tokens)) {
-            const isBondingToken = parsedBondingData.tokens.some(token => 
-              (token.contractAddress || token.tokenAddress) === contract
-            );
-            
-            if (isBondingToken) {
-              console.log(`📊 [HYBRID-CHART] Pre-bonding token detected: ${contract.substring(0, 8)}...`);
-              return res.json({
-                success: true,
-                message: 'Chart data not available for pre-bonding tokens',
-                contract: contract,
-                timeframe: timeframe,
-                type: 'pre-bonding',
-                note: 'Chart data will be available after graduation',
-                candles: []
-              });
-            }
-          }
-        } catch (bondingError) {
-          // Bonding cache not available or error reading it - continue with normal processing
-          console.log(`📊 [HYBRID-CHART] Bonding cache check failed, continuing with normal processing: ${bondingError.message}`);
-        }
-
         const parsedLimit = limit ? parseInt(limit) : null;
         const beforeTime = before ? parseInt(before) : null;
         const afterTime = after ? parseInt(after) : null;
