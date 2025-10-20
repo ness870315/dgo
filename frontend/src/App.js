@@ -746,14 +746,18 @@ function AppContent() {
   // Handle search
   const handleSearch = useCallback((term) => {
     setSearchTerm(term);
-    applyFiltersAndSearch(tokens, filters, term);
-  }, [tokens, filters, applyFiltersAndSearch]);
+    // Use bonding tokens if Trenches filter is active, otherwise use regular tokens
+    const tokenData = categoryFilters.trenches ? bondingTokens : tokens;
+    applyFiltersAndSearch(tokenData, filters, term);
+  }, [tokens, bondingTokens, filters, applyFiltersAndSearch, categoryFilters.trenches]);
 
   // Handle filter changes
   const handleFilter = useCallback((newFilters) => {
     setFilters(newFilters);
-    applyFiltersAndSearch(tokens, newFilters, searchTerm);
-  }, [tokens, searchTerm, applyFiltersAndSearch]);
+    // Use bonding tokens if Trenches filter is active, otherwise use regular tokens
+    const tokenData = categoryFilters.trenches ? bondingTokens : tokens;
+    applyFiltersAndSearch(tokenData, newFilters, searchTerm);
+  }, [tokens, bondingTokens, searchTerm, applyFiltersAndSearch, categoryFilters.trenches]);
 
   // Handle token selection
   const handleTokenSelect = useCallback((token) => {
@@ -1511,6 +1515,7 @@ function AppContent() {
                     tokens={filteredTokens}
                     fueledTokens={fueledTokens}
                     onTokenSelect={handleTokenSelect}
+                    isTrenchesFilter={categoryFilters.trenches}
                   />
                 )
               ) : (

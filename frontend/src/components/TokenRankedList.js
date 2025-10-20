@@ -3,7 +3,7 @@ import { TrendingUp, TrendingDown, Minus, Star, Flame } from 'lucide-react';
 import { getStatusFromScore } from '../utils/statusUtils';
 import GraduationStatusBar from './GraduationStatusBar';
 
-const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
+const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, isTrenchesFilter = false }) => {
   // Sort tokens by overall score (highest first)
   const sortedTokens = [...tokens].sort((a, b) => {
     const scoreA = a.overallScore || a.score || 0;
@@ -91,7 +91,9 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
           {sortedTokens.map((token, index) => {
             const rank = index + 1;
             const score = token.overallScore || token.score || 0;
-            const priceChange = token.jupiterData?.priceChange24h || token.priceChange24h || 0;
+            const priceChange = isTrenchesFilter 
+              ? (token.priceChange5m || token.jupiterData?.stats5m?.priceChange || 0)
+              : (token.jupiterData?.priceChange24h || token.priceChange24h || 0);
             const marketCap = token.jupiterData?.marketCap || token.marketCap || 0;
             const price = token.jupiterData?.price || token.price || 0;
             // Use displayMentions (smart projection) for consistency with TokenDetails
@@ -160,15 +162,17 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
 
                     {/* Right side - All Desktop Fields */}
                     <div className="flex items-center space-x-2 flex-shrink-0">
-                      {/* Overall Score */}
-                      <div className="text-center">
-                        <div className={`text-sm font-bold ${scoreColor}`}>
-                          {score.toFixed(1)}
+                      {/* Overall Score - Hide for Trenches filter */}
+                      {!isTrenchesFilter && (
+                        <div className="text-center">
+                          <div className={`text-sm font-bold ${scoreColor}`}>
+                            {score.toFixed(1)}
+                          </div>
+                          <div className="text-xs text-gray-400">
+                            Score
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-400">
-                          Score
-                        </div>
-                      </div>
+                      )}
 
                       {/* Price Change % */}
                       <div className="text-center">

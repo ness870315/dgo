@@ -114,7 +114,9 @@ class BondingTokenValidationService {
                 name: token.name,
                 symbol: token.symbol,
                 bondingCurve: token.bondingCurve,
-                launchpad: token.launchpad
+                launchpad: token.launchpad,
+                stats5m: token.stats5m || {},
+                priceChange5m: token.stats5m?.priceChange || 0
               });
             } else if (isFullyGraduated) {
               console.log(`[BondingValidation] 🎓 ${address}: bondingCurve = ${token.bondingCurve} (100%) - MIGRATE`);
@@ -205,6 +207,9 @@ class BondingTokenValidationService {
           ...originalToken,
           // Update bonding curve progress from Jupiter
           bondingCurveProgress: result.bondingCurve,
+          // Update price change data from Jupiter
+          priceChange5m: result.priceChange5m,
+          stats5m: result.stats5m,
           // Update validation timestamp
           lastValidated: new Date().toISOString()
         };
