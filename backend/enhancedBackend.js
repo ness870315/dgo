@@ -405,7 +405,7 @@ class EnhancedBackend {
     };
 
     this.app.use(cors(corsOptions));
-    this.app.use(express.json());
+    this.app.use(express.json({ limit: '10mb' }));
 
     // Handle preflight requests
     this.app.options('*', cors(corsOptions));
