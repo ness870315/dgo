@@ -263,8 +263,39 @@ async function saveBondingTokensToCache(tokens) {
     
     console.log(`🔄 [BondingTokens] Filtered: ${tokens.length} → ${filteredTokens.length} tokens (${tokens.length - filteredTokens.length} blocked)`);
     
-    // Process tokens with graduation proximity
-    const processedTokens = filteredTokens.map(token => ({
+    // Separate tokens: already graduated (>=100%) vs still bonding (<100%)
+    const graduatedTokens = [];
+    const bondingTokens = [];
+    
+    for (const token of filteredTokens) {
+      const progress = parseFloat(token.bondingCurveProgress) || 0;
+      
+      if (progress >= 100) {
+        // Token already graduated - send directly to main cache
+        graduatedTokens.push({
+          ...token,
+          graduationDate: new Date().toISOString(),
+          migratedFrom: 'initial-fetch',
+          originalProgress: progress
+        });
+        console.log(`🎓 [BondingTokens] Token ${token.symbol} already graduated (${progress}%) - will migrate directly`);
+      } else {
+        // Token still bonding - add to pre-bonding cache
+        bondingTokens.push(token);
+      }
+    }
+    
+    console.log(`🔄 [BondingTokens] Graduation check: ${filteredTokens.length} → ${bondingTokens.length} bonding, ${graduatedTokens.length} graduated`);
+    
+    // Migrate graduated tokens to main cache immediately
+    if (graduatedTokens.length > 0) {
+      console.log(`🎓 [BondingTokens] Migrating ${graduatedTokens.length} already-graduated tokens...`);
+      const migratedTokens = await migrateGraduatedTokens(graduatedTokens);
+      await notifyBackendOfGraduations(graduatedTokens, migratedTokens);
+    }
+    
+    // Process remaining bonding tokens with graduation proximity
+    const processedTokens = bondingTokens.map(token => ({
       ...token,
       graduationProximity: calculateGraduationProximity(token.bondingCurveProgress)
     }));
