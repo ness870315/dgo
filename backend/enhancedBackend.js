@@ -14195,10 +14195,6 @@ Thanks for using x402 payments on Twitter! 🚀`;
       const tempPath = cachePath + '.tmp';
       const jsonData = JSON.stringify(tokens, null, 2);
       
-      // 🚨 CRITICAL FIX: Ensure cache directory exists before atomic write
-      const cacheDir = path.dirname(cachePath);
-      await fs.mkdir(cacheDir, { recursive: true });
-      
       // Write to temporary file
       await fs.writeFile(tempPath, jsonData, 'utf8');
       
