@@ -1242,15 +1242,17 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
               </div>
             </div>
 
-          {/* 🚀 Section 2 – Jupiter Swap Integration */}
-          <div className="bg-gray-800 rounded-lg p-3 border border-gray-600">
-            <h3 className="text-lg font-bold mb-3 text-white flex items-center">
-              🚀 Swap {token?.symbol || 'Token'}
-            </h3>
-            <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
-              <div id="jupiter-swap-container" className="jupiter-integrated" />
+          {/* 🚀 Section 2 – Jupiter Swap Integration - Hidden for now */}
+          {false && (
+            <div className="bg-gray-800 rounded-lg p-3 border border-gray-600">
+              <h3 className="text-lg font-bold mb-3 text-white flex items-center">
+                🚀 Swap {token?.symbol || 'Token'}
+              </h3>
+              <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
+                <div id="jupiter-swap-container" className="jupiter-integrated" />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* 🔍 Section 3 – Insights (Market Data) */}
           <div className="bg-gray-800 rounded-lg p-3 border border-gray-600">
