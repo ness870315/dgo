@@ -156,29 +156,65 @@ async function fetchBondingTokens() {
   }
   
   try {
-    console.log('🚨 [BondingTokens] Fetching bonding tokens from Moralis...');
-    const url = 'https://solana-gateway.moralis.io/token/mainnet/exchange/pumpfun/bonding';
-    const response = await axios.get(url, {
-      headers: {
-        'accept': 'application/json',
-        'X-API-Key': MORALIS_API_KEY
-      },
-      params: { limit: 100 },
-      timeout: 30000
-    });
+    console.log('🚨 [BondingTokens] Fetching bonding tokens from Moralis with pagination...');
     
-    if (response.data && response.data.result) {
+    const allTokens = [];
+    let cursor = null;
+    let page = 1;
+    const maxPages = 5; // Fetch 5 pages (500 tokens total)
+    
+    while (page <= maxPages) {
+      console.log(`📄 [BondingTokens] Fetching page ${page}/${maxPages}...`);
+      
+      const params = { limit: 100 };
+      if (cursor) {
+        params.cursor = cursor;
+      }
+      
+      const url = 'https://solana-gateway.moralis.io/token/mainnet/exchange/pumpfun/bonding';
+      const response = await axios.get(url, {
+        headers: {
+          'accept': 'application/json',
+          'X-API-Key': MORALIS_API_KEY
+        },
+        params,
+        timeout: 30000
+      });
+      
+      if (!response.data || !response.data.result) {
+        console.log(`❌ [BondingTokens] Page ${page}: No data received`);
+        break;
+      }
+      
       const tokens = response.data.result;
-      console.log(`✅ [BondingTokens] Fetched ${tokens.length} bonding tokens from Moralis`);
+      const nextCursor = response.data.cursor;
       
-      // Deduplicate tokens
-      const uniqueTokens = deduplicateTokens(tokens);
-      console.log(`🔄 [BondingTokens] Deduplication: ${tokens.length} → ${uniqueTokens.length} unique tokens`);
+      console.log(`✅ [BondingTokens] Page ${page}: Received ${tokens.length} tokens`);
       
-      return uniqueTokens;
+      // Add tokens to our collection
+      allTokens.push(...tokens);
+      
+      // Check if we have a next cursor
+      if (!nextCursor) {
+        console.log(`📄 [BondingTokens] No more pages available`);
+        break;
+      }
+      
+      cursor = nextCursor;
+      page++;
+      
+      // Small delay between requests to be respectful
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
     
-    return [];
+    console.log(`✅ [BondingTokens] Fetched ${allTokens.length} bonding tokens from ${page - 1} pages`);
+    
+    // Deduplicate tokens
+    const uniqueTokens = deduplicateTokens(allTokens);
+    console.log(`🔄 [BondingTokens] Deduplication: ${allTokens.length} → ${uniqueTokens.length} unique tokens`);
+    
+    return uniqueTokens;
+    
   } catch (error) {
     console.error('❌ [BondingTokens] Error fetching bonding tokens:', error.message);
     return [];
