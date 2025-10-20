@@ -11866,12 +11866,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
           return res.status(403).json({ success: false, error: 'Forbidden' });
         }
 
-        const { graduatedTokens } = req.body || {};
+        const { graduatedTokens, migratedTokens } = req.body || {};
         if (!Array.isArray(graduatedTokens)) {
           return res.status(400).json({ success: false, error: 'Invalid payload: graduatedTokens[] required' });
         }
 
-        console.log(`🎓 [Graduation Handler] Received ${graduatedTokens.length} graduated tokens from Jupiter Service`);
+        console.log(`🎓 [Graduation Handler] Received ${graduatedTokens.length} graduated tokens and ${migratedTokens?.length || 0} migrated tokens from Jupiter Service`);
 
         // Read backend bonding cache
         const fs = await import('fs/promises');
@@ -11911,12 +11911,43 @@ Thanks for using x402 payments on Twitter! 🚀`;
           await fs.writeFile(cacheFile, JSON.stringify(updatedCache, null, 2));
           console.log(`🎓 [Graduation Handler] Removed ${removedCount} graduated tokens from backend cache`);
           
+          // Add migrated tokens to main token cache
+          if (migratedTokens && migratedTokens.length > 0) {
+            try {
+              const mainCacheFile = '/var/data/dgo/cache/tokens-cache.json';
+              let mainCacheData;
+              
+              try {
+                const mainCacheContent = await fs.readFile(mainCacheFile, 'utf8');
+                mainCacheData = JSON.parse(mainCacheContent);
+              } catch (mainCacheError) {
+                // Create new cache if it doesn't exist
+                mainCacheData = [];
+              }
+              
+              // Ensure it's an array
+              if (!Array.isArray(mainCacheData)) {
+                mainCacheData = [];
+              }
+              
+              // Add migrated tokens to main cache
+              const updatedMainCache = [...mainCacheData, ...migratedTokens];
+              
+              await fs.writeFile(mainCacheFile, JSON.stringify(updatedMainCache, null, 2));
+              console.log(`🎓 [Graduation Handler] Added ${migratedTokens.length} migrated tokens to main cache`);
+              
+            } catch (mainCacheError) {
+              console.error('❌ [Graduation Handler] Error updating main cache:', mainCacheError.message);
+            }
+          }
+          
           res.json({
             success: true,
             removedCount: removedCount,
             remainingCount: remainingTokens.length,
+            migratedCount: migratedTokens?.length || 0,
             graduatedTokens: graduatedTokens,
-            message: 'Graduated tokens removed from backend cache'
+            message: 'Graduated tokens removed from backend cache and migrated tokens added to main cache'
           });
           
         } catch (fileError) {

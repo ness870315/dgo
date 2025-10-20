@@ -343,13 +343,13 @@ async function checkForGraduatedTokens() {
         console.log(`🎓 [Graduation] Found ${graduatedTokens.length} graduated tokens`);
         
         // Migrate graduated tokens to main token cache
-        await migrateGraduatedTokens(graduatedTokens);
+        const migratedTokens = await migrateGraduatedTokens(graduatedTokens);
         
         // Update bonding cache with remaining tokens
         await updateBondingCache(remainingTokens);
         
-        // Notify backend to update its cache
-        await notifyBackendOfGraduations(graduatedTokens);
+        // Notify backend to update its cache and send migrated token data
+        await notifyBackendOfGraduations(graduatedTokens, migratedTokens);
         
         console.log(`✅ [Graduation] Migration completed: ${graduatedTokens.length} tokens graduated`);
       } else {
@@ -421,8 +421,11 @@ async function migrateGraduatedTokens(graduatedTokens) {
     await fs.writeFile(tokenCacheFile, JSON.stringify(updatedTokenCache, null, 2));
     console.log(`✅ [Migration] Migrated ${migratedTokens.length} tokens to main cache`);
     
+    return migratedTokens;
+    
   } catch (error) {
     console.error('❌ [Migration] Error migrating graduated tokens:', error.message);
+    return [];
   }
 }
 
@@ -447,7 +450,7 @@ async function updateBondingCache(remainingTokens) {
   }
 }
 
-async function notifyBackendOfGraduations(graduatedTokens) {
+async function notifyBackendOfGraduations(graduatedTokens, migratedTokens = []) {
   if (!INTERNAL_TOKEN) {
     console.warn('⚠️ [Backend Notification] No INTERNAL_TOKEN set; skipping backend notification');
     return { success: false, error: 'No token' };
@@ -456,13 +459,14 @@ async function notifyBackendOfGraduations(graduatedTokens) {
   try {
     const url = `${API_BASE}/api/internal/bonding-tokens/graduated`;
     const response = await axios.post(url, { 
-      graduatedTokens: graduatedTokens.map(t => t.tokenAddress) 
+      graduatedTokens: graduatedTokens.map(t => t.tokenAddress),
+      migratedTokens: migratedTokens // Send the migrated token data
     }, {
       headers: { 'Content-Type': 'application/json', 'X-Internal-Token': INTERNAL_TOKEN },
       timeout: 20000
     });
     
-    console.log(`📡 [Backend Notification] Notified backend of ${graduatedTokens.length} graduated tokens`);
+    console.log(`📡 [Backend Notification] Notified backend of ${graduatedTokens.length} graduated tokens with ${migratedTokens.length} migrated tokens`);
     return response.data;
   } catch (error) {
     console.error('❌ [Backend Notification] Error notifying backend:', error.message);
