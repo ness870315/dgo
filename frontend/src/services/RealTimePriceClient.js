@@ -8,7 +8,7 @@ class RealTimePriceClient {
     this.subscribedTokens = new Set();
     this.eventListeners = new Map();
     this.pingInterval = null;
-    this.baseUrl = process.env.NODE_ENV === 'production' 
+    this.baseUrl = window.location.hostname === 'api.degen-oracle.com' || window.location.hostname === 'degen-oracle.com'
       ? 'wss://api.degen-oracle.com/ws'
       : 'ws://localhost:4000/ws';
   }
