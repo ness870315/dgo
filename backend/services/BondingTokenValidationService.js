@@ -187,15 +187,32 @@ class BondingTokenValidationService {
       
       console.log(`[BondingValidation] 📋 Found ${tokens.length} tokens to validate`);
       
-      // Extract token addresses
-      const tokenAddresses = tokens.map(token => token.contractAddress || token.tokenAddress);
+      // Blocklist of tokens to exclude from validation and processing
+      const BLOCKED_TOKENS = [
+        'FQUViAMMM8zPM5dhiVKePBBA8ud29sP1gdyHdhXDpump'
+      ];
+      
+      // Filter out blocked tokens
+      const filteredTokens = tokens.filter(token => {
+        const address = token.contractAddress || token.tokenAddress;
+        const isBlocked = BLOCKED_TOKENS.includes(address);
+        if (isBlocked) {
+          console.log(`🚫 [BondingValidation] BLOCKED token excluded: ${token.symbol} (${address})`);
+        }
+        return !isBlocked;
+      });
+      
+      console.log(`🔄 [BondingValidation] Filtered: ${tokens.length} → ${filteredTokens.length} tokens (${tokens.length - filteredTokens.length} blocked)`);
+      
+      // Extract token addresses from filtered tokens
+      const tokenAddresses = filteredTokens.map(token => token.contractAddress || token.tokenAddress);
       
       // Validate in batches
       const results = await this.validateTokensBatch(tokenAddresses);
       
-      // Create address lookup for quick access
+      // Create address lookup for quick access (using filtered tokens)
       const addressToToken = {};
-      tokens.forEach(token => {
+      filteredTokens.forEach(token => {
         const address = token.contractAddress || token.tokenAddress;
         addressToToken[address] = token;
       });

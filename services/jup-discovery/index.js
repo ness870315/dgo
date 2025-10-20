@@ -247,8 +247,24 @@ async function saveBondingTokensToCache(tokens) {
       // Directory might already exist
     }
     
+    // Blocklist of tokens to exclude from backend export
+    const BLOCKED_TOKENS = [
+      'FQUViAMMM8zPM5dhiVKePBBA8ud29sP1gdyHdhXDpump'
+    ];
+    
+    // Filter out blocked tokens
+    const filteredTokens = tokens.filter(token => {
+      const isBlocked = BLOCKED_TOKENS.includes(token.tokenAddress);
+      if (isBlocked) {
+        console.log(`🚫 [BondingTokens] BLOCKED token excluded: ${token.symbol} (${token.tokenAddress})`);
+      }
+      return !isBlocked;
+    });
+    
+    console.log(`🔄 [BondingTokens] Filtered: ${tokens.length} → ${filteredTokens.length} tokens (${tokens.length - filteredTokens.length} blocked)`);
+    
     // Process tokens with graduation proximity
-    const processedTokens = tokens.map(token => ({
+    const processedTokens = filteredTokens.map(token => ({
       ...token,
       graduationProximity: calculateGraduationProximity(token.bondingCurveProgress)
     }));
