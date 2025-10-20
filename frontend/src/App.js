@@ -606,7 +606,7 @@ function AppContent() {
       
       const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
       
-      const response = await fetch(`${apiBase}/api/tokens/bonding?limit=100`);
+      const response = await fetch(`${apiBase}/api/tokens/bonding?limit=500`);
       const data = await response.json();
       
       if (data.success) {

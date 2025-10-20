@@ -7178,7 +7178,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Get bonding tokens (for Trenches filter) - Read from backend cache
     this.app.get('/api/tokens/bonding', async (req, res) => {
       try {
-        const { limit = 50, proximityLevel } = req.query;
+        const { limit = 500, proximityLevel } = req.query;
         
         console.log(`[🛡️ Enhanced Backend] 🚨 Getting bonding tokens from backend cache (limit: ${limit}, proximity: ${proximityLevel || 'all'})...`);
         
