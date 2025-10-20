@@ -557,7 +557,16 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
         
         console.log('🔍 RAW API RESPONSE:', JSON.stringify(result, null, 2));
         
-        if (result.success && result.data) {
+        // Handle pre-bonding tokens gracefully
+        if (result.success && result.type === 'pre-bonding') {
+          console.log('ℹ️ Pre-bonding token detected - showing informational message');
+          setData({
+            isPreBonding: true,
+            message: result.message,
+            note: result.note,
+            contract: result.contract
+          });
+        } else if (result.success && result.data) {
           console.log('✅ Holder insights loaded:', result.data);
           if (result.data.topHolders?.holders) {
             console.log('🔍 RAW TOP HOLDERS DATA:', JSON.stringify(result.data.topHolders.holders.slice(0, 3), null, 2));
@@ -658,6 +667,46 @@ export default function HoldersInsightsModal({ token, onClose = () => {} }) {
           >
             Close
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle pre-bonding tokens
+  if (data?.isPreBonding) {
+    return (
+      <div className="fixed inset-0 z-50 grid place-items-center p-4">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+        <div className="relative w-full max-w-2xl rounded-2xl bg-[#0b0f17] ring-1 ring-slate-700/60 shadow-2xl p-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+              <Users className="h-5 w-5 text-pink-500" />
+              Holder Insights
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-white transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          
+          <div className="text-center py-8">
+            <div className="mb-6">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-pink-500/20 to-purple-500/20 flex items-center justify-center">
+                <Users className="h-8 w-8 text-pink-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-white mb-2">Pre-Bonding Token</h3>
+              <p className="text-slate-300 mb-4">{data.message}</p>
+              <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
+                <p className="text-slate-400 text-sm">{data.note}</p>
+              </div>
+            </div>
+            
+            <div className="text-xs text-slate-500">
+              Contract: {data.contract}
+            </div>
+          </div>
         </div>
       </div>
     );
