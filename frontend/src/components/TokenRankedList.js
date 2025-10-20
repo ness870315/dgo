@@ -126,17 +126,20 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
 
                       {/* Token Icon */}
                       <div className="flex-shrink-0">
-                        {token.jupiterData?.icon ? (
+                        {(token.jupiterData?.icon || token.logo) ? (
                           <img 
-                            src={token.jupiterData.icon} 
+                            src={token.jupiterData?.icon || token.logo} 
                             alt={token.symbol} 
                             className="w-6 h-6 rounded-full"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
                           />
-                        ) : (
-                          <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center">
-                            <span className="text-xs text-gray-400">?</span>
-                          </div>
-                        )}
+                        ) : null}
+                        <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center" style={{ display: (token.jupiterData?.icon || token.logo) ? 'none' : 'flex' }}>
+                          <span className="text-xs text-gray-400">?</span>
+                        </div>
                       </div>
 
                       {/* Symbol & Fuel Badge */}
@@ -237,9 +240,9 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
 
                       {/* Token Icon & Info */}
                       <div className="flex items-center space-x-3">
-                        {token.jupiterData?.icon && (
+                        {(token.jupiterData?.icon || token.logo) && (
                           <img 
-                            src={token.jupiterData.icon} 
+                            src={token.jupiterData?.icon || token.logo} 
                             alt={token.symbol} 
                             className="w-10 h-10 rounded-full border-2 border-gray-600"
                             onError={(e) => {

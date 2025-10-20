@@ -10,61 +10,65 @@ const GraduationStatusBar = ({
   // Calculate progress percentage (0-100)
   const progress = Math.min(Math.max(bondingProgress, 0), 100);
   
-  // Get proximity level styling
-  const getProximityConfig = (level) => {
-    switch (level) {
-      case 'IMMINENT_GRADUATION':
-        return {
-          color: 'bg-green-500',
-          textColor: 'text-green-400',
-          icon: CheckCircle,
-          label: 'IMMINENT',
-          description: 'Graduation imminent'
-        };
-      case 'VERY_CLOSE_TO_GRADUATION':
-        return {
-          color: 'bg-orange-500',
-          textColor: 'text-orange-400',
-          icon: AlertTriangle,
-          label: 'VERY CLOSE',
-          description: 'Very close to graduation'
-        };
-      case 'CLOSE_TO_GRADUATION':
-        return {
-          color: 'bg-yellow-500',
-          textColor: 'text-yellow-400',
-          icon: Clock,
-          label: 'CLOSE',
-          description: 'Close to graduation'
-        };
-      case 'APPROACHING_GRADUATION':
-        return {
-          color: 'bg-blue-500',
-          textColor: 'text-blue-400',
-          icon: TrendingUp,
-          label: 'APPROACHING',
-          description: 'Approaching graduation'
-        };
-      case 'FAR_FROM_GRADUATION':
-      default:
-        return {
-          color: 'bg-gray-500',
-          textColor: 'text-gray-400',
-          icon: CheckCircle,
-          label: 'FAR',
-          description: 'Far from graduation'
-        };
+  // Get color based on actual progress percentage
+  const getProgressColor = (progress) => {
+    if (progress >= 100) {
+      return {
+        color: 'bg-green-500',
+        textColor: 'text-green-400',
+        icon: CheckCircle,
+        label: 'COMPLETE',
+        description: 'Graduation complete'
+      };
+    } else if (progress >= 90) {
+      return {
+        color: 'bg-green-400',
+        textColor: 'text-green-300',
+        icon: CheckCircle,
+        label: 'IMMINENT',
+        description: 'Graduation imminent'
+      };
+    } else if (progress >= 75) {
+      return {
+        color: 'bg-yellow-500',
+        textColor: 'text-yellow-400',
+        icon: AlertTriangle,
+        label: 'VERY CLOSE',
+        description: 'Very close to graduation'
+      };
+    } else if (progress >= 50) {
+      return {
+        color: 'bg-orange-500',
+        textColor: 'text-orange-400',
+        icon: Clock,
+        label: 'CLOSE',
+        description: 'Close to graduation'
+      };
+    } else if (progress >= 25) {
+      return {
+        color: 'bg-blue-500',
+        textColor: 'text-blue-400',
+        icon: TrendingUp,
+        label: 'APPROACHING',
+        description: 'Approaching graduation'
+      };
+    } else {
+      return {
+        color: 'bg-gray-500',
+        textColor: 'text-gray-400',
+        icon: CheckCircle,
+        label: 'FAR',
+        description: 'Far from graduation'
+      };
     }
   };
 
-  const config = getProximityConfig(proximityLevel);
+  const config = getProgressColor(progress);
   const IconComponent = config.icon;
 
-  // Determine if we should show green check (100% progress)
-  const isComplete = progress >= 100;
-  const displayIcon = isComplete ? CheckCircle : IconComponent;
-  const displayColor = isComplete ? 'bg-green-500' : config.color;
-  const displayTextColor = isComplete ? 'text-green-400' : config.textColor;
+  // Use the progress-based color
+  const displayColor = config.color;
+  const displayTextColor = config.textColor;
 
   if (compact) {
     return (
@@ -76,7 +80,7 @@ const GraduationStatusBar = ({
           />
         </div>
         <div className="flex items-center space-x-1">
-          {React.createElement(displayIcon, { size: 12, className: displayTextColor })}
+          {React.createElement(IconComponent, { size: 12, className: displayTextColor })}
           <span className={`text-xs font-medium ${displayTextColor}`}>
             {progress.toFixed(1)}%
           </span>
@@ -92,9 +96,9 @@ const GraduationStatusBar = ({
         <div className="flex items-center justify-between">
           {showLabel && (
             <div className="flex items-center space-x-2">
-              {React.createElement(displayIcon, { size: 16, className: displayTextColor })}
+              {React.createElement(IconComponent, { size: 16, className: displayTextColor })}
               <span className={`text-sm font-medium ${displayTextColor}`}>
-                {isComplete ? 'COMPLETE' : config.label}
+                {config.label}
               </span>
             </div>
           )}
