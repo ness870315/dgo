@@ -27,6 +27,7 @@ import AutomatedTokenCleanup from './automatedTokenCleanup.js';
 import HybridPriceService from './hybridPriceService.js';
 import HybridChartService from './services/HybridChartService.js';
 import KOLService from './services/KOLService.js';
+import BondingTokenValidationService from './services/BondingTokenValidationService.js';
 // DISABLED: import EnhancedAnalyticsCacheService from './services/EnhancedAnalyticsCacheService.js';
 import logger from './logger.js';
 import { fileURLToPath } from 'url';
@@ -11548,6 +11549,52 @@ Thanks for using x402 payments on Twitter! 🚀`;
       this.hybridChartService = null; // Set to null so endpoints can handle gracefully
     }
 
+    // Initialize Bonding Token Validation Service
+    try {
+      console.log('🔍 Initializing Bonding Token Validation Service...');
+      this.bondingValidationService = new BondingTokenValidationService();
+      console.log('✅ Bonding Token Validation Service initialized successfully');
+      
+      // Schedule validation to run every hour
+      this.scheduleBondingValidation();
+      
+    } catch (error) {
+      console.error('❌ Failed to initialize Bonding Token Validation Service:', error.message);
+      console.error('⚠️ Backend will continue without bonding validation');
+      this.bondingValidationService = null;
+    }
+
+    // Schedule bonding token validation to run every hour
+    this.scheduleBondingValidation = () => {
+      if (!this.bondingValidationService) {
+        console.log('⚠️ Bonding validation service not available, skipping scheduling');
+        return;
+      }
+      
+      console.log('⏰ Scheduling bonding token validation every hour');
+      
+      // Run validation immediately on startup
+      setTimeout(async () => {
+        try {
+          console.log('🚀 Running initial bonding token validation...');
+          await this.bondingValidationService.runValidation();
+        } catch (error) {
+          console.error('❌ Initial bonding validation failed:', error.message);
+        }
+      }, 30000); // Wait 30 seconds after startup
+      
+      // Schedule to run every hour (3600000 ms)
+      setInterval(async () => {
+        try {
+          console.log('⏰ Running scheduled bonding token validation...');
+          const result = await this.bondingValidationService.runValidation();
+          console.log(`✅ Bonding validation completed: ${result.valid} valid, ${result.invalid} removed`);
+        } catch (error) {
+          console.error('❌ Scheduled bonding validation failed:', error.message);
+        }
+      }, 3600000); // 1 hour
+    };
+
     // Listen for real-time price updates from background worker
     process.on('tokenPriceUpdate', async (data) => {
       try {
@@ -11930,6 +11977,65 @@ Thanks for using x402 payments on Twitter! 🚀`;
         res.status(500).json({
           success: false,
           error: 'Failed to get bonding token details from jupiter-service'
+        });
+      }
+    });
+
+    // Manual bonding token validation endpoint
+    this.app.post('/api/tokens/bonding/validate', async (req, res) => {
+      try {
+        if (!this.bondingValidationService) {
+          return res.status(500).json({
+            success: false,
+            error: 'Bonding validation service not available'
+          });
+        }
+        
+        console.log('[🛡️ Enhanced Backend] 🔍 Manual bonding token validation requested');
+        
+        const result = await this.bondingValidationService.runValidation();
+        
+        res.json({
+          success: true,
+          message: 'Bonding token validation completed',
+          data: result,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Manual bonding validation error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to run bonding validation',
+          message: error.message
+        });
+      }
+    });
+
+    // Get bonding validation statistics
+    this.app.get('/api/tokens/bonding/validation-stats', async (req, res) => {
+      try {
+        if (!this.bondingValidationService) {
+          return res.status(500).json({
+            success: false,
+            error: 'Bonding validation service not available'
+          });
+        }
+        
+        const stats = await this.bondingValidationService.getValidationStats();
+        
+        res.json({
+          success: true,
+          data: stats,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Get validation stats error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get validation stats',
+          message: error.message
         });
       }
     });
