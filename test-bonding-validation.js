@@ -9,10 +9,10 @@ const TEST_CONTRACTS = [
 ];
 
 /**
- * Test Jupiter API bonding curve validation using individual lookups
+ * Test Jupiter API bonding curve validation using batch approach
  */
 async function testBondingValidation() {
-  console.log('🧪 Testing Jupiter API Bonding Curve Validation');
+  console.log('🧪 Testing Jupiter API Bonding Curve Validation (Batch Mode)');
   console.log('=' .repeat(60));
   
   const results = {
@@ -21,39 +21,39 @@ async function testBondingValidation() {
     notFound: []
   };
   
-  console.log(`📋 Testing ${TEST_CONTRACTS.length} contracts individually`);
+  console.log(`📋 Testing ${TEST_CONTRACTS.length} contracts in batch mode`);
   
-  for (const contract of TEST_CONTRACTS) {
-    try {
-      console.log(`\n🔍 Testing: ${contract}`);
+  try {
+    // Create comma-separated query string
+    const queryString = TEST_CONTRACTS.join(',');
+    const url = `https://lite-api.jup.ag/tokens/v2/search?query=${queryString}`;
+    
+    console.log(`🔗 Batch API URL: ${url}`);
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    if (!Array.isArray(data)) {
+      throw new Error('Invalid response format - expected array');
+    }
+    
+    console.log(`✅ Batch API Response received: ${data.length} tokens`);
+    
+    // Process each contract
+    TEST_CONTRACTS.forEach(contract => {
+      console.log(`\n🔍 Processing: ${contract}`);
       
-      // Use Jupiter API v2 search with mint address
-      const url = `https://lite-api.jup.ag/tokens/v2/search?query=${contract}`;
-      console.log(`  🔗 API URL: ${url}`);
-      
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        console.log(`❌ HTTP ${response.status}: ${response.statusText}`);
-        results.notFound.push(contract);
-        continue;
-      }
-      
-      const data = await response.json();
-      
-      if (!Array.isArray(data) || data.length === 0) {
-        console.log(`❌ ${contract}: NOT FOUND in Jupiter API`);
-        results.notFound.push(contract);
-        continue;
-      }
-      
-      // Find the exact token by mint address
       const token = data.find(t => t.id === contract);
       
       if (!token) {
         console.log(`❌ ${contract}: NOT FOUND in Jupiter API response`);
         results.notFound.push(contract);
-        continue;
+        return;
       }
       
       console.log(`✅ ${contract}: Found in Jupiter API`);
@@ -89,11 +89,12 @@ async function testBondingValidation() {
           graduatedAt: token.graduatedAt
         });
       }
-      
-    } catch (error) {
-      console.error(`❌ Error testing ${contract}:`, error.message);
-      results.notFound.push(contract);
-    }
+    });
+    
+  } catch (error) {
+    console.error('❌ Batch test failed:', error.message);
+    console.error('Stack:', error.stack);
+    return null;
   }
   
   // Summary

@@ -47,11 +47,11 @@ class BondingTokenValidationService {
   }
 
   /**
-   * Validate tokens in batches using Jupiter API
+   * Validate tokens in batches using Jupiter API (comma-separated, up to 100)
    */
   async validateTokensBatch(tokenAddresses) {
     try {
-      console.log(`[BondingValidation] 🔍 Validating ${tokenAddresses.length} tokens with Jupiter API`);
+      console.log(`[BondingValidation] 🔍 Validating ${tokenAddresses.length} tokens with Jupiter API (batch mode)`);
       
       const results = {
         valid: [],
@@ -59,63 +59,86 @@ class BondingTokenValidationService {
         notFound: []
       };
 
-      for (const address of tokenAddresses) {
+      // Process in batches of 100 (Jupiter API limit)
+      for (let i = 0; i < tokenAddresses.length; i += this.batchSize) {
+        const batch = tokenAddresses.slice(i, i + this.batchSize);
+        const batchNumber = Math.floor(i / this.batchSize) + 1;
+        const totalBatches = Math.ceil(tokenAddresses.length / this.batchSize);
+        
+        console.log(`[BondingValidation] 📦 Processing batch ${batchNumber}/${totalBatches} (${batch.length} tokens)`);
+        
         try {
-          const url = `${this.jupiterApiUrl}?query=${address}`;
+          // Create comma-separated query string
+          const queryString = batch.join(',');
+          const url = `${this.jupiterApiUrl}?query=${queryString}`;
+          
+          console.log(`[BondingValidation] 🔗 Batch API URL: ${url.substring(0, 100)}...`);
+          
           const response = await fetch(url);
           
           if (!response.ok) {
-            console.log(`[BondingValidation] ⚠️ HTTP ${response.status} for ${address}`);
-            results.notFound.push(address);
+            console.log(`[BondingValidation] ⚠️ HTTP ${response.status} for batch ${batchNumber}`);
+            // Add all tokens in this batch to not found
+            batch.forEach(address => results.notFound.push(address));
             continue;
           }
           
           const data = await response.json();
           
-          if (!Array.isArray(data) || data.length === 0) {
-            console.log(`[BondingValidation] ❌ ${address}: Not found in Jupiter API`);
-            results.notFound.push(address);
+          if (!Array.isArray(data)) {
+            console.log(`[BondingValidation] ❌ Invalid response format for batch ${batchNumber}`);
+            batch.forEach(address => results.notFound.push(address));
             continue;
           }
           
-          const token = data.find(t => t.id === address);
+          console.log(`[BondingValidation] ✅ Batch ${batchNumber}: Received ${data.length} tokens from Jupiter API`);
           
-          if (!token) {
-            console.log(`[BondingValidation] ❌ ${address}: Not found in Jupiter API response`);
-            results.notFound.push(address);
-            continue;
+          // Process each token in the batch
+          batch.forEach(address => {
+            const token = data.find(t => t.id === address);
+            
+            if (!token) {
+              console.log(`[BondingValidation] ❌ ${address}: Not found in Jupiter API response`);
+              results.notFound.push(address);
+              return;
+            }
+            
+            const hasBondingCurve = token.bondingCurve !== undefined && token.bondingCurve !== null;
+            
+            if (hasBondingCurve) {
+              console.log(`[BondingValidation] ✅ ${address}: HAS bondingCurve (${token.bondingCurve}) - KEEP`);
+              results.valid.push({
+                address,
+                name: token.name,
+                symbol: token.symbol,
+                bondingCurve: token.bondingCurve,
+                launchpad: token.launchpad
+              });
+            } else {
+              console.log(`[BondingValidation] ❌ ${address}: NO bondingCurve - REMOVE`);
+              results.invalid.push({
+                address,
+                name: token.name,
+                symbol: token.symbol,
+                graduatedPool: token.graduatedPool,
+                graduatedAt: token.graduatedAt
+              });
+            }
+          });
+          
+          // Small delay between batches to respect rate limits
+          if (i + this.batchSize < tokenAddresses.length) {
+            await new Promise(resolve => setTimeout(resolve, this.requestDelay));
           }
-          
-          const hasBondingCurve = token.bondingCurve !== undefined && token.bondingCurve !== null;
-          
-          if (hasBondingCurve) {
-            console.log(`[BondingValidation] ✅ ${address}: HAS bondingCurve (${token.bondingCurve}) - KEEP`);
-            results.valid.push({
-              address,
-              name: token.name,
-              symbol: token.symbol,
-              bondingCurve: token.bondingCurve,
-              launchpad: token.launchpad
-            });
-          } else {
-            console.log(`[BondingValidation] ❌ ${address}: NO bondingCurve - REMOVE`);
-            results.invalid.push({
-              address,
-              name: token.name,
-              symbol: token.symbol,
-              graduatedPool: token.graduatedPool,
-              graduatedAt: token.graduatedAt
-            });
-          }
-          
-          // Small delay between requests to respect rate limits
-          await new Promise(resolve => setTimeout(resolve, this.requestDelay));
           
         } catch (error) {
-          console.error(`[BondingValidation] ❌ Error validating ${address}:`, error.message);
-          results.notFound.push(address);
+          console.error(`[BondingValidation] ❌ Error processing batch ${batchNumber}:`, error.message);
+          // Add all tokens in this batch to not found
+          batch.forEach(address => results.notFound.push(address));
         }
       }
+      
+      console.log(`[BondingValidation] 📊 Batch validation completed: ${results.valid.length} valid, ${results.invalid.length} invalid, ${results.notFound.length} not found`);
       
       return results;
       
