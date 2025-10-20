@@ -24,11 +24,20 @@ class CoinVeraWebSocketService extends EventEmitter {
     return new Promise((resolve, reject) => {
       try {
         console.log('🔌 [CoinVera] Connecting to WebSocket...');
+        console.log(`🔌 [CoinVera] URL: ${this.wsUrl}`);
+        console.log(`🔌 [CoinVera] API Key: ${this.apiKey.substring(0, 8)}...`);
         
         this.ws = new WebSocket(this.wsUrl);
         
+        // Add connection timeout
+        const connectionTimeout = setTimeout(() => {
+          console.error('❌ [CoinVera] Connection timeout after 10 seconds');
+          reject(new Error('Connection timeout'));
+        }, 10000);
+        
         this.ws.on('open', () => {
           console.log('✅ [CoinVera] WebSocket connected');
+          clearTimeout(connectionTimeout);
           this.isConnected = true;
           this.reconnectAttempts = 0;
           
@@ -53,12 +62,14 @@ class CoinVeraWebSocketService extends EventEmitter {
 
         this.ws.on('error', (error) => {
           console.error('❌ [CoinVera] WebSocket error:', error.message);
+          clearTimeout(connectionTimeout);
           this.isConnected = false;
           reject(error);
         });
 
         this.ws.on('close', (code, reason) => {
           console.log(`🔌 [CoinVera] WebSocket closed: ${code} - ${reason}`);
+          clearTimeout(connectionTimeout);
           this.isConnected = false;
           this.handleReconnect();
         });
