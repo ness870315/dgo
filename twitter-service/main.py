@@ -147,15 +147,20 @@ async def get_sol_balance(wallet_address: str) -> Dict[str, Any]:
 
 async def get_token_balances(wallet_address: str) -> List[Dict[str, Any]]:
     """Get token balances from Moralis API with real-time pricing from Jupiter."""
+    logger.info(f"🚀 get_token_balances called for wallet: {wallet_address}")
     try:
+        logger.info(f"🔍 Getting token balances for wallet: {wallet_address}")
         data = moralis_api_get(f"/account/mainnet/{wallet_address}/tokens", {"excludeSpam": "true"})
         if not data:
+            logger.warning(f"⚠️ No token data returned from Moralis for {wallet_address}")
             return []
         
+        logger.info(f"📊 Moralis returned {len(data)} tokens for {wallet_address}")
         sol_price = await price_service.get_sol_price()
         
         # Extract mint addresses for Jupiter API call
         mint_addresses = [token.get("mint") for token in data if token.get("mint")]
+        logger.info(f"🪙 Extracted {len(mint_addresses)} mint addresses for Jupiter API")
         
         # Get real token prices from Jupiter API
         logger.info(f"🔄 Calling Jupiter API for {len(mint_addresses)} tokens")
@@ -215,9 +220,12 @@ async def get_token_balances(wallet_address: str) -> List[Dict[str, Any]]:
                 "verified": token.get("isVerifiedContract", False)
             })
 
+        logger.info(f"✅ Successfully processed {len(tokens)} tokens for {wallet_address}")
         return tokens
     except Exception as e:
         logger.error("Failed to get token balances for %s: %s", wallet_address, str(e))
+        logger.error("This will result in empty otherTokens in portfolio response")
+        # Return empty list but ensure we don't break the portfolio analysis
         return []
 
 async def analyze_portfolio(wallet_address: str) -> Dict[str, Any]:
@@ -226,10 +234,12 @@ async def analyze_portfolio(wallet_address: str) -> Dict[str, Any]:
         logger.info("Analyzing portfolio for wallet: %s", wallet_address)
         
         # Get SOL and token balances with real-time pricing
+        logger.info(f"🔄 Starting parallel calls for {wallet_address}")
         sol_balance, token_balances = await asyncio.gather(
             get_sol_balance(wallet_address),
             get_token_balances(wallet_address)
         )
+        logger.info(f"✅ Parallel calls completed for {wallet_address}: SOL={sol_balance.get('sol', 0)}, Tokens={len(token_balances)}")
         
         # Separate LSTs from other tokens
         lst_holdings = [token for token in token_balances if token.get("isLST", False)]
@@ -662,7 +672,11 @@ async def analyze_portfolio_endpoint(request: PortfolioAnalysisRequest):
             raise HTTPException(status_code=400, detail="Invalid wallet address")
         
         # Analyze portfolio with real-time pricing
+        logger.info(f"🔍 Starting portfolio analysis for {request.walletAddress}")
         portfolio = await analyze_portfolio(request.walletAddress)
+        logger.info(f"📊 Portfolio analysis completed. Has otherTokens: {'otherTokens' in portfolio}")
+        if 'otherTokens' in portfolio:
+            logger.info(f"📊 otherTokens count: {len(portfolio['otherTokens'])}")
         
         # Format response for frontend
         response = {
