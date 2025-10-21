@@ -97,6 +97,28 @@ class RealTimePriceService:
             logger.error(f"❌ CoinGecko error: {e}")
             return None
     
+    async def fetch_jupiter_sol_price(self) -> Optional[float]:
+        """Fetch SOL price from Jupiter API."""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    "https://price.jup.ag/v4/price?ids=SOL",
+                    timeout=aiohttp.ClientTimeout(total=5),
+                    headers={'User-Agent': 'LST-Router/1.0'}
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        sol_price = data.get('data', {}).get('SOL', {}).get('price')
+                        if sol_price:
+                            logger.info(f"✅ Jupiter SOL price: ${sol_price:.2f}")
+                            return float(sol_price)
+                    else:
+                        logger.warning(f"⚠️ Jupiter failed: {response.status}")
+                        return None
+        except Exception as e:
+            logger.error(f"❌ Jupiter error: {e}")
+            return None
+
     async def fetch_jupiter_token_prices(self, mint_addresses: List[str]) -> Dict[str, float]:
         """Fetch token prices from Jupiter API for multiple tokens at once."""
         try:
@@ -152,7 +174,7 @@ class RealTimePriceService:
             self.fetch_coinbase_price(),
             self.fetch_binance_price(),
             self.fetch_coingecko_price(),
-            self.fetch_jupiter_price(),
+            self.fetch_jupiter_sol_price(),
             return_exceptions=True
         )
         
