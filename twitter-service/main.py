@@ -960,6 +960,19 @@ def generate_strategy(wallet_address: str, strategy_type: str = 'basic', user_pr
             "recommendation": f"Strategy source: {selected_candidate.get('source', 'deterministic')}"
         })
         
+        # Add all candidates for debugging/analysis
+        strategy["allCandidates"] = {
+            "deterministic": deterministic_candidates,
+            "llm": llm_candidates,
+            "total": len(all_candidates),
+            "selected": {
+                "name": selected_candidate["name"],
+                "source": selected_candidate.get("source", "deterministic"),
+                "yield": selected_candidate["expectedYield"],
+                "risk": selected_candidate["riskScore"]
+            }
+        }
+        
         # Add LLM analysis of selected strategy
         llm_prompt = f"""
         Analyze this selected Solana liquid staking strategy:
