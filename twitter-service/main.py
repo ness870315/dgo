@@ -230,6 +230,7 @@ async def analyze_portfolio(wallet_address: str) -> Dict[str, Any]:
         
         # Calculate total portfolio value
         for token in other_tokens:
+            logger.info(f"DEBUG: Processing token {token['symbol']}: amount={token['amount']}, price={token['price']}, usdValue={token['usdValue']}")
             total_value += token["usdValue"]
         
         logger.info(f"DEBUG: final total_value = {total_value}")
