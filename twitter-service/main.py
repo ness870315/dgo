@@ -685,6 +685,7 @@ def get_available_lsts() -> List[Dict[str, Any]]:
             "apr": 5.2 + random.uniform(-0.4, 0.4),
             "tvlUSD": 25000000 + random.randint(-2000000, 2000000),
             "decentralization": 0.65 + random.uniform(-0.1, 0.1),
+            "slippageBps": 20 + random.randint(0, 15),
             "verified": True,
             "paused": False,
             "recentSlash": False
