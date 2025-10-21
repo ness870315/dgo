@@ -733,6 +733,145 @@ def call_openai_llm(prompt: str, max_tokens: int = 1000) -> str:
         logger.error(f"OpenAI API call failed: {str(e)}")
         return "LLM analysis unavailable - using deterministic strategy"
 
+def build_candidate_strategy(portfolio: Dict, lsts: List[Dict], weights: List[float], name: str, source: str) -> Dict:
+    """Build a candidate strategy from LSTs and weights."""
+    allocation = []
+    actions = []
+    total_yield = 0
+    total_risk = 0
+    
+    for i, lst in enumerate(lsts):
+        weight = weights[i] if i < len(weights) else 0
+        amount = portfolio["solBalance"]["sol"] * weight
+        risk_score = 10 - (lst["decentralization"] * 10)
+        
+        allocation.append({
+            "symbol": lst["symbol"],
+            "weight": weight,
+            "amount": amount,
+            "apr": lst["apr"]
+        })
+        
+        actions.append({
+            "type": "swap",
+            "from": "SOL",
+            "to": lst["symbol"],
+            "amount": amount,
+            "reasoning": f"Convert {weight*100:.1f}% of portfolio to {lst['symbol']} for {lst['apr']:.2f}% APR"
+        })
+        
+        total_yield += weight * lst["apr"]
+        total_risk += weight * risk_score
+    
+    return {
+        "name": name,
+        "allocation": allocation,
+        "actions": actions,
+        "expectedYield": total_yield,
+        "riskScore": total_risk,
+        "source": source
+    }
+
+def generate_llm_candidates(portfolio: Dict, safe_lsts: List[Dict], strategy_type: str) -> List[Dict]:
+    """Generate LLM-based candidate strategies (D/E/F)."""
+    try:
+        if not OPENAI_API_KEY:
+            logger.warning("OpenAI API key not configured, skipping LLM candidates")
+            return []
+        
+        # Prepare LST data for LLM
+        lst_info = []
+        for lst in safe_lsts[:8]:  # Top 8 LSTs for LLM consideration
+            lst_info.append(f"- {lst['symbol']}: {lst['apr']:.2f}% APR, ${lst['tvlUSD']/1000000:.1f}M TVL, {lst['decentralization']*100:.1f}% decentralization")
+        
+        llm_prompt = f"""
+        Generate 3 different Solana liquid staking strategies for a wallet with {portfolio["solBalance"]["sol"]:.6f} SOL.
+        
+        Available LSTs:
+        {chr(10).join(lst_info)}
+        
+        Strategy Type: {strategy_type}
+        
+        Generate 3 distinct strategies with different approaches:
+        1. Strategy D: Conservative approach (focus on stability)
+        2. Strategy E: Balanced approach (mix of yield and safety)  
+        3. Strategy F: Aggressive approach (maximize yield)
+        
+        For each strategy, provide:
+        - Strategy name
+        - LST allocation (symbol and percentage)
+        - Reasoning for the approach
+        
+        Format as JSON:
+        {{
+            "strategy_d": {{
+                "name": "Conservative Strategy",
+                "allocation": [{{"symbol": "mSOL", "weight": 0.5}}, {{"symbol": "jitoSOL", "weight": 0.5}}],
+                "reasoning": "Focus on established LSTs with proven track records"
+            }},
+            "strategy_e": {{
+                "name": "Balanced Strategy", 
+                "allocation": [{{"symbol": "jupSOL", "weight": 0.4}}, {{"symbol": "bSOL", "weight": 0.3}}, {{"symbol": "infSOL", "weight": 0.3}}],
+                "reasoning": "Diversified across multiple LSTs for balanced risk/return"
+            }},
+            "strategy_f": {{
+                "name": "Aggressive Strategy",
+                "allocation": [{{"symbol": "jitoSOL", "weight": 0.6}}, {{"symbol": "jupSOL", "weight": 0.4}}],
+                "reasoning": "Concentrated in highest yield LSTs for maximum returns"
+            }}
+        }}
+        """
+        
+        llm_response = call_openai_llm(llm_prompt, max_tokens=800)
+        
+        # Parse LLM response
+        try:
+            # Extract JSON from response
+            json_start = llm_response.find('{')
+            json_end = llm_response.rfind('}') + 1
+            if json_start != -1 and json_end != -1:
+                json_str = llm_response[json_start:json_end]
+                llm_strategies = json.loads(json_str)
+                
+                # Convert to our format
+                candidates = []
+                for key, strategy in llm_strategies.items():
+                    # Validate and convert weights
+                    allocation = []
+                    for alloc in strategy["allocation"]:
+                        symbol = alloc["symbol"]
+                        weight = float(alloc["weight"])
+                        
+                        # Find matching LST
+                        lst_match = next((lst for lst in safe_lsts if lst["symbol"] == symbol), None)
+                        if lst_match and weight > 0:
+                            allocation.append({
+                                "symbol": symbol,
+                                "weight": weight,
+                                "amount": portfolio["solBalance"]["sol"] * weight,
+                                "apr": lst_match["apr"]
+                            })
+                    
+                    if len(allocation) >= 2:  # Minimum 2 assets
+                        candidates.append({
+                            "name": strategy["name"],
+                            "allocation": allocation,
+                            "reasoning": strategy["reasoning"],
+                            "source": "llm"
+                        })
+                
+                logger.info(f"Generated {len(candidates)} LLM candidate strategies")
+                return candidates
+                
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse LLM JSON response: {e}")
+            
+        return []
+        
+    except Exception as e:
+        logger.error(f"LLM candidate generation failed: {str(e)}")
+        return []
+
 def generate_strategy(wallet_address: str, strategy_type: str = 'basic', user_preferences: Dict[str, Any] = {}) -> Dict[str, Any]:
     """Generate AI strategy using hybrid deterministic + LLM approach."""
     try:
@@ -753,80 +892,87 @@ def generate_strategy(wallet_address: str, strategy_type: str = 'basic', user_pr
         # Sort by APR for strategy generation
         sorted_lsts = sorted(safe_lsts, key=lambda x: x["apr"], reverse=True)
         
-        # Generate allocation based on strategy type
+        # Generate deterministic candidates (A/B/C)
+        deterministic_candidates = []
+        
+        # Candidate A: Conservative (top 2 LSTs)
+        candidate_a_lsts = sorted_lsts[:2]
+        candidate_a_weights = [0.6, 0.4] if len(candidate_a_lsts) >= 2 else [1.0]
+        candidate_a = build_candidate_strategy(portfolio, candidate_a_lsts, candidate_a_weights, "Conservative Strategy", "deterministic")
+        deterministic_candidates.append(candidate_a)
+        
+        # Candidate B: Basic (top 3 LSTs)
+        candidate_b_lsts = sorted_lsts[:3]
+        candidate_b_weights = [0.4, 0.35, 0.25] if len(candidate_b_lsts) >= 3 else [0.6, 0.4] if len(candidate_b_lsts) == 2 else [1.0]
+        candidate_b = build_candidate_strategy(portfolio, candidate_b_lsts, candidate_b_weights, "Balanced Strategy", "deterministic")
+        deterministic_candidates.append(candidate_b)
+        
+        # Candidate C: Advanced (top 5 LSTs)
+        candidate_c_lsts = sorted_lsts[:5]
+        candidate_c_weights = [0.3, 0.25, 0.2, 0.15, 0.1] if len(candidate_c_lsts) >= 5 else [0.4, 0.3, 0.2, 0.1] if len(candidate_c_lsts) == 4 else [0.5, 0.3, 0.2] if len(candidate_c_lsts) == 3 else [0.6, 0.4]
+        candidate_c = build_candidate_strategy(portfolio, candidate_c_lsts, candidate_c_weights, "Diversified Strategy", "deterministic")
+        deterministic_candidates.append(candidate_c)
+        
+        # Generate LLM candidates (D/E/F)
+        llm_candidates = generate_llm_candidates(portfolio, safe_lsts, strategy_type)
+        
+        # Combine all candidates
+        all_candidates = deterministic_candidates + llm_candidates
+        
+        # Select best candidate based on strategy type
         if strategy_type == 'basic':
-            # Basic: Top 3 LSTs with equal-ish weights
-            selected_lsts = sorted_lsts[:3]
-            weights = [0.4, 0.35, 0.25] if len(selected_lsts) >= 3 else [0.6, 0.4] if len(selected_lsts) == 2 else [1.0]
+            # For basic, prefer deterministic candidates
+            selected_candidate = max(deterministic_candidates, key=lambda x: x["expectedYield"])
         else:
-            # Advanced: Top 5 LSTs with optimized weights
-            selected_lsts = sorted_lsts[:5]
-            weights = [0.3, 0.25, 0.2, 0.15, 0.1] if len(selected_lsts) >= 5 else [0.4, 0.3, 0.2, 0.1] if len(selected_lsts) == 4 else [0.5, 0.3, 0.2] if len(selected_lsts) == 3 else [0.6, 0.4]
+            # For advanced, consider all candidates
+            selected_candidate = max(all_candidates, key=lambda x: x["expectedYield"])
         
-        # Build allocation
-        allocation = []
-        actions = []
-        total_yield = 0
-        total_risk = 0
+        logger.info(f"Selected {selected_candidate['name']} from {len(all_candidates)} candidates (source: {selected_candidate.get('source', 'deterministic')})")
         
-        for i, lst in enumerate(selected_lsts):
-            weight = weights[i] if i < len(weights) else 0
-            amount = portfolio["solBalance"]["sol"] * weight
-            risk_score = 10 - (lst["decentralization"] * 10)
-            
-            allocation.append({
-                "symbol": lst["symbol"],
-                "weight": weight,
-                "amount": amount,
-                "apr": lst["apr"]
-            })
-            
-            actions.append({
-                "type": "swap",
-                "from": "SOL",
-                "to": lst["symbol"],
-                "amount": amount,
-                "reasoning": f"Convert {weight*100:.1f}% of portfolio to {lst['symbol']} for {lst['apr']:.2f}% APR"
-            })
-            
-            total_yield += weight * lst["apr"]
-            total_risk += weight * risk_score
-        
-        # Build strategy
+        # Build strategy from selected candidate
         strategy = {
             "id": f"strategy_{int(time.time())}",
-            "name": f"{strategy_type.title()} Strategy",
+            "name": selected_candidate["name"],
             "type": strategy_type,
-            "expectedYield": total_yield,
-            "riskScore": total_risk,
-            "allocation": allocation,
-            "actions": actions,
+            "expectedYield": selected_candidate["expectedYield"],
+            "riskScore": selected_candidate["riskScore"],
+            "allocation": selected_candidate["allocation"],
+            "actions": selected_candidate["actions"],
+            "source": selected_candidate.get("source", "deterministic"),
             "insights": [
                 {
                     "type": "opportunity",
                     "priority": "high",
                     "title": "Strategy Generated",
-                    "description": f"AI-optimized {strategy_type} strategy with {total_yield:.2f}% expected yield",
-                    "recommendation": f"Optimized allocation across {len(selected_lsts)} LSTs for maximum yield with risk management"
+                    "description": f"AI-optimized {strategy_type} strategy with {selected_candidate['expectedYield']:.2f}% expected yield",
+                    "recommendation": f"Optimized allocation across {len(selected_candidate['allocation'])} LSTs for maximum yield with risk management"
                 }
             ],
             "timestamp": datetime.now().isoformat()
         }
         
-        # Add LLM analysis
-        llm_prompt = f"""
-        Analyze this Solana liquid staking strategy:
+        # Add candidate comparison insight
+        strategy["insights"].append({
+            "type": "candidate_analysis",
+            "priority": "medium",
+            "title": "Candidate Selection",
+            "description": f"Selected from {len(all_candidates)} candidates: {len(deterministic_candidates)} deterministic + {len(llm_candidates)} LLM-generated",
+            "recommendation": f"Strategy source: {selected_candidate.get('source', 'deterministic')}"
+        })
         
-        Wallet: {wallet_address}
-        Strategy Type: {strategy_type}
-        Portfolio SOL: {portfolio["solBalance"]["sol"]:.6f} SOL
-        Expected Yield: {total_yield:.2f}%
-        Risk Score: {total_risk:.1f}/10
+        # Add LLM analysis of selected strategy
+        llm_prompt = f"""
+        Analyze this selected Solana liquid staking strategy:
+        
+        Strategy: {selected_candidate["name"]}
+        Source: {selected_candidate.get("source", "deterministic")}
+        Expected Yield: {selected_candidate["expectedYield"]:.2f}%
+        Risk Score: {selected_candidate["riskScore"]:.1f}/10
         
         LST Allocation:
-        {chr(10).join([f"- {lst['symbol']}: {weights[i]*100:.1f}% ({lst['apr']:.2f}% APR)" for i, lst in enumerate(selected_lsts)])}
+        {chr(10).join([f"- {asset['symbol']}: {asset['weight']*100:.1f}% ({asset['apr']:.2f}% APR)" for asset in selected_candidate["allocation"]])}
         
-        Provide a brief analysis (2-3 sentences) of this strategy's strengths and any considerations.
+        Provide a brief analysis (2-3 sentences) of this strategy's strengths and considerations.
         """
         
         llm_analysis = call_openai_llm(llm_prompt, max_tokens=200)
@@ -840,7 +986,7 @@ def generate_strategy(wallet_address: str, strategy_type: str = 'basic', user_pr
             "recommendation": "Consider this analysis when executing the strategy"
         })
         
-        logger.info(f"Strategy generated: {strategy['name']} (yield: {total_yield:.2f}%, risk: {total_risk:.1f}/10)")
+        logger.info(f"Strategy generated: {strategy['name']} (yield: {selected_candidate['expectedYield']:.2f}%, risk: {selected_candidate['riskScore']:.1f}/10)")
         logger.info(f"LLM analysis: {llm_analysis[:100]}...")
         return strategy
         
