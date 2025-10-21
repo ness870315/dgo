@@ -152,7 +152,8 @@ async def get_token_balances(wallet_address: str) -> List[Dict[str, Any]]:
         logger.info(f"🔍 Getting token balances for wallet: {wallet_address}")
         data = moralis_api_get(f"/account/mainnet/{wallet_address}/tokens", {"excludeSpam": "true"})
         if not data:
-            logger.warning(f"⚠️ No token data returned from Moralis for {wallet_address}")
+            logger.error(f"❌ MORALIS API FAILED for {wallet_address} - No token data returned")
+            logger.error(f"❌ This could be due to: Invalid API key, Rate limiting, or API down")
             return []
         
         logger.info(f"📊 Moralis returned {len(data)} tokens for {wallet_address}")
@@ -245,6 +246,14 @@ async def analyze_portfolio(wallet_address: str) -> Dict[str, Any]:
             get_token_balances(wallet_address)
         )
         logger.info(f"✅ Parallel calls completed for {wallet_address}: SOL={sol_balance.get('sol', 0)}, Tokens={len(token_balances)}")
+        
+        # Log token balances details
+        if token_balances:
+            logger.info(f"📊 Token balances details for {wallet_address}:")
+            for i, token in enumerate(token_balances):
+                logger.info(f"  {i+1}. {token.get('symbol', 'Unknown')}: {token.get('amount', 0)} @ ${token.get('price', 0)} = ${token.get('usdValue', 0)}")
+        else:
+            logger.error(f"❌ NO TOKEN BALANCES for {wallet_address} - This will result in empty otherTokens")
         
         # Separate LSTs from other tokens
         lst_holdings = [token for token in token_balances if token.get("isLST", False)]
