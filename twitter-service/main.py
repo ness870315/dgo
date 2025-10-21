@@ -132,10 +132,13 @@ async def get_sol_balance(wallet_address: str) -> Dict[str, Any]:
         sol_amount = float(data.get("solana", 0))
         sol_price = await price_service.get_sol_price()
         
+        # Ensure USD value is 0 if SOL amount is 0
+        usd_value = sol_amount * sol_price if sol_amount > 0 else 0
+        
         return {
             "lamports": int(data.get("lamports", 0)),
             "sol": sol_amount,
-            "usdValue": sol_amount * sol_price,
+            "usdValue": usd_value,
             "solPrice": sol_price
         }
     except Exception as e:
@@ -162,19 +165,23 @@ async def get_token_balances(wallet_address: str) -> List[Dict[str, Any]]:
             else:
                 token_price = 1.0  # Default for non-LST tokens
             
+            token_amount = float(token.get("amount", 0))
+            # Ensure USD value is 0 if token amount is 0
+            usd_value = token_amount * token_price if token_amount > 0 else 0
+            
             tokens.append({
                 "mint": token.get("mint"),
                 "symbol": token.get("symbol"),
                 "name": token.get("name"),
                 "decimals": token.get("decimals"),
-                "amount": float(token.get("amount", 0)),
+                "amount": token_amount,
                 "amountRaw": token.get("amountRaw"),
                 "associatedTokenAddress": token.get("associatedTokenAddress"),
                 "logo": token.get("logo"),
                 "isVerifiedContract": token.get("isVerifiedContract", False),
                 "possibleSpam": token.get("possibleSpam", False),
                 "price": token_price,
-                "usdValue": float(token.get("amount", 0)) * token_price,
+                "usdValue": usd_value,
                 "isLST": is_lst,
                 "apr": 5.8 if is_lst else 0,  # Simplified APR
                 "riskScore": 3.2 if is_lst else 5.0,
