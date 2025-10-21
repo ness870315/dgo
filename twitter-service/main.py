@@ -264,6 +264,8 @@ async def analyze_portfolio(wallet_address: str) -> Dict[str, Any]:
                     "potentialGain": f"${sum(lst['usdValue'] for lst in lst_holdings) * 0.01:.2f} USD/year"
                 })
         
+        logger.info(f"DEBUG: Creating portfolio with sol_balance = {sol_balance}")
+        
         portfolio = {
             "walletAddress": wallet_address,
             "timestamp": datetime.now().isoformat(),
