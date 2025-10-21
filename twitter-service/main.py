@@ -858,19 +858,26 @@ def generate_llm_candidates(portfolio: Dict, safe_lsts: List[Dict], strategy_typ
                                 "symbol": symbol,
                                 "weight": weight,
                                 "amount": portfolio["solBalance"]["sol"] * weight,
-                                "apr": lst_match["apr"]
+                                "apr": lst_match["apr"],
+                                "decentralization": lst_match["decentralization"]
                             })
                         else:
                             logger.warning(f"LST not found or invalid weight: {symbol} (weight: {weight})")
                     
                     if len(allocation) >= 2:  # Minimum 2 assets
+                        # Calculate expected yield and risk score
+                        expected_yield = sum(asset["weight"] * asset["apr"] for asset in allocation)
+                        risk_score = sum(asset["weight"] * (10 - (asset.get("decentralization", 0.5) * 10)) for asset in allocation)
+                        
                         candidates.append({
                             "name": strategy["name"],
                             "allocation": allocation,
                             "reasoning": strategy["reasoning"],
+                            "expectedYield": expected_yield,
+                            "riskScore": risk_score,
                             "source": "llm"
                         })
-                        logger.info(f"Added LLM candidate: {strategy['name']} with {len(allocation)} assets")
+                        logger.info(f"Added LLM candidate: {strategy['name']} with {len(allocation)} assets (yield: {expected_yield:.2f}%, risk: {risk_score:.1f}/10)")
                     else:
                         logger.warning(f"Skipped LLM candidate {strategy['name']}: insufficient assets ({len(allocation)})")
                 
