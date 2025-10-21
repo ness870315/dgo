@@ -158,7 +158,9 @@ async def get_token_balances(wallet_address: str) -> List[Dict[str, Any]]:
         mint_addresses = [token.get("mint") for token in data if token.get("mint")]
         
         # Get real token prices from Jupiter API
+        logger.info(f"🔄 Calling Jupiter API for {len(mint_addresses)} tokens")
         jupiter_prices = await price_service.fetch_jupiter_token_prices(mint_addresses)
+        logger.info(f"📊 Jupiter API returned prices for {len(jupiter_prices)} tokens")
         
         tokens = []
         for token in data:
@@ -166,25 +168,29 @@ async def get_token_balances(wallet_address: str) -> List[Dict[str, Any]]:
             is_lst = token.get("symbol", "").endswith("SOL") and token.get("symbol") != "SOL"
             
             mint_address = token.get("mint")
+            symbol = token.get("symbol", "Unknown")
             
             # Get price from Jupiter API if available
             if mint_address in jupiter_prices:
                 token_price = jupiter_prices[mint_address]
-                logger.info(f"✅ Jupiter price for {token.get('symbol', 'Unknown')}: ${token_price:.6f}")
+                logger.info(f"✅ Using Jupiter price for {symbol}: ${token_price:.6f}")
             else:
                 # Fallback pricing for tokens not found in Jupiter
                 if is_lst:
                     token_price = sol_price  # LSTs priced like SOL
+                    logger.info(f"🔄 LST fallback price for {symbol}: ${token_price:.6f}")
                 else:
                     # Special cases for known tokens
-                    symbol = token.get("symbol", "").upper()
-                    if symbol == "USDC" or symbol == "USDT":
+                    symbol_upper = symbol.upper()
+                    if symbol_upper == "USDC" or symbol_upper == "USDT":
                         token_price = 1.0  # Stablecoins are ~$1
-                    elif symbol in ["SOL", "WSOL"]:
+                        logger.info(f"💰 Stablecoin price for {symbol}: ${token_price:.6f}")
+                    elif symbol_upper in ["SOL", "WSOL"]:
                         token_price = sol_price
+                        logger.info(f"🪙 SOL price for {symbol}: ${token_price:.6f}")
                     else:
                         token_price = 0.001  # Default for unknown tokens
-                        logger.warning(f"⚠️ No Jupiter price for {token.get('symbol', 'Unknown')} ({mint_address}), using fallback: ${token_price}")
+                        logger.warning(f"⚠️ No Jupiter price for {symbol} ({mint_address}), using fallback: ${token_price}")
             
             token_amount = float(token.get("amount", 0))
             # Ensure USD value is 0 if token amount is 0

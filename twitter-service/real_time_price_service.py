@@ -123,11 +123,13 @@ class RealTimePriceService:
         """Fetch token prices from Jupiter API for multiple tokens at once."""
         try:
             if not mint_addresses:
+                logger.info("No mint addresses provided to Jupiter API")
                 return {}
             
             # Jupiter API allows up to 100 mint addresses in a single call
             # Join mint addresses with commas
             mint_query = ','.join(mint_addresses[:100])  # Limit to 100 mints
+            logger.info(f"🔄 Fetching Jupiter prices for {len(mint_addresses)} tokens: {mint_query[:100]}...")
             
             async with aiohttp.ClientSession() as session:
                 async with session.get(
@@ -135,20 +137,30 @@ class RealTimePriceService:
                     timeout=aiohttp.ClientTimeout(total=10),
                     headers={'User-Agent': 'LST-Router/1.0'}
                 ) as response:
+                    logger.info(f"📡 Jupiter API response status: {response.status}")
+                    
                     if response.status == 200:
                         data = await response.json()
                         prices = {}
                         
+                        logger.info(f"📥 Jupiter API returned {len(data)} tokens")
+                        
                         for token in data:
                             mint = token.get('id')
                             usd_price = token.get('usdPrice')
+                            symbol = token.get('symbol', 'Unknown')
+                            
                             if mint and usd_price is not None:
                                 prices[mint] = float(usd_price)
+                                logger.info(f"✅ {symbol} ({mint[:8]}...): ${usd_price:.6f}")
+                            else:
+                                logger.warning(f"⚠️ Invalid token data: {token}")
                         
-                        logger.info(f"✅ Jupiter token prices: {len(prices)} tokens fetched")
+                        logger.info(f"✅ Jupiter token prices: {len(prices)} tokens fetched successfully")
                         return prices
                     else:
-                        logger.warning(f"⚠️ Jupiter token search failed: {response.status}")
+                        response_text = await response.text()
+                        logger.warning(f"⚠️ Jupiter token search failed: {response.status} - {response_text}")
                         return {}
         except Exception as e:
             logger.error(f"❌ Jupiter token search error: {e}")
