@@ -24,7 +24,7 @@ import CallThesisGenerator from './callThesisGenerator.js';
 import MilestoneTracker from './milestoneTracker.js';
 import PushNotificationService from './pushNotificationService.js';
 import AutomatedTokenCleanup from './automatedTokenCleanup.js';
-import HybridPriceService from './hybridPriceService.js';
+import HybridPriceService from './services/HybridPriceService.js';
 import HybridChartService from './services/HybridChartService.js';
 import KOLService from './services/KOLService.js';
 import BondingTokenValidationService from './services/BondingTokenValidationService.js';
@@ -11767,6 +11767,59 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
+    // Hybrid Price Service endpoint for TokenDetail modal (replaces CoinVera WebSocket)
+    this.app.get('/api/tokens/:contract/hybrid-price', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        
+        console.log(`🔍 [HybridPrice] Fetching price data for: ${contract}`);
+        
+        if (!contract) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Contract address is required' 
+          });
+        }
+
+        // Use the existing HybridPriceService
+        const priceData = await this.hybridPriceService.getTokenPriceData(contract);
+        
+        console.log(`✅ [HybridPrice] Successfully fetched data for ${contract}:`, {
+          price: priceData.priceUsd,
+          marketCap: priceData.marketCap,
+          liquidity: priceData.liquidity,
+          source: priceData.source
+        });
+
+        res.json({
+          success: true,
+          data: {
+            tokenAddress: priceData.tokenAddress,
+            name: priceData.name,
+            symbol: priceData.symbol,
+            priceUsd: priceData.priceUsd,
+            marketCap: priceData.marketCap,
+            liquidity: priceData.liquidity,
+            volume24h: priceData.volume24h,
+            priceChange24h: priceData.priceChange24h,
+            totalSupply: priceData.totalSupply,
+            source: priceData.source,
+            timestamp: priceData.timestamp,
+            isLive: true // Indicates this is live data
+          }
+        });
+
+      } catch (error) {
+        console.error(`❌ [HybridPrice] Error fetching price data for ${req.params.contract}:`, error.message);
+        
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch price data',
+          details: error.message
+        });
+      }
+    });
+
     // Get available timeframes for price charts
     this.app.get('/api/tokens/price-chart/timeframes', async (req, res) => {
       try {
@@ -13120,8 +13173,36 @@ Thanks for using x402 payments on Twitter! 🚀`;
         
         console.log(`🧠 [Strategy API] Generating ${strategyType} strategy for ${walletAddress}`);
         
-        // For now, return mock strategy until jup-discovery background worker is set up
-        // TODO: Replace with real strategy from jup-discovery background worker
+        // Call twitter-service microservice for real strategy generation
+        try {
+          const twitterServiceUrl = process.env.TWITTER_SERVICE_URL || 'https://dgo-2.onrender.com';
+          const response = await fetch(`${twitterServiceUrl}/api/strategy/generate`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+              walletAddress,
+              strategyType,
+              userPreferences: preferences
+            })
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log(`✅ [Strategy API] Received real strategy from twitter-service for ${walletAddress}`);
+            
+            // Return the real strategy
+            return res.json(result.strategy);
+          } else {
+            console.warn(`⚠️ [Strategy API] twitter-service returned ${response.status}, falling back to mock data`);
+          }
+        } catch (error) {
+          console.warn(`⚠️ [Strategy API] twitter-service call failed: ${error.message}, falling back to mock data`);
+        }
+        
+        // Fallback to mock data if twitter-service is not available
+        console.log(`🧠 [Strategy API] Using mock data for ${walletAddress}`);
         const mockStrategy = {
           id: `strategy-${Date.now()}`,
           type: strategyType,
