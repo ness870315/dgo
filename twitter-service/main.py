@@ -675,7 +675,12 @@ def fetch_compass_lsts() -> List[Dict[str, Any]]:
                     fee_numerator = epoch_fee.get("numerator", 6)
                     fee_denominator = epoch_fee.get("denominator", 100)
                     base_apr = 5.0  # Base Solana staking APR
-                    net_apr = base_apr * (1 - fee_numerator / fee_denominator)
+                    
+                    # Avoid division by zero
+                    if fee_denominator > 0:
+                        net_apr = base_apr * (1 - fee_numerator / fee_denominator)
+                    else:
+                        net_apr = base_apr * 0.94  # Default 6% fee
                     
                     lsts.append({
                         "symbol": token.get("symbol", ""),
@@ -788,13 +793,12 @@ def get_available_lsts() -> List[Dict[str, Any]]:
     try:
         logger.info("Fetching LST data from multiple sources...")
         
-        # Fetch from all sources in parallel
-        sanctum_lsts = fetch_sanctum_lsts()
+        # Fetch from working sources (Compass only for now)
         compass_lsts = fetch_compass_lsts()
         github_lsts = fetch_github_lsts()
         
-        # Merge and deduplicate
-        merged_lsts = merge_lst_data(sanctum_lsts, compass_lsts, github_lsts)
+        # Merge and deduplicate (skip Sanctum for now)
+        merged_lsts = merge_lst_data([], compass_lsts, github_lsts)
         
         if merged_lsts:
             logger.info(f"Successfully fetched {len(merged_lsts)} LSTs from multiple sources")
