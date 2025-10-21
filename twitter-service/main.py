@@ -678,11 +678,11 @@ async def analyze_portfolio_endpoint(request: PortfolioAnalysisRequest):
             ],
             "otherTokens": [
                 {
-                    "symbol": token["symbol"],
-                    "amount": token["amount"],
-                    "usdValue": token["usdValue"],
-                    "price": token["price"],
-                    "mint": token["mint"]
+                    "symbol": token.get("symbol", "Unknown"),
+                    "amount": token.get("amount", 0),
+                    "usdValue": token.get("usdValue", 0),
+                    "price": token.get("price", 0),
+                    "mint": token.get("mint", "")
                 }
                 for token in portfolio["otherTokens"]
             ],
