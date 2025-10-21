@@ -942,7 +942,11 @@ def generate_strategy(wallet_address: str, strategy_type: str = 'basic', user_pr
             selected_candidate = max(deterministic_candidates, key=lambda x: x["expectedYield"])
         else:
             # For advanced, consider all candidates
-            selected_candidate = max(all_candidates, key=lambda x: x["expectedYield"])
+            if all_candidates:
+                selected_candidate = max(all_candidates, key=lambda x: x["expectedYield"])
+            else:
+                # Fallback to deterministic if no candidates
+                selected_candidate = max(deterministic_candidates, key=lambda x: x["expectedYield"])
         
         logger.info(f"Selected {selected_candidate['name']} from {len(all_candidates)} candidates (source: {selected_candidate.get('source', 'deterministic')})")
         
