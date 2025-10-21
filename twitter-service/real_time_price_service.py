@@ -131,7 +131,7 @@ class RealTimePriceService:
             
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    f"https://lite-api.jup.ag/tokens/v2/search?query={mint_query}",
+                    f"https://lite-api.jup.ag/tokens/search?query={mint_query}",
                     timeout=aiohttp.ClientTimeout(total=10),
                     headers={'User-Agent': 'LST-Router/1.0'}
                 ) as response:
