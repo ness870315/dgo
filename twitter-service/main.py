@@ -664,23 +664,33 @@ async def analyze_portfolio_endpoint(request: PortfolioAnalysisRequest):
         # Analyze portfolio with real-time pricing
         portfolio = await analyze_portfolio(request.walletAddress)
         
-        # Format response for frontend
-        response = {
-            "success": True,
-            "sol": portfolio["solBalance"]["sol"],
-            "lsts": [
-                {
-                    "symbol": lst["symbol"],
-                    "amount": lst["amount"],
-                    "apr": lst["apr"]
+                # Format response for frontend
+                response = {
+                    "success": True,
+                    "sol": portfolio["solBalance"]["sol"],
+                    "lsts": [
+                        {
+                            "symbol": lst["symbol"],
+                            "amount": lst["amount"],
+                            "apr": lst["apr"]
+                        }
+                        for lst in portfolio["lstHoldings"]
+                    ],
+                    "otherTokens": [
+                        {
+                            "symbol": token["symbol"],
+                            "amount": token["amount"],
+                            "usdValue": token["usdValue"],
+                            "price": token["price"],
+                            "mint": token["mint"]
+                        }
+                        for token in portfolio["otherTokens"]
+                    ],
+                    "totalValue": portfolio["totalValue"],
+                    "currentYield": portfolio["currentYield"],
+                    "insights": portfolio["insights"],
+                    "timestamp": portfolio["timestamp"]
                 }
-                for lst in portfolio["lstHoldings"]
-            ],
-            "totalValue": portfolio["totalValue"],
-            "currentYield": portfolio["currentYield"],
-            "insights": portfolio["insights"],
-            "timestamp": portfolio["timestamp"]
-        }
         
         logger.info("Portfolio analysis successful for %s: SOL=%.4f, LSTs=%d, Yield=%.2f%%", 
                    request.walletAddress, portfolio["solBalance"]["sol"], 
