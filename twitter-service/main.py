@@ -1276,9 +1276,13 @@ def generate_strategy(wallet_address: str, strategy_type: str = 'basic', user_pr
         
         # Get available LSTs
         lst_data = get_available_lsts()
+        logger.info(f"Retrieved {len(lst_data)} LSTs from get_available_lsts()")
+        logger.info(f"Sample LST sources: {[lst.get('source', 'unknown') for lst in lst_data[:3]]}")
         
         # Filter LSTs by safety constraints
         safe_lsts = [lst for lst in lst_data if lst["tvlUSD"] >= 250000 and lst["slippageBps"] <= 50 and lst["verified"]]
+        logger.info(f"After safety filtering: {len(safe_lsts)} LSTs")
+        logger.info(f"Safe LST sources: {[lst.get('source', 'unknown') for lst in safe_lsts[:3]]}")
         
         if len(safe_lsts) < 2:
             raise Exception("Insufficient safe LSTs available")
@@ -1291,6 +1295,7 @@ def generate_strategy(wallet_address: str, strategy_type: str = 'basic', user_pr
         
         # Candidate A: Conservative (top 2 LSTs)
         candidate_a_lsts = sorted_lsts[:2]
+        logger.info(f"Candidate A LSTs: {[lst['symbol'] + '(' + lst.get('source', 'unknown') + ')' for lst in candidate_a_lsts]}")
         candidate_a_weights = [0.6, 0.4] if len(candidate_a_lsts) >= 2 else [1.0]
         candidate_a = build_candidate_strategy(portfolio, candidate_a_lsts, candidate_a_weights, "Conservative Strategy", "deterministic")
         deterministic_candidates.append(candidate_a)
