@@ -692,6 +692,47 @@ def get_available_lsts() -> List[Dict[str, Any]]:
         }
     ]
 
+def call_openai_llm(prompt: str, max_tokens: int = 1000) -> str:
+    """Call OpenAI API for LLM analysis."""
+    try:
+        if not OPENAI_API_KEY:
+            logger.warning("OpenAI API key not configured, using fallback response")
+            return "LLM analysis unavailable - using deterministic strategy"
+        
+        headers = {
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "model": OPENAI_MODEL,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are an expert DeFi analyst specializing in Solana liquid staking strategies. Provide concise, data-driven analysis."
+                },
+                {
+                    "role": "user", 
+                    "content": prompt
+                }
+            ],
+            "max_tokens": max_tokens,
+            "temperature": 0.3
+        }
+        
+        response = requests.post(f"{OPENAI_BASE_URL}/chat/completions", headers=headers, json=data, timeout=30)
+        
+        if response.status_code == 200:
+            result = response.json()
+            return result["choices"][0]["message"]["content"].strip()
+        else:
+            logger.error(f"OpenAI API error: {response.status_code} - {response.text}")
+            return "LLM analysis failed - using deterministic strategy"
+            
+    except Exception as e:
+        logger.error(f"OpenAI API call failed: {str(e)}")
+        return "LLM analysis unavailable - using deterministic strategy"
+
 def generate_strategy(wallet_address: str, strategy_type: str = 'basic', user_preferences: Dict[str, Any] = {}) -> Dict[str, Any]:
     """Generate AI strategy using hybrid deterministic + LLM approach."""
     try:
@@ -772,7 +813,35 @@ def generate_strategy(wallet_address: str, strategy_type: str = 'basic', user_pr
             "timestamp": datetime.now().isoformat()
         }
         
+        # Add LLM analysis
+        llm_prompt = f"""
+        Analyze this Solana liquid staking strategy:
+        
+        Wallet: {wallet_address}
+        Strategy Type: {strategy_type}
+        Portfolio SOL: {portfolio["solBalance"]["sol"]:.6f} SOL
+        Expected Yield: {total_yield:.2f}%
+        Risk Score: {total_risk:.1f}/10
+        
+        LST Allocation:
+        {chr(10).join([f"- {lst['symbol']}: {weights[i]*100:.1f}% ({lst['apr']:.2f}% APR)" for i, lst in enumerate(selected_lsts)])}
+        
+        Provide a brief analysis (2-3 sentences) of this strategy's strengths and any considerations.
+        """
+        
+        llm_analysis = call_openai_llm(llm_prompt, max_tokens=200)
+        
+        # Add LLM insight
+        strategy["insights"].append({
+            "type": "llm_analysis",
+            "priority": "medium", 
+            "title": "AI Analysis",
+            "description": llm_analysis,
+            "recommendation": "Consider this analysis when executing the strategy"
+        })
+        
         logger.info(f"Strategy generated: {strategy['name']} (yield: {total_yield:.2f}%, risk: {total_risk:.1f}/10)")
+        logger.info(f"LLM analysis: {llm_analysis[:100]}...")
         return strategy
         
     except Exception as e:
