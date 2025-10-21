@@ -205,6 +205,11 @@ async def analyze_portfolio(wallet_address: str) -> Dict[str, Any]:
         current_yield = 0
         total_value = sol_balance["usdValue"]
         
+        # Debug logging
+        logger.info(f"DEBUG: sol_balance = {sol_balance}")
+        logger.info(f"DEBUG: token_balances count = {len(token_balances)}")
+        logger.info(f"DEBUG: initial total_value = {total_value}")
+        
         # SOL staking yield (assume 5% base staking)
         if sol_balance["usdValue"] > 0:
             current_yield += sol_balance["usdValue"] * 0.05
@@ -219,6 +224,10 @@ async def analyze_portfolio(wallet_address: str) -> Dict[str, Any]:
         # Calculate total portfolio value
         for token in other_tokens:
             total_value += token["usdValue"]
+        
+        logger.info(f"DEBUG: final total_value = {total_value}")
+        logger.info(f"DEBUG: lst_holdings count = {len(lst_holdings)}")
+        logger.info(f"DEBUG: other_tokens count = {len(other_tokens)}")
         
         # Calculate weighted average yield
         weighted_yield = (current_yield / total_value * 100) if total_value > 0 else 0
