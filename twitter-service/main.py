@@ -345,6 +345,7 @@ async def analyze_portfolio(wallet_address: str) -> Dict[str, Any]:
                     "name": token["name"],
                     "amount": token["amount"],
                     "usdValue": token["usdValue"],
+                    "price": token["price"],
                     "isVerifiedContract": token["isVerifiedContract"]
                 }
                 for token in other_tokens
