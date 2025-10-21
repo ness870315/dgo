@@ -797,12 +797,9 @@ def generate_llm_candidates(portfolio: Dict, safe_lsts: List[Dict], strategy_typ
         2. Strategy E: Balanced approach (mix of yield and safety)  
         3. Strategy F: Aggressive approach (maximize yield)
         
-        For each strategy, provide:
-        - Strategy name
-        - LST allocation (symbol and percentage)
-        - Reasoning for the approach
+        IMPORTANT: Respond ONLY with valid JSON. No explanations, no markdown, just pure JSON.
         
-        Format as JSON:
+        Required JSON format:
         {{
             "strategy_d": {{
                 "name": "Conservative Strategy",
@@ -824,18 +821,30 @@ def generate_llm_candidates(portfolio: Dict, safe_lsts: List[Dict], strategy_typ
         
         llm_response = call_openai_llm(llm_prompt, max_tokens=800)
         
+        # Log the LLM response for debugging
+        logger.info(f"LLM response length: {len(llm_response)}")
+        logger.info(f"LLM response preview: {llm_response[:200]}...")
+        
         # Parse LLM response
         try:
             # Extract JSON from response
             json_start = llm_response.find('{')
             json_end = llm_response.rfind('}') + 1
+            
+            logger.info(f"JSON extraction: start={json_start}, end={json_end}")
+            
             if json_start != -1 and json_end != -1:
                 json_str = llm_response[json_start:json_end]
+                logger.info(f"Extracted JSON: {json_str[:300]}...")
+                
                 llm_strategies = json.loads(json_str)
+                logger.info(f"Parsed LLM strategies: {list(llm_strategies.keys())}")
                 
                 # Convert to our format
                 candidates = []
                 for key, strategy in llm_strategies.items():
+                    logger.info(f"Processing strategy: {key} - {strategy.get('name', 'Unknown')}")
+                    
                     # Validate and convert weights
                     allocation = []
                     for alloc in strategy["allocation"]:
@@ -851,6 +860,8 @@ def generate_llm_candidates(portfolio: Dict, safe_lsts: List[Dict], strategy_typ
                                 "amount": portfolio["solBalance"]["sol"] * weight,
                                 "apr": lst_match["apr"]
                             })
+                        else:
+                            logger.warning(f"LST not found or invalid weight: {symbol} (weight: {weight})")
                     
                     if len(allocation) >= 2:  # Minimum 2 assets
                         candidates.append({
@@ -859,12 +870,18 @@ def generate_llm_candidates(portfolio: Dict, safe_lsts: List[Dict], strategy_typ
                             "reasoning": strategy["reasoning"],
                             "source": "llm"
                         })
+                        logger.info(f"Added LLM candidate: {strategy['name']} with {len(allocation)} assets")
+                    else:
+                        logger.warning(f"Skipped LLM candidate {strategy['name']}: insufficient assets ({len(allocation)})")
                 
                 logger.info(f"Generated {len(candidates)} LLM candidate strategies")
                 return candidates
+            else:
+                logger.error("No JSON found in LLM response")
                 
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse LLM JSON response: {e}")
+            logger.error(f"JSON string: {json_str if 'json_str' in locals() else 'Not extracted'}")
             
         return []
         
