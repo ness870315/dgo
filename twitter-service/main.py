@@ -180,7 +180,7 @@ def analyze_portfolio(wallet_address: str) -> Dict[str, Any]:
         # SOL staking yield (assume 5% base staking)
         if sol_balance["usdValue"] > 0:
             current_yield += sol_balance["usdValue"] * 0.05
-            total_value += sol_balance["usdValue"]
+            # Don't add sol_balance["usdValue"] again - it's already in total_value
         
         # LST yields
         for lst in lst_holdings:

@@ -325,7 +325,7 @@ const AILiquidStakingRouter = () => {
               </div>
               <div className="text-right">
                 <div className="text-sm text-gray-400">Total Value</div>
-                <div className="text-2xl font-semibold text-white">{walletData.totalValue} SOL</div>
+                <div className="text-2xl font-semibold text-white">${walletData.totalValue?.toFixed(2) || '0.00'}</div>
               </div>
             </div>
             
