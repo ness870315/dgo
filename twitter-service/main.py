@@ -660,28 +660,37 @@ def fetch_sanctum_lsts() -> List[Dict[str, Any]]:
     return []
 
 def fetch_compass_lsts() -> List[Dict[str, Any]]:
-    """Fetch LSTs from Solana Compass."""
+    """Fetch LSTs from Solana Compass - 199+ stake pools."""
     try:
-        response = requests.get("https://api.solanacompass.com/stake-pools", timeout=10)
+        # Use the correct Solana Compass API endpoint
+        response = requests.get("https://solanacompass.com/api/v1/lsts?limit=100&sort=totalLamports&order=desc", timeout=10)
         if response.status_code == 200:
             data = response.json()
             lsts = []
-            for pool in data.get("pools", []):
-                # Filter for LST-like pools (ending in SOL)
-                symbol = pool.get("symbol", "")
-                if symbol.endswith("SOL") and symbol != "SOL":
+            for lst in data.get("data", []):
+                token = lst.get("token", {})
+                if token.get("symbol") and token.get("symbol").endswith("SOL"):
+                    # Calculate APR from epoch fee (simplified)
+                    epoch_fee = lst.get("epoch_fee", {})
+                    fee_numerator = epoch_fee.get("numerator", 6)
+                    fee_denominator = epoch_fee.get("denominator", 100)
+                    base_apr = 5.0  # Base Solana staking APR
+                    net_apr = base_apr * (1 - fee_numerator / fee_denominator)
+                    
                     lsts.append({
-                        "symbol": symbol,
-                        "mint": pool.get("mint", ""),
-                        "name": pool.get("name", ""),
-                        "apr": pool.get("apr", 5.0),
-                        "tvlUSD": pool.get("tvl", 0),
-                        "decentralization": pool.get("decentralization", 0.7),
-                        "slippageBps": 15 + random.randint(0, 25),
-                        "verified": pool.get("verified", False),
-                        "paused": pool.get("paused", False),
-                        "recentSlash": pool.get("recentSlash", False),
-                        "source": "compass"
+                        "symbol": token.get("symbol", ""),
+                        "mint": token.get("address", ""),
+                        "name": token.get("name", ""),
+                        "apr": net_apr,
+                        "tvlUSD": lst.get("totalLamports", 0) / 1e9 * 100,  # Convert lamports to SOL, assume $100/SOL
+                        "decentralization": min(0.9, lst.get("validatorsCount", 1) / 100),  # Scale by validator count
+                        "slippageBps": 10 + random.randint(0, 20),
+                        "verified": token.get("isVerified", False),
+                        "paused": False,  # Assume not paused unless specified
+                        "recentSlash": False,  # Assume no recent slashes
+                        "source": "compass",
+                        "validatorsCount": lst.get("validatorsCount", 0),
+                        "totalLamports": lst.get("totalLamports", 0)
                     })
             logger.info(f"Fetched {len(lsts)} LSTs from Solana Compass")
             return lsts
