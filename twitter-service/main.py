@@ -17,6 +17,7 @@ import math
 import random
 import asyncio
 from enhanced_lst_system import enhanced_lst_system
+from real_time_price_service import price_service
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -121,33 +122,45 @@ def moralis_api_get(endpoint: str, params: Dict[str, Any] = None) -> Optional[Di
         logger.error("Moralis API request failed: %s", str(e))
         return None
 
-def get_sol_balance(wallet_address: str) -> Dict[str, Any]:
-    """Get SOL balance from Moralis API."""
+async def get_sol_balance(wallet_address: str) -> Dict[str, Any]:
+    """Get SOL balance from Moralis API with real-time pricing."""
     try:
         data = moralis_api_get(f"/account/mainnet/{wallet_address}/balance")
         if not data:
             return {"lamports": 0, "sol": 0, "usdValue": 0}
         
+        sol_amount = float(data.get("solana", 0))
+        sol_price = await price_service.get_sol_price()
+        
         return {
             "lamports": int(data.get("lamports", 0)),
-            "sol": float(data.get("solana", 0)),
-            "usdValue": float(data.get("solana", 0)) * 100.0  # Assuming $100 per SOL
+            "sol": sol_amount,
+            "usdValue": sol_amount * sol_price,
+            "solPrice": sol_price
         }
     except Exception as e:
         logger.error("Failed to get SOL balance for %s: %s", wallet_address, str(e))
-        return {"lamports": 0, "sol": 0, "usdValue": 0}
+        return {"lamports": 0, "sol": 0, "usdValue": 0, "solPrice": 190.0}
 
-def get_token_balances(wallet_address: str) -> List[Dict[str, Any]]:
-    """Get token balances from Moralis API."""
+async def get_token_balances(wallet_address: str) -> List[Dict[str, Any]]:
+    """Get token balances from Moralis API with real-time pricing."""
     try:
         data = moralis_api_get(f"/account/mainnet/{wallet_address}/tokens", {"excludeSpam": "true"})
         if not data:
             return []
         
+        sol_price = await price_service.get_sol_price()
+        
         tokens = []
         for token in data:
             # Check if this is an LST (simplified check)
             is_lst = token.get("symbol", "").endswith("SOL") and token.get("symbol") != "SOL"
+            
+            # Use real-time pricing for LSTs, fallback for other tokens
+            if is_lst:
+                token_price = await price_service.get_lst_price(token.get("symbol", ""))
+            else:
+                token_price = 1.0  # Default for non-LST tokens
             
             tokens.append({
                 "mint": token.get("mint"),
@@ -160,27 +173,29 @@ def get_token_balances(wallet_address: str) -> List[Dict[str, Any]]:
                 "logo": token.get("logo"),
                 "isVerifiedContract": token.get("isVerifiedContract", False),
                 "possibleSpam": token.get("possibleSpam", False),
-                "price": 100.0 if is_lst else 1.0,  # Simplified pricing
-                "usdValue": float(token.get("amount", 0)) * (100.0 if is_lst else 1.0),
+                "price": token_price,
+                "usdValue": float(token.get("amount", 0)) * token_price,
                 "isLST": is_lst,
                 "apr": 5.8 if is_lst else 0,  # Simplified APR
                 "riskScore": 3.2 if is_lst else 5.0,
                 "verified": token.get("isVerifiedContract", False)
             })
-        
+
         return tokens
     except Exception as e:
         logger.error("Failed to get token balances for %s: %s", wallet_address, str(e))
         return []
 
-def analyze_portfolio(wallet_address: str) -> Dict[str, Any]:
-    """Analyze wallet portfolio using Moralis API."""
+async def analyze_portfolio(wallet_address: str) -> Dict[str, Any]:
+    """Analyze wallet portfolio using Moralis API with real-time pricing."""
     try:
         logger.info("Analyzing portfolio for wallet: %s", wallet_address)
         
-        # Get SOL and token balances
-        sol_balance = get_sol_balance(wallet_address)
-        token_balances = get_token_balances(wallet_address)
+        # Get SOL and token balances with real-time pricing
+        sol_balance, token_balances = await asyncio.gather(
+            get_sol_balance(wallet_address),
+            get_token_balances(wallet_address)
+        )
         
         # Separate LSTs from other tokens
         lst_holdings = [token for token in token_balances if token.get("isLST", False)]
@@ -591,8 +606,8 @@ def _get_mock_tweets(query, count, reason):
     }
 
 @app.post("/api/portfolio/analyze")
-def analyze_portfolio_endpoint(request: PortfolioAnalysisRequest):
-    """Analyze wallet portfolio using Moralis API."""
+async def analyze_portfolio_endpoint(request: PortfolioAnalysisRequest):
+    """Analyze wallet portfolio using Moralis API with real-time pricing."""
     try:
         logger.info("Portfolio analysis request for wallet: %s", request.walletAddress)
         
@@ -600,8 +615,8 @@ def analyze_portfolio_endpoint(request: PortfolioAnalysisRequest):
         if not request.walletAddress or len(request.walletAddress) < 32:
             raise HTTPException(status_code=400, detail="Invalid wallet address")
         
-        # Analyze portfolio
-        portfolio = analyze_portfolio(request.walletAddress)
+        # Analyze portfolio with real-time pricing
+        portfolio = await analyze_portfolio(request.walletAddress)
         
         # Format response for frontend
         response = {
