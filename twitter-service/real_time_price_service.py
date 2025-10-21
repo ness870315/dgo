@@ -97,31 +97,40 @@ class RealTimePriceService:
             logger.error(f"❌ CoinGecko error: {e}")
             return None
     
-    async def fetch_jupiter_price(self) -> Optional[float]:
-        """Fetch SOL price from Jupiter"""
+    async def fetch_jupiter_token_prices(self, mint_addresses: List[str]) -> Dict[str, float]:
+        """Fetch token prices from Jupiter API for multiple tokens at once."""
         try:
+            if not mint_addresses:
+                return {}
+            
+            # Jupiter API allows up to 100 mint addresses in a single call
+            # Join mint addresses with commas
+            mint_query = ','.join(mint_addresses[:100])  # Limit to 100 mints
+            
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    self.price_sources['jupiter'],
-                    timeout=aiohttp.ClientTimeout(total=5),
+                    f"https://lite-api.jup.ag/tokens/v2/search?query={mint_query}",
+                    timeout=aiohttp.ClientTimeout(total=10),
                     headers={'User-Agent': 'LST-Router/1.0'}
                 ) as response:
                     if response.status == 200:
                         data = await response.json()
-                        sol_mint = 'So11111111111111111111111111111111111111112'
-                        if sol_mint in data['data']:
-                            price = float(data['data'][sol_mint]['price'])
-                            logger.info(f"✅ Jupiter SOL price: ${price:.2f}")
-                            return price
-                        else:
-                            logger.warning("⚠️ Jupiter: SOL mint not found")
-                            return None
+                        prices = {}
+                        
+                        for token in data:
+                            mint = token.get('id')
+                            usd_price = token.get('usdPrice')
+                            if mint and usd_price is not None:
+                                prices[mint] = float(usd_price)
+                        
+                        logger.info(f"✅ Jupiter token prices: {len(prices)} tokens fetched")
+                        return prices
                     else:
-                        logger.warning(f"⚠️ Jupiter failed: {response.status}")
-                        return None
+                        logger.warning(f"⚠️ Jupiter token search failed: {response.status}")
+                        return {}
         except Exception as e:
-            logger.error(f"❌ Jupiter error: {e}")
-            return None
+            logger.error(f"❌ Jupiter token search error: {e}")
+            return {}
     
     def is_cache_valid(self) -> bool:
         """Check if price cache is still valid"""

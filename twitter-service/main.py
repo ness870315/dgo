@@ -146,7 +146,7 @@ async def get_sol_balance(wallet_address: str) -> Dict[str, Any]:
         return {"lamports": 0, "sol": 0, "usdValue": 0, "solPrice": 190.0}
 
 async def get_token_balances(wallet_address: str) -> List[Dict[str, Any]]:
-    """Get token balances from Moralis API with real-time pricing."""
+    """Get token balances from Moralis API with real-time pricing from Jupiter."""
     try:
         data = moralis_api_get(f"/account/mainnet/{wallet_address}/tokens", {"excludeSpam": "true"})
         if not data:
@@ -154,34 +154,44 @@ async def get_token_balances(wallet_address: str) -> List[Dict[str, Any]]:
         
         sol_price = await price_service.get_sol_price()
         
+        # Extract mint addresses for Jupiter API call
+        mint_addresses = [token.get("mint") for token in data if token.get("mint")]
+        
+        # Get real token prices from Jupiter API
+        jupiter_prices = await price_service.fetch_jupiter_token_prices(mint_addresses)
+        
         tokens = []
         for token in data:
             # Check if this is an LST (simplified check)
             is_lst = token.get("symbol", "").endswith("SOL") and token.get("symbol") != "SOL"
             
-            # Use real-time pricing for LSTs, fallback for other tokens
-            if is_lst:
-                token_price = await price_service.get_lst_price(token.get("symbol", ""))
+            mint_address = token.get("mint")
+            
+            # Get price from Jupiter API if available
+            if mint_address in jupiter_prices:
+                token_price = jupiter_prices[mint_address]
+                logger.info(f"✅ Jupiter price for {token.get('symbol', 'Unknown')}: ${token_price:.6f}")
             else:
-                # For non-LST tokens, use a more realistic default price
-                # Most tokens are worth much less than $1
-                token_price = 0.001  # Default to $0.001 per token for unknown tokens
-                
-                # Special cases for known tokens
-                symbol = token.get("symbol", "").upper()
-                if symbol == "USDC" or symbol == "USDT":
-                    token_price = 1.0  # Stablecoins are ~$1
-                elif symbol in ["SOL", "WSOL"]:
-                    token_price = await price_service.get_sol_price()
-                elif symbol.endswith("SOL") and symbol != "SOL":
-                    token_price = await price_service.get_sol_price()  # LSTs priced like SOL
+                # Fallback pricing for tokens not found in Jupiter
+                if is_lst:
+                    token_price = sol_price  # LSTs priced like SOL
+                else:
+                    # Special cases for known tokens
+                    symbol = token.get("symbol", "").upper()
+                    if symbol == "USDC" or symbol == "USDT":
+                        token_price = 1.0  # Stablecoins are ~$1
+                    elif symbol in ["SOL", "WSOL"]:
+                        token_price = sol_price
+                    else:
+                        token_price = 0.001  # Default for unknown tokens
+                        logger.warning(f"⚠️ No Jupiter price for {token.get('symbol', 'Unknown')} ({mint_address}), using fallback: ${token_price}")
             
             token_amount = float(token.get("amount", 0))
             # Ensure USD value is 0 if token amount is 0
             usd_value = token_amount * token_price if token_amount > 0 else 0
             
             tokens.append({
-                "mint": token.get("mint"),
+                "mint": mint_address,
                 "symbol": token.get("symbol"),
                 "name": token.get("name"),
                 "decimals": token.get("decimals"),
