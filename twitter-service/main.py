@@ -15,6 +15,8 @@ import logging
 import json
 import math
 import random
+import asyncio
+from enhanced_lst_system import enhanced_lst_system
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -1266,10 +1268,31 @@ def generate_llm_candidates(portfolio: Dict, safe_lsts: List[Dict], strategy_typ
         logger.error(f"LLM candidate generation failed: {str(e)}")
         return []
 
-def generate_strategy(wallet_address: str, strategy_type: str = 'basic', user_preferences: Dict[str, Any] = {}) -> Dict[str, Any]:
-    """Generate AI strategy using hybrid deterministic + LLM approach."""
+async def generate_strategy(wallet_address: str, strategy_type: str = 'basic', user_preferences: Dict[str, Any] = {}) -> Dict[str, Any]:
+    """Generate enhanced AI strategy using multi-source LST data."""
     try:
-        logger.info(f"Generating {strategy_type} strategy for {wallet_address}")
+        logger.info(f"Generating enhanced {strategy_type} strategy for {wallet_address}")
+        
+        # Use enhanced LST system for comprehensive data
+        strategy = await enhanced_lst_system.generate_enhanced_strategy(wallet_address, strategy_type)
+        
+        logger.info(f"✅ Enhanced strategy generated: {strategy['name']}")
+        logger.info(f"   Expected Yield: {strategy['expectedYield']:.2f}%")
+        logger.info(f"   Risk Score: {strategy['riskScore']:.1f}/10")
+        logger.info(f"   LSTs Analyzed: {strategy['metadata']['totalLSTsAnalyzed']}")
+        logger.info(f"   Selected LSTs: {strategy['metadata']['selectedLSTs']}")
+        
+        return strategy
+        
+    except Exception as e:
+        logger.error(f"❌ Enhanced strategy generation failed: {e}")
+        # Fallback to original method if enhanced system fails
+        return await generate_fallback_strategy(wallet_address, strategy_type, user_preferences)
+
+async def generate_fallback_strategy(wallet_address: str, strategy_type: str = 'basic', user_preferences: Dict[str, Any] = {}) -> Dict[str, Any]:
+    """Fallback strategy generation using original method."""
+    try:
+        logger.info(f"Using fallback strategy generation for {wallet_address}")
         
         # Get portfolio analysis
         portfolio = analyze_portfolio(wallet_address)
@@ -1277,12 +1300,10 @@ def generate_strategy(wallet_address: str, strategy_type: str = 'basic', user_pr
         # Get available LSTs
         lst_data = get_available_lsts()
         logger.info(f"Retrieved {len(lst_data)} LSTs from get_available_lsts()")
-        logger.info(f"Sample LST sources: {[lst.get('source', 'unknown') for lst in lst_data[:3]]}")
         
         # Filter LSTs by safety constraints
         safe_lsts = [lst for lst in lst_data if lst["tvlUSD"] >= 250000 and lst["slippageBps"] <= 50 and lst["verified"]]
         logger.info(f"After safety filtering: {len(safe_lsts)} LSTs")
-        logger.info(f"Safe LST sources: {[lst.get('source', 'unknown') for lst in safe_lsts[:3]]}")
         
         if len(safe_lsts) < 2:
             raise Exception("Insufficient safe LSTs available")
@@ -1295,7 +1316,6 @@ def generate_strategy(wallet_address: str, strategy_type: str = 'basic', user_pr
         
         # Candidate A: Conservative (top 2 LSTs)
         candidate_a_lsts = sorted_lsts[:2]
-        logger.info(f"Candidate A LSTs: {[lst['symbol'] + '(' + lst.get('source', 'unknown') + ')' for lst in candidate_a_lsts]}")
         candidate_a_weights = [0.6, 0.4] if len(candidate_a_lsts) >= 2 else [1.0]
         candidate_a = build_candidate_strategy(portfolio, candidate_a_lsts, candidate_a_weights, "Conservative Strategy", "deterministic")
         deterministic_candidates.append(candidate_a)
@@ -1411,43 +1431,30 @@ def generate_strategy(wallet_address: str, strategy_type: str = 'basic', user_pr
         raise HTTPException(status_code=500, detail=f"Strategy generation failed: {str(e)}")
 
 @app.post("/api/strategy/generate")
-def generate_strategy_endpoint(request: StrategyGenerationRequest):
-    """Generate AI strategy using hybrid deterministic + LLM approach."""
+async def generate_strategy_endpoint(request: StrategyGenerationRequest):
+    """Generate enhanced AI strategy using multi-source LST data."""
     try:
-        logger.info("Strategy generation request for wallet: %s", request.walletAddress)
+        logger.info("Enhanced strategy generation request for wallet: %s", request.walletAddress)
         
         # Validate wallet address
         if not request.walletAddress or len(request.walletAddress) < 32:
             raise HTTPException(status_code=400, detail="Invalid wallet address")
         
-        # Validate strategy type
-        if request.strategyType not in ['basic', 'advanced']:
-            raise HTTPException(status_code=400, detail="Invalid strategy type. Must be 'basic' or 'advanced'")
+        # Generate enhanced strategy
+        strategy = await generate_strategy(
+            request.walletAddress, 
+            request.strategyType, 
+            request.userPreferences
+        )
         
-        # Generate strategy
-        strategy = generate_strategy(request.walletAddress, request.strategyType, request.userPreferences)
-        
-        # Format response for frontend
-        response = {
-            "success": True,
-            "strategy": strategy,
-            "pricing": {
-                "basic": 1.20,
-                "advanced": 2.00
-            },
-            "timestamp": datetime.now().isoformat()
-        }
-        
-        logger.info("Strategy generation successful for %s: %s (yield: %.2f%%)", 
-                   request.walletAddress, strategy["name"], strategy["expectedYield"])
-        
-        return response
+        logger.info(f"✅ Enhanced strategy generated successfully for {request.walletAddress}")
+        return strategy
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Strategy generation endpoint failed for %s: %s", request.walletAddress, str(e))
-        raise HTTPException(status_code=500, detail=f"Strategy generation failed: {str(e)}")
+        logger.error(f"Enhanced strategy generation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Enhanced strategy generation failed: {str(e)}")
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
