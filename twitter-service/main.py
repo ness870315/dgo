@@ -163,7 +163,18 @@ async def get_token_balances(wallet_address: str) -> List[Dict[str, Any]]:
             if is_lst:
                 token_price = await price_service.get_lst_price(token.get("symbol", ""))
             else:
-                token_price = 1.0  # Default for non-LST tokens
+                # For non-LST tokens, use a more realistic default price
+                # Most tokens are worth much less than $1
+                token_price = 0.001  # Default to $0.001 per token for unknown tokens
+                
+                # Special cases for known tokens
+                symbol = token.get("symbol", "").upper()
+                if symbol == "USDC" or symbol == "USDT":
+                    token_price = 1.0  # Stablecoins are ~$1
+                elif symbol in ["SOL", "WSOL"]:
+                    token_price = await price_service.get_sol_price()
+                elif symbol.endswith("SOL") and symbol != "SOL":
+                    token_price = await price_service.get_sol_price()  # LSTs priced like SOL
             
             token_amount = float(token.get("amount", 0))
             # Ensure USD value is 0 if token amount is 0
