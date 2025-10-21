@@ -4,7 +4,7 @@ import kolCallsService from '../services/kolCallsService';
 import watchlistService from '../services/watchlistService';
 import priorityService from '../services/priorityService';
 import { useAuth } from '../contexts/AuthContext';
-import { useRealTimePrice } from '../hooks/useRealTimePrice';
+import { useHybridPrice } from '../hooks/useHybridPrice';
 import EnhancedCallModal from './EnhancedCallModal';
 import PriceChartModal from './PriceChartModal';
 import HoldersInsightsModal from './HoldersInsightsModal';
@@ -36,16 +36,19 @@ const AICodeLine = ({ text, delay }) => {
 const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, onTokenUpdated }) => {
   const { isAuthenticated } = useAuth();
   
-  // Real-time price updates
+  // Hybrid price updates (replaces CoinVera WebSocket)
   const { 
     priceData, 
-    isConnected, 
-    isSubscribed, 
+    isLoading: priceLoading, 
+    error: priceError,
+    isLive, 
     formatPrice, 
     formatLiquidity,
+    formatMarketCap,
     getPriceUsd,
+    getMarketCap,
     getLiquidity
-  } = useRealTimePrice(token?.contractAddress || token?.tokenAddress);
+  } = useHybridPrice(token?.contractAddress || token?.tokenAddress);
   const [isInWatchlist, setIsInWatchlist] = useState(false);
   const [showFuelModal, setShowFuelModal] = useState(false);
   const [selectedFuel, setSelectedFuel] = useState(null);
@@ -1140,9 +1143,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                   </div>
                   <span className="text-blue-200 text-sm mb-1 relative z-10">🏦 Market Cap</span>
                   <span className="text-white font-bold text-base text-center relative z-10">
-                    ${formatNumber(token?.jupiterData?.mcap || token?.marketCap)}
+                    {formatMarketCap(getMarketCap() || token?.jupiterData?.mcap || token?.marketCap)}
                   </span>
-                  {isConnected && isSubscribed && (
+                  {isLive && (
                     <div className="text-xs text-green-400 mt-1 relative z-10">
                       📡 Live
                     </div>
@@ -1164,7 +1167,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                   <span className="text-white font-bold text-base text-center relative z-10">
                     {formatPrice(getPriceUsd() || token?.jupiterData?.usdPrice || token?.price)}
                   </span>
-                  {isConnected && isSubscribed && priceData && (
+                  {isLive && priceData && (
                     <div className="text-xs text-green-400 mt-1 relative z-10">
                       📡 Live
                     </div>
@@ -1186,7 +1189,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                   <span className="text-white font-bold text-base text-center relative z-10">
                     {formatLiquidity(getLiquidity() || token?.jupiterData?.liquidity)}
                   </span>
-                  {isConnected && isSubscribed && priceData && (
+                  {isLive && priceData && (
                     <div className="text-xs text-green-400 mt-1 relative z-10">
                       📡 Live
                     </div>
