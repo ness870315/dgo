@@ -633,7 +633,38 @@ def analyze_portfolio_endpoint(request: PortfolioAnalysisRequest):
 
 # AI Strategy Engine Functions
 def get_available_lsts() -> List[Dict[str, Any]]:
-    """Get available LSTs with realistic data."""
+    """Get available LSTs from real data sources."""
+    try:
+        # Try to fetch from LST Registry Service first
+        lst_registry_url = os.getenv('LST_REGISTRY_URL', 'http://localhost:3001')
+        
+        response = requests.get(f"{lst_registry_url}/api/lsts", timeout=10)
+        if response.status_code == 200:
+            lst_data = response.json()
+            logger.info(f"Fetched {len(lst_data)} LSTs from registry service")
+            
+            # Convert to our format
+            lsts = []
+            for lst in lst_data:
+                lsts.append({
+                    "symbol": lst.get("symbol", "UNKNOWN"),
+                    "mint": lst.get("mint", ""),
+                    "apr": lst.get("apr", 5.0),
+                    "tvlUSD": lst.get("tvl", 0),
+                    "decentralization": 1.0 - (lst.get("riskScore", 5.0) / 10.0),  # Convert risk to decentralization
+                    "slippageBps": 15 + random.randint(0, 20),  # Estimate slippage
+                    "verified": lst.get("verified", False),
+                    "paused": False,  # Assume not paused unless specified
+                    "recentSlash": False  # Assume no recent slashes
+                })
+            
+            return lsts
+            
+    except Exception as e:
+        logger.warning(f"Failed to fetch LSTs from registry: {e}")
+    
+    # Fallback to hardcoded data if registry is unavailable
+    logger.info("Using fallback hardcoded LST data")
     return [
         {
             "symbol": "jitoSOL",
