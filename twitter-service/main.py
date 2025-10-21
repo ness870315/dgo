@@ -164,8 +164,10 @@ async def get_token_balances(wallet_address: str) -> List[Dict[str, Any]]:
         
         # Get real token prices from Jupiter API
         logger.info(f"🔄 Calling Jupiter API for {len(mint_addresses)} tokens")
+        logger.info(f"🪙 Mint addresses: {mint_addresses}")
         jupiter_prices = await price_service.fetch_jupiter_token_prices(mint_addresses)
         logger.info(f"📊 Jupiter API returned prices for {len(jupiter_prices)} tokens")
+        logger.info(f"💰 Jupiter prices: {jupiter_prices}")
         
         tokens = []
         for token in data:
@@ -178,7 +180,7 @@ async def get_token_balances(wallet_address: str) -> List[Dict[str, Any]]:
             # Get price from Jupiter API if available
             if mint_address in jupiter_prices:
                 token_price = jupiter_prices[mint_address]
-                logger.info(f"✅ Using Jupiter price for {symbol}: ${token_price:.6f}")
+                logger.info(f"✅ Using Jupiter price for {symbol} ({mint_address[:8]}...): ${token_price:.6f}")
             else:
                 # Fallback pricing for tokens not found in Jupiter
                 if is_lst:
@@ -201,7 +203,7 @@ async def get_token_balances(wallet_address: str) -> List[Dict[str, Any]]:
             # Ensure USD value is 0 if token amount is 0
             usd_value = token_amount * token_price if token_amount > 0 else 0
             
-            tokens.append({
+            token_data = {
                 "mint": mint_address,
                 "symbol": token.get("symbol"),
                 "name": token.get("name"),
@@ -218,7 +220,10 @@ async def get_token_balances(wallet_address: str) -> List[Dict[str, Any]]:
                 "apr": 5.8 if is_lst else 0,  # Simplified APR
                 "riskScore": 3.2 if is_lst else 5.0,
                 "verified": token.get("isVerifiedContract", False)
-            })
+            }
+            
+            logger.info(f"📝 Created token data for {symbol}: amount={token_amount}, price=${token_price:.6f}, usdValue=${usd_value:.2f}")
+            tokens.append(token_data)
 
         logger.info(f"✅ Successfully processed {len(tokens)} tokens for {wallet_address}")
         return tokens
