@@ -1114,8 +1114,10 @@ def build_candidate_strategy(portfolio: Dict, lsts: List[Dict], weights: List[fl
         allocation.append({
             "symbol": lst["symbol"],
             "weight": weight,
+            "percentage": weight * 100,
             "amount": amount,
-            "apr": lst["apr"]
+            "apr": lst["apr"],
+            "source": lst.get("source", "unknown")
         })
         
         actions.append({
@@ -1223,9 +1225,11 @@ def generate_llm_candidates(portfolio: Dict, safe_lsts: List[Dict], strategy_typ
                             allocation.append({
                                 "symbol": symbol,
                                 "weight": weight,
+                                "percentage": weight * 100,
                                 "amount": portfolio["solBalance"]["sol"] * weight,
                                 "apr": lst_match["apr"],
-                                "decentralization": lst_match["decentralization"]
+                                "decentralization": lst_match["decentralization"],
+                                "source": lst_match.get("source", "unknown")
                             })
                         else:
                             logger.warning(f"LST not found or invalid weight: {symbol} (weight: {weight})")
