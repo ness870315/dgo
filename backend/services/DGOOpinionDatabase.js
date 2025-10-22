@@ -82,7 +82,7 @@ class DGOOpinionDatabase {
   }
 
   /**
-   * Store a new opinion
+   * Store a new opinion with enhanced intelligence features
    * @param {Object} opinion - Opinion data
    * @param {string} opinion.text - The tweet text
    * @param {string} opinion.marketContext - Market context from Perplexity
@@ -92,6 +92,9 @@ class DGOOpinionDatabase {
    */
   async storeOpinion(opinion) {
     try {
+      // Extract intelligence features
+      const intelligenceFeatures = await this.extractIntelligenceFeatures(opinion.text);
+      
       const opinionRecord = {
         id: `opinion_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         text: opinion.text,
@@ -105,15 +108,29 @@ class DGOOpinionDatabase {
           year: 'numeric', 
           month: 'short', 
           day: 'numeric' 
-        })
+        }),
+        
+        // 🧠 NEW: Intelligence features
+        topics: intelligenceFeatures.topics || [],
+        entities: intelligenceFeatures.entities || {},
+        confidence: intelligenceFeatures.confidence || 0.5,
+        timeframe: intelligenceFeatures.timeframe || 'unknown',
+        category: intelligenceFeatures.category || 'general',
+        predictions: intelligenceFeatures.predictions || [],
+        patterns: intelligenceFeatures.patterns || [],
+        relatedTokens: intelligenceFeatures.relatedTokens || [],
+        relatedTopics: intelligenceFeatures.relatedTopics || []
       };
 
       this.opinions.push(opinionRecord);
       await this.saveOpinions();
 
-      console.log(`💾 [DGO OPINIONS] Stored opinion #${this.opinions.length}:`, {
+      console.log(`💾 [DGO OPINIONS] Stored intelligent opinion #${this.opinions.length}:`, {
         id: opinionRecord.id,
         sentiment: opinionRecord.sentiment,
+        topics: opinionRecord.topics.slice(0, 3),
+        entities: Object.keys(opinionRecord.entities).slice(0, 3),
+        confidence: opinionRecord.confidence,
         preview: opinionRecord.text.substring(0, 60) + '...'
       });
 
@@ -149,6 +166,252 @@ class DGOOpinionDatabase {
   }
 
   /**
+   * Extract intelligence features from opinion text
+   * @param {string} text - The opinion text
+   * @returns {Object} Intelligence features
+   */
+  async extractIntelligenceFeatures(text) {
+    try {
+      // For now, use rule-based extraction (will enhance with AI later)
+      const features = {
+        topics: this.extractTopics(text),
+        entities: this.extractEntities(text),
+        confidence: this.calculateConfidence(text),
+        timeframe: this.determineTimeframe(text),
+        category: this.categorizeContent(text),
+        predictions: this.extractPredictions(text),
+        patterns: this.extractPatterns(text),
+        relatedTokens: this.extractTokens(text),
+        relatedTopics: this.extractRelatedTopics(text)
+      };
+
+      return features;
+    } catch (error) {
+      console.error('❌ [DGO OPINIONS] Intelligence extraction error:', error.message);
+      return {
+        topics: [],
+        entities: {},
+        confidence: 0.5,
+        timeframe: 'unknown',
+        category: 'general',
+        predictions: [],
+        patterns: [],
+        relatedTokens: [],
+        relatedTopics: []
+      };
+    }
+  }
+
+  /**
+   * Extract topics from text using rule-based approach
+   */
+  extractTopics(text) {
+    const lowerText = text.toLowerCase();
+    const topics = [];
+
+    // Crypto topics
+    const topicKeywords = {
+      'tokenomics': ['tokenomics', 'supply', 'circulating', 'total supply', 'max supply'],
+      'protocol-launch': ['launch', 'launched', 'release', 'debut', 'unveil'],
+      'token-unlocks': ['unlock', 'unlocked', 'vesting', 'vested', 'release schedule'],
+      'market-cap': ['market cap', 'marketcap', 'mcap', 'valuation'],
+      'volume': ['volume', 'trading volume', 'vol', 'liquidity'],
+      'price-action': ['price', 'pump', 'dump', 'rally', 'crash', 'moon', 'rekt'],
+      'defi': ['defi', 'decentralized', 'yield', 'farming', 'staking', 'liquidity pool'],
+      'nft': ['nft', 'nfts', 'collection', 'mint', 'floor price'],
+      'governance': ['governance', 'dao', 'proposal', 'vote', 'voting'],
+      'partnership': ['partnership', 'collaboration', 'integration', 'partners'],
+      'funding': ['funding', 'raise', 'investment', 'vc', 'venture capital'],
+      'regulatory': ['sec', 'regulation', 'regulatory', 'compliance', 'legal']
+    };
+
+    for (const [topic, keywords] of Object.entries(topicKeywords)) {
+      if (keywords.some(keyword => lowerText.includes(keyword))) {
+        topics.push(topic);
+      }
+    }
+
+    return topics;
+  }
+
+  /**
+   * Extract entities from text
+   */
+  extractEntities(text) {
+    const entities = {
+      tokens: this.extractTokens(text),
+      protocols: this.extractProtocols(text),
+      dates: this.extractDates(text),
+      prices: this.extractPrices(text),
+      percentages: this.extractPercentages(text),
+      amounts: this.extractAmounts(text)
+    };
+
+    return entities;
+  }
+
+  /**
+   * Extract token symbols from text
+   */
+  extractTokens(text) {
+    const tokenMatches = text.match(/\$[A-Za-z0-9]+/g) || [];
+    return tokenMatches.map(token => token.substring(1).toUpperCase());
+  }
+
+  /**
+   * Extract protocol names from text
+   */
+  extractProtocols(text) {
+    const protocolKeywords = [
+      'ethereum', 'bitcoin', 'solana', 'polygon', 'avalanche', 'arbitrum', 'optimism',
+      'uniswap', 'pancakeswap', 'sushiswap', 'curve', 'aave', 'compound', 'maker',
+      'chainlink', 'the graph', 'filecoin', 'ipfs', 'near', 'cosmos', 'polkadot'
+    ];
+    
+    const lowerText = text.toLowerCase();
+    return protocolKeywords.filter(protocol => lowerText.includes(protocol));
+  }
+
+  /**
+   * Extract dates from text
+   */
+  extractDates(text) {
+    const datePatterns = [
+      /\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}\b/gi,
+      /\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g,
+      /\b\d{1,2}-\d{1,2}-\d{2,4}\b/g,
+      /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+\d{1,2}\b/gi
+    ];
+
+    const dates = [];
+    datePatterns.forEach(pattern => {
+      const matches = text.match(pattern) || [];
+      dates.push(...matches);
+    });
+
+    return dates;
+  }
+
+  /**
+   * Extract prices from text
+   */
+  extractPrices(text) {
+    const priceMatches = text.match(/\$[\d,]+\.?\d*/g) || [];
+    return priceMatches;
+  }
+
+  /**
+   * Extract percentages from text
+   */
+  extractPercentages(text) {
+    const percentageMatches = text.match(/\d+\.?\d*%/g) || [];
+    return percentageMatches;
+  }
+
+  /**
+   * Extract amounts from text
+   */
+  extractAmounts(text) {
+    const amountMatches = text.match(/\d+\.?\d*\s*(million|billion|thousand|k|m|b)/gi) || [];
+    return amountMatches;
+  }
+
+  /**
+   * Calculate confidence score based on text characteristics
+   */
+  calculateConfidence(text) {
+    let confidence = 0.5; // Base confidence
+
+    // Increase confidence for specific data points
+    if (text.match(/\$[\d,]+\.?\d*/)) confidence += 0.1; // Has prices
+    if (text.match(/\d+\.?\d*%/)) confidence += 0.1; // Has percentages
+    if (text.match(/\d+\.?\d*\s*(million|billion|thousand|k|m|b)/i)) confidence += 0.1; // Has amounts
+    if (text.match(/\$[A-Za-z0-9]+/)) confidence += 0.1; // Has token symbols
+    if (text.match(/\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}\b/i)) confidence += 0.1; // Has dates
+
+    // Decrease confidence for uncertain language
+    if (text.match(/\b(maybe|perhaps|might|could|possibly|unclear|unknown)\b/i)) confidence -= 0.1;
+    if (text.match(/\b(i think|i believe|in my opinion|not sure)\b/i)) confidence -= 0.1;
+
+    return Math.max(0.1, Math.min(1.0, confidence)); // Clamp between 0.1 and 1.0
+  }
+
+  /**
+   * Determine timeframe from text
+   */
+  determineTimeframe(text) {
+    const lowerText = text.toLowerCase();
+    
+    if (lowerText.includes('today') || lowerText.includes('now') || lowerText.includes('current')) return 'immediate';
+    if (lowerText.includes('this week') || lowerText.includes('weekly')) return 'short-term';
+    if (lowerText.includes('this month') || lowerText.includes('monthly')) return 'medium-term';
+    if (lowerText.includes('this year') || lowerText.includes('yearly') || lowerText.includes('long-term')) return 'long-term';
+    
+    return 'unknown';
+  }
+
+  /**
+   * Categorize content type
+   */
+  categorizeContent(text) {
+    const lowerText = text.toLowerCase();
+    
+    if (lowerText.includes('unlock') || lowerText.includes('vesting')) return 'tokenomics';
+    if (lowerText.includes('launch') || lowerText.includes('release')) return 'protocol-analysis';
+    if (lowerText.includes('price') || lowerText.includes('pump') || lowerText.includes('dump')) return 'price-analysis';
+    if (lowerText.includes('volume') || lowerText.includes('liquidity')) return 'market-analysis';
+    if (lowerText.includes('partnership') || lowerText.includes('integration')) return 'ecosystem';
+    
+    return 'general';
+  }
+
+  /**
+   * Extract predictions from text
+   */
+  extractPredictions(text) {
+    const predictions = [];
+    const lowerText = text.toLowerCase();
+    
+    // Look for prediction patterns
+    if (lowerText.includes('will') || lowerText.includes('going to')) {
+      const willMatches = text.match(/will\s+[^.!?]+/gi) || [];
+      const goingToMatches = text.match(/going to\s+[^.!?]+/gi) || [];
+      predictions.push(...willMatches, ...goingToMatches);
+    }
+    
+    return predictions;
+  }
+
+  /**
+   * Extract patterns from text
+   */
+  extractPatterns(text) {
+    const patterns = [];
+    const lowerText = text.toLowerCase();
+    
+    if (lowerText.includes('unlock') && lowerText.includes('dump')) patterns.push('unlock-schedule-impact');
+    if (lowerText.includes('launch') && lowerText.includes('price')) patterns.push('launch-vs-price-correlation');
+    if (lowerText.includes('volume') && lowerText.includes('price')) patterns.push('volume-price-correlation');
+    
+    return patterns;
+  }
+
+  /**
+   * Extract related topics
+   */
+  extractRelatedTopics(text) {
+    const relatedTopics = [];
+    const lowerText = text.toLowerCase();
+    
+    if (lowerText.includes('tokenomics')) relatedTopics.push('tokenomics');
+    if (lowerText.includes('vesting')) relatedTopics.push('vesting');
+    if (lowerText.includes('liquidity')) relatedTopics.push('liquidity');
+    if (lowerText.includes('market')) relatedTopics.push('market-dynamics');
+    
+    return relatedTopics;
+  }
+
+  /**
    * Get all opinions
    */
   async getAllOpinions() {
@@ -178,6 +441,167 @@ class DGOOpinionDatabase {
       op.text.toLowerCase().includes(lowerKeyword) ||
       op.marketContext.toLowerCase().includes(lowerKeyword)
     );
+  }
+
+  /**
+   * 🧠 NEW: Intelligent search with multiple criteria
+   */
+  async findRelevantOpinions(query, context = {}) {
+    try {
+      const lowerQuery = query.toLowerCase();
+      const relevantOpinions = [];
+
+      for (const opinion of this.opinions) {
+        let relevanceScore = 0;
+
+        // 1. Topic matching
+        if (opinion.topics && opinion.topics.length > 0) {
+          const queryTopics = this.extractTopics(query);
+          const topicMatches = opinion.topics.filter(topic => 
+            queryTopics.includes(topic)
+          ).length;
+          relevanceScore += topicMatches * 2;
+        }
+
+        // 2. Entity matching
+        if (opinion.entities) {
+          const queryTokens = this.extractTokens(query);
+          const tokenMatches = opinion.entities.tokens?.filter(token => 
+            queryTokens.includes(token)
+          ).length || 0;
+          relevanceScore += tokenMatches * 3;
+
+          const queryProtocols = this.extractProtocols(query);
+          const protocolMatches = opinion.entities.protocols?.filter(protocol => 
+            queryProtocols.includes(protocol)
+          ).length || 0;
+          relevanceScore += protocolMatches * 2;
+        }
+
+        // 3. Text similarity
+        const textSimilarity = this.calculateTextSimilarity(query, opinion.text);
+        relevanceScore += textSimilarity * 1.5;
+
+        // 4. Context filtering
+        if (context.type && opinion.type !== context.type) {
+          relevanceScore *= 0.5; // Reduce score for wrong type
+        }
+
+        if (context.timeframe && opinion.timeframe !== context.timeframe) {
+          relevanceScore *= 0.7; // Reduce score for wrong timeframe
+        }
+
+        if (context.sentiment && opinion.sentiment !== context.sentiment) {
+          relevanceScore *= 0.8; // Reduce score for wrong sentiment
+        }
+
+        // 5. Confidence weighting
+        relevanceScore *= opinion.confidence || 0.5;
+
+        if (relevanceScore > 0.5) {
+          relevantOpinions.push({
+            ...opinion,
+            relevanceScore
+          });
+        }
+      }
+
+      // Sort by relevance score and return top results
+      return relevantOpinions
+        .sort((a, b) => b.relevanceScore - a.relevanceScore)
+        .slice(0, context.limit || 5);
+
+    } catch (error) {
+      console.error('❌ [DGO OPINIONS] Intelligent search error:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * 🧠 NEW: Topic-based search
+   */
+  async searchByTopic(topic) {
+    return this.opinions.filter(op => 
+      op.topics && op.topics.includes(topic)
+    );
+  }
+
+  /**
+   * 🧠 NEW: Entity-based search
+   */
+  async searchByEntity(entityType, entityValue) {
+    return this.opinions.filter(op => 
+      op.entities && 
+      op.entities[entityType] && 
+      op.entities[entityType].includes(entityValue)
+    );
+  }
+
+  /**
+   * 🧠 NEW: Timeframe-based search
+   */
+  async searchByTimeframe(timeframe) {
+    return this.opinions.filter(op => op.timeframe === timeframe);
+  }
+
+  /**
+   * 🧠 NEW: Category-based search
+   */
+  async searchByCategory(category) {
+    return this.opinions.filter(op => op.category === category);
+  }
+
+  /**
+   * 🧠 NEW: High-confidence opinions
+   */
+  async getHighConfidenceOpinions(minConfidence = 0.7) {
+    return this.opinions.filter(op => 
+      (op.confidence || 0.5) >= minConfidence
+    );
+  }
+
+  /**
+   * 🧠 NEW: Calculate text similarity (simple implementation)
+   */
+  calculateTextSimilarity(text1, text2) {
+    const words1 = text1.toLowerCase().split(/\s+/);
+    const words2 = text2.toLowerCase().split(/\s+/);
+    
+    const commonWords = words1.filter(word => words2.includes(word));
+    const totalWords = new Set([...words1, ...words2]).size;
+    
+    return commonWords.length / totalWords;
+  }
+
+  /**
+   * 🧠 NEW: Get contextual opinions for content generation
+   */
+  async getContextualOpinions(currentTopic, userQuery, marketContext) {
+    try {
+      // Extract topics and entities from current context
+      const queryTopics = this.extractTopics(userQuery);
+      const queryTokens = this.extractTokens(userQuery);
+      
+      // Find relevant opinions
+      const relevantOpinions = await this.findRelevantOpinions(userQuery, {
+        type: 'crypto_tech_insights',
+        timeframe: 'recent',
+        limit: 3
+      });
+
+      // Format for LLM consumption
+      return relevantOpinions.map(op => ({
+        text: op.text,
+        dateString: op.dateString,
+        topics: op.topics,
+        confidence: op.confidence,
+        relevanceScore: op.relevanceScore
+      }));
+
+    } catch (error) {
+      console.error('❌ [DGO OPINIONS] Contextual search error:', error.message);
+      return [];
+    }
   }
 
   /**

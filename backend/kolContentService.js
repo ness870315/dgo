@@ -679,10 +679,32 @@ News recap:`;
 
       console.log(`✅ [CRYPTO TECH] Tech insights: ${perplexityResponse.content.substring(0, 100)}...`);
 
+      // 🧠 NEW: Get relevant past opinions for context and consistency
+      let pastOpinionsContext = '';
+      if (this.opinionDatabase) {
+        try {
+          const relevantOpinions = await this.opinionDatabase.findRelevantOpinions(
+            perplexityResponse.content,
+            { type: 'crypto_tech_insights', timeframe: 'recent', limit: 3 }
+          );
+          
+          if (relevantOpinions.length > 0) {
+            pastOpinionsContext = `
+
+🧠 YOUR PAST INSIGHTS (for context and consistency):
+${relevantOpinions.map(op => `- ${op.text} (${op.dateString})`).join('\n')}`;
+            
+            console.log(`🧠 [CRYPTO TECH] Found ${relevantOpinions.length} relevant past opinions for context`);
+          }
+        } catch (error) {
+          console.error('❌ [CRYPTO TECH] Error retrieving past opinions:', error.message);
+        }
+      }
+
       const prompt = `You are ${personality.name}, a real crypto KOL with ${personality.style}.
 
 🔬 CRYPTO TECH INSIGHTS:
-${perplexityResponse.content}
+${perplexityResponse.content}${pastOpinionsContext}
 
 ${personality.tone}
 
@@ -692,6 +714,9 @@ Generate a DeGen Oracle-style tech insights tweet that:
 - Focuses on specific protocols, tokenomics, and technical developments
 - Uses crypto slang naturally (not forced)
 - Highlights what this means for degens and traders
+- References your past insights when relevant for credibility
+- Shows consistency in your analysis approach
+- Avoids contradicting yourself without acknowledging it
 - NO hashtags
 - Max 280 characters
 - Sound like a real person sharing alpha, not a bot
@@ -880,10 +905,32 @@ Tech insights tweet:`;
 
       console.log(`📏 [NORMAL] Selected length: ${tweetLength}`);
 
+      // 🧠 NEW: Get relevant past opinions for market sentiment context
+      let pastOpinionsContext = '';
+      if (this.opinionDatabase) {
+        try {
+          const relevantOpinions = await this.opinionDatabase.findRelevantOpinions(
+            perplexityResponse.content,
+            { type: 'normal', timeframe: 'recent', limit: 2 }
+          );
+          
+          if (relevantOpinions.length > 0) {
+            pastOpinionsContext = `
+
+🧠 YOUR PAST MARKET TAKES (for consistency):
+${relevantOpinions.map(op => `- ${op.text} (${op.dateString})`).join('\n')}`;
+            
+            console.log(`🧠 [NORMAL] Found ${relevantOpinions.length} relevant past market opinions`);
+          }
+        } catch (error) {
+          console.error('❌ [NORMAL] Error retrieving past opinions:', error.message);
+        }
+      }
+
       const normalTweetPrompt = `You're Degen Oracle - a cocky but smart crypto KOL. Generate ONE tweet based on current market sentiment.
 
 CURRENT MARKET CONTEXT:
-${perplexityResponse.content}
+${perplexityResponse.content}${pastOpinionsContext}
 
 DEGEN ORACLE PERSONALITY:
 - Confident and slightly cocky (not arrogant)
@@ -891,6 +938,7 @@ DEGEN ORACLE PERSONALITY:
 - Calls out BS when you see it
 - Respects builders, roasts moonboys
 - Self-aware degen who knows the game
+- References your past takes when relevant for credibility
 
 TWEET LENGTH: ${tweetLength.toUpperCase()}
 

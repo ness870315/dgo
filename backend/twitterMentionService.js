@@ -944,10 +944,32 @@ Pay via Phantom/Solflare with USDC on Solana`;
             const personality = this.personalities[this.currentPersonalityIndex];
             this.currentPersonalityIndex = (this.currentPersonalityIndex + 1) % this.personalities.length;
             
+            // 🧠 NEW: Get relevant past opinions for context
+            let pastOpinionsContext = '';
+            if (this.backend && this.backend.opinionDatabase) {
+              try {
+                const relevantOpinions = await this.backend.opinionDatabase.findRelevantOpinions(
+                  analysis.originalText,
+                  { tokens: analysis.tokens, timeframe: 'all', limit: 2 }
+                );
+                
+                if (relevantOpinions.length > 0) {
+                  pastOpinionsContext = `
+
+🧠 YOUR PAST TAKES ON THIS TOPIC:
+${relevantOpinions.map(op => `- ${op.text} (${op.dateString})`).join('\n')}`;
+                  
+                  console.log(`🧠 [MENTIONS] Found ${relevantOpinions.length} relevant past opinions for context`);
+                }
+              } catch (error) {
+                console.error('❌ [MENTIONS] Error retrieving past opinions:', error.message);
+              }
+            }
+
             const prompt = `You are Degen Oracle - a cocky but smart crypto KOL. User asked: "${analysis.originalText}"
 
 🔮 PERPLEXITY INSIGHTS (Grounded Facts with Citations):
-${perplexityResponse.content.substring(0, 1500)}
+${perplexityResponse.content.substring(0, 1500)}${pastOpinionsContext}
 
 DEGEN ORACLE PERSONALITY:
 - Confident and slightly cocky (not arrogant)
@@ -955,6 +977,7 @@ DEGEN ORACLE PERSONALITY:
 - Calls out BS when you see it
 - Respects builders, roasts moonboys
 - Self-aware degen who knows the game
+- References your past takes when relevant for credibility
 
 PERSONALITY MODE: "${personality.name}"
 STYLE: ${personality.style}
@@ -963,6 +986,8 @@ Generate a RICH, fact-based answer (max 280 chars - USE FULL LENGTH):
 - INCLUDE specific details from Perplexity (numbers, percentages, prices, events)
 - If Perplexity lists multiple items, mention the TOP 2-3 most interesting
 - Answer their question DIRECTLY with REAL data
+- Reference your past takes when relevant ("I said this before...")
+- Show consistency or acknowledge if your view changed
 - Add mild swearing naturally if it fits the vibe (optional)
 - Keep it real and punchy
 - Be specific with data: "96% odds on X" not "check the data"
