@@ -43,7 +43,7 @@ import TwitterMentionService from './twitterMentionService.js';
 import NFTGatedAccessService from './nftGatedAccessService.js';
 import EnhancedNFTTraitService from './services/EnhancedNFTTraitService.js';
 import DGOOpinionDatabase from './services/DGOOpinionDatabase.js';
-import CryptoAccountTrackingService from './services/CryptoAccountTrackingService.js';
+// CryptoAccountTrackingService removed - now handled by unified TwitterMentionService
 import CryptoTrackingDatabase from './services/CryptoTrackingDatabase.js';
 import { X402PaymentHandler } from '@payai/x402-solana';
 // Portfolio analysis services are handled by jup-discovery background worker
@@ -194,10 +194,7 @@ class EnhancedBackend {
     // Initialize crypto tracking services
     this.opinionDatabase = new DGOOpinionDatabase();
     this.cryptoTrackingDatabase = new CryptoTrackingDatabase();
-    this.cryptoAccountTrackingService = new CryptoAccountTrackingService(
-      process.env.TWITTERAPIIO_API_KEY,
-      this
-    );
+    // CryptoAccountTrackingService removed - now handled by unified TwitterMentionService
     this.dailyTweetService = null; // Will be initialized after OpenAI service is ready
     this.backupIntegration = null; // Will be initialized in setupServices()
     
@@ -11651,23 +11648,19 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Start crypto account tracking
     this.app.post('/api/admin/crypto-tracking/start', adminApiAuth, async (req, res) => {
       try {
-        if (!this.cryptoAccountTrackingService) {
+        if (!this.twitterMentionService) {
           return res.status(503).json({
             success: false,
-            error: 'Crypto Account Tracking Service not initialized'
+            error: 'Twitter Mention Service not initialized'
           });
         }
 
-        await this.cryptoAccountTrackingService.startTracking();
+        await this.twitterMentionService.start();
         
         res.json({
           success: true,
-          message: 'Crypto account tracking started',
-          accounts: this.cryptoAccountTrackingService.trackedAccounts.map(acc => ({
-            username: acc.username,
-            displayName: acc.displayName,
-            tier: acc.tier
-          }))
+          message: 'Crypto account tracking started via unified WebSocket',
+          accounts: this.twitterMentionService.getTrackedAccounts()
         });
 
       } catch (error) {
@@ -11679,14 +11672,14 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Stop crypto account tracking
     this.app.post('/api/admin/crypto-tracking/stop', adminApiAuth, async (req, res) => {
       try {
-        if (!this.cryptoAccountTrackingService) {
+        if (!this.twitterMentionService) {
           return res.status(503).json({
             success: false,
-            error: 'Crypto Account Tracking Service not initialized'
+            error: 'Twitter Mention Service not initialized'
           });
         }
 
-        await this.cryptoAccountTrackingService.stopTracking();
+        await this.twitterMentionService.stop();
         
         res.json({
           success: true,
@@ -11702,24 +11695,26 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Get crypto tracking status
     this.app.get('/api/admin/crypto-tracking/status', adminApiAuth, (req, res) => {
       try {
-        if (!this.cryptoAccountTrackingService) {
+        if (!this.twitterMentionService) {
           return res.status(503).json({
             success: false,
-            error: 'Crypto Account Tracking Service not initialized'
+            error: 'Twitter Mention Service not initialized'
           });
         }
 
-        const stats = this.cryptoAccountTrackingService.getStats();
+        const isRunning = this.twitterMentionService.isRunning;
+        const trackedAccounts = this.twitterMentionService.getTrackedAccounts();
+        const dbStats = this.cryptoTrackingDatabase.getStats();
         
         res.json({
           success: true,
-          isRunning: stats.isRunning,
-          isConnected: stats.isConnected,
-          totalTweets: stats.totalTweets,
-          accounts: stats.accounts,
-          sentimentCounts: stats.sentimentCounts,
-          topicCounts: stats.topicCounts,
-          lastTweet: stats.lastTweet
+          isRunning: isRunning,
+          isConnected: isRunning, // WebSocket connection status
+          totalTweets: dbStats.totalTweets,
+          accounts: trackedAccounts,
+          sentimentCounts: dbStats.sentimentCounts,
+          topicCounts: dbStats.topicCounts,
+          lastTweet: dbStats.newestTweet
         });
 
       } catch (error) {
@@ -11733,21 +11728,20 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const { sentiment, topic, limit = 50 } = req.query;
         
-        if (!this.cryptoAccountTrackingService) {
+        if (!this.cryptoTrackingDatabase) {
           return res.status(503).json({
             success: false,
-            error: 'Crypto Account Tracking Service not initialized'
+            error: 'Crypto Tracking Database not initialized'
           });
         }
 
-        let tweets;
-        if (sentiment) {
-          tweets = this.cryptoAccountTrackingService.getTweetsBySentiment(sentiment, parseInt(limit));
-        } else if (topic) {
-          tweets = this.cryptoAccountTrackingService.getTweetsByTopic(topic, parseInt(limit));
-        } else {
-          tweets = this.cryptoAccountTrackingService.getAllTweets(parseInt(limit));
-        }
+        const searchCriteria = {
+          sentiment: sentiment,
+          topics: topic ? [topic] : undefined,
+          limit: parseInt(limit)
+        };
+
+        const tweets = this.cryptoTrackingDatabase.searchTrackedTweets(searchCriteria);
         
         res.json({
           success: true,
