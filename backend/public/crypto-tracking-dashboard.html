@@ -976,6 +976,17 @@
         .trend-modal-body {
             padding: 20px;
         }
+
+        .author-tag {
+            background: #4a5568;
+            color: #e2e8f0;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            display: inline-block;
+        }
     </style>
 </head>
 <body>
@@ -2381,7 +2392,7 @@ This feature analyzes how accurate our tracked accounts' predictions have been:<
                                 ${topicData.authors && topicData.authors.length > 0 ? `
                                     <div class="topic-authors">
                                         <div class="authors-label">Discussed by:</div>
-                                        <div class="authors-list">
+                                        <div class="authors-list" style="display: flex; flex-wrap: wrap; gap: 5px; max-height: 120px; overflow-y: auto;">
                                             ${topicData.authors.map(author => `<span class="author-tag">@${author}</span>`).join('')}
                                         </div>
                                     </div>
@@ -2392,16 +2403,6 @@ This feature analyzes how accurate our tracked accounts' predictions have been:<
                                         Last analyzed: ${new Date(topicData.analyzedAt).toLocaleString()}
                                     </div>
                                 ` : ''}
-                                
-                                <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #4a5568;">
-                                    <button class="btn btn-secondary" onclick="getAIInsights('${topicName}')" style="width: 100%;">
-                                        🤖 Get AI Insights
-                                    </button>
-                                </div>
-                                
-                                <div id="aiInsights" style="margin-top: 15px; display: none;">
-                                    <!-- AI insights will be loaded here -->
-                                </div>
                             </div>
                         `;
                     } else {
@@ -2428,41 +2429,6 @@ This feature analyzes how accurate our tracked accounts' predictions have been:<
             }
         }
 
-        async function getAIInsights(topicName) {
-            try {
-                const insightsDiv = document.getElementById('aiInsights');
-                insightsDiv.style.display = 'block';
-                insightsDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #a0aec0;">🤖 Generating AI insights...</div>';
-                
-                const response = await safeApiCall(`/api/admin/top-topics/insights/${encodeURIComponent(topicName)}`);
-                
-                if (response.success && response.insights) {
-                    insightsDiv.innerHTML = `
-                        <div style="background: #2d3748; padding: 15px; border-radius: 8px; margin-top: 10px;">
-                            <h4 style="color: #e2e8f0; margin-bottom: 10px;">🤖 AI Analysis</h4>
-                            <p style="color: #a0aec0; line-height: 1.6;">${response.insights.insights || response.insights}</p>
-                            <div style="font-size: 12px; color: #718096; margin-top: 10px;">
-                                Generated: ${new Date(response.insights.generatedAt || Date.now()).toLocaleString()}
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    insightsDiv.innerHTML = `
-                        <div style="background: #2d3748; padding: 15px; border-radius: 8px; margin-top: 10px;">
-                            <p style="color: #a0aec0;">AI insights are not available for this topic at the moment.</p>
-                        </div>
-                    `;
-                }
-            } catch (error) {
-                console.error('Error loading AI insights:', error);
-                const insightsDiv = document.getElementById('aiInsights');
-                insightsDiv.innerHTML = `
-                    <div style="background: #2d3748; padding: 15px; border-radius: 8px; margin-top: 10px;">
-                        <p style="color: #e53e3e;">Error loading AI insights: ${error.message}</p>
-                    </div>
-                `;
-            }
-        }
 
         function closeTrendModal() {
             document.getElementById('trendModal').style.display = 'none';
