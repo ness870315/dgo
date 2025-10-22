@@ -967,6 +967,17 @@
             refreshStats();
             loadRecentTweets();
             loadTrackedAccounts();
+            
+            // Auto-refresh stats every 10 seconds for real-time updates
+            setInterval(() => {
+                refreshStats();
+            }, 10000);
+            
+            // Auto-refresh all data every 30 seconds
+            setInterval(() => {
+                loadRecentTweets();
+                loadTrackedAccounts();
+            }, 30000);
         });
 
         // Control Functions
@@ -1065,6 +1076,7 @@
                     document.getElementById('newAccountUsername').value = '';
                     getStatus();
                     loadTrackedAccounts();
+                    refreshStats(); // Refresh statistics after adding account
                 } else {
                     showAlert(`❌ ${data.message}`, 'error');
                 }
@@ -1278,6 +1290,7 @@
                     showAlert(`✅ ${data.message}`, 'success');
                     getStatus();
                     loadTrackedAccounts();
+                    refreshStats(); // Refresh statistics after removing account
                 } else {
                     showAlert(`❌ ${data.message}`, 'error');
                 }
@@ -1392,6 +1405,12 @@
                     <div class="stat-label">Database Size</div>
                 </div>
             `;
+            
+            // Add last updated timestamp
+            const lastUpdated = document.createElement('div');
+            lastUpdated.style.cssText = 'text-align: center; color: #a0aec0; font-size: 0.8rem; margin-top: 10px;';
+            lastUpdated.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+            container.appendChild(lastUpdated);
         }
 
         function displaySentimentTrends(trends) {
