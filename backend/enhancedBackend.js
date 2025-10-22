@@ -12696,10 +12696,21 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const { limit = 20, timeframe = '24h' } = req.query;
         
-        if (!this.cryptoTrackingDatabase || !this.cryptoTrackingDatabase.ctMomentumDatabase) {
+        console.log(`💰 [CT MOMENTUM] Request for top tokens: limit=${limit}, timeframe=${timeframe}`);
+        
+        if (!this.cryptoTrackingDatabase) {
+          console.error('❌ [CT MOMENTUM] CryptoTrackingDatabase not initialized');
           return res.status(503).json({
             success: false,
-            error: 'CT Momentum service not initialized'
+            error: 'Crypto Tracking Database not initialized'
+          });
+        }
+
+        if (!this.cryptoTrackingDatabase.ctMomentumDatabase) {
+          console.error('❌ [CT MOMENTUM] CTMomentumDatabase not initialized');
+          return res.status(503).json({
+            success: false,
+            error: 'CT Momentum Database not initialized'
           });
         }
 
@@ -12707,6 +12718,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
           parseInt(limit),
           timeframe
         );
+        
+        console.log(`✅ [CT MOMENTUM] Returning ${topTokens.length} tokens`);
         
         res.json({
           success: true,
@@ -12718,6 +12731,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
       } catch (error) {
         console.error('[🛡️ Admin] ❌ Failed to get top tokens:', error.message);
+        console.error('Stack:', error.stack);
         res.status(500).json({
           success: false,
           error: error.message
