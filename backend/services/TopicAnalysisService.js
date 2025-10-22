@@ -51,11 +51,27 @@ class TopicAnalysisService {
       { pattern: /\b(etf|adoption|institutional|corporate)\b/gi, category: 'Institutional' }
     ];
 
-    // Sentiment indicators for topics
+    // Enhanced sentiment indicators for topics (crypto slang included)
     this.sentimentIndicators = {
-      positive: ['bullish', 'moon', 'pump', 'rocket', 'breakout', 'rally', 'surge', 'explode'],
-      negative: ['bearish', 'crash', 'dump', 'dip', 'correction', 'selloff', 'panic'],
-      neutral: ['analysis', 'update', 'news', 'report', 'data', 'chart', 'technical']
+      positive: [
+        'bullish', 'moon', 'pump', 'rocket', 'breakout', 'rally', 'surge', 'explode',
+        'hodl', 'diamond hands', 'wagmi', 'lfg', 'based', 'chad', 'gmi', 'parabolic',
+        'mooning', 'pumping', 'green', 'gains', 'profit', 'winning', 'strong', 'solid',
+        'buy', 'long', 'accumulate', 'bullish af', 'to the moon', 'going up', 'rising',
+        'breakthrough', 'adoption', 'partnership', 'integration', 'launch', 'upgrade'
+      ],
+      negative: [
+        'bearish', 'crash', 'dump', 'dip', 'correction', 'selloff', 'panic',
+        'rekt', 'paper hands', 'ngmi', 'cope', 'seethe', 'fud', 'scam', 'rug',
+        'dumping', 'red', 'loss', 'losing', 'weak', 'failing', 'dead', 'dying',
+        'sell', 'short', 'exit', 'bearish af', 'going down', 'falling', 'crashing',
+        'warning', 'risk', 'danger', 'avoid', 'caution', 'concern', 'problem'
+      ],
+      neutral: [
+        'analysis', 'update', 'news', 'report', 'data', 'chart', 'technical',
+        'watching', 'monitoring', 'tracking', 'observing', 'sideways', 'consolidating',
+        'waiting', 'patience', 'mixed', 'unclear', 'uncertain', 'tbd', 'pending'
+      ]
     };
 
     console.log('🔥 [TOPIC ANALYSIS] Service initialized with AI-powered topic extraction');
@@ -80,12 +96,15 @@ class TopicAnalysisService {
       const categoryTopics = this.extractTopicsByCategory(tweetText);
       categoryTopics.forEach(topic => topics.add(topic));
       
+      // Get tweet's overall sentiment from metadata (if available from CryptoTrackingDatabase)
+      const tweetSentiment = tweetMetadata.sentiment || null;
+      
       // Convert to array and add metadata
       const extractedTopics = Array.from(topics).map(topic => ({
         name: topic,
         category: this.categorizeTopic(topic),
         confidence: this.calculateTopicConfidence(topic, tweetText),
-        sentiment: this.extractTopicSentiment(topic, tweetText),
+        sentiment: this.extractTopicSentiment(topic, tweetText, tweetSentiment),
         extractedAt: new Date().toISOString(),
         methods: this.getExtractionMethods(topic, tweetText)
       }));
@@ -252,20 +271,29 @@ Example: ["bitcoin", "etf", "bullish", "institutional"]
   /**
    * Extract sentiment for a specific topic
    */
-  extractTopicSentiment(topic, text) {
+  extractTopicSentiment(topic, text, tweetSentiment = null) {
     const lowerText = text.toLowerCase();
     const lowerTopic = topic.toLowerCase();
     
     // Find context around the topic
     const topicIndex = lowerText.indexOf(lowerTopic);
-    if (topicIndex === -1) return 'neutral';
+    if (topicIndex === -1) {
+      // If topic not found in text, use tweet's overall sentiment (AI-powered)
+      if (tweetSentiment) {
+        // Map AI sentiment (bullish/bearish/neutral) to topic sentiment (positive/negative/neutral)
+        if (tweetSentiment === 'bullish') return 'positive';
+        if (tweetSentiment === 'bearish') return 'negative';
+        return 'neutral';
+      }
+      return 'neutral';
+    }
     
     // Extract surrounding context (50 chars before and after)
     const contextStart = Math.max(0, topicIndex - 50);
     const contextEnd = Math.min(text.length, topicIndex + lowerTopic.length + 50);
     const context = lowerText.substring(contextStart, contextEnd);
     
-    // Check for sentiment indicators
+    // Check for sentiment indicators in context
     let positiveScore = 0;
     let negativeScore = 0;
     
@@ -277,8 +305,16 @@ Example: ["bitcoin", "etf", "bullish", "institutional"]
       if (context.includes(indicator)) negativeScore++;
     });
     
+    // If we found clear sentiment indicators, use them
     if (positiveScore > negativeScore) return 'positive';
     if (negativeScore > positiveScore) return 'negative';
+    
+    // If no clear sentiment in context, use tweet's overall AI-powered sentiment
+    if (tweetSentiment) {
+      if (tweetSentiment === 'bullish') return 'positive';
+      if (tweetSentiment === 'bearish') return 'negative';
+    }
+    
     return 'neutral';
   }
 
@@ -326,7 +362,8 @@ Example: ["bitcoin", "etf", "bullish", "institutional"]
           tweetId: tweet.id,
           author: tweet.author,
           timestamp: tweet.timestamp,
-          engagement: tweet.engagement
+          engagement: tweet.engagement,
+          sentiment: tweet.intelligence?.sentiment || null // Pass AI-powered sentiment
         });
         
         topics.forEach(topic => {
@@ -342,8 +379,13 @@ Example: ["bitcoin", "etf", "bullish", "institutional"]
           const sentiment = topicSentiment.get(topicName);
           sentiment[topic.sentiment]++;
           
-          // Aggregate engagement
-          const engagement = tweet.engagement?.total || 0;
+          // Aggregate engagement (calculate total from individual metrics)
+          const engagement = tweet.engagement 
+            ? (tweet.engagement.likes || 0) + 
+              (tweet.engagement.retweets || 0) * 2 + // Retweets count double
+              (tweet.engagement.quoteTweets || 0) + 
+              (tweet.engagement.replyCount || 0)
+            : 0;
           topicEngagement.set(topicName, (topicEngagement.get(topicName) || 0) + engagement);
           
           // Track authors
@@ -454,3 +496,5 @@ Example: ["bitcoin", "etf", "bullish", "institutional"]
 }
 
 export default TopicAnalysisService;
+
+
