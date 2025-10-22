@@ -25,6 +25,7 @@ class CryptoTrackingDatabase {
     this.trackedTweets = [];
     this.accounts = [];
     this.sentimentTrends = [];
+    this.savingInProgress = false;
     
     // Database files
     this.tweetsFile = path.join(this.storageDir, 'tracked-tweets.json');
@@ -591,6 +592,14 @@ class CryptoTrackingDatabase {
    * Atomic save operation - prevents data loss during writes
    */
   async saveDataAtomic(tweetsToSave) {
+    // Use a simple mutex to prevent concurrent saves
+    if (this.savingInProgress) {
+      console.log('⏳ [CRYPTO DB] Save already in progress, skipping...');
+      return;
+    }
+    
+    this.savingInProgress = true;
+    
     try {
       // Ensure directory exists before saving
       await this.ensureStorageDir();
@@ -640,6 +649,8 @@ class CryptoTrackingDatabase {
     } catch (error) {
       console.error('❌ [CRYPTO DB] Failed to save data atomically:', error.message);
       throw error; // Re-throw to prevent in-memory update on failure
+    } finally {
+      this.savingInProgress = false;
     }
   }
 
