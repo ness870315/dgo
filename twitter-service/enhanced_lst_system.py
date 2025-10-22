@@ -670,17 +670,17 @@ class EnhancedLSTDataSystem:
             {{
                 "strategy_d": {{
                     "name": "Conservative Strategy",
-                    "allocation": [{{"symbol": "mSOL", "weight": 0.5}}, {{"symbol": "jitoSOL", "weight": 0.5}}],
+                    "allocation": [{{"symbol": "LST1", "weight": 0.5}}, {{"symbol": "LST2", "weight": 0.5}}],
                     "reasoning": "Focus on established LSTs with proven track records"
                 }},
                 "strategy_e": {{
                     "name": "Balanced Strategy", 
-                    "allocation": [{{"symbol": "jupSOL", "weight": 0.4}}, {{"symbol": "bSOL", "weight": 0.3}}, {{"symbol": "INF", "weight": 0.3}}],
+                    "allocation": [{{"symbol": "LST1", "weight": 0.4}}, {{"symbol": "LST2", "weight": 0.3}}, {{"symbol": "LST3", "weight": 0.3}}],
                     "reasoning": "Diversified across multiple LSTs for balanced risk/return"
                 }},
                 "strategy_f": {{
                     "name": "Aggressive Strategy",
-                    "allocation": [{{"symbol": "jitoSOL", "weight": 0.6}}, {{"symbol": "jupSOL", "weight": 0.4}}],
+                    "allocation": [{{"symbol": "LST1", "weight": 0.6}}, {{"symbol": "LST2", "weight": 0.4}}],
                     "reasoning": "Concentrated in highest yield LSTs for maximum returns"
                 }}
             }}
