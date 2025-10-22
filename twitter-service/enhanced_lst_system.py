@@ -34,14 +34,16 @@ class EnhancedLSTDataSystem:
                 'name': 'Infinity',
                 'description': 'Infinity LST - High yield LST with 8.35% APR',
                 'apy_endpoint': 'INF',
-                'tvl_endpoint': 'INF'
+                'tvl_endpoint': 'INF',
+                'sanctum_symbol': 'infSOL'  # Map to Sanctum LST list symbol
             },
             'infSOL': {
                 'symbol': 'infSOL', 
                 'name': 'InfiniteSOL',
                 'description': 'InfiniteSOL LST - Different LST with lower APR',
                 'apy_endpoint': 'infSOL',
-                'tvl_endpoint': 'infSOL'
+                'tvl_endpoint': 'infSOL',
+                'sanctum_symbol': 'infSOL'
             }
         }
         
@@ -222,9 +224,18 @@ class EnhancedLSTDataSystem:
             
             logger.info(f"📊 Raw data: Sanctum={len(sanctum_lsts)}, Compass={len(compass_lsts)}, GitHub={len(github_lsts)}")
             
-            # Get APY/TVL data for all symbols
+            # Get APY/TVL data for all symbols, including mapped symbols
             all_symbols = list(set([lst['symbol'] for lst in sanctum_lsts if lst.get('symbol')]))
-            apy_tvl_data = await self.fetch_sanctum_extra_apy_tvl(all_symbols)
+            
+            # Add mapped symbols for APY/TVL fetching
+            mapped_symbols = set()
+            for symbol in all_symbols:
+                if symbol in self.lst_mapping:
+                    mapped_symbols.add(self.lst_mapping[symbol]['apy_endpoint'])
+                else:
+                    mapped_symbols.add(symbol)
+            
+            apy_tvl_data = await self.fetch_sanctum_extra_apy_tvl(list(mapped_symbols))
             
             # Process and combine the data
             enhanced_lsts = self.combine_lst_data(
@@ -265,11 +276,20 @@ class EnhancedLSTDataSystem:
                 tvl_sol = tvl_lamports / 1e9
                 tvl_usd = tvl_sol * 190  # Current SOL price
                 
-                # Get metadata from Sanctum LST list
-                metadata = next((lst for lst in sanctum_lsts if lst.get('symbol') == symbol), {})
+                # Get metadata from Sanctum LST list using symbol mapping
+                sanctum_symbol = symbol
+                if symbol in self.lst_mapping:
+                    sanctum_symbol = self.lst_mapping[symbol].get('sanctum_symbol', symbol)
+                
+                metadata = next((lst for lst in sanctum_lsts if lst.get('symbol') == sanctum_symbol), {})
+                
+                # Use the mapped symbol for the final LST entry
+                final_symbol = symbol
+                if symbol in self.lst_mapping:
+                    final_symbol = self.lst_mapping[symbol]['symbol']
                 
                 enhanced_lst = {
-                    'symbol': symbol,
+                    'symbol': final_symbol,
                     'mint': metadata.get('mint', ''),
                     'name': metadata.get('name', symbol),
                     'apr': max(4.0, min(10.0, apy)),  # Clamp between 4-10%
@@ -293,7 +313,7 @@ class EnhancedLSTDataSystem:
                     'lastUpdated': datetime.now().isoformat()
                 }
                 
-                lst_map[symbol] = enhanced_lst
+                lst_map[final_symbol] = enhanced_lst
                 
             except Exception as e:
                 logger.warning(f"   ⚠️ Error processing LST {symbol}: {e}")
