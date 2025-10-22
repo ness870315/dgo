@@ -543,10 +543,25 @@ class CryptoTrackingDatabase {
    * Save database to disk
    */
   /**
+   * Ensure storage directory exists
+   */
+  async ensureStorageDir() {
+    try {
+      await fs.mkdir(this.storageDir, { recursive: true });
+    } catch (error) {
+      console.error('❌ [CRYPTO DB] Failed to create storage directory:', error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Atomic save operation - prevents data loss during writes
    */
   async saveDataAtomic(tweetsToSave) {
     try {
+      // Ensure directory exists before saving
+      await this.ensureStorageDir();
+      
       const tweetsData = {
         tweets: tweetsToSave,
         lastSaved: new Date().toISOString(),
@@ -568,6 +583,9 @@ class CryptoTrackingDatabase {
 
   async saveData() {
     try {
+      // Ensure directory exists before saving
+      await this.ensureStorageDir();
+      
       const tweetsData = {
         tweets: this.trackedTweets,
         lastSaved: new Date().toISOString(),
@@ -587,6 +605,9 @@ class CryptoTrackingDatabase {
    */
   async loadData() {
     try {
+      // Ensure directory exists before loading
+      await this.ensureStorageDir();
+      
       const data = await fs.readFile(this.tweetsFile, 'utf8');
       const tweetsData = JSON.parse(data);
       
@@ -595,8 +616,13 @@ class CryptoTrackingDatabase {
       console.log(`📂 [CRYPTO DB] Data loaded (${this.trackedTweets.length} tweets)`);
       
     } catch (error) {
-      console.log('ℹ️ [CRYPTO DB] No existing data found, starting fresh');
-      this.trackedTweets = [];
+      if (error.code === 'ENOENT') {
+        console.log('ℹ️ [CRYPTO DB] No existing data found, starting fresh');
+        this.trackedTweets = [];
+      } else {
+        console.error('❌ [CRYPTO DB] Error loading data:', error.message);
+        this.trackedTweets = [];
+      }
     }
   }
 }
