@@ -11803,6 +11803,30 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
+    // Cleanup duplicate tweets
+    this.app.post('/api/admin/crypto-tracking/database/cleanup', adminApiAuth, async (req, res) => {
+      try {
+        if (!this.cryptoTrackingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Crypto Tracking Database not initialized'
+          });
+        }
+
+        const result = await this.cryptoTrackingDatabase.cleanupDuplicates();
+        
+        res.json({
+          success: true,
+          message: `Cleanup completed: ${result.duplicatesRemoved} duplicates removed, ${result.uniqueTweets} unique tweets remaining`,
+          result: result
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to cleanup crypto tracking database:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
     // Search tracked tweets
     this.app.get('/api/admin/crypto-tracking/database/search', adminApiAuth, (req, res) => {
       try {

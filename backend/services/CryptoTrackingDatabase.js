@@ -55,6 +55,17 @@ class CryptoTrackingDatabase {
    */
   async storeTrackedTweet(tweetData) {
     try {
+      // Check for duplicate tweets to prevent multiple storage
+      const existingTweet = this.trackedTweets.find(tweet => 
+        tweet.tweetId === tweetData.tweetId || 
+        (tweet.text === tweetData.text && tweet.author.username === tweetData.author.username)
+      );
+      
+      if (existingTweet) {
+        console.log(`⚠️ [CRYPTO DB] Duplicate tweet detected, skipping storage: ${tweetData.text.substring(0, 50)}...`);
+        return;
+      }
+      
       const intelligenceFeatures = await this.extractIntelligenceFeatures(tweetData);
       
       // 🎯 Extract predictions from tweet
@@ -541,7 +552,26 @@ class CryptoTrackingDatabase {
    */
   getStats() {
     const totalTweets = this.trackedTweets.length;
-    const uniqueAccounts = new Set(this.trackedTweets.map(tweet => tweet.author.username)).size;
+    
+    // Debug: Check author structure
+    console.log('🔍 [CRYPTO DB] Debugging author structure:');
+    this.trackedTweets.slice(0, 3).forEach((tweet, index) => {
+      console.log(`Tweet ${index}:`, {
+        author: tweet.author,
+        authorType: typeof tweet.author,
+        hasUsername: tweet.author?.username ? 'YES' : 'NO'
+      });
+    });
+    
+    const uniqueAccounts = new Set(this.trackedTweets.map(tweet => {
+      // Handle both string and object author formats
+      if (typeof tweet.author === 'string') {
+        return tweet.author;
+      } else if (tweet.author && typeof tweet.author === 'object') {
+        return tweet.author.username || tweet.author;
+      }
+      return 'unknown';
+    })).size;
     
     const sentimentCounts = this.trackedTweets.reduce((acc, tweet) => {
       acc[tweet.sentiment] = (acc[tweet.sentiment] || 0) + 1;
@@ -787,6 +817,45 @@ class CryptoTrackingDatabase {
       console.error('❌ [CRYPTO DB] Data recovery failed:', recoveryError.message);
       console.log('🔄 [CRYPTO DB] Starting with empty database');
       this.trackedTweets = [];
+    }
+  }
+
+  /**
+   * Clean up duplicate tweets from the database
+   */
+  async cleanupDuplicates() {
+    try {
+      console.log('🧹 [CRYPTO DB] Starting duplicate cleanup...');
+      
+      const uniqueTweets = [];
+      const seenTweets = new Set();
+      let duplicatesRemoved = 0;
+      
+      for (const tweet of this.trackedTweets) {
+        const tweetKey = `${tweet.tweetId || tweet.text}_${tweet.author.username}`;
+        
+        if (seenTweets.has(tweetKey)) {
+          duplicatesRemoved++;
+          console.log(`🗑️ [CRYPTO DB] Removing duplicate: ${tweet.text.substring(0, 50)}...`);
+        } else {
+          seenTweets.add(tweetKey);
+          uniqueTweets.push(tweet);
+        }
+      }
+      
+      if (duplicatesRemoved > 0) {
+        console.log(`🧹 [CRYPTO DB] Removed ${duplicatesRemoved} duplicate tweets`);
+        this.trackedTweets = uniqueTweets;
+        await this.saveDataAtomic(this.trackedTweets);
+        console.log(`✅ [CRYPTO DB] Cleanup completed, ${uniqueTweets.length} unique tweets remaining`);
+      } else {
+        console.log('✅ [CRYPTO DB] No duplicates found');
+      }
+      
+      return { duplicatesRemoved, uniqueTweets: uniqueTweets.length };
+    } catch (error) {
+      console.error('❌ [CRYPTO DB] Error during cleanup:', error.message);
+      throw error;
     }
   }
 
