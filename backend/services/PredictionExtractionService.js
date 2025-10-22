@@ -153,41 +153,22 @@ class PredictionExtractionService {
    */
   async extractPredictionsWithAI(tweetText, tweetMetadata = {}) {
     try {
-      const prompt = `
-Analyze this crypto tweet and extract any price predictions or market forecasts. Look for:
-
-1. **Direct Price Targets**: Specific price levels mentioned (e.g., "$BTC to $50,000", "ETH hitting $3,000")
-2. **Multipliers**: X-fold increases (e.g., "SOL 5x", "BTC 2x from here")
-3. **Percentage Moves**: Percentage-based predictions (e.g., "DOGE +50%", "ETH -20%")
-4. **Support/Resistance**: Key levels (e.g., "BTC support at $40k", "ETH resistance $2,500")
-5. **Timeframes**: When the prediction should occur (e.g., "by end of year", "next week", "soon")
+      const prompt = `Analyze this crypto tweet and extract any price predictions or market forecasts.
 
 Tweet: "${tweetText}"
 
-For each prediction found, return a JSON array with this exact format:
-[
-  {
-    "token": "BTC",
-    "type": "price_target|multiplier_target|percentage_move|support_resistance|next_level",
-    "value": "50000",
-    "timeframe": "end of year",
-    "confidence": 0.8,
-    "reasoning": "Brief explanation of why this is a prediction"
-  }
-]
+Return ONLY a JSON array. If no predictions found, return: []
+If predictions found, return: [{"token": "BTC", "type": "price_target", "value": "50000", "timeframe": "end of year", "confidence": 0.8, "reasoning": "Brief explanation"}]
 
 Rules:
-- Only extract clear predictions, not general statements
+- Only extract clear predictions (price targets, multipliers, percentages, support/resistance)
 - Use exact token symbols (BTC, ETH, SOL, etc.)
-- Convert all values to numbers (remove $, commas, k/m suffixes)
-- If timeframe is unclear, use "unknown"
-- Confidence: 0.1-1.0 based on how explicit the prediction is
+- Convert values to numbers (remove $, commas, k/m suffixes)
+- If timeframe unclear, use "unknown"
+- Confidence: 0.1-1.0 based on explicitness
 - Return empty array [] if no predictions found
 
-Example:
-Input: "BTC will hit $50,000 by end of year, calling it now"
-Output: [{"token": "BTC", "type": "price_target", "value": "50000", "timeframe": "end of year", "confidence": 0.9, "reasoning": "Explicit price target with timeframe"}]
-`;
+DO NOT include any explanatory text. Return ONLY the JSON array.`;
 
       const response = await this.openai.chat.completions.create({
         model: 'gpt-4',
@@ -199,10 +180,34 @@ Output: [{"token": "BTC", "type": "price_target", "value": "50000", "timeframe":
       const aiResponse = response.choices[0].message.content.trim();
       console.log(`🤖 [PREDICTION EXTRACT] AI response: ${aiResponse.substring(0, 200)}...`);
 
+      // Clean the response to extract only JSON
+      let jsonResponse = aiResponse;
+      
+      // If response contains explanatory text, try to extract JSON
+      if (!aiResponse.startsWith('[') && !aiResponse.startsWith('{')) {
+        // Look for JSON array in the response
+        const jsonMatch = aiResponse.match(/\[.*\]/s);
+        if (jsonMatch) {
+          jsonResponse = jsonMatch[0];
+        } else {
+          // If no JSON found, return empty array
+          console.log('🤖 [PREDICTION EXTRACT] No JSON found in response, returning empty array');
+          return [];
+        }
+      }
+
       // Parse AI response
-      const aiPredictions = JSON.parse(aiResponse);
+      let aiPredictions;
+      try {
+        aiPredictions = JSON.parse(jsonResponse);
+      } catch (parseError) {
+        console.warn('⚠️ [PREDICTION EXTRACT] Failed to parse AI response as JSON:', parseError.message);
+        console.warn('⚠️ [PREDICTION EXTRACT] Raw response:', jsonResponse);
+        return [];
+      }
       
       if (!Array.isArray(aiPredictions)) {
+        console.warn('⚠️ [PREDICTION EXTRACT] AI response is not an array:', typeof aiPredictions);
         return [];
       }
 
