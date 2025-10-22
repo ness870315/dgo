@@ -25,6 +25,7 @@ class CryptoTrackingDatabase {
     this.trackedTweets = [];
     this.accounts = [];
     this.sentimentTrends = [];
+    this.savingInProgress = false; // File lock for atomic saves
     
     // Database files
     this.tweetsFile = path.join(this.storageDir, 'tracked-tweets.json');
@@ -37,6 +38,30 @@ class CryptoTrackingDatabase {
     this.priceMonitor = new PriceMonitoringService();
     
     this.initializeDatabase();
+    
+    // Save queue management
+    this.saveQueue = [];
+    this.saveInProgress = false;
+  }
+  
+  /**
+   * Queue a save operation to prevent concurrent file operations
+   */
+  async queueSave() {
+    if (this.saveInProgress) {
+      // Save is already in progress, skip this one
+      return;
+    }
+    
+    this.saveInProgress = true;
+    
+    try {
+      await this.saveDataAtomic(this.trackedTweets);
+    } catch (error) {
+      console.error('❌ [CRYPTO DB] Queued save failed:', error.message);
+    } finally {
+      this.saveInProgress = false;
+    }
   }
 
   async initializeDatabase() {
@@ -117,15 +142,8 @@ class CryptoTrackingDatabase {
       // Add to in-memory array first
       this.trackedTweets.push(trackedTweet);
       
-      // Then save to disk (non-blocking)
-      this.saveDataAtomic(this.trackedTweets).catch(error => {
-        console.error('❌ [CRYPTO DB] Failed to save tweet:', error.message);
-        // Remove from in-memory array if save failed
-        const index = this.trackedTweets.findIndex(t => t.id === trackedTweet.id);
-        if (index !== -1) {
-          this.trackedTweets.splice(index, 1);
-        }
-      });
+      // Queue the save operation to prevent concurrent file operations
+      this.queueSave();
       
       console.log(`💾 [CRYPTO DB] Stored tracked tweet #${this.trackedTweets.length}:`, {
         id: trackedTweet.id,
@@ -627,6 +645,13 @@ class CryptoTrackingDatabase {
    * Atomic save operation - prevents data loss during writes
    */
   async saveDataAtomic(tweetsToSave) {
+    // Use a simple file lock to prevent concurrent saves
+    if (this.savingInProgress) {
+      console.log('⏳ [CRYPTO DB] Save already in progress, skipping...');
+      return;
+    }
+    
+    this.savingInProgress = true;
     
     try {
       // Ensure directory exists before saving
@@ -680,6 +705,8 @@ class CryptoTrackingDatabase {
     } catch (error) {
       console.error('❌ [CRYPTO DB] Failed to save data atomically:', error.message);
       throw error; // Re-throw to prevent in-memory update on failure
+    } finally {
+      this.savingInProgress = false;
     }
   }
 
