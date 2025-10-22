@@ -237,15 +237,32 @@ class TwitterAPIioWebSocketService {
    * Check if crypto tracking rule needs update
    */
   needsCryptoRuleUpdate(trackedAccounts, existingRules) {
-    const cryptoRule = existingRules.find(rule => rule.tag === 'crypto_accounts_tracking');
-    if (!cryptoRule) return true;
+    const cryptoRules = existingRules.filter(rule => rule.tag.startsWith('crypto_accounts_tracking'));
+    if (cryptoRules.length === 0) return true;
     
-    // Check if the rule value matches current tracked accounts
-    const expectedValue = trackedAccounts.length > 0 
-      ? trackedAccounts.map(acc => `from:${acc}`).join(' OR ')
-      : '';
+    // Check if the number of rules matches expected chunks
+    const chunkSize = 5;
+    const expectedChunks = Math.ceil(trackedAccounts.length / chunkSize);
+    if (cryptoRules.length !== expectedChunks) return true;
     
-    return cryptoRule.value !== expectedValue;
+    // Check if each rule covers the correct accounts
+    const accountChunks = [];
+    for (let i = 0; i < trackedAccounts.length; i += chunkSize) {
+      accountChunks.push(trackedAccounts.slice(i, i + chunkSize));
+    }
+    
+    for (let i = 0; i < accountChunks.length; i++) {
+      const chunk = accountChunks[i];
+      const expectedValue = chunk.map(acc => `from:${acc}`).join(' OR ');
+      const ruleTag = `crypto_accounts_tracking_${i + 1}`;
+      
+      const rule = cryptoRules.find(r => r.tag === ruleTag);
+      if (!rule || rule.value !== expectedValue) {
+        return true;
+      }
+    }
+    
+    return false;
   }
 
   /**
@@ -313,34 +330,51 @@ class TwitterAPIioWebSocketService {
       
       // Add rule for tracked crypto accounts (if any and needs update)
       if (trackedAccounts.length > 0 && needsCryptoUpdate) {
-        const fromAccounts = trackedAccounts.map(acc => `from:${acc}`).join(' OR ');
+        // Split accounts into chunks to avoid rule length limits
+        const chunkSize = 5; // Max 5 accounts per rule
+        const accountChunks = [];
         
-        const cryptoResponse = await fetch('https://api.twitterapi.io/oapi/tweet_filter/add_rule', {
-          method: 'POST',
-          headers: {
-            'X-API-Key': this.apiKey,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            tag: 'crypto_accounts_tracking',
-            value: fromAccounts,
-            interval_seconds: 20000
-          })
-        });
-        
-        if (!cryptoResponse.ok) {
-          const errorBody = await cryptoResponse.text();
-          console.error('❌ [TwitterAPI.io WS] Failed to add crypto tracking rule:', errorBody);
-          throw new Error(`HTTP ${cryptoResponse.status}: ${cryptoResponse.statusText}`);
+        for (let i = 0; i < trackedAccounts.length; i += chunkSize) {
+          accountChunks.push(trackedAccounts.slice(i, i + chunkSize));
         }
         
-        const cryptoData = await cryptoResponse.json();
-        if (cryptoData.status === 'success' && cryptoData.rule_id) {
-          this.activeRuleIds.push(cryptoData.rule_id);
-          console.log(`✅ [TwitterAPI.io WS] Added crypto tracking rule (ID: ${cryptoData.rule_id})`);
+        console.log(`📦 [TwitterAPI.io WS] Creating ${accountChunks.length} crypto tracking rules for ${trackedAccounts.length} accounts`);
+        
+        // Create a rule for each chunk
+        for (let i = 0; i < accountChunks.length; i++) {
+          const chunk = accountChunks[i];
+          const fromAccounts = chunk.map(acc => `from:${acc}`).join(' OR ');
+          const ruleTag = `crypto_accounts_tracking_${i + 1}`;
           
-          // Activate the rule
-          await this.activateRule(cryptoData.rule_id, 'crypto_accounts_tracking', fromAccounts);
+          console.log(`➕ [TwitterAPI.io WS] Creating rule ${i + 1}/${accountChunks.length}: ${ruleTag}`);
+          
+          const cryptoResponse = await fetch('https://api.twitterapi.io/oapi/tweet_filter/add_rule', {
+            method: 'POST',
+            headers: {
+              'X-API-Key': this.apiKey,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              tag: ruleTag,
+              value: fromAccounts,
+              interval_seconds: 20000
+            })
+          });
+          
+          if (!cryptoResponse.ok) {
+            const errorBody = await cryptoResponse.text();
+            console.error(`❌ [TwitterAPI.io WS] Failed to add crypto tracking rule ${i + 1}:`, errorBody);
+            throw new Error(`HTTP ${cryptoResponse.status}: ${cryptoResponse.statusText}`);
+          }
+          
+          const cryptoData = await cryptoResponse.json();
+          if (cryptoData.status === 'success' && cryptoData.rule_id) {
+            this.activeRuleIds.push(cryptoData.rule_id);
+            console.log(`✅ [TwitterAPI.io WS] Added crypto tracking rule ${i + 1} (ID: ${cryptoData.rule_id})`);
+            
+            // Activate the rule
+            await this.activateRule(cryptoData.rule_id, ruleTag, fromAccounts);
+          }
         }
       } else if (trackedAccounts.length === 0) {
         console.log('ℹ️ [TwitterAPI.io WS] No crypto accounts to track, skipping crypto rule');
@@ -404,7 +438,7 @@ class TwitterAPIioWebSocketService {
       
       // Get current rules from API to find crypto tracking rules
       const existingRules = await this.getExistingRules();
-      const cryptoRules = existingRules.filter(rule => rule.tag === 'crypto_accounts_tracking');
+      const cryptoRules = existingRules.filter(rule => rule.tag.startsWith('crypto_accounts_tracking'));
       
       if (cryptoRules.length === 0) {
         console.log('ℹ️ [TwitterAPI.io WS] No crypto tracking rules to clear');
