@@ -347,6 +347,20 @@
             </a>
         </div>
 
+        <!-- Statistics Overview - Moved to top -->
+        <div class="card" style="margin-bottom: 30px;">
+            <h2>📊 Statistics Overview</h2>
+            <p style="color: #a0aec0; margin-bottom: 20px;">
+                Real-time statistics and performance metrics
+            </p>
+
+            <div id="statsOverview" class="stats-grid">
+                <!-- Stats will be populated here -->
+            </div>
+
+            <button class="btn btn-info" onclick="refreshStats()">🔄 Refresh Stats</button>
+        </div>
+
         <div class="dashboard-grid">
             <!-- Control Panel -->
             <div class="card">
@@ -446,26 +460,21 @@
                 </div>
 
                 <!-- Analytics Buttons -->
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <label style="color: #a0aec0; font-weight: 500;">👤 Account Metrics:</label>
+                        <select id="accountMetricsDropdown" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #4a5568; background: #2d3748; color: #f7fafc; min-width: 150px;">
+                            <option value="">Select Account...</option>
+                        </select>
+                        <button class="btn btn-info" onclick="getSelectedAccountMetrics()">📊 Get Metrics</button>
+                    </div>
+                </div>
+                
                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="btn btn-info" onclick="getAccountMetrics('RaoulGMI')">👤 RaoulGMI Metrics</button>
                     <button class="btn btn-info" onclick="getPredictionAccuracy()">🎯 Prediction Accuracy</button>
                     <button class="btn btn-info" onclick="getTopTopics()">🔥 Top Topics</button>
                     <button class="btn btn-info" onclick="getInfluenceRanking()">⭐ Influence Ranking</button>
                 </div>
-            </div>
-
-            <!-- Statistics Overview -->
-            <div class="card">
-                <h2>📊 Statistics Overview</h2>
-                <p style="color: #a0aec0; margin-bottom: 20px;">
-                    Real-time statistics and performance metrics
-                </p>
-
-                <div id="statsOverview" class="stats-grid">
-                    <!-- Stats will be populated here -->
-                </div>
-
-                <button class="btn btn-info" onclick="refreshStats()">🔄 Refresh Stats</button>
             </div>
 
             <!-- Recent Tweets -->
@@ -679,6 +688,37 @@
             }
         }
 
+        // New function to get metrics for selected account from dropdown
+        async function getSelectedAccountMetrics() {
+            const dropdown = document.getElementById('accountMetricsDropdown');
+            const selectedUsername = dropdown.value;
+            
+            if (!selectedUsername) {
+                showAlert('❌ Please select an account from the dropdown', 'error');
+                return;
+            }
+            
+            await getAccountMetrics(selectedUsername);
+        }
+
+        // Function to populate the account metrics dropdown
+        function populateAccountMetricsDropdown(accounts) {
+            const dropdown = document.getElementById('accountMetricsDropdown');
+            
+            // Clear existing options except the first one
+            dropdown.innerHTML = '<option value="">Select Account...</option>';
+            
+            // Add each tracked account as an option
+            accounts.forEach(account => {
+                const option = document.createElement('option');
+                option.value = account.username;
+                option.textContent = `@${account.username}`;
+                dropdown.appendChild(option);
+            });
+            
+            console.log(`📋 [DROPDOWN] Populated with ${accounts.length} accounts`);
+        }
+
         async function refreshStats() {
             try {
                 const data = await safeApiCall(`${API_BASE}/api/admin/crypto-tracking/database/stats`);
@@ -709,6 +749,8 @@
                 
                 if (data.success) {
                     displayTrackedAccounts(data.accounts);
+                    // Also populate the account metrics dropdown
+                    populateAccountMetricsDropdown(data.accounts);
                 } else {
                     console.error('Failed to load tracked accounts:', data.message);
                 }
