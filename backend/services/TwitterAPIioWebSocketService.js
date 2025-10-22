@@ -263,13 +263,19 @@ class TwitterAPIioWebSocketService {
       
       console.log(`📋 [TwitterAPI.io WS] Existing rules: mentions=${hasMentionRule}, crypto=${hasCryptoRule}`);
       
-      // Only clear and recreate if we need to update crypto accounts
-      if (!hasCryptoRule || this.needsCryptoRuleUpdate(trackedAccounts, existingRules)) {
+      // Check if crypto rule needs update
+      const needsCryptoUpdate = !hasCryptoRule || this.needsCryptoRuleUpdate(trackedAccounts, existingRules);
+      
+      // If both rules exist and crypto rule doesn't need update, skip everything
+      if (hasMentionRule && !needsCryptoUpdate) {
+        console.log('✅ [TwitterAPI.io WS] All rules already exist and are up to date - skipping setup');
+        return;
+      }
+      
+      // Only clear existing rules if we need to update crypto accounts
+      if (needsCryptoUpdate) {
         console.log('🔄 [TwitterAPI.io WS] Updating crypto tracking rules...');
         await this.clearExistingRules();
-      } else {
-        console.log('✅ [TwitterAPI.io WS] Rules already exist and are up to date');
-        return;
       }
       
       // Add rule for @dgnoracle mentions (only if it doesn't exist)
@@ -306,17 +312,8 @@ class TwitterAPIioWebSocketService {
         console.log('✅ [TwitterAPI.io WS] Mention rule already exists, skipping creation');
       }
       
-      // Add rule for tracked crypto accounts (if any)
-      if (trackedAccounts.length > 0) {
-        const cryptoKeywords = [
-          'bitcoin', 'btc', 'ethereum', 'eth', 'crypto', 'cryptocurrency',
-          'blockchain', 'defi', 'nft', 'web3', 'solana', 'sol', 'binance',
-          'coinbase', 'metamask', 'wallet', 'trading', 'hodl', 'moon',
-          'altcoin', 'token', 'protocol', 'yield', 'staking', 'mining',
-          'bull', 'bear', 'pump', 'dump', 'fomo', 'fud', 'diamond hands',
-          'whale', 'dip', 'rally', 'correction', 'bubble', 'adoption'
-        ];
-        
+      // Add rule for tracked crypto accounts (if any and needs update)
+      if (trackedAccounts.length > 0 && needsCryptoUpdate) {
         const fromAccounts = trackedAccounts.map(acc => `from:${acc}`).join(' OR ');
         
         const cryptoResponse = await fetch('https://api.twitterapi.io/oapi/tweet_filter/add_rule', {
@@ -346,6 +343,10 @@ class TwitterAPIioWebSocketService {
           // Activate the rule
           await this.activateRule(cryptoData.rule_id, 'crypto_accounts_tracking', fromAccounts);
         }
+      } else if (trackedAccounts.length === 0) {
+        console.log('ℹ️ [TwitterAPI.io WS] No crypto accounts to track, skipping crypto rule');
+      } else {
+        console.log('✅ [TwitterAPI.io WS] Crypto rule already exists and is up to date');
       }
       
       console.log('✅ [TwitterAPI.io WS] All filter rules set up successfully');
@@ -396,21 +397,25 @@ class TwitterAPIioWebSocketService {
   }
 
   /**
-   * Clear existing filter rules
+   * Clear existing filter rules (only crypto tracking rules)
    */
   async clearExistingRules() {
     try {
-      console.log('🧹 [TwitterAPI.io WS] Clearing existing filter rules...');
+      console.log('🧹 [TwitterAPI.io WS] Clearing existing crypto tracking rules...');
       
-      if (this.activeRuleIds.length === 0) {
-        console.log('ℹ️ [TwitterAPI.io WS] No active rules to clear');
+      // Get current rules from API to find crypto tracking rules
+      const existingRules = await this.getExistingRules();
+      const cryptoRules = existingRules.filter(rule => rule.tag === 'crypto_accounts_tracking');
+      
+      if (cryptoRules.length === 0) {
+        console.log('ℹ️ [TwitterAPI.io WS] No crypto tracking rules to clear');
         return;
       }
       
-      console.log(`🗑️ [TwitterAPI.io WS] Found ${this.activeRuleIds.length} active rules, clearing...`);
+      console.log(`🗑️ [TwitterAPI.io WS] Found ${cryptoRules.length} crypto tracking rules, clearing...`);
       
-      // Delete each rule by ID
-      for (const ruleId of this.activeRuleIds) {
+      // Delete each crypto tracking rule by ID
+      for (const rule of cryptoRules) {
         try {
           const deleteResponse = await fetch('https://api.twitterapi.io/oapi/tweet_filter/delete_rule', {
             method: 'DELETE',
@@ -419,31 +424,29 @@ class TwitterAPIioWebSocketService {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              rule_id: ruleId
+              rule_id: rule.rule_id
             })
           });
           
           if (deleteResponse.ok) {
             const deleteData = await deleteResponse.json();
             if (deleteData.status === 'success') {
-              console.log(`✅ [TwitterAPI.io WS] Deleted rule ${ruleId}`);
+              console.log(`✅ [TwitterAPI.io WS] Deleted crypto rule ${rule.rule_id}`);
             } else {
-              console.log(`⚠️ [TwitterAPI.io WS] Failed to delete rule ${ruleId}: ${deleteData.msg}`);
+              console.log(`⚠️ [TwitterAPI.io WS] Failed to delete crypto rule ${rule.rule_id}: ${deleteData.msg}`);
             }
           } else {
-            console.log(`⚠️ [TwitterAPI.io WS] HTTP error deleting rule ${ruleId}: ${deleteResponse.status}`);
+            console.log(`⚠️ [TwitterAPI.io WS] HTTP error deleting crypto rule ${rule.rule_id}: ${deleteResponse.status}`);
           }
         } catch (error) {
-          console.log(`⚠️ [TwitterAPI.io WS] Error deleting rule ${ruleId}:`, error.message);
+          console.log(`⚠️ [TwitterAPI.io WS] Error deleting crypto rule ${rule.rule_id}:`, error.message);
         }
       }
       
-      // Clear the stored rule IDs
-      this.activeRuleIds = [];
-      console.log('✅ [TwitterAPI.io WS] Cleared all active rules');
+      console.log('✅ [TwitterAPI.io WS] Cleared crypto tracking rules');
       
     } catch (error) {
-      console.log('⚠️ [TwitterAPI.io WS] Error clearing rules (continuing):', error.message);
+      console.log('⚠️ [TwitterAPI.io WS] Error clearing crypto rules (continuing):', error.message);
     }
   }
 
