@@ -25,6 +25,9 @@ class TwitterAPIioWebSocketService {
     this.maxReconnectAttempts = 10;
     this.reconnectDelay = 5000; // 5 seconds
     
+    // Store rule IDs for deletion
+    this.activeRuleIds = [];
+    
     if (!this.apiKey) {
       throw new Error('TwitterAPI.io API key is required for WebSocket');
     }
@@ -215,16 +218,36 @@ class TwitterAPIioWebSocketService {
       // Clear existing rules first
       await this.clearExistingRules();
       
-      // Create combined filter rule
-      const rules = [];
-      
-      // Rule 1: Mentions of @dgnoracle
-      rules.push({
-        value: '@dgnoracle',
-        tag: 'mentions_dgnoracle'
+      // Add rule for @dgnoracle mentions
+      const mentionResponse = await fetch('https://api.twitterapi.io/oapi/tweet_filter/add_rule', {
+        method: 'POST',
+        headers: {
+          'X-API-Key': this.apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          tag: 'mentions_dgnoracle',
+          value: '@dgnoracle',
+          interval_seconds: 20000
+        })
       });
       
-      // Rule 2: Tweets from tracked crypto accounts
+      if (!mentionResponse.ok) {
+        const errorBody = await mentionResponse.text();
+        console.error('❌ [TwitterAPI.io WS] Failed to add mention rule:', errorBody);
+        throw new Error(`HTTP ${mentionResponse.status}: ${mentionResponse.statusText}`);
+      }
+      
+      const mentionData = await mentionResponse.json();
+      if (mentionData.status === 'success' && mentionData.rule_id) {
+        this.activeRuleIds.push(mentionData.rule_id);
+        console.log(`✅ [TwitterAPI.io WS] Added mention rule (ID: ${mentionData.rule_id})`);
+        
+        // Activate the rule
+        await this.activateRule(mentionData.rule_id, 'mentions_dgnoracle', '@dgnoracle');
+      }
+      
+      // Add rule for tracked crypto accounts (if any)
       if (trackedAccounts.length > 0) {
         const cryptoKeywords = [
           'bitcoin', 'btc', 'ethereum', 'eth', 'crypto', 'cryptocurrency',
@@ -236,42 +259,80 @@ class TwitterAPIioWebSocketService {
         ];
         
         const fromAccounts = trackedAccounts.map(acc => `from:${acc}`).join(' OR ');
-        const keywords = cryptoKeywords.join(' OR ');
         
-        rules.push({
-          value: `(${fromAccounts}) (${keywords})`,
-          tag: 'crypto_accounts_tracking'
+        const cryptoResponse = await fetch('https://api.twitterapi.io/oapi/tweet_filter/add_rule', {
+          method: 'POST',
+          headers: {
+            'X-API-Key': this.apiKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            tag: 'crypto_accounts_tracking',
+            value: fromAccounts,
+            interval_seconds: 20000
+          })
         });
+        
+        if (!cryptoResponse.ok) {
+          const errorBody = await cryptoResponse.text();
+          console.error('❌ [TwitterAPI.io WS] Failed to add crypto tracking rule:', errorBody);
+          throw new Error(`HTTP ${cryptoResponse.status}: ${cryptoResponse.statusText}`);
+        }
+        
+        const cryptoData = await cryptoResponse.json();
+        if (cryptoData.status === 'success' && cryptoData.rule_id) {
+          this.activeRuleIds.push(cryptoData.rule_id);
+          console.log(`✅ [TwitterAPI.io WS] Added crypto tracking rule (ID: ${cryptoData.rule_id})`);
+          
+          // Activate the rule
+          await this.activateRule(cryptoData.rule_id, 'crypto_accounts_tracking', fromAccounts);
+        }
       }
       
-      const filterRule = { add: rules };
+      console.log('✅ [TwitterAPI.io WS] All filter rules set up successfully');
       
-      const response = await fetch('https://api.twitterapi.io/twitter/tweet/filter/rules', {
+    } catch (error) {
+      console.error('❌ [TwitterAPI.io WS] Failed to setup filter rules:', error.message);
+      console.warn('⚠️ [TwitterAPI.io WS] Continuing without server-side filtering. All tweets will be received and filtered client-side.');
+      // Don't throw error - continue without filter rules
+    }
+  }
+
+  /**
+   * Activate a rule by updating it with is_effect = 1
+   */
+  async activateRule(ruleId, tag, value) {
+    try {
+      const updateResponse = await fetch('https://api.twitterapi.io/oapi/tweet_filter/update_rule', {
         method: 'POST',
         headers: {
           'X-API-Key': this.apiKey,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(filterRule)
+        body: JSON.stringify({
+          rule_id: ruleId,
+          tag: tag,
+          value: value,
+          interval_seconds: 20000,
+          is_effect: 1
+        })
       });
       
-      if (!response.ok) {
-        const errorBody = await response.text();
-        console.error('❌ [TwitterAPI.io WS] Filter rule setup failed:', errorBody);
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (!updateResponse.ok) {
+        const errorBody = await updateResponse.text();
+        console.error(`❌ [TwitterAPI.io WS] Failed to activate rule ${ruleId}:`, errorBody);
+        throw new Error(`HTTP ${updateResponse.status}: ${updateResponse.statusText}`);
       }
       
-      const data = await response.json();
-      console.log('✅ [TwitterAPI.io WS] Combined filter rules set up successfully');
-      rules.forEach((rule, index) => {
-        console.log(`📋 [TwitterAPI.io WS] Rule ${index + 1}: ${rule.value}`);
-      });
-      
-      return data;
+      const updateData = await updateResponse.json();
+      if (updateData.status === 'success') {
+        console.log(`✅ [TwitterAPI.io WS] Activated rule ${ruleId}`);
+      } else {
+        console.error(`❌ [TwitterAPI.io WS] Failed to activate rule ${ruleId}: ${updateData.msg}`);
+      }
       
     } catch (error) {
-      console.error('❌ [TwitterAPI.io WS] Failed to setup filter rules:', error.message);
-      throw error;
+      console.error(`❌ [TwitterAPI.io WS] Error activating rule ${ruleId}:`, error.message);
     }
   }
 
@@ -282,44 +343,45 @@ class TwitterAPIioWebSocketService {
     try {
       console.log('🧹 [TwitterAPI.io WS] Clearing existing filter rules...');
       
-      // Get current rules
-      const getResponse = await fetch('https://api.twitterapi.io/twitter/tweet/filter/rules', {
-        method: 'GET',
-        headers: {
-          'X-API-Key': this.apiKey
-        }
-      });
+      if (this.activeRuleIds.length === 0) {
+        console.log('ℹ️ [TwitterAPI.io WS] No active rules to clear');
+        return;
+      }
       
-      if (getResponse.ok) {
-        const data = await getResponse.json();
-        const rules = data.data || [];
-        
-        if (rules.length > 0) {
-          console.log(`🗑️ [TwitterAPI.io WS] Found ${rules.length} existing rules, clearing...`);
-          
-          // Delete all existing rules
-          const deleteResponse = await fetch('https://api.twitterapi.io/twitter/tweet/filter/rules', {
-            method: 'POST',
+      console.log(`🗑️ [TwitterAPI.io WS] Found ${this.activeRuleIds.length} active rules, clearing...`);
+      
+      // Delete each rule by ID
+      for (const ruleId of this.activeRuleIds) {
+        try {
+          const deleteResponse = await fetch('https://api.twitterapi.io/oapi/tweet_filter/delete_rule', {
+            method: 'DELETE',
             headers: {
               'X-API-Key': this.apiKey,
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              delete: {
-                ids: rules.map(rule => rule.id)
-              }
+              rule_id: ruleId
             })
           });
           
           if (deleteResponse.ok) {
-            console.log('✅ [TwitterAPI.io WS] Cleared existing rules');
+            const deleteData = await deleteResponse.json();
+            if (deleteData.status === 'success') {
+              console.log(`✅ [TwitterAPI.io WS] Deleted rule ${ruleId}`);
+            } else {
+              console.log(`⚠️ [TwitterAPI.io WS] Failed to delete rule ${ruleId}: ${deleteData.msg}`);
+            }
           } else {
-            console.log('⚠️ [TwitterAPI.io WS] Failed to clear some rules, continuing...');
+            console.log(`⚠️ [TwitterAPI.io WS] HTTP error deleting rule ${ruleId}: ${deleteResponse.status}`);
           }
-        } else {
-          console.log('ℹ️ [TwitterAPI.io WS] No existing rules to clear');
+        } catch (error) {
+          console.log(`⚠️ [TwitterAPI.io WS] Error deleting rule ${ruleId}:`, error.message);
         }
       }
+      
+      // Clear the stored rule IDs
+      this.activeRuleIds = [];
+      console.log('✅ [TwitterAPI.io WS] Cleared all active rules');
       
     } catch (error) {
       console.log('⚠️ [TwitterAPI.io WS] Error clearing rules (continuing):', error.message);
