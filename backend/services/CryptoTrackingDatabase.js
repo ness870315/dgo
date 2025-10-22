@@ -622,6 +622,18 @@ class CryptoTrackingDatabase {
         throw new Error(`Failed to create temp file: ${tempFile}`);
       }
       
+      // Ensure target directory exists before rename
+      await this.ensureStorageDir();
+      
+      // Double-check directory exists before rename
+      try {
+        await fs.access(this.storageDir);
+        console.log(`✅ [CRYPTO DB] Directory confirmed: ${this.storageDir}`);
+      } catch (error) {
+        console.error(`❌ [CRYPTO DB] Directory missing before rename: ${this.storageDir}`);
+        await this.ensureStorageDir();
+      }
+      
       await fs.rename(tempFile, this.tweetsFile);
       console.log(`💾 [CRYPTO DB] Data saved atomically (${tweetsToSave.length} tweets)`);
       
