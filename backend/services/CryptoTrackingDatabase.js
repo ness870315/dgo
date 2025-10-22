@@ -25,7 +25,6 @@ class CryptoTrackingDatabase {
     this.trackedTweets = [];
     this.accounts = [];
     this.sentimentTrends = [];
-    this.savingInProgress = false;
     
     // Database files
     this.tweetsFile = path.join(this.storageDir, 'tracked-tweets.json');
@@ -115,16 +114,18 @@ class CryptoTrackingDatabase {
         replyTo: null
       };
       
-      // Atomic operation: add to array and save atomically
-      const currentTweets = [...this.trackedTweets]; // Create a copy
-      const tempTweets = [...currentTweets, trackedTweet];
+      // Add to in-memory array first
+      this.trackedTweets.push(trackedTweet);
       
-      console.log(`🔍 [CRYPTO DB] Before save: ${currentTweets.length} tweets, adding 1 more`);
-      
-      await this.saveDataAtomic(tempTweets);
-      
-      // Only update in-memory array after successful save
-      this.trackedTweets = tempTweets;
+      // Then save to disk (non-blocking)
+      this.saveDataAtomic(this.trackedTweets).catch(error => {
+        console.error('❌ [CRYPTO DB] Failed to save tweet:', error.message);
+        // Remove from in-memory array if save failed
+        const index = this.trackedTweets.findIndex(t => t.id === trackedTweet.id);
+        if (index !== -1) {
+          this.trackedTweets.splice(index, 1);
+        }
+      });
       
       console.log(`💾 [CRYPTO DB] Stored tracked tweet #${this.trackedTweets.length}:`, {
         id: trackedTweet.id,
@@ -626,13 +627,6 @@ class CryptoTrackingDatabase {
    * Atomic save operation - prevents data loss during writes
    */
   async saveDataAtomic(tweetsToSave) {
-    // Use a simple mutex to prevent concurrent saves
-    if (this.savingInProgress) {
-      console.log('⏳ [CRYPTO DB] Save already in progress, skipping...');
-      return;
-    }
-    
-    this.savingInProgress = true;
     
     try {
       // Ensure directory exists before saving
@@ -686,8 +680,6 @@ class CryptoTrackingDatabase {
     } catch (error) {
       console.error('❌ [CRYPTO DB] Failed to save data atomically:', error.message);
       throw error; // Re-throw to prevent in-memory update on failure
-    } finally {
-      this.savingInProgress = false;
     }
   }
 
