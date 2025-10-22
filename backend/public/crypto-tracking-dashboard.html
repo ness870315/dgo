@@ -2368,35 +2368,27 @@ This feature analyzes how accurate our tracked accounts' predictions have been:<
                                 </div>
                                 
                                 <div class="topic-metrics">
-                                    <div class="metric">
+                                    <div class="metric" title="Formula: (Frequency × 0.4) + (Engagement × 0.0001) + (Authors × 0.3)">
                                         <span class="metric-label">Trending Score:</span>
                                         <span class="metric-value">${topicData.trendingScore?.toFixed(2) || 'N/A'}</span>
                                     </div>
-                                    <div class="metric">
+                                    <div class="metric" title="Number of tweets mentioning this topic">
                                         <span class="metric-label">Frequency:</span>
                                         <span class="metric-value">${topicData.frequency || 0}</span>
                                     </div>
-                                    <div class="metric">
+                                    <div class="metric" title="Total likes, retweets, and replies across all tweets">
                                         <span class="metric-label">Engagement:</span>
                                         <span class="metric-value">${topicData.engagement || 0}</span>
                                     </div>
-                                    <div class="metric">
+                                    <div class="metric" title="Number of unique accounts discussing this topic">
                                         <span class="metric-label">Authors:</span>
                                         <span class="metric-value">${topicData.authorCount || 0}</span>
                                     </div>
                                 </div>
                                 
-                                <div style="margin-top: 10px; padding: 10px; background: #2d3748; border-radius: 6px; font-size: 11px; color: #a0aec0;">
-                                    <strong>📊 Metrics Explained:</strong><br>
-                                    • <strong>Frequency:</strong> Number of tweets mentioning this topic<br>
-                                    • <strong>Engagement:</strong> Total likes, retweets, and replies<br>
-                                    • <strong>Trending Score:</strong> (Frequency × 0.4) + (Engagement × 0.0001) + (Authors × 0.3)<br>
-                                    • <strong>Authors:</strong> Number of unique accounts discussing this topic
-                                </div>
-                                
                                 <div class="topic-sentiment">
                                     <span class="sentiment-label">Sentiment:</span>
-                                    <span class="sentiment-value sentiment-${topicData.sentiment?.dominant || 'neutral'}">
+                                    <span class="sentiment-value sentiment-${topicData.sentiment?.dominant || 'neutral'}" title="Dominant sentiment: ${topicData.sentiment?.positive || 0} positive, ${topicData.sentiment?.negative || 0} negative, ${topicData.sentiment?.neutral || 0} neutral">
                                         ${topicData.sentiment?.dominant || 'neutral'}
                                     </span>
                                 </div>

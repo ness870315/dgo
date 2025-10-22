@@ -127,8 +127,11 @@ class TopicTrendingDatabase {
           topic: topicData.topic,
           category: topicData.category,
           frequency: topicData.frequency,
+          engagement: topicData.engagement || 0,
           trendingScore: topicData.trendingScore,
           sentiment: topicData.sentiment,
+          authors: topicData.authors || [],
+          authorCount: topicData.authorCount || 0,
           analyzedAt: analysis.analyzedAt,
           timeframe: analysis.timeframe
         };
@@ -188,6 +191,7 @@ class TopicTrendingDatabase {
             // Aggregate data for topics that appear multiple times
             const existing = topicMap.get(key);
             existing.frequency += topic.frequency;
+            existing.engagement += (topic.engagement || 0);
             existing.authorCount = Math.max(existing.authorCount, topic.authorCount);
             existing.trendingScore = Math.max(existing.trendingScore, topic.trendingScore);
             
@@ -195,10 +199,31 @@ class TopicTrendingDatabase {
             const allAuthors = [...new Set([...existing.authors, ...topic.authors])];
             existing.authors = allAuthors;
             existing.authorCount = allAuthors.length;
+            
+            // Aggregate sentiment
+            if (topic.sentiment && existing.sentiment) {
+              existing.sentiment.positive += (topic.sentiment.positive || 0);
+              existing.sentiment.negative += (topic.sentiment.negative || 0);
+              existing.sentiment.neutral += (topic.sentiment.neutral || 0);
+              
+              // Recalculate dominant sentiment
+              const total = existing.sentiment.positive + existing.sentiment.negative + existing.sentiment.neutral;
+              if (total > 0) {
+                if (existing.sentiment.positive >= existing.sentiment.negative && existing.sentiment.positive >= existing.sentiment.neutral) {
+                  existing.sentiment.dominant = 'positive';
+                } else if (existing.sentiment.negative >= existing.sentiment.neutral) {
+                  existing.sentiment.dominant = 'negative';
+                } else {
+                  existing.sentiment.dominant = 'neutral';
+                }
+              }
+            }
           } else {
             topicMap.set(key, {
               ...topic,
-              authors: [...topic.authors] // Create a copy
+              authors: [...topic.authors], // Create a copy
+              engagement: topic.engagement || 0,
+              sentiment: topic.sentiment ? { ...topic.sentiment } : { positive: 0, negative: 0, neutral: 0, dominant: 'neutral' }
             });
           }
         }
