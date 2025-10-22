@@ -116,7 +116,11 @@ class CryptoTrackingDatabase {
       };
       
       // Atomic operation: add to array and save atomically
-      const tempTweets = [...this.trackedTweets, trackedTweet];
+      const currentTweets = [...this.trackedTweets]; // Create a copy
+      const tempTweets = [...currentTweets, trackedTweet];
+      
+      console.log(`🔍 [CRYPTO DB] Before save: ${currentTweets.length} tweets, adding 1 more`);
+      
       await this.saveDataAtomic(tempTweets);
       
       // Only update in-memory array after successful save
@@ -836,7 +840,7 @@ class CryptoTrackingDatabase {
       this.totalEngagement = 0;
       
       // Save empty database
-      await this.saveDataAtomic([]);
+      await this.saveDataAtomic(this.trackedTweets);
       
       console.log(`🗑️ [CRYPTO DB] Cleared ${originalCount} tweets, database reset`);
       
