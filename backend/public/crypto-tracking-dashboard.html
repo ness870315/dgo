@@ -495,6 +495,7 @@
             getStatus();
             refreshStats();
             loadRecentTweets();
+            loadTrackedAccounts();
         });
 
         // Control Functions
@@ -592,10 +593,33 @@
             
             try {
                 showLoading(`Adding @${username} to tracking...`);
-                // This would need to be implemented in the backend
-                showAlert(`✅ @${username} added to tracking (Tier ${tier})`, 'success');
-                document.getElementById('newAccountUsername').value = '';
-                getStatus();
+                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/add-account`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        displayName: username,
+                        tier: tier
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`✅ ${data.message}`, 'success');
+                    document.getElementById('newAccountUsername').value = '';
+                    getStatus();
+                    loadTrackedAccounts();
+                } else {
+                    showAlert(`❌ ${data.message}`, 'error');
+                }
             } catch (error) {
                 showAlert(`❌ Error: ${error.message}`, 'error');
             }
@@ -724,6 +748,93 @@
                 }
             } catch (error) {
                 console.error('Error loading recent tweets:', error);
+            }
+        }
+
+        async function loadTrackedAccounts() {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/accounts`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayTrackedAccounts(data.accounts);
+                } else {
+                    console.error('Failed to load tracked accounts:', data.message);
+                }
+            } catch (error) {
+                console.error('Error loading tracked accounts:', error);
+            }
+        }
+
+        function displayTrackedAccounts(accounts) {
+            const container = document.getElementById('trackedAccounts');
+            const accountsList = document.getElementById('accountsList');
+            
+            if (!accounts || accounts.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+            
+            container.style.display = 'block';
+            
+            let html = '';
+            accounts.forEach(account => {
+                html += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px; margin-bottom: 8px;">
+                        <div>
+                            <strong>@${account.username}</strong>
+                            <span style="color: #a0aec0; font-size: 0.9rem;"> (${account.tier})</span>
+                        </div>
+                        <button class="btn btn-danger" onclick="removeAccount('${account.username}')" style="padding: 4px 8px; font-size: 0.8rem;">
+                            ❌ Remove
+                        </button>
+                    </div>
+                `;
+            });
+            
+            accountsList.innerHTML = html;
+        }
+
+        async function removeAccount(username) {
+            if (!confirm(`Are you sure you want to remove @${username} from tracking?`)) {
+                return;
+            }
+            
+            try {
+                showLoading(`Removing @${username} from tracking...`);
+                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/remove-account`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username: username })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`✅ ${data.message}`, 'success');
+                    getStatus();
+                    loadTrackedAccounts();
+                } else {
+                    showAlert(`❌ ${data.message}`, 'error');
+                }
+            } catch (error) {
+                showAlert(`❌ Error: ${error.message}`, 'error');
             }
         }
 
@@ -972,6 +1083,34 @@
         }
 
         // Utility Functions
+        async function safeApiCall(url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    throw new Error(`Expected JSON but got ${contentType}. Response: ${text.substring(0, 100)}...`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error('API call failed:', error);
+                throw error;
+            }
+        }
+
         function showLoading(message) {
             const resultsDiv = document.getElementById('results');
             resultsDiv.innerHTML = `
@@ -990,6 +1129,7 @@
             getStatus();
             refreshStats();
             loadRecentTweets();
+            loadTrackedAccounts();
         }
 
         // Placeholder functions for future implementation

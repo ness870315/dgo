@@ -206,6 +206,127 @@ class TwitterAPIioWebSocketService {
   }
 
   /**
+   * Set up filter rules for both mentions and crypto tracking
+   */
+  async setupFilterRules(trackedAccounts = []) {
+    try {
+      console.log('🔧 [TwitterAPI.io WS] Setting up combined filter rules...');
+      
+      // Clear existing rules first
+      await this.clearExistingRules();
+      
+      // Create combined filter rule
+      const rules = [];
+      
+      // Rule 1: Mentions of @dgnoracle
+      rules.push({
+        value: '@dgnoracle',
+        tag: 'mentions_dgnoracle'
+      });
+      
+      // Rule 2: Tweets from tracked crypto accounts
+      if (trackedAccounts.length > 0) {
+        const cryptoKeywords = [
+          'bitcoin', 'btc', 'ethereum', 'eth', 'crypto', 'cryptocurrency',
+          'blockchain', 'defi', 'nft', 'web3', 'solana', 'sol', 'binance',
+          'coinbase', 'metamask', 'wallet', 'trading', 'hodl', 'moon',
+          'altcoin', 'token', 'protocol', 'yield', 'staking', 'mining',
+          'bull', 'bear', 'pump', 'dump', 'fomo', 'fud', 'diamond hands',
+          'whale', 'dip', 'rally', 'correction', 'bubble', 'adoption'
+        ];
+        
+        const fromAccounts = trackedAccounts.map(acc => `from:${acc}`).join(' OR ');
+        const keywords = cryptoKeywords.join(' OR ');
+        
+        rules.push({
+          value: `(${fromAccounts}) (${keywords})`,
+          tag: 'crypto_accounts_tracking'
+        });
+      }
+      
+      const filterRule = { add: rules };
+      
+      const response = await fetch('https://api.twitterapi.io/twitter/tweet/filter/rules', {
+        method: 'POST',
+        headers: {
+          'X-API-Key': this.apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(filterRule)
+      });
+      
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.error('❌ [TwitterAPI.io WS] Filter rule setup failed:', errorBody);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('✅ [TwitterAPI.io WS] Combined filter rules set up successfully');
+      rules.forEach((rule, index) => {
+        console.log(`📋 [TwitterAPI.io WS] Rule ${index + 1}: ${rule.value}`);
+      });
+      
+      return data;
+      
+    } catch (error) {
+      console.error('❌ [TwitterAPI.io WS] Failed to setup filter rules:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Clear existing filter rules
+   */
+  async clearExistingRules() {
+    try {
+      console.log('🧹 [TwitterAPI.io WS] Clearing existing filter rules...');
+      
+      // Get current rules
+      const getResponse = await fetch('https://api.twitterapi.io/twitter/tweet/filter/rules', {
+        method: 'GET',
+        headers: {
+          'X-API-Key': this.apiKey
+        }
+      });
+      
+      if (getResponse.ok) {
+        const data = await getResponse.json();
+        const rules = data.data || [];
+        
+        if (rules.length > 0) {
+          console.log(`🗑️ [TwitterAPI.io WS] Found ${rules.length} existing rules, clearing...`);
+          
+          // Delete all existing rules
+          const deleteResponse = await fetch('https://api.twitterapi.io/twitter/tweet/filter/rules', {
+            method: 'POST',
+            headers: {
+              'X-API-Key': this.apiKey,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              delete: {
+                ids: rules.map(rule => rule.id)
+              }
+            })
+          });
+          
+          if (deleteResponse.ok) {
+            console.log('✅ [TwitterAPI.io WS] Cleared existing rules');
+          } else {
+            console.log('⚠️ [TwitterAPI.io WS] Failed to clear some rules, continuing...');
+          }
+        } else {
+          console.log('ℹ️ [TwitterAPI.io WS] No existing rules to clear');
+        }
+      }
+      
+    } catch (error) {
+      console.log('⚠️ [TwitterAPI.io WS] Error clearing rules (continuing):', error.message);
+    }
+  }
+
+  /**
    * Transform WebSocket tweet to our internal format
    */
   transformWebSocketTweet(wsTweet) {

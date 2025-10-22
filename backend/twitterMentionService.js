@@ -35,16 +35,16 @@ class TwitterMentionService {
       console.log('⚠️ [MENTIONS] TwitterAPI.io disabled by environment variable');
     }
     
-    // Initialize TwitterAPI.io WebSocket service (real-time mentions)
-    // Default to enabled unless explicitly disabled (more reliable and cost-effective)
+    // Initialize TwitterAPI.io WebSocket service (real-time mentions + crypto tracking)
+    // This service now handles BOTH mentions AND crypto account tracking
     this.wsService = null;
     if (process.env.USE_TWITTERAPIIO_WEBSOCKET !== 'false' && process.env.TWITTERAPIIO_ENABLED !== 'false') {
       try {
         this.wsService = new TwitterAPIioWebSocketService(
           process.env.TWITTERAPIIO_API_KEY,
-          (tweet) => this.handleWebSocketMention(tweet)
+          (tweet) => this.handleWebSocketTweet(tweet) // Updated method name
         );
-        console.log('✅ [MENTIONS] TwitterAPI.io WebSocket service initialized (real-time mode)');
+        console.log('✅ [MENTIONS] TwitterAPI.io WebSocket service initialized (mentions + crypto tracking)');
       } catch (error) {
         console.error('❌ [MENTIONS] Failed to initialize WebSocket:', error.message);
         console.log('   Will use polling fallback');
@@ -61,6 +61,12 @@ class TwitterMentionService {
     
     // Track conversation depth to limit follow-up replies (max 3 per thread)
     this.conversationDepth = new Map(); // conversationId -> replyCount
+    
+    // Crypto accounts to track (for storage, not replies)
+    this.trackedCryptoAccounts = [
+      'RaoulGMI',
+      // Add more accounts here as needed
+    ];
     
     // State persistence
     this.stateFilePath = process.env.DATA_DIR 
@@ -174,6 +180,16 @@ class TwitterMentionService {
       console.log('🚀 [MENTIONS] Service started - REAL-TIME MODE via WebSocket ⚡');
       console.log('   📡 Instant mention delivery (<1s latency)');
       console.log('   💰 Cost: ~$0.015/day (vs $0.22/day polling)');
+      
+      // Set up filter rules for both mentions and crypto tracking
+      try {
+        await this.wsService.setupFilterRules(this.trackedCryptoAccounts);
+        console.log('✅ [MENTIONS] Filter rules configured for mentions + crypto tracking');
+      } catch (error) {
+        console.error('❌ [MENTIONS] Failed to setup filter rules:', error.message);
+        console.log('   WebSocket will connect but may not receive relevant tweets');
+      }
+      
       this.wsService.connect();
       return;
     }
@@ -208,24 +224,150 @@ class TwitterMentionService {
   }
 
   // Handle mention from WebSocket (real-time)
-  async handleWebSocketMention(wsTweet) {
+  async handleWebSocketTweet(wsTweet) {
     try {
-      console.log('📬 [MENTIONS WS] Real-time mention received!');
-      console.log(`   From: @${wsTweet.author?.userName}`);
-      console.log(`   Text: "${wsTweet.text?.substring(0, 80)}..."`);
+      const authorUsername = wsTweet.author?.userName;
+      const tweetText = wsTweet.text || '';
       
-      // Transform WebSocket tweet to our internal format
-      const mention = this.wsService.transformWebSocketTweet(wsTweet);
+      console.log('📬 [MENTIONS WS] Real-time tweet received!');
+      console.log(`   From: @${authorUsername}`);
+      console.log(`   Text: "${tweetText.substring(0, 80)}..."`);
       
-      // Process immediately (same logic as polling)
-      await this.processMention(mention);
+      // Check if this is a mention of @dgnoracle
+      const isMention = tweetText.toLowerCase().includes('@dgnoracle');
       
-      // Save state after processing
-      await this.saveState();
+      // Check if this is from a tracked crypto account
+      const isTrackedAccount = this.trackedCryptoAccounts.includes(authorUsername);
+      
+      if (isMention) {
+        console.log('💬 [MENTIONS] Processing as mention...');
+        // Transform WebSocket tweet to our internal format
+        const mention = this.wsService.transformWebSocketTweet(wsTweet);
+        // Process as mention (analyze & reply)
+        await this.processMention(mention);
+        // Save state after processing
+        await this.saveState();
+        
+      } else if (isTrackedAccount) {
+        console.log('🔍 [CRYPTO TRACKING] Processing as crypto account tweet...');
+        // Store in crypto tracking database
+        await this.storeCryptoTweet(wsTweet);
+        
+      } else {
+        console.log('⚠️ [MENTIONS WS] Tweet not relevant (not a mention or tracked account)');
+      }
       
     } catch (error) {
-      console.error('❌ [MENTIONS WS] Error processing WebSocket mention:', error.message);
+      console.error('❌ [MENTIONS WS] Error processing WebSocket tweet:', error.message);
     }
+  }
+
+  // Store crypto account tweet in tracking database
+  async storeCryptoTweet(wsTweet) {
+    try {
+      const tweetData = {
+        tweetId: wsTweet.id,
+        text: wsTweet.text,
+        author: {
+          username: wsTweet.author?.userName,
+          displayName: wsTweet.author?.name,
+          profileImageUrl: wsTweet.author?.profilePicture
+        },
+        timestamp: new Date(wsTweet.createdAt).toISOString(),
+        engagement: {
+          likes: wsTweet.likeCount || 0,
+          retweets: wsTweet.retweetCount || 0,
+          quoteTweets: wsTweet.quoteCount || 0,
+          replyCount: wsTweet.replyCount || 0
+        },
+        storedAt: new Date().toISOString()
+      };
+
+      // Store in crypto tracking database if available
+      if (this.backend && this.backend.cryptoTrackingDatabase) {
+        await this.backend.cryptoTrackingDatabase.storeTrackedTweet(tweetData);
+        console.log(`💾 [CRYPTO TRACKING] Stored tweet from @${tweetData.author.username}`);
+      } else {
+        console.log('⚠️ [CRYPTO TRACKING] Database not available, tweet not stored');
+      }
+
+    } catch (error) {
+      console.error('❌ [CRYPTO TRACKING] Error storing crypto tweet:', error.message);
+    }
+  }
+
+  // Add new crypto account to tracking (called from admin dashboard)
+  async addCryptoAccount(username, displayName, tier) {
+    try {
+      // Check if already tracking
+      if (this.trackedCryptoAccounts.includes(username)) {
+        console.log(`⚠️ [CRYPTO TRACKING] Account @${username} already being tracked`);
+        return { success: false, message: `Account @${username} is already being tracked` };
+      }
+
+      // Add to tracked accounts list
+      this.trackedCryptoAccounts.push(username);
+      console.log(`✅ [CRYPTO TRACKING] Added @${username} to tracking list`);
+
+      // If WebSocket is running, update filter rules
+      if (this.wsService && this.isRunning) {
+        console.log('🔄 [CRYPTO TRACKING] Updating filter rules for new account...');
+        try {
+          await this.wsService.setupFilterRules(this.trackedCryptoAccounts);
+          console.log('✅ [CRYPTO TRACKING] Filter rules updated successfully');
+        } catch (error) {
+          console.error('❌ [CRYPTO TRACKING] Failed to update filter rules:', error.message);
+          return { success: false, message: 'Account added but filter rules update failed' };
+        }
+      }
+
+      return { success: true, message: `Account @${username} added and filter rules updated` };
+
+    } catch (error) {
+      console.error('❌ [CRYPTO TRACKING] Error adding crypto account:', error.message);
+      return { success: false, message: error.message };
+    }
+  }
+
+  // Remove crypto account from tracking
+  async removeCryptoAccount(username) {
+    try {
+      const initialLength = this.trackedCryptoAccounts.length;
+      this.trackedCryptoAccounts = this.trackedCryptoAccounts.filter(acc => acc !== username);
+      
+      if (this.trackedCryptoAccounts.length < initialLength) {
+        console.log(`✅ [CRYPTO TRACKING] Removed @${username} from tracking list`);
+
+        // If WebSocket is running, update filter rules
+        if (this.wsService && this.isRunning) {
+          console.log('🔄 [CRYPTO TRACKING] Updating filter rules after account removal...');
+          try {
+            await this.wsService.setupFilterRules(this.trackedCryptoAccounts);
+            console.log('✅ [CRYPTO TRACKING] Filter rules updated successfully');
+          } catch (error) {
+            console.error('❌ [CRYPTO TRACKING] Failed to update filter rules:', error.message);
+            return { success: false, message: 'Account removed but filter rules update failed' };
+          }
+        }
+
+        return { success: true, message: `Account @${username} removed and filter rules updated` };
+      }
+
+      return { success: false, message: `Account @${username} not found in tracking list` };
+
+    } catch (error) {
+      console.error('❌ [CRYPTO TRACKING] Error removing crypto account:', error.message);
+      return { success: false, message: error.message };
+    }
+  }
+
+  // Get current tracked accounts
+  getTrackedAccounts() {
+    return this.trackedCryptoAccounts.map(username => ({
+      username,
+      displayName: username, // Could be enhanced to store display names
+      tier: 'tier1' // Default tier, could be enhanced
+    }));
   }
 
   // Check for new mentions

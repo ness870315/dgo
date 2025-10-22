@@ -42,6 +42,9 @@ import DailyTweetService from './dailyTweetService.js';
 import TwitterMentionService from './twitterMentionService.js';
 import NFTGatedAccessService from './nftGatedAccessService.js';
 import EnhancedNFTTraitService from './services/EnhancedNFTTraitService.js';
+import DGOOpinionDatabase from './services/DGOOpinionDatabase.js';
+import CryptoAccountTrackingService from './services/CryptoAccountTrackingService.js';
+import CryptoTrackingDatabase from './services/CryptoTrackingDatabase.js';
 import { X402PaymentHandler } from '@payai/x402-solana';
 // Portfolio analysis services are handled by jup-discovery background worker
 // No direct imports needed - data comes via internal API endpoints
@@ -187,6 +190,14 @@ class EnhancedBackend {
     this.twitterAutoPostService = new TwitterAutoPostService(this.oauthXService);
     this.nftGatedAccessService = new NFTGatedAccessService();
     this.enhancedNFTTraitService = new EnhancedNFTTraitService();
+    
+    // Initialize crypto tracking services
+    this.opinionDatabase = new DGOOpinionDatabase();
+    this.cryptoTrackingDatabase = new CryptoTrackingDatabase();
+    this.cryptoAccountTrackingService = new CryptoAccountTrackingService(
+      process.env.TWITTERAPIIO_API_KEY,
+      this
+    );
     this.dailyTweetService = null; // Will be initialized after OpenAI service is ready
     this.backupIntegration = null; // Will be initialized in setupServices()
     
@@ -11629,6 +11640,343 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
       } catch (error) {
         console.error('[🛡️ Admin] ❌ Failed to get Daily Tweet Service status:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // ========================================
+    // 🔍 CRYPTO ACCOUNT TRACKING ENDPOINTS
+    // ========================================
+
+    // Start crypto account tracking
+    this.app.post('/api/admin/crypto-tracking/start', adminApiAuth, async (req, res) => {
+      try {
+        if (!this.cryptoAccountTrackingService) {
+          return res.status(503).json({
+            success: false,
+            error: 'Crypto Account Tracking Service not initialized'
+          });
+        }
+
+        await this.cryptoAccountTrackingService.startTracking();
+        
+        res.json({
+          success: true,
+          message: 'Crypto account tracking started',
+          accounts: this.cryptoAccountTrackingService.trackedAccounts.map(acc => ({
+            username: acc.username,
+            displayName: acc.displayName,
+            tier: acc.tier
+          }))
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to start crypto tracking:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // Stop crypto account tracking
+    this.app.post('/api/admin/crypto-tracking/stop', adminApiAuth, async (req, res) => {
+      try {
+        if (!this.cryptoAccountTrackingService) {
+          return res.status(503).json({
+            success: false,
+            error: 'Crypto Account Tracking Service not initialized'
+          });
+        }
+
+        await this.cryptoAccountTrackingService.stopTracking();
+        
+        res.json({
+          success: true,
+          message: 'Crypto account tracking stopped'
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to stop crypto tracking:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // Get crypto tracking status
+    this.app.get('/api/admin/crypto-tracking/status', adminApiAuth, (req, res) => {
+      try {
+        if (!this.cryptoAccountTrackingService) {
+          return res.status(503).json({
+            success: false,
+            error: 'Crypto Account Tracking Service not initialized'
+          });
+        }
+
+        const stats = this.cryptoAccountTrackingService.getStats();
+        
+        res.json({
+          success: true,
+          isRunning: stats.isRunning,
+          isConnected: stats.isConnected,
+          totalTweets: stats.totalTweets,
+          accounts: stats.accounts,
+          sentimentCounts: stats.sentimentCounts,
+          topicCounts: stats.topicCounts,
+          lastTweet: stats.lastTweet
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get crypto tracking status:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // Get tracked tweets
+    this.app.get('/api/admin/crypto-tracking/tweets', adminApiAuth, (req, res) => {
+      try {
+        const { sentiment, topic, limit = 50 } = req.query;
+        
+        if (!this.cryptoAccountTrackingService) {
+          return res.status(503).json({
+            success: false,
+            error: 'Crypto Account Tracking Service not initialized'
+          });
+        }
+
+        let tweets;
+        if (sentiment) {
+          tweets = this.cryptoAccountTrackingService.getTweetsBySentiment(sentiment, parseInt(limit));
+        } else if (topic) {
+          tweets = this.cryptoAccountTrackingService.getTweetsByTopic(topic, parseInt(limit));
+        } else {
+          tweets = this.cryptoAccountTrackingService.getAllTweets(parseInt(limit));
+        }
+        
+        res.json({
+          success: true,
+          tweets: tweets,
+          count: tweets.length,
+          filters: { sentiment, topic, limit }
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get crypto tracking tweets:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // Get database statistics
+    this.app.get('/api/admin/crypto-tracking/database/stats', adminApiAuth, (req, res) => {
+      try {
+        if (!this.cryptoTrackingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Crypto Tracking Database not initialized'
+          });
+        }
+
+        const stats = this.cryptoTrackingDatabase.getStats();
+        
+        res.json({
+          success: true,
+          stats: stats
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get crypto tracking database stats:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // Search tracked tweets
+    this.app.get('/api/admin/crypto-tracking/database/search', adminApiAuth, (req, res) => {
+      try {
+        const { 
+          sentiment, 
+          topics, 
+          author, 
+          timeframe, 
+          minConfidence, 
+          startDate, 
+          endDate, 
+          limit = 50 
+        } = req.query;
+        
+        if (!this.cryptoTrackingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Crypto Tracking Database not initialized'
+          });
+        }
+
+        const criteria = {
+          sentiment,
+          topics: topics ? topics.split(',') : undefined,
+          author,
+          timeframe,
+          minConfidence: minConfidence ? parseFloat(minConfidence) : undefined,
+          startDate,
+          endDate,
+          limit: parseInt(limit)
+        };
+
+        const results = this.cryptoTrackingDatabase.searchTrackedTweets(criteria);
+        
+        res.json({
+          success: true,
+          tweets: results,
+          count: results.length,
+          criteria: criteria
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to search crypto tracking database:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // Get sentiment trends
+    this.app.get('/api/admin/crypto-tracking/sentiment-trends', adminApiAuth, (req, res) => {
+      try {
+        const { days = 30 } = req.query;
+        
+        if (!this.cryptoTrackingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Crypto Tracking Database not initialized'
+          });
+        }
+
+        const trends = this.cryptoTrackingDatabase.getSentimentTrends(parseInt(days));
+        
+        res.json({
+          success: true,
+          trends: trends,
+          days: parseInt(days)
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get sentiment trends:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // Get account metrics
+    this.app.get('/api/admin/crypto-tracking/account/:username/metrics', adminApiAuth, (req, res) => {
+      try {
+        const { username } = req.params;
+        
+        if (!this.cryptoTrackingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Crypto Tracking Database not initialized'
+          });
+        }
+
+        const metrics = this.cryptoTrackingDatabase.getAccountMetrics(username);
+        
+        if (!metrics) {
+          return res.status(404).json({
+            success: false,
+            error: `No data found for account @${username}`
+          });
+        }
+        
+        res.json({
+          success: true,
+          metrics: metrics
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get account metrics:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // Add crypto account to tracking
+    this.app.post('/api/admin/crypto-tracking/add-account', adminApiAuth, async (req, res) => {
+      try {
+        const { username, displayName, tier } = req.body;
+        
+        if (!username) {
+          return res.status(400).json({
+            success: false,
+            error: 'Username is required'
+          });
+        }
+
+        if (!this.twitterMentionService) {
+          return res.status(503).json({
+            success: false,
+            error: 'Twitter Mention Service not initialized'
+          });
+        }
+
+        console.log(`[🛡️ Admin] ➕ Adding crypto account @${username} to tracking...`);
+        
+        const result = await this.twitterMentionService.addCryptoAccount(username, displayName || username, tier || 'tier1');
+        
+        res.json({
+          success: result.success,
+          message: result.message
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to add crypto account:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // Remove crypto account from tracking
+    this.app.post('/api/admin/crypto-tracking/remove-account', adminApiAuth, async (req, res) => {
+      try {
+        const { username } = req.body;
+        
+        if (!username) {
+          return res.status(400).json({
+            success: false,
+            error: 'Username is required'
+          });
+        }
+
+        if (!this.twitterMentionService) {
+          return res.status(503).json({
+            success: false,
+            error: 'Twitter Mention Service not initialized'
+          });
+        }
+
+        console.log(`[🛡️ Admin] ➖ Removing crypto account @${username} from tracking...`);
+        
+        const result = await this.twitterMentionService.removeCryptoAccount(username);
+        
+        res.json({
+          success: result.success,
+          message: result.message
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to remove crypto account:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // Get tracked accounts list
+    this.app.get('/api/admin/crypto-tracking/accounts', adminApiAuth, (req, res) => {
+      try {
+        if (!this.twitterMentionService) {
+          return res.status(503).json({
+            success: false,
+            error: 'Twitter Mention Service not initialized'
+          });
+        }
+
+        const accounts = this.twitterMentionService.getTrackedAccounts();
+        
+        res.json({
+          success: true,
+          accounts: accounts
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get tracked accounts:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
