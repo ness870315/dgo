@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import axios from 'axios';
 import crypto from 'crypto';
+import multer from 'multer';
 import EnhancedTokenProcessor from './enhancedTokenProcessor.js';
 import HelioPaymentService from './helioPaymentService.js';
 import OAuthXService from './oauthXService.js';
@@ -49,6 +50,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 class EnhancedBackend {
+  // Helper method to get image format from URL
+  getImageFormatFromUrl(url) {
+    try {
+      const urlLower = url.toLowerCase();
+      if (urlLower.includes('.jpg') || urlLower.includes('.jpeg')) return 'jpg';
+      if (urlLower.includes('.png')) return 'png';
+      if (urlLower.includes('.gif')) return 'gif';
+      if (urlLower.includes('.webp')) return 'webp';
+      return 'unknown';
+    } catch (error) {
+      return 'unknown';
+    }
+  }
+
   // Determine if a token should be excluded due to suspicious audit flags
   isSuspiciousToken(token) {
     const isTrue = (v) => {
@@ -208,6 +223,7 @@ class EnhancedBackend {
     
     this.setupMiddleware();
     this.setupRoutes();
+    this.setupImageUpload();
     this.setupBackgroundTasks();
     
     // Initialize log storage
@@ -11447,6 +11463,134 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
+    // Manual post endpoint
+    this.app.post('/api/admin/daily-tweets/manual-post', adminApiAuth, async (req, res) => {
+      try {
+        const { text, media } = req.body;
+
+        if (!text || !text.trim()) {
+          return res.status(400).json({
+            success: false,
+            error: 'Tweet text is required'
+          });
+        }
+
+        if (text.length > 280) {
+          return res.status(400).json({
+            success: false,
+            error: 'Tweet text exceeds 280 characters'
+          });
+        }
+
+        // Validate media if provided
+        if (media && media.length > 0) {
+          if (!Array.isArray(media)) {
+            return res.status(400).json({
+              success: false,
+              error: 'Media must be an array of URLs'
+            });
+          }
+
+          if (media.length > 4) {
+            return res.status(400).json({
+              success: false,
+              error: 'Maximum 4 media items allowed per tweet'
+            });
+          }
+
+          // Validate each media URL
+          for (const mediaItem of media) {
+            if (!mediaItem.url || typeof mediaItem.url !== 'string') {
+              return res.status(400).json({
+                success: false,
+                error: 'Each media item must have a valid URL'
+              });
+            }
+
+            const urlPattern = /^https?:\/\/.+/i;
+            if (!urlPattern.test(mediaItem.url)) {
+              return res.status(400).json({
+                success: false,
+                error: 'Media URLs must start with http:// or https://'
+              });
+            }
+          }
+        }
+
+        console.log(`[🛡️ Admin] 📝 Manual post request: "${text.substring(0, 50)}..."`);
+        if (media && media.length > 0) {
+          console.log(`[🛡️ Admin] 📷 With ${media.length} media item(s)`);
+        }
+
+        // Post the tweet using appropriate TweetAPI service method
+        let tweetResult;
+        if (media && media.length > 0) {
+          const mediaUrls = media.map(item => item.url);
+          tweetResult = await this.tweetPostingService.postTweetWithMedia(text.trim(), mediaUrls);
+        } else {
+          tweetResult = await this.tweetPostingService.postTweet(text.trim());
+        }
+
+        if (!tweetResult.success) {
+          return res.status(500).json({
+            success: false,
+            error: tweetResult.error || 'Failed to post tweet'
+          });
+        }
+
+        // Store in Opinion DB for intelligence tracking
+        if (this.opinionDatabase) {
+          try {
+            const opinionData = {
+              text: text.trim(),
+              marketContext: 'DGO insight',
+              sentiment: 'neutral',
+              tweetId: tweetResult.tweet_id,
+              type: 'insight',
+              timestamp: new Date().toISOString()
+            };
+
+            // Add image URLs if media was included
+            if (media && media.length > 0) {
+              opinionData.images = media.map(item => ({
+                url: item.url,
+                format: this.getImageFormatFromUrl(item.url),
+                storedAt: new Date().toISOString(),
+                tweetId: tweetResult.tweet_id
+              }));
+            }
+
+            await this.opinionDatabase.storeOpinion(opinionData);
+            console.log(`[🛡️ Admin] 💾 Manual post stored in Opinion DB as insight`);
+            if (media && media.length > 0) {
+              console.log(`[🛡️ Admin] 📷 Image URLs stored for future DALL-E integration`);
+            }
+          } catch (error) {
+            console.error('[🛡️ Admin] ❌ Failed to store manual post in Opinion DB:', error.message);
+            // Don't fail the request if Opinion DB storage fails
+          }
+        }
+
+        res.json({
+          success: true,
+          tweet_id: tweetResult.tweet_id,
+          url: tweetResult.url,
+          text: tweetResult.text,
+          author: tweetResult.author,
+          created_at: tweetResult.created_at,
+          media_count: tweetResult.media_count || 0,
+          message: 'Manual tweet posted successfully and stored in Opinion DB'
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Manual post error:', error.message);
+        res.status(500).json({ 
+          success: false, 
+          error: error.message 
+        });
+      }
+    });
+
     // Get Daily Tweet Service status
     this.app.get('/api/admin/daily-tweets/status', adminApiAuth, (req, res) => {
       try {
@@ -13280,6 +13424,90 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
+  }
+
+  setupImageUpload() {
+    // Configure multer for image uploads
+    const storage = multer.diskStorage({
+      destination: async (req, file, cb) => {
+        try {
+          const uploadDir = process.env.DATA_DIR 
+            ? path.join(process.env.DATA_DIR, 'uploads', 'images')
+            : path.join(process.cwd(), 'data', 'uploads', 'images');
+          
+          await fs.mkdir(uploadDir, { recursive: true });
+          cb(null, uploadDir);
+        } catch (error) {
+          cb(error);
+        }
+      },
+      filename: (req, file, cb) => {
+        // Generate unique filename with timestamp and hash
+        const timestamp = Date.now();
+        const hash = crypto.createHash('md5').update(file.originalname + timestamp).digest('hex').substring(0, 8);
+        const ext = path.extname(file.originalname);
+        cb(null, `${timestamp}_${hash}${ext}`);
+      }
+    });
+
+    const upload = multer({
+      storage: storage,
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB limit
+        files: 1 // Only one file at a time
+      },
+      fileFilter: (req, file, cb) => {
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (allowedTypes.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(new Error('Invalid file type. Only JPG, PNG, GIF, WebP images are allowed.'));
+        }
+      }
+    });
+
+    // Image upload endpoint
+    this.app.post('/api/admin/upload-image', upload.single('image'), async (req, res) => {
+      try {
+        if (!req.file) {
+          return res.status(400).json({
+            success: false,
+            error: 'No image file provided'
+          });
+        }
+
+        // Generate public URL for the uploaded image
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const imageUrl = `${baseUrl}/uploads/images/${req.file.filename}`;
+
+        console.log(`[🛡️ Admin] 📷 Image uploaded: ${req.file.originalname} -> ${imageUrl}`);
+
+        res.json({
+          success: true,
+          imageUrl: imageUrl,
+          filename: req.file.filename,
+          originalName: req.file.originalname,
+          size: req.file.size,
+          mimetype: req.file.mimetype
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Image upload error:', error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Serve uploaded images statically
+    const uploadsPath = process.env.DATA_DIR 
+      ? path.join(process.env.DATA_DIR, 'uploads')
+      : path.join(process.cwd(), 'data', 'uploads');
+    
+    this.app.use('/uploads', express.static(uploadsPath));
+    
+    console.log('📁 [IMAGE UPLOAD] Static file serving configured for:', uploadsPath);
   }
 
   setupBackgroundTasks() {

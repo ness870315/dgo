@@ -36,6 +36,73 @@ class TweetAPIPostingService {
   }
 
   /**
+   * Post a new tweet with media
+   */
+  async postTweetWithMedia(text, mediaUrls = []) {
+    try {
+      console.log('🐦 [TWEETAPI V2] Posting tweet with media:', text.substring(0, 50) + '...');
+      console.log('📷 [TWEETAPI V2] Media URLs:', mediaUrls);
+      
+      const payload = {
+        authToken: this.authToken,
+        text: text,
+        media: mediaUrls.map(url => ({ url }))
+      };
+
+      const response = await axios.post(`${this.baseUrl}/tw-v2/interaction/create-post-with-media`, payload, {
+        headers: this.browserHeaders,
+        timeout: 30000
+      });
+
+      if (response.data?.data?.success) {
+        const tweetData = response.data.data;
+        console.log('✅ [TWEETAPI V2] Tweet with media posted successfully!');
+        console.log('🔗 [TWEETAPI V2] Tweet URL:', tweetData.metadata?.url);
+        console.log('🆔 [TWEETAPI V2] Tweet ID:', tweetData.metadata?.tweet_id);
+        
+        return {
+          success: true,
+          tweet_id: tweetData.metadata?.tweet_id,
+          url: tweetData.metadata?.url,
+          text: tweetData.metadata?.text,
+          author: tweetData.metadata?.author_username,
+          created_at: tweetData.metadata?.created_at,
+          media_count: mediaUrls.length,
+          raw: tweetData
+        };
+      } else {
+        console.log('❌ [TWEETAPI V2] Tweet with media posting failed:', response.data);
+        return {
+          success: false,
+          error: response.data?.message || 'Unknown error',
+          raw: response.data
+        };
+      }
+
+    } catch (error) {
+      console.error('💥 [TWEETAPI V2] Exception posting tweet with media:', error.message);
+      
+      if (error.response) {
+        console.error('📡 [TWEETAPI V2] Response status:', error.response.status);
+        console.error('📄 [TWEETAPI V2] Response data:', error.response.data);
+        
+        return {
+          success: false,
+          error: error.response.data?.message || `HTTP ${error.response.status}`,
+          status: error.response.status,
+          raw: error.response.data
+        };
+      }
+      
+      return {
+        success: false,
+        error: error.message,
+        raw: null
+      };
+    }
+  }
+
+  /**
    * Post a new tweet
    */
   async postTweet(text) {

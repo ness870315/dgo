@@ -772,6 +772,56 @@
                     <button class="btn btn-info" onclick="getDailyTweetStatus()">📊 Check Status</button>
                 </div>
                 
+                <!-- Manual Post Section -->
+                <div style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                    <h4 style="margin-bottom: 10px;">✍️ Manual Post</h4>
+                    <div style="display: flex; gap: 10px; align-items: flex-start;">
+                        <div style="flex: 1; display: flex; flex-direction: column; gap: 10px;">
+                            <textarea 
+                                id="manualTweetText" 
+                                placeholder="Enter your tweet here... (max 280 characters)"
+                                style="padding: 10px; border-radius: 8px; border: 2px solid #667eea; background: white; font-family: inherit; resize: vertical; min-height: 60px;"
+                                maxlength="280"
+                                oninput="updateCharCount()"
+                            ></textarea>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <input 
+                                    type="text" 
+                                    id="imageUrlInput" 
+                                    placeholder="Image URL (optional)"
+                                    style="flex: 1; padding: 8px; border-radius: 6px; border: 2px solid #667eea; background: white;"
+                                />
+                                <button class="btn btn-secondary" onclick="clearImageUrl()" style="white-space: nowrap;">🗑️ Clear</button>
+                            </div>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <input 
+                                    type="file" 
+                                    id="imageFileInput" 
+                                    accept="image/*"
+                                    style="flex: 1; padding: 8px; border-radius: 6px; border: 2px solid #667eea; background: white;"
+                                    onchange="handleImageUpload()"
+                                />
+                                <button class="btn btn-info" onclick="document.getElementById('imageFileInput').click()" style="white-space: nowrap;">📁 Choose File</button>
+                            </div>
+                            <div id="imagePreview" style="display: none; margin-top: 10px;">
+                                <img id="previewImg" style="max-width: 200px; max-height: 150px; border-radius: 8px; border: 2px solid #667eea;" />
+                                <div style="margin-top: 5px; font-size: 12px; color: #666;">
+                                    <span id="imageInfo"></span>
+                                    <button class="btn btn-sm btn-danger" onclick="removeImagePreview()" style="margin-left: 10px;">❌ Remove</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <button class="btn btn-primary" onclick="postManualTweet()" style="white-space: nowrap;">🐦 Post Tweet</button>
+                            <div id="charCount" style="font-size: 12px; color: #666; text-align: center;">0/280</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                        💡 This tweet will be stored in DGO's Opinion DB for intelligence tracking
+                        <br>📷 Upload image file OR paste image URL - Supported formats: JPG, PNG, GIF, WebP (max 5MB)
+                    </div>
+                </div>
+                
                 <!-- Configuration -->
                 <div style="background: rgba(255,255,255,0.5); padding: 15px; border-radius: 10px; margin-bottom: 15px;">
                     <h4 style="margin-bottom: 10px;">⚙️ Configuration</h4>
@@ -3523,6 +3573,189 @@ ${(aiPrediction.risks || []).map(r => `   • ${r}`).join('\\n') || '   • None
                 }
             } catch (error) {
                 resultsDiv.innerHTML = showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Manual Post Functions
+        function updateCharCount() {
+            const textarea = document.getElementById('manualTweetText');
+            const charCount = document.getElementById('charCount');
+            const count = textarea.value.length;
+            charCount.textContent = `${count}/280`;
+            
+            // Change color based on character count
+            if (count > 260) {
+                charCount.style.color = '#ff4444';
+            } else if (count > 240) {
+                charCount.style.color = '#ff8800';
+            } else {
+                charCount.style.color = '#666';
+            }
+        }
+        
+        function clearImageUrl() {
+            document.getElementById('imageUrlInput').value = '';
+            removeImagePreview();
+        }
+        
+        function removeImagePreview() {
+            document.getElementById('imagePreview').style.display = 'none';
+            document.getElementById('imageFileInput').value = '';
+            document.getElementById('imageUrlInput').value = '';
+        }
+        
+        async function handleImageUpload() {
+            const fileInput = document.getElementById('imageFileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                removeImagePreview();
+                return;
+            }
+            
+            // Validate file type
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                alert('Please select a valid image file (JPG, PNG, GIF, WebP)');
+                fileInput.value = '';
+                return;
+            }
+            
+            // Validate file size (5MB)
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            if (file.size > maxSize) {
+                alert('Image file is too large. Maximum size is 5MB.');
+                fileInput.value = '';
+                return;
+            }
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('previewImg').src = e.target.result;
+                document.getElementById('imageInfo').textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                document.getElementById('imagePreview').style.display = 'block';
+                
+                // Clear URL input when file is selected
+                document.getElementById('imageUrlInput').value = '';
+            };
+            reader.readAsDataURL(file);
+            
+            // Upload file to server
+            try {
+                const formData = new FormData();
+                formData.append('image', file);
+                
+                const response = await fetch(`${API_BASE}/api/admin/upload-image`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Set the URL input with the uploaded image URL
+                    document.getElementById('imageUrlInput').value = result.imageUrl;
+                    console.log('✅ Image uploaded successfully:', result.imageUrl);
+                } else {
+                    throw new Error(result.error || 'Failed to upload image');
+                }
+                
+            } catch (error) {
+                console.error('❌ Image upload error:', error);
+                alert(`Failed to upload image: ${error.message}`);
+                removeImagePreview();
+            }
+        }
+        
+        function validateImageUrl(url) {
+            if (!url) return { valid: true };
+            
+            const imageExtensions = /\.(jpg|jpeg|png|gif|webp)$/i;
+            const urlPattern = /^https?:\/\/.+/i;
+            
+            if (!urlPattern.test(url)) {
+                return { valid: false, error: 'Please enter a valid URL starting with http:// or https://' };
+            }
+            
+            if (!imageExtensions.test(url)) {
+                return { valid: false, error: 'Please enter a valid image URL (JPG, PNG, GIF, WebP)' };
+            }
+            
+            return { valid: true };
+        }
+        
+        async function postManualTweet() {
+            const textarea = document.getElementById('manualTweetText');
+            const imageUrlInput = document.getElementById('imageUrlInput');
+            const tweetText = textarea.value.trim();
+            const imageUrl = imageUrlInput.value.trim();
+            
+            if (!tweetText) {
+                alert('Please enter a tweet to post');
+                return;
+            }
+            
+            if (tweetText.length > 280) {
+                alert('Tweet is too long! Maximum 280 characters.');
+                return;
+            }
+            
+            // Validate image URL if provided
+            if (imageUrl) {
+                const validation = validateImageUrl(imageUrl);
+                if (!validation.valid) {
+                    alert(validation.error);
+                    return;
+                }
+            }
+            
+            const confirmMessage = imageUrl 
+                ? `🐦 POST TWEET WITH IMAGE\\n\\n"${tweetText}"\\n\\n📷 Image: ${imageUrl}\\n\\nThis will immediately post to @dgnoracle and store in DGO's Opinion DB.\\n\\nContinue?`
+                : `🐦 POST MANUAL TWEET\\n\\n"${tweetText}"\\n\\nThis will immediately post to @dgnoracle and store in DGO's Opinion DB.\\n\\nContinue?`;
+            
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+            
+            try {
+                const requestBody = {
+                    text: tweetText
+                };
+                
+                if (imageUrl) {
+                    requestBody.media = [{ url: imageUrl }];
+                }
+                
+                const response = await fetch(`${API_BASE}/api/admin/daily-tweets/manual-post`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Clear the inputs
+                    textarea.value = '';
+                    imageUrlInput.value = '';
+                    removeImagePreview();
+                    updateCharCount();
+                    
+                    // Show success message
+                    const resultsDiv = document.getElementById('dailyTweetResults');
+                    const mediaText = imageUrl ? '\\n📷 With image' : '';
+                    resultsDiv.innerHTML = showAlert(`✅ Tweet posted successfully!${mediaText}\\n\\nTweet: "${tweetText}"\\n\\nTweet ID: ${result.tweet_id}\\nURL: ${result.url}`, 'success');
+                } else {
+                    throw new Error(result.error || 'Failed to post tweet');
+                }
+                
+            } catch (error) {
+                console.error('Manual post error:', error);
+                const resultsDiv = document.getElementById('dailyTweetResults');
+                resultsDiv.innerHTML = showAlert(`❌ Error posting tweet: ${error.message}`, 'error');
             }
         }
         

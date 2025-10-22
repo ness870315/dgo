@@ -119,7 +119,11 @@ class DGOOpinionDatabase {
         predictions: intelligenceFeatures.predictions || [],
         patterns: intelligenceFeatures.patterns || [],
         relatedTokens: intelligenceFeatures.relatedTokens || [],
-        relatedTopics: intelligenceFeatures.relatedTopics || []
+        relatedTopics: intelligenceFeatures.relatedTopics || [],
+
+        // 📷 Image metadata (if applicable)
+        images: opinion.images || [],
+        hasImages: (opinion.images && opinion.images.length > 0) || false
       };
 
       this.opinions.push(opinionRecord);
@@ -648,6 +652,161 @@ class DGOOpinionDatabase {
     if (this.opinions.length === 0) return null;
     const randomIndex = Math.floor(Math.random() * this.opinions.length);
     return this.opinions[randomIndex];
+  }
+
+  /**
+   * Get opinions with images (for DALL-E integration)
+   */
+  getOpinionsWithImages(limit = 10) {
+    const opinionsWithImages = this.opinions
+      .filter(opinion => opinion.hasImages && opinion.images && opinion.images.length > 0)
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+      .slice(0, limit);
+
+    return {
+      success: true,
+      opinions: opinionsWithImages,
+      count: opinionsWithImages.length,
+      totalWithImages: this.opinions.filter(op => op.hasImages).length
+    };
+  }
+
+  /**
+   * Get images by topic/category (for DALL-E context)
+   */
+  getImagesByTopic(topic, limit = 5) {
+    const matchingOpinions = this.opinions
+      .filter(opinion => 
+        opinion.hasImages && 
+        opinion.topics.some(t => t.toLowerCase().includes(topic.toLowerCase()))
+      )
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+      .slice(0, limit);
+
+    const images = [];
+    matchingOpinions.forEach(opinion => {
+      if (opinion.images) {
+        images.push(...opinion.images.map(img => ({
+          ...img,
+          opinionId: opinion.id,
+          text: opinion.text,
+          topics: opinion.topics,
+          timestamp: opinion.timestamp
+        })));
+      }
+    });
+
+    return {
+      success: true,
+      images,
+      count: images.length,
+      topic,
+      matchingOpinions: matchingOpinions.length
+    };
+  }
+
+  /**
+   * Search images by text content (for DALL-E reference)
+   */
+  searchImagesByText(searchText, limit = 5) {
+    const searchLower = searchText.toLowerCase();
+    
+    const matchingOpinions = this.opinions
+      .filter(opinion => 
+        opinion.hasImages && 
+        (opinion.text.toLowerCase().includes(searchLower) ||
+         opinion.topics.some(t => t.toLowerCase().includes(searchLower)) ||
+         Object.keys(opinion.entities).some(key => key.toLowerCase().includes(searchLower)))
+      )
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+      .slice(0, limit);
+
+    const images = [];
+    matchingOpinions.forEach(opinion => {
+      if (opinion.images) {
+        images.push(...opinion.images.map(img => ({
+          ...img,
+          opinionId: opinion.id,
+          text: opinion.text,
+          topics: opinion.topics,
+          entities: opinion.entities,
+          relevanceScore: this.calculateTextSimilarity(searchText, opinion.text),
+          timestamp: opinion.timestamp
+        })));
+      }
+    });
+
+    // Sort by relevance score
+    images.sort((a, b) => b.relevanceScore - a.relevanceScore);
+
+    return {
+      success: true,
+      images,
+      count: images.length,
+      searchText,
+      matchingOpinions: matchingOpinions.length
+    };
+  }
+
+  /**
+   * Get all stored image URLs (for DALL-E training/reference)
+   */
+  getAllImageUrls() {
+    const allImages = [];
+    
+    this.opinions.forEach(opinion => {
+      if (opinion.hasImages && opinion.images) {
+        opinion.images.forEach(img => {
+          allImages.push({
+            url: img.url,
+            format: img.format,
+            opinionId: opinion.id,
+            text: opinion.text,
+            topics: opinion.topics,
+            entities: opinion.entities,
+            category: opinion.category,
+            timestamp: opinion.timestamp,
+            tweetId: opinion.tweetId
+          });
+        });
+      }
+    });
+
+    return {
+      success: true,
+      images: allImages,
+      count: allImages.length,
+      totalOpinions: this.opinions.length,
+      opinionsWithImages: this.opinions.filter(op => op.hasImages).length
+    };
+  }
+
+  /**
+   * Get image statistics
+   */
+  getImageStatistics() {
+    const totalOpinions = this.opinions.length;
+    const opinionsWithImages = this.opinions.filter(op => op.hasImages);
+    const totalImages = opinionsWithImages.reduce((sum, op) => sum + (op.images ? op.images.length : 0), 0);
+    
+    const imageFormats = {};
+    
+    opinionsWithImages.forEach(opinion => {
+      if (opinion.images) {
+        opinion.images.forEach(img => {
+          imageFormats[img.format] = (imageFormats[img.format] || 0) + 1;
+        });
+      }
+    });
+
+    return {
+      success: true,
+      totalOpinions,
+      opinionsWithImages: opinionsWithImages.length,
+      totalImages,
+      imageFormats,
+      imageUsagePercentage: totalOpinions > 0 ? ((opinionsWithImages.length / totalOpinions) * 100).toFixed(2) : 0
+    };
   }
 }
 
