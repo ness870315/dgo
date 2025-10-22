@@ -2334,7 +2334,9 @@ This feature analyzes how accurate our tracked accounts' predictions have been:<
 
         async function showTrendDetails(topicName, rank) {
             try {
-                const response = await safeApiCall(`/api/admin/top-topics/insights/${encodeURIComponent(topicName)}`);
+                // First, get the trend data from the latest topics
+                const days = document.getElementById('daySlider').value;
+                const trendsResponse = await safeApiCall(`/api/admin/top-topics/latest?days=${days}&limit=50`);
                 
                 const modal = document.getElementById('trendModal');
                 const title = document.getElementById('trendModalTitle');
@@ -2342,58 +2344,79 @@ This feature analyzes how accurate our tracked accounts' predictions have been:<
                 
                 title.textContent = `#${rank} ${topicName}`;
                 
-                if (response.success && response.insights) {
-                    const insights = response.insights;
-                    body.innerHTML = `
-                        <div class="topic-card">
-                            <div class="topic-header">
-                                <div class="topic-name">${topicName}</div>
-                                <div class="topic-category">${insights.category || 'General'}</div>
-                            </div>
-                            
-                            <div class="topic-metrics">
-                                <div class="metric">
-                                    <span class="metric-label">Trending Score:</span>
-                                    <span class="metric-value">${insights.trendingScore?.toFixed(2) || 'N/A'}</span>
+                if (trendsResponse.success && trendsResponse.topics) {
+                    // Find the specific topic in the trends data
+                    const topicData = trendsResponse.topics.find(t => t.topic === topicName);
+                    
+                    if (topicData) {
+                        body.innerHTML = `
+                            <div class="topic-card">
+                                <div class="topic-header">
+                                    <div class="topic-name">${topicName}</div>
+                                    <div class="topic-category">${topicData.category || 'General'}</div>
                                 </div>
-                                <div class="metric">
-                                    <span class="metric-label">Frequency:</span>
-                                    <span class="metric-value">${insights.frequency || 0}</span>
-                                </div>
-                                <div class="metric">
-                                    <span class="metric-label">Authors:</span>
-                                    <span class="metric-value">${insights.authorCount || 0}</span>
-                                </div>
-                            </div>
-                            
-                            <div class="topic-sentiment">
-                                <span class="sentiment-label">Sentiment:</span>
-                                <span class="sentiment-value sentiment-${insights.sentiment?.dominant || 'neutral'}">
-                                    ${insights.sentiment?.dominant || 'neutral'}
-                                </span>
-                            </div>
-                            
-                            ${insights.authors && insights.authors.length > 0 ? `
-                                <div class="topic-authors">
-                                    <div class="authors-label">Discussed by:</div>
-                                    <div class="authors-list">
-                                        ${insights.authors.map(author => `<span class="author-tag">@${author}</span>`).join('')}
+                                
+                                <div class="topic-metrics">
+                                    <div class="metric">
+                                        <span class="metric-label">Trending Score:</span>
+                                        <span class="metric-value">${topicData.trendingScore?.toFixed(2) || 'N/A'}</span>
+                                    </div>
+                                    <div class="metric">
+                                        <span class="metric-label">Frequency:</span>
+                                        <span class="metric-value">${topicData.frequency || 0}</span>
+                                    </div>
+                                    <div class="metric">
+                                        <span class="metric-label">Authors:</span>
+                                        <span class="metric-value">${topicData.authorCount || 0}</span>
                                     </div>
                                 </div>
-                            ` : ''}
-                            
-                            ${insights.analyzedAt ? `
-                                <div style="margin-top: 15px; font-size: 12px; color: #a0aec0;">
-                                    Last analyzed: ${new Date(insights.analyzedAt).toLocaleString()}
+                                
+                                <div class="topic-sentiment">
+                                    <span class="sentiment-label">Sentiment:</span>
+                                    <span class="sentiment-value sentiment-${topicData.sentiment?.dominant || 'neutral'}">
+                                        ${topicData.sentiment?.dominant || 'neutral'}
+                                    </span>
                                 </div>
-                            ` : ''}
-                        </div>
-                    `;
+                                
+                                ${topicData.authors && topicData.authors.length > 0 ? `
+                                    <div class="topic-authors">
+                                        <div class="authors-label">Discussed by:</div>
+                                        <div class="authors-list">
+                                            ${topicData.authors.map(author => `<span class="author-tag">@${author}</span>`).join('')}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                
+                                ${topicData.analyzedAt ? `
+                                    <div style="margin-top: 15px; font-size: 12px; color: #a0aec0;">
+                                        Last analyzed: ${new Date(topicData.analyzedAt).toLocaleString()}
+                                    </div>
+                                ` : ''}
+                                
+                                <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #4a5568;">
+                                    <button class="btn btn-secondary" onclick="getAIInsights('${topicName}')" style="width: 100%;">
+                                        🤖 Get AI Insights
+                                    </button>
+                                </div>
+                                
+                                <div id="aiInsights" style="margin-top: 15px; display: none;">
+                                    <!-- AI insights will be loaded here -->
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        body.innerHTML = `
+                            <div style="text-align: center; padding: 40px; color: #a0aec0;">
+                                <h3>Topic not found</h3>
+                                <p>The topic "${topicName}" was not found in the current timeframe.</p>
+                            </div>
+                        `;
+                    }
                 } else {
                     body.innerHTML = `
                         <div style="text-align: center; padding: 40px; color: #a0aec0;">
-                            <h3>No detailed insights available</h3>
-                            <p>Detailed analysis for "${topicName}" is not yet available.</p>
+                            <h3>No trend data available</h3>
+                            <p>Unable to load trend data for "${topicName}".</p>
                         </div>
                     `;
                 }
@@ -2402,6 +2425,42 @@ This feature analyzes how accurate our tracked accounts' predictions have been:<
             } catch (error) {
                 console.error('Error loading trend details:', error);
                 showAlert('Error loading trend details: ' + error.message, 'error');
+            }
+        }
+
+        async function getAIInsights(topicName) {
+            try {
+                const insightsDiv = document.getElementById('aiInsights');
+                insightsDiv.style.display = 'block';
+                insightsDiv.innerHTML = '<div style="text-align: center; padding: 20px; color: #a0aec0;">🤖 Generating AI insights...</div>';
+                
+                const response = await safeApiCall(`/api/admin/top-topics/insights/${encodeURIComponent(topicName)}`);
+                
+                if (response.success && response.insights) {
+                    insightsDiv.innerHTML = `
+                        <div style="background: #2d3748; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                            <h4 style="color: #e2e8f0; margin-bottom: 10px;">🤖 AI Analysis</h4>
+                            <p style="color: #a0aec0; line-height: 1.6;">${response.insights.insights || response.insights}</p>
+                            <div style="font-size: 12px; color: #718096; margin-top: 10px;">
+                                Generated: ${new Date(response.insights.generatedAt || Date.now()).toLocaleString()}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    insightsDiv.innerHTML = `
+                        <div style="background: #2d3748; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                            <p style="color: #a0aec0;">AI insights are not available for this topic at the moment.</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading AI insights:', error);
+                const insightsDiv = document.getElementById('aiInsights');
+                insightsDiv.innerHTML = `
+                    <div style="background: #2d3748; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                        <p style="color: #e53e3e;">Error loading AI insights: ${error.message}</p>
+                    </div>
+                `;
             }
         }
 
