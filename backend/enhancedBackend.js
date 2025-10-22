@@ -14655,9 +14655,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        // Generate public URL for the uploaded image
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
-        const imageUrl = `${baseUrl}/uploads/images/${req.file.filename}`;
+        // Generate public URL for the uploaded image (always use HTTPS for security)
+        const host = req.get('host');
+        const imageUrl = `https://${host}/uploads/images/${req.file.filename}`;
 
         console.log(`[🛡️ Admin] 📷 Image uploaded: ${req.file.originalname} -> ${imageUrl}`);
 
