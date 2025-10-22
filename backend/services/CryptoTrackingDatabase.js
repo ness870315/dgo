@@ -576,16 +576,6 @@ class CryptoTrackingDatabase {
   getStats() {
     const totalTweets = this.trackedTweets.length;
     
-    // Debug: Check author structure
-    console.log('🔍 [CRYPTO DB] Debugging author structure:');
-    this.trackedTweets.slice(0, 3).forEach((tweet, index) => {
-      console.log(`Tweet ${index}:`, {
-        author: tweet.author,
-        authorType: typeof tweet.author,
-        hasUsername: tweet.author?.username ? 'YES' : 'NO'
-      });
-    });
-    
     const uniqueAccounts = new Set(this.trackedTweets.map(tweet => {
       // Handle both string and object author formats
       if (typeof tweet.author === 'string') {
