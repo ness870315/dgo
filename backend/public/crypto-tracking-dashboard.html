@@ -1079,22 +1079,6 @@
                 </div>
             </div>
 
-            <!-- Trending Topics Section -->
-            <div class="card">
-                <h2>🔥 Trending Topics</h2>
-                <div class="trending-controls">
-                    <div class="time-filter">
-                        <label for="daySlider">Days Back:</label>
-                        <input type="range" id="daySlider" min="1" max="30" value="7" class="slider">
-                        <span id="dayValue">7 days</span>
-                    </div>
-                    <button class="btn btn-secondary" onclick="refreshTrendingTopics()">🔄 Refresh</button>
-                </div>
-                <div id="trendingTopicsGrid" class="trending-grid">
-                    <!-- Trending topics will be loaded here -->
-                </div>
-            </div>
-
             <!-- Sentiment Trends Section -->
             <div class="card">
                 <h2>📊 Sentiment Trends</h2>
@@ -1207,6 +1191,24 @@
                 </div>
 
                 <button class="btn btn-primary" onclick="loadRecentTweets()">🔄 Load Recent</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Trending Topics Section (Horizontal) -->
+    <div class="container">
+        <div class="card">
+            <h2>🔥 Trending Topics</h2>
+            <div class="trending-controls">
+                <div class="time-filter">
+                    <label for="daySlider">Days Back:</label>
+                    <input type="range" id="daySlider" min="1" max="30" value="7" class="slider">
+                    <span id="dayValue">7 days</span>
+                </div>
+                <button class="btn btn-secondary" onclick="refreshTrendingTopics()">🔄 Refresh</button>
+            </div>
+            <div id="trendingTopicsGrid" class="trending-grid" style="max-height: 300px; overflow-y: auto;">
+                <!-- Trending topics will be loaded here -->
             </div>
         </div>
     </div>
@@ -1333,7 +1335,7 @@
                                 <strong style="color: ${statusColor};">Status: ${statusText}</strong><br>
                                 <span style="color: #a0aec0;">Connection: ${connectionStatus}</span><br>
                                 <span style="color: #a0aec0;">Total Tweets: ${data.totalTweets}</span><br>
-                                <span style="color: #a0aec0;">Accounts: ${data.accounts}</span>
+                                <span style="color: #a0aec0;">Accounts: ${data.accounts ? data.accounts.length : 0}</span>
                             </div>
                             <div style="text-align: right;">
                                 <div style="color: #a0aec0; font-size: 0.9rem;">Last Tweet:</div>
