@@ -11827,6 +11827,54 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
+    // Clear all tweets permanently
+    this.app.post('/api/admin/crypto-tracking/database/clear-all', adminApiAuth, async (req, res) => {
+      try {
+        if (!this.cryptoTrackingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Crypto Tracking Database not initialized'
+          });
+        }
+
+        const result = await this.cryptoTrackingDatabase.clearAllData();
+        
+        res.json({
+          success: true,
+          message: result.message,
+          result: result
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to clear all crypto tracking data:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // Clear all tracked accounts permanently
+    this.app.post('/api/admin/crypto-tracking/accounts/clear-all', adminApiAuth, async (req, res) => {
+      try {
+        if (!this.twitterMentionService) {
+          return res.status(503).json({
+            success: false,
+            error: 'Twitter Mention Service not initialized'
+          });
+        }
+
+        const result = await this.twitterMentionService.clearAllTrackedAccounts();
+        
+        res.json({
+          success: result.success,
+          message: result.message,
+          result: result
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to clear all tracked accounts:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
     // Search tracked tweets
     this.app.get('/api/admin/crypto-tracking/database/search', adminApiAuth, (req, res) => {
       try {

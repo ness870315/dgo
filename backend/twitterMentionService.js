@@ -405,6 +405,43 @@ class TwitterMentionService {
     }
   }
 
+  // Clear all tracked accounts permanently
+  async clearAllTrackedAccounts() {
+    try {
+      console.log('🗑️ [CRYPTO TRACKING] Clearing all tracked accounts...');
+      
+      const originalCount = this.trackedCryptoAccounts.length;
+      
+      // Clear all accounts
+      this.trackedCryptoAccounts = [];
+      await this.saveTrackedAccounts();
+      
+      // Update WebSocket filter rules (will only keep mention rule)
+      if (this.wsService && this.isRunning) {
+        console.log('🔄 [CRYPTO TRACKING] Updating filter rules after clearing all accounts...');
+        try {
+          await this.wsService.setupFilterRules([]);
+          console.log('✅ [CRYPTO TRACKING] Filter rules updated successfully');
+        } catch (error) {
+          console.error('❌ [CRYPTO TRACKING] Failed to update filter rules:', error.message);
+          return { success: false, message: 'Accounts cleared but filter rules update failed' };
+        }
+      }
+      
+      console.log(`🗑️ [CRYPTO TRACKING] Cleared ${originalCount} tracked accounts`);
+      
+      return { 
+        success: true, 
+        accountsCleared: originalCount, 
+        message: `Successfully cleared ${originalCount} tracked accounts` 
+      };
+      
+    } catch (error) {
+      console.error('❌ [CRYPTO TRACKING] Failed to clear all accounts:', error.message);
+      return { success: false, message: error.message };
+    }
+  }
+
   // Get current tracked accounts
   getTrackedAccounts() {
     return this.trackedCryptoAccounts.map(username => ({

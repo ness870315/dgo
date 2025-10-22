@@ -821,6 +821,36 @@ class CryptoTrackingDatabase {
   }
 
   /**
+   * Permanently clear all tweets and reset the database
+   */
+  async clearAllData() {
+    try {
+      console.log('🗑️ [CRYPTO DB] Clearing all tweets and resetting database...');
+      
+      const originalCount = this.trackedTweets.length;
+      
+      // Clear all data
+      this.trackedTweets = [];
+      this.topicFrequency.clear();
+      this.sentimentCounts = { positive: 0, negative: 0, neutral: 0 };
+      this.totalEngagement = 0;
+      
+      // Save empty database
+      await this.saveDataAtomic([]);
+      
+      console.log(`🗑️ [CRYPTO DB] Cleared ${originalCount} tweets, database reset`);
+      
+      return { 
+        tweetsCleared: originalCount, 
+        message: `Successfully cleared ${originalCount} tweets and reset database` 
+      };
+    } catch (error) {
+      console.error('❌ [CRYPTO DB] Error clearing all data:', error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Clean up duplicate tweets from the database
    */
   async cleanupDuplicates() {
