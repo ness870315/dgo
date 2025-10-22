@@ -1,9 +1,10 @@
 /**
- * Cashtag Extraction Service
- * Extracts $TOKEN mentions from tweets for CT Momentum tracking
+ * Cashtag & Hashtag Extraction Service
+ * Extracts $TOKEN (cashtags) and #TOKEN (hashtags) mentions from tweets for CT Momentum tracking
  * 
  * Features:
  * - Extract cashtags ($TOKEN, $BTC, $ETH, etc.)
+ * - Extract hashtags (#Bitcoin, #Ethereum, #Solana, etc.)
  * - Normalize token symbols
  * - Filter out common false positives
  * - Extract context and sentiment for each mention
@@ -15,27 +16,40 @@ class CashtagExtractionService {
     // Common false positives to filter out
     this.falsePositives = new Set([
       'usd', 'eur', 'gbp', 'jpy', 'cad', 'aud', // Fiat currencies
-      'btc', 'eth', 'sol', 'bnb', // These are valid but we'll keep them
+    ]);
+
+    // Common non-crypto hashtags to filter out
+    this.hashtagBlacklist = new Set([
+      'crypto', 'cryptocurrency', 'blockchain', 'defi', 'nft', 'web3',
+      'trading', 'altcoin', 'altcoins', 'memecoin', 'memecoins',
+      'gm', 'gn', 'wagmi', 'ngmi', 'hodl', 'fomo', 'fud', 'dyor',
+      'bullish', 'bearish', 'moon', 'lambo', 'wen', 'ser', 'anon',
+      'ct', 'cryptotwitter', 'twitter', 'follow', 'rt', 'retweet',
+      'airdrop', 'presale', 'ico', 'ido', 'launch', 'listing'
     ]);
 
     // Cashtag pattern: $ followed by letters/numbers (2-10 chars)
     this.cashtagPattern = /\$([A-Za-z][A-Za-z0-9]{1,9})\b/g;
     
-    console.log('💰 [CASHTAG EXTRACTOR] Service initialized');
+    // Hashtag pattern: # followed by letters/numbers (3-20 chars for longer token names)
+    this.hashtagPattern = /#([A-Za-z][A-Za-z0-9]{2,19})\b/g;
+    
+    console.log('💰 [TOKEN EXTRACTOR] Service initialized (cashtags + hashtags)');
   }
 
   /**
-   * Extract all cashtags from tweet text
+   * Extract all cashtags and hashtags from tweet text
    * @param {string} text - Tweet text
    * @param {Object} tweetMetadata - Additional tweet metadata
-   * @returns {Array} - Array of cashtag objects with metadata
+   * @returns {Array} - Array of token objects with metadata
    */
   extractCashtags(text, tweetMetadata = {}) {
     try {
-      const cashtags = [];
-      const matches = text.matchAll(this.cashtagPattern);
+      const tokens = [];
       
-      for (const match of matches) {
+      // Extract cashtags ($TOKEN)
+      const cashtagMatches = text.matchAll(this.cashtagPattern);
+      for (const match of cashtagMatches) {
         const rawSymbol = match[1];
         const normalizedSymbol = this.normalizeSymbol(rawSymbol);
         
@@ -51,9 +65,44 @@ class CashtagExtractionService {
         // Determine sentiment from context
         const sentiment = this.extractCashtagSentiment(context, text);
         
-        cashtags.push({
+        tokens.push({
           symbol: normalizedSymbol,
           rawSymbol: rawSymbol,
+          type: 'cashtag',
+          position: position,
+          context: context,
+          sentiment: sentiment,
+          extractedAt: new Date().toISOString()
+        });
+      }
+      
+      // Extract hashtags (#TOKEN)
+      const hashtagMatches = text.matchAll(this.hashtagPattern);
+      for (const match of hashtagMatches) {
+        const rawSymbol = match[1];
+        const normalizedSymbol = this.normalizeSymbol(rawSymbol);
+        
+        // Skip if it's in the blacklist
+        if (this.isHashtagBlacklisted(normalizedSymbol)) {
+          continue;
+        }
+        
+        // Skip if it's a false positive
+        if (this.isFalsePositive(normalizedSymbol)) {
+          continue;
+        }
+        
+        // Extract context around the hashtag
+        const position = match.index;
+        const context = this.extractContext(text, position, rawSymbol.length + 1);
+        
+        // Determine sentiment from context
+        const sentiment = this.extractCashtagSentiment(context, text);
+        
+        tokens.push({
+          symbol: normalizedSymbol,
+          rawSymbol: rawSymbol,
+          type: 'hashtag',
           position: position,
           context: context,
           sentiment: sentiment,
@@ -62,16 +111,19 @@ class CashtagExtractionService {
       }
       
       // Remove duplicates (same symbol mentioned multiple times)
-      const uniqueCashtags = this.deduplicateCashtags(cashtags);
+      const uniqueTokens = this.deduplicateCashtags(tokens);
       
-      if (uniqueCashtags.length > 0) {
-        console.log(`💰 [CASHTAG EXTRACTOR] Found ${uniqueCashtags.length} cashtags: ${uniqueCashtags.map(c => '$' + c.symbol).join(', ')}`);
+      if (uniqueTokens.length > 0) {
+        const cashtags = uniqueTokens.filter(t => t.type === 'cashtag');
+        const hashtags = uniqueTokens.filter(t => t.type === 'hashtag');
+        console.log(`💰 [TOKEN EXTRACTOR] Found ${cashtags.length} cashtags: ${cashtags.map(c => '$' + c.symbol).join(', ')}`);
+        console.log(`#️⃣ [TOKEN EXTRACTOR] Found ${hashtags.length} hashtags: ${hashtags.map(c => '#' + c.symbol).join(', ')}`);
       }
       
-      return uniqueCashtags;
+      return uniqueTokens;
       
     } catch (error) {
-      console.error('❌ [CASHTAG EXTRACTOR] Extraction error:', error.message);
+      console.error('❌ [TOKEN EXTRACTOR] Extraction error:', error.message);
       return [];
     }
   }
@@ -100,11 +152,19 @@ class CashtagExtractionService {
     }
     
     // Filter out symbols that are too long (likely not real tokens)
-    if (symbol.length > 10) {
+    if (symbol.length > 20) {
       return true;
     }
     
     return false;
+  }
+
+  /**
+   * Check if hashtag is blacklisted (common non-token hashtags)
+   */
+  isHashtagBlacklisted(symbol) {
+    const lowerSymbol = symbol.toLowerCase();
+    return this.hashtagBlacklist.has(lowerSymbol);
   }
 
   /**

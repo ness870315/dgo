@@ -830,6 +830,8 @@
 
         .ct-momentum-table {
             overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
         }
 
         .momentum-table {
@@ -1643,7 +1645,6 @@
                     <span id="ctTotalTokens" class="stat-badge">0 Tokens</span>
                     <span id="ctTotalMentions" class="stat-badge">0 Mentions</span>
                 </div>
-                <button class="btn btn-secondary" onclick="loadCTMomentum()">🔄 Refresh</button>
             </div>
             
             <div id="ctMomentumTable" class="ct-momentum-table">
@@ -1739,6 +1740,7 @@
             setInterval(() => {
                 loadRecentTweets();
                 loadTrackedAccounts();
+                loadCTMomentum(); // Auto-refresh CT Momentum
             }, 30000);
             
             // Auto-refresh trending topics every 4 hours
@@ -3588,7 +3590,7 @@ This feature will rank tracked accounts by their influence:<br>
                     </div>
                 `;
                 
-                const response = await safeApiCall(`/api/admin/ct-momentum/top-tokens?limit=20&timeframe=${timeframe}`);
+                const response = await safeApiCall(`/api/admin/ct-momentum/top-tokens?limit=10&timeframe=${timeframe}`);
                 
                 console.log('CT Momentum response:', response);
                 
