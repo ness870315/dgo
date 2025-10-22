@@ -12131,7 +12131,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
      */
     this.app.get('/api/admin/top-topics/latest', adminApiAuth, (req, res) => {
       try {
-        const { limit = 20, category } = req.query;
+        const { limit = 20, category, days = 7 } = req.query;
         
         if (!this.topicTrendingDatabase) {
           return res.status(503).json({
@@ -12140,18 +12140,14 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        let topics;
-        if (category) {
-          topics = this.topicTrendingDatabase.getTrendingTopicsByCategory(category, parseInt(limit));
-        } else {
-          topics = this.topicTrendingDatabase.getLatestTrendingTopics(parseInt(limit));
-        }
+        // Get topics from the last N days
+        const topics = this.topicTrendingDatabase.getTrendingTopicsByTimeframe(parseInt(days), parseInt(limit));
         
         res.json({
           success: true,
           topics,
-          totalTopics: topics.length,
-          category: category || 'all'
+          timeframe: `${days} days`,
+          total: topics.length
         });
 
       } catch (error) {

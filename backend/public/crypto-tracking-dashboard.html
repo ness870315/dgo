@@ -789,6 +789,193 @@
             color: #ffffff;
             font-weight: 500;
         }
+
+        /* Trending Topics Section Styles */
+        .trending-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #2d3748;
+            border-radius: 8px;
+        }
+
+        .time-filter {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .time-filter label {
+            color: #e2e8f0;
+            font-weight: 500;
+        }
+
+        .slider {
+            width: 150px;
+            height: 6px;
+            border-radius: 3px;
+            background: #4a5568;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #4299e1;
+            cursor: pointer;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #4299e1;
+            cursor: pointer;
+            border: none;
+        }
+
+        #dayValue {
+            color: #4299e1;
+            font-weight: 600;
+            min-width: 60px;
+        }
+
+        .trending-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .trend-box {
+            background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+            border: 1px solid #4a5568;
+            border-radius: 12px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .trend-box:hover {
+            transform: translateY(-2px);
+            border-color: #4299e1;
+            box-shadow: 0 8px 25px rgba(66, 153, 225, 0.2);
+        }
+
+        .trend-rank {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #4299e1;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .trend-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #e2e8f0;
+            margin-bottom: 8px;
+            margin-right: 30px;
+        }
+
+        .trend-category {
+            font-size: 12px;
+            color: #a0aec0;
+            background: #4a5568;
+            padding: 2px 8px;
+            border-radius: 12px;
+            display: inline-block;
+            margin-bottom: 8px;
+        }
+
+        .trend-metrics {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #a0aec0;
+        }
+
+        .trend-score {
+            color: #48bb78;
+            font-weight: 600;
+        }
+
+        .trend-frequency {
+            color: #4299e1;
+            font-weight: 600;
+        }
+
+        /* Trend Detail Modal */
+        .trend-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+
+        .trend-modal-content {
+            background: #1a202c;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid #4a5568;
+        }
+
+        .trend-modal-header {
+            background: #2d3748;
+            padding: 20px;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .trend-modal-title {
+            color: #e2e8f0;
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .trend-modal-close {
+            color: #a0aec0;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .trend-modal-close:hover {
+            color: #e2e8f0;
+        }
+
+        .trend-modal-body {
+            padding: 20px;
+        }
     </style>
 </head>
 <body>
@@ -854,6 +1041,22 @@
                     <div style="margin-top: 10px; font-size: 0.9rem; color: #a0aec0;">
                         💡 Scroll to see all accounts (showing first 5)
                     </div>
+                </div>
+            </div>
+
+            <!-- Trending Topics Section -->
+            <div class="card">
+                <h2>🔥 Trending Topics</h2>
+                <div class="trending-controls">
+                    <div class="time-filter">
+                        <label for="daySlider">Days Back:</label>
+                        <input type="range" id="daySlider" min="1" max="30" value="7" class="slider">
+                        <span id="dayValue">7 days</span>
+                    </div>
+                    <button class="btn btn-secondary" onclick="refreshTrendingTopics()">🔄 Refresh</button>
+                </div>
+                <div id="trendingTopicsGrid" class="trending-grid">
+                    <!-- Trending topics will be loaded here -->
                 </div>
             </div>
 
@@ -958,6 +1161,19 @@
         </div>
     </div>
 
+    <!-- Trend Detail Modal -->
+    <div id="trendModal" class="trend-modal">
+        <div class="trend-modal-content">
+            <div class="trend-modal-header">
+                <h2 id="trendModalTitle" class="trend-modal-title"></h2>
+                <span class="trend-modal-close" onclick="closeTrendModal()">&times;</span>
+            </div>
+            <div id="trendModalBody" class="trend-modal-body">
+                <!-- Trend details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_BASE = 'https://api.degen-oracle.com';
 
@@ -967,6 +1183,16 @@
             refreshStats();
             loadRecentTweets();
             loadTrackedAccounts();
+            loadTrendingTopics();
+            
+            // Setup day slider
+            const daySlider = document.getElementById('daySlider');
+            const dayValue = document.getElementById('dayValue');
+            
+            daySlider.addEventListener('input', function() {
+                dayValue.textContent = this.value + ' days';
+                loadTrendingTopics();
+            });
             
             // Auto-refresh stats every 10 seconds for real-time updates
             setInterval(() => {
@@ -978,6 +1204,11 @@
                 loadRecentTweets();
                 loadTrackedAccounts();
             }, 30000);
+            
+            // Auto-refresh trending topics every 4 hours
+            setInterval(() => {
+                loadTrendingTopics();
+            }, 4 * 60 * 60 * 1000); // 4 hours
         });
 
         // Control Functions
@@ -2054,6 +2285,140 @@ This feature analyzes how accurate our tracked accounts' predictions have been:<
             `;
 
             resultsDiv.innerHTML = html;
+        }
+
+        // Trending Topics Functions
+        async function loadTrendingTopics() {
+            try {
+                const days = document.getElementById('daySlider').value;
+                const response = await safeApiCall(`/api/admin/top-topics/latest?days=${days}&limit=20`);
+                
+                if (response.success && response.topics) {
+                    displayTrendingTopics(response.topics);
+                } else {
+                    displayTrendingTopics([]);
+                }
+            } catch (error) {
+                console.error('Error loading trending topics:', error);
+                displayTrendingTopics([]);
+            }
+        }
+
+        function displayTrendingTopics(topics) {
+            const grid = document.getElementById('trendingTopicsGrid');
+            
+            if (!topics || topics.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #a0aec0;">
+                        <h3>No trending topics found</h3>
+                        <p>Topics will appear here as they are analyzed from tracked tweets.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const topicsHtml = topics.map((topic, index) => `
+                <div class="trend-box" onclick="showTrendDetails('${topic.topic}', ${index + 1})">
+                    <div class="trend-rank">${index + 1}</div>
+                    <div class="trend-name">${topic.topic}</div>
+                    <div class="trend-category">${topic.category}</div>
+                    <div class="trend-metrics">
+                        <span class="trend-score">Score: ${topic.trendingScore?.toFixed(1) || 'N/A'}</span>
+                        <span class="trend-frequency">Freq: ${topic.frequency || 0}</span>
+                    </div>
+                </div>
+            `).join('');
+
+            grid.innerHTML = topicsHtml;
+        }
+
+        async function showTrendDetails(topicName, rank) {
+            try {
+                const response = await safeApiCall(`/api/admin/top-topics/insights/${encodeURIComponent(topicName)}`);
+                
+                const modal = document.getElementById('trendModal');
+                const title = document.getElementById('trendModalTitle');
+                const body = document.getElementById('trendModalBody');
+                
+                title.textContent = `#${rank} ${topicName}`;
+                
+                if (response.success && response.insights) {
+                    const insights = response.insights;
+                    body.innerHTML = `
+                        <div class="topic-card">
+                            <div class="topic-header">
+                                <div class="topic-name">${topicName}</div>
+                                <div class="topic-category">${insights.category || 'General'}</div>
+                            </div>
+                            
+                            <div class="topic-metrics">
+                                <div class="metric">
+                                    <span class="metric-label">Trending Score:</span>
+                                    <span class="metric-value">${insights.trendingScore?.toFixed(2) || 'N/A'}</span>
+                                </div>
+                                <div class="metric">
+                                    <span class="metric-label">Frequency:</span>
+                                    <span class="metric-value">${insights.frequency || 0}</span>
+                                </div>
+                                <div class="metric">
+                                    <span class="metric-label">Authors:</span>
+                                    <span class="metric-value">${insights.authorCount || 0}</span>
+                                </div>
+                            </div>
+                            
+                            <div class="topic-sentiment">
+                                <span class="sentiment-label">Sentiment:</span>
+                                <span class="sentiment-value sentiment-${insights.sentiment?.dominant || 'neutral'}">
+                                    ${insights.sentiment?.dominant || 'neutral'}
+                                </span>
+                            </div>
+                            
+                            ${insights.authors && insights.authors.length > 0 ? `
+                                <div class="topic-authors">
+                                    <div class="authors-label">Discussed by:</div>
+                                    <div class="authors-list">
+                                        ${insights.authors.map(author => `<span class="author-tag">@${author}</span>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            ${insights.analyzedAt ? `
+                                <div style="margin-top: 15px; font-size: 12px; color: #a0aec0;">
+                                    Last analyzed: ${new Date(insights.analyzedAt).toLocaleString()}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                } else {
+                    body.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #a0aec0;">
+                            <h3>No detailed insights available</h3>
+                            <p>Detailed analysis for "${topicName}" is not yet available.</p>
+                        </div>
+                    `;
+                }
+                
+                modal.style.display = 'block';
+            } catch (error) {
+                console.error('Error loading trend details:', error);
+                showAlert('Error loading trend details: ' + error.message, 'error');
+            }
+        }
+
+        function closeTrendModal() {
+            document.getElementById('trendModal').style.display = 'none';
+        }
+
+        function refreshTrendingTopics() {
+            loadTrendingTopics();
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('trendModal');
+            if (event.target === modal) {
+                closeTrendModal();
+            }
         }
 
         async function getTopTopics() {

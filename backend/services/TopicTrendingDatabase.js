@@ -165,6 +165,55 @@ class TopicTrendingDatabase {
   }
 
   /**
+   * Get trending topics from the last N days
+   */
+  getTrendingTopicsByTimeframe(days, limit = 20) {
+    if (this.trendingTopics.length === 0) {
+      return [];
+    }
+
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+
+    // Get all topics from the specified timeframe
+    const topicsInTimeframe = [];
+    const topicMap = new Map();
+
+    for (const analysis of this.trendingTopics) {
+      const analysisDate = new Date(analysis.analyzedAt);
+      if (analysisDate >= cutoffDate) {
+        for (const topic of analysis.topics) {
+          const key = topic.topic;
+          if (topicMap.has(key)) {
+            // Aggregate data for topics that appear multiple times
+            const existing = topicMap.get(key);
+            existing.frequency += topic.frequency;
+            existing.authorCount = Math.max(existing.authorCount, topic.authorCount);
+            existing.trendingScore = Math.max(existing.trendingScore, topic.trendingScore);
+            
+            // Merge authors
+            const allAuthors = [...new Set([...existing.authors, ...topic.authors])];
+            existing.authors = allAuthors;
+            existing.authorCount = allAuthors.length;
+          } else {
+            topicMap.set(key, {
+              ...topic,
+              authors: [...topic.authors] // Create a copy
+            });
+          }
+        }
+      }
+    }
+
+    // Convert map to array and sort by trending score
+    const aggregatedTopics = Array.from(topicMap.values())
+      .sort((a, b) => b.trendingScore - a.trendingScore)
+      .slice(0, limit);
+
+    return aggregatedTopics;
+  }
+
+  /**
    * Get trending topics by category
    */
   getTrendingTopicsByCategory(category, limit = 10) {
