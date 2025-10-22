@@ -1270,9 +1270,11 @@
                 loadTrendingTopics();
             }, 4 * 60 * 60 * 1000); // 4 hours
             
-            // Auto-refresh sentiment trends every 24 hours
+            // Auto-refresh sentiment trends every 24 hours (only if not already loading)
             setInterval(() => {
-                loadSentimentTrends();
+                if (!sentimentTrendsLoaded) {
+                    loadSentimentTrends();
+                }
             }, 24 * 60 * 60 * 1000); // 24 hours
         });
 
@@ -2596,9 +2598,14 @@ This feature analyzes how accurate our tracked accounts' predictions have been:<
 
         // Global chart instance to prevent re-rendering
         let sentimentChartInstance = null;
+        let sentimentTrendsLoaded = false;
 
         // Sentiment Trends Functions
         async function loadSentimentTrends() {
+            // Prevent multiple simultaneous loads
+            if (sentimentTrendsLoaded) return;
+            sentimentTrendsLoaded = true;
+            
             try {
                 const days = document.getElementById('sentimentDaySlider').value;
                 const response = await safeApiCall(`/api/admin/crypto-tracking/sentiment-trends?days=${days}`);
@@ -2611,6 +2618,8 @@ This feature analyzes how accurate our tracked accounts' predictions have been:<
             } catch (error) {
                 console.error('Error loading sentiment trends:', error);
                 displayFixedSentimentTrends({});
+            } finally {
+                sentimentTrendsLoaded = false;
             }
         }
 
@@ -2623,7 +2632,7 @@ This feature analyzes how accurate our tracked accounts' predictions have been:<
                 return;
             }
 
-            let html = '<div style="margin-bottom: 20px;"><canvas id="sentimentChart" width="400" height="200"></canvas></div>';
+            let html = '<div style="margin-bottom: 20px;"><canvas id="fixedSentimentChart" width="400" height="200"></canvas></div>';
             
             html += '<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse;">';
             html += '<thead><tr style="background: rgba(255,255,255,0.1);"><th style="padding: 10px; text-align: left;">Date</th><th style="padding: 10px; text-align: center;">Bullish</th><th style="padding: 10px; text-align: center;">Bearish</th><th style="padding: 10px; text-align: center;">Neutral</th><th style="padding: 10px; text-align: center;">Total</th></tr></thead><tbody>';
@@ -2655,7 +2664,7 @@ This feature analyzes how accurate our tracked accounts' predictions have been:<
         }
 
         function createSentimentChart(trends, dates) {
-            const ctx = document.getElementById('sentimentChart');
+            const ctx = document.getElementById('fixedSentimentChart');
             if (!ctx) return;
             
             // Prepare data for Chart.js
