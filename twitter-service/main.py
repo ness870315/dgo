@@ -1548,6 +1548,9 @@ async def generate_strategy_endpoint(request: StrategyGenerationRequest):
         )
         
         logger.info(f"✅ Enhanced strategy generated successfully for {request.walletAddress}")
+        logger.info(f"📊 Strategy type: {type(strategy)}")
+        logger.info(f"📊 Strategy keys: {list(strategy.keys()) if isinstance(strategy, dict) else 'Not a dict'}")
+        logger.info(f"📊 Strategy allocation count: {len(strategy.get('allocation', []))}")
         return strategy
         
     except HTTPException:
