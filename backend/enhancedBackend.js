@@ -12565,7 +12565,24 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
 
         const predictions = this.predictionTrackingDatabase.predictions;
+        
+        if (!predictions || predictions.length === 0) {
+          return res.json({
+            success: false,
+            error: 'No predictions available yet. Predictions will appear as tweets are analyzed.',
+            totalPredictions: 0
+          });
+        }
+
         const insights = await this.aiAccuracyAnalysisService.generateAccuracyInsights(predictions);
+        
+        if (!insights) {
+          return res.json({
+            success: false,
+            error: 'Unable to generate insights at this time',
+            totalPredictions: predictions.length
+          });
+        }
         
         res.json({
           success: true,
@@ -12638,13 +12655,20 @@ Thanks for using x402 payments on Twitter! 🚀`;
         const predictions = this.predictionTrackingDatabase.getPredictionsByAuthor(username);
         
         if (!predictions || predictions.length === 0) {
-          return res.status(404).json({
+          return res.json({
             success: false,
-            error: 'No predictions found for this author'
+            error: `No predictions found for @${username} yet. Predictions will appear as their tweets are analyzed.`
           });
         }
 
         const recommendations = await this.aiAccuracyAnalysisService.generateAccuracyRecommendations(predictions);
+        
+        if (!recommendations) {
+          return res.json({
+            success: false,
+            error: 'Unable to generate recommendations at this time'
+          });
+        }
         
         res.json({
           success: true,

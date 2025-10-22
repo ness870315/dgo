@@ -3160,7 +3160,13 @@ This feature will rank tracked accounts by their influence:<br>
 
         async function getAIRecommendations() {
             try {
-                const username = document.getElementById('accountMetricsSelect').value;
+                const selectElement = document.getElementById('accountMetricsDropdown');
+                if (!selectElement) {
+                    showAlert('Account dropdown not found', 'error');
+                    return;
+                }
+                
+                const username = selectElement.value;
                 if (!username) {
                     showAlert('Please select an account first', 'warning');
                     return;

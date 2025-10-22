@@ -24,6 +24,12 @@ class AIAccuracyAnalysisService {
    * Generate AI insights about prediction accuracy patterns
    */
   async generateAccuracyInsights(predictions, marketData = {}) {
+    // Handle empty predictions
+    if (!predictions || predictions.length === 0) {
+      console.log('⚠️ [AI ACCURACY] No predictions available for analysis');
+      return null;
+    }
+
     if (!this.openai) {
       return this.getFallbackInsights(predictions);
     }
@@ -172,6 +178,12 @@ Be specific and actionable in your analysis.
    * Generate AI-powered recommendations for improving prediction accuracy
    */
   async generateAccuracyRecommendations(authorPredictions, marketTrends = {}) {
+    // Handle empty predictions
+    if (!authorPredictions || authorPredictions.length === 0) {
+      console.log('⚠️ [AI ACCURACY] No predictions available for author recommendations');
+      return null;
+    }
+
     if (!this.openai) {
       return this.getFallbackRecommendations(authorPredictions);
     }
@@ -403,3 +415,5 @@ Be specific and actionable based on the author's actual performance data.
 }
 
 export default AIAccuracyAnalysisService;
+
+
