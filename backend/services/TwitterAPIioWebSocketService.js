@@ -213,11 +213,10 @@ class TwitterAPIioWebSocketService {
    */
   async getExistingRules() {
     try {
-      const response = await fetch('https://api.twitterapi.io/oapi/tweet_filter/rules', {
+      const response = await fetch('https://api.twitterapi.io/oapi/tweet_filter/get_rules', {
         method: 'GET',
         headers: {
-          'X-API-Key': this.apiKey,
-          'Content-Type': 'application/json'
+          'X-API-Key': this.apiKey
         }
       });
       
