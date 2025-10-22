@@ -447,23 +447,206 @@ const AILiquidStakingRouter = () => {
         )}
 
         {/* Execute Strategy Step */}
-        {step === 'execute' && (
-          <div className="bg-dark-card rounded-xl p-8 text-center">
-            <div className="text-6xl mb-8">🚀</div>
-            <h2 className="text-3xl font-bold text-white mb-6">
-              Execute Strategy
-            </h2>
-            <p className="text-xl text-gray-400 mb-8">
-              Your AI-optimized strategy is ready. Execute the transactions to optimize your staking.
-            </p>
-            
-            <button
-              onClick={executeStrategy}
-              disabled={loading}
-              className="px-12 py-6 bg-gradient-to-r from-solana-purple to-solana-green text-white font-bold text-xl rounded-xl hover:from-solana-purple/80 hover:to-solana-green/80 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-solana-purple/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-            >
-              {loading ? '⏳ Building Transactions...' : '🚀 Execute Strategy'}
-            </button>
+        {step === 'execute' && strategy && (
+          <div className="space-y-8">
+            {/* Strategy Summary */}
+            <div className="bg-dark-card rounded-xl p-8">
+              <div className="text-center mb-8">
+                <div className="text-6xl mb-4">🚀</div>
+                <h2 className="text-3xl font-bold text-white mb-4">
+                  Execute Strategy
+                </h2>
+                <p className="text-xl text-gray-400">
+                  Your AI-optimized strategy is ready. Review the details below before executing.
+                </p>
+              </div>
+
+              {/* Strategy Details */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="bg-gray-800/50 rounded-lg p-6 text-center">
+                  <div className="text-3xl mb-2">📈</div>
+                  <h3 className="text-lg font-bold text-white mb-2">Expected Yield</h3>
+                  <p className="text-2xl font-bold text-green-400">{strategy.expectedYield?.toFixed(2) || 'N/A'}%</p>
+                </div>
+                <div className="bg-gray-800/50 rounded-lg p-6 text-center">
+                  <div className="text-3xl mb-2">⚖️</div>
+                  <h3 className="text-lg font-bold text-white mb-2">Risk Score</h3>
+                  <p className="text-2xl font-bold text-yellow-400">{strategy.riskScore?.toFixed(1) || 'N/A'}/10</p>
+                </div>
+                <div className="bg-gray-800/50 rounded-lg p-6 text-center">
+                  <div className="text-3xl mb-2">🎯</div>
+                  <h3 className="text-lg font-bold text-white mb-2">Strategy Type</h3>
+                  <p className="text-xl font-bold text-blue-400">{strategy.name || 'AI Optimized'}</p>
+                </div>
+              </div>
+
+              {/* Yield Comparison Chart */}
+              <div className="mb-8">
+                <h3 className="text-xl font-bold text-white mb-4">Yield Comparison</h3>
+                <div className="bg-gray-800/30 rounded-lg p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Traditional Staking */}
+                    <div className="text-center">
+                      <div className="text-4xl mb-3">🏦</div>
+                      <h4 className="text-lg font-bold text-white mb-2">Traditional Staking</h4>
+                      <div className="bg-gray-700/50 rounded-lg p-4 mb-3">
+                        <p className="text-3xl font-bold text-blue-400">5.8%</p>
+                        <p className="text-gray-400">Annual Yield</p>
+                      </div>
+                      <div className="text-sm text-gray-400 space-y-1">
+                        <p>• Native SOL staking</p>
+                        <p>• Single validator risk</p>
+                        <p>• No liquidity</p>
+                        <p>• 21-day unstaking period</p>
+                      </div>
+                    </div>
+
+                    {/* AI Strategy */}
+                    <div className="text-center">
+                      <div className="text-4xl mb-3">🤖</div>
+                      <h4 className="text-lg font-bold text-white mb-2">AI Strategy</h4>
+                      <div className="bg-gradient-to-r from-green-900/50 to-green-700/50 rounded-lg p-4 mb-3 border border-green-500/30">
+                        <p className="text-3xl font-bold text-green-400">{strategy.expectedYield?.toFixed(2) || '8.5'}%</p>
+                        <p className="text-gray-400">Expected Yield</p>
+                      </div>
+                      <div className="text-sm text-gray-400 space-y-1">
+                        <p>• Multiple LST diversification</p>
+                        <p>• Instant liquidity</p>
+                        <p>• Risk-optimized allocation</p>
+                        <p>• Real-time rebalancing</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Yield Difference */}
+                  <div className="mt-6 text-center">
+                    <div className="inline-flex items-center bg-green-900/30 border border-green-500/30 rounded-lg px-6 py-3">
+                      <span className="text-green-400 font-bold text-lg">
+                        +{((strategy.expectedYield || 8.5) - 5.8).toFixed(2)}% higher yield
+                      </span>
+                      <span className="text-gray-400 ml-2">
+                        ({(((strategy.expectedYield || 8.5) - 5.8) / 5.8 * 100).toFixed(0)}% improvement)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Allocation Chart */}
+              {strategy.allocations && strategy.allocations.length > 0 && (
+                <div className="mb-8">
+                  <h3 className="text-xl font-bold text-white mb-4">Strategy Allocation</h3>
+                  <div className="bg-gray-800/30 rounded-lg p-6">
+                    {/* Visual Bar Chart */}
+                    <div className="space-y-3 mb-6">
+                      {strategy.allocations.map((allocation, index) => (
+                        <div key={index} className="flex items-center space-x-4">
+                          <div className="w-24 text-sm text-gray-400 text-right">
+                            {allocation.symbol}
+                          </div>
+                          <div className="flex-1 bg-gray-700 rounded-full h-6 overflow-hidden">
+                            <div 
+                              className="h-full bg-gradient-to-r from-solana-purple to-blue-600 transition-all duration-1000 ease-out"
+                              style={{ width: `${allocation.percentage || 0}%` }}
+                            ></div>
+                          </div>
+                          <div className="w-16 text-sm text-white text-right font-bold">
+                            {allocation.percentage?.toFixed(1)}%
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Pie Chart Representation */}
+                    <div className="flex justify-center">
+                      <div className="relative w-48 h-48">
+                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                          {strategy.allocations.map((allocation, index) => {
+                            const percentage = allocation.percentage || 0;
+                            const circumference = 2 * Math.PI * 40;
+                            const strokeDasharray = `${(percentage / 100) * circumference} ${circumference}`;
+                            const strokeDashoffset = index === 0 ? 0 : 
+                              strategy.allocations.slice(0, index).reduce((sum, a) => sum - (a.percentage || 0) / 100 * circumference, 0);
+                            
+                            return (
+                              <circle
+                                key={index}
+                                cx="50"
+                                cy="50"
+                                r="40"
+                                fill="none"
+                                stroke={index === 0 ? '#8B5CF6' : index === 1 ? '#3B82F6' : index === 2 ? '#10B981' : '#F59E0B'}
+                                strokeWidth="8"
+                                strokeDasharray={strokeDasharray}
+                                strokeDashoffset={strokeDashoffset}
+                                className="transition-all duration-1000 ease-out"
+                              />
+                            );
+                          })}
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="text-2xl font-bold text-white">{strategy.expectedYield?.toFixed(1) || '8.5'}%</div>
+                            <div className="text-sm text-gray-400">Expected APR</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Performance Projection */}
+              <div className="mb-8">
+                <h3 className="text-xl font-bold text-white mb-4">Performance Projection</h3>
+                <div className="bg-gray-800/30 rounded-lg p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                    <div>
+                      <div className="text-2xl font-bold text-green-400 mb-2">1 Year</div>
+                      <div className="text-3xl font-bold text-white">
+                        ${(walletData?.totalValue * (1 + (strategy.expectedYield || 8.5) / 100)).toFixed(0)}
+                      </div>
+                      <div className="text-sm text-gray-400">From ${walletData?.totalValue?.toFixed(0)}</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-green-400 mb-2">3 Years</div>
+                      <div className="text-3xl font-bold text-white">
+                        ${(walletData?.totalValue * Math.pow(1 + (strategy.expectedYield || 8.5) / 100, 3)).toFixed(0)}
+                      </div>
+                      <div className="text-sm text-gray-400">Compound growth</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-green-400 mb-2">5 Years</div>
+                      <div className="text-3xl font-bold text-white">
+                        ${(walletData?.totalValue * Math.pow(1 + (strategy.expectedYield || 8.5) / 100, 5)).toFixed(0)}
+                      </div>
+                      <div className="text-sm text-gray-400">Long-term projection</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Strategy Reasoning */}
+              {strategy.reasoning && (
+                <div className="mb-8">
+                  <h3 className="text-xl font-bold text-white mb-4">Strategy Reasoning</h3>
+                  <div className="bg-gray-800/30 rounded-lg p-4">
+                    <p className="text-gray-300">{strategy.reasoning}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Execute Button */}
+              <div className="text-center">
+                <button
+                  onClick={executeStrategy}
+                  disabled={loading}
+                  className="px-12 py-6 bg-gradient-to-r from-solana-purple to-solana-green text-white font-bold text-xl rounded-xl hover:from-solana-purple/80 hover:to-solana-green/80 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-solana-purple/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                >
+                  {loading ? '⏳ Building Transactions...' : '🚀 Execute Strategy'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
