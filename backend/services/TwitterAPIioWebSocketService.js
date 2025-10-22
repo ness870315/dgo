@@ -238,12 +238,20 @@ class TwitterAPIioWebSocketService {
    */
   needsCryptoRuleUpdate(trackedAccounts, existingRules) {
     const cryptoRules = existingRules.filter(rule => rule.tag.startsWith('crypto_accounts_tracking'));
-    if (cryptoRules.length === 0) return true;
+    
+    if (cryptoRules.length === 0) {
+      console.log('🔍 [TwitterAPI.io WS] No crypto rules exist yet');
+      return true;
+    }
     
     // Check if the number of rules matches expected chunks
     const chunkSize = 5;
     const expectedChunks = Math.ceil(trackedAccounts.length / chunkSize);
-    if (cryptoRules.length !== expectedChunks) return true;
+    
+    if (cryptoRules.length !== expectedChunks) {
+      console.log(`🔍 [TwitterAPI.io WS] Rule count mismatch: have ${cryptoRules.length}, need ${expectedChunks}`);
+      return true;
+    }
     
     // Check if each rule covers the correct accounts
     const accountChunks = [];
@@ -257,11 +265,20 @@ class TwitterAPIioWebSocketService {
       const ruleTag = `crypto_accounts_tracking_${i + 1}`;
       
       const rule = cryptoRules.find(r => r.tag === ruleTag);
-      if (!rule || rule.value !== expectedValue) {
+      if (!rule) {
+        console.log(`🔍 [TwitterAPI.io WS] Missing rule: ${ruleTag}`);
+        return true;
+      }
+      
+      if (rule.value !== expectedValue) {
+        console.log(`🔍 [TwitterAPI.io WS] Rule ${ruleTag} mismatch:`);
+        console.log(`   Expected: ${expectedValue}`);
+        console.log(`   Current:  ${rule.value}`);
         return true;
       }
     }
     
+    console.log('✅ [TwitterAPI.io WS] All crypto rules match tracked accounts - no update needed');
     return false;
   }
 
@@ -275,22 +292,22 @@ class TwitterAPIioWebSocketService {
       // Check if rules already exist before creating new ones
       const existingRules = await this.getExistingRules();
       const hasMentionRule = existingRules.some(rule => rule.tag === 'mentions_dgnoracle');
-      const hasCryptoRule = existingRules.some(rule => rule.tag === 'crypto_accounts_tracking');
+      const hasCryptoRules = existingRules.some(rule => rule.tag.startsWith('crypto_accounts_tracking'));
       
-      console.log(`📋 [TwitterAPI.io WS] Existing rules: mentions=${hasMentionRule}, crypto=${hasCryptoRule}`);
+      console.log(`📋 [TwitterAPI.io WS] Existing rules: mentions=${hasMentionRule}, crypto=${hasCryptoRules}`);
       
-      // Check if crypto rule needs update
-      const needsCryptoUpdate = !hasCryptoRule || this.needsCryptoRuleUpdate(trackedAccounts, existingRules);
+      // Check if crypto rule needs update (only if we have tracked accounts)
+      const needsCryptoUpdate = trackedAccounts.length > 0 && this.needsCryptoRuleUpdate(trackedAccounts, existingRules);
       
       // If both rules exist and crypto rule doesn't need update, skip everything
-      if (hasMentionRule && !needsCryptoUpdate) {
+      if (hasMentionRule && hasCryptoRules && !needsCryptoUpdate) {
         console.log('✅ [TwitterAPI.io WS] All rules already exist and are up to date - skipping setup');
         return;
       }
       
       // Only clear existing rules if we need to update crypto accounts
       if (needsCryptoUpdate) {
-        console.log('🔄 [TwitterAPI.io WS] Updating crypto tracking rules...');
+        console.log('🔄 [TwitterAPI.io WS] Crypto accounts changed - updating rules...');
         await this.clearExistingRules();
       }
       
