@@ -347,19 +347,8 @@
             </a>
         </div>
 
-        <!-- Statistics Overview - Moved to top -->
-        <div class="card" style="margin-bottom: 30px;">
-            <h2>📊 Statistics Overview</h2>
-            <p style="color: #a0aec0; margin-bottom: 20px;">
-                Real-time statistics and performance metrics
-            </p>
-
-            <div id="statsOverview" class="stats-grid">
-                <!-- Stats will be populated here -->
-            </div>
-
-            <button class="btn btn-info" onclick="refreshStats()">🔄 Refresh Stats</button>
-        </div>
+        <!-- Results Area - Moved to top for better visibility -->
+        <div id="results" style="margin-bottom: 30px;"></div>
 
         <div class="dashboard-grid">
             <!-- Control Panel -->
@@ -477,6 +466,20 @@
                 </div>
             </div>
 
+            <!-- Statistics Overview -->
+            <div class="card">
+                <h2>📊 Statistics Overview</h2>
+                <p style="color: #a0aec0; margin-bottom: 20px;">
+                    Real-time statistics and performance metrics
+                </p>
+
+                <div id="statsOverview" class="stats-grid">
+                    <!-- Stats will be populated here -->
+                </div>
+
+                <button class="btn btn-info" onclick="refreshStats()">🔄 Refresh Stats</button>
+            </div>
+
             <!-- Recent Tweets -->
             <div class="card">
                 <h2>🐦 Recent Tweets</h2>
@@ -491,9 +494,6 @@
                 <button class="btn btn-primary" onclick="loadRecentTweets()">🔄 Load Recent</button>
             </div>
         </div>
-
-        <!-- Results Area -->
-        <div id="results" style="margin-top: 30px;"></div>
     </div>
 
     <script>
