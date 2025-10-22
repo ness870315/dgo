@@ -790,25 +790,30 @@ Type = "kol_opinion" if the mention contains ANY of these:
 - Performance questions: "why pumping", "why dumping", "what caused", "volume spike"
 - Trading advice: "is X a buy", "should I ape", "entry point", "take profit"
 
-Type = "casual" ONLY for:
-- Greetings: "gm", "hello", "hey" (without questions)
-- Thanks: "thanks", "appreciate it"
+Type = "casual" for:
+- Greetings: "gm", "gn", "hello", "hey", "hi", "wagmi", "gm fam" (ALWAYS REPLY to greetings!)
+- Thanks: "thanks", "appreciate it", "thank you"
 - Introductions: "let me introduce you to"
 - Platform questions: "how does oracle work"
+- General conversation without specific crypto questions
 
 Type = "contract_analysis" if:
 - Contains Solana address (32-44 char alphanumeric)
 
 EXAMPLES (FOLLOW THESE EXACTLY):
-✅ "do a 10x fuel to $memeputer" → {"replyType": "fuel_payment", "tokens": ["MEMEPUTER"], "fuelMultiplier": "10x", "reason": "fuel payment request"}
-✅ "fuel $bonk 50x" → {"replyType": "fuel_payment", "tokens": ["BONK"], "fuelMultiplier": "50x", "reason": "fuel payment request"}
-✅ "add 500x fuel to $wif" → {"replyType": "fuel_payment", "tokens": ["WIF"], "fuelMultiplier": "500x", "reason": "fuel payment request"}
-✅ "what's trending on CT? what should I buy?" → {"replyType": "kol_opinion", "tokens": [], "reason": "asking for trending + buy recommendations"}
-✅ "what is your take on $monkey" → {"replyType": "kol_opinion", "tokens": ["MONKEY"], "reason": "asking for token analysis"}
-✅ "what should I buy today" → {"replyType": "kol_opinion", "tokens": [], "reason": "asking for investment advice"}
-✅ "what's hot right now" → {"replyType": "kol_opinion", "tokens": [], "reason": "asking for trending tokens"}
-❌ "gm @dgnoracle" → {"replyType": "casual", "tokens": [], "reason": "greeting only"}
-❌ "thanks for the alpha" → {"replyType": "casual", "tokens": [], "reason": "gratitude"}
+✅ "do a 10x fuel to $memeputer" → {"shouldReply": true, "replyType": "fuel_payment", "tokens": ["MEMEPUTER"], "fuelMultiplier": "10x", "reason": "fuel payment request"}
+✅ "fuel $bonk 50x" → {"shouldReply": true, "replyType": "fuel_payment", "tokens": ["BONK"], "fuelMultiplier": "50x", "reason": "fuel payment request"}
+✅ "add 500x fuel to $wif" → {"shouldReply": true, "replyType": "fuel_payment", "tokens": ["WIF"], "fuelMultiplier": "500x", "reason": "fuel payment request"}
+✅ "what's trending on CT? what should I buy?" → {"shouldReply": true, "replyType": "kol_opinion", "tokens": [], "reason": "asking for trending + buy recommendations"}
+✅ "what is your take on $monkey" → {"shouldReply": true, "replyType": "kol_opinion", "tokens": ["MONKEY"], "reason": "asking for token analysis"}
+✅ "what should I buy today" → {"shouldReply": true, "replyType": "kol_opinion", "tokens": [], "reason": "asking for investment advice"}
+✅ "what's hot right now" → {"shouldReply": true, "replyType": "kol_opinion", "tokens": [], "reason": "asking for trending tokens"}
+✅ "gm @dgnoracle" → {"shouldReply": true, "replyType": "casual", "tokens": [], "reason": "greeting - reply with degen energy"}
+✅ "gn fam" → {"shouldReply": true, "replyType": "casual", "tokens": [], "reason": "greeting - reply with degen energy"}
+✅ "thanks for the alpha" → {"shouldReply": true, "replyType": "casual", "tokens": [], "reason": "gratitude - acknowledge with degen vibes"}
+✅ "wagmi" → {"shouldReply": true, "replyType": "casual", "tokens": [], "reason": "crypto greeting - reply with energy"}
+
+IMPORTANT: shouldReply should be TRUE for ALL mentions unless they are spam, offensive, or completely irrelevant (non-crypto topics)
 
 Respond in JSON format:
 {
