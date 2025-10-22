@@ -369,8 +369,8 @@ class CryptoTrackingDatabase {
    * Calculate influence score based on engagement
    */
   calculateInfluenceScore(engagement) {
-    const { likes, retweets, replies, quotes } = engagement;
-    const totalEngagement = likes + (retweets * 2) + (replies * 3) + (quotes * 4);
+    const { likes, retweets, replyCount, quoteTweets } = engagement;
+    const totalEngagement = likes + (retweets * 2) + (replyCount * 3) + (quoteTweets * 4);
     return Math.min(totalEngagement / 1000, 1.0); // Normalize to 0-1
   }
 
@@ -466,11 +466,20 @@ class CryptoTrackingDatabase {
    */
   getAccountMetrics(username) {
     const accountTweets = this.trackedTweets.filter(tweet => 
-      tweet.author.username.toLowerCase() === username.toLowerCase()
+      tweet.author?.username?.toLowerCase() === username.toLowerCase()
     );
     
     if (accountTweets.length === 0) {
-      return null;
+      return {
+        username,
+        totalTweets: 0,
+        sentimentCounts: { positive: 0, negative: 0, neutral: 0 },
+        avgConfidence: 0,
+        avgInfluence: 0,
+        topTopics: [],
+        avgVirality: 0,
+        lastActivity: null
+      };
     }
     
     const sentimentCounts = accountTweets.reduce((acc, tweet) => {

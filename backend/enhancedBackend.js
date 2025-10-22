@@ -11890,13 +11890,6 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
         const metrics = this.cryptoTrackingDatabase.getAccountMetrics(username);
         
-        if (!metrics) {
-          return res.status(404).json({
-            success: false,
-            error: `No data found for account @${username}`
-          });
-        }
-        
         res.json({
           success: true,
           metrics: metrics
