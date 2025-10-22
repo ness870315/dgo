@@ -582,6 +582,213 @@
             color: #10b981;
             font-weight: bold;
         }
+        }
+
+        /* Top Topics Analysis Styles */
+        .analysis-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+
+        .summary-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .summary-label {
+            font-size: 0.9em;
+            color: #a0aec0;
+            margin-bottom: 5px;
+        }
+
+        .summary-value {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .topics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .topic-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .topic-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .topic-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .topic-rank {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .topic-name {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #ffffff;
+            margin: 0;
+            flex: 1;
+        }
+
+        .topic-category {
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.8em;
+            font-weight: 500;
+        }
+
+        .topic-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+        }
+
+        .metric-label {
+            font-size: 0.9em;
+            color: #a0aec0;
+        }
+
+        .metric-value {
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .topic-sentiment {
+            margin-bottom: 15px;
+        }
+
+        .sentiment-label {
+            font-size: 0.9em;
+            color: #a0aec0;
+            margin-right: 8px;
+        }
+
+        .sentiment-value {
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.9em;
+        }
+
+        .sentiment-positive {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+
+        .sentiment-negative {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .sentiment-neutral {
+            background: rgba(156, 163, 175, 0.2);
+            color: #9ca3af;
+        }
+
+        .sentiment-breakdown {
+            display: flex;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 8px 0;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .sentiment-bar {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .sentiment-bar.positive {
+            background: #22c55e;
+        }
+
+        .sentiment-bar.negative {
+            background: #ef4444;
+        }
+
+        .sentiment-bar.neutral {
+            background: #9ca3af;
+        }
+
+        .sentiment-percentages {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8em;
+        }
+
+        .sentiment-percentage {
+            font-weight: 500;
+        }
+
+        .sentiment-percentage.positive {
+            color: #22c55e;
+        }
+
+        .sentiment-percentage.negative {
+            color: #ef4444;
+        }
+
+        .sentiment-percentage.neutral {
+            color: #9ca3af;
+        }
+
+        .topic-authors {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .authors-label {
+            font-size: 0.9em;
+            color: #a0aec0;
+        }
+
+        .authors-list {
+            font-size: 0.9em;
+            color: #ffffff;
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
@@ -1830,17 +2037,127 @@ This feature analyzes how accurate our tracked accounts' predictions have been:<
             resultsDiv.innerHTML = html;
         }
 
-        function getTopTopics() {
-            showAlert(`
-🔥 <strong>Top Topics Analysis</strong><br><br>
-This feature will identify trending topics across all tracked accounts:<br>
-• Analyze most discussed crypto topics over time<br>
-• Track topic sentiment and engagement levels<br>
-• Identify emerging trends before they go mainstream<br>
-• Show topic correlation with price movements<br>
-• Generate topic heat maps and trend charts<br><br>
-<em>Coming soon: Real-time topic trend analysis</em>
-            `, 'info');
+        async function getTopTopics() {
+            try {
+                showLoading('Analyzing trending topics...');
+                
+                const response = await safeApiCall('/api/admin/top-topics/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        timeframe: '7d',
+                        limit: 20
+                    })
+                });
+
+                if (response.success) {
+                    displayTopTopics(response.analysis);
+                } else {
+                    showAlert('Failed to analyze topics: ' + (response.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                console.error('Error getting top topics:', error);
+                showAlert('Error analyzing topics: ' + error.message, 'error');
+            }
+        }
+
+        /**
+         * Display Top Topics Analysis results
+         */
+        function displayTopTopics(analysis) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (!analysis || !analysis.topics || analysis.topics.length === 0) {
+                resultsDiv.innerHTML = `
+                    <div class="card">
+                        <h3>🔥 Top Topics Analysis</h3>
+                        <p>No trending topics found for the selected timeframe.</p>
+                        <p><strong>Timeframe:</strong> ${analysis.timeframe || '7d'}</p>
+                        <p><strong>Total Tweets Analyzed:</strong> ${analysis.totalTweets || 0}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const topicsHtml = analysis.topics.map((topic, index) => {
+                const sentimentClass = topic.sentiment.dominant === 'positive' ? 'sentiment-positive' : 
+                                     topic.sentiment.dominant === 'negative' ? 'sentiment-negative' : 'sentiment-neutral';
+                
+                return `
+                    <div class="topic-card">
+                        <div class="topic-header">
+                            <span class="topic-rank">#${index + 1}</span>
+                            <h4 class="topic-name">${topic.topic}</h4>
+                            <span class="topic-category">${topic.category}</span>
+                        </div>
+                        <div class="topic-metrics">
+                            <div class="metric">
+                                <span class="metric-label">Frequency:</span>
+                                <span class="metric-value">${topic.frequency}</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Engagement:</span>
+                                <span class="metric-value">${topic.engagement.toLocaleString()}</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Authors:</span>
+                                <span class="metric-value">${topic.authorCount}</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Trend Score:</span>
+                                <span class="metric-value">${topic.trendingScore}</span>
+                            </div>
+                        </div>
+                        <div class="topic-sentiment">
+                            <span class="sentiment-label">Sentiment:</span>
+                            <span class="sentiment-value ${sentimentClass}">${topic.sentiment.dominant}</span>
+                            <div class="sentiment-breakdown">
+                                <span class="sentiment-bar positive" style="width: ${topic.sentiment.distribution.positive}%"></span>
+                                <span class="sentiment-bar negative" style="width: ${topic.sentiment.distribution.negative}%"></span>
+                                <span class="sentiment-bar neutral" style="width: ${topic.sentiment.distribution.neutral}%"></span>
+                            </div>
+                            <div class="sentiment-percentages">
+                                <span class="sentiment-percentage positive">${topic.sentiment.distribution.positive}%</span>
+                                <span class="sentiment-percentage negative">${topic.sentiment.distribution.negative}%</span>
+                                <span class="sentiment-percentage neutral">${topic.sentiment.distribution.neutral}%</span>
+                            </div>
+                        </div>
+                        <div class="topic-authors">
+                            <span class="authors-label">Discussed by:</span>
+                            <span class="authors-list">${topic.authors.join(', ')}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            resultsDiv.innerHTML = `
+                <div class="card">
+                    <h3>🔥 Top Topics Analysis</h3>
+                    <div class="analysis-summary">
+                        <div class="summary-item">
+                            <span class="summary-label">Timeframe:</span>
+                            <span class="summary-value">${analysis.timeframe}</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Tweets Analyzed:</span>
+                            <span class="summary-value">${analysis.totalTweets}</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Topics Found:</span>
+                            <span class="summary-value">${analysis.topics.length}</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">Analyzed At:</span>
+                            <span class="summary-value">${new Date(analysis.analyzedAt).toLocaleString()}</span>
+                        </div>
+                    </div>
+                    <div class="topics-grid">
+                        ${topicsHtml}
+                    </div>
+                </div>
+            `;
         }
 
         function getInfluenceRanking() {

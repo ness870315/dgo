@@ -666,6 +666,44 @@ class CryptoTrackingDatabase {
       }
     }
   }
+
+  /**
+   * Get tweets by timeframe for topic analysis
+   */
+  async getTweetsByTimeframe(timeframe) {
+    try {
+      const now = new Date();
+      let cutoffDate;
+
+      // Parse timeframe
+      if (timeframe === '1d') {
+        cutoffDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      } else if (timeframe === '7d') {
+        cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      } else if (timeframe === '30d') {
+        cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      } else if (timeframe === '90d') {
+        cutoffDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      } else {
+        // Default to 7 days
+        cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      }
+
+      // Filter tweets by timeframe
+      const filteredTweets = this.trackedTweets.filter(tweet => {
+        const tweetDate = new Date(tweet.timestamp);
+        return tweetDate >= cutoffDate;
+      });
+
+      console.log(`📊 [CRYPTO DB] Retrieved ${filteredTweets.length} tweets for timeframe: ${timeframe}`);
+      
+      return filteredTweets;
+
+    } catch (error) {
+      console.error('❌ [CRYPTO DB] Error getting tweets by timeframe:', error.message);
+      return [];
+    }
+  }
 }
 
 export default CryptoTrackingDatabase;

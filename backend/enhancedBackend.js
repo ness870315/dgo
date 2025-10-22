@@ -48,6 +48,8 @@ import CryptoTrackingDatabase from './services/CryptoTrackingDatabase.js';
 import PredictionTrackingDatabase from './services/PredictionTrackingDatabase.js';
 import AccuracyCalculationService from './services/AccuracyCalculationService.js';
 import PriceMonitoringService from './services/PriceMonitoringService.js';
+import TopicAnalysisService from './services/TopicAnalysisService.js';
+import TopicTrendingDatabase from './services/TopicTrendingDatabase.js';
 import { X402PaymentHandler } from '@payai/x402-solana';
 // Portfolio analysis services are handled by jup-discovery background worker
 // No direct imports needed - data comes via internal API endpoints
@@ -67,6 +69,17 @@ class EnhancedBackend {
       return 'unknown';
     } catch (error) {
       return 'unknown';
+    }
+  }
+
+  // Helper method to check if insights are stale (older than 1 hour)
+  isInsightStale(generatedAt) {
+    try {
+      const generatedTime = new Date(generatedAt);
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      return generatedTime < oneHourAgo;
+    } catch (error) {
+      return true; // If we can't parse the date, consider it stale
     }
   }
 
@@ -200,6 +213,11 @@ class EnhancedBackend {
     this.predictionTrackingDatabase = new PredictionTrackingDatabase();
     this.accuracyCalculationService = new AccuracyCalculationService();
     this.priceMonitoringService = new PriceMonitoringService();
+    
+    // Initialize topic analysis services
+    this.topicAnalysisService = new TopicAnalysisService();
+    this.topicTrendingDatabase = new TopicTrendingDatabase();
+    
     // CryptoAccountTrackingService removed - now handled by unified TwitterMentionService
     this.dailyTweetService = null; // Will be initialized after OpenAI service is ready
     this.backupIntegration = null; // Will be initialized in setupServices()
@@ -11977,6 +11995,295 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
       } catch (error) {
         console.error('[🛡️ Admin] ❌ Failed to get tracked accounts:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // ===== TOP TOPICS ANALYSIS ENDPOINTS =====
+    
+    /**
+     * Analyze trending topics from tracked tweets
+     */
+    this.app.post('/api/admin/top-topics/analyze', adminApiAuth, async (req, res) => {
+      try {
+        const { timeframe = '7d', limit = 50 } = req.body;
+        
+        if (!this.topicAnalysisService || !this.cryptoTrackingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Topic Analysis services not initialized'
+          });
+        }
+
+        console.log(`🔥 [TOP TOPICS] Starting trending topics analysis (${timeframe})`);
+        
+        // Get tweets from the specified timeframe
+        const tweets = await this.cryptoTrackingDatabase.getTweetsByTimeframe(timeframe);
+        
+        if (tweets.length === 0) {
+          return res.json({
+            success: true,
+            message: 'No tweets found for analysis',
+            analysis: {
+              timeframe,
+              totalTweets: 0,
+              topics: [],
+              analyzedAt: new Date().toISOString()
+            }
+          });
+        }
+
+        // Analyze trending topics
+        const trendingTopics = await this.topicAnalysisService.analyzeTrendingTopics(tweets, timeframe);
+        
+        // Store the analysis
+        const analysis = {
+          timeframe,
+          totalTweets: tweets.length,
+          topics: trendingTopics.slice(0, limit)
+        };
+        
+        await this.topicTrendingDatabase.storeTrendingTopics(analysis);
+        
+        console.log(`✅ [TOP TOPICS] Analysis complete: ${trendingTopics.length} topics identified`);
+        
+        res.json({
+          success: true,
+          analysis: {
+            ...analysis,
+            analyzedAt: new Date().toISOString()
+          }
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to analyze trending topics:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    /**
+     * Get latest trending topics
+     */
+    this.app.get('/api/admin/top-topics/latest', adminApiAuth, (req, res) => {
+      try {
+        const { limit = 20, category } = req.query;
+        
+        if (!this.topicTrendingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Topic Trending Database not initialized'
+          });
+        }
+
+        let topics;
+        if (category) {
+          topics = this.topicTrendingDatabase.getTrendingTopicsByCategory(category, parseInt(limit));
+        } else {
+          topics = this.topicTrendingDatabase.getLatestTrendingTopics(parseInt(limit));
+        }
+        
+        res.json({
+          success: true,
+          topics,
+          totalTopics: topics.length,
+          category: category || 'all'
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get latest trending topics:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    /**
+     * Get trending topics by category
+     */
+    this.app.get('/api/admin/top-topics/categories', adminApiAuth, (req, res) => {
+      try {
+        const { limit = 10 } = req.query;
+        
+        if (!this.topicTrendingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Topic Trending Database not initialized'
+          });
+        }
+
+        const categories = this.topicTrendingDatabase.getTopCategories(parseInt(limit));
+        
+        res.json({
+          success: true,
+          categories,
+          totalCategories: categories.length
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get trending categories:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    /**
+     * Get topic trend over time
+     */
+    this.app.get('/api/admin/top-topics/trend/:topic', adminApiAuth, (req, res) => {
+      try {
+        const { topic } = req.params;
+        const { days = 7 } = req.query;
+        
+        if (!this.topicTrendingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Topic Trending Database not initialized'
+          });
+        }
+
+        const trend = this.topicTrendingDatabase.getTopicTrend(topic, parseInt(days));
+        
+        res.json({
+          success: true,
+          topic,
+          trend,
+          timeframe: `${days} days`,
+          dataPoints: trend.length
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get topic trend:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    /**
+     * Get topic insights using AI
+     */
+    this.app.get('/api/admin/top-topics/insights/:topic', adminApiAuth, async (req, res) => {
+      try {
+        const { topic } = req.params;
+        const { timeframe = '7d' } = req.query;
+        
+        if (!this.topicAnalysisService || !this.topicTrendingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Topic Analysis services not initialized'
+          });
+        }
+
+        // Check if we have cached insights
+        let insights = this.topicTrendingDatabase.getTopicInsights(topic);
+        
+        // If no cached insights or they're older than 1 hour, generate new ones
+        if (!insights || this.isInsightStale(insights.generatedAt)) {
+          console.log(`🔍 [TOP TOPICS] Generating fresh insights for: ${topic}`);
+          insights = await this.topicAnalysisService.getTopicInsights(topic, timeframe);
+          
+          if (insights) {
+            await this.topicTrendingDatabase.storeTopicInsights(topic, insights);
+          }
+        } else {
+          console.log(`📋 [TOP TOPICS] Using cached insights for: ${topic}`);
+        }
+        
+        res.json({
+          success: true,
+          topic,
+          insights: insights || null,
+          cached: insights && !this.isInsightStale(insights.generatedAt)
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get topic insights:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    /**
+     * Search topics
+     */
+    this.app.get('/api/admin/top-topics/search', adminApiAuth, (req, res) => {
+      try {
+        const { q, limit = 20 } = req.query;
+        
+        if (!q) {
+          return res.status(400).json({
+            success: false,
+            error: 'Search query is required'
+          });
+        }
+        
+        if (!this.topicTrendingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Topic Trending Database not initialized'
+          });
+        }
+
+        const results = this.topicTrendingDatabase.searchTopics(q, parseInt(limit));
+        
+        res.json({
+          success: true,
+          query: q,
+          results,
+          totalResults: results.length
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to search topics:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    /**
+     * Get topic correlations
+     */
+    this.app.get('/api/admin/top-topics/correlations/:topic', adminApiAuth, (req, res) => {
+      try {
+        const { topic } = req.params;
+        const { limit = 10 } = req.query;
+        
+        if (!this.topicTrendingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Topic Trending Database not initialized'
+          });
+        }
+
+        const correlations = this.topicTrendingDatabase.getTopicCorrelations(topic, parseInt(limit));
+        
+        res.json({
+          success: true,
+          topic,
+          correlations,
+          totalCorrelations: correlations.length
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get topic correlations:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    /**
+     * Get trending statistics
+     */
+    this.app.get('/api/admin/top-topics/statistics', adminApiAuth, (req, res) => {
+      try {
+        if (!this.topicTrendingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Topic Trending Database not initialized'
+          });
+        }
+
+        const statistics = this.topicTrendingDatabase.getTrendingStatistics();
+        
+        res.json({
+          success: true,
+          statistics
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get trending statistics:', error.message);
         res.status(500).json({ success: false, error: error.message });
       }
     });
