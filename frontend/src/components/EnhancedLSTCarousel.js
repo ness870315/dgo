@@ -11,7 +11,7 @@ const EnhancedLSTCarousel = () => {
       name: 'Jito Staked SOL',
       apr: 6.70,
       tvl: 1200, // $1.2B
-      logo: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs/logo.png',
+      logo: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn/logo.png',
       description: 'High-performance validator with MEV rewards',
       color: 'from-green-500 to-green-600',
       features: ['MEV Rewards', 'High Decentralization', 'Low Risk']
@@ -47,7 +47,7 @@ const EnhancedLSTCarousel = () => {
       features: ['Community Driven', 'Medium Risk', 'Good Yield']
     },
     {
-      symbol: 'lidoSOL',
+      symbol: 'stSOL',
       name: 'Lido Staked SOL',
       apr: 6.40,
       tvl: 1800, // $1.8B
@@ -57,34 +57,34 @@ const EnhancedLSTCarousel = () => {
       features: ['Ethereum Proven', 'Highest TVL', 'Institutional']
     },
     {
-      symbol: 'stSOL',
-      name: 'Stake SOL',
-      apr: 6.30,
-      tvl: 950, // $950M
-      logo: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/7dHbWXmci3dT8UFYWYZweBLXgycu7Y3iL6trKn1Y7ARj/logo.png',
-      description: 'Professional staking service',
-      color: 'from-indigo-500 to-indigo-600',
-      features: ['Professional', 'High TVL', 'Reliable']
-    },
-    {
-      symbol: 'scnSOL',
-      name: 'Socean Staked SOL',
-      apr: 6.50,
-      tvl: 750, // $750M
-      logo: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/5oVNBeEEQvYi1cX3ir8Dxkm2hpGIMVGS1iidM5P2Hnu/logo.png',
-      description: 'Ocean-focused staking protocol',
-      color: 'from-teal-500 to-teal-600',
-      features: ['Ocean Focused', 'High Yield', 'Medium Risk']
-    },
-    {
-      symbol: 'infSOL',
+      symbol: 'INF',
       name: 'Infinity Staked SOL',
-      apr: 6.20,
-      tvl: 250, // $250M
+      apr: 8.35,
+      tvl: 1782, // $1.78B
       logo: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/5oVNBeEEQvYi1cX3ir8Dxkm2hpGIMVGS1iidM5P2Hnu/logo.png',
-      description: 'Advanced staking strategies',
+      description: 'Advanced staking strategies with highest APR',
       color: 'from-pink-500 to-pink-600',
-      features: ['Advanced Strategies', 'Innovative', 'Medium Risk']
+      features: ['Highest APR', 'Advanced Strategies', 'High TVL']
+    },
+    {
+      symbol: 'laineSOL',
+      name: 'Laine Staked SOL',
+      apr: 6.23,
+      tvl: 129, // $129M
+      logo: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/LAinEtNLgpmCP9Rvsf5Hn8W6EhNiKLZQti1xfWMLy6X/logo.png',
+      description: 'Sustainable validator infrastructure',
+      color: 'from-teal-500 to-teal-600',
+      features: ['Sustainable', 'Low Risk', 'Stable']
+    },
+    {
+      symbol: 'pwrsol',
+      name: 'Power SOL',
+      apr: 6.29,
+      tvl: 3, // $3M
+      logo: 'https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/5oVNBeEEQvYi1cX3ir8Dxkm2hpGIMVGS1iidM5P2Hnu/logo.png',
+      description: 'Power-focused staking protocol',
+      color: 'from-yellow-500 to-yellow-600',
+      features: ['Power Focused', 'High Yield', 'Emerging']
     }
   ];
 
@@ -263,31 +263,6 @@ const EnhancedLSTCarousel = () => {
             </div>
           </div>
         ))}
-      </div>
-
-      {/* Performance Stats */}
-      <div className="mt-12 bg-gradient-to-r from-gray-800/50 to-gray-900/50 rounded-xl p-6 border border-gray-700">
-        <h3 className="text-xl font-bold text-white mb-4 text-center">Portfolio Performance</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
-          <div>
-            <div className="text-2xl font-bold text-solana-green mb-1">
-              {(lstData.reduce((sum, lst) => sum + lst.apr, 0) / lstData.length).toFixed(2)}%
-            </div>
-            <div className="text-sm text-gray-400">Average APR</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-white mb-1">
-              ${lstData.reduce((sum, lst) => sum + lst.tvl, 0).toFixed(0)}M
-            </div>
-            <div className="text-sm text-gray-400">Total TVL</div>
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-blue-400 mb-1">
-              {lstData.length}
-            </div>
-            <div className="text-sm text-gray-400">Supported LSTs</div>
-          </div>
-        </div>
       </div>
     </div>
   );
