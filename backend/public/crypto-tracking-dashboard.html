@@ -2377,9 +2377,21 @@ This feature analyzes how accurate our tracked accounts' predictions have been:<
                                         <span class="metric-value">${topicData.frequency || 0}</span>
                                     </div>
                                     <div class="metric">
+                                        <span class="metric-label">Engagement:</span>
+                                        <span class="metric-value">${topicData.engagement || 0}</span>
+                                    </div>
+                                    <div class="metric">
                                         <span class="metric-label">Authors:</span>
                                         <span class="metric-value">${topicData.authorCount || 0}</span>
                                     </div>
+                                </div>
+                                
+                                <div style="margin-top: 10px; padding: 10px; background: #2d3748; border-radius: 6px; font-size: 11px; color: #a0aec0;">
+                                    <strong>📊 Metrics Explained:</strong><br>
+                                    • <strong>Frequency:</strong> Number of tweets mentioning this topic<br>
+                                    • <strong>Engagement:</strong> Total likes, retweets, and replies<br>
+                                    • <strong>Trending Score:</strong> (Frequency × 0.4) + (Engagement × 0.0001) + (Authors × 0.3)<br>
+                                    • <strong>Authors:</strong> Number of unique accounts discussing this topic
                                 </div>
                                 
                                 <div class="topic-sentiment">
