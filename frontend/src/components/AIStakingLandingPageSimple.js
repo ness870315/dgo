@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import EnhancedLSTCarousel from './EnhancedLSTCarousel';
 
 const AIStakingLandingPage = () => {
   return (
@@ -81,32 +82,13 @@ const AIStakingLandingPage = () => {
           <h2 className="text-4xl font-bold text-white mb-8">
             Oracle AI builds your optimal Yield Portfolio from +1000 LSTs
           </h2>
+          <p className="text-xl text-gray-400 mb-8 max-w-3xl mx-auto">
+            Our AI analyzes real-time data from 1000+ Liquid Staking Tokens to find the best performing LSTs with optimal risk-reward ratios.
+          </p>
           
-          {/* LST Carousel */}
+          {/* Enhanced LST Carousel */}
           <div className="mt-16">
-            <div className="flex overflow-hidden space-x-8 animate-scroll">
-              {[
-                { symbol: 'mSOL', name: 'Marinade Staked SOL', apr: '5.6%', color: 'from-blue-500 to-blue-600' },
-                { symbol: 'jupSOL', name: 'Jupiter Staked SOL', apr: '5.8%', color: 'from-purple-500 to-purple-600' },
-                { symbol: 'JitoSOL', name: 'Jito Staked SOL', apr: '5.9%', color: 'from-green-500 to-green-600' },
-                { symbol: 'bSOL', name: 'BlazeStake SOL', apr: '5.7%', color: 'from-orange-500 to-orange-600' },
-                { symbol: 'mSOL', name: 'Marinade Staked SOL', apr: '5.6%', color: 'from-blue-500 to-blue-600' },
-                { symbol: 'jupSOL', name: 'Jupiter Staked SOL', apr: '5.8%', color: 'from-purple-500 to-purple-600' },
-                { symbol: 'JitoSOL', name: 'Jito Staked SOL', apr: '5.9%', color: 'from-green-500 to-green-600' },
-                { symbol: 'bSOL', name: 'BlazeStake SOL', apr: '5.7%', color: 'from-orange-500 to-orange-600' }
-              ].map((lst, index) => (
-                <div key={index} className="flex-shrink-0 bg-gradient-to-r from-gray-800 to-gray-700 rounded-xl p-6 min-w-[200px] border border-gray-600">
-                  <div className="text-center">
-                    <div className={`w-12 h-12 bg-gradient-to-r ${lst.color} rounded-full mx-auto mb-3 flex items-center justify-center text-white font-bold text-lg`}>
-                      {lst.symbol.charAt(0)}
-                    </div>
-                    <h3 className="text-white font-bold text-lg mb-1">{lst.symbol}</h3>
-                    <p className="text-gray-400 text-sm mb-2">{lst.name}</p>
-                    <div className="text-solana-green font-semibold">{lst.apr} APR</div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <EnhancedLSTCarousel />
           </div>
         </div>
       </div>
