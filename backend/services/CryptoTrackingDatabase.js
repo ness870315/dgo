@@ -571,6 +571,7 @@ class CryptoTrackingDatabase {
   async ensureStorageDir() {
     try {
       await fs.mkdir(this.storageDir, { recursive: true });
+      console.log(`📁 [CRYPTO DB] Ensured directory exists: ${this.storageDir}`);
     } catch (error) {
       console.error('❌ [CRYPTO DB] Failed to create storage directory:', error.message);
       throw error;
@@ -585,6 +586,15 @@ class CryptoTrackingDatabase {
       // Ensure directory exists before saving
       await this.ensureStorageDir();
       
+      // Verify directory actually exists
+      try {
+        await fs.access(this.storageDir);
+        console.log(`✅ [CRYPTO DB] Directory verified: ${this.storageDir}`);
+      } catch (error) {
+        console.error(`❌ [CRYPTO DB] Directory verification failed: ${this.storageDir}`);
+        throw new Error(`Directory does not exist: ${this.storageDir}`);
+      }
+      
       const tweetsData = {
         tweets: tweetsToSave,
         lastSaved: new Date().toISOString(),
@@ -594,8 +604,16 @@ class CryptoTrackingDatabase {
       // Write to temporary file first, then rename (atomic operation)
       const tempFile = this.tweetsFile + '.tmp';
       await fs.writeFile(tempFile, JSON.stringify(tweetsData, null, 2));
-      await fs.rename(tempFile, this.tweetsFile);
       
+      // Verify temp file was created
+      try {
+        await fs.access(tempFile);
+        console.log(`✅ [CRYPTO DB] Temp file created: ${tempFile}`);
+      } catch (error) {
+        throw new Error(`Failed to create temp file: ${tempFile}`);
+      }
+      
+      await fs.rename(tempFile, this.tweetsFile);
       console.log(`💾 [CRYPTO DB] Data saved atomically (${tweetsToSave.length} tweets)`);
       
     } catch (error) {
