@@ -3,13 +3,15 @@ import path from 'path';
 import PredictionExtractionService from './PredictionExtractionService.js';
 import PredictionTrackingDatabase from './PredictionTrackingDatabase.js';
 import PriceMonitoringService from './PriceMonitoringService.js';
+import OpenAI from 'openai';
 
 /**
  * Crypto Tracking Database
- * Intelligent storage and retrieval for tracked crypto tweets
+ * Enhanced with AI-powered sentiment analysis and intelligent features
  * 
  * Features:
  * - Intelligent data structure with topics, entities, sentiment
+ * - AI-powered sentiment analysis with crypto slang understanding
  * - Advanced search and filtering capabilities
  * - Sentiment trend analysis
  * - Prediction tracking
@@ -36,6 +38,18 @@ class CryptoTrackingDatabase {
     this.predictionExtractor = new PredictionExtractionService();
     this.predictionDatabase = new PredictionTrackingDatabase();
     this.priceMonitor = new PriceMonitoringService();
+    
+    // Initialize AI for sentiment analysis
+    this.openai = null;
+    try {
+      this.openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+        baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'
+      });
+      console.log('🤖 [CRYPTO DB] AI-enhanced sentiment analysis initialized');
+    } catch (error) {
+      console.warn('⚠️ [CRYPTO DB] OpenAI not available, using rule-based sentiment analysis');
+    }
     
     this.initializeDatabase();
     
@@ -172,10 +186,14 @@ class CryptoTrackingDatabase {
       const features = {
         topics: this.extractTopics(text),
         entities: this.extractEntities(text),
-        sentiment: this.classifySentiment(text),
+        sentiment: await this.classifySentiment(text), // Now async for AI analysis
         confidence: this.calculateConfidence(text),
         timeframe: this.determineTimeframe(text),
-        predictions: this.extractPredictions(text),
+        predictions: await this.predictionExtractor.extractPredictions(tweetData.text, {
+          tweetId: tweetData.id,
+          author: tweetData.author,
+          timestamp: tweetData.timestamp
+        }), // Now async for AI extraction
         cryptoKeywords: this.extractCryptoKeywords(text),
         marketContext: this.determineMarketContext(text)
       };
@@ -290,14 +308,88 @@ class CryptoTrackingDatabase {
   }
 
   /**
-   * Classify sentiment of crypto content
+   * Enhanced sentiment analysis using AI + rule-based fallback
    */
-  classifySentiment(text) {
-    const bullishWords = ['bull', 'bullish', 'moon', 'pump', 'rally', 'hodl', 'diamond hands', 'buy', 'long', 'green'];
-    const bearishWords = ['bear', 'bearish', 'dump', 'crash', 'correction', 'sell', 'short', 'fud', 'red'];
+  async classifySentiment(text) {
+    // Try AI-powered sentiment analysis first
+    if (this.openai) {
+      try {
+        const aiSentiment = await this.classifySentimentWithAI(text);
+        if (aiSentiment) {
+          return aiSentiment;
+        }
+      } catch (error) {
+        console.warn('⚠️ [CRYPTO DB] AI sentiment analysis failed, using rule-based:', error.message);
+      }
+    }
     
-    const bullishCount = bullishWords.filter(word => text.includes(word)).length;
-    const bearishCount = bearishWords.filter(word => text.includes(word)).length;
+    // Fallback to rule-based sentiment analysis
+    return this.classifySentimentRuleBased(text);
+  }
+
+  /**
+   * AI-powered sentiment analysis with crypto slang understanding
+   */
+  async classifySentimentWithAI(text) {
+    try {
+      const prompt = `
+Analyze the sentiment of this crypto tweet. Consider crypto slang, context, and nuance.
+
+Tweet: "${text}"
+
+Crypto slang examples:
+- Bullish: "moon", "pump", "diamond hands", "HODL", "WAGMI", "LFG", "based", "chad move", "gmi", "bullish AF", "going parabolic"
+- Bearish: "dump", "rekt", "paper hands", "ngmi", "cope", "seethe", "bearish vibes", "getting rekt", "major red flags"
+- Neutral: "sideways", "wait and see", "mixed signals", "needs confirmation"
+
+Consider:
+- Sarcasm and irony (common in crypto Twitter)
+- Context and tone
+- Crypto-specific terminology
+- Market sentiment indicators
+
+Return ONLY one word: "bullish", "bearish", or "neutral"
+
+Examples:
+"BTC to the moon! 🚀" → bullish
+"Getting rekt again" → bearish  
+"Just stating facts" → neutral
+"Sure, 'diamond hands' 😂" → bearish (sarcastic)
+`;
+
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.1,
+        max_tokens: 10
+      });
+
+      const aiSentiment = response.choices[0].message.content.trim().toLowerCase();
+      
+      // Validate AI response
+      if (['bullish', 'bearish', 'neutral'].includes(aiSentiment)) {
+        console.log(`🤖 [CRYPTO DB] AI sentiment: ${aiSentiment} for "${text.substring(0, 50)}..."`);
+        return aiSentiment;
+      } else {
+        console.warn(`⚠️ [CRYPTO DB] Invalid AI sentiment response: ${aiSentiment}`);
+        return null;
+      }
+
+    } catch (error) {
+      console.error('❌ [CRYPTO DB] AI sentiment analysis error:', error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Rule-based sentiment analysis (fallback)
+   */
+  classifySentimentRuleBased(text) {
+    const bullishWords = ['bull', 'bullish', 'moon', 'pump', 'rally', 'hodl', 'diamond hands', 'buy', 'long', 'green', 'wagmi', 'lfg', 'based', 'chad'];
+    const bearishWords = ['bear', 'bearish', 'dump', 'crash', 'correction', 'sell', 'short', 'fud', 'red', 'rekt', 'paper hands', 'ngmi', 'cope', 'seethe'];
+    
+    const bullishCount = bullishWords.filter(word => text.toLowerCase().includes(word)).length;
+    const bearishCount = bearishWords.filter(word => text.toLowerCase().includes(word)).length;
     
     if (bullishCount > bearishCount) return 'bullish';
     if (bearishCount > bullishCount) return 'bearish';

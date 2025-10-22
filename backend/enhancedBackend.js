@@ -50,6 +50,7 @@ import AccuracyCalculationService from './services/AccuracyCalculationService.js
 import PriceMonitoringService from './services/PriceMonitoringService.js';
 import TopicAnalysisService from './services/TopicAnalysisService.js';
 import TopicTrendingDatabase from './services/TopicTrendingDatabase.js';
+import AIAccuracyAnalysisService from './services/AIAccuracyAnalysisService.js';
 import { X402PaymentHandler } from '@payai/x402-solana';
 // Portfolio analysis services are handled by jup-discovery background worker
 // No direct imports needed - data comes via internal API endpoints
@@ -213,6 +214,7 @@ class EnhancedBackend {
     this.predictionTrackingDatabase = new PredictionTrackingDatabase();
     this.accuracyCalculationService = new AccuracyCalculationService();
     this.priceMonitoringService = new PriceMonitoringService();
+    this.aiAccuracyAnalysisService = new AIAccuracyAnalysisService();
     
     // Initialize topic analysis services
     this.topicAnalysisService = new TopicAnalysisService();
@@ -12541,6 +12543,119 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
       } catch (error) {
         console.error('[🛡️ Admin] ❌ Failed to check prediction accuracy:', error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // ========================================
+    // 🤖 AI-POWERED ACCURACY ANALYSIS ENDPOINTS
+    // ========================================
+
+    // Get AI-powered accuracy insights
+    this.app.get('/api/admin/prediction-accuracy/ai-insights', adminApiAuth, async (req, res) => {
+      try {
+        if (!this.aiAccuracyAnalysisService || !this.predictionTrackingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'AI Accuracy Analysis Service not initialized'
+          });
+        }
+
+        const predictions = this.predictionTrackingDatabase.predictions;
+        const insights = await this.aiAccuracyAnalysisService.generateAccuracyInsights(predictions);
+        
+        res.json({
+          success: true,
+          insights,
+          totalPredictions: predictions.length,
+          generatedAt: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get AI accuracy insights:', error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Analyze specific prediction outcome with AI
+    this.app.get('/api/admin/prediction-accuracy/ai-analysis/:predictionId', adminApiAuth, async (req, res) => {
+      try {
+        const { predictionId } = req.params;
+        
+        if (!this.aiAccuracyAnalysisService || !this.predictionTrackingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'AI Accuracy Analysis Service not initialized'
+          });
+        }
+
+        const predictions = this.predictionTrackingDatabase.predictions;
+        const prediction = predictions.find(p => p.id === predictionId);
+        
+        if (!prediction) {
+          return res.status(404).json({
+            success: false,
+            error: 'Prediction not found'
+          });
+        }
+
+        const analysis = await this.aiAccuracyAnalysisService.analyzePredictionOutcome(prediction);
+        
+        res.json({
+          success: true,
+          predictionId,
+          analysis,
+          generatedAt: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to analyze prediction outcome:', error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Get AI-powered recommendations for author
+    this.app.get('/api/admin/prediction-accuracy/ai-recommendations/:username', adminApiAuth, async (req, res) => {
+      try {
+        const { username } = req.params;
+        
+        if (!this.aiAccuracyAnalysisService || !this.predictionTrackingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'AI Accuracy Analysis Service not initialized'
+          });
+        }
+
+        const predictions = this.predictionTrackingDatabase.getPredictionsByAuthor(username);
+        
+        if (!predictions || predictions.length === 0) {
+          return res.status(404).json({
+            success: false,
+            error: 'No predictions found for this author'
+          });
+        }
+
+        const recommendations = await this.aiAccuracyAnalysisService.generateAccuracyRecommendations(predictions);
+        
+        res.json({
+          success: true,
+          username,
+          recommendations,
+          totalPredictions: predictions.length,
+          generatedAt: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get AI recommendations:', error.message);
         res.status(500).json({
           success: false,
           error: error.message

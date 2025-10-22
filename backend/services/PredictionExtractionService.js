@@ -1,10 +1,24 @@
 /**
  * Prediction Extraction Service
- * Extracts price predictions from crypto tweets using NLP and pattern matching
+ * Extracts price predictions from crypto tweets using NLP, pattern matching, and AI
  */
+
+import OpenAI from 'openai';
 
 class PredictionExtractionService {
   constructor() {
+    // Initialize OpenAI for AI-enhanced extraction
+    this.openai = null;
+    try {
+      this.openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+        baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'
+      });
+      console.log('🤖 [PREDICTION EXTRACT] AI-enhanced extraction initialized');
+    } catch (error) {
+      console.warn('⚠️ [PREDICTION EXTRACT] OpenAI not available, using rule-based extraction only');
+    }
+
     // Common crypto token symbols (expandable)
     this.cryptoTokens = new Set([
       'BTC', 'ETH', 'SOL', 'ADA', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI', 'AAVE',
@@ -16,7 +30,7 @@ class PredictionExtractionService {
     this.predictionPatterns = [
       // Direct price targets
       {
-        pattern: /(\$[A-Z]{2,10})\s+(?:will|going to|should|might|gonna)\s+(?:hit|reach|go to|pump to|touch|break)\s+(\$?\d+(?:\.\d+)?|[\d,]+(?:\.\d+)?)/gi,
+        pattern: /(\$[A-Z]{2,10})\s+(?:will|going to|should|might|gonna)\s+(?:hit|reach|go to|pump to|touch|break)\s+(\$?[\d,]+(?:\.\d+)?[km]?)/gi,
         type: 'price_target',
         confidence: 0.8
       },
@@ -28,13 +42,13 @@ class PredictionExtractionService {
       },
       // Next stop/level patterns
       {
-        pattern: /(\$[A-Z]{2,10})\s+(?:next stop|next level|next target)\s+(\$?\d+(?:\.\d+)?|[\d,]+(?:\.\d+)?)/gi,
+        pattern: /(\$[A-Z]{2,10})\s+(?:next stop|next level|next target)\s+(\$?[\d,]+(?:\.\d+)?[km]?)/gi,
         type: 'next_level',
         confidence: 0.6
       },
       // Support/Resistance levels
       {
-        pattern: /(\$[A-Z]{2,10})\s+(?:support|resistance|res)\s+(?:at|is)\s+(\$?\d+(?:\.\d+)?|[\d,]+(?:\.\d+)?)/gi,
+        pattern: /(\$[A-Z]{2,10})\s+(?:support|resistance|res)\s+(?:at|is)\s+(\$?[\d,]+(?:\.\d+)?[km]?)/gi,
         type: 'support_resistance',
         confidence: 0.5
       },
@@ -42,6 +56,17 @@ class PredictionExtractionService {
       {
         pattern: /(\$[A-Z]{2,10})\s+(?:will|going to|gonna)\s+(?:pump|moon|rocket|explode)\s+(?:to|by)\s+(\d+(?:\.\d+)?%)/gi,
         type: 'percentage_move',
+        confidence: 0.6
+      },
+      // Additional patterns for common crypto Twitter language
+      {
+        pattern: /(\$[A-Z]{2,10})\s+(?:calling|calls)\s+(\$?[\d,]+(?:\.\d+)?[km]?)/gi,
+        type: 'price_target',
+        confidence: 0.7
+      },
+      {
+        pattern: /(\$[A-Z]{2,10})\s+(?:expecting|expects)\s+(?:bounce to|move to|pump to)\s+(\$?[\d,]+(?:\.\d+)?[km]?)/gi,
+        type: 'price_target',
         confidence: 0.6
       }
     ];
@@ -91,13 +116,13 @@ class PredictionExtractionService {
   }
 
   /**
-   * Extract predictions from tweet text
+   * Extract predictions from tweet text using hybrid approach (rules + AI)
    */
-  extractPredictions(tweetText, tweetMetadata = {}) {
+  async extractPredictions(tweetText, tweetMetadata = {}) {
     const predictions = [];
     const text = tweetText.toLowerCase();
 
-    // Extract each type of prediction
+    // Step 1: Try rule-based extraction first (fast and reliable)
     this.predictionPatterns.forEach(pattern => {
       const matches = [...tweetText.matchAll(pattern.pattern)];
       
@@ -109,8 +134,127 @@ class PredictionExtractionService {
       });
     });
 
+    // Step 2: If no predictions found or AI is available, try AI extraction
+    if ((predictions.length === 0 || this.openai) && this.openai) {
+      try {
+        const aiPredictions = await this.extractPredictionsWithAI(tweetText, tweetMetadata);
+        predictions.push(...aiPredictions);
+      } catch (error) {
+        console.warn('⚠️ [PREDICTION EXTRACT] AI extraction failed, using rule-based results:', error.message);
+      }
+    }
+
     // Remove duplicates and merge similar predictions
     return this.deduplicatePredictions(predictions);
+  }
+
+  /**
+   * AI-powered prediction extraction for complex tweets
+   */
+  async extractPredictionsWithAI(tweetText, tweetMetadata = {}) {
+    try {
+      const prompt = `
+Analyze this crypto tweet and extract any price predictions or market forecasts. Look for:
+
+1. **Direct Price Targets**: Specific price levels mentioned (e.g., "$BTC to $50,000", "ETH hitting $3,000")
+2. **Multipliers**: X-fold increases (e.g., "SOL 5x", "BTC 2x from here")
+3. **Percentage Moves**: Percentage-based predictions (e.g., "DOGE +50%", "ETH -20%")
+4. **Support/Resistance**: Key levels (e.g., "BTC support at $40k", "ETH resistance $2,500")
+5. **Timeframes**: When the prediction should occur (e.g., "by end of year", "next week", "soon")
+
+Tweet: "${tweetText}"
+
+For each prediction found, return a JSON array with this exact format:
+[
+  {
+    "token": "BTC",
+    "type": "price_target|multiplier_target|percentage_move|support_resistance|next_level",
+    "value": "50000",
+    "timeframe": "end of year",
+    "confidence": 0.8,
+    "reasoning": "Brief explanation of why this is a prediction"
+  }
+]
+
+Rules:
+- Only extract clear predictions, not general statements
+- Use exact token symbols (BTC, ETH, SOL, etc.)
+- Convert all values to numbers (remove $, commas, k/m suffixes)
+- If timeframe is unclear, use "unknown"
+- Confidence: 0.1-1.0 based on how explicit the prediction is
+- Return empty array [] if no predictions found
+
+Example:
+Input: "BTC will hit $50,000 by end of year, calling it now"
+Output: [{"token": "BTC", "type": "price_target", "value": "50000", "timeframe": "end of year", "confidence": 0.9, "reasoning": "Explicit price target with timeframe"}]
+`;
+
+      const response = await this.openai.chat.completions.create({
+        model: 'gpt-4',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.1,
+        max_tokens: 1000
+      });
+
+      const aiResponse = response.choices[0].message.content.trim();
+      console.log(`🤖 [PREDICTION EXTRACT] AI response: ${aiResponse.substring(0, 200)}...`);
+
+      // Parse AI response
+      const aiPredictions = JSON.parse(aiResponse);
+      
+      if (!Array.isArray(aiPredictions)) {
+        return [];
+      }
+
+      // Convert AI predictions to our format
+      return aiPredictions.map(pred => {
+        const predictedValue = this.parseValue(pred.value, pred.type);
+        if (!predictedValue) return null;
+
+        return {
+          id: this.generatePredictionId(),
+          token: pred.token.toUpperCase(),
+          predictedValue,
+          predictionType: pred.type,
+          timeframe: this.parseTimeframeFromText(pred.timeframe),
+          confidence: pred.confidence || 0.7,
+          context: pred.reasoning || 'AI-extracted prediction',
+          originalText: tweetText.substring(0, 100),
+          extractedAt: new Date().toISOString(),
+          metadata: {
+            tweetId: tweetMetadata.tweetId,
+            author: tweetMetadata.author,
+            timestamp: tweetMetadata.timestamp,
+            extractionMethod: 'ai'
+          }
+        };
+      }).filter(pred => pred !== null);
+
+    } catch (error) {
+      console.error('❌ [PREDICTION EXTRACT] AI extraction error:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Parse timeframe from text description
+   */
+  parseTimeframeFromText(timeframeText) {
+    const lowerText = timeframeText.toLowerCase();
+    
+    if (lowerText.includes('soon') || lowerText.includes('today') || lowerText.includes('this week')) {
+      return { type: 'soon', days: 1, description: timeframeText };
+    } else if (lowerText.includes('week') || lowerText.includes('days')) {
+      const daysMatch = lowerText.match(/(\d+)/);
+      const days = daysMatch ? parseInt(daysMatch[1]) : 7;
+      return { type: 'days', days, description: timeframeText };
+    } else if (lowerText.includes('month') || lowerText.includes('quarter')) {
+      return { type: 'months', days: 30, description: timeframeText };
+    } else if (lowerText.includes('year') || lowerText.includes('end of')) {
+      return { type: 'end_period', days: 365, description: timeframeText };
+    } else {
+      return { type: 'unknown', days: 7, description: timeframeText };
+    }
   }
 
   /**
@@ -169,32 +313,50 @@ class PredictionExtractionService {
    */
   parseValue(value, type) {
     try {
-      // Remove common formatting
-      const cleanValue = value.replace(/[,$]/g, '');
+      // Remove common formatting and clean the value
+      let cleanValue = value.replace(/[,$]/g, '');
+      
+      // Handle "k" suffix (e.g., "50k" = 50000)
+      if (cleanValue.toLowerCase().includes('k')) {
+        cleanValue = cleanValue.toLowerCase().replace('k', '000');
+      }
+      
+      // Handle "m" suffix (e.g., "5m" = 5000000)
+      if (cleanValue.toLowerCase().includes('m')) {
+        cleanValue = cleanValue.toLowerCase().replace('m', '000000');
+      }
+
+      const parsedValue = parseFloat(cleanValue);
+      
+      if (isNaN(parsedValue)) {
+        console.error('❌ [PREDICTION EXTRACT] Could not parse value:', value, '->', cleanValue);
+        return null;
+      }
 
       if (type === 'multiplier_target') {
         // For multipliers, we'll need current price to calculate target
         return {
           type: 'multiplier',
-          value: parseFloat(cleanValue),
+          value: parsedValue,
           needsCurrentPrice: true
         };
       } else if (type === 'percentage_move') {
         // For percentage moves, we'll need current price
         return {
           type: 'percentage',
-          value: parseFloat(cleanValue.replace('%', '')),
+          value: parsedValue,
           needsCurrentPrice: true
         };
       } else {
         // Direct price target
         return {
           type: 'price',
-          value: parseFloat(cleanValue),
+          value: parsedValue,
           needsCurrentPrice: false
         };
       }
     } catch (error) {
+      console.error('❌ [PREDICTION EXTRACT] Error parsing value:', value, error.message);
       return null;
     }
   }
