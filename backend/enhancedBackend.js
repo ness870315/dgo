@@ -11556,13 +11556,21 @@ Thanks for using x402 payments on Twitter! 🚀`;
           console.log(`[🛡️ Admin] 📷 With ${media.length} media item(s)`);
         }
 
+        // Check if daily tweet service is initialized
+        if (!this.dailyTweetService || !this.dailyTweetService.tweetPostingService) {
+          return res.status(503).json({
+            success: false,
+            error: 'Tweet posting service not initialized. Please try again in a moment.'
+          });
+        }
+
         // Post the tweet using appropriate TweetAPI service method
         let tweetResult;
         if (media && media.length > 0) {
           const mediaUrls = media.map(item => item.url);
-          tweetResult = await this.tweetPostingService.postTweetWithMedia(text.trim(), mediaUrls);
+          tweetResult = await this.dailyTweetService.tweetPostingService.postTweetWithMedia(text.trim(), mediaUrls);
         } else {
-          tweetResult = await this.tweetPostingService.postTweet(text.trim());
+          tweetResult = await this.dailyTweetService.tweetPostingService.postTweet(text.trim());
         }
 
         if (!tweetResult.success) {

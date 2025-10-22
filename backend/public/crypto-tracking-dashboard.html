@@ -3590,7 +3590,7 @@ This feature will rank tracked accounts by their influence:<br>
                     </div>
                 `;
                 
-                const response = await safeApiCall(`/api/admin/ct-momentum/top-tokens?limit=10&timeframe=${timeframe}`);
+                const response = await safeApiCall(`/api/admin/ct-momentum/top-tokens?limit=100&timeframe=${timeframe}`);
                 
                 console.log('CT Momentum response:', response);
                 
