@@ -1395,7 +1395,7 @@ async def generate_fallback_strategy(wallet_address: str, strategy_type: str = '
         logger.info(f"Using fallback strategy generation for {wallet_address}")
         
         # Get portfolio analysis
-        portfolio = analyze_portfolio(wallet_address)
+        portfolio = await analyze_portfolio(wallet_address)
         
         # Get available LSTs
         lst_data = get_available_lsts()
