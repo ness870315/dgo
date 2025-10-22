@@ -209,42 +209,101 @@ class TwitterAPIioWebSocketService {
   }
 
   /**
+   * Get existing filter rules from TwitterAPI.io
+   */
+  async getExistingRules() {
+    try {
+      const response = await fetch('https://api.twitterapi.io/oapi/tweet_filter/rules', {
+        method: 'GET',
+        headers: {
+          'X-API-Key': this.apiKey,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        console.warn('⚠️ [TwitterAPI.io WS] Could not fetch existing rules:', response.status);
+        return [];
+      }
+      
+      const data = await response.json();
+      return data.rules || [];
+    } catch (error) {
+      console.warn('⚠️ [TwitterAPI.io WS] Error fetching existing rules:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Check if crypto tracking rule needs update
+   */
+  needsCryptoRuleUpdate(trackedAccounts, existingRules) {
+    const cryptoRule = existingRules.find(rule => rule.tag === 'crypto_accounts_tracking');
+    if (!cryptoRule) return true;
+    
+    // Check if the rule value matches current tracked accounts
+    const expectedValue = trackedAccounts.length > 0 
+      ? `from:${trackedAccounts.join(' OR from:')}` 
+      : '';
+    
+    return cryptoRule.value !== expectedValue;
+  }
+
+  /**
    * Set up filter rules for both mentions and crypto tracking
    */
   async setupFilterRules(trackedAccounts = []) {
     try {
       console.log('🔧 [TwitterAPI.io WS] Setting up combined filter rules...');
       
-      // Clear existing rules first
-      await this.clearExistingRules();
+      // Check if rules already exist before creating new ones
+      const existingRules = await this.getExistingRules();
+      const hasMentionRule = existingRules.some(rule => rule.tag === 'mentions_dgnoracle');
+      const hasCryptoRule = existingRules.some(rule => rule.tag === 'crypto_accounts_tracking');
       
-      // Add rule for @dgnoracle mentions
-      const mentionResponse = await fetch('https://api.twitterapi.io/oapi/tweet_filter/add_rule', {
-        method: 'POST',
-        headers: {
-          'X-API-Key': this.apiKey,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          tag: 'mentions_dgnoracle',
-          value: '@dgnoracle',
-          interval_seconds: 20000
-        })
-      });
+      console.log(`📋 [TwitterAPI.io WS] Existing rules: mentions=${hasMentionRule}, crypto=${hasCryptoRule}`);
       
-      if (!mentionResponse.ok) {
-        const errorBody = await mentionResponse.text();
-        console.error('❌ [TwitterAPI.io WS] Failed to add mention rule:', errorBody);
-        throw new Error(`HTTP ${mentionResponse.status}: ${mentionResponse.statusText}`);
+      // Only clear and recreate if we need to update crypto accounts
+      if (!hasCryptoRule || this.needsCryptoRuleUpdate(trackedAccounts, existingRules)) {
+        console.log('🔄 [TwitterAPI.io WS] Updating crypto tracking rules...');
+        await this.clearExistingRules();
+      } else {
+        console.log('✅ [TwitterAPI.io WS] Rules already exist and are up to date');
+        return;
       }
       
-      const mentionData = await mentionResponse.json();
-      if (mentionData.status === 'success' && mentionData.rule_id) {
-        this.activeRuleIds.push(mentionData.rule_id);
-        console.log(`✅ [TwitterAPI.io WS] Added mention rule (ID: ${mentionData.rule_id})`);
+      // Add rule for @dgnoracle mentions (only if it doesn't exist)
+      if (!hasMentionRule) {
+        console.log('➕ [TwitterAPI.io WS] Creating mention rule...');
+        const mentionResponse = await fetch('https://api.twitterapi.io/oapi/tweet_filter/add_rule', {
+          method: 'POST',
+          headers: {
+            'X-API-Key': this.apiKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            tag: 'mentions_dgnoracle',
+            value: '@dgnoracle',
+            interval_seconds: 20000
+          })
+        });
         
-        // Activate the rule
-        await this.activateRule(mentionData.rule_id, 'mentions_dgnoracle', '@dgnoracle');
+        if (!mentionResponse.ok) {
+          const errorBody = await mentionResponse.text();
+          console.error('❌ [TwitterAPI.io WS] Failed to add mention rule:', errorBody);
+          throw new Error(`HTTP ${mentionResponse.status}: ${mentionResponse.statusText}`);
+        }
+        
+        const mentionData = await mentionResponse.json();
+        if (mentionData.status === 'success' && mentionData.rule_id) {
+          this.activeRuleIds.push(mentionData.rule_id);
+          console.log(`✅ [TwitterAPI.io WS] Added mention rule (ID: ${mentionData.rule_id})`);
+          
+          // Activate the rule
+          await this.activateRule(mentionData.rule_id, 'mentions_dgnoracle', '@dgnoracle');
+        }
+      } else {
+        console.log('✅ [TwitterAPI.io WS] Mention rule already exists, skipping creation');
       }
       
       // Add rule for tracked crypto accounts (if any)

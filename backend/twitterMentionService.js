@@ -20,6 +20,15 @@ class TwitterMentionService {
     this.perplexityService = new PerplexitySonarService();
     this.x402Service = new X402MerchantService();
     
+    // Initialize persistent storage for tracked accounts
+    this.accountsStoragePath = process.env.DATA_DIR 
+      ? path.join(process.env.DATA_DIR, 'tracked-crypto-accounts.json')
+      : path.join(process.cwd(), 'data', 'tracked-crypto-accounts.json');
+    
+    // Load tracked accounts from persistent storage
+    this.trackedCryptoAccounts = [];
+    this.loadTrackedAccounts();
+    
     // Initialize TwitterAPI.io REST service (for read-only operations)
     // Default to enabled unless explicitly disabled (more reliable than OAuth)
     this.twitterAPIio = null;
@@ -62,11 +71,8 @@ class TwitterMentionService {
     // Track conversation depth to limit follow-up replies (max 3 per thread)
     this.conversationDepth = new Map(); // conversationId -> replyCount
     
-    // Crypto accounts to track (for storage, not replies)
-    this.trackedCryptoAccounts = [
-      'RaoulGMI',
-      // Add more accounts here as needed
-    ];
+    // Crypto accounts to track (for storage, not replies) - loaded from persistent storage
+    this.trackedCryptoAccounts = [];
     
     // State persistence
     this.stateFilePath = process.env.DATA_DIR 
@@ -131,6 +137,35 @@ class TwitterMentionService {
     console.log('🐦 Twitter Mention Service initialized with 6 personality modes');
   }
 
+  // Persistent storage for tracked crypto accounts
+  async loadTrackedAccounts() {
+    try {
+      const data = await fs.readFile(this.accountsStoragePath, 'utf8');
+      const accounts = JSON.parse(data);
+      this.trackedCryptoAccounts = accounts || [];
+      console.log(`📋 [CRYPTO TRACKING] Loaded ${this.trackedCryptoAccounts.length} tracked accounts from storage`);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        console.log('📋 [CRYPTO TRACKING] No existing tracked accounts file, starting fresh');
+        this.trackedCryptoAccounts = [];
+        await this.saveTrackedAccounts();
+      } else {
+        console.error('❌ [CRYPTO TRACKING] Error loading tracked accounts:', error.message);
+        this.trackedCryptoAccounts = [];
+      }
+    }
+  }
+
+  async saveTrackedAccounts() {
+    try {
+      await fs.mkdir(path.dirname(this.accountsStoragePath), { recursive: true });
+      await fs.writeFile(this.accountsStoragePath, JSON.stringify(this.trackedCryptoAccounts, null, 2), 'utf8');
+      console.log(`💾 [CRYPTO TRACKING] Saved ${this.trackedCryptoAccounts.length} tracked accounts to storage`);
+    } catch (error) {
+      console.error('❌ [CRYPTO TRACKING] Error saving tracked accounts:', error.message);
+    }
+  }
+
   // Load state from disk
   async loadState() {
     try {
@@ -169,6 +204,9 @@ class TwitterMentionService {
     }
 
     await this.loadState();
+    
+    // Load tracked accounts from persistent storage
+    await this.loadTrackedAccounts();
     
     // Initialize memory service
     await this.memoryService.initialize();
@@ -309,6 +347,9 @@ class TwitterMentionService {
       this.trackedCryptoAccounts.push(username);
       console.log(`✅ [CRYPTO TRACKING] Added @${username} to tracking list`);
 
+      // Save to persistent storage
+      await this.saveTrackedAccounts();
+
       // If WebSocket is running, update filter rules
       if (this.wsService && this.isRunning) {
         console.log('🔄 [CRYPTO TRACKING] Updating filter rules for new account...');
@@ -337,6 +378,9 @@ class TwitterMentionService {
       
       if (this.trackedCryptoAccounts.length < initialLength) {
         console.log(`✅ [CRYPTO TRACKING] Removed @${username} from tracking list`);
+
+        // Save to persistent storage
+        await this.saveTrackedAccounts();
 
         // If WebSocket is running, update filter rules
         if (this.wsService && this.isRunning) {

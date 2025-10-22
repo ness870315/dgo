@@ -80,8 +80,12 @@ class CryptoTrackingDatabase {
         replyTo: null
       };
       
-      this.trackedTweets.push(trackedTweet);
-      await this.saveData();
+      // Atomic operation: add to array and save atomically
+      const tempTweets = [...this.trackedTweets, trackedTweet];
+      await this.saveDataAtomic(tempTweets);
+      
+      // Only update in-memory array after successful save
+      this.trackedTweets = tempTweets;
       
       console.log(`💾 [CRYPTO DB] Stored tracked tweet #${this.trackedTweets.length}:`, {
         id: trackedTweet.id,
@@ -538,6 +542,30 @@ class CryptoTrackingDatabase {
   /**
    * Save database to disk
    */
+  /**
+   * Atomic save operation - prevents data loss during writes
+   */
+  async saveDataAtomic(tweetsToSave) {
+    try {
+      const tweetsData = {
+        tweets: tweetsToSave,
+        lastSaved: new Date().toISOString(),
+        totalTweets: tweetsToSave.length
+      };
+      
+      // Write to temporary file first, then rename (atomic operation)
+      const tempFile = this.tweetsFile + '.tmp';
+      await fs.writeFile(tempFile, JSON.stringify(tweetsData, null, 2));
+      await fs.rename(tempFile, this.tweetsFile);
+      
+      console.log(`💾 [CRYPTO DB] Data saved atomically (${tweetsToSave.length} tweets)`);
+      
+    } catch (error) {
+      console.error('❌ [CRYPTO DB] Failed to save data atomically:', error.message);
+      throw error; // Re-throw to prevent in-memory update on failure
+    }
+  }
+
   async saveData() {
     try {
       const tweetsData = {
