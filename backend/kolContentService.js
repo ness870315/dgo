@@ -692,7 +692,7 @@ News recap:`;
             pastOpinionsContext = `
 
 🧠 YOUR PAST INSIGHTS (for context and consistency):
-${relevantOpinions.map(op => `- ${op.text} (${op.dateString})`).join('\n')}`;
+${relevantOpinions.map(op => `- ${op.text}`).join('\n')}`;
             
             console.log(`🧠 [CRYPTO TECH] Found ${relevantOpinions.length} relevant past opinions for context`);
           }
@@ -714,7 +714,7 @@ Generate a DeGen Oracle-style tech insights tweet that:
 - Focuses on specific protocols, tokenomics, and technical developments
 - Uses crypto slang naturally (not forced)
 - Highlights what this means for degens and traders
-- References your past insights when relevant for credibility
+- Builds on your past insights naturally when relevant
 - Shows consistency in your analysis approach
 - Avoids contradicting yourself without acknowledging it
 - NO hashtags
@@ -918,7 +918,7 @@ Tech insights tweet:`;
             pastOpinionsContext = `
 
 🧠 YOUR PAST MARKET TAKES (for consistency):
-${relevantOpinions.map(op => `- ${op.text} (${op.dateString})`).join('\n')}`;
+${relevantOpinions.map(op => `- ${op.text}`).join('\n')}`;
             
             console.log(`🧠 [NORMAL] Found ${relevantOpinions.length} relevant past market opinions`);
           }
@@ -938,7 +938,7 @@ DEGEN ORACLE PERSONALITY:
 - Calls out BS when you see it
 - Respects builders, roasts moonboys
 - Self-aware degen who knows the game
-- References your past takes when relevant for credibility
+- Builds on your past takes naturally when relevant
 
 TWEET LENGTH: ${tweetLength.toUpperCase()}
 

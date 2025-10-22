@@ -957,7 +957,7 @@ Pay via Phantom/Solflare with USDC on Solana`;
                   pastOpinionsContext = `
 
 🧠 YOUR PAST TAKES ON THIS TOPIC:
-${relevantOpinions.map(op => `- ${op.text} (${op.dateString})`).join('\n')}`;
+${relevantOpinions.map(op => `- ${op.text}`).join('\n')}`;
                   
                   console.log(`🧠 [MENTIONS] Found ${relevantOpinions.length} relevant past opinions for context`);
                 }
@@ -986,7 +986,7 @@ Generate a RICH, fact-based answer (max 280 chars - USE FULL LENGTH):
 - INCLUDE specific details from Perplexity (numbers, percentages, prices, events)
 - If Perplexity lists multiple items, mention the TOP 2-3 most interesting
 - Answer their question DIRECTLY with REAL data
-- Reference your past takes when relevant ("I said this before...")
+- Build on your past takes naturally when relevant
 - Show consistency or acknowledge if your view changed
 - Add mild swearing naturally if it fits the vibe (optional)
 - Keep it real and punchy
