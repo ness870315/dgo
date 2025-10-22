@@ -12688,6 +12688,109 @@ Thanks for using x402 payments on Twitter! 🚀`;
     });
 
     // ========================================
+    // 💰 CT MOMENTUM (CRYPTO TWITTER) ENDPOINTS
+    // ========================================
+
+    // Get top tokens by momentum
+    this.app.get('/api/admin/ct-momentum/top-tokens', adminApiAuth, async (req, res) => {
+      try {
+        const { limit = 20, timeframe = '24h' } = req.query;
+        
+        if (!this.cryptoTrackingDatabase || !this.cryptoTrackingDatabase.ctMomentumDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'CT Momentum service not initialized'
+          });
+        }
+
+        const topTokens = this.cryptoTrackingDatabase.ctMomentumDatabase.getTopTokens(
+          parseInt(limit),
+          timeframe
+        );
+        
+        res.json({
+          success: true,
+          timeframe,
+          tokens: topTokens,
+          total: topTokens.length,
+          analyzedAt: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get top tokens:', error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Get detailed token momentum
+    this.app.get('/api/admin/ct-momentum/token/:symbol', adminApiAuth, async (req, res) => {
+      try {
+        const { symbol } = req.params;
+        const { timeframe = '7d' } = req.query;
+        
+        if (!this.cryptoTrackingDatabase || !this.cryptoTrackingDatabase.ctMomentumDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'CT Momentum service not initialized'
+          });
+        }
+
+        const tokenMomentum = this.cryptoTrackingDatabase.ctMomentumDatabase.getTokenMomentum(
+          symbol,
+          timeframe
+        );
+        
+        if (!tokenMomentum) {
+          return res.json({
+            success: false,
+            error: `No momentum data found for $${symbol.toUpperCase()}`
+          });
+        }
+        
+        res.json({
+          success: true,
+          momentum: tokenMomentum
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get token momentum:', error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Get CT Momentum statistics
+    this.app.get('/api/admin/ct-momentum/stats', adminApiAuth, (req, res) => {
+      try {
+        if (!this.cryptoTrackingDatabase || !this.cryptoTrackingDatabase.ctMomentumDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'CT Momentum service not initialized'
+          });
+        }
+
+        const stats = this.cryptoTrackingDatabase.ctMomentumDatabase.getStats();
+        
+        res.json({
+          success: true,
+          stats
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get CT Momentum stats:', error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // ========================================
     // 📈 PRICE CHART ENDPOINTS
     // ========================================
 

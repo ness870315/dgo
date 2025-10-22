@@ -3,6 +3,8 @@ import path from 'path';
 import PredictionExtractionService from './PredictionExtractionService.js';
 import PredictionTrackingDatabase from './PredictionTrackingDatabase.js';
 import PriceMonitoringService from './PriceMonitoringService.js';
+import CashtagExtractionService from './CashtagExtractionService.js';
+import CTMomentumDatabase from './CTMomentumDatabase.js';
 import OpenAI from 'openai';
 
 /**
@@ -38,6 +40,10 @@ class CryptoTrackingDatabase {
     this.predictionExtractor = new PredictionExtractionService();
     this.predictionDatabase = new PredictionTrackingDatabase();
     this.priceMonitor = new PriceMonitoringService();
+    
+    // Initialize CT Momentum tracking services
+    this.cashtagExtractor = new CashtagExtractionService();
+    this.ctMomentumDatabase = new CTMomentumDatabase();
     
     // Initialize AI for sentiment analysis
     this.openai = null;
@@ -119,6 +125,21 @@ class CryptoTrackingDatabase {
           await this.predictionDatabase.storePrediction(prediction);
         }
         console.log(`🎯 [CRYPTO DB] Extracted ${predictions.length} predictions from tweet`);
+      }
+      
+      // 💰 Extract cashtags ($TOKEN mentions) from tweet
+      const cashtags = this.cashtagExtractor.extractCashtags(tweetData.text, {
+        tweetId: tweetData.id,
+        author: tweetData.author,
+        timestamp: tweetData.timestamp
+      });
+      
+      // Store cashtags in CT Momentum database
+      if (cashtags && cashtags.length > 0) {
+        for (const cashtag of cashtags) {
+          await this.ctMomentumDatabase.storeCashtagMention(cashtag, tweetData);
+        }
+        console.log(`💰 [CRYPTO DB] Extracted ${cashtags.length} cashtags: ${cashtags.map(c => '$' + c.symbol).join(', ')}`);
       }
       
       const trackedTweet = {
