@@ -765,7 +765,7 @@
                             <option value="news">📰 Crypto News</option>
                             <option value="newsjoke">🎭 News Joke (Perplexity)</option>
                             <option value="normal">💬 Normal (Market Sentiment, No Emojis)</option>
-                            <option value="crypto-tech-news">🔬 Crypto Tech News</option>
+                            <option value="crypto-tech-news">🔬 Crypto Tech Insights</option>
                         </select>
                         <button class="btn btn-warning" onclick="postTweetNow()">⚡ Post Now</button>
                     </div>
@@ -3492,7 +3492,7 @@ ${(aiPrediction.risks || []).map(r => `   • ${r}`).join('\\n') || '   • None
                 'meme': '😂 Meme/Joke',
                 'news': '📰 Crypto News',
                 'newsjoke': '🎭 News Joke (Perplexity)',
-                'crypto-tech-news': '🔬 Crypto Tech News'
+                'crypto-tech-news': '🔬 Crypto Tech Insights'
             };
             
             if (!confirm(`⚡ POST TWEET NOW\\n\\nType: ${typeLabels[contentType]}\\n\\nThis will immediately post content to @dgnoracle.\\n\\nContinue?`)) {

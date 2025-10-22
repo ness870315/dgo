@@ -650,6 +650,118 @@ News recap:`;
   }
 
   /**
+   * Generate crypto tech insights using Perplexity for protocol/utility/DeFi analysis
+   */
+  async generateCryptoTechNews() {
+    try {
+      console.log('🔬 [KOL CONTENT] Generating crypto tech insights...');
+
+      // Use Perplexity for crypto tech insights
+      if (!this.perplexityService || !this.perplexityService.isInitialized) {
+        console.warn('⚠️ [KOL CONTENT] Perplexity service not initialized');
+        return null;
+      }
+
+      // Query Perplexity for crypto tech insights
+      const techInsightsQuery = 'tell me analytical insights on what is new in crypto, protocols, utility coins, DeFi this week';
+      console.log(`🔬 [CRYPTO TECH] Using tech insights query: ${techInsightsQuery}`);
+      
+      const perplexityResponse = await this.perplexityService.searchWithReasoning(techInsightsQuery);
+      
+      if (!perplexityResponse || !perplexityResponse.content) {
+        console.log('⚠️ [KOL CONTENT] No Perplexity response for crypto tech insights');
+        return null;
+      }
+
+      // Select personality
+      const personality = this.personalities[this.currentPersonalityIndex];
+      this.currentPersonalityIndex = (this.currentPersonalityIndex + 1) % this.personalities.length;
+
+      console.log(`✅ [CRYPTO TECH] Tech insights: ${perplexityResponse.content.substring(0, 100)}...`);
+
+      const prompt = `You are ${personality.name}, a real crypto KOL with ${personality.style}.
+
+🔬 CRYPTO TECH INSIGHTS:
+${perplexityResponse.content}
+
+${personality.tone}
+
+Generate a DeGen Oracle-style tech insights tweet that:
+- Uses the tech insights data above (protocols, utility coins, DeFi developments)
+- Provides analytical insights like unlock schedules, volume changes, market cap impacts
+- Focuses on specific protocols, tokenomics, and technical developments
+- Uses crypto slang naturally (not forced)
+- Highlights what this means for degens and traders
+- NO hashtags
+- Max 280 characters
+- Sound like a real person sharing alpha, not a bot
+- VARY your opening - don't always start with "Yo degens"
+
+Opening variations (use different ones):
+- "Yo degens, [insight]..."
+- "GM anons, [insight]..."
+- "Apes, [insight]..."
+- "Ser, [insight]..."
+- "Frens, [insight]..."
+- Just start with the insight directly: "Protocol X just..."
+- "Breaking: [insight]..."
+- "Alpha: [insight]..."
+
+Example style: "Nillion launched 2.0 today but 10.84m nil tokens unlock october 24. that's $2.94m hitting a $70.6m market cap in 4 days. september's unlock dumped 31% over 18 days before any recovery. new buyers celebrating the launch about to learn why unlock schedules override product releases in low liquidity markets"
+
+Tech insights tweet:`;
+
+      const insight = await this.openaiService.generateCompletion(prompt, {
+        maxTokens: 120,
+        temperature: 0.8,
+        model: 'gpt-4o',
+        enableWebSearch: false
+      });
+
+      // Clean up
+      const cleanInsight = insight.trim()
+        .replace(/#\w+/g, '') // Remove hashtags
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      console.log(`✍️ Generated tech insight: "${cleanInsight.substring(0, 50)}..." (${personality.name})`);
+      
+      // Save to Opinion DB
+      if (this.opinionDatabase) {
+        try {
+          await this.opinionDatabase.storeOpinion({
+            type: 'crypto_tech_insights',
+            text: cleanInsight,
+            marketContext: perplexityResponse.content,
+            sentiment: 'neutral',
+            tweetId: null,
+            timestamp: new Date().toISOString()
+          });
+          console.log('💾 [OPINION DB] Saved crypto tech insights to database');
+        } catch (error) {
+          console.error('❌ [OPINION DB] Failed to save tech insights:', error.message);
+        }
+      }
+      
+      return {
+        format: 'crypto-tech-news',
+        tweets: [cleanInsight],
+        token: { symbol: 'TECH', name: 'Crypto Tech Insights' },
+        article: {
+          title: 'Crypto Tech Insights',
+          content: perplexityResponse.content,
+          source: 'Perplexity',
+          timestamp: new Date().toISOString()
+        }
+      };
+
+    } catch (error) {
+      console.error(`❌ Error generating crypto tech insights:`, error.message);
+      return null;
+    }
+  }
+
+  /**
    * Generate crypto news joke using Perplexity
    */
   async generateNewsJoke() {
@@ -1331,10 +1443,9 @@ Market meme:`;
         // Use the specified content type
         selectedFormat = contentType;
         
-        // Map crypto-tech-news to news (they're the same)
+        // Map crypto-tech-news to crypto-tech-news (use dedicated method)
         if (selectedFormat === 'crypto-tech-news') {
-          selectedFormat = 'news';
-          console.log(`📝 [KOL CONTENT] FORCE Mapping crypto-tech-news → news`);
+          console.log(`📝 [KOL CONTENT] FORCE Using crypto-tech-news format`);
         }
         
         console.log(`📝 [KOL CONTENT] FORCE Using specified format: ${selectedFormat}`);
@@ -1388,6 +1499,16 @@ Market meme:`;
         content = normalContent.tweets;
         tokenInfo = normalContent.token;
         perplexityData = { sentiment: normalContent.sentiment };
+      } else if (selectedFormat === 'crypto-tech-news') {
+        // For crypto tech insights, use dedicated method
+        const techContent = await this.generateCryptoTechNews();
+        if (!techContent) {
+          console.log('❌ [KOL CONTENT] Failed to generate crypto tech insights');
+          return null;
+        }
+        content = techContent.tweets;
+        tokenInfo = techContent.token;
+        article = techContent.article;
       } else {
         // For other formats, use the existing method
         content = await this.generateContentByFormat(token, selectedFormat);
