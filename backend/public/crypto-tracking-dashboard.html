@@ -3680,11 +3680,13 @@ This feature will rank tracked accounts by their influence:<br>
                         <td>
                             <div class="sentiment-bar">
                                 <div class="sentiment-bar-bullish" style="width: ${token.sentimentDistribution.bullish}%"></div>
-                                <div class="sentiment-bar-bearish" style="width: ${token.sentimentDistribution.bearish}%"></div>
                                 <div class="sentiment-bar-neutral" style="width: ${token.sentimentDistribution.neutral}%"></div>
+                                <div class="sentiment-bar-bearish" style="width: ${token.sentimentDistribution.bearish}%"></div>
                             </div>
-                            <div style="font-size: 0.8em; margin-top: 4px; color: #a0aec0;">
-                                ${token.sentimentDistribution.bullish}% / ${token.sentimentDistribution.bearish}% / ${token.sentimentDistribution.neutral}%
+                            <div style="display: flex; gap: 8px; margin-top: 6px; justify-content: center;">
+                                <span style="font-size: 0.75em; padding: 2px 6px; background: rgba(72, 187, 120, 0.2); color: #48bb78; border-radius: 4px; font-weight: 600;">🟢 ${token.sentimentDistribution.bullish}%</span>
+                                <span style="font-size: 0.75em; padding: 2px 6px; background: rgba(160, 174, 192, 0.2); color: #a0aec0; border-radius: 4px; font-weight: 600;">⚪ ${token.sentimentDistribution.neutral}%</span>
+                                <span style="font-size: 0.75em; padding: 2px 6px; background: rgba(245, 101, 101, 0.2); color: #f56565; border-radius: 4px; font-weight: 600;">🔴 ${token.sentimentDistribution.bearish}%</span>
                             </div>
                         </td>
                     </tr>
@@ -3759,17 +3761,17 @@ This feature will rank tracked accounts by their influence:<br>
                         <div class="sentiment-bar-bullish" style="width: ${momentum.sentimentDistribution.bullish}%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600;">
                             ${momentum.sentimentDistribution.bullish > 10 ? momentum.sentimentDistribution.bullish + '%' : ''}
                         </div>
-                        <div class="sentiment-bar-bearish" style="width: ${momentum.sentimentDistribution.bearish}%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600;">
-                            ${momentum.sentimentDistribution.bearish > 10 ? momentum.sentimentDistribution.bearish + '%' : ''}
-                        </div>
                         <div class="sentiment-bar-neutral" style="width: ${momentum.sentimentDistribution.neutral}%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600;">
                             ${momentum.sentimentDistribution.neutral > 10 ? momentum.sentimentDistribution.neutral + '%' : ''}
+                        </div>
+                        <div class="sentiment-bar-bearish" style="width: ${momentum.sentimentDistribution.bearish}%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600;">
+                            ${momentum.sentimentDistribution.bearish > 10 ? momentum.sentimentDistribution.bearish + '%' : ''}
                         </div>
                     </div>
                     <div style="display: flex; justify-content: space-between; font-size: 0.9em; color: #a0aec0;">
                         <span>🟢 Bullish: ${momentum.sentimentDistribution.bullish}%</span>
-                        <span>🔴 Bearish: ${momentum.sentimentDistribution.bearish}%</span>
                         <span>⚪ Neutral: ${momentum.sentimentDistribution.neutral}%</span>
+                        <span>🔴 Bearish: ${momentum.sentimentDistribution.bearish}%</span>
                     </div>
                 </div>
                 
