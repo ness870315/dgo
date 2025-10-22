@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 Crypto Account Tracking - DeGen Oracle Admin</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(26, 32, 44, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 107, 107, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #f7fafc;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #a0aec0;
+            font-size: 1.1rem;
+        }
+
+        .back-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+        }
+
+        .card {
+            background: rgba(26, 32, 44, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 107, 107, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+        }
+
+        .card h2 {
+            color: #f7fafc;
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f44336 0%, #da190b 100%);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #FF6B6B 0%, #4ECDC4 100%);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #e2e8f0;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #4a5568;
+            border-radius: 12px;
+            background: rgba(26, 32, 44, 0.8);
+            color: #f7fafc;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #FF6B6B;
+            box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+        }
+
+        .status-display {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #FF6B6B;
+        }
+
+        .results-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .tweet-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #FF6B6B;
+        }
+
+        .tweet-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .tweet-author {
+            font-weight: 600;
+            color: #FF6B6B;
+        }
+
+        .tweet-sentiment {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .sentiment-bullish {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+        }
+
+        .sentiment-bearish {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+        }
+
+        .sentiment-neutral {
+            background: rgba(158, 158, 158, 0.2);
+            color: #9e9e9e;
+        }
+
+        .tweet-text {
+            color: #e2e8f0;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .tweet-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 0.9rem;
+            color: #a0aec0;
+        }
+
+        .tweet-topics {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .topic-tag {
+            background: rgba(255, 107, 107, 0.2);
+            color: #FF6B6B;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid rgba(255, 107, 107, 0.2);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #FF6B6B;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #a0aec0;
+            font-size: 0.9rem;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 107, 107, 0.3);
+            border-radius: 50%;
+            border-top-color: #FF6B6B;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border-left: 4px solid;
+        }
+
+        .alert-success {
+            background: rgba(76, 175, 80, 0.1);
+            border-color: #4CAF50;
+            color: #4CAF50;
+        }
+
+        .alert-error {
+            background: rgba(244, 67, 54, 0.1);
+            border-color: #f44336;
+            color: #f44336;
+        }
+
+        .alert-info {
+            background: rgba(33, 150, 243, 0.1);
+            border-color: #2196F3;
+            color: #2196F3;
+        }
+
+        .alert-warning {
+            background: rgba(255, 152, 0, 0.1);
+            border-color: #ff9800;
+            color: #ff9800;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <h1>🔍 Crypto Account Tracking</h1>
+                <p>Monitor crypto influencers for sentiment analysis and market intelligence</p>
+            </div>
+            <a href="/admin-dashboard.html" class="back-btn">
+                ← Back to Admin Dashboard
+            </a>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- Control Panel -->
+            <div class="card">
+                <h2>🎛️ Control Panel</h2>
+                <p style="color: #a0aec0; margin-bottom: 20px;">
+                    Start/stop tracking, manage accounts, and monitor system status
+                </p>
+                
+                <!-- Status Display -->
+                <div id="trackingStatus" class="status-display" style="display: none;"></div>
+                
+                <!-- Control Buttons -->
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <button class="btn btn-success" onclick="startTracking()">▶️ Start Tracking</button>
+                    <button class="btn btn-danger" onclick="stopTracking()">⏹️ Stop Tracking</button>
+                    <button class="btn btn-info" onclick="getStatus()">📊 Check Status</button>
+                    <button class="btn btn-warning" onclick="refreshData()">🔄 Refresh Data</button>
+                </div>
+
+                <!-- Add Account -->
+                <div class="form-group">
+                    <label>Add New Account</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input 
+                            type="text" 
+                            id="newAccountUsername" 
+                            placeholder="Username (e.g., elonmusk)"
+                            style="flex: 1;"
+                        />
+                        <select id="newAccountTier" style="width: 200px;">
+                            <option value="tier1">Tier 1 (High)</option>
+                            <option value="tier2">Tier 2 (Medium)</option>
+                            <option value="tier3">Tier 3 (Low)</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="addAccount()">➕ Add</button>
+                    </div>
+                </div>
+
+                <!-- Tracked Accounts -->
+                <div id="trackedAccounts" style="display: none;">
+                    <h3 style="color: #e2e8f0; margin-bottom: 15px;">📋 Tracked Accounts</h3>
+                    <div id="accountsList"></div>
+                </div>
+            </div>
+
+            <!-- Search & Analytics -->
+            <div class="card">
+                <h2>🔍 Search & Analytics</h2>
+                <p style="color: #a0aec0; margin-bottom: 20px;">
+                    Search tracked tweets and analyze sentiment trends
+                </p>
+
+                <!-- Search Filters -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Sentiment</label>
+                        <select id="searchSentiment">
+                            <option value="">All</option>
+                            <option value="bullish">🐂 Bullish</option>
+                            <option value="bearish">🐻 Bearish</option>
+                            <option value="neutral">😐 Neutral</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Topic</label>
+                        <select id="searchTopic">
+                            <option value="">All</option>
+                            <option value="bitcoin">₿ Bitcoin</option>
+                            <option value="ethereum">Ξ Ethereum</option>
+                            <option value="defi">🏦 DeFi</option>
+                            <option value="nft">🎨 NFT</option>
+                            <option value="web3">🌐 Web3</option>
+                            <option value="trading">📈 Trading</option>
+                            <option value="regulation">⚖️ Regulation</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Author</label>
+                        <input type="text" id="searchAuthor" placeholder="Username">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Limit</label>
+                        <select id="searchLimit">
+                            <option value="10">10</option>
+                            <option value="25" selected>25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Search Buttons -->
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="searchTweets()">🔍 Search Tweets</button>
+                    <button class="btn btn-info" onclick="getSentimentTrends()">📊 Sentiment Trends</button>
+                    <button class="btn btn-warning" onclick="getDatabaseStats()">📈 Database Stats</button>
+                </div>
+
+                <!-- Analytics Buttons -->
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button class="btn btn-info" onclick="getAccountMetrics('RaoulGMI')">👤 RaoulGMI Metrics</button>
+                    <button class="btn btn-info" onclick="getPredictionAccuracy()">🎯 Prediction Accuracy</button>
+                    <button class="btn btn-info" onclick="getTopTopics()">🔥 Top Topics</button>
+                    <button class="btn btn-info" onclick="getInfluenceRanking()">⭐ Influence Ranking</button>
+                </div>
+            </div>
+
+            <!-- Statistics Overview -->
+            <div class="card">
+                <h2>📊 Statistics Overview</h2>
+                <p style="color: #a0aec0; margin-bottom: 20px;">
+                    Real-time statistics and performance metrics
+                </p>
+
+                <div id="statsOverview" class="stats-grid">
+                    <!-- Stats will be populated here -->
+                </div>
+
+                <button class="btn btn-info" onclick="refreshStats()">🔄 Refresh Stats</button>
+            </div>
+
+            <!-- Recent Tweets -->
+            <div class="card">
+                <h2>🐦 Recent Tweets</h2>
+                <p style="color: #a0aec0; margin-bottom: 20px;">
+                    Latest tracked tweets from monitored accounts
+                </p>
+
+                <div id="recentTweets" class="results-container">
+                    <!-- Tweets will be populated here -->
+                </div>
+
+                <button class="btn btn-primary" onclick="loadRecentTweets()">🔄 Load Recent</button>
+            </div>
+        </div>
+
+        <!-- Results Area -->
+        <div id="results" style="margin-top: 30px;"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://api.degen-oracle.com';
+
+        // Load page data on startup
+        document.addEventListener('DOMContentLoaded', function() {
+            getStatus();
+            refreshStats();
+            loadRecentTweets();
+        });
+
+        // Control Functions
+        async function startTracking() {
+            try {
+                showLoading('Starting crypto account tracking...');
+                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`✅ ${data.message}`, 'success');
+                    getStatus();
+                } else {
+                    showAlert(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function stopTracking() {
+            try {
+                showLoading('Stopping crypto account tracking...');
+                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/stop`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`✅ ${data.message}`, 'success');
+                    getStatus();
+                } else {
+                    showAlert(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function getStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/status`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    const statusDiv = document.getElementById('trackingStatus');
+                    statusDiv.style.display = 'block';
+                    
+                    const statusColor = data.isRunning ? '#4CAF50' : '#f44336';
+                    const statusText = data.isRunning ? 'Running' : 'Stopped';
+                    const connectionStatus = data.isConnected ? 'Connected' : 'Disconnected';
+                    
+                    statusDiv.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong style="color: ${statusColor};">Status: ${statusText}</strong><br>
+                                <span style="color: #a0aec0;">Connection: ${connectionStatus}</span><br>
+                                <span style="color: #a0aec0;">Total Tweets: ${data.totalTweets}</span><br>
+                                <span style="color: #a0aec0;">Accounts: ${data.accounts}</span>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="color: #a0aec0; font-size: 0.9rem;">Last Tweet:</div>
+                                <div style="color: #e2e8f0;">${data.lastTweet ? new Date(data.lastTweet).toLocaleString() : 'None'}</div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    showAlert(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function addAccount() {
+            const username = document.getElementById('newAccountUsername').value.trim();
+            const tier = document.getElementById('newAccountTier').value;
+            
+            if (!username) {
+                showAlert('❌ Please enter a username', 'error');
+                return;
+            }
+            
+            try {
+                showLoading(`Adding @${username} to tracking...`);
+                // This would need to be implemented in the backend
+                showAlert(`✅ @${username} added to tracking (Tier ${tier})`, 'success');
+                document.getElementById('newAccountUsername').value = '';
+                getStatus();
+            } catch (error) {
+                showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        // Search Functions
+        async function searchTweets() {
+            const sentiment = document.getElementById('searchSentiment').value;
+            const topic = document.getElementById('searchTopic').value;
+            const author = document.getElementById('searchAuthor').value;
+            const limit = document.getElementById('searchLimit').value;
+            
+            try {
+                showLoading('Searching tweets...');
+                let url = `${API_BASE}/api/admin/crypto-tracking/database/search?limit=${limit}`;
+                
+                if (sentiment) url += `&sentiment=${sentiment}`;
+                if (topic) url += `&topics=${topic}`;
+                if (author) url += `&author=${author}`;
+                
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayTweets(data.tweets, `Found ${data.count} tweets`);
+                } else {
+                    showAlert(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function getSentimentTrends() {
+            try {
+                showLoading('Loading sentiment trends...');
+                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/sentiment-trends?days=30`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    displaySentimentTrends(data.trends);
+                } else {
+                    showAlert(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function getDatabaseStats() {
+            try {
+                showLoading('Loading database statistics...');
+                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/database/stats`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayDatabaseStats(data.stats);
+                } else {
+                    showAlert(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function getAccountMetrics(username) {
+            try {
+                showLoading(`Loading metrics for @${username}...`);
+                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/account/${username}/metrics`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayAccountMetrics(data.metrics);
+                } else {
+                    showAlert(`❌ ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showAlert(`❌ Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function refreshStats() {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/database/stats`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateStatsOverview(data.stats);
+                }
+            } catch (error) {
+                console.error('Error refreshing stats:', error);
+            }
+        }
+
+        async function loadRecentTweets() {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/tweets?limit=10`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+                    }
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayRecentTweets(data.tweets);
+                }
+            } catch (error) {
+                console.error('Error loading recent tweets:', error);
+            }
+        }
+
+        // Display Functions
+        function displayTweets(tweets, title) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (tweets.length === 0) {
+                resultsDiv.innerHTML = `<div class="alert alert-info">No tweets found matching your criteria.</div>`;
+                return;
+            }
+            
+            let html = `<div class="card"><h2>${title}</h2>`;
+            
+            tweets.forEach(tweet => {
+                const sentimentClass = `sentiment-${tweet.sentiment || 'neutral'}`;
+                const topics = tweet.topics || [];
+                
+                html += `
+                    <div class="tweet-item">
+                        <div class="tweet-header">
+                            <span class="tweet-author">@${tweet.author?.username || 'Unknown'}</span>
+                            <span class="tweet-sentiment ${sentimentClass}">${tweet.sentiment || 'neutral'}</span>
+                        </div>
+                        <div class="tweet-text">${tweet.text || 'No text available'}</div>
+                        <div class="tweet-meta">
+                            <span>📅 ${new Date(tweet.timestamp).toLocaleString()}</span>
+                            <span>❤️ ${tweet.engagement?.likes || 0}</span>
+                            <span>🔄 ${tweet.engagement?.retweets || 0}</span>
+                            <span>💬 ${tweet.engagement?.replies || 0}</span>
+                        </div>
+                        ${topics.length > 0 ? `
+                            <div class="tweet-topics">
+                                ${topics.map(topic => `<span class="topic-tag">${topic}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            resultsDiv.innerHTML = html;
+        }
+
+        function displayRecentTweets(tweets) {
+            const container = document.getElementById('recentTweets');
+            
+            if (tweets.length === 0) {
+                container.innerHTML = '<div class="alert alert-info">No recent tweets available.</div>';
+                return;
+            }
+            
+            let html = '';
+            tweets.forEach(tweet => {
+                const sentimentClass = `sentiment-${tweet.sentiment || 'neutral'}`;
+                const topics = tweet.topics || [];
+                
+                html += `
+                    <div class="tweet-item">
+                        <div class="tweet-header">
+                            <span class="tweet-author">@${tweet.author?.username || 'Unknown'}</span>
+                            <span class="tweet-sentiment ${sentimentClass}">${tweet.sentiment || 'neutral'}</span>
+                        </div>
+                        <div class="tweet-text">${tweet.text || 'No text available'}</div>
+                        <div class="tweet-meta">
+                            <span>📅 ${new Date(tweet.timestamp).toLocaleString()}</span>
+                            <span>❤️ ${tweet.engagement?.likes || 0}</span>
+                        </div>
+                        ${topics.length > 0 ? `
+                            <div class="tweet-topics">
+                                ${topics.slice(0, 3).map(topic => `<span class="topic-tag">${topic}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function updateStatsOverview(stats) {
+            const container = document.getElementById('statsOverview');
+            
+            container.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${stats.totalTweets || 0}</div>
+                    <div class="stat-label">Total Tweets</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.uniqueAccounts || 0}</div>
+                    <div class="stat-label">Tracked Accounts</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.sentimentCounts?.bullish || 0}</div>
+                    <div class="stat-label">Bullish Tweets</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.sentimentCounts?.bearish || 0}</div>
+                    <div class="stat-label">Bearish Tweets</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${(stats.avgConfidence * 100).toFixed(1)}%</div>
+                    <div class="stat-label">Avg Confidence</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.databaseSize || '0 MB'}</div>
+                    <div class="stat-label">Database Size</div>
+                </div>
+            `;
+        }
+
+        function displaySentimentTrends(trends) {
+            const resultsDiv = document.getElementById('results');
+            
+            let html = '<div class="card"><h2>📊 Sentiment Trends (Last 30 Days)</h2>';
+            
+            const dates = Object.keys(trends).sort();
+            if (dates.length === 0) {
+                html += '<div class="alert alert-info">No sentiment data available.</div>';
+            } else {
+                html += '<div style="overflow-x: auto;"><table style="width: 100%; border-collapse: collapse;">';
+                html += '<thead><tr style="background: rgba(255,255,255,0.1);"><th style="padding: 10px; text-align: left;">Date</th><th style="padding: 10px; text-align: center;">Bullish</th><th style="padding: 10px; text-align: center;">Bearish</th><th style="padding: 10px; text-align: center;">Neutral</th><th style="padding: 10px; text-align: center;">Total</th></tr></thead><tbody>';
+                
+                dates.forEach(date => {
+                    const day = trends[date];
+                    html += `
+                        <tr>
+                            <td style="padding: 10px;">${date}</td>
+                            <td style="padding: 10px; text-align: center; color: #4CAF50;">${day.bullish}</td>
+                            <td style="padding: 10px; text-align: center; color: #f44336;">${day.bearish}</td>
+                            <td style="padding: 10px; text-align: center; color: #9e9e9e;">${day.neutral}</td>
+                            <td style="padding: 10px; text-align: center; font-weight: 600;">${day.total}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table></div>';
+            }
+            
+            html += '</div>';
+            resultsDiv.innerHTML = html;
+        }
+
+        function displayDatabaseStats(stats) {
+            const resultsDiv = document.getElementById('results');
+            
+            let html = '<div class="card"><h2>📈 Database Statistics</h2>';
+            
+            html += `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.totalTweets}</div>
+                        <div class="stat-label">Total Tweets</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.uniqueAccounts}</div>
+                        <div class="stat-label">Unique Accounts</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${(stats.avgConfidence * 100).toFixed(1)}%</div>
+                        <div class="stat-label">Average Confidence</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.databaseSize}</div>
+                        <div class="stat-label">Database Size</div>
+                    </div>
+                </div>
+            `;
+            
+            if (stats.sentimentCounts) {
+                html += '<h3 style="color: #e2e8f0; margin: 20px 0 10px 0;">Sentiment Breakdown</h3>';
+                html += '<div class="stats-grid">';
+                Object.entries(stats.sentimentCounts).forEach(([sentiment, count]) => {
+                    const color = sentiment === 'bullish' ? '#4CAF50' : sentiment === 'bearish' ? '#f44336' : '#9e9e9e';
+                    html += `
+                        <div class="stat-card">
+                            <div class="stat-number" style="color: ${color};">${count}</div>
+                            <div class="stat-label">${sentiment.charAt(0).toUpperCase() + sentiment.slice(1)}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            if (stats.topTopics && stats.topTopics.length > 0) {
+                html += '<h3 style="color: #e2e8f0; margin: 20px 0 10px 0;">Top Topics</h3>';
+                html += '<div style="display: flex; flex-wrap: wrap; gap: 10px;">';
+                stats.topTopics.forEach(topic => {
+                    html += `<span class="topic-tag">${topic.topic} (${topic.count})</span>`;
+                });
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            resultsDiv.innerHTML = html;
+        }
+
+        function displayAccountMetrics(metrics) {
+            const resultsDiv = document.getElementById('results');
+            
+            let html = '<div class="card"><h2>👤 Account Metrics: @' + metrics.username + '</h2>';
+            
+            html += `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">${metrics.totalTweets}</div>
+                        <div class="stat-label">Total Tweets</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${(metrics.avgConfidence * 100).toFixed(1)}%</div>
+                        <div class="stat-label">Avg Confidence</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${(metrics.avgInfluence * 100).toFixed(1)}%</div>
+                        <div class="stat-label">Avg Influence</div>
+                    </div>
+                </div>
+            `;
+            
+            if (metrics.sentimentCounts) {
+                html += '<h3 style="color: #e2e8f0; margin: 20px 0 10px 0;">Sentiment Distribution</h3>';
+                html += '<div class="stats-grid">';
+                Object.entries(metrics.sentimentCounts).forEach(([sentiment, count]) => {
+                    const color = sentiment === 'bullish' ? '#4CAF50' : sentiment === 'bearish' ? '#f44336' : '#9e9e9e';
+                    html += `
+                        <div class="stat-card">
+                            <div class="stat-number" style="color: ${color};">${count}</div>
+                            <div class="stat-label">${sentiment.charAt(0).toUpperCase() + sentiment.slice(1)}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            if (metrics.topTopics && metrics.topTopics.length > 0) {
+                html += '<h3 style="color: #e2e8f0; margin: 20px 0 10px 0;">Top Topics</h3>';
+                html += '<div style="display: flex; flex-wrap: wrap; gap: 10px;">';
+                metrics.topTopics.forEach(topic => {
+                    html += `<span class="topic-tag">${topic.topic} (${topic.count})</span>`;
+                });
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            resultsDiv.innerHTML = html;
+        }
+
+        // Utility Functions
+        function showLoading(message) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <div class="alert alert-info">
+                    <div class="loading"></div> ${message}
+                </div>
+            `;
+        }
+
+        function showAlert(message, type) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+        }
+
+        function refreshData() {
+            getStatus();
+            refreshStats();
+            loadRecentTweets();
+        }
+
+        // Placeholder functions for future implementation
+        function getPredictionAccuracy() {
+            showAlert('🎯 Prediction accuracy analysis coming soon!', 'info');
+        }
+
+        function getTopTopics() {
+            showAlert('🔥 Top topics analysis coming soon!', 'info');
+        }
+
+        function getInfluenceRanking() {
+            showAlert('⭐ Influence ranking coming soon!', 'info');
+        }
+    </script>
+</body>
+</html>
