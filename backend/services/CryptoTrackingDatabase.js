@@ -646,6 +646,9 @@ class CryptoTrackingDatabase {
       await fs.rename(tempFile, this.tweetsFile);
       console.log(`💾 [CRYPTO DB] Data saved atomically (${tweetsToSave.length} tweets)`);
       
+      // Create backup of successful save
+      await this.createBackup();
+      
     } catch (error) {
       console.error('❌ [CRYPTO DB] Failed to save data atomically:', error.message);
       throw error; // Re-throw to prevent in-memory update on failure
@@ -692,10 +695,98 @@ class CryptoTrackingDatabase {
       if (error.code === 'ENOENT') {
         console.log('ℹ️ [CRYPTO DB] No existing data found, starting fresh');
         this.trackedTweets = [];
+      } else if (error instanceof SyntaxError) {
+        console.error('❌ [CRYPTO DB] Corrupted JSON file detected, attempting recovery...');
+        await this.attemptDataRecovery();
       } else {
         console.error('❌ [CRYPTO DB] Error loading data:', error.message);
         this.trackedTweets = [];
       }
+    }
+  }
+
+  /**
+   * Create backup of current data
+   */
+  async createBackup() {
+    try {
+      const backupFile = this.tweetsFile + '.backup';
+      await fs.copyFile(this.tweetsFile, backupFile);
+      console.log(`💾 [CRYPTO DB] Backup created: ${backupFile}`);
+    } catch (error) {
+      console.log('⚠️ [CRYPTO DB] Could not create backup:', error.message);
+    }
+  }
+
+  /**
+   * Attempt to recover from corrupted JSON file
+   */
+  async attemptDataRecovery() {
+    try {
+      console.log('🔧 [CRYPTO DB] Attempting data recovery...');
+      
+      // First try to use backup file if it exists
+      const backupFile = this.tweetsFile + '.backup';
+      try {
+        const backupData = await fs.readFile(backupFile, 'utf8');
+        const backupTweets = JSON.parse(backupData);
+        if (backupTweets.tweets && backupTweets.tweets.length > 0) {
+          console.log(`✅ [CRYPTO DB] Recovered ${backupTweets.tweets.length} tweets from backup`);
+          this.trackedTweets = backupTweets.tweets;
+          await this.saveDataAtomic(backupTweets.tweets);
+          return;
+        }
+      } catch (backupError) {
+        console.log('⚠️ [CRYPTO DB] Backup file not available or corrupted');
+      }
+      
+      // Try to read the corrupted file and extract valid JSON parts
+      const data = await fs.readFile(this.tweetsFile, 'utf8');
+      
+      // Look for the last complete tweet object
+      const lines = data.split('\n');
+      let validTweets = [];
+      let currentTweet = '';
+      let braceCount = 0;
+      
+      for (const line of lines) {
+        currentTweet += line + '\n';
+        
+        // Count braces to find complete objects
+        for (const char of line) {
+          if (char === '{') braceCount++;
+          if (char === '}') braceCount--;
+        }
+        
+        // If we have a complete object, try to parse it
+        if (braceCount === 0 && currentTweet.trim()) {
+          try {
+            const tweet = JSON.parse(currentTweet.trim());
+            if (tweet.id && tweet.text) {
+              validTweets.push(tweet);
+            }
+          } catch (parseError) {
+            // Skip invalid objects
+          }
+          currentTweet = '';
+        }
+      }
+      
+      if (validTweets.length > 0) {
+        console.log(`✅ [CRYPTO DB] Recovered ${validTweets.length} tweets from corrupted file`);
+        this.trackedTweets = validTweets;
+        
+        // Save the recovered data
+        await this.saveDataAtomic(validTweets);
+      } else {
+        console.log('⚠️ [CRYPTO DB] No valid tweets found in corrupted file, starting fresh');
+        this.trackedTweets = [];
+      }
+      
+    } catch (recoveryError) {
+      console.error('❌ [CRYPTO DB] Data recovery failed:', recoveryError.message);
+      console.log('🔄 [CRYPTO DB] Starting with empty database');
+      this.trackedTweets = [];
     }
   }
 
