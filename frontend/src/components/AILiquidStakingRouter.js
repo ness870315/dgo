@@ -119,14 +119,15 @@ const AILiquidStakingRouter = () => {
         const mockStrategy = {
           id: `strategy-${Date.now()}`,
           type: strategyType,
+          name: strategyType === 'basic' ? 'Conservative Diversification' : 'Aggressive Growth',
           currentYield: walletData.currentYield,
           expectedYield: strategyType === 'basic' ? 6.2 : 7.5,
           improvement: strategyType === 'basic' ? 2.0 : 3.3,
           riskScore: strategyType === 'basic' ? 4.8 : 6.5,
-          allocation: [
-            { symbol: 'jitoSOL', name: 'Jito Staked SOL', percentage: 50, amount: walletData.sol * 0.5, apr: 5.8, riskScore: 3.2, reasoning: 'High APR with low risk' },
-            { symbol: 'mSOL', name: 'Marinade Staked SOL', percentage: 30, amount: walletData.sol * 0.3, apr: 5.6, riskScore: 2.8, reasoning: 'Diversified validator network' },
-            { symbol: 'bSOL', name: 'BlazeStake SOL', percentage: 20, amount: walletData.sol * 0.2, apr: 5.9, riskScore: 3.5, reasoning: 'Community-driven with high yield' }
+          allocations: [
+            { symbol: 'jitoSOL', name: 'Jito Staked SOL', percentage: 50, amount: walletData.sol * 0.5, apr: 6.7, riskScore: 3.2, reasoning: 'High APR with MEV rewards' },
+            { symbol: 'INF', name: 'Infinity Staked SOL', percentage: 30, amount: walletData.sol * 0.3, apr: 8.35, riskScore: 4.1, reasoning: 'Highest APR available' },
+            { symbol: 'mSOL', name: 'Marinade Staked SOL', percentage: 20, amount: walletData.sol * 0.2, apr: 6.4, riskScore: 2.8, reasoning: 'Diversified validator network' }
           ],
           actions: [
             { type: 'swap', from: 'SOL', to: 'jitoSOL', amount: walletData.sol * 0.5, reasoning: 'Convert unstacked SOL to high-yield LST' },
@@ -452,12 +453,11 @@ const AILiquidStakingRouter = () => {
             {/* Strategy Summary */}
             <div className="bg-dark-card rounded-xl p-8">
               <div className="text-center mb-8">
-                <div className="text-6xl mb-4">🚀</div>
                 <h2 className="text-3xl font-bold text-white mb-4">
                   Execute Strategy
                 </h2>
                 <p className="text-xl text-gray-400">
-                  Your AI-optimized strategy is ready. Review the details below before executing.
+                  Your Oracle AI-optimized strategy is ready. Review the details below before executing.
                 </p>
               </div>
 
@@ -501,10 +501,10 @@ const AILiquidStakingRouter = () => {
                       </div>
                     </div>
 
-                    {/* AI Strategy */}
+                    {/* Oracle AI Strategy */}
                     <div className="text-center">
-                      <div className="text-4xl mb-3">🤖</div>
-                      <h4 className="text-lg font-bold text-white mb-2">AI Strategy</h4>
+                      <div className="text-4xl mb-3">🧠</div>
+                      <h4 className="text-lg font-bold text-white mb-2">Oracle AI Strategy</h4>
                       <div className="bg-gradient-to-r from-green-900/50 to-green-700/50 rounded-lg p-4 mb-3 border border-green-500/30">
                         <p className="text-3xl font-bold text-green-400">{strategy.expectedYield?.toFixed(2) || '8.5'}%</p>
                         <p className="text-gray-400">Expected Yield</p>
@@ -533,13 +533,13 @@ const AILiquidStakingRouter = () => {
               </div>
 
               {/* Allocation Chart */}
-              {strategy.allocations && strategy.allocations.length > 0 && (
+              {strategy.allocation && strategy.allocation.length > 0 && (
                 <div className="mb-8">
                   <h3 className="text-xl font-bold text-white mb-4">Strategy Allocation</h3>
                   <div className="bg-gray-800/30 rounded-lg p-6">
                     {/* Visual Bar Chart */}
                     <div className="space-y-3 mb-6">
-                      {strategy.allocations.map((allocation, index) => (
+                      {strategy.allocation.map((allocation, index) => (
                         <div key={index} className="flex items-center space-x-4">
                           <div className="w-24 text-sm text-gray-400 text-right">
                             {allocation.symbol}
@@ -547,11 +547,11 @@ const AILiquidStakingRouter = () => {
                           <div className="flex-1 bg-gray-700 rounded-full h-6 overflow-hidden">
                             <div 
                               className="h-full bg-gradient-to-r from-solana-purple to-blue-600 transition-all duration-1000 ease-out"
-                              style={{ width: `${allocation.percentage || 0}%` }}
+                              style={{ width: `${(allocation.weight || allocation.percentage || 0) * 100}%` }}
                             ></div>
                           </div>
                           <div className="w-16 text-sm text-white text-right font-bold">
-                            {allocation.percentage?.toFixed(1)}%
+                            {((allocation.weight || allocation.percentage || 0) * 100).toFixed(1)}%
                           </div>
                         </div>
                       ))}
@@ -561,12 +561,12 @@ const AILiquidStakingRouter = () => {
                     <div className="flex justify-center">
                       <div className="relative w-48 h-48">
                         <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                          {strategy.allocations.map((allocation, index) => {
-                            const percentage = allocation.percentage || 0;
+                          {strategy.allocation.map((allocation, index) => {
+                            const percentage = (allocation.weight || allocation.percentage || 0) * 100;
                             const circumference = 2 * Math.PI * 40;
                             const strokeDasharray = `${(percentage / 100) * circumference} ${circumference}`;
                             const strokeDashoffset = index === 0 ? 0 : 
-                              strategy.allocations.slice(0, index).reduce((sum, a) => sum - (a.percentage || 0) / 100 * circumference, 0);
+                              strategy.allocation.slice(0, index).reduce((sum, a) => sum - ((a.weight || a.percentage || 0) * 100) / 100 * circumference, 0);
                             
                             return (
                               <circle
