@@ -791,6 +791,268 @@
             font-weight: 500;
         }
 
+        /* CT Momentum Section Styles */
+        .ct-momentum-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #2d3748;
+            border-radius: 8px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .timeframe-select {
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid #4a5568;
+            background: #1a202c;
+            color: #f7fafc;
+            font-size: 0.95em;
+            cursor: pointer;
+        }
+
+        .ct-stats {
+            display: flex;
+            gap: 10px;
+        }
+
+        .stat-badge {
+            padding: 6px 12px;
+            background: #4a5568;
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .ct-momentum-table {
+            overflow-x: auto;
+        }
+
+        .momentum-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .momentum-table th {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #4a5568;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .momentum-table td {
+            padding: 12px;
+            border-bottom: 1px solid #2d3748;
+            color: #cbd5e0;
+        }
+
+        .momentum-table tr:hover {
+            background: #2d3748;
+            cursor: pointer;
+        }
+
+        .rank-badge {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+            text-align: center;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        .rank-1 { background: linear-gradient(135deg, #ffd700, #ffed4e); color: #1a202c; }
+        .rank-2 { background: linear-gradient(135deg, #c0c0c0, #e8e8e8); color: #1a202c; }
+        .rank-3 { background: linear-gradient(135deg, #cd7f32, #e8a87c); color: #1a202c; }
+        .rank-other { background: #4a5568; color: #e2e8f0; }
+
+        .token-symbol {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #63b3ed;
+            font-family: 'Courier New', monospace;
+        }
+
+        .momentum-score {
+            font-weight: 600;
+            font-size: 1.05em;
+        }
+
+        .sentiment-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .sentiment-bullish {
+            background: rgba(72, 187, 120, 0.2);
+            color: #48bb78;
+            border: 1px solid #48bb78;
+        }
+
+        .sentiment-bearish {
+            background: rgba(245, 101, 101, 0.2);
+            color: #f56565;
+            border: 1px solid #f56565;
+        }
+
+        .sentiment-neutral {
+            background: rgba(160, 174, 192, 0.2);
+            color: #a0aec0;
+            border: 1px solid #a0aec0;
+        }
+
+        .sentiment-bar {
+            height: 6px;
+            border-radius: 3px;
+            overflow: hidden;
+            background: #2d3748;
+            display: flex;
+        }
+
+        .sentiment-bar-bullish {
+            background: #48bb78;
+        }
+
+        .sentiment-bar-bearish {
+            background: #f56565;
+        }
+
+        .sentiment-bar-neutral {
+            background: #a0aec0;
+        }
+
+        .author-count {
+            color: #9f7aea;
+            font-weight: 500;
+        }
+
+        .mention-count {
+            color: #63b3ed;
+            font-weight: 500;
+        }
+
+        .engagement-count {
+            color: #f6ad55;
+            font-weight: 500;
+        }
+
+        /* Token Detail Modal */
+        .token-modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+
+        .token-modal-content {
+            background-color: #1a202c;
+            margin: 5% auto;
+            padding: 0;
+            border: 1px solid #4a5568;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 900px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .token-modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .token-modal-title {
+            color: #ffffff;
+            font-size: 1.5em;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .token-modal-close {
+            color: #ffffff;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .token-modal-close:hover {
+            color: #cbd5e0;
+        }
+
+        .token-modal-body {
+            padding: 25px;
+        }
+
+        .token-detail-section {
+            margin-bottom: 25px;
+        }
+
+        .token-detail-section h3 {
+            color: #e2e8f0;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .token-mentions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .mention-item {
+            background: #2d3748;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+        }
+
+        .mention-author {
+            color: #63b3ed;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .mention-context {
+            color: #cbd5e0;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+
+        .mention-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 0.85em;
+            color: #a0aec0;
+        }
+
         /* Trending Topics Section Styles */
         .trending-controls {
             display: flex;
@@ -1358,6 +1620,41 @@
         </div>
     </div>
 
+    <!-- CT Momentum Section -->
+    <div class="container">
+        <div class="card">
+            <h2>💰 CT Momentum - Top Discussed Tokens</h2>
+            <p style="color: #a0aec0; margin-bottom: 20px;">
+                Real-time tracking of $TOKEN mentions across Crypto Twitter
+            </p>
+            
+            <div class="ct-momentum-controls">
+                <div class="time-filter">
+                    <label for="ctTimeframe">Timeframe:</label>
+                    <select id="ctTimeframe" class="timeframe-select" onchange="loadCTMomentum()">
+                        <option value="1h">Last Hour</option>
+                        <option value="6h">Last 6 Hours</option>
+                        <option value="24h" selected>Last 24 Hours</option>
+                        <option value="7d">Last 7 Days</option>
+                        <option value="30d">Last 30 Days</option>
+                    </select>
+                </div>
+                <div class="ct-stats">
+                    <span id="ctTotalTokens" class="stat-badge">0 Tokens</span>
+                    <span id="ctTotalMentions" class="stat-badge">0 Mentions</span>
+                </div>
+                <button class="btn btn-secondary" onclick="loadCTMomentum()">🔄 Refresh</button>
+            </div>
+            
+            <div id="ctMomentumTable" class="ct-momentum-table">
+                <!-- CT Momentum data will be loaded here -->
+                <div style="text-align: center; padding: 40px; color: #a0aec0;">
+                    <p>Loading CT Momentum data...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Trending Topics Section (Horizontal) -->
     <div class="container">
         <div class="card">
@@ -1372,6 +1669,19 @@
             </div>
             <div id="trendingTopicsGrid" class="trending-grid" style="max-height: 300px; overflow-y: auto;">
                 <!-- Trending topics will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Token Detail Modal -->
+    <div id="tokenModal" class="token-modal">
+        <div class="token-modal-content">
+            <div class="token-modal-header">
+                <h2 id="tokenModalTitle" class="token-modal-title"></h2>
+                <button class="token-modal-close" onclick="closeTokenModal()">&times;</button>
+            </div>
+            <div id="tokenModalBody" class="token-modal-body">
+                <!-- Token details will be loaded here -->
             </div>
         </div>
     </div>
@@ -1398,6 +1708,7 @@
             refreshStats();
             loadRecentTweets();
             loadTrackedAccounts();
+            loadCTMomentum(); // Load CT Momentum data
             loadTrendingTopics();
             loadSentimentTrends();
             
@@ -3259,6 +3570,236 @@ This feature will rank tracked accounts by their influence:<br>
             
             resultsDiv.innerHTML = html;
         }
+
+        // ========================================
+        // 💰 CT MOMENTUM FUNCTIONS
+        // ========================================
+
+        async function loadCTMomentum() {
+            try {
+                const timeframe = document.getElementById('ctTimeframe').value;
+                showLoading('Loading CT Momentum data...');
+                
+                const response = await safeApiCall(`/api/admin/ct-momentum/top-tokens?limit=20&timeframe=${timeframe}`);
+                
+                if (response.success && response.tokens) {
+                    displayCTMomentum(response.tokens, response.timeframe);
+                    
+                    // Update stats
+                    const statsResponse = await safeApiCall('/api/admin/ct-momentum/stats');
+                    if (statsResponse.success) {
+                        updateCTStats(statsResponse.stats);
+                    }
+                } else {
+                    showAlert('Failed to load CT Momentum: ' + (response.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                console.error('Error loading CT Momentum:', error);
+                showAlert('Error loading CT Momentum: ' + error.message, 'error');
+            }
+        }
+
+        function displayCTMomentum(tokens, timeframe) {
+            const container = document.getElementById('ctMomentumTable');
+            
+            if (!tokens || tokens.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #a0aec0;">
+                        <p>No token mentions found for the selected timeframe.</p>
+                        <p style="font-size: 0.9em; margin-top: 10px;">Tokens will appear as tweets are tracked.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = `
+                <table class="momentum-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">Rank</th>
+                            <th>Token</th>
+                            <th>Momentum Score</th>
+                            <th>Mentions</th>
+                            <th>Authors</th>
+                            <th>Engagement</th>
+                            <th>Sentiment</th>
+                            <th style="width: 200px;">Sentiment Distribution</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            tokens.forEach(token => {
+                const rankClass = token.rank === 1 ? 'rank-1' : token.rank === 2 ? 'rank-2' : token.rank === 3 ? 'rank-3' : 'rank-other';
+                const sentimentClass = `sentiment-${token.dominantSentiment}`;
+                
+                html += `
+                    <tr onclick="showTokenDetails('${token.symbol}', '${timeframe}')">
+                        <td>
+                            <span class="rank-badge ${rankClass}">${token.rank}</span>
+                        </td>
+                        <td>
+                            <span class="token-symbol">$${token.symbol}</span>
+                        </td>
+                        <td>
+                            <span class="momentum-score">${token.momentumScore.toFixed(2)}</span>
+                        </td>
+                        <td>
+                            <span class="mention-count">${token.totalMentions}</span>
+                        </td>
+                        <td>
+                            <span class="author-count">${token.uniqueAuthors}</span>
+                        </td>
+                        <td>
+                            <span class="engagement-count">${token.totalEngagement}</span>
+                        </td>
+                        <td>
+                            <span class="sentiment-badge ${sentimentClass}">${token.dominantSentiment}</span>
+                        </td>
+                        <td>
+                            <div class="sentiment-bar">
+                                <div class="sentiment-bar-bullish" style="width: ${token.sentimentDistribution.bullish}%"></div>
+                                <div class="sentiment-bar-bearish" style="width: ${token.sentimentDistribution.bearish}%"></div>
+                                <div class="sentiment-bar-neutral" style="width: ${token.sentimentDistribution.neutral}%"></div>
+                            </div>
+                            <div style="font-size: 0.8em; margin-top: 4px; color: #a0aec0;">
+                                ${token.sentimentDistribution.bullish}% / ${token.sentimentDistribution.bearish}% / ${token.sentimentDistribution.neutral}%
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
+            
+            container.innerHTML = html;
+        }
+
+        function updateCTStats(stats) {
+            document.getElementById('ctTotalTokens').textContent = `${stats.uniqueTokens} Tokens`;
+            document.getElementById('ctTotalMentions').textContent = `${stats.totalMentions} Mentions`;
+        }
+
+        async function showTokenDetails(symbol, timeframe) {
+            try {
+                showLoading(`Loading details for $${symbol}...`);
+                
+                const response = await safeApiCall(`/api/admin/ct-momentum/token/${symbol}?timeframe=${timeframe}`);
+                
+                if (response.success && response.momentum) {
+                    displayTokenDetails(response.momentum);
+                } else {
+                    showAlert('Failed to load token details: ' + (response.error || 'Unknown error'), 'error');
+                }
+            } catch (error) {
+                console.error('Error loading token details:', error);
+                showAlert('Error loading token details: ' + error.message, 'error');
+            }
+        }
+
+        function displayTokenDetails(momentum) {
+            const modal = document.getElementById('tokenModal');
+            const title = document.getElementById('tokenModalTitle');
+            const body = document.getElementById('tokenModalBody');
+            
+            title.textContent = `$${momentum.symbol} - CT Momentum Details`;
+            
+            const sentimentClass = `sentiment-${momentum.dominantSentiment}`;
+            
+            let html = `
+                <div class="token-detail-section">
+                    <h3>📊 Overview</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div class="stat-card">
+                            <div style="color: #a0aec0; font-size: 0.9em;">Total Mentions</div>
+                            <div style="font-size: 1.8em; font-weight: 600; color: #63b3ed;">${momentum.totalMentions}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div style="color: #a0aec0; font-size: 0.9em;">Unique Authors</div>
+                            <div style="font-size: 1.8em; font-weight: 600; color: #9f7aea;">${momentum.uniqueAuthors}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div style="color: #a0aec0; font-size: 0.9em;">Total Engagement</div>
+                            <div style="font-size: 1.8em; font-weight: 600; color: #f6ad55;">${momentum.totalEngagement}</div>
+                        </div>
+                        <div class="stat-card">
+                            <div style="color: #a0aec0; font-size: 0.9em;">Dominant Sentiment</div>
+                            <div style="margin-top: 8px;"><span class="sentiment-badge ${sentimentClass}">${momentum.dominantSentiment}</span></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="token-detail-section">
+                    <h3>📈 Sentiment Distribution</h3>
+                    <div class="sentiment-bar" style="height: 30px; margin-bottom: 10px;">
+                        <div class="sentiment-bar-bullish" style="width: ${momentum.sentimentDistribution.bullish}%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600;">
+                            ${momentum.sentimentDistribution.bullish > 10 ? momentum.sentimentDistribution.bullish + '%' : ''}
+                        </div>
+                        <div class="sentiment-bar-bearish" style="width: ${momentum.sentimentDistribution.bearish}%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600;">
+                            ${momentum.sentimentDistribution.bearish > 10 ? momentum.sentimentDistribution.bearish + '%' : ''}
+                        </div>
+                        <div class="sentiment-bar-neutral" style="width: ${momentum.sentimentDistribution.neutral}%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600;">
+                            ${momentum.sentimentDistribution.neutral > 10 ? momentum.sentimentDistribution.neutral + '%' : ''}
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.9em; color: #a0aec0;">
+                        <span>🟢 Bullish: ${momentum.sentimentDistribution.bullish}%</span>
+                        <span>🔴 Bearish: ${momentum.sentimentDistribution.bearish}%</span>
+                        <span>⚪ Neutral: ${momentum.sentimentDistribution.neutral}%</span>
+                    </div>
+                </div>
+                
+                <div class="token-detail-section">
+                    <h3>👥 Top Authors</h3>
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                        ${momentum.topAuthors.map(author => `
+                            <div style="background: #2d3748; padding: 10px 15px; border-radius: 8px;">
+                                <div style="color: #63b3ed; font-weight: 600;">@${author.author}</div>
+                                <div style="font-size: 0.85em; color: #a0aec0;">${author.mentionCount} mentions</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div class="token-detail-section">
+                    <h3>💬 Recent Mentions</h3>
+                    <div class="token-mentions-list">
+                        ${momentum.recentMentions.map(mention => {
+                            const mentionSentimentClass = `sentiment-${mention.sentiment}`;
+                            return `
+                                <div class="mention-item">
+                                    <div class="mention-author">@${mention.author} <span class="sentiment-badge ${mentionSentimentClass}" style="margin-left: 10px;">${mention.sentiment}</span></div>
+                                    <div class="mention-context">"${mention.context}"</div>
+                                    <div class="mention-meta">
+                                        <span>💬 ${mention.engagement.likes || 0} likes</span>
+                                        <span>🔄 ${mention.engagement.retweets || 0} RTs</span>
+                                        <span>📅 ${new Date(mention.timestamp).toLocaleString()}</span>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+            
+            body.innerHTML = html;
+            modal.style.display = 'block';
+        }
+
+        function closeTokenModal() {
+            document.getElementById('tokenModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const tokenModal = document.getElementById('tokenModal');
+            if (event.target === tokenModal) {
+                closeTokenModal();
+            }
+        };
     </script>
 </body>
 </html>
