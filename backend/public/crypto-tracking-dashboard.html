@@ -502,13 +502,9 @@
         async function startTracking() {
             try {
                 showLoading('Starting crypto account tracking...');
-                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/start`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-                    }
+                const data = await safeApiCall(`${API_BASE}/api/admin/crypto-tracking/start`, {
+                    method: 'POST'
                 });
-                const data = await response.json();
                 
                 if (data.success) {
                     showAlert(`✅ ${data.message}`, 'success');
@@ -524,13 +520,9 @@
         async function stopTracking() {
             try {
                 showLoading('Stopping crypto account tracking...');
-                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/stop`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-                    }
+                const data = await safeApiCall(`${API_BASE}/api/admin/crypto-tracking/stop`, {
+                    method: 'POST'
                 });
-                const data = await response.json();
                 
                 if (data.success) {
                     showAlert(`✅ ${data.message}`, 'success');
@@ -545,12 +537,7 @@
 
         async function getStatus() {
             try {
-                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/status`, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-                    }
-                });
-                const data = await response.json();
+                const data = await safeApiCall(`${API_BASE}/api/admin/crypto-tracking/status`);
                 
                 if (data.success) {
                     const statusDiv = document.getElementById('trackingStatus');
@@ -593,24 +580,14 @@
             
             try {
                 showLoading(`Adding @${username} to tracking...`);
-                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/add-account`, {
+                const data = await safeApiCall(`${API_BASE}/api/admin/crypto-tracking/add-account`, {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
-                        'Content-Type': 'application/json'
-                    },
                     body: JSON.stringify({
                         username: username,
                         displayName: username,
                         tier: tier
                     })
                 });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const data = await response.json();
                 
                 if (data.success) {
                     showAlert(`✅ ${data.message}`, 'success');
@@ -660,12 +637,7 @@
         async function getSentimentTrends() {
             try {
                 showLoading('Loading sentiment trends...');
-                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/sentiment-trends?days=30`, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-                    }
-                });
-                const data = await response.json();
+                const data = await safeApiCall(`${API_BASE}/api/admin/crypto-tracking/sentiment-trends?days=30`);
                 
                 if (data.success) {
                     displaySentimentTrends(data.trends);
@@ -680,12 +652,7 @@
         async function getDatabaseStats() {
             try {
                 showLoading('Loading database statistics...');
-                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/database/stats`, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-                    }
-                });
-                const data = await response.json();
+                const data = await safeApiCall(`${API_BASE}/api/admin/crypto-tracking/database/stats`);
                 
                 if (data.success) {
                     displayDatabaseStats(data.stats);
@@ -700,12 +667,7 @@
         async function getAccountMetrics(username) {
             try {
                 showLoading(`Loading metrics for @${username}...`);
-                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/account/${username}/metrics`, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-                    }
-                });
-                const data = await response.json();
+                const data = await safeApiCall(`${API_BASE}/api/admin/crypto-tracking/account/${username}/metrics`);
                 
                 if (data.success) {
                     displayAccountMetrics(data.metrics);
@@ -719,12 +681,7 @@
 
         async function refreshStats() {
             try {
-                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/database/stats`, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-                    }
-                });
-                const data = await response.json();
+                const data = await safeApiCall(`${API_BASE}/api/admin/crypto-tracking/database/stats`);
                 
                 if (data.success) {
                     updateStatsOverview(data.stats);
@@ -736,12 +693,7 @@
 
         async function loadRecentTweets() {
             try {
-                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/tweets?limit=10`, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-                    }
-                });
-                const data = await response.json();
+                const data = await safeApiCall(`${API_BASE}/api/admin/crypto-tracking/tweets?limit=10`);
                 
                 if (data.success) {
                     displayRecentTweets(data.tweets);
@@ -753,17 +705,7 @@
 
         async function loadTrackedAccounts() {
             try {
-                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/accounts`, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-                    }
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const data = await response.json();
+                const data = await safeApiCall(`${API_BASE}/api/admin/crypto-tracking/accounts`);
                 
                 if (data.success) {
                     displayTrackedAccounts(data.accounts);
@@ -811,20 +753,10 @@
             
             try {
                 showLoading(`Removing @${username} from tracking...`);
-                const response = await fetch(`${API_BASE}/api/admin/crypto-tracking/remove-account`, {
+                const data = await safeApiCall(`${API_BASE}/api/admin/crypto-tracking/remove-account`, {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
-                        'Content-Type': 'application/json'
-                    },
                     body: JSON.stringify({ username: username })
                 });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const data = await response.json();
                 
                 if (data.success) {
                     showAlert(`✅ ${data.message}`, 'success');
@@ -1085,9 +1017,14 @@
         // Utility Functions
         async function safeApiCall(url, options = {}) {
             try {
+                // Use Basic authentication for admin API
+                const adminUsername = 'ness870315'; // Default admin username
+                const adminPassword = '1E132730!'; // Default admin password
+                const credentials = btoa(`${adminUsername}:${adminPassword}`);
+                
                 const response = await fetch(url, {
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('adminToken')}`,
+                        'Authorization': `Basic ${credentials}`,
                         'Content-Type': 'application/json',
                         ...options.headers
                     },
