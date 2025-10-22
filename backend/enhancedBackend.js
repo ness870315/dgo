@@ -45,6 +45,9 @@ import EnhancedNFTTraitService from './services/EnhancedNFTTraitService.js';
 import DGOOpinionDatabase from './services/DGOOpinionDatabase.js';
 // CryptoAccountTrackingService removed - now handled by unified TwitterMentionService
 import CryptoTrackingDatabase from './services/CryptoTrackingDatabase.js';
+import PredictionTrackingDatabase from './services/PredictionTrackingDatabase.js';
+import AccuracyCalculationService from './services/AccuracyCalculationService.js';
+import PriceMonitoringService from './services/PriceMonitoringService.js';
 import { X402PaymentHandler } from '@payai/x402-solana';
 // Portfolio analysis services are handled by jup-discovery background worker
 // No direct imports needed - data comes via internal API endpoints
@@ -194,6 +197,9 @@ class EnhancedBackend {
     // Initialize crypto tracking services
     this.opinionDatabase = new DGOOpinionDatabase();
     this.cryptoTrackingDatabase = new CryptoTrackingDatabase();
+    this.predictionTrackingDatabase = new PredictionTrackingDatabase();
+    this.accuracyCalculationService = new AccuracyCalculationService();
+    this.priceMonitoringService = new PriceMonitoringService();
     // CryptoAccountTrackingService removed - now handled by unified TwitterMentionService
     this.dailyTweetService = null; // Will be initialized after OpenAI service is ready
     this.backupIntegration = null; // Will be initialized in setupServices()
@@ -11972,6 +11978,205 @@ Thanks for using x402 payments on Twitter! 🚀`;
       } catch (error) {
         console.error('[🛡️ Admin] ❌ Failed to get tracked accounts:', error.message);
         res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // ========================================
+    // 🎯 PREDICTION ACCURACY ANALYSIS ENDPOINTS
+    // ========================================
+
+    // Get prediction accuracy for specific author
+    this.app.get('/api/admin/prediction-accuracy/:username', adminApiAuth, async (req, res) => {
+      try {
+        const { username } = req.params;
+        
+        if (!this.predictionTrackingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Prediction Tracking Database not initialized'
+          });
+        }
+
+        const predictions = this.predictionTrackingDatabase.getPredictionsByAuthor(username);
+        const accuracyMetrics = this.accuracyCalculationService.calculateAuthorAccuracy(predictions);
+        const accuracyReport = this.accuracyCalculationService.generateAccuracyReport(predictions);
+        
+        res.json({
+          success: true,
+          username,
+          accuracyMetrics,
+          accuracyReport,
+          predictions: predictions.slice(0, 20) // Last 20 predictions
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get prediction accuracy:', error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Get top performers by prediction accuracy
+    this.app.get('/api/admin/prediction-accuracy/top-performers', adminApiAuth, (req, res) => {
+      try {
+        const { limit = 10 } = req.query;
+        
+        if (!this.predictionTrackingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Prediction Tracking Database not initialized'
+          });
+        }
+
+        const topPerformers = this.predictionTrackingDatabase.getTopPerformers(parseInt(limit));
+        
+        res.json({
+          success: true,
+          topPerformers,
+          total: topPerformers.length
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get top performers:', error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Get prediction statistics
+    this.app.get('/api/admin/prediction-accuracy/statistics', adminApiAuth, (req, res) => {
+      try {
+        if (!this.predictionTrackingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Prediction Tracking Database not initialized'
+          });
+        }
+
+        const statistics = this.predictionTrackingDatabase.getStatistics();
+        
+        res.json({
+          success: true,
+          statistics
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get prediction statistics:', error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Get active predictions
+    this.app.get('/api/admin/prediction-accuracy/active', adminApiAuth, (req, res) => {
+      try {
+        if (!this.predictionTrackingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Prediction Tracking Database not initialized'
+          });
+        }
+
+        const activePredictions = this.predictionTrackingDatabase.getActivePredictions();
+        
+        res.json({
+          success: true,
+          activePredictions,
+          total: activePredictions.length
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get active predictions:', error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Get completed predictions
+    this.app.get('/api/admin/prediction-accuracy/completed', adminApiAuth, (req, res) => {
+      try {
+        const { limit = 50 } = req.query;
+        
+        if (!this.predictionTrackingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Prediction Tracking Database not initialized'
+          });
+        }
+
+        const completedPredictions = this.predictionTrackingDatabase.getCompletedPredictions(parseInt(limit));
+        
+        res.json({
+          success: true,
+          completedPredictions,
+          total: completedPredictions.length
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to get completed predictions:', error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Manually check prediction accuracy (for testing)
+    this.app.post('/api/admin/prediction-accuracy/check/:predictionId', adminApiAuth, async (req, res) => {
+      try {
+        const { predictionId } = req.params;
+        
+        if (!this.predictionTrackingDatabase || !this.priceMonitoringService) {
+          return res.status(503).json({
+            success: false,
+            error: 'Services not initialized'
+          });
+        }
+
+        // Get prediction
+        const predictions = this.predictionTrackingDatabase.predictions;
+        const prediction = predictions.find(p => p.id === predictionId);
+        
+        if (!prediction) {
+          return res.status(404).json({
+            success: false,
+            error: 'Prediction not found'
+          });
+        }
+
+        // Check accuracy
+        const accuracyCheck = await this.priceMonitoringService.checkPredictionAccuracy(prediction);
+        
+        if (!accuracyCheck) {
+          return res.status(500).json({
+            success: false,
+            error: 'Failed to check prediction accuracy'
+          });
+        }
+
+        // Update prediction
+        const updatedPrediction = await this.predictionTrackingDatabase.updatePredictionCheck(predictionId, accuracyCheck);
+        
+        res.json({
+          success: true,
+          prediction: updatedPrediction,
+          accuracyCheck
+        });
+
+      } catch (error) {
+        console.error('[🛡️ Admin] ❌ Failed to check prediction accuracy:', error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
       }
     });
 

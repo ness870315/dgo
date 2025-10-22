@@ -332,6 +332,256 @@
             border-color: #ff9800;
             color: #ff9800;
         }
+
+        /* Prediction Accuracy Styles */
+        .accuracy-excellent { color: #10b981; font-weight: bold; }
+        .accuracy-good { color: #3b82f6; font-weight: bold; }
+        .accuracy-fair { color: #f59e0b; font-weight: bold; }
+        .accuracy-poor { color: #ef4444; font-weight: bold; }
+        .accuracy-very-poor { color: #dc2626; font-weight: bold; }
+        .accuracy-unknown { color: #6b7280; font-weight: bold; }
+
+        .performers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .performer-card {
+            background: rgba(45, 55, 72, 0.5);
+            border: 1px solid #4a5568;
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .performer-rank {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .performer-info h3 {
+            margin: 0 0 10px 0;
+            color: #e2e8f0;
+        }
+
+        .performer-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .performer-stats .stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stat-label {
+            color: #a0aec0;
+            font-size: 0.9rem;
+        }
+
+        .stat-value {
+            color: #e2e8f0;
+            font-weight: 500;
+        }
+
+        .accuracy-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: rgba(45, 55, 72, 0.3);
+            border-radius: 8px;
+        }
+
+        .summary-stat {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .summary-label {
+            color: #a0aec0;
+            font-size: 0.9rem;
+        }
+
+        .summary-value {
+            color: #e2e8f0;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .accuracy-report, .accuracy-strengths, .accuracy-weaknesses, .accuracy-recommendations {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(45, 55, 72, 0.2);
+            border-radius: 8px;
+            border-left: 4px solid #4a5568;
+        }
+
+        .accuracy-strengths {
+            border-left-color: #10b981;
+        }
+
+        .accuracy-weaknesses {
+            border-left-color: #ef4444;
+        }
+
+        .accuracy-recommendations {
+            border-left-color: #3b82f6;
+        }
+
+        .accuracy-report h3, .accuracy-strengths h3, .accuracy-weaknesses h3, .accuracy-recommendations h3 {
+            margin: 0 0 10px 0;
+            color: #e2e8f0;
+        }
+
+        .accuracy-report ul, .accuracy-strengths ul, .accuracy-weaknesses ul, .accuracy-recommendations ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #a0aec0;
+        }
+
+        .accuracy-report li, .accuracy-strengths li, .accuracy-weaknesses li, .accuracy-recommendations li {
+            margin-bottom: 5px;
+        }
+
+        .accuracy-actions, .statistics-actions, .predictions-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .predictions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .prediction-item {
+            background: rgba(45, 55, 72, 0.3);
+            border: 1px solid #4a5568;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .prediction-item.completed {
+            border-left: 4px solid #10b981;
+        }
+
+        .prediction-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .prediction-token {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .prediction-type {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .prediction-confidence, .prediction-accuracy {
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .prediction-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .prediction-details > div {
+            color: #a0aec0;
+            font-size: 0.9rem;
+        }
+
+        .prediction-context {
+            color: #a0aec0;
+            font-style: italic;
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+
+        .top-performers-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(45, 55, 72, 0.2);
+            border-radius: 8px;
+        }
+
+        .top-performers-section h3 {
+            margin: 0 0 15px 0;
+            color: #e2e8f0;
+        }
+
+        .performers-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .performer-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: rgba(45, 55, 72, 0.3);
+            border-radius: 6px;
+        }
+
+        .performer-rank {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .performer-name {
+            color: #e2e8f0;
+            font-weight: 500;
+        }
+
+        .performer-accuracy {
+            color: #10b981;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -1128,18 +1378,456 @@
             loadTrackedAccounts();
         }
 
-        // Advanced Analytics Functions (Coming Soon)
+        // Advanced Analytics Functions
         function getPredictionAccuracy() {
             showAlert(`
 🎯 <strong>Prediction Accuracy Analysis</strong><br><br>
-This feature will analyze how accurate our tracked accounts' predictions have been:<br>
+This feature analyzes how accurate our tracked accounts' predictions have been:<br>
 • Track price predictions vs actual market movements<br>
 • Calculate success rates for each influencer<br>
 • Identify which accounts have the best prediction accuracy<br>
 • Show confidence intervals and prediction timelines<br>
 • Generate accuracy scores and rankings<br><br>
-<em>Coming soon: Advanced ML-based prediction tracking</em>
+<em>Click "Get Top Performers" to see the most accurate predictors!</em>
             `, 'info');
+            
+            // Load top performers
+            loadTopPerformers();
+        }
+
+        async function loadTopPerformers() {
+            try {
+                showLoading('Loading top performers...');
+                
+                const response = await safeApiCall('/api/admin/prediction-accuracy/top-performers?limit=10');
+                
+                if (response.success) {
+                    displayTopPerformers(response.topPerformers);
+                } else {
+                    showAlert('Failed to load top performers: ' + response.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error loading top performers:', error);
+                showAlert('Error loading top performers: ' + error.message, 'error');
+            }
+        }
+
+        function displayTopPerformers(performers) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (!performers || performers.length === 0) {
+                resultsDiv.innerHTML = `
+                    <div class="card">
+                        <h2>🎯 Top Prediction Performers</h2>
+                        <p style="color: #a0aec0;">No prediction data available yet. Predictions will be tracked automatically from tweets.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <div class="card">
+                    <h2>🎯 Top Prediction Performers</h2>
+                    <p style="color: #a0aec0; margin-bottom: 20px;">
+                        Ranked by average prediction accuracy (minimum 3 completed predictions)
+                    </p>
+                    <div class="performers-grid">
+            `;
+
+            performers.forEach((performer, index) => {
+                const rank = index + 1;
+                const accuracy = performer.averageAccuracy.toFixed(1);
+                const successRate = (performer.successRate * 100).toFixed(1);
+                
+                html += `
+                    <div class="performer-card">
+                        <div class="performer-rank">#${rank}</div>
+                        <div class="performer-info">
+                            <h3>@${performer.author}</h3>
+                            <div class="performer-stats">
+                                <div class="stat">
+                                    <span class="stat-label">Accuracy:</span>
+                                    <span class="stat-value accuracy-${getAccuracyClass(accuracy)}">${accuracy}%</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-label">Predictions:</span>
+                                    <span class="stat-value">${performer.completedPredictions}/${performer.totalPredictions}</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-label">Success Rate:</span>
+                                    <span class="stat-value">${successRate}%</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn btn-info" onclick="getAuthorAccuracy('${performer.author}')">📊 Details</button>
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                </div>
+            `;
+
+            resultsDiv.innerHTML = html;
+        }
+
+        function getAccuracyClass(accuracy) {
+            const acc = parseFloat(accuracy);
+            if (acc >= 90) return 'excellent';
+            if (acc >= 75) return 'good';
+            if (acc >= 50) return 'fair';
+            if (acc >= 25) return 'poor';
+            return 'very-poor';
+        }
+
+        async function getAuthorAccuracy(username) {
+            try {
+                showLoading(`Loading accuracy details for @${username}...`);
+                
+                const response = await safeApiCall(`/api/admin/prediction-accuracy/${username}`);
+                
+                if (response.success) {
+                    displayAuthorAccuracy(username, response.accuracyMetrics, response.accuracyReport);
+                } else {
+                    showAlert('Failed to load author accuracy: ' + response.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error loading author accuracy:', error);
+                showAlert('Error loading author accuracy: ' + error.message, 'error');
+            }
+        }
+
+        function displayAuthorAccuracy(username, metrics, report) {
+            const resultsDiv = document.getElementById('results');
+            
+            let html = `
+                <div class="card">
+                    <h2>📊 Prediction Accuracy: @${username}</h2>
+                    <div class="accuracy-summary">
+                        <div class="summary-stat">
+                            <span class="summary-label">Average Accuracy:</span>
+                            <span class="summary-value accuracy-${getAccuracyClass(metrics.averageAccuracy)}">${metrics.averageAccuracy}%</span>
+                        </div>
+                        <div class="summary-stat">
+                            <span class="summary-label">Weighted Accuracy:</span>
+                            <span class="summary-value">${metrics.weightedAccuracy}%</span>
+                        </div>
+                        <div class="summary-stat">
+                            <span class="summary-label">Confidence Score:</span>
+                            <span class="summary-value">${metrics.confidence}</span>
+                        </div>
+                        <div class="summary-stat">
+                            <span class="summary-label">Completed Predictions:</span>
+                            <span class="summary-value">${metrics.completedPredictions}/${metrics.totalPredictions}</span>
+                        </div>
+                    </div>
+            `;
+
+            if (report.summary) {
+                html += `
+                    <div class="accuracy-report">
+                        <h3>📋 Summary</h3>
+                        <p>${report.summary}</p>
+                    </div>
+                `;
+            }
+
+            if (report.strengths && report.strengths.length > 0) {
+                html += `
+                    <div class="accuracy-strengths">
+                        <h3>💪 Strengths</h3>
+                        <ul>
+                            ${report.strengths.map(strength => `<li>${strength}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            if (report.weaknesses && report.weaknesses.length > 0) {
+                html += `
+                    <div class="accuracy-weaknesses">
+                        <h3>⚠️ Areas for Improvement</h3>
+                        <ul>
+                            ${report.weaknesses.map(weakness => `<li>${weakness}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            if (report.recommendations && report.recommendations.length > 0) {
+                html += `
+                    <div class="accuracy-recommendations">
+                        <h3>💡 Recommendations</h3>
+                        <ul>
+                            ${report.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            html += `
+                    <div class="accuracy-actions">
+                        <button class="btn btn-primary" onclick="loadTopPerformers()">← Back to Top Performers</button>
+                        <button class="btn btn-info" onclick="getPredictionStatistics()">📈 View Statistics</button>
+                    </div>
+                </div>
+            `;
+
+            resultsDiv.innerHTML = html;
+        }
+
+        async function getPredictionStatistics() {
+            try {
+                showLoading('Loading prediction statistics...');
+                
+                const response = await safeApiCall('/api/admin/prediction-accuracy/statistics');
+                
+                if (response.success) {
+                    displayPredictionStatistics(response.statistics);
+                } else {
+                    showAlert('Failed to load statistics: ' + response.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error loading statistics:', error);
+                showAlert('Error loading statistics: ' + error.message, 'error');
+            }
+        }
+
+        function displayPredictionStatistics(stats) {
+            const resultsDiv = document.getElementById('results');
+            
+            let html = `
+                <div class="card">
+                    <h2>📈 Prediction Statistics</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-number">${stats.totalPredictions}</div>
+                            <div class="stat-label">Total Predictions</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${stats.activePredictions}</div>
+                            <div class="stat-label">Active Predictions</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${stats.completedPredictions}</div>
+                            <div class="stat-label">Completed Predictions</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${stats.uniqueAuthors}</div>
+                            <div class="stat-label">Unique Authors</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${stats.uniqueTokens}</div>
+                            <div class="stat-label">Unique Tokens</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${stats.averageAccuracy.toFixed(1)}%</div>
+                            <div class="stat-label">Overall Average Accuracy</div>
+                        </div>
+                    </div>
+            `;
+
+            if (stats.topPerformers && stats.topPerformers.length > 0) {
+                html += `
+                    <div class="top-performers-section">
+                        <h3>🏆 Top 5 Performers</h3>
+                        <div class="performers-list">
+                `;
+                
+                stats.topPerformers.forEach((performer, index) => {
+                    html += `
+                        <div class="performer-item">
+                            <span class="performer-rank">#${index + 1}</span>
+                            <span class="performer-name">@${performer.author}</span>
+                            <span class="performer-accuracy">${performer.averageAccuracy.toFixed(1)}%</span>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += `
+                    <div class="statistics-actions">
+                        <button class="btn btn-primary" onclick="loadTopPerformers()">🎯 View All Performers</button>
+                        <button class="btn btn-info" onclick="getActivePredictions()">⏰ Active Predictions</button>
+                    </div>
+                </div>
+            `;
+
+            resultsDiv.innerHTML = html;
+        }
+
+        async function getActivePredictions() {
+            try {
+                showLoading('Loading active predictions...');
+                
+                const response = await safeApiCall('/api/admin/prediction-accuracy/active');
+                
+                if (response.success) {
+                    displayActivePredictions(response.activePredictions);
+                } else {
+                    showAlert('Failed to load active predictions: ' + response.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error loading active predictions:', error);
+                showAlert('Error loading active predictions: ' + error.message, 'error');
+            }
+        }
+
+        function displayActivePredictions(predictions) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (!predictions || predictions.length === 0) {
+                resultsDiv.innerHTML = `
+                    <div class="card">
+                        <h2>⏰ Active Predictions</h2>
+                        <p style="color: #a0aec0;">No active predictions currently being tracked.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <div class="card">
+                    <h2>⏰ Active Predictions (${predictions.length})</h2>
+                    <p style="color: #a0aec0; margin-bottom: 20px;">
+                        Predictions currently being tracked for accuracy
+                    </p>
+                    <div class="predictions-list">
+            `;
+
+            predictions.forEach(prediction => {
+                const createdDate = new Date(prediction.createdAt).toLocaleDateString();
+                const timeframe = prediction.timeframe.days ? `${prediction.timeframe.days} days` : prediction.timeframe.description;
+                
+                html += `
+                    <div class="prediction-item">
+                        <div class="prediction-header">
+                            <span class="prediction-token">$${prediction.token}</span>
+                            <span class="prediction-type">${prediction.predictionType}</span>
+                            <span class="prediction-confidence">${(prediction.confidence * 100).toFixed(0)}% confidence</span>
+                        </div>
+                        <div class="prediction-details">
+                            <div class="prediction-target">
+                                <strong>Target:</strong> ${prediction.predictedValue.value} 
+                                ${prediction.predictedValue.type === 'multiplier' ? 'x' : 
+                                  prediction.predictedValue.type === 'percentage' ? '%' : ''}
+                            </div>
+                            <div class="prediction-timeframe">
+                                <strong>Timeframe:</strong> ${timeframe}
+                            </div>
+                            <div class="prediction-author">
+                                <strong>Author:</strong> @${prediction.metadata.author.username}
+                            </div>
+                            <div class="prediction-date">
+                                <strong>Created:</strong> ${createdDate}
+                            </div>
+                        </div>
+                        <div class="prediction-context">
+                            <strong>Context:</strong> ${prediction.context.substring(0, 100)}...
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                    <div class="predictions-actions">
+                        <button class="btn btn-primary" onclick="getPredictionStatistics()">📈 Back to Statistics</button>
+                        <button class="btn btn-info" onclick="getCompletedPredictions()">✅ Completed Predictions</button>
+                    </div>
+                </div>
+            `;
+
+            resultsDiv.innerHTML = html;
+        }
+
+        async function getCompletedPredictions() {
+            try {
+                showLoading('Loading completed predictions...');
+                
+                const response = await safeApiCall('/api/admin/prediction-accuracy/completed?limit=20');
+                
+                if (response.success) {
+                    displayCompletedPredictions(response.completedPredictions);
+                } else {
+                    showAlert('Failed to load completed predictions: ' + response.error, 'error');
+                }
+            } catch (error) {
+                console.error('Error loading completed predictions:', error);
+                showAlert('Error loading completed predictions: ' + error.message, 'error');
+            }
+        }
+
+        function displayCompletedPredictions(predictions) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (!predictions || predictions.length === 0) {
+                resultsDiv.innerHTML = `
+                    <div class="card">
+                        <h2>✅ Completed Predictions</h2>
+                        <p style="color: #a0aec0;">No completed predictions available yet.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <div class="card">
+                    <h2>✅ Completed Predictions (${predictions.length})</h2>
+                    <p style="color: #a0aec0; margin-bottom: 20px;">
+                        Predictions that have reached their timeframe and been evaluated
+                    </p>
+                    <div class="predictions-list">
+            `;
+
+            predictions.forEach(prediction => {
+                const completedDate = new Date(prediction.completedAt).toLocaleDateString();
+                const accuracy = prediction.finalAccuracy ? prediction.finalAccuracy.toFixed(1) : 'N/A';
+                const accuracyClass = prediction.finalAccuracy ? getAccuracyClass(accuracy) : 'unknown';
+                
+                html += `
+                    <div class="prediction-item completed">
+                        <div class="prediction-header">
+                            <span class="prediction-token">$${prediction.token}</span>
+                            <span class="prediction-type">${prediction.predictionType}</span>
+                            <span class="prediction-accuracy accuracy-${accuracyClass}">${accuracy}% accuracy</span>
+                        </div>
+                        <div class="prediction-details">
+                            <div class="prediction-target">
+                                <strong>Target:</strong> ${prediction.predictedValue.value} 
+                                ${prediction.predictedValue.type === 'multiplier' ? 'x' : 
+                                  prediction.predictedValue.type === 'percentage' ? '%' : ''}
+                            </div>
+                            <div class="prediction-author">
+                                <strong>Author:</strong> @${prediction.metadata.author.username}
+                            </div>
+                            <div class="prediction-date">
+                                <strong>Completed:</strong> ${completedDate}
+                            </div>
+                        </div>
+                        <div class="prediction-context">
+                            <strong>Context:</strong> ${prediction.context.substring(0, 100)}...
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                    <div class="predictions-actions">
+                        <button class="btn btn-primary" onclick="getActivePredictions()">⏰ Back to Active</button>
+                        <button class="btn btn-info" onclick="loadTopPerformers()">🎯 Top Performers</button>
+                    </div>
+                </div>
+            `;
+
+            resultsDiv.innerHTML = html;
         }
 
         function getTopTopics() {

@@ -1,5 +1,8 @@
 import fs from 'fs/promises';
 import path from 'path';
+import PredictionExtractionService from './PredictionExtractionService.js';
+import PredictionTrackingDatabase from './PredictionTrackingDatabase.js';
+import PriceMonitoringService from './PriceMonitoringService.js';
 
 /**
  * Crypto Tracking Database
@@ -28,6 +31,11 @@ class CryptoTrackingDatabase {
     this.accountsFile = path.join(this.storageDir, 'accounts.json');
     this.trendsFile = path.join(this.storageDir, 'sentiment-trends.json');
     
+    // Initialize prediction tracking services
+    this.predictionExtractor = new PredictionExtractionService();
+    this.predictionDatabase = new PredictionTrackingDatabase();
+    this.priceMonitor = new PriceMonitoringService();
+    
     this.initializeDatabase();
   }
 
@@ -48,6 +56,21 @@ class CryptoTrackingDatabase {
     try {
       const intelligenceFeatures = await this.extractIntelligenceFeatures(tweetData);
       
+      // 🎯 Extract predictions from tweet
+      const predictions = this.predictionExtractor.extractPredictions(tweetData.text, {
+        tweetId: tweetData.id,
+        author: tweetData.author,
+        timestamp: tweetData.timestamp
+      });
+
+      // Store predictions in prediction database
+      if (predictions && predictions.length > 0) {
+        for (const prediction of predictions) {
+          await this.predictionDatabase.storePrediction(prediction);
+        }
+        console.log(`🎯 [CRYPTO DB] Extracted ${predictions.length} predictions from tweet`);
+      }
+      
       const trackedTweet = {
         id: `tracked_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         tweetId: tweetData.id,
@@ -65,7 +88,7 @@ class CryptoTrackingDatabase {
         sentiment: intelligenceFeatures.sentiment || 'neutral',
         confidence: intelligenceFeatures.confidence || 0.5,
         timeframe: intelligenceFeatures.timeframe || 'unknown',
-        predictions: intelligenceFeatures.predictions || [],
+        predictions: predictions || [], // Store extracted predictions
         cryptoKeywords: intelligenceFeatures.cryptoKeywords || [],
         
         // 📊 Analysis features
