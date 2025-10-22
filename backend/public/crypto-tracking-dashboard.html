@@ -391,7 +391,12 @@
                 <!-- Tracked Accounts -->
                 <div id="trackedAccounts" style="display: none;">
                     <h3 style="color: #e2e8f0; margin-bottom: 15px;">📋 Tracked Accounts</h3>
-                    <div id="accountsList"></div>
+                    <div id="accountsList" style="max-height: 300px; overflow-y: auto; border: 1px solid #4a5568; border-radius: 8px; padding: 10px; background: rgba(45, 55, 72, 0.3);">
+                        <!-- Accounts will be populated here with scroll -->
+                    </div>
+                    <div style="margin-top: 10px; font-size: 0.9rem; color: #a0aec0;">
+                        💡 Scroll to see all accounts (showing first 5)
+                    </div>
                 </div>
             </div>
 
@@ -771,7 +776,10 @@
             container.style.display = 'block';
             
             let html = '';
-            accounts.forEach(account => {
+            const maxVisible = 5;
+            const totalAccounts = accounts.length;
+            
+            accounts.forEach((account, index) => {
                 html += `
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px; margin-bottom: 8px;">
                         <div>
@@ -784,6 +792,15 @@
                     </div>
                 `;
             });
+            
+            // Add scroll indicator if there are more than 5 accounts
+            if (totalAccounts > maxVisible) {
+                html += `
+                    <div style="text-align: center; padding: 10px; color: #a0aec0; font-size: 0.9rem; border-top: 1px solid #4a5568; margin-top: 10px;">
+                        📜 ${totalAccounts - maxVisible} more accounts below (scroll to see)
+                    </div>
+                `;
+            }
             
             accountsList.innerHTML = html;
         }
@@ -1111,17 +1128,45 @@
             loadTrackedAccounts();
         }
 
-        // Placeholder functions for future implementation
+        // Advanced Analytics Functions (Coming Soon)
         function getPredictionAccuracy() {
-            showAlert('🎯 Prediction accuracy analysis coming soon!', 'info');
+            showAlert(`
+🎯 <strong>Prediction Accuracy Analysis</strong><br><br>
+This feature will analyze how accurate our tracked accounts' predictions have been:<br>
+• Track price predictions vs actual market movements<br>
+• Calculate success rates for each influencer<br>
+• Identify which accounts have the best prediction accuracy<br>
+• Show confidence intervals and prediction timelines<br>
+• Generate accuracy scores and rankings<br><br>
+<em>Coming soon: Advanced ML-based prediction tracking</em>
+            `, 'info');
         }
 
         function getTopTopics() {
-            showAlert('🔥 Top topics analysis coming soon!', 'info');
+            showAlert(`
+🔥 <strong>Top Topics Analysis</strong><br><br>
+This feature will identify trending topics across all tracked accounts:<br>
+• Analyze most discussed crypto topics over time<br>
+• Track topic sentiment and engagement levels<br>
+• Identify emerging trends before they go mainstream<br>
+• Show topic correlation with price movements<br>
+• Generate topic heat maps and trend charts<br><br>
+<em>Coming soon: Real-time topic trend analysis</em>
+            `, 'info');
         }
 
         function getInfluenceRanking() {
-            showAlert('⭐ Influence ranking coming soon!', 'info');
+            showAlert(`
+⭐ <strong>Influence Ranking System</strong><br><br>
+This feature will rank tracked accounts by their influence:<br>
+• Measure impact on crypto market sentiment<br>
+• Track follower engagement and reach<br>
+• Analyze correlation between tweets and price movements<br>
+• Calculate influence scores based on multiple factors<br>
+• Show influence trends over time<br>
+• Identify rising and falling influencers<br><br>
+<em>Coming soon: Advanced influence scoring algorithm</em>
+            `, 'info');
         }
     </script>
 </body>
