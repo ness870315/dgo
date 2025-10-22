@@ -255,6 +255,10 @@ class EnhancedLSTDataSystem:
             
         except Exception as e:
             logger.error(f"❌ Failed to fetch enhanced LST data: {e}")
+            logger.error(f"❌ Exception type: {type(e).__name__}")
+            logger.error(f"❌ Exception details: {str(e)}")
+            import traceback
+            logger.error(f"❌ Traceback: {traceback.format_exc()}")
             return self.get_fallback_lst_data()
     
     def combine_lst_data(self, sanctum_lsts: List[Dict], compass_lsts: List[Dict], 
@@ -319,6 +323,12 @@ class EnhancedLSTDataSystem:
                 logger.warning(f"   ⚠️ Error processing LST {symbol}: {e}")
         
         logger.info(f"   LSTs with APY/TVL data processed: {len(lst_map)}")
+        
+        # Log some sample LSTs for debugging
+        if lst_map:
+            sample_lsts = list(lst_map.values())[:3]
+            for lst in sample_lsts:
+                logger.info(f"   Sample LST: {lst['symbol']} - APR: {lst['apr']:.2f}%, TVL: {lst['tvlSOL']:.0f} SOL")
         
         # Process Compass LSTs (add any missing ones)
         logger.info('   Processing Compass LSTs...')
