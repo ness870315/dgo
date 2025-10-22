@@ -441,6 +441,12 @@ class EnhancedLSTDataSystem:
         
         logger.info(f"📊 Eligible LSTs: {len(eligible_lsts)}/{len(lst_data)}")
         
+        # Log top 10 eligible LSTs for debugging
+        if eligible_lsts:
+            logger.info("📊 Top 10 Eligible LSTs:")
+            for i, lst in enumerate(eligible_lsts[:10]):
+                logger.info(f"   {i+1}. {lst['symbol']}: {lst['apr']:.2f}% APR, {lst['tvlSOL']:.0f} SOL TVL")
+        
         # Sort by expected yield (APR + MEV bonus)
         def get_yield(lst):
             return lst['apr'] + (0.1 if lst['mevEnabled'] else 0)
@@ -449,11 +455,16 @@ class EnhancedLSTDataSystem:
         
         # Generate strategy
         if strategy_type == 'basic':
-            selected_lsts = sorted_lsts[:3]
-            weights = [0.5, 0.3, 0.2]
+            selected_lsts = sorted_lsts[:2]  # Only 2 LSTs for basic strategy
+            weights = [0.6, 0.4]  # 60% and 40% allocation
         else:  # advanced
             selected_lsts = sorted_lsts[:8]
             weights = [0.25, 0.2, 0.15, 0.12, 0.1, 0.08, 0.06, 0.04]
+        
+        # Log selected LSTs
+        logger.info(f"🎯 Selected LSTs for {strategy_type} strategy:")
+        for i, lst in enumerate(selected_lsts):
+            logger.info(f"   {i+1}. {lst['symbol']}: {lst['apr']:.2f}% APR, {weights[i]:.1f} weight, {lst['tvlSOL']:.0f} SOL TVL")
         
         # Calculate strategy metrics
         expected_yield = sum(
