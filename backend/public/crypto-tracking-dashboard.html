@@ -2062,9 +2062,6 @@ This feature analyzes how accurate our tracked accounts' predictions have been:<
                 
                 const response = await safeApiCall('/api/admin/top-topics/analyze', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
                     body: JSON.stringify({
                         timeframe: '7d',
                         limit: 20
