@@ -242,7 +242,7 @@ class TwitterAPIioWebSocketService {
     
     // Check if the rule value matches current tracked accounts
     const expectedValue = trackedAccounts.length > 0 
-      ? `from:${trackedAccounts.join(' OR from:')}` 
+      ? trackedAccounts.map(acc => `from:${acc}`).join(' OR ')
       : '';
     
     return cryptoRule.value !== expectedValue;
