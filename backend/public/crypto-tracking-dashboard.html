@@ -1104,7 +1104,6 @@
                         <input type="range" id="sentimentDaySlider" min="1" max="30" value="7" class="slider">
                         <span id="sentimentDayValue">7 days</span>
                     </div>
-                    <button class="btn btn-secondary" onclick="refreshSentimentTrends()">🔄 Refresh</button>
                 </div>
                 <div id="sentimentTrendsContainer">
                     <!-- Sentiment chart and table will be loaded here -->
@@ -2595,6 +2594,9 @@ This feature analyzes how accurate our tracked accounts' predictions have been:<
             loadTrendingTopics();
         }
 
+        // Global chart instance to prevent re-rendering
+        let sentimentChartInstance = null;
+
         // Sentiment Trends Functions
         async function loadSentimentTrends() {
             try {
@@ -2642,13 +2644,107 @@ This feature analyzes how accurate our tracked accounts' predictions have been:<
             html += '</tbody></table></div>';
             container.innerHTML = html;
             
+            // Destroy existing chart before creating new one
+            if (sentimentChartInstance) {
+                sentimentChartInstance.destroy();
+                sentimentChartInstance = null;
+            }
+            
             // Initialize chart
             createSentimentChart(trends, dates);
         }
 
-        function refreshSentimentTrends() {
-            loadSentimentTrends();
+        function createSentimentChart(trends, dates) {
+            const ctx = document.getElementById('sentimentChart');
+            if (!ctx) return;
+            
+            // Prepare data for Chart.js
+            const bullishData = dates.map(date => trends[date].bullish);
+            const bearishData = dates.map(date => trends[date].bearish);
+            const neutralData = dates.map(date => trends[date].neutral);
+            
+            // Format dates for display
+            const formattedDates = dates.map(date => {
+                const d = new Date(date);
+                return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            });
+            
+            sentimentChartInstance = new Chart(ctx.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: formattedDates,
+                    datasets: [
+                        {
+                            label: 'Bullish',
+                            data: bullishData,
+                            borderColor: '#4caf50',
+                            backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                            tension: 0.4,
+                            fill: false
+                        },
+                        {
+                            label: 'Bearish',
+                            data: bearishData,
+                            borderColor: '#f44336',
+                            backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                            tension: 0.4,
+                            fill: false
+                        },
+                        {
+                            label: 'Neutral',
+                            data: neutralData,
+                            borderColor: '#9e9e9e',
+                            backgroundColor: 'rgba(158, 158, 158, 0.1)',
+                            tension: 0.4,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#e2e8f0',
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                color: '#a0aec0',
+                                font: {
+                                    size: 10
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(160, 174, 192, 0.1)'
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                color: '#a0aec0',
+                                font: {
+                                    size: 10
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(160, 174, 192, 0.1)'
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            });
         }
+
 
         // Close modal when clicking outside
         window.onclick = function(event) {
