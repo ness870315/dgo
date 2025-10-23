@@ -316,7 +316,8 @@ class TwitterMentionService {
           likes: wsTweet.likeCount || 0,
           retweets: wsTweet.retweetCount || 0,
           quoteTweets: wsTweet.quoteCount || 0,
-          replyCount: wsTweet.replyCount || 0
+          replies: wsTweet.replyCount || 0,  // Changed from replyCount to replies
+          replyCount: wsTweet.replyCount || 0  // Keep both for compatibility
         },
         storedAt: new Date().toISOString()
       };

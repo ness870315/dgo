@@ -386,6 +386,21 @@ Example: ["bitcoin", "etf", "bullish", "institutional"]
               (tweet.engagement.quoteTweets || 0) + 
               (tweet.engagement.replies || tweet.engagement.replyCount || 0) // Support both 'replies' and 'replyCount'
             : 0;
+          
+          // Debug logging for engagement calculation
+          if (engagement > 0) {
+            console.log(`🔍 [TOPIC ANALYSIS] Tweet engagement:`, {
+              tweetId: tweet.tweetId,
+              author: tweet.author?.username,
+              likes: tweet.engagement?.likes || 0,
+              retweets: tweet.engagement?.retweets || 0,
+              quoteTweets: tweet.engagement?.quoteTweets || 0,
+              replies: tweet.engagement?.replies || 0,
+              replyCount: tweet.engagement?.replyCount || 0,
+              totalEngagement: engagement
+            });
+          }
+          
           topicEngagement.set(topicName, (topicEngagement.get(topicName) || 0) + engagement);
           
           // Track authors
