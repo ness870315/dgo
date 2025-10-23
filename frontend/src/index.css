@@ -9,6 +9,15 @@
   overflow: hidden !important;
   width: 100% !important;
   max-width: 100% !important;
+  height: 200px !important; /* Force height to half */
+  max-height: 200px !important;
+}
+
+/* Ensure Jupiter container respects height limit */
+.jupiter-container {
+  height: 200px !important;
+  max-height: 200px !important;
+  overflow: hidden !important;
 }
 
 /* Make Jupiter Plugin wider/slimmer */
@@ -32,7 +41,24 @@
 .jupiter-integrated .jupiter-logo,
 .jupiter-integrated .powered-by-jupiter,
 .jupiter-integrated [class*="powered"],
-.jupiter-integrated [class*="jupiter-branding"] {
+.jupiter-integrated [class*="jupiter-branding"],
+.jupiter-integrated [data-testid="powered-by-jupiter"],
+.jupiter-integrated .jupiter-powered,
+.jupiter-integrated .powered-by,
+.jupiter-integrated [class*="jupiter-logo"],
+.jupiter-integrated img[src*="jupiter"],
+.jupiter-integrated img[alt*="Jupiter"],
+.jupiter-integrated img[alt*="jupiter"] {
+  display: none !important;
+}
+
+/* Hide any text containing "Powered by Jupiter" */
+.jupiter-integrated *:not(script):not(style) {
+  font-family: inherit !important;
+}
+
+.jupiter-integrated *:contains("Powered by Jupiter"),
+.jupiter-integrated *:contains("powered by jupiter") {
   display: none !important;
 }
 

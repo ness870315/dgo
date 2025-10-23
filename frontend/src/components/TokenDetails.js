@@ -705,13 +705,13 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
             },
             containerStyles: {
               width: "100%",
-              height: "400px",
+              height: "200px", // Reduced from 400px to 200px (half height)
               borderRadius: "12px",
               backgroundColor: "transparent",
               maxWidth: "none"
             },
             branding: {
-              logoUri: "", // Remove Jupiter logo
+              logoUri: "/dgo.png", // Use Degen Oracle logo
               name: "Degen Oracle" // Replace with our branding
             },
             onSuccess: ({ txid, swapResult, quoteResponseMeta }) => {
@@ -1271,7 +1271,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
               <h3 className="text-lg font-bold mb-3 text-white flex items-center">
                 🚀 Swap {token?.symbol || 'Token'}
               </h3>
-              <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
+              <div className="bg-gray-900 rounded-lg p-4 border border-gray-700 jupiter-container">
                 <div id="jupiter-swap-container" className="jupiter-integrated" />
               </div>
             </div>
