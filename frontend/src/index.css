@@ -36,6 +36,35 @@
   --jupiter-plugin-module: 16, 23, 31; /* Module backgrounds */
 }
 
+/* Custom Jupiter Widget Icon */
+.jupiter-widget-button,
+.jupiter-widget-trigger,
+.jupiter-widget-icon,
+[class*="jupiter-widget"] [class*="icon"],
+[class*="jupiter-widget"] img,
+[class*="jupiter-widget"] svg {
+  background-image: url('/dgo.png') !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  width: 48px !important;
+  height: 48px !important;
+}
+
+/* Hide default Jupiter icon and replace with our logo */
+.jupiter-widget-button::before,
+.jupiter-widget-trigger::before,
+[class*="jupiter-widget"] [class*="icon"]::before {
+  content: '' !important;
+  background-image: url('/dgo.png') !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  width: 48px !important;
+  height: 48px !important;
+  display: block !important;
+}
+
 /* Hide Jupiter branding elements */
 .jupiter-integrated [data-testid="jupiter-logo"],
 .jupiter-integrated .jupiter-logo,
