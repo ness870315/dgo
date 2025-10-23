@@ -343,6 +343,7 @@ class EnhancedHybridPriceService extends EventEmitter {
             } else {
                 // First time seeing this token - initialize reserves (no swap detection)
                 console.log(`🆕 [EnhancedHybridPriceService] Initializing reserves for ${tokenInfo.symbol} (${tokenAddress})`);
+                this.realTimeUpdates.set(tokenAddress, poolData); // ✅ CRITICAL FIX: Set initial reserves!
             }
             
             // Update price data
