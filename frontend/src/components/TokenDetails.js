@@ -701,7 +701,9 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
             formProps: {
               initialInputMint: "So11111111111111111111111111111111111111112", // SOL
               initialOutputMint: token.contractAddress, // Current token
-              swapMode: "ExactInOrOut"
+              swapMode: "ExactInOrOut",
+              referralAccount: "CwkvssRLmaxVUoo6ywxJDtWS4sNEizUkhbJXijByynEi", // Your referral account
+              referralFee: 100 // 100 basis points = 1% fee
             },
             containerStyles: {
               width: "100%",
