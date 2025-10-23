@@ -73,10 +73,10 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             console.log(`💰 [EnhancedHybridPriceService] SOL Price: $${this.solPriceUSD}`);
             
-            // 🚀 NEW: Automatically start real-time monitoring after initialization
+            // 🚀 NEW: Automatically start SIMPLIFIED single-token monitoring after initialization
             if (this.grpcClient && this.poolAddresses.size > 0) {
-                console.log('🚀 [EnhancedHybridPriceService] Auto-starting real-time monitoring...');
-                await this.startRealTimeMonitoring();
+                console.log('🚀 [EnhancedHybridPriceService] Auto-starting SIMPLIFIED single-token monitoring...');
+                await this.startRealTimeMonitoring(); // This will call the simplified version
             }
             
             console.log('✅ [EnhancedHybridPriceService] Async initialization complete');
