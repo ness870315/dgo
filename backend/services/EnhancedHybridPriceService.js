@@ -76,13 +76,28 @@ class EnhancedHybridPriceService extends EventEmitter {
         try {
             console.log('🔌 [EnhancedHybridPriceService] Initializing Constant K gRPC client...');
             
-            // Dynamic import for Yellowstone gRPC
+            // Try different import approaches for production compatibility
             console.log('📦 [EnhancedHybridPriceService] Loading @triton-one/yellowstone-grpc...');
             
-            const YellowstoneGrpc = await import('@triton-one/yellowstone-grpc');
-            const Client = YellowstoneGrpc.default || YellowstoneGrpc;
-            const CommitmentLevel = YellowstoneGrpc.CommitmentLevel;
-            console.log('✅ [EnhancedHybridPriceService] Dynamic import successful');
+            let Client, CommitmentLevel;
+            
+            try {
+                // Method 1: Try using createRequire for CommonJS compatibility
+                const { createRequire } = await import('module');
+                const require = createRequire(import.meta.url);
+                const YellowstoneGrpc = require('@triton-one/yellowstone-grpc');
+                Client = YellowstoneGrpc.default || YellowstoneGrpc;
+                CommitmentLevel = YellowstoneGrpc.CommitmentLevel;
+                console.log('✅ [EnhancedHybridPriceService] createRequire import successful');
+            } catch (requireError) {
+                console.log('⚠️ [EnhancedHybridPriceService] createRequire failed, trying dynamic import...');
+                
+                // Method 2: Dynamic import
+                const YellowstoneGrpc = await import('@triton-one/yellowstone-grpc');
+                Client = YellowstoneGrpc.default || YellowstoneGrpc;
+                CommitmentLevel = YellowstoneGrpc.CommitmentLevel;
+                console.log('✅ [EnhancedHybridPriceService] Dynamic import successful');
+            }
             
             console.log('🔌 [EnhancedHybridPriceService] Creating gRPC client...');
             this.grpcClient = new Client(CONSTANT_K_GRPC_ENDPOINT, CONSTANT_K_GRPC_TOKEN);
