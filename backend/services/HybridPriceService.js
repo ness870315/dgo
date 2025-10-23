@@ -21,7 +21,8 @@ class HybridPriceService extends EventEmitter {
         super();
         this.priceCache = new Map();
         this.lastUpdate = new Map();
-        this.updateInterval = 10000; // 10 seconds
+        this.updateInterval = 10000; // 10 seconds (for API requests)
+        this.backgroundUpdateInterval = 5000; // 5 seconds (for WebSocket broadcasts)
         this.requestDelay = 1000; // 1 second delay between requests
         this.solPriceUSD = 0;
         this.lastSolPriceUpdate = 0;
@@ -466,16 +467,25 @@ class HybridPriceService extends EventEmitter {
             // Update all subscribed tokens
             for (const tokenAddress of this.subscribedTokens) {
                 try {
-                    // Check if we need to update (respect cache interval)
-                    const cached = this.priceCache.get(tokenAddress);
-                    const now = Date.now();
+                    // 🚀 ALWAYS fetch fresh data for background updates (ignore cache)
+                    // This ensures real-time WebSocket broadcasts
+                    console.log(`🔄 [HybridPriceService] Background update for ${tokenAddress} (ignoring cache)`);
                     
-                    if (cached && (now - this.lastUpdate.get(tokenAddress)) < this.updateInterval) {
-                        continue; // Skip if still fresh
+                    // Force fresh data fetch by bypassing cache check
+                    const freshData = await this.fetchFreshPriceData(tokenAddress);
+                    
+                    if (freshData) {
+                        // Update cache with fresh data
+                        this.priceCache.set(tokenAddress, freshData);
+                        this.lastUpdate.set(tokenAddress, Date.now());
+                        
+                        // Always broadcast via WebSocket for background updates
+                        if (this.webSocketServer) {
+                            this.broadcastPriceUpdate(tokenAddress, freshData);
+                        }
+                        
+                        console.log(`📡 [HybridPriceService] Background broadcast for ${tokenAddress}: $${freshData.priceUsd}`);
                     }
-
-                    // Fetch fresh data (this will automatically broadcast via WebSocket)
-                    await this.getTokenPriceData(tokenAddress);
                     
                     // Add small delay between requests to respect rate limits
                     await new Promise(resolve => setTimeout(resolve, this.requestDelay));
@@ -484,7 +494,7 @@ class HybridPriceService extends EventEmitter {
                     console.error(`❌ [HybridPriceService] Background update failed for ${tokenAddress}:`, error.message);
                 }
             }
-        }, this.updateInterval);
+        }, this.backgroundUpdateInterval);
 
         console.log('✅ [HybridPriceService] Background price updates started');
     }
