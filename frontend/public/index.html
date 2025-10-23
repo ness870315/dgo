@@ -32,45 +32,6 @@
     <!-- Jupiter Plugin -->
     <script src="https://plugin.jup.ag/plugin-v1.js" defer></script>
     
-    <!-- 🚀 NEW: Mobile Wallet Detection Script -->
-    <script>
-      // Mobile wallet detection and setup
-      (function() {
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
-                     window.navigator.standalone === true;
-        
-        if (isMobile || isPWA) {
-          console.log('📱 Mobile/PWA detected - setting up wallet detection');
-          
-          // Wait for wallets to load
-          window.addEventListener('load', function() {
-            setTimeout(function() {
-              // Check for mobile wallets
-              const wallets = {
-                phantom: window.solana?.isPhantom,
-                solflare: window.solflare,
-                backpack: window.backpack,
-                coinbase: window.coinbaseSolana,
-                trust: window.trust,
-                exodus: window.exodus
-              };
-              
-              const availableWallets = Object.entries(wallets)
-                .filter(([name, wallet]) => wallet)
-                .map(([name]) => name);
-              
-              console.log('💰 Mobile wallets detected:', availableWallets);
-              
-              // Set global flag for Jupiter widget
-              window.mobileWalletsAvailable = availableWallets.length > 0;
-              window.isMobileEnvironment = true;
-            }, 1000);
-          });
-        }
-      })();
-    </script>
-    
     <!-- iOS Splash Screens -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <link rel="apple-touch-startup-image" href="%PUBLIC_URL%/splash-iphone.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)" />

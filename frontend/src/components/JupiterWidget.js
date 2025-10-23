@@ -92,42 +92,15 @@ const JupiterWidget = ({ selectedToken }) => {
           // Wait a bit for the DOM to be ready
           await new Promise(resolve => setTimeout(resolve, 100));
           
-          // 🚀 NEW: Mobile wallet detection and setup
-          const detectMobileWallet = () => {
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            const isPWA = window.matchMedia('(display-mode: standalone)').matches || 
-                         window.navigator.standalone === true;
-            
-            console.log('📱 Mobile detection:', { isMobile, isPWA });
-            
-            if (isMobile || isPWA) {
-              // Check for mobile wallet availability
-              const mobileWallets = {
-                phantom: window.solana?.isPhantom,
-                solflare: window.solflare,
-                backpack: window.backpack,
-                coinbase: window.coinbaseSolana,
-                trust: window.trust,
-                exodus: window.exodus
-              };
-              
-              const availableWallets = Object.entries(mobileWallets)
-                .filter(([name, wallet]) => wallet)
-                .map(([name]) => name);
-              
-              console.log('💰 Available mobile wallets:', availableWallets);
-              return { isMobile: true, availableWallets };
-            }
-            
-            return { isMobile: false, availableWallets: [] };
-          };
-          
-          const mobileInfo = detectMobileWallet();
           
           // Close existing widget if it exists
           if (window.Jupiter.close) {
             window.Jupiter.close();
           }
+          
+          // 🚀 NEW: Get mobile wallets from Jupiter Mobile Adapter
+          const mobileWallets = window.jupiterMobileWallets || [];
+          console.log('📱 Available mobile wallets for Jupiter:', mobileWallets.map(w => w.name));
           
           window.Jupiter.init({
             displayMode: "widget",
@@ -147,29 +120,8 @@ const JupiterWidget = ({ selectedToken }) => {
               logoUri: "/dgo.png", // Use Degen Oracle logo
               name: "Degen Oracle" // Replace with our branding
             },
-            // 🚀 NEW: Mobile wallet configuration
-            wallet: {
-              // Enable mobile wallet detection
-              enableMobileWalletAdapter: true,
-              // Support for mobile wallets
-              supportedWallets: [
-                'phantom',
-                'solflare',
-                'backpack',
-                'coinbase',
-                'trust',
-                'exodus'
-              ],
-              // Mobile-specific configuration
-              mobileWalletAdapter: {
-                // Enable deep linking for mobile wallets
-                enableDeepLink: true,
-                // Support for wallet connect
-                enableWalletConnect: true,
-                // Mobile browser detection
-                detectMobileBrowser: true
-              }
-            },
+            // 🚀 NEW: Pass mobile wallets to Jupiter widget
+            wallets: mobileWallets,
             onSuccess: ({ txid, swapResult, quoteResponseMeta }) => {
               console.log("✅ Jupiter swap successful:", txid);
               // You can add success notification here
@@ -178,21 +130,14 @@ const JupiterWidget = ({ selectedToken }) => {
               console.error("❌ Jupiter swap failed:", error);
               // You can add error notification here
             },
-            // 🚀 NEW: Mobile wallet connection handlers
             onWalletConnect: (wallet) => {
-              console.log("🔗 Wallet connected:", wallet);
-              if (mobileInfo.isMobile) {
-                console.log("📱 Mobile wallet connected successfully");
-              }
+              console.log("🔗 Wallet connected via Jupiter Mobile Adapter:", wallet);
             },
             onWalletDisconnect: () => {
               console.log("🔌 Wallet disconnected");
             },
             onWalletError: (error) => {
               console.error("❌ Wallet error:", error);
-              if (mobileInfo.isMobile) {
-                console.log("📱 Mobile wallet error - check if wallet app is installed");
-              }
             }
           });
           
