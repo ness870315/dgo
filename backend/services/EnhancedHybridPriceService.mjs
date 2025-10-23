@@ -340,6 +340,9 @@ class EnhancedHybridPriceService extends EventEmitter {
                         console.log(`🔄 [Real-time] ${swap.type} ${tokenInfo.symbol}: $${swap.usdAmount.toFixed(2)} @ $${swap.priceUSD.toFixed(6)}`);
                     }
                 }
+            } else {
+                // First time seeing this token - initialize reserves (no swap detection)
+                console.log(`🆕 [EnhancedHybridPriceService] Initializing reserves for ${tokenInfo.symbol} (${tokenAddress})`);
             }
             
             // Update price data
