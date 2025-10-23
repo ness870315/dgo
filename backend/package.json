@@ -3,14 +3,13 @@
   "version": "1.0.0",
   "description": "DeGen Oracle Backend API",
   "main": "enhancedBackend.js",
-  "type": "module",
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
   },
   "scripts": {
     "build": "echo 'Backend build completed'",
-    "start": "node start-server.mjs",
+    "start": "node start-server.js",
     "dev": "node --watch simple-server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
