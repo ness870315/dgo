@@ -43,7 +43,7 @@
 [class*="jupiter-widget"] [class*="icon"],
 [class*="jupiter-widget"] img,
 [class*="jupiter-widget"] svg {
-  background-image: url('./dgo.png') !important;
+  background-image: url('/dgo.png') !important;
   background-size: contain !important;
   background-repeat: no-repeat !important;
   background-position: center !important;
@@ -75,7 +75,7 @@
 .jupiter-widget-trigger::before,
 [class*="jupiter-widget"] [class*="icon"]::before {
   content: '' !important;
-  background-image: url('./dgo.png') !important;
+  background-image: url('/dgo.png') !important;
   background-size: contain !important;
   background-repeat: no-repeat !important;
   background-position: center !important;
