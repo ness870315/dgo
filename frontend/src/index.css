@@ -36,7 +36,8 @@
   --jupiter-plugin-module: 16, 23, 31; /* Module backgrounds */
 }
 
-/* Custom Jupiter Widget Icon */
+/* Custom Jupiter Widget Icon - Temporarily disabled for build compatibility */
+/*
 .jupiter-widget-button,
 .jupiter-widget-trigger,
 .jupiter-widget-icon,
@@ -50,6 +51,7 @@
   width: 48px !important;
   height: 48px !important;
 }
+*/
 
 /* Ensure Jupiter widget is always on top of modals */
 .jupiter-widget-button,
@@ -70,7 +72,8 @@
   z-index: 10002 !important;
 }
 
-/* Hide default Jupiter icon and replace with our logo */
+/* Hide default Jupiter icon and replace with our logo - Temporarily disabled for build compatibility */
+/*
 .jupiter-widget-button::before,
 .jupiter-widget-trigger::before,
 [class*="jupiter-widget"] [class*="icon"]::before {
@@ -83,6 +86,7 @@
   height: 48px !important;
   display: block !important;
 }
+*/
 
 /* Hide Jupiter branding elements */
 .jupiter-integrated [data-testid="jupiter-logo"],
