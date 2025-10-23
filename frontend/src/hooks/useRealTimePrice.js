@@ -1,101 +1,200 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import RealTimePriceClient from '../services/RealTimePriceClient.js';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import websocketService from '../services/websocketService';
 
-export const useRealTimePrice = (tokenAddress) => {
+const useRealTimePrice = (tokenAddress) => {
   const [priceData, setPriceData] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
-  const clientRef = useRef(null);
+  const [error, setError] = useState(null);
+  const [lastUpdate, setLastUpdate] = useState(null);
+  
+  const priceDataRef = useRef(null);
+  const isSubscribedRef = useRef(false);
 
-  // Initialize client
+  // Update refs when state changes
   useEffect(() => {
-    if (!clientRef.current) {
-      clientRef.current = new RealTimePriceClient();
-      
-      // Set up event listeners
-      clientRef.current.on('priceUpdate', (data) => {
-        if (data.tokenAddress === tokenAddress) {
-          setPriceData(data);
-        }
-      });
+    priceDataRef.current = priceData;
+    isSubscribedRef.current = isSubscribed;
+  }, [priceData, isSubscribed]);
 
-      // Connect
-      clientRef.current.connect()
-        .then(() => {
-          setIsConnected(true);
-        })
-        .catch((error) => {
-          console.error('Failed to connect to real-time price service:', error);
-          setIsConnected(false);
-        });
-    }
+  // Handle WebSocket connection status
+  useEffect(() => {
+    const handleConnected = () => {
+      console.log('🔌 [useRealTimePrice] WebSocket connected');
+      setIsConnected(true);
+      setError(null);
+    };
+
+    const handleDisconnected = () => {
+      console.log('🔌 [useRealTimePrice] WebSocket disconnected');
+      setIsConnected(false);
+      setIsSubscribed(false);
+    };
+
+    const handleError = (error) => {
+      console.error('❌ [useRealTimePrice] WebSocket error:', error);
+      setError(error);
+    };
+
+    websocketService.on('connected', handleConnected);
+    websocketService.on('disconnected', handleDisconnected);
+    websocketService.on('error', handleError);
+
+    // Check initial connection status
+    setIsConnected(websocketService.isConnected);
 
     return () => {
-      if (clientRef.current) {
-        clientRef.current.disconnect();
-        clientRef.current = null;
-      }
+      websocketService.off('connected', handleConnected);
+      websocketService.off('disconnected', handleDisconnected);
+      websocketService.off('error', handleError);
     };
   }, []);
 
-  // Subscribe/unsubscribe to token
+  // Handle price updates
   useEffect(() => {
-    if (!clientRef.current || !isConnected || !tokenAddress) {
-      return;
-    }
-
-    const subscribe = () => {
-      const success = clientRef.current.subscribeToToken(tokenAddress);
-      setIsSubscribed(success);
+    const handlePriceUpdate = (data) => {
+      if (data.tokenAddress === tokenAddress) {
+        console.log('📈 [useRealTimePrice] Price update received:', data.priceData);
+        setPriceData(data.priceData);
+        setLastUpdate(new Date());
+        setError(null);
+      }
     };
 
-    subscribe();
+    websocketService.on('priceUpdate', handlePriceUpdate);
 
     return () => {
-      if (clientRef.current && tokenAddress) {
-        clientRef.current.unsubscribeFromToken(tokenAddress);
+      websocketService.off('priceUpdate', handlePriceUpdate);
+    };
+  }, [tokenAddress]);
+
+  // Handle subscription confirmations
+  useEffect(() => {
+    const handleSubscriptionConfirmed = (data) => {
+      if (data.tokenAddress === tokenAddress) {
+        console.log('✅ [useRealTimePrice] Subscription confirmed for:', tokenAddress);
+        setIsSubscribed(true);
+        setError(null);
+      }
+    };
+
+    const handleUnsubscriptionConfirmed = (data) => {
+      if (data.tokenAddress === tokenAddress) {
+        console.log('✅ [useRealTimePrice] Unsubscription confirmed for:', tokenAddress);
         setIsSubscribed(false);
-        setPriceData(null);
+      }
+    };
+
+    websocketService.on('subscriptionConfirmed', handleSubscriptionConfirmed);
+    websocketService.on('unsubscriptionConfirmed', handleUnsubscriptionConfirmed);
+
+    return () => {
+      websocketService.off('subscriptionConfirmed', handleSubscriptionConfirmed);
+      websocketService.off('unsubscriptionConfirmed', handleUnsubscriptionConfirmed);
+    };
+  }, [tokenAddress]);
+
+  // Subscribe to token when component mounts or tokenAddress changes
+  useEffect(() => {
+    if (tokenAddress && isConnected) {
+      console.log('📤 [useRealTimePrice] Subscribing to token:', tokenAddress);
+      const success = websocketService.subscribeToToken(tokenAddress);
+      
+      if (success) {
+        setIsSubscribed(true);
+      } else {
+        // If not connected, add to pending subscriptions
+        setIsSubscribed(false);
+      }
+    }
+
+    // Cleanup: unsubscribe when component unmounts or tokenAddress changes
+    return () => {
+      if (tokenAddress && isSubscribedRef.current) {
+        console.log('📤 [useRealTimePrice] Unsubscribing from token:', tokenAddress);
+        websocketService.unsubscribeFromToken(tokenAddress);
+        setIsSubscribed(false);
       }
     };
   }, [tokenAddress, isConnected]);
 
-  const formatPrice = useCallback((price) => {
-    if (!price) return '$0.00';
-    
-    if (price < 0.0001) {
-      return `$${price.toExponential(2)}`;
-    } else if (price < 1) {
-      return `$${price.toFixed(6)}`;
-    } else {
-      return `$${price.toFixed(2)}`;
+  // Connect WebSocket when hook is first used
+  useEffect(() => {
+    if (!websocketService.isConnected) {
+      console.log('🔌 [useRealTimePrice] Connecting WebSocket...');
+      websocketService.connect();
     }
+
+    return () => {
+      // Don't disconnect on cleanup - let other components use the same connection
+      // websocketService.disconnect();
+    };
   }, []);
 
-  const formatLiquidity = useCallback((liquidity) => {
-    if (!liquidity) return '$0';
-    
-    if (liquidity >= 1000000) {
-      return `$${(liquidity / 1000000).toFixed(1)}M`;
-    } else if (liquidity >= 1000) {
-      return `$${(liquidity / 1000).toFixed(1)}K`;
-    } else {
-      return `$${liquidity.toFixed(0)}`;
+  // Manual subscription control
+  const subscribe = useCallback(() => {
+    if (tokenAddress) {
+      const success = websocketService.subscribeToToken(tokenAddress);
+      if (success) {
+        setIsSubscribed(true);
+      }
+      return success;
     }
-  }, []);
+    return false;
+  }, [tokenAddress]);
+
+  const unsubscribe = useCallback(() => {
+    if (tokenAddress) {
+      const success = websocketService.unsubscribeFromToken(tokenAddress);
+      if (success) {
+        setIsSubscribed(false);
+      }
+      return success;
+    }
+    return false;
+  }, [tokenAddress]);
+
+  // Force refresh price data
+  const refreshPrice = useCallback(async () => {
+    if (!tokenAddress) return;
+
+    try {
+      // Make a direct API call to get fresh data
+      const response = await fetch(`/api/tokens/${tokenAddress}/hybrid-price?_t=${Date.now()}`, {
+        headers: {
+          'X-Connection-ID': `refresh_${Date.now()}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setPriceData(data.data);
+          setLastUpdate(new Date());
+          setError(null);
+        } else {
+          setError(data.error || 'Failed to fetch price data');
+        }
+      } else {
+        setError('Failed to fetch price data');
+      }
+    } catch (err) {
+      console.error('❌ [useRealTimePrice] Error refreshing price:', err);
+      setError(err.message);
+    }
+  }, [tokenAddress]);
 
   return {
     priceData,
     isConnected,
     isSubscribed,
-    formatPrice,
-    formatLiquidity,
-    // Helper methods
-    getPriceUsd: () => priceData?.priceUsd || 0,
-    getPriceSol: () => priceData?.priceSol || 0,
-    getLiquidity: () => priceData?.liquidity || 0,
-    getDex: () => priceData?.dex || '',
-    getLastUpdate: () => priceData?.timestamp || null
+    error,
+    lastUpdate,
+    subscribe,
+    unsubscribe,
+    refreshPrice,
+    // Additional stats
+    stats: websocketService.getStats()
   };
 };
 

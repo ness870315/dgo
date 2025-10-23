@@ -1,4 +1,5 @@
 import axios from 'axios';
+import EventEmitter from 'events';
 
 const CONSTANT_K_RPC = 'https://rpc.constant-k.com/?api-key=tsn41k3y-4qch-46f2-5ogr-67dmw2zh1ur8';
 const JUPITER_API_BASE = 'https://lite-api.jup.ag/tokens/v2';
@@ -15,8 +16,9 @@ const DEX_PROGRAMS = {
     '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8': 'Raydium AMM'
 };
 
-class HybridPriceService {
-    constructor() {
+class HybridPriceService extends EventEmitter {
+    constructor(webSocketServer = null) {
+        super();
         this.priceCache = new Map();
         this.lastUpdate = new Map();
         this.updateInterval = 10000; // 10 seconds
@@ -28,6 +30,11 @@ class HybridPriceService {
         // 🚀 NEW: Request deduplication to prevent multiple simultaneous calls
         this.pendingRequests = new Map(); // Map<tokenAddress, Promise>
         this.activeConnections = new Map(); // Map<tokenAddress, Set<connectionId>>
+        
+        // 🚀 NEW: WebSocket integration for real-time broadcasting
+        this.webSocketServer = webSocketServer;
+        this.subscribedTokens = new Set(); // Track tokens with active subscriptions
+        this.priceUpdateInterval = null; // Background price update interval
     }
 
     async getTokenPriceData(tokenAddress, connectionId = null) {
@@ -75,6 +82,11 @@ class HybridPriceService {
                     liquidity: priceData.liquidity,
                     activeConnections: this.activeConnections.get(tokenAddress)?.size || 0
                 });
+                
+                // 🚀 NEW: Broadcast price update via WebSocket if server is available
+                if (this.webSocketServer && this.subscribedTokens.has(tokenAddress)) {
+                    this.broadcastPriceUpdate(tokenAddress, priceData);
+                }
                 
                 return priceData;
                 
@@ -400,6 +412,139 @@ class HybridPriceService {
         }
 
         return stats;
+    }
+
+    // 🚀 NEW: WebSocket integration methods
+    setWebSocketServer(webSocketServer) {
+        this.webSocketServer = webSocketServer;
+        console.log('🔌 [HybridPriceService] WebSocket server connected');
+    }
+
+    subscribeToToken(tokenAddress) {
+        if (!this.subscribedTokens.has(tokenAddress)) {
+            this.subscribedTokens.add(tokenAddress);
+            console.log(`📤 [HybridPriceService] Subscribed to token: ${tokenAddress}`);
+            
+            // Start background price updates if this is the first subscription
+            if (this.subscribedTokens.size === 1) {
+                this.startBackgroundPriceUpdates();
+            }
+            
+            return true;
+        }
+        return false;
+    }
+
+    unsubscribeFromToken(tokenAddress) {
+        if (this.subscribedTokens.has(tokenAddress)) {
+            this.subscribedTokens.delete(tokenAddress);
+            console.log(`📤 [HybridPriceService] Unsubscribed from token: ${tokenAddress}`);
+            
+            // Stop background price updates if no more subscriptions
+            if (this.subscribedTokens.size === 0) {
+                this.stopBackgroundPriceUpdates();
+            }
+            
+            return true;
+        }
+        return false;
+    }
+
+    startBackgroundPriceUpdates() {
+        if (this.priceUpdateInterval) {
+            return; // Already running
+        }
+
+        console.log('🔄 [HybridPriceService] Starting background price updates...');
+        
+        this.priceUpdateInterval = setInterval(async () => {
+            if (this.subscribedTokens.size === 0) {
+                this.stopBackgroundPriceUpdates();
+                return;
+            }
+
+            // Update all subscribed tokens
+            for (const tokenAddress of this.subscribedTokens) {
+                try {
+                    // Check if we need to update (respect cache interval)
+                    const cached = this.priceCache.get(tokenAddress);
+                    const now = Date.now();
+                    
+                    if (cached && (now - this.lastUpdate.get(tokenAddress)) < this.updateInterval) {
+                        continue; // Skip if still fresh
+                    }
+
+                    // Fetch fresh data (this will automatically broadcast via WebSocket)
+                    await this.getTokenPriceData(tokenAddress);
+                    
+                    // Add small delay between requests to respect rate limits
+                    await new Promise(resolve => setTimeout(resolve, this.requestDelay));
+                    
+                } catch (error) {
+                    console.error(`❌ [HybridPriceService] Background update failed for ${tokenAddress}:`, error.message);
+                }
+            }
+        }, this.updateInterval);
+
+        console.log('✅ [HybridPriceService] Background price updates started');
+    }
+
+    stopBackgroundPriceUpdates() {
+        if (this.priceUpdateInterval) {
+            clearInterval(this.priceUpdateInterval);
+            this.priceUpdateInterval = null;
+            console.log('🛑 [HybridPriceService] Background price updates stopped');
+        }
+    }
+
+    broadcastPriceUpdate(tokenAddress, priceData) {
+        if (!this.webSocketServer) {
+            return;
+        }
+
+        try {
+            // Broadcast to all WebSocket clients subscribed to this token
+            this.webSocketServer.broadcastPriceUpdate(tokenAddress, {
+                priceUsd: priceData.priceUsd,
+                marketCap: priceData.marketCap,
+                liquidity: priceData.liquidity,
+                volume24h: priceData.volume24h,
+                priceChange24h: priceData.priceChange24h,
+                source: priceData.source,
+                timestamp: priceData.timestamp
+            });
+
+            console.log(`📡 [HybridPriceService] Broadcasted price update for ${tokenAddress}: $${priceData.priceUsd}`);
+            
+            // Emit event for other services that might be listening
+            this.emit('priceUpdate', {
+                tokenAddress,
+                priceData
+            });
+            
+        } catch (error) {
+            console.error(`❌ [HybridPriceService] Failed to broadcast price update for ${tokenAddress}:`, error.message);
+        }
+    }
+
+    getWebSocketStats() {
+        return {
+            webSocketServer: this.webSocketServer ? 'connected' : 'not connected',
+            subscribedTokens: Array.from(this.subscribedTokens),
+            backgroundUpdatesActive: this.priceUpdateInterval !== null,
+            totalSubscriptions: this.subscribedTokens.size
+        };
+    }
+
+    async shutdown() {
+        console.log('🛑 [HybridPriceService] Shutting down...');
+        
+        this.stopBackgroundPriceUpdates();
+        this.subscribedTokens.clear();
+        this.pendingRequests.clear();
+        this.activeConnections.clear();
+        
+        console.log('✅ [HybridPriceService] Shutdown complete');
     }
 }
 

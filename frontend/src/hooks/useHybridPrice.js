@@ -1,19 +1,82 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
+import websocketService from '../services/websocketService';
 
 const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
 
 // Generate unique connection ID for this hook instance
 const generateConnectionId = () => `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-export const useHybridPrice = (tokenAddress, pollingInterval = 10000) => {
+export const useHybridPrice = (tokenAddress, pollingInterval = 10000, enableWebSocket = true) => {
   const [priceData, setPriceData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isLive, setIsLive] = useState(false);
+  const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
   const intervalRef = useRef(null);
   const mountedRef = useRef(true);
   const connectionIdRef = useRef(generateConnectionId());
+  const lastWebSocketUpdateRef = useRef(null);
+
+  // 🚀 NEW: WebSocket integration for real-time updates
+  useEffect(() => {
+    if (!enableWebSocket || !tokenAddress) return;
+
+    const handleConnected = () => {
+      console.log('🔌 [useHybridPrice] WebSocket connected');
+      setIsWebSocketConnected(true);
+      setIsLive(true);
+    };
+
+    const handleDisconnected = () => {
+      console.log('🔌 [useHybridPrice] WebSocket disconnected');
+      setIsWebSocketConnected(false);
+      setIsLive(false);
+    };
+
+    const handlePriceUpdate = (data) => {
+      if (data.tokenAddress === tokenAddress && mountedRef.current) {
+        console.log('📈 [useHybridPrice] WebSocket price update received:', data.priceData);
+        setPriceData(data.priceData);
+        setError(null);
+        setIsLive(true);
+        lastWebSocketUpdateRef.current = Date.now();
+      }
+    };
+
+    const handleError = (error) => {
+      console.error('❌ [useHybridPrice] WebSocket error:', error);
+      setError(error);
+    };
+
+    // Connect to WebSocket if not already connected
+    if (!websocketService.isConnected) {
+      websocketService.connect();
+    }
+
+    // Subscribe to token updates
+    websocketService.subscribeToToken(tokenAddress);
+
+    // Set up event listeners
+    websocketService.on('connected', handleConnected);
+    websocketService.on('disconnected', handleDisconnected);
+    websocketService.on('priceUpdate', handlePriceUpdate);
+    websocketService.on('error', handleError);
+
+    // Check initial connection status
+    setIsWebSocketConnected(websocketService.isConnected);
+
+    return () => {
+      // Unsubscribe from token updates
+      websocketService.unsubscribeFromToken(tokenAddress);
+      
+      // Remove event listeners
+      websocketService.off('connected', handleConnected);
+      websocketService.off('disconnected', handleDisconnected);
+      websocketService.off('priceUpdate', handlePriceUpdate);
+      websocketService.off('error', handleError);
+    };
+  }, [tokenAddress, enableWebSocket]);
 
   // 🚀 NEW: Cleanup connection when component unmounts
   const cleanupConnection = useCallback(async () => {
@@ -67,7 +130,7 @@ export const useHybridPrice = (tokenAddress, pollingInterval = 10000) => {
     }
   }, [tokenAddress]);
 
-  // Start polling when tokenAddress changes
+  // Start polling when tokenAddress changes (smart polling based on WebSocket status)
   useEffect(() => {
     if (!tokenAddress) {
       setPriceData(null);
@@ -83,8 +146,22 @@ export const useHybridPrice = (tokenAddress, pollingInterval = 10000) => {
     // Fetch immediately
     fetchPriceData();
 
-    // Set up polling
-    intervalRef.current = setInterval(fetchPriceData, pollingInterval);
+    // Set up smart polling - only poll if WebSocket is not connected or not receiving updates
+    const shouldPoll = !enableWebSocket || !isWebSocketConnected || 
+                      (lastWebSocketUpdateRef.current && 
+                       Date.now() - lastWebSocketUpdateRef.current > pollingInterval * 2);
+
+    if (shouldPoll) {
+      intervalRef.current = setInterval(() => {
+        // Only poll if we haven't received a WebSocket update recently
+        const timeSinceLastWebSocketUpdate = lastWebSocketUpdateRef.current ? 
+          Date.now() - lastWebSocketUpdateRef.current : Infinity;
+        
+        if (timeSinceLastWebSocketUpdate > pollingInterval) {
+          fetchPriceData();
+        }
+      }, pollingInterval);
+    }
 
     return () => {
       if (intervalRef.current) {
@@ -92,7 +169,7 @@ export const useHybridPrice = (tokenAddress, pollingInterval = 10000) => {
         intervalRef.current = null;
       }
     };
-  }, [tokenAddress, pollingInterval, fetchPriceData]);
+  }, [tokenAddress, pollingInterval, fetchPriceData, enableWebSocket, isWebSocketConnected]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -149,6 +226,7 @@ export const useHybridPrice = (tokenAddress, pollingInterval = 10000) => {
     isLoading,
     error,
     isLive,
+    isWebSocketConnected,
     formatPrice,
     formatLiquidity,
     formatMarketCap,
@@ -161,7 +239,9 @@ export const useHybridPrice = (tokenAddress, pollingInterval = 10000) => {
     getSource: () => priceData?.source || '',
     getLastUpdate: () => priceData?.timestamp || null,
     // Manual refresh
-    refresh: fetchPriceData
+    refresh: fetchPriceData,
+    // WebSocket stats
+    websocketStats: websocketService.getStats()
   };
 };
 

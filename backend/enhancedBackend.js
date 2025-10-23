@@ -13180,6 +13180,101 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
+    // 🚀 NEW: Hybrid Price Service WebSocket subscription management
+    this.app.post('/api/hybrid-price/subscribe', (req, res) => {
+      try {
+        const { tokenAddress } = req.body;
+        
+        if (!tokenAddress) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Token address is required' 
+          });
+        }
+
+        if (this.hybridPriceService) {
+          const subscribed = this.hybridPriceService.subscribeToToken(tokenAddress);
+          
+          res.json({
+            success: true,
+            subscribed,
+            tokenAddress,
+            message: subscribed ? 'Subscribed to token price updates' : 'Already subscribed to this token'
+          });
+        } else {
+          res.status(503).json({
+            success: false,
+            error: 'HybridPriceService not available'
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error subscribing to token:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to subscribe to token'
+        });
+      }
+    });
+
+    this.app.post('/api/hybrid-price/unsubscribe', (req, res) => {
+      try {
+        const { tokenAddress } = req.body;
+        
+        if (!tokenAddress) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Token address is required' 
+          });
+        }
+
+        if (this.hybridPriceService) {
+          const unsubscribed = this.hybridPriceService.unsubscribeFromToken(tokenAddress);
+          
+          res.json({
+            success: true,
+            unsubscribed,
+            tokenAddress,
+            message: unsubscribed ? 'Unsubscribed from token price updates' : 'Not subscribed to this token'
+          });
+        } else {
+          res.status(503).json({
+            success: false,
+            error: 'HybridPriceService not available'
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error unsubscribing from token:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to unsubscribe from token'
+        });
+      }
+    });
+
+    // 🚀 NEW: Hybrid Price Service WebSocket stats endpoint
+    this.app.get('/api/hybrid-price/websocket-stats', (req, res) => {
+      try {
+        if (this.hybridPriceService) {
+          const stats = this.hybridPriceService.getWebSocketStats();
+          res.json({
+            success: true,
+            stats
+          });
+        } else {
+          res.status(503).json({
+            success: false,
+            error: 'HybridPriceService not available'
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error getting WebSocket stats:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get WebSocket stats'
+        });
+      }
+    });
+
     // Get available timeframes for price charts
     this.app.get('/api/tokens/price-chart/timeframes', async (req, res) => {
       try {
@@ -17298,6 +17393,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
       
       console.log('📡 Initializing RealTimePriceService...');
       await this.realTimePriceService.initialize();
+      
+      // 🚀 NEW: Connect HybridPriceService to WebSocket server for real-time broadcasting
+      if (this.hybridPriceService && this.realTimePriceService.backendWebSocketServer) {
+        console.log('🔌 Connecting HybridPriceService to WebSocket server...');
+        this.hybridPriceService.setWebSocketServer(this.realTimePriceService.backendWebSocketServer);
+        console.log('✅ HybridPriceService connected to WebSocket server');
+      }
       
       console.log('✅ Real-Time Price Service initialized successfully');
       console.log('📡 WebSocket endpoint available at: /ws');
