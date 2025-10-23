@@ -1265,8 +1265,8 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
               </div>
             </div>
 
-          {/* 🚀 Section 2 – Jupiter Swap Integration - Hidden for now */}
-          {false && (
+          {/* 🚀 Section 2 – Jupiter Swap Integration */}
+          {true && (
             <div className="bg-gray-800 rounded-lg p-3 border border-gray-600">
               <h3 className="text-lg font-bold mb-3 text-white flex items-center">
                 🚀 Swap {token?.symbol || 'Token'}
