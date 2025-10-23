@@ -28,6 +28,7 @@ import AutomatedTokenCleanup from './automatedTokenCleanup.js';
 import HybridPriceService from './services/HybridPriceService.js';
 import EnhancedHybridPriceService from './services/EnhancedHybridPriceService.js';
 import RealTimeTokenMonitor from './services/RealTimeTokenMonitor.js';
+import TokenCacheWatcher from './services/TokenCacheWatcher.js';
 import HybridChartService from './services/HybridChartService.js';
 import KOLService from './services/KOLService.js';
 import BondingTokenValidationService from './services/BondingTokenValidationService.js';
@@ -12824,6 +12825,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Initialize Real-Time Token Monitor
     this.realTimeTokenMonitor = null; // Will be initialized after WebSocket server starts
     
+    // Initialize Token Cache Watcher
+    this.tokenCacheWatcher = null; // Will be initialized after RealTimeTokenMonitor starts
+    
     // Initialize Pre-Bonding Moralis Service (standalone, no chart infrastructure)
     this.preBondingMoralisService = new PreBondingMoralisService();
     
@@ -13487,6 +13491,54 @@ Thanks for using x402 payments on Twitter! 🚀`;
         res.status(500).json({
           success: false,
           error: 'Failed to restart monitoring'
+        });
+      }
+    });
+
+    // 🚀 NEW: Get Token Cache Watcher stats
+    this.app.get('/api/token-cache-watcher/stats', (req, res) => {
+      try {
+        if (this.tokenCacheWatcher) {
+          const stats = this.tokenCacheWatcher.getStats();
+          res.json({
+            success: true,
+            stats
+          });
+        } else {
+          res.status(500).json({
+            success: false,
+            error: 'Token Cache Watcher not available'
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error getting Token Cache Watcher stats:', error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // 🚀 NEW: Manually trigger token cache check
+    this.app.post('/api/token-cache-watcher/check', async (req, res) => {
+      try {
+        if (this.tokenCacheWatcher) {
+          await this.tokenCacheWatcher.processFileChange();
+          res.json({
+            success: true,
+            message: 'Token cache check completed'
+          });
+        } else {
+          res.status(500).json({
+            success: false,
+            error: 'Token Cache Watcher not available'
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error checking token cache:', error.message);
+        res.status(500).json({
+          success: false,
+          error: error.message
         });
       }
     });
@@ -17624,6 +17676,24 @@ Thanks for using x402 payments on Twitter! 🚀`;
       await this.realTimeTokenMonitor.startMonitoring();
       console.log('✅ Real-Time Token Monitor started - monitoring all cached tokens');
       
+      // 🚀 NEW: Initialize Token Cache Watcher for automatic subscription
+      console.log('🚀 Initializing Token Cache Watcher...');
+      const cachePath = path.join(process.cwd(), 'backend', 'cache', 'tokens-cache.json');
+      this.tokenCacheWatcher = new TokenCacheWatcher(cachePath, this.realTimeTokenMonitor);
+      
+      // Set up event listeners for monitoring
+      this.tokenCacheWatcher.on('newTokens', (newTokens) => {
+        console.log(`🆕 [Backend] ${newTokens.length} new tokens detected and subscribed to real-time monitoring`);
+      });
+      
+      this.tokenCacheWatcher.on('tokenSubscribed', (data) => {
+        console.log(`✅ [Backend] Token ${data.symbol} subscribed to real-time monitoring`);
+      });
+      
+      // Start watching the token cache file
+      await this.tokenCacheWatcher.startWatching();
+      console.log('✅ Token Cache Watcher started - will auto-subscribe new tokens');
+      
       console.log('✅ Real-Time Price Service initialized successfully');
       console.log('📡 WebSocket endpoint available at: /ws');
       
@@ -17904,6 +17974,20 @@ Thanks for using x402 payments on Twitter! 🚀`;
       
       if (this.tokenProcessor.isProcessing) {
         this.tokenProcessor.stopProcessing();
+      }
+      
+      // 🚀 NEW: Stop Token Cache Watcher
+      if (this.tokenCacheWatcher) {
+        console.log('[🛡️ Enhanced Backend] 🛑 Stopping Token Cache Watcher...');
+        this.tokenCacheWatcher.stopWatching();
+        console.log('[🛡️ Enhanced Backend] ✅ Token Cache Watcher stopped');
+      }
+      
+      // 🚀 NEW: Stop Real-Time Token Monitor
+      if (this.realTimeTokenMonitor) {
+        console.log('[🛡️ Enhanced Backend] 🛑 Stopping Real-Time Token Monitor...');
+        await this.realTimeTokenMonitor.stopMonitoring();
+        console.log('[🛡️ Enhanced Backend] ✅ Real-Time Token Monitor stopped');
       }
       
       this.isRunning = false;
