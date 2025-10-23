@@ -17,8 +17,8 @@ class RealTimeTokenMonitor {
         };
         
         // Cache paths
-        this.cachePath = path.join(process.cwd(), 'backend', 'cache', 'tokens-cache.json');
-        this.backupCachePath = path.join(process.cwd(), 'backend', 'cache', 'tokens-cache-backup.json');
+        this.cachePath = path.join(process.cwd(), 'cache', 'tokens-cache.json');
+        this.backupCachePath = path.join(process.cwd(), 'cache', 'tokens-cache-backup.json');
     }
 
     async initialize() {

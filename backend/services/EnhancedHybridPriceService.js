@@ -53,7 +53,7 @@ class EnhancedHybridPriceService extends EventEmitter {
         
         // 🚀 NEW: Token cache management
         this.tokenCache = [];
-        this.cachePath = path.join(process.cwd(), 'backend', 'cache', 'tokens-cache.json');
+        this.cachePath = path.join(process.cwd(), 'cache', 'tokens-cache.json');
         
         // Initialize asynchronously
         this.initializeAsync();
