@@ -1,6 +1,7 @@
 import axios from 'axios';
 import EventEmitter from 'events';
-import Client, { CommitmentLevel } from "@triton-one/yellowstone-grpc";
+import pkg from "@triton-one/yellowstone-grpc";
+const { Client, CommitmentLevel } = pkg;
 import fs from 'fs/promises';
 import path from 'path';
 import bs58 from 'bs58';
