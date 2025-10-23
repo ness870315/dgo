@@ -303,12 +303,34 @@ Degen Oracle Score: ${score.toFixed(1)}/10${holderContext}`;
         console.warn(`⚠️ [KOL CONTENT] Tavily search failed:`, err.message);
       }
 
+      // 🧠 NEW: Get relevant past opinions for context and consistency
+      let pastOpinionsContext = '';
+      if (this.opinionDatabase) {
+        try {
+          const relevantOpinions = await this.opinionDatabase.findRelevantOpinions(
+            `${token.symbol} ${tavilyResults}`,
+            { type: 'single', timeframe: 'recent', limit: 2 }
+          );
+          
+          if (relevantOpinions.length > 0) {
+            pastOpinionsContext = `
+
+🧠 YOUR PAST TAKES ON $${token.symbol} (for consistency):
+${relevantOpinions.map(op => `- ${op.text}`).join('\n')}`;
+            
+            console.log(`🧠 [KOL CONTENT] Found ${relevantOpinions.length} relevant past opinions for $${token.symbol}`);
+          }
+        } catch (error) {
+          console.error('❌ [KOL CONTENT] Error retrieving past opinions:', error.message);
+        }
+      }
+
       const prompt = `You are ${personality.name}, a real crypto KOL with ${personality.style}.
 
 ${dataContext}
 
 🔍 TAVILY WEB SEARCH RESULTS:
-${tavilyResults || 'No recent news found'}
+${tavilyResults || 'No recent news found'}${pastOpinionsContext}
 
 CONTENT TYPE: ${contentType === 'single' ? 'Single tweet (280 chars)' : 'Thread starter tweet (280 chars)'}
 
@@ -319,6 +341,8 @@ Generate a ${contentType === 'single' ? 'RICH, FACT-PACKED tweet' : 'HOOK thread
 - If there's news about partnerships, listings, whale activity: WEAVE them in naturally
 - If pumping: explain WHY using both metrics and news
 - If good fundamentals but no pump yet: explain the opportunity
+- Build on your past takes naturally when relevant for consistency
+- Show consistency or acknowledge if your view changed
 - Use crypto slang naturally (not forced)
 - DO NOT mention data sources (just present the insights)
 - NO hashtags
@@ -344,6 +368,24 @@ Tweet:`;
         .trim();
 
       console.log(`✍️ Generated ${contentType} content for $${token.symbol} (${personality.name})`);
+      
+      // Save to Opinion DB
+      if (this.opinionDatabase) {
+        try {
+          await this.opinionDatabase.storeOpinion({
+            type: contentType === 'single' ? 'single_tweet' : 'thread_starter',
+            text: cleanContent,
+            marketContext: `${token.symbol} analysis: ${tavilyResults || 'No recent news'}`,
+            sentiment: 'neutral',
+            tweetId: null,
+            timestamp: new Date().toISOString()
+          });
+          console.log(`💾 [OPINION DB] Saved ${contentType} content to database`);
+        } catch (error) {
+          console.error('❌ [OPINION DB] Failed to save content:', error.message);
+        }
+      }
+      
       return cleanContent;
 
     } catch (error) {
@@ -444,6 +486,28 @@ Retail Flow: ${retailFlow.net > 0 ? '+' : ''}${retailFlow.net} (in: ${retailFlow
         console.warn(`⚠️ [KOL THREAD] Tavily search failed:`, err.message);
       }
 
+      // 🧠 NEW: Get relevant past opinions for context and consistency
+      let pastOpinionsContext = '';
+      if (this.opinionDatabase) {
+        try {
+          const relevantOpinions = await this.opinionDatabase.findRelevantOpinions(
+            `${token.symbol} ${tavilyResults}`,
+            { type: 'deep_thread', timeframe: 'recent', limit: 3 }
+          );
+          
+          if (relevantOpinions.length > 0) {
+            pastOpinionsContext = `
+
+🧠 YOUR PAST DEEP ANALYSIS ON $${token.symbol} (for consistency):
+${relevantOpinions.map(op => `- ${op.text}`).join('\n')}`;
+            
+            console.log(`🧠 [KOL THREAD] Found ${relevantOpinions.length} relevant past deep analysis for $${token.symbol}`);
+          }
+        } catch (error) {
+          console.error('❌ [KOL THREAD] Error retrieving past opinions:', error.message);
+        }
+      }
+
       // Tweet 1: Hook (interesting finding or question)
       const tweet1 = await this.generateTokenContent(token, 'thread');
       
@@ -471,12 +535,13 @@ Tweet 1 was: "${tweet1}"
 - Holders: ${holders.toLocaleString()}${whaleContext}
 
 🔍 TAVILY NEWS/CATALYSTS:
-${tavilyResults || 'No recent news found'}
+${tavilyResults || 'No recent news found'}${pastOpinionsContext}
 
 START with "2/" to continue the thread.
 Present these numbers + any news in a compelling way that tells a story.
 If there's specific catalysts/news, WEAVE them in naturally.
 What do these metrics + news reveal? What's the narrative?
+Build on your past analysis naturally when relevant for consistency.
 DO NOT mention data sources (Tavily, Moralis, etc) - just present the insights.
 Max 280 characters. Crypto slang. No hashtags.
 
@@ -500,12 +565,13 @@ Based on the REAL metrics we just analyzed:
 - Volume/MCap ratio: ${volumeToMcap}%
 - Buy pressure: ${buyPct}%
 - Holder momentum: ${holders > 0 ? 'Active' : 'Unknown'}${whaleContext ? `, whale flow analysis available` : ''}
-${tavilyResults ? `- Recent news/catalysts: ${tavilyResults.substring(0, 100)}...` : ''}
+${tavilyResults ? `- Recent news/catalysts: ${tavilyResults.substring(0, 100)}...` : ''}${pastOpinionsContext}
 
 Give your VERDICT based on ACTUAL DATA:
 - Is this a call? Wait and watch? Or pass?
 - What's the risk level based on real metrics?
 - What SPECIFIC data points should degens watch?
+- Build on your past analysis naturally when relevant for consistency
 
 START with "3/" to continue the thread.
 Be decisive. Take a stance based on DATA, not speculation.
@@ -529,6 +595,25 @@ Tweet 3:`;
       ];
 
       console.log(`✅ Generated thread for $${token.symbol} (${thread.length} tweets)`);
+      
+      // Save entire thread to Opinion DB
+      if (this.opinionDatabase) {
+        try {
+          const threadText = thread.join(' ');
+          await this.opinionDatabase.storeOpinion({
+            type: 'deep_thread',
+            text: threadText,
+            marketContext: `${token.symbol} deep analysis: ${tavilyResults || 'No recent news'}`,
+            sentiment: 'neutral',
+            tweetId: null,
+            timestamp: new Date().toISOString()
+          });
+          console.log(`💾 [OPINION DB] Saved deep thread for $${token.symbol} to database`);
+        } catch (error) {
+          console.error('❌ [OPINION DB] Failed to save deep thread:', error.message);
+        }
+      }
+      
       return thread;
 
     } catch (error) {

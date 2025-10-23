@@ -13094,8 +13094,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
     this.app.get('/api/tokens/:contract/hybrid-price', async (req, res) => {
       try {
         const { contract } = req.params;
+        const connectionId = req.headers['x-connection-id'] || req.ip || 'unknown';
         
-        console.log(`🔍 [HybridPrice] Fetching price data for: ${contract}`);
+        console.log(`🔍 [HybridPrice] Fetching price data for: ${contract} (conn: ${connectionId})`);
         
         if (!contract) {
           return res.status(400).json({ 
@@ -13104,14 +13105,15 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        // Use the existing HybridPriceService
-        const priceData = await this.hybridPriceService.getTokenPriceData(contract);
+        // Use the existing HybridPriceService with connection tracking
+        const priceData = await this.hybridPriceService.getTokenPriceData(contract, connectionId);
         
         console.log(`✅ [HybridPrice] Successfully fetched data for ${contract}:`, {
           price: priceData.priceUsd,
           marketCap: priceData.marketCap,
           liquidity: priceData.liquidity,
-          source: priceData.source
+          source: priceData.source,
+          activeConnections: this.hybridPriceService.getActiveConnections(contract).size
         });
 
         res.json({
@@ -13140,6 +13142,41 @@ Thanks for using x402 payments on Twitter! 🚀`;
           error: 'Failed to fetch price data',
           details: error.message
         });
+      }
+    });
+
+    // 🚀 NEW: Hybrid Price Service stats endpoint
+    this.app.get('/api/hybrid-price/stats', (req, res) => {
+      try {
+        const stats = this.hybridPriceService.getConnectionStats();
+        res.json({
+          success: true,
+          stats: {
+            ...stats,
+            cacheSize: this.hybridPriceService.priceCache.size,
+            pendingRequests: this.hybridPriceService.pendingRequests.size
+          }
+        });
+      } catch (error) {
+        console.error('❌ [HybridPrice] Error getting stats:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to get stats' });
+      }
+    });
+
+    // 🚀 NEW: Connection cleanup endpoint
+    this.app.post('/api/hybrid-price/cleanup', (req, res) => {
+      try {
+        const { tokenAddress, connectionId } = req.body;
+        
+        if (tokenAddress && connectionId) {
+          this.hybridPriceService.removeConnection(tokenAddress, connectionId);
+          res.json({ success: true, message: 'Connection removed' });
+        } else {
+          res.status(400).json({ success: false, error: 'Token address and connection ID required' });
+        }
+      } catch (error) {
+        console.error('❌ [HybridPrice] Error cleaning up connection:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to cleanup connection' });
       }
     });
 

@@ -24,11 +24,15 @@ class HybridPriceService {
         this.solPriceUSD = 0;
         this.lastSolPriceUpdate = 0;
         this.solPriceCacheDuration = 60000; // 1 minute
+        
+        // 🚀 NEW: Request deduplication to prevent multiple simultaneous calls
+        this.pendingRequests = new Map(); // Map<tokenAddress, Promise>
+        this.activeConnections = new Map(); // Map<tokenAddress, Set<connectionId>>
     }
 
-    async getTokenPriceData(tokenAddress) {
+    async getTokenPriceData(tokenAddress, connectionId = null) {
         try {
-            console.log(`🔍 [HybridPriceService] Fetching data for ${tokenAddress}`);
+            console.log(`🔍 [HybridPriceService] Fetching data for ${tokenAddress}${connectionId ? ` (conn: ${connectionId})` : ''}`);
             
             // Check cache first
             const cached = this.priceCache.get(tokenAddress);
@@ -39,20 +43,45 @@ class HybridPriceService {
                 return cached;
             }
 
-            // Fetch fresh data
-            const priceData = await this.fetchFreshPriceData(tokenAddress);
-            
-            // Cache the result
-            this.priceCache.set(tokenAddress, priceData);
-            this.lastUpdate.set(tokenAddress, now);
-            
-            console.log(`✅ [HybridPriceService] Updated data for ${tokenAddress}:`, {
-                price: priceData.priceUsd,
-                marketCap: priceData.marketCap,
-                liquidity: priceData.liquidity
-            });
-            
-            return priceData;
+            // 🚀 NEW: Check if there's already a pending request for this token
+            if (this.pendingRequests.has(tokenAddress)) {
+                console.log(`⏳ [HybridPriceService] Request already pending for ${tokenAddress}, waiting...`);
+                return await this.pendingRequests.get(tokenAddress);
+            }
+
+            // 🚀 NEW: Track active connections for this token
+            if (connectionId) {
+                if (!this.activeConnections.has(tokenAddress)) {
+                    this.activeConnections.set(tokenAddress, new Set());
+                }
+                this.activeConnections.get(tokenAddress).add(connectionId);
+            }
+
+            // Create and store the pending request promise
+            const requestPromise = this.fetchFreshPriceData(tokenAddress);
+            this.pendingRequests.set(tokenAddress, requestPromise);
+
+            try {
+                // Fetch fresh data
+                const priceData = await requestPromise;
+                
+                // Cache the result
+                this.priceCache.set(tokenAddress, priceData);
+                this.lastUpdate.set(tokenAddress, now);
+                
+                console.log(`✅ [HybridPriceService] Updated data for ${tokenAddress}:`, {
+                    price: priceData.priceUsd,
+                    marketCap: priceData.marketCap,
+                    liquidity: priceData.liquidity,
+                    activeConnections: this.activeConnections.get(tokenAddress)?.size || 0
+                });
+                
+                return priceData;
+                
+            } finally {
+                // Clean up pending request
+                this.pendingRequests.delete(tokenAddress);
+            }
             
         } catch (error) {
             console.error(`❌ [HybridPriceService] Error fetching data for ${tokenAddress}:`, error.message);
@@ -333,6 +362,44 @@ class HybridPriceService {
     clearAllCache() {
         this.priceCache.clear();
         this.lastUpdate.clear();
+    }
+
+    // 🚀 NEW: Connection management methods
+    removeConnection(tokenAddress, connectionId) {
+        if (this.activeConnections.has(tokenAddress)) {
+            this.activeConnections.get(tokenAddress).delete(connectionId);
+            
+            // Clean up empty sets
+            if (this.activeConnections.get(tokenAddress).size === 0) {
+                this.activeConnections.delete(tokenAddress);
+            }
+            
+            console.log(`🔌 [HybridPriceService] Removed connection ${connectionId} for ${tokenAddress}`);
+        }
+    }
+
+    getActiveConnections(tokenAddress) {
+        return this.activeConnections.get(tokenAddress) || new Set();
+    }
+
+    getConnectionStats() {
+        const stats = {
+            totalTokens: this.activeConnections.size,
+            totalConnections: 0,
+            tokensWithConnections: []
+        };
+
+        for (const [tokenAddress, connections] of this.activeConnections) {
+            stats.totalConnections += connections.size;
+            if (connections.size > 0) {
+                stats.tokensWithConnections.push({
+                    tokenAddress,
+                    connectionCount: connections.size
+                });
+            }
+        }
+
+        return stats;
     }
 }
 

@@ -3,6 +3,9 @@ import axios from 'axios';
 
 const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
 
+// Generate unique connection ID for this hook instance
+const generateConnectionId = () => `conn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
 export const useHybridPrice = (tokenAddress, pollingInterval = 10000) => {
   const [priceData, setPriceData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -10,6 +13,21 @@ export const useHybridPrice = (tokenAddress, pollingInterval = 10000) => {
   const [isLive, setIsLive] = useState(false);
   const intervalRef = useRef(null);
   const mountedRef = useRef(true);
+  const connectionIdRef = useRef(generateConnectionId());
+
+  // 🚀 NEW: Cleanup connection when component unmounts
+  const cleanupConnection = useCallback(async () => {
+    if (tokenAddress && connectionIdRef.current) {
+      try {
+        await axios.post(`${API_BASE}/api/hybrid-price/cleanup`, {
+          tokenAddress,
+          connectionId: connectionIdRef.current
+        });
+      } catch (error) {
+        console.warn('Failed to cleanup connection:', error.message);
+      }
+    }
+  }, [tokenAddress]);
 
   // Fetch price data from the new hybrid endpoint
   const fetchPriceData = useCallback(async () => {
@@ -20,7 +38,10 @@ export const useHybridPrice = (tokenAddress, pollingInterval = 10000) => {
       setError(null);
 
       const response = await axios.get(`${API_BASE}/api/tokens/${tokenAddress}/hybrid-price`, {
-        timeout: 15000
+        timeout: 15000,
+        headers: {
+          'X-Connection-ID': connectionIdRef.current
+        }
       });
 
       if (response.data.success && mountedRef.current) {
@@ -77,8 +98,10 @@ export const useHybridPrice = (tokenAddress, pollingInterval = 10000) => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
+      // 🚀 NEW: Cleanup connection tracking
+      cleanupConnection();
     };
-  }, []);
+  }, [cleanupConnection]);
 
   const formatPrice = useCallback((price) => {
     if (!price) return '$0.00';
