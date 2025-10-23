@@ -133,7 +133,7 @@ class TokenCleanupService {
         // Try alternative paths
         const alternativePaths = [
           path.join(this.dataDir, 'cache', 'tokens-cache.json'),
-          path.join(process.cwd(), 'backend', 'cache', 'tokens-cache.json'),
+          path.join(process.cwd(), 'cache', 'tokens-cache.json'),
           path.join(process.cwd(), 'cache', 'tokens-cache.json')
         ];
         

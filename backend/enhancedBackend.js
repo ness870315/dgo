@@ -17481,7 +17481,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       await this.realTimeTokenMonitor.startMonitoring();
       
       // Initialize Token Cache Watcher
-      const cachePath = path.join(process.cwd(), 'backend', 'cache', 'tokens-cache.json');
+      const cachePath = path.join(process.cwd(), 'cache', 'tokens-cache.json');
       this.tokenCacheWatcher = new TokenCacheWatcher(cachePath, this.realTimeTokenMonitor);
       this.tokenCacheWatcher.on('newTokens', (newTokens) => {
         console.log(`🆕 [Backend] ${newTokens.length} new tokens detected and subscribed to real-time monitoring`);

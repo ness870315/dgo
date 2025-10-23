@@ -41,7 +41,7 @@ class HybridPriceService {
     try {
       const fs = await import('fs');
       const path = await import('path');
-      const cacheFile = path.join(process.cwd(), 'backend', 'cache', 'pair-addresses.json');
+      const cacheFile = path.join(process.cwd(), 'cache', 'pair-addresses.json');
       
       if (fs.existsSync(cacheFile)) {
         const data = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
@@ -60,7 +60,7 @@ class HybridPriceService {
     try {
       const fs = await import('fs');
       const path = await import('path');
-      const cacheDir = path.join(process.cwd(), 'backend', 'cache');
+      const cacheDir = path.join(process.cwd(), 'cache');
       
       // Ensure cache directory exists
       if (!fs.existsSync(cacheDir)) {
@@ -107,7 +107,7 @@ class HybridPriceService {
     try {
       const fs = await import('fs');
       const path = await import('path');
-      const cacheDir = path.join(process.cwd(), 'backend', 'cache');
+      const cacheDir = path.join(process.cwd(), 'cache');
       
       // Ensure cache directory exists
       if (!fs.existsSync(cacheDir)) {

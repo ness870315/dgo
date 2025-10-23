@@ -6,7 +6,7 @@ async function diagnoseCacheState() {
     // Check both possible cache locations
     const locations = [
       '/var/data/dgo/cache/tokens-cache.json',  // Production persistent
-      path.join(process.cwd(), 'backend/cache/tokens-cache.json'),  // Local fallback
+      path.join(process.cwd(), 'cache/tokens-cache.json'),  // Local fallback
       path.join(process.cwd(), 'cache/tokens-cache.json')  // Alternative local
     ];
 
