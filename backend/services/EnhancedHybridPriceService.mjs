@@ -307,19 +307,35 @@ class EnhancedHybridPriceService extends EventEmitter {
 
     async processPoolUpdate(tokenAddress, poolAddress, slot, updateCount) {
         try {
+            console.log(`🔍 [DEBUG] processPoolUpdate called for ${tokenAddress} (pool: ${poolAddress}) at slot ${slot}`);
+            
             // Get fresh pool data
             const poolData = await this.getPoolReserves(poolAddress, tokenAddress);
-            if (!poolData) return;
+            console.log(`🔍 [DEBUG] getPoolReserves returned:`, poolData ? `tokenReserves: ${poolData.tokenReserves}, solReserves: ${poolData.solReserves}` : 'null');
+            
+            if (!poolData) {
+                console.log(`❌ [DEBUG] No pool data returned for ${tokenAddress}`);
+                return;
+            }
             
             // Get cached token info
             const tokenInfo = this.getTokenFromCache(tokenAddress);
-            if (!tokenInfo) return;
+            if (!tokenInfo) {
+                console.log(`❌ [DEBUG] No token info found for ${tokenAddress}`);
+                return;
+            }
+            
+            console.log(`🔍 [DEBUG] Token info found: ${tokenInfo.symbol}`);
             
             // Check for significant changes (swaps)
             const lastReserves = this.realTimeUpdates.get(tokenAddress);
+            console.log(`🔍 [DEBUG] Last reserves for ${tokenAddress}:`, lastReserves ? `tokenReserves: ${lastReserves.tokenReserves}, solReserves: ${lastReserves.solReserves}` : 'null');
+            
             if (lastReserves) {
                 const tokenChange = poolData.tokenReserves - lastReserves.tokenReserves;
                 const solChange = poolData.solReserves - lastReserves.solReserves;
+                
+                console.log(`🔍 [DEBUG] Changes calculated - tokenChange: ${tokenChange}, solChange: ${solChange}`);
                 
                 const minChange = 0.001; // Minimum change to consider a swap
                 
@@ -428,6 +444,8 @@ class EnhancedHybridPriceService extends EventEmitter {
 
     async getPoolReserves(poolAddress, tokenAddress) {
         try {
+            console.log(`🔍 [DEBUG] getPoolReserves called for pool: ${poolAddress}, token: ${tokenAddress}`);
+            
             const response = await axios.post(CONSTANT_K_RPC, {
                 jsonrpc: '2.0',
                 id: 1,
@@ -440,6 +458,7 @@ class EnhancedHybridPriceService extends EventEmitter {
             });
 
             const tokenAccounts = response.data?.result?.value || [];
+            console.log(`🔍 [DEBUG] Found ${tokenAccounts.length} token accounts for pool ${poolAddress}`);
             
             if (tokenAccounts.length >= 2) {
                 let tokenReserves = 0;
@@ -449,18 +468,26 @@ class EnhancedHybridPriceService extends EventEmitter {
                     const mint = account.account.data.parsed.info.mint;
                     const amount = parseFloat(account.account.data.parsed.info.tokenAmount.uiAmount || 0);
                     
+                    console.log(`🔍 [DEBUG] Account mint: ${mint}, amount: ${amount}`);
+                    
                     if (mint === tokenAddress) {
                         tokenReserves = amount;
+                        console.log(`🔍 [DEBUG] Set tokenReserves to ${amount} for token ${tokenAddress}`);
                     } else if (mint === WSOL) {
                         solReserves = amount;
+                        console.log(`🔍 [DEBUG] Set solReserves to ${amount} for WSOL`);
                     }
                 });
+                
+                console.log(`🔍 [DEBUG] Final reserves - tokenReserves: ${tokenReserves}, solReserves: ${solReserves}`);
                 
                 return { tokenReserves, solReserves };
             }
             
+            console.log(`❌ [DEBUG] Not enough token accounts (${tokenAccounts.length}) for pool ${poolAddress}`);
             return null;
         } catch (error) {
+            console.error(`❌ [DEBUG] Error fetching pool reserves for ${poolAddress}:`, error.message);
             return null;
         }
     }
