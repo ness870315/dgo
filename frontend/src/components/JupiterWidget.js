@@ -61,9 +61,12 @@ const JupiterWidget = ({ selectedToken }) => {
         const id = element.id || '';
         
         // Check if element is Jupiter-related
+        const dataJupiter = element.getAttribute('data-jupiter');
+        const dataTestId = element.getAttribute('data-testid');
+        
         if (className.includes('jupiter') || id.includes('jupiter') || 
-            element.getAttribute('data-jupiter') || 
-            element.getAttribute('data-testid')?.includes('jupiter')) {
+            dataJupiter || 
+            (dataTestId && dataTestId.includes('jupiter'))) {
           
           // Determine if it's a widget or modal based on context
           if (className.includes('modal') || className.includes('interface') || 
@@ -141,9 +144,12 @@ const JupiterWidget = ({ selectedToken }) => {
                   const className = element.className || '';
                   const id = element.id || '';
                   
+                  const dataJupiter = element.getAttribute('data-jupiter');
+                  const dataTestId = element.getAttribute('data-testid');
+                  
                   if (className.includes('jupiter') || id.includes('jupiter') || 
-                      element.getAttribute('data-jupiter') || 
-                      element.getAttribute('data-testid')?.includes('jupiter')) {
+                      dataJupiter || 
+                      (dataTestId && dataTestId.includes('jupiter'))) {
                     shouldApplyZIndex = true;
                   }
                 }
