@@ -210,9 +210,9 @@ class EnhancedHybridPriceService extends EventEmitter {
                 CommitmentLevel = { CONFIRMED: 'confirmed' }; // Fallback
             }
             
-            // Build account filters for single pool address (like the working test)
+            // Build account filters for single pool address (EXACTLY like the working test)
             const accountFilters = {
-                'pool_0': {
+                [`pool_${tokenAddress}`]: {  // ← FIXED: Use token address like test script
                     account: [poolAddress],
                     owner: [],
                     filters: []
@@ -232,7 +232,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                 {}, // entry
                 {}, // blocks
                 {}, // blocksMeta
-                CommitmentLevel?.CONFIRMED || 'confirmed',
+                CommitmentLevel.CONFIRMED,
                 []  // accountsDataSlice
             );
             
@@ -341,7 +341,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                 {}, // entry
                 {}, // blocks
                 {}, // blocksMeta
-                CommitmentLevel?.CONFIRMED || 'confirmed',
+                CommitmentLevel.CONFIRMED,
                 []  // accountsDataSlice
             );
             
