@@ -234,7 +234,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                     if (msg.account) {
                         totalUpdateCount++;
                         const slot = msg.account.slot;
-                        const accountAddress = bs58.encode(msg.account.pubkey);
+                        const accountAddress = bs58.encode(new Uint8Array(msg.account.pubkey.data));
                         
                         console.log(`🔍 [EnhancedHybridPriceService] Processing account update: ${accountAddress} at slot ${slot}`);
                         
