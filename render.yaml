@@ -1,0 +1,41 @@
+# Render Deployment Configuration for Enhanced Backend
+# This file configures the main Enhanced Backend service on Render
+
+services:
+  - type: web
+    name: enhanced-backend
+    env: node
+    buildCommand: apt-get update && apt-get install -y protobuf-compiler && npm install
+    startCommand: npm start
+    plan: starter
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+      - key: JUP_DISCOVERY_URL
+        value: https://enhanced-jup-discovery.onrender.com
+      - key: INTERNAL_TOKEN
+        sync: false  # Set this in Render dashboard
+      - key: X402_PAY_TO_ADDRESS
+        sync: false  # Set this in Render dashboard
+      - key: X402_FACILITATOR_URL
+        value: https://facilitator.payai.network
+      - key: SOLANA_RPC_URL
+        value: https://api.mainnet-beta.solana.com
+      - key: MORALIS_API_KEY
+        sync: false  # Set this in Render dashboard
+      - key: OPENAI_API_KEY
+        sync: false  # Set this in Render dashboard
+      - key: TWITTER_API_KEY
+        sync: false  # Set this in Render dashboard
+      - key: TWITTER_API_SECRET
+        sync: false  # Set this in Render dashboard
+      - key: TWITTER_ACCESS_TOKEN
+        sync: false  # Set this in Render dashboard
+      - key: TWITTER_ACCESS_TOKEN_SECRET
+        sync: false  # Set this in Render dashboard
+      - key: MONGODB_URI
+        sync: false  # Set this in Render dashboard
+      - key: ALLOWED_ORIGINS
+        value: https://enhanced-backend.onrender.com,https://your-frontend-domain.com
