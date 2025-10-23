@@ -689,18 +689,6 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
   // Initialize Jupiter Plugin
   // Jupiter widget is now handled globally by JupiterWidget component
 
-    // Cleanup function
-    return () => {
-      if (typeof window !== 'undefined' && window.Jupiter && jupiterInitialized) {
-        try {
-          window.Jupiter.close();
-        } catch (error) {
-          console.error("❌ Error closing Jupiter Plugin:", error);
-        }
-      }
-    };
-  }, [token?.contractAddress, token?.symbol]);
-
   const uniqueMentionsCount = React.useMemo(() => {
     const authors = new Set();
     aggregatedTweets.forEach(tw => {
