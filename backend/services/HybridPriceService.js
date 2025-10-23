@@ -117,26 +117,36 @@ class HybridPriceService {
         }
 
         try {
-            console.log(`🪐 [CoinGecko] Fetching SOL price`);
+            console.log(`🪐 [Jupiter] Fetching SOL price`);
             
-            // Use CoinGecko public API (no auth required)
-            const response = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
+            // Use Jupiter API to get SOL price (same API we use for token info)
+            const response = await axios.get(`${JUPITER_API_BASE}/search`, {
                 params: {
-                    ids: 'solana',
-                    vs_currencies: 'usd'
+                    query: 'Wrapped SOL'
                 },
                 timeout: 5000
             });
 
-            if (response.data?.solana?.usd) {
-                this.solPriceUSD = response.data.solana.usd;
-                this.lastSolPriceUpdate = now;
-                console.log(`✅ [CoinGecko] SOL price: $${this.solPriceUSD}`);
+            if (response.data && Array.isArray(response.data)) {
+                // Find the native SOL token (Wrapped SOL with symbol SOL)
+                const solToken = response.data.find(token => 
+                    token.symbol === 'SOL' && 
+                    token.name.toLowerCase().includes('wrapped') &&
+                    token.usdPrice > 0
+                );
+
+                if (solToken && solToken.usdPrice) {
+                    this.solPriceUSD = solToken.usdPrice;
+                    this.lastSolPriceUpdate = now;
+                    console.log(`✅ [Jupiter] SOL price: $${this.solPriceUSD}`);
+                } else {
+                    throw new Error('No SOL price found in Jupiter response');
+                }
             } else {
-                throw new Error('No SOL price in response');
+                throw new Error('Invalid Jupiter response format');
             }
         } catch (error) {
-            console.error(`❌ [CoinGecko] Error fetching SOL price:`, error.message);
+            console.error(`❌ [Jupiter] Error fetching SOL price:`, error.message);
             // Use fallback SOL price (approximate)
             this.solPriceUSD = 200;
             console.log(`⚠️ [Fallback] Using estimated SOL price: $${this.solPriceUSD}`);
