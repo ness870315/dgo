@@ -84,8 +84,8 @@ class EnhancedHybridPriceService extends EventEmitter {
                 GrpcWrapper = require('./GrpcWrapper.cjs');
             }
             
-            const grpcWrapper = new GrpcWrapper();
-            this.grpcClient = await grpcWrapper.createClient(CONSTANT_K_GRPC_ENDPOINT, CONSTANT_K_GRPC_TOKEN);
+            this.grpcWrapper = new GrpcWrapper();
+            this.grpcClient = await this.grpcWrapper.createClient(CONSTANT_K_GRPC_ENDPOINT, CONSTANT_K_GRPC_TOKEN);
             
             console.log('✅ [EnhancedHybridPriceService] gRPC client initialized successfully');
             
@@ -182,34 +182,23 @@ class EnhancedHybridPriceService extends EventEmitter {
             console.log(`🔌 [EnhancedHybridPriceService] Starting SINGLE stream for ${tokenAddresses.length} tokens...`);
             
             // Build account filters for ALL tokens in ONE stream
-            const accountFilters = {};
             const poolAddresses = [];
-            
-            tokenAddresses.forEach((tokenAddress, index) => {
+            tokenAddresses.forEach((tokenAddress) => {
                 const poolAddress = this.poolAddresses.get(tokenAddress);
                 if (poolAddress) {
-                    accountFilters[`pool_${index}`] = {
-                        account: [poolAddress],
-                        owner: [],
-                        filters: []
-                    };
                     poolAddresses.push(poolAddress);
                 }
             });
             
             console.log(`📊 [EnhancedHybridPriceService] Monitoring ${poolAddresses.length} pool addresses in single stream`);
+            console.log(`📊 [EnhancedHybridPriceService] Pool addresses:`, poolAddresses.slice(0, 5), '...');
             
-            const stream = await this.grpcClient.subscribeOnce(
-                accountFilters, // accounts - ALL pools in one request
-                {}, // slots  
-                {}, // transactions
-                {}, // transactionsStatus
-                {}, // entry
-                {}, // blocks
-                {}, // blocksMeta
-                CommitmentLevel.CONFIRMED,
-                []  // accountsDataSlice
-            );
+            // Use the working format from our test
+            const CommitmentLevel = this.grpcWrapper.getCommitmentLevel();
+            const stream = this.grpcClient.subscribe({
+                accounts: poolAddresses,
+                commitment: CommitmentLevel?.CONFIRMED || 'confirmed'
+            });
             
             let totalUpdateCount = 0;
             stream.on("data", async (msg) => {
