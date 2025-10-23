@@ -190,17 +190,35 @@ class EnhancedHybridPriceService extends EventEmitter {
                 }
             });
             
-            // Use the working format from our test - subscribe to POOL addresses for swap monitoring
-            // But limit to first 5 pools for testing
-            const testPoolAddresses = poolAddresses.slice(0, 5);
-            
-            console.log(`📊 [EnhancedHybridPriceService] Testing with ${testPoolAddresses.length} pool addresses (limited for testing)`);
-            console.log(`📊 [EnhancedHybridPriceService] Test pool addresses:`, testPoolAddresses);
+            // Use the WORKING SOLUTION: subscribeOnce for real-time pool monitoring
+            // Based on test-multi-contract-monitoring.js which was working perfectly
+            console.log(`📊 [EnhancedHybridPriceService] Starting pool monitoring (WORKING SOLUTION)`);
             const CommitmentLevel = this.grpcWrapper.getCommitmentLevel();
-            const stream = this.grpcClient.subscribe({
-                accounts: testPoolAddresses, // Use pool addresses for swap monitoring
-                commitment: CommitmentLevel?.PROCESSED || 'processed' // Use PROCESSED like in working test
+            
+            // Build account filters for pool addresses (like the working test)
+            const accountFilters = {};
+            poolAddresses.forEach((poolAddress, index) => {
+                accountFilters[`pool_${index}`] = {
+                    account: [poolAddress],
+                    owner: [],
+                    filters: []
+                };
             });
+            
+            console.log(`📊 [EnhancedHybridPriceService] Monitoring ${poolAddresses.length} pool addresses`);
+            console.log(`📊 [EnhancedHybridPriceService] Sample pools:`, poolAddresses.slice(0, 3));
+            
+            const stream = await this.grpcClient.subscribeOnce(
+                accountFilters, // accounts - pool addresses like working test
+                {}, // slots  
+                {}, // transactions
+                {}, // transactionsStatus
+                {}, // entry
+                {}, // blocks
+                {}, // blocksMeta
+                CommitmentLevel?.CONFIRMED || 'confirmed',
+                []  // accountsDataSlice
+            );
             
             let totalUpdateCount = 0;
             stream.on("data", async (msg) => {
