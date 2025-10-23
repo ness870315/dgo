@@ -231,10 +231,10 @@ class EnhancedHybridPriceService extends EventEmitter {
             stream.on("data", async (msg) => {
                 try {
                     console.log(`📊 [EnhancedHybridPriceService] Received gRPC data:`, JSON.stringify(msg, null, 2));
-                    if (msg.account) {
+                    if (msg.account && msg.account.account && msg.account.account.pubkey) {
                         totalUpdateCount++;
                         const slot = msg.account.slot;
-                        const accountAddress = bs58.encode(new Uint8Array(msg.account.pubkey.data));
+                        const accountAddress = bs58.encode(new Uint8Array(msg.account.account.pubkey.data));
                         
                         console.log(`🔍 [EnhancedHybridPriceService] Processing account update: ${accountAddress} at slot ${slot}`);
                         
