@@ -74,10 +74,16 @@ class EnhancedHybridPriceService extends EventEmitter {
         try {
             console.log('🔌 [EnhancedHybridPriceService] Initializing Constant K gRPC client...');
             
-            // Dynamic import to handle ESM module in CommonJS context
+            // Try different import approaches for production compatibility
             console.log('📦 [EnhancedHybridPriceService] Loading @triton-one/yellowstone-grpc...');
-            const { default: Client, CommitmentLevel } = await import('@triton-one/yellowstone-grpc');
-            console.log('✅ [EnhancedHybridPriceService] Yellowstone gRPC module loaded successfully');
+            
+            let Client, CommitmentLevel;
+            
+            // Dynamic import for ESM-only package
+            const pkg = await import('@triton-one/yellowstone-grpc');
+            Client = pkg.default;
+            CommitmentLevel = pkg.CommitmentLevel;
+            console.log('✅ [EnhancedHybridPriceService] Dynamic import successful');
             
             console.log('🔌 [EnhancedHybridPriceService] Creating gRPC client...');
             this.grpcClient = new Client(CONSTANT_K_GRPC_ENDPOINT, CONSTANT_K_GRPC_TOKEN);
