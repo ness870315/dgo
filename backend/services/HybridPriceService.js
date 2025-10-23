@@ -119,19 +119,18 @@ class HybridPriceService {
         try {
             console.log(`🪐 [Jupiter] Fetching SOL price`);
             
-            // Use Jupiter API to get SOL price (same API we use for token info)
+            // Use Jupiter API to get native SOL price (same API we use for token info)
             const response = await axios.get(`${JUPITER_API_BASE}/search`, {
                 params: {
-                    query: 'Wrapped SOL'
+                    query: 'So11111111111111111111111111111111111111112'
                 },
                 timeout: 5000
             });
 
             if (response.data && Array.isArray(response.data)) {
-                // Find the native SOL token (Wrapped SOL with symbol SOL)
+                // Find the native SOL token by mint address
                 const solToken = response.data.find(token => 
-                    token.symbol === 'SOL' && 
-                    token.name.toLowerCase().includes('wrapped') &&
+                    token.id === 'So11111111111111111111111111111111111111112' &&
                     token.usdPrice > 0
                 );
 
