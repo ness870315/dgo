@@ -228,27 +228,41 @@ class EnhancedHybridPriceService extends EventEmitter {
             );
             
             let totalUpdateCount = 0;
+            let lastLogTime = 0;
+            const LOG_INTERVAL = 5000; // Log every 5 seconds max
+            
             stream.on("data", async (msg) => {
                 try {
-                    console.log(`📊 [EnhancedHybridPriceService] Received gRPC data:`, JSON.stringify(msg, null, 2));
+                    // Only log essential info, not the massive data payload
                     if (msg.account && msg.account.account && msg.account.account.pubkey) {
                         totalUpdateCount++;
                         const slot = msg.account.slot;
                         const accountAddress = bs58.encode(new Uint8Array(msg.account.account.pubkey.data));
                         
-                        console.log(`🔍 [EnhancedHybridPriceService] Processing account update: ${accountAddress} at slot ${slot}`);
+                        // Rate limit logging to prevent spam
+                        const now = Date.now();
+                        if (now - lastLogTime > LOG_INTERVAL) {
+                            console.log(`🔍 [EnhancedHybridPriceService] Processing update #${totalUpdateCount}: ${accountAddress} at slot ${slot}`);
+                            lastLogTime = now;
+                        }
                         
                         // Find which token this pool belongs to
                         const tokenAddress = this.findTokenByPoolAddress(accountAddress);
                         if (tokenAddress) {
-                            console.log(`✅ [EnhancedHybridPriceService] Found token ${tokenAddress} for pool ${accountAddress}`);
+                            // Only log every 10th successful match to reduce spam
+                            if (totalUpdateCount % 10 === 0) {
+                                console.log(`✅ [EnhancedHybridPriceService] Found token ${tokenAddress} for pool ${accountAddress}`);
+                            }
                             try {
                                 await this.processPoolUpdate(tokenAddress, accountAddress, slot, totalUpdateCount);
                             } catch (error) {
                                 console.error(`❌ [EnhancedHybridPriceService] Error processing update for ${tokenAddress}:`, error.message);
                             }
                         } else {
-                            console.log(`⚠️ [EnhancedHybridPriceService] No token found for pool ${accountAddress}`);
+                            // Only log every 50th unmatched pool to reduce spam
+                            if (totalUpdateCount % 50 === 0) {
+                                console.log(`⚠️ [EnhancedHybridPriceService] No token found for pool ${accountAddress}`);
+                            }
                         }
                     } else {
                         console.log(`📊 [EnhancedHybridPriceService] Received non-account data:`, msg);
