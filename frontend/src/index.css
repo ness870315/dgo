@@ -51,6 +51,25 @@
   height: 48px !important;
 }
 
+/* Ensure Jupiter widget is always on top of modals */
+.jupiter-widget-button,
+.jupiter-widget-trigger,
+[class*="jupiter-widget"],
+.jupiter-widget,
+.jupiter-swap-widget {
+  z-index: 10001 !important;
+  position: fixed !important;
+}
+
+/* Ensure Jupiter modal/interface is also on top when opened */
+.jupiter-modal,
+.jupiter-interface,
+.jupiter-swap-interface,
+[class*="jupiter-modal"],
+[class*="jupiter-interface"] {
+  z-index: 10002 !important;
+}
+
 /* Hide default Jupiter icon and replace with our logo */
 .jupiter-widget-button::before,
 .jupiter-widget-trigger::before,
