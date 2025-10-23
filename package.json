@@ -60,5 +60,11 @@
     "winston": "^3.17.0",
     "winston-transport": "^4.9.0",
     "ws": "^8.18.3"
+  },
+  "overrides": {
+    "react-scripts": {
+      "typescript": "^5.4.5"
+    },
+    "typescript": "^5.4.5"
   }
 }
