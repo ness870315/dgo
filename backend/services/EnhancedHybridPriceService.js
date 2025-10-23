@@ -4,7 +4,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import bs58 from 'bs58';
 
-// Dynamic import for Yellowstone gRPC (will be loaded when needed)
+// Static import for Yellowstone gRPC
+import YellowstoneGrpc from '@triton-one/yellowstone-grpc';
 
 const CONSTANT_K_RPC = 'https://rpc.constant-k.com/?api-key=tsn41k3y-4qch-46f2-5ogr-67dmw2zh1ur8';
 const CONSTANT_K_GRPC_ENDPOINT = 'https://yellowstone.constant-k.com:443';
@@ -76,28 +77,12 @@ class EnhancedHybridPriceService extends EventEmitter {
         try {
             console.log('🔌 [EnhancedHybridPriceService] Initializing Constant K gRPC client...');
             
-            // Try different import approaches for production compatibility
-            console.log('📦 [EnhancedHybridPriceService] Loading @triton-one/yellowstone-grpc...');
+            // Use static import for Yellowstone gRPC
+            console.log('📦 [EnhancedHybridPriceService] Using static import for Yellowstone gRPC...');
             
-            let Client, CommitmentLevel;
-            
-            try {
-                // Method 1: Try using createRequire for CommonJS compatibility
-                const { createRequire } = await import('module');
-                const require = createRequire(import.meta.url);
-                const YellowstoneGrpc = require('@triton-one/yellowstone-grpc');
-                Client = YellowstoneGrpc.default || YellowstoneGrpc;
-                CommitmentLevel = YellowstoneGrpc.CommitmentLevel;
-                console.log('✅ [EnhancedHybridPriceService] createRequire import successful');
-            } catch (requireError) {
-                console.log('⚠️ [EnhancedHybridPriceService] createRequire failed, trying dynamic import...');
-                
-                // Method 2: Dynamic import
-                const YellowstoneGrpc = await import('@triton-one/yellowstone-grpc');
-                Client = YellowstoneGrpc.default || YellowstoneGrpc;
-                CommitmentLevel = YellowstoneGrpc.CommitmentLevel;
-                console.log('✅ [EnhancedHybridPriceService] Dynamic import successful');
-            }
+            const Client = YellowstoneGrpc.default || YellowstoneGrpc;
+            const CommitmentLevel = YellowstoneGrpc.CommitmentLevel;
+            console.log('✅ [EnhancedHybridPriceService] Static import successful');
             
             console.log('🔌 [EnhancedHybridPriceService] Creating gRPC client...');
             this.grpcClient = new Client(CONSTANT_K_GRPC_ENDPOINT, CONSTANT_K_GRPC_TOKEN);

@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "DeGen Oracle - Solana Meme Coin Discovery Platform",
   "private": true,
-  "type": "module",
   "workspaces": [
     "frontend",
     "backend"
