@@ -18,9 +18,9 @@ class WebSocketService extends EventEmitter {
       return;
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    const wsUrl = `${protocol}//${host}/ws`;
+    // Use the same API base URL as other services
+    const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+    const wsUrl = API_BASE.replace('https://', 'wss://').replace('http://', 'ws://') + '/ws';
 
     console.log('🔌 [WebSocketService] Connecting to:', wsUrl);
 

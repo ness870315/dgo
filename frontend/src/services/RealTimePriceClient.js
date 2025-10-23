@@ -8,9 +8,9 @@ class RealTimePriceClient {
     this.subscribedTokens = new Set();
     this.eventListeners = new Map();
     this.pingInterval = null;
-    this.baseUrl = window.location.hostname === 'api.degen-oracle.com' || window.location.hostname === 'degen-oracle.com'
-      ? 'wss://api.degen-oracle.com/ws'
-      : 'ws://localhost:4000/ws';
+    // Use the same API base URL as other services
+    const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+    this.baseUrl = API_BASE.replace('https://', 'wss://').replace('http://', 'ws://') + '/ws';
   }
 
   connect() {
