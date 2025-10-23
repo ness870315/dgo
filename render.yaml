@@ -6,7 +6,7 @@ services:
     name: enhanced-backend
     env: node
     buildCommand: apt-get update && apt-get install -y protobuf-compiler && npm install --legacy-peer-deps && npm run build
-    startCommand: cd backend && npm start
+    startCommand: cd backend && node enhancedBackend.mjs
     plan: starter
     envVars:
       - key: PORT
