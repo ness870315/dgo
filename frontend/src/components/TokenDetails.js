@@ -687,55 +687,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
   }, [token]);
 
   // Initialize Jupiter Plugin
-  useEffect(() => {
-    const initializeJupiter = async () => {
-      // Check if Jupiter is available
-      if (typeof window !== 'undefined' && window.Jupiter && token?.contractAddress) {
-        try {
-          // Wait a bit for the DOM to be ready
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-          window.Jupiter.init({
-            displayMode: "integrated",
-            integratedTargetId: "jupiter-swap-container",
-            formProps: {
-              initialInputMint: "So11111111111111111111111111111111111111112", // SOL
-              initialOutputMint: token.contractAddress, // Current token
-              swapMode: "ExactInOrOut",
-              referralAccount: "CwkvssRLmaxVUoo6ywxJDtWS4sNEizUkhbJXijByynEi", // Your referral account
-              referralFee: 100 // 100 basis points = 1% fee
-            },
-            containerStyles: {
-              width: "100%",
-              height: "180px", // Further reduced to fit without scrollbar
-              borderRadius: "12px",
-              backgroundColor: "transparent",
-              maxWidth: "none",
-              overflow: "hidden"
-            },
-            branding: {
-              logoUri: "/dgo.png", // Use Degen Oracle logo
-              name: "Degen Oracle" // Replace with our branding
-            },
-            onSuccess: ({ txid, swapResult, quoteResponseMeta }) => {
-              console.log("✅ Jupiter swap successful:", txid);
-              // You can add success notification here
-            },
-            onSwapError: ({ error, quoteResponseMeta }) => {
-              console.error("❌ Jupiter swap failed:", error);
-              // You can add error notification here
-            }
-          });
-          
-          setJupiterInitialized(true);
-          console.log("🚀 Jupiter Plugin initialized for token:", token.symbol);
-        } catch (error) {
-          console.error("❌ Failed to initialize Jupiter Plugin:", error);
-        }
-      }
-    };
-
-    initializeJupiter();
+  // Jupiter widget is now handled globally by JupiterWidget component
 
     // Cleanup function
     return () => {
@@ -1269,27 +1221,7 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
             </div>
 
           {/* 🚀 Section 2 – Jupiter Swap Integration */}
-          {true && (
-            <div className="bg-gray-800 rounded-lg p-3 border border-gray-600">
-              <h3 className="text-lg font-bold mb-3 text-white flex items-center">
-                🚀 Swap {token?.symbol || 'Token'}
-              </h3>
-              <div className="bg-gray-900 rounded-lg p-4 border border-gray-700 jupiter-container">
-                <div 
-                  id="jupiter-swap-container" 
-                  className="jupiter-integrated"
-                  style={{ 
-                    width: '100%', 
-                    height: '180px',
-                    maxHeight: '180px',
-                    overflow: 'hidden',
-                    borderRadius: '12px',
-                    position: 'relative'
-                  }}
-                />
-              </div>
-            </div>
-          )}
+          {/* Jupiter widget is now handled globally - no need for embedded swap section */}
 
           {/* 🔍 Section 3 – Insights (Market Data) */}
           <div className="bg-gray-800 rounded-lg p-3 border border-gray-600">
