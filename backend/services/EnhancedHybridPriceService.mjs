@@ -69,6 +69,13 @@ class EnhancedHybridPriceService extends EventEmitter {
             console.log('🚀 [EnhancedHybridPriceService] Starting async initialization...');
             await this.initializeGrpcClient();
             await this.loadTokenCache();
+            
+            // 🚀 NEW: Automatically start real-time monitoring after initialization
+            if (this.grpcClient && this.poolAddresses.size > 0) {
+                console.log('🚀 [EnhancedHybridPriceService] Auto-starting real-time monitoring...');
+                await this.startRealTimeMonitoring();
+            }
+            
             console.log('✅ [EnhancedHybridPriceService] Async initialization complete');
         } catch (error) {
             console.error('❌ [EnhancedHybridPriceService] Async initialization failed:', error.message);
