@@ -9,6 +9,7 @@ const generateConnectionId = () => `conn_${Date.now()}_${Math.random().toString(
 
 export const useHybridPrice = (tokenAddress, pollingInterval = 10000, enableWebSocket = true) => {
   const [priceData, setPriceData] = useState(null);
+  const [swapData, setSwapData] = useState([]); // 🚀 NEW: Real-time swap data
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isLive, setIsLive] = useState(false);
@@ -44,6 +45,20 @@ export const useHybridPrice = (tokenAddress, pollingInterval = 10000, enableWebS
       }
     };
 
+    // 🚀 NEW: Handle swap updates
+    const handleSwapUpdate = (data) => {
+      if (data.tokenAddress === tokenAddress && mountedRef.current) {
+        console.log('🔄 [useHybridPrice] WebSocket swap update received:', data.swap);
+        setSwapData(prevSwaps => {
+          const newSwaps = [data.swap, ...prevSwaps];
+          // Keep only last 50 swaps to prevent memory issues
+          return newSwaps.slice(0, 50);
+        });
+        setIsLive(true);
+        lastWebSocketUpdateRef.current = Date.now();
+      }
+    };
+
     const handleError = (error) => {
       console.error('❌ [useHybridPrice] WebSocket error:', error);
       setError(error);
@@ -61,6 +76,7 @@ export const useHybridPrice = (tokenAddress, pollingInterval = 10000, enableWebS
     websocketService.on('connected', handleConnected);
     websocketService.on('disconnected', handleDisconnected);
     websocketService.on('priceUpdate', handlePriceUpdate);
+    websocketService.on('swapUpdate', handleSwapUpdate); // 🚀 NEW: Swap updates
     websocketService.on('error', handleError);
 
     // Check initial connection status
@@ -74,6 +90,7 @@ export const useHybridPrice = (tokenAddress, pollingInterval = 10000, enableWebS
       websocketService.off('connected', handleConnected);
       websocketService.off('disconnected', handleDisconnected);
       websocketService.off('priceUpdate', handlePriceUpdate);
+      websocketService.off('swapUpdate', handleSwapUpdate); // 🚀 NEW: Swap updates
       websocketService.off('error', handleError);
     };
   }, [tokenAddress, enableWebSocket]);
@@ -221,8 +238,25 @@ export const useHybridPrice = (tokenAddress, pollingInterval = 10000, enableWebS
     }
   }, []);
 
+  // 🚀 NEW: Fetch swap history function
+  const fetchSwapHistory = useCallback(async (limit = 50) => {
+    if (!tokenAddress) return [];
+    
+    try {
+      const response = await axios.get(`${API_BASE}/api/realtime-monitor/swaps/${tokenAddress}?limit=${limit}`);
+      if (response.data.success) {
+        setSwapData(response.data.swaps);
+        return response.data.swaps;
+      }
+    } catch (error) {
+      console.error('Error fetching swap history:', error.message);
+    }
+    return [];
+  }, [tokenAddress]);
+
   return {
     priceData,
+    swapData, // 🚀 NEW: Real-time swap data
     isLoading,
     error,
     isLive,
@@ -230,6 +264,7 @@ export const useHybridPrice = (tokenAddress, pollingInterval = 10000, enableWebS
     formatPrice,
     formatLiquidity,
     formatMarketCap,
+    fetchSwapHistory, // 🚀 NEW: Function to fetch swap history
     // Helper methods
     getPriceUsd: () => priceData?.priceUsd || 0,
     getMarketCap: () => priceData?.marketCap || 0,

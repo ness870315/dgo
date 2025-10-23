@@ -4,6 +4,7 @@ import chartService from '../services/chartService';
 import SVGChart from './SVGChartEnhanced';
 import TechnicalAnalysisPanel from './TechnicalAnalysisPanel';
 import { useAuth } from '../contexts/AuthContext';
+import { useHybridPrice } from '../hooks/useHybridPrice'; // 🚀 NEW: Import for real-time data
 
 const PriceChartModal = ({ token, onClose }) => {
   const { user, isAuthenticated } = useAuth();
@@ -14,6 +15,13 @@ const PriceChartModal = ({ token, onClose }) => {
   const [timeframe, setTimeframe] = useState('5MIN');
   const [volume, setVolume] = useState(0);
   const [tokenAnalytics, setTokenAnalytics] = useState(null);
+  
+  // 🚀 NEW: Real-time data from hybrid price service
+  const { 
+    swapData, 
+    isLive, 
+    fetchSwapHistory 
+  } = useHybridPrice(token?.contractAddress || token?.tokenAddress);
   
   // Use ref to track previous price for accurate change calculation
   const previousPriceRef = useRef(null);
@@ -44,6 +52,13 @@ const PriceChartModal = ({ token, onClose }) => {
       loadTokenAnalytics();
     }
   }, [token?.contractAddress]);
+
+  // 🚀 NEW: Load swap history when component mounts
+  useEffect(() => {
+    if (token?.contractAddress && fetchSwapHistory) {
+      fetchSwapHistory(20); // Load last 20 swaps
+    }
+  }, [token?.contractAddress, fetchSwapHistory]);
 
   useEffect(() => {
     if (tokenAnalytics && timeframe) {
@@ -265,6 +280,90 @@ const PriceChartModal = ({ token, onClose }) => {
             onTimeframeChange={setTimeframe}
             onPriceUpdate={handlePriceUpdate}
           />
+
+          {/* 🚀 NEW: Real-Time Swap Table */}
+          <div className="mt-6 bg-gray-800/50 rounded-lg border border-gray-700">
+            <div className="px-4 py-3 border-b border-gray-700">
+              <div className="flex items-center justify-between">
+                <h3 className="text-white font-semibold flex items-center">
+                  🔄 Live Swaps
+                  {isLive && (
+                    <span className="ml-2 text-xs bg-green-600 text-white px-2 py-1 rounded-full">
+                      📡 Live
+                    </span>
+                  )}
+                </h3>
+                <span className="text-gray-400 text-sm">
+                  {swapData?.length || 0} swaps
+                </span>
+              </div>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-700/50">
+                  <tr>
+                    <th className="px-3 py-2 text-left text-gray-300 font-medium">Time</th>
+                    <th className="px-3 py-2 text-center text-gray-300 font-medium">Type</th>
+                    <th className="px-3 py-2 text-right text-gray-300 font-medium">USD</th>
+                    <th className="px-3 py-2 text-right text-gray-300 font-medium">Token</th>
+                    <th className="px-3 py-2 text-right text-gray-300 font-medium">SOL</th>
+                    <th className="px-3 py-2 text-right text-gray-300 font-medium">Price</th>
+                    <th className="px-3 py-2 text-center text-gray-300 font-medium">Maker</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {swapData && swapData.length > 0 ? (
+                    swapData.slice(0, 10).map((swap, index) => (
+                      <tr key={index} className="border-b border-gray-700/50 hover:bg-gray-700/30">
+                        <td className="px-3 py-2 text-gray-400 text-xs">
+                          {new Date(swap.timestamp).toLocaleTimeString()}
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                            swap.type === 'Buy' 
+                              ? 'bg-green-600/20 text-green-400 border border-green-500/30' 
+                              : 'bg-red-600/20 text-red-400 border border-red-500/30'
+                          }`}>
+                            {swap.type === 'Buy' ? '🟢 Buy' : '🔴 Sell'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-right text-white font-medium">
+                          ${swap.usdAmount?.toFixed(2) || '0.00'}
+                        </td>
+                        <td className="px-3 py-2 text-right text-gray-300">
+                          {swap.tokenAmount?.toFixed(2) || '0.00'}
+                        </td>
+                        <td className="px-3 py-2 text-right text-gray-300">
+                          {swap.solAmount?.toFixed(6) || '0.000000'}
+                        </td>
+                        <td className="px-3 py-2 text-right text-white font-medium">
+                          ${swap.priceUSD?.toFixed(6) || '0.000000'}
+                        </td>
+                        <td className="px-3 py-2 text-center text-gray-400 text-xs">
+                          {swap.maker || 'N/A'}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="7" className="px-3 py-8 text-center text-gray-500">
+                        {isLive ? 'Waiting for swaps...' : 'No swap data available'}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            
+            {swapData && swapData.length > 10 && (
+              <div className="px-4 py-2 border-t border-gray-700 text-center">
+                <span className="text-gray-400 text-xs">
+                  Showing last 10 swaps of {swapData.length} total
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

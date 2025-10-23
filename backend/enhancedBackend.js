@@ -26,6 +26,8 @@ import MilestoneTracker from './milestoneTracker.js';
 import PushNotificationService from './pushNotificationService.js';
 import AutomatedTokenCleanup from './automatedTokenCleanup.js';
 import HybridPriceService from './services/HybridPriceService.js';
+import EnhancedHybridPriceService from './services/EnhancedHybridPriceService.js';
+import RealTimeTokenMonitor from './services/RealTimeTokenMonitor.js';
 import HybridChartService from './services/HybridChartService.js';
 import KOLService from './services/KOLService.js';
 import BondingTokenValidationService from './services/BondingTokenValidationService.js';
@@ -12816,8 +12818,11 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // 📈 PRICE CHART ENDPOINTS
     // ========================================
 
-    // Initialize Hybrid Price Service
-    this.hybridPriceService = new HybridPriceService();
+    // Initialize Enhanced Hybrid Price Service with Constant K gRPC
+    this.hybridPriceService = new EnhancedHybridPriceService();
+    
+    // Initialize Real-Time Token Monitor
+    this.realTimeTokenMonitor = null; // Will be initialized after WebSocket server starts
     
     // Initialize Pre-Bonding Moralis Service (standalone, no chart infrastructure)
     this.preBondingMoralisService = new PreBondingMoralisService();
@@ -13271,6 +13276,217 @@ Thanks for using x402 payments on Twitter! 🚀`;
         res.status(500).json({
           success: false,
           error: 'Failed to get WebSocket stats'
+        });
+      }
+    });
+
+    // ========================================
+    // 🚀 REAL-TIME TOKEN MONITORING ENDPOINTS
+    // ========================================
+
+    // Get real-time monitoring stats
+    this.app.get('/api/realtime-monitor/stats', (req, res) => {
+      try {
+        if (this.realTimeTokenMonitor) {
+          const stats = this.realTimeTokenMonitor.getMonitoringStats();
+          res.json({
+            success: true,
+            stats
+          });
+        } else {
+          res.status(503).json({
+            success: false,
+            error: 'RealTimeTokenMonitor not available'
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error getting real-time monitoring stats:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get monitoring stats'
+        });
+      }
+    });
+
+    // Get real-time price for a specific token
+    this.app.get('/api/realtime-monitor/price/:tokenAddress', (req, res) => {
+      try {
+        const { tokenAddress } = req.params;
+        
+        if (this.realTimeTokenMonitor) {
+          const priceData = this.realTimeTokenMonitor.getRealTimePrice(tokenAddress);
+          
+          if (priceData) {
+            res.json({
+              success: true,
+              priceData
+            });
+          } else {
+            res.status(404).json({
+              success: false,
+              error: 'Token not found in real-time monitoring'
+            });
+          }
+        } else {
+          res.status(503).json({
+            success: false,
+            error: 'RealTimeTokenMonitor not available'
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error getting real-time price:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get real-time price'
+        });
+      }
+    });
+
+    // Get swap history for a specific token
+    this.app.get('/api/realtime-monitor/swaps/:tokenAddress', (req, res) => {
+      try {
+        const { tokenAddress } = req.params;
+        const limit = parseInt(req.query.limit) || 50;
+        
+        if (this.realTimeTokenMonitor) {
+          const swaps = this.realTimeTokenMonitor.getSwapHistory(tokenAddress, limit);
+          
+          res.json({
+            success: true,
+            swaps,
+            count: swaps.length,
+            tokenAddress
+          });
+        } else {
+          res.status(503).json({
+            success: false,
+            error: 'RealTimeTokenMonitor not available'
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error getting swap history:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get swap history'
+        });
+      }
+    });
+
+    // Get all real-time prices
+    this.app.get('/api/realtime-monitor/prices', (req, res) => {
+      try {
+        if (this.realTimeTokenMonitor) {
+          const prices = this.realTimeTokenMonitor.getAllTokenPrices();
+          
+          res.json({
+            success: true,
+            prices,
+            count: Object.keys(prices).length
+          });
+        } else {
+          res.status(503).json({
+            success: false,
+            error: 'RealTimeTokenMonitor not available'
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error getting all real-time prices:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get real-time prices'
+        });
+      }
+    });
+
+    // Add new token to real-time monitoring
+    this.app.post('/api/realtime-monitor/add-token', async (req, res) => {
+      try {
+        const { tokenData } = req.body;
+        
+        if (!tokenData) {
+          return res.status(400).json({
+            success: false,
+            error: 'Token data required'
+          });
+        }
+        
+        if (this.realTimeTokenMonitor) {
+          const success = await this.realTimeTokenMonitor.addToken(tokenData);
+          
+          res.json({
+            success,
+            message: success ? 'Token added to monitoring' : 'Token added but no pool found'
+          });
+        } else {
+          res.status(503).json({
+            success: false,
+            error: 'RealTimeTokenMonitor not available'
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error adding token to monitoring:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to add token to monitoring'
+        });
+      }
+    });
+
+    // Remove token from real-time monitoring
+    this.app.post('/api/realtime-monitor/remove-token', async (req, res) => {
+      try {
+        const { tokenAddress } = req.body;
+        
+        if (!tokenAddress) {
+          return res.status(400).json({
+            success: false,
+            error: 'Token address required'
+          });
+        }
+        
+        if (this.realTimeTokenMonitor) {
+          await this.realTimeTokenMonitor.removeToken(tokenAddress);
+          
+          res.json({
+            success: true,
+            message: 'Token removed from monitoring'
+          });
+        } else {
+          res.status(503).json({
+            success: false,
+            error: 'RealTimeTokenMonitor not available'
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error removing token from monitoring:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to remove token from monitoring'
+        });
+      }
+    });
+
+    // Restart real-time monitoring
+    this.app.post('/api/realtime-monitor/restart', async (req, res) => {
+      try {
+        if (this.realTimeTokenMonitor) {
+          await this.realTimeTokenMonitor.restartMonitoring();
+          
+          res.json({
+            success: true,
+            message: 'Real-time monitoring restarted'
+          });
+        } else {
+          res.status(503).json({
+            success: false,
+            error: 'RealTimeTokenMonitor not available'
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error restarting monitoring:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to restart monitoring'
         });
       }
     });
@@ -17400,6 +17616,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
         this.hybridPriceService.setWebSocketServer(this.realTimePriceService.backendWebSocketServer);
         console.log('✅ HybridPriceService connected to WebSocket server');
       }
+      
+      // 🚀 NEW: Initialize Real-Time Token Monitor
+      console.log('🚀 Initializing Real-Time Token Monitor...');
+      this.realTimeTokenMonitor = new RealTimeTokenMonitor(this.realTimePriceService.backendWebSocketServer);
+      await this.realTimeTokenMonitor.initialize();
+      await this.realTimeTokenMonitor.startMonitoring();
+      console.log('✅ Real-Time Token Monitor started - monitoring all cached tokens');
       
       console.log('✅ Real-Time Price Service initialized successfully');
       console.log('📡 WebSocket endpoint available at: /ws');

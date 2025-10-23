@@ -192,6 +192,44 @@ class BackendWebSocketServer extends EventEmitter {
     });
   }
 
+  // 🚀 NEW: Broadcast swap updates
+  broadcastSwapUpdate(tokenAddress, swapData) {
+    this.broadcastToTokenSubscribers(tokenAddress, {
+      type: 'swapUpdate',
+      data: swapData
+    });
+  }
+
+  // 🚀 NEW: Broadcast to all clients (for system-wide updates)
+  broadcastToAllClients(message) {
+    this.clients.forEach((client, clientId) => {
+      this.sendToClient(clientId, {
+        ...message,
+        timestamp: Date.now()
+      });
+    });
+  }
+
+  // 🚀 NEW: Get detailed stats
+  getDetailedStats() {
+    const stats = {
+      totalClients: this.clients.size,
+      totalTokenSubscriptions: this.tokenSubscriptions.size,
+      subscribedTokens: Array.from(this.tokenSubscriptions.keys()),
+      clientSubscriptions: {}
+    };
+
+    // Add per-client subscription details
+    this.clientTokenSubscriptions.forEach((tokens, clientId) => {
+      stats.clientSubscriptions[clientId] = {
+        tokenCount: tokens.size,
+        tokens: Array.from(tokens)
+      };
+    });
+
+    return stats;
+  }
+
   getStats() {
     return {
       totalClients: this.clients.size,
