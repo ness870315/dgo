@@ -21,7 +21,7 @@ const JupiterWidget = ({ selectedToken }) => {
             widgetStyle: {
               position: "bottom-right",
               size: "sm",
-              icon: "/dgo.png" // Custom Degen Oracle icon for floating widget
+              icon: "./dgo.png" // Custom Degen Oracle icon for floating widget
             },
             formProps: {
               initialInputMint: "So11111111111111111111111111111111111111112", // SOL
@@ -31,7 +31,7 @@ const JupiterWidget = ({ selectedToken }) => {
               referralFee: 50 // 50 basis points = 0.5% fee
             },
             branding: {
-              logoUri: "/dgo.png", // Use Degen Oracle logo
+              logoUri: "./dgo.png", // Use Degen Oracle logo
               name: "Degen Oracle" // Replace with our branding
             },
             onSuccess: ({ txid, swapResult, quoteResponseMeta }) => {
