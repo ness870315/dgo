@@ -4,6 +4,9 @@ import fs from 'fs/promises';
 import path from 'path';
 import bs58 from 'bs58';
 
+// Static import for Yellowstone gRPC
+import YellowstoneGrpc from '@triton-one/yellowstone-grpc';
+
 const CONSTANT_K_RPC = 'https://rpc.constant-k.com/?api-key=tsn41k3y-4qch-46f2-5ogr-67dmw2zh1ur8';
 const CONSTANT_K_GRPC_ENDPOINT = 'https://yellowstone.constant-k.com:443';
 const CONSTANT_K_GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
@@ -74,15 +77,16 @@ class EnhancedHybridPriceService extends EventEmitter {
         try {
             console.log('🔌 [EnhancedHybridPriceService] Initializing Constant K gRPC client...');
             
-            // Dynamic import for ESM-only package
-            console.log('📦 [EnhancedHybridPriceService] Loading @triton-one/yellowstone-grpc...');
+            // Use static import for Yellowstone gRPC
+            console.log('📦 [EnhancedHybridPriceService] Using static import for Yellowstone gRPC...');
             
-            let Client, CommitmentLevel;
+            if (!YellowstoneGrpc) {
+                throw new Error('Yellowstone gRPC not available - static import failed');
+            }
             
-            const pkg = await import('@triton-one/yellowstone-grpc');
-            Client = pkg.default;
-            CommitmentLevel = pkg.CommitmentLevel;
-            console.log('✅ [EnhancedHybridPriceService] Dynamic import successful');
+            const Client = YellowstoneGrpc.default || YellowstoneGrpc;
+            const CommitmentLevel = YellowstoneGrpc.CommitmentLevel;
+            console.log('✅ [EnhancedHybridPriceService] Static import successful');
             
             console.log('🔌 [EnhancedHybridPriceService] Creating gRPC client...');
             this.grpcClient = new Client(CONSTANT_K_GRPC_ENDPOINT, CONSTANT_K_GRPC_TOKEN);
