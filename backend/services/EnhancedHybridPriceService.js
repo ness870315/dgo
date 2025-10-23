@@ -465,11 +465,13 @@ class EnhancedHybridPriceService extends EventEmitter {
     getRealTimeStats() {
         return {
             grpcClient: this.grpcClient ? 'connected' : 'not connected',
+            grpcClientExists: !!this.grpcClient,
             activeStreams: this.grpcStreams.has('all_tokens') ? ['all_tokens'] : [],
             poolAddresses: Object.fromEntries(this.poolAddresses),
             totalTokens: this.poolAddresses.size,
             totalSwaps: Array.from(this.swapHistory.values()).reduce((sum, swaps) => sum + swaps.length, 0),
-            streamType: 'single_stream_all_tokens'
+            streamType: 'single_stream_all_tokens',
+            initializationStatus: this.grpcClient ? 'initialized' : 'not initialized'
         };
     }
 
