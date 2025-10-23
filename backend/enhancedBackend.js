@@ -13801,7 +13801,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
       try {
         const grpcStatus = {
           enhancedHybridPriceService: this.enhancedHybridPriceService ? this.enhancedHybridPriceService.getRealTimeStats() : null,
-          realTimeTokenMonitor: this.realTimeTokenMonitor ? this.realTimeTokenMonitor.getStats() : null,
+          realTimeTokenMonitor: this.realTimeTokenMonitor ? this.realTimeTokenMonitor.getMonitoringStats() : null,
           tokenCacheWatcher: this.tokenCacheWatcher ? 'active' : 'not initialized',
           timestamp: new Date().toISOString()
         };
