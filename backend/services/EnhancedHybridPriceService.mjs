@@ -172,15 +172,116 @@ class EnhancedHybridPriceService extends EventEmitter {
             return;
         }
 
-        console.log('🚀 [EnhancedHybridPriceService] Starting real-time monitoring for all tokens...');
+        console.log('🚀 [EnhancedHybridPriceService] Starting SIMPLIFIED real-time monitoring for 1 token...');
         
-        const tokensToMonitor = Array.from(this.poolAddresses.keys());
-        console.log(`📊 [EnhancedHybridPriceService] Monitoring ${tokensToMonitor.length} tokens`);
+        // SIMPLIFIED TEST: Monitor just 1 token like the working test
+        const TEST_TOKEN = '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc'; // PROBITY from working test
+        const TEST_POOL = '98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvZFN'; // Pool from working test
         
-        // 🚀 NEW: Start ONE stream for ALL tokens
-        await this.startMultiTokenMonitoring(tokensToMonitor);
+        console.log(`📊 [EnhancedHybridPriceService] SIMPLIFIED TEST - Monitoring 1 token: ${TEST_TOKEN}`);
+        console.log(`📊 [EnhancedHybridPriceService] SIMPLIFIED TEST - Pool address: ${TEST_POOL}`);
         
-        console.log('✅ [EnhancedHybridPriceService] Real-time monitoring started for all tokens');
+        // Start monitoring with just this one token
+        await this.startSingleTokenMonitoring(TEST_TOKEN, TEST_POOL);
+        
+        console.log('✅ [EnhancedHybridPriceService] SIMPLIFIED real-time monitoring started for 1 token');
+    }
+
+    async startSingleTokenMonitoring(tokenAddress, poolAddress) {
+        try {
+            console.log(`🔌 [EnhancedHybridPriceService] Starting SINGLE token monitoring for ${tokenAddress}...`);
+            
+            // Use the WORKING SOLUTION: subscribeOnce for real-time pool monitoring
+            // Based on test-multi-contract-monitoring.js which was working perfectly
+            console.log(`📊 [EnhancedHybridPriceService] Starting pool monitoring (WORKING SOLUTION)`);
+            const CommitmentLevel = this.grpcWrapper.getCommitmentLevel();
+            
+            // Build account filters for single pool address (like the working test)
+            const accountFilters = {
+                'pool_0': {
+                    account: [poolAddress],
+                    owner: [],
+                    filters: []
+                }
+            };
+            
+            console.log(`📊 [EnhancedHybridPriceService] Monitoring 1 pool address: ${poolAddress}`);
+            console.log(`📊 [EnhancedHybridPriceService] CommitmentLevel:`, CommitmentLevel);
+            console.log(`📊 [EnhancedHybridPriceService] Account filters:`, Object.keys(accountFilters).length);
+            
+            console.log(`🔌 [EnhancedHybridPriceService] About to call subscribeOnce...`);
+            const stream = await this.grpcClient.subscribeOnce(
+                accountFilters, // accounts - pool addresses like working test
+                {}, // slots  
+                {}, // transactions
+                {}, // transactionsStatus
+                {}, // entry
+                {}, // blocks
+                {}, // blocksMeta
+                CommitmentLevel?.CONFIRMED || 'confirmed',
+                []  // accountsDataSlice
+            );
+            
+            console.log(`✅ [EnhancedHybridPriceService] subscribeOnce completed successfully`);
+            console.log(`📊 [EnhancedHybridPriceService] Stream object:`, typeof stream, stream ? 'exists' : 'null');
+            
+            let totalUpdateCount = 0;
+            stream.on("data", async (msg) => {
+                try {
+                    // Only log essential info, not the massive data payload
+                    let lastLogTime = 0;
+                    const LOG_INTERVAL = 5000; // Log every 5 seconds max
+                    
+                    // Comprehensive validation for account data
+                    if (msg.account && msg.account.account && msg.account.account.pubkey && 
+                        msg.account.account.pubkey.data && msg.account.account.pubkey.data.length > 0) {
+                        
+                        totalUpdateCount++;
+                        const slot = msg.account.slot;
+                        const accountAddress = bs58.encode(new Uint8Array(msg.account.account.pubkey.data));
+                        
+                        // Rate limit logging to prevent spam
+                        const now = Date.now();
+                        if (now - lastLogTime > LOG_INTERVAL) {
+                            console.log(`🔍 [EnhancedHybridPriceService] Processing update #${totalUpdateCount}: ${accountAddress} at slot ${slot}`);
+                            lastLogTime = now;
+                        }
+                        
+                        // Check if this is our monitored pool
+                        if (accountAddress === poolAddress) {
+                            console.log(`✅ [EnhancedHybridPriceService] Found matching pool ${poolAddress} for token ${tokenAddress}`);
+                            try {
+                                await this.processPoolUpdate(tokenAddress, poolAddress, slot, totalUpdateCount);
+                            } catch (error) {
+                                console.error(`❌ [EnhancedHybridPriceService] Error processing update for ${tokenAddress}:`, error.message);
+                            }
+                        } else {
+                            console.log(`⚠️ [EnhancedHybridPriceService] Received update for different pool: ${accountAddress} (expected: ${poolAddress})`);
+                        }
+                    } else {
+                        // Skip non-account data (ping/pong, etc.) - no need to log
+                        return;
+                    }
+                } catch (error) {
+                    console.error(`❌ [EnhancedHybridPriceService] Error in stream data handler:`, error.message);
+                }
+            });
+            
+            stream.on("error", (error) => {
+                console.error(`❌ [EnhancedHybridPriceService] Stream error:`, error.message);
+            });
+            
+            stream.on("end", () => {
+                console.log(`🔚 [EnhancedHybridPriceService] Stream ended`);
+            });
+            
+            // Store the stream
+            this.grpcStreams.set('single_token', stream);
+            console.log(`✅ [EnhancedHybridPriceService] SINGLE token monitoring started for ${tokenAddress}`);
+            
+        } catch (error) {
+            console.error(`❌ [EnhancedHybridPriceService] Failed to start single token monitoring:`, error.message);
+        }
     }
 
     async startMultiTokenMonitoring(tokenAddresses) {
