@@ -384,7 +384,7 @@ Example: ["bitcoin", "etf", "bullish", "institutional"]
             ? (tweet.engagement.likes || 0) + 
               (tweet.engagement.retweets || 0) * 2 + // Retweets count double
               (tweet.engagement.quoteTweets || 0) + 
-              (tweet.engagement.replyCount || 0)
+              (tweet.engagement.replies || tweet.engagement.replyCount || 0) // Support both 'replies' and 'replyCount'
             : 0;
           topicEngagement.set(topicName, (topicEngagement.get(topicName) || 0) + engagement);
           
