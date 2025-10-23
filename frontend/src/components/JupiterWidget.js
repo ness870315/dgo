@@ -98,10 +98,6 @@ const JupiterWidget = ({ selectedToken }) => {
             window.Jupiter.close();
           }
           
-          // 🚀 NEW: Get mobile wallets from Jupiter Mobile Adapter
-          const mobileWallets = window.jupiterMobileWallets || [];
-          console.log('📱 Available mobile wallets for Jupiter:', mobileWallets.map(w => w.name));
-          
           window.Jupiter.init({
             displayMode: "widget",
             widgetStyle: {
@@ -120,8 +116,6 @@ const JupiterWidget = ({ selectedToken }) => {
               logoUri: "/dgo.png", // Use Degen Oracle logo
               name: "Degen Oracle" // Replace with our branding
             },
-            // 🚀 NEW: Pass mobile wallets to Jupiter widget
-            wallets: mobileWallets,
             onSuccess: ({ txid, swapResult, quoteResponseMeta }) => {
               console.log("✅ Jupiter swap successful:", txid);
               // You can add success notification here
@@ -129,15 +123,6 @@ const JupiterWidget = ({ selectedToken }) => {
             onSwapError: ({ error, quoteResponseMeta }) => {
               console.error("❌ Jupiter swap failed:", error);
               // You can add error notification here
-            },
-            onWalletConnect: (wallet) => {
-              console.log("🔗 Wallet connected via Jupiter Mobile Adapter:", wallet);
-            },
-            onWalletDisconnect: () => {
-              console.log("🔌 Wallet disconnected");
-            },
-            onWalletError: (error) => {
-              console.error("❌ Wallet error:", error);
             }
           });
           

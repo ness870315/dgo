@@ -9,7 +9,6 @@
   },
   "dependencies": {
     "@craco/craco": "^7.1.0",
-    "@jup-ag/jup-mobile-adapter": "^0.0.2",
     "@payai/x402-solana": "^0.1.0-beta.2",
     "@solana/wallet-adapter-base": "^0.9.27",
     "@solana/wallet-adapter-phantom": "^0.9.28",

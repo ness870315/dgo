@@ -24,7 +24,6 @@ import AIStakingLandingPageSimple from './components/AIStakingLandingPageSimple'
 import AILiquidStakingRouter from './components/AILiquidStakingRouter';
 import PreTokenDetail from './components/PreTokenDetail';
 import JupiterWidget from './components/JupiterWidget';
-import JupiterMobileAdapter from './components/JupiterMobileAdapter';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { WalletContextProvider } from './contexts/WalletContext';
 import tokenService from './services/tokenService';
@@ -1582,9 +1581,7 @@ function AppContent() {
       <FloatingChatButton onOpenChat={handleOpenChat} />
       
       {/* Global Jupiter Widget */}
-      <JupiterMobileAdapter>
-        <JupiterWidget selectedToken={selectedToken} />
-      </JupiterMobileAdapter>
+      <JupiterWidget selectedToken={selectedToken} />
       </div>
   );
 }
