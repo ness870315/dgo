@@ -207,7 +207,7 @@ class CryptoTrackingDatabase {
       const features = {
         topics: this.extractTopics(text),
         entities: this.extractEntities(text),
-        sentiment: await this.classifySentiment(text), // Now async for AI analysis
+        sentiment: await this.classifySentiment(tweetData.text, tweetData.author), // Now async for AI analysis
         confidence: this.calculateConfidence(text),
         timeframe: this.determineTimeframe(text),
         predictions: await this.predictionExtractor.extractPredictions(tweetData.text, {
@@ -331,7 +331,13 @@ class CryptoTrackingDatabase {
   /**
    * Enhanced sentiment analysis using AI + rule-based fallback
    */
-  async classifySentiment(text) {
+  async classifySentiment(text, author = null) {
+    // Special handling for specific accounts that signal trending coins
+    if (author && this.isTrendingSignalAccount(author, text)) {
+      console.log(`📈 [CRYPTO DB] Trending signal detected from @${author.username}: bullish`);
+      return 'bullish';
+    }
+
     // Try AI-powered sentiment analysis first
     if (this.openai) {
       try {
@@ -349,6 +355,52 @@ class CryptoTrackingDatabase {
   }
 
   /**
+   * Check if tweet is from a trending signal account
+   */
+  isTrendingSignalAccount(author, text) {
+    if (!author || !author.username) return false;
+    
+    const trendingAccounts = [
+      'glydoalerts',
+      'dexscreener',
+      'coingecko',
+      'coinmarketcap',
+      'solscan',
+      'birdeye',
+      'jupiter'
+    ];
+    
+    const username = author.username.toLowerCase();
+    
+    // Check if it's a trending signal account
+    if (trendingAccounts.includes(username)) {
+      // Additional checks for trending-related content
+      const trendingKeywords = [
+        'trending',
+        'heatmap',
+        'top gainers',
+        'hot',
+        'pumping',
+        'volume spike',
+        'price alert',
+        'breakout',
+        'momentum'
+      ];
+      
+      const hasTrendingContent = trendingKeywords.some(keyword => 
+        text.toLowerCase().includes(keyword)
+      );
+      
+      if (hasTrendingContent) {
+        console.log(`📊 [CRYPTO DB] Trending content detected from @${username}`);
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  /**
    * AI-powered sentiment analysis with crypto slang understanding
    */
   async classifySentimentWithAI(text) {
@@ -359,15 +411,20 @@ Analyze the sentiment of this crypto tweet. Consider crypto slang, context, and 
 Tweet: "${text}"
 
 Crypto slang examples:
-- Bullish: "moon", "pump", "diamond hands", "HODL", "WAGMI", "LFG", "based", "chad move", "gmi", "bullish AF", "going parabolic"
+- Bullish: "moon", "pump", "diamond hands", "HODL", "WAGMI", "LFG", "based", "chad move", "gmi", "bullish AF", "going parabolic", "trending", "heatmap", "top gainers", "hot", "pumping"
 - Bearish: "dump", "rekt", "paper hands", "ngmi", "cope", "seethe", "bearish vibes", "getting rekt", "major red flags"
 - Neutral: "sideways", "wait and see", "mixed signals", "needs confirmation"
+
+IMPORTANT: Trending signals are BULLISH
+- Accounts like @GlydoAlerts, @DexScreener that post trending coins, heatmaps, top gainers = BULLISH
+- These signal positive market momentum and should be classified as bullish
 
 Consider:
 - Sarcasm and irony (common in crypto Twitter)
 - Context and tone
 - Crypto-specific terminology
 - Market sentiment indicators
+- Trending signals indicate positive momentum
 
 Return ONLY one word: "bullish", "bearish", or "neutral"
 
@@ -376,6 +433,7 @@ Examples:
 "Getting rekt again" → bearish  
 "Just stating facts" → neutral
 "Sure, 'diamond hands' 😂" → bearish (sarcastic)
+"Trending on heatmap: $SOL, $BTC" → bullish (trending signal)
 `;
 
       const response = await this.openai.chat.completions.create({
