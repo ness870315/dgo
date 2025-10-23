@@ -199,7 +199,16 @@ class EnhancedHybridPriceService extends EventEmitter {
             // Use the WORKING SOLUTION: subscribeOnce for real-time pool monitoring
             // Based on test-multi-contract-monitoring.js which was working perfectly
             console.log(`📊 [EnhancedHybridPriceService] Starting pool monitoring (WORKING SOLUTION)`);
-            const CommitmentLevel = this.grpcWrapper.getCommitmentLevel();
+            
+            // Safe commitment level access with fallback
+            let CommitmentLevel;
+            try {
+                CommitmentLevel = this.grpcWrapper.getCommitmentLevel();
+                console.log(`📊 [EnhancedHybridPriceService] CommitmentLevel:`, CommitmentLevel);
+            } catch (error) {
+                console.log(`⚠️ [EnhancedHybridPriceService] Failed to get CommitmentLevel, using fallback:`, error.message);
+                CommitmentLevel = { CONFIRMED: 'confirmed' }; // Fallback
+            }
             
             // Build account filters for single pool address (like the working test)
             const accountFilters = {
