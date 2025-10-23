@@ -14,7 +14,7 @@
     "build": "npm run build:backend",
     "build:backend": "cd backend && npm run build",
     "start:frontend": "cd frontend && npm start",
-    "start": "cd backend && npm start",
+    "start": "cd backend && node enhancedBackend.mjs",
     "dev:frontend": "cd frontend && npm start",
     "dev:backend": "cd backend && npm run dev",
     "build:frontend": "cd frontend && npm run build",
