@@ -17961,3 +17961,14 @@ process.on('SIGTERM', async () => {
 
 export default EnhancedBackend;
 
+// Start the server
+console.log('🚀 Starting Enhanced Backend Server...');
+const server = new EnhancedBackend();
+global.enhancedBackend = server;
+
+// Start the server
+server.start().catch(error => {
+  console.error('❌ Failed to start Enhanced Backend:', error);
+  process.exit(1);
+});
+
