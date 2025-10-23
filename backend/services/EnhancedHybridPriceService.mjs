@@ -190,14 +190,14 @@ class EnhancedHybridPriceService extends EventEmitter {
                 }
             });
             
-            console.log(`📊 [EnhancedHybridPriceService] Monitoring ${poolAddresses.length} pool addresses in single stream`);
-            console.log(`📊 [EnhancedHybridPriceService] Pool addresses:`, poolAddresses.slice(0, 5), '...');
+            console.log(`📊 [EnhancedHybridPriceService] Monitoring ${tokenAddresses.length} token addresses in single stream`);
+            console.log(`📊 [EnhancedHybridPriceService] Token addresses:`, tokenAddresses.slice(0, 5), '...');
             
-            // Use the working format from our test
+            // Use the working format from our test - subscribe to TOKEN addresses, not pool addresses
             const CommitmentLevel = this.grpcWrapper.getCommitmentLevel();
             const stream = this.grpcClient.subscribe({
-                accounts: poolAddresses,
-                commitment: CommitmentLevel?.CONFIRMED || 'confirmed'
+                accounts: tokenAddresses, // Use token addresses, not pool addresses
+                commitment: CommitmentLevel?.PROCESSED || 'processed' // Use PROCESSED like in working test
             });
             
             let totalUpdateCount = 0;
