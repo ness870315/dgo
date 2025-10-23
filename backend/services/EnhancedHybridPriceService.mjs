@@ -229,28 +229,32 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             let totalUpdateCount = 0;
             stream.on("data", async (msg) => {
-                console.log(`📊 [EnhancedHybridPriceService] Received gRPC data:`, JSON.stringify(msg, null, 2));
-                if (msg.account) {
-                    totalUpdateCount++;
-                    const slot = msg.account.slot;
-                    const accountAddress = bs58.encode(msg.account.pubkey);
-                    
-                    console.log(`🔍 [EnhancedHybridPriceService] Processing account update: ${accountAddress} at slot ${slot}`);
-                    
-                    // Find which token this pool belongs to
-                    const tokenAddress = this.findTokenByPoolAddress(accountAddress);
-                    if (tokenAddress) {
-                        console.log(`✅ [EnhancedHybridPriceService] Found token ${tokenAddress} for pool ${accountAddress}`);
-                        try {
-                            await this.processPoolUpdate(tokenAddress, accountAddress, slot, totalUpdateCount);
-                        } catch (error) {
-                            console.error(`❌ [EnhancedHybridPriceService] Error processing update for ${tokenAddress}:`, error.message);
+                try {
+                    console.log(`📊 [EnhancedHybridPriceService] Received gRPC data:`, JSON.stringify(msg, null, 2));
+                    if (msg.account) {
+                        totalUpdateCount++;
+                        const slot = msg.account.slot;
+                        const accountAddress = bs58.encode(msg.account.pubkey);
+                        
+                        console.log(`🔍 [EnhancedHybridPriceService] Processing account update: ${accountAddress} at slot ${slot}`);
+                        
+                        // Find which token this pool belongs to
+                        const tokenAddress = this.findTokenByPoolAddress(accountAddress);
+                        if (tokenAddress) {
+                            console.log(`✅ [EnhancedHybridPriceService] Found token ${tokenAddress} for pool ${accountAddress}`);
+                            try {
+                                await this.processPoolUpdate(tokenAddress, accountAddress, slot, totalUpdateCount);
+                            } catch (error) {
+                                console.error(`❌ [EnhancedHybridPriceService] Error processing update for ${tokenAddress}:`, error.message);
+                            }
+                        } else {
+                            console.log(`⚠️ [EnhancedHybridPriceService] No token found for pool ${accountAddress}`);
                         }
                     } else {
-                        console.log(`⚠️ [EnhancedHybridPriceService] No token found for pool ${accountAddress}`);
+                        console.log(`📊 [EnhancedHybridPriceService] Received non-account data:`, msg);
                     }
-                } else {
-                    console.log(`📊 [EnhancedHybridPriceService] Received non-account data:`, msg);
+                } catch (error) {
+                    console.error(`❌ [EnhancedHybridPriceService] Error in stream data handler:`, error.message);
                 }
             });
             
