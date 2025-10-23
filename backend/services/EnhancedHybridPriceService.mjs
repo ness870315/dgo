@@ -69,6 +69,9 @@ class EnhancedHybridPriceService extends EventEmitter {
             console.log('🚀 [EnhancedHybridPriceService] Starting async initialization...');
             await this.initializeGrpcClient();
             await this.loadTokenCache();
+            await this.updateSolPrice(); // ✅ CRITICAL FIX: Initialize SOL price for swap detection
+            
+            console.log(`💰 [EnhancedHybridPriceService] SOL Price: $${this.solPriceUSD}`);
             
             // 🚀 NEW: Automatically start real-time monitoring after initialization
             if (this.grpcClient && this.poolAddresses.size > 0) {
@@ -321,6 +324,8 @@ class EnhancedHybridPriceService extends EventEmitter {
                 const minChange = 0.001; // Minimum change to consider a swap
                 
                 if (Math.abs(tokenChange) > minChange || Math.abs(solChange) > minChange) {
+                    console.log(`🔍 [EnhancedHybridPriceService] SWAP DETECTED! ${tokenInfo.symbol}: Token change: ${tokenChange.toFixed(6)}, SOL change: ${solChange.toFixed(6)}`);
+                    
                     // Detect swap
                     const swap = this.detectSwap(tokenAddress, tokenInfo, tokenChange, solChange, slot);
                     if (swap) {
@@ -337,7 +342,14 @@ class EnhancedHybridPriceService extends EventEmitter {
                         // Broadcast swap update
                         this.broadcastSwapUpdate(tokenAddress, swap);
                         
-                        console.log(`🔄 [Real-time] ${swap.type} ${tokenInfo.symbol}: $${swap.usdAmount.toFixed(2)} @ $${swap.priceUSD.toFixed(6)}`);
+                        // Format token amount for display
+                        const tokenAmountFormatted = swap.tokenAmount >= 1000000 
+                            ? `${(swap.tokenAmount / 1000000).toFixed(1)}M` 
+                            : swap.tokenAmount >= 1000 
+                                ? `${(swap.tokenAmount / 1000).toFixed(1)}K` 
+                                : swap.tokenAmount.toFixed(0);
+                        
+                        console.log(`🔄 [Real-time] ${swap.type} ${tokenInfo.symbol}: ${tokenAmountFormatted} tokens, ${swap.solAmount.toFixed(3)} SOL, $${swap.usdAmount.toFixed(2)} | Maker: ${swap.maker} | Txn: ${swap.txn}`);
                     }
                 }
             } else {
