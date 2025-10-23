@@ -117,28 +117,36 @@ class HybridPriceService {
         }
 
         try {
-            console.log(`🪐 [Jupiter] Fetching SOL price`);
+            console.log(`🪐 [CoinGecko] Fetching SOL price`);
             
-            const response = await axios.get(`${JUPITER_API_BASE}/search`, {
-                params: { query: WSOL },
+            // Use CoinGecko public API (no auth required)
+            const response = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
+                params: {
+                    ids: 'solana',
+                    vs_currencies: 'usd'
+                },
                 timeout: 5000
             });
 
-            if (response.data && response.data.length > 0) {
-                const solToken = response.data[0];
-                this.solPriceUSD = solToken.price || 0;
+            if (response.data?.solana?.usd) {
+                this.solPriceUSD = response.data.solana.usd;
                 this.lastSolPriceUpdate = now;
-                console.log(`✅ [Jupiter] SOL price: $${this.solPriceUSD}`);
+                console.log(`✅ [CoinGecko] SOL price: $${this.solPriceUSD}`);
+            } else {
+                throw new Error('No SOL price in response');
             }
         } catch (error) {
-            console.error(`❌ [Jupiter] Error fetching SOL price:`, error.message);
-            // Use fallback SOL price
-            this.solPriceUSD = 184.41;
+            console.error(`❌ [CoinGecko] Error fetching SOL price:`, error.message);
+            // Use fallback SOL price (approximate)
+            this.solPriceUSD = 200;
+            console.log(`⚠️ [Fallback] Using estimated SOL price: $${this.solPriceUSD}`);
         }
     }
 
     async fetchPoolDataByDEX(tokenAddress, tokenInfo) {
-        const poolAddress = tokenInfo.graduatedPool?.address || tokenInfo.firstPool?.id;
+        // graduatedPool can be a string (pool address) or object with address property
+        const poolAddress = (typeof tokenInfo.graduatedPool === 'string' ? tokenInfo.graduatedPool : tokenInfo.graduatedPool?.address) 
+                         || tokenInfo.firstPool?.id;
         
         if (!poolAddress) {
             console.log(`⚠️ [Pool] No pool address found, using DexScreener fallback`);
