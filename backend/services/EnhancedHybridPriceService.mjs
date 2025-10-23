@@ -4,9 +4,10 @@ import fs from 'fs/promises';
 import path from 'path';
 import bs58 from 'bs58';
 
-// Try to load gRPC library with proper error handling
-let YellowstoneGrpc = null;
-let grpcLoaded = false;
+// Use CommonJS wrapper for gRPC loading
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+let GrpcWrapper = null;
 
 const CONSTANT_K_RPC = 'https://rpc.constant-k.com/?api-key=tsn41k3y-4qch-46f2-5ogr-67dmw2zh1ur8';
 const CONSTANT_K_GRPC_ENDPOINT = 'https://yellowstone.constant-k.com:443';
@@ -78,38 +79,15 @@ class EnhancedHybridPriceService extends EventEmitter {
         try {
             console.log('🔌 [EnhancedHybridPriceService] Initializing Constant K gRPC client...');
             
-            if (!grpcLoaded) {
-                console.log('📦 [EnhancedHybridPriceService] Loading Yellowstone gRPC...');
-                
-                try {
-                    // Try static import first
-                    YellowstoneGrpc = await import('@triton-one/yellowstone-grpc');
-                    console.log('✅ [EnhancedHybridPriceService] Static import successful');
-                    grpcLoaded = true;
-                } catch (staticError) {
-                    console.log('⚠️ [EnhancedHybridPriceService] Static import failed, trying dynamic import...');
-                    
-                    try {
-                        // Try dynamic import with different syntax
-                        const grpcModule = await import('@triton-one/yellowstone-grpc');
-                        YellowstoneGrpc = grpcModule.default || grpcModule;
-                        console.log('✅ [EnhancedHybridPriceService] Dynamic import successful');
-                        grpcLoaded = true;
-                    } catch (dynamicError) {
-                        console.error('❌ [EnhancedHybridPriceService] Both import methods failed:');
-                        console.error('Static error:', staticError.message);
-                        console.error('Dynamic error:', dynamicError.message);
-                        throw new Error('Failed to load Yellowstone gRPC library');
-                    }
-                }
+            if (!GrpcWrapper) {
+                console.log('📦 [EnhancedHybridPriceService] Loading gRPC wrapper...');
+                GrpcWrapper = require('./GrpcWrapper.js');
             }
             
-            const Client = YellowstoneGrpc.default || YellowstoneGrpc;
-            const CommitmentLevel = YellowstoneGrpc.CommitmentLevel;
+            const grpcWrapper = new GrpcWrapper();
+            this.grpcClient = await grpcWrapper.createClient(CONSTANT_K_GRPC_ENDPOINT, CONSTANT_K_GRPC_TOKEN);
             
-            console.log('🔌 [EnhancedHybridPriceService] Creating gRPC client...');
-            this.grpcClient = new Client(CONSTANT_K_GRPC_ENDPOINT, CONSTANT_K_GRPC_TOKEN);
-            console.log('✅ [EnhancedHybridPriceService] gRPC client created');
+            console.log('✅ [EnhancedHybridPriceService] gRPC client initialized successfully');
             
             // Test connection
             console.log('🧪 [EnhancedHybridPriceService] Testing gRPC connection...');
