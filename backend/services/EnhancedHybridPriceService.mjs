@@ -233,11 +233,16 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             stream.on("data", async (msg) => {
                 try {
-                    // Only log essential info, not the massive data payload
-                    if (msg.account && msg.account.account && msg.account.account.pubkey) {
+                    // Only process valid account data with proper validation
+                    if (msg.account && msg.account.account && msg.account.account.pubkey && msg.account.account.pubkey.data && msg.account.account.pubkey.data.length > 0) {
                         totalUpdateCount++;
                         const slot = msg.account.slot;
                         const accountAddress = bs58.encode(new Uint8Array(msg.account.account.pubkey.data));
+                        
+                        // Skip if account address is empty or invalid
+                        if (!accountAddress || accountAddress.length < 32) {
+                            return;
+                        }
                         
                         // Rate limit logging to prevent spam
                         const now = Date.now();
@@ -265,7 +270,8 @@ class EnhancedHybridPriceService extends EventEmitter {
                             }
                         }
                     } else {
-                        console.log(`📊 [EnhancedHybridPriceService] Received non-account data:`, msg);
+                        // Skip non-account data (ping/pong, etc.) - no need to log
+                        return;
                     }
                 } catch (error) {
                     console.error(`❌ [EnhancedHybridPriceService] Error in stream data handler:`, error.message);
