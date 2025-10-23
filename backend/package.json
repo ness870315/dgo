@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build": "echo 'Backend build completed'",
-    "start": "node enhancedBackend.js",
+    "start": "node enhancedBackend.mjs",
     "dev": "node --watch simple-server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
