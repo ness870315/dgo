@@ -191,6 +191,11 @@ class EnhancedHybridPriceService extends EventEmitter {
         try {
             console.log(`🔌 [EnhancedHybridPriceService] Starting SINGLE token monitoring for ${tokenAddress}...`);
             
+            // ✅ CRITICAL FIX: Add the test token/pool to the poolAddresses map!
+            this.poolAddresses.set(tokenAddress, poolAddress);
+            this.swapHistory.set(tokenAddress, []);
+            console.log(`✅ [EnhancedHybridPriceService] Added test token ${tokenAddress} -> pool ${poolAddress} to monitoring map`);
+            
             // Use the WORKING SOLUTION: subscribeOnce for real-time pool monitoring
             // Based on test-multi-contract-monitoring.js which was working perfectly
             console.log(`📊 [EnhancedHybridPriceService] Starting pool monitoring (WORKING SOLUTION)`);
