@@ -1,7 +1,5 @@
 import axios from 'axios';
 import EventEmitter from 'events';
-import pkg from "@triton-one/yellowstone-grpc";
-const { Client, CommitmentLevel } = pkg;
 import fs from 'fs/promises';
 import path from 'path';
 import bs58 from 'bs58';
@@ -64,6 +62,10 @@ class EnhancedHybridPriceService extends EventEmitter {
     async initializeGrpcClient() {
         try {
             console.log('🔌 [EnhancedHybridPriceService] Initializing Constant K gRPC client...');
+            
+            // Dynamic import to handle ESM module in CommonJS context
+            const { default: Client, CommitmentLevel } = await import('@triton-one/yellowstone-grpc');
+            
             this.grpcClient = new Client(CONSTANT_K_GRPC_ENDPOINT, CONSTANT_K_GRPC_TOKEN);
             
             // Test connection
