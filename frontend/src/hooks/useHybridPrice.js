@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 
+const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+
 export const useHybridPrice = (tokenAddress, pollingInterval = 10000) => {
   const [priceData, setPriceData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -17,7 +19,7 @@ export const useHybridPrice = (tokenAddress, pollingInterval = 10000) => {
       setIsLoading(true);
       setError(null);
 
-      const response = await axios.get(`/api/tokens/${tokenAddress}/hybrid-price`, {
+      const response = await axios.get(`${API_BASE}/api/tokens/${tokenAddress}/hybrid-price`, {
         timeout: 15000
       });
 
