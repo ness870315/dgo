@@ -20,15 +20,15 @@ const JupiterWidget = ({ selectedToken }) => {
             displayMode: "widget",
             widgetStyle: {
               position: "bottom-right",
-              size: "sm",
-              icon: "/dgo.png" // Custom Degen Oracle icon for floating widget
+              size: "sm"
+              // Custom icon handled via CSS override
             },
             formProps: {
               initialInputMint: "So11111111111111111111111111111111111111112", // SOL
               initialOutputMint: selectedToken?.contractAddress || "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", // Selected token or USDC default
               swapMode: "ExactInOrOut",
               referralAccount: "CwkvssRLmaxVUoo6ywxJDtWS4sNEizUkhbJXijByynEi", // Your referral account
-              referralFee: 50 // 50 basis points = 0.5% fee
+              referralFee: 100 // 100 basis points = 1% fee
             },
             branding: {
               logoUri: "/dgo.png", // Use Degen Oracle logo
