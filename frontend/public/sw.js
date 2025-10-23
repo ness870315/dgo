@@ -7,6 +7,7 @@ const STATIC_CACHE = `degen-oracle-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `degen-oracle-dynamic-${CACHE_VERSION}`;
 
 console.log('🔧 Service Worker Cache Version:', CACHE_VERSION);
+console.log('🔧 Service Worker Updated:', new Date().toISOString());
 
 // Files to cache for offline use (with cache busting)
 const STATIC_FILES = [
@@ -147,7 +148,10 @@ async function handleApiRequest(request) {
     '/api/tokens/bonding',  // Pre-bonding tokens - always fresh
     '/api/user/',           // User data - always fresh
     '/price-chart',         // Chart data - always fresh
-    '/holders/insights'     // Holder data - always fresh
+    '/holders/insights',    // Holder data - always fresh
+    '/hybrid-price',        // Live price data - always fresh
+    '/api/tokens/',         // All token API endpoints - always fresh
+    '/api/hybrid-price'     // Hybrid price stats/cleanup - always fresh
   ];
   
   const shouldNeverCache = neverCachePatterns.some(pattern => url.pathname.includes(pattern));

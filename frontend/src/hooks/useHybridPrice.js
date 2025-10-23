@@ -41,6 +41,9 @@ export const useHybridPrice = (tokenAddress, pollingInterval = 10000) => {
         timeout: 15000,
         headers: {
           'X-Connection-ID': connectionIdRef.current
+        },
+        params: {
+          _t: Date.now() // Cache busting parameter
         }
       });
 
