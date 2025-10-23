@@ -13821,6 +13821,37 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
+    // Manually trigger gRPC connection
+    this.app.post('/api/grpc/connect', async (req, res) => {
+      try {
+        if (!this.enhancedHybridPriceService) {
+          return res.status(500).json({
+            success: false,
+            error: 'EnhancedHybridPriceService not initialized'
+          });
+        }
+
+        console.log('🔌 [GRPC-CONNECT] Manually triggering gRPC connection...');
+        await this.enhancedHybridPriceService.initializeGrpcClient();
+        
+        const stats = this.enhancedHybridPriceService.getRealTimeStats();
+        
+        res.json({
+          success: true,
+          message: 'gRPC connection triggered',
+          stats: stats
+        });
+
+      } catch (error) {
+        console.error(`❌ [GRPC-CONNECT] Error:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to connect gRPC',
+          message: error.message
+        });
+      }
+    });
+
     // Health check endpoint for debugging
     this.app.get('/api/health/chart-services', (req, res) => {
       const health = {

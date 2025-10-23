@@ -55,8 +55,19 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.tokenCache = [];
         this.cachePath = path.join(process.cwd(), 'backend', 'cache', 'tokens-cache.json');
         
-        this.initializeGrpcClient();
-        this.loadTokenCache();
+        // Initialize asynchronously
+        this.initializeAsync();
+    }
+
+    async initializeAsync() {
+        try {
+            console.log('🚀 [EnhancedHybridPriceService] Starting async initialization...');
+            await this.initializeGrpcClient();
+            await this.loadTokenCache();
+            console.log('✅ [EnhancedHybridPriceService] Async initialization complete');
+        } catch (error) {
+            console.error('❌ [EnhancedHybridPriceService] Async initialization failed:', error.message);
+        }
     }
 
     async initializeGrpcClient() {
