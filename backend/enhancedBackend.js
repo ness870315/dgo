@@ -452,7 +452,7 @@ class EnhancedBackend {
       },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-PAYMENT', 'Access-Control-Expose-Headers'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-PAYMENT', 'Access-Control-Expose-Headers', 'X-Connection-ID'],
       exposedHeaders: ['X-PAYMENT-RESPONSE'] // Allow frontend to read settlement response
     };
 
@@ -470,7 +470,7 @@ class EnhancedBackend {
         const origin = req.headers.origin;
         res.header('Access-Control-Allow-Origin', origin || '*');
         res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Connection-ID');
         res.header('Access-Control-Allow-Credentials', 'true');
         
         if (req.method === 'OPTIONS') {
