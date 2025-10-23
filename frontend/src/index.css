@@ -58,8 +58,13 @@
 .jupiter-widget-trigger,
 [class*="jupiter-widget"],
 .jupiter-widget,
-.jupiter-swap-widget {
-  z-index: 10001 !important;
+.jupiter-swap-widget,
+.jupiter-floating-widget,
+.jupiter-widget-container,
+[data-jupiter-widget],
+.jupiter-widget-icon,
+.jupiter-widget-trigger-button {
+  z-index: 99999 !important;
   position: fixed !important;
 }
 
@@ -68,8 +73,15 @@
 .jupiter-interface,
 .jupiter-swap-interface,
 [class*="jupiter-modal"],
-[class*="jupiter-interface"] {
-  z-index: 10002 !important;
+[class*="jupiter-interface"],
+.jupiter-modal-overlay,
+.jupiter-modal-content,
+.jupiter-swap-modal,
+.jupiter-widget-modal,
+[data-jupiter-modal],
+.jupiter-dialog,
+.jupiter-popup {
+  z-index: 999999 !important;
 }
 
 /* Hide default Jupiter icon and replace with our logo - Temporarily disabled for build compatibility */
