@@ -705,10 +705,11 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
             },
             containerStyles: {
               width: "100%",
-              height: "200px", // Reduced from 400px to 200px (half height)
+              height: "180px", // Further reduced to fit without scrollbar
               borderRadius: "12px",
               backgroundColor: "transparent",
-              maxWidth: "none"
+              maxWidth: "none",
+              overflow: "hidden"
             },
             branding: {
               logoUri: "/dgo.png", // Use Degen Oracle logo
@@ -1272,7 +1273,18 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
                 🚀 Swap {token?.symbol || 'Token'}
               </h3>
               <div className="bg-gray-900 rounded-lg p-4 border border-gray-700 jupiter-container">
-                <div id="jupiter-swap-container" className="jupiter-integrated" />
+                <div 
+                  id="jupiter-swap-container" 
+                  className="jupiter-integrated"
+                  style={{ 
+                    width: '100%', 
+                    height: '180px',
+                    maxHeight: '180px',
+                    overflow: 'hidden',
+                    borderRadius: '12px',
+                    position: 'relative'
+                  }}
+                />
               </div>
             </div>
           )}
