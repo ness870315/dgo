@@ -670,14 +670,22 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
 
     getRealTimeStats() {
+        // Check for both old and new stream types
+        const hasAllTokensStream = this.grpcStreams.has('all_tokens');
+        const hasSingleTokenStream = this.grpcStreams.has('single_token');
+        const activeStreams = [];
+        
+        if (hasAllTokensStream) activeStreams.push('all_tokens');
+        if (hasSingleTokenStream) activeStreams.push('single_token');
+        
         return {
             grpcClient: this.grpcClient ? 'connected' : 'not connected',
             grpcClientExists: !!this.grpcClient,
-            activeStreams: this.grpcStreams.has('all_tokens') ? ['all_tokens'] : [],
+            activeStreams: activeStreams,
             poolAddresses: Object.fromEntries(this.poolAddresses),
             totalTokens: this.poolAddresses.size,
             totalSwaps: Array.from(this.swapHistory.values()).reduce((sum, swaps) => sum + swaps.length, 0),
-            streamType: 'single_stream_all_tokens',
+            streamType: hasSingleTokenStream ? 'single_token_monitoring' : 'single_stream_all_tokens',
             initializationStatus: this.grpcClient ? 'initialized' : 'not initialized'
         };
     }
