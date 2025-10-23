@@ -190,15 +190,15 @@ class EnhancedHybridPriceService extends EventEmitter {
                 }
             });
             
-            // Use the working format from our test - subscribe to TOKEN addresses, not pool addresses
-            // But limit to first 5 tokens for testing
-            const testTokenAddresses = tokenAddresses.slice(0, 5);
+            // Use the working format from our test - subscribe to POOL addresses for swap monitoring
+            // But limit to first 5 pools for testing
+            const testPoolAddresses = poolAddresses.slice(0, 5);
             
-            console.log(`📊 [EnhancedHybridPriceService] Testing with ${testTokenAddresses.length} token addresses (limited for testing)`);
-            console.log(`📊 [EnhancedHybridPriceService] Test token addresses:`, testTokenAddresses);
+            console.log(`📊 [EnhancedHybridPriceService] Testing with ${testPoolAddresses.length} pool addresses (limited for testing)`);
+            console.log(`📊 [EnhancedHybridPriceService] Test pool addresses:`, testPoolAddresses);
             const CommitmentLevel = this.grpcWrapper.getCommitmentLevel();
             const stream = this.grpcClient.subscribe({
-                accounts: testTokenAddresses, // Use only first 5 token addresses for testing
+                accounts: testPoolAddresses, // Use pool addresses for swap monitoring
                 commitment: CommitmentLevel?.PROCESSED || 'processed' // Use PROCESSED like in working test
             });
             
