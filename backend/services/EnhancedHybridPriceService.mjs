@@ -81,7 +81,7 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             if (!GrpcWrapper) {
                 console.log('📦 [EnhancedHybridPriceService] Loading gRPC wrapper...');
-                GrpcWrapper = require('./GrpcWrapper.js');
+                GrpcWrapper = require('./GrpcWrapper.cjs');
             }
             
             const grpcWrapper = new GrpcWrapper();
