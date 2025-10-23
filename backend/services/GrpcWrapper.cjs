@@ -5,6 +5,7 @@ class GrpcWrapper {
     constructor() {
         this.grpcClient = null;
         this.grpcLoaded = false;
+        this.commitmentLevel = null; // Store CommitmentLevel
     }
 
     async loadGrpcLibrary() {
@@ -16,6 +17,8 @@ class GrpcWrapper {
             
             console.log('✅ [GrpcWrapper] Yellowstone gRPC loaded successfully');
             this.grpcLoaded = true;
+            this.commitmentLevel = YellowstoneGrpc.CommitmentLevel || YellowstoneGrpc.default?.CommitmentLevel; // Store CommitmentLevel
+            console.log('📦 [GrpcWrapper] CommitmentLevel available:', !!this.commitmentLevel);
             
             return YellowstoneGrpc;
         } catch (error) {
@@ -50,6 +53,14 @@ class GrpcWrapper {
 
     isLoaded() {
         return this.grpcLoaded;
+    }
+
+    getCommitmentLevel() {
+        if (!this.commitmentLevel) {
+            console.error('❌ [GrpcWrapper] CommitmentLevel not available - gRPC library not loaded');
+            return null;
+        }
+        return this.commitmentLevel;
     }
 }
 
