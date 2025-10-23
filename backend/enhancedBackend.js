@@ -26,6 +26,9 @@ import MilestoneTracker from './milestoneTracker.js';
 import PushNotificationService from './pushNotificationService.js';
 import AutomatedTokenCleanup from './automatedTokenCleanup.js';
 import HybridPriceService from './services/HybridPriceService.js';
+import EnhancedHybridPriceService from './services/EnhancedHybridPriceService.js';
+import RealTimeTokenMonitor from './services/RealTimeTokenMonitor.js';
+import TokenCacheWatcher from './services/TokenCacheWatcher.js';
 import HybridChartService from './services/HybridChartService.js';
 import KOLService from './services/KOLService.js';
 import BondingTokenValidationService from './services/BondingTokenValidationService.js';
@@ -12819,6 +12822,15 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Initialize Hybrid Price Service
     this.hybridPriceService = new HybridPriceService();
     
+    // Initialize Enhanced Hybrid Price Service (Deployment-Safe gRPC Alternative)
+    this.enhancedHybridPriceService = new EnhancedHybridPriceService();
+    
+    // Initialize Real-Time Token Monitor
+    this.realTimeTokenMonitor = null; // Will be initialized after RealTimePriceService
+    
+    // Initialize Token Cache Watcher
+    this.tokenCacheWatcher = null; // Will be initialized after RealTimeTokenMonitor
+    
     // Initialize Pre-Bonding Moralis Service (standalone, no chart infrastructure)
     this.preBondingMoralisService = new PreBondingMoralisService();
     
@@ -13779,6 +13791,31 @@ Thanks for using x402 payments on Twitter! 🚀`;
         res.status(500).json({
           success: false,
           error: 'Failed to get real-time stats',
+          message: error.message
+        });
+      }
+    });
+
+    // Get gRPC service status
+    this.app.get('/api/grpc/status', async (req, res) => {
+      try {
+        const grpcStatus = {
+          enhancedHybridPriceService: this.enhancedHybridPriceService ? this.enhancedHybridPriceService.getRealTimeStats() : null,
+          realTimeTokenMonitor: this.realTimeTokenMonitor ? this.realTimeTokenMonitor.getStats() : null,
+          tokenCacheWatcher: this.tokenCacheWatcher ? 'active' : 'not initialized',
+          timestamp: new Date().toISOString()
+        };
+        
+        res.json({
+          success: true,
+          grpc: grpcStatus
+        });
+
+      } catch (error) {
+        console.error(`❌ [GRPC-STATUS] Error:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get gRPC status',
           message: error.message
         });
       }
@@ -17403,6 +17440,27 @@ Thanks for using x402 payments on Twitter! 🚀`;
       
       console.log('✅ Real-Time Price Service initialized successfully');
       console.log('📡 WebSocket endpoint available at: /ws');
+      
+      // 🚀 NEW: Initialize Enhanced Real-Time Services (Deployment-Safe)
+      console.log('🚀 Initializing Enhanced Real-Time Services...');
+      
+      // Initialize Real-Time Token Monitor
+      this.realTimeTokenMonitor = new RealTimeTokenMonitor(this.realTimePriceService.backendWebSocketServer);
+      await this.realTimeTokenMonitor.initialize();
+      await this.realTimeTokenMonitor.startMonitoring();
+      
+      // Initialize Token Cache Watcher
+      const cachePath = path.join(process.cwd(), 'backend', 'cache', 'tokens-cache.json');
+      this.tokenCacheWatcher = new TokenCacheWatcher(cachePath, this.realTimeTokenMonitor);
+      this.tokenCacheWatcher.on('newTokens', (newTokens) => {
+        console.log(`🆕 [Backend] ${newTokens.length} new tokens detected and subscribed to real-time monitoring`);
+      });
+      this.tokenCacheWatcher.on('tokenSubscribed', (data) => {
+        console.log(`✅ [Backend] Token ${data.symbol} subscribed to real-time monitoring`);
+      });
+      await this.tokenCacheWatcher.startWatching();
+      
+      console.log('✅ Enhanced Real-Time Services initialized successfully');
       
     } catch (error) {
       console.error('❌ Failed to initialize Real-Time Price Service:', error.message);
