@@ -719,14 +719,18 @@ class EnhancedHybridPriceService extends EventEmitter {
         try {
             console.log(`🔍 [EnhancedHybridPriceService] Getting real-time data for ${tokenAddress}`);
             
-            // Get current pool reserves
-            const poolAddress = this.poolAddresses.get(tokenAddress);
-            if (!poolAddress) {
-                console.log(`⚠️ [EnhancedHybridPriceService] No pool found for ${tokenAddress}`);
+            // For single-token monitoring, use the hardcoded TEST_TOKEN and TEST_POOL
+            const TEST_TOKEN = '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc';
+            const TEST_POOL = '98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvZFN';
+            
+            // Check if this is the token we're monitoring
+            if (tokenAddress !== TEST_TOKEN) {
+                console.log(`⚠️ [EnhancedHybridPriceService] Token ${tokenAddress} not in single-token monitoring (monitoring ${TEST_TOKEN})`);
                 return null;
             }
             
-            const poolData = await this.getPoolReserves(poolAddress, tokenAddress);
+            // Get current pool reserves
+            const poolData = await this.getPoolReserves(TEST_POOL, tokenAddress);
             if (!poolData) {
                 console.log(`⚠️ [EnhancedHybridPriceService] No pool data for ${tokenAddress}`);
                 return null;
