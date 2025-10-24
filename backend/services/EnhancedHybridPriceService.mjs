@@ -608,6 +608,9 @@ class EnhancedHybridPriceService extends EventEmitter {
                 ]
             });
 
+            console.log(`🔍 [DEBUG] Constant K RPC response status: ${response.status}`);
+            console.log(`🔍 [DEBUG] Response data:`, response.data);
+
             const tokenAccounts = response.data?.result?.value || [];
             console.log(`🔍 [DEBUG] Found ${tokenAccounts.length} token accounts for pool ${poolAddress}`);
             
@@ -632,13 +635,20 @@ class EnhancedHybridPriceService extends EventEmitter {
                 
                 console.log(`🔍 [DEBUG] Final reserves - tokenReserves: ${tokenReserves}, solReserves: ${solReserves}`);
                 
-                return { tokenReserves, solReserves };
+                // Validate that we have valid reserves
+                if (tokenReserves > 0 && solReserves > 0) {
+                    return { tokenReserves, solReserves };
+                } else {
+                    console.log(`❌ [DEBUG] Invalid reserves - tokenReserves: ${tokenReserves}, solReserves: ${solReserves}`);
+                    return null;
+                }
             }
             
             console.log(`❌ [DEBUG] Not enough token accounts (${tokenAccounts.length}) for pool ${poolAddress}`);
             return null;
         } catch (error) {
             console.error(`❌ [DEBUG] Error fetching pool reserves for ${poolAddress}:`, error.message);
+            console.error(`❌ [DEBUG] Error details:`, error.response?.data || error.stack);
             return null;
         }
     }
@@ -897,16 +907,28 @@ class EnhancedHybridPriceService extends EventEmitter {
             const TEST_POOL = TEST_POOLS[0];
             
             // Check if this is the token we're monitoring
+            console.log(`🔍 [EnhancedHybridPriceService] Comparing tokenAddress: "${tokenAddress}" with TEST_TOKEN: "${TEST_TOKEN}"`);
+            console.log(`🔍 [EnhancedHybridPriceService] Are they equal? ${tokenAddress === TEST_TOKEN}`);
+            
             if (tokenAddress !== TEST_TOKEN) {
                 console.log(`⚠️ [EnhancedHybridPriceService] Token ${tokenAddress} not in single-token monitoring (monitoring ${TEST_TOKEN})`);
                 return null;
             }
             
             // Get current pool reserves
-            const poolData = await this.getPoolReserves(TEST_POOL, tokenAddress);
+            let poolData = await this.getPoolReserves(TEST_POOL, tokenAddress);
             if (!poolData) {
-                console.log(`⚠️ [EnhancedHybridPriceService] No pool data for ${tokenAddress}`);
-                return null;
+                console.log(`⚠️ [EnhancedHybridPriceService] No pool data for ${tokenAddress}, using fallback`);
+                
+                // Fallback: Use cached real-time data if available
+                const cachedData = this.realTimeUpdates.get(tokenAddress);
+                if (cachedData && cachedData.tokenReserves && cachedData.solReserves) {
+                    console.log(`✅ [EnhancedHybridPriceService] Using cached pool data as fallback`);
+                    poolData = cachedData;
+                } else {
+                    console.log(`❌ [EnhancedHybridPriceService] No cached data available, returning null`);
+                    return null;
+                }
             }
             
             // Get token info
