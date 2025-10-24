@@ -671,18 +671,15 @@ class EnhancedHybridPriceService extends EventEmitter {
         const volume24h = this.calculateVolume24h(recentSwaps);
         
         // Use Jupiter's price change data (more accurate than our limited swap history)
-        const priceChange24h = tokenInfo.jupiterData?.stats24h?.priceChange || 
-                              tokenInfo.stats24h?.priceChange || 
+        const priceChange24h = tokenInfo.stats24h?.priceChange || 
                               this.calculatePriceChange24h(recentSwaps); // Fallback to swap-based calculation
         
         // Get total supply from Jupiter data or use a reasonable estimate
         const totalSupply = tokenInfo.totalSupply || 
-                           tokenInfo.jupiterData?.totalSupply || 
                            this.estimateTotalSupply(tokenInfo, poolData);
         
         // Use circulating supply for market cap calculation (more accurate)
         const circulatingSupply = tokenInfo.circSupply || 
-                                tokenInfo.jupiterData?.circSupply || 
                                 totalSupply; // Fallback to total supply if circSupply not available
         
         const marketCap = priceUsd * circulatingSupply;
