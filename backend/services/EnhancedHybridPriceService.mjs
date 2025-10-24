@@ -175,8 +175,18 @@ class EnhancedHybridPriceService extends EventEmitter {
         console.log('🚀 [EnhancedHybridPriceService] Starting SIMPLIFIED real-time monitoring for 1 token...');
         
         // SIMPLIFIED TEST: Monitor just 1 token like the working test
-        const TEST_TOKEN = '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc'; // PROBITY from working test
-        const TEST_POOL = '98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvZFN'; // Pool from working test
+        const TEST_TOKENS = [
+            '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc', // PROBITY from working test
+            'FL4eKdJrVZ1dVu1RoekeQRnuPxavzD4oCcR5HTcspump'  // New token
+        ];
+        const TEST_POOLS = [
+            '98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvZFN', // PROBITY pool
+            'FL4eKdJrVZ1dVu1RoekeQRnuPxavzD4oCcR5HTcspump'   // New token pool (same as token for now)
+        ];
+        
+        // Use first token for now
+        const TEST_TOKEN = TEST_TOKENS[0];
+        const TEST_POOL = TEST_POOLS[0];
         
         console.log(`📊 [EnhancedHybridPriceService] SIMPLIFIED TEST - Monitoring 1 token: ${TEST_TOKEN}`);
         console.log(`📊 [EnhancedHybridPriceService] SIMPLIFIED TEST - Pool address: ${TEST_POOL}`);
@@ -720,8 +730,18 @@ class EnhancedHybridPriceService extends EventEmitter {
             console.log(`🔍 [EnhancedHybridPriceService] Getting real-time data for ${tokenAddress}`);
             
             // For single-token monitoring, use the hardcoded TEST_TOKEN and TEST_POOL
-            const TEST_TOKEN = '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc';
-            const TEST_POOL = '98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvZFN';
+            const TEST_TOKENS = [
+                '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc', // PROBITY
+                'FL4eKdJrVZ1dVu1RoekeQRnuPxavzD4oCcR5HTcspump'  // New token
+            ];
+            const TEST_POOLS = [
+                '98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvZFN', // PROBITY pool
+                'FL4eKdJrVZ1dVu1RoekeQRnuPxavzD4oCcR5HTcspump'   // New token pool
+            ];
+            
+            // Use first token for now
+            const TEST_TOKEN = TEST_TOKENS[0];
+            const TEST_POOL = TEST_POOLS[0];
             
             // Check if this is the token we're monitoring
             if (tokenAddress !== TEST_TOKEN) {
