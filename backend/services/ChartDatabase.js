@@ -63,7 +63,7 @@ class ChartDatabase {
             // Convert arrays back to Maps
             this.data.swaps = new Map(parsed.swaps || []);
             this.data.candles = new Map(parsed.candles || []);
-            this.data.pools = new Map(parsed.pools || []);
+            this.sharedData.pools = new Map(parsed.pools || []);
             this.data.backfillProgress = new Map(parsed.backfillProgress || []);
             
             this.isLoaded = true;
@@ -538,7 +538,7 @@ class ChartDatabase {
      * Store pool address for a token
      */
     async storePoolAddress(tokenMint, poolAddress, dexSource = null, liquidityUsd = null) {
-        this.data.pools.set(tokenMint, {
+        this.sharedData.pools.set(tokenMint, {
             tokenMint,
             poolAddress,
             dexSource,
@@ -555,7 +555,7 @@ class ChartDatabase {
      * Get pool address for a token
      */
     async getPoolAddress(tokenMint) {
-        const pool = this.data.pools.get(tokenMint);
+        const pool = this.sharedData.pools.get(tokenMint);
         return pool ? pool.poolAddress : null;
     }
 
@@ -586,11 +586,11 @@ class ChartDatabase {
      */
     async getStats() {
         await this.ensureLoaded();
-        const totalTokens = this.data.pools.size;
+        const totalTokens = this.sharedData.pools.size;
         const totalSwaps = this.data.swaps.size; // Each entry is a single swap
         const totalCandles = this.data.candles.size; // Each entry is a single candle
         
-        const cachedTokens = Array.from(this.data.pools.entries()).map(([tokenAddress, poolData]) => ({
+        const cachedTokens = Array.from(this.sharedData.pools.entries()).map(([tokenAddress, poolData]) => ({
             tokenAddress,
             swaps: Array.from(this.data.swaps.values()).filter(s => s.poolAddress === poolData.poolAddress).length,
             candles: Array.from(this.data.candles.values()).filter(c => c.poolAddress === poolData.poolAddress).length,
@@ -601,8 +601,8 @@ class ChartDatabase {
             totalTokens,
             totalSwaps,
             totalCandles,
-            totalPools: this.data.pools.size,
-            activePools: Array.from(this.data.pools.values()).filter(p => p.isActive).length,
+            totalPools: this.sharedData.pools.size,
+            activePools: Array.from(this.sharedData.pools.values()).filter(p => p.isActive).length,
             cachedTokens
         };
     }
@@ -611,7 +611,7 @@ class ChartDatabase {
      * Mark a pool as active for background processing
      */
     async markPoolActive(tokenAddress, poolAddress) {
-        this.data.pools.set(tokenAddress, {
+        this.sharedData.pools.set(tokenAddress, {
             poolAddress,
             isActive: true,
             createdAt: Date.now(),

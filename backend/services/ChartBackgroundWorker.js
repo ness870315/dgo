@@ -88,7 +88,7 @@ class ChartBackgroundWorker {
         try {
             // Get all pools from database
             const pools = [];
-            for (const [tokenMint, poolData] of this.chartDb.data.pools.entries()) {
+            for (const [tokenMint, poolData] of this.chartDb.sharedData.pools.entries()) {
                 if (poolData.isActive) {
                     pools.push({
                         token_mint: tokenMint,
@@ -178,7 +178,7 @@ class ChartBackgroundWorker {
      */
     async updateAllPools() {
         const pools = [];
-        for (const [tokenMint, poolData] of this.chartDb.data.pools.entries()) {
+        for (const [tokenMint, poolData] of this.chartDb.sharedData.pools.entries()) {
             if (poolData.isActive) {
                 pools.push({
                     token_mint: tokenMint,
@@ -304,7 +304,7 @@ class ChartBackgroundWorker {
      * Find token mint by pool address
      */
     findTokenMintByPool(poolAddress) {
-        for (const [tokenMint, poolData] of this.chartDb.data.pools.entries()) {
+        for (const [tokenMint, poolData] of this.chartDb.sharedData.pools.entries()) {
             if (poolData.poolAddress === poolAddress) {
                 return tokenMint;
             }
@@ -337,7 +337,9 @@ class ChartBackgroundWorker {
      */
     async realtimeUpdate() {
         const activePools = [];
-        for (const [tokenMint, poolData] of this.chartDb.data.pools.entries()) {
+        
+        // 🚀 FIX: Use new hybrid architecture data structure
+        for (const [tokenMint, poolData] of this.chartDb.sharedData.pools.entries()) {
             if (poolData.isActive) {
                 activePools.push({
                     token_mint: tokenMint,
@@ -368,7 +370,7 @@ class ChartBackgroundWorker {
         const pools = [];
         const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
         
-        for (const [tokenMint, poolData] of this.chartDb.data.pools.entries()) {
+        for (const [tokenMint, poolData] of this.chartDb.sharedData.pools.entries()) {
             if (poolData.isActive) {
                 const progress = this.chartDb.data.backfillProgress.get(poolData.poolAddress);
                 const needsBackfill = !progress || !progress.lastBackfillAt || progress.lastBackfillAt < fiveMinutesAgo;
@@ -472,7 +474,7 @@ class ChartBackgroundWorker {
         
         const tokensToReBackfill = [];
         
-        for (const [tokenMint, poolData] of this.chartDb.data.pools.entries()) {
+        for (const [tokenMint, poolData] of this.chartDb.sharedData.pools.entries()) {
             if (poolData.isActive) {
                 // Check if this token has real swaps or just candles
                 const swaps = await this.chartDb.getRecentSwaps(poolData.poolAddress, 1);
