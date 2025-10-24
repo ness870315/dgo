@@ -89,6 +89,10 @@ class EnhancedBackend {
 
   // Determine if a token should be excluded due to suspicious audit flags
   isSuspiciousToken(token) {
+    // PROBITY exception: Skip suspicious filter for PROBITY due to active gRPC monitoring
+    const isProbity = token.symbol === 'PROBITY' || token.contractAddress === '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc';
+    if (isProbity) return false;
+
     const isTrue = (v) => {
       if (v === true) return true;
       if (typeof v === 'string') {
@@ -115,6 +119,10 @@ class EnhancedBackend {
 
   // Determine if a token appears rugged or effectively dead based on sharp drawdowns and collapsed liquidity
   isRuggedToken(token) {
+    // PROBITY exception: Skip rug filter for PROBITY due to active gRPC monitoring
+    const isProbity = token.symbol === 'PROBITY' || token.contractAddress === '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc';
+    if (isProbity) return false;
+
     try {
       const j = token?.jupiterData || {};
       const s1 = j.stats1h || {};
