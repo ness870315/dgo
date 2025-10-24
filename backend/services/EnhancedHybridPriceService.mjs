@@ -896,7 +896,7 @@ class EnhancedHybridPriceService extends EventEmitter {
 
     async fetchTokenInfo(tokenAddress) {
         try {
-            const response = await axios.get(`${JUPITER_API_BASE}/search`, {
+            const response = await axios.get('https://lite-api.jup.ag/tokens/v2/search', {
                 params: { query: tokenAddress },
                 timeout: 5000
             });
@@ -923,11 +923,11 @@ class EnhancedHybridPriceService extends EventEmitter {
             // Try multiple sources for SOL price
             let solPrice = 0;
             
-            // Method 1: Try Jupiter API for SOL
+            // Method 1: Try Jupiter API for Wrapped SOL
             try {
-                const response = await axios.get(`${JUPITER_API_BASE}/search`, {
+                const response = await axios.get('https://lite-api.jup.ag/tokens/v2/search', {
                     params: {
-                        query: 'So11111111111111111111111111111111111111112'
+                        query: 'So11111111111111111111111111111111111111112' // Wrapped SOL mint address
                     },
                     timeout: 5000
                 });
@@ -940,6 +940,7 @@ class EnhancedHybridPriceService extends EventEmitter {
 
                     if (solToken && solToken.usdPrice) {
                         solPrice = solToken.usdPrice;
+                        console.log(`💰 [SOL Price] Found via Jupiter: $${solPrice}`);
                     }
                 }
             } catch (error) {
