@@ -656,7 +656,12 @@ class EnhancedHybridPriceService extends EventEmitter {
                            tokenInfo.jupiterData?.totalSupply || 
                            this.estimateTotalSupply(tokenInfo, poolData);
         
-        const marketCap = priceUsd * totalSupply;
+        // Use circulating supply for market cap calculation (more accurate)
+        const circulatingSupply = tokenInfo.circSupply || 
+                                tokenInfo.jupiterData?.circSupply || 
+                                totalSupply; // Fallback to total supply if circSupply not available
+        
+        const marketCap = priceUsd * circulatingSupply;
         
         return {
             tokenAddress: tokenInfo.contractAddress || tokenInfo.tokenAddress,
@@ -669,6 +674,7 @@ class EnhancedHybridPriceService extends EventEmitter {
             volume24h,
             priceChange24h,
             totalSupply,
+            circulatingSupply,
             source: poolData.source || 'Constant K gRPC',
             poolAddress: poolData.poolAddress,
             timestamp: Date.now()
