@@ -649,7 +649,11 @@ class EnhancedHybridPriceService extends EventEmitter {
         // Calculate volume from recent swaps
         const recentSwaps = this.swapHistory.get(tokenInfo.contractAddress || tokenInfo.tokenAddress) || [];
         const volume24h = this.calculateVolume24h(recentSwaps);
-        const priceChange24h = this.calculatePriceChange24h(recentSwaps);
+        
+        // Use Jupiter's price change data (more accurate than our limited swap history)
+        const priceChange24h = tokenInfo.jupiterData?.stats24h?.priceChange || 
+                              tokenInfo.stats24h?.priceChange || 
+                              this.calculatePriceChange24h(recentSwaps); // Fallback to swap-based calculation
         
         // Get total supply from Jupiter data or use a reasonable estimate
         const totalSupply = tokenInfo.totalSupply || 
