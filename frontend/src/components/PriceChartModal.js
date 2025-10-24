@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, ChevronDown, TrendingUp } from 'lucide-react';
 import chartService from '../services/chartService';
-import SVGChart from './SVGChartEnhanced';
+import SVGChart from './SVGChart';
 import TechnicalAnalysisPanel from './TechnicalAnalysisPanel';
 import SwapTable from './SwapTable';
 import { useAuth } from '../contexts/AuthContext';
