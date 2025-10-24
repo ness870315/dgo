@@ -372,7 +372,7 @@ class ChartBackgroundWorker {
         
         for (const [tokenMint, poolData] of this.chartDb.sharedData.pools.entries()) {
             if (poolData.isActive) {
-                const progress = this.chartDb.data.backfillProgress.get(poolData.poolAddress);
+                const progress = this.chartDb.sharedData.backfillProgress.get(poolData.poolAddress);
                 const needsBackfill = !progress || !progress.lastBackfillAt || progress.lastBackfillAt < fiveMinutesAgo;
                 
                 if (needsBackfill) {

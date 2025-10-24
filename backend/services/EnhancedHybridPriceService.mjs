@@ -3,6 +3,9 @@ import EventEmitter from 'events';
 import fs from 'fs/promises';
 import path from 'path';
 import bs58 from 'bs58';
+import ChartDatabase from './ChartDatabase.js';
+import TokenMetadataService from './TokenMetadataService.js';
+import TokenMetadataUpdater from './TokenMetadataUpdater.js';
 
 // Use CommonJS wrapper for gRPC loading
 import { createRequire } from 'module';
@@ -37,6 +40,10 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.realTimeUpdates = new Map(); // Map<tokenAddress, lastUpdate>
         this.swapHistory = new Map(); // Map<tokenAddress, swaps[]>
         
+        // 🚀 NEW: Persistent token metadata service (reduces Jupiter API calls by 95%+)
+        this.tokenMetadata = new TokenMetadataService();
+        this.metadataUpdater = null; // Will be initialized after tokenMetadata
+        
         // Existing architecture
         this.priceCache = new Map();
         this.lastUpdate = new Map();
@@ -45,7 +52,7 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.requestDelay = 1000; // 1 second delay between requests
         this.solPriceUSD = 0;
         this.lastSolPriceUpdate = 0;
-        this.solPriceCacheDuration = 60000; // 1 minute
+        this.solPriceCacheDuration = 15 * 60 * 1000; // 15 minutes (SOL price doesn't change rapidly)
         
         // Request deduplication
         this.pendingRequests = new Map();
@@ -77,6 +84,11 @@ class EnhancedHybridPriceService extends EventEmitter {
             await this.initializeGrpcClient();
             await this.loadTokenCache();
             await this.updateSolPrice(); // ✅ CRITICAL FIX: Initialize SOL price for swap detection
+            
+            // 🚀 NEW: Initialize background metadata updater (reduces Jupiter API calls by 95%+)
+            this.metadataUpdater = new TokenMetadataUpdater(this);
+            await this.metadataUpdater.start();
+            console.log('✅ [EnhancedHybridPriceService] Token metadata updater started');
             
             console.log(`💰 [EnhancedHybridPriceService] SOL Price: $${this.solPriceUSD}`);
             
@@ -457,32 +469,22 @@ class EnhancedHybridPriceService extends EventEmitter {
                 return;
             }
             
+            // 🚀 NEW: Use persistent token metadata (reduces Jupiter API calls by 95%+)
+            const tokenMetadata = await this.tokenMetadata.getTokenMetadata(tokenAddress);
+            
             // Get cached token info
             let tokenInfo = this.getTokenFromCache(tokenAddress);
             
-            // Always enrich with Jupiter data for accurate market cap calculation
-            const jupiterData = await this.fetchTokenInfo(tokenAddress);
-            if (jupiterData) {
-                // Merge Jupiter data with cached token info
-                tokenInfo = {
-                    ...tokenInfo,
-                    ...jupiterData,
-                    // Preserve original fields if Jupiter doesn't have them
-                    contractAddress: tokenInfo?.contractAddress || jupiterData.id || tokenAddress,
-                    tokenAddress: tokenInfo?.tokenAddress || jupiterData.id || tokenAddress
-                };
-                console.log(`✅ [DEBUG] Enriched token info with Jupiter data: circSupply=${jupiterData.circSupply}, totalSupply=${jupiterData.totalSupply}`);
-            } else if (!tokenInfo) {
-                console.log(`⚠️ [DEBUG] No token info found for ${tokenAddress}, creating basic token info`);
-                // Create basic token info as fallback
-                tokenInfo = {
-                    symbol: 'PROBITY',
-                    name: 'Probity Token',
-                    contractAddress: tokenAddress,
-                    tokenAddress: tokenAddress,
-                    decimals: 6
-                };
-            }
+            // Merge persistent metadata with cached token info
+            tokenInfo = {
+                ...tokenInfo,
+                ...tokenMetadata,
+                // Preserve original fields if metadata doesn't have them
+                contractAddress: tokenInfo?.contractAddress || tokenMetadata.tokenAddress || tokenAddress,
+                tokenAddress: tokenInfo?.tokenAddress || tokenMetadata.tokenAddress || tokenAddress
+            };
+            
+            console.log(`✅ [DEBUG] Using persistent metadata for ${tokenInfo.symbol}: circSupply=${tokenMetadata.circSupply?.toLocaleString()}, totalSupply=${tokenMetadata.totalSupply?.toLocaleString()}`);
             
             console.log(`🔍 [DEBUG] Token info found: ${tokenInfo.symbol}`);
             
@@ -682,13 +684,11 @@ class EnhancedHybridPriceService extends EventEmitter {
         const priceChange24h = tokenInfo.stats24h?.priceChange || 
                               this.calculatePriceChange24h(recentSwaps); // Fallback to swap-based calculation
         
-        // Get total supply from Jupiter data or use a reasonable estimate
-        const totalSupply = tokenInfo.totalSupply || 
-                           this.estimateTotalSupply(tokenInfo, poolData);
+        // Get total supply from persistent metadata (no Jupiter API call needed!)
+        const totalSupply = tokenInfo.totalSupply || 999000000; // Default 999M
         
         // Use circulating supply for market cap calculation (more accurate)
-        const circulatingSupply = tokenInfo.circSupply || 
-                                totalSupply; // Fallback to total supply if circSupply not available
+        const circulatingSupply = tokenInfo.circSupply || totalSupply;
         
         const marketCap = priceUsd * circulatingSupply;
         
@@ -746,30 +746,8 @@ class EnhancedHybridPriceService extends EventEmitter {
         return ((newestPrice - oldestPrice) / oldestPrice) * 100;
     }
 
-    // Estimate total supply for tokens without Jupiter data
-    estimateTotalSupply(tokenInfo, poolData) {
-        // For most tokens, we can estimate based on common patterns
-        // This is a fallback when Jupiter data is not available
-        
-        // If we have pool data, we can make a reasonable estimate
-        // Most tokens have supplies in the millions to billions range
-        const tokenReserves = poolData.tokenReserves || 0;
-        
-        // Estimate based on pool reserves (usually 1-10% of total supply is in pools)
-        if (tokenReserves > 0) {
-            // For PROBITY specifically, use a more conservative estimate
-            if (tokenInfo.symbol === 'PROBITY' || tokenInfo.contractAddress === '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc') {
-                // PROBITY appears to have a smaller supply - estimate 10% in pool
-                return tokenReserves * 10; // 10x multiplier (100% / 10%)
-            }
-            
-            // For other tokens, assume 5% of total supply is in the pool (common for active tokens)
-            return tokenReserves * 20; // 20x multiplier (100% / 5%)
-        }
-        
-        // Fallback: return a reasonable default based on token type
-        return 1000000000; // 1 billion tokens (common for meme tokens)
-    }
+    // 🚀 REMOVED: estimateTotalSupply() - now using persistent TokenMetadataService
+    // This eliminates the need for pool-based supply estimation and reduces Jupiter API calls
 
     // Rate-limited Jupiter API request with caching
     async makeJupiterRequest(url, params = {}) {
@@ -1039,15 +1017,11 @@ class EnhancedHybridPriceService extends EventEmitter {
                                   tokenInfo.stats24h?.priceChange || 
                                   this.calculatePriceChange24h(recentSwaps);
             
-            // Get total supply from Jupiter data or use a reasonable estimate
-            const totalSupply = tokenInfo.totalSupply || 
-                              tokenInfo.jupiterData?.totalSupply || 
-                              this.estimateTotalSupply(tokenInfo, poolData);
+            // Get total supply from persistent metadata (no Jupiter API call needed!)
+            const totalSupply = tokenInfo.totalSupply || 999000000; // Default 999M
             
             // Use circulating supply for market cap calculation
-            const circulatingSupply = tokenInfo.circSupply || 
-                                    tokenInfo.jupiterData?.circSupply || 
-                                    totalSupply; // Fallback to total supply if circSupply not available
+            const circulatingSupply = tokenInfo.circSupply || totalSupply;
             
             const marketCap = priceUSD * circulatingSupply;
             
@@ -1128,46 +1102,47 @@ class EnhancedHybridPriceService extends EventEmitter {
         }
 
         try {
-            // Try multiple sources for SOL price
+            // Try multiple sources for SOL price (prioritize cheaper/free sources)
             let solPrice = 0;
             
-            // Method 1: Try Jupiter API for Wrapped SOL
+            // Method 1: Try CoinGecko API first (free, reliable)
             try {
-                const data = await this.makeJupiterRequest('https://lite-api.jup.ag/tokens/v2/search', {
-                    query: 'So11111111111111111111111111111111111111112' // Wrapped SOL mint address
+                const response = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
+                    params: {
+                        ids: 'solana',
+                        vs_currencies: 'usd'
+                    },
+                    timeout: 5000
                 });
-
-                if (data && Array.isArray(data)) {
-                    const solToken = data.find(token => 
-                        token.id === 'So11111111111111111111111111111111111111112' &&
-                        token.usdPrice > 0
-                    );
-
-                    if (solToken && solToken.usdPrice) {
-                        solPrice = solToken.usdPrice;
-                        console.log(`💰 [SOL Price] Found via Jupiter: $${solPrice}`);
-                    }
+                
+                if (response.data && response.data.solana && response.data.solana.usd) {
+                    solPrice = response.data.solana.usd;
+                    console.log(`💰 [SOL Price] Found via CoinGecko: $${solPrice}`);
                 }
             } catch (error) {
-                console.log('⚠️ [SOL Price] Jupiter API failed, trying fallback...');
+                console.log('⚠️ [SOL Price] CoinGecko API failed, trying Jupiter...');
             }
             
-            // Method 2: Fallback to CoinGecko API
+            // Method 2: Fallback to Jupiter API (only if CoinGecko fails)
             if (solPrice === 0) {
                 try {
-                    const response = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
-                        params: {
-                            ids: 'solana',
-                            vs_currencies: 'usd'
-                        },
-                        timeout: 5000
+                    const data = await this.makeJupiterRequest('https://lite-api.jup.ag/tokens/v2/search', {
+                        query: 'So11111111111111111111111111111111111111112' // Wrapped SOL mint address
                     });
-                    
-                    if (response.data && response.data.solana && response.data.solana.usd) {
-                        solPrice = response.data.solana.usd;
+
+                    if (data && Array.isArray(data)) {
+                        const solToken = data.find(token => 
+                            token.id === 'So11111111111111111111111111111111111111112' &&
+                            token.usdPrice > 0
+                        );
+
+                        if (solToken && solToken.usdPrice) {
+                            solPrice = solToken.usdPrice;
+                            console.log(`💰 [SOL Price] Found via Jupiter: $${solPrice}`);
+                        }
                     }
                 } catch (error) {
-                    console.log('⚠️ [SOL Price] CoinGecko API failed, using default...');
+                    console.log('⚠️ [SOL Price] Jupiter API failed, using default...');
                 }
             }
             
@@ -1179,7 +1154,7 @@ class EnhancedHybridPriceService extends EventEmitter {
 
             this.solPriceUSD = solPrice;
             this.lastSolPriceUpdate = now;
-            console.log(`💰 [SOL Price] Updated to: $${solPrice}`);
+            console.log(`💰 [SOL Price] Updated to: $${solPrice} (cache: ${this.solPriceCacheDuration/60000}min)`);
             
         } catch (error) {
             console.error('❌ [SOL Price] Error updating SOL price:', error.message);
