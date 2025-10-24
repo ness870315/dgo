@@ -615,8 +615,11 @@ class EnhancedTokenProcessor {
             const hasOrganicScore = jupiterData.organicScore && jupiterData.organicScore > 0;
             const hasGraduatedAt = jupiterData.graduatedAt && jupiterData.graduatedAt !== '';
             
-            // Only delete if ALL THREE criteria are missing (AND condition)
-            if (!hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
+            // PROBITY exception: Skip quality filter for PROBITY due to active gRPC monitoring
+            const isProbity = token.symbol === 'PROBITY' || token.contractAddress === '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc';
+            
+            // Only delete if ALL THREE criteria are missing (AND condition) AND not PROBITY
+            if (!isProbity && !hasLaunchpad && !hasOrganicScore && !hasGraduatedAt) {
               
               removedTokens.push({
                 symbol: token.symbol,
@@ -1824,7 +1827,11 @@ class EnhancedTokenProcessor {
     // Apply Volume Change Penalty - penalize declining volume
     const volumeChange1h = token.jupiterData?.stats1h?.volumeChange || 0;
     const volumeChange6h = token.jupiterData?.stats6h?.volumeChange || 0;
-    if (volumeChange1h < -50 || volumeChange6h < -50) {
+    
+    // PROBITY exception: Skip volume penalty for PROBITY due to active gRPC monitoring
+    const isProbity = token.symbol === 'PROBITY' || token.contractAddress === '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc';
+    
+    if (!isProbity && (volumeChange1h < -50 || volumeChange6h < -50)) {
       // Severe volume decline: -50% or worse
       const penalty = Math.min(5.0, Math.abs(Math.min(volumeChange1h, volumeChange6h)) / 10);
       volume1h = Math.max(1.0, volume1h - penalty);
