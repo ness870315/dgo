@@ -1103,8 +1103,9 @@ class EnhancedHybridPriceService extends EventEmitter {
                 query: tokenAddress
             });
 
-            if (data && data.value && data.value.length > 0) {
-                return data.value[0];
+            // Jupiter API returns array directly, not wrapped in value object
+            if (data && Array.isArray(data) && data.length > 0) {
+                return data[0];
             }
             
             return null;
