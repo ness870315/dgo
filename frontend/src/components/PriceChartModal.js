@@ -96,7 +96,7 @@ const PriceChartModal = ({ token, onClose }) => {
   const loadCurrentPriceFromJupiter = async () => {
     try {
       console.log(`📡 [PRICE-MODAL] Loading initial price from Jupiter API...`);
-      const response = await fetch(`https://api.degen-oracle.com/api/jupiter/raw/${token.contractAddress}`);
+      const response = await fetch(`/api/jupiter/raw/${token.contractAddress}`);
       const data = await response.json();
       
       if (data.success && data.data?.[0]?.usdPrice) {
@@ -141,7 +141,7 @@ const PriceChartModal = ({ token, onClose }) => {
   const loadRealTimeData = async (retryCount = 0) => {
     try {
       console.log(`🔍 [PriceChartModal] Loading real-time data for ${token.contractAddress} (attempt ${retryCount + 1})`);
-      const response = await fetch(`https://api.degen-oracle.com/api/tokens/${token.contractAddress}/realtime-data`);
+      const response = await fetch(`/api/tokens/${token.contractAddress}/realtime-data`);
       console.log(`📡 [PriceChartModal] Response status: ${response.status}`);
       
       if (response.ok) {
