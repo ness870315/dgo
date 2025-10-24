@@ -506,6 +506,9 @@ class EnhancedHybridPriceService extends EventEmitter {
                         }
                         this.swapHistory.set(tokenAddress, swaps);
                         
+                        // 🚀 NEW: Persist swap to disk via ChartDatabase
+                        this.saveSwapToDatabase(swap, poolAddress);
+                        
                         // Broadcast swap update
                         this.broadcastSwapUpdate(tokenAddress, swap);
                         
@@ -853,6 +856,39 @@ class EnhancedHybridPriceService extends EventEmitter {
             
         } catch (error) {
             console.error(`❌ [EnhancedHybridPriceService] Failed to broadcast swap update for ${tokenAddress}:`, error.message);
+        }
+    }
+
+    // Save real-time swap to ChartDatabase for persistence
+    async saveSwapToDatabase(swap, poolAddress) {
+        try {
+            // Import ChartDatabase dynamically to avoid circular dependency
+            const { default: ChartDatabase } = await import('./ChartDatabase.js');
+            const chartDb = new ChartDatabase();
+            
+            // Convert swap to ChartDatabase format
+            const swapData = {
+                signature: swap.txn || swap.signature,
+                timestamp: swap.timestamp,
+                poolAddress: poolAddress,
+                price: swap.priceUSD,
+                volumeUsd: swap.usdAmount,
+                source: 'grpc_realtime',
+                rawData: JSON.stringify(swap),
+                // Additional fields
+                type: swap.type,
+                baseToken: swap.baseToken,
+                baseAmount: swap.solAmount,
+                tokenAmount: swap.tokenAmount,
+                maker: swap.maker
+            };
+            
+            // Store in database
+            await chartDb.storeSwaps([swapData]);
+            console.log(`💾 [EnhancedHybridPriceService] Saved real-time swap to database: ${swap.txn || swap.signature}`);
+            
+        } catch (error) {
+            console.error(`❌ [EnhancedHybridPriceService] Failed to save swap to database:`, error.message);
         }
     }
 
