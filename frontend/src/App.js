@@ -304,6 +304,15 @@ function AppContent() {
         getMarketCap(token) <= 10_000_000
       );
 
+      // PROBITY exception: Always include PROBITY in trending regardless of score
+      const probityTokens = tokenData.filter(token =>
+        token.symbol === 'PROBITY' || 
+        token.contractAddress === '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc'
+      );
+
+      // Combine base tokens with PROBITY exception
+      const allTrendingTokens = [...baseTokens, ...probityTokens];
+
       // Viral override set (hype label Viral regardless of cap)
       const isViralOrTrendingToken = (t) => {
         const hypeLabel = t?.hypeAnalysis?.latestLabel || t?.hypeLabel;
@@ -315,7 +324,7 @@ function AppContent() {
 
       // Apply guardrails
       const now = Date.now();
-      const highScoreTokens = baseTokens.filter(token => {
+      const highScoreTokens = allTrendingTokens.filter(token => {
         const mcap = Math.max(getMarketCap(token), 0);
         const volume24h = (
           (token.jupiterData?.stats24h?.buyVolume || 0) +
