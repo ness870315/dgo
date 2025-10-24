@@ -3,6 +3,7 @@ import { X, ChevronDown, TrendingUp } from 'lucide-react';
 import chartService from '../services/chartService';
 import SVGChart from './SVGChartEnhanced';
 import TechnicalAnalysisPanel from './TechnicalAnalysisPanel';
+import SwapTable from './SwapTable';
 import { useAuth } from '../contexts/AuthContext';
 
 const PriceChartModal = ({ token, onClose }) => {
@@ -14,6 +15,7 @@ const PriceChartModal = ({ token, onClose }) => {
   const [timeframe, setTimeframe] = useState('5MIN');
   const [volume, setVolume] = useState(0);
   const [tokenAnalytics, setTokenAnalytics] = useState(null);
+  const [realTimeData, setRealTimeData] = useState(null);
   
   // Use ref to track previous price for accurate change calculation
   const previousPriceRef = useRef(null);
@@ -42,6 +44,7 @@ const PriceChartModal = ({ token, onClose }) => {
       // Load initial price from Jupiter API (more reliable than our cached data)
       loadCurrentPriceFromJupiter();
       loadTokenAnalytics();
+      loadRealTimeData();
     }
   }, [token?.contractAddress]);
 
@@ -93,6 +96,18 @@ const PriceChartModal = ({ token, onClose }) => {
       }
     } catch (error) {
       console.error('Failed to load token analytics:', error);
+    }
+  };
+
+  const loadRealTimeData = async () => {
+    try {
+      const response = await fetch(`/api/tokens/${token.contractAddress}/realtime-data`);
+      if (response.ok) {
+        const data = await response.json();
+        setRealTimeData(data.data);
+      }
+    } catch (error) {
+      console.error('Error loading real-time data:', error);
     }
   };
 
@@ -265,6 +280,13 @@ const PriceChartModal = ({ token, onClose }) => {
             onTimeframeChange={setTimeframe}
             onPriceUpdate={handlePriceUpdate}
           />
+          
+          {/* Swap Table */}
+          {realTimeData && (
+            <div className="mt-6">
+              <SwapTable token={token} realTimeData={realTimeData} />
+            </div>
+          )}
         </div>
       </div>
     </div>
