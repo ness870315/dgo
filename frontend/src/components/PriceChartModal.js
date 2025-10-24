@@ -138,18 +138,36 @@ const PriceChartModal = ({ token, onClose }) => {
     }
   };
 
-  const loadRealTimeData = async () => {
+  const loadRealTimeData = async (retryCount = 0) => {
     try {
+      console.log(`🔍 [PriceChartModal] Loading real-time data for ${token.contractAddress} (attempt ${retryCount + 1})`);
       const response = await fetch(`https://api.degen-oracle.com/api/tokens/${token.contractAddress}/realtime-data`);
+      console.log(`📡 [PriceChartModal] Response status: ${response.status}`);
+      
       if (response.ok) {
         const data = await response.json();
-        setRealTimeData(data.data);
         console.log('📊 [PriceChartModal] Loaded real-time data:', data.data);
+        setRealTimeData(data.data);
       } else {
-        console.error('❌ [PriceChartModal] Failed to load real-time data:', response.status);
+        console.error('❌ [PriceChartModal] Failed to load real-time data:', response.status, response.statusText);
+        // Try to get error details
+        const errorText = await response.text();
+        console.error('❌ [PriceChartModal] Error details:', errorText);
+        
+        // Retry up to 3 times for 404 errors (deployment might be in progress)
+        if (response.status === 404 && retryCount < 3) {
+          console.log(`🔄 [PriceChartModal] Retrying in 2 seconds... (${retryCount + 1}/3)`);
+          setTimeout(() => loadRealTimeData(retryCount + 1), 2000);
+        }
       }
     } catch (error) {
       console.error('❌ [PriceChartModal] Error loading real-time data:', error);
+      
+      // Retry on network errors
+      if (retryCount < 3) {
+        console.log(`🔄 [PriceChartModal] Retrying in 2 seconds... (${retryCount + 1}/3)`);
+        setTimeout(() => loadRealTimeData(retryCount + 1), 2000);
+      }
     }
   };
 
