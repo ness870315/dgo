@@ -917,6 +917,8 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             // Get current pool reserves
             let poolData = await this.getPoolReserves(TEST_POOL, tokenAddress);
+            console.log(`🔍 [DEBUG] poolData after getPoolReserves:`, poolData);
+            
             if (!poolData) {
                 console.log(`⚠️ [EnhancedHybridPriceService] No pool data for ${tokenAddress}, using fallback`);
                 
@@ -931,6 +933,10 @@ class EnhancedHybridPriceService extends EventEmitter {
                 }
             }
             
+            console.log(`🔍 [DEBUG] Final poolData before calculations:`, poolData);
+            console.log(`🔍 [DEBUG] poolData.tokenReserves:`, poolData?.tokenReserves);
+            console.log(`🔍 [DEBUG] poolData.solReserves:`, poolData?.solReserves);
+            
             // Get token info
             let tokenInfo = this.getTokenFromCache(tokenAddress);
             if (!tokenInfo) {
@@ -944,10 +950,12 @@ class EnhancedHybridPriceService extends EventEmitter {
             }
             
             // Calculate price
+            console.log(`🔍 [DEBUG] About to calculate price with poolData:`, poolData);
             const price = poolData.solReserves > 0 ? poolData.solReserves / poolData.tokenReserves : 0;
             const priceUSD = price * this.solPriceUSD;
             
             // Calculate liquidity
+            console.log(`🔍 [DEBUG] About to calculate liquidity with poolData:`, poolData);
             const liquidity = poolData.solReserves * this.solPriceUSD * 2; // Approximate liquidity
             
             // Get recent swaps
