@@ -628,10 +628,16 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
 
     calculatePriceData(tokenInfo, poolData) {
-        const priceUsd = poolData.priceInUSD || 0;
-        const liquidity = poolData.liquidity || 0;
-        const volume24h = poolData.volume24h || 0;
-        const priceChange24h = poolData.priceChange24h || 0;
+        // Calculate price from reserves
+        const priceNative = poolData.solReserves > 0 ? poolData.solReserves / poolData.tokenReserves : 0;
+        const priceUsd = priceNative * this.solPriceUSD;
+        
+        // Calculate liquidity (SOL reserves * 2 * SOL price)
+        const liquidity = poolData.solReserves * this.solPriceUSD * 2;
+        
+        // For now, set volume and price change to 0 (we can calculate these from swap history later)
+        const volume24h = 0;
+        const priceChange24h = 0;
         
         const totalSupply = tokenInfo.totalSupply || tokenInfo.jupiterData?.totalSupply || 0;
         const marketCap = priceUsd * totalSupply;
@@ -641,6 +647,7 @@ class EnhancedHybridPriceService extends EventEmitter {
             name: tokenInfo.name,
             symbol: tokenInfo.symbol,
             priceUsd,
+            priceNative,
             marketCap,
             liquidity,
             volume24h,

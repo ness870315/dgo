@@ -44,6 +44,14 @@ export const useHybridPrice = (tokenAddress, pollingInterval = 10000, enableWebS
       }
     };
 
+    const handleSwapUpdate = (data) => {
+      if (data.tokenAddress === tokenAddress && mountedRef.current) {
+        console.log('🔄 [useHybridPrice] WebSocket swap update received:', data.swapData);
+        // You can emit swap updates to parent components or update local state
+        // For now, we'll just log it
+      }
+    };
+
     const handleError = (error) => {
       console.error('❌ [useHybridPrice] WebSocket error:', error);
       setError(error);
@@ -61,6 +69,7 @@ export const useHybridPrice = (tokenAddress, pollingInterval = 10000, enableWebS
     websocketService.on('connected', handleConnected);
     websocketService.on('disconnected', handleDisconnected);
     websocketService.on('priceUpdate', handlePriceUpdate);
+    websocketService.on('swapUpdate', handleSwapUpdate);
     websocketService.on('error', handleError);
 
     // Check initial connection status
@@ -74,6 +83,7 @@ export const useHybridPrice = (tokenAddress, pollingInterval = 10000, enableWebS
       websocketService.off('connected', handleConnected);
       websocketService.off('disconnected', handleDisconnected);
       websocketService.off('priceUpdate', handlePriceUpdate);
+      websocketService.off('swapUpdate', handleSwapUpdate);
       websocketService.off('error', handleError);
     };
   }, [tokenAddress, enableWebSocket]);
