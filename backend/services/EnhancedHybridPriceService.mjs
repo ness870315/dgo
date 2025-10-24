@@ -931,17 +931,39 @@ class EnhancedHybridPriceService extends EventEmitter {
             // Get recent swaps
             const recentSwaps = this.swapHistory.get(tokenAddress) || [];
             
+            // Calculate proper metrics
+            const volume24h = this.calculateVolume24h(recentSwaps);
+            const priceChange24h = tokenInfo.jupiterData?.stats24h?.priceChange || 
+                                  tokenInfo.stats24h?.priceChange || 
+                                  this.calculatePriceChange24h(recentSwaps);
+            
+            // Get total supply from Jupiter data or use a reasonable estimate
+            const totalSupply = tokenInfo.totalSupply || 
+                              tokenInfo.jupiterData?.totalSupply || 
+                              this.estimateTotalSupply(tokenInfo);
+            
+            // Use circulating supply for market cap calculation
+            const circulatingSupply = tokenInfo.circSupply || 
+                                    tokenInfo.jupiterData?.circSupply || 
+                                    totalSupply; // Fallback to total supply if circSupply not available
+            
+            const marketCap = priceUSD * circulatingSupply;
+            
             return {
                 price: priceUSD,
                 priceNative: price,
                 liquidity: liquidity,
-                marketCap: 0, // Would need total supply
-                volume24h: 0, // Would need to calculate from swaps
-                priceChange24h: 0, // Would need historical data
+                marketCap: marketCap,
+                volume24h: volume24h,
+                priceChange24h: priceChange24h,
+                totalSupply: totalSupply,
+                circulatingSupply: circulatingSupply,
                 source: 'Real-time gRPC',
                 tokenInfo: tokenInfo,
                 poolData: poolData,
-                recentSwaps: recentSwaps.slice(-10), // Last 10 swaps
+                recentSwaps: recentSwaps.slice(-100), // Last 100 swaps for better history
+                swapHistory: recentSwaps, // Full swap history
+                totalSwaps: recentSwaps.length,
                 lastUpdated: new Date().toISOString()
             };
             

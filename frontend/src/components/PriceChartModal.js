@@ -5,6 +5,7 @@ import SVGChart from './SVGChartEnhanced';
 import TechnicalAnalysisPanel from './TechnicalAnalysisPanel';
 import SwapTable from './SwapTable';
 import { useAuth } from '../contexts/AuthContext';
+import websocketService from '../services/websocketService';
 
 const PriceChartModal = ({ token, onClose }) => {
   const { user, isAuthenticated } = useAuth();
@@ -45,7 +46,17 @@ const PriceChartModal = ({ token, onClose }) => {
       loadCurrentPriceFromJupiter();
       loadTokenAnalytics();
       loadRealTimeData();
+      
+      // Subscribe to real-time updates via WebSocket
+      websocketService.subscribeToToken(token.contractAddress);
     }
+    
+    // Cleanup on unmount
+    return () => {
+      if (token?.contractAddress) {
+        websocketService.unsubscribeFromToken(token.contractAddress);
+      }
+    };
   }, [token?.contractAddress]);
 
   useEffect(() => {
@@ -53,6 +64,34 @@ const PriceChartModal = ({ token, onClose }) => {
       updateVolumeForTimeframe();
     }
   }, [timeframe, tokenAnalytics]);
+
+  // WebSocket event listeners for real-time updates
+  useEffect(() => {
+    const handleSwapUpdate = (data) => {
+      if (data.tokenAddress === token?.contractAddress) {
+        console.log('🔄 [PriceChartModal] Real-time swap update received:', data.swapData);
+        // Reload real-time data to get updated swaps
+        loadRealTimeData();
+      }
+    };
+
+    const handleWebSocketPriceUpdate = (data) => {
+      if (data.tokenAddress === token?.contractAddress) {
+        console.log('📈 [PriceChartModal] Real-time price update received:', data);
+        handlePriceUpdate(data);
+      }
+    };
+
+    // Add event listeners
+    websocketService.on('swapUpdate', handleSwapUpdate);
+    websocketService.on('priceUpdate', handleWebSocketPriceUpdate);
+
+    // Cleanup
+    return () => {
+      websocketService.off('swapUpdate', handleSwapUpdate);
+      websocketService.off('priceUpdate', handleWebSocketPriceUpdate);
+    };
+  }, [token?.contractAddress]);
 
   const loadCurrentPriceFromJupiter = async () => {
     try {

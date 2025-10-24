@@ -4,6 +4,7 @@ import { ExternalLink, Filter, TrendingUp, TrendingDown, Plus, Minus } from 'luc
 const SwapTable = ({ token, realTimeData }) => {
   const [swaps, setSwaps] = useState([]);
   const [filteredSwaps, setFilteredSwaps] = useState([]);
+  const [displayedSwaps, setDisplayedSwaps] = useState([]);
   const [filters, setFilters] = useState({
     type: 'ALL',
     usdMin: 0,
@@ -11,11 +12,19 @@ const SwapTable = ({ token, realTimeData }) => {
   });
   const [selectedMaker, setSelectedMaker] = useState(null);
   const [showMakerHistory, setShowMakerHistory] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [swapsPerPage] = useState(20); // Show 20 swaps per page
 
   // Update swaps when real-time data changes
   useEffect(() => {
-    if (realTimeData?.recentSwaps) {
+    if (realTimeData?.swapHistory) {
+      // Use full swap history instead of just recentSwaps
+      setSwaps(realTimeData.swapHistory);
+      console.log(`📊 [SwapTable] Loaded ${realTimeData.swapHistory.length} total swaps`);
+    } else if (realTimeData?.recentSwaps) {
+      // Fallback to recentSwaps if swapHistory not available
       setSwaps(realTimeData.recentSwaps);
+      console.log(`📊 [SwapTable] Loaded ${realTimeData.recentSwaps.length} recent swaps`);
     }
   }, [realTimeData]);
 
@@ -44,7 +53,15 @@ const SwapTable = ({ token, realTimeData }) => {
     filtered.sort((a, b) => b.timestamp - a.timestamp);
 
     setFilteredSwaps(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
   }, [swaps, filters]);
+
+  // Pagination logic
+  useEffect(() => {
+    const startIndex = (currentPage - 1) * swapsPerPage;
+    const endIndex = startIndex + swapsPerPage;
+    setDisplayedSwaps(filteredSwaps.slice(startIndex, endIndex));
+  }, [filteredSwaps, currentPage, swapsPerPage]);
 
   const getSwapIcon = (type) => {
     switch (type) {
@@ -110,7 +127,7 @@ const SwapTable = ({ token, realTimeData }) => {
           </span>
         </h3>
         <div className="text-sm text-gray-400">
-          Showing {filteredSwaps.length} of {swaps.length} swaps
+          Showing {displayedSwaps.length} of {filteredSwaps.length} swaps (Total: {swaps.length})
         </div>
       </div>
 
@@ -201,7 +218,7 @@ const SwapTable = ({ token, realTimeData }) => {
             </tr>
           </thead>
           <tbody>
-            {filteredSwaps.slice(0, 10).map((swap, index) => (
+            {displayedSwaps.map((swap, index) => (
               <tr 
                 key={`${swap.txn}-${index}`}
                 className={`border-b border-gray-700 hover:bg-gray-700/50 transition-all duration-300 ${
@@ -323,6 +340,31 @@ const SwapTable = ({ token, realTimeData }) => {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {filteredSwaps.length > swapsPerPage && (
+        <div className="flex justify-between items-center mt-4 px-4 py-2 bg-gray-800 rounded">
+          <div className="text-sm text-gray-400">
+            Page {currentPage} of {Math.ceil(filteredSwaps.length / swapsPerPage)}
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1 bg-gray-700 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-600"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredSwaps.length / swapsPerPage), prev + 1))}
+              disabled={currentPage === Math.ceil(filteredSwaps.length / swapsPerPage)}
+              className="px-3 py-1 bg-gray-700 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-600"
+            >
+              Next
+            </button>
           </div>
         </div>
       )}
