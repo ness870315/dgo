@@ -62,9 +62,9 @@ class ChartDatabase {
             
             // Convert arrays back to Maps
             this.data.swaps = new Map(parsed.swaps || []);
-            this.data.candles = new Map(parsed.candles || []);
+            this.sharedData.candles = new Map(parsed.candles || []);
             this.sharedData.pools = new Map(parsed.pools || []);
-            this.data.backfillProgress = new Map(parsed.backfillProgress || []);
+            this.sharedData.backfillProgress = new Map(parsed.backfillProgress || []);
             
             this.isLoaded = true;
             console.log('✅ Chart database loaded from file');
@@ -338,7 +338,7 @@ class ChartDatabase {
         await this.ensureLoaded();
         const candles = [];
         
-        for (const [key, candle] of this.data.candles.entries()) {
+        for (const [key, candle] of this.sharedData.candles.entries()) {
             if (candle.poolAddress === poolAddress && candle.timeframe === timeframe) {
                 candles.push({
                     timestamp: candle.timestamp * 1000, // Convert to milliseconds for frontend
@@ -490,7 +490,7 @@ class ChartDatabase {
         // Store/update candles in database
         for (const candle of candles) {
             const key = `${poolAddress}_${timeframe}_${candle.timestamp}`;
-            this.data.candles.set(key, {
+            this.sharedData.candles.set(key, {
                 poolAddress,
                 timeframe,
                 timestamp: candle.timestamp,

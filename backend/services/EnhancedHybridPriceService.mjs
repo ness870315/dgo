@@ -459,21 +459,29 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             // Get cached token info
             let tokenInfo = this.getTokenFromCache(tokenAddress);
-            if (!tokenInfo) {
-                console.log(`⚠️ [DEBUG] No token info found for ${tokenAddress}, fetching from Jupiter API`);
-                // Try to fetch from Jupiter API for complete token data
-                tokenInfo = await this.fetchTokenInfo(tokenAddress);
-                if (!tokenInfo) {
-                    console.log(`⚠️ [DEBUG] Jupiter API failed, creating basic token info`);
-                    // Create basic token info as fallback
-                    tokenInfo = {
-                        symbol: 'PROBITY',
-                        name: 'Probity Token',
-                        contractAddress: tokenAddress,
-                        tokenAddress: tokenAddress,
-                        decimals: 6
-                    };
-                }
+            
+            // Always enrich with Jupiter data for accurate market cap calculation
+            const jupiterData = await this.fetchTokenInfo(tokenAddress);
+            if (jupiterData) {
+                // Merge Jupiter data with cached token info
+                tokenInfo = {
+                    ...tokenInfo,
+                    ...jupiterData,
+                    // Preserve original fields if Jupiter doesn't have them
+                    contractAddress: tokenInfo?.contractAddress || jupiterData.id || tokenAddress,
+                    tokenAddress: tokenInfo?.tokenAddress || jupiterData.id || tokenAddress
+                };
+                console.log(`✅ [DEBUG] Enriched token info with Jupiter data: circSupply=${jupiterData.circSupply}, totalSupply=${jupiterData.totalSupply}`);
+            } else if (!tokenInfo) {
+                console.log(`⚠️ [DEBUG] No token info found for ${tokenAddress}, creating basic token info`);
+                // Create basic token info as fallback
+                tokenInfo = {
+                    symbol: 'PROBITY',
+                    name: 'Probity Token',
+                    contractAddress: tokenAddress,
+                    tokenAddress: tokenAddress,
+                    decimals: 6
+                };
             }
             
             console.log(`🔍 [DEBUG] Token info found: ${tokenInfo.symbol}`);
