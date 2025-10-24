@@ -372,7 +372,8 @@ class ChartDatabase {
         // 🚀 HYBRID ARCHITECTURE: Search all token databases for swaps
         for (const [tokenAddress, tokenDb] of this.tokenDatabases.entries()) {
             if (tokenDb.swaps) {
-                for (const swap of tokenDb.swaps) {
+                // 🚀 FIX: tokenDb.swaps is a Map, not an array - iterate through values
+                for (const swap of tokenDb.swaps.values()) {
                     if (swap.poolAddress === poolAddress) {
                         // Filter by timestamp if provided
                         if (sinceTimestamp && swap.timestamp <= sinceTimestamp) {

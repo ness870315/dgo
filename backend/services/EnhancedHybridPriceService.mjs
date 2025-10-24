@@ -90,6 +90,16 @@ class EnhancedHybridPriceService extends EventEmitter {
             await this.metadataUpdater.start();
             console.log('✅ [EnhancedHybridPriceService] Token metadata updater started');
             
+            // 🚀 CRITICAL: Initialize ChartDatabase singleton and add PROBITY
+            if (!this.chartDatabase) {
+                const { default: ChartDatabase } = await import('./ChartDatabase.js');
+                this.chartDatabase = new ChartDatabase();
+                console.log('🚀 [EnhancedHybridPriceService] ChartDatabase singleton initialized');
+            }
+            
+            // 🚀 CRITICAL: Add PROBITY to ChartDatabase so swaps can be saved
+            await this.initializeProbityInDatabase();
+            
             console.log(`💰 [EnhancedHybridPriceService] SOL Price: $${this.solPriceUSD}`);
             
             // 🚀 NEW: Automatically start SIMPLIFIED single-token monitoring after initialization
@@ -746,8 +756,35 @@ class EnhancedHybridPriceService extends EventEmitter {
         return ((newestPrice - oldestPrice) / oldestPrice) * 100;
     }
 
-    // 🚀 REMOVED: estimateTotalSupply() - now using persistent TokenMetadataService
-    // This eliminates the need for pool-based supply estimation and reduces Jupiter API calls
+    // 🚀 CRITICAL: Initialize PROBITY in ChartDatabase so swaps can be saved
+    async initializeProbityInDatabase() {
+        try {
+            const TEST_TOKEN = '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc'; // PROBITY
+            const TEST_POOL = '98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvMZFN'; // PROBITY Pool
+            
+            console.log('🚀 [EnhancedHybridPriceService] Initializing PROBITY in ChartDatabase...');
+            
+            // Add PROBITY pool to sharedData
+            this.chartDatabase.sharedData.pools.set(TEST_TOKEN, {
+                poolAddress: TEST_POOL,
+                isActive: true,
+                lastUpdated: Date.now(),
+                tokenAddress: TEST_TOKEN
+            });
+            
+            // Initialize PROBITY token database
+            const probityDb = this.chartDatabase.getTokenDatabase(TEST_TOKEN);
+            console.log(`✅ [EnhancedHybridPriceService] PROBITY database initialized: ${probityDb.swaps.size} swaps`);
+            
+            // Save the updated sharedData
+            await this.chartDatabase.saveData();
+            
+            console.log('✅ [EnhancedHybridPriceService] PROBITY successfully added to ChartDatabase');
+            
+        } catch (error) {
+            console.error('❌ [EnhancedHybridPriceService] Failed to initialize PROBITY in database:', error.message);
+        }
+    }
 
     // Rate-limited Jupiter API request with caching
     async makeJupiterRequest(url, params = {}) {
@@ -987,10 +1024,13 @@ class EnhancedHybridPriceService extends EventEmitter {
             // Get historical swaps from database
             let historicalSwaps = [];
             try {
-                // Import ChartDatabase dynamically to avoid circular dependency
-                const { default: ChartDatabase } = await import('./ChartDatabase.js');
-                const chartDb = new ChartDatabase();
-                historicalSwaps = await chartDb.getRecentSwaps(TEST_POOL, 100); // Get last 100 swaps
+                // 🚀 SINGLETON PATTERN - Use shared ChartDatabase instance
+                if (!this.chartDatabase) {
+                    const { default: ChartDatabase } = await import('./ChartDatabase.js');
+                    this.chartDatabase = new ChartDatabase();
+                    console.log('🚀 [EnhancedHybridPriceService] ChartDatabase singleton initialized for historical data');
+                }
+                historicalSwaps = await this.chartDatabase.getRecentSwaps(TEST_POOL, 100); // Get last 100 swaps
                 console.log(`📊 [EnhancedHybridPriceService] Retrieved ${historicalSwaps.length} historical swaps for PROBITY`);
             } catch (error) {
                 console.error(`❌ [EnhancedHybridPriceService] Failed to get historical swaps:`, error.message);
