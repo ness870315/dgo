@@ -1103,8 +1103,8 @@ class EnhancedHybridPriceService extends EventEmitter {
                 query: tokenAddress
             });
 
-            if (data && data.length > 0) {
-                return data[0];
+            if (data && data.value && data.value.length > 0) {
+                return data.value[0];
             }
             
             return null;
