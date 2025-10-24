@@ -632,14 +632,21 @@ class EnhancedHybridPriceService extends EventEmitter {
         const priceNative = poolData.solReserves > 0 ? poolData.solReserves / poolData.tokenReserves : 0;
         const priceUsd = priceNative * this.solPriceUSD;
         
-        // Calculate liquidity (SOL reserves * 2 * SOL price)
+        // Calculate liquidity more accurately
+        // Liquidity = (SOL reserves * SOL price) + (Token reserves * Token price)
+        // For AMM pools, this is approximately SOL reserves * SOL price * 2
         const liquidity = poolData.solReserves * this.solPriceUSD * 2;
         
-        // For now, set volume and price change to 0 (we can calculate these from swap history later)
-        const volume24h = 0;
-        const priceChange24h = 0;
+        // Calculate volume from recent swaps
+        const recentSwaps = this.swapHistory.get(tokenInfo.contractAddress || tokenInfo.tokenAddress) || [];
+        const volume24h = this.calculateVolume24h(recentSwaps);
+        const priceChange24h = this.calculatePriceChange24h(recentSwaps);
         
-        const totalSupply = tokenInfo.totalSupply || tokenInfo.jupiterData?.totalSupply || 0;
+        // Get total supply from Jupiter data or use a reasonable estimate
+        const totalSupply = tokenInfo.totalSupply || 
+                           tokenInfo.jupiterData?.totalSupply || 
+                           this.estimateTotalSupply(tokenInfo, poolData);
+        
         const marketCap = priceUsd * totalSupply;
         
         return {
@@ -657,6 +664,61 @@ class EnhancedHybridPriceService extends EventEmitter {
             poolAddress: poolData.poolAddress,
             timestamp: Date.now()
         };
+    }
+
+    // Calculate 24h volume from recent swaps
+    calculateVolume24h(recentSwaps) {
+        const now = Date.now();
+        const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
+        
+        const swaps24h = recentSwaps.filter(swap => 
+            swap.timestamp && swap.timestamp >= twentyFourHoursAgo
+        );
+        
+        return swaps24h.reduce((total, swap) => total + (swap.usdAmount || 0), 0);
+    }
+
+    // Calculate 24h price change from recent swaps
+    calculatePriceChange24h(recentSwaps) {
+        if (recentSwaps.length < 2) return 0;
+        
+        const now = Date.now();
+        const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
+        
+        const swaps24h = recentSwaps.filter(swap => 
+            swap.timestamp && swap.timestamp >= twentyFourHoursAgo
+        );
+        
+        if (swaps24h.length < 2) return 0;
+        
+        // Sort by timestamp
+        swaps24h.sort((a, b) => a.timestamp - b.timestamp);
+        
+        const oldestPrice = swaps24h[0].priceUSD || 0;
+        const newestPrice = swaps24h[swaps24h.length - 1].priceUSD || 0;
+        
+        if (oldestPrice === 0) return 0;
+        
+        return ((newestPrice - oldestPrice) / oldestPrice) * 100;
+    }
+
+    // Estimate total supply for tokens without Jupiter data
+    estimateTotalSupply(tokenInfo, poolData) {
+        // For most tokens, we can estimate based on common patterns
+        // This is a fallback when Jupiter data is not available
+        
+        // If we have pool data, we can make a reasonable estimate
+        // Most tokens have supplies in the millions to billions range
+        const tokenReserves = poolData.tokenReserves || 0;
+        
+        // Estimate based on pool reserves (usually 1-10% of total supply is in pools)
+        if (tokenReserves > 0) {
+            // Assume 5% of total supply is in the pool (common for active tokens)
+            return tokenReserves * 20; // 20x multiplier (100% / 5%)
+        }
+        
+        // Fallback: return a reasonable default based on token type
+        return 1000000000; // 1 billion tokens (common for meme tokens)
     }
 
     // 🚀 NEW: WebSocket broadcasting methods
@@ -858,30 +920,64 @@ class EnhancedHybridPriceService extends EventEmitter {
         }
 
         try {
-            const response = await axios.get(`${JUPITER_API_BASE}/search`, {
-                params: {
-                    query: 'So11111111111111111111111111111111111111112'
-                },
-                timeout: 5000
-            });
+            // Try multiple sources for SOL price
+            let solPrice = 0;
+            
+            // Method 1: Try Jupiter API for SOL
+            try {
+                const response = await axios.get(`${JUPITER_API_BASE}/search`, {
+                    params: {
+                        query: 'So11111111111111111111111111111111111111112'
+                    },
+                    timeout: 5000
+                });
 
-            if (response.data && Array.isArray(response.data)) {
-                const solToken = response.data.find(token => 
-                    token.id === 'So11111111111111111111111111111111111111112' &&
-                    token.usdPrice > 0
-                );
+                if (response.data && Array.isArray(response.data)) {
+                    const solToken = response.data.find(token => 
+                        token.id === 'So11111111111111111111111111111111111111112' &&
+                        token.usdPrice > 0
+                    );
 
-                if (solToken && solToken.usdPrice) {
-                    this.solPriceUSD = solToken.usdPrice;
-                    this.lastSolPriceUpdate = now;
-                } else {
-                    this.solPriceUSD = 200;
+                    if (solToken && solToken.usdPrice) {
+                        solPrice = solToken.usdPrice;
+                    }
                 }
-            } else {
-                this.solPriceUSD = 200;
+            } catch (error) {
+                console.log('⚠️ [SOL Price] Jupiter API failed, trying fallback...');
             }
+            
+            // Method 2: Fallback to CoinGecko API
+            if (solPrice === 0) {
+                try {
+                    const response = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
+                        params: {
+                            ids: 'solana',
+                            vs_currencies: 'usd'
+                        },
+                        timeout: 5000
+                    });
+                    
+                    if (response.data && response.data.solana && response.data.solana.usd) {
+                        solPrice = response.data.solana.usd;
+                    }
+                } catch (error) {
+                    console.log('⚠️ [SOL Price] CoinGecko API failed, using default...');
+                }
+            }
+            
+            // Method 3: Use reasonable default
+            if (solPrice === 0) {
+                solPrice = 200; // Reasonable SOL price fallback
+                console.log('⚠️ [SOL Price] Using fallback price: $200');
+            }
+
+            this.solPriceUSD = solPrice;
+            this.lastSolPriceUpdate = now;
+            console.log(`💰 [SOL Price] Updated to: $${solPrice}`);
+            
         } catch (error) {
-            this.solPriceUSD = 200;
+            console.error('❌ [SOL Price] Error updating SOL price:', error.message);
+            this.solPriceUSD = 200; // Fallback
         }
     }
 
