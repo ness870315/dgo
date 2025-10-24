@@ -970,7 +970,7 @@ class EnhancedHybridPriceService extends EventEmitter {
             // Get total supply from Jupiter data or use a reasonable estimate
             const totalSupply = tokenInfo.totalSupply || 
                               tokenInfo.jupiterData?.totalSupply || 
-                              this.estimateTotalSupply(tokenInfo);
+                              this.estimateTotalSupply(tokenInfo, poolData);
             
             // Use circulating supply for market cap calculation
             const circulatingSupply = tokenInfo.circSupply || 
