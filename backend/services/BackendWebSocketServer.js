@@ -192,6 +192,13 @@ class BackendWebSocketServer extends EventEmitter {
     });
   }
 
+  broadcastSwapUpdate(tokenAddress, swapData) {
+    this.broadcastToTokenSubscribers(tokenAddress, {
+      type: 'swapUpdate',
+      data: swapData
+    });
+  }
+
   getStats() {
     return {
       totalClients: this.clients.size,
