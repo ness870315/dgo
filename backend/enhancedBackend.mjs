@@ -13093,6 +13093,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Initialize Enhanced Hybrid Price Service (Deployment-Safe gRPC Alternative)
     this.enhancedHybridPriceService = new EnhancedHybridPriceService();
     
+    // 🚀 NEW: Auto-start gRPC monitoring for PROBITY
+    console.log('🔌 [AUTO-START] Starting gRPC monitoring for PROBITY...');
+    this.enhancedHybridPriceService.initializeAsync().catch(error => {
+        console.error('❌ [AUTO-START] Failed to start gRPC monitoring:', error.message);
+    });
+    
     // Initialize Real-Time Token Monitor
     this.realTimeTokenMonitor = null; // Will be initialized after RealTimePriceService
     
