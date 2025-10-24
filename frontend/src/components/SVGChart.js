@@ -132,6 +132,7 @@ function SvgOHLCVArea({
   const [rawData, setRawData] = useState([]);
   const [err, setErr] = useState(null);
   const [mousePos, setMousePos] = useState(null);
+  const fetchingRef = useRef(false);
 
   // responsive width
   useEffect(() => {
@@ -147,16 +148,34 @@ function SvgOHLCVArea({
       try {
         setErr(null);
         if (!contract) return;
+        
+        // Prevent infinite loops by checking if already fetching
+        if (fetchingRef.current) {
+          console.log(`⚠️ [SvgOHLCVArea] Already fetching data for ${contract}, skipping...`);
+          return;
+        }
+        
+        fetchingRef.current = true;
+        console.log(`🔍 [SvgOHLCVArea] Fetching chart data for ${contract} with timeframe ${timeframe}`);
         const res = await chartService.getPriceChartRD(contract, timeframe);
         const data = Array.isArray(res?.data) ? res.data : [];
         if (!alive) return;
 
+        console.log(`📊 [SvgOHLCVArea] Received ${data.length} data points for ${contract}`);
         setRawData(data);
+        fetchingRef.current = false;
       } catch (e) {
-        if (alive) setErr(e.message || "Failed to load chart data");
+        fetchingRef.current = false;
+        if (alive) {
+          console.error(`❌ [SvgOHLCVArea] Error fetching chart data for ${contract}:`, e);
+          setErr(e.message || "Failed to load chart data");
+        }
       }
     })();
-    return () => { alive = false; };
+    return () => { 
+      alive = false; 
+      fetchingRef.current = false;
+    };
   }, [contract, timeframe]);
 
   // Process data: normalize, window, and transform
