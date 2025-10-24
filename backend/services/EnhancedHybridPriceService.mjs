@@ -714,6 +714,66 @@ class EnhancedHybridPriceService extends EventEmitter {
         };
     }
 
+    // Method for TokenDetail to get real-time data
+    async getRealTimeTokenData(tokenAddress) {
+        try {
+            console.log(`🔍 [EnhancedHybridPriceService] Getting real-time data for ${tokenAddress}`);
+            
+            // Get current pool reserves
+            const poolAddress = this.poolAddresses.get(tokenAddress);
+            if (!poolAddress) {
+                console.log(`⚠️ [EnhancedHybridPriceService] No pool found for ${tokenAddress}`);
+                return null;
+            }
+            
+            const poolData = await this.getPoolReserves(poolAddress, tokenAddress);
+            if (!poolData) {
+                console.log(`⚠️ [EnhancedHybridPriceService] No pool data for ${tokenAddress}`);
+                return null;
+            }
+            
+            // Get token info
+            let tokenInfo = this.getTokenFromCache(tokenAddress);
+            if (!tokenInfo) {
+                tokenInfo = {
+                    symbol: 'PROBITY',
+                    name: 'Probity Token',
+                    contractAddress: tokenAddress,
+                    tokenAddress: tokenAddress,
+                    decimals: 6
+                };
+            }
+            
+            // Calculate price
+            const price = poolData.solReserves > 0 ? poolData.solReserves / poolData.tokenReserves : 0;
+            const priceUSD = price * this.solPriceUSD;
+            
+            // Calculate liquidity
+            const liquidity = poolData.solReserves * this.solPriceUSD * 2; // Approximate liquidity
+            
+            // Get recent swaps
+            const recentSwaps = this.swapHistory.get(tokenAddress) || [];
+            
+            return {
+                price: priceUSD,
+                priceNative: price,
+                liquidity: liquidity,
+                marketCap: 0, // Would need total supply
+                volume24h: 0, // Would need to calculate from swaps
+                priceChange24h: 0, // Would need historical data
+                source: 'Real-time gRPC',
+                tokenInfo: tokenInfo,
+                poolData: poolData,
+                recentSwaps: recentSwaps.slice(-10), // Last 10 swaps
+                lastUpdated: new Date().toISOString()
+            };
+            
+        } catch (error) {
+            console.error(`❌ [EnhancedHybridPriceService] Error getting real-time data for ${tokenAddress}:`, error.message);
+            return null;
+        }
+    }
+
     // Existing methods (unchanged)
     async getTokenPriceData(tokenAddress, connectionId = null) {
         // Return cached data immediately - no more on-demand requests!

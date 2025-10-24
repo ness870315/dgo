@@ -13158,6 +13158,62 @@ Thanks for using x402 payments on Twitter! 🚀`;
     });
 
     // 🚀 NEW: Hybrid Price Service stats endpoint
+    // NEW: Real-time gRPC data endpoint for TokenDetail
+    this.app.get('/api/tokens/:contract/realtime-data', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        const connectionId = req.headers['x-connection-id'] || req.ip || 'unknown';
+        
+        console.log(`🔍 [RealTime] Fetching gRPC data for: ${contract} (conn: ${connectionId})`);
+        
+        if (!contract) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Contract address is required' 
+          });
+        }
+
+        if (!this.enhancedHybridPriceService) {
+          return res.status(503).json({
+            success: false,
+            error: 'EnhancedHybridPriceService not available'
+          });
+        }
+
+        // Get real-time data from gRPC system
+        const realTimeData = await this.enhancedHybridPriceService.getRealTimeTokenData(contract);
+        
+        if (!realTimeData) {
+          return res.status(404).json({
+            success: false,
+            error: 'Token not found in real-time monitoring'
+          });
+        }
+        
+        console.log(`✅ [RealTime] Successfully fetched gRPC data for ${contract}:`, {
+          price: realTimeData.price,
+          liquidity: realTimeData.liquidity,
+          source: realTimeData.source,
+          swaps: realTimeData.recentSwaps.length
+        });
+
+        res.json({
+          success: true,
+          data: realTimeData,
+          connectionId: connectionId,
+          timestamp: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error(`❌ [RealTime] Error fetching gRPC data for ${req.params.contract}:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch real-time data',
+          details: error.message
+        });
+      }
+    });
+
     this.app.get('/api/hybrid-price/stats', (req, res) => {
       try {
         const stats = this.hybridPriceService.getConnectionStats();
