@@ -101,13 +101,16 @@ const PriceChartModal = ({ token, onClose }) => {
 
   const loadRealTimeData = async () => {
     try {
-      const response = await fetch(`/api/tokens/${token.contractAddress}/realtime-data`);
+      const response = await fetch(`https://api.degen-oracle.com/api/tokens/${token.contractAddress}/realtime-data`);
       if (response.ok) {
         const data = await response.json();
         setRealTimeData(data.data);
+        console.log('📊 [PriceChartModal] Loaded real-time data:', data.data);
+      } else {
+        console.error('❌ [PriceChartModal] Failed to load real-time data:', response.status);
       }
     } catch (error) {
-      console.error('Error loading real-time data:', error);
+      console.error('❌ [PriceChartModal] Error loading real-time data:', error);
     }
   };
 
@@ -285,6 +288,11 @@ const PriceChartModal = ({ token, onClose }) => {
           {realTimeData && (
             <div className="mt-6">
               <SwapTable token={token} realTimeData={realTimeData} />
+            </div>
+          )}
+          {!realTimeData && (
+            <div className="mt-6 p-4 bg-gray-700 rounded text-center text-gray-400">
+              Loading swap data...
             </div>
           )}
         </div>
