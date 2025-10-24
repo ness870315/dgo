@@ -15,15 +15,27 @@ class ChartDatabase {
     constructor() {
         this.dataDir = path.join(process.cwd(), 'data');
         this.dbFile = path.join(this.dataDir, 'charts.json');
-        this.data = {
-            swaps: new Map(),
+        
+        // 🚀 HYBRID ARCHITECTURE: Per-token databases + shared metadata
+        this.tokenDatabases = new Map(); // tokenAddress -> database instance
+        this.sharedData = {
             candles: new Map(),
             pools: new Map(),
-            backfillProgress: new Map()
+            backfillProgress: new Map(),
+            tokenStats: new Map() // tokenAddress -> { swapCount, lastSwap, etc }
         };
         this.isLoaded = false;
+        
+        // 🚀 ATOMIC WRITE SYSTEM for high-frequency swaps
+        this.writeQueues = new Map(); // tokenAddress -> queue
+        this.isWriting = new Set(); // track which tokens are being written
+        this.writeBatchSize = 50; // Batch swaps before writing
+        this.writeInterval = 2000; // Write every 2 seconds max (faster for real-time)
+        this.lastWriteTime = new Map(); // per-token write times
+        
         this.ensureDataDir();
         this.loadData();
+        this.startBatchWriter();
     }
 
     /**
@@ -65,37 +77,222 @@ class ChartDatabase {
         }
     }
 
-    async saveData() {
+    /**
+     * 🚀 PER-TOKEN DATABASE - Get or create database for specific token
+     */
+    getTokenDatabase(tokenAddress) {
+        if (!this.tokenDatabases.has(tokenAddress)) {
+            this.tokenDatabases.set(tokenAddress, {
+                swaps: new Map(),
+                lastWriteTime: 0,
+                swapCount: 0
+            });
+            
+            // Initialize write queue for this token
+            if (!this.writeQueues.has(tokenAddress)) {
+                this.writeQueues.set(tokenAddress, []);
+            }
+        }
+        return this.tokenDatabases.get(tokenAddress);
+    }
+
+    /**
+     * 🚀 PER-TOKEN FILE PATH - Get file path for specific token
+     */
+    getTokenFilePath(tokenAddress) {
+        return path.join(this.dataDir, `swaps_${tokenAddress}.json`);
+    }
+
+    /**
+     * 🚀 ATOMIC WRITE SYSTEM - Start batch writer for high-frequency swaps
+     */
+    startBatchWriter() {
+        setInterval(async () => {
+            await this.processAllWriteQueues();
+        }, this.writeInterval);
+        
+        console.log('🚀 [ChartDatabase] Hybrid atomic write system started');
+        console.log(`   Architecture: Per-token databases + shared metadata`);
+        console.log(`   Batch size: ${this.writeBatchSize} swaps per token`);
+        console.log(`   Write interval: ${this.writeInterval}ms`);
+    }
+
+    /**
+     * 🚀 ATOMIC WRITE - Process all token write queues in parallel
+     */
+    async processAllWriteQueues() {
+        const writePromises = [];
+        
+        for (const [tokenAddress, queue] of this.writeQueues.entries()) {
+            if (queue.length > 0 && !this.isWriting.has(tokenAddress)) {
+                writePromises.push(this.processTokenWriteQueue(tokenAddress));
+            }
+        }
+        
+        if (writePromises.length > 0) {
+            await Promise.allSettled(writePromises);
+        }
+    }
+
+    /**
+     * 🚀 ATOMIC WRITE - Process queued swaps for specific token
+     */
+    async processTokenWriteQueue(tokenAddress) {
+        const queue = this.writeQueues.get(tokenAddress);
+        if (!queue || queue.length === 0 || this.isWriting.has(tokenAddress)) return;
+        
+        this.isWriting.add(tokenAddress);
         try {
-            // Convert Maps to arrays for JSON serialization
+            // Process swaps in batches for this token
+            const batch = queue.splice(0, this.writeBatchSize);
+            if (batch.length === 0) return;
+            
+            const tokenDb = this.getTokenDatabase(tokenAddress);
+            
+            // Add swaps to memory
+            for (const swap of batch) {
+                const key = swap.poolAddress ? 
+                    `${swap.poolAddress}_${swap.signature}` : 
+                    swap.signature;
+                tokenDb.swaps.set(key, swap);
+                tokenDb.swapCount++;
+            }
+            
+            // Atomic write to per-token file
+            await this.atomicWriteToken(tokenAddress);
+            
+            // Update shared stats
+            this.sharedData.tokenStats.set(tokenAddress, {
+                swapCount: tokenDb.swapCount,
+                lastSwap: Date.now(),
+                lastWriteTime: tokenDb.lastWriteTime
+            });
+            
+            console.log(`💾 [ChartDatabase] Token ${tokenAddress.substring(0,8)}: ${batch.length} swaps saved (total: ${tokenDb.swapCount})`);
+            
+        } catch (error) {
+            console.error(`❌ [ChartDatabase] Token ${tokenAddress.substring(0,8)} write failed:`, error.message);
+            // Re-queue failed swaps
+            queue.unshift(...batch);
+        } finally {
+            this.isWriting.delete(tokenAddress);
+        }
+    }
+
+    /**
+     * 🚀 ATOMIC WRITE - Write per-token data to temporary file then rename
+     */
+    async atomicWriteToken(tokenAddress) {
+        const tokenDb = this.getTokenDatabase(tokenAddress);
+        const tokenFile = this.getTokenFilePath(tokenAddress);
+        const tempFile = `${tokenFile}.tmp`;
+        const backupFile = `${tokenFile}.backup`;
+        
+        try {
+            // Convert token swaps to arrays for JSON serialization
             const dataToSave = {
-                swaps: Array.from(this.data.swaps.entries()),
-                candles: Array.from(this.data.candles.entries()),
-                pools: Array.from(this.data.pools.entries()),
-                backfillProgress: Array.from(this.data.backfillProgress.entries()),
+                swaps: Array.from(tokenDb.swaps.entries()),
+                swapCount: tokenDb.swapCount,
+                lastUpdated: Date.now(),
+                tokenAddress: tokenAddress
+            };
+            
+            // Write to temporary file first
+            await fs.writeFile(tempFile, JSON.stringify(dataToSave, null, 2));
+            
+            // Create backup of current file
+            try {
+                await fs.copyFile(tokenFile, backupFile);
+            } catch (error) {
+                // Backup might not exist yet, that's ok
+            }
+            
+            // Atomic rename (this is the atomic operation)
+            await fs.rename(tempFile, tokenFile);
+            
+            tokenDb.lastWriteTime = Date.now();
+            
+        } catch (error) {
+            // Clean up temp file if it exists
+            try {
+                await fs.unlink(tempFile);
+            } catch (cleanupError) {
+                // Ignore cleanup errors
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * 🚀 LEGACY METHOD - Keep for backward compatibility (shared metadata only)
+     */
+    async atomicWrite() {
+        const tempFile = `${this.dbFile}.tmp`;
+        const backupFile = `${this.dbFile}.backup`;
+        
+        try {
+            // Only save shared metadata (not per-token swaps)
+            const dataToSave = {
+                candles: Array.from(this.sharedData.candles.entries()),
+                pools: Array.from(this.sharedData.pools.entries()),
+                backfillProgress: Array.from(this.sharedData.backfillProgress.entries()),
+                tokenStats: Array.from(this.sharedData.tokenStats.entries()),
                 lastUpdated: Date.now()
             };
             
-            await fs.writeFile(this.dbFile, JSON.stringify(dataToSave, null, 2));
+            // Write to temporary file first
+            await fs.writeFile(tempFile, JSON.stringify(dataToSave, null, 2));
+            
+            // Create backup of current file
+            try {
+                await fs.copyFile(this.dbFile, backupFile);
+            } catch (error) {
+                // Backup might not exist yet, that's ok
+            }
+            
+            // Atomic rename (this is the atomic operation)
+            await fs.rename(tempFile, this.dbFile);
+            
         } catch (error) {
-            console.error('❌ Failed to save database:', error.message);
+            // Clean up temp file if it exists
+            try {
+                await fs.unlink(tempFile);
+            } catch (cleanupError) {
+                // Ignore cleanup errors
+            }
+            throw error;
         }
+    }
+
+    /**
+     * 🚀 LEGACY METHOD - Keep for backward compatibility
+     */
+    async saveData() {
+        await this.atomicWrite();
     }
 
     /**
      * Store raw swap transactions
      */
+    /**
+     * 🚀 ATOMIC STORE - Queue swaps for per-token atomic batch writing
+     */
     async storeSwaps(swaps) {
         await this.ensureLoaded();
         if (!swaps || swaps.length === 0) return;
 
+        // Group swaps by token address
+        const swapsByToken = new Map();
+        
         for (const swap of swaps) {
-            // Use signature as key if no poolAddress, or create a composite key
-            const key = swap.poolAddress ? 
-                `${swap.poolAddress}_${swap.signature}` : 
-                swap.signature;
-                
-            this.data.swaps.set(key, {
+            // Determine token address from swap data
+            const tokenAddress = swap.tokenAddress || swap.baseToken || 'UNKNOWN';
+            
+            if (!swapsByToken.has(tokenAddress)) {
+                swapsByToken.set(tokenAddress, []);
+            }
+            
+            const swapData = {
                 signature: swap.signature,
                 poolAddress: swap.poolAddress || 'UNKNOWN',
                 timestamp: swap.timestamp,
@@ -104,17 +301,33 @@ class ChartDatabase {
                 source: swap.source || 'helius',
                 rawData: swap,
                 createdAt: Date.now(),
+                tokenAddress: tokenAddress,
                 // Additional fields from our parsing
                 type: swap.type,
                 baseToken: swap.baseToken,
                 baseAmount: swap.baseAmount,
                 tokenAmount: swap.tokenAmount,
                 maker: swap.maker
-            });
+            };
+            
+            swapsByToken.get(tokenAddress).push(swapData);
         }
-
-        await this.saveData();
-        console.log(`💾 Stored ${swaps.length} swaps in database`);
+        
+        // Queue swaps for each token
+        for (const [tokenAddress, tokenSwaps] of swapsByToken.entries()) {
+            if (!this.writeQueues.has(tokenAddress)) {
+                this.writeQueues.set(tokenAddress, []);
+            }
+            
+            this.writeQueues.get(tokenAddress).push(...tokenSwaps);
+            
+            // Trigger immediate write if queue is full for this token
+            if (this.writeQueues.get(tokenAddress).length >= this.writeBatchSize) {
+                await this.processTokenWriteQueue(tokenAddress);
+            }
+        }
+        
+        console.log(`📝 [ChartDatabase] Queued ${swaps.length} swaps across ${swapsByToken.size} tokens`);
     }
 
     /**

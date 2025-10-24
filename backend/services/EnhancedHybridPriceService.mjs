@@ -862,9 +862,12 @@ class EnhancedHybridPriceService extends EventEmitter {
     // Save real-time swap to ChartDatabase for persistence
     async saveSwapToDatabase(swap, poolAddress) {
         try {
-            // Import ChartDatabase dynamically to avoid circular dependency
-            const { default: ChartDatabase } = await import('./ChartDatabase.js');
-            const chartDb = new ChartDatabase();
+            // 🚀 SINGLETON PATTERN - Use shared ChartDatabase instance
+            if (!this.chartDatabase) {
+                const { default: ChartDatabase } = await import('./ChartDatabase.js');
+                this.chartDatabase = new ChartDatabase();
+                console.log('🚀 [EnhancedHybridPriceService] ChartDatabase singleton initialized');
+            }
             
             // Convert swap to ChartDatabase format
             const swapData = {
@@ -883,12 +886,12 @@ class EnhancedHybridPriceService extends EventEmitter {
                 maker: swap.maker
             };
             
-            // Store in database
-            await chartDb.storeSwaps([swapData]);
-            console.log(`💾 [EnhancedHybridPriceService] Saved real-time swap to database: ${swap.txn || swap.signature}`);
+            // Queue swap for atomic batch writing
+            await this.chartDatabase.storeSwaps([swapData]);
+            console.log(`💾 [EnhancedHybridPriceService] Queued real-time swap: ${swap.txn || swap.signature}`);
             
         } catch (error) {
-            console.error(`❌ [EnhancedHybridPriceService] Failed to save swap to database:`, error.message);
+            console.error(`❌ [EnhancedHybridPriceService] Failed to queue swap:`, error.message);
         }
     }
 
