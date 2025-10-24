@@ -72,6 +72,11 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
   // Price Chart Modal states
   const [showPriceChartModal, setShowPriceChartModal] = useState(false);
   
+  // Debug modal state changes
+  useEffect(() => {
+    console.log('🔍 [TokenDetails] showPriceChartModal state changed:', showPriceChartModal);
+  }, [showPriceChartModal]);
+  
   // Holders Insights Modal states
   const [showHoldersInsightsModal, setShowHoldersInsightsModal] = useState(false);
   
@@ -1077,7 +1082,12 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
               <div className="grid grid-cols-2 gap-3">
                 {/* Market Cap - Blue Gradient - Clickable for Price Chart */}
                 <button
-                  onClick={() => setShowPriceChartModal(true)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('🚀 [TokenDetails] Market Cap button clicked, opening PriceChart modal');
+                    setShowPriceChartModal(true);
+                  }}
                   className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-600/20 to-cyan-600/20 rounded border border-blue-500/30 aspect-square relative overflow-hidden hover:from-blue-600/30 hover:to-cyan-600/30 transition-all duration-200 group"
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent"></div>
@@ -2681,7 +2691,10 @@ const TokenDetails = ({ token, fueledTokens = [], onClose, onNavigateToPremium, 
         {showPriceChartModal && (
           <PriceChartModal
             token={token}
-            onClose={() => setShowPriceChartModal(false)}
+            onClose={() => {
+              console.log('🚀 [TokenDetails] Closing PriceChart modal');
+              setShowPriceChartModal(false);
+            }}
           />
         )}
 
