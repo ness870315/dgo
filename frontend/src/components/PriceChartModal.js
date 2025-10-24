@@ -344,9 +344,6 @@ const PriceChartModal = ({ token, onClose }) => {
                 <SVGChart 
                   token={token} 
                   onClose={onClose}
-                  onChartDataChange={setChartData}
-                  onTimeframeChange={setTimeframe}
-                  onPriceUpdate={handlePriceUpdate}
                 />
               );
             } catch (error) {
