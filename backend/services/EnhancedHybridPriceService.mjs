@@ -247,12 +247,13 @@ class EnhancedHybridPriceService extends EventEmitter {
                     const LOG_INTERVAL = 5000; // Log every 5 seconds max
                     
                     // Comprehensive validation for account data
+                    // Handle Buffer objects correctly (pubkey is a Buffer, not an object with .data)
                     if (msg.account && msg.account.account && msg.account.account.pubkey && 
-                        msg.account.account.pubkey.data && msg.account.account.pubkey.data.length > 0) {
+                        Buffer.isBuffer(msg.account.account.pubkey) && msg.account.account.pubkey.length > 0) {
                         
                         totalUpdateCount++;
                         const slot = msg.account.slot;
-                        const accountAddress = bs58.encode(new Uint8Array(msg.account.account.pubkey.data));
+                        const accountAddress = bs58.encode(new Uint8Array(msg.account.account.pubkey));
                         
                         // Rate limit logging to prevent spam
                         const now = Date.now();
@@ -352,10 +353,12 @@ class EnhancedHybridPriceService extends EventEmitter {
             stream.on("data", async (msg) => {
                 try {
                     // Only process valid account data with proper validation
-                    if (msg.account && msg.account.account && msg.account.account.pubkey && msg.account.account.pubkey.data && msg.account.account.pubkey.data.length > 0) {
+                    // Handle Buffer objects correctly (pubkey is a Buffer, not an object with .data)
+                    if (msg.account && msg.account.account && msg.account.account.pubkey && 
+                        Buffer.isBuffer(msg.account.account.pubkey) && msg.account.account.pubkey.length > 0) {
                         totalUpdateCount++;
                         const slot = msg.account.slot;
-                        const accountAddress = bs58.encode(new Uint8Array(msg.account.account.pubkey.data));
+                        const accountAddress = bs58.encode(new Uint8Array(msg.account.account.pubkey));
                         
                         // Skip if account address is empty or invalid
                         if (!accountAddress || accountAddress.length < 32) {
