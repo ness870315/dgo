@@ -960,6 +960,7 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             // Get recent swaps from real-time monitoring
             const realTimeSwaps = this.swapHistory.get(tokenAddress) || [];
+            console.log(`🔍 [DEBUG] Real-time swaps: ${realTimeSwaps.length} swaps`);
             
             // Get historical swaps from database
             let historicalSwaps = [];
@@ -973,11 +974,17 @@ class EnhancedHybridPriceService extends EventEmitter {
                 console.error(`❌ [EnhancedHybridPriceService] Failed to get historical swaps:`, error.message);
             }
             
+            console.log(`🔍 [DEBUG] Before deduplication - Real-time: ${realTimeSwaps.length}, Historical: ${historicalSwaps.length}`);
+            
             // Combine real-time and historical swaps, removing duplicates
             const allSwaps = [...historicalSwaps, ...realTimeSwaps];
-            const uniqueSwaps = allSwaps.filter((swap, index, self) => 
-                index === self.findIndex(s => s.signature === swap.signature)
-            );
+            const uniqueSwaps = allSwaps.filter((swap, index, self) => {
+                // Use signature or txn field for deduplication (real-time swaps use 'txn', historical use 'signature')
+                const swapId = swap.signature || swap.txn;
+                return index === self.findIndex(s => (s.signature || s.txn) === swapId);
+            });
+            
+            console.log(`🔍 [DEBUG] After deduplication - Total unique swaps: ${uniqueSwaps.length}`);
             
             // Sort by timestamp (newest first)
             const recentSwaps = uniqueSwaps.sort((a, b) => b.timestamp - a.timestamp);
