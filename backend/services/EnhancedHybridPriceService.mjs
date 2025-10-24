@@ -958,8 +958,29 @@ class EnhancedHybridPriceService extends EventEmitter {
             console.log(`🔍 [DEBUG] About to calculate liquidity with poolData:`, poolData);
             const liquidity = poolData.solReserves * this.solPriceUSD * 2; // Approximate liquidity
             
-            // Get recent swaps
-            const recentSwaps = this.swapHistory.get(tokenAddress) || [];
+            // Get recent swaps from real-time monitoring
+            const realTimeSwaps = this.swapHistory.get(tokenAddress) || [];
+            
+            // Get historical swaps from database
+            let historicalSwaps = [];
+            try {
+                // Import ChartDatabase dynamically to avoid circular dependency
+                const { default: ChartDatabase } = await import('./ChartDatabase.js');
+                const chartDb = new ChartDatabase();
+                historicalSwaps = await chartDb.getRecentSwaps(TEST_POOL, 100); // Get last 100 swaps
+                console.log(`📊 [EnhancedHybridPriceService] Retrieved ${historicalSwaps.length} historical swaps for PROBITY`);
+            } catch (error) {
+                console.error(`❌ [EnhancedHybridPriceService] Failed to get historical swaps:`, error.message);
+            }
+            
+            // Combine real-time and historical swaps, removing duplicates
+            const allSwaps = [...historicalSwaps, ...realTimeSwaps];
+            const uniqueSwaps = allSwaps.filter((swap, index, self) => 
+                index === self.findIndex(s => s.signature === swap.signature)
+            );
+            
+            // Sort by timestamp (newest first)
+            const recentSwaps = uniqueSwaps.sort((a, b) => b.timestamp - a.timestamp);
             
             // Calculate proper metrics
             const volume24h = this.calculateVolume24h(recentSwaps);
