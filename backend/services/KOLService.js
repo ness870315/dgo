@@ -350,6 +350,7 @@ class KOLService {
           coins: analysis.coins,
           sentiment: analysis.sentiment,
           narratives: analysis.narratives,
+          topics: analysis.topics, // NEW: Store topics from analysis
           processed_at: new Date().toISOString()
         };
 
@@ -366,7 +367,7 @@ class KOLService {
 
         // Log analysis
         if (analysis.coins.length > 0) {
-          console.log(`🤖 [KOL SERVICE] Analyzed: ${analysis.coins.join(', ')} | Sentiment: ${analysis.sentiment > 0 ? '📈' : analysis.sentiment < 0 ? '📉' : '➡️'}`);
+          console.log(`🤖 [KOL SERVICE] Analyzed: ${analysis.coins.join(', ')} | Sentiment: ${analysis.sentiment > 0 ? '📈' : analysis.sentiment < 0 ? '📉' : '➡️'} | Topics: ${analysis.topics.join(', ')}`);
         }
       }
 
@@ -491,7 +492,8 @@ class KOLService {
       const prompt = `Analyze this crypto tweet and extract:
 1. Coin symbols (BTC, ETH, SOL, etc.) - ALWAYS USE UPPERCASE
 2. Sentiment: bullish (1), neutral (0), or bearish (-1)
-3. Key narratives/themes
+3. Key narratives/themes (DeFi, AI, Gaming, NFT, Layer2, Meme, Staking, Trading, etc.)
+4. Trending topics (AI, DeFi, Gaming, etc.)
 
 Tweet: "${text}"
 
@@ -499,16 +501,19 @@ Respond with ONLY valid JSON:
 {
   "coins": ["BTC", "ETH"],
   "sentiment": 1,
-  "narratives": ["DeFi", "Layer 2"]
+  "narratives": ["DeFi", "Layer 2"],
+  "topics": ["DeFi", "AI", "Trading"]
 }
 
-IMPORTANT: All coin symbols MUST be in UPPERCASE (BTC not btc, USELESS not useless).
-If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
+IMPORTANT: 
+- All coin symbols MUST be in UPPERCASE (BTC not btc, USELESS not useless)
+- Topics should be general crypto categories (DeFi, AI, Gaming, NFT, Layer2, Meme, Staking, Trading, Regulation, Institutional, etc.)
+- If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
 
       const response = await this.openaiService.generateCompletion(prompt, {
-        maxTokens: 150,
+        maxTokens: 200,
         temperature: 0.1,
-        model: 'gpt-4o'
+        model: 'gpt-4o-mini'
       });
 
       // Parse JSON response
@@ -521,7 +526,8 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       return {
         coins: normalizedCoins,
         sentiment: Math.max(-1, Math.min(1, analysis.sentiment || 0)),
-        narratives: analysis.narratives || []
+        narratives: analysis.narratives || [],
+        topics: analysis.topics || [] // NEW: Extract topics in same call
       };
 
     } catch (error) {
@@ -529,7 +535,8 @@ If no coins found, return empty arrays. Sentiment must be -1, 0, or 1.`;
       return {
         coins: [],
         sentiment: 0,
-        narratives: []
+        narratives: [],
+        topics: [] // NEW: Include topics in error case
       };
     }
   }

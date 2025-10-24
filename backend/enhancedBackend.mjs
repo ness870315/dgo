@@ -12085,7 +12085,112 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
-    // ===== TOP TOPICS ANALYSIS ENDPOINTS =====
+    // ===== PUBLIC TRENDING TOPICS ENDPOINTS =====
+    
+    /**
+     * Get latest trending topics (public endpoint)
+     */
+    this.app.get('/api/topics/trending', async (req, res) => {
+      try {
+        const { limit = 20, category, days = 7 } = req.query;
+        
+        if (!this.topicTrendingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Topic Trending Database not initialized'
+          });
+        }
+
+        let topics;
+        if (category) {
+          topics = this.topicTrendingDatabase.getTrendingTopicsByCategory(category, parseInt(limit));
+        } else {
+          topics = this.topicTrendingDatabase.getTrendingTopicsByTimeframe(parseInt(days), parseInt(limit));
+        }
+
+        res.json({
+          success: true,
+          data: topics,
+          meta: {
+            limit: parseInt(limit),
+            category: category || 'all',
+            days: parseInt(days),
+            total: topics.length
+          }
+        });
+
+      } catch (error) {
+        console.error('❌ [PUBLIC TOPICS] Error getting trending topics:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch trending topics'
+        });
+      }
+    });
+
+    /**
+     * Get trending topics by category (public endpoint)
+     */
+    this.app.get('/api/topics/categories', async (req, res) => {
+      try {
+        const { limit = 10 } = req.query;
+        
+        if (!this.topicTrendingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Topic Trending Database not initialized'
+          });
+        }
+
+        const categories = this.topicTrendingDatabase.getTopCategories(parseInt(limit));
+
+        res.json({
+          success: true,
+          data: categories,
+          meta: {
+            limit: parseInt(limit),
+            total: categories.length
+          }
+        });
+
+      } catch (error) {
+        console.error('❌ [PUBLIC TOPICS] Error getting categories:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch topic categories'
+        });
+      }
+    });
+
+    /**
+     * Get trending statistics (public endpoint)
+     */
+    this.app.get('/api/topics/statistics', async (req, res) => {
+      try {
+        if (!this.topicTrendingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Topic Trending Database not initialized'
+          });
+        }
+
+        const stats = this.topicTrendingDatabase.getTrendingStatistics();
+
+        res.json({
+          success: true,
+          data: stats
+        });
+
+      } catch (error) {
+        console.error('❌ [PUBLIC TOPICS] Error getting statistics:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch topic statistics'
+        });
+      }
+    });
+
+    // ===== ADMIN TOP TOPICS ANALYSIS ENDPOINTS =====
     
     /**
      * Analyze trending topics from tracked tweets
@@ -12367,6 +12472,161 @@ Thanks for using x402 payments on Twitter! 🚀`;
       } catch (error) {
         console.error('[🛡️ Admin] ❌ Failed to get trending statistics:', error.message);
         res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    // ========================================
+    // 🌐 PUBLIC TRENDING TOPICS ENDPOINTS (No Auth Required)
+    // ========================================
+
+    /**
+     * Get latest trending topics (public endpoint)
+     */
+    this.app.get('/api/trending-topics/latest', (req, res) => {
+      try {
+        const { limit = 20, category, days = 7 } = req.query;
+        
+        if (!this.topicTrendingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Topic Trending Database not initialized'
+          });
+        }
+
+        let topics;
+        if (category) {
+          topics = this.topicTrendingDatabase.getTrendingTopicsByCategory(category, parseInt(limit));
+        } else {
+          topics = this.topicTrendingDatabase.getTrendingTopicsByTimeframe(parseInt(days), parseInt(limit));
+        }
+        
+        res.json({
+          success: true,
+          topics,
+          timeframe: `${days} days`,
+          category: category || 'all',
+          total: topics.length
+        });
+
+      } catch (error) {
+        console.error('[🌐 Public] ❌ Failed to get trending topics:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    /**
+     * Get trending topics by category (public endpoint)
+     */
+    this.app.get('/api/trending-topics/categories', (req, res) => {
+      try {
+        const { limit = 10 } = req.query;
+        
+        if (!this.topicTrendingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Topic Trending Database not initialized'
+          });
+        }
+
+        const categories = this.topicTrendingDatabase.getTopCategories(parseInt(limit));
+        
+        res.json({
+          success: true,
+          categories,
+          total: categories.length
+        });
+
+      } catch (error) {
+        console.error('[🌐 Public] ❌ Failed to get trending categories:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    /**
+     * Get topic trend over time (public endpoint)
+     */
+    this.app.get('/api/trending-topics/trend/:topic', (req, res) => {
+      try {
+        const { topic } = req.params;
+        const { days = 7 } = req.query;
+        
+        if (!this.topicTrendingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Topic Trending Database not initialized'
+          });
+        }
+
+        const trend = this.topicTrendingDatabase.getTopicTrend(topic, parseInt(days));
+        
+        res.json({
+          success: true,
+          topic,
+          trend,
+          timeframe: `${days} days`
+        });
+
+      } catch (error) {
+        console.error('[🌐 Public] ❌ Failed to get topic trend:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    /**
+     * Search topics (public endpoint)
+     */
+    this.app.get('/api/trending-topics/search', (req, res) => {
+      try {
+        const { q, limit = 20 } = req.query;
+        
+        if (!q) {
+          return res.status(400).json({
+            success: false,
+            error: 'Query parameter "q" is required'
+          });
+        }
+        
+        if (!this.topicTrendingDatabase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Topic Trending Database not initialized'
+          });
+        }
+
+        const results = this.topicTrendingDatabase.searchTopics(q, parseInt(limit));
+        
+        res.json({
+          success: true,
+          query: q,
+          results,
+          total: results.length
+        });
+
+      } catch (error) {
+        console.error('[🌐 Public] ❌ Failed to search topics:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
+    /**
+     * Manual trigger for trending topics analysis (public endpoint for testing)
+     */
+    this.app.post('/api/trending-topics/analyze', async (req, res) => {
+      try {
+        console.log('[🌐 Public] 🔥 Manual trending topics analysis triggered');
+        await this.runTrendingTopicsAnalysis();
+        
+        res.json({
+          success: true,
+          message: 'Trending topics analysis completed successfully'
+        });
+
+      } catch (error) {
+        console.error('[🌐 Public] ❌ Manual trending topics analysis failed:', error.message);
+        res.status(500).json({ 
+          success: false, 
+          error: error.message 
+        });
       }
     });
 
@@ -14987,7 +15247,102 @@ Thanks for using x402 payments on Twitter! 🚀`;
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Priority Jupiter update failed:', error);
       }
-    }, 60 * 1000); // Check every minute, but only update what needs updating based on priority
+    }, 60 * 1000);
+
+    // Trending Topics Analysis (every 2 hours)
+    setInterval(async () => {
+      try {
+        console.log('[🛡️ Enhanced Backend] 🔥 Running trending topics analysis...');
+        await this.runTrendingTopicsAnalysis();
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Trending topics analysis failed:', error);
+      }
+    }, 2 * 60 * 60 * 1000); // Every 2 hours
+
+    // Run initial trending topics analysis after 5 minutes
+    setTimeout(async () => {
+      try {
+        console.log('[🛡️ Enhanced Backend] 🚀 Running initial trending topics analysis...');
+        await this.runTrendingTopicsAnalysis();
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Initial trending topics analysis failed:', error);
+      }
+    }, 5 * 60 * 1000); // Wait 5 minutes after startup // Check every minute, but only update what needs updating based on priority
+  }
+
+  // ===== Trending Topics Analysis =====
+  async runTrendingTopicsAnalysis() {
+    try {
+      if (!this.topicAnalysisService || !this.topicTrendingDatabase || !this.kolService) {
+        console.log('[🛡️ Enhanced Backend] ⚠️ Trending topics services not initialized, skipping analysis');
+        return;
+      }
+
+      // Get recent posts from KOLService (these already have topics analyzed)
+      const allPosts = this.kolService.getPosts();
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      
+      const recentPosts = allPosts.filter(post => 
+        new Date(post.created_at) >= sevenDaysAgo
+      );
+      
+      if (!recentPosts || recentPosts.length === 0) {
+        console.log('[🛡️ Enhanced Backend] ⚠️ No recent posts found for trending topics analysis');
+        return;
+      }
+
+      console.log(`[🛡️ Enhanced Backend] 🔥 Analyzing ${recentPosts.length} posts for trending topics...`);
+
+      // Extract topics from posts (they already have topics from KOLService analysis)
+      const topicCounts = {};
+      let totalTopics = 0;
+      
+      recentPosts.forEach(post => {
+        if (post.topics && post.topics.length > 0) {
+          post.topics.forEach(topic => {
+            topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+            totalTopics++;
+          });
+        }
+      });
+
+      // Convert to trending topics format
+      const trendingTopics = Object.entries(topicCounts)
+        .map(([topic, count]) => ({
+          topic,
+          count,
+          percentage: ((count / totalTopics) * 100).toFixed(2)
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 20); // Top 20 topics
+      
+      if (!trendingTopics || trendingTopics.length === 0) {
+        console.log('[🛡️ Enhanced Backend] ⚠️ No trending topics found in analysis');
+        return;
+      }
+
+      // Store the analysis results
+      const analysis = {
+        timeframe: '7d',
+        totalPosts: recentPosts.length,
+        totalTopics: totalTopics,
+        topics: trendingTopics,
+        analyzedAt: new Date().toISOString()
+      };
+
+      await this.topicTrendingDatabase.storeTrendingTopics(analysis);
+      
+      console.log(`[🛡️ Enhanced Backend] ✅ Trending topics analysis completed: ${trendingTopics.length} topics found`);
+      
+      // Log top 5 topics for visibility
+      const topTopics = trendingTopics.slice(0, 5);
+      console.log(`[🛡️ Enhanced Backend] 🔥 Top 5 trending topics:`, 
+        topTopics.map(t => `${t.topic} (${t.count} mentions, ${t.percentage}%)`).join(', '));
+
+    } catch (error) {
+      console.error('[🛡️ Enhanced Backend] ❌ Trending topics analysis failed:', error.message);
+      throw error;
+    }
   }
 
   // ===== Social Context Cache Helpers =====

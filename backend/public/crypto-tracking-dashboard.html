@@ -2934,7 +2934,7 @@ This feature analyzes how accurate our tracked accounts' predictions have been:<
         async function loadTrendingTopics() {
             try {
                 const days = document.getElementById('daySlider').value;
-                const response = await safeApiCall(`/api/admin/top-topics/latest?days=${days}&limit=20`);
+                const response = await safeApiCall(`/api/trending-topics/latest?days=${days}&limit=20`);
                 
                 if (response.success && response.topics) {
                     displayTrendingTopics(response.topics);

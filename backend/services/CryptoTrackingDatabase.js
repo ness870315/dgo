@@ -97,7 +97,7 @@ class CryptoTrackingDatabase {
   /**
    * Store a tracked tweet with intelligent features
    */
-  async storeTrackedTweet(tweetData) {
+  async storeTrackedTweet(tweetData, preAnalysis = null) {
     try {
       // Check for duplicate tweets to prevent multiple storage
       const existingTweet = this.trackedTweets.find(tweet => 
@@ -110,7 +110,23 @@ class CryptoTrackingDatabase {
         return;
       }
       
-      const intelligenceFeatures = await this.extractIntelligenceFeatures(tweetData);
+      // Use pre-analysis if provided, otherwise extract features
+      let intelligenceFeatures;
+      if (preAnalysis) {
+        console.log(`🧠 [CRYPTO DB] Using pre-analyzed data for tweet from @${tweetData.author.username}`);
+        intelligenceFeatures = {
+          topics: preAnalysis.topics || [],
+          entities: {}, // Will be extracted separately if needed
+          sentiment: preAnalysis.sentiment === 1 ? 'positive' : preAnalysis.sentiment === -1 ? 'negative' : 'neutral',
+          confidence: 0.8, // High confidence for AI analysis
+          timeframe: 'unknown',
+          predictions: [],
+          cryptoKeywords: preAnalysis.coins || [],
+          marketContext: 'general'
+        };
+      } else {
+        intelligenceFeatures = await this.extractIntelligenceFeatures(tweetData);
+      }
       
       // 🎯 Extract predictions from tweet
       const predictions = this.predictionExtractor.extractPredictions(tweetData.text, {
