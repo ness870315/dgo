@@ -13102,13 +13102,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
-    // Hybrid Price Service endpoint for TokenDetail modal (replaces CoinVera WebSocket)
+    // DEPRECATED: Hybrid Price Service endpoint for TokenDetail modal (redirects to gRPC)
     this.app.get('/api/tokens/:contract/hybrid-price', async (req, res) => {
       try {
         const { contract } = req.params;
         const connectionId = req.headers['x-connection-id'] || req.ip || 'unknown';
         
-        console.log(`🔍 [HybridPrice] Fetching price data for: ${contract} (conn: ${connectionId})`);
+        console.log(`🔄 [DEPRECATED] Redirecting hybrid-price to realtime-data for: ${contract} (conn: ${connectionId})`);
         
         if (!contract) {
           return res.status(400).json({ 
@@ -13117,41 +13117,44 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        // Use the existing HybridPriceService with connection tracking
-        const priceData = await this.hybridPriceService.getTokenPriceData(contract, connectionId);
+        // Redirect to the new gRPC endpoint
+        if (!this.enhancedHybridPriceService) {
+          return res.status(503).json({
+            success: false,
+            error: 'EnhancedHybridPriceService not available'
+          });
+        }
+
+        // Get real-time data from gRPC system
+        const realTimeData = await this.enhancedHybridPriceService.getRealTimeTokenData(contract);
         
-        console.log(`✅ [HybridPrice] Successfully fetched data for ${contract}:`, {
-          price: priceData.priceUsd,
-          marketCap: priceData.marketCap,
-          liquidity: priceData.liquidity,
-          source: priceData.source,
-          activeConnections: this.hybridPriceService.getActiveConnections(contract).size
+        if (!realTimeData) {
+          return res.status(404).json({
+            success: false,
+            error: 'Token not found in real-time monitoring'
+          });
+        }
+        
+        console.log(`✅ [REDIRECT] Successfully fetched gRPC data for ${contract}:`, {
+          price: realTimeData.price,
+          liquidity: realTimeData.liquidity,
+          source: realTimeData.source,
+          swaps: realTimeData.recentSwaps.length
         });
 
         res.json({
           success: true,
-          data: {
-            tokenAddress: priceData.tokenAddress,
-            name: priceData.name,
-            symbol: priceData.symbol,
-            priceUsd: priceData.priceUsd,
-            marketCap: priceData.marketCap,
-            liquidity: priceData.liquidity,
-            volume24h: priceData.volume24h,
-            priceChange24h: priceData.priceChange24h,
-            totalSupply: priceData.totalSupply,
-            source: priceData.source,
-            timestamp: priceData.timestamp,
-            isLive: true // Indicates this is live data
-          }
+          data: realTimeData,
+          connectionId: connectionId,
+          timestamp: new Date().toISOString(),
+          source: 'gRPC (redirected from hybrid-price)'
         });
 
       } catch (error) {
-        console.error(`❌ [HybridPrice] Error fetching price data for ${req.params.contract}:`, error.message);
-        
+        console.error(`❌ [REDIRECT] Error fetching gRPC data for ${req.params.contract}:`, error.message);
         res.status(500).json({
           success: false,
-          error: 'Failed to fetch price data',
+          error: 'Failed to fetch real-time data',
           details: error.message
         });
       }
@@ -17505,6 +17508,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
     try {
       console.log('🚀 Initializing Real-Time Price Service...');
       
+      // DISABLED: CoinVera WebSocket service removed - using gRPC instead
+      console.log('⚠️ [RealTimePrice] CoinVera WebSocket service disabled - using gRPC EnhancedHybridPriceService instead');
+      
       // Get the HTTP server instance from the running server
       const server = this.server;
       if (!server) {
@@ -17512,27 +17518,20 @@ Thanks for using x402 payments on Twitter! 🚀`;
         return;
       }
       
-      console.log('📡 Creating RealTimePriceService instance...');
-      this.realTimePriceService = new RealTimePriceService(server);
+      console.log('📡 Creating BackendWebSocketServer instance (without CoinVera)...');
+      // Initialize only the backend WebSocket server for frontend connections
+      const BackendWebSocketServer = (await import('./services/BackendWebSocketServer.js')).default;
+      this.backendWebSocketServer = new BackendWebSocketServer(server);
+      this.backendWebSocketServer.initialize();
       
-      console.log('📡 Initializing RealTimePriceService...');
-      await this.realTimePriceService.initialize();
-      
-      // 🚀 NEW: Connect HybridPriceService to WebSocket server for real-time broadcasting
-      if (this.hybridPriceService && this.realTimePriceService.backendWebSocketServer) {
-        console.log('🔌 Connecting HybridPriceService to WebSocket server...');
-        this.hybridPriceService.setWebSocketServer(this.realTimePriceService.backendWebSocketServer);
-        console.log('✅ HybridPriceService connected to WebSocket server');
-      }
-      
-      console.log('✅ Real-Time Price Service initialized successfully');
+      console.log('✅ Backend WebSocket server initialized (CoinVera disabled)');
       console.log('📡 WebSocket endpoint available at: /ws');
       
-      // 🚀 NEW: Initialize Enhanced Real-Time Services (Deployment-Safe)
+      // 🚀 Initialize Enhanced Real-Time Services (gRPC-based)
       console.log('🚀 Initializing Enhanced Real-Time Services...');
       
       // Initialize Real-Time Token Monitor
-      this.realTimeTokenMonitor = new RealTimeTokenMonitor(this.realTimePriceService.backendWebSocketServer);
+      this.realTimeTokenMonitor = new RealTimeTokenMonitor(this.backendWebSocketServer);
       await this.realTimeTokenMonitor.initialize();
       await this.realTimeTokenMonitor.startMonitoring();
       
@@ -17543,7 +17542,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         console.log(`🆕 [Backend] ${newTokens.length} new tokens detected and subscribed to real-time monitoring`);
       });
       this.tokenCacheWatcher.on('tokenSubscribed', (data) => {
-        console.log(`✅ [Backend] Token ${data.symbol} subscribed to real-time monitoring`);
+        console.log(`🔌 [Backend] Token ${data.symbol} subscribed to real-time monitoring`);
       });
       await this.tokenCacheWatcher.startWatching();
       
