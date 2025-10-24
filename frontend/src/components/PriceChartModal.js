@@ -232,7 +232,12 @@ const PriceChartModal = ({ token, onClose }) => {
     return num.toString();
   };
 
-  if (!token) return null;
+  if (!token) {
+    console.log('❌ [PriceChartModal] No token provided');
+    return null;
+  }
+
+  console.log('🚀 [PriceChartModal] Rendering modal for token:', token.symbol, token.contractAddress);
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-1 sm:p-4">
@@ -333,13 +338,29 @@ const PriceChartModal = ({ token, onClose }) => {
             </div>
           )}
           
-          <SVGChart 
-            token={token} 
-            onClose={onClose}
-            onChartDataChange={setChartData}
-            onTimeframeChange={setTimeframe}
-            onPriceUpdate={handlePriceUpdate}
-          />
+          {(() => {
+            try {
+              return (
+                <SVGChart 
+                  token={token} 
+                  onClose={onClose}
+                  onChartDataChange={setChartData}
+                  onTimeframeChange={setTimeframe}
+                  onPriceUpdate={handlePriceUpdate}
+                />
+              );
+            } catch (error) {
+              console.error('❌ [PriceChartModal] Error rendering SVGChart:', error);
+              return (
+                <div className="w-full h-96 flex items-center justify-center bg-gray-800 rounded-lg border border-gray-700">
+                  <div className="text-center">
+                    <div className="text-red-400 mb-2">❌ Chart Error</div>
+                    <div className="text-gray-500 text-sm">Failed to render chart: {error.message}</div>
+                  </div>
+                </div>
+              );
+            }
+          })()}
           
           {/* Swap Table */}
           {realTimeData && (
