@@ -124,6 +124,9 @@ function SvgOHLCVArea({
   height = 280,
   maxPoints = 1000,
 }) {
+  console.log('🚀 [SvgOHLCVArea] Component rendering for contract:', contract);
+  console.log('🔍 [SvgOHLCVArea] Props:', { contract, timeframe, displayMode, circulatingSupply, timezone, height, maxPoints });
+  
   const wrapRef = useRef(null);
   const [width, setWidth] = useState(800);
   const [rawData, setRawData] = useState([]);
@@ -380,6 +383,8 @@ function SvgOHLCVArea({
 
 // ---- 3) Main SVGChart Component -----------------------------------------------------------
 const SVGChart = ({ token, onClose }) => {
+  console.log('🚀 [SVGChart] Component rendering for token:', token?.symbol, token?.contractAddress);
+  
   const [timeframe, setTimeframe] = useState('15MIN'); // Default to 15 minutes
   const [displayMode, setDisplayMode] = useState('price');
   const [timezone, setTimezone] = useState('UTC'); // UTC or local
@@ -397,6 +402,8 @@ const SVGChart = ({ token, onClose }) => {
   ];
 
   const contract = token?.contractAddress || token?.contract || token?.mint || token?.address;
+  console.log('🔍 [SVGChart] Contract address:', contract);
+  console.log('🔍 [SVGChart] Token data:', token);
 
   return (
     <div className="bg-gray-900 rounded-lg p-4">
