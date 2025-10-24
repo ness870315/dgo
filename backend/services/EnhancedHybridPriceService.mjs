@@ -60,6 +60,13 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.tokenCache = [];
         this.cachePath = path.join(process.cwd(), 'cache', 'tokens-cache.json');
         
+        // Rate limiting protection for Jupiter API
+        this.jupiterRequestQueue = [];
+        this.jupiterRequestDelay = 1000; // 1 second between requests
+        this.lastJupiterRequest = 0;
+        this.jupiterCache = new Map();
+        this.jupiterCacheDuration = 10 * 60 * 1000; // 10 minutes cache
+        
         // Initialize asynchronously
         this.initializeAsync();
     }
@@ -746,6 +753,58 @@ class EnhancedHybridPriceService extends EventEmitter {
         return 1000000000; // 1 billion tokens (common for meme tokens)
     }
 
+    // Rate-limited Jupiter API request with caching
+    async makeJupiterRequest(url, params = {}) {
+        const cacheKey = `${url}?${JSON.stringify(params)}`;
+        const now = Date.now();
+        
+        // Check cache first
+        if (this.jupiterCache.has(cacheKey)) {
+            const cached = this.jupiterCache.get(cacheKey);
+            if (now - cached.timestamp < this.jupiterCacheDuration) {
+                console.log(`📦 [Jupiter] Using cached data for: ${params.query || 'SOL'}`);
+                return cached.data;
+            }
+        }
+        
+        // Rate limiting: wait if needed
+        const timeSinceLastRequest = now - this.lastJupiterRequest;
+        if (timeSinceLastRequest < this.jupiterRequestDelay) {
+            const waitTime = this.jupiterRequestDelay - timeSinceLastRequest;
+            console.log(`⏳ [Jupiter] Rate limiting: waiting ${waitTime}ms`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
+        
+        try {
+            console.log(`🌐 [Jupiter] Making request for: ${params.query || 'SOL'}`);
+            const response = await axios.get(url, {
+                params,
+                timeout: 10000 // 10 second timeout
+            });
+            
+            // Cache the response
+            this.jupiterCache.set(cacheKey, {
+                data: response.data,
+                timestamp: now
+            });
+            
+            this.lastJupiterRequest = Date.now();
+            return response.data;
+            
+        } catch (error) {
+            if (error.response?.status === 429) {
+                console.log(`⚠️ [Jupiter] Rate limited! Using cached data if available`);
+                // Try to return cached data even if expired
+                if (this.jupiterCache.has(cacheKey)) {
+                    const cached = this.jupiterCache.get(cacheKey);
+                    console.log(`📦 [Jupiter] Returning expired cached data for: ${params.query || 'SOL'}`);
+                    return cached.data;
+                }
+            }
+            throw error;
+        }
+    }
+
     // 🚀 NEW: WebSocket broadcasting methods
     broadcastPriceUpdate(tokenAddress, priceData) {
         if (!this.webSocketServer) return;
@@ -921,13 +980,12 @@ class EnhancedHybridPriceService extends EventEmitter {
 
     async fetchTokenInfo(tokenAddress) {
         try {
-            const response = await axios.get('https://lite-api.jup.ag/tokens/v2/search', {
-                params: { query: tokenAddress },
-                timeout: 5000
+            const data = await this.makeJupiterRequest('https://lite-api.jup.ag/tokens/v2/search', {
+                query: tokenAddress
             });
 
-            if (response.data && response.data.length > 0) {
-                return response.data[0];
+            if (data && data.length > 0) {
+                return data[0];
             }
             
             return null;
@@ -950,15 +1008,12 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             // Method 1: Try Jupiter API for Wrapped SOL
             try {
-                const response = await axios.get('https://lite-api.jup.ag/tokens/v2/search', {
-                    params: {
-                        query: 'So11111111111111111111111111111111111111112' // Wrapped SOL mint address
-                    },
-                    timeout: 5000
+                const data = await this.makeJupiterRequest('https://lite-api.jup.ag/tokens/v2/search', {
+                    query: 'So11111111111111111111111111111111111111112' // Wrapped SOL mint address
                 });
 
-                if (response.data && Array.isArray(response.data)) {
-                    const solToken = response.data.find(token => 
+                if (data && Array.isArray(data)) {
+                    const solToken = data.find(token => 
                         token.id === 'So11111111111111111111111111111111111111112' &&
                         token.usdPrice > 0
                     );
