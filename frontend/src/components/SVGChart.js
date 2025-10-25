@@ -212,9 +212,10 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
           return point;
         });
         
-        console.log(`🔄 [SvgOHLCVArea] Setting raw data... (${validatedData.length}/${data.length} valid points)`);
-        setRawData(validatedData);
-        console.log(`✅ [SvgOHLCVArea] Raw data set successfully`);
+               console.log(`🔄 [SvgOHLCVArea] Setting raw data... (${validatedData.length}/${data.length} valid points)`);
+               console.log(`🔍 [SvgOHLCVArea] About to call setRawData with:`, validatedData.slice(0, 2));
+               setRawData(validatedData);
+               console.log(`✅ [SvgOHLCVArea] Raw data set successfully - setRawData called`);
         fetchingRef.current = false;
       } catch (e) {
         fetchingRef.current = false;
@@ -234,8 +235,20 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
     fetchData();
   }, [fetchData]);
 
+  // Debug: Track rawData changes
+  useEffect(() => {
+    console.log(`🔄 [SvgOHLCVArea] rawData state changed for ${contract}:`, rawData.length, 'points');
+    if (rawData.length > 0) {
+      console.log(`🔍 [SvgOHLCVArea] Sample rawData:`, rawData.slice(0, 2));
+    }
+  }, [rawData, contract]);
+
   // Process data: normalize, window, and transform
   const processedData = useMemo(() => {
+    console.log(`🔍 [SvgOHLCVArea] processedData useMemo triggered for ${contract}`);
+    console.log(`🔍 [SvgOHLCVArea] rawData.length:`, rawData.length);
+    console.log(`🔍 [SvgOHLCVArea] rawData:`, rawData);
+    
     if (!rawData.length) {
       console.log(`⚠️ [SvgOHLCVArea] No raw data available for ${contract}`);
       return [];
