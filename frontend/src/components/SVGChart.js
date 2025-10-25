@@ -162,14 +162,39 @@ function SvgOHLCVArea({
         const data = Array.isArray(res?.data) ? res.data : [];
         console.log(`🔍 [SvgOHLCVArea] Extracted data:`, data);
         console.log(`🔍 [SvgOHLCVArea] Data type:`, typeof data, 'Length:', data.length);
+        console.log(`🔍 [SvgOHLCVArea] First data item:`, data[0]);
+        console.log(`🔍 [SvgOHLCVArea] Data structure check:`, {
+          hasTime: data[0]?.time !== undefined,
+          hasClose: data[0]?.close !== undefined,
+          hasOpen: data[0]?.open !== undefined,
+          hasHigh: data[0]?.high !== undefined,
+          hasLow: data[0]?.low !== undefined,
+          hasVolume: data[0]?.volume !== undefined
+        });
         if (!alive) return;
 
         console.log(`📊 [SvgOHLCVArea] Received ${data.length} data points for ${contract}`);
         if (data.length === 0) {
           console.log(`⚠️ [SvgOHLCVArea] No data points received for ${contract} - this will cause black screen`);
         }
-        console.log(`🔄 [SvgOHLCVArea] Setting raw data...`);
-        setRawData(data);
+        
+        // Validate and clean data before setting
+        const validatedData = data.filter(point => {
+          const isValid = point && 
+            typeof point.time === 'number' && 
+            typeof point.close === 'number' && 
+            !isNaN(point.close) && 
+            point.close > 0 &&
+            !isNaN(point.time);
+          
+          if (!isValid) {
+            console.log(`⚠️ [SvgOHLCVArea] Invalid data point filtered out:`, point);
+          }
+          return isValid;
+        });
+        
+        console.log(`🔄 [SvgOHLCVArea] Setting raw data... (${validatedData.length}/${data.length} valid points)`);
+        setRawData(validatedData);
         console.log(`✅ [SvgOHLCVArea] Raw data set successfully`);
         fetchingRef.current = false;
       } catch (e) {
@@ -193,26 +218,32 @@ function SvgOHLCVArea({
       return [];
     }
     
-    console.log(`📊 [SvgOHLCVArea] Processing ${rawData.length} raw data points for ${contract}`);
-    
-    // Normalize OHLC data with proper bucketing
-    const normalized = normalizeOHLC(rawData, timeframe);
-    console.log(`🔄 [SvgOHLCVArea] Normalized to ${normalized.length} points`);
-    
-    // Window to last N bars per timeframe
-    const windowed = sliceWindow(normalized, timeframe);
-    console.log(`📏 [SvgOHLCVArea] Windowed to ${windowed.length} points`);
-    
-    // Transform to market cap if needed
-    if (displayMode === 'mcap' && circulatingSupply) {
-      const supply = Number(circulatingSupply) || 0;
-      const transformed = windowed.map(c => ({ ...c, close: c.close * supply }));
-      console.log(`💰 [SvgOHLCVArea] Transformed to market cap mode`);
-      return transformed;
+    try {
+      console.log(`📊 [SvgOHLCVArea] Processing ${rawData.length} raw data points for ${contract}`);
+      
+      // Normalize OHLC data with proper bucketing
+      const normalized = normalizeOHLC(rawData, timeframe);
+      console.log(`🔄 [SvgOHLCVArea] Normalized to ${normalized.length} points`);
+      
+      // Window to last N bars per timeframe
+      const windowed = sliceWindow(normalized, timeframe);
+      console.log(`📏 [SvgOHLCVArea] Windowed to ${windowed.length} points`);
+      
+      // Transform to market cap if needed
+      if (displayMode === 'mcap' && circulatingSupply) {
+        const supply = Number(circulatingSupply) || 0;
+        const transformed = windowed.map(c => ({ ...c, close: c.close * supply }));
+        console.log(`💰 [SvgOHLCVArea] Transformed to market cap mode`);
+        return transformed;
+      }
+      
+      console.log(`✅ [SvgOHLCVArea] Final processed data: ${windowed.length} points`);
+      return windowed;
+    } catch (error) {
+      console.error(`❌ [SvgOHLCVArea] Error processing data for ${contract}:`, error);
+      console.error(`❌ [SvgOHLCVArea] Raw data that caused error:`, rawData.slice(0, 3)); // Show first 3 points
+      return [];
     }
-    
-    console.log(`✅ [SvgOHLCVArea] Final processed data: ${windowed.length} points`);
-    return windowed;
   }, [rawData, timeframe, displayMode, circulatingSupply]);
 
   // Build scales and paths
