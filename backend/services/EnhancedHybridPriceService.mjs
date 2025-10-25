@@ -346,6 +346,9 @@ class EnhancedHybridPriceService extends EventEmitter {
                                 // Process each token change
                                 tokenChanges.forEach(tokenChange => {
                                     swapCount++;
+                                    // ✅ FIX: Correct swap type logic
+                                    // BUY: User gets tokens (+), gives SOL (-) 
+                                    // SELL: User gives tokens (-), gets SOL (+)
                                     const swapType = tokenChange.change > 0 ? 'BUY' : 'SELL';
                                     
                                     // Try to find corresponding SOL change (same owner first, then any SOL change)
@@ -363,6 +366,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                                     
                                     console.log(`🎯 [EnhancedHybridPriceService] SWAP #${swapCount}: ${swapType} for ${tokenAddress}`);
                                     console.log(`📊 [EnhancedHybridPriceService] Token Change: ${tokenChange.change > 0 ? '+' : ''}${tokenChange.change.toFixed(6)}`);
+                                    console.log(`📊 [EnhancedHybridPriceService] Swap Type Logic: change=${tokenChange.change}, >0=${tokenChange.change > 0}, Type=${swapType}`);
                                     if (solChange) {
                                         console.log(`📊 [EnhancedHybridPriceService] SOL Change: ${solChange.change > 0 ? '+' : ''}${solChange.change.toFixed(6)}`);
                                     } else {
@@ -381,7 +385,8 @@ class EnhancedHybridPriceService extends EventEmitter {
                                             tokenChange.change, 
                                             tokenChange.mint, 
                                             tokenChange.owner,
-                                            solChange ? solChange.change : 0
+                                            solChange ? solChange.change : 0,
+                                            null // TODO: Extract transaction hash from Yellowstone gRPC
                                         );
                                     } catch (error) {
                                         console.error(`❌ [EnhancedHybridPriceService] Error processing swap for ${tokenAddress}:`, error.message);
@@ -459,7 +464,7 @@ class EnhancedHybridPriceService extends EventEmitter {
         }
     }
 
-    processSwapUpdate(tokenAddress, poolAddress, slot, swapType, change, mintAddress, makerAddress, solAmount = 0) {
+    processSwapUpdate(tokenAddress, poolAddress, slot, swapType, change, mintAddress, makerAddress, solAmount = 0, transactionHash = null) {
         try {
             console.log(`🔄 [EnhancedHybridPriceService] Processing swap update for ${tokenAddress}`);
             
@@ -473,11 +478,13 @@ class EnhancedHybridPriceService extends EventEmitter {
             if (isSOLSwap) {
                 // For SOL, change is already in lamports, convert to SOL (divide by 10^9)
                 tokenAmount = Math.abs(change) / 1e9;
+                console.log(`🔢 [EnhancedHybridPriceService] SOL swap - Raw change: ${change}, Token amount: ${tokenAmount.toFixed(6)} SOL`);
             } else {
                 // For SPL tokens, we need to get the token decimals
                 // For now, assume 6 decimals (common for most tokens) - TODO: Get actual decimals from token info
                 const tokenDecimals = 6; // Default assumption
                 tokenAmount = Math.abs(change) / Math.pow(10, tokenDecimals);
+                console.log(`🔢 [EnhancedHybridPriceService] Token swap - Raw change: ${change}, Decimals: ${tokenDecimals}, Token amount: ${tokenAmount.toFixed(6)}`);
             }
             
             let baseAmount = 0;
@@ -492,7 +499,8 @@ class EnhancedHybridPriceService extends EventEmitter {
             } else {
                 // This is a token swap - use actual SOL amount from transaction
                 if (solAmount !== 0) {
-                    baseAmount = Math.abs(solAmount);
+                    // ✅ CRITICAL FIX: Convert SOL amount from lamports to SOL
+                    baseAmount = Math.abs(solAmount) / 1e9; // Convert lamports to SOL
                     volumeUsd = baseAmount * this.solPriceUSD;
                     price = baseAmount / tokenAmount; // Token price in SOL
                     console.log(`💰 [EnhancedHybridPriceService] Using actual SOL amount: ${baseAmount.toFixed(6)} SOL`);
@@ -519,7 +527,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                 baseAmount: baseAmount,
                 volumeUsd: volumeUsd,
                 maker: makerAddress || 'Unknown',
-                signature: `slot_${slot}_${Date.now()}`,
+                signature: transactionHash || `slot_${slot}_${Date.now()}`,
                 price: price
             };
             
