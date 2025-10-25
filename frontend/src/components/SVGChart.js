@@ -165,13 +165,19 @@ function SvgOHLCVArea({
         console.log(`🔍 [SvgOHLCVArea] First data item:`, data[0]);
         console.log(`🔍 [SvgOHLCVArea] Data structure check:`, {
           hasTime: data[0]?.time !== undefined,
+          hasTimestamp: data[0]?.timestamp !== undefined,
+          hasTimeOrTimestamp: (data[0]?.time || data[0]?.timestamp) !== undefined,
           hasClose: data[0]?.close !== undefined,
           hasOpen: data[0]?.open !== undefined,
           hasHigh: data[0]?.high !== undefined,
           hasLow: data[0]?.low !== undefined,
           hasVolume: data[0]?.volume !== undefined
         });
-        if (!alive) return;
+        console.log(`🔍 [SvgOHLCVArea] About to check if alive...`);
+        if (!alive) {
+          console.log(`⚠️ [SvgOHLCVArea] Component not alive, returning early`);
+          return;
+        }
 
         console.log(`📊 [SvgOHLCVArea] Received ${data.length} data points for ${contract}`);
         if (data.length === 0) {
