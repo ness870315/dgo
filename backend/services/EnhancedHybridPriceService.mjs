@@ -331,7 +331,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                                         
                                         // Process the swap for ANY token
                                         try {
-                                            this.processSwapUpdate(tokenAddress, actualPoolAddress, slot, swapType, change, preBalance.mint);
+                                            this.processSwapUpdate(tokenAddress, actualPoolAddress, slot, swapType, change, preBalance.mint, preBalance.owner);
                                         } catch (error) {
                                             console.error(`❌ [EnhancedHybridPriceService] Error processing swap for ${tokenAddress}:`, error.message);
                                         }
@@ -409,12 +409,39 @@ class EnhancedHybridPriceService extends EventEmitter {
         }
     }
 
-    processSwapUpdate(tokenAddress, poolAddress, slot, swapType, change, mintAddress) {
+    processSwapUpdate(tokenAddress, poolAddress, slot, swapType, change, mintAddress, makerAddress) {
         try {
             console.log(`🔄 [EnhancedHybridPriceService] Processing swap update for ${tokenAddress}`);
             
             // Get current swap history
             const currentSwaps = this.swapHistory.get(tokenAddress) || [];
+            
+            // Calculate proper amounts and values
+            const tokenAmount = Math.abs(change);
+            const isSOLSwap = mintAddress === 'So11111111111111111111111111111111111111112';
+            
+            // For SOL swaps, calculate token amount from SOL amount
+            // For token swaps, calculate SOL amount from token amount
+            let baseAmount = 0;
+            let volumeUsd = 0;
+            let price = 0;
+            
+            if (isSOLSwap) {
+                // This is a SOL swap - change is SOL amount
+                baseAmount = tokenAmount;
+                // Estimate USD value (assuming SOL = $200)
+                volumeUsd = baseAmount * this.solPriceUSD;
+                // Price is SOL price
+                price = this.solPriceUSD;
+            } else {
+                // This is a token swap - change is token amount
+                // Estimate SOL amount (rough calculation)
+                baseAmount = tokenAmount * 0.000001; // Rough estimate
+                // Estimate USD value
+                volumeUsd = baseAmount * this.solPriceUSD;
+                // Calculate token price in SOL
+                price = baseAmount / tokenAmount;
+            }
             
             // Create swap record with frontend-compatible format
             const swapRecord = {
@@ -425,12 +452,12 @@ class EnhancedHybridPriceService extends EventEmitter {
                 mintAddress: mintAddress,
                 poolAddress: poolAddress,
                 // Frontend-compatible fields
-                tokenAmount: Math.abs(change),
-                baseAmount: 0, // Will be calculated
-                volumeUsd: 0, // Will be calculated
-                maker: 'Unknown', // Will be updated with actual maker
+                tokenAmount: tokenAmount,
+                baseAmount: baseAmount,
+                volumeUsd: volumeUsd,
+                maker: makerAddress || 'Unknown',
                 signature: `slot_${slot}_${Date.now()}`,
-                price: 0 // Will be calculated
+                price: price
             };
             
             // Add to swap history
@@ -495,6 +522,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                     change: swapRecord.change,
                     mintAddress: swapRecord.mintAddress,
                     poolAddress: poolAddress,
+                    maker: swapRecord.maker,
                     timestamp: swapRecord.timestamp
                 }
             };
