@@ -508,13 +508,20 @@ class EnhancedHybridPriceService extends EventEmitter {
                 
                 console.log(`🔍 [DEBUG] Changes calculated - tokenChange: ${tokenChange}, solChange: ${solChange}`);
                 
-                const minChange = 0.001; // Minimum change to consider a swap
+                const minChange = 0.0001; // Lowered threshold for better swap detection
                 
                 if (Math.abs(tokenChange) > minChange || Math.abs(solChange) > minChange) {
                     console.log(`🔍 [EnhancedHybridPriceService] SWAP DETECTED! ${tokenInfo.symbol}: Token change: ${tokenChange.toFixed(6)}, SOL change: ${solChange.toFixed(6)}`);
                     
                     // Detect swap
                     const swap = this.detectSwap(tokenAddress, tokenInfo, tokenChange, solChange, slot);
+                    console.log(`🔍 [EnhancedHybridPriceService] Swap object created:`, {
+                        type: swap.type,
+                        tokenAmount: swap.tokenAmount,
+                        solAmount: swap.solAmount,
+                        usdAmount: swap.usdAmount
+                    });
+                    
                     if (swap) {
                         // Add to swap history
                         const swaps = this.swapHistory.get(tokenAddress) || [];
@@ -900,7 +907,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                 rawData: JSON.stringify(swap),
                 // Additional fields
                 type: swap.type,
-                baseToken: swap.baseToken,
+                baseToken: 'SOL', // Fixed: SOL is always the base token
                 baseAmount: swap.solAmount,
                 tokenAmount: swap.tokenAmount,
                 maker: swap.maker
@@ -909,9 +916,17 @@ class EnhancedHybridPriceService extends EventEmitter {
             // Queue swap for atomic batch writing
             await this.chartDatabase.storeSwaps([swapData]);
             console.log(`💾 [EnhancedHybridPriceService] Queued real-time swap: ${swap.txn || swap.signature}`);
+            console.log(`💾 [EnhancedHybridPriceService] Swap data:`, {
+                signature: swapData.signature,
+                type: swapData.type,
+                tokenAmount: swapData.tokenAmount,
+                baseAmount: swapData.baseAmount,
+                volumeUsd: swapData.volumeUsd
+            });
             
         } catch (error) {
             console.error(`❌ [EnhancedHybridPriceService] Failed to queue swap:`, error.message);
+            console.error(`❌ [EnhancedHybridPriceService] Swap data that failed:`, swapData);
         }
     }
 
