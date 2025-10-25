@@ -243,10 +243,15 @@ class EnhancedHybridPriceService extends EventEmitter {
             this.swapHistory.set(token, []);
         }
         
-        // Start monitoring with the first token (PROBITY)
-        await this.startSingleTokenMonitoring(TEST_TOKENS[0], TEST_POOLS[0]);
+        // Start monitoring for all tokens
+        for (let i = 0; i < TEST_TOKENS.length; i++) {
+            const token = TEST_TOKENS[i];
+            const pool = TEST_POOLS[i];
+            console.log(`🚀 [EnhancedHybridPriceService] Starting monitoring for token ${i + 1}: ${token.substring(0, 8)}...`);
+            await this.startSingleTokenMonitoring(token, pool);
+        }
         
-        console.log('✅ [EnhancedHybridPriceService] SIMPLIFIED real-time monitoring started for 1 token');
+        console.log(`✅ [EnhancedHybridPriceService] SIMPLIFIED real-time monitoring started for ${TEST_TOKENS.length} tokens`);
     }
 
     async startSingleTokenMonitoring(tokenAddress, poolAddress) {
