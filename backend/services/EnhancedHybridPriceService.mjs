@@ -1052,16 +1052,63 @@ class EnhancedHybridPriceService extends EventEmitter {
         };
     }
 
+    // Method to discover pool for a token that doesn't have one mapped
+    async discoverPoolForToken(tokenAddress) {
+        try {
+            console.log(`🔍 [EnhancedHybridPriceService] Discovering pool for token ${tokenAddress}`);
+            
+            // Try to fetch token data from Jupiter to find pools
+            const jupiterData = await this.fetchJupiterTokenData(tokenAddress);
+            if (jupiterData && jupiterData.pools && jupiterData.pools.length > 0) {
+                // Use the first pool found
+                const poolAddress = jupiterData.pools[0].address;
+                console.log(`✅ [EnhancedHybridPriceService] Found pool ${poolAddress} for token ${tokenAddress}`);
+                
+                // Store the mapping
+                this.poolAddresses.set(tokenAddress, poolAddress);
+                
+                // Also store in ChartDatabase for persistence
+                if (this.chartDatabase) {
+                    await this.chartDatabase.setPoolMapping(tokenAddress, poolAddress);
+                }
+                
+                return poolAddress;
+            } else {
+                console.log(`⚠️ [EnhancedHybridPriceService] No pools found for token ${tokenAddress}`);
+                return null;
+            }
+        } catch (error) {
+            console.error(`❌ [EnhancedHybridPriceService] Error discovering pool for ${tokenAddress}:`, error.message);
+            return null;
+        }
+    }
+
     // Method for TokenDetail to get real-time data
     async getRealTimeTokenData(tokenAddress) {
         try {
             console.log(`🔍 [EnhancedHybridPriceService] Getting real-time data for ${tokenAddress}`);
             
             // ✅ CRITICAL FIX: Use actual poolAddresses map instead of hardcoded array
-            const poolAddress = this.poolAddresses.get(tokenAddress);
-            if (!poolAddress) {
-                console.log(`⚠️ [EnhancedHybridPriceService] Token ${tokenAddress} not in poolAddresses map`);
-                return null;
+            let poolAddress = this.poolAddresses.get(tokenAddress);
+            if (!poolAddress || poolAddress.trim() === '') {
+                console.log(`⚠️ [EnhancedHybridPriceService] Token ${tokenAddress} not in poolAddresses map or has empty pool address`);
+                console.log(`⚠️ [EnhancedHybridPriceService] Pool address value: "${poolAddress}"`);
+                
+                // Try to trigger pool discovery for this token
+                console.log(`🔄 [EnhancedHybridPriceService] Attempting to discover pool for ${tokenAddress}`);
+                try {
+                    const discoveredPool = await this.discoverPoolForToken(tokenAddress);
+                    if (discoveredPool && discoveredPool.trim() !== '') {
+                        poolAddress = discoveredPool;
+                        console.log(`✅ [EnhancedHybridPriceService] Successfully discovered pool ${poolAddress} for ${tokenAddress}`);
+                    } else {
+                        console.log(`❌ [EnhancedHybridPriceService] Pool discovery failed for ${tokenAddress}`);
+                        return null;
+                    }
+                } catch (discoveryError) {
+                    console.error(`❌ [EnhancedHybridPriceService] Pool discovery error for ${tokenAddress}:`, discoveryError.message);
+                    return null;
+                }
             }
             
             console.log(`🔍 [EnhancedHybridPriceService] Found token ${tokenAddress} with pool ${poolAddress}`);
