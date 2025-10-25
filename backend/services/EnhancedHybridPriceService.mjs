@@ -733,13 +733,18 @@ class EnhancedHybridPriceService extends EventEmitter {
             console.log(`🔄 [DEBUG] Trying Jupiter API fallback for token ${tokenAddress}...`);
             try {
                 const jupiterData = await this.fetchJupiterTokenData(tokenAddress);
-                if (jupiterData && jupiterData.firstPool) {
-                    console.log(`✅ [DEBUG] Jupiter fallback successful - found pool: ${jupiterData.firstPool.id}`);
-                    // Use Jupiter's pool data
-                    return {
-                        tokenReserves: jupiterData.firstPool.tokenReserves || 0,
-                        solReserves: jupiterData.firstPool.solReserves || 0
-                    };
+                if (jupiterData) {
+                    console.log(`✅ [DEBUG] Jupiter fallback successful - jupiterData:`, jupiterData);
+                    
+                    // Use the parsed reserves from our Meteora parsing logic
+                    const tokenReserves = jupiterData.tokenReserves || 0;
+                    const solReserves = jupiterData.solReserves || 0;
+                    
+                    console.log(`✅ [DEBUG] Parsed reserves - tokenReserves: ${tokenReserves}, solReserves: ${solReserves}`);
+                    
+                    if (tokenReserves > 0 || solReserves > 0) {
+                        return { tokenReserves, solReserves };
+                    }
                 }
             } catch (jupiterError) {
                 console.log(`❌ [DEBUG] Jupiter fallback failed:`, jupiterError.message);
