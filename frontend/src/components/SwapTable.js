@@ -246,6 +246,7 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
                 </td>
                 <td className="px-3 py-2 text-right text-white">
                   {formatTokenAmount(swap.tokenAmount)}
+                  <br/><small className="text-gray-500">Debug: {JSON.stringify({tokenAmount: swap.tokenAmount, baseAmount: swap.baseAmount})}</small>
                 </td>
                 <td className="px-3 py-2 text-right text-white">
                   {swap.baseAmount ? swap.baseAmount.toFixed(3) : '0.000'} SOL
