@@ -180,26 +180,40 @@ function SvgOHLCVArea({
 
   // Process data: normalize, window, and transform
   const processedData = useMemo(() => {
-    if (!rawData.length) return [];
+    if (!rawData.length) {
+      console.log(`⚠️ [SvgOHLCVArea] No raw data available for ${contract}`);
+      return [];
+    }
+    
+    console.log(`📊 [SvgOHLCVArea] Processing ${rawData.length} raw data points for ${contract}`);
     
     // Normalize OHLC data with proper bucketing
     const normalized = normalizeOHLC(rawData, timeframe);
+    console.log(`🔄 [SvgOHLCVArea] Normalized to ${normalized.length} points`);
     
     // Window to last N bars per timeframe
     const windowed = sliceWindow(normalized, timeframe);
+    console.log(`📏 [SvgOHLCVArea] Windowed to ${windowed.length} points`);
     
     // Transform to market cap if needed
     if (displayMode === 'mcap' && circulatingSupply) {
       const supply = Number(circulatingSupply) || 0;
-      return windowed.map(c => ({ ...c, close: c.close * supply }));
+      const transformed = windowed.map(c => ({ ...c, close: c.close * supply }));
+      console.log(`💰 [SvgOHLCVArea] Transformed to market cap mode`);
+      return transformed;
     }
     
+    console.log(`✅ [SvgOHLCVArea] Final processed data: ${windowed.length} points`);
     return windowed;
   }, [rawData, timeframe, displayMode, circulatingSupply]);
 
   // Build scales and paths
   const { x, y, pad, plotW, plotH, tMin, tMax, yMin, yMax } = useMemo(() => {
-    if (!processedData.length) return { x: () => 0, y: () => 0, pad: {}, plotW: 0, plotH: 0, tMin: 0, tMax: 0, yMin: 0, yMax: 0 };
+    if (!processedData.length) {
+      console.log(`⚠️ [SvgOHLCVArea] No processed data for scales - returning empty scales`);
+      return { x: () => 0, y: () => 0, pad: {}, plotW: 0, plotH: 0, tMin: 0, tMax: 0, yMin: 0, yMax: 0 };
+    }
+    console.log(`📐 [SvgOHLCVArea] Building scales for ${processedData.length} points, width: ${width}, height: ${height}`);
     return makeScales(processedData, width, height);
   }, [processedData, width, height]);
 
