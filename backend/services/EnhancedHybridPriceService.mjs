@@ -466,9 +466,19 @@ class EnhancedHybridPriceService extends EventEmitter {
             // Get current swap history
             const currentSwaps = this.swapHistory.get(tokenAddress) || [];
             
-            // Calculate proper amounts and values using actual SOL amount
-            const tokenAmount = Math.abs(change);
+            // ✅ CRITICAL FIX: Calculate proper token amount with decimals conversion
             const isSOLSwap = mintAddress === 'So11111111111111111111111111111111111111112';
+            
+            let tokenAmount = 0;
+            if (isSOLSwap) {
+                // For SOL, change is already in lamports, convert to SOL (divide by 10^9)
+                tokenAmount = Math.abs(change) / 1e9;
+            } else {
+                // For SPL tokens, we need to get the token decimals
+                // For now, assume 6 decimals (common for most tokens) - TODO: Get actual decimals from token info
+                const tokenDecimals = 6; // Default assumption
+                tokenAmount = Math.abs(change) / Math.pow(10, tokenDecimals);
+            }
             
             let baseAmount = 0;
             let volumeUsd = 0;
