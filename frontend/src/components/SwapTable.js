@@ -18,26 +18,14 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
   // Update swaps when real-time data changes
   useEffect(() => {
     try {
-      console.log('🔍 [SwapTable] realTimeData received:', realTimeData);
-      console.log('🔍 [SwapTable] realTimeData keys:', realTimeData ? Object.keys(realTimeData) : 'null');
-      
       if (realTimeData?.swapHistory) {
         // Use full swap history instead of just recentSwaps
-        console.log('🔍 [SwapTable] swapHistory length:', realTimeData.swapHistory.length);
-        console.log('🔍 [SwapTable] swapHistory sample:', realTimeData.swapHistory[0]);
-        console.log('🔍 [SwapTable] swapHistory sample keys:', realTimeData.swapHistory[0] ? Object.keys(realTimeData.swapHistory[0]) : 'null');
         setSwaps(realTimeData.swapHistory);
         console.log(`📊 [SwapTable] Loaded ${realTimeData.swapHistory.length} total swaps`);
       } else if (realTimeData?.recentSwaps) {
         // Fallback to recentSwaps if swapHistory not available
-        console.log('🔍 [SwapTable] recentSwaps length:', realTimeData.recentSwaps.length);
-        console.log('🔍 [SwapTable] recentSwaps sample:', realTimeData.recentSwaps[0]);
-        console.log('🔍 [SwapTable] recentSwaps sample keys:', realTimeData.recentSwaps[0] ? Object.keys(realTimeData.recentSwaps[0]) : 'null');
         setSwaps(realTimeData.recentSwaps);
         console.log(`📊 [SwapTable] Loaded ${realTimeData.recentSwaps.length} recent swaps`);
-      } else {
-        console.log('🔍 [SwapTable] No swap data found in realTimeData');
-        console.log('🔍 [SwapTable] realTimeData structure:', realTimeData);
       }
     } catch (error) {
       console.error('❌ [SwapTable] Error processing swap data:', error);
@@ -56,7 +44,7 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
 
     // USD amount filter
     if (filters.usdMin > 0) {
-      filtered = filtered.filter(swap => swap.usdAmount >= filters.usdMin);
+      filtered = filtered.filter(swap => swap.volumeUsd >= filters.usdMin);
     }
 
     // Maker filter
@@ -240,7 +228,7 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
           <tbody>
             {displayedSwaps.map((swap, index) => (
               <tr 
-                key={`${swap.txn}-${index}`}
+                key={`${swap.signature}-${index}`}
                 className={`border-b border-gray-700 hover:bg-gray-700/50 transition-all duration-300 ${
                   index === 0 ? 'animate-pulse bg-green-900/20' : ''
                 }`}
@@ -260,10 +248,10 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
                   {formatTokenAmount(swap.tokenAmount)}
                 </td>
                 <td className="px-3 py-2 text-right text-white">
-                  {swap.solAmount ? swap.solAmount.toFixed(3) : '0.000'} SOL
+                  {swap.baseAmount ? swap.baseAmount.toFixed(3) : '0.000'} SOL
                 </td>
                 <td className="px-3 py-2 text-right text-white font-semibold">
-                  ${swap.usdAmount ? swap.usdAmount.toFixed(2) : '0.00'}
+                  ${swap.volumeUsd ? swap.volumeUsd.toFixed(2) : '0.00'}
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex items-center space-x-2">
@@ -283,13 +271,13 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
                 </td>
                 <td className="px-3 py-2">
                   <a
-                    href={`https://solscan.io/tx/${swap.txn}`}
+                    href={`https://solscan.io/tx/${swap.signature}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center space-x-1 text-blue-400 hover:text-blue-300 transition-colors"
                   >
                     <span className="font-mono text-xs">
-                      {swap.txn ? `${swap.txn.slice(0, 8)}...${swap.txn.slice(-6)}` : 'N/A'}
+                      {swap.signature ? `${swap.signature.slice(0, 8)}...${swap.signature.slice(-6)}` : 'N/A'}
                     </span>
                     <ExternalLink className="w-3 h-3" />
                   </a>
@@ -346,17 +334,17 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
                           {formatTimestamp(swap.timestamp)}
                         </td>
                         <td className="px-3 py-2 text-right text-white font-semibold">
-                          ${swap.usdAmount ? swap.usdAmount.toFixed(2) : '0.00'}
+                          ${swap.volumeUsd ? swap.volumeUsd.toFixed(2) : '0.00'}
                         </td>
                         <td className="px-3 py-2">
                           <a
-                            href={`https://solscan.io/tx/${swap.txn}`}
+                            href={`https://solscan.io/tx/${swap.signature}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center space-x-1 text-blue-400 hover:text-blue-300"
                           >
                             <span className="font-mono text-xs">
-                              {swap.txn ? `${swap.txn.slice(0, 8)}...${swap.txn.slice(-6)}` : 'N/A'}
+                              {swap.signature ? `${swap.signature.slice(0, 8)}...${swap.signature.slice(-6)}` : 'N/A'}
                             </span>
                             <ExternalLink className="w-3 h-3" />
                           </a>
