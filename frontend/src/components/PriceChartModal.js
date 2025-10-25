@@ -411,16 +411,13 @@ const PriceChartModal = ({ token, onClose }) => {
           </div>
           
           {/* Swap Table */}
-          {realTimeData && (
-            <div className="mt-6">
-              <SwapTable token={token} realTimeData={realTimeData} />
-            </div>
-          )}
-          {!realTimeData && (
-            <div className="mt-6 p-4 bg-gray-700 rounded text-center text-gray-400">
-              Loading swap data...
-            </div>
-          )}
+          <div className="mt-6">
+            <SwapTable 
+              key={`swaptable-${token.contractAddress}`}
+              token={token} 
+              realTimeData={realTimeData} 
+            />
+          </div>
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ExternalLink, Filter, TrendingUp, TrendingDown, Plus, Minus } from 'lucide-react';
 
-const SwapTable = ({ token, realTimeData }) => {
+const SwapTable = React.memo(({ token, realTimeData }) => {
   const [swaps, setSwaps] = useState([]);
   const [filteredSwaps, setFilteredSwaps] = useState([]);
   const [displayedSwaps, setDisplayedSwaps] = useState([]);
@@ -376,6 +376,6 @@ const SwapTable = ({ token, realTimeData }) => {
       )}
     </div>
   );
-};
+});
 
 export default SwapTable;
