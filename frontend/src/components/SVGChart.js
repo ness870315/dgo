@@ -53,12 +53,19 @@ function normalizeOHLC(rows, tf) {
 
 // Window the data to last N bars per timeframe
 function sliceWindow(candles, tf) {
+  if (!candles || !Array.isArray(candles)) {
+    return [];
+  }
   const n = WINDOW_BY_TF[tf] ?? 300;
   return candles.slice(-n);
 }
 
 // Build SVG scales with correct X by time domain
 function makeScales(points, w, h, pad = {l:56,r:24,t:16,b:28}) {
+  if (!points || !Array.isArray(points) || points.length === 0) {
+    return { x: () => 0, y: () => 0, pad, plotW: 0, plotH: 0, tMin: 0, tMax: 0, yMin: 0, yMax: 0 };
+  }
+  
   const plotW = w - pad.l - pad.r;
   const plotH = h - pad.t - pad.b;
 
@@ -70,11 +77,7 @@ function makeScales(points, w, h, pad = {l:56,r:24,t:16,b:28}) {
   const yMax = pMax + (pMax - pMin) * 0.08;
 
   const x = (tMs) => pad.l + ((tMs - tMin) / Math.max(1, (tMax - tMin))) * plotW;
-  const y = (v)   => {
-    const result = pad.t + (1 - (v - yMin) / Math.max(1e-12, (yMax - yMin))) * plotH;
-    console.log(`🔍 [makeScales] Y calculation: v=${v}, yMin=${yMin}, yMax=${yMax}, plotH=${plotH}, result=${result}`);
-    return result;
-  };
+  const y = (v) => pad.t + (1 - (v - yMin) / Math.max(1e-12, (yMax - yMin))) * plotH;
 
   return { x, y, pad, plotW, plotH, tMin, tMax, yMin, yMax };
 }
@@ -394,16 +397,6 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
 
         {/* line */}
         <path d={path} stroke="#ff2ea1" strokeWidth="3" fill="none" strokeLinejoin="round" strokeLinecap="round"/>
-        
-        {/* TEST: Bright rectangle to verify SVG is working */}
-        <rect x="10" y="100" width="100" height="30" fill="red" stroke="yellow" strokeWidth="2"/>
-        <text x="15" y="120" fill="white" fontSize="14" fontWeight="bold">CHART WORKING!</text>
-        
-        {/* Debug: Show chart info */}
-        <text x="10" y="20" fill="white" fontSize="12">Data: {processedData.length} points</text>
-        <text x="10" y="35" fill="white" fontSize="12">Size: {width}x{height}</text>
-        <text x="10" y="50" fill="white" fontSize="12">Path: {path ? 'Generated' : 'Empty'}</text>
-        <text x="10" y="65" fill="white" fontSize="12">Contract: {contract.substring(0, 8)}...</text>
 
         {/* Crosshair */}
         {mousePos && (
