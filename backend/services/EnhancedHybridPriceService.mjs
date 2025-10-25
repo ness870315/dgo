@@ -1247,16 +1247,16 @@ class EnhancedHybridPriceService extends EventEmitter {
             console.log(`  - isMeteoraPool: ${isMeteoraPool}`);
             console.log(`  - poolData:`, JSON.stringify(poolData, null, 2));
             
-            if (isMeteoraPool && this.cpAmm) {
-                console.log(`🔌 [EnhancedHybridPriceService] Detected Meteora pool, using Meteora SDK for ${tokenAddress}`);
+            if (isMeteoraPool) {
+                console.log(`🔌 [EnhancedHybridPriceService] Detected Meteora pool for ${tokenAddress}`);
                 try {
-                    // Use Meteora SDK for Meteora pools
+                    // Use Meteora SDK if available, otherwise use direct parsing
                     const meteoraData = await this.fetchMeteoraPoolData(tokenAddress, poolData);
                     if (meteoraData) {
                         return meteoraData;
                     }
                 } catch (meteoraError) {
-                    console.log(`⚠️ [EnhancedHybridPriceService] Meteora SDK failed, falling back to Jupiter: ${meteoraError.message}`);
+                    console.log(`⚠️ [EnhancedHybridPriceService] Meteora data fetch failed, falling back to Jupiter: ${meteoraError.message}`);
                 }
             } else {
                 console.log(`🔄 [EnhancedHybridPriceService] Non-Meteora pool detected, using Jupiter API for ${tokenAddress}`);
