@@ -137,6 +137,7 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
   const [err, setErr] = useState(null);
   const [mousePos, setMousePos] = useState(null);
   const fetchingRef = useRef(false);
+  const aliveRef = useRef(true);
 
   // responsive width
   useEffect(() => {
