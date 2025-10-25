@@ -7,6 +7,43 @@ import SwapTable from './SwapTable';
 import { useAuth } from '../contexts/AuthContext';
 import websocketService from '../services/websocketService';
 
+// Error Boundary Component
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('❌ [ErrorBoundary] SVGChart Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="w-full h-96 flex items-center justify-center bg-red-800 rounded-lg border-4 border-red-400">
+          <div className="text-center">
+            <div className="text-white font-bold text-lg mb-2">❌ SVGChart Error</div>
+            <div className="text-red-200 text-sm">Error: {this.state.error?.message}</div>
+            <button 
+              onClick={() => this.setState({ hasError: false, error: null })}
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 const PriceChartModal = ({ token, onClose }) => {
   const { user, isAuthenticated } = useAuth();
   const [currentPrice, setCurrentPrice] = useState(null);
@@ -340,29 +377,26 @@ const PriceChartModal = ({ token, onClose }) => {
             </div>
           )}
           
-          {(() => {
-            try {
-              return (
-                <div className="bg-red-500 p-4 border-4 border-yellow-400">
-                  <div className="text-white font-bold text-lg mb-2">TEST: SVGChart Container</div>
-                  <SVGChart 
-                    token={token} 
-                    onClose={onClose}
-                  />
-                </div>
-              );
-            } catch (error) {
-              console.error('❌ [PriceChartModal] Error rendering SVGChart:', error);
-              return (
-                <div className="w-full h-96 flex items-center justify-center bg-gray-800 rounded-lg border border-gray-700">
-                  <div className="text-center">
-                    <div className="text-red-400 mb-2">❌ Chart Error</div>
-                    <div className="text-gray-500 text-sm">Failed to render chart: {error.message}</div>
-                  </div>
-                </div>
-              );
-            }
-          })()}
+          <div className="bg-red-500 p-4 border-4 border-yellow-400">
+            <div className="text-white font-bold text-lg mb-2">TEST: SVGChart Container</div>
+            <div className="bg-blue-500 p-2 mb-2">
+              <div className="text-white">Before SVGChart render</div>
+            </div>
+            <ErrorBoundary>
+              {(() => {
+                console.log('🚀 [PriceChartModal] About to render SVGChart for:', token.symbol);
+                try {
+                  return <SVGChart token={token} onClose={onClose} />;
+                } catch (error) {
+                  console.error('❌ [PriceChartModal] Immediate SVGChart error:', error);
+                  return <div className="bg-red-600 text-white p-4">Immediate Error: {error.message}</div>;
+                }
+              })()}
+            </ErrorBoundary>
+            <div className="bg-green-500 p-2 mt-2">
+              <div className="text-white">After SVGChart render</div>
+            </div>
+          </div>
           
           {/* Swap Table */}
           {realTimeData && (
