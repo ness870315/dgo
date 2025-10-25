@@ -3,7 +3,7 @@ import EventEmitter from 'events';
 import fs from 'fs/promises';
 import path from 'path';
 import bs58 from 'bs58';
-import ChartDatabase from './ChartDatabase.js';
+// import ChartDatabase from './ChartDatabase.js'; // Temporarily disabled
 
 // Use CommonJS wrapper for gRPC loading
 import { createRequire } from 'module';
@@ -62,8 +62,8 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.tokenCache = [];
         this.cachePath = path.join(process.cwd(), 'cache', 'tokens-cache.json');
         
-        // 🚀 NEW: Persistent swap storage
-        this.chartDatabase = new ChartDatabase();
+        // 🚀 NEW: Persistent swap storage (temporarily disabled)
+        // this.chartDatabase = new ChartDatabase();
         
         // Rate limiting protection for Jupiter API
         this.jupiterRequestQueue = [];
@@ -416,14 +416,21 @@ class EnhancedHybridPriceService extends EventEmitter {
             // Get current swap history
             const currentSwaps = this.swapHistory.get(tokenAddress) || [];
             
-            // Create swap record
+            // Create swap record with frontend-compatible format
             const swapRecord = {
                 timestamp: Date.now(),
                 slot: slot,
                 type: swapType,
                 change: change,
                 mintAddress: mintAddress,
-                poolAddress: poolAddress
+                poolAddress: poolAddress,
+                // Frontend-compatible fields
+                tokenAmount: Math.abs(change),
+                baseAmount: 0, // Will be calculated
+                volumeUsd: 0, // Will be calculated
+                maker: 'Unknown', // Will be updated with actual maker
+                signature: `slot_${slot}_${Date.now()}`,
+                price: 0 // Will be calculated
             };
             
             // Add to swap history
