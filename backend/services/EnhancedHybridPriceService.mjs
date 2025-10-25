@@ -235,7 +235,17 @@ class EnhancedHybridPriceService extends EventEmitter {
             console.log(`🚀 [EnhancedHybridPriceService] Starting UNIVERSAL monitoring for ${tokenAddress}`);
             
             // Find or discover the pool address for this token
+            // Get pool address - prioritize cached metadata
             let actualPoolAddress = poolAddress || this.poolAddresses.get(tokenAddress);
+            
+            // ✅ CRITICAL FIX: Use cached graduatedPool from token metadata
+            if (!actualPoolAddress) {
+                const tokenMetadata = this.tokenMetadataCache.get(tokenAddress);
+                if (tokenMetadata && tokenMetadata.graduatedPool) {
+                    actualPoolAddress = tokenMetadata.graduatedPool;
+                    console.log(`🔧 [EnhancedHybridPriceService] Using graduatedPool from cached metadata: ${actualPoolAddress}`);
+                }
+            }
             
             if (!actualPoolAddress) {
                 console.log(`🔍 [EnhancedHybridPriceService] Pool not cached for ${tokenAddress}, discovering...`);
@@ -348,11 +358,12 @@ class EnhancedHybridPriceService extends EventEmitter {
                                 
                                 // ✅ CRITICAL FIX: Filter out pool addresses to avoid double-counting
                                 // Only process swaps from actual users, not the pool itself
+                                console.log(`🔍 [EnhancedHybridPriceService] Filtering swaps using pool address: ${actualPoolAddress}`);
                                 const userTokenChanges = tokenChanges.filter(tokenChange => {
                                     // Exclude pool addresses - they shouldn't be considered "makers"
                                     const isPoolAddress = tokenChange.owner === actualPoolAddress;
                                     if (isPoolAddress) {
-                                        console.log(`🚫 [EnhancedHybridPriceService] Skipping pool address swap: ${tokenChange.owner}`);
+                                        console.log(`🚫 [EnhancedHybridPriceService] Skipping pool address swap: ${tokenChange.owner} (matches ${actualPoolAddress})`);
                                     }
                                     return !isPoolAddress;
                                 });
