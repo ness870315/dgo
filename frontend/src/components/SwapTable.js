@@ -17,14 +17,19 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
 
   // Update swaps when real-time data changes
   useEffect(() => {
-    if (realTimeData?.swapHistory) {
-      // Use full swap history instead of just recentSwaps
-      setSwaps(realTimeData.swapHistory);
-      console.log(`📊 [SwapTable] Loaded ${realTimeData.swapHistory.length} total swaps`);
-    } else if (realTimeData?.recentSwaps) {
-      // Fallback to recentSwaps if swapHistory not available
-      setSwaps(realTimeData.recentSwaps);
-      console.log(`📊 [SwapTable] Loaded ${realTimeData.recentSwaps.length} recent swaps`);
+    try {
+      if (realTimeData?.swapHistory) {
+        // Use full swap history instead of just recentSwaps
+        setSwaps(realTimeData.swapHistory);
+        console.log(`📊 [SwapTable] Loaded ${realTimeData.swapHistory.length} total swaps`);
+      } else if (realTimeData?.recentSwaps) {
+        // Fallback to recentSwaps if swapHistory not available
+        setSwaps(realTimeData.recentSwaps);
+        console.log(`📊 [SwapTable] Loaded ${realTimeData.recentSwaps.length} recent swaps`);
+      }
+    } catch (error) {
+      console.error('❌ [SwapTable] Error processing swap data:', error);
+      setSwaps([]);
     }
   }, [realTimeData]);
 
