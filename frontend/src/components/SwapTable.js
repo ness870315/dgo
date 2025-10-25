@@ -19,19 +19,25 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
   useEffect(() => {
     try {
       console.log('🔍 [SwapTable] realTimeData received:', realTimeData);
+      console.log('🔍 [SwapTable] realTimeData keys:', realTimeData ? Object.keys(realTimeData) : 'null');
       
       if (realTimeData?.swapHistory) {
         // Use full swap history instead of just recentSwaps
+        console.log('🔍 [SwapTable] swapHistory length:', realTimeData.swapHistory.length);
         console.log('🔍 [SwapTable] swapHistory sample:', realTimeData.swapHistory[0]);
+        console.log('🔍 [SwapTable] swapHistory sample keys:', realTimeData.swapHistory[0] ? Object.keys(realTimeData.swapHistory[0]) : 'null');
         setSwaps(realTimeData.swapHistory);
         console.log(`📊 [SwapTable] Loaded ${realTimeData.swapHistory.length} total swaps`);
       } else if (realTimeData?.recentSwaps) {
         // Fallback to recentSwaps if swapHistory not available
+        console.log('🔍 [SwapTable] recentSwaps length:', realTimeData.recentSwaps.length);
         console.log('🔍 [SwapTable] recentSwaps sample:', realTimeData.recentSwaps[0]);
+        console.log('🔍 [SwapTable] recentSwaps sample keys:', realTimeData.recentSwaps[0] ? Object.keys(realTimeData.recentSwaps[0]) : 'null');
         setSwaps(realTimeData.recentSwaps);
         console.log(`📊 [SwapTable] Loaded ${realTimeData.recentSwaps.length} recent swaps`);
       } else {
         console.log('🔍 [SwapTable] No swap data found in realTimeData');
+        console.log('🔍 [SwapTable] realTimeData structure:', realTimeData);
       }
     } catch (error) {
       console.error('❌ [SwapTable] Error processing swap data:', error);
