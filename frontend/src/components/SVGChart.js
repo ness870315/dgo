@@ -483,7 +483,7 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
       {err && <div className="mt-2 text-sm text-red-400">Error: {err}</div>}
     </div>
   );
-}
+});
 
 // ---- 3) Main SVGChart Component -----------------------------------------------------------
 const SVGChart = ({ token, onClose }) => {
