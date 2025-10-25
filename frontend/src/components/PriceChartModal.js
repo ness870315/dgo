@@ -415,14 +415,21 @@ const PriceChartModal = ({ token, onClose }) => {
             </div>
           </div>
           
-          {/* Swap Table */}
-          <div className="mt-6">
-            <SwapTable 
-              key={`swaptable-${token.contractAddress}`}
-              token={token} 
-              realTimeData={realTimeData} 
-            />
-          </div>
+          {/* Swap Table - DISABLED FOR PROBITY TO TEST */}
+          {token?.symbol !== 'PROBITY' && (
+            <div className="mt-6">
+              <SwapTable 
+                key={`swaptable-${token.contractAddress}`}
+                token={token} 
+                realTimeData={realTimeData} 
+              />
+            </div>
+          )}
+          {token?.symbol === 'PROBITY' && (
+            <div className="mt-6 p-4 bg-red-800 rounded text-center text-white">
+              🔧 SwapTable DISABLED for PROBITY testing - Modal should stay open now!
+            </div>
+          )}
         </div>
       </div>
     </div>
