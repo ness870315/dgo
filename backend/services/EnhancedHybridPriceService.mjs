@@ -371,7 +371,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                             console.log(`✅ [EnhancedHybridPriceService] Found matching pool ${poolAddress} for token ${tokenAddress}`);
                             
                             // Parse account data to extract reserves
-                            const reserves = this.parseAccountDataForReserves(accountData, tokenAddress);
+                            const reserves = this.parseAccountDataForReserves(msg.account.account, tokenAddress);
                             if (reserves) {
                                 // Store parsed reserves in realTimeUpdates
                                 this.realTimeUpdates.set(tokenAddress, reserves);
@@ -689,43 +689,20 @@ class EnhancedHybridPriceService extends EventEmitter {
         );
     }
 
-    parseAccountDataForReserves(accountData, tokenAddress) {
-        try {
-            console.log(`🔍 [DEBUG] Parsing account data for reserves - token: ${tokenAddress}`);
-            
-            // Check if account has data
-            if (!accountData || !accountData.data) {
-                console.log(`⚠️ [DEBUG] No account data available`);
-                return null;
-            }
-            
-            // For Raydium pools, we need to get token accounts by owner
-            // The gRPC data contains the pool account, but we need to fetch its token accounts
-            // This is a simplified approach - in reality, we'd need to make an RPC call
-            // to get the token accounts for this pool
-            
-            // For now, return a placeholder structure
-            // TODO: Implement proper account data parsing
-            console.log(`⚠️ [DEBUG] Account data parsing not fully implemented - using placeholder`);
-            
-            return {
-                tokenReserves: 1000000, // Placeholder - needs real parsing
-                solReserves: 50,        // Placeholder - needs real parsing
-                source: 'gRPC Stream'
-            };
-            
-        } catch (error) {
-            console.error(`❌ [DEBUG] Error parsing account data:`, error.message);
-            return null;
-        }
-    }
 
     parseAccountDataForReserves(accountData, tokenAddress) {
         try {
             console.log(`🔍 [DEBUG] Parsing account data for ${tokenAddress}`);
+            console.log(`🔍 [DEBUG] Account data structure:`, JSON.stringify(accountData, null, 2));
             
-            if (!accountData || !accountData.data) {
+            if (!accountData) {
                 console.log(`⚠️ [DEBUG] No account data available for ${tokenAddress}`);
+                return null;
+            }
+            
+            // Check if account has data field
+            if (!accountData.data) {
+                console.log(`⚠️ [DEBUG] No data field in account for ${tokenAddress}`);
                 return null;
             }
             
