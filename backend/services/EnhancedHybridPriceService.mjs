@@ -1186,6 +1186,36 @@ class EnhancedHybridPriceService extends EventEmitter {
         }
     }
 
+    async fetchJupiterTokenData(tokenAddress) {
+        try {
+            console.log(`🔄 [EnhancedHybridPriceService] Fetching Jupiter data for token: ${tokenAddress}`);
+            
+            // Try to get token info from Jupiter
+            const tokenInfo = await this.fetchTokenInfo(tokenAddress);
+            if (!tokenInfo) {
+                console.log(`❌ [EnhancedHybridPriceService] No token info found for ${tokenAddress}`);
+                return null;
+            }
+
+            // Try to get pool data
+            const poolData = await this.fetchPoolDataByDEX(tokenAddress, tokenInfo);
+            if (!poolData) {
+                console.log(`❌ [EnhancedHybridPriceService] No pool data found for ${tokenAddress}`);
+                return null;
+            }
+
+            return {
+                tokenInfo,
+                firstPool: poolData,
+                tokenReserves: poolData.tokenReserves || 0,
+                solReserves: poolData.solReserves || 0
+            };
+        } catch (error) {
+            console.error(`❌ [EnhancedHybridPriceService] Error fetching Jupiter token data:`, error.message);
+            return null;
+        }
+    }
+
     async updateSolPrice() {
         const now = Date.now();
         
