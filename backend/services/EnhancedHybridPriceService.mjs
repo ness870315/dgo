@@ -1059,22 +1059,41 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             // Try to fetch token data from Jupiter to find pools
             const jupiterData = await this.fetchJupiterTokenData(tokenAddress);
-            if (jupiterData && jupiterData.pools && jupiterData.pools.length > 0) {
-                // Use the first pool found
-                const poolAddress = jupiterData.pools[0].address;
-                console.log(`✅ [EnhancedHybridPriceService] Found pool ${poolAddress} for token ${tokenAddress}`);
+            if (jupiterData) {
+                let poolAddress = null;
                 
-                // Store the mapping
-                this.poolAddresses.set(tokenAddress, poolAddress);
-                
-                // Also store in ChartDatabase for persistence
-                if (this.chartDatabase) {
-                    await this.chartDatabase.setPoolMapping(tokenAddress, poolAddress);
+                // Check different possible pool address locations in the response
+                if (jupiterData.firstPool && jupiterData.firstPool.poolAddress) {
+                    poolAddress = jupiterData.firstPool.poolAddress;
+                } else if (jupiterData.firstPool && jupiterData.firstPool.address) {
+                    poolAddress = jupiterData.firstPool.address;
+                } else if (jupiterData.firstPool && jupiterData.firstPool.id) {
+                    poolAddress = jupiterData.firstPool.id;
+                } else if (jupiterData.tokenInfo && jupiterData.tokenInfo.graduatedPool) {
+                    poolAddress = typeof jupiterData.tokenInfo.graduatedPool === 'string' 
+                        ? jupiterData.tokenInfo.graduatedPool 
+                        : jupiterData.tokenInfo.graduatedPool?.address;
                 }
                 
-                return poolAddress;
+                if (poolAddress) {
+                    console.log(`✅ [EnhancedHybridPriceService] Found pool ${poolAddress} for token ${tokenAddress}`);
+                    
+                    // Store the mapping
+                    this.poolAddresses.set(tokenAddress, poolAddress);
+                    
+                    // Also store in ChartDatabase for persistence
+                    if (this.chartDatabase) {
+                        await this.chartDatabase.setPoolMapping(tokenAddress, poolAddress);
+                    }
+                    
+                    return poolAddress;
+                } else {
+                    console.log(`⚠️ [EnhancedHybridPriceService] No pool address found in Jupiter data for token ${tokenAddress}`);
+                    console.log(`⚠️ [EnhancedHybridPriceService] Jupiter data structure:`, JSON.stringify(jupiterData, null, 2));
+                    return null;
+                }
             } else {
-                console.log(`⚠️ [EnhancedHybridPriceService] No pools found for token ${tokenAddress}`);
+                console.log(`⚠️ [EnhancedHybridPriceService] No Jupiter data found for token ${tokenAddress}`);
                 return null;
             }
         } catch (error) {
