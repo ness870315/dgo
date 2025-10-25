@@ -158,10 +158,14 @@ function SvgOHLCVArea({
         fetchingRef.current = true;
         console.log(`🔍 [SvgOHLCVArea] Fetching chart data for ${contract} with timeframe ${timeframe}`);
         const res = await chartService.getPriceChartRD(contract, timeframe);
+        console.log(`📡 [SvgOHLCVArea] Chart service response:`, res);
         const data = Array.isArray(res?.data) ? res.data : [];
         if (!alive) return;
 
         console.log(`📊 [SvgOHLCVArea] Received ${data.length} data points for ${contract}`);
+        if (data.length === 0) {
+          console.log(`⚠️ [SvgOHLCVArea] No data points received for ${contract} - this will cause black screen`);
+        }
         setRawData(data);
         fetchingRef.current = false;
       } catch (e) {
