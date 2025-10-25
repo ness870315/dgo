@@ -13539,13 +13539,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
         if (this.enhancedHybridPriceService) {
           // ✅ CRITICAL FIX: Use EnhancedHybridPriceService (gRPC) instead of old HybridPriceService (REST)
-          const subscribed = this.enhancedHybridPriceService.subscribeToToken(tokenAddress);
+          const subscribed = await this.enhancedHybridPriceService.ensureTokenMonitoring(tokenAddress);
           
           res.json({
             success: true,
             subscribed,
             tokenAddress,
-            message: subscribed ? 'Subscribed to gRPC token price updates' : 'Already subscribed to this token'
+            message: subscribed ? 'Subscribed to gRPC token price updates' : 'Failed to subscribe to this token'
           });
         } else {
           res.status(503).json({
