@@ -542,6 +542,8 @@ class EnhancedHybridPriceService extends EventEmitter {
                 // This is a token swap - use actual SOL amount from transaction
                 if (solAmount !== 0) {
                     console.log(`🔍 [EnhancedHybridPriceService] Raw solAmount: ${solAmount}`);
+                    console.log(`🔍 [EnhancedHybridPriceService] Math.abs(solAmount): ${Math.abs(solAmount)}`);
+                    console.log(`🔍 [EnhancedHybridPriceService] Is > 1e6? ${Math.abs(solAmount) > 1e6}`);
                     
                     // Check if solAmount is in lamports (very large number) or SOL (reasonable number)
                     if (Math.abs(solAmount) > 1e6) {
