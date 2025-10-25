@@ -135,8 +135,15 @@ class EnhancedHybridPriceService extends EventEmitter {
             this.cpAmm = new CpAmm(this.meteoraConnection);
             
             console.log('✅ [EnhancedHybridPriceService] Meteora SDK initialized successfully');
+            console.log('🔍 [DEBUG] Meteora SDK Details:');
+            console.log(`  - cpAmm instance: ${!!this.cpAmm}`);
+            console.log(`  - meteoraConnection: ${!!this.meteoraConnection}`);
         } catch (error) {
             console.log('⚠️ [EnhancedHybridPriceService] Meteora SDK not available, continuing without it:', error.message);
+            console.log('🔍 [DEBUG] Meteora SDK Error Details:');
+            console.log(`  - Error type: ${error.constructor.name}`);
+            console.log(`  - Error code: ${error.code || 'N/A'}`);
+            console.log(`  - Full error:`, error);
             this.cpAmm = null;
             // Don't throw - continue without Meteora SDK
         }
@@ -1234,6 +1241,11 @@ class EnhancedHybridPriceService extends EventEmitter {
 
             // Check if this is a Meteora pool
             const isMeteoraPool = this.isMeteoraPool(poolData);
+            
+            console.log(`🔍 [DEBUG] Meteora SDK Status for ${tokenAddress}:`);
+            console.log(`  - cpAmm initialized: ${!!this.cpAmm}`);
+            console.log(`  - isMeteoraPool: ${isMeteoraPool}`);
+            console.log(`  - poolData:`, JSON.stringify(poolData, null, 2));
             
             if (isMeteoraPool && this.cpAmm) {
                 console.log(`🔌 [EnhancedHybridPriceService] Detected Meteora pool, using Meteora SDK for ${tokenAddress}`);
