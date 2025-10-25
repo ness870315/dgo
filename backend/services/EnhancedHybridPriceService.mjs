@@ -369,15 +369,18 @@ class EnhancedHybridPriceService extends EventEmitter {
                         // Check if this is our monitored pool
                         if (accountAddress === poolAddress) {
                             console.log(`✅ [EnhancedHybridPriceService] Found matching pool ${poolAddress} for token ${tokenAddress}`);
+                            
+                            // Parse account data to extract reserves
+                            const reserves = this.parseAccountDataForReserves(accountData, tokenAddress);
+                            if (reserves) {
+                                // Store parsed reserves in realTimeUpdates
+                                this.realTimeUpdates.set(tokenAddress, reserves);
+                                console.log(`✅ [DEBUG] Stored reserves for ${tokenAddress}: tokenReserves=${reserves.tokenReserves}, solReserves=${reserves.solReserves}`);
+                            } else {
+                                console.log(`⚠️ [DEBUG] Failed to parse reserves for ${tokenAddress} from account data`);
+                            }
+                            
                             try {
-                                // ✅ CRITICAL FIX: Parse account data to extract reserves
-                                const parsedReserves = this.parseAccountDataForReserves(msg.account.account, tokenAddress);
-                                if (parsedReserves) {
-                                    console.log(`✅ [DEBUG] Parsed reserves from gRPC: tokenReserves=${parsedReserves.tokenReserves}, solReserves=${parsedReserves.solReserves}`);
-                                    // Store the parsed reserves in realTimeUpdates
-                                    this.realTimeUpdates.set(tokenAddress, parsedReserves);
-                                }
-                                
                                 await this.processPoolUpdate(tokenAddress, poolAddress, slot, totalUpdateCount);
                             } catch (error) {
                                 console.error(`❌ [EnhancedHybridPriceService] Error processing update for ${tokenAddress}:`, error.message);
@@ -713,6 +716,43 @@ class EnhancedHybridPriceService extends EventEmitter {
             
         } catch (error) {
             console.error(`❌ [DEBUG] Error parsing account data:`, error.message);
+            return null;
+        }
+    }
+
+    parseAccountDataForReserves(accountData, tokenAddress) {
+        try {
+            console.log(`🔍 [DEBUG] Parsing account data for ${tokenAddress}`);
+            
+            if (!accountData || !accountData.data) {
+                console.log(`⚠️ [DEBUG] No account data available for ${tokenAddress}`);
+                return null;
+            }
+            
+            // Convert base64 data to buffer
+            const dataBuffer = Buffer.from(accountData.data, 'base64');
+            console.log(`🔍 [DEBUG] Account data buffer length: ${dataBuffer.length} bytes`);
+            
+            // For Raydium pools, reserves are typically at specific offsets
+            // Token reserves (usually 8 bytes at offset 64)
+            // SOL reserves (usually 8 bytes at offset 72)
+            if (dataBuffer.length >= 80) {
+                const tokenReserves = dataBuffer.readBigUInt64LE(64);
+                const solReserves = dataBuffer.readBigUInt64LE(72);
+                
+                console.log(`✅ [DEBUG] Parsed reserves for ${tokenAddress}: tokenReserves=${tokenReserves}, solReserves=${solReserves}`);
+                
+                return {
+                    tokenReserves: Number(tokenReserves),
+                    solReserves: Number(solReserves),
+                    source: 'gRPC Account Data Parsing'
+                };
+            } else {
+                console.log(`⚠️ [DEBUG] Account data too short for ${tokenAddress}: ${dataBuffer.length} bytes`);
+                return null;
+            }
+        } catch (error) {
+            console.error(`❌ [DEBUG] Error parsing account data for ${tokenAddress}:`, error.message);
             return null;
         }
     }
