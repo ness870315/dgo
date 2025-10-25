@@ -570,6 +570,14 @@ class EnhancedHybridPriceService extends EventEmitter {
     // 🚀 NEW: Save swap to persistent database
     async saveSwapToDatabase(swapRecord, tokenAddress, poolAddress) {
         try {
+            console.log(`💾 [EnhancedHybridPriceService] Attempting to save swap to database for ${tokenAddress}`);
+            console.log(`💾 [EnhancedHybridPriceService] ChartDatabase available:`, !!this.chartDatabase);
+            
+            if (!this.chartDatabase) {
+                console.error(`❌ [EnhancedHybridPriceService] ChartDatabase not available for ${tokenAddress}`);
+                return;
+            }
+            
             // Convert swap record to database format
             const persistentSwapRecord = {
                 signature: `slot_${swapRecord.slot}_${swapRecord.timestamp}`, // Generate unique signature
@@ -590,12 +598,15 @@ class EnhancedHybridPriceService extends EventEmitter {
                 }
             };
             
+            console.log(`💾 [EnhancedHybridPriceService] Saving swap record:`, persistentSwapRecord);
+            
             // Save to persistent storage
             await this.chartDatabase.storeSwaps([persistentSwapRecord]);
             console.log(`💾 [EnhancedHybridPriceService] Swap saved to persistent storage for ${tokenAddress}`);
             
         } catch (error) {
             console.error(`❌ [EnhancedHybridPriceService] Failed to save swap to database:`, error.message);
+            console.error(`❌ [EnhancedHybridPriceService] Error details:`, error);
         }
     }
 
