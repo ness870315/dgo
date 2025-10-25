@@ -510,11 +510,11 @@ class EnhancedHybridPriceService extends EventEmitter {
             } else {
                 // This is a token swap - use actual SOL amount from transaction
                 if (solAmount !== 0) {
-                    // ✅ CRITICAL FIX: Convert SOL amount from lamports to SOL
-                    baseAmount = Math.abs(solAmount) / 1e9; // Convert lamports to SOL
+                    // ✅ CRITICAL FIX: solAmount is already in SOL, not lamports
+                    baseAmount = Math.abs(solAmount); // No conversion needed - already in SOL
                     volumeUsd = baseAmount * this.solPriceUSD;
                     price = baseAmount / tokenAmount; // Token price in SOL
-                    console.log(`💰 [EnhancedHybridPriceService] Using actual SOL amount: ${baseAmount.toFixed(6)} SOL`);
+                    console.log(`💰 [EnhancedHybridPriceService] Using actual SOL amount: ${baseAmount.toFixed(6)} SOL (raw: ${solAmount})`);
                 } else {
                     // Fallback if no SOL amount detected - use more realistic estimate
                     // For PumpFun tokens, typical price range is 0.0000001 to 0.00001 SOL per token
