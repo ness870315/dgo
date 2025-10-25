@@ -256,7 +256,7 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
                 <td className="px-3 py-2">
                   <div className="flex items-center space-x-2">
                     <span className="text-blue-400 font-mono text-xs">
-                      {swap.maker.slice(0, 6)}...{swap.maker.slice(-4)}
+                      {swap.maker ? `${swap.maker.slice(0, 6)}...${swap.maker.slice(-4)}` : 'N/A'}
                     </span>
                     <button
                       onClick={(e) => {
@@ -277,7 +277,7 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
                     className="flex items-center space-x-1 text-blue-400 hover:text-blue-300 transition-colors"
                   >
                     <span className="font-mono text-xs">
-                      {swap.txn.slice(0, 8)}...{swap.txn.slice(-6)}
+                      {swap.txn ? `${swap.txn.slice(0, 8)}...${swap.txn.slice(-6)}` : 'N/A'}
                     </span>
                     <ExternalLink className="w-3 h-3" />
                   </a>
@@ -294,7 +294,7 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
           <div className="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[80vh] overflow-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-white">
-                Maker History: {selectedMaker.slice(0, 8)}...{selectedMaker.slice(-4)}
+                Maker History: {selectedMaker ? `${selectedMaker.slice(0, 8)}...${selectedMaker.slice(-4)}` : 'N/A'}
               </h3>
               <button
                 onClick={(e) => {
@@ -344,7 +344,7 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
                             className="flex items-center space-x-1 text-blue-400 hover:text-blue-300"
                           >
                             <span className="font-mono text-xs">
-                              {swap.txn.slice(0, 8)}...{swap.txn.slice(-6)}
+                              {swap.txn ? `${swap.txn.slice(0, 8)}...${swap.txn.slice(-6)}` : 'N/A'}
                             </span>
                             <ExternalLink className="w-3 h-3" />
                           </a>
