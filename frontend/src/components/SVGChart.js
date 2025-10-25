@@ -349,7 +349,7 @@ function SvgOHLCVArea({
         <path d={areaPath} fill={`url(#${gid})`} stroke="none"/>
 
         {/* line */}
-        <path d={path} stroke={stroke} strokeWidth="2.5" fill="none" strokeLinejoin="round" strokeLinecap="round"/>
+        <path d={path} stroke="#ff2ea1" strokeWidth="3" fill="none" strokeLinejoin="round" strokeLinecap="round"/>
         {/* Debug: Show chart info */}
         <text x="10" y="20" fill="white" fontSize="12">Data: {processedData.length} points</text>
         <text x="10" y="35" fill="white" fontSize="12">Size: {width}x{height}</text>
