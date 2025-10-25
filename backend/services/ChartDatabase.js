@@ -566,6 +566,16 @@ class ChartDatabase {
     }
 
     /**
+     * Set pool mapping for a token (persistent)
+     */
+    async setPoolMapping(tokenAddress, poolAddress) {
+        await this.ensureLoaded();
+        this.sharedData.pools.set(tokenAddress, { poolAddress });
+        await this.atomicWrite(); // Persist to database files permanently
+        console.log(`💾 [ChartDatabase] Added pool mapping: ${tokenAddress.substring(0, 8)}... -> ${poolAddress.substring(0, 8)}...`);
+    }
+
+    /**
      * Update backfill progress
      */
     async updateBackfillProgress(poolAddress, lastSignature, lastTimestamp, totalSwaps) {

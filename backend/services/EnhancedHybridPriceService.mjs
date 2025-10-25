@@ -97,8 +97,8 @@ class EnhancedHybridPriceService extends EventEmitter {
                 console.log('🚀 [EnhancedHybridPriceService] ChartDatabase singleton initialized');
             }
             
-            // 🚀 CRITICAL: Add PROBITY to ChartDatabase so swaps can be saved
-            await this.initializeProbityInDatabase();
+            // 🚀 CRITICAL: Sync all token-pool mappings from gRPC to ChartDatabase (one-time)
+            await this.syncTokenPoolMappingsOnce();
             
             console.log(`💰 [EnhancedHybridPriceService] SOL Price: $${this.solPriceUSD}`);
             
@@ -197,6 +197,9 @@ class EnhancedHybridPriceService extends EventEmitter {
         }
         
         console.log(`✅ [EnhancedHybridPriceService] Extracted ${this.poolAddresses.size} pool addresses`);
+        
+        // 🚀 CRITICAL: Retry mapping sync now that pool addresses are loaded
+        await this.retryMappingSyncIfNeeded();
     }
 
     async startRealTimeMonitoring() {
@@ -757,32 +760,56 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
 
     // 🚀 CRITICAL: Initialize PROBITY in ChartDatabase so swaps can be saved
-    async initializeProbityInDatabase() {
+    async syncTokenPoolMappingsOnce() {
         try {
-            const TEST_TOKEN = '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc'; // PROBITY
-            const TEST_POOL = '98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvMZFN'; // PROBITY Pool
+            console.log('🔄 [EnhancedHybridPriceService] Checking if token-pool mappings need sync...');
             
-            console.log('🚀 [EnhancedHybridPriceService] Initializing PROBITY in ChartDatabase...');
+            // Check if mappings already exist
+            const existingMappings = this.chartDatabase.sharedData.pools.size;
+            if (existingMappings > 0) {
+                console.log(`✅ [EnhancedHybridPriceService] Token-pool mappings already exist (${existingMappings}), skipping sync`);
+                return;
+            }
             
-            // Add PROBITY pool to sharedData
-            this.chartDatabase.sharedData.pools.set(TEST_TOKEN, {
-                poolAddress: TEST_POOL,
-                isActive: true,
-                lastUpdated: Date.now(),
-                tokenAddress: TEST_TOKEN
-            });
+            console.log('🚀 [EnhancedHybridPriceService] No mappings found, syncing from gRPC service...');
             
-            // Initialize PROBITY token database
-            const probityDb = this.chartDatabase.getTokenDatabase(TEST_TOKEN);
-            console.log(`✅ [EnhancedHybridPriceService] PROBITY database initialized: ${probityDb.swaps.size} swaps`);
+            // Get all token-pool mappings from gRPC service
+            const mappings = this.poolAddresses; // This Map contains tokenAddress -> poolAddress
             
-            // Save the updated sharedData
-            await this.chartDatabase.saveData();
+            if (mappings.size === 0) {
+                console.log('⚠️ [EnhancedHybridPriceService] No gRPC mappings available yet, will retry later');
+                return;
+            }
             
-            console.log('✅ [EnhancedHybridPriceService] PROBITY successfully added to ChartDatabase');
+            // Sync to ChartDatabase (one-time operation)
+            let syncedCount = 0;
+            for (const [tokenAddress, poolAddress] of mappings.entries()) {
+                await this.chartDatabase.setPoolMapping(tokenAddress, poolAddress);
+                syncedCount++;
+            }
+            
+            console.log(`🔄 [EnhancedHybridPriceService] One-time sync complete: Added ${syncedCount} token-pool mappings to ChartDatabase`);
             
         } catch (error) {
-            console.error('❌ [EnhancedHybridPriceService] Failed to initialize PROBITY in database:', error.message);
+            console.error('❌ [EnhancedHybridPriceService] Failed to sync token-pool mappings:', error.message);
+        }
+    }
+
+    // Retry mapping sync when gRPC mappings become available
+    async retryMappingSyncIfNeeded() {
+        try {
+            const existingMappings = this.chartDatabase.sharedData.pools.size;
+            if (existingMappings > 0) {
+                return; // Already synced
+            }
+            
+            const mappings = this.poolAddresses;
+            if (mappings.size > 0) {
+                console.log('🔄 [EnhancedHybridPriceService] Retrying mapping sync now that gRPC mappings are available...');
+                await this.syncTokenPoolMappingsOnce();
+            }
+        } catch (error) {
+            console.error('❌ [EnhancedHybridPriceService] Failed to retry mapping sync:', error.message);
         }
     }
 
