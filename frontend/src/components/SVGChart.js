@@ -128,9 +128,6 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
   height = 280,
   maxPoints = 1000,
 }) {
-  console.log('🚀 [SvgOHLCVArea] Component rendering for contract:', contract);
-  console.log('🔍 [SvgOHLCVArea] Props:', { contract, timeframe, displayMode, circulatingSupply, timezone, height, maxPoints });
-  
   const wrapRef = useRef(null);
   const [width, setWidth] = useState(800);
   const [rawData, setRawData] = useState([]);
@@ -156,43 +153,20 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
         
         // Prevent infinite loops by checking if already fetching
         if (fetchingRef.current) {
-          console.log(`⚠️ [SvgOHLCVArea] Already fetching data for ${contract}, skipping...`);
           return;
         }
         
         fetchingRef.current = true;
-        console.log(`🔍 [SvgOHLCVArea] Fetching chart data for ${contract} with timeframe ${timeframe}`);
         const res = await chartService.getPriceChartRD(contract, timeframe);
-        console.log(`📡 [SvgOHLCVArea] Chart service response:`, res);
         const data = Array.isArray(res?.data) ? res.data : [];
-        console.log(`🔍 [SvgOHLCVArea] Extracted data:`, data);
-        console.log(`🔍 [SvgOHLCVArea] Data type:`, typeof data, 'Length:', data.length);
-        console.log(`🔍 [SvgOHLCVArea] First data item:`, data[0]);
-        console.log(`🔍 [SvgOHLCVArea] Data structure check:`, {
-          hasTime: data[0]?.time !== undefined,
-          hasTimestamp: data[0]?.timestamp !== undefined,
-          hasTimeOrTimestamp: (data[0]?.time || data[0]?.timestamp) !== undefined,
-          hasClose: data[0]?.close !== undefined,
-          hasOpen: data[0]?.open !== undefined,
-          hasHigh: data[0]?.high !== undefined,
-          hasLow: data[0]?.low !== undefined,
-          hasVolume: data[0]?.volume !== undefined
-        });
-        console.log(`🔍 [SvgOHLCVArea] About to check if alive...`);
-        console.log(`🔍 [SvgOHLCVArea] Component alive status:`, aliveRef.current);
+        
+        // Check if component is still alive
         if (!aliveRef.current) {
-          console.log(`⚠️ [SvgOHLCVArea] Component not alive, returning early - this means component unmounted during data fetch`);
           return;
-        }
-
-        console.log(`📊 [SvgOHLCVArea] Received ${data.length} data points for ${contract}`);
-        if (data.length === 0) {
-          console.log(`⚠️ [SvgOHLCVArea] No data points received for ${contract} - this will cause black screen`);
         }
         
         // Validate and clean data before setting
         const validatedData = data.filter(point => {
-          // Check for both 'time' and 'timestamp' fields
           const timeValue = point.time || point.timestamp;
           const isValid = point && 
             typeof timeValue === 'number' && 
@@ -200,31 +174,21 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
             !isNaN(point.close) && 
             point.close > 0 &&
             !isNaN(timeValue);
-          
-          if (!isValid) {
-            console.log(`⚠️ [SvgOHLCVArea] Invalid data point filtered out:`, point);
-          }
           return isValid;
         }).map(point => {
-          // Normalize the time field - convert timestamp to time if needed
           if (point.timestamp && !point.time) {
             return { ...point, time: point.timestamp };
           }
           return point;
         });
         
-               console.log(`🔄 [SvgOHLCVArea] Setting raw data... (${validatedData.length}/${data.length} valid points)`);
-               console.log(`🔍 [SvgOHLCVArea] About to call setRawData with:`, validatedData?.slice?.(0, 2) || 'No data');
-               
-               // CRITICAL FIX: Ensure component is still alive before state update
-               if (!aliveRef.current) {
-                 console.log(`⚠️ [SvgOHLCVArea] Component not alive, skipping state update`);
-                 return;
-               }
-               
-               setRawData(validatedData);
-               console.log(`✅ [SvgOHLCVArea] Raw data set successfully - setRawData called`);
-               fetchingRef.current = false;
+        // Set validated data
+        if (!aliveRef.current) {
+          return;
+        }
+        
+        setRawData(validatedData);
+        fetchingRef.current = false;
       } catch (e) {
         fetchingRef.current = false;
         if (aliveRef.current) {
@@ -245,54 +209,36 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
 
   // Debug: Track rawData changes
   useEffect(() => {
-    console.log(`🔄 [SvgOHLCVArea] rawData state changed for ${contract}:`, rawData?.length || 0, 'points');
-    if (rawData?.length > 0) {
-      console.log(`🔍 [SvgOHLCVArea] Sample rawData:`, rawData?.slice?.(0, 2) || 'No data');
-    }
+    // Track rawData changes silently
   }, [rawData, contract]);
 
   // Cleanup effect
   useEffect(() => {
     return () => {
-      console.log(`🧹 [SvgOHLCVArea] Component unmounting for ${contract}`);
       aliveRef.current = false;
     };
   }, [contract]);
 
   // Process data: normalize, window, and transform
   const processedData = useMemo(() => {
-    console.log(`🔍 [SvgOHLCVArea] processedData useMemo triggered for ${contract}`);
-    console.log(`🔍 [SvgOHLCVArea] rawData.length:`, rawData.length);
-    console.log(`🔍 [SvgOHLCVArea] rawData:`, rawData);
-    
     if (!rawData.length) {
-      console.log(`⚠️ [SvgOHLCVArea] No raw data available for ${contract}`);
       return [];
     }
     
     try {
-      console.log(`📊 [SvgOHLCVArea] Processing ${rawData?.length || 0} raw data points for ${contract}`);
-      console.log(`🔍 [SvgOHLCVArea] Sample raw data:`, rawData?.slice?.(0, 2) || 'No data');
-      
       // Normalize OHLC data with proper bucketing
-      console.log(`🔄 [SvgOHLCVArea] About to normalize data...`);
       let normalized;
       try {
         normalized = normalizeOHLC(rawData, timeframe);
-        console.log(`🔄 [SvgOHLCVArea] Normalized to ${normalized?.length || 0} points`);
-        console.log(`🔍 [SvgOHLCVArea] Sample normalized data:`, normalized?.slice?.(0, 2) || 'No data');
       } catch (normalizeError) {
         console.error(`❌ [SvgOHLCVArea] Error in normalizeOHLC:`, normalizeError);
         throw normalizeError;
       }
       
       // Window to last N bars per timeframe
-      console.log(`📏 [SvgOHLCVArea] About to window data...`);
       let windowed;
       try {
         windowed = sliceWindow(normalized, timeframe);
-        console.log(`📏 [SvgOHLCVArea] Windowed to ${windowed?.length || 0} points`);
-        console.log(`🔍 [SvgOHLCVArea] Sample windowed data:`, windowed?.slice?.(0, 2) || 'No data');
       } catch (windowError) {
         console.error(`❌ [SvgOHLCVArea] Error in sliceWindow:`, windowError);
         throw windowError;
@@ -302,15 +248,12 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
       if (displayMode === 'mcap' && circulatingSupply) {
         const supply = Number(circulatingSupply) || 0;
         const transformed = windowed.map(c => ({ ...c, close: c.close * supply }));
-        console.log(`💰 [SvgOHLCVArea] Transformed to market cap mode`);
         return transformed;
       }
       
-      console.log(`✅ [SvgOHLCVArea] Final processed data: ${windowed.length} points`);
       return windowed;
     } catch (error) {
       console.error(`❌ [SvgOHLCVArea] Error processing data for ${contract}:`, error);
-      console.error(`❌ [SvgOHLCVArea] Raw data that caused error:`, rawData?.slice?.(0, 3) || 'No data'); // Show first 3 points
       return [];
     }
   }, [rawData, timeframe, displayMode, circulatingSupply]);
@@ -318,17 +261,13 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
   // Build scales and paths
   const { x, y, pad, plotW, plotH, tMin, tMax, yMin, yMax } = useMemo(() => {
     if (!processedData.length) {
-      console.log(`⚠️ [SvgOHLCVArea] No processed data for scales - returning empty scales`);
       return { x: () => 0, y: () => 0, pad: {}, plotW: 0, plotH: 0, tMin: 0, tMax: 0, yMin: 0, yMax: 0 };
     }
     try {
-      console.log(`📐 [SvgOHLCVArea] Building scales for ${processedData.length} points, width: ${width}, height: ${height}`);
       const scales = makeScales(processedData, width, height);
-      console.log(`✅ [SvgOHLCVArea] Scales built successfully`);
       return scales;
     } catch (scaleError) {
       console.error(`❌ [SvgOHLCVArea] Error building scales:`, scaleError);
-      console.error(`❌ [SvgOHLCVArea] Processed data that caused error:`, processedData?.slice?.(0, 3) || 'No data');
       return { x: () => 0, y: () => 0, pad: {}, plotW: 0, plotH: 0, tMin: 0, tMax: 0, yMin: 0, yMax: 0 };
     }
   }, [processedData, width, height]);
@@ -336,12 +275,9 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
   // Build SVG path
   const path = useMemo(() => {
     if (!processedData.length) {
-      console.log(`⚠️ [SvgOHLCVArea] No processed data for path generation`);
       return '';
     }
-    const svgPath = processedData.map((p, i) => `${i?'L':'M'} ${x(p.time*1000)} ${y(p.close)}`).join(' ');
-    console.log(`🛤️ [SvgOHLCVArea] Generated SVG path: ${svgPath.substring(0, 100)}...`);
-    return svgPath;
+    return processedData.map((p, i) => `${i?'L':'M'} ${x(p.time*1000)} ${y(p.close)}`).join(' ');
   }, [processedData, x, y]);
 
   // Build area path (closed)
@@ -547,7 +483,6 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
 
 // ---- 3) Main SVGChart Component -----------------------------------------------------------
 const SVGChart = ({ token, onClose }) => {
-  console.log('🚀 [SVGChart] Component rendering for token:', token?.symbol, token?.contractAddress);
   
   const [timeframe, setTimeframe] = useState('15MIN'); // Default to 15 minutes
   const [displayMode, setDisplayMode] = useState('price');
@@ -566,8 +501,6 @@ const SVGChart = ({ token, onClose }) => {
   ];
 
   const contract = token?.contractAddress || token?.contract || token?.mint || token?.address;
-  console.log('🔍 [SVGChart] Contract address:', contract);
-  console.log('🔍 [SVGChart] Token data:', token);
 
   return (
     <div className="bg-gray-900 rounded-lg p-4">
