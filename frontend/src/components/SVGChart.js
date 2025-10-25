@@ -147,7 +147,7 @@ function SvgOHLCVArea({
 
   // fetch from ChartService
   useEffect(() => {
-    let alive = true;
+    const aliveRef = { current: true };
     (async () => {
       try {
         setErr(null);
@@ -178,8 +178,9 @@ function SvgOHLCVArea({
           hasVolume: data[0]?.volume !== undefined
         });
         console.log(`🔍 [SvgOHLCVArea] About to check if alive...`);
-        if (!alive) {
-          console.log(`⚠️ [SvgOHLCVArea] Component not alive, returning early`);
+        console.log(`🔍 [SvgOHLCVArea] Component alive status:`, aliveRef.current);
+        if (!aliveRef.current) {
+          console.log(`⚠️ [SvgOHLCVArea] Component not alive, returning early - this means component unmounted during data fetch`);
           return;
         }
 
@@ -217,14 +218,14 @@ function SvgOHLCVArea({
         fetchingRef.current = false;
       } catch (e) {
         fetchingRef.current = false;
-        if (alive) {
+        if (aliveRef.current) {
           console.error(`❌ [SvgOHLCVArea] Error fetching chart data for ${contract}:`, e);
           setErr(e.message || "Failed to load chart data");
         }
       }
     })();
-    return () => { 
-      alive = false; 
+    return () => {
+      aliveRef.current = false;
       fetchingRef.current = false;
     };
   }, [contract, timeframe]);
