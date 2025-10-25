@@ -1357,6 +1357,69 @@ class EnhancedHybridPriceService extends EventEmitter {
         }
     }
 
+    // ✅ CRITICAL FIX: Add missing subscription methods for API compatibility
+    subscribeToToken(tokenAddress) {
+        try {
+            console.log(`🔌 [EnhancedHybridPriceService] Subscribing to token: ${tokenAddress.substring(0, 8)}...`);
+            
+            // Add token to pool addresses if not already present
+            if (!this.poolAddresses.has(tokenAddress)) {
+                // Try to get pool address from ChartDatabase
+                const poolAddress = this.chartDatabase?.getPoolAddress(tokenAddress);
+                if (poolAddress) {
+                    this.poolAddresses.set(tokenAddress, poolAddress);
+                    console.log(`✅ [EnhancedHybridPriceService] Added pool mapping: ${tokenAddress.substring(0, 8)}... -> ${poolAddress.substring(0, 8)}...`);
+                } else {
+                    console.log(`⚠️ [EnhancedHybridPriceService] No pool address found for ${tokenAddress.substring(0, 8)}...`);
+                }
+            }
+            
+            // Initialize real-time updates for this token
+            if (!this.realTimeUpdates.has(tokenAddress)) {
+                this.realTimeUpdates.set(tokenAddress, {
+                    lastUpdate: Date.now(),
+                    price: 0,
+                    liquidity: 0,
+                    marketCap: 0
+                });
+            }
+            
+            // Initialize swap history for this token
+            if (!this.swapHistory.has(tokenAddress)) {
+                this.swapHistory.set(tokenAddress, []);
+            }
+            
+            console.log(`✅ [EnhancedHybridPriceService] Successfully subscribed to ${tokenAddress.substring(0, 8)}...`);
+            return true;
+            
+        } catch (error) {
+            console.error(`❌ [EnhancedHybridPriceService] Failed to subscribe to ${tokenAddress.substring(0, 8)}...:`, error.message);
+            return false;
+        }
+    }
+    
+    unsubscribeFromToken(tokenAddress) {
+        try {
+            console.log(`🔌 [EnhancedHybridPriceService] Unsubscribing from token: ${tokenAddress.substring(0, 8)}...`);
+            
+            // Remove from pool addresses
+            const removed = this.poolAddresses.delete(tokenAddress);
+            
+            // Remove from real-time updates
+            this.realTimeUpdates.delete(tokenAddress);
+            
+            // Remove from swap history
+            this.swapHistory.delete(tokenAddress);
+            
+            console.log(`✅ [EnhancedHybridPriceService] Successfully unsubscribed from ${tokenAddress.substring(0, 8)}...`);
+            return removed;
+            
+        } catch (error) {
+            console.error(`❌ [EnhancedHybridPriceService] Failed to unsubscribe from ${tokenAddress.substring(0, 8)}...:`, error.message);
+            return false;
+        }
+    }
+
     // Cleanup methods
     stopRealTimeMonitoring() {
         console.log('🛑 [EnhancedHybridPriceService] Stopping real-time monitoring...');
