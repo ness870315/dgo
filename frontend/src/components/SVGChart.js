@@ -219,8 +219,13 @@ function SvgOHLCVArea({
 
   // Build SVG path
   const path = useMemo(() => {
-    if (!processedData.length) return '';
-    return processedData.map((p, i) => `${i?'L':'M'} ${x(p.time*1000)} ${y(p.close)}`).join(' ');
+    if (!processedData.length) {
+      console.log(`⚠️ [SvgOHLCVArea] No processed data for path generation`);
+      return '';
+    }
+    const svgPath = processedData.map((p, i) => `${i?'L':'M'} ${x(p.time*1000)} ${y(p.close)}`).join(' ');
+    console.log(`🛤️ [SvgOHLCVArea] Generated SVG path: ${svgPath.substring(0, 100)}...`);
+    return svgPath;
   }, [processedData, x, y]);
 
   // Build area path (closed)
@@ -337,6 +342,10 @@ function SvgOHLCVArea({
 
         {/* line */}
         <path d={path} stroke={stroke} strokeWidth="2.5" fill="none" strokeLinejoin="round" strokeLinecap="round"/>
+        {/* Debug: Show chart info */}
+        <text x="10" y="20" fill="white" fontSize="12">Data: {processedData.length} points</text>
+        <text x="10" y="35" fill="white" fontSize="12">Size: {width}x{height}</text>
+        <text x="10" y="50" fill="white" fontSize="12">Path: {path ? 'Generated' : 'Empty'}</text>
 
         {/* Crosshair */}
         {mousePos && (
