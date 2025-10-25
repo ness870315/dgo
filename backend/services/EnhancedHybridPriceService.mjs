@@ -682,80 +682,17 @@ class EnhancedHybridPriceService extends EventEmitter {
         try {
             console.log(`🔍 [DEBUG] getPoolReserves called for pool: ${poolAddress}, token: ${tokenAddress}`);
             
-            const response = await axios.post(CONSTANT_K_RPC, {
-                jsonrpc: '2.0',
-                id: 1,
-                method: 'getTokenAccountsByOwner',
-                params: [
-                    poolAddress,
-                    { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' },
-                    { encoding: 'jsonParsed' }
-                ]
-            });
-
-            console.log(`🔍 [DEBUG] Constant K RPC response status: ${response.status}`);
-            console.log(`🔍 [DEBUG] Response data:`, response.data);
-
-            const tokenAccounts = response.data?.result?.value || [];
-            console.log(`🔍 [DEBUG] Found ${tokenAccounts.length} token accounts for pool ${poolAddress}`);
-            
-            if (tokenAccounts.length >= 2) {
-                let tokenReserves = 0;
-                let solReserves = 0;
-                
-                tokenAccounts.forEach(account => {
-                    const mint = account.account.data.parsed.info.mint;
-                    const amount = parseFloat(account.account.data.parsed.info.tokenAmount.uiAmount || 0);
-                    
-                    console.log(`🔍 [DEBUG] Account mint: ${mint}, amount: ${amount}`);
-                    
-                    if (mint === tokenAddress) {
-                        tokenReserves = amount;
-                        console.log(`🔍 [DEBUG] Set tokenReserves to ${amount} for token ${tokenAddress}`);
-                    } else if (mint === WSOL) {
-                        solReserves = amount;
-                        console.log(`🔍 [DEBUG] Set solReserves to ${amount} for WSOL`);
-                    }
-                });
-                
-                console.log(`🔍 [DEBUG] Final reserves - tokenReserves: ${tokenReserves}, solReserves: ${solReserves}`);
-                
-                // Validate that we have valid reserves
-                if (tokenReserves > 0 && solReserves > 0) {
-                    return { tokenReserves, solReserves };
-                } else {
-                    console.log(`❌ [DEBUG] Invalid reserves - tokenReserves: ${tokenReserves}, solReserves: ${solReserves}`);
-                    return null;
-                }
+            // ✅ CRITICAL FIX: Use ONLY gRPC data - NO REST API calls!
+            const grpcData = this.realTimeUpdates.get(tokenAddress);
+            if (grpcData) {
+                console.log(`✅ [DEBUG] Using gRPC data for ${tokenAddress}: tokenReserves=${grpcData.tokenReserves}, solReserves=${grpcData.solReserves}`);
+                return grpcData;
             }
             
-            console.log(`❌ [DEBUG] Not enough token accounts (${tokenAccounts.length}) for pool ${poolAddress}`);
-            
-            // ✅ FALLBACK: Try Jupiter API when Constant K RPC fails
-            console.log(`🔄 [DEBUG] Trying Jupiter API fallback for token ${tokenAddress}...`);
-            try {
-                const jupiterData = await this.fetchJupiterTokenData(tokenAddress);
-                if (jupiterData) {
-                    console.log(`✅ [DEBUG] Jupiter fallback successful - jupiterData:`, jupiterData);
-                    
-                    // Use the parsed reserves from our Meteora parsing logic
-                    const tokenReserves = jupiterData.tokenReserves || 0;
-                    const solReserves = jupiterData.solReserves || 0;
-                    
-                    console.log(`✅ [DEBUG] Parsed reserves - tokenReserves: ${tokenReserves}, solReserves: ${solReserves}`);
-                    
-                    if (tokenReserves > 0 || solReserves > 0) {
-                        return { tokenReserves, solReserves };
-                    }
-                }
-            } catch (jupiterError) {
-                console.log(`❌ [DEBUG] Jupiter fallback failed:`, jupiterError.message);
-            }
-            
+            console.log(`⚠️ [DEBUG] No gRPC data available for ${tokenAddress} - returning null`);
             return null;
         } catch (error) {
-            console.error(`❌ [DEBUG] Error fetching pool reserves for ${poolAddress}:`, error.message);
-            console.error(`❌ [DEBUG] Error details:`, error.response?.data || error.stack);
+            console.error(`❌ [DEBUG] Error in getPoolReserves for ${poolAddress}:`, error.message);
             return null;
         }
     }

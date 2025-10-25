@@ -1,6 +1,6 @@
 {
   "name": "xtrend-monorepo",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "DeGen Oracle - Solana Meme Coin Discovery Platform",
   "private": true,
   "workspaces": [
