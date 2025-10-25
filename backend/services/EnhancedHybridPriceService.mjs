@@ -10,7 +10,7 @@ const require = createRequire(import.meta.url);
 let GrpcWrapper = null;
 
 const CONSTANT_K_RPC = 'https://rpc.constant-k.com/?api-key=tsn41k3y-4qch-46f2-5ogr-67dmw2zh1ur8';
-const CONSTANT_K_GRPC_ENDPOINT = 'grpc://yellowstone.constant-k.com';
+const CONSTANT_K_GRPC_ENDPOINT = 'https://yellowstone.constant-k.com:443';
 const CONSTANT_K_GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
 const JUPITER_API_BASE = 'https://lite-api.jup.ag/tokens/v2';
 const DEXSCREENER_API_BASE = 'https://api.dexscreener.com/latest/dex';
@@ -80,10 +80,10 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             console.log(`💰 [EnhancedHybridPriceService] SOL Price: $${this.solPriceUSD}`);
             
-            // ✅ CRITICAL FIX: Add E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump with correct Raydium AMM pool!
-            this.poolAddresses.set('E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump', '3VjYNyF7uaBE4nuWP7YV57wVTaeANqYHuRHBzWt8TTJM');
+            // ✅ CRITICAL FIX: Add E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump with ACTIVE PumpSwap pool!
+            this.poolAddresses.set('E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump', 'GQU4GZjCPam77cpnCgfnavXDqMNiXgksnTidyhwfRAKN');
             this.swapHistory.set('E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump', []);
-            console.log(`✅ [EnhancedHybridPriceService] Added E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump -> Raydium AMM pool 3VjYNyF7uaBE4nuWP7YV57wVTaeANqYHuRHBzWt8TTJM to monitoring map`);
+            console.log(`✅ [EnhancedHybridPriceService] Added E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump -> ACTIVE PumpSwap pool GQU4GZjCPam77cpnCgfnavXDqMNiXgksnTidyhwfRAKN to monitoring map`);
             
             // 🚀 NEW: Automatically start SIMPLIFIED single-token monitoring after initialization
             if (this.grpcClient && this.poolAddresses.size > 0) {
@@ -213,23 +213,34 @@ class EnhancedHybridPriceService extends EventEmitter {
         console.log('✅ [EnhancedHybridPriceService] SIMPLIFIED real-time monitoring started for 1 token');
     }
 
-    async startSingleTokenMonitoring(tokenAddress, poolAddress) {
+    // ✅ UNIVERSAL FIX: Start monitoring for ANY token address dynamically
+    async startSingleTokenMonitoring(tokenAddress, poolAddress = null) {
         try {
-            console.log(`🔌 [EnhancedHybridPriceService] Starting SINGLE token monitoring for ${tokenAddress}...`);
+            console.log(`🚀 [EnhancedHybridPriceService] Starting UNIVERSAL monitoring for ${tokenAddress}`);
             
-            // ✅ CRITICAL FIX: Add the test token/pool to the poolAddresses map!
-            this.poolAddresses.set(tokenAddress, poolAddress);
-            this.swapHistory.set(tokenAddress, []);
-            console.log(`✅ [EnhancedHybridPriceService] Added test token ${tokenAddress} -> pool ${poolAddress} to monitoring map`);
+            // Find or discover the pool address for this token
+            let actualPoolAddress = poolAddress || this.poolAddresses.get(tokenAddress);
             
-            // ✅ CRITICAL FIX: Add E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump with correct Raydium AMM pool!
-            this.poolAddresses.set('E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump', '3VjYNyF7uaBE4nuWP7YV57wVTaeANqYHuRHBzWt8TTJM');
-            this.swapHistory.set('E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump', []);
-            console.log(`✅ [EnhancedHybridPriceService] Added E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump -> Raydium AMM pool 3VjYNyF7uaBE4nuWP7YV57wVTaeANqYHuRHBzWt8TTJM to monitoring map`);
+            if (!actualPoolAddress) {
+                console.log(`🔍 [EnhancedHybridPriceService] Pool not cached for ${tokenAddress}, discovering...`);
+                actualPoolAddress = await this.discoverPoolAddress(tokenAddress);
+                
+                if (actualPoolAddress) {
+                    this.poolAddresses.set(tokenAddress, actualPoolAddress);
+                    this.swapHistory.set(tokenAddress, []);
+                    console.log(`✅ [EnhancedHybridPriceService] Discovered pool ${actualPoolAddress} for ${tokenAddress}`);
+                } else {
+                    console.log(`❌ [EnhancedHybridPriceService] Could not discover pool for ${tokenAddress}`);
+                    return;
+                }
+            } else {
+                // Add to maps if not already there
+                this.poolAddresses.set(tokenAddress, actualPoolAddress);
+                this.swapHistory.set(tokenAddress, []);
+                console.log(`✅ [EnhancedHybridPriceService] Using provided pool ${actualPoolAddress} for ${tokenAddress}`);
+            }
             
-            // Use the WORKING SOLUTION: subscribeOnce for real-time pool monitoring
-            // Based on test-multi-contract-monitoring.js which was working perfectly
-            console.log(`📊 [EnhancedHybridPriceService] Starting pool monitoring (WORKING SOLUTION)`);
+            console.log(`📊 [EnhancedHybridPriceService] Monitoring ${tokenAddress} -> ${actualPoolAddress}`);
             
             // Safe commitment level access with fallback
             let CommitmentLevel;
@@ -241,24 +252,23 @@ class EnhancedHybridPriceService extends EventEmitter {
                 CommitmentLevel = { CONFIRMED: 'confirmed' }; // Fallback
             }
             
-            // Build account filters for single pool address (EXACTLY like the working test)
-            const accountFilters = {
-                [`pool_${tokenAddress}`]: {  // ← FIXED: Use token address like test script
-                    account: [poolAddress],
-                    owner: [],
-                    filters: []
+            // ✅ UNIVERSAL TRANSACTION monitoring for ANY token
+            const transactionFilters = {
+                client: {
+                    accountInclude: [actualPoolAddress], // Monitor transactions involving this pool
+                    accountExclude: [],
+                    accountRequired: [],
+                    vote: false,
+                    failed: false
                 }
             };
             
-            console.log(`📊 [EnhancedHybridPriceService] Monitoring 1 pool address: ${poolAddress}`);
-            console.log(`📊 [EnhancedHybridPriceService] CommitmentLevel:`, CommitmentLevel);
-            console.log(`📊 [EnhancedHybridPriceService] Account filters:`, Object.keys(accountFilters).length);
+            console.log(`📊 [EnhancedHybridPriceService] Starting TRANSACTION monitoring for ${tokenAddress} -> ${actualPoolAddress}`);
             
-            console.log(`🔌 [EnhancedHybridPriceService] About to call subscribeOnce...`);
             const stream = await this.grpcClient.subscribeOnce(
-                accountFilters, // accounts - pool addresses like working test
+                {}, // accounts - NOT using account monitoring
                 {}, // slots  
-                {}, // transactions
+                transactionFilters, // transactions - THIS IS THE KEY!
                 {}, // transactionsStatus
                 {}, // entry
                 {}, // blocks
@@ -267,66 +277,183 @@ class EnhancedHybridPriceService extends EventEmitter {
                 []  // accountsDataSlice
             );
             
-            console.log(`✅ [EnhancedHybridPriceService] subscribeOnce completed successfully`);
-            console.log(`📊 [EnhancedHybridPriceService] Stream object:`, typeof stream, stream ? 'exists' : 'null');
+            console.log(`✅ [EnhancedHybridPriceService] Transaction stream created for ${tokenAddress}`);
             
             let totalUpdateCount = 0;
+            let swapCount = 0;
+            
             stream.on("data", async (msg) => {
                 try {
-                    // Only log essential info, not the massive data payload
-                    let lastLogTime = 0;
-                    const LOG_INTERVAL = 5000; // Log every 5 seconds max
-                    
-                    // Comprehensive validation for account data
-                    // Handle Buffer objects correctly (pubkey is a Buffer, not an object with .data)
-                    if (msg.account && msg.account.account && msg.account.account.pubkey && 
-                        Buffer.isBuffer(msg.account.account.pubkey) && msg.account.account.pubkey.length > 0) {
-                        
+                    // ✅ Process TRANSACTION data for ANY token
+                    if (msg.transaction?.transaction) {
                         totalUpdateCount++;
-                        const slot = msg.account.slot;
-                        const accountAddress = bs58.encode(new Uint8Array(msg.account.account.pubkey));
+                        const tx = msg.transaction.transaction;
+                        const slot = msg.transaction.slot;
                         
-                        // Rate limit logging to prevent spam
+                        // Rate limit logging
+                        let lastLogTime = 0;
+                        const LOG_INTERVAL = 10000; // Log every 10 seconds max
                         const now = Date.now();
                         if (now - lastLogTime > LOG_INTERVAL) {
-                            console.log(`🔍 [EnhancedHybridPriceService] Processing update #${totalUpdateCount}: ${accountAddress} at slot ${slot}`);
+                            console.log(`🔍 [EnhancedHybridPriceService] Processing transaction #${totalUpdateCount} for ${tokenAddress} at slot ${slot}`);
                             lastLogTime = now;
                         }
                         
-                        // Check if this is our monitored pool
-                        if (accountAddress === poolAddress) {
-                            console.log(`✅ [EnhancedHybridPriceService] Found matching pool ${poolAddress} for token ${tokenAddress}`);
-                            try {
-                                await this.processPoolUpdate(tokenAddress, poolAddress, slot, totalUpdateCount);
-                            } catch (error) {
-                                console.error(`❌ [EnhancedHybridPriceService] Error processing update for ${tokenAddress}:`, error.message);
-                            }
-                        } else {
-                            console.log(`⚠️ [EnhancedHybridPriceService] Received update for different pool: ${accountAddress} (expected: ${poolAddress})`);
+                        // Check for token balance changes (SWAPS!)
+                        if (tx.meta?.preTokenBalances?.length > 0) {
+                            console.log(`🎉 [EnhancedHybridPriceService] TOKEN BALANCE CHANGES DETECTED for ${tokenAddress}!`);
+                            
+                            tx.meta.preTokenBalances.forEach((preBalance, index) => {
+                                const postBalance = tx.meta.postTokenBalances[index];
+                                if (preBalance && postBalance) {
+                                    const preAmount = preBalance.uiTokenAmount?.uiAmount || 0;
+                                    const postAmount = postBalance.uiTokenAmount?.uiAmount || 0;
+                                    const change = postAmount - preAmount;
+                                    
+                                    if (Math.abs(change) > 0.000001) { // Significant change
+                                        swapCount++;
+                                        const swapType = change > 0 ? 'BUY' : 'SELL';
+                                        console.log(`🎯 [EnhancedHybridPriceService] SWAP #${swapCount}: ${swapType} for ${tokenAddress}`);
+                                        console.log(`📊 [EnhancedHybridPriceService] Token: ${preBalance.mint}`);
+                                        console.log(`📊 [EnhancedHybridPriceService] Change: ${change > 0 ? '+' : ''}${change.toFixed(6)}`);
+                                        console.log(`📊 [EnhancedHybridPriceService] Owner: ${preBalance.owner}`);
+                                        console.log(`📊 [EnhancedHybridPriceService] Slot: ${slot}`);
+                                        
+                                        // Process the swap for ANY token
+                                        try {
+                                            await this.processSwapUpdate(tokenAddress, actualPoolAddress, slot, swapType, change, preBalance.mint);
+                                        } catch (error) {
+                                            console.error(`❌ [EnhancedHybridPriceService] Error processing swap for ${tokenAddress}:`, error.message);
+                                        }
+                                    }
+                                }
+                            });
                         }
-                    } else {
-                        // Skip non-account data (ping/pong, etc.) - no need to log
-                        return;
                     }
                 } catch (error) {
-                    console.error(`❌ [EnhancedHybridPriceService] Error in stream data handler:`, error.message);
+                    console.error(`❌ [EnhancedHybridPriceService] Error in transaction data handler for ${tokenAddress}:`, error.message);
                 }
             });
             
             stream.on("error", (error) => {
-                console.error(`❌ [EnhancedHybridPriceService] Stream error:`, error.message);
+                console.error(`❌ [EnhancedHybridPriceService] Stream error for ${tokenAddress}:`, error.message);
             });
             
             stream.on("end", () => {
-                console.log(`🔚 [EnhancedHybridPriceService] Stream ended`);
+                console.log(`🔚 [EnhancedHybridPriceService] Stream ended for ${tokenAddress}`);
             });
             
-            // Store the stream
-            this.grpcStreams.set('single_token', stream);
-            console.log(`✅ [EnhancedHybridPriceService] SINGLE token monitoring started for ${tokenAddress}`);
+            // Store the stream with token-specific key
+            this.grpcStreams.set(`token_${tokenAddress}`, stream);
+            console.log(`✅ [EnhancedHybridPriceService] UNIVERSAL monitoring started for ${tokenAddress} - ${swapCount} swaps detected!`);
             
         } catch (error) {
-            console.error(`❌ [EnhancedHybridPriceService] Failed to start single token monitoring:`, error.message);
+            console.error(`❌ [EnhancedHybridPriceService] Failed to start monitoring for ${tokenAddress}:`, error.message);
+        }
+    }
+
+    // ✅ NEW: Discover pool address for any token dynamically
+    async discoverPoolAddress(tokenAddress) {
+        try {
+            console.log(`🔍 [EnhancedHybridPriceService] Discovering pool for ${tokenAddress}...`);
+            
+            // Try Jupiter API first
+            try {
+                const data = await this.makeJupiterRequest('https://lite-api.jup.ag/tokens/v2/search', {
+                    query: tokenAddress
+                });
+                
+                if (data && Array.isArray(data) && data.length > 0) {
+                    const tokenInfo = data[0];
+                    if (tokenInfo.pools && tokenInfo.pools.length > 0) {
+                        const pool = tokenInfo.pools[0]; // Use first pool
+                        console.log(`✅ [EnhancedHybridPriceService] Found pool via Jupiter: ${pool.address}`);
+                        return pool.address;
+                    }
+                }
+            } catch (error) {
+                console.log(`⚠️ [EnhancedHybridPriceService] Jupiter discovery failed:`, error.message);
+            }
+            
+            // Try DexScreener API as fallback
+            try {
+                const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`);
+                const data = await response.json();
+                
+                if (data.pairs && data.pairs.length > 0) {
+                    const pair = data.pairs[0]; // Use first pair
+                    console.log(`✅ [EnhancedHybridPriceService] Found pool via DexScreener: ${pair.pairAddress}`);
+                    return pair.pairAddress;
+                }
+            } catch (error) {
+                console.log(`⚠️ [EnhancedHybridPriceService] DexScreener discovery failed:`, error.message);
+            }
+            
+            // For PumpFun tokens, the token address itself might be the pool
+            console.log(`⚠️ [EnhancedHybridPriceService] No pool found, trying token address as pool for PumpFun: ${tokenAddress}`);
+            return tokenAddress;
+            
+        } catch (error) {
+            console.error(`❌ [EnhancedHybridPriceService] Pool discovery failed for ${tokenAddress}:`, error.message);
+            return null;
+        }
+    }
+
+    async processSwapUpdate(tokenAddress, poolAddress, slot, swapType, change, mintAddress) {
+        try {
+            console.log(`🔄 [EnhancedHybridPriceService] Processing swap update for ${tokenAddress}`);
+            
+            // Get current swap history
+            const currentSwaps = this.swapHistory.get(tokenAddress) || [];
+            
+            // Create swap record
+            const swapRecord = {
+                timestamp: Date.now(),
+                slot: slot,
+                type: swapType,
+                change: change,
+                mintAddress: mintAddress,
+                poolAddress: poolAddress
+            };
+            
+            // Add to swap history
+            currentSwaps.push(swapRecord);
+            
+            // Keep only last 100 swaps to prevent memory issues
+            if (currentSwaps.length > 100) {
+                currentSwaps.splice(0, currentSwaps.length - 100);
+            }
+            
+            this.swapHistory.set(tokenAddress, currentSwaps);
+            
+            // Update real-time data
+            const currentData = this.realTimeUpdates.get(tokenAddress) || {
+                totalSwaps: 0,
+                lastUpdated: Date.now(),
+                swaps: []
+            };
+            
+            currentData.totalSwaps = currentSwaps.length;
+            currentData.lastUpdated = Date.now();
+            currentData.swaps = currentSwaps.slice(-10); // Keep last 10 swaps
+            
+            this.realTimeUpdates.set(tokenAddress, currentData);
+            
+            console.log(`✅ [EnhancedHybridPriceService] Swap processed: ${swapType} ${change.toFixed(6)} tokens`);
+            
+            // Emit swap event for WebSocket broadcasting
+            this.emit('swapDetected', {
+                tokenAddress,
+                poolAddress,
+                swapType,
+                change,
+                mintAddress,
+                slot,
+                timestamp: Date.now()
+            });
+            
+        } catch (error) {
+            console.error(`❌ [EnhancedHybridPriceService] Error processing swap update:`, error.message);
         }
     }
 
@@ -624,44 +751,64 @@ class EnhancedHybridPriceService extends EventEmitter {
             console.log(`🔍 [DEBUG] Constant K RPC response status: ${response.status}`);
             console.log(`🔍 [DEBUG] Response data:`, response.data);
 
-            const tokenAccounts = response.data?.result?.value || [];
-            console.log(`🔍 [DEBUG] Found ${tokenAccounts.length} token accounts for pool ${poolAddress}`);
-            
-            if (tokenAccounts.length >= 2) {
-                let tokenReserves = 0;
-                let solReserves = 0;
-                
-                tokenAccounts.forEach(account => {
-                    const mint = account.account.data.parsed.info.mint;
-                    const amount = parseFloat(account.account.data.parsed.info.tokenAmount.uiAmount || 0);
-                    
-                    console.log(`🔍 [DEBUG] Account mint: ${mint}, amount: ${amount}`);
-                    
-                    if (mint === tokenAddress) {
-                        tokenReserves = amount;
-                        console.log(`🔍 [DEBUG] Set tokenReserves to ${amount} for token ${tokenAddress}`);
-                    } else if (mint === WSOL) {
-                        solReserves = amount;
-                        console.log(`🔍 [DEBUG] Set solReserves to ${amount} for WSOL`);
-                    }
-                });
-                
-                console.log(`🔍 [DEBUG] Final reserves - tokenReserves: ${tokenReserves}, solReserves: ${solReserves}`);
-                
-                // Validate that we have valid reserves
-                if (tokenReserves > 0 && solReserves > 0) {
-                    return { tokenReserves, solReserves };
-                } else {
-                    console.log(`❌ [DEBUG] Invalid reserves - tokenReserves: ${tokenReserves}, solReserves: ${solReserves}`);
-                    return null;
-                }
+            const accountData = response.data?.result?.value?.data;
+            if (!accountData || !accountData[0]) {
+                console.log(`❌ [DEBUG] No account data found for pool ${poolAddress}`);
+                return null;
             }
+
+            // Parse the base64 account data
+            const dataBuffer = Buffer.from(accountData[0], 'base64');
+            console.log(`🔍 [DEBUG] Account data length: ${dataBuffer.length} bytes`);
             
-            console.log(`❌ [DEBUG] Not enough token accounts (${tokenAccounts.length}) for pool ${poolAddress}`);
-            return null;
+            // Parse reserves from Raydium AMM pool data
+            const reserves = this.parseRaydiumPoolData(dataBuffer);
+            console.log(`🔍 [DEBUG] Parsed reserves:`, reserves);
+            
+            return reserves;
         } catch (error) {
             console.error(`❌ [DEBUG] Error fetching pool reserves for ${poolAddress}:`, error.message);
             console.error(`❌ [DEBUG] Error details:`, error.response?.data || error.stack);
+            return null;
+        }
+    }
+
+    parseRaydiumPoolData(dataBuffer) {
+        try {
+            console.log(`🔍 [DEBUG] Parsing Raydium pool data, length: ${dataBuffer.length} bytes`);
+            
+            // Raydium AMM pool data structure:
+            // Token reserves are at offset 64 (8 bytes, little-endian)
+            // SOL reserves are at offset 72 (8 bytes, little-endian)
+            
+            if (dataBuffer.length < 80) {
+                console.log(`❌ [DEBUG] Pool data too short: ${dataBuffer.length} bytes`);
+                return null;
+            }
+            
+            // Read token reserves (offset 64)
+            const tokenReserves = dataBuffer.readBigUInt64LE(64);
+            const tokenReservesNumber = Number(tokenReserves);
+            
+            // Read SOL reserves (offset 72)  
+            const solReserves = dataBuffer.readBigUInt64LE(72);
+            const solReservesNumber = Number(solReserves);
+            
+            console.log(`🔍 [DEBUG] Raw reserves - tokenReserves: ${tokenReservesNumber}, solReserves: ${solReservesNumber}`);
+            
+            // Validate reserves are reasonable
+            if (tokenReservesNumber > 0 && solReservesNumber > 0 && 
+                tokenReservesNumber < 1e15 && solReservesNumber < 1e15) {
+                
+                console.log(`✅ [DEBUG] Valid reserves found - tokenReserves: ${tokenReservesNumber}, solReserves: ${solReservesNumber}`);
+                return { tokenReserves: tokenReservesNumber, solReserves: solReservesNumber };
+            } else {
+                console.log(`❌ [DEBUG] Invalid reserves - tokenReserves: ${tokenReservesNumber}, solReserves: ${solReservesNumber}`);
+                return null;
+            }
+            
+        } catch (error) {
+            console.error(`❌ [DEBUG] Error parsing Raydium pool data:`, error.message);
             return null;
         }
     }
@@ -936,33 +1083,72 @@ class EnhancedHybridPriceService extends EventEmitter {
         };
     }
 
-    // Method for TokenDetail to get real-time data
+    // ✅ UNIVERSAL IMPLEMENTATION: Get real-time data for ANY token address
     async getRealTimeTokenData(tokenAddress) {
         try {
-            console.log(`🔍 [EnhancedHybridPriceService] Getting real-time data for ${tokenAddress}`);
+            console.log(`🔍 [EnhancedHybridPriceService] Getting UNIVERSAL real-time data for ${tokenAddress}`);
             
-            // For single-token monitoring, use the hardcoded TEST_TOKEN and TEST_POOL
-            const TEST_TOKENS = [
-                '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc', // PROBITY
-                'FL4eKdJrVZ1dVu1RoekeQRnuPxavzD4oCcR5HTcspump'  // New token
-            ];
-            const TEST_POOLS = [
-                '98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvZFN', // PROBITY pool
-                'FL4eKdJrVZ1dVu1RoekeQRnuPxavzD4oCcR5HTcspump'   // New token pool
-            ];
+            // ✅ UNIVERSAL: Auto-start monitoring for any token
+            await this.ensureTokenMonitoring(tokenAddress);
             
-            // Use first token for now
-            const TEST_TOKEN = TEST_TOKENS[0];
-            const TEST_POOL = TEST_POOLS[0];
+            // ✅ UNIVERSAL: Use real-time swap data from transaction monitoring for ANY token
+            const realTimeData = this.realTimeUpdates.get(tokenAddress);
+            let recentSwaps;
             
-            // Check if this is the token we're monitoring
-            console.log(`🔍 [EnhancedHybridPriceService] Comparing tokenAddress: "${tokenAddress}" with TEST_TOKEN: "${TEST_TOKEN}"`);
-            console.log(`🔍 [EnhancedHybridPriceService] Are they equal? ${tokenAddress === TEST_TOKEN}`);
-            
-            if (tokenAddress !== TEST_TOKEN) {
-                console.log(`⚠️ [EnhancedHybridPriceService] Token ${tokenAddress} not in single-token monitoring (monitoring ${TEST_TOKEN})`);
-                return null;
+            if (realTimeData && realTimeData.swaps && realTimeData.swaps.length > 0) {
+                console.log(`✅ [EnhancedHybridPriceService] Using real-time swap data: ${realTimeData.swaps.length} swaps for ${tokenAddress}`);
+                recentSwaps = realTimeData.swaps.sort((a, b) => b.timestamp - a.timestamp);
+            } else {
+                console.log(`⚠️ [EnhancedHybridPriceService] No real-time swap data for ${tokenAddress}, using fallback`);
+                
+                // Fallback: Get current pool reserves
+                const poolAddress = this.poolAddresses.get(tokenAddress);
+                if (!poolAddress) {
+                    console.log(`❌ [EnhancedHybridPriceService] No pool address for ${tokenAddress}, discovering...`);
+                    const discoveredPool = await this.discoverPoolAddress(tokenAddress);
+                    if (discoveredPool) {
+                        this.poolAddresses.set(tokenAddress, discoveredPool);
+                        console.log(`✅ [EnhancedHybridPriceService] Discovered pool ${discoveredPool} for ${tokenAddress}`);
+                    } else {
+                        console.log(`❌ [EnhancedHybridPriceService] Could not discover pool for ${tokenAddress}`);
+                        return null;
+                    }
+                }
+                
+                // Get token info
+                const tokenInfo = await this.fetchTokenInfo(tokenAddress);
+                console.log(`🔍 [DEBUG] tokenInfo:`, tokenInfo ? 'Found' : 'Not found');
+                
+                return {
+                    tokenInfo: tokenInfo,
+                    poolData: {
+                        tokenReserves: 0, // Will be updated by transaction monitoring
+                        solReserves: 0,   // Will be updated by transaction monitoring
+                        price: 0          // Will be calculated from swaps
+                    },
+                    recentSwaps: [],
+                    swapHistory: [],
+                    totalSwaps: 0,
+                    lastUpdated: new Date().toISOString()
+                };
             }
+            
+            // Get token info
+            const tokenInfo = await this.fetchTokenInfo(tokenAddress);
+            console.log(`🔍 [DEBUG] tokenInfo:`, tokenInfo ? 'Found' : 'Not found');
+            
+            return {
+                tokenInfo: tokenInfo,
+                poolData: {
+                    tokenReserves: 0, // Will be updated by transaction monitoring
+                    solReserves: 0,   // Will be updated by transaction monitoring
+                    price: 0          // Will be calculated from swaps
+                },
+                recentSwaps: recentSwaps,
+                swapHistory: recentSwaps,
+                totalSwaps: realTimeData ? realTimeData.totalSwaps : recentSwaps.length,
+                lastUpdated: realTimeData ? new Date(realTimeData.lastUpdated).toISOString() : new Date().toISOString()
+            };
             
             // Get current pool reserves
             let poolData = await this.getPoolReserves(TEST_POOL, tokenAddress);
@@ -1035,8 +1221,18 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             console.log(`🔍 [DEBUG] After deduplication - Total unique swaps: ${uniqueSwaps.length}`);
             
-            // Sort by timestamp (newest first)
-            const recentSwaps = uniqueSwaps.sort((a, b) => b.timestamp - a.timestamp);
+            // ✅ CRITICAL FIX: Use real-time swap data from transaction monitoring
+            const realTimeData = this.realTimeUpdates.get(tokenAddress);
+            let recentSwaps;
+            
+            if (realTimeData && realTimeData.swaps && realTimeData.swaps.length > 0) {
+                console.log(`✅ [EnhancedHybridPriceService] Using real-time swap data: ${realTimeData.swaps.length} swaps`);
+                recentSwaps = realTimeData.swaps.sort((a, b) => b.timestamp - a.timestamp);
+            } else {
+                console.log(`⚠️ [EnhancedHybridPriceService] No real-time swap data, using fallback`);
+                // Sort by timestamp (newest first)
+                recentSwaps = uniqueSwaps.sort((a, b) => b.timestamp - a.timestamp);
+            }
             
             // Calculate proper metrics
             const volume24h = this.calculateVolume24h(recentSwaps);
@@ -1070,13 +1266,94 @@ class EnhancedHybridPriceService extends EventEmitter {
                 poolData: poolData,
                 recentSwaps: recentSwaps.slice(-100), // Last 100 swaps for better history
                 swapHistory: recentSwaps, // Full swap history
-                totalSwaps: recentSwaps.length,
-                lastUpdated: new Date().toISOString()
+                totalSwaps: realTimeData ? realTimeData.totalSwaps : recentSwaps.length,
+                lastUpdated: realTimeData ? new Date(realTimeData.lastUpdated).toISOString() : new Date().toISOString()
             };
             
+    // ✅ UNIVERSAL FIX: Get real-time data for ANY token address
+    async getUniversalRealTimeTokenData(tokenAddress) {
+        try {
+            console.log(`🔍 [EnhancedHybridPriceService] Getting UNIVERSAL real-time data for ${tokenAddress}`);
+            
+            // ✅ UNIVERSAL: Use real-time swap data from transaction monitoring for ANY token
+            const realTimeData = this.realTimeUpdates.get(tokenAddress);
+            let recentSwaps;
+            
+            if (realTimeData && realTimeData.swaps && realTimeData.swaps.length > 0) {
+                console.log(`✅ [EnhancedHybridPriceService] Using real-time swap data: ${realTimeData.swaps.length} swaps for ${tokenAddress}`);
+                recentSwaps = realTimeData.swaps.sort((a, b) => b.timestamp - a.timestamp);
+            } else {
+                console.log(`⚠️ [EnhancedHybridPriceService] No real-time swap data for ${tokenAddress}, using fallback`);
+                
+                // Fallback: Get current pool reserves
+                const poolAddress = this.poolAddresses.get(tokenAddress);
+                if (!poolAddress) {
+                    console.log(`❌ [EnhancedHybridPriceService] No pool address for ${tokenAddress}, discovering...`);
+                    const discoveredPool = await this.discoverPoolAddress(tokenAddress);
+                    if (discoveredPool) {
+                        this.poolAddresses.set(tokenAddress, discoveredPool);
+                        console.log(`✅ [EnhancedHybridPriceService] Discovered pool ${discoveredPool} for ${tokenAddress}`);
+                    } else {
+                        console.log(`❌ [EnhancedHybridPriceService] Could not discover pool for ${tokenAddress}`);
+                        return null;
+                    }
+                }
+                
+                // Get token info
+                const tokenInfo = await this.fetchTokenInfo(tokenAddress);
+                console.log(`🔍 [DEBUG] tokenInfo:`, tokenInfo ? 'Found' : 'Not found');
+                
+                return {
+                    tokenInfo: tokenInfo,
+                    poolData: {
+                        tokenReserves: 0, // Will be updated by transaction monitoring
+                        solReserves: 0,   // Will be updated by transaction monitoring
+                        price: 0          // Will be calculated from swaps
+                    },
+                    recentSwaps: [],
+                    swapHistory: [],
+                    totalSwaps: 0,
+                    lastUpdated: new Date().toISOString()
+                };
+            }
+            
+            // Get token info
+            const tokenInfo = await this.fetchTokenInfo(tokenAddress);
+            console.log(`🔍 [DEBUG] tokenInfo:`, tokenInfo ? 'Found' : 'Not found');
+            
+            return {
+                tokenInfo: tokenInfo,
+                poolData: {
+                    tokenReserves: 0, // Will be updated by transaction monitoring
+                    solReserves: 0,   // Will be updated by transaction monitoring
+                    price: 0          // Will be calculated from swaps
+                },
+                recentSwaps: recentSwaps,
+                swapHistory: recentSwaps,
+                totalSwaps: realTimeData ? realTimeData.totalSwaps : recentSwaps.length,
+                lastUpdated: realTimeData ? new Date(realTimeData.lastUpdated).toISOString() : new Date().toISOString()
+            };
+            
+    // ✅ NEW: Auto-start monitoring for any token when requested
+    async ensureTokenMonitoring(tokenAddress) {
+        try {
+            // Check if already monitoring this token
+            const streamKey = `token_${tokenAddress}`;
+            if (this.grpcStreams.has(streamKey)) {
+                console.log(`✅ [EnhancedHybridPriceService] Already monitoring ${tokenAddress}`);
+                return true;
+            }
+            
+            console.log(`🚀 [EnhancedHybridPriceService] Auto-starting monitoring for ${tokenAddress}`);
+            
+            // Start monitoring for this token
+            await this.startSingleTokenMonitoring(tokenAddress);
+            
+            return true;
+            
         } catch (error) {
-            console.error(`❌ [EnhancedHybridPriceService] Error getting real-time data for ${tokenAddress}:`, error.message);
-            return null;
+            console.error(`❌ [EnhancedHybridPriceService] Failed to ensure monitoring for ${tokenAddress}:`, error.message);
+            return false;
         }
     }
 
