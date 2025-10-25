@@ -160,13 +160,17 @@ function SvgOHLCVArea({
         const res = await chartService.getPriceChartRD(contract, timeframe);
         console.log(`📡 [SvgOHLCVArea] Chart service response:`, res);
         const data = Array.isArray(res?.data) ? res.data : [];
+        console.log(`🔍 [SvgOHLCVArea] Extracted data:`, data);
+        console.log(`🔍 [SvgOHLCVArea] Data type:`, typeof data, 'Length:', data.length);
         if (!alive) return;
 
         console.log(`📊 [SvgOHLCVArea] Received ${data.length} data points for ${contract}`);
         if (data.length === 0) {
           console.log(`⚠️ [SvgOHLCVArea] No data points received for ${contract} - this will cause black screen`);
         }
+        console.log(`🔄 [SvgOHLCVArea] Setting raw data...`);
         setRawData(data);
+        console.log(`✅ [SvgOHLCVArea] Raw data set successfully`);
         fetchingRef.current = false;
       } catch (e) {
         fetchingRef.current = false;
