@@ -343,10 +343,13 @@ const PriceChartModal = ({ token, onClose }) => {
           {(() => {
             try {
               return (
-                <SVGChart 
-                  token={token} 
-                  onClose={onClose}
-                />
+                <div className="bg-red-500 p-4 border-4 border-yellow-400">
+                  <div className="text-white font-bold text-lg mb-2">TEST: SVGChart Container</div>
+                  <SVGChart 
+                    token={token} 
+                    onClose={onClose}
+                  />
+                </div>
               );
             } catch (error) {
               console.error('❌ [PriceChartModal] Error rendering SVGChart:', error);

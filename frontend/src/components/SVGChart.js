@@ -409,10 +409,16 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
 
         {/* line */}
         <path d={path} stroke="#ff2ea1" strokeWidth="3" fill="none" strokeLinejoin="round" strokeLinecap="round"/>
+        
+        {/* TEST: Bright rectangle to verify SVG is working */}
+        <rect x="10" y="100" width="100" height="30" fill="red" stroke="yellow" strokeWidth="2"/>
+        <text x="15" y="120" fill="white" fontSize="14" fontWeight="bold">CHART WORKING!</text>
+        
         {/* Debug: Show chart info */}
         <text x="10" y="20" fill="white" fontSize="12">Data: {processedData.length} points</text>
         <text x="10" y="35" fill="white" fontSize="12">Size: {width}x{height}</text>
         <text x="10" y="50" fill="white" fontSize="12">Path: {path ? 'Generated' : 'Empty'}</text>
+        <text x="10" y="65" fill="white" fontSize="12">Contract: {contract.substring(0, 8)}...</text>
 
         {/* Crosshair */}
         {mousePos && (
