@@ -709,6 +709,17 @@ class EnhancedHybridPriceService extends EventEmitter {
             const dataBuffer = Buffer.from(accountData.data, 'base64');
             console.log(`🔍 [DEBUG] Account data buffer length: ${dataBuffer.length} bytes`);
             
+            // Debug: Show first 200 bytes of data in hex
+            const hexData = dataBuffer.slice(0, 200).toString('hex');
+            console.log(`🔍 [DEBUG] First 200 bytes (hex): ${hexData}`);
+            
+            // Debug: Show what's at the standard Raydium offsets
+            if (dataBuffer.length >= 80) {
+                const tokenAt64 = dataBuffer.readBigUInt64LE(64);
+                const solAt72 = dataBuffer.readBigUInt64LE(72);
+                console.log(`🔍 [DEBUG] At offset 64: ${Number(tokenAt64)}, At offset 72: ${Number(solAt72)}`);
+            }
+            
             // For Raydium pools, we need to find the correct offsets
             // Let's try multiple possible offsets and see which ones give reasonable values
             const possibleOffsets = [
@@ -732,9 +743,10 @@ class EnhancedHybridPriceService extends EventEmitter {
                         const tokenNum = Number(tokenReserves);
                         const solNum = Number(solReserves);
                         
-                        // Check if values are reasonable (not 0, not too large)
-                        // Lowered thresholds to catch more valid reserves
-                        if (tokenNum > 0 && tokenNum < 1e18 && solNum > 0 && solNum < 1e18) {
+                        // Check if values are reasonable (not 0, not too large, not hardcoded values)
+                        // Exclude the hardcoded values that were causing issues
+                        if (tokenNum > 0 && tokenNum < 1e18 && solNum > 0 && solNum < 1e18 && 
+                            !(tokenNum === 10000000 && solNum === 500)) {
                             console.log(`✅ [DEBUG] Found valid reserves at ${offset.name} offsets: tokenReserves=${tokenNum}, solReserves=${solNum}`);
                             
                             return {
@@ -762,14 +774,48 @@ class EnhancedHybridPriceService extends EventEmitter {
                 };
             }
             
-            // WORKING VERSION: Use fixed values that were working yesterday
-            console.log(`⚠️ [DEBUG] Using working reserves from yesterday: tokenReserves=10000000, solReserves=500`);
+            // If no valid offsets found, try a different approach
+            // Let's try to find reserves by looking for patterns in the data
+            console.log(`⚠️ [DEBUG] No valid reserves found at standard offsets, trying pattern search...`);
             
-            return {
-                tokenReserves: 10000000,
-                solReserves: 500,
-                source: 'gRPC Account Data (Working Version)'
-            };
+            // Try to find reserves by looking for reasonable values throughout the buffer
+            for (let i = 0; i < dataBuffer.length - 16; i += 8) {
+                try {
+                    const tokenReserves = dataBuffer.readBigUInt64LE(i);
+                    const solReserves = dataBuffer.readBigUInt64LE(i + 8);
+                    
+                    const tokenNum = Number(tokenReserves);
+                    const solNum = Number(solReserves);
+                    
+                    // Look for reasonable reserve values (not the hardcoded ones)
+                    if (tokenNum > 1000 && tokenNum < 1e15 && solNum > 0.1 && solNum < 1e6) {
+                        console.log(`✅ [DEBUG] Found potential reserves at offset ${i}: tokenReserves=${tokenNum}, solReserves=${solNum}`);
+                        
+                        return {
+                            tokenReserves: tokenNum,
+                            solReserves: solNum,
+                            source: `gRPC Account Data (Pattern Search at offset ${i})`
+                        };
+                    }
+                } catch (e) {
+                    continue;
+                }
+            }
+            
+            // Last resort: Use lamports if available
+            if (accountData.lamports) {
+                const solBalance = parseInt(accountData.lamports) / 1e9;
+                console.log(`⚠️ [DEBUG] Using lamports as SOL reserves: ${solBalance} SOL`);
+                
+                return {
+                    tokenReserves: 1000000, // Placeholder
+                    solReserves: solBalance,
+                    source: 'gRPC Account Data (lamports fallback)'
+                };
+            }
+            
+            console.log(`❌ [DEBUG] Could not parse reserves from account data`);
+            return null;
             
         } catch (error) {
             console.error(`❌ [DEBUG] Error parsing account data for ${tokenAddress}:`, error.message);
