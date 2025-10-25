@@ -42,6 +42,9 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.realTimeUpdates = new Map(); // Map<tokenAddress, lastUpdate>
         this.swapHistory = new Map(); // Map<tokenAddress, swaps[]>
         
+        // 🚀 NEW: Token metadata cache (decimals, graduatedPool, etc.)
+        this.tokenMetadataCache = new Map(); // Map<tokenAddress, tokenInfo>
+        
         // Existing architecture
         this.priceCache = new Map();
         this.lastUpdate = new Map();
@@ -491,11 +494,28 @@ class EnhancedHybridPriceService extends EventEmitter {
                 tokenAmount = Math.abs(change) / 1e9;
                 console.log(`🔢 [EnhancedHybridPriceService] SOL swap - Raw change: ${change}, Token amount: ${tokenAmount.toFixed(6)} SOL`);
             } else {
-                // For SPL tokens, we need to get the token decimals
-                // For now, assume 6 decimals (common for most tokens) - TODO: Get actual decimals from token info
-                const tokenDecimals = 6; // Default assumption
-                tokenAmount = Math.abs(change) / Math.pow(10, tokenDecimals);
-                console.log(`🔢 [EnhancedHybridPriceService] Token swap - Raw change: ${change}, Decimals: ${tokenDecimals}, Token amount: ${tokenAmount.toFixed(6)}`);
+                // For SPL tokens, get actual decimals from cached token metadata
+                let tokenDecimals = 6; // Default fallback
+                
+                // Get token metadata from cache
+                const tokenMetadata = this.tokenMetadataCache.get(tokenAddress);
+                if (tokenMetadata && tokenMetadata.decimals !== undefined) {
+                    tokenDecimals = tokenMetadata.decimals;
+                    console.log(`🔢 [EnhancedHybridPriceService] Using cached token decimals: ${tokenDecimals} for ${tokenAddress}`);
+                } else {
+                    console.log(`⚠️ [EnhancedHybridPriceService] No cached metadata, using default decimals: ${tokenDecimals} for ${tokenAddress}`);
+                }
+                
+                // Check if change is already in human-readable format
+                if (Math.abs(change) < Math.pow(10, tokenDecimals)) {
+                    // Change is already in human-readable format
+                    tokenAmount = Math.abs(change);
+                    console.log(`🔢 [EnhancedHybridPriceService] Token swap - Change already in human format: ${change}, Token amount: ${tokenAmount}`);
+                } else {
+                    // Change is in smallest unit, need to convert using decimals
+                    tokenAmount = Math.abs(change) / Math.pow(10, tokenDecimals);
+                    console.log(`🔢 [EnhancedHybridPriceService] Token swap - Raw change: ${change}, Decimals: ${tokenDecimals}, Token amount: ${tokenAmount.toFixed(6)}`);
+                }
             }
             
             let baseAmount = 0;
@@ -651,12 +671,20 @@ class EnhancedHybridPriceService extends EventEmitter {
             // Get pool address for this token
             let poolAddress = this.poolAddresses.get(tokenAddress);
             
-            // ✅ CRITICAL FIX: If pool address is empty, try to get it from recent swaps
+            // ✅ CRITICAL FIX: If pool address is empty, try to get it from cached metadata or recent swaps
             if (!poolAddress) {
-                const currentSwaps = this.swapHistory.get(tokenAddress) || [];
-                if (currentSwaps.length > 0 && currentSwaps[0].poolAddress) {
-                    poolAddress = currentSwaps[0].poolAddress;
-                    console.log(`🔧 [EnhancedHybridPriceService] Using pool address from recent swaps: ${poolAddress}`);
+                // First try cached token metadata
+                const tokenMetadata = this.tokenMetadataCache.get(tokenAddress);
+                if (tokenMetadata && tokenMetadata.graduatedPool) {
+                    poolAddress = tokenMetadata.graduatedPool;
+                    console.log(`🔧 [EnhancedHybridPriceService] Using graduatedPool from cached metadata: ${poolAddress}`);
+                } else {
+                    // Fallback to recent swaps
+                    const currentSwaps = this.swapHistory.get(tokenAddress) || [];
+                    if (currentSwaps.length > 0 && currentSwaps[0].poolAddress) {
+                        poolAddress = currentSwaps[0].poolAddress;
+                        console.log(`🔧 [EnhancedHybridPriceService] Using pool address from recent swaps: ${poolAddress}`);
+                    }
                 }
             }
             
@@ -867,13 +895,26 @@ class EnhancedHybridPriceService extends EventEmitter {
 
     async fetchTokenInfo(tokenAddress) {
         try {
+            // Check cache first
+            if (this.tokenMetadataCache.has(tokenAddress)) {
+                console.log(`📋 [EnhancedHybridPriceService] Using cached token metadata for ${tokenAddress}`);
+                return this.tokenMetadataCache.get(tokenAddress);
+            }
+            
+            console.log(`🔍 [EnhancedHybridPriceService] Fetching token metadata from Jupiter for ${tokenAddress}`);
             const data = await this.makeJupiterRequest('https://lite-api.jup.ag/tokens/v2/search', {
                 query: tokenAddress
             });
 
             // Jupiter API returns array directly, not wrapped in value object
             if (data && Array.isArray(data) && data.length > 0) {
-                return data[0];
+                const tokenInfo = data[0];
+                
+                // Cache the token metadata
+                this.tokenMetadataCache.set(tokenAddress, tokenInfo);
+                console.log(`💾 [EnhancedHybridPriceService] Cached token metadata for ${tokenAddress}: decimals=${tokenInfo.decimals}, graduatedPool=${tokenInfo.graduatedPool}`);
+                
+                return tokenInfo;
             }
             
             return null;
