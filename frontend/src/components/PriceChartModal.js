@@ -415,13 +415,22 @@ const PriceChartModal = ({ token, onClose }) => {
             </div>
           </div>
           
-          {/* Swap Table - RE-ENABLED WITH ERROR HANDLING */}
-          <div className="mt-6">
-            <SwapTable 
-              key={`swaptable-${token.contractAddress}`}
-              token={token} 
-              realTimeData={realTimeData} 
-            />
+          {/* Swap Table - COMPLETELY ISOLATED TO PREVENT EVENT BUBBLING */}
+          <div 
+            className="mt-6"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onMouseUp={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            onKeyUp={(e) => e.stopPropagation()}
+          >
+            <ErrorBoundary>
+              <SwapTable 
+                key={`swaptable-${token.contractAddress}`}
+                token={token} 
+                realTimeData={realTimeData} 
+              />
+            </ErrorBoundary>
           </div>
         </div>
       </div>
