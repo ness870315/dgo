@@ -590,7 +590,8 @@ class EnhancedHybridPriceService extends EventEmitter {
             contract: tokenAddress,
             symbol: tokenInfo.symbol,
             maker: this.generateRandomMaker(),
-            txn: this.generateTxnHash()
+            txn: this.generateTxnHash(),
+            baseToken: 'SOL' // ✅ CRITICAL FIX: Add missing baseToken field
         };
     }
 
