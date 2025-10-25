@@ -3,7 +3,7 @@ import EventEmitter from 'events';
 import fs from 'fs/promises';
 import path from 'path';
 import bs58 from 'bs58';
-// import ChartDatabase from './ChartDatabase.js'; // Temporarily disabled
+import ChartDatabase from './ChartDatabase.js';
 
 // Use CommonJS wrapper for gRPC loading
 import { createRequire } from 'module';
