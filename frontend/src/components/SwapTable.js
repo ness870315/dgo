@@ -131,8 +131,16 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
       return `${(amount / 1000000).toFixed(1)}M`;
     } else if (amount >= 1000) {
       return `${(amount / 1000).toFixed(1)}K`;
+    } else if (amount >= 1) {
+      return amount.toFixed(2);
+    } else if (amount >= 0.01) {
+      return amount.toFixed(3);
+    } else if (amount >= 0.001) {
+      return amount.toFixed(4);
+    } else if (amount > 0) {
+      return amount.toFixed(6);
     }
-    return amount.toFixed(0);
+    return '0';
   };
 
   const handleMakerClick = (maker) => {
@@ -277,10 +285,10 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
                   {formatTokenAmount(swap.tokenAmount)}
                 </td>
                 <td className="px-3 py-2 text-right text-white">
-                  {swap.baseAmount ? swap.baseAmount.toFixed(3) : '0.000'} SOL
+                  {swap.baseAmount && swap.baseAmount > 0 ? swap.baseAmount.toFixed(6) : '0.000000'} SOL
                 </td>
                 <td className="px-3 py-2 text-right text-white font-semibold">
-                  ${swap.volumeUsd ? swap.volumeUsd.toFixed(2) : '0.00'}
+                  ${swap.volumeUsd && swap.volumeUsd > 0 ? swap.volumeUsd.toFixed(4) : '0.0000'}
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex items-center space-x-2">
@@ -363,7 +371,7 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
                           {formatTimestamp(swap.timestamp)}
                         </td>
                         <td className="px-3 py-2 text-right text-white font-semibold">
-                          ${swap.volumeUsd ? swap.volumeUsd.toFixed(2) : '0.00'}
+                          ${swap.volumeUsd && swap.volumeUsd > 0 ? swap.volumeUsd.toFixed(4) : '0.0000'}
                         </td>
                         <td className="px-3 py-2">
                           <a

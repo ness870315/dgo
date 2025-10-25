@@ -649,7 +649,17 @@ class EnhancedHybridPriceService extends EventEmitter {
             }
 
             // Get pool address for this token
-            const poolAddress = this.poolAddresses.get(tokenAddress);
+            let poolAddress = this.poolAddresses.get(tokenAddress);
+            
+            // ✅ CRITICAL FIX: If pool address is empty, try to get it from recent swaps
+            if (!poolAddress) {
+                const currentSwaps = this.swapHistory.get(tokenAddress) || [];
+                if (currentSwaps.length > 0 && currentSwaps[0].poolAddress) {
+                    poolAddress = currentSwaps[0].poolAddress;
+                    console.log(`🔧 [EnhancedHybridPriceService] Using pool address from recent swaps: ${poolAddress}`);
+                }
+            }
+            
             if (!poolAddress) {
                 console.log(`⚠️ [EnhancedHybridPriceService] No pool address for ${tokenAddress}, cannot load historical swaps`);
                 return [];
