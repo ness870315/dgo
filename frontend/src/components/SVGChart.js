@@ -70,7 +70,11 @@ function makeScales(points, w, h, pad = {l:56,r:24,t:16,b:28}) {
   const yMax = pMax + (pMax - pMin) * 0.08;
 
   const x = (tMs) => pad.l + ((tMs - tMin) / Math.max(1, (tMax - tMin))) * plotW;
-  const y = (v)   => pad.t + (1 - (v - yMin) / Math.max(1e-12, (yMax - yMin))) * plotH;
+  const y = (v)   => {
+    const result = pad.t + (1 - (v - yMin) / Math.max(1e-12, (yMax - yMin))) * plotH;
+    console.log(`🔍 [makeScales] Y calculation: v=${v}, yMin=${yMin}, yMax=${yMax}, plotH=${plotH}, result=${result}`);
+    return result;
+  };
 
   return { x, y, pad, plotW, plotH, tMin, tMax, yMin, yMax };
 }
