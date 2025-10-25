@@ -214,7 +214,7 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
         });
         
                console.log(`🔄 [SvgOHLCVArea] Setting raw data... (${validatedData.length}/${data.length} valid points)`);
-               console.log(`🔍 [SvgOHLCVArea] About to call setRawData with:`, validatedData.slice(0, 2));
+               console.log(`🔍 [SvgOHLCVArea] About to call setRawData with:`, validatedData?.slice?.(0, 2) || 'No data');
                
                // CRITICAL FIX: Ensure component is still alive before state update
                if (!aliveRef.current) {
@@ -245,9 +245,9 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
 
   // Debug: Track rawData changes
   useEffect(() => {
-    console.log(`🔄 [SvgOHLCVArea] rawData state changed for ${contract}:`, rawData.length, 'points');
-    if (rawData.length > 0) {
-      console.log(`🔍 [SvgOHLCVArea] Sample rawData:`, rawData.slice(0, 2));
+    console.log(`🔄 [SvgOHLCVArea] rawData state changed for ${contract}:`, rawData?.length || 0, 'points');
+    if (rawData?.length > 0) {
+      console.log(`🔍 [SvgOHLCVArea] Sample rawData:`, rawData?.slice?.(0, 2) || 'No data');
     }
   }, [rawData, contract]);
 
@@ -271,16 +271,16 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
     }
     
     try {
-      console.log(`📊 [SvgOHLCVArea] Processing ${rawData.length} raw data points for ${contract}`);
-      console.log(`🔍 [SvgOHLCVArea] Sample raw data:`, rawData.slice(0, 2));
+      console.log(`📊 [SvgOHLCVArea] Processing ${rawData?.length || 0} raw data points for ${contract}`);
+      console.log(`🔍 [SvgOHLCVArea] Sample raw data:`, rawData?.slice?.(0, 2) || 'No data');
       
       // Normalize OHLC data with proper bucketing
       console.log(`🔄 [SvgOHLCVArea] About to normalize data...`);
       let normalized;
       try {
         normalized = normalizeOHLC(rawData, timeframe);
-        console.log(`🔄 [SvgOHLCVArea] Normalized to ${normalized.length} points`);
-        console.log(`🔍 [SvgOHLCVArea] Sample normalized data:`, normalized.slice(0, 2));
+        console.log(`🔄 [SvgOHLCVArea] Normalized to ${normalized?.length || 0} points`);
+        console.log(`🔍 [SvgOHLCVArea] Sample normalized data:`, normalized?.slice?.(0, 2) || 'No data');
       } catch (normalizeError) {
         console.error(`❌ [SvgOHLCVArea] Error in normalizeOHLC:`, normalizeError);
         throw normalizeError;
@@ -291,8 +291,8 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
       let windowed;
       try {
         windowed = sliceWindow(normalized, timeframe);
-        console.log(`📏 [SvgOHLCVArea] Windowed to ${windowed.length} points`);
-        console.log(`🔍 [SvgOHLCVArea] Sample windowed data:`, windowed.slice(0, 2));
+        console.log(`📏 [SvgOHLCVArea] Windowed to ${windowed?.length || 0} points`);
+        console.log(`🔍 [SvgOHLCVArea] Sample windowed data:`, windowed?.slice?.(0, 2) || 'No data');
       } catch (windowError) {
         console.error(`❌ [SvgOHLCVArea] Error in sliceWindow:`, windowError);
         throw windowError;
@@ -310,7 +310,7 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
       return windowed;
     } catch (error) {
       console.error(`❌ [SvgOHLCVArea] Error processing data for ${contract}:`, error);
-      console.error(`❌ [SvgOHLCVArea] Raw data that caused error:`, rawData.slice(0, 3)); // Show first 3 points
+      console.error(`❌ [SvgOHLCVArea] Raw data that caused error:`, rawData?.slice?.(0, 3) || 'No data'); // Show first 3 points
       return [];
     }
   }, [rawData, timeframe, displayMode, circulatingSupply]);
@@ -328,7 +328,7 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
       return scales;
     } catch (scaleError) {
       console.error(`❌ [SvgOHLCVArea] Error building scales:`, scaleError);
-      console.error(`❌ [SvgOHLCVArea] Processed data that caused error:`, processedData.slice(0, 3));
+      console.error(`❌ [SvgOHLCVArea] Processed data that caused error:`, processedData?.slice?.(0, 3) || 'No data');
       return { x: () => 0, y: () => 0, pad: {}, plotW: 0, plotH: 0, tMin: 0, tMax: 0, yMin: 0, yMax: 0 };
     }
   }, [processedData, width, height]);
