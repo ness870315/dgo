@@ -13087,8 +13087,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // 📈 PRICE CHART ENDPOINTS
     // ========================================
 
-    // Initialize Hybrid Price Service
-    this.hybridPriceService = new HybridPriceService();
+    // ✅ DISABLED: Old Hybrid Price Service (REST API) - using gRPC EnhancedHybridPriceService instead
+    // this.hybridPriceService = new HybridPriceService();
     
     // Initialize Enhanced Hybrid Price Service (Deployment-Safe gRPC Alternative)
     this.enhancedHybridPriceService = new EnhancedHybridPriceService();
@@ -13601,16 +13601,18 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // 🚀 NEW: Hybrid Price Service WebSocket stats endpoint
     this.app.get('/api/hybrid-price/websocket-stats', (req, res) => {
       try {
-        if (this.hybridPriceService) {
-          const stats = this.hybridPriceService.getWebSocketStats();
+        if (this.enhancedHybridPriceService) {
+          // ✅ CRITICAL FIX: Use EnhancedHybridPriceService (gRPC) instead of old HybridPriceService (REST)
+          const stats = this.enhancedHybridPriceService.getRealTimeStats();
           res.json({
             success: true,
-            stats
+            stats,
+            service: 'EnhancedHybridPriceService (gRPC)'
           });
         } else {
           res.status(503).json({
             success: false,
-            error: 'HybridPriceService not available'
+            error: 'EnhancedHybridPriceService not available'
           });
         }
       } catch (error) {
@@ -14032,14 +14034,27 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Get Moralis service status
     this.app.get('/api/tokens/price-chart/status', async (req, res) => {
       try {
-        const status = this.hybridPriceService.getStatus();
-        
-        res.json({
-          success: true,
-          service: 'Hybrid Price Service',
-          status: status,
-          timestamp: new Date().toISOString()
-        });
+        if (this.enhancedHybridPriceService) {
+          // ✅ CRITICAL FIX: Use EnhancedHybridPriceService (gRPC) instead of old HybridPriceService (REST)
+          const stats = this.enhancedHybridPriceService.getRealTimeStats();
+          
+          res.json({
+            success: true,
+            service: 'EnhancedHybridPriceService (gRPC)',
+            status: {
+              connected: stats.connected,
+              activeTokens: stats.activeTokens,
+              totalUpdates: stats.totalUpdates,
+              lastUpdate: stats.lastUpdate
+            },
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          res.status(503).json({
+            success: false,
+            error: 'EnhancedHybridPriceService not available'
+          });
+        }
 
       } catch (error) {
         console.error('[🛡️ Enhanced Backend] ❌ Price service status error:', error.message);
