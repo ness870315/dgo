@@ -17919,6 +17919,28 @@ Thanks for using x402 payments on Twitter! 🚀`;
     }
   }
 
+  // 🚀 NEW: Initialize WebSocket server early for real-time updates
+  async initializeWebSocketServer() {
+    try {
+      console.log('📡 Initializing WebSocket server...');
+      
+      const BackendWebSocketServer = (await import('./services/BackendWebSocketServer.js')).default;
+      this.backendWebSocketServer = new BackendWebSocketServer(this.server);
+      this.backendWebSocketServer.initialize();
+      
+      console.log('✅ WebSocket server initialized on /ws');
+      
+      // Now reinitialize EnhancedHybridPriceService with WebSocket server
+      if (this.enhancedHybridPriceService) {
+        console.log('🔄 Reinitializing EnhancedHybridPriceService with WebSocket server...');
+        this.enhancedHybridPriceService.webSocketServer = this.backendWebSocketServer;
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to initialize WebSocket server:', error.message);
+    }
+  }
+
   async initializeRealTimePriceService() {
     try {
       console.log('🚀 Initializing Real-Time Price Service...');
@@ -17933,14 +17955,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         return;
       }
       
-      console.log('📡 Creating BackendWebSocketServer instance (without CoinVera)...');
-      // Initialize only the backend WebSocket server for frontend connections
-      const BackendWebSocketServer = (await import('./services/BackendWebSocketServer.js')).default;
-      this.backendWebSocketServer = new BackendWebSocketServer(server);
-      this.backendWebSocketServer.initialize();
-      
-      console.log('✅ Backend WebSocket server initialized (CoinVera disabled)');
-      console.log('📡 WebSocket endpoint available at: /ws');
+      console.log('📡 WebSocket server already initialized, proceeding with real-time services...');
       
       // 🚀 Initialize Enhanced Real-Time Services (gRPC-based)
       console.log('🚀 Initializing Enhanced Real-Time Services...');
@@ -18102,6 +18117,9 @@ Thanks for using x402 payments on Twitter! 🚀`;
         console.log(`📱 Admin Dashboard: ${baseUrl}/admin-dashboard.html`);
 
         this.isRunning = true;
+        
+        // 🚀 Initialize WebSocket server immediately after HTTP server starts
+        this.initializeWebSocketServer();
         
         // Initialize Real-Time Price Service after server starts
         try {

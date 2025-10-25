@@ -31,6 +31,9 @@ class EnhancedHybridPriceService extends EventEmitter {
     constructor(webSocketServer = null) {
         super();
         
+        // 🚀 NEW: WebSocket server for real-time broadcasting
+        this.webSocketServer = webSocketServer;
+        
         // 🚀 NEW: Real-time streaming architecture
         this.grpcClient = null;
         this.grpcStreams = new Map(); // Map<tokenAddress, stream>
@@ -62,8 +65,8 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.tokenCache = [];
         this.cachePath = path.join(process.cwd(), 'cache', 'tokens-cache.json');
         
-        // 🚀 NEW: Persistent swap storage (temporarily disabled)
-        // this.chartDatabase = new ChartDatabase();
+        // 🚀 NEW: Persistent swap storage
+        this.chartDatabase = new ChartDatabase();
         
         // Rate limiting protection for Jupiter API
         this.jupiterRequestQueue = [];
@@ -345,11 +348,18 @@ class EnhancedHybridPriceService extends EventEmitter {
                                     swapCount++;
                                     const swapType = tokenChange.change > 0 ? 'BUY' : 'SELL';
                                     
-                                    // Try to find corresponding SOL change (same owner)
-                                    const solChange = balanceChanges.find(bc => 
+                                    // Try to find corresponding SOL change (same owner first, then any SOL change)
+                                    let solChange = balanceChanges.find(bc => 
                                         bc.mint === 'So11111111111111111111111111111111111111112' &&
                                         bc.owner === tokenChange.owner
                                     );
+                                    
+                                    // If no SOL change for same owner, look for any SOL change in this transaction
+                                    if (!solChange) {
+                                        solChange = balanceChanges.find(bc => 
+                                            bc.mint === 'So11111111111111111111111111111111111111112'
+                                        );
+                                    }
                                     
                                     console.log(`🎯 [EnhancedHybridPriceService] SWAP #${swapCount}: ${swapType} for ${tokenAddress}`);
                                     console.log(`📊 [EnhancedHybridPriceService] Token Change: ${tokenChange.change > 0 ? '+' : ''}${tokenChange.change.toFixed(6)}`);
@@ -477,8 +487,9 @@ class EnhancedHybridPriceService extends EventEmitter {
                     price = baseAmount / tokenAmount; // Token price in SOL
                     console.log(`💰 [EnhancedHybridPriceService] Using actual SOL amount: ${baseAmount.toFixed(6)} SOL`);
                 } else {
-                    // Fallback if no SOL amount detected
-                    baseAmount = tokenAmount * 0.000001; // Rough estimate
+                    // Fallback if no SOL amount detected - use more realistic estimate
+                    // For PumpFun tokens, typical price range is 0.0000001 to 0.00001 SOL per token
+                    baseAmount = tokenAmount * 0.0000001; // More realistic estimate
                     volumeUsd = baseAmount * this.solPriceUSD;
                     price = baseAmount / tokenAmount;
                     console.log(`⚠️ [EnhancedHybridPriceService] No SOL amount detected, using estimate: ${baseAmount.toFixed(6)} SOL`);
@@ -529,6 +540,16 @@ class EnhancedHybridPriceService extends EventEmitter {
             this.saveSwapToDatabase(swapRecord, tokenAddress, poolAddress);
             
             console.log(`✅ [EnhancedHybridPriceService] Swap processed: ${swapType} ${change.toFixed(6)} tokens`);
+            
+            // 🚀 NEW: Broadcast swap via WebSocket for real-time updates
+            if (this.webSocketServer) {
+                this.webSocketServer.broadcastSwapUpdate(tokenAddress, {
+                    swap: swapRecord,
+                    totalSwaps: currentSwaps.length,
+                    timestamp: Date.now()
+                });
+                console.log(`📡 [EnhancedHybridPriceService] Swap broadcasted via WebSocket for ${tokenAddress}`);
+            }
             
             // Emit swap event for WebSocket broadcasting
             this.emit('swapDetected', {
