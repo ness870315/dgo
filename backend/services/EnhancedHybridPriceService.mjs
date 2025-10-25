@@ -3,6 +3,7 @@ import EventEmitter from 'events';
 import fs from 'fs/promises';
 import path from 'path';
 import bs58 from 'bs58';
+import ChartDatabase from './ChartDatabase.js';
 
 // Use CommonJS wrapper for gRPC loading
 import { createRequire } from 'module';
@@ -61,6 +62,9 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.tokenCache = [];
         this.cachePath = path.join(process.cwd(), 'cache', 'tokens-cache.json');
         
+        // 🚀 NEW: Persistent swap storage
+        this.chartDatabase = new ChartDatabase();
+        
         // Rate limiting protection for Jupiter API
         this.jupiterRequestQueue = [];
         this.jupiterRequestDelay = 1000; // 1 second between requests
@@ -78,6 +82,11 @@ class EnhancedHybridPriceService extends EventEmitter {
             await this.initializeGrpcClient();
             await this.loadTokenCache();
             await this.updateSolPrice(); // ✅ CRITICAL FIX: Initialize SOL price for swap detection
+            
+            // 🚀 NEW: Initialize persistent swap storage
+            await this.chartDatabase.loadDatabase();
+            this.chartDatabase.startBatchWriter();
+            console.log('✅ [EnhancedHybridPriceService] Persistent swap storage initialized');
             
             console.log(`💰 [EnhancedHybridPriceService] SOL Price: $${this.solPriceUSD}`);
             
@@ -440,6 +449,9 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             this.realTimeUpdates.set(tokenAddress, currentData);
             
+            // 🚀 NEW: Save to persistent storage
+            this.saveSwapToDatabase(swapRecord, tokenAddress, poolAddress);
+            
             console.log(`✅ [EnhancedHybridPriceService] Swap processed: ${swapType} ${change.toFixed(6)} tokens`);
             
             // Emit swap event for WebSocket broadcasting
@@ -455,6 +467,37 @@ class EnhancedHybridPriceService extends EventEmitter {
             
         } catch (error) {
             console.error(`❌ [EnhancedHybridPriceService] Error processing swap update:`, error.message);
+        }
+    }
+
+    // 🚀 NEW: Save swap to persistent database
+    async saveSwapToDatabase(swapRecord, tokenAddress, poolAddress) {
+        try {
+            // Convert swap record to database format
+            const persistentSwapRecord = {
+                signature: `slot_${swapRecord.slot}_${swapRecord.timestamp}`, // Generate unique signature
+                timestamp: Math.floor(swapRecord.timestamp / 1000), // Unix timestamp for database
+                poolAddress: poolAddress,
+                price: 0, // Will be calculated later
+                volume: Math.abs(swapRecord.change), // Volume is absolute change
+                source: 'grpc_realtime',
+                rawData: {
+                    tokenAddress: tokenAddress,
+                    slot: swapRecord.slot,
+                    type: swapRecord.type,
+                    change: swapRecord.change,
+                    mintAddress: swapRecord.mintAddress,
+                    poolAddress: poolAddress,
+                    timestamp: swapRecord.timestamp
+                }
+            };
+            
+            // Save to persistent storage
+            await this.chartDatabase.storeSwaps([persistentSwapRecord]);
+            console.log(`💾 [EnhancedHybridPriceService] Swap saved to persistent storage for ${tokenAddress}`);
+            
+        } catch (error) {
+            console.error(`❌ [EnhancedHybridPriceService] Failed to save swap to database:`, error.message);
         }
     }
 
