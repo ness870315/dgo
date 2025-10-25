@@ -396,7 +396,26 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
         <path d={areaPath} fill={`url(#${gid})`} stroke="none"/>
 
         {/* line */}
-        <path d={path} stroke="#ff2ea1" strokeWidth="3" fill="none" strokeLinejoin="round" strokeLinecap="round"/>
+        <path d={path} stroke="#00d4aa" strokeWidth="3" fill="none" strokeLinejoin="round" strokeLinecap="round"/>
+
+        {/* Real-time indicator dot */}
+        {processedData.length > 0 && (
+          <circle
+            cx={x(processedData[processedData.length - 1].time * 1000)}
+            cy={y(processedData[processedData.length - 1].close)}
+            r="4"
+            fill="#00d4aa"
+            stroke="white"
+            strokeWidth="2"
+          >
+            <animate
+              attributeName="opacity"
+              values="1;0.3;1"
+              dur="1.5s"
+              repeatCount="indefinite"
+            />
+          </circle>
+        )}
 
         {/* Crosshair */}
         {mousePos && (

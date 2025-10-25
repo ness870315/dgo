@@ -63,18 +63,26 @@ const PriceChartModal = ({ token, onClose }) => {
   const handlePriceUpdate = (priceData) => {
     console.log(`📡 [PRICE-MODAL] 🚀 Real-time price update received:`, priceData);
     
+    // Extract price from the correct data structure
+    const price = priceData.price || priceData.priceUsd || priceData.data?.price || priceData.data?.priceUsd || priceData.currentPrice;
+    
+    if (!price) {
+      console.warn(`📡 [PRICE-MODAL] ⚠️ No price found in data:`, priceData);
+      return;
+    }
+    
     // Calculate price change using the ref (previous price)
-    if (previousPriceRef.current !== null && previousPriceRef.current !== priceData.price) {
-      const change = ((priceData.price - previousPriceRef.current) / previousPriceRef.current) * 100;
+    if (previousPriceRef.current !== null && previousPriceRef.current !== price) {
+      const change = ((price - previousPriceRef.current) / previousPriceRef.current) * 100;
       setPriceChange(change);
-      console.log(`📡 [PRICE-MODAL] 📊 Price change: ${change.toFixed(2)}% (${previousPriceRef.current} → ${priceData.price})`);
+      console.log(`📡 [PRICE-MODAL] 📊 Price change: ${change.toFixed(2)}% (${previousPriceRef.current} → ${price})`);
     }
     
     // Update the current price and ref
-    setCurrentPrice(priceData.price);
-    previousPriceRef.current = priceData.price;
+    setCurrentPrice(price);
+    previousPriceRef.current = price;
     
-    console.log(`📡 [PRICE-MODAL] ✅ Updated price for ${token.symbol}: ${priceData.price}`);
+    console.log(`📡 [PRICE-MODAL] ✅ Updated price for ${token.symbol}: ${price}`);
   };
 
   // Subscribe to WebSocket on mount, unsubscribe on unmount
