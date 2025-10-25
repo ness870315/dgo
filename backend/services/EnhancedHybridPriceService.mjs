@@ -343,8 +343,19 @@ class EnhancedHybridPriceService extends EventEmitter {
                                 // Find token changes for our target token
                                 const tokenChanges = balanceChanges.filter(bc => bc.mint === tokenAddress);
                                 
-                                // Process each token change
-                                tokenChanges.forEach(tokenChange => {
+                                // ✅ CRITICAL FIX: Filter out pool addresses to avoid double-counting
+                                // Only process swaps from actual users, not the pool itself
+                                const userTokenChanges = tokenChanges.filter(tokenChange => {
+                                    // Exclude pool addresses - they shouldn't be considered "makers"
+                                    const isPoolAddress = tokenChange.owner === actualPoolAddress;
+                                    if (isPoolAddress) {
+                                        console.log(`🚫 [EnhancedHybridPriceService] Skipping pool address swap: ${tokenChange.owner}`);
+                                    }
+                                    return !isPoolAddress;
+                                });
+                                
+                                // Process each user token change
+                                userTokenChanges.forEach(tokenChange => {
                                     swapCount++;
                                     // ✅ FIX: Correct swap type logic
                                     // BUY: User gets tokens (+), gives SOL (-) 
