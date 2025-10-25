@@ -313,6 +313,9 @@ class EnhancedHybridPriceService extends EventEmitter {
                         if (tx.meta?.preTokenBalances?.length > 0) {
                             console.log(`🎉 [EnhancedHybridPriceService] TOKEN BALANCE CHANGES DETECTED for ${tokenAddress}!`);
                             
+                            // Collect all balance changes to find both sides of the swap
+                            const balanceChanges = [];
+                            
                             tx.meta.preTokenBalances.forEach((preBalance, index) => {
                                 const postBalance = tx.meta.postTokenBalances[index];
                                 if (preBalance && postBalance) {
@@ -321,23 +324,52 @@ class EnhancedHybridPriceService extends EventEmitter {
                                     const change = postAmount - preAmount;
                                     
                                     if (Math.abs(change) > 0.000001) { // Significant change
-                                        swapCount++;
-                                        const swapType = change > 0 ? 'BUY' : 'SELL';
-                                        console.log(`🎯 [EnhancedHybridPriceService] SWAP #${swapCount}: ${swapType} for ${tokenAddress}`);
-                                        console.log(`📊 [EnhancedHybridPriceService] Token: ${preBalance.mint}`);
-                                        console.log(`📊 [EnhancedHybridPriceService] Change: ${change > 0 ? '+' : ''}${change.toFixed(6)}`);
-                                        console.log(`📊 [EnhancedHybridPriceService] Owner: ${preBalance.owner}`);
-                                        console.log(`📊 [EnhancedHybridPriceService] Slot: ${slot}`);
-                                        
-                                        // Process the swap for ANY token
-                                        try {
-                                            this.processSwapUpdate(tokenAddress, actualPoolAddress, slot, swapType, change, preBalance.mint, preBalance.owner);
-                                        } catch (error) {
-                                            console.error(`❌ [EnhancedHybridPriceService] Error processing swap for ${tokenAddress}:`, error.message);
-                                        }
+                                        balanceChanges.push({
+                                            mint: preBalance.mint,
+                                            change: change,
+                                            owner: preBalance.owner,
+                                            preAmount: preAmount,
+                                            postAmount: postAmount
+                                        });
                                     }
                                 }
                             });
+                            
+                            // Process swaps with both sides
+                            if (balanceChanges.length > 0) {
+                                swapCount++;
+                                
+                                // Find token and SOL changes
+                                const tokenChange = balanceChanges.find(bc => bc.mint === tokenAddress);
+                                const solChange = balanceChanges.find(bc => bc.mint === 'So11111111111111111111111111111111111111112');
+                                
+                                if (tokenChange) {
+                                    const swapType = tokenChange.change > 0 ? 'BUY' : 'SELL';
+                                    console.log(`🎯 [EnhancedHybridPriceService] SWAP #${swapCount}: ${swapType} for ${tokenAddress}`);
+                                    console.log(`📊 [EnhancedHybridPriceService] Token Change: ${tokenChange.change > 0 ? '+' : ''}${tokenChange.change.toFixed(6)}`);
+                                    if (solChange) {
+                                        console.log(`📊 [EnhancedHybridPriceService] SOL Change: ${solChange.change > 0 ? '+' : ''}${solChange.change.toFixed(6)}`);
+                                    }
+                                    console.log(`📊 [EnhancedHybridPriceService] Owner: ${tokenChange.owner}`);
+                                    console.log(`📊 [EnhancedHybridPriceService] Slot: ${slot}`);
+                                    
+                                    // Process the swap with both token and SOL amounts
+                                    try {
+                                        this.processSwapUpdate(
+                                            tokenAddress, 
+                                            actualPoolAddress, 
+                                            slot, 
+                                            swapType, 
+                                            tokenChange.change, 
+                                            tokenChange.mint, 
+                                            tokenChange.owner,
+                                            solChange ? solChange.change : 0
+                                        );
+                                    } catch (error) {
+                                        console.error(`❌ [EnhancedHybridPriceService] Error processing swap for ${tokenAddress}:`, error.message);
+                                    }
+                                }
+                            }
                         }
                     }
                 } catch (error) {
@@ -409,19 +441,17 @@ class EnhancedHybridPriceService extends EventEmitter {
         }
     }
 
-    processSwapUpdate(tokenAddress, poolAddress, slot, swapType, change, mintAddress, makerAddress) {
+    processSwapUpdate(tokenAddress, poolAddress, slot, swapType, change, mintAddress, makerAddress, solAmount = 0) {
         try {
             console.log(`🔄 [EnhancedHybridPriceService] Processing swap update for ${tokenAddress}`);
             
             // Get current swap history
             const currentSwaps = this.swapHistory.get(tokenAddress) || [];
             
-            // Calculate proper amounts and values
+            // Calculate proper amounts and values using actual SOL amount
             const tokenAmount = Math.abs(change);
             const isSOLSwap = mintAddress === 'So11111111111111111111111111111111111111112';
             
-            // For SOL swaps, calculate token amount from SOL amount
-            // For token swaps, calculate SOL amount from token amount
             let baseAmount = 0;
             let volumeUsd = 0;
             let price = 0;
@@ -429,18 +459,22 @@ class EnhancedHybridPriceService extends EventEmitter {
             if (isSOLSwap) {
                 // This is a SOL swap - change is SOL amount
                 baseAmount = tokenAmount;
-                // Estimate USD value (assuming SOL = $200)
                 volumeUsd = baseAmount * this.solPriceUSD;
-                // Price is SOL price
                 price = this.solPriceUSD;
             } else {
-                // This is a token swap - change is token amount
-                // Estimate SOL amount (rough calculation)
-                baseAmount = tokenAmount * 0.000001; // Rough estimate
-                // Estimate USD value
-                volumeUsd = baseAmount * this.solPriceUSD;
-                // Calculate token price in SOL
-                price = baseAmount / tokenAmount;
+                // This is a token swap - use actual SOL amount from transaction
+                if (solAmount !== 0) {
+                    baseAmount = Math.abs(solAmount);
+                    volumeUsd = baseAmount * this.solPriceUSD;
+                    price = baseAmount / tokenAmount; // Token price in SOL
+                    console.log(`💰 [EnhancedHybridPriceService] Using actual SOL amount: ${baseAmount.toFixed(6)} SOL`);
+                } else {
+                    // Fallback if no SOL amount detected
+                    baseAmount = tokenAmount * 0.000001; // Rough estimate
+                    volumeUsd = baseAmount * this.solPriceUSD;
+                    price = baseAmount / tokenAmount;
+                    console.log(`⚠️ [EnhancedHybridPriceService] No SOL amount detected, using estimate: ${baseAmount.toFixed(6)} SOL`);
+                }
             }
             
             // Create swap record with frontend-compatible format
