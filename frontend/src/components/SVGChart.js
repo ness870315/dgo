@@ -243,14 +243,19 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
     
     try {
       console.log(`📊 [SvgOHLCVArea] Processing ${rawData.length} raw data points for ${contract}`);
+      console.log(`🔍 [SvgOHLCVArea] Sample raw data:`, rawData.slice(0, 2));
       
       // Normalize OHLC data with proper bucketing
+      console.log(`🔄 [SvgOHLCVArea] About to normalize data...`);
       const normalized = normalizeOHLC(rawData, timeframe);
       console.log(`🔄 [SvgOHLCVArea] Normalized to ${normalized.length} points`);
+      console.log(`🔍 [SvgOHLCVArea] Sample normalized data:`, normalized.slice(0, 2));
       
       // Window to last N bars per timeframe
+      console.log(`📏 [SvgOHLCVArea] About to window data...`);
       const windowed = sliceWindow(normalized, timeframe);
       console.log(`📏 [SvgOHLCVArea] Windowed to ${windowed.length} points`);
+      console.log(`🔍 [SvgOHLCVArea] Sample windowed data:`, windowed.slice(0, 2));
       
       // Transform to market cap if needed
       if (displayMode === 'mcap' && circulatingSupply) {
