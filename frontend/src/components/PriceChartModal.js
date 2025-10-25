@@ -77,23 +77,28 @@ const PriceChartModal = ({ token, onClose }) => {
     console.log(`📡 [PRICE-MODAL] ✅ Updated price for ${token.symbol}: ${priceData.price}`);
   };
 
+  // Subscribe to WebSocket on mount, unsubscribe on unmount
+  useEffect(() => {
+    const contractAddress = token?.contractAddress;
+    if (contractAddress) {
+      websocketService.subscribeToToken(contractAddress);
+    }
+    
+    return () => {
+      if (contractAddress) {
+        websocketService.unsubscribeFromToken(contractAddress);
+      }
+    };
+  }, []); // Empty dependency array - only run on mount/unmount
+
+  // Load data when token changes
   useEffect(() => {
     if (token?.contractAddress) {
       // Load initial price from Jupiter API (more reliable than our cached data)
       loadCurrentPriceFromJupiter();
       loadTokenAnalytics();
       loadRealTimeData();
-      
-      // Subscribe to real-time updates via WebSocket
-      websocketService.subscribeToToken(token.contractAddress);
     }
-    
-    // Cleanup on unmount
-    return () => {
-      if (token?.contractAddress) {
-        websocketService.unsubscribeFromToken(token.contractAddress);
-      }
-    };
   }, [token?.contractAddress]);
 
   useEffect(() => {
