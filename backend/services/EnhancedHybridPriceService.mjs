@@ -682,17 +682,18 @@ class EnhancedHybridPriceService extends EventEmitter {
         try {
             console.log(`🔍 [DEBUG] getPoolReserves called for pool: ${poolAddress}, token: ${tokenAddress}`);
             
-            // ✅ CRITICAL FIX: Use gRPC data instead of REST API calls
-            // Check if we have recent pool data from gRPC stream
-            const recentPoolData = this.getRecentPoolData(poolAddress);
-            if (recentPoolData) {
-                console.log(`✅ [DEBUG] Using gRPC pool data for ${poolAddress}`);
-                return recentPoolData;
-            }
-            
-            // Fallback: Try to get data from existing pool monitoring
-            console.log(`⚠️ [DEBUG] No recent gRPC data, using fallback for ${poolAddress}`);
-            return null;
+            const response = await axios.post(CONSTANT_K_RPC, {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'getTokenAccountsByOwner',
+                params: [
+                    poolAddress,
+                    { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' },
+                    { encoding: 'jsonParsed' }
+                ]
+            });
+
+            console.log(`🔍 [DEBUG] Constant K RPC response status: ${response.status}`);
             console.log(`🔍 [DEBUG] Response data:`, response.data);
 
             const tokenAccounts = response.data?.result?.value || [];
@@ -755,29 +756,6 @@ class EnhancedHybridPriceService extends EventEmitter {
         } catch (error) {
             console.error(`❌ [DEBUG] Error fetching pool reserves for ${poolAddress}:`, error.message);
             console.error(`❌ [DEBUG] Error details:`, error.response?.data || error.stack);
-            return null;
-        }
-    }
-
-    // ✅ CRITICAL: Get recent pool data from gRPC stream instead of REST APIs
-    getRecentPoolData(poolAddress) {
-        try {
-            // Check if we have recent pool updates from gRPC
-            const poolUpdates = this.recentPoolUpdates || new Map();
-            const recentUpdate = poolUpdates.get(poolAddress);
-            
-            if (recentUpdate && (Date.now() - recentUpdate.timestamp) < 30000) { // 30 seconds
-                console.log(`✅ [gRPC] Using recent pool data for ${poolAddress}`);
-                return {
-                    tokenReserves: recentUpdate.tokenReserves || 0,
-                    solReserves: recentUpdate.solReserves || 0,
-                    source: 'gRPC Stream'
-                };
-            }
-            
-            return null;
-        } catch (error) {
-            console.error(`❌ [gRPC] Error getting recent pool data:`, error.message);
             return null;
         }
     }
