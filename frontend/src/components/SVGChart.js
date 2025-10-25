@@ -247,15 +247,27 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
       
       // Normalize OHLC data with proper bucketing
       console.log(`🔄 [SvgOHLCVArea] About to normalize data...`);
-      const normalized = normalizeOHLC(rawData, timeframe);
-      console.log(`🔄 [SvgOHLCVArea] Normalized to ${normalized.length} points`);
-      console.log(`🔍 [SvgOHLCVArea] Sample normalized data:`, normalized.slice(0, 2));
+      let normalized;
+      try {
+        normalized = normalizeOHLC(rawData, timeframe);
+        console.log(`🔄 [SvgOHLCVArea] Normalized to ${normalized.length} points`);
+        console.log(`🔍 [SvgOHLCVArea] Sample normalized data:`, normalized.slice(0, 2));
+      } catch (normalizeError) {
+        console.error(`❌ [SvgOHLCVArea] Error in normalizeOHLC:`, normalizeError);
+        throw normalizeError;
+      }
       
       // Window to last N bars per timeframe
       console.log(`📏 [SvgOHLCVArea] About to window data...`);
-      const windowed = sliceWindow(normalized, timeframe);
-      console.log(`📏 [SvgOHLCVArea] Windowed to ${windowed.length} points`);
-      console.log(`🔍 [SvgOHLCVArea] Sample windowed data:`, windowed.slice(0, 2));
+      let windowed;
+      try {
+        windowed = sliceWindow(normalized, timeframe);
+        console.log(`📏 [SvgOHLCVArea] Windowed to ${windowed.length} points`);
+        console.log(`🔍 [SvgOHLCVArea] Sample windowed data:`, windowed.slice(0, 2));
+      } catch (windowError) {
+        console.error(`❌ [SvgOHLCVArea] Error in sliceWindow:`, windowError);
+        throw windowError;
+      }
       
       // Transform to market cap if needed
       if (displayMode === 'mcap' && circulatingSupply) {
@@ -280,8 +292,16 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
       console.log(`⚠️ [SvgOHLCVArea] No processed data for scales - returning empty scales`);
       return { x: () => 0, y: () => 0, pad: {}, plotW: 0, plotH: 0, tMin: 0, tMax: 0, yMin: 0, yMax: 0 };
     }
-    console.log(`📐 [SvgOHLCVArea] Building scales for ${processedData.length} points, width: ${width}, height: ${height}`);
-    return makeScales(processedData, width, height);
+    try {
+      console.log(`📐 [SvgOHLCVArea] Building scales for ${processedData.length} points, width: ${width}, height: ${height}`);
+      const scales = makeScales(processedData, width, height);
+      console.log(`✅ [SvgOHLCVArea] Scales built successfully`);
+      return scales;
+    } catch (scaleError) {
+      console.error(`❌ [SvgOHLCVArea] Error building scales:`, scaleError);
+      console.error(`❌ [SvgOHLCVArea] Processed data that caused error:`, processedData.slice(0, 3));
+      return { x: () => 0, y: () => 0, pad: {}, plotW: 0, plotH: 0, tMin: 0, tMax: 0, yMin: 0, yMax: 0 };
+    }
   }, [processedData, width, height]);
 
   // Build SVG path
