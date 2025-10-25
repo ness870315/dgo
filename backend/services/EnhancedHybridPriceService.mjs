@@ -33,6 +33,7 @@ class EnhancedHybridPriceService extends EventEmitter {
         // 🚀 NEW: Real-time streaming architecture
         this.grpcClient = null;
         this.grpcStreams = new Map(); // Map<tokenAddress, stream>
+        this.activeStreams = new Map(); // Map<tokenAddress, stream> - for stats
         this.poolAddresses = new Map(); // Map<tokenAddress, poolAddress>
         this.realTimeUpdates = new Map(); // Map<tokenAddress, lastUpdate>
         this.swapHistory = new Map(); // Map<tokenAddress, swaps[]>
@@ -717,10 +718,10 @@ class EnhancedHybridPriceService extends EventEmitter {
     
     getRealTimeStats() {
         return {
-            activeStreams: Array.from(this.activeStreams.keys()),
-            totalTokens: this.poolAddresses.size,
-            totalSwaps: Array.from(this.swapHistory.values()).reduce((total, swaps) => total + swaps.length, 0),
-            realTimeUpdates: this.realTimeUpdates.size
+            activeStreams: this.activeStreams ? Array.from(this.activeStreams.keys()) : [],
+            totalTokens: this.poolAddresses ? this.poolAddresses.size : 0,
+            totalSwaps: this.swapHistory ? Array.from(this.swapHistory.values()).reduce((total, swaps) => total + swaps.length, 0) : 0,
+            realTimeUpdates: this.realTimeUpdates ? this.realTimeUpdates.size : 0
         };
     }
 }
