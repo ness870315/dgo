@@ -705,8 +705,8 @@ class EnhancedHybridPriceService extends EventEmitter {
                 
                 if (recentSwaps.length === 0) {
                     console.log(`⚠️ [EnhancedHybridPriceService] No swaps found, using fallback`);
-                
-                // Fallback: Get current pool reserves
+                    
+                    // Fallback: Get current pool reserves
                 const poolAddress = this.poolAddresses.get(tokenAddress);
                 if (!poolAddress) {
                     console.log(`❌ [EnhancedHybridPriceService] No pool address for ${tokenAddress}, discovering...`);
@@ -736,6 +736,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                     totalSwaps: 0,
                     lastUpdated: new Date().toISOString()
                 };
+                }
             }
             
             // Get token info
