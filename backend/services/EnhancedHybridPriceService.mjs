@@ -10,7 +10,7 @@ const require = createRequire(import.meta.url);
 let GrpcWrapper = null;
 
 const CONSTANT_K_RPC = 'https://rpc.constant-k.com/?api-key=tsn41k3y-4qch-46f2-5ogr-67dmw2zh1ur8';
-const CONSTANT_K_GRPC_ENDPOINT = 'https://yellowstone.constant-k.com:443';
+const CONSTANT_K_GRPC_ENDPOINT = 'grpc://yellowstone.constant-k.com';
 const CONSTANT_K_GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
 const JUPITER_API_BASE = 'https://lite-api.jup.ag/tokens/v2';
 const DEXSCREENER_API_BASE = 'https://api.dexscreener.com/latest/dex';
@@ -79,6 +79,11 @@ class EnhancedHybridPriceService extends EventEmitter {
             await this.updateSolPrice(); // ✅ CRITICAL FIX: Initialize SOL price for swap detection
             
             console.log(`💰 [EnhancedHybridPriceService] SOL Price: $${this.solPriceUSD}`);
+            
+            // ✅ CRITICAL FIX: Add E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump with correct Raydium AMM pool!
+            this.poolAddresses.set('E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump', '3VjYNyF7uaBE4nuWP7YV57wVTaeANqYHuRHBzWt8TTJM');
+            this.swapHistory.set('E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump', []);
+            console.log(`✅ [EnhancedHybridPriceService] Added E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump -> Raydium AMM pool 3VjYNyF7uaBE4nuWP7YV57wVTaeANqYHuRHBzWt8TTJM to monitoring map`);
             
             // 🚀 NEW: Automatically start SIMPLIFIED single-token monitoring after initialization
             if (this.grpcClient && this.poolAddresses.size > 0) {
@@ -216,6 +221,11 @@ class EnhancedHybridPriceService extends EventEmitter {
             this.poolAddresses.set(tokenAddress, poolAddress);
             this.swapHistory.set(tokenAddress, []);
             console.log(`✅ [EnhancedHybridPriceService] Added test token ${tokenAddress} -> pool ${poolAddress} to monitoring map`);
+            
+            // ✅ CRITICAL FIX: Add E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump with correct Raydium AMM pool!
+            this.poolAddresses.set('E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump', '3VjYNyF7uaBE4nuWP7YV57wVTaeANqYHuRHBzWt8TTJM');
+            this.swapHistory.set('E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump', []);
+            console.log(`✅ [EnhancedHybridPriceService] Added E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump -> Raydium AMM pool 3VjYNyF7uaBE4nuWP7YV57wVTaeANqYHuRHBzWt8TTJM to monitoring map`);
             
             // Use the WORKING SOLUTION: subscribeOnce for real-time pool monitoring
             // Based on test-multi-contract-monitoring.js which was working perfectly
@@ -600,14 +610,14 @@ class EnhancedHybridPriceService extends EventEmitter {
         try {
             console.log(`🔍 [DEBUG] getPoolReserves called for pool: ${poolAddress}, token: ${tokenAddress}`);
             
+            // ✅ CRITICAL FIX: Use getAccountInfo instead of getTokenAccountsByOwner for Raydium pools
             const response = await axios.post(CONSTANT_K_RPC, {
                 jsonrpc: '2.0',
                 id: 1,
-                method: 'getTokenAccountsByOwner',
+                method: 'getAccountInfo',
                 params: [
                     poolAddress,
-                    { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' },
-                    { encoding: 'jsonParsed' }
+                    { encoding: 'base64' }
                 ]
             });
 
