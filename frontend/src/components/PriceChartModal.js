@@ -279,8 +279,20 @@ const PriceChartModal = ({ token, onClose }) => {
   console.log('🚀 [PriceChartModal] Rendering modal for token:', token.symbol, token.contractAddress);
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-1 sm:p-4">
-      <div className="bg-gray-900 rounded-xl sm:rounded-2xl w-full max-w-4xl max-h-[95vh] sm:max-h-[85vh] flex flex-col overflow-hidden">
+    <div 
+      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-1 sm:p-4"
+      onClick={(e) => {
+        // Only close if clicking the backdrop, not the modal content
+        if (e.target === e.currentTarget) {
+          console.log('🚀 [PriceChartModal] Backdrop clicked, closing modal');
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className="bg-gray-900 rounded-xl sm:rounded-2xl w-full max-w-4xl max-h-[95vh] sm:max-h-[85vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-2 sm:p-4 border-b border-gray-700 flex-shrink-0">
           <div className="flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1">
