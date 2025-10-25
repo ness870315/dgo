@@ -335,20 +335,28 @@ class EnhancedHybridPriceService extends EventEmitter {
                                 }
                             });
                             
-                            // Process swaps with both sides
+                            // Process swaps - be less restrictive to catch more swaps
                             if (balanceChanges.length > 0) {
-                                swapCount++;
+                                // Find token changes for our target token
+                                const tokenChanges = balanceChanges.filter(bc => bc.mint === tokenAddress);
                                 
-                                // Find token and SOL changes
-                                const tokenChange = balanceChanges.find(bc => bc.mint === tokenAddress);
-                                const solChange = balanceChanges.find(bc => bc.mint === 'So11111111111111111111111111111111111111112');
-                                
-                                if (tokenChange) {
+                                // Process each token change
+                                tokenChanges.forEach(tokenChange => {
+                                    swapCount++;
                                     const swapType = tokenChange.change > 0 ? 'BUY' : 'SELL';
+                                    
+                                    // Try to find corresponding SOL change (same owner)
+                                    const solChange = balanceChanges.find(bc => 
+                                        bc.mint === 'So11111111111111111111111111111111111111112' &&
+                                        bc.owner === tokenChange.owner
+                                    );
+                                    
                                     console.log(`🎯 [EnhancedHybridPriceService] SWAP #${swapCount}: ${swapType} for ${tokenAddress}`);
                                     console.log(`📊 [EnhancedHybridPriceService] Token Change: ${tokenChange.change > 0 ? '+' : ''}${tokenChange.change.toFixed(6)}`);
                                     if (solChange) {
                                         console.log(`📊 [EnhancedHybridPriceService] SOL Change: ${solChange.change > 0 ? '+' : ''}${solChange.change.toFixed(6)}`);
+                                    } else {
+                                        console.log(`📊 [EnhancedHybridPriceService] SOL Change: Not found, will estimate`);
                                     }
                                     console.log(`📊 [EnhancedHybridPriceService] Owner: ${tokenChange.owner}`);
                                     console.log(`📊 [EnhancedHybridPriceService] Slot: ${slot}`);
@@ -368,7 +376,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                                     } catch (error) {
                                         console.error(`❌ [EnhancedHybridPriceService] Error processing swap for ${tokenAddress}:`, error.message);
                                     }
-                                }
+                                });
                             }
                         }
                     }
