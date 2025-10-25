@@ -557,6 +557,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                     volumeUsd = baseAmount * this.solPriceUSD;
                     price = baseAmount / tokenAmount; // Token price in SOL
                     console.log(`💰 [EnhancedHybridPriceService] Final: ${baseAmount.toFixed(6)} SOL, $${volumeUsd.toFixed(4)} USD, ${price.toFixed(8)} SOL/token`);
+                    console.log(`💰 [EnhancedHybridPriceService] SOL Price Used: $${this.solPriceUSD}`);
                 } else {
                     // Fallback if no SOL amount detected - use more realistic estimate
                     // For PumpFun tokens, typical price range is 0.0000001 to 0.00001 SOL per token
