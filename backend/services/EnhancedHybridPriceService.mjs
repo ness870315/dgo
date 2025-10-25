@@ -3,6 +3,8 @@ import EventEmitter from 'events';
 import fs from 'fs/promises';
 import path from 'path';
 import bs58 from 'bs58';
+import { Connection } from '@solana/web3.js';
+import { CpAmm } from '@meteora-ag/cp-amm-sdk';
 import ChartDatabase from './ChartDatabase.js';
 import TokenMetadataService from './TokenMetadataService.js';
 import TokenMetadataUpdater from './TokenMetadataUpdater.js';
@@ -51,6 +53,10 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.backgroundUpdateInterval = 5000; // 5 seconds (for WebSocket broadcasts)
         this.requestDelay = 1000; // 1 second delay between requests
         this.solPriceUSD = 0;
+        
+        // Initialize Meteora SDK
+        this.meteoraConnection = null;
+        this.cpAmm = null;
         this.lastSolPriceUpdate = 0;
         this.solPriceCacheDuration = 15 * 60 * 1000; // 15 minutes (SOL price doesn't change rapidly)
         
@@ -82,6 +88,7 @@ class EnhancedHybridPriceService extends EventEmitter {
         try {
             console.log('🚀 [EnhancedHybridPriceService] Starting async initialization...');
             await this.initializeGrpcClient();
+            await this.initializeMeteoraSDK();
             await this.loadTokenCache();
             await this.updateSolPrice(); // ✅ CRITICAL FIX: Initialize SOL price for swap detection
             
@@ -111,6 +118,23 @@ class EnhancedHybridPriceService extends EventEmitter {
             console.log('✅ [EnhancedHybridPriceService] Async initialization complete');
         } catch (error) {
             console.error('❌ [EnhancedHybridPriceService] Async initialization failed:', error.message);
+        }
+    }
+
+    async initializeMeteoraSDK() {
+        try {
+            console.log('🔌 [EnhancedHybridPriceService] Initializing Meteora SDK...');
+            
+            // Initialize Solana connection
+            this.meteoraConnection = new Connection('https://api.mainnet-beta.solana.com');
+            
+            // Initialize Meteora DAMM v2 SDK
+            this.cpAmm = new CpAmm(this.meteoraConnection);
+            
+            console.log('✅ [EnhancedHybridPriceService] Meteora SDK initialized successfully');
+        } catch (error) {
+            console.error('❌ [EnhancedHybridPriceService] Failed to initialize Meteora SDK:', error.message);
+            // Don't throw - continue without Meteora SDK
         }
     }
 
@@ -1188,7 +1212,42 @@ class EnhancedHybridPriceService extends EventEmitter {
 
     async fetchJupiterTokenData(tokenAddress) {
         try {
-            console.log(`🔄 [EnhancedHybridPriceService] Fetching Jupiter data for token: ${tokenAddress}`);
+            console.log(`🔄 [EnhancedHybridPriceService] Fetching Meteora SDK data for token: ${tokenAddress}`);
+            
+            if (!this.cpAmm) {
+                console.log(`❌ [EnhancedHybridPriceService] Meteora SDK not initialized, falling back to Jupiter API`);
+                return await this.fetchJupiterTokenDataFallback(tokenAddress);
+            }
+            
+            // Try to get pool data using Meteora SDK
+            try {
+                // Get pool information from Meteora SDK
+                const poolInfo = await this.cpAmm.getPoolInfo(tokenAddress);
+                if (poolInfo) {
+                    console.log(`✅ [EnhancedHybridPriceService] Found pool data via Meteora SDK`);
+                    return {
+                        tokenInfo: { address: tokenAddress },
+                        firstPool: poolInfo,
+                        tokenReserves: poolInfo.tokenReserves || 0,
+                        solReserves: poolInfo.solReserves || 0
+                    };
+                }
+            } catch (meteoraError) {
+                console.log(`⚠️ [EnhancedHybridPriceService] Meteora SDK failed: ${meteoraError.message}`);
+            }
+            
+            // Fallback to Jupiter API if Meteora SDK fails
+            return await this.fetchJupiterTokenDataFallback(tokenAddress);
+            
+        } catch (error) {
+            console.error(`❌ [EnhancedHybridPriceService] Error fetching token data:`, error.message);
+            return null;
+        }
+    }
+
+    async fetchJupiterTokenDataFallback(tokenAddress) {
+        try {
+            console.log(`🔄 [EnhancedHybridPriceService] Fetching Jupiter API fallback for token: ${tokenAddress}`);
             
             // Try to get token info from Jupiter
             const tokenInfo = await this.fetchTokenInfo(tokenAddress);
@@ -1211,7 +1270,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                 solReserves: poolData.solReserves || 0
             };
         } catch (error) {
-            console.error(`❌ [EnhancedHybridPriceService] Error fetching Jupiter token data:`, error.message);
+            console.error(`❌ [EnhancedHybridPriceService] Error fetching Jupiter fallback:`, error.message);
             return null;
         }
     }
