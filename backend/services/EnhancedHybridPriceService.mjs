@@ -995,28 +995,27 @@ class EnhancedHybridPriceService extends EventEmitter {
         try {
             console.log(`🔍 [EnhancedHybridPriceService] Getting real-time data for ${tokenAddress}`);
             
-            // For single-token monitoring, use the hardcoded TEST_TOKEN and TEST_POOL
+            // ✅ CRITICAL FIX: Update token list to match startRealTimeMonitoring
             const TEST_TOKENS = [
                 '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc', // PROBITY
-                'FL4eKdJrVZ1dVu1RoekeQRnuPxavzD4oCcR5HTcspump'  // New token
+                '5EpbKX221NYVidK6A2nJGhtuLPvrPiQ6shknLbtjBAGS'  // MEMEPUTER token
             ];
             const TEST_POOLS = [
                 '98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvZFN', // PROBITY pool
-                'FL4eKdJrVZ1dVu1RoekeQRnuPxavzD4oCcR5HTcspump'   // New token pool
+                'c9EQnny8sBVrkMCKvVua1AQTRSXW1TDw1zLwFLHvRXh'   // MEMEPUTER pool
             ];
             
-            // Use first token for now
-            const TEST_TOKEN = TEST_TOKENS[0];
-            const TEST_POOL = TEST_POOLS[0];
-            
-            // Check if this is the token we're monitoring
-            console.log(`🔍 [EnhancedHybridPriceService] Comparing tokenAddress: "${tokenAddress}" with TEST_TOKEN: "${TEST_TOKEN}"`);
-            console.log(`🔍 [EnhancedHybridPriceService] Are they equal? ${tokenAddress === TEST_TOKEN}`);
-            
-            if (tokenAddress !== TEST_TOKEN) {
-                console.log(`⚠️ [EnhancedHybridPriceService] Token ${tokenAddress} not in single-token monitoring (monitoring ${TEST_TOKEN})`);
+            // Find the token in our monitoring list
+            const tokenIndex = TEST_TOKENS.indexOf(tokenAddress);
+            if (tokenIndex === -1) {
+                console.log(`⚠️ [EnhancedHybridPriceService] Token ${tokenAddress} not in monitoring list`);
                 return null;
             }
+            
+            const TEST_TOKEN = TEST_TOKENS[tokenIndex];
+            const TEST_POOL = TEST_POOLS[tokenIndex];
+            
+            console.log(`🔍 [EnhancedHybridPriceService] Found token ${tokenAddress} at index ${tokenIndex}, using pool ${TEST_POOL}`);
             
             // Get current pool reserves
             let poolData = await this.getPoolReserves(TEST_POOL, tokenAddress);
