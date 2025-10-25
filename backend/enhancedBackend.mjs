@@ -13537,19 +13537,20 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        if (this.hybridPriceService) {
-          const subscribed = this.hybridPriceService.subscribeToToken(tokenAddress);
+        if (this.enhancedHybridPriceService) {
+          // ✅ CRITICAL FIX: Use EnhancedHybridPriceService (gRPC) instead of old HybridPriceService (REST)
+          const subscribed = this.enhancedHybridPriceService.subscribeToToken(tokenAddress);
           
           res.json({
             success: true,
             subscribed,
             tokenAddress,
-            message: subscribed ? 'Subscribed to token price updates' : 'Already subscribed to this token'
+            message: subscribed ? 'Subscribed to gRPC token price updates' : 'Already subscribed to this token'
           });
         } else {
           res.status(503).json({
             success: false,
-            error: 'HybridPriceService not available'
+            error: 'EnhancedHybridPriceService not available'
           });
         }
       } catch (error) {
@@ -13572,19 +13573,20 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        if (this.hybridPriceService) {
-          const unsubscribed = this.hybridPriceService.unsubscribeFromToken(tokenAddress);
+        if (this.enhancedHybridPriceService) {
+          // ✅ CRITICAL FIX: Use EnhancedHybridPriceService (gRPC) instead of old HybridPriceService (REST)
+          const unsubscribed = this.enhancedHybridPriceService.unsubscribeFromToken(tokenAddress);
           
           res.json({
             success: true,
             unsubscribed,
             tokenAddress,
-            message: unsubscribed ? 'Unsubscribed from token price updates' : 'Not subscribed to this token'
+            message: unsubscribed ? 'Unsubscribed from gRPC token price updates' : 'Not subscribed to this token'
           });
         } else {
           res.status(503).json({
             success: false,
-            error: 'HybridPriceService not available'
+            error: 'EnhancedHybridPriceService not available'
           });
         }
       } catch (error) {
