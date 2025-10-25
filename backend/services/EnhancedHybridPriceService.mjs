@@ -693,6 +693,23 @@ class EnhancedHybridPriceService extends EventEmitter {
             }
             
             console.log(`❌ [DEBUG] Not enough token accounts (${tokenAccounts.length}) for pool ${poolAddress}`);
+            
+            // ✅ FALLBACK: Try Jupiter API when Constant K RPC fails
+            console.log(`🔄 [DEBUG] Trying Jupiter API fallback for token ${tokenAddress}...`);
+            try {
+                const jupiterData = await this.fetchJupiterTokenData(tokenAddress);
+                if (jupiterData && jupiterData.firstPool) {
+                    console.log(`✅ [DEBUG] Jupiter fallback successful - found pool: ${jupiterData.firstPool.id}`);
+                    // Use Jupiter's pool data
+                    return {
+                        tokenReserves: jupiterData.firstPool.tokenReserves || 0,
+                        solReserves: jupiterData.firstPool.solReserves || 0
+                    };
+                }
+            } catch (jupiterError) {
+                console.log(`❌ [DEBUG] Jupiter fallback failed:`, jupiterError.message);
+            }
+            
             return null;
         } catch (error) {
             console.error(`❌ [DEBUG] Error fetching pool reserves for ${poolAddress}:`, error.message);
@@ -1000,30 +1017,17 @@ class EnhancedHybridPriceService extends EventEmitter {
         try {
             console.log(`🔍 [EnhancedHybridPriceService] Getting real-time data for ${tokenAddress}`);
             
-            // ✅ CRITICAL FIX: Update token list to match startRealTimeMonitoring
-            const TEST_TOKENS = [
-                '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc', // PROBITY
-                '5EpbKX221NYVidK6A2nJGhtuLPvrPiQ6shknLbtjBAGS'  // MEMEPUTER token
-            ];
-            const TEST_POOLS = [
-                '98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvZFN', // PROBITY pool
-                'c9EQnny8sBVrkMCKvVua1AQTRSXW1TDw1zLwFLHvRXh'   // MEMEPUTER pool
-            ];
-            
-            // Find the token in our monitoring list
-            const tokenIndex = TEST_TOKENS.indexOf(tokenAddress);
-            if (tokenIndex === -1) {
-                console.log(`⚠️ [EnhancedHybridPriceService] Token ${tokenAddress} not in monitoring list`);
+            // ✅ CRITICAL FIX: Use actual poolAddresses map instead of hardcoded array
+            const poolAddress = this.poolAddresses.get(tokenAddress);
+            if (!poolAddress) {
+                console.log(`⚠️ [EnhancedHybridPriceService] Token ${tokenAddress} not in poolAddresses map`);
                 return null;
             }
             
-            const TEST_TOKEN = TEST_TOKENS[tokenIndex];
-            const TEST_POOL = TEST_POOLS[tokenIndex];
-            
-            console.log(`🔍 [EnhancedHybridPriceService] Found token ${tokenAddress} at index ${tokenIndex}, using pool ${TEST_POOL}`);
+            console.log(`🔍 [EnhancedHybridPriceService] Found token ${tokenAddress} with pool ${poolAddress}`);
             
             // Get current pool reserves
-            let poolData = await this.getPoolReserves(TEST_POOL, tokenAddress);
+            let poolData = await this.getPoolReserves(poolAddress, tokenAddress);
             console.log(`🔍 [DEBUG] poolData after getPoolReserves:`, poolData);
             
             if (!poolData) {
