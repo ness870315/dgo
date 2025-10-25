@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import chartService from "../services/chartService";
 
 // ------- helpers
@@ -116,7 +116,7 @@ function formatTickTime(tMs, tf, useUTC) {
                  : new Intl.DateTimeFormat('en-US', opts)).format(d);
 }
 
-function SvgOHLCVArea({
+const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
   contract,                      // token address
   timeframe = "1MIN",
   displayMode = "price",         // "price" | "mcap"
@@ -146,7 +146,7 @@ function SvgOHLCVArea({
   }, []);
 
   // fetch from ChartService
-  useEffect(() => {
+  const fetchData = useCallback(async () => {
     const aliveRef = { current: true };
     (async () => {
       try {
@@ -229,6 +229,10 @@ function SvgOHLCVArea({
       fetchingRef.current = false;
     };
   }, [contract, timeframe]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   // Process data: normalize, window, and transform
   const processedData = useMemo(() => {
