@@ -180,17 +180,25 @@ function SvgOHLCVArea({
         
         // Validate and clean data before setting
         const validatedData = data.filter(point => {
+          // Check for both 'time' and 'timestamp' fields
+          const timeValue = point.time || point.timestamp;
           const isValid = point && 
-            typeof point.time === 'number' && 
+            typeof timeValue === 'number' && 
             typeof point.close === 'number' && 
             !isNaN(point.close) && 
             point.close > 0 &&
-            !isNaN(point.time);
+            !isNaN(timeValue);
           
           if (!isValid) {
             console.log(`⚠️ [SvgOHLCVArea] Invalid data point filtered out:`, point);
           }
           return isValid;
+        }).map(point => {
+          // Normalize the time field - convert timestamp to time if needed
+          if (point.timestamp && !point.time) {
+            return { ...point, time: point.timestamp };
+          }
+          return point;
         });
         
         console.log(`🔄 [SvgOHLCVArea] Setting raw data... (${validatedData.length}/${data.length} valid points)`);
