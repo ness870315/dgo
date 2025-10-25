@@ -248,10 +248,10 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
                   {formatTokenAmount(swap.tokenAmount)}
                 </td>
                 <td className="px-3 py-2 text-right text-white">
-                  {swap.solAmount.toFixed(3)} SOL
+                  {swap.solAmount ? swap.solAmount.toFixed(3) : '0.000'} SOL
                 </td>
                 <td className="px-3 py-2 text-right text-white font-semibold">
-                  ${swap.usdAmount.toFixed(2)}
+                  ${swap.usdAmount ? swap.usdAmount.toFixed(2) : '0.00'}
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex items-center space-x-2">
@@ -334,7 +334,7 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
                           {formatTimestamp(swap.timestamp)}
                         </td>
                         <td className="px-3 py-2 text-right text-white font-semibold">
-                          ${swap.usdAmount.toFixed(2)}
+                          ${swap.usdAmount ? swap.usdAmount.toFixed(2) : '0.00'}
                         </td>
                         <td className="px-3 py-2">
                           <a

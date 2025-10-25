@@ -394,26 +394,9 @@ const PriceChartModal = ({ token, onClose }) => {
             </div>
           )}
           
-          <div className="bg-red-500 p-4 border-4 border-yellow-400">
-            <div className="text-white font-bold text-lg mb-2">TEST: SVGChart Container</div>
-            <div className="bg-blue-500 p-2 mb-2">
-              <div className="text-white">Before SVGChart render</div>
-            </div>
-            <ErrorBoundary>
-              {(() => {
-                console.log('🚀 [PriceChartModal] About to render SVGChart for:', token.symbol);
-                try {
-                  return <SVGChart token={token} onClose={onClose} />;
-                } catch (error) {
-                  console.error('❌ [PriceChartModal] Immediate SVGChart error:', error);
-                  return <div className="bg-red-600 text-white p-4">Immediate Error: {error.message}</div>;
-                }
-              })()}
-            </ErrorBoundary>
-            <div className="bg-green-500 p-2 mt-2">
-              <div className="text-white">After SVGChart render</div>
-            </div>
-          </div>
+                 <ErrorBoundary>
+                   <SVGChart token={token} onClose={onClose} />
+                 </ErrorBoundary>
           
           {/* Swap Table - COMPLETELY ISOLATED TO PREVENT EVENT BUBBLING */}
           <div 
