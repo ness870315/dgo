@@ -1212,35 +1212,101 @@ class EnhancedHybridPriceService extends EventEmitter {
 
     async fetchJupiterTokenData(tokenAddress) {
         try {
-            console.log(`🔄 [EnhancedHybridPriceService] Fetching Meteora SDK data for token: ${tokenAddress}`);
+            console.log(`🔄 [EnhancedHybridPriceService] Fetching pool data for token: ${tokenAddress}`);
             
-            if (!this.cpAmm) {
-                console.log(`❌ [EnhancedHybridPriceService] Meteora SDK not initialized, falling back to Jupiter API`);
-                return await this.fetchJupiterTokenDataFallback(tokenAddress);
+            // First, try to get pool info from Jupiter to determine DEX type
+            const tokenInfo = await this.fetchTokenInfo(tokenAddress);
+            if (!tokenInfo) {
+                console.log(`❌ [EnhancedHybridPriceService] No token info found for ${tokenAddress}`);
+                return null;
             }
+
+            // Get pool data to determine DEX type
+            const poolData = await this.fetchPoolDataByDEX(tokenAddress, tokenInfo);
+            if (!poolData) {
+                console.log(`❌ [EnhancedHybridPriceService] No pool data found for ${tokenAddress}`);
+                return null;
+            }
+
+            // Check if this is a Meteora pool
+            const isMeteoraPool = this.isMeteoraPool(poolData);
             
-            // Try to get pool data using Meteora SDK
-            try {
-                // Get pool information from Meteora SDK
-                const poolInfo = await this.cpAmm.getPoolInfo(tokenAddress);
-                if (poolInfo) {
-                    console.log(`✅ [EnhancedHybridPriceService] Found pool data via Meteora SDK`);
-                    return {
-                        tokenInfo: { address: tokenAddress },
-                        firstPool: poolInfo,
-                        tokenReserves: poolInfo.tokenReserves || 0,
-                        solReserves: poolInfo.solReserves || 0
-                    };
+            if (isMeteoraPool && this.cpAmm) {
+                console.log(`🔌 [EnhancedHybridPriceService] Detected Meteora pool, using Meteora SDK for ${tokenAddress}`);
+                try {
+                    // Use Meteora SDK for Meteora pools
+                    const meteoraData = await this.fetchMeteoraPoolData(tokenAddress, poolData);
+                    if (meteoraData) {
+                        return meteoraData;
+                    }
+                } catch (meteoraError) {
+                    console.log(`⚠️ [EnhancedHybridPriceService] Meteora SDK failed, falling back to Jupiter: ${meteoraError.message}`);
                 }
-            } catch (meteoraError) {
-                console.log(`⚠️ [EnhancedHybridPriceService] Meteora SDK failed: ${meteoraError.message}`);
+            } else {
+                console.log(`🔄 [EnhancedHybridPriceService] Non-Meteora pool detected, using Jupiter API for ${tokenAddress}`);
             }
             
-            // Fallback to Jupiter API if Meteora SDK fails
-            return await this.fetchJupiterTokenDataFallback(tokenAddress);
+            // Use Jupiter API for non-Meteora pools or as fallback
+            return {
+                tokenInfo,
+                firstPool: poolData,
+                tokenReserves: poolData.tokenReserves || 0,
+                solReserves: poolData.solReserves || 0
+            };
             
         } catch (error) {
             console.error(`❌ [EnhancedHybridPriceService] Error fetching token data:`, error.message);
+            return null;
+        }
+    }
+
+    isMeteoraPool(poolData) {
+        // Check if this is a Meteora pool based on various indicators
+        if (!poolData) return false;
+        
+        // Check DEX name
+        if (poolData.dex && poolData.dex.toLowerCase().includes('meteora')) {
+            return true;
+        }
+        
+        // Check program ID (Meteora DAMM v2 program ID)
+        if (poolData.programId === 'cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG') {
+            return true;
+        }
+        
+        // Check if pool address matches Meteora patterns
+        if (poolData.address && poolData.address.startsWith('c9EQnny8sBVrkMCKvVua1AQTRSXW1TDw1zLwFLHvRXh')) {
+            return true;
+        }
+        
+        return false;
+    }
+
+    async fetchMeteoraPoolData(tokenAddress, poolData) {
+        try {
+            console.log(`🔌 [EnhancedHybridPriceService] Fetching Meteora pool data for ${tokenAddress}`);
+            
+            // Use Meteora SDK to get enhanced pool data
+            const meteoraPoolInfo = await this.cpAmm.getPoolInfo(poolData.address);
+            
+            if (meteoraPoolInfo) {
+                console.log(`✅ [EnhancedHybridPriceService] Successfully fetched Meteora pool data`);
+                return {
+                    tokenInfo: { address: tokenAddress },
+                    firstPool: {
+                        ...poolData,
+                        ...meteoraPoolInfo,
+                        dex: 'Meteora DAMM v2',
+                        isMeteoraPool: true
+                    },
+                    tokenReserves: meteoraPoolInfo.tokenReserves || poolData.tokenReserves || 0,
+                    solReserves: meteoraPoolInfo.solReserves || poolData.solReserves || 0
+                };
+            }
+            
+            return null;
+        } catch (error) {
+            console.error(`❌ [EnhancedHybridPriceService] Error fetching Meteora pool data:`, error.message);
             return null;
         }
     }
