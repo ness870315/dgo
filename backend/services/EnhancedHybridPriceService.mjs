@@ -248,10 +248,12 @@ class EnhancedHybridPriceService extends EventEmitter {
         // SIMPLIFIED TEST: Monitor just 1 token like the working test
         const TEST_TOKENS = [
             '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc', // PROBITY from working test
-            '5EpbKX221NYVidK6A2nJGhtuLPvrPiQ6shknLbtjBAGS'  // MEMEPUTER token
+            '5EpbKX221NYVidK6A2nJGhtuLPvrPiQ6shknLbtjBAGS',  // MEMEPUTER token
+            'E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump'   // PumpFun Raydium pool token
         ];
         const TEST_POOLS = [
             '98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvZFN', // PROBITY pool
+            'AQcBbrwGmgzwimvfwNdBTGTgn8mq2u74NerGta5mGB2o',   // PumpFun Raydium pool
             'c9EQnny8sBVrkMCKvVua1AQTRSXW1TDw1zLwFLHvRXh'   // MEMEPUTER pool
         ];
         
