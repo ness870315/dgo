@@ -13526,7 +13526,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
     });
 
     // 🚀 NEW: Hybrid Price Service WebSocket subscription management
-    this.app.post('/api/hybrid-price/subscribe', (req, res) => {
+    this.app.post('/api/hybrid-price/subscribe', async (req, res) => {
       try {
         const { tokenAddress } = req.body;
         
