@@ -1240,7 +1240,7 @@ class EnhancedHybridPriceService extends EventEmitter {
             }
 
             // Check if this is a Meteora pool
-            const isMeteoraPool = this.isMeteoraPool(poolData);
+            const isMeteoraPool = await this.isMeteoraPool(poolData);
             
             console.log(`🔍 [DEBUG] Meteora SDK Status for ${tokenAddress}:`);
             console.log(`  - cpAmm initialized: ${!!this.cpAmm}`);
@@ -1276,22 +1276,46 @@ class EnhancedHybridPriceService extends EventEmitter {
         }
     }
 
-    isMeteoraPool(poolData) {
+    async isMeteoraPool(poolData) {
         // Check if this is a Meteora pool based on various indicators
         if (!poolData) return false;
         
-        // Check DEX name
+        // Method 1: Check DEX name
         if (poolData.dex && poolData.dex.toLowerCase().includes('meteora')) {
+            console.log(`🔍 [DEBUG] Meteora pool detected by DEX name: ${poolData.dex}`);
             return true;
         }
         
-        // Check program ID (Meteora DAMM v2 program ID)
+        // Method 2: Check program ID (Meteora DAMM v2 program ID)
         if (poolData.programId === 'cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG') {
+            console.log(`🔍 [DEBUG] Meteora pool detected by program ID: ${poolData.programId}`);
             return true;
         }
         
-        // Check if pool address matches Meteora patterns
+        // Method 3: Check pool address owner program ID (NEW APPROACH)
+        if (poolData.address || poolData.poolAddress) {
+            const poolAddress = poolData.address || poolData.poolAddress;
+            console.log(`🔍 [DEBUG] Checking pool owner for: ${poolAddress}`);
+            
+            try {
+                const account = await this.meteoraConnection.getAccountInfo(poolAddress);
+                if (account && account.owner) {
+                    const ownerProgramId = account.owner.toString();
+                    console.log(`🔍 [DEBUG] Pool owner program ID: ${ownerProgramId}`);
+                    
+                    if (ownerProgramId === 'cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG') {
+                        console.log(`🔍 [DEBUG] Meteora pool detected by owner program ID!`);
+                        return true;
+                    }
+                }
+            } catch (error) {
+                console.log(`⚠️ [DEBUG] Error checking pool owner: ${error.message}`);
+            }
+        }
+        
+        // Method 4: Check if pool address matches known Meteora patterns
         if (poolData.address && poolData.address.startsWith('c9EQnny8sBVrkMCKvVua1AQTRSXW1TDw1zLwFLHvRXh')) {
+            console.log(`🔍 [DEBUG] Meteora pool detected by known pattern`);
             return true;
         }
         
