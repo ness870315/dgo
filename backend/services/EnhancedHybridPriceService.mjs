@@ -511,7 +511,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                 
                 console.log(`🔍 [DEBUG] Changes calculated - tokenChange: ${tokenChange}, solChange: ${solChange}`);
                 
-                const minChange = 0.001; // Minimum change to consider a swap
+                const minChange = 0.0001; // Lower threshold to catch smaller swaps
                 
                 if (Math.abs(tokenChange) > minChange || Math.abs(solChange) > minChange) {
                     console.log(`🔍 [EnhancedHybridPriceService] SWAP DETECTED! ${tokenInfo.symbol}: Token change: ${tokenChange.toFixed(6)}, SOL change: ${solChange.toFixed(6)}`);
