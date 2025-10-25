@@ -714,6 +714,15 @@ class EnhancedHybridPriceService extends EventEmitter {
         
         console.log('✅ [EnhancedHybridPriceService] Shutdown complete');
     }
+    
+    getRealTimeStats() {
+        return {
+            activeStreams: Array.from(this.activeStreams.keys()),
+            totalTokens: this.poolAddresses.size,
+            totalSwaps: Array.from(this.swapHistory.values()).reduce((total, swaps) => total + swaps.length, 0),
+            realTimeUpdates: this.realTimeUpdates.size
+        };
+    }
 }
 
 export default EnhancedHybridPriceService;
