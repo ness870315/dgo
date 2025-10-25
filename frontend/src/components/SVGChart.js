@@ -214,9 +214,16 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
         
                console.log(`🔄 [SvgOHLCVArea] Setting raw data... (${validatedData.length}/${data.length} valid points)`);
                console.log(`🔍 [SvgOHLCVArea] About to call setRawData with:`, validatedData.slice(0, 2));
+               
+               // CRITICAL FIX: Ensure component is still alive before state update
+               if (!aliveRef.current) {
+                 console.log(`⚠️ [SvgOHLCVArea] Component not alive, skipping state update`);
+                 return;
+               }
+               
                setRawData(validatedData);
                console.log(`✅ [SvgOHLCVArea] Raw data set successfully - setRawData called`);
-        fetchingRef.current = false;
+               fetchingRef.current = false;
       } catch (e) {
         fetchingRef.current = false;
         if (aliveRef.current) {
@@ -224,11 +231,11 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
           setErr(e.message || "Failed to load chart data");
         }
       }
-    })();
-    return () => {
-      aliveRef.current = false;
-      fetchingRef.current = false;
-    };
+           })();
+           // Don't set aliveRef.current = false here - let the component handle cleanup
+           return () => {
+             fetchingRef.current = false;
+           };
   }, [contract, timeframe]);
 
   useEffect(() => {
@@ -242,6 +249,14 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
       console.log(`🔍 [SvgOHLCVArea] Sample rawData:`, rawData.slice(0, 2));
     }
   }, [rawData, contract]);
+
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      console.log(`🧹 [SvgOHLCVArea] Component unmounting for ${contract}`);
+      aliveRef.current = false;
+    };
+  }, [contract]);
 
   // Process data: normalize, window, and transform
   const processedData = useMemo(() => {
