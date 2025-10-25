@@ -4,7 +4,6 @@ import fs from 'fs/promises';
 import path from 'path';
 import bs58 from 'bs58';
 import { Connection } from '@solana/web3.js';
-import { CpAmm } from '@meteora-ag/cp-amm-sdk';
 import ChartDatabase from './ChartDatabase.js';
 import TokenMetadataService from './TokenMetadataService.js';
 import TokenMetadataUpdater from './TokenMetadataUpdater.js';
@@ -125,6 +124,10 @@ class EnhancedHybridPriceService extends EventEmitter {
         try {
             console.log('🔌 [EnhancedHybridPriceService] Initializing Meteora SDK...');
             
+            // Try to import Meteora SDK dynamically
+            const meteoraSDK = await import('@meteora-ag/cp-amm-sdk');
+            const { CpAmm } = meteoraSDK;
+            
             // Initialize Solana connection
             this.meteoraConnection = new Connection('https://api.mainnet-beta.solana.com');
             
@@ -133,7 +136,8 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             console.log('✅ [EnhancedHybridPriceService] Meteora SDK initialized successfully');
         } catch (error) {
-            console.error('❌ [EnhancedHybridPriceService] Failed to initialize Meteora SDK:', error.message);
+            console.log('⚠️ [EnhancedHybridPriceService] Meteora SDK not available, continuing without it:', error.message);
+            this.cpAmm = null;
             // Don't throw - continue without Meteora SDK
         }
     }
