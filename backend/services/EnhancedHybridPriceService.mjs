@@ -3,10 +3,6 @@ import EventEmitter from 'events';
 import fs from 'fs/promises';
 import path from 'path';
 import bs58 from 'bs58';
-import { Connection } from '@solana/web3.js';
-import ChartDatabase from './ChartDatabase.js';
-import TokenMetadataService from './TokenMetadataService.js';
-import TokenMetadataUpdater from './TokenMetadataUpdater.js';
 
 // Use CommonJS wrapper for gRPC loading
 import { createRequire } from 'module';
@@ -14,7 +10,7 @@ const require = createRequire(import.meta.url);
 let GrpcWrapper = null;
 
 const CONSTANT_K_RPC = 'https://rpc.constant-k.com/?api-key=tsn41k3y-4qch-46f2-5ogr-67dmw2zh1ur8';
-const CONSTANT_K_GRPC_ENDPOINT = 'grpc://yellowstone.constant-k.com';
+const CONSTANT_K_GRPC_ENDPOINT = 'https://yellowstone.constant-k.com:443';
 const CONSTANT_K_GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
 const JUPITER_API_BASE = 'https://lite-api.jup.ag/tokens/v2';
 const DEXSCREENER_API_BASE = 'https://api.dexscreener.com/latest/dex';
@@ -41,10 +37,6 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.realTimeUpdates = new Map(); // Map<tokenAddress, lastUpdate>
         this.swapHistory = new Map(); // Map<tokenAddress, swaps[]>
         
-        // 🚀 NEW: Persistent token metadata service (reduces Jupiter API calls by 95%+)
-        this.tokenMetadata = new TokenMetadataService();
-        this.metadataUpdater = null; // Will be initialized after tokenMetadata
-        
         // Existing architecture
         this.priceCache = new Map();
         this.lastUpdate = new Map();
@@ -52,12 +44,8 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.backgroundUpdateInterval = 5000; // 5 seconds (for WebSocket broadcasts)
         this.requestDelay = 1000; // 1 second delay between requests
         this.solPriceUSD = 0;
-        
-        // Initialize Meteora SDK
-        this.meteoraConnection = null;
-        this.cpAmm = null;
         this.lastSolPriceUpdate = 0;
-        this.solPriceCacheDuration = 15 * 60 * 1000; // 15 minutes (SOL price doesn't change rapidly)
+        this.solPriceCacheDuration = 60000; // 1 minute
         
         // Request deduplication
         this.pendingRequests = new Map();
@@ -87,24 +75,8 @@ class EnhancedHybridPriceService extends EventEmitter {
         try {
             console.log('🚀 [EnhancedHybridPriceService] Starting async initialization...');
             await this.initializeGrpcClient();
-            await this.initializeMeteoraSDK();
             await this.loadTokenCache();
             await this.updateSolPrice(); // ✅ CRITICAL FIX: Initialize SOL price for swap detection
-            
-            // 🚀 NEW: Initialize background metadata updater (reduces Jupiter API calls by 95%+)
-            this.metadataUpdater = new TokenMetadataUpdater(this);
-            await this.metadataUpdater.start();
-            console.log('✅ [EnhancedHybridPriceService] Token metadata updater started');
-            
-            // 🚀 CRITICAL: Initialize ChartDatabase singleton and add PROBITY
-            if (!this.chartDatabase) {
-                const { default: ChartDatabase } = await import('./ChartDatabase.js');
-                this.chartDatabase = new ChartDatabase();
-                console.log('🚀 [EnhancedHybridPriceService] ChartDatabase singleton initialized');
-            }
-            
-            // 🚀 CRITICAL: Sync all token-pool mappings from gRPC to ChartDatabase (one-time)
-            await this.syncTokenPoolMappingsOnce();
             
             console.log(`💰 [EnhancedHybridPriceService] SOL Price: $${this.solPriceUSD}`);
             
@@ -117,35 +89,6 @@ class EnhancedHybridPriceService extends EventEmitter {
             console.log('✅ [EnhancedHybridPriceService] Async initialization complete');
         } catch (error) {
             console.error('❌ [EnhancedHybridPriceService] Async initialization failed:', error.message);
-        }
-    }
-
-    async initializeMeteoraSDK() {
-        try {
-            console.log('🔌 [EnhancedHybridPriceService] Initializing Meteora SDK...');
-            
-            // Try to import Meteora SDK dynamically
-            const meteoraSDK = await import('@meteora-ag/cp-amm-sdk');
-            const { CpAmm } = meteoraSDK;
-            
-            // Initialize Solana connection
-            this.meteoraConnection = new Connection('https://api.mainnet-beta.solana.com');
-            
-            // Initialize Meteora DAMM v2 SDK
-            this.cpAmm = new CpAmm(this.meteoraConnection);
-            
-            console.log('✅ [EnhancedHybridPriceService] Meteora SDK initialized successfully');
-            console.log('🔍 [DEBUG] Meteora SDK Details:');
-            console.log(`  - cpAmm instance: ${!!this.cpAmm}`);
-            console.log(`  - meteoraConnection: ${!!this.meteoraConnection}`);
-        } catch (error) {
-            console.log('⚠️ [EnhancedHybridPriceService] Meteora SDK not available, continuing without it:', error.message);
-            console.log('🔍 [DEBUG] Meteora SDK Error Details:');
-            console.log(`  - Error type: ${error.constructor.name}`);
-            console.log(`  - Error code: ${error.code || 'N/A'}`);
-            console.log(`  - Full error:`, error);
-            this.cpAmm = null;
-            // Don't throw - continue without Meteora SDK
         }
     }
 
@@ -232,9 +175,6 @@ class EnhancedHybridPriceService extends EventEmitter {
         }
         
         console.log(`✅ [EnhancedHybridPriceService] Extracted ${this.poolAddresses.size} pool addresses`);
-        
-        // 🚀 CRITICAL: Retry mapping sync now that pool addresses are loaded
-        await this.retryMappingSyncIfNeeded();
     }
 
     async startRealTimeMonitoring() {
@@ -248,47 +188,24 @@ class EnhancedHybridPriceService extends EventEmitter {
         // SIMPLIFIED TEST: Monitor just 1 token like the working test
         const TEST_TOKENS = [
             '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc', // PROBITY from working test
-            '5EpbKX221NYVidK6A2nJGhtuLPvrPiQ6shknLbtjBAGS',  // MEMEPUTER token
-            'E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump'   // PumpFun Raydium pool token
+            'FL4eKdJrVZ1dVu1RoekeQRnuPxavzD4oCcR5HTcspump'  // New token
         ];
         const TEST_POOLS = [
             '98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvZFN', // PROBITY pool
-            'AQcBbrwGmgzwimvfwNdBTGTgn8mq2u74NerGta5mGB2o',   // PumpFun Raydium pool
-            'c9EQnny8sBVrkMCKvVua1AQTRSXW1TDw1zLwFLHvRXh'   // MEMEPUTER pool
+            'FL4eKdJrVZ1dVu1RoekeQRnuPxavzD4oCcR5HTcspump'   // New token pool (same as token for now)
         ];
         
-        console.log(`📊 [EnhancedHybridPriceService] SIMPLIFIED TEST - Monitoring ${TEST_TOKENS.length} tokens`);
+        // Use first token for now
+        const TEST_TOKEN = TEST_TOKENS[0];
+        const TEST_POOL = TEST_POOLS[0];
         
-        // Start monitoring for all tokens
-        for (let i = 0; i < TEST_TOKENS.length; i++) {
-            const token = TEST_TOKENS[i];
-            const pool = TEST_POOLS[i];
-            console.log(`📊 [EnhancedHybridPriceService] Adding token ${i + 1}: ${token.substring(0, 8)}... (pool: ${pool.substring(0, 8)}...)`);
-            
-            // Add to pool addresses map
-            this.poolAddresses.set(token, pool);
-            
-            // Initialize real-time updates
-            this.realTimeUpdates.set(token, {
-                lastUpdate: Date.now(),
-                price: 0,
-                liquidity: 0,
-                marketCap: 0
-            });
-            
-            // Initialize swap history
-            this.swapHistory.set(token, []);
-        }
+        console.log(`📊 [EnhancedHybridPriceService] SIMPLIFIED TEST - Monitoring 1 token: ${TEST_TOKEN}`);
+        console.log(`📊 [EnhancedHybridPriceService] SIMPLIFIED TEST - Pool address: ${TEST_POOL}`);
         
-        // Start monitoring for all tokens
-        for (let i = 0; i < TEST_TOKENS.length; i++) {
-            const token = TEST_TOKENS[i];
-            const pool = TEST_POOLS[i];
-            console.log(`🚀 [EnhancedHybridPriceService] Starting monitoring for token ${i + 1}: ${token.substring(0, 8)}...`);
-            await this.startSingleTokenMonitoring(token, pool);
-        }
+        // Start monitoring with just this one token
+        await this.startSingleTokenMonitoring(TEST_TOKEN, TEST_POOL);
         
-        console.log(`✅ [EnhancedHybridPriceService] SIMPLIFIED real-time monitoring started for ${TEST_TOKENS.length} tokens`);
+        console.log('✅ [EnhancedHybridPriceService] SIMPLIFIED real-time monitoring started for 1 token');
     }
 
     async startSingleTokenMonitoring(tokenAddress, poolAddress) {
@@ -369,17 +286,6 @@ class EnhancedHybridPriceService extends EventEmitter {
                         // Check if this is our monitored pool
                         if (accountAddress === poolAddress) {
                             console.log(`✅ [EnhancedHybridPriceService] Found matching pool ${poolAddress} for token ${tokenAddress}`);
-                            
-                            // Parse account data to extract reserves
-                            const reserves = this.parseAccountDataForReserves(msg.account.account, tokenAddress);
-                            if (reserves) {
-                                // Store parsed reserves in realTimeUpdates
-                                this.realTimeUpdates.set(tokenAddress, reserves);
-                                console.log(`✅ [DEBUG] Stored reserves for ${tokenAddress}: tokenReserves=${reserves.tokenReserves}, solReserves=${reserves.solReserves}`);
-                            } else {
-                                console.log(`⚠️ [DEBUG] Failed to parse reserves for ${tokenAddress} from account data`);
-                            }
-                            
                             try {
                                 await this.processPoolUpdate(tokenAddress, poolAddress, slot, totalUpdateCount);
                             } catch (error) {
@@ -551,22 +457,24 @@ class EnhancedHybridPriceService extends EventEmitter {
                 return;
             }
             
-            // 🚀 NEW: Use persistent token metadata (reduces Jupiter API calls by 95%+)
-            const tokenMetadata = await this.tokenMetadata.getTokenMetadata(tokenAddress);
-            
             // Get cached token info
             let tokenInfo = this.getTokenFromCache(tokenAddress);
-            
-            // Merge persistent metadata with cached token info
-            tokenInfo = {
-                ...tokenInfo,
-                ...tokenMetadata,
-                // Preserve original fields if metadata doesn't have them
-                contractAddress: tokenInfo?.contractAddress || tokenMetadata.tokenAddress || tokenAddress,
-                tokenAddress: tokenInfo?.tokenAddress || tokenMetadata.tokenAddress || tokenAddress
-            };
-            
-            console.log(`✅ [DEBUG] Using persistent metadata for ${tokenInfo.symbol}: circSupply=${tokenMetadata.circSupply?.toLocaleString()}, totalSupply=${tokenMetadata.totalSupply?.toLocaleString()}`);
+            if (!tokenInfo) {
+                console.log(`⚠️ [DEBUG] No token info found for ${tokenAddress}, fetching from Jupiter API`);
+                // Try to fetch from Jupiter API for complete token data
+                tokenInfo = await this.fetchTokenInfo(tokenAddress);
+                if (!tokenInfo) {
+                    console.log(`⚠️ [DEBUG] Jupiter API failed, creating basic token info`);
+                    // Create basic token info as fallback
+                    tokenInfo = {
+                        symbol: 'PROBITY',
+                        name: 'Probity Token',
+                        contractAddress: tokenAddress,
+                        tokenAddress: tokenAddress,
+                        decimals: 6
+                    };
+                }
+            }
             
             console.log(`🔍 [DEBUG] Token info found: ${tokenInfo.symbol}`);
             
@@ -580,7 +488,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                 
                 console.log(`🔍 [DEBUG] Changes calculated - tokenChange: ${tokenChange}, solChange: ${solChange}`);
                 
-                const minChange = 0.0001; // Lower threshold to catch smaller swaps
+                const minChange = 0.001; // Minimum change to consider a swap
                 
                 if (Math.abs(tokenChange) > minChange || Math.abs(solChange) > minChange) {
                     console.log(`🔍 [EnhancedHybridPriceService] SWAP DETECTED! ${tokenInfo.symbol}: Token change: ${tokenChange.toFixed(6)}, SOL change: ${solChange.toFixed(6)}`);
@@ -659,8 +567,7 @@ class EnhancedHybridPriceService extends EventEmitter {
             contract: tokenAddress,
             symbol: tokenInfo.symbol,
             maker: this.generateRandomMaker(),
-            txn: this.generateTxnHash(),
-            baseToken: 'SOL' // ✅ CRITICAL FIX: Add missing baseToken field
+            txn: this.generateTxnHash()
         };
     }
 
@@ -689,155 +596,62 @@ class EnhancedHybridPriceService extends EventEmitter {
         );
     }
 
-
-    parseAccountDataForReserves(accountData, tokenAddress) {
-        try {
-            console.log(`🔍 [DEBUG] Parsing account data for ${tokenAddress}`);
-            
-            if (!accountData) {
-                console.log(`⚠️ [DEBUG] No account data available for ${tokenAddress}`);
-                return null;
-            }
-            
-            // Check if account has data field
-            if (!accountData.data) {
-                console.log(`⚠️ [DEBUG] No data field in account for ${tokenAddress}`);
-                return null;
-            }
-            
-            // Convert base64 data to buffer
-            const dataBuffer = Buffer.from(accountData.data, 'base64');
-            console.log(`🔍 [DEBUG] Account data buffer length: ${dataBuffer.length} bytes`);
-            
-            // Debug: Show first 200 bytes of data in hex
-            const hexData = dataBuffer.slice(0, 200).toString('hex');
-            console.log(`🔍 [DEBUG] First 200 bytes (hex): ${hexData}`);
-            
-            // Debug: Show what's at the standard Raydium offsets
-            if (dataBuffer.length >= 80) {
-                const tokenAt64 = dataBuffer.readBigUInt64LE(64);
-                const solAt72 = dataBuffer.readBigUInt64LE(72);
-                console.log(`🔍 [DEBUG] At offset 64: ${Number(tokenAt64)}, At offset 72: ${Number(solAt72)}`);
-            }
-            
-            // For Raydium pools, we need to find the correct offsets
-            // Let's try multiple possible offsets and see which ones give reasonable values
-            const possibleOffsets = [
-                { tokenOffset: 64, solOffset: 72, name: 'Standard Raydium' },
-                { tokenOffset: 72, solOffset: 80, name: 'Alternative Raydium' },
-                { tokenOffset: 80, solOffset: 88, name: 'Extended Raydium' },
-                { tokenOffset: 88, solOffset: 96, name: 'Custom Raydium' },
-                { tokenOffset: 96, solOffset: 104, name: 'Extended Custom' },
-                { tokenOffset: 104, solOffset: 112, name: 'Long Offset' },
-                { tokenOffset: 112, solOffset: 120, name: 'Very Long Offset' },
-                { tokenOffset: 120, solOffset: 128, name: 'Maximum Offset' }
-            ];
-            
-            for (const offset of possibleOffsets) {
-                if (dataBuffer.length >= offset.solOffset + 8) {
-                    try {
-                        const tokenReserves = dataBuffer.readBigUInt64LE(offset.tokenOffset);
-                        const solReserves = dataBuffer.readBigUInt64LE(offset.solOffset);
-                        
-                        // Convert to numbers and check if they're reasonable
-                        const tokenNum = Number(tokenReserves);
-                        const solNum = Number(solReserves);
-                        
-                        // Check if values are reasonable (not 0, not too large, not hardcoded values)
-                        // Exclude the hardcoded values that were causing issues
-                        if (tokenNum > 0 && tokenNum < 1e18 && solNum > 0 && solNum < 1e18 && 
-                            !(tokenNum === 10000000 && solNum === 500)) {
-                            console.log(`✅ [DEBUG] Found valid reserves at ${offset.name} offsets: tokenReserves=${tokenNum}, solReserves=${solNum}`);
-                            
-                            return {
-                                tokenReserves: tokenNum,
-                                solReserves: solNum,
-                                source: `gRPC Account Data Parsing (${offset.name})`
-                            };
-                        }
-                    } catch (e) {
-                        // Continue to next offset
-                        continue;
-                    }
-                }
-            }
-            
-            // If no valid offsets found, try to extract from lamports (SOL balance)
-            if (accountData.lamports) {
-                const solBalance = parseInt(accountData.lamports) / 1e9; // Convert lamports to SOL
-                console.log(`⚠️ [DEBUG] Using lamports as SOL reserves: ${solBalance} SOL`);
-                
-                return {
-                    tokenReserves: 1000000, // Placeholder - we need real token reserves
-                    solReserves: solBalance,
-                    source: 'gRPC Account Data (lamports fallback)'
-                };
-            }
-            
-            // If no valid offsets found, try a different approach
-            // Let's try to find reserves by looking for patterns in the data
-            console.log(`⚠️ [DEBUG] No valid reserves found at standard offsets, trying pattern search...`);
-            
-            // Try to find reserves by looking for reasonable values throughout the buffer
-            for (let i = 0; i < dataBuffer.length - 16; i += 8) {
-                try {
-                    const tokenReserves = dataBuffer.readBigUInt64LE(i);
-                    const solReserves = dataBuffer.readBigUInt64LE(i + 8);
-                    
-                    const tokenNum = Number(tokenReserves);
-                    const solNum = Number(solReserves);
-                    
-                    // Look for reasonable reserve values (not the hardcoded ones)
-                    if (tokenNum > 1000 && tokenNum < 1e15 && solNum > 0.1 && solNum < 1e6) {
-                        console.log(`✅ [DEBUG] Found potential reserves at offset ${i}: tokenReserves=${tokenNum}, solReserves=${solNum}`);
-                        
-                        return {
-                            tokenReserves: tokenNum,
-                            solReserves: solNum,
-                            source: `gRPC Account Data (Pattern Search at offset ${i})`
-                        };
-                    }
-                } catch (e) {
-                    continue;
-                }
-            }
-            
-            // Last resort: Use lamports if available
-            if (accountData.lamports) {
-                const solBalance = parseInt(accountData.lamports) / 1e9;
-                console.log(`⚠️ [DEBUG] Using lamports as SOL reserves: ${solBalance} SOL`);
-                
-                return {
-                    tokenReserves: 1000000, // Placeholder
-                    solReserves: solBalance,
-                    source: 'gRPC Account Data (lamports fallback)'
-                };
-            }
-            
-            console.log(`❌ [DEBUG] Could not parse reserves from account data`);
-            return null;
-            
-        } catch (error) {
-            console.error(`❌ [DEBUG] Error parsing account data for ${tokenAddress}:`, error.message);
-            return null;
-        }
-    }
-
     async getPoolReserves(poolAddress, tokenAddress) {
         try {
             console.log(`🔍 [DEBUG] getPoolReserves called for pool: ${poolAddress}, token: ${tokenAddress}`);
             
-            // ✅ CRITICAL FIX: Use ONLY gRPC data - NO REST API calls!
-            const grpcData = this.realTimeUpdates.get(tokenAddress);
-            if (grpcData) {
-                console.log(`✅ [DEBUG] Using gRPC data for ${tokenAddress}: tokenReserves=${grpcData.tokenReserves}, solReserves=${grpcData.solReserves}`);
-                return grpcData;
+            const response = await axios.post(CONSTANT_K_RPC, {
+                jsonrpc: '2.0',
+                id: 1,
+                method: 'getTokenAccountsByOwner',
+                params: [
+                    poolAddress,
+                    { programId: 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' },
+                    { encoding: 'jsonParsed' }
+                ]
+            });
+
+            console.log(`🔍 [DEBUG] Constant K RPC response status: ${response.status}`);
+            console.log(`🔍 [DEBUG] Response data:`, response.data);
+
+            const tokenAccounts = response.data?.result?.value || [];
+            console.log(`🔍 [DEBUG] Found ${tokenAccounts.length} token accounts for pool ${poolAddress}`);
+            
+            if (tokenAccounts.length >= 2) {
+                let tokenReserves = 0;
+                let solReserves = 0;
+                
+                tokenAccounts.forEach(account => {
+                    const mint = account.account.data.parsed.info.mint;
+                    const amount = parseFloat(account.account.data.parsed.info.tokenAmount.uiAmount || 0);
+                    
+                    console.log(`🔍 [DEBUG] Account mint: ${mint}, amount: ${amount}`);
+                    
+                    if (mint === tokenAddress) {
+                        tokenReserves = amount;
+                        console.log(`🔍 [DEBUG] Set tokenReserves to ${amount} for token ${tokenAddress}`);
+                    } else if (mint === WSOL) {
+                        solReserves = amount;
+                        console.log(`🔍 [DEBUG] Set solReserves to ${amount} for WSOL`);
+                    }
+                });
+                
+                console.log(`🔍 [DEBUG] Final reserves - tokenReserves: ${tokenReserves}, solReserves: ${solReserves}`);
+                
+                // Validate that we have valid reserves
+                if (tokenReserves > 0 && solReserves > 0) {
+                    return { tokenReserves, solReserves };
+                } else {
+                    console.log(`❌ [DEBUG] Invalid reserves - tokenReserves: ${tokenReserves}, solReserves: ${solReserves}`);
+                    return null;
+                }
             }
             
-            console.log(`⚠️ [DEBUG] No gRPC data available for ${tokenAddress} - returning null`);
+            console.log(`❌ [DEBUG] Not enough token accounts (${tokenAccounts.length}) for pool ${poolAddress}`);
             return null;
         } catch (error) {
-            console.error(`❌ [DEBUG] Error in getPoolReserves for ${poolAddress}:`, error.message);
+            console.error(`❌ [DEBUG] Error fetching pool reserves for ${poolAddress}:`, error.message);
+            console.error(`❌ [DEBUG] Error details:`, error.response?.data || error.stack);
             return null;
         }
     }
@@ -857,14 +671,19 @@ class EnhancedHybridPriceService extends EventEmitter {
         const volume24h = this.calculateVolume24h(recentSwaps);
         
         // Use Jupiter's price change data (more accurate than our limited swap history)
-        const priceChange24h = tokenInfo.stats24h?.priceChange || 
+        const priceChange24h = tokenInfo.jupiterData?.stats24h?.priceChange || 
+                              tokenInfo.stats24h?.priceChange || 
                               this.calculatePriceChange24h(recentSwaps); // Fallback to swap-based calculation
         
-        // Get total supply from persistent metadata (no Jupiter API call needed!)
-        const totalSupply = tokenInfo.totalSupply || 999000000; // Default 999M
+        // Get total supply from Jupiter data or use a reasonable estimate
+        const totalSupply = tokenInfo.totalSupply || 
+                           tokenInfo.jupiterData?.totalSupply || 
+                           this.estimateTotalSupply(tokenInfo, poolData);
         
         // Use circulating supply for market cap calculation (more accurate)
-        const circulatingSupply = tokenInfo.circSupply || totalSupply;
+        const circulatingSupply = tokenInfo.circSupply || 
+                                tokenInfo.jupiterData?.circSupply || 
+                                totalSupply; // Fallback to total supply if circSupply not available
         
         const marketCap = priceUsd * circulatingSupply;
         
@@ -922,58 +741,29 @@ class EnhancedHybridPriceService extends EventEmitter {
         return ((newestPrice - oldestPrice) / oldestPrice) * 100;
     }
 
-    // 🚀 CRITICAL: Initialize PROBITY in ChartDatabase so swaps can be saved
-    async syncTokenPoolMappingsOnce() {
-        try {
-            console.log('🔄 [EnhancedHybridPriceService] Checking if token-pool mappings need sync...');
-            
-            // Check if mappings already exist
-            const existingMappings = this.chartDatabase.sharedData.pools.size;
-            if (existingMappings > 0) {
-                console.log(`✅ [EnhancedHybridPriceService] Token-pool mappings already exist (${existingMappings}), skipping sync`);
-                return;
+    // Estimate total supply for tokens without Jupiter data
+    estimateTotalSupply(tokenInfo, poolData) {
+        // For most tokens, we can estimate based on common patterns
+        // This is a fallback when Jupiter data is not available
+        
+        // If we have pool data, we can make a reasonable estimate
+        // Most tokens have supplies in the millions to billions range
+        const tokenReserves = poolData.tokenReserves || 0;
+        
+        // Estimate based on pool reserves (usually 1-10% of total supply is in pools)
+        if (tokenReserves > 0) {
+            // For PROBITY specifically, use a more conservative estimate
+            if (tokenInfo.symbol === 'PROBITY' || tokenInfo.contractAddress === '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc') {
+                // PROBITY appears to have a smaller supply - estimate 10% in pool
+                return tokenReserves * 10; // 10x multiplier (100% / 10%)
             }
             
-            console.log('🚀 [EnhancedHybridPriceService] No mappings found, syncing from gRPC service...');
-            
-            // Get all token-pool mappings from gRPC service
-            const mappings = this.poolAddresses; // This Map contains tokenAddress -> poolAddress
-            
-            if (mappings.size === 0) {
-                console.log('⚠️ [EnhancedHybridPriceService] No gRPC mappings available yet, will retry later');
-                return;
-            }
-            
-            // Sync to ChartDatabase (one-time operation)
-            let syncedCount = 0;
-            for (const [tokenAddress, poolAddress] of mappings.entries()) {
-                await this.chartDatabase.setPoolMapping(tokenAddress, poolAddress);
-                syncedCount++;
-            }
-            
-            console.log(`🔄 [EnhancedHybridPriceService] One-time sync complete: Added ${syncedCount} token-pool mappings to ChartDatabase`);
-            
-        } catch (error) {
-            console.error('❌ [EnhancedHybridPriceService] Failed to sync token-pool mappings:', error.message);
+            // For other tokens, assume 5% of total supply is in the pool (common for active tokens)
+            return tokenReserves * 20; // 20x multiplier (100% / 5%)
         }
-    }
-
-    // Retry mapping sync when gRPC mappings become available
-    async retryMappingSyncIfNeeded() {
-        try {
-            const existingMappings = this.chartDatabase.sharedData.pools.size;
-            if (existingMappings > 0) {
-                return; // Already synced
-            }
-            
-            const mappings = this.poolAddresses;
-            if (mappings.size > 0) {
-                console.log('🔄 [EnhancedHybridPriceService] Retrying mapping sync now that gRPC mappings are available...');
-                await this.syncTokenPoolMappingsOnce();
-            }
-        } catch (error) {
-            console.error('❌ [EnhancedHybridPriceService] Failed to retry mapping sync:', error.message);
-        }
+        
+        // Fallback: return a reasonable default based on token type
+        return 1000000000; // 1 billion tokens (common for meme tokens)
     }
 
     // Rate-limited Jupiter API request with caching
@@ -1136,88 +926,36 @@ class EnhancedHybridPriceService extends EventEmitter {
         };
     }
 
-    // Method to discover pool for a token that doesn't have one mapped
-    async discoverPoolForToken(tokenAddress) {
-        try {
-            console.log(`🔍 [EnhancedHybridPriceService] Discovering pool for token ${tokenAddress}`);
-            
-            // Try to fetch token data from Jupiter to find pools
-            const jupiterData = await this.fetchJupiterTokenData(tokenAddress);
-            if (jupiterData) {
-                let poolAddress = null;
-                
-                // Check different possible pool address locations in the response
-                if (jupiterData.firstPool && jupiterData.firstPool.poolAddress) {
-                    poolAddress = jupiterData.firstPool.poolAddress;
-                } else if (jupiterData.firstPool && jupiterData.firstPool.address) {
-                    poolAddress = jupiterData.firstPool.address;
-                } else if (jupiterData.firstPool && jupiterData.firstPool.id) {
-                    poolAddress = jupiterData.firstPool.id;
-                } else if (jupiterData.tokenInfo && jupiterData.tokenInfo.graduatedPool) {
-                    poolAddress = typeof jupiterData.tokenInfo.graduatedPool === 'string' 
-                        ? jupiterData.tokenInfo.graduatedPool 
-                        : jupiterData.tokenInfo.graduatedPool?.address;
-                }
-                
-                if (poolAddress) {
-                    console.log(`✅ [EnhancedHybridPriceService] Found pool ${poolAddress} for token ${tokenAddress}`);
-                    
-                    // Store the mapping
-                    this.poolAddresses.set(tokenAddress, poolAddress);
-                    
-                    // Also store in ChartDatabase for persistence
-                    if (this.chartDatabase) {
-                        await this.chartDatabase.setPoolMapping(tokenAddress, poolAddress);
-                    }
-                    
-                    return poolAddress;
-                } else {
-                    console.log(`⚠️ [EnhancedHybridPriceService] No pool address found in Jupiter data for token ${tokenAddress}`);
-                    console.log(`⚠️ [EnhancedHybridPriceService] Jupiter data structure:`, JSON.stringify(jupiterData, null, 2));
-                    return null;
-                }
-            } else {
-                console.log(`⚠️ [EnhancedHybridPriceService] No Jupiter data found for token ${tokenAddress}`);
-                return null;
-            }
-        } catch (error) {
-            console.error(`❌ [EnhancedHybridPriceService] Error discovering pool for ${tokenAddress}:`, error.message);
-            return null;
-        }
-    }
-
     // Method for TokenDetail to get real-time data
     async getRealTimeTokenData(tokenAddress) {
         try {
             console.log(`🔍 [EnhancedHybridPriceService] Getting real-time data for ${tokenAddress}`);
             
-            // ✅ CRITICAL FIX: Use actual poolAddresses map instead of hardcoded array
-            let poolAddress = this.poolAddresses.get(tokenAddress);
-            if (!poolAddress || poolAddress.trim() === '') {
-                console.log(`⚠️ [EnhancedHybridPriceService] Token ${tokenAddress} not in poolAddresses map or has empty pool address`);
-                console.log(`⚠️ [EnhancedHybridPriceService] Pool address value: "${poolAddress}"`);
-                
-                // Try to trigger pool discovery for this token
-                console.log(`🔄 [EnhancedHybridPriceService] Attempting to discover pool for ${tokenAddress}`);
-                try {
-                    const discoveredPool = await this.discoverPoolForToken(tokenAddress);
-                    if (discoveredPool && discoveredPool.trim() !== '') {
-                        poolAddress = discoveredPool;
-                        console.log(`✅ [EnhancedHybridPriceService] Successfully discovered pool ${poolAddress} for ${tokenAddress}`);
-                    } else {
-                        console.log(`❌ [EnhancedHybridPriceService] Pool discovery failed for ${tokenAddress}`);
-                        return null;
-                    }
-                } catch (discoveryError) {
-                    console.error(`❌ [EnhancedHybridPriceService] Pool discovery error for ${tokenAddress}:`, discoveryError.message);
-                    return null;
-                }
+            // For single-token monitoring, use the hardcoded TEST_TOKEN and TEST_POOL
+            const TEST_TOKENS = [
+                '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc', // PROBITY
+                'FL4eKdJrVZ1dVu1RoekeQRnuPxavzD4oCcR5HTcspump'  // New token
+            ];
+            const TEST_POOLS = [
+                '98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvZFN', // PROBITY pool
+                'FL4eKdJrVZ1dVu1RoekeQRnuPxavzD4oCcR5HTcspump'   // New token pool
+            ];
+            
+            // Use first token for now
+            const TEST_TOKEN = TEST_TOKENS[0];
+            const TEST_POOL = TEST_POOLS[0];
+            
+            // Check if this is the token we're monitoring
+            console.log(`🔍 [EnhancedHybridPriceService] Comparing tokenAddress: "${tokenAddress}" with TEST_TOKEN: "${TEST_TOKEN}"`);
+            console.log(`🔍 [EnhancedHybridPriceService] Are they equal? ${tokenAddress === TEST_TOKEN}`);
+            
+            if (tokenAddress !== TEST_TOKEN) {
+                console.log(`⚠️ [EnhancedHybridPriceService] Token ${tokenAddress} not in single-token monitoring (monitoring ${TEST_TOKEN})`);
+                return null;
             }
             
-            console.log(`🔍 [EnhancedHybridPriceService] Found token ${tokenAddress} with pool ${poolAddress}`);
-            
             // Get current pool reserves
-            let poolData = await this.getPoolReserves(poolAddress, tokenAddress);
+            let poolData = await this.getPoolReserves(TEST_POOL, tokenAddress);
             console.log(`🔍 [DEBUG] poolData after getPoolReserves:`, poolData);
             
             if (!poolData) {
@@ -1266,13 +1004,10 @@ class EnhancedHybridPriceService extends EventEmitter {
             // Get historical swaps from database
             let historicalSwaps = [];
             try {
-                // 🚀 SINGLETON PATTERN - Use shared ChartDatabase instance
-                if (!this.chartDatabase) {
-                    const { default: ChartDatabase } = await import('./ChartDatabase.js');
-                    this.chartDatabase = new ChartDatabase();
-                    console.log('🚀 [EnhancedHybridPriceService] ChartDatabase singleton initialized for historical data');
-                }
-                historicalSwaps = await this.chartDatabase.getRecentSwaps(TEST_POOL, 100); // Get last 100 swaps
+                // Import ChartDatabase dynamically to avoid circular dependency
+                const { default: ChartDatabase } = await import('./ChartDatabase.js');
+                const chartDb = new ChartDatabase();
+                historicalSwaps = await chartDb.getRecentSwaps(TEST_POOL, 100); // Get last 100 swaps
                 console.log(`📊 [EnhancedHybridPriceService] Retrieved ${historicalSwaps.length} historical swaps for PROBITY`);
             } catch (error) {
                 console.error(`❌ [EnhancedHybridPriceService] Failed to get historical swaps:`, error.message);
@@ -1299,11 +1034,15 @@ class EnhancedHybridPriceService extends EventEmitter {
                                   tokenInfo.stats24h?.priceChange || 
                                   this.calculatePriceChange24h(recentSwaps);
             
-            // Get total supply from persistent metadata (no Jupiter API call needed!)
-            const totalSupply = tokenInfo.totalSupply || 999000000; // Default 999M
+            // Get total supply from Jupiter data or use a reasonable estimate
+            const totalSupply = tokenInfo.totalSupply || 
+                              tokenInfo.jupiterData?.totalSupply || 
+                              this.estimateTotalSupply(tokenInfo, poolData);
             
             // Use circulating supply for market cap calculation
-            const circulatingSupply = tokenInfo.circSupply || totalSupply;
+            const circulatingSupply = tokenInfo.circSupply || 
+                                    tokenInfo.jupiterData?.circSupply || 
+                                    totalSupply; // Fallback to total supply if circSupply not available
             
             const marketCap = priceUSD * circulatingSupply;
             
@@ -1376,360 +1115,6 @@ class EnhancedHybridPriceService extends EventEmitter {
         }
     }
 
-    async fetchJupiterTokenData(tokenAddress) {
-        try {
-            console.log(`🔄 [EnhancedHybridPriceService] Fetching pool data for token: ${tokenAddress}`);
-            
-            // First, try to get pool info from Jupiter to determine DEX type
-            const tokenInfo = await this.fetchTokenInfo(tokenAddress);
-            if (!tokenInfo) {
-                console.log(`❌ [EnhancedHybridPriceService] No token info found for ${tokenAddress}`);
-                return null;
-            }
-
-            // Get pool data to determine DEX type
-            const poolData = await this.fetchPoolDataByDEX(tokenAddress, tokenInfo);
-            if (!poolData) {
-                console.log(`❌ [EnhancedHybridPriceService] No pool data found for ${tokenAddress}`);
-                return null;
-            }
-
-            // Check if this is a Meteora pool
-            const isMeteoraPool = await this.isMeteoraPool(poolData);
-            
-            console.log(`🔍 [DEBUG] Meteora SDK Status for ${tokenAddress}:`);
-            console.log(`  - cpAmm initialized: ${!!this.cpAmm}`);
-            console.log(`  - isMeteoraPool: ${isMeteoraPool}`);
-            console.log(`  - poolData:`, JSON.stringify(poolData, null, 2));
-            
-            if (isMeteoraPool) {
-                console.log(`🔌 [EnhancedHybridPriceService] Detected Meteora pool for ${tokenAddress}`);
-                try {
-                    // Use Meteora SDK if available, otherwise use direct parsing
-                    const meteoraData = await this.fetchMeteoraPoolData(tokenAddress, poolData);
-                    if (meteoraData) {
-                        return meteoraData;
-                    }
-                } catch (meteoraError) {
-                    console.log(`⚠️ [EnhancedHybridPriceService] Meteora data fetch failed, falling back to Jupiter: ${meteoraError.message}`);
-                }
-            } else {
-                console.log(`🔄 [EnhancedHybridPriceService] Non-Meteora pool detected, using Jupiter API for ${tokenAddress}`);
-            }
-            
-            // Use Jupiter API for non-Meteora pools or as fallback
-            return {
-                tokenInfo,
-                firstPool: poolData,
-                tokenReserves: poolData.tokenReserves || 0,
-                solReserves: poolData.solReserves || 0
-            };
-            
-        } catch (error) {
-            console.error(`❌ [EnhancedHybridPriceService] Error fetching token data:`, error.message);
-            return null;
-        }
-    }
-
-    async isMeteoraPool(poolData) {
-        // Check if this is a Meteora pool based on various indicators
-        if (!poolData) return false;
-        
-        // Method 1: Check DEX name
-        if (poolData.dex && poolData.dex.toLowerCase().includes('meteora')) {
-            console.log(`🔍 [DEBUG] Meteora pool detected by DEX name: ${poolData.dex}`);
-            return true;
-        }
-        
-        // Method 2: Check program ID (Meteora DAMM v2 program ID)
-        if (poolData.programId === 'cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG') {
-            console.log(`🔍 [DEBUG] Meteora pool detected by program ID: ${poolData.programId}`);
-            return true;
-        }
-        
-        // Method 3: Check pool address owner program ID (NEW APPROACH)
-        if (poolData.address || poolData.poolAddress) {
-            const poolAddress = poolData.address || poolData.poolAddress;
-            console.log(`🔍 [DEBUG] Checking pool owner for: ${poolAddress}`);
-            
-            try {
-                const account = await this.meteoraConnection.getAccountInfo(poolAddress);
-                if (account && account.owner) {
-                    const ownerProgramId = account.owner.toString();
-                    console.log(`🔍 [DEBUG] Pool owner program ID: ${ownerProgramId}`);
-                    
-                    if (ownerProgramId === 'cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG') {
-                        console.log(`🔍 [DEBUG] Meteora pool detected by owner program ID!`);
-                        return true;
-                    }
-                }
-            } catch (error) {
-                console.log(`⚠️ [DEBUG] Error checking pool owner: ${error.message}`);
-            }
-        }
-        
-        // Method 4: Check if pool address matches known Meteora patterns
-        if (poolData.address && poolData.address.startsWith('c9EQnny8sBVrkMCKvVua1AQTRSXW1TDw1zLwFLHvRXh')) {
-            console.log(`🔍 [DEBUG] Meteora pool detected by known pattern`);
-            return true;
-        }
-        
-        return false;
-    }
-
-    async fetchMeteoraPoolData(tokenAddress, poolData) {
-        try {
-            console.log(`🔌 [EnhancedHybridPriceService] Fetching Meteora pool data for ${tokenAddress}`);
-            
-            const poolAddress = poolData.address || poolData.poolAddress;
-            if (!poolAddress) {
-                console.log(`❌ [EnhancedHybridPriceService] No pool address provided for Meteora pool`);
-                return null;
-            }
-            
-            console.log(`🔌 [EnhancedHybridPriceService] Pool address: ${poolAddress}`);
-            
-            // Method 1: Try Meteora SDK if available
-            if (this.cpAmm) {
-                try {
-                    console.log(`🔌 [EnhancedHybridPriceService] Using Meteora SDK for pool: ${poolAddress}`);
-                    const meteoraPoolInfo = await this.cpAmm.getPoolInfo(poolAddress);
-                    
-                    if (meteoraPoolInfo) {
-                        console.log(`✅ [EnhancedHybridPriceService] Meteora SDK data retrieved:`, meteoraPoolInfo);
-                        return {
-                            tokenInfo: { address: tokenAddress },
-                            firstPool: {
-                                ...poolData,
-                                ...meteoraPoolInfo,
-                                dex: 'Meteora DAMM v2',
-                                isMeteoraPool: true
-                            },
-                            tokenReserves: meteoraPoolInfo.tokenReserves || poolData.tokenReserves || 0,
-                            solReserves: meteoraPoolInfo.solReserves || poolData.solReserves || 0
-                        };
-                    }
-                } catch (sdkError) {
-                    console.log(`⚠️ [EnhancedHybridPriceService] Meteora SDK failed: ${sdkError.message}`);
-                }
-            }
-            
-            // Method 2: Direct RPC approach - fetch pool data without SDK
-            console.log(`🔌 [EnhancedHybridPriceService] Using direct RPC calls for Meteora pool: ${poolAddress}`);
-            
-            try {
-                // Get pool account info
-                const poolAccount = await this.meteoraConnection.getAccountInfo(poolAddress);
-                if (!poolAccount) {
-                    console.log(`❌ [EnhancedHybridPriceService] Pool account not found: ${poolAddress}`);
-                    return null;
-                }
-                
-                console.log(`🔍 [DEBUG] Pool account owner: ${poolAccount.owner.toString()}`);
-                console.log(`🔍 [DEBUG] Pool account lamports: ${poolAccount.lamports}`);
-                
-                // Parse Meteora pool data directly from account data
-                const parsedReserves = this.parseMeteoraPoolReserves(poolAccount.data, tokenAddress);
-                
-                console.log(`🔍 [DEBUG] Parsed reserves - Token: ${parsedReserves.tokenReserves}, SOL: ${parsedReserves.solReserves}`);
-                
-                return {
-                    tokenInfo: { address: tokenAddress },
-                    firstPool: {
-                        ...poolData,
-                        address: poolAddress,
-                        owner: poolAccount.owner.toString(),
-                        lamports: poolAccount.lamports,
-                        dex: 'Meteora DAMM v2',
-                        isMeteoraPool: true
-                    },
-                    tokenReserves: parsedReserves.tokenReserves,
-                    solReserves: parsedReserves.solReserves
-                };
-                
-            } catch (rpcError) {
-                console.log(`⚠️ [EnhancedHybridPriceService] Direct RPC failed: ${rpcError.message}`);
-            }
-            
-            // Method 3: Fallback with enhanced Jupiter data
-            console.log(`🔄 [EnhancedHybridPriceService] Using enhanced Jupiter fallback for Meteora pool`);
-            
-            // Try to get better data from Jupiter API
-            try {
-                const jupiterResponse = await axios.get(`${JUPITER_API_BASE}/${tokenAddress}`);
-                if (jupiterResponse.data && jupiterResponse.data.length > 0) {
-                    const tokenData = jupiterResponse.data[0];
-                    console.log(`🔍 [DEBUG] Jupiter token data:`, tokenData);
-                    
-                    // Extract liquidity information if available
-                    const liquidity = tokenData.liquidity || 0;
-                    const price = tokenData.price || 0;
-                    
-                    // Estimate reserves based on liquidity and price
-                    const estimatedTokenReserves = liquidity / (price || 1);
-                    const estimatedSolReserves = liquidity;
-                    
-                    console.log(`🔍 [DEBUG] Jupiter estimated reserves - Token: ${estimatedTokenReserves}, SOL: ${estimatedSolReserves}`);
-                    
-                    return {
-                        tokenInfo: { address: tokenAddress },
-                        firstPool: {
-                            ...poolData,
-                            dex: 'Meteora DAMM v2',
-                            isMeteoraPool: true,
-                            liquidity: liquidity,
-                            price: price
-                        },
-                        tokenReserves: estimatedTokenReserves,
-                        solReserves: estimatedSolReserves
-                    };
-                }
-            } catch (jupiterError) {
-                console.log(`⚠️ [EnhancedHybridPriceService] Jupiter API failed: ${jupiterError.message}`);
-            }
-            
-            // Final fallback - return with non-zero values to indicate Meteora pool
-            console.log(`🔄 [EnhancedHybridPriceService] Using final fallback for Meteora pool`);
-            return {
-                tokenInfo: { address: tokenAddress },
-                firstPool: {
-                    ...poolData,
-                    dex: 'Meteora DAMM v2',
-                    isMeteoraPool: true
-                },
-                tokenReserves: 1000000, // Non-zero value to indicate pool exists
-                solReserves: 1000 // Non-zero value to indicate pool exists
-            };
-            
-        } catch (error) {
-            console.error(`❌ [EnhancedHybridPriceService] Error fetching Meteora pool data:`, error.message);
-            return null;
-        }
-    }
-
-    parseMeteoraPoolReserves(data, tokenAddress) {
-        try {
-            console.log(`🔍 [EnhancedHybridPriceService] Parsing Meteora pool data (${data.length} bytes)`);
-            
-            // Parse token amounts from pool data based on our analysis
-            const tokenAmount = this.parseMeteoraTokenAmount(data, tokenAddress);
-            const solAmount = this.parseMeteoraSolAmount(data);
-            
-            return {
-                tokenReserves: tokenAmount,
-                solReserves: solAmount
-            };
-        } catch (error) {
-            console.log(`⚠️ [EnhancedHybridPriceService] Error parsing Meteora pool reserves: ${error.message}`);
-            return {
-                tokenReserves: 0,
-                solReserves: 0
-            };
-        }
-    }
-    
-    parseMeteoraTokenAmount(data, tokenAddress) {
-        try {
-            // Look for reasonable token amounts in the pool data
-            // Based on our analysis, token amounts are typically around offset 120
-            const tokenAmount = data.readBigUInt64LE(120);
-            const amount = Number(tokenAmount);
-            
-            // Validate the amount is reasonable (not too small, not too large)
-            if (amount > 1000 && amount < 1000000000000) {
-                console.log(`✅ [EnhancedHybridPriceService] Found token amount: ${amount.toLocaleString()}`);
-                return amount;
-            }
-            
-            // Try other potential offsets
-            const offsets = [400, 424, 448, 472];
-            for (const offset of offsets) {
-                if (offset + 8 <= data.length) {
-                    const value = data.readBigUInt64LE(offset);
-                    const numValue = Number(value);
-                    if (numValue > 1000 && numValue < 1000000000000) {
-                        console.log(`✅ [EnhancedHybridPriceService] Found token amount at offset ${offset}: ${numValue.toLocaleString()}`);
-                        return numValue;
-                    }
-                }
-            }
-            
-            console.log(`⚠️ [EnhancedHybridPriceService] No valid token amount found`);
-            return 0;
-        } catch (error) {
-            console.log(`⚠️ [EnhancedHybridPriceService] Error parsing token amount: ${error.message}`);
-            return 0;
-        }
-    }
-    
-    parseMeteoraSolAmount(data) {
-        try {
-            // SOL amounts are typically stored as lamports (smaller values)
-            // Based on our analysis, SOL amounts are around offset 400
-            const solAmount = data.readBigUInt64LE(400);
-            const amount = Number(solAmount);
-            
-            // Convert from lamports to SOL (divide by 1e9)
-            const solAmountFormatted = amount / 1e9;
-            
-            // Validate the amount is reasonable
-            if (solAmountFormatted > 0.001 && solAmountFormatted < 1000000) {
-                console.log(`✅ [EnhancedHybridPriceService] Found SOL amount: ${solAmountFormatted.toFixed(6)} SOL`);
-                return solAmountFormatted;
-            }
-            
-            // Try other potential offsets for SOL
-            const offsets = [424, 448, 472];
-            for (const offset of offsets) {
-                if (offset + 8 <= data.length) {
-                    const value = data.readBigUInt64LE(offset);
-                    const numValue = Number(value);
-                    const solValue = numValue / 1e9;
-                    if (solValue > 0.001 && solValue < 1000000) {
-                        console.log(`✅ [EnhancedHybridPriceService] Found SOL amount at offset ${offset}: ${solValue.toFixed(6)} SOL`);
-                        return solValue;
-                    }
-                }
-            }
-            
-            console.log(`⚠️ [EnhancedHybridPriceService] No valid SOL amount found`);
-            return 0;
-        } catch (error) {
-            console.log(`⚠️ [EnhancedHybridPriceService] Error parsing SOL amount: ${error.message}`);
-            return 0;
-        }
-    }
-
-    async fetchJupiterTokenDataFallback(tokenAddress) {
-        try {
-            console.log(`🔄 [EnhancedHybridPriceService] Fetching Jupiter API fallback for token: ${tokenAddress}`);
-            
-            // Try to get token info from Jupiter
-            const tokenInfo = await this.fetchTokenInfo(tokenAddress);
-            if (!tokenInfo) {
-                console.log(`❌ [EnhancedHybridPriceService] No token info found for ${tokenAddress}`);
-                return null;
-            }
-
-            // Try to get pool data
-            const poolData = await this.fetchPoolDataByDEX(tokenAddress, tokenInfo);
-            if (!poolData) {
-                console.log(`❌ [EnhancedHybridPriceService] No pool data found for ${tokenAddress}`);
-                return null;
-            }
-
-            return {
-                tokenInfo,
-                firstPool: poolData,
-                tokenReserves: poolData.tokenReserves || 0,
-                solReserves: poolData.solReserves || 0
-            };
-        } catch (error) {
-            console.error(`❌ [EnhancedHybridPriceService] Error fetching Jupiter fallback:`, error.message);
-            return null;
-        }
-    }
-
     async updateSolPrice() {
         const now = Date.now();
         
@@ -1738,47 +1123,46 @@ class EnhancedHybridPriceService extends EventEmitter {
         }
 
         try {
-            // Try multiple sources for SOL price (prioritize cheaper/free sources)
+            // Try multiple sources for SOL price
             let solPrice = 0;
             
-            // Method 1: Try CoinGecko API first (free, reliable)
+            // Method 1: Try Jupiter API for Wrapped SOL
             try {
-                const response = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
-                    params: {
-                        ids: 'solana',
-                        vs_currencies: 'usd'
-                    },
-                    timeout: 5000
+                const data = await this.makeJupiterRequest('https://lite-api.jup.ag/tokens/v2/search', {
+                    query: 'So11111111111111111111111111111111111111112' // Wrapped SOL mint address
                 });
-                
-                if (response.data && response.data.solana && response.data.solana.usd) {
-                    solPrice = response.data.solana.usd;
-                    console.log(`💰 [SOL Price] Found via CoinGecko: $${solPrice}`);
+
+                if (data && Array.isArray(data)) {
+                    const solToken = data.find(token => 
+                        token.id === 'So11111111111111111111111111111111111111112' &&
+                        token.usdPrice > 0
+                    );
+
+                    if (solToken && solToken.usdPrice) {
+                        solPrice = solToken.usdPrice;
+                        console.log(`💰 [SOL Price] Found via Jupiter: $${solPrice}`);
+                    }
                 }
             } catch (error) {
-                console.log('⚠️ [SOL Price] CoinGecko API failed, trying Jupiter...');
+                console.log('⚠️ [SOL Price] Jupiter API failed, trying fallback...');
             }
             
-            // Method 2: Fallback to Jupiter API (only if CoinGecko fails)
+            // Method 2: Fallback to CoinGecko API
             if (solPrice === 0) {
                 try {
-                    const data = await this.makeJupiterRequest('https://lite-api.jup.ag/tokens/v2/search', {
-                        query: 'So11111111111111111111111111111111111111112' // Wrapped SOL mint address
+                    const response = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
+                        params: {
+                            ids: 'solana',
+                            vs_currencies: 'usd'
+                        },
+                        timeout: 5000
                     });
-
-                    if (data && Array.isArray(data)) {
-                        const solToken = data.find(token => 
-                            token.id === 'So11111111111111111111111111111111111111112' &&
-                            token.usdPrice > 0
-                        );
-
-                        if (solToken && solToken.usdPrice) {
-                            solPrice = solToken.usdPrice;
-                            console.log(`💰 [SOL Price] Found via Jupiter: $${solPrice}`);
-                        }
+                    
+                    if (response.data && response.data.solana && response.data.solana.usd) {
+                        solPrice = response.data.solana.usd;
                     }
                 } catch (error) {
-                    console.log('⚠️ [SOL Price] Jupiter API failed, using default...');
+                    console.log('⚠️ [SOL Price] CoinGecko API failed, using default...');
                 }
             }
             
@@ -1790,7 +1174,7 @@ class EnhancedHybridPriceService extends EventEmitter {
 
             this.solPriceUSD = solPrice;
             this.lastSolPriceUpdate = now;
-            console.log(`💰 [SOL Price] Updated to: $${solPrice} (cache: ${this.solPriceCacheDuration/60000}min)`);
+            console.log(`💰 [SOL Price] Updated to: $${solPrice}`);
             
         } catch (error) {
             console.error('❌ [SOL Price] Error updating SOL price:', error.message);
@@ -1922,69 +1306,6 @@ class EnhancedHybridPriceService extends EventEmitter {
         } catch (error) {
             console.error(`❌ [DexScreener] Error fetching data:`, error.message);
             throw error;
-        }
-    }
-
-    // ✅ CRITICAL FIX: Add missing subscription methods for API compatibility
-    subscribeToToken(tokenAddress) {
-        try {
-            console.log(`🔌 [EnhancedHybridPriceService] Subscribing to token: ${tokenAddress.substring(0, 8)}...`);
-            
-            // Add token to pool addresses if not already present
-            if (!this.poolAddresses.has(tokenAddress)) {
-                // Try to get pool address from ChartDatabase
-                const poolAddress = this.chartDatabase?.getPoolAddress(tokenAddress);
-                if (poolAddress) {
-                    this.poolAddresses.set(tokenAddress, poolAddress);
-                    console.log(`✅ [EnhancedHybridPriceService] Added pool mapping: ${tokenAddress.substring(0, 8)}... -> ${poolAddress.substring(0, 8)}...`);
-                } else {
-                    console.log(`⚠️ [EnhancedHybridPriceService] No pool address found for ${tokenAddress.substring(0, 8)}...`);
-                }
-            }
-            
-            // Initialize real-time updates for this token
-            if (!this.realTimeUpdates.has(tokenAddress)) {
-                this.realTimeUpdates.set(tokenAddress, {
-                    lastUpdate: Date.now(),
-                    price: 0,
-                    liquidity: 0,
-                    marketCap: 0
-                });
-            }
-            
-            // Initialize swap history for this token
-            if (!this.swapHistory.has(tokenAddress)) {
-                this.swapHistory.set(tokenAddress, []);
-            }
-            
-            console.log(`✅ [EnhancedHybridPriceService] Successfully subscribed to ${tokenAddress.substring(0, 8)}...`);
-            return true;
-            
-        } catch (error) {
-            console.error(`❌ [EnhancedHybridPriceService] Failed to subscribe to ${tokenAddress.substring(0, 8)}...:`, error.message);
-            return false;
-        }
-    }
-    
-    unsubscribeFromToken(tokenAddress) {
-        try {
-            console.log(`🔌 [EnhancedHybridPriceService] Unsubscribing from token: ${tokenAddress.substring(0, 8)}...`);
-            
-            // Remove from pool addresses
-            const removed = this.poolAddresses.delete(tokenAddress);
-            
-            // Remove from real-time updates
-            this.realTimeUpdates.delete(tokenAddress);
-            
-            // Remove from swap history
-            this.swapHistory.delete(tokenAddress);
-            
-            console.log(`✅ [EnhancedHybridPriceService] Successfully unsubscribed from ${tokenAddress.substring(0, 8)}...`);
-            return removed;
-            
-        } catch (error) {
-            console.error(`❌ [EnhancedHybridPriceService] Failed to unsubscribe from ${tokenAddress.substring(0, 8)}...:`, error.message);
-            return false;
         }
     }
 
