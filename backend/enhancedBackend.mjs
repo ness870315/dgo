@@ -13624,6 +13624,35 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
+    // Meteora SDK status endpoint
+    this.app.get('/api/meteora-sdk/status', (req, res) => {
+      try {
+        if (this.enhancedHybridPriceService) {
+          const status = {
+            cpAmmInitialized: !!this.enhancedHybridPriceService.cpAmm,
+            meteoraConnectionInitialized: !!this.enhancedHybridPriceService.meteoraConnection,
+            timestamp: new Date().toISOString()
+          };
+          res.json({
+            success: true,
+            status,
+            service: 'EnhancedHybridPriceService (gRPC)'
+          });
+        } else {
+          res.status(503).json({
+            success: false,
+            error: 'EnhancedHybridPriceService not available'
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error getting Meteora SDK status:', error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get Meteora SDK status'
+        });
+      }
+    });
+
     // Get available timeframes for price charts
     this.app.get('/api/tokens/price-chart/timeframes', async (req, res) => {
       try {
