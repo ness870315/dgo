@@ -580,6 +580,7 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             // Convert swap record to database format
             const persistentSwapRecord = {
+                tokenAddress: tokenAddress, // ✅ CRITICAL FIX: Add tokenAddress at top level for ChartDatabase
                 signature: `slot_${swapRecord.slot}_${swapRecord.timestamp}`, // Generate unique signature
                 timestamp: Math.floor(swapRecord.timestamp / 1000), // Unix timestamp for database
                 poolAddress: poolAddress,
