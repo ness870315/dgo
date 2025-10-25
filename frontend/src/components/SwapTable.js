@@ -190,14 +190,17 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
         {/* Maker History Button */}
         <div>
           <label className="block text-sm text-gray-400 mb-1">Actions</label>
-          <button
-            onClick={() => setShowMakerHistory(!showMakerHistory)}
-            className={`w-full px-3 py-2 text-sm rounded border ${
-              showMakerHistory 
-                ? 'bg-blue-600 text-white border-blue-500' 
-                : 'bg-gray-700 text-white border-gray-600 hover:bg-gray-600'
-            }`}
-          >
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowMakerHistory(!showMakerHistory);
+              }}
+              className={`w-full px-3 py-2 text-sm rounded border ${
+                showMakerHistory 
+                  ? 'bg-blue-600 text-white border-blue-500' 
+                  : 'bg-gray-700 text-white border-gray-600 hover:bg-gray-600'
+              }`}
+            >
             {showMakerHistory ? 'Hide' : 'Show'} Maker History
           </button>
         </div>
@@ -251,7 +254,10 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
                       {swap.maker.slice(0, 6)}...{swap.maker.slice(-4)}
                     </span>
                     <button
-                      onClick={() => handleMakerClick(swap.maker)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMakerClick(swap.maker);
+                      }}
                       className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-500 transition-colors"
                     >
                       <Filter className="w-3 h-3" />
@@ -286,7 +292,10 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
                 Maker History: {selectedMaker.slice(0, 8)}...{selectedMaker.slice(-4)}
               </h3>
               <button
-                onClick={() => setShowMakerHistory(false)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowMakerHistory(false);
+                }}
                 className="text-gray-400 hover:text-white"
               >
                 ✕
@@ -352,14 +361,20 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
           </div>
           <div className="flex space-x-2">
             <button
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              onClick={(e) => {
+                e.stopPropagation();
+                setCurrentPage(prev => Math.max(1, prev - 1));
+              }}
               disabled={currentPage === 1}
               className="px-3 py-1 bg-gray-700 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-600"
             >
               Previous
             </button>
             <button
-              onClick={() => setCurrentPage(prev => Math.min(Math.ceil(filteredSwaps.length / swapsPerPage), prev + 1))}
+              onClick={(e) => {
+                e.stopPropagation();
+                setCurrentPage(prev => Math.min(Math.ceil(filteredSwaps.length / swapsPerPage), prev + 1));
+              }}
               disabled={currentPage === Math.ceil(filteredSwaps.length / swapsPerPage)}
               className="px-3 py-1 bg-gray-700 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-600"
             >
