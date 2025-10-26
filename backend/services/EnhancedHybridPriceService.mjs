@@ -96,6 +96,11 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             console.log(`💰 [EnhancedHybridPriceService] SOL Price: $${this.solPriceUSD}`);
             
+            // ✅ CRITICAL FIX: Add PROBITY for continuous real-time monitoring
+            this.poolAddresses.set('9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc', '98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvZFN');
+            this.swapHistory.set('9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc', []);
+            console.log(`✅ [EnhancedHybridPriceService] Added PROBITY -> pool 98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvZFN to monitoring map`);
+            
             // ✅ CRITICAL FIX: Add E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump with ACTIVE PumpSwap pool!
             this.poolAddresses.set('E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump', 'GQU4GZjCPam77cpnCgfnavXDqMNiXgksnTidyhwfRAKN');
             this.swapHistory.set('E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump', []);
@@ -206,25 +211,16 @@ class EnhancedHybridPriceService extends EventEmitter {
 
         console.log('🚀 [EnhancedHybridPriceService] Starting SIMPLIFIED real-time monitoring for 1 token...');
         
-        // SIMPLIFIED TEST: Monitor just 1 token like the working test
-        const TEST_TOKENS = [
-            '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc', // PROBITY from working test
-            'FL4eKdJrVZ1dVu1RoekeQRnuPxavzD4oCcR5HTcspump'  // New token
-        ];
-        const TEST_POOLS = [
-            '98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvZFN', // PROBITY pool
-            'FL4eKdJrVZ1dVu1RoekeQRnuPxavzD4oCcR5HTcspump'   // New token pool (same as token for now)
-        ];
+        // ✅ CONTINUOUS MONITORING: Monitor PROBITY continuously for real-time capture
+        const PROBITY_TOKEN = '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc';
+        const PROBITY_POOL = '98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvZFN';
         
-        // Use first token for now
-        const TEST_TOKEN = TEST_TOKENS[0];
-        const TEST_POOL = TEST_POOLS[0];
+        console.log(`📊 [EnhancedHybridPriceService] Starting continuous monitoring for PROBITY`);
+        console.log(`📊 [EnhancedHybridPriceService] Token: ${PROBITY_TOKEN}`);
+        console.log(`📊 [EnhancedHybridPriceService] Pool: ${PROBITY_POOL}`);
         
-        console.log(`📊 [EnhancedHybridPriceService] SIMPLIFIED TEST - Monitoring 1 token: ${TEST_TOKEN}`);
-        console.log(`📊 [EnhancedHybridPriceService] SIMPLIFIED TEST - Pool address: ${TEST_POOL}`);
-        
-        // Start monitoring with just this one token
-        await this.startSingleTokenMonitoring(TEST_TOKEN, TEST_POOL);
+        // Start continuous monitoring for PROBITY
+        await this.startSingleTokenMonitoring(PROBITY_TOKEN, PROBITY_POOL);
         
         console.log('✅ [EnhancedHybridPriceService] SIMPLIFIED real-time monitoring started for 1 token');
     }
