@@ -754,20 +754,34 @@ class EnhancedHybridPriceService extends EventEmitter {
 
             // Convert database format back to frontend format
             const historicalSwaps = swaps.map(dbSwap => {
+                // ✅ CRITICAL FIX: Database stores data in rawData, not directly on swap object
+                const rawData = dbSwap.rawData || dbSwap;
+                const swapType = rawData.type || dbSwap.type || 'unknown';
+                const change = rawData.change || dbSwap.tokenAmount || 0;
+                const tokenAmount = Math.abs(change); // UI quantity
+                const baseAmount = rawData.baseAmount || dbSwap.baseAmount || 0;
+                const volumeUsd = rawData.volumeUsd || dbSwap.volumeUsd || 0;
+                const maker = rawData.maker || dbSwap.maker || 'Unknown';
+                const signature = rawData.signature || dbSwap.signature || `slot_${rawData.slot}_${rawData.timestamp}`;
+                const poolAddress = rawData.poolAddress || dbSwap.poolAddress || 'UNKNOWN';
+                const timestamp = rawData.timestamp || dbSwap.timestamp * 1000;
+                
+                console.log(`🔍 [EnhancedHybridPriceService] Converting swap: ${swapType}, tokenAmount: ${tokenAmount}, baseAmount: ${baseAmount}, volumeUsd: ${volumeUsd}`);
+                
                 return {
-                    timestamp: dbSwap.timestamp * 1000, // Convert back to milliseconds
-                    slot: dbSwap.signature || 'unknown',
-                    type: dbSwap.type || 'unknown',
-                    change: dbSwap.tokenAmount || 0,
-                    mintAddress: tokenAddress,
-                    poolAddress: dbSwap.poolAddress || 'UNKNOWN',
+                    timestamp: timestamp,
+                    slot: rawData.slot || dbSwap.signature || 'unknown',
+                    type: swapType,
+                    change: change,
+                    mintAddress: rawData.mintAddress || tokenAddress,
+                    poolAddress: poolAddress,
                     // Frontend-compatible fields
-                    tokenAmount: dbSwap.tokenAmount || 0,
-                    baseAmount: dbSwap.baseAmount || 0,
-                    volumeUsd: dbSwap.volumeUsd || dbSwap.volumeUsd || 0,
-                    maker: dbSwap.maker || 'Unknown',
-                    signature: dbSwap.signature,
-                    price: dbSwap.price || 0
+                    tokenAmount: tokenAmount,
+                    baseAmount: baseAmount,
+                    volumeUsd: volumeUsd,
+                    maker: maker,
+                    signature: signature,
+                    price: rawData.price || dbSwap.price || 0
                 };
             });
 
