@@ -292,9 +292,18 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex items-center space-x-2">
-                    <span className="text-blue-400 font-mono text-xs">
-                      {swap.maker ? `${swap.maker.slice(0, 6)}...${swap.maker.slice(-4)}` : 'N/A'}
-                    </span>
+                    <a
+                      href={`https://solscan.io/account/${swap.maker}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 font-mono text-xs hover:text-blue-300 transition-colors flex items-center space-x-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span>
+                        {swap.maker ? `${swap.maker.slice(0, 6)}...${swap.maker.slice(-4)}` : 'N/A'}
+                      </span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

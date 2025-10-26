@@ -316,6 +316,12 @@ class EnhancedHybridPriceService extends EventEmitter {
                         const tx = msg.transaction.transaction;
                         const slot = msg.transaction.slot;
                         
+                        // ✅ EXTRACT REAL TRANSACTION SIGNATURE
+                        const transactionSignature = tx.signature || 
+                                                     tx.transaction?.signatures?.[0] || 
+                                                     msg.transaction?.signature ||
+                                                     null;
+                        
                         // Rate limit logging
                         let lastLogTime = 0;
                         const LOG_INTERVAL = 10000; // Log every 10 seconds max
@@ -416,7 +422,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                                             tokenChange.mint, 
                                             tokenChange.owner,
                                             solChange ? solChange.change : 0,
-                                            null // TODO: Extract transaction hash from Yellowstone gRPC
+                                            transactionSignature // ✅ Real transaction signature
                                         );
                                     } catch (error) {
                                         console.error(`❌ [EnhancedHybridPriceService] Error processing swap for ${tokenAddress}:`, error.message);
@@ -579,7 +585,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                 baseAmount: baseSol,            // SOL amount (already converted)
                 volumeUsd: volumeUsd,          // USD volume
                 maker: makerAddress || 'Unknown',
-                signature: transactionHash || `slot_${slot}_${Date.now()}`,
+                signature: transactionHash ? transactionHash : `slot_${slot}_${Date.now()}`,
                 price: priceSol                 // Price per token in SOL
             };
             
