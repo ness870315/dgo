@@ -371,6 +371,12 @@ class EnhancedHybridPriceService extends EventEmitter {
                                     console.log(`🔍 [EnhancedHybridPriceService] Processing only largest change: ${userTokenChanges[0].change} from ${userTokenChanges[0].owner}`);
                                 }
                                 
+                                // Debug: Log all balance changes to understand what we're working with
+                                console.log(`🔍 [EnhancedHybridPriceService] ALL balance changes in transaction:`);
+                                balanceChanges.forEach((bc, idx) => {
+                                    console.log(`  ${idx}: ${bc.mint} | Change: ${bc.change} | Owner: ${bc.owner}`);
+                                });
+                                
                                 // Process each user token change
                                 userTokenChanges.forEach(tokenChange => {
                                     swapCount++;
@@ -396,7 +402,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                                     console.log(`📊 [EnhancedHybridPriceService] Token Change: ${tokenChange.change > 0 ? '+' : ''}${tokenChange.change.toFixed(6)}`);
                                     console.log(`📊 [EnhancedHybridPriceService] Swap Type Logic: change=${tokenChange.change}, >0=${tokenChange.change > 0}, Type=${swapType}`);
                                     if (solChange) {
-                                        console.log(`📊 [EnhancedHybridPriceService] SOL Change: ${solChange.change > 0 ? '+' : ''}${solChange.change.toFixed(6)}`);
+                                        console.log(`📊 [EnhancedHybridPriceService] SOL Change: ${solChange.change > 0 ? '+' : ''}${solChange.change.toFixed(6)} from ${solChange.owner}`);
                                     } else {
                                         console.log(`📊 [EnhancedHybridPriceService] SOL Change: Not found, will estimate`);
                                     }
