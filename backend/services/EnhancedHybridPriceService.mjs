@@ -753,7 +753,19 @@ class EnhancedHybridPriceService extends EventEmitter {
             }
 
             // Convert database format back to frontend format
-            const historicalSwaps = swaps.map(dbSwap => {
+            const historicalSwaps = swaps.map((dbSwap, index) => {
+                // 🐛 DEBUG: Log the actual structure
+                console.log(`🔍 [EnhancedHybridPriceService] DB Swap ${index}:`, {
+                    hasRawData: !!dbSwap.rawData,
+                    hasType: !!dbSwap.type,
+                    hasTokenAmount: !!dbSwap.tokenAmount,
+                    hasBaseAmount: !!dbSwap.baseAmount,
+                    hasVolumeUsd: !!dbSwap.volumeUsd,
+                    hasMaker: !!dbSwap.maker,
+                    keys: Object.keys(dbSwap),
+                    rawDataKeys: dbSwap.rawData ? Object.keys(dbSwap.rawData) : 'no rawData'
+                });
+                
                 // ✅ CRITICAL FIX: Database stores data in rawData, not directly on swap object
                 const rawData = dbSwap.rawData || dbSwap;
                 const swapType = rawData.type || dbSwap.type || 'unknown';
@@ -766,7 +778,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                 const poolAddress = rawData.poolAddress || dbSwap.poolAddress || 'UNKNOWN';
                 const timestamp = rawData.timestamp || dbSwap.timestamp * 1000;
                 
-                console.log(`🔍 [EnhancedHybridPriceService] Converting swap: ${swapType}, tokenAmount: ${tokenAmount}, baseAmount: ${baseAmount}, volumeUsd: ${volumeUsd}`);
+                console.log(`🔍 [EnhancedHybridPriceService] Converting swap ${index}: ${swapType}, tokenAmount: ${tokenAmount}, baseAmount: ${baseAmount}, volumeUsd: ${volumeUsd}, maker: ${maker}`);
                 
                 return {
                     timestamp: timestamp,
