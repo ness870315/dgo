@@ -98,26 +98,19 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
   }, [filteredSwaps, currentPage, swapsPerPage]);
 
   const getSwapIcon = (type) => {
-    // Using Lucide icons with custom SVGs for the jagged arrows
+    // Jagged lightning-bolt style arrows
     if (type === 'Buy' || type === 'BUY') {
       return (
         <svg 
           className="w-4 h-4 text-green-400" 
-          fill="currentColor" 
           viewBox="0 0 20 20"
-          style={{ transform: 'rotate(0deg)' }}
         >
-          <path d="M2 18L18 2M18 2L12 2M18 2L18 8" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
-                strokeLinejoin="miter"
-                fill="none"
-                style={{ 
-                  filter: "drop-shadow(0 0 2px currentColor)",
-                  strokeLinejoin: "miter",
-                  strokeDasharray: "0"
-                }}
+          <path d="M2 18L6 12L4 14L8 6L10 10L14 2L16 8L18 6L14 14L12 10L6 18Z" 
+                fill="currentColor"
+                stroke="currentColor"
+                strokeWidth="1"
+                strokeLinejoin="round"
+                style={{ filter: "drop-shadow(0 0 2px currentColor)" }}
           />
         </svg>
       );
@@ -125,21 +118,14 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
       return (
         <svg 
           className="w-4 h-4 text-orange-400" 
-          fill="currentColor" 
           viewBox="0 0 20 20"
-          style={{ transform: 'rotate(0deg)' }}
         >
-          <path d="M2 2L18 18M18 18L18 12M18 18L12 18" 
-                stroke="currentColor" 
-                strokeWidth="2" 
-                strokeLinecap="round" 
-                strokeLinejoin="miter"
-                fill="none"
-                style={{ 
-                  filter: "drop-shadow(0 0 2px currentColor)",
-                  strokeLinejoin: "miter",
-                  strokeDasharray: "0"
-                }}
+          <path d="M2 2L6 8L4 6L8 14L10 10L14 18L16 12L18 14L14 6L12 10L6 2Z" 
+                fill="currentColor"
+                stroke="currentColor"
+                strokeWidth="1"
+                strokeLinejoin="round"
+                style={{ filter: "drop-shadow(0 0 2px currentColor)" }}
           />
         </svg>
       );
