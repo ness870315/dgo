@@ -514,11 +514,11 @@ class EnhancedHybridPriceService extends EventEmitter {
             const mintDecimals = tokenMetadata?.decimals || 6; // Default 6 for most tokens
             console.log(`📊 [EnhancedHybridPriceService] Mint decimals: ${mintDecimals}`);
             
-            // 1) Convert token raw -> UI
-            // 'change' from gRPC is in RAW base units (e.g., 10000 with 6 decimals = 0.01 tokens)
-            // Need to divide by 10^mintDecimals to convert to UI
-            const qtyTokenUI = Math.abs(change) / Math.pow(10, mintDecimals);
-            console.log(`📊 [EnhancedHybridPriceService] Raw change: ${change}, Decimals: ${mintDecimals}, Token quantity (UI): ${qtyTokenUI.toFixed(6)}`);
+            // 1) Convert token quantity to UI
+            // 'change' from gRPC token balance changes is already in UI format (human-readable)
+            // The Yellowstone gRPC library already converts from raw to UI for us
+            const qtyTokenUI = Math.abs(change);
+            console.log(`📊 [EnhancedHybridPriceService] Token quantity (UI): ${qtyTokenUI}`);
             
             // 2) Convert SOL amount - check if it's in lamports or SOL already
             let baseSol = 0;
