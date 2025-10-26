@@ -382,19 +382,22 @@ class EnhancedHybridPriceService extends EventEmitter {
                                 // Find token changes for our target token
                                 const tokenChanges = balanceChanges.filter(bc => bc.mint === tokenAddress);
                                 
-                                // ✅ CRITICAL FIX: Prevent double-counting by processing only ONE swap per transaction
-                                // Strategy: Process only the largest token change (user's swap) and ignore smaller changes (pool's)
-                                console.log(`🔍 [EnhancedHybridPriceService] Processing ${tokenChanges.length} token changes for ${tokenAddress}`);
+                                // ✅ CRITICAL FIX: Filter out pool's own swaps, keep only user swaps
+                                // Pool's address is the same as the address being monitored
+                                const actualPoolAddress = this.poolAddresses.get(tokenAddress);
+                                const userTokenChanges = tokenChanges.filter(tokenChange => {
+                                    const isPoolAddress = tokenChange.owner === actualPoolAddress;
+                                    if (isPoolAddress) {
+                                        console.log(`🚫 [EnhancedHybridPriceService] Skipping pool's own swap: ${tokenChange.owner}`);
+                                    }
+                                    return !isPoolAddress;
+                                });
                                 
-                                // Sort by absolute change amount (largest first)
-                                const sortedTokenChanges = tokenChanges.sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+                                console.log(`🔍 [EnhancedHybridPriceService] Processing ${userTokenChanges.length} user token changes (filtered out ${tokenChanges.length - userTokenChanges.length} pool swaps)`);
                                 
-                                // Only process the largest change (user's swap)
-                                const userTokenChanges = sortedTokenChanges.slice(0, 1);
-                                
-                                if (tokenChanges.length > 1) {
-                                    console.log(`🚫 [EnhancedHybridPriceService] Filtered out ${tokenChanges.length - 1} smaller changes to prevent double-counting`);
-                                    console.log(`🔍 [EnhancedHybridPriceService] Processing only largest change: ${userTokenChanges[0].change} from ${userTokenChanges[0].owner}`);
+                                if (userTokenChanges.length === 0) {
+                                    console.log(`⚠️ [EnhancedHybridPriceService] No user swaps found, skipping transaction`);
+                                    return;
                                 }
                                 
                                 // Debug: Log all balance changes to understand what we're working with
