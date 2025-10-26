@@ -282,8 +282,8 @@ class EnhancedHybridPriceService extends EventEmitter {
             const transactionFilters = {
                 client: {
                     accountInclude: [actualPoolAddress], // Monitor transactions involving this pool
-                    accountExclude: [],
-                    accountRequired: [],
+                    accountExclude: [], // Exclude vote transactions
+                    accountRequired: [], // Don't use accountRequired (too restrictive)
                     vote: false,
                     failed: false
                 }
