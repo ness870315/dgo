@@ -356,17 +356,20 @@ class EnhancedHybridPriceService extends EventEmitter {
                                 // Find token changes for our target token
                                 const tokenChanges = balanceChanges.filter(bc => bc.mint === tokenAddress);
                                 
-                                // ✅ CRITICAL FIX: Filter out pool addresses to avoid double-counting
-                                // Only process swaps from actual users, not the pool itself
-                                console.log(`🔍 [EnhancedHybridPriceService] Filtering swaps using pool address: ${actualPoolAddress}`);
-                                const userTokenChanges = tokenChanges.filter(tokenChange => {
-                                    // Exclude pool addresses - they shouldn't be considered "makers"
-                                    const isPoolAddress = tokenChange.owner === actualPoolAddress;
-                                    if (isPoolAddress) {
-                                        console.log(`🚫 [EnhancedHybridPriceService] Skipping pool address swap: ${tokenChange.owner} (matches ${actualPoolAddress})`);
-                                    }
-                                    return !isPoolAddress;
-                                });
+                                // ✅ CRITICAL FIX: Prevent double-counting by processing only ONE swap per transaction
+                                // Strategy: Process only the largest token change (user's swap) and ignore smaller changes (pool's)
+                                console.log(`🔍 [EnhancedHybridPriceService] Processing ${tokenChanges.length} token changes for ${tokenAddress}`);
+                                
+                                // Sort by absolute change amount (largest first)
+                                const sortedTokenChanges = tokenChanges.sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+                                
+                                // Only process the largest change (user's swap)
+                                const userTokenChanges = sortedTokenChanges.slice(0, 1);
+                                
+                                if (tokenChanges.length > 1) {
+                                    console.log(`🚫 [EnhancedHybridPriceService] Filtered out ${tokenChanges.length - 1} smaller changes to prevent double-counting`);
+                                    console.log(`🔍 [EnhancedHybridPriceService] Processing only largest change: ${userTokenChanges[0].change} from ${userTokenChanges[0].owner}`);
+                                }
                                 
                                 // Process each user token change
                                 userTokenChanges.forEach(tokenChange => {
