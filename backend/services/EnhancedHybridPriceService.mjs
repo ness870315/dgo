@@ -515,9 +515,10 @@ class EnhancedHybridPriceService extends EventEmitter {
             console.log(`📊 [EnhancedHybridPriceService] Mint decimals: ${mintDecimals}`);
             
             // 1) Convert token raw -> UI
-            // 'change' from gRPC is already in UI format (human-readable), not raw base units
-            const qtyTokenUI = Math.abs(change);
-            console.log(`📊 [EnhancedHybridPriceService] Token quantity (UI): ${qtyTokenUI}`);
+            // 'change' from gRPC is in RAW base units (e.g., 10000 with 6 decimals = 0.01 tokens)
+            // Need to divide by 10^mintDecimals to convert to UI
+            const qtyTokenUI = Math.abs(change) / Math.pow(10, mintDecimals);
+            console.log(`📊 [EnhancedHybridPriceService] Raw change: ${change}, Decimals: ${mintDecimals}, Token quantity (UI): ${qtyTokenUI.toFixed(6)}`);
             
             // 2) Convert SOL amount - check if it's in lamports or SOL already
             let baseSol = 0;
