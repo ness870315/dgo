@@ -561,12 +561,23 @@ class EnhancedHybridPriceService extends EventEmitter {
                     console.log(`💰 [EnhancedHybridPriceService] Final: ${baseAmount.toFixed(6)} SOL, $${volumeUsd.toFixed(4)} USD, ${price.toFixed(8)} SOL/token`);
                     console.log(`💰 [EnhancedHybridPriceService] SOL Price Used: $${this.solPriceUSD}`);
                 } else {
-                    // Fallback if no SOL amount detected - use more realistic estimate
-                    // For PumpFun tokens, typical price range is 0.0000001 to 0.00001 SOL per token
-                    baseAmount = tokenAmount * 0.0000001; // More realistic estimate
-                    volumeUsd = baseAmount * this.solPriceUSD;
-                    price = baseAmount / tokenAmount;
-                    console.log(`⚠️ [EnhancedHybridPriceService] No SOL amount detected, using estimate: ${baseAmount.toFixed(6)} SOL`);
+                    // Fallback if no SOL amount detected - calculate from token amount and price
+                    // Use the token's USD price from Jupiter metadata to calculate SOL amount
+                    const tokenMetadata = this.tokenMetadataCache.get(tokenAddress);
+                    if (tokenMetadata && tokenMetadata.usdPrice) {
+                        // Calculate SOL amount from token amount and USD price
+                        const tokenValueUSD = tokenAmount * tokenMetadata.usdPrice;
+                        baseAmount = tokenValueUSD / this.solPriceUSD;
+                        volumeUsd = tokenValueUSD;
+                        price = baseAmount / tokenAmount;
+                        console.log(`💰 [EnhancedHybridPriceService] Calculated from token price: ${tokenAmount} tokens * $${tokenMetadata.usdPrice} = $${tokenValueUSD.toFixed(4)} = ${baseAmount.toFixed(6)} SOL`);
+                    } else {
+                        // Last resort fallback
+                        baseAmount = tokenAmount * 0.0000001; // More realistic estimate
+                        volumeUsd = baseAmount * this.solPriceUSD;
+                        price = baseAmount / tokenAmount;
+                        console.log(`⚠️ [EnhancedHybridPriceService] No token price available, using estimate: ${baseAmount.toFixed(6)} SOL`);
+                    }
                 }
             }
             
