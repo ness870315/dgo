@@ -42,6 +42,10 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.realTimeUpdates = new Map(); // Map<tokenAddress, lastUpdate>
         this.swapHistory = new Map(); // Map<tokenAddress, swaps[]>
         
+        // 🚀 CRITICAL: Single shared stream for ALL tokens (efficiency!)
+        this.sharedStream = null; // One stream for all pools
+        this.sharedStreamPoolCount = 0; // Track how many pools in shared stream
+        
         // 🚀 NEW: Token metadata cache (decimals, graduatedPool, etc.)
         this.tokenMetadataCache = new Map(); // Map<tokenAddress, tokenInfo>
         
@@ -275,9 +279,11 @@ class EnhancedHybridPriceService extends EventEmitter {
             }
             
             // ✅ UNIVERSAL TRANSACTION monitoring for ANY token
+            // 🚀 CRITICAL: Monitor ALL pools in a SINGLE stream for efficiency
+            const allPools = Array.from(this.poolAddresses.values());
             const transactionFilters = {
                 client: {
-                    accountInclude: [actualPoolAddress], // Monitor transactions involving this pool
+                    accountInclude: allPools, // Monitor transactions involving ALL pools
                     accountExclude: [], // Exclude vote transactions
                     accountRequired: [], // Don't use accountRequired (too restrictive)
                     vote: false,

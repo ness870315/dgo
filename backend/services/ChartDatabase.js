@@ -33,9 +33,25 @@ class ChartDatabase {
         this.writeInterval = 2000; // Write every 2 seconds max (faster for real-time)
         this.lastWriteTime = new Map(); // per-token write times
         
-        this.ensureDataDir();
+        // ✅ CRITICAL FIX: Ensure data directory exists synchronously
+        this.initializeDataDirSync();
         this.loadData();
         this.startBatchWriter();
+    }
+    
+    /**
+     * ✅ CRITICAL FIX: Synchronously ensure data directory exists
+     */
+    initializeDataDirSync() {
+        try {
+            const fsSync = require('fs');
+            if (!fsSync.existsSync(this.dataDir)) {
+                fsSync.mkdirSync(this.dataDir, { recursive: true });
+                console.log(`✅ [ChartDatabase] Created data directory: ${this.dataDir}`);
+            }
+        } catch (error) {
+            console.error('❌ [ChartDatabase] Failed to create data directory:', error.message);
+        }
     }
 
     /**
@@ -174,9 +190,13 @@ class ChartDatabase {
         if (!queue || queue.length === 0 || this.isWriting.has(tokenAddress)) return;
         
         this.isWriting.add(tokenAddress);
+        
+        // ✅ CRITICAL FIX: Define batch outside try-catch for proper error handling
+        let batch = [];
+        
         try {
             // Process swaps in batches for this token
-            const batch = queue.splice(0, this.writeBatchSize);
+            batch = queue.splice(0, this.writeBatchSize);
             if (batch.length === 0) return;
             
             const tokenDb = this.getTokenDatabase(tokenAddress);
@@ -204,8 +224,10 @@ class ChartDatabase {
             
         } catch (error) {
             console.error(`❌ [ChartDatabase] Token ${tokenAddress.substring(0,8)} write failed:`, error.message);
-            // Re-queue failed swaps
-            queue.unshift(...batch);
+            // ✅ CRITICAL FIX: Re-queue failed swaps only if batch has items
+            if (batch.length > 0) {
+                queue.unshift(...batch);
+            }
         } finally {
             this.isWriting.delete(tokenAddress);
         }
