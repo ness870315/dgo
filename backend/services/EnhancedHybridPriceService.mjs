@@ -317,10 +317,28 @@ class EnhancedHybridPriceService extends EventEmitter {
                         const slot = msg.transaction.slot;
                         
                         // ✅ EXTRACT REAL TRANSACTION SIGNATURE
-                        const transactionSignature = tx.signature || 
-                                                     tx.transaction?.signatures?.[0] || 
-                                                     msg.transaction?.signature ||
-                                                     null;
+                        // Try multiple sources for signature
+                        let rawSignature = tx.signature || 
+                                          tx.transaction?.signatures?.[0] || 
+                                          msg.transaction?.signature ||
+                                          null;
+                        
+                        // Convert Buffer to base58 string if needed
+                        let transactionSignature = null;
+                        if (rawSignature) {
+                            if (Buffer.isBuffer(rawSignature)) {
+                                // Convert Buffer to base58
+                                transactionSignature = bs58.encode(rawSignature);
+                                console.log(`🔍 [EnhancedHybridPriceService] Converted signature from Buffer to base58: ${transactionSignature}`);
+                            } else if (typeof rawSignature === 'string') {
+                                transactionSignature = rawSignature;
+                            } else if (rawSignature.data && Array.isArray(rawSignature.data)) {
+                                // Convert Buffer object to base58
+                                const buffer = Buffer.from(rawSignature.data);
+                                transactionSignature = bs58.encode(buffer);
+                                console.log(`🔍 [EnhancedHybridPriceService] Converted signature from Buffer object to base58: ${transactionSignature}`);
+                            }
+                        }
                         
                         // Rate limit logging
                         let lastLogTime = 0;
