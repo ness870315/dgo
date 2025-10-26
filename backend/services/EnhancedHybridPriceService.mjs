@@ -713,35 +713,22 @@ class EnhancedHybridPriceService extends EventEmitter {
                 return [];
             }
 
-            // Get pool address for this token
-            let poolAddress = this.poolAddresses.get(tokenAddress);
+            // ✅ CRITICAL FIX: Load swaps from per-token database file
+            // The ChartDatabase stores swaps by tokenAddress in per-token files
+            // We need to get the swaps directly from the token database
+            const tokenDb = this.chartDatabase.getTokenDatabase(tokenAddress);
             
-            // ✅ CRITICAL FIX: If pool address is empty, try to get it from cached metadata or recent swaps
-            if (!poolAddress) {
-                // First try cached token metadata
-                const tokenMetadata = this.tokenMetadataCache.get(tokenAddress);
-                if (tokenMetadata && tokenMetadata.graduatedPool) {
-                    poolAddress = tokenMetadata.graduatedPool;
-                    console.log(`🔧 [EnhancedHybridPriceService] Using graduatedPool from cached metadata: ${poolAddress}`);
-                } else {
-                    // Fallback to recent swaps
-                    const currentSwaps = this.swapHistory.get(tokenAddress) || [];
-                    if (currentSwaps.length > 0 && currentSwaps[0].poolAddress) {
-                        poolAddress = currentSwaps[0].poolAddress;
-                        console.log(`🔧 [EnhancedHybridPriceService] Using pool address from recent swaps: ${poolAddress}`);
-                    }
+            // Get swaps from the token's database (stored in memory and/or file)
+            const swaps = [];
+            if (tokenDb && tokenDb.swaps) {
+                for (const swap of tokenDb.swaps.values()) {
+                    swaps.push(swap);
                 }
             }
             
-            if (!poolAddress) {
-                console.log(`⚠️ [EnhancedHybridPriceService] No pool address for ${tokenAddress}, cannot load historical swaps`);
-                return [];
-            }
-
-            // Get swaps from database using pool address
-            const swaps = await this.chartDatabase.getRecentSwaps(poolAddress, 100); // Get last 100 swaps
+            console.log(`📚 [EnhancedHybridPriceService] Loaded ${swaps.length} swaps from token database for ${tokenAddress.substring(0, 8)}`);
             if (!swaps || swaps.length === 0) {
-                console.log(`📚 [EnhancedHybridPriceService] No historical swaps in database for pool ${poolAddress}`);
+                console.log(`📚 [EnhancedHybridPriceService] No historical swaps in database for token ${tokenAddress.substring(0, 8)}`);
                 return [];
             }
 
@@ -753,11 +740,11 @@ class EnhancedHybridPriceService extends EventEmitter {
                     type: dbSwap.type || 'unknown',
                     change: dbSwap.tokenAmount || 0,
                     mintAddress: tokenAddress,
-                    poolAddress: poolAddress,
+                    poolAddress: dbSwap.poolAddress || 'UNKNOWN',
                     // Frontend-compatible fields
                     tokenAmount: dbSwap.tokenAmount || 0,
                     baseAmount: dbSwap.baseAmount || 0,
-                    volumeUsd: dbSwap.volumeUsd || 0,
+                    volumeUsd: dbSwap.volumeUsd || dbSwap.volumeUsd || 0,
                     maker: dbSwap.maker || 'Unknown',
                     signature: dbSwap.signature,
                     price: dbSwap.price || 0
