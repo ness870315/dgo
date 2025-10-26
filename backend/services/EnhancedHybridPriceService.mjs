@@ -851,7 +851,6 @@ class EnhancedHybridPriceService extends EventEmitter {
                     totalSwaps: 0,
                     lastUpdated: new Date().toISOString()
                 };
-                }
             }
             
             // Get token info
