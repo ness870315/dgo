@@ -679,22 +679,31 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             // Convert swap record to database format
             const persistentSwapRecord = {
-                tokenAddress: tokenAddress, // ✅ CRITICAL FIX: Add tokenAddress at top level for ChartDatabase
-                signature: `slot_${swapRecord.slot}_${swapRecord.timestamp}`, // Generate unique signature
+                tokenAddress: tokenAddress,
+                signature: `slot_${swapRecord.slot}_${swapRecord.timestamp}`,
                 timestamp: Math.floor(swapRecord.timestamp / 1000), // Unix timestamp for database
                 poolAddress: poolAddress,
-                price: 0, // Will be calculated later
-                volume: Math.abs(swapRecord.change), // Volume is absolute change
+                price: swapRecord.price || 0,
+                volume: swapRecord.volumeUsd || 0, // Volume in USD
                 source: 'grpc_realtime',
+                type: swapRecord.type,
+                tokenAmount: swapRecord.tokenAmount || 0,
+                baseAmount: swapRecord.baseAmount || 0,
+                volumeUsd: swapRecord.volumeUsd || 0,
+                maker: swapRecord.maker || 'Unknown',
                 rawData: {
                     tokenAddress: tokenAddress,
                     slot: swapRecord.slot,
                     type: swapRecord.type,
                     change: swapRecord.change,
+                    tokenAmount: swapRecord.tokenAmount || 0,
+                    baseAmount: swapRecord.baseAmount || 0,
+                    volumeUsd: swapRecord.volumeUsd || 0,
                     mintAddress: swapRecord.mintAddress,
                     poolAddress: poolAddress,
                     maker: swapRecord.maker,
-                    timestamp: swapRecord.timestamp
+                    timestamp: swapRecord.timestamp,
+                    price: swapRecord.price || 0
                 }
             };
             
@@ -769,17 +778,18 @@ class EnhancedHybridPriceService extends EventEmitter {
                     rawDataKeys: dbSwap.rawData ? Object.keys(dbSwap.rawData) : 'no rawData'
                 });
                 
-                // ✅ CRITICAL FIX: Database stores data in rawData, not directly on swap object
-                const rawData = dbSwap.rawData || dbSwap;
-                const swapType = rawData.type || dbSwap.type || 'unknown';
-                const change = rawData.change || dbSwap.tokenAmount || 0;
-                const tokenAmount = Math.abs(change); // UI quantity
-                const baseAmount = rawData.baseAmount || dbSwap.baseAmount || 0;
-                const volumeUsd = rawData.volumeUsd || dbSwap.volumeUsd || 0;
-                const maker = rawData.maker || dbSwap.maker || 'Unknown';
-                const signature = rawData.signature || dbSwap.signature || `slot_${rawData.slot}_${rawData.timestamp}`;
-                const poolAddress = rawData.poolAddress || dbSwap.poolAddress || 'UNKNOWN';
-                const timestamp = rawData.timestamp || dbSwap.timestamp * 1000;
+                // ✅ CRITICAL FIX: Database stores data in rawData AND top level
+                const rawData = dbSwap.rawData || {};
+                // Try top level first, then fall back to rawData
+                const swapType = dbSwap.type || rawData.type || 'unknown';
+                const change = rawData.change || 0;
+                const tokenAmount = dbSwap.tokenAmount || rawData.tokenAmount || Math.abs(change); // UI quantity
+                const baseAmount = dbSwap.baseAmount || rawData.baseAmount || 0;
+                const volumeUsd = dbSwap.volumeUsd || rawData.volumeUsd || 0;
+                const maker = dbSwap.maker || rawData.maker || 'Unknown';
+                const signature = dbSwap.signature || rawData.signature || `slot_${rawData.slot}_${rawData.timestamp}`;
+                const poolAddress = dbSwap.poolAddress || rawData.poolAddress || 'UNKNOWN';
+                const timestamp = rawData.timestamp || (dbSwap.timestamp * 1000) || Date.now();
                 
                 console.log(`🔍 [EnhancedHybridPriceService] Converting swap ${index}: ${swapType}, tokenAmount: ${tokenAmount}, baseAmount: ${baseAmount}, volumeUsd: ${volumeUsd}, maker: ${maker}`);
                 
