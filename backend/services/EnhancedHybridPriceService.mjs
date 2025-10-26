@@ -501,94 +501,73 @@ class EnhancedHybridPriceService extends EventEmitter {
     processSwapUpdate(tokenAddress, poolAddress, slot, swapType, change, mintAddress, makerAddress, solAmount = 0, transactionHash = null) {
         try {
             console.log(`🔄 [EnhancedHybridPriceService] Processing swap update for ${tokenAddress}`);
+            console.log(`🔍 [EnhancedHybridPriceService] Raw inputs - change: ${change}, solAmount: ${solAmount}, mintAddress: ${mintAddress}`);
             
             // Get current swap history
             const currentSwaps = this.swapHistory.get(tokenAddress) || [];
             
-            // ✅ CRITICAL FIX: Calculate proper token amount with decimals conversion
+            // ✅ CRITICAL FIX: Proper unit normalization using the provided logic
             const isSOLSwap = mintAddress === 'So11111111111111111111111111111111111111112';
             
-            let tokenAmount = 0;
-            if (isSOLSwap) {
-                // For SOL, change is already in lamports, convert to SOL (divide by 10^9)
-                tokenAmount = Math.abs(change) / 1e9;
-                console.log(`🔢 [EnhancedHybridPriceService] SOL swap - Raw change: ${change}, Token amount: ${tokenAmount.toFixed(6)} SOL`);
-            } else {
-                // For SPL tokens, get actual decimals from cached token metadata
-                let tokenDecimals = 6; // Default fallback
-                
-                // Get token metadata from cache
-                const tokenMetadata = this.tokenMetadataCache.get(tokenAddress);
-                if (tokenMetadata && tokenMetadata.decimals !== undefined) {
-                    tokenDecimals = tokenMetadata.decimals;
-                    console.log(`🔢 [EnhancedHybridPriceService] Using cached token decimals: ${tokenDecimals} for ${tokenAddress}`);
-                } else {
-                    console.log(`⚠️ [EnhancedHybridPriceService] No cached metadata, using default decimals: ${tokenDecimals} for ${tokenAddress}`);
-                }
-                
-                // Check if change is already in human-readable format
-                if (Math.abs(change) < Math.pow(10, tokenDecimals)) {
-                    // Change is already in human-readable format
-                    tokenAmount = Math.abs(change);
-                    console.log(`🔢 [EnhancedHybridPriceService] Token swap - Change already in human format: ${change}, Token amount: ${tokenAmount}`);
-                } else {
-                    // Change is in smallest unit, need to convert using decimals
-                    tokenAmount = Math.abs(change) / Math.pow(10, tokenDecimals);
-                    console.log(`🔢 [EnhancedHybridPriceService] Token swap - Raw change: ${change}, Decimals: ${tokenDecimals}, Token amount: ${tokenAmount.toFixed(6)}`);
-                }
+            // Get token metadata to fetch decimals
+            const tokenMetadata = this.tokenMetadataCache.get(tokenAddress);
+            const mintDecimals = tokenMetadata?.decimals || 6; // Default 6 for most tokens
+            console.log(`📊 [EnhancedHybridPriceService] Mint decimals: ${mintDecimals}`);
+            
+            // 1) Convert token raw -> UI
+            // 'change' from gRPC is already in UI format (human-readable), not raw base units
+            const qtyTokenUI = Math.abs(change);
+            console.log(`📊 [EnhancedHybridPriceService] Token quantity (UI): ${qtyTokenUI}`);
+            
+            // 2) Convert SOL amount - check if it's in lamports or SOL already
+            let baseSol = 0;
+            if (Math.abs(solAmount) > 1e6) {
+                // Likely in lamports, convert to SOL
+                baseSol = Math.abs(solAmount) / 1e9;
+                console.log(`💰 [EnhancedHybridPriceService] Converting from lamports: ${solAmount} -> ${baseSol.toFixed(9)} SOL`);
+            } else if (solAmount !== 0) {
+                // Already in SOL
+                baseSol = Math.abs(solAmount);
+                console.log(`💰 [EnhancedHybridPriceService] Already in SOL: ${solAmount} -> ${baseSol.toFixed(9)} SOL`);
             }
             
-            let baseAmount = 0;
+            // 3) Calculate prices
+            let priceSol = 0;
+            let priceUsd = 0;
             let volumeUsd = 0;
-            let price = 0;
             
-            if (isSOLSwap) {
-                // This is a SOL swap - change is SOL amount
-                baseAmount = tokenAmount;
-                volumeUsd = baseAmount * this.solPriceUSD;
-                price = this.solPriceUSD;
+            if (baseSol > 0 && qtyTokenUI > 0) {
+                // Price per token in SOL
+                priceSol = baseSol / qtyTokenUI;
+                
+                // Price per token in USD
+                priceUsd = priceSol * this.solPriceUSD;
+                
+                // Volume in USD
+                volumeUsd = baseSol * this.solPriceUSD;
+                
+                console.log(`💰 [EnhancedHybridPriceService] Calculated - Price: ${priceSol.toFixed(9)} SOL/token, $${priceUsd.toFixed(6)} USD, Volume: $${volumeUsd.toFixed(4)}`);
             } else {
-                // This is a token swap - use actual SOL amount from transaction
-                if (solAmount !== 0) {
-                    console.log(`🔍 [EnhancedHybridPriceService] Raw solAmount: ${solAmount}`);
-                    console.log(`🔍 [EnhancedHybridPriceService] Math.abs(solAmount): ${Math.abs(solAmount)}`);
-                    console.log(`🔍 [EnhancedHybridPriceService] Is > 1e6? ${Math.abs(solAmount) > 1e6}`);
-                    
-                    // Check if solAmount is in lamports (very large number) or SOL (reasonable number)
-                    if (Math.abs(solAmount) > 1e6) {
-                        // Likely in lamports, convert to SOL
-                        baseAmount = Math.abs(solAmount) / 1e9;
-                        console.log(`💰 [EnhancedHybridPriceService] Converting from lamports: ${solAmount} -> ${baseAmount.toFixed(6)} SOL`);
-                    } else {
-                        // Already in SOL
-                        baseAmount = Math.abs(solAmount);
-                        console.log(`💰 [EnhancedHybridPriceService] Already in SOL: ${solAmount} -> ${baseAmount.toFixed(6)} SOL`);
-                    }
-                    
-                    volumeUsd = baseAmount * this.solPriceUSD;
-                    price = baseAmount / tokenAmount; // Token price in SOL
-                    console.log(`💰 [EnhancedHybridPriceService] Final: ${baseAmount.toFixed(6)} SOL, $${volumeUsd.toFixed(4)} USD, ${price.toFixed(8)} SOL/token`);
-                    console.log(`💰 [EnhancedHybridPriceService] SOL Price Used: $${this.solPriceUSD}`);
+                console.log(`⚠️ [EnhancedHybridPriceService] Missing SOL amount or token amount, using fallback`);
+                // Fallback calculation
+                if (tokenMetadata && tokenMetadata.usdPrice) {
+                    volumeUsd = qtyTokenUI * tokenMetadata.usdPrice;
+                    baseSol = volumeUsd / this.solPriceUSD;
+                    priceSol = baseSol / qtyTokenUI;
+                    priceUsd = priceSol * this.solPriceUSD;
+                    console.log(`💰 [EnhancedHybridPriceService] Fallback - Price: ${priceSol.toFixed(9)} SOL/token, Volume: $${volumeUsd.toFixed(4)}`);
                 } else {
-                    // Fallback if no SOL amount detected - calculate from token amount and price
-                    // Use the token's USD price from Jupiter metadata to calculate SOL amount
-                    const tokenMetadata = this.tokenMetadataCache.get(tokenAddress);
-                    if (tokenMetadata && tokenMetadata.usdPrice) {
-                        // Calculate SOL amount from token amount and USD price
-                        const tokenValueUSD = tokenAmount * tokenMetadata.usdPrice;
-                        baseAmount = tokenValueUSD / this.solPriceUSD;
-                        volumeUsd = tokenValueUSD;
-                        price = baseAmount / tokenAmount;
-                        console.log(`💰 [EnhancedHybridPriceService] Calculated from token price: ${tokenAmount} tokens * $${tokenMetadata.usdPrice} = $${tokenValueUSD.toFixed(4)} = ${baseAmount.toFixed(6)} SOL`);
-                    } else {
-                        // Last resort fallback
-                        baseAmount = tokenAmount * 0.0000001; // More realistic estimate
-                        volumeUsd = baseAmount * this.solPriceUSD;
-                        price = baseAmount / tokenAmount;
-                        console.log(`⚠️ [EnhancedHybridPriceService] No token price available, using estimate: ${baseAmount.toFixed(6)} SOL`);
-                    }
+                    baseSol = qtyTokenUI * 0.0000001;
+                    volumeUsd = baseSol * this.solPriceUSD;
+                    priceSol = baseSol / qtyTokenUI;
+                    priceUsd = priceSol * this.solPriceUSD;
+                    console.log(`⚠️ [EnhancedHybridPriceService] Last resort fallback - Price: ${priceSol.toFixed(9)} SOL/token, Volume: $${volumeUsd.toFixed(4)}`);
                 }
             }
+            
+            // Use normalized values
+            const tokenAmount = qtyTokenUI;
+            const baseAmount = baseSol;
             
             // Create swap record with frontend-compatible format
             const swapRecord = {
@@ -598,13 +577,13 @@ class EnhancedHybridPriceService extends EventEmitter {
                 change: change,
                 mintAddress: mintAddress,
                 poolAddress: poolAddress,
-                // Frontend-compatible fields
-                tokenAmount: tokenAmount,
-                baseAmount: baseAmount,
-                volumeUsd: volumeUsd,
+                // Frontend-compatible fields with normalized values
+                tokenAmount: qtyTokenUI,        // UI quantity
+                baseAmount: baseSol,            // SOL amount (already converted)
+                volumeUsd: volumeUsd,          // USD volume
                 maker: makerAddress || 'Unknown',
                 signature: transactionHash || `slot_${slot}_${Date.now()}`,
-                price: price
+                price: priceSol                 // Price per token in SOL
             };
             
             // Add to swap history
