@@ -92,8 +92,40 @@ class ChartDatabase {
             if (!this.writeQueues.has(tokenAddress)) {
                 this.writeQueues.set(tokenAddress, []);
             }
+            
+            // 🚀 CRITICAL FIX: Load swaps from file if token database doesn't exist yet
+            this.loadTokenDatabaseFromFile(tokenAddress).catch(err => {
+                console.error(`❌ [ChartDatabase] Failed to load swaps from file for ${tokenAddress.substring(0, 8)}:`, err.message);
+            });
         }
         return this.tokenDatabases.get(tokenAddress);
+    }
+
+    /**
+     * 🚀 LOAD FROM FILE - Load token database from persistent file
+     */
+    async loadTokenDatabaseFromFile(tokenAddress) {
+        const tokenFile = this.getTokenFilePath(tokenAddress);
+        
+        try {
+            const fileData = await fs.readFile(tokenFile, 'utf8');
+            const parsed = JSON.parse(fileData);
+            
+            const tokenDb = this.tokenDatabases.get(tokenAddress);
+            if (parsed.swaps && Array.isArray(parsed.swaps)) {
+                // Convert array back to Map
+                tokenDb.swaps = new Map(parsed.swaps);
+                tokenDb.swapCount = parsed.swapCount || 0;
+                tokenDb.lastWriteTime = parsed.lastUpdated || 0;
+                
+                console.log(`📚 [ChartDatabase] Loaded ${tokenDb.swaps.size} swaps from file for ${tokenAddress.substring(0, 8)}`);
+            }
+        } catch (error) {
+            if (error.code !== 'ENOENT') {
+                console.error(`❌ [ChartDatabase] Error loading token file for ${tokenAddress.substring(0, 8)}:`, error.message);
+            }
+            // File doesn't exist yet, that's ok
+        }
     }
 
     /**
