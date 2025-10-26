@@ -98,22 +98,70 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
   }, [filteredSwaps, currentPage, swapsPerPage]);
 
   const getSwapIcon = (type) => {
-    switch (type) {
-      case 'Buy': return <TrendingUp className="w-4 h-4 text-green-400" />;
-      case 'Sell': return <TrendingDown className="w-4 h-4 text-red-400" />;
-      case 'Add': return <Plus className="w-4 h-4 text-blue-400" />;
-      case 'Remove': return <Minus className="w-4 h-4 text-orange-400" />;
-      default: return <div className="w-4 h-4 bg-gray-400 rounded-full" />;
+    // Using Lucide icons with custom SVGs for the jagged arrows
+    if (type === 'Buy' || type === 'BUY') {
+      return (
+        <svg 
+          className="w-4 h-4 text-green-400" 
+          fill="currentColor" 
+          viewBox="0 0 20 20"
+          style={{ transform: 'rotate(0deg)' }}
+        >
+          <path d="M2 18L18 2M18 2L12 2M18 2L18 8" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="miter"
+                fill="none"
+                style={{ 
+                  filter: "drop-shadow(0 0 2px currentColor)",
+                  strokeLinejoin: "miter",
+                  strokeDasharray: "0"
+                }}
+          />
+        </svg>
+      );
+    } else if (type === 'Sell' || type === 'SELL') {
+      return (
+        <svg 
+          className="w-4 h-4 text-orange-400" 
+          fill="currentColor" 
+          viewBox="0 0 20 20"
+          style={{ transform: 'rotate(0deg)' }}
+        >
+          <path d="M2 2L18 18M18 18L18 12M18 18L12 18" 
+                stroke="currentColor" 
+                strokeWidth="2" 
+                strokeLinecap="round" 
+                strokeLinejoin="miter"
+                fill="none"
+                style={{ 
+                  filter: "drop-shadow(0 0 2px currentColor)",
+                  strokeLinejoin: "miter",
+                  strokeDasharray: "0"
+                }}
+          />
+        </svg>
+      );
+    } else {
+      return <div className="w-4 h-4 bg-gray-400 rounded-full" />;
     }
   };
 
   const getSwapColor = (type) => {
     switch (type) {
-      case 'Buy': return 'text-green-400';
-      case 'Sell': return 'text-red-400';
-      case 'Add': return 'text-blue-400';
-      case 'Remove': return 'text-orange-400';
-      default: return 'text-gray-400';
+      case 'Buy':
+      case 'BUY': 
+        return 'text-green-400';
+      case 'Sell':
+      case 'SELL': 
+        return 'text-orange-400'; // Orange for SELL
+      case 'Add': 
+        return 'text-blue-400';
+      case 'Remove': 
+        return 'text-orange-400';
+      default: 
+        return 'text-gray-400';
     }
   };
 
