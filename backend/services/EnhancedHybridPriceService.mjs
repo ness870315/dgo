@@ -385,18 +385,14 @@ class EnhancedHybridPriceService extends EventEmitter {
                                     // SELL: User gives tokens (-), gets SOL (+)
                                     const swapType = tokenChange.change > 0 ? 'BUY' : 'SELL';
                                     
-                                    // Try to find corresponding SOL change (same owner first, then any SOL change)
-                                    let solChange = balanceChanges.find(bc => 
-                                        bc.mint === 'So11111111111111111111111111111111111111112' &&
-                                        bc.owner === tokenChange.owner
-                                    );
-                                    
-                                    // If no SOL change for same owner, look for any SOL change in this transaction
-                                    if (!solChange) {
-                                        solChange = balanceChanges.find(bc => 
-                                            bc.mint === 'So11111111111111111111111111111111111111112'
+                                    // ✅ CRITICAL FIX: Find the largest SOL change in this transaction
+                                    // Don't match by owner - just find the biggest SOL movement
+                                    let solChange = balanceChanges
+                                        .filter(bc => bc.mint === 'So11111111111111111111111111111111111111112')
+                                        .reduce((max, current) => 
+                                            Math.abs(current.change) > Math.abs(max.change) ? current : max, 
+                                            balanceChanges.find(bc => bc.mint === 'So11111111111111111111111111111111111111112')
                                         );
-                                    }
                                     
                                     console.log(`🎯 [EnhancedHybridPriceService] SWAP #${swapCount}: ${swapType} for ${tokenAddress}`);
                                     console.log(`📊 [EnhancedHybridPriceService] Token Change: ${tokenChange.change > 0 ? '+' : ''}${tokenChange.change.toFixed(6)}`);
