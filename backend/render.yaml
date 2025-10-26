@@ -37,5 +37,7 @@ services:
         sync: false  # Set this in Render dashboard
       - key: MONGODB_URI
         sync: false  # Set this in Render dashboard
+      - key: DATA_DIR
+        value: /var/data/dgo  # Persistent cache directory
       - key: ALLOWED_ORIGINS
         value: https://enhanced-backend.onrender.com,https://your-frontend-domain.com

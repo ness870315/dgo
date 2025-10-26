@@ -13,7 +13,10 @@ const __dirname = path.dirname(__filename);
  */
 class ChartDatabase {
     constructor() {
-        this.dataDir = path.join(process.cwd(), 'data');
+        // ✅ CRITICAL FIX: Use production persistent cache directory
+        this.dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
+        // In production: /var/data/dgo
+        // In local: ./data
         this.dbFile = path.join(this.dataDir, 'charts.json');
         
         // 🚀 HYBRID ARCHITECTURE: Per-token databases + shared metadata
