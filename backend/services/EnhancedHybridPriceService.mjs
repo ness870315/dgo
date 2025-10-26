@@ -790,27 +790,36 @@ class EnhancedHybridPriceService extends EventEmitter {
             const realTimeData = this.realTimeUpdates.get(tokenAddress);
             let recentSwaps = [];
             
-            if (realTimeData && realTimeData.swaps && realTimeData.swaps.length > 0) {
-                console.log(`✅ [EnhancedHybridPriceService] Using real-time swap data: ${realTimeData.swaps.length} swaps for ${tokenAddress}`);
-                recentSwaps = realTimeData.swaps.sort((a, b) => b.timestamp - a.timestamp);
-            } else {
-                console.log(`⚠️ [EnhancedHybridPriceService] No real-time swap data for ${tokenAddress}, loading from persistent storage`);
-                
-                // 🚀 NEW: Load historical swaps from persistent storage
-                try {
-                    const historicalSwaps = await this.loadHistoricalSwaps(tokenAddress);
-                    if (historicalSwaps && historicalSwaps.length > 0) {
-                        console.log(`📚 [EnhancedHybridPriceService] Loaded ${historicalSwaps.length} historical swaps for ${tokenAddress}`);
-                        recentSwaps = historicalSwaps.sort((a, b) => b.timestamp - a.timestamp);
-                    } else {
-                        console.log(`📚 [EnhancedHybridPriceService] No historical swaps found for ${tokenAddress}`);
-                    }
-                } catch (error) {
-                    console.error(`❌ [EnhancedHybridPriceService] Error loading historical swaps for ${tokenAddress}:`, error.message);
+            // Always try to load historical swaps first
+            try {
+                const historicalSwaps = await this.loadHistoricalSwaps(tokenAddress);
+                if (historicalSwaps && historicalSwaps.length > 0) {
+                    console.log(`📚 [EnhancedHybridPriceService] Loaded ${historicalSwaps.length} historical swaps for ${tokenAddress}`);
+                    recentSwaps = historicalSwaps.sort((a, b) => b.timestamp - a.timestamp);
                 }
-                
-                if (recentSwaps.length === 0) {
-                    console.log(`⚠️ [EnhancedHybridPriceService] No swaps found, using fallback`);
+            } catch (error) {
+                console.error(`❌ [EnhancedHybridPriceService] Error loading historical swaps for ${tokenAddress}:`, error.message);
+            }
+            
+            // Merge with real-time swaps if available
+            if (realTimeData && realTimeData.swaps && realTimeData.swaps.length > 0) {
+                console.log(`✅ [EnhancedHybridPriceService] Merging with real-time swap data: ${realTimeData.swaps.length} swaps for ${tokenAddress}`);
+                recentSwaps = [...recentSwaps, ...realTimeData.swaps];
+                recentSwaps.sort((a, b) => b.timestamp - a.timestamp);
+                // Remove duplicates by signature
+                const uniqueSwaps = [];
+                const seenSignatures = new Set();
+                recentSwaps.forEach(swap => {
+                    if (!seenSignatures.has(swap.signature)) {
+                        seenSignatures.add(swap.signature);
+                        uniqueSwaps.push(swap);
+                    }
+                });
+                recentSwaps = uniqueSwaps;
+            }
+            
+            if (recentSwaps.length === 0) {
+                console.log(`⚠️ [EnhancedHybridPriceService] No swaps found at all`);
                     
                     // Fallback: Get current pool reserves
                 const poolAddress = this.poolAddresses.get(tokenAddress);

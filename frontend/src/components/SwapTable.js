@@ -323,7 +323,9 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
                     className="flex items-center space-x-1 text-blue-400 hover:text-blue-300 transition-colors"
                   >
                     <span className="font-mono text-xs">
-                      {swap.signature ? `${swap.signature.slice(0, 8)}...${swap.signature.slice(-6)}` : 'N/A'}
+                      {swap.signature && typeof swap.signature === 'string' && swap.signature.length > 0 
+                        ? `${swap.signature.slice(0, 8)}...${swap.signature.slice(-6)}` 
+                        : 'N/A'}
                     </span>
                     <ExternalLink className="w-3 h-3" />
                   </a>
@@ -390,7 +392,9 @@ const SwapTable = React.memo(({ token, realTimeData }) => {
                             className="flex items-center space-x-1 text-blue-400 hover:text-blue-300"
                           >
                             <span className="font-mono text-xs">
-                              {swap.signature ? `${swap.signature.slice(0, 8)}...${swap.signature.slice(-6)}` : 'N/A'}
+                              {swap.signature && typeof swap.signature === 'string' && swap.signature.length > 0 
+                                ? `${swap.signature.slice(0, 8)}...${swap.signature.slice(-6)}` 
+                                : 'N/A'}
                             </span>
                             <ExternalLink className="w-3 h-3" />
                           </a>
