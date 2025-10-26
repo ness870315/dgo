@@ -731,9 +731,16 @@ class EnhancedHybridPriceService extends EventEmitter {
             // We need to get the swaps directly from the token database
             const tokenDb = this.chartDatabase.getTokenDatabase(tokenAddress);
             
+            console.log(`🔍 [EnhancedHybridPriceService] Token DB for ${tokenAddress.substring(0, 8)}:`, {
+                hasTokenDb: !!tokenDb,
+                hasSwaps: !!(tokenDb && tokenDb.swaps),
+                swapCount: (tokenDb && tokenDb.swaps) ? tokenDb.swaps.size : 0
+            });
+            
             // Get swaps from the token's database (stored in memory and/or file)
             const swaps = [];
             if (tokenDb && tokenDb.swaps) {
+                console.log(`📊 [EnhancedHybridPriceService] TokenDb.swaps is a Map with ${tokenDb.swaps.size} entries`);
                 for (const swap of tokenDb.swaps.values()) {
                     swaps.push(swap);
                 }
