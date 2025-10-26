@@ -275,30 +275,12 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
     }
   }, [processedData, width, height]);
 
-  // Build SVG path with curve smoothing
+  // Build SVG path
   const path = useMemo(() => {
     if (!processedData.length) {
       return '';
     }
-    
-    // Smooth the line using quadratic curves
-    let pathStr = `M ${x(processedData[0].time*1000)} ${y(processedData[0].close)}`;
-    
-    for (let i = 1; i < processedData.length; i++) {
-      const prev = processedData[i-1];
-      const curr = processedData[i];
-      const prevX = x(prev.time * 1000);
-      const prevY = y(prev.close);
-      const currX = x(curr.time * 1000);
-      const currY = y(curr.close);
-      
-      // Use quadratic curve for smooth transitions
-      const cpx = (prevX + currX) / 2;
-      const cpy = (prevY + currY) / 2;
-      pathStr += ` Q ${cpx} ${cpy}, ${currX} ${currY}`;
-    }
-    
-    return pathStr;
+    return processedData.map((p, i) => `${i?'L':'M'} ${x(p.time*1000)} ${y(p.close)}`).join(' ');
   }, [processedData, x, y]);
 
   // Build area path (closed)
