@@ -693,11 +693,22 @@ class EnhancedHybridPriceService extends EventEmitter {
                 }
             };
             
-            console.log(`💾 [EnhancedHybridPriceService] Saving swap record:`, persistentSwapRecord);
+            console.log(`💾 [EnhancedHybridPriceService] Saving swap record:`, JSON.stringify(persistentSwapRecord, null, 2));
             
             // Save to persistent storage
             await this.chartDatabase.storeSwaps([persistentSwapRecord]);
-            console.log(`💾 [EnhancedHybridPriceService] Swap saved to persistent storage for ${tokenAddress}`);
+            console.log(`💾 [EnhancedHybridPriceService] Swap queued for storage for ${tokenAddress}`);
+            
+            // Force immediate write
+            const tokenDb = this.chartDatabase.getTokenDatabase(tokenAddress);
+            const queue = this.chartDatabase.writeQueues?.get(tokenAddress);
+            if (queue && queue.length > 0) {
+                console.log(`💾 [EnhancedHybridPriceService] Forcing immediate write of ${queue.length} queued swaps`);
+                await this.chartDatabase.processTokenWriteQueue(tokenAddress);
+                console.log(`💾 [EnhancedHybridPriceService] Swap saved to persistent storage for ${tokenAddress}`);
+            } else {
+                console.log(`💾 [EnhancedHybridPriceService] No swaps in queue (already written?)`);
+            }
             
         } catch (error) {
             console.error(`❌ [EnhancedHybridPriceService] Failed to save swap to database:`, error.message);
