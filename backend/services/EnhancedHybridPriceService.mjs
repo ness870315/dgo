@@ -212,7 +212,7 @@ class EnhancedHybridPriceService extends EventEmitter {
 
     async loadTopTokens() {
         try {
-            console.log('🚀 [EnhancedHybridPriceService] Loading top 10 tokens from cache...');
+            console.log('🚀 [EnhancedHybridPriceService] Loading top 100 tokens from cache...');
             
             // Read tokens cache
             const cacheData = await fs.readFile(this.cachePath, 'utf8');
@@ -231,11 +231,12 @@ class EnhancedHybridPriceService extends EventEmitter {
                     const scoreB = b.overallScore || b.score || 0;
                     return scoreB - scoreA; // Sort descending
                 })
-                .slice(0, 10); // Top 10 only
+                .slice(0, 100); // Top 100 for memory/resource testing
             
             console.log(`📊 [EnhancedHybridPriceService] Found ${tokensWithPools.length} top tokens with pools`);
             
             // Add each token to monitoring
+            let addedCount = 0;
             for (const token of tokensWithPools) {
                 const tokenAddress = token.contractAddress;
                 const poolAddress = token.jupiterData?.firstPool?.id || 
@@ -245,11 +246,12 @@ class EnhancedHybridPriceService extends EventEmitter {
                 if (poolAddress && !this.poolAddresses.has(tokenAddress)) {
                     this.poolAddresses.set(tokenAddress, poolAddress);
                     this.swapHistory.set(tokenAddress, []);
-                    console.log(`✅ [EnhancedHybridPriceService] Added ${token.symbol} (${tokenAddress.substring(0, 8)}...) -> pool ${poolAddress.substring(0, 8)}... to monitoring`);
+                    addedCount++;
                 }
             }
             
-            console.log(`✅ [EnhancedHybridPriceService] Total ${this.poolAddresses.size} tokens added for gRPC monitoring`);
+            console.log(`✅ [EnhancedHybridPriceService] Added ${addedCount} tokens for gRPC monitoring`);
+            console.log(`✅ [EnhancedHybridPriceService] Total ${this.poolAddresses.size} tokens being tracked (including hardcoded)`);
             
         } catch (error) {
             console.error('❌ [EnhancedHybridPriceService] Failed to load top tokens:', error.message);
