@@ -470,60 +470,174 @@ class SwapBackfillWorker {
   }
 
   /**
-   * Fetch historical swaps using Constant K RPC (getSignaturesForAddress)
+   * Fetch historical swaps using Constant K RPC (getSignaturesForAddress + getTransaction)
+   * Implements proper pagination with 'before' parameter
    */
   async fetchHistoricalSwapsViaREST(tokenAddress, poolAddress, hours = 24) {
     console.log(`📊 [SwapBackfillWorker] Fetching ${hours}h historical swaps via Constant K RPC for ${tokenAddress.substring(0, 8)}...`);
     
     try {
-      let signatures = [];
+      const poolPubkey = new PublicKey(poolAddress);
+      const cutoffTime = Math.floor((Date.now() - (hours * 3600 * 1000)) / 1000); // Unix timestamp
       let before = null;
+      let totalSwaps = 0;
       
-      // Get signatures for the pool address
-      const pubkey = new PublicKey(poolAddress);
-      
-      // Fetch signatures in batches
-      for (let i = 0; i < 10 && signatures.length < 500; i++) {
-        const result = await this.connection.getSignaturesForAddress(pubkey, {
+      // Step 1: Get signatures in batches (pagination backwards)
+      for (let page = 0; page < 50; page++) {
+        const signatures = await this.connection.getSignaturesForAddress(poolPubkey, {
           limit: 1000,
           before: before,
           commitment: 'confirmed'
         });
         
-        if (result.length === 0) break;
-        
-        signatures.push(...result);
-        before = result[result.length - 1].signature;
-        
-        console.log(`📄 [SwapBackfillWorker] Fetched ${result.length} signatures (total: ${signatures.length})`);
-        
-        // Filter by time range
-        const cutoffTime = Date.now() - (hours * 3600 * 1000);
-        const oldSigCount = signatures.length;
-        signatures = signatures.filter(sig => sig.blockTime && sig.blockTime * 1000 > cutoffTime);
-        
-        if (signatures.length < oldSigCount) {
-          console.log(`⏰ [SwapBackfillWorker] Reached ${hours}h limit`);
+        if (signatures.length === 0) {
+          console.log(`📄 [SwapBackfillWorker] No more signatures (page ${page + 1})`);
           break;
         }
         
-        await new Promise(resolve => setTimeout(resolve, 100)); // Rate limit
+        // Filter by time - if oldest signature is too old, we're done
+        const oldestBlockTime = signatures[signatures.length - 1].blockTime;
+        if (oldestBlockTime && oldestBlockTime < cutoffTime) {
+          // Keep only recent signatures
+          const recentSigs = signatures.filter(s => s.blockTime && s.blockTime >= cutoffTime);
+          if (recentSigs.length > 0) {
+            await this.fetchAndStoreSwaps(recentSigs, tokenAddress, poolAddress);
+            totalSwaps += recentSigs.length;
+          }
+          console.log(`⏰ [SwapBackfillWorker] Reached ${hours}h limit at page ${page + 1}`);
+          break;
+        }
+        
+        // Fetch and store swaps for this batch
+        await this.fetchAndStoreSwaps(signatures, tokenAddress, poolAddress);
+        totalSwaps += signatures.length;
+        
+        console.log(`📄 [SwapBackfillWorker] Page ${page + 1}: ${signatures.length} sigs (total: ${totalSwaps})`);
+        
+        // Paginate backwards
+        before = signatures[signatures.length - 1].signature;
+        
+        // Small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
       
-      if (signatures.length === 0) {
-        console.log(`⚠️ [SwapBackfillWorker] No signatures found for ${tokenAddress.substring(0, 8)}`);
-        return;
-      }
-      
-      console.log(`✅ [SwapBackfillWorker] Found ${signatures.length} signatures, fetching transaction details...`);
-      
-      // Note: For now, we'll rely on gRPC to process these transactions
-      // The signatures can be used to get transaction details via getTransaction
-      // But for simplicity and to avoid rate limits, we'll just return and let gRPC handle it
+      console.log(`✅ [SwapBackfillWorker] Backfilled ${totalSwaps} historical swaps`);
       
     } catch (error) {
       console.error(`❌ [SwapBackfillWorker] RPC backfill failed:`, error.message);
     }
+  }
+  
+  /**
+   * Fetch transaction details and extract swaps
+   */
+  async fetchAndStoreSwaps(signatures, tokenAddress, poolAddress) {
+    // Fetch transactions in parallel (batch of 10 to avoid rate limits)
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < signatures.length; i += BATCH_SIZE) {
+      const batch = signatures.slice(i, i + BATCH_SIZE);
+      
+      const transactions = await Promise.all(
+        batch.map(async (sig) => {
+          try {
+            return await this.connection.getTransaction(sig.signature, {
+              maxSupportedTransactionVersion: 0,
+              commitment: 'confirmed'
+            });
+          } catch (error) {
+            console.error(`Failed to fetch tx ${sig.signature}:`, error.message);
+            return null;
+          }
+        })
+      );
+      
+      // Parse swaps from transactions
+      const swaps = [];
+      for (let j = 0; j < transactions.length; j++) {
+        const tx = transactions[j];
+        if (!tx || !tx.meta) continue;
+        
+        const swap = this.parseSwapFromTransaction(tx, signatures[i + j].signature, tokenAddress, poolAddress);
+        if (swap) {
+          swaps.push(swap);
+        }
+      }
+      
+      // Store swaps
+      if (swaps.length > 0) {
+        const swapsToStore = swaps.map(swap => ({
+          tokenAddress,
+          poolAddress,
+          signature: swap.signature,
+          timestamp: swap.timestamp || Math.floor(Date.now() / 1000),
+          slot: swap.slot || '',
+          price: swap.price || 0,
+          volumeUsd: swap.volumeUsd || 0,
+          source: 'rest_backfill',
+          type: swap.type || 'UNKNOWN',
+          tokenAmount: swap.tokenAmount || 0,
+          baseAmount: swap.baseAmount || 0,
+          rawData: swap,
+          createdAt: Date.now()
+        }));
+        
+        await this.chartDatabase.storeSwaps(swapsToStore);
+      }
+      
+      // Small delay between batches
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+  }
+  
+  /**
+   * Parse swap data from transaction
+   */
+  parseSwapFromTransaction(tx, signature, tokenAddress, poolAddress) {
+    if (!tx.meta || !tx.meta.preTokenBalances || !tx.meta.postTokenBalances) {
+      return null;
+    }
+    
+    const balanceChanges = [];
+    tx.meta.preTokenBalances.forEach((preBalance, index) => {
+      const postBalance = tx.meta.postTokenBalances[index];
+      if (preBalance && postBalance && preBalance.mint === postBalance.mint) {
+        const change = (postBalance.uiTokenAmount.uiAmount || 0) - (preBalance.uiTokenAmount.uiAmount || 0);
+        if (Math.abs(change) > 0.000001) {
+          balanceChanges.push({
+            mint: preBalance.mint,
+            change,
+            owner: preBalance.owner
+          });
+        }
+      }
+    });
+    
+    // Find swaps for our token
+    const tokenChanges = balanceChanges.filter(bc => bc.mint === tokenAddress && bc.owner !== poolAddress);
+    const solChanges = balanceChanges.filter(bc => bc.mint === 'So11111111111111111111111111111111111111112');
+    
+    if (tokenChanges.length === 0) return null;
+    
+    const tokenChange = tokenChanges[0];
+    const solChange = solChanges[0] || { change: 0 };
+    const swapType = tokenChange.change > 0 ? 'BUY' : 'SELL';
+    
+    const swapRecord = {
+      signature,
+      timestamp: tx.blockTime || Math.floor(Date.now() / 1000),
+      slot: tx.slot || '',
+      type: swapType,
+      change: tokenChange.change,
+      tokenAmount: Math.abs(tokenChange.change),
+      baseAmount: Math.abs(solChange.change),
+      price: Math.abs(solChange.change) / Math.abs(tokenChange.change),
+      volumeUsd: Math.abs(solChange.change) * this.solPriceUSD,
+      mintAddress: tokenAddress,
+      poolAddress,
+      maker: tokenChange.owner
+    };
+    
+    return swapRecord;
   }
 
   /**
