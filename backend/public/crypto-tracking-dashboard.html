@@ -3325,10 +3325,12 @@ This feature analyzes how accurate our tracked accounts' predictions have been:<
                                 <span class="sentiment-percentage neutral">${topic.sentiment.distribution.neutral}%</span>
                             </div>
                         </div>
+                        ${topic.authors && Array.isArray(topic.authors) && topic.authors.length > 0 ? `
                         <div class="topic-authors">
                             <span class="authors-label">Discussed by:</span>
                             <span class="authors-list">${topic.authors.join(', ')}</span>
                         </div>
+                        ` : ''}
                     </div>
                 `;
             }).join('');

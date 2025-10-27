@@ -195,8 +195,10 @@ class TopicTrendingDatabase {
             existing.authorCount = Math.max(existing.authorCount, topic.authorCount);
             existing.trendingScore = Math.max(existing.trendingScore, topic.trendingScore);
             
-            // Merge authors
-            const allAuthors = [...new Set([...existing.authors, ...topic.authors])];
+            // Merge authors (with safety checks)
+            const existingAuthors = Array.isArray(existing.authors) ? existing.authors : [];
+            const topicAuthors = Array.isArray(topic.authors) ? topic.authors : [];
+            const allAuthors = [...new Set([...existingAuthors, ...topicAuthors])];
             existing.authors = allAuthors;
             existing.authorCount = allAuthors.length;
             
@@ -221,7 +223,7 @@ class TopicTrendingDatabase {
           } else {
             topicMap.set(key, {
               ...topic,
-              authors: [...topic.authors], // Create a copy
+              authors: Array.isArray(topic.authors) ? [...topic.authors] : [], // Create a copy with safety check
               engagement: topic.engagement || 0,
               sentiment: topic.sentiment ? { ...topic.sentiment } : { positive: 0, negative: 0, neutral: 0, dominant: 'neutral' }
             });
