@@ -9,6 +9,7 @@ import PortfolioAnalyzerAPI from './services/portfolio-analyzer/PortfolioAnalyze
 import AIStrategyEngineAPI from './services/ai-strategy-engine/AIStrategyEngineAPI.js';
 import TransactionBuilderAPI from './services/transaction-builder/TransactionBuilderAPI.js';
 import BondingTokensAPI from './services/bonding-tokens/BondingTokensAPI.js';
+import SwapBackfillAPI from './services/swap-backfill/SwapBackfillAPI.js';
 
 // Load environment variables
 dotenv.config();
@@ -34,6 +35,7 @@ class JupiterDiscoveryService {
     this.aiStrategyEngineAPI = new AIStrategyEngineAPI();
     this.transactionBuilderAPI = new TransactionBuilderAPI();
     this.bondingTokensAPI = new BondingTokensAPI();
+    this.swapBackfillAPI = new SwapBackfillAPI();
     
     this.setupMiddleware();
     this.setupRoutes();
@@ -119,7 +121,8 @@ class JupiterDiscoveryService {
           portfolioAnalyzer: 'active',
           aiStrategyEngine: 'active',
           transactionBuilder: 'active',
-          bondingTokens: 'active'
+          bondingTokens: 'active',
+          swapBackfill: 'active'
         }
       });
     });
@@ -138,6 +141,9 @@ class JupiterDiscoveryService {
     
     // Bonding Tokens routes
     this.app.use('/api/bonding-tokens', this.bondingTokensAPI.getRouter());
+    
+    // Swap Backfill routes
+    this.app.use('/api/swap-backfill', this.swapBackfillAPI.getRouter());
 
     // Root endpoint
     this.app.get('/', (req, res) => {
@@ -214,6 +220,7 @@ class JupiterDiscoveryService {
       await this.portfolioAnalyzerAPI.initialize();
       await this.aiStrategyEngineAPI.initialize();
       await this.transactionBuilderAPI.initialize();
+      await this.swapBackfillAPI.start();
       
       console.log('✅ [Jupiter Discovery] All modules initialized');
     } catch (error) {
