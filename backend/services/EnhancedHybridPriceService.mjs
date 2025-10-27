@@ -42,12 +42,20 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.realTimeUpdates = new Map(); // Map<tokenAddress, lastUpdate>
         this.swapHistory = new Map(); // Map<tokenAddress, swaps[]>
         
+        // Reference point for slot-based timestamp estimation
+        this.referenceSlot = null;
+        this.referenceTimestamp = null;
+        
         // 🚀 CRITICAL: Single shared stream for ALL tokens (efficiency!)
         this.sharedStream = null; // One stream for all pools
         this.sharedStreamPoolCount = 0; // Track how many pools in shared stream
         
         // 🚀 NEW: Token metadata cache (decimals, graduatedPool, etc.)
         this.tokenMetadataCache = new Map(); // Map<tokenAddress, tokenInfo>
+        
+        // 🚀 NEW: Slot-to-timestamp estimation
+        this.referenceSlot = null;
+        this.referenceTimestamp = null;
         
         // Existing architecture
         this.priceCache = new Map();
@@ -84,6 +92,41 @@ class EnhancedHybridPriceService extends EventEmitter {
         
         // Initialize asynchronously
         this.initializeAsync();
+    }
+
+    /**
+     * Estimate timestamp from Solana slot
+     * Solana produces approximately 2 slots per second
+     */
+    estimateTimestampFromSlot(slot) {
+        // Get current slot and timestamp as reference
+        const currentTime = Date.now();
+        
+        // Solana produces ~2 slots per second (approximately)
+        // We'll track the slot difference from a known reference point
+        if (!this.referenceSlot || !this.referenceTimestamp) {
+            // First time: use current time as reference
+            this.referenceSlot = slot;
+            this.referenceTimestamp = currentTime;
+            return currentTime;
+        }
+        
+        // Calculate slot difference
+        const slotDiff = slot - this.referenceSlot;
+        
+        // Convert slot difference to milliseconds (2 slots per second = 500ms per slot)
+        const estimatedElapsed = slotDiff * 500;
+        
+        // Estimate timestamp
+        const estimatedTimestamp = this.referenceTimestamp + estimatedElapsed;
+        
+        // Update reference if it's been too long
+        if (Math.abs(slotDiff) > 1000) {
+            this.referenceSlot = slot;
+            this.referenceTimestamp = currentTime;
+        }
+        
+        return estimatedTimestamp;
     }
 
     async initializeAsync() {
@@ -648,8 +691,11 @@ class EnhancedHybridPriceService extends EventEmitter {
             const baseAmount = baseSol;
             
             // Create swap record with frontend-compatible format
+            // ✅ TIMESTAMP FIX: Estimate transaction time from slot instead of using current time
+            const estimatedTimestamp = this.estimateTimestampFromSlot(slot);
+            
             const swapRecord = {
-                timestamp: Date.now(),
+                timestamp: estimatedTimestamp,
                 slot: slot,
                 type: swapType,
                 change: change,
@@ -660,7 +706,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                 baseAmount: baseSol,            // SOL amount (already converted)
                 volumeUsd: volumeUsd,          // USD volume
                 maker: makerAddress || 'Unknown',
-                signature: transactionHash ? transactionHash : `slot_${slot}_${Date.now()}`,
+                signature: transactionHash ? transactionHash : `slot_${slot}_${estimatedTimestamp}`,
                 price: priceSol                 // Price per token in SOL
             };
             
