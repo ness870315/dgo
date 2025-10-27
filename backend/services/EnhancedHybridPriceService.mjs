@@ -342,6 +342,11 @@ class EnhancedHybridPriceService extends EventEmitter {
                             }
                         }
                         
+                        // ✅ CRITICAL: Log when signature is missing for debugging
+                        if (!transactionSignature && rawSignature) {
+                            console.warn(`⚠️ [EnhancedHybridPriceService] Could not extract signature from:`, rawSignature);
+                        }
+                        
                         // Rate limit logging
                         let lastLogTime = 0;
                         const LOG_INTERVAL = 10000; // Log every 10 seconds max
@@ -436,6 +441,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                                     
                                     // Process the swap with both token and SOL amounts
                                     try {
+                                        console.log(`🔍 [EnhancedHybridPriceService] Signature before processSwapUpdate:`, transactionSignature ? transactionSignature.substring(0, 16) + '...' : 'NULL');
                                         this.processSwapUpdate(
                                             tokenAddress, 
                                             actualPoolAddress, 
@@ -527,6 +533,7 @@ class EnhancedHybridPriceService extends EventEmitter {
         try {
             console.log(`🔄 [EnhancedHybridPriceService] Processing swap update for ${tokenAddress}`);
             console.log(`🔍 [EnhancedHybridPriceService] Raw inputs - change: ${change}, solAmount: ${solAmount}, mintAddress: ${mintAddress}`);
+            console.log(`🔍 [EnhancedHybridPriceService] Transaction Hash:`, transactionHash ? transactionHash.substring(0, 16) + '...' : 'NULL - will use fallback');
             
             // Get current swap history
             const currentSwaps = this.swapHistory.get(tokenAddress) || [];
