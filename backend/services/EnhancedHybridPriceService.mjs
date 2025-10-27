@@ -502,10 +502,6 @@ class EnhancedHybridPriceService extends EventEmitter {
                                 // Process each user token change
                                 userTokenChanges.forEach(tokenChange => {
                                     swapCount++;
-                                    // ✅ FIX: Correct swap type logic
-                                    // BUY: User gets tokens (+), gives SOL (-) 
-                                    // SELL: User gives tokens (-), gets SOL (+)
-                                    const swapType = tokenChange.change > 0 ? 'BUY' : 'SELL';
                                     
                                     // ✅ CRITICAL FIX: Find the largest SOL change in this transaction
                                     // Don't match by owner - just find the biggest SOL movement
@@ -515,6 +511,29 @@ class EnhancedHybridPriceService extends EventEmitter {
                                             Math.abs(current.change) > Math.abs(max.change) ? current : max, 
                                             balanceChanges.find(bc => bc.mint === 'So11111111111111111111111111111111111111112')
                                         );
+                                    
+                                    // ✅ FIXED: Correct swap type logic using BOTH token AND SOL changes
+                                    // BUY: User gets tokens (+) AND gives SOL (-)
+                                    // SELL: User gives tokens (-) AND gets SOL (+)
+                                    let swapType;
+                                    if (tokenChange.change > 0) {
+                                        // User got tokens - this is a BUY
+                                        swapType = 'BUY';
+                                    } else {
+                                        // User lost tokens - this is a SELL
+                                        swapType = 'SELL';
+                                    }
+                                    
+                                    // ✅ VERIFICATION: Double-check with SOL change if available
+                                    if (solChange && Math.abs(solChange.change) > 0.001) {
+                                        // If SOL and token changes disagree, use SOL as the source of truth
+                                        // BUY = SOL goes OUT (negative), SELL = SOL comes IN (positive)
+                                        if (solChange.change < 0) {
+                                            swapType = 'BUY';
+                                        } else {
+                                            swapType = 'SELL';
+                                        }
+                                    }
                                     
                                     // console.log(`🎯 [EnhancedHybridPriceService] SWAP #${swapCount}: ${swapType} for ${tokenAddress}`);
                                     // console.log(`📊 [EnhancedHybridPriceService] Token Change: ${tokenChange.change > 0 ? '+' : ''}${tokenChange.change.toFixed(6)}`);
