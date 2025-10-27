@@ -48,12 +48,14 @@ import EnhancedNFTTraitService from './services/EnhancedNFTTraitService.js';
 import DGOOpinionDatabase from './services/DGOOpinionDatabase.js';
 // CryptoAccountTrackingService removed - now handled by unified TwitterMentionService
 import CryptoTrackingDatabase from './services/CryptoTrackingDatabase.js';
-import PredictionTrackingDatabase from './services/PredictionTrackingDatabase.js';
-import AccuracyCalculationService from './services/AccuracyCalculationService.js';
-import PriceMonitoringService from './services/PriceMonitoringService.js';
+// REMOVED: Unused prediction services causing unnecessary costs
+// import PredictionTrackingDatabase from './services/PredictionTrackingDatabase.js';
+// import AccuracyCalculationService from './services/AccuracyCalculationService.js';
+// import PriceMonitoringService from './services/PriceMonitoringService.js';
 import TopicAnalysisService from './services/TopicAnalysisService.js';
 import TopicTrendingDatabase from './services/TopicTrendingDatabase.js';
-import AIAccuracyAnalysisService from './services/AIAccuracyAnalysisService.js';
+// REMOVED: Unused AI accuracy service causing costs
+// import AIAccuracyAnalysisService from './services/AIAccuracyAnalysisService.js';
 import { X402PaymentHandler } from '@payai/x402-solana';
 // Portfolio analysis services are handled by jup-discovery background worker
 // No direct imports needed - data comes via internal API endpoints
@@ -222,10 +224,12 @@ class EnhancedBackend {
     // Initialize crypto tracking services
     this.opinionDatabase = new DGOOpinionDatabase();
     this.cryptoTrackingDatabase = new CryptoTrackingDatabase();
-    this.predictionTrackingDatabase = new PredictionTrackingDatabase();
-    this.accuracyCalculationService = new AccuracyCalculationService();
-    this.priceMonitoringService = new PriceMonitoringService();
-    this.aiAccuracyAnalysisService = new AIAccuracyAnalysisService();
+    
+    // REMOVED: Unused prediction services causing unnecessary costs
+    // this.predictionTrackingDatabase = new PredictionTrackingDatabase();
+    // this.accuracyCalculationService = new AccuracyCalculationService();
+    // this.priceMonitoringService = new PriceMonitoringService();
+    // this.aiAccuracyAnalysisService = new AIAccuracyAnalysisService();
     
     // Initialize topic analysis services
     this.topicAnalysisService = new TopicAnalysisService();
@@ -12681,8 +12685,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
     });
 
     // ========================================
-    // 🎯 PREDICTION ACCURACY ANALYSIS ENDPOINTS
+    // 🎯 PREDICTION ACCURACY ANALYSIS ENDPOINTS (DISABLED - UNUSED & COSTLY)
     // ========================================
+    
+    // REMOVED: All prediction endpoints disabled to save costs
+    // These services were not being used and caused unnecessary OpenAI API calls
+    /*
 
     // Get prediction accuracy for specific author
     this.app.get('/api/admin/prediction-accuracy/:username', adminApiAuth, async (req, res) => {
@@ -13015,6 +13023,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         });
       }
     });
+    */ // END REMOVED PREDICTION ENDPOINTS
 
     // ========================================
     // 💰 CT MOMENTUM (CRYPTO TWITTER) ENDPOINTS
