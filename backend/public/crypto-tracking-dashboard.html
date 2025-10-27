@@ -1503,9 +1503,9 @@
                 <h2>📊 Sentiment Trends</h2>
                 <div class="sentiment-controls">
                     <div class="time-filter">
-                        <label for="sentimentDaySlider">Days Back:</label>
-                        <input type="range" id="sentimentDaySlider" min="1" max="30" value="7" class="slider">
-                        <span id="sentimentDayValue">7 days</span>
+                        <label for="sentimentDaySlider">Hours Back:</label>
+                        <input type="range" id="sentimentDaySlider" min="1" max="168" value="24" class="slider">
+                        <span id="sentimentDayValue">24 hours</span>
                     </div>
                 </div>
                 <div id="sentimentTrendsContainer">
@@ -1727,7 +1727,7 @@
             const sentimentDayValue = document.getElementById('sentimentDayValue');
             
             sentimentDaySlider.addEventListener('input', function() {
-                sentimentDayValue.textContent = this.value + ' days';
+                sentimentDayValue.textContent = this.value + ' hours';
                 loadSentimentTrends();
             });
             
@@ -3085,8 +3085,8 @@ This feature analyzes how accurate our tracked accounts' predictions have been:<
             sentimentTrendsLoaded = true;
             
             try {
-                const days = document.getElementById('sentimentDaySlider').value;
-                const response = await safeApiCall(`/api/admin/crypto-tracking/sentiment-trends?days=${days}`);
+                const hours = document.getElementById('sentimentDaySlider').value;
+                const response = await safeApiCall(`${API_BASE}/api/admin/crypto-tracking/sentiment-trends?hours=${hours}`);
                 
                 if (response.success && response.trends) {
                     displayFixedSentimentTrends(response.trends);
