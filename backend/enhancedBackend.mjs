@@ -4706,7 +4706,7 @@ Respond in JSON format:
 
         try {
           const response = await this.openaiService.generateCompletion(prompt, {
-            model: 'gpt-4-turbo',
+            model: 'gpt-4o-mini', // 🚀 COST OPTIMIZATION: 40x cheaper than gpt-4-turbo
             max_tokens: 500,
             temperature: 0.3
           });
@@ -4938,7 +4938,7 @@ Format as JSON:
 
         try {
           const response = await this.openaiService.generateCompletion(prompt, {
-            model: 'gpt-4-turbo',
+            model: 'gpt-4o-mini', // 🚀 COST OPTIMIZATION: 40x cheaper than gpt-4-turbo
             max_tokens: 1000,
             temperature: 0.4
           });
@@ -5744,7 +5744,7 @@ Format as JSON:
         const analysisOptions = {
           useCache: useCache === 'true',
           cacheExpiry: isPremium ? 3600000 : 7200000, // Premium: 1hr, Free: 2hr (much longer cache)
-          model: isPremium ? 'gpt-4' : 'gpt-3.5-turbo',
+          model: isPremium ? 'gpt-4o-mini' : 'gpt-3.5-turbo', // 🚀 COST OPTIMIZATION: Premium users get gpt-4o-mini instead of gpt-4
           temperature: 0.7,
           identity: { contract, symbol: token?.symbol }
         };

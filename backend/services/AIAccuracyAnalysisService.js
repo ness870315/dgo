@@ -88,7 +88,7 @@ Focus on actionable insights for improving prediction accuracy.
 `;
 
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-4o-mini', // 🚀 COST OPTIMIZATION: 40x cheaper
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
         max_tokens: 1500
@@ -159,7 +159,7 @@ Be specific and actionable in your analysis.
 `;
 
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-4o-mini', // 🚀 COST OPTIMIZATION: 40x cheaper
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.2,
         max_tokens: 800
@@ -234,7 +234,7 @@ Be specific and actionable based on the author's actual performance data.
 `;
 
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4',
+        model: 'gpt-4o-mini', // 🚀 COST OPTIMIZATION: 40x cheaper
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.3,
         max_tokens: 1000

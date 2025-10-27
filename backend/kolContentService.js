@@ -364,7 +364,7 @@ Tweet:`;
       const content = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 100,
         temperature: 0.8,
-        model: 'gpt-4o', // Proven reliable model
+        model: 'gpt-4o-mini', // 🚀 COST OPTIMIZATION: 40x cheaper than gpt-4o
         enableWebSearch: false // Tavily already fetched
       });
 
@@ -559,7 +559,7 @@ Tweet 2:`;
       const tweet2 = await this.openaiService.generateCompletion(tweet2Prompt, {
         maxTokens: 100,
         temperature: 0.7,
-        model: 'gpt-4o'
+        model: 'gpt-4o-mini' // 🚀 COST OPTIMIZATION: 40x cheaper
       });
 
       // Tweet 3: Data-driven verdict/recommendation
@@ -592,7 +592,7 @@ Tweet 3:`;
       const tweet3 = await this.openaiService.generateCompletion(tweet3Prompt, {
         maxTokens: 100,
         temperature: 0.8,
-        model: 'gpt-4o'
+        model: 'gpt-4o-mini' // 🚀 COST OPTIMIZATION: 40x cheaper
       });
 
       const thread = [
@@ -712,7 +712,7 @@ News recap:`;
       const recap = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 120,
         temperature: 0.8,
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini' // 🚀 COST OPTIMIZATION: 40x cheaper,
         enableWebSearch: false
       });
 
@@ -831,7 +831,7 @@ Tech insights tweet:`;
       const insight = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 120,
         temperature: 0.8,
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini' // 🚀 COST OPTIMIZATION: 40x cheaper,
         enableWebSearch: false
       });
 
@@ -1095,7 +1095,7 @@ Generate ONE ${tweetLength} tweet (just the text, no quotes):`;
       const normalTweet = await this.openaiService.generateCompletion(normalTweetPrompt, {
         maxTokens: maxTokens,
         temperature: 0.8,
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini' // 🚀 COST OPTIMIZATION: 40x cheaper,
         enableWebSearch: false
       });
 
@@ -1327,7 +1327,7 @@ Meme tweet:`;
       const memeTweet = await this.openaiService.generateCompletion(memePrompt, {
         maxTokens: 100,
         temperature: 0.9,
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini' // 🚀 COST OPTIMIZATION: 40x cheaper,
         enableWebSearch: false // Tavily already fetched
       });
 
@@ -1396,7 +1396,7 @@ Market meme:`;
       const memeTweet = await this.openaiService.generateCompletion(generalMemePrompt, {
         maxTokens: 100,
         temperature: 0.95,
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini' // 🚀 COST OPTIMIZATION: 40x cheaper,
         enableWebSearch: false // Tavily already fetched
       });
 
@@ -1747,7 +1747,7 @@ News recap:`;
       const recap = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 120,
         temperature: 0.8,
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini' // 🚀 COST OPTIMIZATION: 40x cheaper,
         presencePenalty: 0.3
       });
 
