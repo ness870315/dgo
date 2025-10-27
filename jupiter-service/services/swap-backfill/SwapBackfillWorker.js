@@ -23,6 +23,7 @@ class SwapBackfillWorker {
     this.grpcWrapper = null;
     this.isRunning = false;
     this.processedPools = new Set();
+    this.activeStreams = new Map();
   }
 
   /**
@@ -37,9 +38,8 @@ class SwapBackfillWorker {
       this.grpcClient = await this.grpcWrapper.createClient(CONSTANT_K_GRPC_ENDPOINT, CONSTANT_K_GRPC_TOKEN);
       console.log('✅ [SwapBackfillWorker] gRPC client initialized');
       
-      // Load ChartDatabase (uses the same DATA_DIR as backend)
-      await this.chartDatabase.loadDatabase();
-      console.log('✅ [SwapBackfillWorker] ChartDatabase loaded');
+      // ChartDatabase loads automatically in constructor
+      console.log('✅ [SwapBackfillWorker] ChartDatabase ready');
       
       console.log('✅ [SwapBackfillWorker] Initialized successfully');
     } catch (error) {
@@ -168,131 +168,142 @@ class SwapBackfillWorker {
    * Fetch historical swaps from Constant K gRPC
    * This subscribes to live stream temporarily to build historical data
    */
-  async fetchConstantKHistoricalSwaps(tokenAddress, poolAddress) {
-    console.log(`📡 [SwapBackfillWorker] Starting live stream for ${tokenAddress.substring(0, 8)} to collect historical swaps...`);
+  async startContinuousMonitoring(tokenAddress, poolAddress) {
+    console.log(`📡 [SwapBackfillWorker] Starting 24/7 monitoring for ${tokenAddress.substring(0, 8)}...`);
     
-    return new Promise((resolve, reject) => {
-      const maxDuration = 60000; // 1 minute of collecting
-      const swaps = [];
-      let stream = null;
-      let timeoutId = null;
+    // Start continuous streaming - keep running indefinitely
+    this.grpcClient.subscribeOnce(
+      {}, // accounts
+      {}, // slots
+      {
+        client: {
+          accountInclude: [poolAddress],
+          vote: false,
+          failed: false
+        }
+      }, // transactions
+      {}, // transactionsStatus
+      {}, // entry
+      {}, // blocks
+      {}, // blocksMeta
+      this.grpcWrapper.getCommitmentLevel().CONFIRMED,
+      []
+    ).then(stream => {
+      this.activeStreams.set(tokenAddress, stream);
+      console.log(`✅ [SwapBackfillWorker] Started 24/7 monitoring stream for ${tokenAddress.substring(0, 8)}`);
       
-      const cleanup = () => {
-        if (timeoutId) clearTimeout(timeoutId);
-        if (stream) {
-          try {
-            stream.cancel?.();
-          } catch (e) {
-            console.log('⚠️ Stream cleanup error:', e.message);
+      stream.on('data', async (msg) => {
+        try {
+          if (msg.transaction?.transaction) {
+            await this.processSwapMessage(msg, tokenAddress, poolAddress);
+          }
+        } catch (error) {
+          console.error('❌ Error processing swap:', error.message);
+        }
+      });
+      
+      stream.on('end', () => {
+        console.log(`⚠️ [SwapBackfillWorker] Stream ended for ${tokenAddress.substring(0, 8)}`);
+        this.activeStreams.delete(tokenAddress);
+      });
+      
+      stream.on('error', (error) => {
+        console.error(`❌ Stream error for ${tokenAddress.substring(0, 8)}:`, error.message);
+        this.activeStreams.delete(tokenAddress);
+      });
+      
+    }).catch(error => {
+      console.error(`❌ Failed to start stream for ${tokenAddress.substring(0, 8)}:`, error.message);
+    });
+  }
+  
+  async processSwapMessage(msg, tokenAddress, poolAddress) {
+    const tx = msg.transaction.transaction;
+    const slot = msg.transaction.slot;
+    
+    // Extract signature
+    const rawSignature = tx.signature || tx.transaction?.signatures?.[0];
+    let signature = null;
+    if (rawSignature && Buffer.isBuffer(rawSignature)) {
+      const bs58 = (await import('bs58')).default;
+      signature = bs58.encode(rawSignature);
+    }
+    
+    // Check for token balance changes (swaps)
+    if (tx.meta?.preTokenBalances?.length > 0) {
+      const balanceChanges = [];
+      tx.meta.preTokenBalances.forEach((preBalance, index) => {
+        const postBalance = tx.meta.postTokenBalances[index];
+        if (preBalance && postBalance) {
+          const change = (postBalance.uiTokenAmount?.uiAmount || 0) - (preBalance.uiTokenAmount?.uiAmount || 0);
+          if (Math.abs(change) > 0.000001) {
+            balanceChanges.push({
+              mint: preBalance.mint,
+              change,
+              owner: preBalance.owner
+            });
           }
         }
-      };
-      
-      this.grpcClient.subscribeOnce(
-        {}, // accounts
-        {}, // slots
-        {
-          client: {
-            accountInclude: [poolAddress],
-            vote: false,
-            failed: false
-          }
-        }, // transactions
-        {}, // transactionsStatus
-        {}, // entry
-        {}, // blocks
-        {}, // blocksMeta
-        this.grpcWrapper.getCommitmentLevel().CONFIRMED,
-        []
-      ).then(s => {
-        stream = s;
-        
-        stream.on('data', async (msg) => {
-          try {
-            if (msg.transaction?.transaction) {
-              const tx = msg.transaction.transaction;
-              const slot = msg.transaction.slot;
-              
-              // Extract signature
-              const rawSignature = tx.signature || tx.transaction?.signatures?.[0];
-              let signature = null;
-              if (rawSignature && Buffer.isBuffer(rawSignature)) {
-                const bs58 = (await import('bs58')).default;
-                signature = bs58.encode(rawSignature);
-              }
-              
-              // Check for token balance changes (swaps)
-              if (tx.meta?.preTokenBalances?.length > 0) {
-                const balanceChanges = [];
-                tx.meta.preTokenBalances.forEach((preBalance, index) => {
-                  const postBalance = tx.meta.postTokenBalances[index];
-                  if (preBalance && postBalance) {
-                    const change = (postBalance.uiTokenAmount?.uiAmount || 0) - (preBalance.uiTokenAmount?.uiAmount || 0);
-                    if (Math.abs(change) > 0.000001) {
-                      balanceChanges.push({
-                        mint: preBalance.mint,
-                        change,
-                        owner: preBalance.owner
-                      });
-                    }
-                  }
-                });
-                
-                // Find swaps for our token
-                const tokenChanges = balanceChanges.filter(bc => bc.mint === tokenAddress && bc.owner !== poolAddress);
-                const solChanges = balanceChanges.filter(bc => bc.mint === 'So11111111111111111111111111111111111111112');
-                
-                tokenChanges.forEach(tokenChange => {
-                  const solChange = solChanges.find(s => s.change !== 0) || { change: 0 };
-                  const swapType = tokenChange.change > 0 ? 'BUY' : 'SELL';
-                  
-                  swaps.push({
-                    signature: signature || `backfill_${Date.now()}_${swaps.length}`,
-                    timestamp: Math.floor(Date.now() / 1000),
-                    slot: slot.toString(),
-                    type: swapType,
-                    change: tokenChange.change,
-                    tokenAmount: Math.abs(tokenChange.change),
-                    baseAmount: Math.abs(solChange.change),
-                    price: Math.abs(solChange.change) / Math.abs(tokenChange.change),
-                    volumeUsd: Math.abs(solChange.change) * this.solPriceUSD,
-                    mintAddress: tokenAddress,
-                    poolAddress,
-                    maker: tokenChange.owner
-                  });
-                });
-              }
-            }
-          } catch (error) {
-            console.error('❌ Error processing swap data:', error.message);
-          }
-        });
-        
-        stream.on('end', () => {
-          console.log(`✅ [SwapBackfillWorker] Stream ended, collected ${swaps.length} swaps`);
-          cleanup();
-          resolve(swaps);
-        });
-        
-        stream.on('error', (error) => {
-          console.error('❌ Stream error:', error.message);
-          cleanup();
-          resolve(swaps); // Return what we have
-        });
-        
-        // Set timeout to stop after 1 minute
-        timeoutId = setTimeout(() => {
-          console.log(`⏰ [SwapBackfillWorker] Timeout after 1 minute, collected ${swaps.length} swaps`);
-          cleanup();
-          resolve(swaps);
-        }, maxDuration);
-        
-      }).catch(error => {
-        console.error('❌ Failed to start stream:', error.message);
-        cleanup();
-        resolve([]);
       });
-    });
+      
+      // Find swaps for our token
+      const tokenChanges = balanceChanges.filter(bc => bc.mint === tokenAddress && bc.owner !== poolAddress);
+      const solChanges = balanceChanges.filter(bc => bc.mint === 'So11111111111111111111111111111111111111112');
+      
+      tokenChanges.forEach(tokenChange => {
+        const solChange = solChanges.find(s => s.change !== 0) || { change: 0 };
+        const swapType = tokenChange.change > 0 ? 'BUY' : 'SELL';
+        
+        const swapRecord = {
+          signature: signature || `backfill_${Date.now()}_${tokenChange.owner}`,
+          timestamp: Math.floor(Date.now() / 1000),
+          slot: slot.toString(),
+          type: swapType,
+          change: tokenChange.change,
+          tokenAmount: Math.abs(tokenChange.change),
+          baseAmount: Math.abs(solChange.change),
+          price: Math.abs(solChange.change) / Math.abs(tokenChange.change),
+          volumeUsd: Math.abs(solChange.change) * this.solPriceUSD,
+          mintAddress: tokenAddress,
+          poolAddress,
+          maker: tokenChange.owner
+        };
+        
+        // Save to database immediately
+        this.saveSwapToDatabase(swapRecord, tokenAddress, poolAddress);
+      });
+    }
+  }
+  
+  async saveSwapToDatabase(swapRecord, tokenAddress, poolAddress) {
+    const swapsToStore = [{
+      tokenAddress: tokenAddress,
+      poolAddress: poolAddress,
+      signature: swapRecord.signature,
+      timestamp: swapRecord.timestamp,
+      slot: swapRecord.slot,
+      price: swapRecord.price || 0,
+      volumeUsd: swapRecord.volumeUsd || 0,
+      source: 'constantk_backfill',
+      type: swapRecord.type,
+      tokenAmount: swapRecord.tokenAmount || 0,
+      baseAmount: swapRecord.baseAmount || 0,
+      rawData: swapRecord,
+      createdAt: Date.now()
+    }];
+
+    await this.chartDatabase.storeSwaps(swapsToStore);
+    console.log(`💾 [SwapBackfillWorker] Saved swap: ${swapRecord.type} ${swapRecord.tokenAmount} tokens`);
+  }
+  
+  async fetchConstantKHistoricalSwaps(tokenAddress, poolAddress) {
+    console.log(`📡 [SwapBackfillWorker] Starting 24/7 monitoring for ${tokenAddress.substring(0, 8)}...`);
+    
+    // Start continuous monitoring - runs 24/7 in background
+    await this.startContinuousMonitoring(tokenAddress, poolAddress);
+    
+    // Return empty - monitoring continues in background
+    return [];
   }
 
   /**

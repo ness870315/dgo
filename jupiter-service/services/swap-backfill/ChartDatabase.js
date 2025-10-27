@@ -13,10 +13,12 @@ const __dirname = path.dirname(__filename);
  */
 class ChartDatabase {
     constructor() {
-        // ✅ CRITICAL FIX: Use production persistent cache directory
-        this.dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
-        // In production: /var/data/dgo
-        // In local: ./data
+        // ✅ Use the SAME data directory as backend for shared swap storage
+        // Backend stores swaps in: ./data/swaps_{tokenAddress}.json
+        // We'll write to the same location so backfill swaps and live swaps are in the same DB
+        this.dataDir = path.resolve(path.join(process.cwd(), '..', '..', '..', 'data'));
+        // Path: jupiter-service/services/swap-backfill -> backend -> root -> data
+        console.log(`📁 [ChartDatabase] Using shared data directory: ${this.dataDir}`);
         this.dbFile = path.join(this.dataDir, 'charts.json');
         
         // 🚀 HYBRID ARCHITECTURE: Per-token databases + shared metadata
