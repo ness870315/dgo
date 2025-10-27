@@ -150,6 +150,13 @@ class SwapBackfillAPI {
     try {
       console.log('📊 [SwapBackfillAPI] Loading tokens to backfill...');
       
+      // For now, skip auto-backfill on startup to avoid errors
+      // Manual trigger via API: POST /api/swap-backfill/backfill/:tokenAddress
+      console.log('⚠️ [SwapBackfillAPI] Auto-backfill on startup disabled - use manual triggers');
+      console.log('   Use: POST /api/swap-backfill/backfill/:tokenAddress');
+      return;
+      
+      // TODO: Implement token discovery from Jupiter API or Moralis
       // Read backend cache to get tokens
       const fs = await import('fs/promises');
       const path = await import('path');
