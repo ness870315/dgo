@@ -29,6 +29,11 @@ class SwapBackfillWorker {
     this.lastProcessedSlots = new Map(); // Map<tokenAddress, lastSlot>
     this.replayWindow = 3000; // 3000 slots = ~20 minutes of history
     this.connection = new Connection(CONSTANT_K_RPC, 'confirmed');
+    
+    // 🚀 SCALE: Shared stream for all pools (like backend)
+    this.sharedStream = null;
+    this.allPools = new Map(); // Map<poolAddress, tokenAddress>
+    this.solPriceUSD = 150;
   }
 
   /**
@@ -85,7 +90,16 @@ class SwapBackfillWorker {
         };
       }
 
-      // Step 1: Fetch historical swaps via REST API (much faster than gRPC replay)
+      // Step 1: Add to shared pool tracking
+      this.allPools.set(poolAddress, tokenAddress);
+      console.log(`✅ [SwapBackfillWorker] Added ${tokenAddress.substring(0, 8)} to shared monitoring (total: ${this.allPools.size} pools)`);
+      
+      // Step 2: Start/restart shared stream if needed
+      if (!this.sharedStream) {
+        await this.startSharedStreamMonitoring();
+      }
+      
+      // Step 3: Fetch historical swaps via REST API
       console.log(`📅 [SwapBackfillWorker] Backfilling last 24h of swaps via REST API...`);
       await this.fetchHistoricalSwapsViaREST(tokenAddress, poolAddress, 24);
       
@@ -96,10 +110,11 @@ class SwapBackfillWorker {
       
       return {
         success: true,
-        message: `Backfilled ${added} swaps`,
+        message: `Backfilled ${added} swaps (monitoring ${this.allPools.size} pools in shared stream)`,
         swapsAdded: added,
         existingSwaps: beforeCount,
-        totalSwaps: afterCount
+        totalSwaps: afterCount,
+        poolsMonitored: this.allPools.size
       };
 
     } catch (error) {
@@ -178,6 +193,85 @@ class SwapBackfillWorker {
    * Fetch historical swaps from Constant K gRPC
    * This subscribes to live stream temporarily to build historical data
    */
+  /**
+   * Start shared stream monitoring for ALL pools - SCALABLE approach
+   */
+  async startSharedStreamMonitoring() {
+    if (this.sharedStream) {
+      console.log('🔄 [SwapBackfillWorker] Shared stream already running');
+      return;
+    }
+    
+    console.log(`📡 [SwapBackfillWorker] Starting SHARED stream for ${this.allPools.size} pools...`);
+    
+    // Create transaction filters for ALL pools
+    const allPoolAddresses = Array.from(this.allPools.keys());
+    const transactionFilters = {
+      client: {
+        accountInclude: allPoolAddresses, // Monitor ALL pools in ONE stream
+        accountExclude: [],
+        accountRequired: [],
+        vote: false,
+        failed: false
+      }
+    };
+    
+    try {
+      const stream = await this.grpcClient.subscribeOnce(
+        {}, // accounts
+        {}, // slots
+        transactionFilters, // transactions
+        {}, // transactionsStatus
+        {}, // entry
+        {}, // blocks
+        {}, // blocksMeta
+        this.grpcWrapper.getCommitmentLevel().CONFIRMED,
+        []
+      );
+      
+      this.sharedStream = stream;
+      console.log(`✅ [SwapBackfillWorker] Shared stream started for ${this.allPools.size} pools`);
+      
+      stream.on('data', async (msg) => {
+        try {
+          if (msg.transaction?.transaction) {
+            // Route to appropriate token based on pool address
+            const tx = msg.transaction.transaction;
+            const slot = msg.transaction.slot;
+            
+            // Find which pool this transaction belongs to
+            const poolAddresses = Array.from(this.allPools.keys());
+            for (const poolAddr of poolAddresses) {
+              if (tx.message?.accountKeys?.find(k => k === poolAddr)) {
+                const tokenAddress = this.allPools.get(poolAddr);
+                await this.processSwapMessage(msg, tokenAddress, poolAddr);
+                break;
+              }
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error processing shared stream message:', error.message);
+        }
+      });
+      
+      stream.on('end', () => {
+        console.log(`⚠️ [SwapBackfillWorker] Shared stream ended - reconnecting...`);
+        this.sharedStream = null;
+        setTimeout(() => this.startSharedStreamMonitoring(), 5000);
+      });
+      
+      stream.on('error', (error) => {
+        console.error(`❌ Shared stream error - reconnecting...`, error.message);
+        this.sharedStream = null;
+        setTimeout(() => this.startSharedStreamMonitoring(), 5000);
+      });
+      
+    } catch (error) {
+      console.error(`❌ Failed to start shared stream:`, error.message);
+      setTimeout(() => this.startSharedStreamMonitoring(), 5000);
+    }
+  }
+
   async startContinuousMonitoring(tokenAddress, poolAddress, fromSlot = null) {
     // Calculate fromSlot for replay
     let replayFromSlot = fromSlot;
