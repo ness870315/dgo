@@ -65,12 +65,12 @@ const TradingViewChart = ({ token, timeframe = '5MIN', onClose }) => {
 
       const chart = createChart(el, {
         layout: { 
-          background: { type: ColorType.Solid, color: "#0b0f17" }, 
+          background: { type: ColorType.Solid, color: "#1e293b" }, // Dark gray background
           textColor: "#cbd5e1" 
         },
         grid: { 
-          vertLines: { color: "#2e3a4a" }, 
-          horzLines: { color: "#2e3a4a" } 
+          vertLines: { color: "#334155", style: 0 }, // Subtle gray grid lines
+          horzLines: { color: "#334155", style: 0 } 
         },
         rightPriceScale: { 
           visible: false  // Hide right price scale
