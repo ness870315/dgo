@@ -153,7 +153,12 @@ class EnhancedHybridPriceService extends EventEmitter {
             this.swapHistory.set('E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump', []);
             console.log(`✅ [EnhancedHybridPriceService] Added E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump -> ACTIVE PumpSwap pool GQU4GZjCPam77cpnCgfnavXDqMNiXgksnTidyhwfRAKN to monitoring map`);
             
-            // 🚀 NEW: Load and add top 10 tokens from cache for gRPC monitoring
+            // ✅ ADD MEMEPUTER for testing
+            this.poolAddresses.set('5EpbKX221NYVidK6A2nJGhtuLPvrPiQ6shknLbtjBAGS', 'c9EQnny8sBVrkMCKvVua1AQTRSXW1TDw1zLwFLHvRXh');
+            this.swapHistory.set('5EpbKX221NYVidK6A2nJGhtuLPvrPiQ6shknLbtjBAGS', []);
+            console.log(`✅ [EnhancedHybridPriceService] Added MEMEPUTER -> graduatedPool c9EQnny8sBVrkMCKvVua1AQTRSXW1TDw1zLwFLHvRXh to monitoring map`);
+            
+            // 🚀 NEW: Load and add top 200 tokens from cache for gRPC monitoring
             await this.loadTopTokens();
             
             // 🚀 NEW: Automatically start SIMPLIFIED single-token monitoring after initialization
