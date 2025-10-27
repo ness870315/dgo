@@ -9,12 +9,17 @@ class AIAccuracyAnalysisService {
   constructor() {
     // Initialize OpenAI for AI-powered analysis
     this.openai = null;
+    
+    // 🚀 COST OPTIMIZATION: Add cache to prevent repeated AI calls
+    this.cache = new Map();
+    this.CACHE_TTL = 60 * 60 * 1000; // 1 hour cache
+    
     try {
       this.openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY,
         baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'
       });
-      console.log('🤖 [AI ACCURACY] AI-powered accuracy analysis initialized');
+      console.log('🤖 [AI ACCURACY] AI-powered accuracy analysis initialized with 1-hour cache');
     } catch (error) {
       console.warn('⚠️ [AI ACCURACY] OpenAI not available, AI analysis disabled');
     }
@@ -32,6 +37,14 @@ class AIAccuracyAnalysisService {
 
     if (!this.openai) {
       return this.getFallbackInsights(predictions);
+    }
+
+    // 🚀 COST OPTIMIZATION: Check cache first
+    const cacheKey = 'global_insights';
+    const cached = this.cache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp < this.CACHE_TTL)) {
+      console.log('💾 [AI ACCURACY] Using cached insights (cache TTL: 1 hour)');
+      return cached.data;
     }
 
     try {
@@ -97,7 +110,16 @@ Focus on actionable insights for improving prediction accuracy.
       const aiResponse = response.choices[0].message.content.trim();
       console.log(`🤖 [AI ACCURACY] Generated insights: ${aiResponse.substring(0, 200)}...`);
 
-      return JSON.parse(aiResponse);
+      const result = JSON.parse(aiResponse);
+      
+      // 🚀 COST OPTIMIZATION: Cache the result
+      this.cache.set(cacheKey, {
+        data: result,
+        timestamp: Date.now()
+      });
+      console.log('💾 [AI ACCURACY] Cached insights for 1 hour');
+
+      return result;
 
     } catch (error) {
       console.error('❌ [AI ACCURACY] Error generating insights:', error.message);
@@ -188,6 +210,15 @@ Be specific and actionable in your analysis.
       return this.getFallbackRecommendations(authorPredictions);
     }
 
+    // 🚀 COST OPTIMIZATION: Check cache per author
+    const authorName = authorPredictions[0]?.metadata?.author?.username || 'unknown';
+    const cacheKey = `recommendations_${authorName}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp < this.CACHE_TTL)) {
+      console.log(`💾 [AI ACCURACY] Using cached recommendations for @${authorName} (cache TTL: 1 hour)`);
+      return cached.data;
+    }
+
     try {
       const prompt = `
 Based on this author's prediction history, provide recommendations for improving accuracy:
@@ -241,7 +272,16 @@ Be specific and actionable based on the author's actual performance data.
       });
 
       const aiResponse = response.choices[0].message.content.trim();
-      return JSON.parse(aiResponse);
+      const result = JSON.parse(aiResponse);
+      
+      // 🚀 COST OPTIMIZATION: Cache the result
+      this.cache.set(cacheKey, {
+        data: result,
+        timestamp: Date.now()
+      });
+      console.log(`💾 [AI ACCURACY] Cached recommendations for @${authorName} (cache TTL: 1 hour)`);
+
+      return result;
 
     } catch (error) {
       console.error('❌ [AI ACCURACY] Error generating recommendations:', error.message);
