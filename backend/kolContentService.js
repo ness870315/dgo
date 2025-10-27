@@ -712,7 +712,7 @@ News recap:`;
       const recap = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 120,
         temperature: 0.8,
-        model: 'gpt-4o-mini' // 🚀 COST OPTIMIZATION: 40x cheaper,
+        model: 'gpt-4o-mini', // 🚀 COST OPTIMIZATION: 40x cheaper
         enableWebSearch: false
       });
 
