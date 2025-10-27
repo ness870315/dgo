@@ -90,6 +90,46 @@ class EnhancedBackend {
                 res.status(500).json({ error: 'Internal server error' });
             }
         });
+
+        // POST endpoint for jupiter-service to send backfilled swaps
+        this.app.post('/api/swap-backfill/store', async (req, res) => {
+            try {
+                const { tokenAddress, swaps } = req.body;
+                
+                if (!tokenAddress || !Array.isArray(swaps)) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        error: 'Missing tokenAddress or swaps array' 
+                    });
+                }
+
+                console.log(`📊 [Backend] Receiving ${swaps.length} backfilled swaps for ${tokenAddress.substring(0, 8)}...`);
+
+                // Store swaps in ChartDatabase
+                if (this.priceService && this.priceService.chartDatabase) {
+                    await this.priceService.chartDatabase.storeSwaps(swaps);
+                    console.log(`✅ [Backend] Stored ${swaps.length} swaps for ${tokenAddress.substring(0, 8)}`);
+                    
+                    res.json({
+                        success: true,
+                        message: `Stored ${swaps.length} swaps`,
+                        tokenAddress
+                    });
+                } else {
+                    res.status(503).json({ 
+                        success: false, 
+                        error: 'ChartDatabase not initialized' 
+                    });
+                }
+
+            } catch (error) {
+                console.error('Error storing backfilled swaps:', error);
+                res.status(500).json({ 
+                    success: false, 
+                    error: 'Internal server error' 
+                });
+            }
+        });
     }
 
     async initializeServices() {

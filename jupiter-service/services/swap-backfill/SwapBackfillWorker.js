@@ -151,7 +151,10 @@ class SwapBackfillWorker {
       }));
 
       await this.chartDatabase.storeSwaps(swapsToStore);
-      console.log(`💾 [SwapBackfillWorker] Stored ${swapsToStore.length} swaps for ${tokenAddress.substring(0, 8)}`);
+      console.log(`💾 [SwapBackfillWorker] Stored ${swapsToStore.length} swaps locally for ${tokenAddress.substring(0, 8)}`);
+      
+      // Send to backend via API
+      await this.sendSwapsToBackend(tokenAddress, swapsToStore);
 
       return {
         swapsAdded: swapsToStore.length,
@@ -740,6 +743,28 @@ class SwapBackfillWorker {
     } catch (error) {
       console.error('❌ [SwapBackfillWorker] Failed to parse transaction:', error.message);
       return null;
+    }
+  }
+
+  /**
+   * Send swaps to backend via API
+   */
+  async sendSwapsToBackend(tokenAddress, swaps) {
+    try {
+      const backendUrl = process.env.BACKEND_URL || 'https://enhanced-backend.onrender.com';
+      const response = await fetch(`${backendUrl}/api/swap-backfill/store`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tokenAddress, swaps })
+      });
+      
+      if (response.ok) {
+        console.log(`✅ [SwapBackfillWorker] Sent ${swaps.length} swaps to backend`);
+      } else {
+        console.error(`⚠️ [SwapBackfillWorker] Failed to send swaps to backend: ${response.status}`);
+      }
+    } catch (error) {
+      console.error(`⚠️ [SwapBackfillWorker] Error sending swaps to backend:`, error.message);
     }
   }
 
