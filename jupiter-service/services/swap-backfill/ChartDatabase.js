@@ -14,10 +14,10 @@ const __dirname = path.dirname(__filename);
 class ChartDatabase {
     constructor() {
         // ✅ Use the BACKEND's data directory for shared swap storage
-        // Backend stores swaps in: ../../../../backend/data/swaps_{tokenAddress}.json
-        // From: jupiter-service/services/swap-backfill
-        // To: backend/data
-        this.dataDir = path.resolve(path.join(__dirname, '../../../../backend/data'));
+        // On Render: backend runs from services/jup-discovery, so backend/ is at ../backend/
+        // Locally: backend/ is at root level
+        const backendPath = path.join(process.cwd(), 'backend', 'data');
+        this.dataDir = path.resolve(backendPath);
         console.log(`📁 [ChartDatabase] Using shared backend data directory: ${this.dataDir}`);
         this.dbFile = path.join(this.dataDir, 'charts.json');
         
