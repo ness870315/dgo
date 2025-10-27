@@ -1327,7 +1327,7 @@ Meme tweet:`;
       const memeTweet = await this.openaiService.generateCompletion(memePrompt, {
         maxTokens: 100,
         temperature: 0.9,
-        model: 'gpt-4o-mini' // 🚀 COST OPTIMIZATION: 40x cheaper,
+        model: 'gpt-4o-mini', // 🚀 COST OPTIMIZATION: 40x cheaper
         enableWebSearch: false // Tavily already fetched
       });
 
