@@ -12482,9 +12482,15 @@ Thanks for using x402 payments on Twitter! 🚀`;
     /**
      * Get latest trending topics (public endpoint)
      */
-    this.app.get('/api/trending-topics/latest', (req, res) => {
+    this.app.get('/api/trending-topics/latest', async (req, res) => {
       try {
-        const { limit = 20, category, days = 7 } = req.query;
+        const { limit = 20, category, days = 7, hours, forceRefresh = false } = req.query;
+        
+        // 🎯 NEW: Force refresh if requested
+        if (forceRefresh === 'true') {
+          console.log('[🌐 Public] 🔄 Force refreshing trending topics...');
+          await this.runTrendingTopicsAnalysis();
+        }
         
         if (!this.topicTrendingDatabase) {
           return res.status(503).json({
@@ -12494,7 +12500,42 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
 
         let topics;
-        if (category) {
+        
+        // 🎯 NEW: Support hours-based filtering for dynamic updates
+        if (hours) {
+          // Calculate time cutoff based on hours
+          const cutoffTime = new Date(Date.now() - parseInt(hours) * 60 * 60 * 1000);
+          
+          // Get ALL posts from KOLService
+          const allPosts = this.kolService?.getPosts() || [];
+          
+          // Filter posts within the hours window
+          const recentPosts = allPosts.filter(post => 
+            new Date(post.created_at) >= cutoffTime
+          );
+          
+          console.log(`[🌐 Public] Filtering ${recentPosts.length} posts from last ${hours} hours`);
+          
+          // Count topics
+          const topicCounts = {};
+          recentPosts.forEach(post => {
+            if (post.topics && Array.isArray(post.topics)) {
+              post.topics.forEach(topic => {
+                topicCounts[topic] = (topicCounts[topic] || 0) + 1;
+              });
+            }
+          });
+          
+          // Convert to trending topics format with freshness
+          topics = Object.entries(topicCounts)
+            .map(([topic, count]) => ({
+              topic,
+              frequency: count,
+              lastSeen: new Date().toISOString()
+            }))
+            .sort((a, b) => b.frequency - a.frequency)
+            .slice(0, parseInt(limit));
+        } else if (category) {
           topics = this.topicTrendingDatabase.getTrendingTopicsByCategory(category, parseInt(limit));
         } else {
           topics = this.topicTrendingDatabase.getTrendingTopicsByTimeframe(parseInt(days), parseInt(limit));
@@ -12503,9 +12544,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
         res.json({
           success: true,
           topics,
-          timeframe: `${days} days`,
+          timeframe: hours ? `${hours} hours` : `${days} days`,
           category: category || 'all',
-          total: topics.length
+          total: topics.length,
+          lastUpdated: new Date().toISOString()
         });
 
       } catch (error) {
@@ -15325,18 +15367,45 @@ Thanks for using x402 payments on Twitter! 🚀`;
   // ===== Trending Topics Analysis =====
   async runTrendingTopicsAnalysis() {
     try {
-      if (!this.topicAnalysisService || !this.topicTrendingDatabase || !this.kolService) {
+      if (!this.topicAnalysisService || !this.topicTrendingDatabase) {
         console.log('[🛡️ Enhanced Backend] ⚠️ Trending topics services not initialized, skipping analysis');
         return;
       }
 
-      // Get recent posts from KOLService (these already have topics analyzed)
-      const allPosts = this.kolService.getPosts();
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      console.log('[🛡️ Enhanced Backend] 🔥 Starting trending topics analysis...');
+
+      // Try CryptoTrackingDatabase first (if available)
+      let recentPosts = [];
       
-      const recentPosts = allPosts.filter(post => 
-        new Date(post.created_at) >= sevenDaysAgo
-      );
+      if (this.cryptoTrackingDatabase) {
+        try {
+          const tweets = await this.cryptoTrackingDatabase.getTweetsByTimeframe('7d');
+          console.log(`📊 [TRENDING TOPICS] Using CryptoTrackingDatabase: ${tweets.length} tweets`);
+          
+          // Convert tweets to posts format for consistent processing
+          recentPosts = tweets.map(tweet => ({
+            ...tweet,
+            topics: tweet.topics || tweet.intelligence?.topics || []
+          }));
+        } catch (error) {
+          console.warn('[🛡️ Enhanced Backend] Failed to get tweets from CryptoTrackingDatabase:', error.message);
+        }
+      }
+      
+      // Fallback to KOLService if available and CryptoTrackingDatabase is empty
+      if (recentPosts.length === 0 && this.kolService) {
+        try {
+          const allPosts = this.kolService.getPosts();
+          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+          
+          recentPosts = allPosts.filter(post => 
+            new Date(post.created_at) >= sevenDaysAgo
+          );
+          console.log(`📊 [TRENDING TOPICS] Using KOLService: ${recentPosts.length} posts`);
+        } catch (error) {
+          console.warn('[🛡️ Enhanced Backend] Failed to get posts from KOLService:', error.message);
+        }
+      }
       
       if (!recentPosts || recentPosts.length === 0) {
         console.log('[🛡️ Enhanced Backend] ⚠️ No recent posts found for trending topics analysis');
@@ -15345,7 +15414,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
       console.log(`[🛡️ Enhanced Backend] 🔥 Analyzing ${recentPosts.length} posts for trending topics...`);
 
-      // Extract topics from posts (they already have topics from KOLService analysis)
+      // Extract topics from posts (they already have topics from analysis)
       const topicCounts = {};
       let totalTopics = 0;
       
@@ -15353,7 +15422,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         if (post.topics && post.topics.length > 0) {
           post.topics.forEach(topic => {
             topicCounts[topic] = (topicCounts[topic] || 0) + 1;
-            totalTopics++;
+          totalTopics++;
           });
         }
       });
