@@ -128,9 +128,18 @@ class SwapBackfillAPI {
       // Read backend cache to get tokens
       const fs = await import('fs/promises');
       const path = await import('path');
-      const cachePath = path.join(process.cwd(), '../../backend/data/cache/tokens-cache.json');
+      
+      // Use absolute path to backend cache
+      const cachePath = path.resolve(process.cwd(), 'backend/data/cache/tokens-cache.json');
+      console.log(`📂 [SwapBackfillAPI] Reading cache from: ${cachePath}`);
       
       const tokens = JSON.parse(await fs.readFile(cachePath, 'utf8'));
+      console.log(`✅ [SwapBackfillAPI] Loaded ${tokens.length} tokens from cache`);
+      
+      if (!Array.isArray(tokens) || tokens.length === 0) {
+        console.log('⚠️ [SwapBackfillAPI] No tokens in cache, skipping auto-backfill');
+        return;
+      }
       
       // Get top tokens by score
       const topTokens = tokens
