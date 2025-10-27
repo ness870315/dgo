@@ -15416,13 +15416,23 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
       // Extract topics from posts (they already have topics from analysis)
       const topicCounts = {};
+      const topicAuthors = {}; // Track which authors discussed each topic
       let totalTopics = 0;
       
       recentPosts.forEach(post => {
         if (post.topics && post.topics.length > 0) {
+          const author = post.author?.username || 'Unknown';
           post.topics.forEach(topic => {
             topicCounts[topic] = (topicCounts[topic] || 0) + 1;
-          totalTopics++;
+            totalTopics++;
+            
+            // Track authors for each topic
+            if (!topicAuthors[topic]) {
+              topicAuthors[topic] = [];
+            }
+            if (!topicAuthors[topic].includes(author)) {
+              topicAuthors[topic].push(author);
+            }
           });
         }
       });
@@ -15432,7 +15442,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
         .map(([topic, count]) => ({
           topic,
           count,
-          percentage: ((count / totalTopics) * 100).toFixed(2)
+          percentage: ((count / totalTopics) * 100).toFixed(2),
+          authors: topicAuthors[topic] || [], // Add authors list
+          authorCount: topicAuthors[topic]?.length || 0,
+          frequency: count,
+          engagement: 0,
+          sentiment: { positive: 0, negative: 0, neutral: 0, dominant: 'neutral' }
         }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 20); // Top 20 topics
