@@ -14,10 +14,10 @@ const __dirname = path.dirname(__filename);
 class ChartDatabase {
     constructor() {
         // ✅ Use the SAME data directory as backend for shared swap storage
-        // Backend stores swaps in: ../../backend/data/swaps_{tokenAddress}.json
+        // Backend stores swaps in: backend/data/swaps_{tokenAddress}.json
         // We'll write to the same location so backfill swaps and live swaps are in the same DB
-        // From services/swap-backfill, go up to services/, then to root, then to backend/data
-        this.dataDir = path.resolve(path.join(__dirname, '..', '..', 'backend', 'data'));
+        // From services/swap-backfill, path is: ../../backend/data
+        this.dataDir = path.resolve(path.join(__dirname, '../../backend/data'));
         console.log(`📁 [ChartDatabase] Using shared data directory: ${this.dataDir}`);
         this.dbFile = path.join(this.dataDir, 'charts.json');
         
@@ -49,11 +49,15 @@ class ChartDatabase {
      */
     initializeDataDirSync() {
         try {
-            const fsSync = require('fs');
-            if (!fsSync.existsSync(this.dataDir)) {
-                fsSync.mkdirSync(this.dataDir, { recursive: true });
-                console.log(`✅ [ChartDatabase] Created data directory: ${this.dataDir}`);
-            }
+            // Use dynamic import for fs in ES module
+            import('fs').then(fs => {
+                if (!fs.existsSync(this.dataDir)) {
+                    fs.mkdirSync(this.dataDir, { recursive: true });
+                    console.log(`✅ [ChartDatabase] Created data directory: ${this.dataDir}`);
+                }
+            }).catch(err => {
+                console.error('❌ [ChartDatabase] Failed to create data directory:', err.message);
+            });
         } catch (error) {
             console.error('❌ [ChartDatabase] Failed to create data directory:', error.message);
         }
