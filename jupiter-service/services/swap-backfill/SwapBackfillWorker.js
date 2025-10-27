@@ -105,11 +105,11 @@ class SwapBackfillWorker {
     try {
       console.log(`🔄 [SwapBackfillWorker] Starting Constant K backfill...`);
       
-      // Use the same approach as EnhancedHybridPriceService but for historical slots
-      // Query past blocks to get historical swap data
-      // This will populate the same database that live swaps use
+      // Get current SOL price for volume calculations
+      this.solPriceUSD = await this.getSolPrice();
       
-      const swaps = await this.fetchConstantKHistoricalSwaps(poolAddress);
+      // Subscribe to live stream for 1 minute to collect swaps
+      const swaps = await this.fetchConstantKHistoricalSwaps(tokenAddress, poolAddress);
       
       if (!swaps || swaps.length === 0) {
         console.log(`⚠️ [SwapBackfillWorker] No swaps found for ${tokenAddress.substring(0, 8)}`);
@@ -126,10 +126,13 @@ class SwapBackfillWorker {
         poolAddress: poolAddress,
         signature: swap.signature,
         timestamp: swap.timestamp,
+        slot: swap.slot,
         price: swap.price || 0,
         volumeUsd: swap.volumeUsd || 0,
         source: 'constantk_backfill', // Different source tag
         type: swap.type || 'unknown',
+        tokenAmount: swap.tokenAmount || 0,
+        baseAmount: swap.baseAmount || 0,
         rawData: swap,
         createdAt: Date.now()
       }));
@@ -147,40 +150,176 @@ class SwapBackfillWorker {
       throw error;
     }
   }
+  
+  /**
+   * Get current SOL price
+   */
+  async getSolPrice() {
+    try {
+      const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+      return response.data.solana?.usd || 150;
+    } catch (error) {
+      console.warn('⚠️ Could not fetch SOL price, using default $150');
+      return 150;
+    }
+  }
 
   /**
    * Fetch historical swaps from Constant K gRPC
-   * This queries past transactions to build historical chart data
+   * This subscribes to live stream temporarily to build historical data
    */
-  async fetchConstantKHistoricalSwaps(poolAddress) {
-    console.log(`📡 [SwapBackfillWorker] Fetching from Constant K for pool ${poolAddress.substring(0, 8)}...`);
+  async fetchConstantKHistoricalSwaps(tokenAddress, poolAddress) {
+    console.log(`📡 [SwapBackfillWorker] Starting live stream for ${tokenAddress.substring(0, 8)} to collect historical swaps...`);
     
+    return new Promise((resolve, reject) => {
+      const maxDuration = 60000; // 1 minute of collecting
+      const swaps = [];
+      let stream = null;
+      let timeoutId = null;
+      
+      const cleanup = () => {
+        if (timeoutId) clearTimeout(timeoutId);
+        if (stream) {
+          try {
+            stream.cancel?.();
+          } catch (e) {
+            console.log('⚠️ Stream cleanup error:', e.message);
+          }
+        }
+      };
+      
+      this.grpcClient.subscribeOnce(
+        {}, // accounts
+        {}, // slots
+        {
+          client: {
+            accountInclude: [poolAddress],
+            vote: false,
+            failed: false
+          }
+        }, // transactions
+        {}, // transactionsStatus
+        {}, // entry
+        {}, // blocks
+        {}, // blocksMeta
+        this.grpcWrapper.getCommitmentLevel().CONFIRMED,
+        []
+      ).then(s => {
+        stream = s;
+        
+        stream.on('data', async (msg) => {
+          try {
+            if (msg.transaction?.transaction) {
+              const tx = msg.transaction.transaction;
+              const slot = msg.transaction.slot;
+              
+              // Extract signature
+              const rawSignature = tx.signature || tx.transaction?.signatures?.[0];
+              let signature = null;
+              if (rawSignature && Buffer.isBuffer(rawSignature)) {
+                const bs58 = (await import('bs58')).default;
+                signature = bs58.encode(rawSignature);
+              }
+              
+              // Check for token balance changes (swaps)
+              if (tx.meta?.preTokenBalances?.length > 0) {
+                const balanceChanges = [];
+                tx.meta.preTokenBalances.forEach((preBalance, index) => {
+                  const postBalance = tx.meta.postTokenBalances[index];
+                  if (preBalance && postBalance) {
+                    const change = (postBalance.uiTokenAmount?.uiAmount || 0) - (preBalance.uiTokenAmount?.uiAmount || 0);
+                    if (Math.abs(change) > 0.000001) {
+                      balanceChanges.push({
+                        mint: preBalance.mint,
+                        change,
+                        owner: preBalance.owner
+                      });
+                    }
+                  }
+                });
+                
+                // Find swaps for our token
+                const tokenChanges = balanceChanges.filter(bc => bc.mint === tokenAddress && bc.owner !== poolAddress);
+                const solChanges = balanceChanges.filter(bc => bc.mint === 'So11111111111111111111111111111111111111112');
+                
+                tokenChanges.forEach(tokenChange => {
+                  const solChange = solChanges.find(s => s.change !== 0) || { change: 0 };
+                  const swapType = tokenChange.change > 0 ? 'BUY' : 'SELL';
+                  
+                  swaps.push({
+                    signature: signature || `backfill_${Date.now()}_${swaps.length}`,
+                    timestamp: Math.floor(Date.now() / 1000),
+                    slot: slot.toString(),
+                    type: swapType,
+                    change: tokenChange.change,
+                    tokenAmount: Math.abs(tokenChange.change),
+                    baseAmount: Math.abs(solChange.change),
+                    price: Math.abs(solChange.change) / Math.abs(tokenChange.change),
+                    volumeUsd: Math.abs(solChange.change) * this.solPriceUSD,
+                    mintAddress: tokenAddress,
+                    poolAddress,
+                    maker: tokenChange.owner
+                  });
+                });
+              }
+            }
+          } catch (error) {
+            console.error('❌ Error processing swap data:', error.message);
+          }
+        });
+        
+        stream.on('end', () => {
+          console.log(`✅ [SwapBackfillWorker] Stream ended, collected ${swaps.length} swaps`);
+          cleanup();
+          resolve(swaps);
+        });
+        
+        stream.on('error', (error) => {
+          console.error('❌ Stream error:', error.message);
+          cleanup();
+          resolve(swaps); // Return what we have
+        });
+        
+        // Set timeout to stop after 1 minute
+        timeoutId = setTimeout(() => {
+          console.log(`⏰ [SwapBackfillWorker] Timeout after 1 minute, collected ${swaps.length} swaps`);
+          cleanup();
+          resolve(swaps);
+        }, maxDuration);
+        
+      }).catch(error => {
+        console.error('❌ Failed to start stream:', error.message);
+        cleanup();
+        resolve([]);
+      });
+    });
+  }
+
+  /**
+   * Get stats for a token
+   */
+  async getStats(tokenAddress) {
     try {
-      // Use the same approach as EnhancedHybridPriceService - subscribe to live stream
-      // but also query historical data from the same ChartDatabase that backend uses
+      const swaps = await this.chartDatabase.getSwapsForToken(tokenAddress);
+      const totalSwaps = swaps.length;
+      const lastSwap = totalSwaps > 0 ? swaps[totalSwaps - 1] : null;
       
-      // The key insight: Both services write to the same ChartDatabase files
-      // So any swaps stored by the backend will already be in the database
-      
-      // For true historical backfill, we would need to:
-      // 1. Query past slots from Constant K gRPC
-      // 2. Process those transactions to extract swaps
-      // 3. Store them with source: 'constantk_backfill'
-      
-      // For now, this is already working because:
-      // - Backend EnhancedHybridPriceService already monitors swaps in real-time
-      // - Backend saves swaps with source: 'grpc_realtime'
-      // - Our backfill would add source: 'constantk_backfill'
-      // - Both use the same ChartDatabase, so they merge automatically
-      
-      console.log(`✅ [SwapBackfillWorker] Backfill will merge with live data automatically`);
-      
-      // Return empty array - actual historical backfill requires implementing slot queries
-      return [];
-      
+      return {
+        tokenAddress,
+        totalSwaps,
+        lastSwapTimestamp: lastSwap?.timestamp || null,
+        lastSwapPrice: lastSwap?.price || null,
+        source: 'constantk_backfill'
+      };
     } catch (error) {
-      console.error(`❌ [SwapBackfillWorker] Historical fetch failed:`, error.message);
-      return [];
+      console.error(`❌ [SwapBackfillWorker] Failed to get stats:`, error.message);
+      return {
+        tokenAddress,
+        totalSwaps: 0,
+        lastSwapTimestamp: null,
+        lastSwapPrice: null,
+        source: 'constantk_backfill'
+      };
     }
   }
 
