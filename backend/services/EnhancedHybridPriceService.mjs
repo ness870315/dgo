@@ -110,6 +110,9 @@ class EnhancedHybridPriceService extends EventEmitter {
             this.swapHistory.set('E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump', []);
             console.log(`✅ [EnhancedHybridPriceService] Added E7NgL19JbN8BhUDgWjkH8MtnbhJoaGaWJqosxZZepump -> ACTIVE PumpSwap pool GQU4GZjCPam77cpnCgfnavXDqMNiXgksnTidyhwfRAKN to monitoring map`);
             
+            // 🚀 NEW: Load and add top 10 tokens from cache for gRPC monitoring
+            await this.loadTopTokens();
+            
             // 🚀 NEW: Automatically start SIMPLIFIED single-token monitoring after initialization
             if (this.grpcClient && this.poolAddresses.size > 0) {
                 console.log('🚀 [EnhancedHybridPriceService] Auto-starting SIMPLIFIED single-token monitoring...');
@@ -207,26 +210,66 @@ class EnhancedHybridPriceService extends EventEmitter {
         console.log(`✅ [EnhancedHybridPriceService] Extracted ${this.poolAddresses.size} pool addresses`);
     }
 
+    async loadTopTokens() {
+        try {
+            console.log('🚀 [EnhancedHybridPriceService] Loading top 10 tokens from cache...');
+            
+            // Read tokens cache
+            const cacheData = await fs.readFile(this.cachePath, 'utf8');
+            const tokens = JSON.parse(cacheData);
+            
+            // Filter for tokens with pools and sort by score
+            const tokensWithPools = tokens
+                .filter(token => {
+                    const hasPool = token.jupiterData?.firstPool?.id || 
+                                   token.graduatedPool || 
+                                   token.birdEyeRaw?.firstPool?.id;
+                    return hasPool && token.contractAddress;
+                })
+                .sort((a, b) => {
+                    const scoreA = a.overallScore || a.score || 0;
+                    const scoreB = b.overallScore || b.score || 0;
+                    return scoreB - scoreA; // Sort descending
+                })
+                .slice(0, 10); // Top 10 only
+            
+            console.log(`📊 [EnhancedHybridPriceService] Found ${tokensWithPools.length} top tokens with pools`);
+            
+            // Add each token to monitoring
+            for (const token of tokensWithPools) {
+                const tokenAddress = token.contractAddress;
+                const poolAddress = token.jupiterData?.firstPool?.id || 
+                                   token.graduatedPool || 
+                                   token.birdEyeRaw?.firstPool?.id;
+                
+                if (poolAddress && !this.poolAddresses.has(tokenAddress)) {
+                    this.poolAddresses.set(tokenAddress, poolAddress);
+                    this.swapHistory.set(tokenAddress, []);
+                    console.log(`✅ [EnhancedHybridPriceService] Added ${token.symbol} (${tokenAddress.substring(0, 8)}...) -> pool ${poolAddress.substring(0, 8)}... to monitoring`);
+                }
+            }
+            
+            console.log(`✅ [EnhancedHybridPriceService] Total ${this.poolAddresses.size} tokens added for gRPC monitoring`);
+            
+        } catch (error) {
+            console.error('❌ [EnhancedHybridPriceService] Failed to load top tokens:', error.message);
+        }
+    }
+
     async startRealTimeMonitoring() {
         if (!this.grpcClient) {
             console.error('❌ [EnhancedHybridPriceService] Cannot start monitoring - gRPC client not initialized');
             return;
         }
 
-        console.log('🚀 [EnhancedHybridPriceService] Starting SIMPLIFIED real-time monitoring for 1 token...');
+        console.log(`🚀 [EnhancedHybridPriceService] Starting gRPC monitoring for ${this.poolAddresses.size} tokens...`);
         
-        // ✅ CONTINUOUS MONITORING: Monitor PROBITY continuously for real-time capture
-        const PROBITY_TOKEN = '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc';
-        const PROBITY_POOL = '98rxcGXHxfAQ39rgpN9qMGPLhgWfze1RmQ4PHprTvZFN';
+        // Start monitoring for all tokens in the poolAddresses map
+        for (const [tokenAddress, poolAddress] of this.poolAddresses.entries()) {
+            await this.startSingleTokenMonitoring(tokenAddress, poolAddress);
+        }
         
-        console.log(`📊 [EnhancedHybridPriceService] Starting continuous monitoring for PROBITY`);
-        console.log(`📊 [EnhancedHybridPriceService] Token: ${PROBITY_TOKEN}`);
-        console.log(`📊 [EnhancedHybridPriceService] Pool: ${PROBITY_POOL}`);
-        
-        // Start continuous monitoring for PROBITY
-        await this.startSingleTokenMonitoring(PROBITY_TOKEN, PROBITY_POOL);
-        
-        console.log('✅ [EnhancedHybridPriceService] SIMPLIFIED real-time monitoring started for 1 token');
+        console.log(`✅ [EnhancedHybridPriceService] gRPC monitoring started for ${this.poolAddresses.size} tokens`);
     }
 
     // ✅ UNIVERSAL FIX: Start monitoring for ANY token address dynamically
