@@ -358,7 +358,7 @@ class SwapBackfillWorker {
 
       const url = `https://api.helius.xyz/v0/addresses/${poolAddress}/transactions`;
       const params = {
-        api-key: this.heliusApiKey,
+        'api-key': this.heliusApiKey,
         limit: 100,
         before: undefined,
         'transaction-type': 'SWAP'
