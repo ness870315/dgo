@@ -348,13 +348,13 @@ class EnhancedHybridPriceService extends EventEmitter {
                         }
                         
                         // Rate limit logging
-                        let lastLogTime = 0;
-                        const LOG_INTERVAL = 10000; // Log every 10 seconds max
-                        const now = Date.now();
-                        if (now - lastLogTime > LOG_INTERVAL) {
-                            console.log(`🔍 [EnhancedHybridPriceService] Processing transaction #${totalUpdateCount} for ${tokenAddress} at slot ${slot}`);
-                            lastLogTime = now;
-                        }
+                        // let lastLogTime = 0;
+                        // const LOG_INTERVAL = 10000; // Log every 10 seconds max
+                        // const now = Date.now();
+                        // if (now - lastLogTime > LOG_INTERVAL) {
+                        //     console.log(`🔍 [EnhancedHybridPriceService] Processing transaction #${totalUpdateCount} for ${tokenAddress} at slot ${slot}`);
+                        //     lastLogTime = now;
+                        // }
                         
                         // Check for token balance changes (SWAPS!)
                         if (tx.meta?.preTokenBalances?.length > 0) {
