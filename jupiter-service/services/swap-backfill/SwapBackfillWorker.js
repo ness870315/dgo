@@ -10,6 +10,7 @@ const __dirname = path.dirname(__filename);
 
 const CONSTANT_K_GRPC_ENDPOINT = 'https://yellowstone.constant-k.com:443';
 const CONSTANT_K_GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
+const HELIUS_API_KEY = '6e92c2eb-b739-4e43-ae2b-0d1a40a07f0f';
 
 /**
  * Swap Backfill Worker for Jupiter Service
@@ -24,6 +25,8 @@ class SwapBackfillWorker {
     this.isRunning = false;
     this.processedPools = new Set();
     this.activeStreams = new Map();
+    this.lastProcessedSlots = new Map(); // Map<tokenAddress, lastSlot>
+    this.replayWindow = 3000; // 3000 slots = ~20 minutes of history
   }
 
   /**
@@ -168,8 +171,27 @@ class SwapBackfillWorker {
    * Fetch historical swaps from Constant K gRPC
    * This subscribes to live stream temporarily to build historical data
    */
-  async startContinuousMonitoring(tokenAddress, poolAddress) {
-    console.log(`📡 [SwapBackfillWorker] Starting 24/7 monitoring for ${tokenAddress.substring(0, 8)}...`);
+  async startContinuousMonitoring(tokenAddress, poolAddress, fromSlot = null) {
+    // Calculate fromSlot for replay
+    let replayFromSlot = fromSlot;
+    if (!replayFromSlot) {
+      // Try to get last processed slot from database
+      const tokenDb = this.chartDatabase.getTokenDatabase(tokenAddress);
+      if (tokenDb.swaps && tokenDb.swaps.size > 0) {
+        const lastSwap = Array.from(tokenDb.swaps.values()).pop();
+        if (lastSwap && lastSwap.slot) {
+          const lastSlot = parseInt(lastSwap.slot);
+          replayFromSlot = Math.max(0, lastSlot - 1); // Replay from 1 slot before last
+          console.log(`📅 [SwapBackfillWorker] Replaying from slot ${replayFromSlot} (last was ${lastSlot})`);
+        }
+      } else {
+        // No existing data - start from ~20 minutes ago (3000 slots)
+        // Get current slot from gRPC to calculate historical window
+        console.log(`📅 [SwapBackfillWorker] No existing data - will fetch historical window`);
+      }
+    }
+    
+    console.log(`📡 [SwapBackfillWorker] Starting ${replayFromSlot ? 'HISTORICAL BACKFILL' : 'HISTORICAL + LIVE'} monitoring for ${tokenAddress.substring(0, 8)}...`);
     
     // Create transaction filters matching backend's approach
     const transactionFilters = {
@@ -182,23 +204,48 @@ class SwapBackfillWorker {
       }
     };
     
+    // Create subscribe request with fromSlot for replay
+    const subscribeRequest = {
+      accounts: {},
+      slots: {},
+      transactions: transactionFilters,
+      transactionsStatus: {},
+      entry: {},
+      blocks: {},
+      blocksMeta: {},
+      commitment: this.grpcWrapper.getCommitmentLevel().CONFIRMED,
+      accountsDataSlice: []
+    };
+    
+    // Add fromSlot if we're doing historical replay
+    if (replayFromSlot) {
+      subscribeRequest.fromSlot = replayFromSlot;
+      console.log(`🔄 [SwapBackfillWorker] Replay request: fromSlot=${replayFromSlot}`);
+    }
+    
     // Start continuous streaming - keep running indefinitely
     this.grpcClient.subscribeOnce(
-      {}, // accounts
-      {}, // slots
-      transactionFilters, // transactions
-      {}, // transactionsStatus
-      {}, // entry
-      {}, // blocks
-      {}, // blocksMeta
-      this.grpcWrapper.getCommitmentLevel().CONFIRMED,
-      []
+      subscribeRequest.accounts,
+      subscribeRequest.slots,
+      subscribeRequest.transactions,
+      subscribeRequest.transactionsStatus,
+      subscribeRequest.entry,
+      subscribeRequest.blocks,
+      subscribeRequest.blocksMeta,
+      subscribeRequest.commitment,
+      subscribeRequest.accountsDataSlice
     ).then(stream => {
       this.activeStreams.set(tokenAddress, stream);
-      console.log(`✅ [SwapBackfillWorker] Started 24/7 monitoring stream for ${tokenAddress.substring(0, 8)}`);
+      const mode = replayFromSlot ? 'HISTORICAL BACKFILL' : 'LIVE';
+      console.log(`✅ [SwapBackfillWorker] Started ${mode} monitoring stream for ${tokenAddress.substring(0, 8)}`);
       
       stream.on('data', async (msg) => {
         try {
+          // Track slot for resume capability
+          if (msg.slot) {
+            this.lastProcessedSlots.set(tokenAddress, msg.slot);
+          }
+          
           if (msg.transaction?.transaction) {
             await this.processSwapMessage(msg, tokenAddress, poolAddress);
           }
@@ -208,18 +255,28 @@ class SwapBackfillWorker {
       });
       
       stream.on('end', () => {
-        console.log(`⚠️ [SwapBackfillWorker] Stream ended for ${tokenAddress.substring(0, 8)}`);
+        console.log(`⚠️ [SwapBackfillWorker] Stream ended for ${tokenAddress.substring(0, 8)} - reconnecting...`);
         this.activeStreams.delete(tokenAddress);
+        this.reconnect(tokenAddress, poolAddress);
       });
       
       stream.on('error', (error) => {
-        console.error(`❌ Stream error for ${tokenAddress.substring(0, 8)}:`, error.message);
+        console.error(`❌ Stream error for ${tokenAddress.substring(0, 8)} - reconnecting...`, error.message);
         this.activeStreams.delete(tokenAddress);
+        setTimeout(() => this.reconnect(tokenAddress, poolAddress), 5000);
       });
       
     }).catch(error => {
       console.error(`❌ Failed to start stream for ${tokenAddress.substring(0, 8)}:`, error.message);
+      // Retry on failure
+      setTimeout(() => this.startContinuousMonitoring(tokenAddress, poolAddress, fromSlot), 5000);
     });
+  }
+  
+  async reconnect(tokenAddress, poolAddress) {
+    const lastSlot = this.lastProcessedSlots.get(tokenAddress);
+    console.log(`🔄 [SwapBackfillWorker] Reconnecting ${tokenAddress.substring(0, 8)} from slot ${lastSlot || 'LIVE'}`);
+    await this.startContinuousMonitoring(tokenAddress, poolAddress, lastSlot ? lastSlot - 1 : null);
   }
   
   async processSwapMessage(msg, tokenAddress, poolAddress) {
