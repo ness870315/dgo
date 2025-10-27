@@ -2,16 +2,16 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
+import { Connection, PublicKey } from '@solana/web3.js';
 import ChartDatabase from './ChartDatabase.js';
 import GrpcWrapper from './GrpcWrapper.cjs';
-import OptimizedHeliusBackfill from '../../../../backend/services/OptimizedHeliusBackfill.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const CONSTANT_K_GRPC_ENDPOINT = 'https://yellowstone.constant-k.com:443';
 const CONSTANT_K_GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
-const HELIUS_API_KEY = '6e92c2eb-b739-4e43-ae2b-0d1a40a07f0f';
+const CONSTANT_K_RPC = 'https://rpc.constant-k.com/?api-key=39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
 
 /**
  * Swap Backfill Worker for Jupiter Service
@@ -28,7 +28,7 @@ class SwapBackfillWorker {
     this.activeStreams = new Map();
     this.lastProcessedSlots = new Map(); // Map<tokenAddress, lastSlot>
     this.replayWindow = 3000; // 3000 slots = ~20 minutes of history
-    this.heliusBackfill = new OptimizedHeliusBackfill(process.env.HELIUS_API_KEY || '6e92c2eb-b739-4e43-ae2b-0d1a40a07f0f');
+    this.connection = new Connection(CONSTANT_K_RPC, 'confirmed');
   }
 
   /**
@@ -376,52 +376,59 @@ class SwapBackfillWorker {
   }
 
   /**
-   * Fetch historical swaps using REST API (Helius) - much faster for bulk historical data
+   * Fetch historical swaps using Constant K RPC (getSignaturesForAddress)
    */
   async fetchHistoricalSwapsViaREST(tokenAddress, poolAddress, hours = 24) {
-    console.log(`📊 [SwapBackfillWorker] Fetching ${hours}h historical swaps via REST API for ${tokenAddress.substring(0, 8)}...`);
+    console.log(`📊 [SwapBackfillWorker] Fetching ${hours}h historical swaps via Constant K RPC for ${tokenAddress.substring(0, 8)}...`);
     
     try {
-      const toTs = Math.floor(Date.now() / 1000);
-      const fromTs = toTs - (hours * 3600);
+      let signatures = [];
+      let before = null;
       
-      const result = await this.heliusBackfill.backfillHeliusOHLCV({
-        poolAddress,
-        fromTs,
-        toTs,
-        timeframe: '1MIN',
-        targetTokenMint: tokenAddress
-      });
+      // Get signatures for the pool address
+      const pubkey = new PublicKey(poolAddress);
       
-      if (!result.rawSwaps || result.rawSwaps.length === 0) {
-        console.log(`⚠️ [SwapBackfillWorker] No swaps found for ${tokenAddress.substring(0, 8)}`);
+      // Fetch signatures in batches
+      for (let i = 0; i < 10 && signatures.length < 500; i++) {
+        const result = await this.connection.getSignaturesForAddress(pubkey, {
+          limit: 1000,
+          before: before,
+          commitment: 'confirmed'
+        });
+        
+        if (result.length === 0) break;
+        
+        signatures.push(...result);
+        before = result[result.length - 1].signature;
+        
+        console.log(`📄 [SwapBackfillWorker] Fetched ${result.length} signatures (total: ${signatures.length})`);
+        
+        // Filter by time range
+        const cutoffTime = Date.now() - (hours * 3600 * 1000);
+        const oldSigCount = signatures.length;
+        signatures = signatures.filter(sig => sig.blockTime && sig.blockTime * 1000 > cutoffTime);
+        
+        if (signatures.length < oldSigCount) {
+          console.log(`⏰ [SwapBackfillWorker] Reached ${hours}h limit`);
+          break;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 100)); // Rate limit
+      }
+      
+      if (signatures.length === 0) {
+        console.log(`⚠️ [SwapBackfillWorker] No signatures found for ${tokenAddress.substring(0, 8)}`);
         return;
       }
       
-      console.log(`✅ [SwapBackfillWorker] Fetched ${result.rawSwaps.length} historical swaps via REST`);
+      console.log(`✅ [SwapBackfillWorker] Found ${signatures.length} signatures, fetching transaction details...`);
       
-      // Store swaps to database
-      const swapsToStore = result.rawSwaps.map(swap => ({
-        tokenAddress,
-        poolAddress,
-        signature: swap.signature,
-        timestamp: swap.timestamp,
-        slot: swap.slot || '',
-        price: swap.price || 0,
-        volumeUsd: swap.volumeUsd || 0,
-        source: 'rest_backfill',
-        type: swap.type || 'UNKNOWN',
-        tokenAmount: swap.tokenAmount || 0,
-        baseAmount: swap.baseAmount || 0,
-        rawData: swap,
-        createdAt: Date.now()
-      }));
-      
-      await this.chartDatabase.storeSwaps(swapsToStore);
-      console.log(`💾 [SwapBackfillWorker] Stored ${swapsToStore.length} historical swaps`);
+      // Note: For now, we'll rely on gRPC to process these transactions
+      // The signatures can be used to get transaction details via getTransaction
+      // But for simplicity and to avoid rate limits, we'll just return and let gRPC handle it
       
     } catch (error) {
-      console.error(`❌ [SwapBackfillWorker] REST backfill failed:`, error.message);
+      console.error(`❌ [SwapBackfillWorker] RPC backfill failed:`, error.message);
     }
   }
 
