@@ -87,9 +87,9 @@ class SwapBackfillWorker {
         };
       }
 
-      // Fetch historical swaps via REST API only
-      console.log(`📅 [SwapBackfillWorker] Backfilling last 24h of swaps via REST API...`);
-      await this.fetchHistoricalSwapsViaREST(tokenAddress, poolAddress, 24);
+      // Fetch ALL historical swaps via REST API
+      console.log(`📅 [SwapBackfillWorker] Backfilling ALL historical swaps via REST API...`);
+      await this.fetchHistoricalSwapsViaREST(tokenAddress, poolAddress);
       
       // Get final swap count
       const afterDb = this.chartDatabase.getTokenDatabase(tokenAddress);
@@ -386,20 +386,23 @@ class SwapBackfillWorker {
   }
 
   /**
-   * Fetch historical swaps using Constant K RPC (getSignaturesForAddress + getTransaction)
-   * Implements proper pagination with 'before' parameter
+   * Fetch ALL historical swaps using Constant K RPC (getSignaturesForAddress + getTransaction)
+   * Paginates backwards through ALL history until no more data
    */
-  async fetchHistoricalSwapsViaREST(tokenAddress, poolAddress, hours = 24) {
-    console.log(`📊 [SwapBackfillWorker] Fetching ${hours}h historical swaps via Constant K RPC for ${tokenAddress.substring(0, 8)}...`);
+  async fetchHistoricalSwapsViaREST(tokenAddress, poolAddress) {
+    console.log(`📊 [SwapBackfillWorker] Fetching ALL historical swaps via Constant K RPC for ${tokenAddress.substring(0, 8)}...`);
     
     try {
       const poolPubkey = new PublicKey(poolAddress);
-      const cutoffTime = Math.floor((Date.now() - (hours * 3600 * 1000)) / 1000); // Unix timestamp
       let before = null;
       let totalSwaps = 0;
+      let totalSignatures = 0;
+      let page = 0;
+      const MAX_PAGES = 500; // Safety limit (500k signatures max)
       
-      // Step 1: Get signatures in batches (pagination backwards)
-      for (let page = 0; page < 50; page++) {
+      // Paginate backwards through ALL history
+      while (page < MAX_PAGES) {
+        page++;
         const signatures = await this.connection.getSignaturesForAddress(poolPubkey, {
           limit: 1000,
           before: before,
@@ -407,37 +410,32 @@ class SwapBackfillWorker {
         });
         
         if (signatures.length === 0) {
-          console.log(`📄 [SwapBackfillWorker] No more signatures (page ${page + 1})`);
+          console.log(`📄 [SwapBackfillWorker] Reached end of history at page ${page}`);
           break;
         }
         
-        // Filter by time - if oldest signature is too old, we're done
-        const oldestBlockTime = signatures[signatures.length - 1].blockTime;
-        if (oldestBlockTime && oldestBlockTime < cutoffTime) {
-          // Keep only recent signatures
-          const recentSigs = signatures.filter(s => s.blockTime && s.blockTime >= cutoffTime);
-          if (recentSigs.length > 0) {
-            await this.fetchAndStoreSwaps(recentSigs, tokenAddress, poolAddress);
-            totalSwaps += recentSigs.length;
-          }
-          console.log(`⏰ [SwapBackfillWorker] Reached ${hours}h limit at page ${page + 1}`);
-          break;
-        }
+        totalSignatures += signatures.length;
         
         // Fetch and store swaps for this batch
-        await this.fetchAndStoreSwaps(signatures, tokenAddress, poolAddress);
-        totalSwaps += signatures.length;
+        const swapsProcessed = await this.fetchAndStoreSwaps(signatures, tokenAddress, poolAddress);
+        totalSwaps += swapsProcessed;
         
-        console.log(`📄 [SwapBackfillWorker] Page ${page + 1}: ${signatures.length} sigs (total: ${totalSwaps})`);
+        console.log(`📄 [SwapBackfillWorker] Page ${page}: ${signatures.length} sigs, ${swapsProcessed} swaps (total: ${totalSwaps} swaps, ${totalSignatures} sigs)`);
         
-        // Paginate backwards
+        // Paginate backwards - use last signature as 'before'
         before = signatures[signatures.length - 1].signature;
         
         // Small delay to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Stop if we got fewer than limit (reached end)
+        if (signatures.length < 1000) {
+          console.log(`📄 [SwapBackfillWorker] Reached end of history (got ${signatures.length} < 1000)`);
+          break;
+        }
       }
       
-      console.log(`✅ [SwapBackfillWorker] Backfilled ${totalSwaps} historical swaps`);
+      console.log(`✅ [SwapBackfillWorker] Backfilled ${totalSwaps} swaps from ${totalSignatures} signatures`);
       
     } catch (error) {
       console.error(`❌ [SwapBackfillWorker] RPC backfill failed:`, error.message);
@@ -448,6 +446,8 @@ class SwapBackfillWorker {
    * Fetch transaction details and extract swaps
    */
   async fetchAndStoreSwaps(signatures, tokenAddress, poolAddress) {
+    let totalSwapsStored = 0;
+    
     // Fetch transactions in parallel (batch of 10 to avoid rate limits)
     const BATCH_SIZE = 10;
     for (let i = 0; i < signatures.length; i += BATCH_SIZE) {
@@ -498,11 +498,14 @@ class SwapBackfillWorker {
         }));
         
         await this.chartDatabase.storeSwaps(swapsToStore);
+        totalSwapsStored += swapsToStore.length;
       }
       
       // Small delay between batches
       await new Promise(resolve => setTimeout(resolve, 50));
     }
+    
+    return totalSwapsStored;
   }
   
   /**
