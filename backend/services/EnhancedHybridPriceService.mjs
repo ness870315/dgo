@@ -212,7 +212,7 @@ class EnhancedHybridPriceService extends EventEmitter {
 
     async loadTopTokens() {
         try {
-            console.log('🚀 [EnhancedHybridPriceService] Loading top 100 tokens from cache...');
+            console.log('🚀 [EnhancedHybridPriceService] Loading top 200 tokens from cache...');
             
             // Read tokens cache
             const cacheData = await fs.readFile(this.cachePath, 'utf8');
@@ -231,7 +231,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                     const scoreB = b.overallScore || b.score || 0;
                     return scoreB - scoreA; // Sort descending
                 })
-                .slice(0, 100); // Top 100 for memory/resource testing
+                .slice(0, 200); // Top 200 for expanded monitoring
             
             console.log(`📊 [EnhancedHybridPriceService] Found ${tokensWithPools.length} top tokens with pools`);
             
