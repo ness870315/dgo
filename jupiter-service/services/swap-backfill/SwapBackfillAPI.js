@@ -144,47 +144,41 @@ class SwapBackfillAPI {
   }
 
   /**
-   * Auto-start backfilling tokens from backend cache
+   * Auto-start backfilling tokens from DeGen Oracle trending list
    */
   async autoStartBackfills() {
     try {
-      console.log('📊 [SwapBackfillAPI] Loading tokens to backfill...');
+      console.log('📊 [SwapBackfillAPI] Fetching trending tokens from DeGen Oracle...');
       
-      // For now, skip auto-backfill on startup to avoid errors
-      // Manual trigger via API: POST /api/swap-backfill/backfill/:tokenAddress
-      console.log('⚠️ [SwapBackfillAPI] Auto-backfill on startup disabled - use manual triggers');
-      console.log('   Use: POST /api/swap-backfill/backfill/:tokenAddress');
-      return;
+      // Fetch trending tokens from backend
+      const backendUrl = process.env.BACKEND_URL || 'https://enhanced-backend.onrender.com';
+      const response = await fetch(`${backendUrl}/api/tokens/trending?limit=100`);
       
-      // TODO: Implement token discovery from Jupiter API or Moralis
-      // Read backend cache to get tokens
-      const fs = await import('fs/promises');
-      const path = await import('path');
-      
-      // Use absolute path to backend cache
-      const cachePath = path.resolve(process.cwd(), 'backend/data/cache/tokens-cache.json');
-      console.log(`📂 [SwapBackfillAPI] Reading cache from: ${cachePath}`);
-      
-      const tokens = JSON.parse(await fs.readFile(cachePath, 'utf8'));
-      console.log(`✅ [SwapBackfillAPI] Loaded ${tokens.length} tokens from cache`);
-      
-      if (!Array.isArray(tokens) || tokens.length === 0) {
-        console.log('⚠️ [SwapBackfillAPI] No tokens in cache, skipping auto-backfill');
+      if (!response.ok) {
+        console.error(`⚠️ [SwapBackfillAPI] Failed to fetch trending tokens: ${response.status}`);
         return;
       }
       
-      // Get top tokens by score
-      const topTokens = tokens
-        .filter(t => t.contractAddress && t.jupiterData?.firstPool?.id)
-        .sort((a, b) => (b.overallScore || b.score || 0) - (a.overallScore || a.score || 0))
-        .slice(0, 50); // Top 50 for now
+      const tokens = await response.json();
+      console.log(`✅ [SwapBackfillAPI] Fetched ${tokens.length} trending tokens from DeGen Oracle`);
       
-      console.log(`🎯 [SwapBackfillAPI] Starting backfill for top ${topTokens.length} tokens...`);
+      if (!Array.isArray(tokens) || tokens.length === 0) {
+        console.log('⚠️ [SwapBackfillAPI] No trending tokens available, skipping auto-backfill');
+        return;
+      }
+      
+      // Filter tokens that have pool addresses
+      const tokensWithPools = tokens.filter(t => 
+        t.contractAddress && 
+        (t.jupiterData?.firstPool?.id || t.graduatedPool || t.graduatedPool || t.poolAddress)
+      );
+      
+      console.log(`🎯 [SwapBackfillAPI] Found ${tokensWithPools.length} tokens with pools to backfill`);
       
       // Start backfilling each token
-      for (const token of topTokens) {
+      for (const token of tokensWithPools) {
         const tokenAddress = token.contractAddress;
-        const poolAddress = token.jupiterData?.firstPool?.id || token.graduatedPool;
+        const poolAddress = token.jupiterData?.firstPool?.id || token.graduatedPool || token.graduatedPool || token.poolAddress;
         
         if (tokenAddress && poolAddress) {
           console.log(`📡 [SwapBackfillAPI] Backfilling ${token.symbol} (${tokenAddress.substring(0, 8)}...)`);
@@ -194,12 +188,12 @@ class SwapBackfillAPI {
             console.error(`⚠️ Failed to start backfill for ${token.symbol}:`, err.message);
           });
           
-          // Small delay between starts
-          await new Promise(resolve => setTimeout(resolve, 200));
+          // Small delay between starts to avoid overwhelming
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
       
-      console.log(`✅ [SwapBackfillAPI] Started backfilling ${topTokens.length} tokens`);
+      console.log(`✅ [SwapBackfillAPI] Started backfilling ${tokensWithPools.length} trending tokens`);
     } catch (error) {
       console.error('⚠️ [SwapBackfillAPI] Auto-backfill failed:', error.message);
     }
