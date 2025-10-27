@@ -186,7 +186,14 @@ class KOLContentService {
     try {
       // Get token metrics
       const mcap = token.mcap || token.marketCap || 0;
-      let volume24h = token.volume24h || 0;
+      
+      // ✅ FIX: Calculate volume24h from Jupiter stats24h data (buyVolume + sellVolume)
+      let volume24h = (token.jupiterData?.stats24h?.buyVolume || 0) + 
+                      (token.jupiterData?.stats24h?.sellVolume || 0) || 
+                      token.jupiterData?.volume24h ||
+                      token.jupiterData?.volume_24h ||
+                      token.volume24h || 0;
+      
       const priceChange = token.priceChange24h || 0;
       let holders = token.holderCount || 0;
       const score = token.overallScore || 0;
