@@ -331,14 +331,14 @@ class EnhancedHybridPriceService extends EventEmitter {
                             if (Buffer.isBuffer(rawSignature)) {
                                 // Convert Buffer to base58
                                 transactionSignature = bs58.encode(rawSignature);
-                                console.log(`🔍 [EnhancedHybridPriceService] Converted signature from Buffer to base58: ${transactionSignature}`);
+                                // console.log(`🔍 [EnhancedHybridPriceService] Converted signature from Buffer to base58: ${transactionSignature}`);
                             } else if (typeof rawSignature === 'string') {
                                 transactionSignature = rawSignature;
                             } else if (rawSignature.data && Array.isArray(rawSignature.data)) {
                                 // Convert Buffer object to base58
                                 const buffer = Buffer.from(rawSignature.data);
                                 transactionSignature = bs58.encode(buffer);
-                                console.log(`🔍 [EnhancedHybridPriceService] Converted signature from Buffer object to base58: ${transactionSignature}`);
+                                // console.log(`🔍 [EnhancedHybridPriceService] Converted signature from Buffer object to base58: ${transactionSignature}`);
                             }
                         }
                         
@@ -358,7 +358,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                         
                         // Check for token balance changes (SWAPS!)
                         if (tx.meta?.preTokenBalances?.length > 0) {
-                            console.log(`🎉 [EnhancedHybridPriceService] TOKEN BALANCE CHANGES DETECTED for ${tokenAddress}!`);
+                            // console.log(`🎉 [EnhancedHybridPriceService] TOKEN BALANCE CHANGES DETECTED for ${tokenAddress}!`);
                             
                             // Collect all balance changes to find both sides of the swap
                             const balanceChanges = [];
@@ -392,24 +392,24 @@ class EnhancedHybridPriceService extends EventEmitter {
                                 const actualPoolAddress = this.poolAddresses.get(tokenAddress);
                                 const userTokenChanges = tokenChanges.filter(tokenChange => {
                                     const isPoolAddress = tokenChange.owner === actualPoolAddress;
-                                    if (isPoolAddress) {
-                                        console.log(`🚫 [EnhancedHybridPriceService] Skipping pool's own swap: ${tokenChange.owner}`);
-                                    }
+                                    // if (isPoolAddress) {
+                                    //     console.log(`🚫 [EnhancedHybridPriceService] Skipping pool's own swap: ${tokenChange.owner}`);
+                                    // }
                                     return !isPoolAddress;
                                 });
                                 
-                                console.log(`🔍 [EnhancedHybridPriceService] Processing ${userTokenChanges.length} user token changes (filtered out ${tokenChanges.length - userTokenChanges.length} pool swaps)`);
+                                // console.log(`🔍 [EnhancedHybridPriceService] Processing ${userTokenChanges.length} user token changes (filtered out ${tokenChanges.length - userTokenChanges.length} pool swaps)`);
                                 
                                 if (userTokenChanges.length === 0) {
-                                    console.log(`⚠️ [EnhancedHybridPriceService] No user swaps found, skipping transaction`);
+                                    // console.log(`⚠️ [EnhancedHybridPriceService] No user swaps found, skipping transaction`);
                                     return;
                                 }
                                 
                                 // Debug: Log all balance changes to understand what we're working with
-                                console.log(`🔍 [EnhancedHybridPriceService] ALL balance changes in transaction:`);
-                                balanceChanges.forEach((bc, idx) => {
-                                    console.log(`  ${idx}: ${bc.mint} | Change: ${bc.change} | Owner: ${bc.owner}`);
-                                });
+                                // console.log(`🔍 [EnhancedHybridPriceService] ALL balance changes in transaction:`);
+                                // balanceChanges.forEach((bc, idx) => {
+                                //     console.log(`  ${idx}: ${bc.mint} | Change: ${bc.change} | Owner: ${bc.owner}`);
+                                // });
                                 
                                 // Process each user token change
                                 userTokenChanges.forEach(tokenChange => {
@@ -428,20 +428,20 @@ class EnhancedHybridPriceService extends EventEmitter {
                                             balanceChanges.find(bc => bc.mint === 'So11111111111111111111111111111111111111112')
                                         );
                                     
-                                    console.log(`🎯 [EnhancedHybridPriceService] SWAP #${swapCount}: ${swapType} for ${tokenAddress}`);
-                                    console.log(`📊 [EnhancedHybridPriceService] Token Change: ${tokenChange.change > 0 ? '+' : ''}${tokenChange.change.toFixed(6)}`);
-                                    console.log(`📊 [EnhancedHybridPriceService] Swap Type Logic: change=${tokenChange.change}, >0=${tokenChange.change > 0}, Type=${swapType}`);
-                                    if (solChange) {
-                                        console.log(`📊 [EnhancedHybridPriceService] SOL Change: ${solChange.change > 0 ? '+' : ''}${solChange.change.toFixed(6)} from ${solChange.owner}`);
-                                    } else {
-                                        console.log(`📊 [EnhancedHybridPriceService] SOL Change: Not found, will estimate`);
-                                    }
-                                    console.log(`📊 [EnhancedHybridPriceService] Owner: ${tokenChange.owner}`);
-                                    console.log(`📊 [EnhancedHybridPriceService] Slot: ${slot}`);
+                                    // console.log(`🎯 [EnhancedHybridPriceService] SWAP #${swapCount}: ${swapType} for ${tokenAddress}`);
+                                    // console.log(`📊 [EnhancedHybridPriceService] Token Change: ${tokenChange.change > 0 ? '+' : ''}${tokenChange.change.toFixed(6)}`);
+                                    // console.log(`📊 [EnhancedHybridPriceService] Swap Type Logic: change=${tokenChange.change}, >0=${tokenChange.change > 0}, Type=${swapType}`);
+                                    // if (solChange) {
+                                    //     console.log(`📊 [EnhancedHybridPriceService] SOL Change: ${solChange.change > 0 ? '+' : ''}${solChange.change.toFixed(6)} from ${solChange.owner}`);
+                                    // } else {
+                                    //     console.log(`📊 [EnhancedHybridPriceService] SOL Change: Not found, will estimate`);
+                                    // }
+                                    // console.log(`📊 [EnhancedHybridPriceService] Owner: ${tokenChange.owner}`);
+                                    // console.log(`📊 [EnhancedHybridPriceService] Slot: ${slot}`);
                                     
                                     // Process the swap with both token and SOL amounts
                                     try {
-                                        console.log(`🔍 [EnhancedHybridPriceService] Signature before processSwapUpdate:`, transactionSignature ? transactionSignature.substring(0, 16) + '...' : 'NULL');
+                                        // console.log(`🔍 [EnhancedHybridPriceService] Signature before processSwapUpdate:`, transactionSignature ? transactionSignature.substring(0, 16) + '...' : 'NULL');
                                         this.processSwapUpdate(
                                             tokenAddress, 
                                             actualPoolAddress, 
