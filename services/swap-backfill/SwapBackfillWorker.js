@@ -171,17 +171,22 @@ class SwapBackfillWorker {
   async startContinuousMonitoring(tokenAddress, poolAddress) {
     console.log(`📡 [SwapBackfillWorker] Starting 24/7 monitoring for ${tokenAddress.substring(0, 8)}...`);
     
+    // Create transaction filters matching backend's approach
+    const transactionFilters = {
+      client: {
+        accountInclude: [poolAddress],
+        accountExclude: [],
+        accountRequired: [],
+        vote: false,
+        failed: false
+      }
+    };
+    
     // Start continuous streaming - keep running indefinitely
     this.grpcClient.subscribeOnce(
       {}, // accounts
       {}, // slots
-      {
-        client: {
-          accountInclude: [poolAddress],
-          vote: false,
-          failed: false
-        }
-      }, // transactions
+      transactionFilters, // transactions
       {}, // transactionsStatus
       {}, // entry
       {}, // blocks

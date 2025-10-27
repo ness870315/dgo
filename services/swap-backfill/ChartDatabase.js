@@ -14,9 +14,10 @@ const __dirname = path.dirname(__filename);
 class ChartDatabase {
     constructor() {
         // ✅ Use the SAME data directory as backend for shared swap storage
-        // Backend stores swaps in: ../backend/data/swaps_{tokenAddress}.json
+        // Backend stores swaps in: ../../backend/data/swaps_{tokenAddress}.json
         // We'll write to the same location so backfill swaps and live swaps are in the same DB
-        this.dataDir = path.resolve(path.join(process.cwd(), '..', 'backend', 'data'));
+        // From services/swap-backfill, go up to services/, then to root, then to backend/data
+        this.dataDir = path.resolve(path.join(__dirname, '..', '..', 'backend', 'data'));
         console.log(`📁 [ChartDatabase] Using shared data directory: ${this.dataDir}`);
         this.dbFile = path.join(this.dataDir, 'charts.json');
         
