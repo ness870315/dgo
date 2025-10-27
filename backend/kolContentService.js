@@ -831,7 +831,7 @@ Tech insights tweet:`;
       const insight = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 120,
         temperature: 0.8,
-        model: 'gpt-4o-mini' // 🚀 COST OPTIMIZATION: 40x cheaper,
+        model: 'gpt-4o-mini', // 🚀 COST OPTIMIZATION: 40x cheaper
         enableWebSearch: false
       });
 
@@ -1095,7 +1095,7 @@ Generate ONE ${tweetLength} tweet (just the text, no quotes):`;
       const normalTweet = await this.openaiService.generateCompletion(normalTweetPrompt, {
         maxTokens: maxTokens,
         temperature: 0.8,
-        model: 'gpt-4o-mini' // 🚀 COST OPTIMIZATION: 40x cheaper,
+        model: 'gpt-4o-mini', // 🚀 COST OPTIMIZATION: 40x cheaper
         enableWebSearch: false
       });
 
@@ -1747,7 +1747,7 @@ News recap:`;
       const recap = await this.openaiService.generateCompletion(prompt, {
         maxTokens: 120,
         temperature: 0.8,
-        model: 'gpt-4o-mini' // 🚀 COST OPTIMIZATION: 40x cheaper,
+        model: 'gpt-4o-mini', // 🚀 COST OPTIMIZATION: 40x cheaper
         presencePenalty: 0.3
       });
 
