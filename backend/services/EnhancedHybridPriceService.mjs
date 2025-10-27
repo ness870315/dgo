@@ -687,7 +687,7 @@ class EnhancedHybridPriceService extends EventEmitter {
             // Convert swap record to database format
             const persistentSwapRecord = {
                 tokenAddress: tokenAddress,
-                signature: `slot_${swapRecord.slot}_${swapRecord.timestamp}`,
+                signature: swapRecord.signature || `slot_${swapRecord.slot}_${swapRecord.timestamp}`, // ✅ Use real signature from swapRecord
                 timestamp: Math.floor(swapRecord.timestamp / 1000), // Unix timestamp for database
                 poolAddress: poolAddress,
                 price: swapRecord.price || 0,
@@ -710,7 +710,8 @@ class EnhancedHybridPriceService extends EventEmitter {
                     poolAddress: poolAddress,
                     maker: swapRecord.maker,
                     timestamp: swapRecord.timestamp,
-                    price: swapRecord.price || 0
+                    price: swapRecord.price || 0,
+                    signature: swapRecord.signature // ✅ Store real signature in rawData too
                 }
             };
             
