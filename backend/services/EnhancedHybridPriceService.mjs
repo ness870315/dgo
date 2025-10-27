@@ -555,10 +555,31 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             stream.on("error", (error) => {
                 console.error(`❌ [EnhancedHybridPriceService] Stream error for ${tokenAddress}:`, error.message);
+                
+                // 🔄 AUTO-RECONNECT: Restart monitoring on error
+                console.log(`🔄 [EnhancedHybridPriceService] Attempting to reconnect ${tokenAddress}...`);
+                setTimeout(async () => {
+                    try {
+                        await this.startSingleTokenMonitoring(tokenAddress, actualPoolAddress);
+                        console.log(`✅ [EnhancedHybridPriceService] Reconnected ${tokenAddress} successfully`);
+                    } catch (err) {
+                        console.error(`❌ [EnhancedHybridPriceService] Failed to reconnect ${tokenAddress}:`, err.message);
+                    }
+                }, 5000); // Wait 5 seconds before reconnecting
             });
             
             stream.on("end", () => {
-                console.log(`🔚 [EnhancedHybridPriceService] Stream ended for ${tokenAddress}`);
+                console.log(`🔚 [EnhancedHybridPriceService] Stream ended for ${tokenAddress} - reconnecting...`);
+                
+                // 🔄 AUTO-RECONNECT: Restart monitoring on stream end
+                setTimeout(async () => {
+                    try {
+                        await this.startSingleTokenMonitoring(tokenAddress, actualPoolAddress);
+                        console.log(`✅ [EnhancedHybridPriceService] Reconnected ${tokenAddress} after stream end`);
+                    } catch (err) {
+                        console.error(`❌ [EnhancedHybridPriceService] Failed to reconnect ${tokenAddress}:`, err.message);
+                    }
+                }, 2000); // Wait 2 seconds before reconnecting
             });
             
             // Store the stream with token-specific key
