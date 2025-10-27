@@ -73,13 +73,13 @@ const TradingViewChart = ({ token, timeframe = '5MIN', onClose }) => {
           horzLines: { color: "#2e3a4a" } 
         },
         rightPriceScale: { 
-          borderColor: "#374151", 
-          scaleMargins: { top: 0.1, bottom: 0.15 },
-          entireTextOnly: false
+          visible: false  // Hide right price scale
         },
         leftPriceScale: {
           visible: true,
-          borderColor: "#374151"
+          borderColor: "#374151",
+          scaleMargins: { top: 0.1, bottom: 0.15 },
+          autoScale: true
         },
         timeScale: { 
           borderColor: "#374151", 
@@ -266,29 +266,34 @@ const TradingViewChart = ({ token, timeframe = '5MIN', onClose }) => {
     // precision from last close
     const last = candles.at(-1).close;
     
-    // Better price formatting logic
-    let fmt;
-    if (displayMode === 'mcap') {
-      fmt = { type: "price", precision: 0, minMove: 1 };
-    } else if (last >= 1) {
-      fmt = { type: "price", precision: 6, minMove: 1e-6 };
-    } else if (last >= 0.1) {
-      fmt = { type: "price", precision: 6, minMove: 1e-6 };
-    } else if (last >= 0.01) {
-      fmt = { type: "price", precision: 6, minMove: 1e-6 };
-    } else if (last >= 0.001) {
-      fmt = { type: "price", precision: 6, minMove: 1e-6 };
-    } else {
-      fmt = { type: "price", precision: 8, minMove: 1e-8 };
-    }
+    // Better price formatting with custom formatter
+    const formatPrice = (price) => {
+      if (displayMode === 'mcap') {
+        return price.toFixed(0);
+      } else if (price >= 1) {
+        return price.toFixed(2);
+      } else if (price >= 0.1) {
+        return price.toFixed(4);
+      } else if (price >= 0.01) {
+        return price.toFixed(6);
+      } else if (price >= 0.001) {
+        return price.toFixed(8);
+      } else {
+        return price.toFixed(8);
+      }
+    };
 
     ref.series.applyOptions({ 
-      priceFormat: fmt
+      priceFormat: {
+        type: 'custom',
+        formatter: formatPrice
+      },
+      lastValueVisible: true
     });
     
     // Apply better price scale formatting
     ref.chart.applyOptions({
-      rightPriceScale: {
+      leftPriceScale: {
         autoScale: true,
         borderColor: "#374151",
         scaleMargins: { top: 0.1, bottom: 0.15 }
