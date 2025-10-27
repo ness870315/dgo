@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import chartService from '../services/chartService';
 
-const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
+const TradingViewChart = ({ token, timeframe = '5MIN', onClose }) => {
   const containerRef = useRef(null);
   const chartRef = useRef(null);     // { chart, series }
   const roRef = useRef(null);        // ResizeObserver
@@ -11,10 +11,8 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [displayMode, setDisplayMode] = useState('price'); // 'price' or 'mcap'
-  const [selectedIndicators, setSelectedIndicators] = useState([]);
-  const [showIndicators, setShowIndicators] = useState(false);
-  const [drawingMode, setDrawingMode] = useState(null);
-  const [showDrawingTools, setShowDrawingTools] = useState(false);
+  const [timeZone, setTimeZone] = useState('UTC'); // 'UTC' or 'Local'
+  const [selectedTimeframe, setSelectedTimeframe] = useState(timeframe);
 
   // ---- A) WAIT UNTIL VISIBLE + MEASURABLE, THEN INIT ONCE
   useEffect(() => {
@@ -87,13 +85,18 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
         height: el.clientHeight || 400,
       });
 
-      const series = chart.addCandlestickSeries({
-        upColor: "#10b981", 
-        downColor: "#ef4444",
-        wickUpColor: "#10b981", 
-        wickDownColor: "#ef4444",
-        borderVisible: false,
+      const series = chart.addLineSeries({
+        color: "#ec4899", // Pink color like in the image
+        lineWidth: 2,
         priceFormat: { type: "price", precision: 9, minMove: 1e-9 },
+      });
+
+      // Add area styling under the line
+      series.applyOptions({
+        lineColor: "#ec4899",
+        topColor: "rgba(139, 92, 246, 0.3)", // Purple gradient
+        bottomColor: "rgba(139, 92, 246, 0.1)",
+        lineWidth: 2,
       });
 
       chartRef.current = { chart, series };
@@ -185,11 +188,11 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
     '1M': 120,     // ~10 years
   };
 
-  function ensureCloseView(chart, containerEl, timeframe, candles) {
-    if (!candles?.length) return;
+  function ensureCloseView(chart, containerEl, timeframe, data) {
+    if (!data?.length) return;
     const step = TF_SEC[timeframe] || 60;
     const n = VIEW_BARS[timeframe] || 200;
-    const last = candles[candles.length - 1].time;
+    const last = data[data.length - 1].time;
     const from = last - step * Math.max(1, n - 1);
 
     // Bar width target ~6–8px
@@ -234,7 +237,7 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
     return out;
   };
 
-  const applyData = () => {
+    const applyData = () => {
     const ref = chartRef.current;
     if (!ref || !chartData?.length) {
       console.log('📊 Data application skipped:', { hasRef: !!ref, dataLength: chartData?.length });
@@ -242,30 +245,27 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
     }
 
     console.log('📊 Applying data to chart...');
-    const candles = normalizeCandles(chartData, timeframe);
+    const candles = normalizeCandles(chartData, selectedTimeframe);
     if (!candles.length) {
       console.log('📊 No valid candles after normalization');
       return;
     }
 
     // Transform data for market cap if needed
-    let finalCandles = candles;
+    let finalData = candles.map(c => ({ time: c.time, value: c.close }));
     let yAxisTitle = `${token?.symbol || 'Token'}/USD`;
     
     if (displayMode === 'mcap' && token?.circulatingSupply) {
       const supply = token.circulatingSupply;
-      finalCandles = candles.map(c => ({
-        ...c,
-        open: c.open * supply,
-        high: c.high * supply,
-        low: c.low * supply,
-        close: c.close * supply
+      finalData = candles.map(c => ({
+        time: c.time,
+        value: c.close * supply
       }));
       yAxisTitle = `${token?.symbol || 'Token'}/MCap`;
     }
 
     // precision from last close
-    const last = finalCandles.at(-1).close;
+    const last = candles.at(-1).close;
     const fmt = displayMode === 'mcap' 
       ? { type:"price", precision:0, minMove:1 }  // Market cap in whole numbers
       : last >= 1 ? { type:"price", precision:6, minMove:1e-6 }
@@ -275,10 +275,10 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
     ref.series.applyOptions({ 
       priceFormat: fmt
     });
-    ref.series.setData(finalCandles);
+    ref.series.setData(finalData);
 
     // Use close view helper instead of fitContent
-    ensureCloseView(ref.chart, containerRef.current, timeframe, finalCandles);
+    ensureCloseView(ref.chart, containerRef.current, selectedTimeframe, finalData);
 
     // one more tick to ensure canvases pick up final size
     requestAnimationFrame(() => {
@@ -305,15 +305,15 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
   };
 
   useEffect(() => { 
-    console.log('🔄 applyData effect triggered:', { chartDataLength: chartData?.length, timeframe, displayMode });
+    console.log('🔄 applyData effect triggered:', { chartDataLength: chartData?.length, selectedTimeframe, displayMode });
     applyData(); 
-  }, [chartData, timeframe, displayMode]);
+  }, [chartData, selectedTimeframe, displayMode]);
 
   // Load chart data
   useEffect(() => {
     const contract = token?.contract || token?.contractAddress || token?.mint || token?.address;
-    console.log('🔄 Data loading effect triggered:', { contract, timeframe });
-    console.log('Fetching chart for contract:', contract, 'timeframe:', timeframe);
+    console.log('🔄 Data loading effect triggered:', { contract, timeframe: selectedTimeframe });
+    console.log('Fetching chart for contract:', contract, 'timeframe:', selectedTimeframe);
     if (!contract) {
       console.log('❌ No token contract, skipping data load');
       return;
@@ -324,8 +324,8 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
       setError(null);
       
       try {
-        console.log(`Loading chart data for: ${contract} timeframe: ${timeframe} (RD tier)`);
-        const response = await chartService.getPriceChartRD(contract, timeframe);
+        console.log(`Loading chart data for: ${contract} timeframe: ${selectedTimeframe} (RD tier)`);
+        const response = await chartService.getPriceChartRD(contract, selectedTimeframe);
         
         if (response && response.data && Array.isArray(response.data)) {
           console.log('Chart service response:', response);
@@ -356,135 +356,122 @@ const TradingViewChart = ({ token, timeframe = '1MIN', onClose }) => {
     };
 
     loadChartData();
-  }, [token?.contract, token?.contractAddress, token?.mint, token?.address, timeframe]);
+  }, [token?.contract, token?.contractAddress, token?.mint, token?.address, selectedTimeframe]);
+
+  // Calculate current price and price change
+  const currentPrice = chartData && chartData.length > 0 ? chartData[chartData.length - 1]?.close : token?.price || 0;
+  const priceChange = chartData && chartData.length > 0 && chartData.length >= 2 
+    ? ((currentPrice - chartData[chartData.length - 2]?.close) / chartData[chartData.length - 2]?.close) * 100 
+    : 0;
+  const marketCap = token?.mcap || 0;
+  const volume5min = token?.volume24h || 0; // This should be calculated from 5MIN data
+
+  const formatPrice = (price) => {
+    if (!price) return '$0.000000';
+    if (price < 0.000001) return `$${price.toExponential(2)}`;
+    if (price < 0.01) return `$${price.toFixed(6)}`;
+    return `$${price.toFixed(4)}`;
+  };
+
+  const formatMCap = (mcap) => {
+    if (!mcap) return 'N/A';
+    if (mcap >= 1e9) return `${(mcap / 1e9).toFixed(1)}B`;
+    if (mcap >= 1e6) return `${(mcap / 1e6).toFixed(1)}M`;
+    if (mcap >= 1e3) return `${(mcap / 1e3).toFixed(1)}K`;
+    return mcap.toFixed(0);
+  };
+
+  const formatVolume = (vol) => {
+    if (!vol) return 'N/A';
+    if (vol >= 1e9) return `${(vol / 1e9).toFixed(1)}B`;
+    if (vol >= 1e6) return `${(vol / 1e6).toFixed(1)}M`;
+    if (vol >= 1e3) return `${(vol / 1e3).toFixed(1)}K`;
+    return vol.toFixed(0);
+  };
 
   return (
     <div className="w-full bg-black rounded-lg border border-gray-700 p-4 relative">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center space-x-4">
-          <h3 className="text-white text-lg font-semibold">
-            {token?.symbol || 'Token'} Chart
-          </h3>
-          <div className="text-sm text-gray-400">
-            {displayMode === 'mcap' ? `${token?.symbol || 'Token'}/MCap` : `${token?.symbol || 'Token'}/USD`}
+      {/* Top Information Bar */}
+      <div className="mb-4">
+        <div className="text-4xl font-bold text-white mb-1">
+          {formatPrice(currentPrice)}
+        </div>
+        <div className={`text-lg mb-2 ${priceChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+          {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}%
+        </div>
+        <div className="flex justify-between items-end">
+          <div>
+            <div className="text-sm text-gray-400">Market Cap: {formatMCap(marketCap)}</div>
+            <div className="text-sm text-gray-400">Volume ({selectedTimeframe}): {formatVolume(volume5min)}</div>
           </div>
-          <div className="flex space-x-2">
+        </div>
+      </div>
+
+      {/* Control Panel */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {/* Timeframe Buttons */}
+        <div className="flex items-center gap-1">
+          {['1MIN', '5MIN', '15MIN', '1H', '4H', '1D', 'ALL'].map(tf => (
             <button
-              onClick={() => setDisplayMode('price')}
+              key={tf}
+              onClick={() => setSelectedTimeframe(tf)}
               className={`px-3 py-1 rounded text-sm ${
-                displayMode === 'price' 
-                  ? 'bg-blue-600 text-white' 
+                selectedTimeframe === tf
+                  ? 'bg-blue-600 text-white'
                   : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
               }`}
             >
-              Price
+              {tf}
             </button>
-            <button
-              onClick={() => setDisplayMode('mcap')}
-              className={`px-3 py-1 rounded text-sm ${
-                displayMode === 'mcap' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              Market Cap
-            </button>
-          </div>
-          
-          {/* Indicators Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setShowIndicators(!showIndicators)}
-              className="px-3 py-1 rounded text-sm bg-gray-700 text-gray-300 hover:bg-gray-600 flex items-center space-x-1"
-            >
-              <span>Indicators</span>
-              <span className="text-xs">▼</span>
-            </button>
-            
-            {showIndicators && (
-              <div className="absolute right-0 top-full mt-1 bg-gray-800 border border-gray-600 rounded shadow-lg z-30 min-w-48">
-                <div className="p-2">
-                  <div className="text-xs text-gray-400 mb-2">Technical Indicators</div>
-                  {[
-                    { id: 'rsi', name: 'RSI (14)', description: 'Relative Strength Index' },
-                    { id: 'bb', name: 'Bollinger Bands', description: 'Price volatility bands' },
-                    { id: 'volume', name: 'Volume', description: 'Trading volume overlay' },
-                    { id: 'sma20', name: 'SMA (20)', description: 'Simple Moving Average' },
-                    { id: 'ema12', name: 'EMA (12)', description: 'Exponential Moving Average' },
-                    { id: 'macd', name: 'MACD', description: 'Moving Average Convergence Divergence' },
-                    { id: 'stoch', name: 'Stochastic', description: 'Stochastic Oscillator' }
-                  ].map(indicator => (
-                    <label key={indicator.id} className="flex items-center space-x-2 py-1 hover:bg-gray-700 rounded px-1 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedIndicators.includes(indicator.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedIndicators([...selectedIndicators, indicator.id]);
-                          } else {
-                            setSelectedIndicators(selectedIndicators.filter(id => id !== indicator.id));
-                          }
-                        }}
-                        className="rounded"
-                      />
-                      <div>
-                        <div className="text-sm text-white">{indicator.name}</div>
-                        <div className="text-xs text-gray-400">{indicator.description}</div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-          
-          {/* Drawing Tools */}
-          <div className="relative">
-            <button
-              onClick={() => setShowDrawingTools(!showDrawingTools)}
-              className="px-3 py-1 rounded text-sm bg-gray-700 text-gray-300 hover:bg-gray-600 flex items-center space-x-1"
-            >
-              <span>Drawing</span>
-              <span className="text-xs">▼</span>
-            </button>
-            
-            {showDrawingTools && (
-              <div className="absolute right-0 top-full mt-1 bg-gray-800 border border-gray-600 rounded shadow-lg z-30 min-w-48">
-                <div className="p-2">
-                  <div className="text-xs text-gray-400 mb-2">Drawing Tools</div>
-                  {[
-                    { id: 'line', name: 'Trend Line', description: 'Draw trend lines' },
-                    { id: 'horizontal', name: 'Horizontal Line', description: 'Support/Resistance levels' },
-                    { id: 'vertical', name: 'Vertical Line', description: 'Time markers' },
-                    { id: 'rectangle', name: 'Rectangle', description: 'Highlight areas' },
-                    { id: 'fibonacci', name: 'Fibonacci', description: 'Retracement levels' },
-                    { id: 'text', name: 'Text Note', description: 'Add annotations' },
-                    { id: 'clear', name: 'Clear All', description: 'Remove all drawings' }
-                  ].map(tool => (
-                    <button
-                      key={tool.id}
-                      onClick={() => {
-                        if (tool.id === 'clear') {
-                          setDrawingMode(null);
-                          // TODO: Clear all drawings from chart
-                        } else {
-                          setDrawingMode(drawingMode === tool.id ? null : tool.id);
-                        }
-                        setShowDrawingTools(false);
-                      }}
-                      className={`w-full text-left py-2 px-2 rounded hover:bg-gray-700 ${
-                        drawingMode === tool.id ? 'bg-blue-600 text-white' : 'text-white'
-                      }`}
-                    >
-                      <div className="text-sm">{tool.name}</div>
-                      <div className="text-xs text-gray-400">{tool.description}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          ))}
+        </div>
+
+        {/* Mode Buttons */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setDisplayMode('price')}
+            className={`px-3 py-1 rounded text-sm ${
+              displayMode === 'price'
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            Price
+          </button>
+          <button
+            onClick={() => setDisplayMode('mcap')}
+            className={`px-3 py-1 rounded text-sm ${
+              displayMode === 'mcap'
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            Market Cap
+          </button>
+        </div>
+
+        {/* Time Zone Buttons */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setTimeZone('UTC')}
+            className={`px-3 py-1 rounded text-sm ${
+              timeZone === 'UTC'
+                ? 'bg-purple-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            UTC
+          </button>
+          <button
+            onClick={() => setTimeZone('Local')}
+            className={`px-3 py-1 rounded text-sm ${
+              timeZone === 'Local'
+                ? 'bg-purple-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            Local
+          </button>
         </div>
       </div>
 
