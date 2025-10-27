@@ -746,6 +746,21 @@ class SwapBackfillWorker {
   /**
    * Get stats about backfilled data
    */
+  async getSwaps(tokenAddress, limit = null) {
+    try {
+      const swaps = await this.chartDatabase.getSwapsForToken(tokenAddress);
+      
+      if (limit) {
+        return swaps.slice(-limit); // Get most recent swaps
+      }
+      
+      return swaps;
+    } catch (error) {
+      console.error('❌ [SwapBackfillWorker] Failed to get swaps:', error.message);
+      return [];
+    }
+  }
+
   async getStats(tokenAddress) {
     try {
       const swaps = await this.chartDatabase.getSwapsForToken(tokenAddress);

@@ -92,6 +92,31 @@ class SwapBackfillAPI {
         res.status(500).json({ success: false, error: error.message });
       }
     });
+
+    // GET swaps for a token (for backend to fetch)
+    this.router.get('/swaps/:tokenAddress', async (req, res) => {
+      try {
+        const { tokenAddress } = req.params;
+        const { limit } = req.query;
+        
+        if (!this.isInitialized) {
+          await this.worker.initialize();
+          this.isInitialized = true;
+        }
+        
+        const swaps = await this.worker.getSwaps(tokenAddress, limit ? parseInt(limit) : null);
+        
+        res.json({
+          success: true,
+          tokenAddress,
+          swaps: swaps,
+          count: swaps.length
+        });
+      } catch (error) {
+        console.error('❌ [SwapBackfillAPI] Error:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
   }
 
   /**
