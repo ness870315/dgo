@@ -13,12 +13,10 @@ const __dirname = path.dirname(__filename);
  */
 class ChartDatabase {
     constructor() {
-        // ✅ Use the BACKEND's data directory for shared swap storage
-        // On Render: backend runs from services/jup-discovery, so backend/ is at ../backend/
-        // Locally: backend/ is at root level
-        const backendPath = path.join(process.cwd(), 'backend', 'data');
-        this.dataDir = path.resolve(backendPath);
-        console.log(`📁 [ChartDatabase] Using shared backend data directory: ${this.dataDir}`);
+        // ✅ Use Render persistent disk at /var/data (same pattern as BondingTokensService)
+        // This works in both local and Render environments
+        this.dataDir = '/var/data';
+        console.log(`📁 [ChartDatabase] Using persistent data directory: ${this.dataDir}`);
         this.dbFile = path.join(this.dataDir, 'charts.json');
         
         // 🚀 HYBRID ARCHITECTURE: Per-token databases + shared metadata
