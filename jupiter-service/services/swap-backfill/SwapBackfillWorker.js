@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import axios from 'axios';
 import ChartDatabase from './ChartDatabase.js';
 import GrpcWrapper from './GrpcWrapper.cjs';
+import OptimizedHeliusBackfill from '../../../../backend/services/OptimizedHeliusBackfill.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,6 +28,7 @@ class SwapBackfillWorker {
     this.activeStreams = new Map();
     this.lastProcessedSlots = new Map(); // Map<tokenAddress, lastSlot>
     this.replayWindow = 3000; // 3000 slots = ~20 minutes of history
+    this.heliusBackfill = new OptimizedHeliusBackfill(process.env.HELIUS_API_KEY || '6e92c2eb-b739-4e43-ae2b-0d1a40a07f0f');
   }
 
   /**
@@ -83,16 +85,21 @@ class SwapBackfillWorker {
         };
       }
 
-      // Backfill using Constant K gRPC for historical slots
-      // Note: For now, we'll use Constant K to monitor recent slots
-      // Historical backfill will be done by querying past slots
-      console.log(`📅 [SwapBackfillWorker] Starting Constant K gRPC backfill for ${tokenAddress.substring(0, 8)}`);
+      // Step 1: Fetch historical swaps via REST API (much faster than gRPC replay)
+      console.log(`📅 [SwapBackfillWorker] Backfilling last 24h of swaps via REST API...`);
+      await this.fetchHistoricalSwapsViaREST(tokenAddress, poolAddress, 24);
       
-      const result = await this.backfillWithConstantK(tokenAddress, poolAddress);
+      // Get final swap count
+      const afterDb = this.chartDatabase.getTokenDatabase(tokenAddress);
+      const afterCount = afterDb.swaps ? afterDb.swaps.size : 0;
+      const added = afterCount - beforeCount;
       
       return {
         success: true,
-        ...result
+        message: `Backfilled ${added} swaps`,
+        swapsAdded: added,
+        existingSwaps: beforeCount,
+        totalSwaps: afterCount
       };
 
     } catch (error) {
@@ -366,6 +373,56 @@ class SwapBackfillWorker {
     
     // Return empty - monitoring continues in background
     return [];
+  }
+
+  /**
+   * Fetch historical swaps using REST API (Helius) - much faster for bulk historical data
+   */
+  async fetchHistoricalSwapsViaREST(tokenAddress, poolAddress, hours = 24) {
+    console.log(`📊 [SwapBackfillWorker] Fetching ${hours}h historical swaps via REST API for ${tokenAddress.substring(0, 8)}...`);
+    
+    try {
+      const toTs = Math.floor(Date.now() / 1000);
+      const fromTs = toTs - (hours * 3600);
+      
+      const result = await this.heliusBackfill.backfillHeliusOHLCV({
+        poolAddress,
+        fromTs,
+        toTs,
+        timeframe: '1MIN',
+        targetTokenMint: tokenAddress
+      });
+      
+      if (!result.rawSwaps || result.rawSwaps.length === 0) {
+        console.log(`⚠️ [SwapBackfillWorker] No swaps found for ${tokenAddress.substring(0, 8)}`);
+        return;
+      }
+      
+      console.log(`✅ [SwapBackfillWorker] Fetched ${result.rawSwaps.length} historical swaps via REST`);
+      
+      // Store swaps to database
+      const swapsToStore = result.rawSwaps.map(swap => ({
+        tokenAddress,
+        poolAddress,
+        signature: swap.signature,
+        timestamp: swap.timestamp,
+        slot: swap.slot || '',
+        price: swap.price || 0,
+        volumeUsd: swap.volumeUsd || 0,
+        source: 'rest_backfill',
+        type: swap.type || 'UNKNOWN',
+        tokenAmount: swap.tokenAmount || 0,
+        baseAmount: swap.baseAmount || 0,
+        rawData: swap,
+        createdAt: Date.now()
+      }));
+      
+      await this.chartDatabase.storeSwaps(swapsToStore);
+      console.log(`💾 [SwapBackfillWorker] Stored ${swapsToStore.length} historical swaps`);
+      
+    } catch (error) {
+      console.error(`❌ [SwapBackfillWorker] REST backfill failed:`, error.message);
+    }
   }
 
   /**
