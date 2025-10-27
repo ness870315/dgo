@@ -480,10 +480,16 @@ class EnhancedHybridPriceService extends EventEmitter {
                                 const actualPoolAddress = this.poolAddresses.get(tokenAddress);
                                 const userTokenChanges = tokenChanges.filter(tokenChange => {
                                     const isPoolAddress = tokenChange.owner === actualPoolAddress;
-                                    // if (isPoolAddress) {
-                                    //     console.log(`🚫 [EnhancedHybridPriceService] Skipping pool's own swap: ${tokenChange.owner}`);
-                                    // }
-                                    return !isPoolAddress;
+                                    
+                                    // 🚫 ADDITIONAL FILTER: Check if owner is the token mint itself (self-trading pools)
+                                    const isTokenMint = tokenChange.owner === tokenAddress;
+                                    
+                                    // Log suspicious addresses for debugging
+                                    if (isPoolAddress || isTokenMint) {
+                                        // console.log(`🚫 [EnhancedHybridPriceService] Skipping suspicious swap from owner: ${tokenChange.owner.substring(0, 16)}... (isPool: ${isPoolAddress}, isTokenMint: ${isTokenMint})`);
+                                    }
+                                    
+                                    return !isPoolAddress && !isTokenMint;
                                 });
                                 
                                 // console.log(`🔍 [EnhancedHybridPriceService] Processing ${userTokenChanges.length} user token changes (filtered out ${tokenChanges.length - userTokenChanges.length} pool swaps)`);
