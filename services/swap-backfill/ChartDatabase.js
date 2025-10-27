@@ -23,6 +23,7 @@ class ChartDatabase {
         
         // 🚀 HYBRID ARCHITECTURE: Per-token databases + shared metadata
         this.tokenDatabases = new Map(); // tokenAddress -> database instance
+        this.data = { swaps: new Map() }; // Root data object
         this.sharedData = {
             candles: new Map(),
             pools: new Map(),
@@ -38,26 +39,23 @@ class ChartDatabase {
         this.writeInterval = 2000; // Write every 2 seconds max (faster for real-time)
         this.lastWriteTime = new Map(); // per-token write times
         
-        // ✅ CRITICAL FIX: Ensure data directory exists synchronously
-        this.initializeDataDirSync();
-        this.loadData();
-        this.startBatchWriter();
+        // ✅ CRITICAL FIX: Ensure data directory exists
+        this.initializeDataDirSync().then(() => {
+            this.loadData();
+            this.startBatchWriter();
+        });
     }
     
     /**
      * ✅ CRITICAL FIX: Synchronously ensure data directory exists
      */
-    initializeDataDirSync() {
+    async initializeDataDirSync() {
         try {
-            // Use dynamic import for fs in ES module
-            import('fs').then(fs => {
-                if (!fs.existsSync(this.dataDir)) {
-                    fs.mkdirSync(this.dataDir, { recursive: true });
-                    console.log(`✅ [ChartDatabase] Created data directory: ${this.dataDir}`);
-                }
-            }).catch(err => {
-                console.error('❌ [ChartDatabase] Failed to create data directory:', err.message);
-            });
+            const fs = await import('fs');
+            if (!fs.default.existsSync(this.dataDir)) {
+                fs.default.mkdirSync(this.dataDir, { recursive: true });
+                console.log(`✅ [ChartDatabase] Created data directory: ${this.dataDir}`);
+            }
         } catch (error) {
             console.error('❌ [ChartDatabase] Failed to create data directory:', error.message);
         }
