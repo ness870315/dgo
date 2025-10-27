@@ -11,6 +11,7 @@
 import fs from 'fs/promises';
 import * as fsSync from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import axios from 'axios';
 import OpenAIService from '../openaiService.js';
 import PerplexitySonarService from './PerplexitySonarService.js';
@@ -44,6 +45,9 @@ class KOLService {
     // Logo cache (symbol -> logo URL)
     this.logosCache = new Map();
     this.loadLogosCache();
+    
+    // 🚀 CRITICAL: Tweet analysis cache to prevent duplicate AI calls
+    this.tweetAnalysisCache = new Map(); // tweetHash -> analysis
     
     // Historical prices cache (symbol_timestamp -> price)
     this.historicalPricesCache = new Map();
@@ -489,6 +493,13 @@ class KOLService {
   // Analyze tweet with AI
   async analyzeTweet(text) {
     try {
+      // 🚀 CRITICAL: Check cache first to avoid duplicate AI calls
+      const tweetHash = crypto.createHash('md5').update(text).digest('hex');
+      if (this.tweetAnalysisCache.has(tweetHash)) {
+        console.log(`💾 [KOL SERVICE] Using cached tweet analysis (saved $X)`);
+        return this.tweetAnalysisCache.get(tweetHash);
+      }
+      
       const prompt = `Analyze this crypto tweet and extract:
 1. Coin symbols (BTC, ETH, SOL, etc.) - ALWAYS USE UPPERCASE
 2. Sentiment: bullish (1), neutral (0), or bearish (-1)
@@ -523,12 +534,17 @@ IMPORTANT:
       // Normalize all coin symbols to UPPERCASE (in case AI didn't follow instructions)
       const normalizedCoins = (analysis.coins || []).map(coin => coin.toUpperCase());
 
-      return {
+      const result = {
         coins: normalizedCoins,
         sentiment: Math.max(-1, Math.min(1, analysis.sentiment || 0)),
         narratives: analysis.narratives || [],
         topics: analysis.topics || [] // NEW: Extract topics in same call
       };
+      
+      // 🚀 CRITICAL: Cache the result
+      this.tweetAnalysisCache.set(tweetHash, result);
+      
+      return result;
 
     } catch (error) {
       console.error('❌ [KOL SERVICE] AI analysis error:', error.message);
