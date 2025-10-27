@@ -1396,7 +1396,7 @@ Market meme:`;
       const memeTweet = await this.openaiService.generateCompletion(generalMemePrompt, {
         maxTokens: 100,
         temperature: 0.95,
-        model: 'gpt-4o-mini' // 🚀 COST OPTIMIZATION: 40x cheaper,
+        model: 'gpt-4o-mini', // 🚀 COST OPTIMIZATION: 40x cheaper
         enableWebSearch: false // Tavily already fetched
       });
 
