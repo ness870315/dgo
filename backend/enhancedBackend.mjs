@@ -11946,7 +11946,15 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // Get sentiment trends
     this.app.get('/api/admin/crypto-tracking/sentiment-trends', adminApiAuth, (req, res) => {
       try {
-        const { days = 30 } = req.query;
+        const { days, hours } = req.query;
+        
+        // Convert hours to days if provided
+        let daysToUse = days ? parseInt(days) : (hours ? Math.ceil(parseInt(hours) / 24) : 1);
+        
+        // If hours is provided and less than 24, use hours directly
+        if (hours && parseInt(hours) < 24) {
+          daysToUse = parseInt(hours) / 24; // Convert to fractional days
+        }
         
         if (!this.cryptoTrackingDatabase) {
           return res.status(503).json({
@@ -11955,12 +11963,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        const trends = this.cryptoTrackingDatabase.getSentimentTrends(parseInt(days));
+        const trends = this.cryptoTrackingDatabase.getSentimentTrends(daysToUse);
         
         res.json({
           success: true,
           trends: trends,
-          days: parseInt(days)
+          timeframe: hours ? `${hours} hours` : `${daysToUse} days`
         });
 
       } catch (error) {
