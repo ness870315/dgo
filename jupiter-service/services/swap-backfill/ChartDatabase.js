@@ -13,16 +13,17 @@ const __dirname = path.dirname(__filename);
  */
 class ChartDatabase {
     constructor() {
-        // ✅ Use the SAME data directory as backend for shared swap storage
-        // Backend stores swaps in: ./data/swaps_{tokenAddress}.json
-        // We'll write to the same location so backfill swaps and live swaps are in the same DB
-        this.dataDir = path.resolve(path.join(process.cwd(), '..', '..', '..', 'data'));
-        // Path: jupiter-service/services/swap-backfill -> backend -> root -> data
-        console.log(`📁 [ChartDatabase] Using shared data directory: ${this.dataDir}`);
+        // ✅ Use the BACKEND's data directory for shared swap storage
+        // Backend stores swaps in: ../../../../backend/data/swaps_{tokenAddress}.json
+        // From: jupiter-service/services/swap-backfill
+        // To: backend/data
+        this.dataDir = path.resolve(path.join(__dirname, '../../../../backend/data'));
+        console.log(`📁 [ChartDatabase] Using shared backend data directory: ${this.dataDir}`);
         this.dbFile = path.join(this.dataDir, 'charts.json');
         
         // 🚀 HYBRID ARCHITECTURE: Per-token databases + shared metadata
         this.tokenDatabases = new Map(); // tokenAddress -> database instance
+        this.data = { swaps: new Map() }; // Root data object
         this.sharedData = {
             candles: new Map(),
             pools: new Map(),
@@ -38,20 +39,21 @@ class ChartDatabase {
         this.writeInterval = 2000; // Write every 2 seconds max (faster for real-time)
         this.lastWriteTime = new Map(); // per-token write times
         
-        // ✅ CRITICAL FIX: Ensure data directory exists synchronously
-        this.initializeDataDirSync();
-        this.loadData();
-        this.startBatchWriter();
+        // ✅ CRITICAL FIX: Ensure data directory exists
+        this.initializeDataDirSync().then(() => {
+            this.loadData();
+            this.startBatchWriter();
+        });
     }
     
     /**
      * ✅ CRITICAL FIX: Synchronously ensure data directory exists
      */
-    initializeDataDirSync() {
+    async initializeDataDirSync() {
         try {
-            const fsSync = require('fs');
-            if (!fsSync.existsSync(this.dataDir)) {
-                fsSync.mkdirSync(this.dataDir, { recursive: true });
+            const fs = await import('fs');
+            if (!fs.default.existsSync(this.dataDir)) {
+                fs.default.mkdirSync(this.dataDir, { recursive: true });
                 console.log(`✅ [ChartDatabase] Created data directory: ${this.dataDir}`);
             }
         } catch (error) {

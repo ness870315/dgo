@@ -122,6 +122,31 @@ class SwapBackfillAPI {
     console.log('🛑 Stopping Swap Backfill API...');
     this.isInitialized = false;
   }
+
+  /**
+   * Trigger backfill for a token (for programmatic use)
+   */
+  async triggerBackfill(tokenAddress, poolAddress = null) {
+    try {
+      if (!this.isInitialized) {
+        await this.worker.initialize();
+        this.isInitialized = true;
+      }
+      
+      console.log(`🔄 [SwapBackfillAPI] Programmatic backfill for ${tokenAddress.substring(0, 8)}...`);
+      
+      const result = await this.worker.backfillToken(tokenAddress, poolAddress);
+      
+      return {
+        success: result.success,
+        tokenAddress,
+        ...result
+      };
+    } catch (error) {
+      console.error('❌ [SwapBackfillAPI] Error:', error.message);
+      throw error;
+    }
+  }
 }
 
 export default SwapBackfillAPI;
