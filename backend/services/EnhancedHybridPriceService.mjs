@@ -820,16 +820,16 @@ class EnhancedHybridPriceService extends EventEmitter {
             // Convert database format back to frontend format
             const historicalSwaps = swaps.map((dbSwap, index) => {
                 // 🐛 DEBUG: Log the actual structure
-                console.log(`🔍 [EnhancedHybridPriceService] DB Swap ${index}:`, {
-                    hasRawData: !!dbSwap.rawData,
-                    hasType: !!dbSwap.type,
-                    hasTokenAmount: !!dbSwap.tokenAmount,
-                    hasBaseAmount: !!dbSwap.baseAmount,
-                    hasVolumeUsd: !!dbSwap.volumeUsd,
-                    hasMaker: !!dbSwap.maker,
-                    keys: Object.keys(dbSwap),
-                    rawDataKeys: dbSwap.rawData ? Object.keys(dbSwap.rawData) : 'no rawData'
-                });
+                // console.log(`🔍 [EnhancedHybridPriceService] DB Swap ${index}:`, {
+                //     hasRawData: !!dbSwap.rawData,
+                //     hasType: !!dbSwap.type,
+                //     hasTokenAmount: !!dbSwap.tokenAmount,
+                //     hasBaseAmount: !!dbSwap.baseAmount,
+                //     hasVolumeUsd: !!dbSwap.volumeUsd,
+                //     hasMaker: !!dbSwap.maker,
+                //     keys: Object.keys(dbSwap),
+                //     rawDataKeys: dbSwap.rawData ? Object.keys(dbSwap.rawData) : 'no rawData'
+                // });
                 
                 // ✅ CRITICAL FIX: Database stores data in rawData AND top level
                 const rawData = dbSwap.rawData || {};
@@ -844,7 +844,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                 const poolAddress = dbSwap.poolAddress || rawData.poolAddress || 'UNKNOWN';
                 const timestamp = rawData.timestamp || (dbSwap.timestamp * 1000) || Date.now();
                 
-                console.log(`🔍 [EnhancedHybridPriceService] Converting swap ${index}: ${swapType}, tokenAmount: ${tokenAmount}, baseAmount: ${baseAmount}, volumeUsd: ${volumeUsd}, maker: ${maker}`);
+                // console.log(`🔍 [EnhancedHybridPriceService] Converting swap ${index}: ${swapType}, tokenAmount: ${tokenAmount}, baseAmount: ${baseAmount}, volumeUsd: ${volumeUsd}, maker: ${maker}`);
                 
                 return {
                     timestamp: timestamp,
