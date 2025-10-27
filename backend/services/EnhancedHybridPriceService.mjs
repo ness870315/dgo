@@ -576,9 +576,9 @@ class EnhancedHybridPriceService extends EventEmitter {
 
     processSwapUpdate(tokenAddress, poolAddress, slot, swapType, change, mintAddress, makerAddress, solAmount = 0, transactionHash = null) {
         try {
-            console.log(`🔄 [EnhancedHybridPriceService] Processing swap update for ${tokenAddress}`);
-            console.log(`🔍 [EnhancedHybridPriceService] Raw inputs - change: ${change}, solAmount: ${solAmount}, mintAddress: ${mintAddress}`);
-            console.log(`🔍 [EnhancedHybridPriceService] Transaction Hash:`, transactionHash ? transactionHash.substring(0, 16) + '...' : 'NULL - will use fallback');
+            // console.log(`🔄 [EnhancedHybridPriceService] Processing swap update for ${tokenAddress}`);
+            // console.log(`🔍 [EnhancedHybridPriceService] Raw inputs - change: ${change}, solAmount: ${solAmount}, mintAddress: ${mintAddress}`);
+            // console.log(`🔍 [EnhancedHybridPriceService] Transaction Hash:`, transactionHash ? transactionHash.substring(0, 16) + '...' : 'NULL - will use fallback');
             
             // Get current swap history
             const currentSwaps = this.swapHistory.get(tokenAddress) || [];
@@ -589,24 +589,24 @@ class EnhancedHybridPriceService extends EventEmitter {
             // Get token metadata to fetch decimals
             const tokenMetadata = this.tokenMetadataCache.get(tokenAddress);
             const mintDecimals = tokenMetadata?.decimals || 6; // Default 6 for most tokens
-            console.log(`📊 [EnhancedHybridPriceService] Mint decimals: ${mintDecimals}`);
+            // console.log(`📊 [EnhancedHybridPriceService] Mint decimals: ${mintDecimals}`);
             
             // 1) Convert token quantity to UI
             // 'change' from gRPC token balance changes is already in UI format (human-readable)
             // The Yellowstone gRPC library already converts from raw to UI for us
             const qtyTokenUI = Math.abs(change);
-            console.log(`📊 [EnhancedHybridPriceService] Token quantity (UI): ${qtyTokenUI}`);
+            // console.log(`📊 [EnhancedHybridPriceService] Token quantity (UI): ${qtyTokenUI}`);
             
             // 2) Convert SOL amount - check if it's in lamports or SOL already
             let baseSol = 0;
             if (Math.abs(solAmount) > 1e6) {
                 // Likely in lamports, convert to SOL
                 baseSol = Math.abs(solAmount) / 1e9;
-                console.log(`💰 [EnhancedHybridPriceService] Converting from lamports: ${solAmount} -> ${baseSol.toFixed(9)} SOL`);
+                // console.log(`💰 [EnhancedHybridPriceService] Converting from lamports: ${solAmount} -> ${baseSol.toFixed(9)} SOL`);
             } else if (solAmount !== 0) {
                 // Already in SOL
                 baseSol = Math.abs(solAmount);
-                console.log(`💰 [EnhancedHybridPriceService] Already in SOL: ${solAmount} -> ${baseSol.toFixed(9)} SOL`);
+                // console.log(`💰 [EnhancedHybridPriceService] Already in SOL: ${solAmount} -> ${baseSol.toFixed(9)} SOL`);
             }
             
             // 3) Calculate prices
@@ -624,22 +624,22 @@ class EnhancedHybridPriceService extends EventEmitter {
                 // Volume in USD
                 volumeUsd = baseSol * this.solPriceUSD;
                 
-                console.log(`💰 [EnhancedHybridPriceService] Calculated - Price: ${priceSol.toFixed(9)} SOL/token, $${priceUsd.toFixed(6)} USD, Volume: $${volumeUsd.toFixed(4)}`);
+                // console.log(`💰 [EnhancedHybridPriceService] Calculated - Price: ${priceSol.toFixed(9)} SOL/token, $${priceUsd.toFixed(6)} USD, Volume: $${volumeUsd.toFixed(4)}`);
             } else {
-                console.log(`⚠️ [EnhancedHybridPriceService] Missing SOL amount or token amount, using fallback`);
+                // console.log(`⚠️ [EnhancedHybridPriceService] Missing SOL amount or token amount, using fallback`);
                 // Fallback calculation
                 if (tokenMetadata && tokenMetadata.usdPrice) {
                     volumeUsd = qtyTokenUI * tokenMetadata.usdPrice;
                     baseSol = volumeUsd / this.solPriceUSD;
                     priceSol = baseSol / qtyTokenUI;
                     priceUsd = priceSol * this.solPriceUSD;
-                    console.log(`💰 [EnhancedHybridPriceService] Fallback - Price: ${priceSol.toFixed(9)} SOL/token, Volume: $${volumeUsd.toFixed(4)}`);
+                    // console.log(`💰 [EnhancedHybridPriceService] Fallback - Price: ${priceSol.toFixed(9)} SOL/token, Volume: $${volumeUsd.toFixed(4)}`);
                 } else {
                     baseSol = qtyTokenUI * 0.0000001;
                     volumeUsd = baseSol * this.solPriceUSD;
                     priceSol = baseSol / qtyTokenUI;
                     priceUsd = priceSol * this.solPriceUSD;
-                    console.log(`⚠️ [EnhancedHybridPriceService] Last resort fallback - Price: ${priceSol.toFixed(9)} SOL/token, Volume: $${volumeUsd.toFixed(4)}`);
+                    // console.log(`⚠️ [EnhancedHybridPriceService] Last resort fallback - Price: ${priceSol.toFixed(9)} SOL/token, Volume: $${volumeUsd.toFixed(4)}`);
                 }
             }
             
@@ -690,7 +690,7 @@ class EnhancedHybridPriceService extends EventEmitter {
             // 🚀 NEW: Save to persistent storage
             this.saveSwapToDatabase(swapRecord, tokenAddress, poolAddress);
             
-            console.log(`✅ [EnhancedHybridPriceService] Swap processed: ${swapType} ${change.toFixed(6)} tokens`);
+            // console.log(`✅ [EnhancedHybridPriceService] Swap processed: ${swapType} ${change.toFixed(6)} tokens`);
             
             // 🚀 NEW: Broadcast swap via WebSocket for real-time updates
             if (this.webSocketServer) {
@@ -699,7 +699,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                     totalSwaps: currentSwaps.length,
                     timestamp: Date.now()
                 });
-                console.log(`📡 [EnhancedHybridPriceService] Swap broadcasted via WebSocket for ${tokenAddress}`);
+                // console.log(`📡 [EnhancedHybridPriceService] Swap broadcasted via WebSocket for ${tokenAddress}`);
             }
             
             // Emit swap event for WebSocket broadcasting
@@ -721,8 +721,8 @@ class EnhancedHybridPriceService extends EventEmitter {
     // 🚀 NEW: Save swap to persistent database
     async saveSwapToDatabase(swapRecord, tokenAddress, poolAddress) {
         try {
-            console.log(`💾 [EnhancedHybridPriceService] Attempting to save swap to database for ${tokenAddress}`);
-            console.log(`💾 [EnhancedHybridPriceService] ChartDatabase available:`, !!this.chartDatabase);
+            // console.log(`💾 [EnhancedHybridPriceService] Attempting to save swap to database for ${tokenAddress}`);
+            // console.log(`💾 [EnhancedHybridPriceService] ChartDatabase available:`, !!this.chartDatabase);
             
             if (!this.chartDatabase) {
                 console.error(`❌ [EnhancedHybridPriceService] ChartDatabase not available for ${tokenAddress}`);
@@ -760,21 +760,21 @@ class EnhancedHybridPriceService extends EventEmitter {
                 }
             };
             
-            console.log(`💾 [EnhancedHybridPriceService] Saving swap record:`, JSON.stringify(persistentSwapRecord, null, 2));
+            // console.log(`💾 [EnhancedHybridPriceService] Saving swap record:`, JSON.stringify(persistentSwapRecord, null, 2));
             
             // Save to persistent storage
             await this.chartDatabase.storeSwaps([persistentSwapRecord]);
-            console.log(`💾 [EnhancedHybridPriceService] Swap queued for storage for ${tokenAddress}`);
+            // console.log(`💾 [EnhancedHybridPriceService] Swap queued for storage for ${tokenAddress}`);
             
             // Force immediate write
             const tokenDb = this.chartDatabase.getTokenDatabase(tokenAddress);
             const queue = this.chartDatabase.writeQueues?.get(tokenAddress);
             if (queue && queue.length > 0) {
-                console.log(`💾 [EnhancedHybridPriceService] Forcing immediate write of ${queue.length} queued swaps`);
+                // console.log(`💾 [EnhancedHybridPriceService] Forcing immediate write of ${queue.length} queued swaps`);
                 await this.chartDatabase.processTokenWriteQueue(tokenAddress);
-                console.log(`💾 [EnhancedHybridPriceService] Swap saved to persistent storage for ${tokenAddress}`);
+                // console.log(`💾 [EnhancedHybridPriceService] Swap saved to persistent storage for ${tokenAddress}`);
             } else {
-                console.log(`💾 [EnhancedHybridPriceService] No swaps in queue (already written?)`);
+                // console.log(`💾 [EnhancedHybridPriceService] No swaps in queue (already written?)`);
             }
             
         } catch (error) {
