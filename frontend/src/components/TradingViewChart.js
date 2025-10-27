@@ -74,7 +74,12 @@ const TradingViewChart = ({ token, timeframe = '5MIN', onClose }) => {
         },
         rightPriceScale: { 
           borderColor: "#374151", 
-          scaleMargins: { top: 0.1, bottom: 0.15 } 
+          scaleMargins: { top: 0.1, bottom: 0.15 },
+          entireTextOnly: false
+        },
+        leftPriceScale: {
+          visible: true,
+          borderColor: "#374151"
         },
         timeScale: { 
           borderColor: "#374151", 
@@ -85,18 +90,12 @@ const TradingViewChart = ({ token, timeframe = '5MIN', onClose }) => {
         height: el.clientHeight || 400,
       });
 
-      const series = chart.addLineSeries({
-        color: "#ec4899", // Pink color like in the image
+      const series = chart.addAreaSeries({
+        lineColor: "#ec4899", // Pink line
+        topColor: "rgba(139, 92, 246, 0.4)", // Purple gradient area
+        bottomColor: "rgba(139, 92, 246, 0.05)",
         lineWidth: 2,
-        priceFormat: { type: "price", precision: 9, minMove: 1e-9 },
-      });
-
-      // Add area styling under the line
-      series.applyOptions({
-        lineColor: "#ec4899",
-        topColor: "rgba(139, 92, 246, 0.3)", // Purple gradient
-        bottomColor: "rgba(139, 92, 246, 0.1)",
-        lineWidth: 2,
+        priceFormat: { type: "price", precision: 8, minMove: 1e-8 },
       });
 
       chartRef.current = { chart, series };
@@ -266,15 +265,36 @@ const TradingViewChart = ({ token, timeframe = '5MIN', onClose }) => {
 
     // precision from last close
     const last = candles.at(-1).close;
-    const fmt = displayMode === 'mcap' 
-      ? { type:"price", precision:0, minMove:1 }  // Market cap in whole numbers
-      : last >= 1 ? { type:"price", precision:6, minMove:1e-6 }
-        : last >= 0.01 ? { type:"price", precision:8, minMove:1e-8 }
-                       : { type:"price", precision:9, minMove:1e-9 };
+    
+    // Better price formatting logic
+    let fmt;
+    if (displayMode === 'mcap') {
+      fmt = { type: "price", precision: 0, minMove: 1 };
+    } else if (last >= 1) {
+      fmt = { type: "price", precision: 6, minMove: 1e-6 };
+    } else if (last >= 0.1) {
+      fmt = { type: "price", precision: 6, minMove: 1e-6 };
+    } else if (last >= 0.01) {
+      fmt = { type: "price", precision: 6, minMove: 1e-6 };
+    } else if (last >= 0.001) {
+      fmt = { type: "price", precision: 6, minMove: 1e-6 };
+    } else {
+      fmt = { type: "price", precision: 8, minMove: 1e-8 };
+    }
 
     ref.series.applyOptions({ 
       priceFormat: fmt
     });
+    
+    // Apply better price scale formatting
+    ref.chart.applyOptions({
+      rightPriceScale: {
+        autoScale: true,
+        borderColor: "#374151",
+        scaleMargins: { top: 0.1, bottom: 0.15 }
+      }
+    });
+    
     ref.series.setData(finalData);
 
     // Use close view helper instead of fitContent
