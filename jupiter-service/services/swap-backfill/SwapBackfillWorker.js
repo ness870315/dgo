@@ -66,8 +66,8 @@ class SwapBackfillWorker {
       }
 
       // Get existing swap count
-      const existingSwaps = await this.chartDatabase.getSwapsForToken(tokenAddress);
-      const beforeCount = existingSwaps.length;
+      const tokenDb = this.chartDatabase.getTokenDatabase(tokenAddress);
+      const beforeCount = tokenDb.swaps ? tokenDb.swaps.size : 0;
       console.log(`📊 [SwapBackfillWorker] Current swaps in database: ${beforeCount}`);
 
       // Check if we need to backfill
@@ -311,9 +311,10 @@ class SwapBackfillWorker {
    */
   async getStats(tokenAddress) {
     try {
-      const swaps = await this.chartDatabase.getSwapsForToken(tokenAddress);
-      const totalSwaps = swaps.length;
-      const lastSwap = totalSwaps > 0 ? swaps[totalSwaps - 1] : null;
+      // Read swaps from the per-token file
+      const tokenDb = this.chartDatabase.getTokenDatabase(tokenAddress);
+      const totalSwaps = tokenDb.swaps ? tokenDb.swaps.size : 0;
+      const lastSwap = totalSwaps > 0 ? Array.from(tokenDb.swaps.values()).pop() : null;
       
       return {
         tokenAddress,
