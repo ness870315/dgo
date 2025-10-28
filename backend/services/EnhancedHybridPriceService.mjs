@@ -466,8 +466,12 @@ class EnhancedHybridPriceService extends EventEmitter {
             }
         });
         
-        // Find token and SOL changes
-        const tokenChanges = balanceChanges.filter(bc => bc.mint === tokenAddress);
+        // ✅ FIX: Filter by mint from balance changes, not tokenAddress
+        // The token might be referred to by a different mint address in the transaction
+        const tokenChanges = balanceChanges.filter(bc => {
+            // Get all non-SOL balance changes (these should include the token we're monitoring)
+            return bc.mint !== 'So11111111111111111111111111111111111111112'; // Not SOL
+        });
         const userTokenChanges = tokenChanges.filter(tc => {
             return tc.owner !== poolAddress && tc.owner !== tokenAddress;
         });
