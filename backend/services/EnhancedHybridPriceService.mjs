@@ -538,22 +538,48 @@ class EnhancedHybridPriceService extends EventEmitter {
                         // Determine swap type
                         let swapType = tokenChange.change > 0 ? 'BUY' : 'SELL';
                         
-                        // ✅ CRITICAL: Skip swaps without matching base token change
-                        // These are likely internal pool operations or Jupiter routing, not real user swaps
+                        // ✅ JUPITER AGGREGATED SWAPS FIX: If no direct base token change found for same owner,
+                        // calculate transaction-level net flow to estimate the swap value
                         const finalBaseChange = baseChange || solChange;
+                        let estimatedBaseAmount = 0;
+                        
                         if (!finalBaseChange || Math.abs(finalBaseChange.change) < 0.001) {
-                            console.log(`⚠️ [EnhancedHybridPriceService] Skipping swap for ${tokenChange.owner.substring(0, 8)}... - no matching base token change (likely internal pool operation)`);
-                            return; // Skip this swap
+                            // For Jupiter aggregated swaps, calculate net SOL/USDC flow in entire transaction
+                            const allSolChanges = balanceChanges.filter(bc => 
+                                bc.mint === 'So11111111111111111111111111111111111111112'
+                            );
+                            const allUsdcChanges = balanceChanges.filter(bc => 
+                                bc.mint === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' // USDC mint
+                            );
+                            
+                            const netSol = allSolChanges.reduce((sum, bc) => sum + bc.change, 0);
+                            const netUsdc = allUsdcChanges.reduce((sum, bc) => sum + bc.change, 0);
+                            
+                            // If there's a significant net flow, use it as the base amount
+                            if (Math.abs(netSol) > 0.001) {
+                                estimatedBaseAmount = Math.abs(netSol);
+                                console.log(`🔄 [EnhancedHybridPriceService] Jupiter aggregated swap detected - using net SOL flow: ${estimatedBaseAmount.toFixed(6)} SOL`);
+                            } else if (Math.abs(netUsdc) > 0.01) {
+                                estimatedBaseAmount = Math.abs(netUsdc);
+                                console.log(`🔄 [EnhancedHybridPriceService] Jupiter aggregated swap detected - using net USDC flow: ${estimatedBaseAmount.toFixed(2)} USDC`);
+                            } else {
+                                // Skip if no significant net flow (likely internal pool operation)
+                                console.log(`⚠️ [EnhancedHybridPriceService] Skipping swap for ${tokenChange.owner.substring(0, 8)}... - no matching base token change and no net flow (likely internal pool operation)`);
+                                return;
+                            }
                         }
                         
                         // Determine swap type with base token change
                         // BUY: user gets tokens (+) and gives base (-)
                         // SELL: user gives tokens (-) and gets base (+)
-                        if (finalBaseChange.change < 0 && tokenChange.change > 0) {
-                            swapType = 'BUY';
-                        } else if (finalBaseChange.change > 0 && tokenChange.change < 0) {
-                            swapType = 'SELL';
+                        if (finalBaseChange) {
+                            if (finalBaseChange.change < 0 && tokenChange.change > 0) {
+                                swapType = 'BUY';
+                            } else if (finalBaseChange.change > 0 && tokenChange.change < 0) {
+                                swapType = 'SELL';
+                            }
                         }
+                        // For Jupiter aggregated swaps with estimated base amount, swap type is already set
                         
                         // ✅ VALIDATION: Ensure we're processing the correct token
                         if (tokenChange.mint !== tokenAddress) {
@@ -562,6 +588,11 @@ class EnhancedHybridPriceService extends EventEmitter {
                         }
                         
                         console.log(`✅ [EnhancedHybridPriceService] Processing ${swapType}: ${Math.abs(tokenChange.change).toLocaleString()} ${tokenAddress.substring(0, 8)}...`);
+                        
+                        // Calculate the base amount to use
+                        const baseAmountToUse = finalBaseChange 
+                            ? finalBaseChange.change 
+                            : (swapType === 'BUY' ? -estimatedBaseAmount : estimatedBaseAmount);
                         
                         // Process swap
                         try {
@@ -573,7 +604,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                                 tokenChange.change, 
                                 tokenChange.mint, // ✅ FIX: Use tokenChange.mint instead of tokenAddress
                                 tokenChange.owner,
-                                finalBaseChange ? finalBaseChange.change : 0,
+                                baseAmountToUse,
                                 signature
                             );
                         } catch (error) {
