@@ -479,27 +479,31 @@ class EnhancedHybridPriceService extends EventEmitter {
             return tc.owner !== poolAddress && tc.owner !== tokenAddress;
         });
         
-        if (userTokenChanges.length > 0) {
-            userTokenChanges.forEach(tokenChange => {
-                // Find SOL change
-                const solChange = balanceChanges
-                    .filter(bc => bc.mint === 'So11111111111111111111111111111111111111112')
-                    .reduce((max, curr) => Math.abs(curr.change) > Math.abs(max.change) ? curr : max, 
-                    balanceChanges.find(bc => bc.mint === 'So11111111111111111111111111111111111111112'));
-                
-                // Determine swap type
-                let swapType = tokenChange.change > 0 ? 'BUY' : 'SELL';
-                
-                // Verify with SOL change
-                if (solChange && Math.abs(solChange.change) > 0.001) {
-                    swapType = solChange.change < 0 ? 'BUY' : 'SELL';
-                }
-                
-                // ✅ VALIDATION: Ensure we're processing the correct token
-                if (tokenChange.mint !== tokenAddress) {
-                    console.error(`⚠️ [EnhancedHybridPriceService] Mismatch: Expected ${tokenAddress.substring(0, 8)}..., got ${tokenChange.mint.substring(0, 8)}...`);
-                    return; // Skip this swap
-                }
+                if (userTokenChanges.length > 0) {
+                    console.log(`✅ [EnhancedHybridPriceService] Found ${userTokenChanges.length} MEMEPUTER swaps in transaction ${transactionSignature?.substring(0, 16)}...`);
+                    
+                    userTokenChanges.forEach(tokenChange => {
+                        // Find SOL change
+                        const solChange = balanceChanges
+                            .filter(bc => bc.mint === 'So11111111111111111111111111111111111111112')
+                            .reduce((max, curr) => Math.abs(curr.change) > Math.abs(max.change) ? curr : max, 
+                            balanceChanges.find(bc => bc.mint === 'So11111111111111111111111111111111111111112'));
+                        
+                        // Determine swap type
+                        let swapType = tokenChange.change > 0 ? 'BUY' : 'SELL';
+                        
+                        // Verify with SOL change
+                        if (solChange && Math.abs(solChange.change) > 0.001) {
+                            swapType = solChange.change < 0 ? 'BUY' : 'SELL';
+                        }
+                        
+                        // ✅ VALIDATION: Ensure we're processing the correct token
+                        if (tokenChange.mint !== tokenAddress) {
+                            console.error(`⚠️ [EnhancedHybridPriceService] Mismatch: Expected ${tokenAddress.substring(0, 8)}..., got ${tokenChange.mint.substring(0, 8)}...`);
+                            return; // Skip this swap
+                        }
+                        
+                        console.log(`🔄 [EnhancedHybridPriceService] Processing MEMEPUTER swap: ${swapType} ${tokenChange.change.toLocaleString()} tokens`);
                 
                 // Process swap
                 try {
@@ -989,14 +993,16 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             // console.log(`✅ [EnhancedHybridPriceService] Swap processed: ${swapType} ${change.toFixed(6)} tokens`);
             
-            // 🚀 NEW: Broadcast swap via WebSocket for real-time updates
+                // 🚀 NEW: Broadcast swap via WebSocket for real-time updates
             if (this.webSocketServer) {
+                console.log(`📡 [EnhancedHybridPriceService] Broadcasting swap via WebSocket for ${tokenAddress.substring(0, 8)}...`);
                 this.webSocketServer.broadcastSwapUpdate(tokenAddress, {
                     swap: swapRecord,
                     totalSwaps: currentSwaps.length,
                     timestamp: Date.now()
                 });
-                // console.log(`📡 [EnhancedHybridPriceService] Swap broadcasted via WebSocket for ${tokenAddress}`);
+            } else {
+                console.log(`⚠️ [EnhancedHybridPriceService] WebSocket server not available for ${tokenAddress.substring(0, 8)}...`);
             }
             
             // Emit swap event for WebSocket broadcasting
