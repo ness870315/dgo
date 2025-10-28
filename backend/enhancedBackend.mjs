@@ -14810,8 +14810,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
           // ✅ FIX: Get swaps from token database by TOKEN ADDRESS, not pool address
           const tokenDb = this.enhancedHybridPriceService.chartDatabase.getTokenDatabase(token);
           
-          // ✅ CRITICAL FIX: Wait for file to be loaded if it exists
-          await this.enhancedHybridPriceService.chartDatabase.loadTokenDatabaseFromFile(token);
+          // The database loads from file automatically when getTokenDatabase is called
+          // No need to manually call loadTokenDatabaseFromFile here
           
           if (tokenDb && tokenDb.swaps) {
             for (const swap of tokenDb.swaps.values()) {
