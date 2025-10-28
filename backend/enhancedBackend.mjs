@@ -14781,7 +14781,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
         console.log(`   Limit: ${limit}, Since: ${since || 'all'}`);
         
         // Get pool address for the token
-        const poolAddress = await this.hybridChartService.fastChartService.chartDb.getPoolAddress(token);
+        // First try from EnhancedHybridPriceService (for gRPC monitored tokens)
+        let poolAddress = this.enhancedHybridPriceService?.poolAddresses.get(token);
+        
+        // Fallback to hybridChartService
+        if (!poolAddress) {
+          poolAddress = await this.hybridChartService.fastChartService.chartDb.getPoolAddress(token);
+        }
         
         if (!poolAddress) {
           console.log(`⚠️ [SWAPS-API] No pool address found for ${token.substring(0, 8)}`);
