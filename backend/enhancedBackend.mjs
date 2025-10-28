@@ -14807,13 +14807,26 @@ Thanks for using x402 payments on Twitter! 🚀`;
         let swaps = [];
         
         if (useEnhancedHybrid && this.enhancedHybridPriceService?.chartDatabase) {
-          // Use EnhancedHybridPriceService's ChartDatabase (gRPC data)
-          swaps = await this.enhancedHybridPriceService.chartDatabase.getRecentSwaps(
-            poolAddress, 
-            parseInt(limit), 
-            sinceTimestamp
-          );
-          console.log(`✅ [SWAPS-API] Retrieved ${swaps.length} swaps from gRPC database for ${token.substring(0, 8)}`);
+          // ✅ FIX: Get swaps from token database by TOKEN ADDRESS, not pool address
+          const tokenDb = this.enhancedHybridPriceService.chartDatabase.getTokenDatabase(token);
+          
+          // ✅ CRITICAL FIX: Wait for file to be loaded if it exists
+          await this.enhancedHybridPriceService.chartDatabase.loadTokenDatabaseFromFile(token);
+          
+          if (tokenDb && tokenDb.swaps) {
+            for (const swap of tokenDb.swaps.values()) {
+              swaps.push(swap);
+            }
+          }
+          
+          // Apply limit and sort
+          if (sinceTimestamp) {
+            swaps = swaps.filter(s => s.timestamp > sinceTimestamp);
+          }
+          swaps.sort((a, b) => b.timestamp - a.timestamp);
+          swaps = swaps.slice(0, parseInt(limit));
+          
+          console.log(`✅ [SWAPS-API] Retrieved ${swaps.length} swaps from gRPC token database for ${token.substring(0, 8)}`);
         } else {
           // Fallback to hybridChartService
           swaps = await this.hybridChartService.fastChartService.chartDb.getRecentSwaps(
