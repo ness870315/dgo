@@ -1680,6 +1680,10 @@ Market meme:`;
    */
   async runDailyContentCycle(oauthXService) {
     try {
+      // ⛔ DISABLED: Daily tweet service disabled (401 auth errors + reduces OpenAI costs)
+      console.log(`⛔ [KOL CONTENT] Daily tweet service DISABLED - no tweets will be posted`);
+      return;
+      
       if (!this.shouldPostContent()) {
         console.log(`⏰ [KOL CONTENT] Skipping cycle (posts today: ${this.dailyPostCount}/${this.config.maxPostsPerDay})`);
         return;

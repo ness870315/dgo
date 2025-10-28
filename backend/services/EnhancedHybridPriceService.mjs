@@ -1271,17 +1271,15 @@ class EnhancedHybridPriceService extends EventEmitter {
     // ✅ NEW: Auto-start monitoring for any token when requested
     async ensureTokenMonitoring(tokenAddress) {
         try {
-            // Check if already monitoring this token
-            const streamKey = `token_${tokenAddress}`;
-            if (this.grpcStreams.has(streamKey)) {
-                console.log(`✅ [EnhancedHybridPriceService] Already monitoring ${tokenAddress}`);
-                return true;
+            // ✅ UNIVERSAL STREAM: All tokens are monitored via shared stream
+            // No need for per-token monitoring anymore - the universal stream handles all tokens
+            console.log(`✅ [EnhancedHybridPriceService] Token ${tokenAddress} monitored via universal stream`);
+            
+            // Check if universal stream is running
+            if (!this.grpcStreams.has('universal_stream')) {
+                console.log(`⚠️ [EnhancedHybridPriceService] Universal stream not running, starting it...`);
+                await this.startUniversalMonitoring();
             }
-            
-            console.log(`🚀 [EnhancedHybridPriceService] Auto-starting monitoring for ${tokenAddress}`);
-            
-            // Start monitoring for this token
-            await this.startSingleTokenMonitoring(tokenAddress);
             
             return true;
             
