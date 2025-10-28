@@ -205,8 +205,11 @@ class TwitterMentionService {
 
     await this.loadState();
     
+    // ⛔ DISABLED: Crypto tracking disabled - clear tracked accounts
+    this.trackedCryptoAccounts = []; // Clear all tracked crypto accounts
+    console.log('⛔ [MENTIONS] Crypto tracking DISABLED - no accounts will be tracked');
     // Load tracked accounts from persistent storage
-    await this.loadTrackedAccounts();
+    // await this.loadTrackedAccounts();
     
     // Initialize memory service
     await this.memoryService.initialize();
@@ -287,9 +290,11 @@ class TwitterMentionService {
         await this.saveState();
         
       } else if (isTrackedAccount) {
-        console.log('🔍 [CRYPTO TRACKING] Processing as crypto account tweet...');
+        // ⛔ DISABLED: Crypto tracking disabled to reduce OpenAI costs
+        console.log('⛔ [CRYPTO TRACKING] DISABLED - Tweet from tracked account ignored');
+        // console.log('🔍 [CRYPTO TRACKING] Processing as crypto account tweet...');
         // Store in crypto tracking database
-        await this.storeCryptoTweet(wsTweet);
+        // await this.storeCryptoTweet(wsTweet);
         
       } else {
         console.log('⚠️ [MENTIONS WS] Tweet not relevant (not a mention or tracked account)');
@@ -1295,7 +1300,12 @@ Reply (without @username):`;
           try {
             let catalysts = '';
             try {
-              catalysts = await this.openaiService.fetchWebCatalysts(symbol, { model: 'gpt-5-mini', lookbackHours: 24, maxOutputTokens: 200 });
+              // 🎯 COST OPTIMIZATION: Use Perplexity Sonar instead of GPT-5-mini (cheaper)
+              const perplexityResult = await this.perplexityService.searchCrypto(`${symbol} crypto news last 24 hours`, {
+                maxTokens: 200,
+                searchRecencyFilter: 'day'
+              });
+              catalysts = perplexityResult?.content || '';
             } catch (_) {}
 
             const personality = this.personalities[this.currentPersonalityIndex];
@@ -1320,7 +1330,7 @@ Reply:`;
             const opinion = await this.openaiService.generateCompletion(prompt, {
               maxTokens: 120,
               temperature: 0.7,
-              model: 'gpt-5',
+              model: 'gpt-4o',  // Use GPT-4o instead of expensive GPT-5
               enableWebSearch: false
             });
             const cleanOpinion = opinion.trim().replace(/#\w+/g, '').replace(/\s+/g, ' ').trim();
@@ -1615,24 +1625,22 @@ Liquidity: $${(liquidityUsd / 1000).toFixed(1)}K${holderContext}`;
       
       console.log(`🎭 [MENTIONS] Using personality: ${personality.name}`);
 
-      // Quad web enrichment: GPT-5-mini + Tavily + Perplexity for comprehensive context
+      // Triple web enrichment: Perplexity Sonar + Tavily for comprehensive context
       let catalysts = '';
       let tavilyResults = '';
       let perplexityInsights = '';
       
-      // 1. GPT-5-mini web search (CoinGecko/CMC/Twitter)
+      // 1. Perplexity Sonar web search (Cheaper alternative to GPT-5-mini)
       try {
-        console.log(`🌐 [MENTIONS] Fetching GPT-5-mini web catalysts for $${symbol}...`);
-        const catalystPrompt = `Search CoinGecko, CoinMarketCap, and crypto Twitter for $${symbol} news/updates. Find 1-2 key items (listings/partnerships/notable mentions). Short bullets, no links. If none, say "none".`;
-        catalysts = await this.openaiService.generateCompletion(catalystPrompt, {
+        console.log(`🌐 [MENTIONS] Fetching Perplexity Sonar catalysts for $${symbol}...`);
+        const perplexityResult = await this.perplexityService.searchCrypto(`${symbol} latest updates news partnerships listings`, {
           maxTokens: 150,
-          temperature: 0.3,
-          model: 'gpt-5-mini',
-          enableWebSearch: true
+          searchRecencyFilter: 'day'
         });
-        console.log(`✅ [MENTIONS] GPT-5-mini catalysts: ${catalysts ? catalysts.substring(0, 80) : 'none'}`);
+        catalysts = perplexityResult?.content || '';
+        console.log(`✅ [MENTIONS] Perplexity catalysts: ${catalysts ? catalysts.substring(0, 80) : 'none'}`);
       } catch (err) {
-        console.warn(`⚠️ [MENTIONS] Failed to fetch GPT-5-mini catalysts:`, err.message);
+        console.warn(`⚠️ [MENTIONS] Failed to fetch Perplexity catalysts:`, err.message);
       }
       
       // 2. Tavily search (latest updates)
@@ -1677,7 +1685,7 @@ Liquidity: $${(liquidityUsd / 1000).toFixed(1)}K${holderContext}`;
 📊 OUR SYSTEM DATA (Real-time from Jupiter/Moralis):
 ${dataContext}
 
-🌐 GPT-5-MINI WEB SEARCH (CoinGecko/CMC/Twitter):
+🌐 PERPLEXITY SONAR WEB SEARCH (Latest Crypto News):
 ${catalysts || 'No catalysts found'}
 
 🔍 TAVILY LATEST UPDATES:

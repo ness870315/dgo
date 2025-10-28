@@ -345,8 +345,25 @@ class TwitterAPIioWebSocketService {
         console.log('✅ [TwitterAPI.io WS] Mention rule already exists, skipping creation');
       }
       
+      // ⛔ DISABLED: Crypto tracking disabled - DELETE any existing crypto rules
+      console.log('⛔ [TwitterAPI.io WS] Crypto tracking DISABLED - removing any crypto tracking rules...');
+      const cryptoRulesToDelete = existingRules.filter(rule => rule.tag.startsWith('crypto_accounts_tracking'));
+      for (const rule of cryptoRulesToDelete) {
+        try {
+          await fetch(`https://api.twitterapi.io/oapi/tweet_filter/delete_rule/${rule.id}`, {
+            method: 'DELETE',
+            headers: {
+              'X-API-Key': this.apiKey
+            }
+          });
+          console.log(`✅ [TwitterAPI.io WS] Deleted crypto tracking rule: ${rule.tag} (ID: ${rule.id})`);
+        } catch (error) {
+          console.error(`❌ [TwitterAPI.io WS] Failed to delete rule ${rule.id}:`, error.message);
+        }
+      }
+      
       // Add rule for tracked crypto accounts (if any and needs update)
-      if (trackedAccounts.length > 0 && needsCryptoUpdate) {
+      if (false && trackedAccounts.length > 0 && needsCryptoUpdate) {
         // Split accounts into chunks to avoid rule length limits
         const chunkSize = 5; // Max 5 accounts per rule
         const accountChunks = [];

@@ -45,17 +45,19 @@ class CryptoTrackingDatabase {
     this.cashtagExtractor = new CashtagExtractionService();
     this.ctMomentumDatabase = new CTMomentumDatabase();
     
+    // ⛔ DISABLED: AI sentiment analysis disabled to reduce costs
     // Initialize AI for sentiment analysis
     this.openai = null;
-    try {
-      this.openai = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY,
-        baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'
-      });
-      console.log('🤖 [CRYPTO DB] AI-enhanced sentiment analysis initialized');
-    } catch (error) {
-      console.warn('⚠️ [CRYPTO DB] OpenAI not available, using rule-based sentiment analysis');
-    }
+    console.log('⛔ [CRYPTO DB] OpenAI sentiment analysis DISABLED - using rule-based fallback only');
+    // try {
+    //   this.openai = new OpenAI({
+    //     apiKey: process.env.OPENAI_API_KEY,
+    //     baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1'
+    //   });
+    //   console.log('🤖 [CRYPTO DB] AI-enhanced sentiment analysis initialized');
+    // } catch (error) {
+    //   console.warn('⚠️ [CRYPTO DB] OpenAI not available, using rule-based sentiment analysis');
+    // }
     
     this.initializeDatabase();
     
@@ -99,6 +101,10 @@ class CryptoTrackingDatabase {
    */
   async storeTrackedTweet(tweetData, preAnalysis = null) {
     try {
+      // ⛔ DISABLED: Crypto tracking disabled to reduce costs
+      console.log(`⛔ [CRYPTO DB] Crypto tracking DISABLED - tweet storage skipped`);
+      return;
+      
       // Check for duplicate tweets to prevent multiple storage
       const existingTweet = this.trackedTweets.find(tweet => 
         tweet.tweetId === tweetData.tweetId || 
