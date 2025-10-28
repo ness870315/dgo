@@ -290,8 +290,10 @@ class EnhancedHybridPriceService extends EventEmitter {
             let addedCount = 0;
             for (const token of tokensWithPools) {
                 const tokenAddress = token.contractAddress;
-                const poolAddress = token.jupiterData?.firstPool?.id || 
+                // ✅ CRITICAL: Prioritize graduatedPool over firstPool
+                const poolAddress = token.jupiterData?.graduatedPool ||
                                    token.graduatedPool || 
+                                   token.jupiterData?.firstPool?.id || 
                                    token.birdEyeRaw?.firstPool?.id;
                 
                 if (poolAddress && !this.poolAddresses.has(tokenAddress)) {
@@ -315,18 +317,199 @@ class EnhancedHybridPriceService extends EventEmitter {
             return;
         }
 
-        console.log(`🚀 [EnhancedHybridPriceService] Starting gRPC monitoring for ${this.poolAddresses.size} tokens...`);
+        console.log(`🚀 [EnhancedHybridPriceService] Starting SINGLE SHARED STREAM for ${this.poolAddresses.size} tokens...`);
         
-        // Start monitoring for all tokens in the poolAddresses map
-        for (const [tokenAddress, poolAddress] of this.poolAddresses.entries()) {
-            await this.startSingleTokenMonitoring(tokenAddress, poolAddress);
+        // ✅ USE SINGLE SHARED STREAM INSTEAD OF MULTIPLE STREAMS
+        // This prevents RST_STREAM errors from creating too many connections
+        if (this.sharedStream) {
+            console.log('⚠️ [EnhancedHybridPriceService] Shared stream already exists, skipping...');
+            return;
         }
         
-        console.log(`✅ [EnhancedHybridPriceService] gRPC monitoring started for ${this.poolAddresses.size} tokens`);
+        // Create transaction filters with ALL pools
+        const allPools = Array.from(this.poolAddresses.values());
+        const transactionFilters = {
+            client: {
+                accountInclude: allPools,
+                accountExclude: [],
+                accountRequired: [],
+                vote: false,
+                failed: false
+            }
+        };
+        
+        let CommitmentLevel;
+        try {
+            CommitmentLevel = this.grpcWrapper.getCommitmentLevel();
+        } catch (error) {
+            CommitmentLevel = { CONFIRMED: 'confirmed' };
+        }
+        
+        console.log(`📊 [EnhancedHybridPriceService] Creating shared stream with ${allPools.length} pools...`);
+        
+        // Create SINGLE stream for all tokens
+        this.sharedStream = await this.grpcClient.subscribeOnce(
+            {}, {}, transactionFilters, {}, {}, {}, {}, 
+            CommitmentLevel.CONFIRMED, []
+        );
+        
+        console.log(`✅ [EnhancedHybridPriceService] Shared stream created for ${allPools.length} pools`);
+        
+        // Process ALL transactions in the shared stream
+        this.sharedStream.on("data", async (msg) => {
+            await this.processSharedStreamUpdate(msg);
+        });
+        
+        this.sharedStream.on("error", (error) => {
+            console.error(`❌ [EnhancedHybridPriceService] Shared stream error:`, error.message);
+            // Attempt to reconnect
+            setTimeout(() => {
+                console.log('🔄 [EnhancedHybridPriceService] Attempting to reconnect shared stream...');
+                this.sharedStream = null;
+                this.startRealTimeMonitoring();
+            }, 5000);
+        });
+        
+        this.sharedStream.on("end", () => {
+            console.log('✅ [EnhancedHybridPriceService] Shared stream ended, reconnecting...');
+            this.sharedStream = null;
+            this.startRealTimeMonitoring();
+        });
+        
+        console.log(`✅ [EnhancedHybridPriceService] Shared stream monitoring started`);
     }
 
-    // ✅ UNIVERSAL FIX: Start monitoring for ANY token address dynamically
-    async startSingleTokenMonitoring(tokenAddress, poolAddress = null) {
+    // ✅ NEW: Process updates from shared stream
+    async processSharedStreamUpdate(msg) {
+        if (!msg.transaction?.transaction) return;
+        
+        const tx = msg.transaction.transaction;
+        const slot = msg.transaction.slot;
+        
+        // Extract signature
+        let rawSignature = tx.signature || tx.transaction?.signatures?.[0] || msg.transaction?.signature || null;
+        let transactionSignature = null;
+        if (rawSignature) {
+            if (Buffer.isBuffer(rawSignature)) {
+                transactionSignature = bs58.encode(rawSignature);
+            } else if (typeof rawSignature === 'string') {
+                transactionSignature = rawSignature;
+            } else if (rawSignature.data && Array.isArray(rawSignature.data)) {
+                transactionSignature = bs58.encode(Buffer.from(rawSignature.data));
+            }
+        }
+        
+        // Check for swaps
+        if (tx.meta?.preTokenBalances?.length > 0) {
+            const balanceChanges = [];
+            
+            tx.meta.preTokenBalances.forEach((preBalance, index) => {
+                const postBalance = tx.meta.postTokenBalances[index];
+                if (preBalance && postBalance) {
+                    const preAmount = preBalance.uiTokenAmount?.uiAmount || 0;
+                    const postAmount = postBalance.uiTokenAmount?.uiAmount || 0;
+                    const change = postAmount - preAmount;
+                    
+                    if (Math.abs(change) > 0.000001) {
+                        balanceChanges.push({
+                            mint: preBalance.mint,
+                            change: change,
+                            owner: preBalance.owner,
+                            preAmount: preAmount,
+                            postAmount: postAmount
+                        });
+                    }
+                }
+            });
+            
+            if (balanceChanges.length > 0) {
+                // Find which token this swap is for by matching pool address
+                for (const [tokenAddress, poolAddress] of this.poolAddresses.entries()) {
+                    const tokenChanges = balanceChanges.filter(bc => bc.mint === tokenAddress);
+                    const userTokenChanges = tokenChanges.filter(tokenChange => {
+                        const isPoolAddress = tokenChange.owner === poolAddress;
+                        const isTokenMint = tokenChange.owner === tokenAddress;
+                        return !isPoolAddress && !isTokenMint;
+                    });
+                    
+                    if (userTokenChanges.length > 0) {
+                        // Found a swap for this token!
+                        await this.processSwapForToken(msg, tokenAddress, poolAddress, slot, transactionSignature);
+                    }
+                }
+            }
+        }
+    }
+    
+    // ✅ NEW: Process swap for a specific token from shared stream
+    async processSwapForToken(msg, tokenAddress, poolAddress, slot, signature) {
+        const tx = msg.transaction.transaction;
+        
+        // Collect balance changes
+        const balanceChanges = [];
+        tx.meta.preTokenBalances.forEach((preBalance, index) => {
+            const postBalance = tx.meta.postTokenBalances[index];
+            if (preBalance && postBalance) {
+                const preAmount = preBalance.uiTokenAmount?.uiAmount || 0;
+                const postAmount = postBalance.uiTokenAmount?.uiAmount || 0;
+                const change = postAmount - preAmount;
+                
+                if (Math.abs(change) > 0.000001) {
+                    balanceChanges.push({
+                        mint: preBalance.mint,
+                        change: change,
+                        owner: preBalance.owner,
+                        preAmount: preAmount,
+                        postAmount: postAmount
+                    });
+                }
+            }
+        });
+        
+        // Find token and SOL changes
+        const tokenChanges = balanceChanges.filter(bc => bc.mint === tokenAddress);
+        const userTokenChanges = tokenChanges.filter(tc => {
+            return tc.owner !== poolAddress && tc.owner !== tokenAddress;
+        });
+        
+        if (userTokenChanges.length > 0) {
+            userTokenChanges.forEach(tokenChange => {
+                // Find SOL change
+                const solChange = balanceChanges
+                    .filter(bc => bc.mint === 'So11111111111111111111111111111111111111112')
+                    .reduce((max, curr) => Math.abs(curr.change) > Math.abs(max.change) ? curr : max, 
+                    balanceChanges.find(bc => bc.mint === 'So11111111111111111111111111111111111111112'));
+                
+                // Determine swap type
+                let swapType = tokenChange.change > 0 ? 'BUY' : 'SELL';
+                
+                // Verify with SOL change
+                if (solChange && Math.abs(solChange.change) > 0.001) {
+                    swapType = solChange.change < 0 ? 'BUY' : 'SELL';
+                }
+                
+                // Process swap
+                try {
+                    this.processSwapUpdate(
+                        tokenAddress, 
+                        poolAddress, 
+                        slot, 
+                        swapType, 
+                        tokenChange.change, 
+                        tokenAddress, 
+                        tokenChange.owner,
+                        solChange ? solChange.change : 0,
+                        signature
+                    );
+                } catch (error) {
+                    console.error(`❌ Error processing swap:`, error.message);
+                }
+            });
+        }
+    }
+    
+    // ✅ DEPRECATED: Old per-token stream method (KEPT FOR REFERENCE - NOT USED)
+    async startSingleTokenMonitoring_DEPRECATED(tokenAddress, poolAddress = null) {
         try {
             console.log(`🚀 [EnhancedHybridPriceService] Starting UNIVERSAL monitoring for ${tokenAddress}`);
             
