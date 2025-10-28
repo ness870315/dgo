@@ -480,7 +480,7 @@ class EnhancedHybridPriceService extends EventEmitter {
         });
         
                 if (userTokenChanges.length > 0) {
-                    console.log(`✅ [EnhancedHybridPriceService] Found ${userTokenChanges.length} MEMEPUTER swaps in transaction ${transactionSignature?.substring(0, 16)}...`);
+                    console.log(`✅ [EnhancedHybridPriceService] Found ${userTokenChanges.length} MEMEPUTER swaps in transaction ${signature?.substring(0, 16)}...`);
                     
                     userTokenChanges.forEach(tokenChange => {
                         // Find SOL change
@@ -504,25 +504,25 @@ class EnhancedHybridPriceService extends EventEmitter {
                         }
                         
                         console.log(`🔄 [EnhancedHybridPriceService] Processing MEMEPUTER swap: ${swapType} ${tokenChange.change.toLocaleString()} tokens`);
-                
-                // Process swap
-                try {
-                    this.processSwapUpdate(
-                        tokenAddress, 
-                        poolAddress, 
-                        slot, 
-                        swapType, 
-                        tokenChange.change, 
-                        tokenChange.mint, // ✅ FIX: Use tokenChange.mint instead of tokenAddress
-                        tokenChange.owner,
-                        solChange ? solChange.change : 0,
-                        signature
-                    );
-                } catch (error) {
-                    console.error(`❌ Error processing swap:`, error.message);
+                        
+                        // Process swap
+                        try {
+                            this.processSwapUpdate(
+                                tokenAddress, 
+                                poolAddress, 
+                                slot, 
+                                swapType, 
+                                tokenChange.change, 
+                                tokenChange.mint, // ✅ FIX: Use tokenChange.mint instead of tokenAddress
+                                tokenChange.owner,
+                                solChange ? solChange.change : 0,
+                                signature
+                            );
+                        } catch (error) {
+                            console.error(`❌ Error processing swap:`, error.message);
+                        }
+                    });
                 }
-            });
-        }
     }
     
     // ✅ DEPRECATED: Old per-token stream method (KEPT FOR REFERENCE - NOT USED)
