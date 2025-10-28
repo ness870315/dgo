@@ -539,32 +539,36 @@ class EnhancedHybridPriceService extends EventEmitter {
                         let swapType = tokenChange.change > 0 ? 'BUY' : 'SELL';
                         
                         // ✅ JUPITER AGGREGATED SWAPS FIX: If no direct base token change found for same owner,
-                        // calculate transaction-level net flow to estimate the swap value
+                        // look for SOL/USDC changes specifically from the SAME WALLET, not transaction-wide
                         const finalBaseChange = baseChange || solChange;
                         let estimatedBaseAmount = 0;
                         
                         if (!finalBaseChange || Math.abs(finalBaseChange.change) < 0.001) {
-                            // For Jupiter aggregated swaps, calculate net SOL/USDC flow in entire transaction
-                            const allSolChanges = balanceChanges.filter(bc => 
-                                bc.mint === 'So11111111111111111111111111111111111111112'
+                            // For Jupiter aggregated swaps, look for the user's wallet SOL/USDC payment
+                            // NOT the total transaction flow (which includes routing)
+                            const userSolChanges = balanceChanges.filter(bc => 
+                                bc.mint === 'So11111111111111111111111111111111111111112' &&
+                                bc.owner === tokenChange.owner // SAME WALLET as token recipient
                             );
-                            const allUsdcChanges = balanceChanges.filter(bc => 
-                                bc.mint === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' // USDC mint
+                            const userUsdcChanges = balanceChanges.filter(bc => 
+                                bc.mint === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' && // USDC mint
+                                bc.owner === tokenChange.owner // SAME WALLET
                             );
                             
-                            const netSol = allSolChanges.reduce((sum, bc) => sum + bc.change, 0);
-                            const netUsdc = allUsdcChanges.reduce((sum, bc) => sum + bc.change, 0);
+                            // Sum changes for this specific user
+                            const userNetSol = userSolChanges.reduce((sum, bc) => sum + bc.change, 0);
+                            const userNetUsdc = userUsdcChanges.reduce((sum, bc) => sum + bc.change, 0);
                             
-                            // If there's a significant net flow, use it as the base amount
-                            if (Math.abs(netSol) > 0.001) {
-                                estimatedBaseAmount = Math.abs(netSol);
-                                console.log(`🔄 [EnhancedHybridPriceService] Jupiter aggregated swap detected - using net SOL flow: ${estimatedBaseAmount.toFixed(6)} SOL`);
-                            } else if (Math.abs(netUsdc) > 0.01) {
-                                estimatedBaseAmount = Math.abs(netUsdc);
-                                console.log(`🔄 [EnhancedHybridPriceService] Jupiter aggregated swap detected - using net USDC flow: ${estimatedBaseAmount.toFixed(2)} USDC`);
+                            // If there's a significant payment from this user's wallet, use it
+                            if (Math.abs(userNetSol) > 0.001) {
+                                estimatedBaseAmount = Math.abs(userNetSol);
+                                console.log(`🔄 [EnhancedHybridPriceService] Jupiter aggregated swap detected - user ${tokenChange.owner.substring(0, 8)}... paid ${estimatedBaseAmount.toFixed(6)} SOL`);
+                            } else if (Math.abs(userNetUsdc) > 0.01) {
+                                estimatedBaseAmount = Math.abs(userNetUsdc);
+                                console.log(`🔄 [EnhancedHybridPriceService] Jupiter aggregated swap detected - user ${tokenChange.owner.substring(0, 8)}... paid ${estimatedBaseAmount.toFixed(2)} USDC`);
                             } else {
-                                // Skip if no significant net flow (likely internal pool operation)
-                                console.log(`⚠️ [EnhancedHybridPriceService] Skipping swap for ${tokenChange.owner.substring(0, 8)}... - no matching base token change and no net flow (likely internal pool operation)`);
+                                // Skip if no significant payment from this user (likely internal pool operation or routing account)
+                                console.log(`⚠️ [EnhancedHybridPriceService] Skipping swap for ${tokenChange.owner.substring(0, 8)}... - no matching base token change and no user payment found (likely internal pool operation)`);
                                 return;
                             }
                         }
