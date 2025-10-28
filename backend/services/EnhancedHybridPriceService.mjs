@@ -863,9 +863,9 @@ class EnhancedHybridPriceService extends EventEmitter {
 
     processSwapUpdate(tokenAddress, poolAddress, slot, swapType, change, mintAddress, makerAddress, solAmount = 0, transactionHash = null) {
         try {
-            // console.log(`🔄 [EnhancedHybridPriceService] Processing swap update for ${tokenAddress}`);
-            // console.log(`🔍 [EnhancedHybridPriceService] Raw inputs - change: ${change}, solAmount: ${solAmount}, mintAddress: ${mintAddress}`);
-            // console.log(`🔍 [EnhancedHybridPriceService] Transaction Hash:`, transactionHash ? transactionHash.substring(0, 16) + '...' : 'NULL - will use fallback');
+            console.log(`🔄 [EnhancedHybridPriceService] Processing swap update for ${tokenAddress}`);
+            console.log(`🔍 [EnhancedHybridPriceService] Raw inputs - change: ${change}, solAmount: ${solAmount}, mintAddress: ${mintAddress}`);
+            console.log(`🔍 [EnhancedHybridPriceService] Transaction Hash:`, transactionHash ? transactionHash.substring(0, 16) + '...' : 'NULL - will use fallback');
             
             // Get current swap history
             const currentSwaps = this.swapHistory.get(tokenAddress) || [];
@@ -876,12 +876,13 @@ class EnhancedHybridPriceService extends EventEmitter {
             // Get token metadata to fetch decimals
             const tokenMetadata = this.tokenMetadataCache.get(tokenAddress);
             const mintDecimals = tokenMetadata?.decimals || 6; // Default 6 for most tokens
-            // console.log(`📊 [EnhancedHybridPriceService] Mint decimals: ${mintDecimals}`);
+            console.log(`📊 [EnhancedHybridPriceService] Mint decimals: ${mintDecimals}`);
             
             // 1) Convert token quantity to UI
             // 'change' from gRPC token balance changes is already in UI format (human-readable)
             // The Yellowstone gRPC library already converts from raw to UI for us
             const qtyTokenUI = Math.abs(change);
+            console.log(`📊 [EnhancedHybridPriceService] Token quantity (UI): ${qtyTokenUI}`);
             // console.log(`📊 [EnhancedHybridPriceService] Token quantity (UI): ${qtyTokenUI}`);
             
             // 2) Convert SOL amount - check if it's in lamports or SOL already
@@ -889,11 +890,11 @@ class EnhancedHybridPriceService extends EventEmitter {
             if (Math.abs(solAmount) > 1e6) {
                 // Likely in lamports, convert to SOL
                 baseSol = Math.abs(solAmount) / 1e9;
-                // console.log(`💰 [EnhancedHybridPriceService] Converting from lamports: ${solAmount} -> ${baseSol.toFixed(9)} SOL`);
+                console.log(`💰 [EnhancedHybridPriceService] Converting from lamports: ${solAmount} -> ${baseSol.toFixed(9)} SOL`);
             } else if (solAmount !== 0) {
                 // Already in SOL
                 baseSol = Math.abs(solAmount);
-                // console.log(`💰 [EnhancedHybridPriceService] Already in SOL: ${solAmount} -> ${baseSol.toFixed(9)} SOL`);
+                console.log(`💰 [EnhancedHybridPriceService] Already in SOL: ${solAmount} -> ${baseSol.toFixed(9)} SOL`);
             }
             
             // 3) Calculate prices
