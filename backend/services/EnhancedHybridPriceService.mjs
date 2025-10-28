@@ -483,18 +483,39 @@ class EnhancedHybridPriceService extends EventEmitter {
                     console.log(`✅ [EnhancedHybridPriceService] Found ${userTokenChanges.length} MEMEPUTER swaps in transaction ${signature?.substring(0, 16)}...`);
                     
                     userTokenChanges.forEach(tokenChange => {
-                        // Find SOL change
-                        const solChange = balanceChanges
-                            .filter(bc => bc.mint === 'So11111111111111111111111111111111111111112')
-                            .reduce((max, curr) => Math.abs(curr.change) > Math.abs(max.change) ? curr : max, 
-                            balanceChanges.find(bc => bc.mint === 'So11111111111111111111111111111111111111112'));
+                        // ✅ JUPITER COMPATIBLE: Find base token change (could be SOL, USDC, or any other token)
+                        // Exclude the target token itself and find the largest balance change for the same owner
+                        const baseTokenChanges = balanceChanges.filter(bc => 
+                            bc.mint !== tokenAddress && // Not our target token
+                            bc.owner === tokenChange.owner && // Same user account
+                            Math.abs(bc.change) > 0.001 // Significant change
+                        );
+                        
+                        // Find the largest base token change (most likely the swap input)
+                        const baseChange = baseTokenChanges.length > 0 
+                            ? baseTokenChanges.reduce((max, curr) => 
+                                Math.abs(curr.change) > Math.abs(max.change) ? curr : max)
+                            : null;
+                        
+                        // Fallback: look for SOL change specifically
+                        const solChange = balanceChanges.find(bc => 
+                            bc.mint === 'So11111111111111111111111111111111111111112' &&
+                            bc.owner === tokenChange.owner
+                        );
                         
                         // Determine swap type
                         let swapType = tokenChange.change > 0 ? 'BUY' : 'SELL';
                         
-                        // Verify with SOL change
-                        if (solChange && Math.abs(solChange.change) > 0.001) {
-                            swapType = solChange.change < 0 ? 'BUY' : 'SELL';
+                        // ✅ Verify with base token change (prioritize non-SOL for Jupiter swaps)
+                        const finalBaseChange = baseChange || solChange;
+                        if (finalBaseChange && Math.abs(finalBaseChange.change) > 0.001) {
+                            // BUY: user gets tokens (+) and gives base (-)
+                            // SELL: user gives tokens (-) and gets base (+)
+                            if (finalBaseChange.change < 0 && tokenChange.change > 0) {
+                                swapType = 'BUY';
+                            } else if (finalBaseChange.change > 0 && tokenChange.change < 0) {
+                                swapType = 'SELL';
+                            }
                         }
                         
                         // ✅ VALIDATION: Ensure we're processing the correct token
@@ -515,7 +536,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                                 tokenChange.change, 
                                 tokenChange.mint, // ✅ FIX: Use tokenChange.mint instead of tokenAddress
                                 tokenChange.owner,
-                                solChange ? solChange.change : 0,
+                                finalBaseChange ? finalBaseChange.change : 0,
                                 signature
                             );
                         } catch (error) {
