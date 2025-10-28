@@ -125,9 +125,9 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
   displayMode = "price",         // "price" | "mcap"
   circulatingSupply = null,      // required for mcap mode
   timezone = "UTC",             // "UTC" | "local"
-  stroke = "#d946ef",  // Purple/magenta line
-  fillFrom = "rgba(168, 85, 247, 0.4)",  // Purple gradient top
-  fillTo   = "rgba(168, 85, 247, 0.05)",  // Purple gradient bottom (transparent)
+  stroke = "#ec4899",  // Pink line
+  fillFrom = "rgba(236, 72, 153, 0.35)",  // Pink gradient top
+  fillTo   = "rgba(236, 72, 153, 0.05)",  // Pink gradient bottom (transparent)
   height = 280,
   maxPoints = 1000,
 }) {
@@ -374,8 +374,8 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
         {/* Y-axis grid lines */}
         {yTicks.map((tick, i) => (
           <g key={i}>
-            <line x1={pad.l} x2={pad.l+plotW} y1={y(tick)} y2={y(tick)} stroke="#1f2734" strokeDasharray="2 6"/>
-            <text x={pad.l-8} y={y(tick)} fill="#93a3b8" fontSize="11" textAnchor="end" dominantBaseline="middle">
+            <line x1={pad.l} x2={pad.l+plotW} y1={y(tick)} y2={y(tick)} stroke="#334155" strokeDasharray="2,4" strokeWidth="0.5"/>
+            <text x={pad.l-8} y={y(tick)} fill="#cbd5e1" fontSize="11" textAnchor="end" dominantBaseline="middle">
               {fmtY(tick)}
             </text>
           </g>
@@ -384,9 +384,9 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
         {/* X-axis grid lines */}
         {xTicks.map((t, i) => (
           <g key={i}>
-            <line x1={x(t)} x2={x(t)} y1={pad.t} y2={pad.t+plotH} stroke="#1f2734" strokeDasharray="2 6"/>
-            <line x1={x(t)} x2={x(t)} y1={pad.t+plotH} y2={pad.t+plotH+6} stroke="#2e3a4a"/>
-            <text x={x(t)} y={pad.t+plotH+18} fill="#93a3b8" fontSize="11" textAnchor="middle">
+            <line x1={x(t)} x2={x(t)} y1={pad.t} y2={pad.t+plotH} stroke="#334155" strokeDasharray="2,4" strokeWidth="0.5"/>
+            <line x1={x(t)} x2={x(t)} y1={pad.t+plotH} y2={pad.t+plotH+6} stroke="#475569"/>
+            <text x={x(t)} y={pad.t+plotH+18} fill="#cbd5e1" fontSize="11" textAnchor="middle">
               {formatTickTime(t, timeframe, useUTC)}
             </text>
           </g>
@@ -496,17 +496,17 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
 // ---- 3) Main SVGChart Component -----------------------------------------------------------
 const SVGChart = ({ token, onClose }) => {
   
-  const [timeframe, setTimeframe] = useState('15MIN'); // Default to 15 minutes
+  const [timeframe, setTimeframe] = useState('5MIN'); // Default to 5 minutes
   const [displayMode, setDisplayMode] = useState('price');
   const [timezone, setTimezone] = useState('UTC'); // UTC or local
 
   // Timeframe options
   const timeframes = [
-    { id: '1MIN', label: '1m' },
-    { id: '5MIN', label: '5m' },
-    { id: '15MIN', label: '15m' },
-    { id: '1H', label: '1h' },
-    { id: '4H', label: '4h' },
+    { id: '1MIN', label: '1MIN' },
+    { id: '5MIN', label: '5MIN' },
+    { id: '15MIN', label: '15MIN' },
+    { id: '1H', label: '1H' },
+    { id: '4H', label: '4H' },
     { id: '1D', label: '1D' },
     { id: '1W', label: '1W' },
     { id: '1M', label: '1M' }
