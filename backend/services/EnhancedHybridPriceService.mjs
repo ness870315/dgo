@@ -156,6 +156,9 @@ class EnhancedHybridPriceService extends EventEmitter {
             // ✅ ADD MEMEPUTER for testing
             this.poolAddresses.set('5EpbKX221NYVidK6A2nJGhtuLPvrPiQ6shknLbtjBAGS', 'c9EQnny8sBVrkMCKvVua1AQTRSXW1TDw1zLwFLHvRXh');
             this.swapHistory.set('5EpbKX221NYVidK6A2nJGhtuLPvrPiQ6shknLbtjBAGS', []);
+            
+            // Also register in ChartDatabase for API access
+            await this.chartDatabase.setPoolMapping('5EpbKX221NYVidK6A2nJGhtuLPvrPiQ6shknLbtjBAGS', 'c9EQnny8sBVrkMCKvVua1AQTRSXW1TDw1zLwFLHvRXh');
             console.log(`✅ [EnhancedHybridPriceService] Added MEMEPUTER -> graduatedPool c9EQnny8sBVrkMCKvVua1AQTRSXW1TDw1zLwFLHvRXh to monitoring map`);
             
             // 🚀 NEW: Load and add top 200 tokens from cache for gRPC monitoring
