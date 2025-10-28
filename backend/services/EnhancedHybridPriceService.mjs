@@ -496,7 +496,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                         slot, 
                         swapType, 
                         tokenChange.change, 
-                        tokenAddress, 
+                        tokenChange.mint, // ✅ FIX: Use tokenChange.mint instead of tokenAddress
                         tokenChange.owner,
                         solChange ? solChange.change : 0,
                         signature
