@@ -425,7 +425,10 @@ class EnhancedHybridPriceService extends EventEmitter {
             if (balanceChanges.length > 0) {
                 // Find which token this swap is for by matching pool address
                 for (const [tokenAddress, poolAddress] of this.poolAddresses.entries()) {
-                    const tokenChanges = balanceChanges.filter(bc => bc.mint === tokenAddress);
+                    // ✅ FIX: Get all non-SOL token changes, not just those matching exact mint
+                    const tokenChanges = balanceChanges.filter(bc => 
+                        bc.mint !== 'So11111111111111111111111111111111111111112' // Not SOL
+                    );
                     const userTokenChanges = tokenChanges.filter(tokenChange => {
                         const isPoolAddress = tokenChange.owner === poolAddress;
                         const isTokenMint = tokenChange.owner === tokenAddress;
