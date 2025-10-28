@@ -14783,6 +14783,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         // Get pool address for the token
         // First try from EnhancedHybridPriceService (for gRPC monitored tokens)
         let poolAddress = this.enhancedHybridPriceService?.poolAddresses.get(token);
+        let useEnhancedHybrid = !!poolAddress;
         
         // Fallback to hybridChartService
         if (!poolAddress) {
@@ -14801,15 +14802,27 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
         
-        // Get recent swaps from database
+        // Get recent swaps from database - use EnhancedHybridPriceService if available
         const sinceTimestamp = since ? parseInt(since) / 1000 : null; // Convert ms to seconds
-        const swaps = await this.hybridChartService.fastChartService.chartDb.getRecentSwaps(
-          poolAddress, 
-          parseInt(limit), 
-          sinceTimestamp
-        );
+        let swaps = [];
         
-        console.log(`✅ [SWAPS-API] Retrieved ${swaps.length} swaps for ${token.substring(0, 8)}`);
+        if (useEnhancedHybrid && this.enhancedHybridPriceService?.chartDatabase) {
+          // Use EnhancedHybridPriceService's ChartDatabase (gRPC data)
+          swaps = await this.enhancedHybridPriceService.chartDatabase.getRecentSwaps(
+            poolAddress, 
+            parseInt(limit), 
+            sinceTimestamp
+          );
+          console.log(`✅ [SWAPS-API] Retrieved ${swaps.length} swaps from gRPC database for ${token.substring(0, 8)}`);
+        } else {
+          // Fallback to hybridChartService
+          swaps = await this.hybridChartService.fastChartService.chartDb.getRecentSwaps(
+            poolAddress, 
+            parseInt(limit), 
+            sinceTimestamp
+          );
+          console.log(`✅ [SWAPS-API] Retrieved ${swaps.length} swaps from Helius database for ${token.substring(0, 8)}`);
+        }
         
         // Format swaps for frontend
         const formattedSwaps = swaps.map(swap => ({
@@ -14828,7 +14841,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         res.json({
           success: true,
           swaps: formattedSwaps,
-          source: 'helius',
+          source: useEnhancedHybrid ? 'grpc_realtime' : 'helius',
           lastUpdate: Date.now(),
           totalSwaps: swaps.length,
           poolAddress: poolAddress.substring(0, 8) + '...'
