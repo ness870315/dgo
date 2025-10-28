@@ -187,6 +187,14 @@ class EnhancedBackend {
   constructor() {
     this.app = express();
     this.port = Number(process.env.PORT) || 4000;
+    
+    // ✅ MEMORY CACHE: Cache tokens in memory to avoid reading from disk on every request
+    this.tokensCache = {
+      data: null,
+      timestamp: null,
+      TTL: 60000 // 1 minute cache
+    };
+    
     this.tokenProcessor = new EnhancedTokenProcessor();
     this.hypeService = new HypeSnapshotService();
     this.mcapService = new McapSnapshotService();
@@ -15727,6 +15735,13 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
   async getTokensFromCache() {
     try {
+      // ✅ CHECK MEMORY CACHE FIRST
+      if (this.tokensCache.data && this.tokensCache.timestamp && 
+          Date.now() - this.tokensCache.timestamp < this.tokensCache.TTL) {
+        console.log(`[🛡️ Enhanced Backend] 📦 Using cached tokens from memory (${this.tokensCache.data.length} tokens)`);
+        return this.tokensCache.data;
+      }
+      
       const cachePath = this.persistentCachePath;
       console.log(`[🛡️ Enhanced Backend] 🔍 Reading cache from: ${cachePath}`);
       
@@ -15825,6 +15840,10 @@ Thanks for using x402 payments on Twitter! 🚀`;
         console.log('[🛡️ Enhanced Backend] ⚠️ No tokens found, but not auto-starting processing to prevent duplicate API calls');
       }
 
+      // ✅ UPDATE MEMORY CACHE
+      this.tokensCache.data = completedTokens;
+      this.tokensCache.timestamp = Date.now();
+      
       return completedTokens;
 
     } catch (error) {
