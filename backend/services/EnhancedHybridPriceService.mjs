@@ -495,6 +495,12 @@ class EnhancedHybridPriceService extends EventEmitter {
                     swapType = solChange.change < 0 ? 'BUY' : 'SELL';
                 }
                 
+                // ✅ VALIDATION: Ensure we're processing the correct token
+                if (tokenChange.mint !== tokenAddress) {
+                    console.error(`⚠️ [EnhancedHybridPriceService] Mismatch: Expected ${tokenAddress.substring(0, 8)}..., got ${tokenChange.mint.substring(0, 8)}...`);
+                    return; // Skip this swap
+                }
+                
                 // Process swap
                 try {
                     this.processSwapUpdate(
