@@ -125,9 +125,9 @@ const SvgOHLCVArea = React.memo(function SvgOHLCVArea({
   displayMode = "price",         // "price" | "mcap"
   circulatingSupply = null,      // required for mcap mode
   timezone = "UTC",             // "UTC" | "local"
-  stroke = "#ff2ea1",
-  fillFrom = "rgba(255,46,161,0.35)",
-  fillTo   = "rgba(255,46,161,0.05)",
+  stroke = "#d946ef",  // Purple/magenta line
+  fillFrom = "rgba(168, 85, 247, 0.4)",  // Purple gradient top
+  fillTo   = "rgba(168, 85, 247, 0.05)",  // Purple gradient bottom (transparent)
   height = 280,
   maxPoints = 1000,
 }) {
