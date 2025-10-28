@@ -448,7 +448,7 @@ class EnhancedHybridPriceService extends EventEmitter {
     async processSwapForToken(msg, tokenAddress, poolAddress, slot, signature) {
         const tx = msg.transaction.transaction;
         
-        // Collect balance changes
+        // Collect token balance changes
         const balanceChanges = [];
         tx.meta.preTokenBalances.forEach((preBalance, index) => {
             const postBalance = tx.meta.postTokenBalances[index];
@@ -468,6 +468,38 @@ class EnhancedHybridPriceService extends EventEmitter {
                 }
             }
         });
+        
+        // ✅ CRITICAL FIX: Add native SOL balance changes (for Jupiter aggregated swaps)
+        if (tx.meta?.preBalances && tx.meta?.postBalances && tx.transaction?.message?.accountKeys) {
+            tx.meta.preBalances.forEach((preBalance, index) => {
+                const postBalance = tx.meta.postBalances[index];
+                const change = (postBalance - preBalance) / 1e9; // Convert lamports to SOL
+                
+                if (Math.abs(change) > 0.000001) {
+                    const accountKey = tx.transaction.message.accountKeys[index];
+                    let accountAddress = null;
+                    
+                    // Extract account address
+                    if (Buffer.isBuffer(accountKey)) {
+                        accountAddress = bs58.encode(accountKey);
+                    } else if (typeof accountKey === 'string') {
+                        accountAddress = accountKey;
+                    } else if (accountKey?.data && Array.isArray(accountKey.data)) {
+                        accountAddress = bs58.encode(Buffer.from(accountKey.data));
+                    }
+                    
+                    if (accountAddress) {
+                        balanceChanges.push({
+                            mint: 'So11111111111111111111111111111111111111112', // Native SOL
+                            change: change,
+                            owner: accountAddress,
+                            preAmount: preBalance / 1e9,
+                            postAmount: postBalance / 1e9
+                        });
+                    }
+                }
+            });
+        }
         
         // ✅ FIX: Filter for OUR specific token only (not all non-SOL tokens)
         // We should only process swaps for the token we're monitoring
@@ -506,16 +538,21 @@ class EnhancedHybridPriceService extends EventEmitter {
                         // Determine swap type
                         let swapType = tokenChange.change > 0 ? 'BUY' : 'SELL';
                         
-                        // ✅ Verify with base token change (prioritize non-SOL for Jupiter swaps)
+                        // ✅ CRITICAL: Skip swaps without matching base token change
+                        // These are likely internal pool operations or Jupiter routing, not real user swaps
                         const finalBaseChange = baseChange || solChange;
-                        if (finalBaseChange && Math.abs(finalBaseChange.change) > 0.001) {
-                            // BUY: user gets tokens (+) and gives base (-)
-                            // SELL: user gives tokens (-) and gets base (+)
-                            if (finalBaseChange.change < 0 && tokenChange.change > 0) {
-                                swapType = 'BUY';
-                            } else if (finalBaseChange.change > 0 && tokenChange.change < 0) {
-                                swapType = 'SELL';
-                            }
+                        if (!finalBaseChange || Math.abs(finalBaseChange.change) < 0.001) {
+                            console.log(`⚠️ [EnhancedHybridPriceService] Skipping swap for ${tokenChange.owner.substring(0, 8)}... - no matching base token change (likely internal pool operation)`);
+                            return; // Skip this swap
+                        }
+                        
+                        // Determine swap type with base token change
+                        // BUY: user gets tokens (+) and gives base (-)
+                        // SELL: user gives tokens (-) and gets base (+)
+                        if (finalBaseChange.change < 0 && tokenChange.change > 0) {
+                            swapType = 'BUY';
+                        } else if (finalBaseChange.change > 0 && tokenChange.change < 0) {
+                            swapType = 'SELL';
                         }
                         
                         // ✅ VALIDATION: Ensure we're processing the correct token
@@ -524,7 +561,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                             return; // Skip this swap
                         }
                         
-                        console.log(`🔄 [EnhancedHybridPriceService] Processing MEMEPUTER swap: ${swapType} ${tokenChange.change.toLocaleString()} tokens`);
+                        console.log(`✅ [EnhancedHybridPriceService] Processing ${swapType}: ${Math.abs(tokenChange.change).toLocaleString()} ${tokenAddress.substring(0, 8)}...`);
                         
                         // Process swap
                         try {
