@@ -1,21 +1,38 @@
-import React from 'react';
-import { TrendingUp, TrendingDown, Minus, Star, Flame } from 'lucide-react';
-import { getStatusFromScore } from '../utils/statusUtils';
-import GraduationStatusBar from './GraduationStatusBar';
+import React, { useState, useEffect } from 'react';
+import { Flame } from 'lucide-react';
+import websocketService from '../services/websocketService';
 
-const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, isTrenchesFilter = false }) => {
-  // Sort tokens by overall score (highest first)
-  const sortedTokens = [...tokens].sort((a, b) => {
-    const scoreA = a.overallScore || a.score || 0;
-    const scoreB = b.overallScore || b.score || 0;
-    return scoreB - scoreA;
-  });
+const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
+  const [rankings, setRankings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState(null);
 
-  // Check if token is fueled and get fuel multiplier
-  const getFuelInfo = (token) => {
+  // Format numbers
+  const formatNumber = (num) => {
+    if (!num || num === 0) return '$0';
+    if (num >= 1000000000) return `$${(num / 1000000000).toFixed(2)}B`;
+    if (num >= 1000000) return `$${(num / 1000000).toFixed(2)}M`;
+    if (num >= 1000) return `$${(num / 1000).toFixed(2)}K`;
+    return `$${num.toFixed(2)}`;
+  };
+
+  const formatPrice = (price) => {
+    if (!price || price === 0) return '$0.00';
+    if (price < 0.0001) return `$${price.toExponential(2)}`;
+    if (price < 1) return `$${price.toFixed(6)}`;
+    return `$${price.toFixed(2)}`;
+  };
+
+  const formatPercentage = (val) => {
+    if (val === null || val === undefined || isNaN(val)) return '0.00%';
+    return `${val >= 0 ? '+' : ''}${val.toFixed(2)}%`;
+  };
+
+  // Check if token is fueled
+  const getFuelInfo = (tokenSymbol) => {
     const fueledTokensArray = fueledTokens.value || fueledTokens;
     const fueledToken = fueledTokensArray.find(fueled =>
-      fueled.symbol?.toLowerCase() === token.symbol?.toLowerCase()
+      fueled.symbol?.toLowerCase() === tokenSymbol?.toLowerCase()
     );
     
     if (fueledToken) {
@@ -28,327 +45,236 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, isTrenchesF
     return { isFueled: false, multiplier: null };
   };
 
-  // Format market cap
-  const formatMarketCap = (marketCap) => {
-    if (!marketCap || isNaN(marketCap) || marketCap === 0) return '$0';
-    const numMarketCap = Number(marketCap);
-    if (isNaN(numMarketCap)) return '$0';
-    
-    if (numMarketCap >= 1e9) return `$${(numMarketCap / 1e9).toFixed(1)}B`;
-    if (numMarketCap >= 1e6) return `$${(numMarketCap / 1e6).toFixed(1)}M`;
-    if (numMarketCap >= 1e3) return `$${(numMarketCap / 1e3).toFixed(1)}K`;
-    return `$${numMarketCap.toFixed(0)}`;
+  // Fetch real-time rankings
+  const fetchRankings = async () => {
+    try {
+      setLoading(true);
+      const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+      const response = await fetch(`${API_BASE}/api/tokens/ranking/realtime`);
+      const data = await response.json();
+      
+      if (data.success && data.data && data.data.length > 0) {
+        // Use real-time data
+        setRankings(data.data);
+        setLastUpdate(new Date());
+      } else {
+        // Fallback to provided tokens
+        console.log('Using fallback tokens from props');
+        setRankings(tokens);
+      }
+    } catch (err) {
+      console.error('Error fetching rankings:', err);
+      // Fallback to provided tokens
+      setRankings(tokens);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Format price
-  const formatPrice = (price) => {
-    if (!price || isNaN(price) || price === 0) return '$0';
-    const numPrice = Number(price);
-    if (isNaN(numPrice)) return '$0';
-    
-    if (numPrice >= 1) return `$${numPrice.toFixed(2)}`;
-    if (numPrice >= 0.01) return `$${numPrice.toFixed(4)}`;
-    return `$${numPrice.toFixed(8)}`;
-  };
+  // Subscribe to WebSocket updates
+  useEffect(() => {
+    fetchRankings();
 
-  // Get price change icon and color
-  const getPriceChangeDisplay = (priceChange) => {
-    if (!priceChange || isNaN(priceChange)) return { icon: Minus, color: 'text-gray-400' };
-    
-    const change = Number(priceChange);
-    if (change > 0) return { icon: TrendingUp, color: 'text-green-400' };
-    if (change < 0) return { icon: TrendingDown, color: 'text-red-400' };
-    return { icon: Minus, color: 'text-gray-400' };
-  };
+    // Poll every 10 seconds as fallback
+    const pollInterval = setInterval(fetchRankings, 10000);
 
-  // Get score color based on value using centralized utility
-  const getScoreColor = (score) => {
-    return getStatusFromScore(score).textColor;
-  };
+    // Subscribe to WebSocket updates
+    const handleRankingUpdate = (data) => {
+      if (data.rankings && data.rankings.length > 0) {
+        setRankings(data.rankings);
+        setLastUpdate(new Date());
+      }
+    };
 
-  // Get score label using centralized utility
-  const getScoreLabel = (score) => {
-    return getStatusFromScore(score).level;
-  };
+    websocketService.on('rankingUpdate', handleRankingUpdate);
+
+    return () => {
+      clearInterval(pollInterval);
+      websocketService.off('rankingUpdate', handleRankingUpdate);
+    };
+  }, []);
+
+  // Update when tokens prop changes
+  useEffect(() => {
+    if (rankings.length === 0 && tokens.length > 0) {
+      setRankings(tokens);
+    }
+  }, [tokens]);
+
+  const displayTokens = rankings.length > 0 ? rankings : tokens;
+
+  if (loading && displayTokens.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-gray-400">Loading rankings...</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full h-full overflow-y-auto">
-      <div className="space-y-2 p-2 sm:p-4">
-        {/* Header */}
-        <div className="sticky top-0 bg-dark-bg border-b border-gray-700 pb-2 sm:pb-3 mb-2 sm:mb-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-1 sm:space-y-0">
-            <h3 className="text-sm sm:text-lg font-semibold text-white mobile-compact-header">
-              Token Rankings ({sortedTokens.length})
-            </h3>
-            <div className="text-xs text-gray-400 mobile-compact-subheader">
-              Sorted by Overall Score
+    <div className="w-full h-full overflow-y-auto bg-gray-900">
+      {/* Header */}
+      <div className="sticky top-0 bg-gray-900 z-10 px-4 py-3 border-b border-gray-700">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            📊 Token Rankings
+            {rankings.length > 0 && rankings[0].isLive && (
+              <span className="text-xs text-green-400">📡 Live</span>
+            )}
+          </h2>
+          {lastUpdate && (
+            <div className="text-xs text-gray-400">
+              Updated: {lastUpdate.toLocaleTimeString()}
             </div>
-          </div>
-        </div>
-
-        {/* Token List */}
-        <div className="space-y-2 mobile-token-list">
-          {sortedTokens.map((token, index) => {
-            const rank = index + 1;
-            const score = token.overallScore || token.score || 0;
-            const priceChange = isTrenchesFilter 
-              ? (token.priceChange5m || token.jupiterData?.stats5m?.priceChange || 0)
-              : (token.jupiterData?.priceChange24h || token.priceChange24h || 0);
-            const marketCap = token.jupiterData?.marketCap || token.marketCap || 0;
-            const price = token.jupiterData?.price || token.price || 0;
-            // Use displayMentions (smart projection) for consistency with TokenDetails
-            const mentions = token.twitterData?.displayMentions || token.displayMentions || token.mentions || token.twitterData?.mentions || 0;
-            const fuelInfo = getFuelInfo(token);
-            
-            const { icon: PriceIcon, color: priceColor } = getPriceChangeDisplay(priceChange);
-            const scoreColor = getScoreColor(score);
-            const scoreLabel = getScoreLabel(score);
-
-            return (
-              <div
-                key={token.contractAddress || token.symbol || index}
-                className="bg-dark-card border border-gray-700 rounded-lg p-3 sm:p-4 hover:border-solana-purple transition-all duration-200 cursor-pointer group"
-                onClick={() => onTokenSelect(token)}
-              >
-                {/* Mobile Layout - Dexscreener Style Compact */}
-                <div className="block sm:hidden mobile-token-box">
-                  <div className="flex items-center justify-between py-2">
-                    {/* Left side - Rank, Icon, Symbol */}
-                    <div className="flex items-center space-x-2 flex-1 min-w-0">
-                      {/* Rank */}
-                      <div className="flex-shrink-0">
-                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
-                          rank <= 3 
-                            ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-black' 
-                            : 'bg-gray-700 text-gray-300'
-                        }`}>
-                          {rank}
-                        </div>
-                      </div>
-
-                      {/* Token Icon */}
-                      <div className="flex-shrink-0">
-                        {(token.jupiterData?.icon || token.logo) ? (
-                          <img 
-                            src={token.jupiterData?.icon || token.logo} 
-                            alt={token.symbol} 
-                            className="w-6 h-6 rounded-full"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              e.target.nextSibling.style.display = 'flex';
-                            }}
-                          />
-                        ) : null}
-                        <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center" style={{ display: (token.jupiterData?.icon || token.logo) ? 'none' : 'flex' }}>
-                          <span className="text-xs text-gray-400">?</span>
-                        </div>
-                      </div>
-
-                      {/* Symbol & Fuel Badge */}
-                      <div className="flex items-center space-x-1 min-w-0 flex-1">
-                        <h4 className="text-white font-semibold text-sm truncate">
-                          {token.symbol || 'Unknown'}
-                        </h4>
-                        {fuelInfo.isFueled && (
-                          <div className="flex items-center space-x-1 px-1 py-0.5 bg-orange-900 border border-orange-500 rounded-full flex-shrink-0">
-                            <Flame className="w-2 h-2 text-orange-400" />
-                            <span className="text-orange-400 text-xs font-bold">
-                              {fuelInfo.multiplier}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Right side - All Desktop Fields */}
-                    <div className="flex items-center space-x-2 flex-shrink-0">
-                      {/* Overall Score - Hide for Trenches filter */}
-                      {!isTrenchesFilter && (
-                        <div className="text-center">
-                          <div className={`text-sm font-bold ${scoreColor}`}>
-                            {score.toFixed(1)}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            Score
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Price Change % */}
-                      <div className="text-center">
-                        <div className={`text-sm font-bold ${priceColor}`}>
-                          {priceChange > 0 ? '+' : ''}{priceChange.toFixed(1)}%
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          %
-                        </div>
-                      </div>
-
-                      {/* Market Cap */}
-                      <div className="text-center">
-                        <div className="text-white font-semibold text-xs">
-                          {formatMarketCap(marketCap)}
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          MC
-                        </div>
-                      </div>
-
-                      {/* Mentions - Hide for Trenches filter */}
-                      {!isTrenchesFilter && (
-                        <div className="text-center">
-                          <div className="text-white font-semibold text-xs">
-                            {mentions}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            Mentions
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Arrow */}
-                      <div className="text-gray-400 group-hover:text-solana-purple transition-colors">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Graduation Status Bar for Bonding Tokens */}
-                {token.bondingCurveProgress && (
-                  <div className="mt-3 px-2">
-                    <GraduationStatusBar 
-                      bondingProgress={token.bondingCurveProgress}
-                      proximityLevel={token.graduationProximity}
-                      showLabel={false}
-                      compact={true}
-                    />
-                  </div>
-                )}
-
-                {/* Desktop Layout */}
-                <div className="hidden sm:block">
-                  <div className="flex items-center justify-between">
-                    {/* Left side - Rank, Token Info */}
-                    <div className="flex items-center space-x-4">
-                      {/* Rank */}
-                      <div className="flex-shrink-0">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                          rank <= 3 
-                            ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-black' 
-                            : 'bg-gray-700 text-gray-300'
-                        }`}>
-                          {rank}
-                        </div>
-                      </div>
-
-                      {/* Token Icon & Info */}
-                      <div className="flex items-center space-x-3">
-                        {(token.jupiterData?.icon || token.logo) && (
-                          <img 
-                            src={token.jupiterData?.icon || token.logo} 
-                            alt={token.symbol} 
-                            className="w-10 h-10 rounded-full border-2 border-gray-600"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                            }}
-                          />
-                        )}
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <h4 className="text-white font-semibold text-lg">
-                              {token.symbol || 'Unknown'}
-                            </h4>
-                            {fuelInfo.isFueled && (
-                              <div className="flex items-center space-x-1 px-2 py-1 bg-orange-900 border border-orange-500 rounded-full">
-                                <Flame className="w-3 h-3 text-orange-400" />
-                                <span className="text-orange-400 text-xs font-bold">
-                                  {fuelInfo.multiplier}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                          <p className="text-gray-400 text-sm">
-                            {token.name || token.jupiterData?.name || 'Unknown Token'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Right side - Stats */}
-                    <div className="flex items-center space-x-6">
-                      {/* Score - Hide for Trenches filter */}
-                      {!isTrenchesFilter && (
-                        <div className="text-center">
-                          <div className={`text-2xl font-bold ${scoreColor}`}>
-                            {score.toFixed(1)}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            {scoreLabel}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Price Change */}
-                      <div className="text-center">
-                        <div className={`text-2xl font-bold ${priceColor}`}>
-                          {priceChange > 0 ? '+' : ''}{priceChange.toFixed(1)}%
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          %
-                        </div>
-                      </div>
-
-                      {/* Market Cap */}
-                      <div className="text-center">
-                        <div className="text-white font-semibold">
-                          {formatMarketCap(marketCap)}
-                        </div>
-                        <div className="text-xs text-gray-400">
-                          Market Cap
-                        </div>
-                      </div>
-
-                      {/* Mentions - Hide for Trenches filter */}
-                      {!isTrenchesFilter && (
-                        <div className="text-center">
-                          <div className="text-white font-semibold">
-                            {mentions}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            Mentions
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Arrow indicator */}
-                      <div className="text-gray-400 group-hover:text-solana-purple transition-colors">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Footer */}
-        <div className="pt-3 sm:pt-4 border-t border-gray-700 mt-4 sm:mt-6">
-          <div className="text-center text-xs text-gray-500 px-2">
-            <div className="block sm:hidden">
-              Tap any token to view details
-            </div>
-            <div className="hidden sm:block">
-              Click any token to view details • Rankings update in real-time
-            </div>
-          </div>
+          )}
         </div>
       </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="text-xs text-gray-400 uppercase bg-gray-800/50 sticky top-[57px] z-10">
+            <tr>
+              <th className="px-4 py-3 text-left">#</th>
+              <th className="px-4 py-3 text-left">Token</th>
+              <th className="px-4 py-3 text-right">Price</th>
+              <th className="px-4 py-3 text-center">Age</th>
+              <th className="px-4 py-3 text-right">Txns</th>
+              <th className="px-4 py-3 text-right">Volume</th>
+              <th className="px-4 py-3 text-right">Makers</th>
+              <th className="px-4 py-3 text-right">5M</th>
+              <th className="px-4 py-3 text-right">1H</th>
+              <th className="px-4 py-3 text-right">6H</th>
+              <th className="px-4 py-3 text-right">24H</th>
+              <th className="px-4 py-3 text-right">Liquidity</th>
+              <th className="px-4 py-3 text-right">MCap</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayTokens.map((token, index) => {
+              const fuelInfo = getFuelInfo(token.symbol);
+              
+              return (
+                <tr
+                  key={token.address || token.contractAddress || index}
+                  className="border-b border-gray-700 hover:bg-gray-800/30 cursor-pointer transition-colors"
+                  onClick={() => onTokenSelect(token)}
+                >
+                  {/* Rank */}
+                  <td className="px-4 py-3 font-medium text-gray-300">
+                    #{index + 1}
+                  </td>
+
+                  {/* Token */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      {/* Token icons */}
+                      <div className="flex items-center -space-x-2">
+                        {token.jupiterData?.icon || token.logo ? (
+                          <img 
+                            src={token.jupiterData?.icon || token.logo} 
+                            alt={token.symbol}
+                            className="w-6 h-6 rounded-full border-2 border-gray-900"
+                            onError={(e) => e.target.style.display = 'none'}
+                          />
+                        ) : null}
+                      </div>
+                      
+                      <div>
+                        <div className="font-bold text-white flex items-center gap-1">
+                          {token.symbol}
+                          {token.isLive && (
+                            <span className="text-xs text-green-400">📡</span>
+                          )}
+                          {fuelInfo.isFueled && (
+                            <div className="flex items-center space-x-1 px-1 py-0.5 bg-orange-900 border border-orange-500 rounded-full">
+                              <Flame className="w-2 h-2 text-orange-400" />
+                              <span className="text-orange-400 text-xs font-bold">
+                                {fuelInfo.multiplier}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-400">{token.name}</div>
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* Price */}
+                  <td className="px-4 py-3 text-right font-mono text-white">
+                    {formatPrice(token.price || token.jupiterData?.price)}
+                  </td>
+
+                  {/* Age */}
+                  <td className="px-4 py-3 text-center text-gray-300">
+                    {token.age || 'N/A'}
+                  </td>
+
+                  {/* Txns */}
+                  <td className="px-4 py-3 text-right text-gray-300">
+                    {token.txns24h ? token.txns24h.toLocaleString() : '0'}
+                  </td>
+
+                  {/* Volume */}
+                  <td className="px-4 py-3 text-right font-medium text-white">
+                    {formatNumber(token.volume24h || 0)}
+                  </td>
+
+                  {/* Makers */}
+                  <td className="px-4 py-3 text-right text-gray-300">
+                    {token.makers24h ? token.makers24h.toLocaleString() : '0'}
+                  </td>
+
+                  {/* 5M Change */}
+                  <td className={`px-4 py-3 text-right font-medium ${
+                    (token.priceChange5m || 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {formatPercentage(token.priceChange5m || 0)}
+                  </td>
+
+                  {/* 1H Change */}
+                  <td className={`px-4 py-3 text-right font-medium ${
+                    (token.priceChange1h || 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {formatPercentage(token.priceChange1h || 0)}
+                  </td>
+
+                  {/* 6H Change */}
+                  <td className={`px-4 py-3 text-right font-medium ${
+                    (token.priceChange6h || 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {formatPercentage(token.priceChange6h || 0)}
+                  </td>
+
+                  {/* 24H Change */}
+                  <td className={`px-4 py-3 text-right font-medium ${
+                    (token.priceChange24h || 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    {formatPercentage(token.priceChange24h || 0)}
+                  </td>
+
+                  {/* Liquidity */}
+                  <td className="px-4 py-3 text-right text-gray-300">
+                    {formatNumber(token.liquidity || token.jupiterData?.liquidity || 0)}
+                  </td>
+
+                  {/* Market Cap */}
+                  <td className="px-4 py-3 text-right font-medium text-white">
+                    {formatNumber(token.marketCap || token.jupiterData?.marketCap || token.jupiterData?.mcap || 0)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Empty state */}
+      {displayTokens.length === 0 && !loading && (
+        <div className="flex items-center justify-center p-8">
+          <div className="text-gray-400">No tokens available</div>
+        </div>
+      )}
     </div>
   );
 };
