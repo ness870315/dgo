@@ -511,7 +511,6 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
             })
             .catch(err => console.error('Error fetching tooltip data:', err));
         }
-      });
       })
       .on('mousemove', function(event, d) {
         // Update tooltip position as mouse moves over bubble
