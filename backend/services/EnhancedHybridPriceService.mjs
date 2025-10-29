@@ -334,6 +334,7 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             console.log(`✅ [EnhancedHybridPriceService] Added ${addedCount} tokens for gRPC monitoring`);
             console.log(`✅ [EnhancedHybridPriceService] Total ${this.poolAddresses.size} tokens being tracked (including hardcoded)`);
+            console.log(`✅ [EnhancedHybridPriceService] Metadata cache now has ${this.tokenMetadataCache.size} entries`);
             
         } catch (error) {
             console.error('❌ [EnhancedHybridPriceService] Failed to load top tokens:', error.message);
@@ -1718,13 +1719,19 @@ class EnhancedHybridPriceService extends EventEmitter {
     getRealTimeRankingData() {
         const rankings = [];
         
+        console.log(`📊 [getRealTimeRankingData] Checking ${this.poolAddresses.size} monitored tokens...`);
+        console.log(`📊 [getRealTimeRankingData] Metadata cache has ${this.tokenMetadataCache.size} entries`);
+        
         // Include ALL monitored tokens (from poolAddresses map)
         for (const [tokenAddress, poolAddress] of this.poolAddresses.entries()) {
             const swaps = this.swapHistory.get(tokenAddress) || [];
             const metadata = this.tokenMetadataCache.get(tokenAddress);
             
             // Skip if no metadata (shouldn't happen, but safety check)
-            if (!metadata) continue;
+            if (!metadata) {
+                console.log(`⚠️ [getRealTimeRankingData] No metadata for ${tokenAddress.substring(0, 8)}...`);
+                continue;
+            }
             
             // If token has swaps, use real-time data
             if (swaps.length > 0) {
