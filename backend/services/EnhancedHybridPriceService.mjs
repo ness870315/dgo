@@ -430,22 +430,31 @@ class EnhancedHybridPriceService extends EventEmitter {
             });
             
             if (balanceChanges.length > 0) {
+                // ✅ ENHANCED: Check if ANY token in the swap is being monitored
+                const involvedMints = [...new Set(balanceChanges.map(bc => bc.mint))];
+                
                 // Find which token this swap is for by matching pool address
                 for (const [tokenAddress, poolAddress] of this.poolAddresses.entries()) {
-                    // ✅ FIX: Only process swaps for OUR specific token, not all tokens
-                    const tokenChanges = balanceChanges.filter(bc => 
-                        bc.mint === tokenAddress // Match the exact token we're monitoring
-                    );
-                    const userTokenChanges = tokenChanges.filter(tokenChange => {
-                        const isPoolAddress = tokenChange.owner === poolAddress;
-                        const isTokenMint = tokenChange.owner === tokenAddress;
-                        const isExcludedAddress = EXCLUDED_SWAP_ADDRESSES.has(tokenChange.owner);
-                        return !isPoolAddress && !isTokenMint && !isExcludedAddress;
-                    });
+                    // ✅ FIX: Check if this transaction involves our monitored token
+                    const hasMonitoredToken = involvedMints.includes(tokenAddress);
                     
-                    if (userTokenChanges.length > 0) {
-                        // Found a swap for this token!
-                        await this.processSwapForToken(msg, tokenAddress, poolAddress, slot, transactionSignature);
+                    if (hasMonitoredToken) {
+                        // Get changes for our specific token
+                        const tokenChanges = balanceChanges.filter(bc => 
+                            bc.mint === tokenAddress // Match the exact token we're monitoring
+                        );
+                        const userTokenChanges = tokenChanges.filter(tokenChange => {
+                            const isPoolAddress = tokenChange.owner === poolAddress;
+                            const isTokenMint = tokenChange.owner === tokenAddress;
+                            const isExcludedAddress = EXCLUDED_SWAP_ADDRESSES.has(tokenChange.owner);
+                            return !isPoolAddress && !isTokenMint && !isExcludedAddress;
+                        });
+                        
+                        if (userTokenChanges.length > 0) {
+                            // Found a swap for this token!
+                            console.log(`🔄 [EnhancedHybridPriceService] Swap detected for ${tokenAddress.substring(0,8)}... (${userTokenChanges.length} changes)`);
+                            await this.processSwapForToken(msg, tokenAddress, poolAddress, slot, transactionSignature);
+                        }
                     }
                 }
             }
@@ -1282,9 +1291,26 @@ class EnhancedHybridPriceService extends EventEmitter {
     // ✅ NEW: Auto-start monitoring for any token when requested
     async ensureTokenMonitoring(tokenAddress) {
         try {
-            // ✅ UNIVERSAL STREAM: All tokens are monitored via shared stream
-            // No need for per-token monitoring anymore - the universal stream handles all tokens
-            console.log(`✅ [EnhancedHybridPriceService] Token ${tokenAddress} monitored via universal stream`);
+            // ✅ CRITICAL FIX: Add token to poolAddresses Map so swaps are tracked
+            if (!this.poolAddresses.has(tokenAddress)) {
+                console.log(`🔍 [EnhancedHybridPriceService] Discovering pool for ${tokenAddress}...`);
+                
+                // Try to discover pool address
+                const poolAddress = await this.discoverPoolAddress(tokenAddress);
+                
+                if (poolAddress) {
+                    this.poolAddresses.set(tokenAddress, poolAddress);
+                    this.swapHistory.set(tokenAddress, []);
+                    console.log(`✅ [EnhancedHybridPriceService] Added ${tokenAddress} -> pool ${poolAddress} to monitoring map`);
+                } else {
+                    console.log(`⚠️ [EnhancedHybridPriceService] Could not discover pool for ${tokenAddress}, adding with placeholder`);
+                    // Add with placeholder - we'll still try to track swaps
+                    this.poolAddresses.set(tokenAddress, 'unknown');
+                    this.swapHistory.set(tokenAddress, []);
+                }
+            } else {
+                console.log(`✅ [EnhancedHybridPriceService] Token ${tokenAddress} already in monitoring map`);
+            }
             
             // Check if universal stream is running
             if (!this.grpcStreams.has('universal_stream')) {
