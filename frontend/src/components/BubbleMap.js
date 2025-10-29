@@ -445,7 +445,13 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
         if (tokenAddress) {
           const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
           fetch(`${API_BASE}/api/tokens/${tokenAddress}/tooltip-data`)
-            .then(res => res.json())
+            .then(res => {
+              if (!res.ok) {
+                // If 404 or error, show N/A values
+                throw new Error('Token not monitored');
+              }
+              return res.json();
+            })
             .then(data => {
               if (data.success && data.data) {
                 const rt = data.data;
@@ -509,7 +515,18 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
                 }
               }
             })
-            .catch(err => console.error('Error fetching tooltip data:', err));
+            .catch(err => {
+              console.log('Token not monitored or error:', tokenAddress);
+              // Show N/A for tokens not being monitored
+              const volumeEl = document.getElementById(`volume-${tokenAddress}`);
+              if (volumeEl) volumeEl.textContent = 'Volume 24h: N/A';
+              
+              const txnsEl = document.getElementById(`txns-${tokenAddress}`);
+              if (txnsEl) txnsEl.textContent = 'Txns 24h: N/A';
+              
+              const makersEl = document.getElementById(`makers-${tokenAddress}`);
+              if (makersEl) makersEl.textContent = 'Makers 24h: N/A';
+            });
         }
       })
       .on('mousemove', function(event, d) {
