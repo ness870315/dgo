@@ -21,11 +21,18 @@ const WSOL = 'So11111111111111111111111111111111111111112';
 const DEX_PROGRAMS = {
     'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA': 'PumpSwap', // Raydium-based
     'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C': 'PumpSwap CPMM',
-    'MeteoraDLPDK1jSd1J9x8rM6wT5p5q5q5q5q5q5q5q5q': 'Meteora',
+    'cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG': 'Meteora DLMM', // Meteora Dynamic Liquidity Market Maker
+    'HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC': 'Meteora Pool Authority', // Meteora pool authority PDA
     'OrcaEKTdK7LKz57vaAYr9QeNsVEPfiuwmQ9MUWfbx': 'Orca',
     'CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK': 'Raydium CLMM',
     '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8': 'Raydium AMM'
 };
+
+// Addresses to exclude from swap detection (pool authorities, PDAs, etc.)
+const EXCLUDED_SWAP_ADDRESSES = new Set([
+    'HLnpSz9h2S4hiLQ43rnSD9XkcUThA7B8hQMKmDaiTLcC', // Meteora Pool Authority
+    '11111111111111111111111111111111' // System Program (for safety)
+]);
 
 class EnhancedHybridPriceService extends EventEmitter {
     constructor(webSocketServer = null) {
@@ -432,7 +439,8 @@ class EnhancedHybridPriceService extends EventEmitter {
                     const userTokenChanges = tokenChanges.filter(tokenChange => {
                         const isPoolAddress = tokenChange.owner === poolAddress;
                         const isTokenMint = tokenChange.owner === tokenAddress;
-                        return !isPoolAddress && !isTokenMint;
+                        const isExcludedAddress = EXCLUDED_SWAP_ADDRESSES.has(tokenChange.owner);
+                        return !isPoolAddress && !isTokenMint && !isExcludedAddress;
                     });
                     
                     if (userTokenChanges.length > 0) {
@@ -785,12 +793,15 @@ class EnhancedHybridPriceService extends EventEmitter {
                                     // 🚫 ADDITIONAL FILTER: Check if owner is the token mint itself (self-trading pools)
                                     const isTokenMint = tokenChange.owner === tokenAddress;
                                     
+                                    // 🚫 EXCLUDE: Check if owner is an excluded address (pool authorities, PDAs, etc.)
+                                    const isExcludedAddress = EXCLUDED_SWAP_ADDRESSES.has(tokenChange.owner);
+                                    
                                     // Log suspicious addresses for debugging
-                                    if (isPoolAddress || isTokenMint) {
-                                        // console.log(`🚫 [EnhancedHybridPriceService] Skipping suspicious swap from owner: ${tokenChange.owner.substring(0, 16)}... (isPool: ${isPoolAddress}, isTokenMint: ${isTokenMint})`);
+                                    if (isPoolAddress || isTokenMint || isExcludedAddress) {
+                                        // console.log(`🚫 [EnhancedHybridPriceService] Skipping swap from owner: ${tokenChange.owner.substring(0, 16)}... (isPool: ${isPoolAddress}, isTokenMint: ${isTokenMint}, isExcluded: ${isExcludedAddress})`);
                                     }
                                     
-                                    return !isPoolAddress && !isTokenMint;
+                                    return !isPoolAddress && !isTokenMint && !isExcludedAddress;
                                 });
                                 
                                 // console.log(`🔍 [EnhancedHybridPriceService] Processing ${userTokenChanges.length} user token changes (filtered out ${tokenChanges.length - userTokenChanges.length} pool swaps)`);
