@@ -318,7 +318,7 @@ class EnhancedHybridPriceService extends EventEmitter {
         }
     }
 
-    async startRealTimeMonitoring() {
+    async startRealTimeMonitoring(forceRestart = false) {
         if (!this.grpcClient) {
             console.error('❌ [EnhancedHybridPriceService] Cannot start monitoring - gRPC client not initialized');
             return;
@@ -326,11 +326,24 @@ class EnhancedHybridPriceService extends EventEmitter {
 
         console.log(`🚀 [EnhancedHybridPriceService] Starting SINGLE SHARED STREAM for ${this.poolAddresses.size} tokens...`);
         
-        // ✅ USE SINGLE SHARED STREAM INSTEAD OF MULTIPLE STREAMS
-        // This prevents RST_STREAM errors from creating too many connections
-        if (this.sharedStream) {
+        // ✅ CRITICAL FIX: Allow restart when new tokens are added
+        if (this.sharedStream && !forceRestart) {
             console.log('⚠️ [EnhancedHybridPriceService] Shared stream already exists, skipping...');
             return;
+        }
+        
+        // ✅ CRITICAL FIX: End existing stream before creating new one
+        if (this.sharedStream && forceRestart) {
+            console.log('🔄 [EnhancedHybridPriceService] Restarting stream with updated token list...');
+            try {
+                this.sharedStream.removeAllListeners();
+                this.sharedStream.end();
+            } catch (error) {
+                console.error('⚠️ Error ending old stream:', error.message);
+            }
+            this.sharedStream = null;
+            // Wait a moment for cleanup
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
         
         // Create transaction filters with ALL pools
@@ -1292,7 +1305,9 @@ class EnhancedHybridPriceService extends EventEmitter {
     async ensureTokenMonitoring(tokenAddress) {
         try {
             // ✅ CRITICAL FIX: Add token to poolAddresses Map so swaps are tracked
-            if (!this.poolAddresses.has(tokenAddress)) {
+            const wasNew = !this.poolAddresses.has(tokenAddress);
+            
+            if (wasNew) {
                 console.log(`🔍 [EnhancedHybridPriceService] Discovering pool for ${tokenAddress}...`);
                 
                 // Try to discover pool address
@@ -1308,14 +1323,20 @@ class EnhancedHybridPriceService extends EventEmitter {
                     this.poolAddresses.set(tokenAddress, 'unknown');
                     this.swapHistory.set(tokenAddress, []);
                 }
+                
+                // ✅ CRITICAL FIX: Restart stream to include new token's pool
+                if (this.sharedStream) {
+                    console.log(`🔄 [EnhancedHybridPriceService] Restarting stream to include ${tokenAddress}...`);
+                    await this.startRealTimeMonitoring(true);  // ← Force restart
+                }
             } else {
                 console.log(`✅ [EnhancedHybridPriceService] Token ${tokenAddress} already in monitoring map`);
             }
             
-            // Check if universal stream is running
-            if (!this.grpcStreams.has('universal_stream')) {
-                console.log(`⚠️ [EnhancedHybridPriceService] Universal stream not running, starting it...`);
-                await this.startUniversalMonitoring();
+            // Check if stream is running (start if not)
+            if (!this.sharedStream) {
+                console.log(`⚠️ [EnhancedHybridPriceService] Stream not running, starting it...`);
+                await this.startRealTimeMonitoring();
             }
             
             return true;
