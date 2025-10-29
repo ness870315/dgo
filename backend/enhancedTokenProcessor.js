@@ -279,6 +279,29 @@ class EnhancedTokenProcessor {
       }
     }
     
+    // ✅ CRITICAL FIX: Fetch contract addresses BEFORE filtering
+    // CoinGecko tokens come with contractAddress: null, need to enrich them
+    const tokensNeedingContracts = allTokens.filter(t => !t.contractAddress && t.coinGeckoId);
+    if (tokensNeedingContracts.length > 0) {
+      console.log(`🔍 Fetching contract addresses for ${tokensNeedingContracts.length} CoinGecko tokens...`);
+      try {
+        await this.fetchContractAddresses(tokensNeedingContracts);
+        console.log(`✅ Contract address enrichment complete`);
+      } catch (error) {
+        console.error(`❌ Failed to fetch contract addresses: ${error.message}`);
+      }
+    }
+    
+    // Now filter again with enriched contract addresses
+    const tokensWithContracts = allTokens.filter(t => t.contractAddress);
+    const newContractsAfterEnrichment = tokensWithContracts.filter(token => {
+      const contractLower = token.contractAddress?.toLowerCase();
+      return contractLower && !existingContracts.has(contractLower);
+    });
+    
+    allTokens = newContractsAfterEnrichment;
+    newContractsFound = newContractsAfterEnrichment.length;
+    
     // DEDUPLICATION: Remove duplicate tokens by symbol and contract address
     const deduplicatedTokens = this.deduplicateTokens(allTokens);
     console.log(`🔄 Deduplicated: ${allTokens.length} → ${deduplicatedTokens.length} tokens (removed ${allTokens.length - deduplicatedTokens.length} duplicates)`);

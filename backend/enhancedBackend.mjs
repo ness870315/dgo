@@ -15735,11 +15735,18 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
   async getTokensFromCache() {
     try {
-      // ✅ CHECK MEMORY CACHE FIRST
+      // ✅ CHECK MEMORY CACHE FIRST (but invalidate if it looks like old filtering logic)
       if (this.tokensCache.data && this.tokensCache.timestamp && 
           Date.now() - this.tokensCache.timestamp < this.tokensCache.TTL) {
-        console.log(`[🛡️ Enhanced Backend] 📦 Using cached tokens from memory (${this.tokensCache.data.length} tokens)`);
-        return this.tokensCache.data;
+        const cachedTokens = this.tokensCache.data;
+        // If we have very few tokens (< 200), likely old filtering - force refresh
+        if (cachedTokens.length < 200) {
+          console.log(`[🛡️ Enhanced Backend] ⚠️ Memory cache has ${cachedTokens.length} tokens (likely old filtering), forcing refresh...`);
+          this.tokensCache.timestamp = 0; // Force cache miss
+        } else {
+          console.log(`[🛡️ Enhanced Backend] 📦 Using cached tokens from memory (${cachedTokens.length} tokens)`);
+          return cachedTokens;
+        }
       }
       
       const cachePath = this.persistentCachePath;
