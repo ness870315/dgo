@@ -199,6 +199,32 @@ class BackendWebSocketServer extends EventEmitter {
     });
   }
 
+  // ✅ NEW: Broadcast tooltip data update
+  broadcastTooltipUpdate(tokenAddress, tooltipData) {
+    this.broadcastToTokenSubscribers(tokenAddress, {
+      type: 'tooltipUpdate',
+      data: tooltipData
+    });
+  }
+
+  // ✅ NEW: Broadcast ranking data update to all clients
+  broadcastRankingUpdate(rankings) {
+    const message = {
+      type: 'rankingUpdate',
+      rankings: rankings,
+      timestamp: Date.now()
+    };
+
+    // Broadcast to all connected clients
+    this.clients.forEach((client, clientId) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify(message));
+      }
+    });
+
+    console.log(`📊 [BackendWS] Broadcasted ranking update to ${this.clients.size} clients`);
+  }
+
   getStats() {
     return {
       totalClients: this.clients.size,

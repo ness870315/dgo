@@ -415,7 +415,10 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
           .style('left', tooltipX + 'px')
           .style('top', tooltipY + 'px')
           .html(`
-            <div class="font-bold text-solana-purple">${d.symbol}</div>
+            <div class="font-bold text-solana-purple flex items-center gap-2">
+              ${d.symbol}
+              <span class="text-xs text-green-400" id="live-indicator-${d.contractAddress || d.tokenAddress}"></span>
+            </div>
             <div class="text-xs text-gray-300">${d.name || d.symbol}</div>
             <div class="text-sm mt-1 flex items-center">
               <span>Score: ${(d.overallScore || d.score) ? (d.overallScore || d.score).toFixed(1) : 'N/A'}/10</span>
@@ -423,11 +426,92 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
                 ${hypeData.icon} ${hypeData.level}
               </span>
             </div>
-            <div class="text-sm">Market Cap: ${formatMarketCap(d.jupiterData?.mcap || d.marketCap || 0)}</div>
-            <div class="text-sm">Price: ${formatPrice(d.jupiterData?.usdPrice || d.currentPrice || d.price || 0)}</div>
-            <div class="text-sm">Mentions: ${d.twitterData?.displayMentions || d.displayMentions || d.mentions || d.twitterData?.mentions || 0}</div>
-            <div class="text-sm">Community: ${d.communityScore ? d.communityScore.toFixed(1) : 'N/A'}/10</div>
+            <div class="text-sm" id="mcap-${d.contractAddress || d.tokenAddress}">Market Cap: ${formatMarketCap(d.jupiterData?.mcap || d.marketCap || 0)}</div>
+            <div class="text-sm" id="price-${d.contractAddress || d.tokenAddress}">Price: ${formatPrice(d.jupiterData?.usdPrice || d.currentPrice || d.price || 0)}</div>
+            <div class="text-sm" id="volume-${d.contractAddress || d.tokenAddress}">Volume 24h: Loading...</div>
+            <div class="text-sm" id="txns-${d.contractAddress || d.tokenAddress}">Txns 24h: Loading...</div>
+            <div class="text-sm" id="makers-${d.contractAddress || d.tokenAddress}">Makers 24h: Loading...</div>
+            <div class="text-sm" id="age-${d.contractAddress || d.tokenAddress}">Age: ${d.age || 'N/A'}</div>
+            <div class="text-xs mt-2 flex gap-2" id="price-changes-${d.contractAddress || d.tokenAddress}">
+              <span class="text-gray-400">5M: --</span>
+              <span class="text-gray-400">1H: --</span>
+              <span class="text-gray-400">6H: --</span>
+              <span class="text-gray-400">24H: --</span>
+            </div>
           `);
+        
+        // ✅ Fetch real-time tooltip data
+        const tokenAddress = d.contractAddress || d.tokenAddress;
+        if (tokenAddress) {
+          const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+          fetch(`${API_BASE}/api/tokens/${tokenAddress}/tooltip-data`)
+            .then(res => res.json())
+            .then(data => {
+              if (data.success && data.data) {
+                const rt = data.data;
+                
+                // Update live indicator
+                const liveIndicator = document.getElementById(`live-indicator-${tokenAddress}`);
+                if (liveIndicator) {
+                  liveIndicator.textContent = rt.isLive ? '📡 Live' : '';
+                }
+                
+                // Update market cap
+                const mcapEl = document.getElementById(`mcap-${tokenAddress}`);
+                if (mcapEl) {
+                  mcapEl.textContent = `Market Cap: ${formatMarketCap(rt.marketCap)}`;
+                }
+                
+                // Update price
+                const priceEl = document.getElementById(`price-${tokenAddress}`);
+                if (priceEl) {
+                  priceEl.textContent = `Price: ${formatPrice(rt.price)}`;
+                }
+                
+                // Update volume
+                const volumeEl = document.getElementById(`volume-${tokenAddress}`);
+                if (volumeEl) {
+                  volumeEl.textContent = `Volume 24h: ${formatMarketCap(rt.volume24h)}`;
+                }
+                
+                // Update txns
+                const txnsEl = document.getElementById(`txns-${tokenAddress}`);
+                if (txnsEl) {
+                  txnsEl.textContent = `Txns 24h: ${rt.txns24h.toLocaleString()}`;
+                }
+                
+                // Update makers
+                const makersEl = document.getElementById(`makers-${tokenAddress}`);
+                if (makersEl) {
+                  makersEl.textContent = `Makers 24h: ${rt.makers24h.toLocaleString()}`;
+                }
+                
+                // Update age
+                const ageEl = document.getElementById(`age-${tokenAddress}`);
+                if (ageEl) {
+                  ageEl.textContent = `Age: ${rt.age}`;
+                }
+                
+                // Update price changes
+                const changesEl = document.getElementById(`price-changes-${tokenAddress}`);
+                if (changesEl) {
+                  const formatChange = (val) => {
+                    const color = val >= 0 ? 'text-green-400' : 'text-red-400';
+                    const sign = val >= 0 ? '+' : '';
+                    return `<span class="${color}">${sign}${val.toFixed(2)}%</span>`;
+                  };
+                  changesEl.innerHTML = `
+                    <span>5M: ${formatChange(rt.priceChange5m)}</span>
+                    <span>1H: ${formatChange(rt.priceChange1h)}</span>
+                    <span>6H: ${formatChange(rt.priceChange6h)}</span>
+                    <span>24H: ${formatChange(rt.priceChange24h)}</span>
+                  `;
+                }
+              }
+            })
+            .catch(err => console.error('Error fetching tooltip data:', err));
+        }
+      });
       })
       .on('mousemove', function(event, d) {
         // Update tooltip position as mouse moves over bubble

@@ -13575,6 +13575,79 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
+    // ✅ NEW: Real-time tooltip data endpoint for bubble map
+    this.app.get('/api/tokens/:contract/tooltip-data', async (req, res) => {
+      try {
+        const { contract } = req.params;
+        
+        if (!contract) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'Contract address is required' 
+          });
+        }
+
+        if (!this.enhancedHybridPriceService) {
+          return res.status(503).json({
+            success: false,
+            error: 'EnhancedHybridPriceService not available'
+          });
+        }
+
+        const tooltipData = this.enhancedHybridPriceService.getRealTimeTooltipData(contract);
+        
+        if (!tooltipData) {
+          return res.status(404).json({
+            success: false,
+            error: 'Token not found in real-time monitoring'
+          });
+        }
+
+        res.json({
+          success: true,
+          data: tooltipData,
+          timestamp: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error(`❌ [TooltipData] Error fetching tooltip data for ${req.params.contract}:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch tooltip data',
+          details: error.message
+        });
+      }
+    });
+
+    // ✅ NEW: Real-time ranking data endpoint
+    this.app.get('/api/tokens/ranking/realtime', async (req, res) => {
+      try {
+        if (!this.enhancedHybridPriceService) {
+          return res.status(503).json({
+            success: false,
+            error: 'EnhancedHybridPriceService not available'
+          });
+        }
+
+        const rankingData = this.enhancedHybridPriceService.getRealTimeRankingData();
+        
+        res.json({
+          success: true,
+          data: rankingData,
+          count: rankingData.length,
+          timestamp: new Date().toISOString()
+        });
+
+      } catch (error) {
+        console.error(`❌ [RankingData] Error fetching ranking data:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch ranking data',
+          details: error.message
+        });
+      }
+    });
+
     // 🚀 NEW: Connection cleanup endpoint
     this.app.post('/api/hybrid-price/cleanup', (req, res) => {
       try {

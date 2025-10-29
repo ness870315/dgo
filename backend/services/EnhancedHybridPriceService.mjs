@@ -83,6 +83,9 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.subscribedTokens = new Set();
         this.priceUpdateInterval = null;
         
+        // ✅ NEW: Periodic ranking broadcast
+        this.rankingBroadcastInterval = null;
+        
         // 🚀 NEW: Token cache management
         this.tokenCache = [];
         this.cachePath = path.join(process.cwd(), 'cache', 'tokens-cache.json');
@@ -175,6 +178,11 @@ class EnhancedHybridPriceService extends EventEmitter {
             if (this.grpcClient && this.poolAddresses.size > 0) {
                 console.log('🚀 [EnhancedHybridPriceService] Auto-starting SIMPLIFIED single-token monitoring...');
                 await this.startRealTimeMonitoring(); // This will call the simplified version
+            }
+            
+            // ✅ NEW: Start periodic ranking broadcasts (every 30 seconds)
+            if (this.webSocketServer) {
+                this.startRankingBroadcasts(30000);
             }
             
             console.log('✅ [EnhancedHybridPriceService] Async initialization complete');
@@ -1142,6 +1150,14 @@ class EnhancedHybridPriceService extends EventEmitter {
                 timestamp: Date.now()
             });
             
+            // ✅ NEW: Broadcast tooltip update for this token
+            if (this.webSocketServer) {
+                const tooltipData = this.getRealTimeTooltipData(tokenAddress);
+                if (tooltipData) {
+                    this.webSocketServer.broadcastTooltipUpdate(tokenAddress, tooltipData);
+                }
+            }
+            
         } catch (error) {
             console.error(`❌ [EnhancedHybridPriceService] Error processing swap update:`, error.message);
         }
@@ -1627,6 +1643,158 @@ class EnhancedHybridPriceService extends EventEmitter {
             totalSwaps: this.swapHistory ? Array.from(this.swapHistory.values()).reduce((total, swaps) => total + swaps.length, 0) : 0,
             realTimeUpdates: this.realTimeUpdates ? this.realTimeUpdates.size : 0
         };
+    }
+
+    // ✅ NEW: Get real-time tooltip data for bubble map
+    getRealTimeTooltipData(tokenAddress) {
+        const swaps = this.swapHistory.get(tokenAddress) || [];
+        const metadata = this.tokenMetadataCache.get(tokenAddress);
+        const latestSwap = swaps[swaps.length - 1];
+        
+        if (!latestSwap || !metadata) return null;
+        
+        const now = Date.now();
+        
+        // Calculate time-windowed metrics
+        const metrics = {
+            '5m': this.calculateWindowMetrics(swaps, now - 5 * 60 * 1000, now),
+            '1h': this.calculateWindowMetrics(swaps, now - 60 * 60 * 1000, now),
+            '6h': this.calculateWindowMetrics(swaps, now - 6 * 60 * 60 * 1000, now),
+            '24h': this.calculateWindowMetrics(swaps, now - 24 * 60 * 60 * 1000, now)
+        };
+        
+        const currentPriceUsd = latestSwap.price * this.solPriceUSD;
+        const supply = metadata.supply || 0;
+        
+        return {
+            // Basic info
+            symbol: metadata.symbol,
+            name: metadata.name,
+            address: tokenAddress,
+            age: this.calculateAge(metadata.createdAt || metadata.timestamp),
+            
+            // Real-time price
+            price: currentPriceUsd,
+            priceSol: latestSwap.price,
+            
+            // Market data
+            marketCap: currentPriceUsd * supply,
+            liquidity: metadata.liquidity || 0,
+            supply: supply,
+            
+            // 24h metrics
+            volume24h: metrics['24h'].volume,
+            txns24h: metrics['24h'].txns,
+            makers24h: metrics['24h'].makers,
+            
+            // Price changes
+            priceChange5m: metrics['5m'].priceChange,
+            priceChange1h: metrics['1h'].priceChange,
+            priceChange6h: metrics['6h'].priceChange,
+            priceChange24h: metrics['24h'].priceChange,
+            
+            // Real-time indicator
+            lastUpdate: latestSwap.timestamp,
+            isLive: (now - latestSwap.timestamp) < 60000 // Updated in last minute
+        };
+    }
+
+    // ✅ NEW: Get real-time ranking data for all monitored tokens
+    getRealTimeRankingData() {
+        const rankings = [];
+        
+        for (const [tokenAddress, swaps] of this.swapHistory.entries()) {
+            if (swaps.length === 0) continue;
+            
+            const tooltipData = this.getRealTimeTooltipData(tokenAddress);
+            if (!tooltipData) continue;
+            
+            rankings.push({
+                ...tooltipData,
+                rank: 0 // Will be set after sorting
+            });
+        }
+        
+        // Sort by 24h volume (descending)
+        rankings.sort((a, b) => b.volume24h - a.volume24h);
+        
+        // Assign ranks
+        rankings.forEach((token, index) => {
+            token.rank = index + 1;
+        });
+        
+        return rankings;
+    }
+
+    calculateWindowMetrics(swaps, startTime, endTime) {
+        const windowSwaps = swaps.filter(s => 
+            s.timestamp >= startTime && s.timestamp <= endTime
+        );
+        
+        if (windowSwaps.length === 0) {
+            return {
+                volume: 0,
+                txns: 0,
+                makers: 0,
+                priceChange: 0
+            };
+        }
+        
+        const firstPrice = windowSwaps[0].price;
+        const lastPrice = windowSwaps[windowSwaps.length - 1].price;
+        const priceChange = firstPrice > 0 ? ((lastPrice - firstPrice) / firstPrice) * 100 : 0;
+        
+        const uniqueMakers = new Set(windowSwaps.map(s => s.maker)).size;
+        const totalVolume = windowSwaps.reduce((sum, s) => sum + (s.volumeUsd || 0), 0);
+        
+        return {
+            volume: totalVolume,
+            txns: windowSwaps.length,
+            makers: uniqueMakers,
+            priceChange: priceChange
+        };
+    }
+
+    calculateAge(createdAt) {
+        if (!createdAt) return 'Unknown';
+        
+        const now = Date.now();
+        const diff = now - createdAt;
+        
+        const days = Math.floor(diff / (24 * 60 * 60 * 1000));
+        const hours = Math.floor(diff / (60 * 60 * 1000));
+        const minutes = Math.floor(diff / (60 * 1000));
+        
+        if (days > 0) return `${days}d`;
+        if (hours > 0) return `${hours}h`;
+        return `${minutes}m`;
+    }
+
+    // ✅ NEW: Start periodic ranking broadcasts
+    startRankingBroadcasts(intervalMs = 30000) {
+        if (this.rankingBroadcastInterval) {
+            clearInterval(this.rankingBroadcastInterval);
+        }
+
+        this.rankingBroadcastInterval = setInterval(() => {
+            if (this.webSocketServer) {
+                const rankings = this.getRealTimeRankingData();
+                if (rankings.length > 0) {
+                    this.webSocketServer.broadcastRankingUpdate(rankings);
+                }
+            }
+        }, intervalMs);
+
+        console.log(`✅ [EnhancedHybridPriceService] Started ranking broadcasts every ${intervalMs / 1000}s`);
+    }
+
+    // ✅ NEW: Stop ranking broadcasts
+    stopRankingBroadcasts() {
+        if (this.rankingBroadcastInterval) {
+            clearInterval(this.rankingBroadcastInterval);
+            this.rankingBroadcastInterval = null;
+            console.log('✅ [EnhancedHybridPriceService] Stopped ranking broadcasts');
+        }
     }
 }
 
