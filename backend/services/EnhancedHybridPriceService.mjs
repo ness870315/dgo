@@ -1702,20 +1702,70 @@ class EnhancedHybridPriceService extends EventEmitter {
     getRealTimeRankingData() {
         const rankings = [];
         
-        for (const [tokenAddress, swaps] of this.swapHistory.entries()) {
-            if (swaps.length === 0) continue;
+        // Include ALL monitored tokens (from poolAddresses map)
+        for (const [tokenAddress, poolAddress] of this.poolAddresses.entries()) {
+            const swaps = this.swapHistory.get(tokenAddress) || [];
+            const metadata = this.tokenMetadataCache.get(tokenAddress);
             
-            const tooltipData = this.getRealTimeTooltipData(tokenAddress);
-            if (!tooltipData) continue;
+            // Skip if no metadata (shouldn't happen, but safety check)
+            if (!metadata) continue;
             
-            rankings.push({
-                ...tooltipData,
-                rank: 0 // Will be set after sorting
-            });
+            // If token has swaps, use real-time data
+            if (swaps.length > 0) {
+                const tooltipData = this.getRealTimeTooltipData(tokenAddress);
+                if (tooltipData) {
+                    rankings.push({
+                        ...tooltipData,
+                        rank: 0 // Will be set after sorting
+                    });
+                }
+            } else {
+                // Token is monitored but has no swaps yet - use cached data
+                const currentPriceUsd = metadata.price || 0;
+                const supply = metadata.supply || 0;
+                
+                rankings.push({
+                    // Basic info
+                    symbol: metadata.symbol,
+                    name: metadata.name,
+                    address: tokenAddress,
+                    age: this.calculateAge(metadata.createdAt || metadata.timestamp),
+                    
+                    // Price (from cache)
+                    price: currentPriceUsd,
+                    priceSol: metadata.priceSol || 0,
+                    
+                    // Market data (from cache)
+                    marketCap: metadata.marketCap || (currentPriceUsd * supply),
+                    liquidity: metadata.liquidity || 0,
+                    supply: supply,
+                    
+                    // No swap activity yet
+                    volume24h: 0,
+                    txns24h: 0,
+                    makers24h: 0,
+                    
+                    // No price changes
+                    priceChange5m: 0,
+                    priceChange1h: 0,
+                    priceChange6h: 0,
+                    priceChange24h: 0,
+                    
+                    // Not live (no recent swaps)
+                    lastUpdate: null,
+                    isLive: false,
+                    rank: 0
+                });
+            }
         }
         
-        // Sort by 24h volume (descending)
-        rankings.sort((a, b) => b.volume24h - a.volume24h);
+        // Sort by 24h volume (descending), then by market cap
+        rankings.sort((a, b) => {
+            if (b.volume24h !== a.volume24h) {
+                return b.volume24h - a.volume24h;
+            }
+            return b.marketCap - a.marketCap;
+        });
         
         // Assign ranks
         rankings.forEach((token, index) => {
