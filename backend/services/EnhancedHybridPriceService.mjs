@@ -381,7 +381,7 @@ class EnhancedHybridPriceService extends EventEmitter {
             CommitmentLevel.CONFIRMED, []
         );
         
-        console.log(`✅ [EnhancedHybridPriceService] Shared stream created for ${allPools.length} pools`);
+        console.log(`✅ [EnhancedHybridPriceService] Shared stream created for ${allTokenAddresses.length} token addresses`);
         
         // Process ALL transactions in the shared stream
         this.sharedStream.on("data", async (msg) => {
@@ -706,11 +706,11 @@ class EnhancedHybridPriceService extends EventEmitter {
             }
             
             // ✅ UNIVERSAL TRANSACTION monitoring for ANY token
-            // 🚀 CRITICAL: Monitor ALL pools in a SINGLE stream for efficiency
-            const allPools = Array.from(this.poolAddresses.values());
+            // 🚀 CRITICAL: Monitor ALL token addresses in a SINGLE stream for efficiency
+            const allTokenAddresses = Array.from(this.poolAddresses.keys());
             const transactionFilters = {
                 client: {
-                    accountInclude: allPools, // Monitor transactions involving ALL pools
+                    accountInclude: allTokenAddresses, // Monitor transactions involving ALL token mint addresses
                     accountExclude: [], // Exclude vote transactions
                     accountRequired: [], // Don't use accountRequired (too restrictive)
                     vote: false,
