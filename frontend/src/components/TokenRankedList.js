@@ -54,21 +54,73 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
       const data = await response.json();
       
       if (data.success && data.data && data.data.length > 0) {
-        // Use real-time data
+        // Use real-time data from gRPC
+        console.log('✅ Using real-time gRPC data:', data.data.length, 'tokens');
         setRankings(data.data);
         setLastUpdate(new Date());
       } else {
-        // Fallback to provided tokens
-        console.log('Using fallback tokens from props');
-        setRankings(tokens);
+        // Merge cache tokens with any available real-time data
+        console.log('⚠️ No real-time data, using cache tokens with fallback values');
+        const enrichedTokens = tokens.map(token => ({
+          ...token,
+          address: token.contractAddress || token.tokenAddress,
+          price: token.jupiterData?.price || token.price || 0,
+          age: calculateTokenAge(token),
+          txns24h: 0,
+          volume24h: 0,
+          makers24h: 0,
+          priceChange5m: 0,
+          priceChange1h: 0,
+          priceChange6h: 0,
+          priceChange24h: token.jupiterData?.priceChange24h || 0,
+          liquidity: token.jupiterData?.liquidity || 0,
+          marketCap: token.jupiterData?.marketCap || token.jupiterData?.mcap || token.marketCap || 0,
+          isLive: false
+        }));
+        setRankings(enrichedTokens);
       }
     } catch (err) {
       console.error('Error fetching rankings:', err);
-      // Fallback to provided tokens
-      setRankings(tokens);
+      // Fallback to provided tokens with enrichment
+      const enrichedTokens = tokens.map(token => ({
+        ...token,
+        address: token.contractAddress || token.tokenAddress,
+        price: token.jupiterData?.price || token.price || 0,
+        age: calculateTokenAge(token),
+        txns24h: 0,
+        volume24h: 0,
+        makers24h: 0,
+        priceChange5m: 0,
+        priceChange1h: 0,
+        priceChange6h: 0,
+        priceChange24h: token.jupiterData?.priceChange24h || 0,
+        liquidity: token.jupiterData?.liquidity || 0,
+        marketCap: token.jupiterData?.marketCap || token.jupiterData?.mcap || token.marketCap || 0,
+        isLive: false
+      }));
+      setRankings(enrichedTokens);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Calculate token age
+  const calculateTokenAge = (token) => {
+    const createdAt = token.createdAt || token.timestamp || token.jupiterData?.createdAt;
+    if (!createdAt) return 'N/A';
+    
+    const now = Date.now();
+    const created = typeof createdAt === 'number' ? createdAt : new Date(createdAt).getTime();
+    const diff = now - created;
+    
+    const days = Math.floor(diff / (24 * 60 * 60 * 1000));
+    const hours = Math.floor(diff / (60 * 60 * 1000));
+    const minutes = Math.floor(diff / (60 * 1000));
+    
+    if (days > 0) return `${days}d`;
+    if (hours > 0) return `${hours}h`;
+    if (minutes > 0) return `${minutes}m`;
+    return 'Just now';
   };
 
   // Subscribe to WebSocket updates
@@ -168,26 +220,28 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
                   {/* Token */}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      {/* Token icons */}
-                      <div className="flex items-center -space-x-2">
-                        {token.jupiterData?.icon || token.logo ? (
-                          <img 
-                            src={token.jupiterData?.icon || token.logo} 
-                            alt={token.symbol}
-                            className="w-6 h-6 rounded-full border-2 border-gray-900"
-                            onError={(e) => e.target.style.display = 'none'}
-                          />
-                        ) : null}
-                      </div>
+                      {/* Token icon */}
+                      {token.jupiterData?.icon || token.logo ? (
+                        <img 
+                          src={token.jupiterData?.icon || token.logo} 
+                          alt={token.symbol}
+                          className="w-6 h-6 rounded-full flex-shrink-0"
+                          onError={(e) => e.target.style.display = 'none'}
+                        />
+                      ) : (
+                        <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs text-gray-400">{token.symbol?.charAt(0) || '?'}</span>
+                        </div>
+                      )}
                       
-                      <div>
-                        <div className="font-bold text-white flex items-center gap-1">
-                          {token.symbol}
+                      <div className="min-w-0">
+                        <div className="font-bold text-white flex items-center gap-1 flex-wrap">
+                          <span className="truncate">{token.symbol}</span>
                           {token.isLive && (
-                            <span className="text-xs text-green-400">📡</span>
+                            <span className="text-xs text-green-400 flex-shrink-0">📡</span>
                           )}
                           {fuelInfo.isFueled && (
-                            <div className="flex items-center space-x-1 px-1 py-0.5 bg-orange-900 border border-orange-500 rounded-full">
+                            <div className="flex items-center space-x-1 px-1 py-0.5 bg-orange-900 border border-orange-500 rounded-full flex-shrink-0">
                               <Flame className="w-2 h-2 text-orange-400" />
                               <span className="text-orange-400 text-xs font-bold">
                                 {fuelInfo.multiplier}
@@ -195,7 +249,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
                             </div>
                           )}
                         </div>
-                        <div className="text-xs text-gray-400">{token.name}</div>
+                        <div className="text-xs text-gray-400 truncate">{token.name}</div>
                       </div>
                     </div>
                   </td>

@@ -224,16 +224,15 @@ class EnhancedHybridPriceService extends EventEmitter {
             const data = await fs.readFile(this.cachePath, 'utf8');
             this.tokenCache = JSON.parse(data);
             
-            // Filter only completed tokens, but include PROBITY regardless of stage
-            const completedTokens = this.tokenCache.filter(token => 
-                token.stage === 'completed' || 
-                token.symbol === 'PROBITY' || 
-                token.contractAddress === '9N9V585yTpmosZacAcXLZWxKJEK7PbaH4RJ8gEKLD9sc'
+            // ✅ LOAD ALL TOKENS for monitoring (not just completed)
+            const tokensToMonitor = this.tokenCache.filter(token => 
+                token.contractAddress && // Must have contract address
+                (token.jupiterData?.firstPool?.id || token.graduatedPool || token.birdEyeRaw?.firstPool?.id) // Must have a pool
             );
-            console.log(`✅ [EnhancedHybridPriceService] Loaded ${completedTokens.length} completed tokens from cache (including PROBITY)`);
+            console.log(`✅ [EnhancedHybridPriceService] Loaded ${tokensToMonitor.length} tokens with pools from cache`);
             
             // Extract pool addresses for real-time monitoring
-            await this.extractPoolAddresses(completedTokens);
+            await this.extractPoolAddresses(tokensToMonitor);
             
         } catch (error) {
             console.error('❌ [EnhancedHybridPriceService] Failed to load token cache:', error.message);
