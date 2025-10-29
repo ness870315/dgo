@@ -15809,42 +15809,39 @@ Thanks for using x402 payments on Twitter! 🚀`;
       });
       console.log(`[🛡️ Enhanced Backend] 📊 Tokens by stage:`, stageCount);
 
-      // Filter only completed tokens
-      const completedTokens = tokens.filter(t => t.stage === 'completed');
-      console.log(`[🛡️ Enhanced Backend] 📊 Completed tokens: ${completedTokens.length}`);
-
-      // 🔧 FALLBACK: If no completed tokens, serve jupiter-stage tokens with basic data
-      if (completedTokens.length === 0) {
-        const jupiterTokens = tokens.filter(t => t.stage === 'jupiter' && t.contractAddress && t.symbol);
-        console.log(`[🛡️ Enhanced Backend] 📊 Fallback to Jupiter tokens: ${jupiterTokens.length}`);
-        
-        if (jupiterTokens.length > 0) {
-          // Don't start processing automatically on restart - let manual triggers handle it
-          console.log('[🛡️ Enhanced Backend] 📊 Serving existing Jupiter tokens without auto-processing (prevents duplicate Twitter API calls)');
-          
-          // Return Jupiter tokens with minimal processing
-          return jupiterTokens.map(token => ({
+      // ✅ FIX: Return tokens from multiple stages, not just 'completed'
+      // Include: completed, scoring, twitter, jupiter (stages with meaningful data)
+      const validStages = ['completed', 'scoring', 'twitter', 'jupiter'];
+      const validTokens = tokens.filter(t => {
+        const stage = t.stage || 'undefined';
+        const isValidStage = validStages.includes(stage);
+        const hasContract = t.contractAddress && t.symbol;
+        return isValidStage && hasContract;
+      });
+      
+      console.log(`[🛡️ Enhanced Backend] 📊 Valid tokens (from stages: ${validStages.join(', ')}): ${validTokens.length}`);
+      
+      // Process tokens to ensure they have required fields
+      const processedTokens = validTokens.map(token => {
+        // If token is not completed, ensure it has basic fields
+        if (token.stage !== 'completed') {
+          return {
             ...token,
-            // Ensure basic fields are present
             price: token.jupiterData?.price || token.price || 0,
             marketCap: token.jupiterData?.mcap || token.marketCap || 0,
-            volume24h: token.jupiterData?.volume1h ? token.jupiterData.volume1h * 24 : 0,
+            volume24h: token.jupiterData?.volume1h ? token.jupiterData.volume1h * 24 : (token.volume24h || 0),
             score: token.score || token.overallScore || 5.0,
-            // Mark as fallback data
-            _fallbackData: true,
-            _dataSource: 'jupiter-discovery'
-          }));
+            _dataSource: token.stage === 'jupiter' ? 'jupiter-discovery' : token.stage
+          };
         }
-        
-        // No tokens at all - only start processing if this is truly a fresh start
-        console.log('[🛡️ Enhanced Backend] ⚠️ No tokens found, but not auto-starting processing to prevent duplicate API calls');
-      }
+        return token;
+      });
 
       // ✅ UPDATE MEMORY CACHE
-      this.tokensCache.data = completedTokens;
+      this.tokensCache.data = processedTokens;
       this.tokensCache.timestamp = Date.now();
       
-      return completedTokens;
+      return processedTokens;
 
     } catch (error) {
       console.log('[🛡️ Enhanced Backend] ⚠️ No cache file found, starting fresh processing...');
