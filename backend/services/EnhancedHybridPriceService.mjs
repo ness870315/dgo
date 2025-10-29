@@ -300,7 +300,7 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             console.log(`📊 [EnhancedHybridPriceService] Found ${tokensWithPools.length} top tokens with pools`);
             
-            // Add each token to monitoring
+            // Add each token to monitoring AND populate metadata cache
             let addedCount = 0;
             for (const token of tokensWithPools) {
                 const tokenAddress = token.contractAddress;
@@ -313,6 +313,21 @@ class EnhancedHybridPriceService extends EventEmitter {
                 if (poolAddress && !this.poolAddresses.has(tokenAddress)) {
                     this.poolAddresses.set(tokenAddress, poolAddress);
                     this.swapHistory.set(tokenAddress, []);
+                    
+                    // ✅ CRITICAL: Populate metadata cache for ranking/tooltip data
+                    this.tokenMetadataCache.set(tokenAddress, {
+                        symbol: token.symbol,
+                        name: token.name,
+                        address: tokenAddress,
+                        price: token.price || token.currentPrice || 0,
+                        priceSol: token.priceSol || 0,
+                        marketCap: token.marketCap || token.jupiterData?.marketCap || 0,
+                        liquidity: token.jupiterData?.liquidity || token.birdEyeRaw?.liquidity || 0,
+                        supply: token.jupiterData?.totalSupply || token.supply || 0,
+                        createdAt: token.jupiterData?.firstPool?.createdAt || token.createdAt || Date.now(),
+                        graduatedPool: token.graduatedPool || token.jupiterData?.graduatedPool
+                    });
+                    
                     addedCount++;
                 }
             }
