@@ -36,10 +36,15 @@ class EnhancedTokenProcessor {
     this.dexscreenerService = new DexscreenerApiService();
     // this.birdEyeService = new BirdEyeTrendingService(); // DISABLED
     this.hypeService = new HypeSnapshotService();
-    // Resolve persistent cache directory
+    // Resolve persistent cache directory - MUST match backend persistentCachePath
     const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
     this.cacheDir = path.join(dataDir, 'cache');
-    try { fsSync.mkdirSync(this.cacheDir, { recursive: true }); } catch (_) {}
+    try { 
+      fsSync.mkdirSync(this.cacheDir, { recursive: true });
+      console.log(`📁 Token processor cache directory: ${this.cacheDir}`);
+    } catch (err) {
+      console.error(`❌ Failed to create cache directory: ${err.message}`);
+    }
     
     // Set up persistent queue tracking
     this.alreadyQueuedFile = path.join(this.cacheDir, 'already-queued-tokens.json');
@@ -1298,13 +1303,40 @@ class EnhancedTokenProcessor {
         // 🚨 CRITICAL FIX: Ensure cache directory exists before atomic write
         await fs.mkdir(this.cacheDir, { recursive: true });
         
+        // Verify directory was created
+        try {
+          await fs.access(this.cacheDir);
+          console.log(`✅ Cache directory verified: ${this.cacheDir}`);
+        } catch (accessError) {
+          console.error(`❌ Cache directory does not exist after mkdir: ${this.cacheDir}`);
+          throw new Error(`Failed to create cache directory: ${accessError.message}`);
+        }
+        
+        // Write temp file and verify it was written
         await fs.writeFile(tempPath, jsonData, 'utf8');
+        console.log(`✅ Temp file written: ${tempPath}`);
+        
+        // Verify temp file exists before rename
+        try {
+          await fs.access(tempPath);
+        } catch (accessError) {
+          console.error(`❌ Temp file does not exist after write: ${tempPath}`);
+          throw new Error(`Temp file was not written: ${accessError.message}`);
+        }
+        
+        // Atomic rename
         await fs.rename(tempPath, cachePath);
+        console.log(`✅ Successfully saved ${finalUniqueTokens.length} tokens to cache (atomic write)`);
       } catch (error) {
         // Cleanup temp file if it exists
         try {
-          await fs.unlink(tempPath);
+          await fs.access(tempPath).then(() => fs.unlink(tempPath));
+          console.log(`🧹 Cleaned up temp file after error`);
         } catch (_) {}
+        console.error(`❌ Failed to save tokens to cache: ${error.message}`);
+        console.error(`   Cache dir: ${this.cacheDir}`);
+        console.error(`   Temp path: ${tempPath}`);
+        console.error(`   Cache path: ${cachePath}`);
         throw error;
       }
       
