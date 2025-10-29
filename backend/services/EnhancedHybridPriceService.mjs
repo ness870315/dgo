@@ -353,11 +353,12 @@ class EnhancedHybridPriceService extends EventEmitter {
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
         
-        // Create transaction filters with ALL pools
-        const allPools = Array.from(this.poolAddresses.values());
+        // ✅ CRITICAL FIX: Filter by TOKEN ADDRESSES, not pool addresses
+        // Swaps often don't directly touch pool accounts, but always involve the token mint
+        const allTokenAddresses = Array.from(this.poolAddresses.keys());
         const transactionFilters = {
             client: {
-                accountInclude: allPools,
+                accountInclude: allTokenAddresses, // Monitor token mint addresses
                 accountExclude: [],
                 accountRequired: [],
                 vote: false,
@@ -372,7 +373,7 @@ class EnhancedHybridPriceService extends EventEmitter {
             CommitmentLevel = { CONFIRMED: 'confirmed' };
         }
         
-        console.log(`📊 [EnhancedHybridPriceService] Creating shared stream with ${allPools.length} pools...`);
+        console.log(`📊 [EnhancedHybridPriceService] Creating shared stream with ${allTokenAddresses.length} token addresses...`);
         
         // Create SINGLE stream for all tokens
         this.sharedStream = await this.grpcClient.subscribeOnce(
