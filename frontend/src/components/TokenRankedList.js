@@ -165,28 +165,28 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
 
   return (
     <div className="w-full h-full overflow-y-auto bg-gray-900">
-      {/* Header */}
-      <div className="sticky top-0 bg-gray-900 z-10 px-4 py-3 border-b border-gray-700">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            📊 Token Rankings
-            {rankings.length > 0 && rankings[0].isLive && (
-              <span className="text-xs text-green-400">📡 Live</span>
-            )}
-          </h2>
-          {lastUpdate && (
-            <div className="text-xs text-gray-400">
-              Updated: {lastUpdate.toLocaleTimeString()}
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="text-xs text-gray-400 uppercase bg-gray-800/50 sticky top-[57px] z-10">
-            <tr>
+          <thead className="text-xs text-gray-400 uppercase bg-gray-800 sticky top-0 z-20">
+            <tr className="border-b border-gray-700">
+              <th colSpan="13" className="px-4 py-2 text-left">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-bold text-sm">📊 Token Rankings</span>
+                    {rankings.length > 0 && rankings[0].isLive && (
+                      <span className="text-xs text-green-400">📡 Live</span>
+                    )}
+                  </div>
+                  {lastUpdate && (
+                    <span className="text-xs text-gray-400 normal-case">
+                      Updated: {lastUpdate.toLocaleTimeString()}
+                    </span>
+                  )}
+                </div>
+              </th>
+            </tr>
+            <tr className="border-b border-gray-700">
               <th className="px-4 py-3 text-left">#</th>
               <th className="px-4 py-3 text-left">Token</th>
               <th className="px-4 py-3 text-right">Price</th>
