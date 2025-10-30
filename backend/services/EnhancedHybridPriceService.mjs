@@ -302,6 +302,7 @@ class EnhancedHybridPriceService extends EventEmitter {
             
             // Add each token to monitoring AND populate metadata cache
             let addedCount = 0;
+            let metadataCount = 0;
             for (const token of tokensWithPools) {
                 const tokenAddress = token.contractAddress;
                 // ✅ CRITICAL: Prioritize graduatedPool over firstPool
@@ -310,11 +311,15 @@ class EnhancedHybridPriceService extends EventEmitter {
                                    token.jupiterData?.firstPool?.id || 
                                    token.birdEyeRaw?.firstPool?.id;
                 
-                if (poolAddress && !this.poolAddresses.has(tokenAddress)) {
-                    this.poolAddresses.set(tokenAddress, poolAddress);
-                    this.swapHistory.set(tokenAddress, []);
+                if (poolAddress) {
+                    // Add to poolAddresses if not already there
+                    if (!this.poolAddresses.has(tokenAddress)) {
+                        this.poolAddresses.set(tokenAddress, poolAddress);
+                        this.swapHistory.set(tokenAddress, []);
+                        addedCount++;
+                    }
                     
-                    // ✅ CRITICAL: Populate metadata cache for ranking/tooltip data
+                    // ✅ CRITICAL: ALWAYS populate metadata cache (even for existing tokens)
                     // Extract price from multiple possible sources
                     const price = token.currentPrice || 
                                  token.price || 
@@ -358,15 +363,16 @@ class EnhancedHybridPriceService extends EventEmitter {
                     });
                     
                     // Log first 3 tokens for debugging
-                    if (addedCount < 3) {
-                        console.log(`📝 [Token ${addedCount + 1}] ${token.symbol}: price=$${price}, mcap=$${marketCap}, liq=$${liquidity}`);
+                    if (metadataCount < 3) {
+                        console.log(`📝 [Token ${metadataCount + 1}] ${token.symbol}: price=$${price}, mcap=$${marketCap}, liq=$${liquidity}`);
                     }
                     
-                    addedCount++;
+                    metadataCount++;
                 }
             }
             
-            console.log(`✅ [EnhancedHybridPriceService] Added ${addedCount} tokens for gRPC monitoring`);
+            console.log(`✅ [EnhancedHybridPriceService] Added ${addedCount} NEW tokens for gRPC monitoring`);
+            console.log(`✅ [EnhancedHybridPriceService] Populated metadata for ${metadataCount} tokens`);
             console.log(`✅ [EnhancedHybridPriceService] Total ${this.poolAddresses.size} tokens being tracked (including hardcoded)`);
             console.log(`✅ [EnhancedHybridPriceService] Metadata cache now has ${this.tokenMetadataCache.size} entries`);
             
