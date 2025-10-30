@@ -13628,7 +13628,12 @@ Thanks for using x402 payments on Twitter! 🚀`;
         // ✅ CRITICAL FIX: Use the CORRECT instance from RealTimeTokenMonitor
         const priceService = this.realTimeTokenMonitor?.hybridPriceService || this.enhancedHybridPriceService;
         
+        console.log(`📊 [RankingData] Request received`);
+        console.log(`📊 [RankingData] realTimeTokenMonitor exists: ${!!this.realTimeTokenMonitor}`);
+        console.log(`📊 [RankingData] hybridPriceService exists: ${!!priceService}`);
+        
         if (!priceService) {
+          console.error(`❌ [RankingData] No price service available!`);
           return res.status(503).json({
             success: false,
             error: 'EnhancedHybridPriceService not available'
@@ -13636,6 +13641,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
         }
 
         const rankingData = priceService.getRealTimeRankingData();
+        console.log(`📊 [RankingData] Returning ${rankingData.length} tokens`);
         
         res.json({
           success: true,
@@ -13646,6 +13652,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
 
       } catch (error) {
         console.error(`❌ [RankingData] Error fetching ranking data:`, error.message);
+        console.error(`❌ [RankingData] Stack:`, error.stack);
         res.status(500).json({
           success: false,
           error: 'Failed to fetch ranking data',
