@@ -13587,14 +13587,17 @@ Thanks for using x402 payments on Twitter! 🚀`;
           });
         }
 
-        if (!this.enhancedHybridPriceService) {
+        // ✅ CRITICAL FIX: Use the CORRECT instance from RealTimeTokenMonitor
+        const priceService = this.realTimeTokenMonitor?.hybridPriceService || this.enhancedHybridPriceService;
+        
+        if (!priceService) {
           return res.status(503).json({
             success: false,
             error: 'EnhancedHybridPriceService not available'
           });
         }
 
-        const tooltipData = this.enhancedHybridPriceService.getRealTimeTooltipData(contract);
+        const tooltipData = priceService.getRealTimeTooltipData(contract);
         
         if (!tooltipData) {
           return res.status(404).json({
@@ -13622,14 +13625,17 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // ✅ NEW: Real-time ranking data endpoint
     this.app.get('/api/tokens/ranking/realtime', async (req, res) => {
       try {
-        if (!this.enhancedHybridPriceService) {
+        // ✅ CRITICAL FIX: Use the CORRECT instance from RealTimeTokenMonitor
+        const priceService = this.realTimeTokenMonitor?.hybridPriceService || this.enhancedHybridPriceService;
+        
+        if (!priceService) {
           return res.status(503).json({
             success: false,
             error: 'EnhancedHybridPriceService not available'
           });
         }
 
-        const rankingData = this.enhancedHybridPriceService.getRealTimeRankingData();
+        const rankingData = priceService.getRealTimeRankingData();
         
         res.json({
           success: true,
