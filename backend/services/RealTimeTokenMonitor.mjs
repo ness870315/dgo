@@ -28,10 +28,12 @@ class RealTimeTokenMonitor {
             // Initialize Enhanced HybridPriceService
             this.hybridPriceService = new EnhancedHybridPriceService(this.webSocketServer);
             
-            // Wait for gRPC client to initialize
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            // ✅ CRITICAL FIX: Actually initialize the service with gRPC, load tokens, start stream
+            console.log('🚀 [RealTimeTokenMonitor] Calling initializeAsync on EnhancedHybridPriceService...');
+            await this.hybridPriceService.initializeAsync();
+            console.log('✅ [RealTimeTokenMonitor] EnhancedHybridPriceService initialized with gRPC and tokens loaded');
             
-            // Load token cache
+            // Load token cache (for backward compatibility)
             await this.loadTokenCache();
             
             console.log('✅ [RealTimeTokenMonitor] Initialization complete');
