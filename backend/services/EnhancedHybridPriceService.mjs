@@ -315,18 +315,52 @@ class EnhancedHybridPriceService extends EventEmitter {
                     this.swapHistory.set(tokenAddress, []);
                     
                     // ✅ CRITICAL: Populate metadata cache for ranking/tooltip data
+                    // Extract price from multiple possible sources
+                    const price = token.currentPrice || 
+                                 token.price || 
+                                 token.jupiterData?.price || 
+                                 token.birdEyeRaw?.price || 
+                                 0;
+                    
+                    const marketCap = token.marketCap || 
+                                     token.jupiterData?.marketCap || 
+                                     token.jupiterData?.mcap ||
+                                     token.birdEyeRaw?.marketcap ||
+                                     token.birdEyeRaw?.fdv ||
+                                     0;
+                    
+                    const liquidity = token.jupiterData?.liquidity || 
+                                     token.birdEyeRaw?.liquidity || 
+                                     0;
+                    
+                    const supply = token.jupiterData?.totalSupply || 
+                                  token.jupiterData?.circSupply ||
+                                  token.supply || 
+                                  0;
+                    
+                    const createdAt = token.jupiterData?.firstPool?.createdAt || 
+                                     token.birdEyeRaw?.firstPool?.createdAt ||
+                                     token.createdAt || 
+                                     token.timestamp ||
+                                     Date.now();
+                    
                     this.tokenMetadataCache.set(tokenAddress, {
                         symbol: token.symbol,
                         name: token.name,
                         address: tokenAddress,
-                        price: token.price || token.currentPrice || 0,
+                        price: price,
                         priceSol: token.priceSol || 0,
-                        marketCap: token.marketCap || token.jupiterData?.marketCap || 0,
-                        liquidity: token.jupiterData?.liquidity || token.birdEyeRaw?.liquidity || 0,
-                        supply: token.jupiterData?.totalSupply || token.supply || 0,
-                        createdAt: token.jupiterData?.firstPool?.createdAt || token.createdAt || Date.now(),
+                        marketCap: marketCap,
+                        liquidity: liquidity,
+                        supply: supply,
+                        createdAt: createdAt,
                         graduatedPool: token.graduatedPool || token.jupiterData?.graduatedPool
                     });
+                    
+                    // Log first 3 tokens for debugging
+                    if (addedCount < 3) {
+                        console.log(`📝 [Token ${addedCount + 1}] ${token.symbol}: price=$${price}, mcap=$${marketCap}, liq=$${liquidity}`);
+                    }
                     
                     addedCount++;
                 }
