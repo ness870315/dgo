@@ -277,11 +277,13 @@ class EnhancedHybridPriceService extends EventEmitter {
 
     async loadTopTokens() {
         try {
-            console.log('🚀 [EnhancedHybridPriceService] Loading top 200 tokens from cache...');
+            console.log('🚀 [EnhancedHybridPriceService] Loading tokens from cache...');
+            console.log(`📂 [EnhancedHybridPriceService] Cache path: ${this.cachePath}`);
             
             // Read tokens cache
             const cacheData = await fs.readFile(this.cachePath, 'utf8');
             const tokens = JSON.parse(cacheData);
+            console.log(`📊 [EnhancedHybridPriceService] Parsed ${tokens.length} tokens from cache file`);
             
             // Filter for tokens with pools and sort by score
             const tokensWithPools = tokens
@@ -319,7 +321,8 @@ class EnhancedHybridPriceService extends EventEmitter {
                         addedCount++;
                     }
                     
-                    // ✅ CRITICAL: ALWAYS populate metadata cache (even for existing tokens)
+                    // ✅ CRITICAL: ALWAYS populate metadata cache (even if token already in poolAddresses)
+                    // This is important because extractPoolAddresses() adds tokens but doesn't populate metadata
                     // Extract price from multiple possible sources
                     const price = token.currentPrice || 
                                  token.price || 
