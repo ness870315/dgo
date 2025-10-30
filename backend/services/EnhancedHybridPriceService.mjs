@@ -295,8 +295,8 @@ class EnhancedHybridPriceService extends EventEmitter {
                     const scoreA = a.overallScore || a.score || 0;
                     const scoreB = b.overallScore || b.score || 0;
                     return scoreB - scoreA; // Sort descending
-                })
-                .slice(0, 200); // Top 200 for expanded monitoring
+                });
+                // ✅ REMOVED LIMIT: Process ALL tokens with pools, not just top 200
             
             console.log(`📊 [EnhancedHybridPriceService] Found ${tokensWithPools.length} top tokens with pools`);
             
