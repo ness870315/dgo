@@ -1726,11 +1726,36 @@ class EnhancedHybridPriceService extends EventEmitter {
             '24h': this.calculateWindowMetrics(swaps, now - 24 * 60 * 60 * 1000, now)
         };
         
-        // ✅ Use Jupiter's cached price (more reliable than latest swap)
-        const currentPriceUsd = metadata.price || (latestSwap.price * this.solPriceUSD);
+        // ✅ Calculate LIVE price using VWAP from recent swaps (smoothed, not just latest)
+        // Use last 10 swaps or 5 minutes of data for volume-weighted average price
+        const recentSwaps = swaps.slice(-10); // Last 10 swaps
+        const fiveMinutesAgo = now - 5 * 60 * 1000;
+        const recentSwapsInWindow = recentSwaps.filter(s => s.timestamp >= fiveMinutesAgo);
+        
+        let vwapPrice = latestSwap.price; // Fallback to latest
+        if (recentSwapsInWindow.length >= 3) {
+            // Calculate volume-weighted average price (VWAP)
+            let totalVolume = 0;
+            let weightedPriceSum = 0;
+            
+            recentSwapsInWindow.forEach(swap => {
+                const volume = Math.abs(swap.amountUsd || 0);
+                totalVolume += volume;
+                weightedPriceSum += swap.price * volume;
+            });
+            
+            if (totalVolume > 0) {
+                vwapPrice = weightedPriceSum / totalVolume;
+            }
+        }
+        
+        const livePriceUsd = vwapPrice * this.solPriceUSD;
         const supply = metadata.supply || 0;
         
-        // ✅ Use Jupiter's stats data for accurate metrics
+        // ✅ Calculate LIVE market cap from smoothed real-time price
+        const liveMarketCap = supply > 0 ? (livePriceUsd * supply) : (metadata.marketCap || 0);
+        
+        // ✅ Use Jupiter's stats data for 24h metrics (true 24h window)
         const jupiterStats = metadata.jupiterData?.stats24h || {};
         const jupiterStats5m = metadata.jupiterData?.stats5m || {};
         const jupiterStats1h = metadata.jupiterData?.stats1h || {};
@@ -1743,12 +1768,12 @@ class EnhancedHybridPriceService extends EventEmitter {
             address: tokenAddress,
             age: this.calculateAge(metadata.createdAt || metadata.timestamp),
             
-            // ✅ Price: Use Jupiter cached price (reliable) not latest swap
-            price: currentPriceUsd,
-            priceSol: currentPriceUsd / this.solPriceUSD,
+            // ✅ LIVE Price: VWAP from recent swaps (smoothed, real-time!)
+            price: livePriceUsd,
+            priceSol: vwapPrice,
             
-            // Market data (use cached values from Jupiter - accurate)
-            marketCap: metadata.marketCap || 0,
+            // ✅ LIVE Market Cap: Calculated from live price × supply
+            marketCap: liveMarketCap,
             liquidity: metadata.liquidity || 0,
             supply: supply,
             
