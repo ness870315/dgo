@@ -236,7 +236,7 @@ function AppContent() {
   const handleOpenChat = () => {
     setShowAIChat(true);
   };
-  const [viewMode, setViewMode] = useState('bubbles'); // 'bubbles' or 'cards'
+  const [viewMode, setViewMode] = useState('ranklist'); // 'bubbles', 'cards', or 'ranklist'
   const [settings, setSettings] = useState({
     useRealTwitterData: true, // Using real backend API data now that backend is deployed
     enableRealTimeUpdates: true,
