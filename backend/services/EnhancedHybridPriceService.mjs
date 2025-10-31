@@ -1729,13 +1729,9 @@ class EnhancedHybridPriceService extends EventEmitter {
         const currentPriceUsd = latestSwap.price * this.solPriceUSD;
         const supply = metadata.supply || 0;
         
-        // Debug logging for market cap
-        if (metadata.symbol === 'USELESS') {
-            console.log(`🔍 [USELESS Debug] metadata.marketCap: ${metadata.marketCap}`);
-            console.log(`🔍 [USELESS Debug] currentPriceUsd: ${currentPriceUsd}`);
-            console.log(`🔍 [USELESS Debug] supply: ${supply}`);
-            console.log(`🔍 [USELESS Debug] calculated would be: ${currentPriceUsd * supply}`);
-        }
+        // ✅ Use Jupiter's stats24h data if available (true 24h data)
+        // Otherwise fall back to our calculated metrics (since monitoring started)
+        const jupiterStats = metadata.jupiterData?.stats24h || {};
         
         return {
             // Basic info
@@ -1744,19 +1740,23 @@ class EnhancedHybridPriceService extends EventEmitter {
             address: tokenAddress,
             age: this.calculateAge(metadata.createdAt || metadata.timestamp),
             
-            // Real-time price
+            // Real-time price (from latest swap)
             price: currentPriceUsd,
             priceSol: latestSwap.price,
             
-            // Market data (use cached values from Jupiter - more accurate than calculating)
-            marketCap: metadata.marketCap || 0, // ✅ Use cached market cap (circulating supply)
+            // Market data (use cached values from Jupiter - more accurate)
+            marketCap: metadata.marketCap || 0,
             liquidity: metadata.liquidity || 0,
             supply: supply,
             
-            // 24h metrics (only from swaps we've monitored - may be less than 24h)
-            volume24h: metrics['24h'].volume,
-            txns24h: metrics['24h'].txns,
-            makers24h: metrics['24h'].makers,
+            // ✅ 24h metrics: Use Jupiter data (true 24h) or fallback to our metrics (since monitoring)
+            volume24h: jupiterStats.buyVolume && jupiterStats.sellVolume 
+                ? (jupiterStats.buyVolume + jupiterStats.sellVolume) 
+                : metrics['24h'].volume,
+            txns24h: jupiterStats.numBuys && jupiterStats.numSells 
+                ? (jupiterStats.numBuys + jupiterStats.numSells) 
+                : metrics['24h'].txns,
+            makers24h: jupiterStats.numTraders || metrics['24h'].makers,
             
             // Price changes
             priceChange5m: metrics['5m'].priceChange,

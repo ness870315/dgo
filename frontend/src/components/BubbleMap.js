@@ -426,12 +426,12 @@ const BubbleMap = ({ tokens, fueledTokens = [], onTokenSelect, currentFilter = {
                 ${hypeData.icon} ${hypeData.level}
               </span>
             </div>
-            <div class="text-sm" id="mcap-${d.contractAddress || d.tokenAddress}">Market Cap: ${formatMarketCap(d.jupiterData?.mcap || d.marketCap || 0)}</div>
-            <div class="text-sm" id="price-${d.contractAddress || d.tokenAddress}">Price: ${formatPrice(d.jupiterData?.usdPrice || d.currentPrice || d.price || 0)}</div>
+            <div class="text-sm" id="mcap-${d.contractAddress || d.tokenAddress}">Market Cap: Loading...</div>
+            <div class="text-sm" id="price-${d.contractAddress || d.tokenAddress}">Price: Loading...</div>
             <div class="text-sm" id="volume-${d.contractAddress || d.tokenAddress}">Volume 24h: Loading...</div>
             <div class="text-sm" id="txns-${d.contractAddress || d.tokenAddress}">Txns 24h: Loading...</div>
             <div class="text-sm" id="makers-${d.contractAddress || d.tokenAddress}">Makers 24h: Loading...</div>
-            <div class="text-sm" id="age-${d.contractAddress || d.tokenAddress}">Age: ${d.age || 'N/A'}</div>
+            <div class="text-sm" id="age-${d.contractAddress || d.tokenAddress}">Age: Loading...</div>
             <div class="text-xs mt-2 flex gap-2" id="price-changes-${d.contractAddress || d.tokenAddress}">
               <span class="text-gray-400">5M: --</span>
               <span class="text-gray-400">1H: --</span>
