@@ -1726,34 +1726,49 @@ class EnhancedHybridPriceService extends EventEmitter {
             '24h': this.calculateWindowMetrics(swaps, now - 24 * 60 * 60 * 1000, now)
         };
         
-        // ✅ Calculate LIVE price using VWAP from recent swaps (smoothed, not just latest)
-        // Use last 10 swaps or 5 minutes of data for volume-weighted average price
-        const recentSwaps = swaps.slice(-10); // Last 10 swaps
-        const fiveMinutesAgo = now - 5 * 60 * 1000;
-        const recentSwapsInWindow = recentSwaps.filter(s => s.timestamp >= fiveMinutesAgo);
+        // ✅ HYBRID APPROACH: Jupiter base price + swap delta adjustment
+        // Use Jupiter's cached price as stable base, adjust with recent swap trend
         
-        let vwapPrice = latestSwap.price; // Fallback to latest
-        if (recentSwapsInWindow.length >= 3) {
-            // Calculate volume-weighted average price (VWAP)
+        const jupiterPriceUsd = metadata.price || 0; // Stable base from Jupiter
+        const supply = metadata.supply || 0;
+        
+        // Calculate price delta from recent swaps (10-minute window for stability)
+        const tenMinutesAgo = now - 10 * 60 * 1000;
+        const recentSwaps = swaps.filter(s => s.timestamp >= tenMinutesAgo);
+        
+        let priceAdjustment = 0; // Delta to apply to Jupiter price
+        
+        if (recentSwaps.length >= 5 && jupiterPriceUsd > 0) {
+            // Calculate VWAP from recent swaps
             let totalVolume = 0;
             let weightedPriceSum = 0;
             
-            recentSwapsInWindow.forEach(swap => {
+            recentSwaps.forEach(swap => {
                 const volume = Math.abs(swap.amountUsd || 0);
                 totalVolume += volume;
                 weightedPriceSum += swap.price * volume;
             });
             
             if (totalVolume > 0) {
-                vwapPrice = weightedPriceSum / totalVolume;
+                const swapVWAP = weightedPriceSum / totalVolume;
+                const swapVWAPUsd = swapVWAP * this.solPriceUSD;
+                
+                // Calculate percentage difference between swap VWAP and Jupiter price
+                const priceDelta = ((swapVWAPUsd - jupiterPriceUsd) / jupiterPriceUsd) * 100;
+                
+                // Apply delta with dampening (max ±5% adjustment to prevent wild swings)
+                const maxAdjustment = 5; // Max 5% adjustment
+                const clampedDelta = Math.max(-maxAdjustment, Math.min(maxAdjustment, priceDelta));
+                
+                priceAdjustment = jupiterPriceUsd * (clampedDelta / 100);
             }
         }
         
-        const livePriceUsd = vwapPrice * this.solPriceUSD;
-        const supply = metadata.supply || 0;
+        // Final hybrid price: Jupiter base + swap-based adjustment
+        const hybridPriceUsd = jupiterPriceUsd + priceAdjustment;
         
-        // ✅ Calculate LIVE market cap from smoothed real-time price
-        const liveMarketCap = supply > 0 ? (livePriceUsd * supply) : (metadata.marketCap || 0);
+        // ✅ Calculate market cap from hybrid price
+        const liveMarketCap = supply > 0 ? (hybridPriceUsd * supply) : (metadata.marketCap || 0);
         
         // ✅ Use Jupiter's stats data for 24h metrics (true 24h window)
         const jupiterStats = metadata.jupiterData?.stats24h || {};
@@ -1768,9 +1783,9 @@ class EnhancedHybridPriceService extends EventEmitter {
             address: tokenAddress,
             age: this.calculateAge(metadata.createdAt || metadata.timestamp),
             
-            // ✅ LIVE Price: VWAP from recent swaps (smoothed, real-time!)
-            price: livePriceUsd,
-            priceSol: vwapPrice,
+            // ✅ HYBRID Price: Jupiter base + swap delta (stable + responsive!)
+            price: hybridPriceUsd,
+            priceSol: hybridPriceUsd / this.solPriceUSD,
             
             // ✅ LIVE Market Cap: Calculated from live price × supply
             marketCap: liveMarketCap,
