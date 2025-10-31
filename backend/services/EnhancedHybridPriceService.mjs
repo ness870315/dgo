@@ -147,8 +147,8 @@ class EnhancedHybridPriceService extends EventEmitter {
             await this.updateSolPrice(); // ✅ CRITICAL FIX: Initialize SOL price for swap detection
             
             // 🚀 NEW: Initialize persistent swap storage
-            await this.chartDatabase.loadDatabase();
-            this.chartDatabase.startBatchWriter();
+            await this.chartDatabase.ensureDataDir(); // Ensure data directory exists
+            this.chartDatabase.startBatchWriter(); // Start batch writer
             console.log('✅ [EnhancedHybridPriceService] Persistent swap storage initialized');
             
             console.log(`💰 [EnhancedHybridPriceService] SOL Price: $${this.solPriceUSD}`);
