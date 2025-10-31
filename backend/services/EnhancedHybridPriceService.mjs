@@ -1726,12 +1726,15 @@ class EnhancedHybridPriceService extends EventEmitter {
             '24h': this.calculateWindowMetrics(swaps, now - 24 * 60 * 60 * 1000, now)
         };
         
-        const currentPriceUsd = latestSwap.price * this.solPriceUSD;
+        // ✅ Use Jupiter's cached price (more reliable than latest swap)
+        const currentPriceUsd = metadata.price || (latestSwap.price * this.solPriceUSD);
         const supply = metadata.supply || 0;
         
-        // ✅ Use Jupiter's stats24h data if available (true 24h data)
-        // Otherwise fall back to our calculated metrics (since monitoring started)
+        // ✅ Use Jupiter's stats data for accurate metrics
         const jupiterStats = metadata.jupiterData?.stats24h || {};
+        const jupiterStats5m = metadata.jupiterData?.stats5m || {};
+        const jupiterStats1h = metadata.jupiterData?.stats1h || {};
+        const jupiterStats6h = metadata.jupiterData?.stats6h || {};
         
         return {
             // Basic info
@@ -1740,16 +1743,16 @@ class EnhancedHybridPriceService extends EventEmitter {
             address: tokenAddress,
             age: this.calculateAge(metadata.createdAt || metadata.timestamp),
             
-            // Real-time price (from latest swap)
+            // ✅ Price: Use Jupiter cached price (reliable) not latest swap
             price: currentPriceUsd,
-            priceSol: latestSwap.price,
+            priceSol: currentPriceUsd / this.solPriceUSD,
             
-            // Market data (use cached values from Jupiter - more accurate)
+            // Market data (use cached values from Jupiter - accurate)
             marketCap: metadata.marketCap || 0,
             liquidity: metadata.liquidity || 0,
             supply: supply,
             
-            // ✅ 24h metrics: Use Jupiter data (true 24h) or fallback to our metrics (since monitoring)
+            // ✅ 24h metrics: Use Jupiter data (true 24h) or fallback to our metrics
             volume24h: jupiterStats.buyVolume && jupiterStats.sellVolume 
                 ? (jupiterStats.buyVolume + jupiterStats.sellVolume) 
                 : metrics['24h'].volume,
@@ -1758,11 +1761,11 @@ class EnhancedHybridPriceService extends EventEmitter {
                 : metrics['24h'].txns,
             makers24h: jupiterStats.numTraders || metrics['24h'].makers,
             
-            // Price changes
-            priceChange5m: metrics['5m'].priceChange,
-            priceChange1h: metrics['1h'].priceChange,
-            priceChange6h: metrics['6h'].priceChange,
-            priceChange24h: metrics['24h'].priceChange,
+            // ✅ Price changes: Use Jupiter stats (accurate) or fallback to our calculations
+            priceChange5m: jupiterStats5m.priceChange ?? metrics['5m'].priceChange,
+            priceChange1h: jupiterStats1h.priceChange ?? metrics['1h'].priceChange,
+            priceChange6h: jupiterStats6h.priceChange ?? metrics['6h'].priceChange,
+            priceChange24h: jupiterStats.priceChange ?? metrics['24h'].priceChange,
             
             // Real-time indicator
             lastUpdate: latestSwap.timestamp,
