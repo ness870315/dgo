@@ -86,9 +86,10 @@ class EnhancedHybridPriceService extends EventEmitter {
         // ✅ NEW: Periodic ranking broadcast
         this.rankingBroadcastInterval = null;
         
-        // 🚀 NEW: Token cache management
+        // 🚀 NEW: Token cache management (use persistent disk)
         this.tokenCache = [];
-        this.cachePath = path.join(process.cwd(), 'cache', 'tokens-cache.json');
+        const dataDir = process.env.DATA_DIR || '/var/data/dgo';
+        this.cachePath = path.join(dataDir, 'cache', 'tokens-cache.json');
         
         // 🚀 NEW: Persistent swap storage
         this.chartDatabase = new ChartDatabase();
