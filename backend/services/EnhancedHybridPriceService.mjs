@@ -1729,6 +1729,14 @@ class EnhancedHybridPriceService extends EventEmitter {
         const currentPriceUsd = latestSwap.price * this.solPriceUSD;
         const supply = metadata.supply || 0;
         
+        // Debug logging for market cap
+        if (metadata.symbol === 'USELESS') {
+            console.log(`🔍 [USELESS Debug] metadata.marketCap: ${metadata.marketCap}`);
+            console.log(`🔍 [USELESS Debug] currentPriceUsd: ${currentPriceUsd}`);
+            console.log(`🔍 [USELESS Debug] supply: ${supply}`);
+            console.log(`🔍 [USELESS Debug] calculated would be: ${currentPriceUsd * supply}`);
+        }
+        
         return {
             // Basic info
             symbol: metadata.symbol,
