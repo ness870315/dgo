@@ -767,15 +767,28 @@ function AppContent() {
 
   // Handle token selection
   const handleTokenSelect = useCallback((token) => {
+    // If token is from ranking list (minimal data), find full token from cache
+    const tokenAddress = token.contractAddress || token.tokenAddress || token.address;
+    
+    // Try to find full token data from tokens cache
+    const fullToken = tokens.find(t => 
+      t.contractAddress === tokenAddress || 
+      t.tokenAddress === tokenAddress ||
+      t.address === tokenAddress
+    );
+    
+    // Use full token if found, otherwise use provided token
+    const tokenToSelect = fullToken || token;
+    
     // Check if this is a bonding token (has bondingCurveProgress property)
-    if (token.bondingCurveProgress !== undefined) {
-      setSelectedToken(token);
+    if (tokenToSelect.bondingCurveProgress !== undefined) {
+      setSelectedToken(tokenToSelect);
       setShowPreTokenDetail(true);
     } else {
-      setSelectedToken(token);
+      setSelectedToken(tokenToSelect);
       setShowPreTokenDetail(false);
     }
-  }, []);
+  }, [tokens]);
 
   // Handle refresh
   const handleRefresh = useCallback(() => {

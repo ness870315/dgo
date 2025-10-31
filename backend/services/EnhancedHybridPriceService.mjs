@@ -363,7 +363,10 @@ class EnhancedHybridPriceService extends EventEmitter {
                         liquidity: liquidity,
                         supply: supply,
                         createdAt: createdAt,
-                        graduatedPool: token.graduatedPool || token.jupiterData?.graduatedPool
+                        graduatedPool: token.graduatedPool || token.jupiterData?.graduatedPool,
+                        // ✅ CRITICAL: Store logo and jupiterData for frontend display
+                        logo: token.logo || token.jupiterData?.icon,
+                        jupiterData: token.jupiterData // Store full jupiterData object
                     });
                     
                     // Log first 3 tokens for debugging
@@ -1783,6 +1786,11 @@ class EnhancedHybridPriceService extends EventEmitter {
                 if (tooltipData) {
                     rankings.push({
                         ...tooltipData,
+                        // ✅ CRITICAL: Include full token metadata for frontend
+                        contractAddress: tokenAddress,
+                        tokenAddress: tokenAddress,
+                        logo: metadata.logo,
+                        jupiterData: metadata.jupiterData || { icon: metadata.logo },
                         rank: 0 // Will be set after sorting
                     });
                 }
@@ -1796,7 +1804,13 @@ class EnhancedHybridPriceService extends EventEmitter {
                     symbol: metadata.symbol,
                     name: metadata.name,
                     address: tokenAddress,
+                    contractAddress: tokenAddress, // ✅ CRITICAL for TokenDetails modal
+                    tokenAddress: tokenAddress,
                     age: this.calculateAge(metadata.createdAt || metadata.timestamp),
+                    
+                    // ✅ CRITICAL: Include logo/icon for PFPs
+                    logo: metadata.logo,
+                    jupiterData: metadata.jupiterData || { icon: metadata.logo },
                     
                     // Price (from cache)
                     price: currentPriceUsd,
