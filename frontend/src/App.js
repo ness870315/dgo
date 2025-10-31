@@ -274,7 +274,7 @@ function AppContent() {
   });
 
   // View toggle state
-  const [currentView, setCurrentView] = useState('bubbles'); // 'bubbles' or 'list'
+  const [currentView, setCurrentView] = useState('list'); // 'bubbles' or 'list'
   
   // Bonding tokens state
   const [bondingTokens, setBondingTokens] = useState([]);
