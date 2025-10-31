@@ -17,6 +17,9 @@ class ChartDatabase {
         this.dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
         // In production: /var/data/dgo
         // In local: ./data
+        
+        // ✅ CRITICAL: Store swap files in charts subdirectory
+        this.chartsDir = path.join(this.dataDir, 'charts');
         this.dbFile = path.join(this.dataDir, 'charts.json');
         
         // 🚀 HYBRID ARCHITECTURE: Per-token databases + shared metadata
@@ -48,9 +51,14 @@ class ChartDatabase {
     initializeDataDirSync() {
         try {
             const fsSync = require('fs');
+            // Create both data dir and charts subdirectory
             if (!fsSync.existsSync(this.dataDir)) {
                 fsSync.mkdirSync(this.dataDir, { recursive: true });
                 console.log(`✅ [ChartDatabase] Created data directory: ${this.dataDir}`);
+            }
+            if (!fsSync.existsSync(this.chartsDir)) {
+                fsSync.mkdirSync(this.chartsDir, { recursive: true });
+                console.log(`✅ [ChartDatabase] Created charts directory: ${this.chartsDir}`);
             }
         } catch (error) {
             console.error('❌ [ChartDatabase] Failed to create data directory:', error.message);
@@ -151,7 +159,7 @@ class ChartDatabase {
      * 🚀 PER-TOKEN FILE PATH - Get file path for specific token
      */
     getTokenFilePath(tokenAddress) {
-        return path.join(this.dataDir, `swaps_${tokenAddress}.json`);
+        return path.join(this.chartsDir, `swaps_${tokenAddress}.json`);
     }
 
     /**
