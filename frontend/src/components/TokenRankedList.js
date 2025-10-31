@@ -167,10 +167,10 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
     <div className="w-full h-full overflow-y-auto bg-gray-900">
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-xs table-fixed">
           <thead className="text-xs text-gray-400 uppercase bg-gray-800 sticky top-0 z-20">
             <tr className="border-b border-gray-700">
-              <th colSpan="13" className="px-4 py-2 text-left">
+              <th colSpan="13" className="px-2 py-2 text-left">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-white font-bold text-sm">📊 Token Rankings</span>
@@ -187,19 +187,19 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
               </th>
             </tr>
             <tr className="border-b border-gray-700">
-              <th className="px-4 py-3 text-left">#</th>
-              <th className="px-4 py-3 text-left">Token</th>
-              <th className="px-4 py-3 text-right">Price</th>
-              <th className="px-4 py-3 text-center">Age</th>
-              <th className="px-4 py-3 text-right">Txns</th>
-              <th className="px-4 py-3 text-right">Volume</th>
-              <th className="px-4 py-3 text-right">Makers</th>
-              <th className="px-4 py-3 text-right">5M</th>
-              <th className="px-4 py-3 text-right">1H</th>
-              <th className="px-4 py-3 text-right">6H</th>
-              <th className="px-4 py-3 text-right">24H</th>
-              <th className="px-4 py-3 text-right">Liquidity</th>
-              <th className="px-4 py-3 text-right">MCap</th>
+              <th className="px-2 py-2 text-left w-8">#</th>
+              <th className="px-2 py-2 text-left w-32">Token</th>
+              <th className="px-2 py-2 text-right w-20">Price</th>
+              <th className="px-2 py-2 text-center w-12">Age</th>
+              <th className="px-2 py-2 text-right w-12">Txns</th>
+              <th className="px-2 py-2 text-right w-16">Volume</th>
+              <th className="px-2 py-2 text-right w-12">Makers</th>
+              <th className="px-2 py-2 text-right w-16">5M</th>
+              <th className="px-2 py-2 text-right w-16">1H</th>
+              <th className="px-2 py-2 text-right w-16">6H</th>
+              <th className="px-2 py-2 text-right w-16">24H</th>
+              <th className="px-2 py-2 text-right w-20">Liquidity</th>
+              <th className="px-2 py-2 text-right w-20">MCap</th>
             </tr>
           </thead>
           <tbody>
@@ -213,35 +213,35 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
                   onClick={() => onTokenSelect(token)}
                 >
                   {/* Rank */}
-                  <td className="px-4 py-3 font-medium text-gray-300">
+                  <td className="px-2 py-2 font-medium text-gray-300">
                     #{index + 1}
                   </td>
 
                   {/* Token */}
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
+                  <td className="px-2 py-2">
+                    <div className="flex items-center gap-1.5">
                       {/* Token icon */}
                       {token.jupiterData?.icon || token.logo ? (
                         <img 
                           src={token.jupiterData?.icon || token.logo} 
                           alt={token.symbol}
-                          className="w-6 h-6 rounded-full flex-shrink-0"
+                          className="w-5 h-5 rounded-full flex-shrink-0"
                           onError={(e) => e.target.style.display = 'none'}
                         />
                       ) : (
-                        <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
+                        <div className="w-5 h-5 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
                           <span className="text-xs text-gray-400">{token.symbol?.charAt(0) || '?'}</span>
                         </div>
                       )}
                       
-                      <div className="min-w-0">
-                        <div className="font-bold text-white flex items-center gap-1 flex-wrap">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-white flex items-center gap-1 text-xs">
                           <span className="truncate">{token.symbol}</span>
                           {token.isLive && (
                             <span className="text-xs text-green-400 flex-shrink-0">📡</span>
                           )}
                           {fuelInfo.isFueled && (
-                            <div className="flex items-center space-x-1 px-1 py-0.5 bg-orange-900 border border-orange-500 rounded-full flex-shrink-0">
+                            <div className="flex items-center space-x-0.5 px-1 py-0.5 bg-orange-900 border border-orange-500 rounded-full flex-shrink-0">
                               <Flame className="w-2 h-2 text-orange-400" />
                               <span className="text-orange-400 text-xs font-bold">
                                 {fuelInfo.multiplier}
@@ -255,65 +255,65 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
                   </td>
 
                   {/* Price */}
-                  <td className="px-4 py-3 text-right font-mono text-white">
+                  <td className="px-2 py-2 text-right font-mono text-white text-xs">
                     {formatPrice(token.price || token.jupiterData?.price)}
                   </td>
 
                   {/* Age */}
-                  <td className="px-4 py-3 text-center text-gray-300">
+                  <td className="px-2 py-2 text-center text-gray-300 text-xs">
                     {token.age || 'N/A'}
                   </td>
 
                   {/* Txns */}
-                  <td className="px-4 py-3 text-right text-gray-300">
+                  <td className="px-2 py-2 text-right text-gray-300 text-xs">
                     {token.txns24h ? token.txns24h.toLocaleString() : '0'}
                   </td>
 
                   {/* Volume */}
-                  <td className="px-4 py-3 text-right font-medium text-white">
+                  <td className="px-2 py-2 text-right font-medium text-white text-xs">
                     {formatNumber(token.volume24h || 0)}
                   </td>
 
                   {/* Makers */}
-                  <td className="px-4 py-3 text-right text-gray-300">
+                  <td className="px-2 py-2 text-right text-gray-300 text-xs">
                     {token.makers24h ? token.makers24h.toLocaleString() : '0'}
                   </td>
 
                   {/* 5M Change */}
-                  <td className={`px-4 py-3 text-right font-medium ${
+                  <td className={`px-2 py-2 text-right font-medium text-xs ${
                     (token.priceChange5m || 0) >= 0 ? 'text-green-400' : 'text-red-400'
                   }`}>
                     {formatPercentage(token.priceChange5m || 0)}
                   </td>
 
                   {/* 1H Change */}
-                  <td className={`px-4 py-3 text-right font-medium ${
+                  <td className={`px-2 py-2 text-right font-medium text-xs ${
                     (token.priceChange1h || 0) >= 0 ? 'text-green-400' : 'text-red-400'
                   }`}>
                     {formatPercentage(token.priceChange1h || 0)}
                   </td>
 
                   {/* 6H Change */}
-                  <td className={`px-4 py-3 text-right font-medium ${
+                  <td className={`px-2 py-2 text-right font-medium text-xs ${
                     (token.priceChange6h || 0) >= 0 ? 'text-green-400' : 'text-red-400'
                   }`}>
                     {formatPercentage(token.priceChange6h || 0)}
                   </td>
 
                   {/* 24H Change */}
-                  <td className={`px-4 py-3 text-right font-medium ${
+                  <td className={`px-2 py-2 text-right font-medium text-xs ${
                     (token.priceChange24h || 0) >= 0 ? 'text-green-400' : 'text-red-400'
                   }`}>
                     {formatPercentage(token.priceChange24h || 0)}
                   </td>
 
                   {/* Liquidity */}
-                  <td className="px-4 py-3 text-right text-gray-300">
+                  <td className="px-2 py-2 text-right text-gray-300 text-xs">
                     {formatNumber(token.liquidity || token.jupiterData?.liquidity || 0)}
                   </td>
 
                   {/* Market Cap */}
-                  <td className="px-4 py-3 text-right font-medium text-white">
+                  <td className="px-2 py-2 text-right font-medium text-white text-xs">
                     {formatNumber(token.marketCap || token.jupiterData?.marketCap || token.jupiterData?.mcap || 0)}
                   </td>
                 </tr>
