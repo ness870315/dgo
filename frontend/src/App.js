@@ -784,6 +784,9 @@ function AppContent() {
       console.log(`✅ [handleTokenSelect] Found full token in cache:`, {
         symbol: fullToken.symbol,
         hasTwitterData: !!fullToken.twitterData,
+        twitterDataKeys: fullToken.twitterData ? Object.keys(fullToken.twitterData) : [],
+        hasTweets: !!(fullToken.twitterData?.tweets || fullToken.twitterData?.recentMentions),
+        tweetsCount: fullToken.twitterData?.tweets?.length || fullToken.twitterData?.recentMentions?.length || 0,
         hasJupiterData: !!fullToken.jupiterData,
         hasSocialContext: !!fullToken.socialContext
       });
