@@ -770,12 +770,26 @@ function AppContent() {
     // If token is from ranking list (minimal data), find full token from cache
     const tokenAddress = token.contractAddress || token.tokenAddress || token.address;
     
+    console.log(`🔍 [handleTokenSelect] Looking for token: ${tokenAddress}`);
+    console.log(`🔍 [handleTokenSelect] Tokens cache size: ${tokens.length}`);
+    
     // Try to find full token data from tokens cache
     const fullToken = tokens.find(t => 
       t.contractAddress === tokenAddress || 
       t.tokenAddress === tokenAddress ||
       t.address === tokenAddress
     );
+    
+    if (fullToken) {
+      console.log(`✅ [handleTokenSelect] Found full token in cache:`, {
+        symbol: fullToken.symbol,
+        hasTwitterData: !!fullToken.twitterData,
+        hasJupiterData: !!fullToken.jupiterData,
+        hasSocialContext: !!fullToken.socialContext
+      });
+    } else {
+      console.log(`⚠️ [handleTokenSelect] Token NOT found in cache, using minimal data`);
+    }
     
     // Use full token if found, otherwise use provided token
     const tokenToSelect = fullToken || token;
