@@ -1740,12 +1740,12 @@ class EnhancedHybridPriceService extends EventEmitter {
             price: currentPriceUsd,
             priceSol: latestSwap.price,
             
-            // Market data
-            marketCap: currentPriceUsd * supply,
+            // Market data (use cached values from Jupiter - more accurate than calculating)
+            marketCap: metadata.marketCap || 0, // ✅ Use cached market cap (circulating supply)
             liquidity: metadata.liquidity || 0,
             supply: supply,
             
-            // 24h metrics
+            // 24h metrics (only from swaps we've monitored - may be less than 24h)
             volume24h: metrics['24h'].volume,
             txns24h: metrics['24h'].txns,
             makers24h: metrics['24h'].makers,
