@@ -674,6 +674,18 @@ class EnhancedHybridPriceService extends EventEmitter {
             decoder = this.raydiumDecoder; // Will be passed but may not be used for non-Raydium swaps
         }
         
+        // 🚀 PROACTIVE POOL DECODING: Decode pool state if not already cached
+        // This ensures decoder can accurately classify user vs pool for subsequent swaps
+        // decodePoolState() handles caching internally - will return immediately if cached
+        if (decoder && poolAddress && (decoder === this.raydiumDecoder || decoder === this.raydiumCPMMDecoder)) {
+            // Decode pool state asynchronously (don't await - fire and forget for performance)
+            // If pool is already cached, this returns immediately without an RPC call
+            decoder.decodePoolState(poolAddress).catch(err => {
+                // Silently fail - decoder will fall back to heuristics if decode fails
+                // console.log(`⚠️ [processSwapForToken] Failed to decode pool ${poolAddress.substring(0, 8)}...: ${err.message}`);
+            });
+        }
+        
         // 🚀 USE ROBUST SWAP DETECTION with appropriate decoder
         const midPriceUsd = this.midPriceUsd.get(tokenAddress);
         const swapRecord = processTxForSwap(
