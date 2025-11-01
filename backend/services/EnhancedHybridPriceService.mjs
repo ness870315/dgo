@@ -850,9 +850,10 @@ class EnhancedHybridPriceService extends EventEmitter {
                         if (tx.meta?.preTokenBalances?.length > 0) {
                             // console.log(`🎉 [EnhancedHybridPriceService] TOKEN BALANCE CHANGES DETECTED for ${tokenAddress}!`);
                             
-                            // 🔍 DEBUG: Log full transaction structure (first swap only)
-                            if (!this._loggedTxStructure) {
-                                console.log(`\n📋 [DEBUG] TRANSACTION JSON STRUCTURE:`);
+                            // 🔍 DEBUG: Log full transaction structure (every 100th swap)
+                            this._txDebugCounter = (this._txDebugCounter || 0) + 1;
+                            if (this._txDebugCounter === 1 || this._txDebugCounter % 100 === 0) {
+                                console.log(`\n📋 [DEBUG] TRANSACTION JSON STRUCTURE (#${this._txDebugCounter}):`);
                                 console.log(JSON.stringify({
                                     signature: transactionSignature?.substring(0, 16) + '...',
                                     slot: slot,
@@ -860,34 +861,33 @@ class EnhancedHybridPriceService extends EventEmitter {
                                     meta: {
                                         err: tx.meta.err,
                                         fee: tx.meta.fee,
-                                        preBalances: tx.meta.preBalances,
-                                        postBalances: tx.meta.postBalances,
+                                        preBalances: tx.meta.preBalances?.slice(0, 5),
+                                        postBalances: tx.meta.postBalances?.slice(0, 5),
                                         preTokenBalances: tx.meta.preTokenBalances?.map(b => ({
                                             accountIndex: b.accountIndex,
-                                            mint: b.mint,
-                                            owner: b.owner,
+                                            mint: b.mint?.substring(0, 16) + '...',
+                                            owner: b.owner?.substring(0, 16) + '...',
                                             uiTokenAmount: b.uiTokenAmount
                                         })),
                                         postTokenBalances: tx.meta.postTokenBalances?.map(b => ({
                                             accountIndex: b.accountIndex,
-                                            mint: b.mint,
-                                            owner: b.owner,
+                                            mint: b.mint?.substring(0, 16) + '...',
+                                            owner: b.owner?.substring(0, 16) + '...',
                                             uiTokenAmount: b.uiTokenAmount
                                         }))
                                     },
                                     transaction: {
                                         message: {
-                                            accountKeys: tx.transaction?.message?.accountKeys?.slice(0, 10).map(k => k.substring(0, 16) + '...'),
-                                            instructions: tx.transaction?.message?.instructions?.map(i => ({
+                                            accountKeys: tx.transaction?.message?.accountKeys?.slice(0, 10).map(k => k?.substring(0, 16) + '...'),
+                                            instructions: tx.transaction?.message?.instructions?.slice(0, 3).map(i => ({
                                                 programIdIndex: i.programIdIndex,
-                                                accounts: i.accounts,
+                                                accounts: i.accounts?.slice(0, 10),
                                                 data: i.data?.substring(0, 32) + '...'
                                             }))
                                         }
                                     }
                                 }, null, 2));
                                 console.log(`\n`);
-                                this._loggedTxStructure = true; // Only log once
                             }
                             
                             // Collect all balance changes to find both sides of the swap
