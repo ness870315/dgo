@@ -191,6 +191,14 @@ class EnhancedHybridPriceService extends EventEmitter {
             // ✅ NEW: Start periodic ranking broadcasts (every 30 seconds)
             if (this.webSocketServer) {
                 this.startRankingBroadcasts(30000);
+                
+                // 🚀 NEW: Listen for client subscriptions to send recent swaps
+                this.webSocketServer.on('tokenSubscription', ({ clientId, tokenAddress, sendRecentSwaps }) => {
+                    if (sendRecentSwaps && this.swapHistory.has(tokenAddress)) {
+                        const recentSwaps = this.swapHistory.get(tokenAddress).slice(-10); // Last 10 swaps
+                        this.webSocketServer.sendRecentSwapsToClient(clientId, tokenAddress, recentSwaps);
+                    }
+                });
             }
             
             console.log('✅ [EnhancedHybridPriceService] Async initialization complete');

@@ -108,8 +108,8 @@ class BackendWebSocketServer extends EventEmitter {
       timestamp: Date.now()
     });
 
-    // Emit event for external services (like CoinVera)
-    this.emit('tokenSubscription', { clientId, tokenAddress });
+    // 🚀 NEW: Emit event to send recent swaps to this client
+    this.emit('tokenSubscription', { clientId, tokenAddress, sendRecentSwaps: true });
   }
 
   handleTokenUnsubscription(clientId, tokenAddress) {
@@ -196,6 +196,24 @@ class BackendWebSocketServer extends EventEmitter {
     this.broadcastToTokenSubscribers(tokenAddress, {
       type: 'swapUpdate',
       data: swapData
+    });
+  }
+
+  // 🚀 NEW: Send recent swaps to a specific client (for late joiners)
+  sendRecentSwapsToClient(clientId, tokenAddress, recentSwaps) {
+    if (!recentSwaps || recentSwaps.length === 0) {
+      console.log(`📊 [BackendWS] No recent swaps to send for ${tokenAddress.substring(0, 8)}...`);
+      return;
+    }
+
+    console.log(`📊 [BackendWS] Sending ${recentSwaps.length} recent swaps to client ${clientId} for ${tokenAddress.substring(0, 8)}...`);
+    
+    this.sendToClient(clientId, {
+      type: 'recentSwaps',
+      tokenAddress,
+      swaps: recentSwaps,
+      count: recentSwaps.length,
+      timestamp: Date.now()
     });
   }
 
