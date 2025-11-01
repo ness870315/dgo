@@ -1024,6 +1024,29 @@ class EnhancedBackend {
       }
     });
 
+    // Admin: Reprocess Twitter data for tokens without it
+    this.app.post('/api/admin/reprocess-twitter', adminApiAuth, async (req, res) => {
+      try {
+        console.log('🔄 [Admin] Starting Twitter data reprocessing...');
+        
+        // Send immediate response that processing has started
+        res.json({ 
+          success: true, 
+          message: 'Twitter reprocessing started',
+          note: 'This will run in the background. Check server logs for progress.'
+        });
+        
+        // Run reprocessing in background (don't await)
+        this.reprocessTwitterDataInBackground().catch(error => {
+          console.error('❌ [Admin] Twitter reprocessing failed:', error.message);
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Reprocess Twitter failed:', error.message);
+        res.status(500).json({ success: false, error: 'Failed to start Twitter reprocessing' });
+      }
+    });
+
     // Admin: Upgrade a user to premium bypassing payment
     this.app.post('/api/admin/users/:id/upgrade', adminApiAuth, async (req, res) => {
       try {
@@ -15817,6 +15840,120 @@ Thanks for using x402 payments on Twitter! 🚀`;
     if (numScore >= 7.0) return 'BUILDING';
     if (numScore >= 5.0) return 'WAKING UP';
     return 'SLEEPING';
+  }
+
+  async reprocessTwitterDataInBackground() {
+    try {
+      console.log('🔄 [TwitterReprocess] Starting background Twitter data reprocessing...');
+      
+      // Load tokens from cache
+      const dataDir = process.env.DATA_DIR || '/var/data/dgo';
+      const cachePath = path.join(dataDir, 'cache', 'tokens-cache.json');
+      
+      console.log(`📂 [TwitterReprocess] Loading tokens from: ${cachePath}`);
+      const cacheData = await fs.readFile(cachePath, 'utf8');
+      const tokens = JSON.parse(cacheData);
+      console.log(`✅ [TwitterReprocess] Loaded ${tokens.length} tokens from cache`);
+      
+      // Filter tokens that need Twitter data
+      const tokensNeedingTwitterData = tokens.filter(token => {
+        // Check if token has no Twitter data at all
+        if (!token.twitterData) {
+          return true;
+        }
+        
+        // Check if Twitter data exists but has no tweets/mentions
+        const hasTweets = token.twitterData.tweets && token.twitterData.tweets.length > 0;
+        const hasMentions = token.twitterData.recentMentions && token.twitterData.recentMentions.length > 0;
+        
+        if (!hasTweets && !hasMentions) {
+          return true;
+        }
+        
+        // Check if Twitter data is very old (> 7 days)
+        if (token.twitterTimestamp) {
+          const lastUpdate = new Date(token.twitterTimestamp);
+          const daysSinceUpdate = (Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24);
+          if (daysSinceUpdate > 7) {
+            console.log(`⏰ [TwitterReprocess] ${token.symbol}: Twitter data is ${Math.floor(daysSinceUpdate)} days old, will refresh`);
+            return true;
+          }
+        }
+        
+        return false;
+      });
+      
+      console.log(`\n📊 [TwitterReprocess] Analysis Results:`);
+      console.log(`   Total tokens: ${tokens.length}`);
+      console.log(`   Tokens with Twitter data: ${tokens.length - tokensNeedingTwitterData.length}`);
+      console.log(`   Tokens needing Twitter data: ${tokensNeedingTwitterData.length}\n`);
+      
+      if (tokensNeedingTwitterData.length === 0) {
+        console.log('✅ [TwitterReprocess] All tokens already have Twitter data! Nothing to do.');
+        return;
+      }
+      
+      // Show sample of tokens to be processed
+      console.log(`📋 [TwitterReprocess] Sample tokens to be processed:`);
+      tokensNeedingTwitterData.slice(0, 10).forEach((token, i) => {
+        const reason = !token.twitterData 
+          ? 'No Twitter data' 
+          : 'Empty tweets/mentions';
+        console.log(`   ${i + 1}. ${token.symbol} (${token.contractAddress?.substring(0, 8)}...) - ${reason}`);
+      });
+      if (tokensNeedingTwitterData.length > 10) {
+        console.log(`   ... and ${tokensNeedingTwitterData.length - 10} more`);
+      }
+      console.log('');
+      
+      console.log(`⚠️  [TwitterReprocess] This will fetch Twitter data for ${tokensNeedingTwitterData.length} tokens`);
+      console.log(`⚠️  [TwitterReprocess] Estimated time: ${Math.ceil(tokensNeedingTwitterData.length * 30 / 60)} minutes (30s per token)`);
+      console.log(`⚠️  [TwitterReprocess] Twitter API costs: ~$${(tokensNeedingTwitterData.length * 0.15).toFixed(2)} (TwitterAPI.io)\n`);
+      
+      // Initialize EnhancedTokenProcessor
+      console.log('📊 [TwitterReprocess] Initializing EnhancedTokenProcessor...');
+      const processor = new EnhancedTokenProcessor();
+      await processor.initialize();
+      console.log('✅ [TwitterReprocess] EnhancedTokenProcessor initialized\n');
+      
+      // Add tokens to processor queue
+      console.log(`📥 [TwitterReprocess] Adding ${tokensNeedingTwitterData.length} tokens to processor queue...`);
+      processor.processingQueue = tokensNeedingTwitterData;
+      console.log(`✅ [TwitterReprocess] Tokens added to queue\n`);
+      
+      // Run through Twitter stage only (skip Jupiter - already have that data)
+      console.log('🐦 [TwitterReprocess] Starting Twitter data fetching stage...');
+      console.log('⏳ [TwitterReprocess] This may take a while...\n');
+      
+      const startTime = Date.now();
+      await processor.processTwitterStage();
+      const duration = Math.floor((Date.now() - startTime) / 1000);
+      
+      console.log(`\n✅ [TwitterReprocess] Twitter stage completed in ${Math.floor(duration / 60)}m ${duration % 60}s`);
+      
+      // Run through scoring stage to update scores with new Twitter data
+      console.log('\n📊 [TwitterReprocess] Recalculating scores with new Twitter data...');
+      await processor.processScoringStage();
+      console.log('✅ [TwitterReprocess] Scoring stage completed');
+      
+      // Save updated tokens to cache
+      console.log('\n💾 [TwitterReprocess] Saving updated tokens to cache...');
+      await processor.saveFinalDatabase();
+      console.log('✅ [TwitterReprocess] Tokens saved to cache');
+      
+      // Final stats
+      console.log(`\n📊 [TwitterReprocess] Final Results:`);
+      console.log(`   Tokens processed: ${tokensNeedingTwitterData.length}`);
+      console.log(`   Time taken: ${Math.floor(duration / 60)}m ${duration % 60}s`);
+      console.log(`   Average time per token: ${Math.floor(duration / tokensNeedingTwitterData.length)}s`);
+      
+      console.log('\n✅ [TwitterReprocess] Reprocessing completed successfully!');
+      console.log('🎉 [TwitterReprocess] All tokens now have Twitter data and updated scores!\n');
+      
+    } catch (error) {
+      console.error('❌ [TwitterReprocess] Reprocessing failed:', error.message);
+      console.error(error.stack);
+    }
   }
 
   async getTokensFromCache() {
