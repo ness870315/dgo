@@ -24,6 +24,7 @@
   "license": "ISC",
   "dependencies": {
     "@payai/x402-solana": "^0.1.0-beta.2",
+    "@raydium-io/raydium-sdk": "^1.3.1-beta.58",
     "@solana/spl-token": "^0.4.14",
     "@solana/web3.js": "^1.87.6",
     "@triton-one/yellowstone-grpc": "^4.0.2",
