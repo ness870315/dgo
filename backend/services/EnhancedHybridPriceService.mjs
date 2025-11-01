@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import bs58 from 'bs58';
 import ChartDatabase from './ChartDatabase.js';
+import { processTxForSwap } from './SwapDetectionHelpers.mjs';
 
 // Use CommonJS wrapper for gRPC loading
 import { createRequire } from 'module';
@@ -59,6 +60,9 @@ class EnhancedHybridPriceService extends EventEmitter {
         
         // 🚀 NEW: Token metadata cache (decimals, graduatedPool, etc.)
         this.tokenMetadataCache = new Map(); // Map<tokenAddress, tokenInfo>
+        
+        // 🚀 NEW: Token price cache for counter-token USD pricing
+        this.tokenPriceCache = new Map(); // Map<mintAddress, usdPrice>
         
         // 🚀 NEW: Slot-to-timestamp estimation
         this.referenceSlot = null;
@@ -546,219 +550,101 @@ class EnhancedHybridPriceService extends EventEmitter {
     }
     
     // ✅ NEW: Process swap for a specific token from shared stream
+    // 🚀 ROBUST: Uses production-grade swap detection with v0 tx support
     async processSwapForToken(msg, tokenAddress, poolAddress, slot, signature) {
         const tx = msg.transaction.transaction;
         
-        // Collect token balance changes
-        const balanceChanges = [];
-        tx.meta.preTokenBalances.forEach((preBalance, index) => {
-            const postBalance = tx.meta.postTokenBalances[index];
-            if (preBalance && postBalance) {
-                const preAmount = preBalance.uiTokenAmount?.uiAmount || 0;
-                const postAmount = postBalance.uiTokenAmount?.uiAmount || 0;
-                const change = postAmount - preAmount;
-                
-                if (Math.abs(change) > 0.000001) {
-                    balanceChanges.push({
-                        mint: preBalance.mint,
-                        change: change,
-                        owner: preBalance.owner,
-                        preAmount: preAmount,
-                        postAmount: postAmount
-                    });
-                }
-            }
-        });
-        
-        // ✅ CRITICAL FIX: Add native SOL balance changes (for Jupiter aggregated swaps)
-        if (tx.meta?.preBalances && tx.meta?.postBalances && tx.transaction?.message?.accountKeys) {
-            tx.meta.preBalances.forEach((preBalance, index) => {
-                const postBalance = tx.meta.postBalances[index];
-                const change = (postBalance - preBalance) / 1e9; // Convert lamports to SOL
-                
-                if (Math.abs(change) > 0.000001) {
-                    const accountKey = tx.transaction.message.accountKeys[index];
-                    let accountAddress = null;
-                    
-                    // Extract account address
-                    if (Buffer.isBuffer(accountKey)) {
-                        accountAddress = bs58.encode(accountKey);
-                    } else if (typeof accountKey === 'string') {
-                        accountAddress = accountKey;
-                    } else if (accountKey?.data && Array.isArray(accountKey.data)) {
-                        accountAddress = bs58.encode(Buffer.from(accountKey.data));
-                    }
-                    
-                    if (accountAddress) {
-                        balanceChanges.push({
-                            mint: 'So11111111111111111111111111111111111111112', // Native SOL
-                            change: change,
-                            owner: accountAddress,
-                            preAmount: preBalance / 1e9,
-                            postAmount: postBalance / 1e9
-                        });
+        // 🔍 DEBUG: Log full transaction structure (first 5 swaps, then every 100th)
+        this._txDebugCounter = (this._txDebugCounter || 0) + 1;
+        if (this._txDebugCounter <= 5 || this._txDebugCounter % 100 === 0) {
+            console.log(`\n📋 [DEBUG] TRANSACTION JSON STRUCTURE (#${this._txDebugCounter}):`);
+            console.log(JSON.stringify({
+                signature: signature?.substring(0, 16) + '...',
+                slot: slot,
+                blockTime: tx.blockTime,
+                meta: {
+                    err: tx.meta?.err,
+                    fee: tx.meta?.fee,
+                    preBalances: tx.meta?.preBalances?.slice(0, 5),
+                    postBalances: tx.meta?.postBalances?.slice(0, 5),
+                    preTokenBalances: tx.meta?.preTokenBalances?.map(b => ({
+                        accountIndex: b.accountIndex,
+                        mint: b.mint?.substring(0, 16) + '...',
+                        owner: b.owner?.substring(0, 16) + '...',
+                        uiTokenAmount: b.uiTokenAmount
+                    })),
+                    postTokenBalances: tx.meta?.postTokenBalances?.map(b => ({
+                        accountIndex: b.accountIndex,
+                        mint: b.mint?.substring(0, 16) + '...',
+                        owner: b.owner?.substring(0, 16) + '...',
+                        uiTokenAmount: b.uiTokenAmount
+                    }))
+                },
+                transaction: {
+                    message: {
+                        accountKeys: tx.transaction?.message?.accountKeys?.slice(0, 10).map(k => 
+                            typeof k === 'string' ? k.substring(0, 16) + '...' : 
+                            (k?.type === 'Buffer' && Array.isArray(k?.data)) ? `Buffer[${k.data.slice(0, 8).join(',')}...]` :
+                            String(k).substring(0, 16) + '...'
+                        ),
+                        loadedAddresses: tx.transaction?.message?.loadedAddresses ? {
+                            writable: tx.transaction.message.loadedAddresses.writable?.length ?? 0,
+                            readonly: tx.transaction.message.loadedAddresses.readonly?.length ?? 0
+                        } : undefined,
+                        instructions: tx.transaction?.message?.instructions?.slice(0, 3).map(i => ({
+                            programIdIndex: i?.programIdIndex,
+                            accounts: i?.accounts?.slice(0, 10),
+                            data: typeof i?.data === 'string' ? i.data.substring(0, 32) + '...' : String(i?.data || '').substring(0, 32)
+                        }))
                     }
                 }
-            });
+            }, null, 2));
+            console.log(`\n`);
         }
         
-        // ✅ FIX: Filter for OUR specific token only (not all non-SOL tokens)
-        // We should only process swaps for the token we're monitoring
-        const tokenChanges = balanceChanges.filter(bc => {
-            // Match the mint address of the token we're monitoring
-            return bc.mint === tokenAddress;
-        });
-        const userTokenChanges = tokenChanges.filter(tc => {
-            return tc.owner !== poolAddress && tc.owner !== tokenAddress;
-        });
+        // 🚀 USE ROBUST SWAP DETECTION
+        const swapRecord = processTxForSwap(
+            tx,
+            tokenAddress,
+            this.solPriceUSD,
+            this.tokenPriceCache
+        );
         
-                if (userTokenChanges.length > 0) {
-                    console.log(`✅ [EnhancedHybridPriceService] Found ${userTokenChanges.length} MEMEPUTER swaps in transaction ${signature?.substring(0, 16)}...`);
-                    
-                    // 🔍 DEBUG: Log full transaction structure (first 5 swaps, then every 100th)
-                    this._txDebugCounter = (this._txDebugCounter || 0) + 1;
-                    if (this._txDebugCounter <= 5 || this._txDebugCounter % 100 === 0) {
-                        console.log(`\n📋 [DEBUG] TRANSACTION JSON STRUCTURE (#${this._txDebugCounter}):`);
-                        console.log(JSON.stringify({
-                            signature: signature?.substring(0, 16) + '...',
-                            slot: slot,
-                            blockTime: tx.blockTime,
-                            meta: {
-                                err: tx.meta?.err,
-                                fee: tx.meta?.fee,
-                                preBalances: tx.meta?.preBalances?.slice(0, 5),
-                                postBalances: tx.meta?.postBalances?.slice(0, 5),
-                                preTokenBalances: tx.meta?.preTokenBalances?.map(b => ({
-                                    accountIndex: b.accountIndex,
-                                    mint: b.mint?.substring(0, 16) + '...',
-                                    owner: b.owner?.substring(0, 16) + '...',
-                                    uiTokenAmount: b.uiTokenAmount
-                                })),
-                                postTokenBalances: tx.meta?.postTokenBalances?.map(b => ({
-                                    accountIndex: b.accountIndex,
-                                    mint: b.mint?.substring(0, 16) + '...',
-                                    owner: b.owner?.substring(0, 16) + '...',
-                                    uiTokenAmount: b.uiTokenAmount
-                                }))
-                            },
-                            transaction: {
-                                message: {
-                                    accountKeys: tx.transaction?.message?.accountKeys?.slice(0, 10).map(k => 
-                                        typeof k === 'string' ? k.substring(0, 16) + '...' : String(k).substring(0, 16) + '...'
-                                    ),
-                                    instructions: tx.transaction?.message?.instructions?.slice(0, 3).map(i => ({
-                                        programIdIndex: i?.programIdIndex,
-                                        accounts: i?.accounts?.slice(0, 10),
-                                        data: typeof i?.data === 'string' ? i.data.substring(0, 32) + '...' : String(i?.data || '').substring(0, 32)
-                                    }))
-                                }
-                            }
-                        }, null, 2));
-                        console.log(`\n`);
-                    }
-                    
-                    userTokenChanges.forEach(tokenChange => {
-                        // ✅ JUPITER COMPATIBLE: Find base token change (could be SOL, USDC, or any other token)
-                        // Exclude the target token itself and find the largest balance change for the same owner
-                        const baseTokenChanges = balanceChanges.filter(bc => 
-                            bc.mint !== tokenAddress && // Not our target token
-                            bc.owner === tokenChange.owner && // Same user account
-                            Math.abs(bc.change) > 0.001 // Significant change
-                        );
-                        
-                        // Find the largest base token change (most likely the swap input)
-                        const baseChange = baseTokenChanges.length > 0 
-                            ? baseTokenChanges.reduce((max, curr) => 
-                                Math.abs(curr.change) > Math.abs(max.change) ? curr : max)
-                            : null;
-                        
-                        // Fallback: look for SOL change specifically
-                        const solChange = balanceChanges.find(bc => 
-                            bc.mint === 'So11111111111111111111111111111111111111112' &&
-                            bc.owner === tokenChange.owner
-                        );
-                        
-                        // Determine swap type
-                        let swapType = tokenChange.change > 0 ? 'BUY' : 'SELL';
-                        
-                        // ✅ JUPITER AGGREGATED SWAPS FIX: If no direct base token change found for same owner,
-                        // look for SOL/USDC changes specifically from the SAME WALLET, not transaction-wide
-                        const finalBaseChange = baseChange || solChange;
-                        let estimatedBaseAmount = 0;
-                        
-                        if (!finalBaseChange || Math.abs(finalBaseChange.change) < 0.001) {
-                            // For Jupiter aggregated swaps, look for the user's wallet SOL/USDC payment
-                            // NOT the total transaction flow (which includes routing)
-                            const userSolChanges = balanceChanges.filter(bc => 
-                                bc.mint === 'So11111111111111111111111111111111111111112' &&
-                                bc.owner === tokenChange.owner // SAME WALLET as token recipient
-                            );
-                            const userUsdcChanges = balanceChanges.filter(bc => 
-                                bc.mint === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' && // USDC mint
-                                bc.owner === tokenChange.owner // SAME WALLET
-                            );
-                            
-                            // Sum changes for this specific user
-                            const userNetSol = userSolChanges.reduce((sum, bc) => sum + bc.change, 0);
-                            const userNetUsdc = userUsdcChanges.reduce((sum, bc) => sum + bc.change, 0);
-                            
-                            // If there's a significant payment from this user's wallet, use it
-                            if (Math.abs(userNetSol) > 0.001) {
-                                estimatedBaseAmount = Math.abs(userNetSol);
-                                console.log(`🔄 [EnhancedHybridPriceService] Jupiter aggregated swap detected - user ${tokenChange.owner.substring(0, 8)}... paid ${estimatedBaseAmount.toFixed(6)} SOL`);
-                            } else if (Math.abs(userNetUsdc) > 0.01) {
-                                estimatedBaseAmount = Math.abs(userNetUsdc);
-                                console.log(`🔄 [EnhancedHybridPriceService] Jupiter aggregated swap detected - user ${tokenChange.owner.substring(0, 8)}... paid ${estimatedBaseAmount.toFixed(2)} USDC`);
-                            } else {
-                                // Skip if no significant payment from this user (likely internal pool operation or routing account)
-                                console.log(`⚠️ [EnhancedHybridPriceService] Skipping swap for ${tokenChange.owner.substring(0, 8)}... - no matching base token change and no user payment found (likely internal pool operation)`);
-                                return;
-                            }
-                        }
-                        
-                        // Determine swap type with base token change
-                        // BUY: user gets tokens (+) and gives base (-)
-                        // SELL: user gives tokens (-) and gets base (+)
-                        if (finalBaseChange) {
-                            if (finalBaseChange.change < 0 && tokenChange.change > 0) {
-                                swapType = 'BUY';
-                            } else if (finalBaseChange.change > 0 && tokenChange.change < 0) {
-                                swapType = 'SELL';
-                            }
-                        }
-                        // For Jupiter aggregated swaps with estimated base amount, swap type is already set
-                        
-                        // ✅ VALIDATION: Ensure we're processing the correct token
-                        if (tokenChange.mint !== tokenAddress) {
-                            console.error(`⚠️ [EnhancedHybridPriceService] Mismatch: Expected ${tokenAddress.substring(0, 8)}..., got ${tokenChange.mint.substring(0, 8)}...`);
-                            return; // Skip this swap
-                        }
-                        
-                        console.log(`✅ [EnhancedHybridPriceService] Processing ${swapType}: ${Math.abs(tokenChange.change).toLocaleString()} ${tokenAddress.substring(0, 8)}...`);
-                        
-                        // Calculate the base amount to use
-                        const baseAmountToUse = finalBaseChange 
-                            ? finalBaseChange.change 
-                            : (swapType === 'BUY' ? -estimatedBaseAmount : estimatedBaseAmount);
-                        
-                        // Process swap
-                        try {
-                            this.processSwapUpdate(
-                                tokenAddress, 
-                                poolAddress, 
-                                slot, 
-                                swapType, 
-                                tokenChange.change, 
-                                tokenChange.mint, // ✅ FIX: Use tokenChange.mint instead of tokenAddress
-                                tokenChange.owner,
-                                baseAmountToUse,
-                                signature
-                            );
-                        } catch (error) {
-                            console.error(`❌ Error processing swap:`, error.message);
-                        }
-                    });
-                }
+        if (!swapRecord) {
+            console.log(`⚠️ [EnhancedHybridPriceService] No valid swap found for ${tokenAddress.substring(0, 8)}...`);
+            return;
+        }
+        
+        console.log(`✅ [EnhancedHybridPriceService] ${swapRecord.type}: ${swapRecord.tokenAmount.toFixed(2)} ${tokenAddress.substring(0, 8)}... for ${swapRecord.baseAmount.toFixed(6)} (counter: ${swapRecord.counterMint.substring(0, 8)}...) | Price: $${swapRecord.priceUsd?.toFixed(8) ?? 'N/A'}`);
+        
+        // Save to database
+        try {
+            await this.chartDatabase.storeSwaps(tokenAddress, [swapRecord]);
+            console.log(`💾 [EnhancedHybridPriceService] Swap saved to database`);
+        } catch (error) {
+            console.error(`❌ [EnhancedHybridPriceService] Failed to save swap:`, error.message);
+        }
+        
+        // Broadcast to WebSocket clients
+        if (this.webSocketServer) {
+            try {
+                this.webSocketServer.broadcastSwapUpdate(tokenAddress, swapRecord);
+            } catch (error) {
+                console.error(`❌ [EnhancedHybridPriceService] Failed to broadcast swap:`, error.message);
+            }
+        }
+        
+        // Update internal tracking
+        if (!this.swapHistory.has(tokenAddress)) {
+            this.swapHistory.set(tokenAddress, []);
+        }
+        const history = this.swapHistory.get(tokenAddress);
+        history.push(swapRecord);
+        
+        // Keep only last 1000 swaps in memory
+        if (history.length > 1000) {
+            history.shift();
+        }
     }
     
     // ✅ DEPRECATED: Old per-token stream method (KEPT FOR REFERENCE - NOT USED)
