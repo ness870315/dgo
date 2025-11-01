@@ -728,11 +728,24 @@ class EnhancedHybridPriceService extends EventEmitter {
                         return false;
                     });
                     if (debugIx) {
-                        const accIdxs = Array.isArray(debugIx.accounts) ? debugIx.accounts : debugIx.accounts?.data ? Array.from(debugIx.accounts.data) : [];
-                        console.log(`🔍 [DEBUG] Raydium instruction found but extraction failed. Program: ${raydiumProgramId.substring(0, 8)}..., accounts.length: ${accIdxs.length}, first account idx: ${accIdxs[0]}`);
-                        if (accIdxs.length > 0 && accIdxs[0] !== undefined) {
-                            const firstAccount = combined[accIdxs[0]];
-                            console.log(`🔍 [DEBUG] First account would be: ${firstAccount?.substring(0, 16) || 'undefined'}...`);
+                        console.log(`🔍 [DEBUG] FULL INSTRUCTION STRUCTURE:`);
+                        console.log(`   programIdIndex: ${debugIx.programIdIndex}`);
+                        console.log(`   accounts type: ${typeof debugIx.accounts}, isArray: ${Array.isArray(debugIx.accounts)}, length: ${Array.isArray(debugIx.accounts) ? debugIx.accounts.length : 'N/A'}`);
+                        console.log(`   accountKeyIndexes type: ${typeof debugIx.accountKeyIndexes}, isArray: ${Array.isArray(debugIx.accountKeyIndexes)}, length: ${Array.isArray(debugIx.accountKeyIndexes) ? debugIx.accountKeyIndexes.length : 'N/A'}`);
+                        console.log(`   accountKeys type: ${typeof debugIx.accountKeys}, isArray: ${Array.isArray(debugIx.accountKeys)}, length: ${Array.isArray(debugIx.accountKeys) ? debugIx.accountKeys.length : 'N/A'}`);
+                        console.log(`   Keys in instruction: ${Object.keys(debugIx).join(', ')}`);
+                        
+                        // Try each format
+                        if (Array.isArray(debugIx.accounts) && debugIx.accounts.length > 0) {
+                            console.log(`   accounts[0-2]: ${debugIx.accounts.slice(0, 3).join(', ')}`);
+                            console.log(`   combined[accounts[0]]: ${combined[debugIx.accounts[0]]?.substring(0, 16) || 'undefined'}...`);
+                        }
+                        if (Array.isArray(debugIx.accountKeyIndexes) && debugIx.accountKeyIndexes.length > 0) {
+                            console.log(`   accountKeyIndexes[0-2]: ${debugIx.accountKeyIndexes.slice(0, 3).join(', ')}`);
+                            console.log(`   combined[accountKeyIndexes[0]]: ${combined[debugIx.accountKeyIndexes[0]]?.substring(0, 16) || 'undefined'}...`);
+                        }
+                        if (Array.isArray(debugIx.accountKeys) && debugIx.accountKeys.length > 0) {
+                            console.log(`   accountKeys[0-2]: ${debugIx.accountKeys.slice(0, 3).map(k => k?.substring(0, 16) + '...').join(', ')}`);
                         }
                     } else {
                         console.log(`⚠️ [DEBUG] No Raydium instruction found despite program ID ${raydiumProgramId.substring(0, 8)}... detected`);

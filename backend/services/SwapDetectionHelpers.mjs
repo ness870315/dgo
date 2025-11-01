@@ -512,11 +512,31 @@ export function extractRaydiumPoolFromIx(tx, programId) {
         if (ix.programIdIndex !== undefined) {
             const ixProgramId = combined[ix.programIdIndex];
             if (ixProgramId === programId) {
-                const accIdxs = Array.isArray(ix.accounts)
-                    ? ix.accounts
-                    : ix.accounts?.data
-                    ? Array.from(ix.accounts.data)
-                    : [];
+                // Try multiple formats for instruction accounts
+                let accIdxs = [];
+                
+                // Format 1: Direct array
+                if (Array.isArray(ix.accounts)) {
+                    accIdxs = ix.accounts;
+                }
+                // Format 2: accounts.data (Uint8Array or similar)
+                else if (ix.accounts?.data) {
+                    accIdxs = Array.from(ix.accounts.data);
+                }
+                // Format 3: accountKeyIndexes (alternative format)
+                else if (Array.isArray(ix.accountKeyIndexes)) {
+                    accIdxs = ix.accountKeyIndexes;
+                }
+                // Format 4: accountKeys (direct addresses)
+                else if (Array.isArray(ix.accountKeys)) {
+                    // These are already addresses, not indices
+                    return ix.accountKeys.find(addr => 
+                        addr && 
+                        !signerKeys.has(addr) && 
+                        !tokenAccounts.has(addr) && 
+                        !tokenMints.has(addr)
+                    ) || null;
+                }
                 
                 // Try first 3 accounts (pool is usually in first few positions)
                 // Skip token accounts and signers
