@@ -64,6 +64,9 @@ class EnhancedHybridPriceService extends EventEmitter {
         // 🚀 NEW: Token price cache for counter-token USD pricing
         this.tokenPriceCache = new Map(); // Map<mintAddress, usdPrice>
         
+        // 🚀 NEW: Mid-price tracking for outlier detection
+        this.midPriceUsd = new Map(); // Map<tokenAddress, midPriceUsd>
+        
         // 🚀 NEW: Slot-to-timestamp estimation
         this.referenceSlot = null;
         this.referenceTimestamp = null;
@@ -373,6 +376,11 @@ class EnhancedHybridPriceService extends EventEmitter {
                         jupiterData: token.jupiterData // Store full jupiterData object
                     });
                     
+                    // 🚀 Initialize mid-price for outlier detection
+                    if (price && price > 0) {
+                        this.midPriceUsd.set(tokenAddress, price);
+                    }
+                    
                     // Log first 3 tokens for debugging
                     if (metadataCount < 3) {
                         console.log(`📝 [Token ${metadataCount + 1}] ${token.symbol}: price=$${price}, mcap=$${marketCap}, liq=$${liquidity}`);
@@ -603,19 +611,33 @@ class EnhancedHybridPriceService extends EventEmitter {
         }
         
         // 🚀 USE ROBUST SWAP DETECTION
+        const midPriceUsd = this.midPriceUsd.get(tokenAddress);
         const swapRecord = processTxForSwap(
             tx,
             tokenAddress,
             this.solPriceUSD,
-            this.tokenPriceCache
+            this.tokenPriceCache,
+            midPriceUsd
         );
         
         if (!swapRecord) {
-            console.log(`⚠️ [EnhancedHybridPriceService] No valid swap found for ${tokenAddress.substring(0, 8)}...`);
+            // Swap was filtered out (no legs, dust, outlier, etc.)
             return;
         }
         
-        console.log(`✅ [EnhancedHybridPriceService] ${swapRecord.type}: ${swapRecord.tokenAmount.toFixed(2)} ${tokenAddress.substring(0, 8)}... for ${swapRecord.baseAmount.toFixed(6)} (counter: ${swapRecord.counterMint.substring(0, 8)}...) | Price: $${swapRecord.priceUsd?.toFixed(8) ?? 'N/A'}`);
+        console.log(`✅ [EnhancedHybridPriceService] ${swapRecord.type}: ${swapRecord.tokenAmount.toFixed(2)} ${tokenAddress.substring(0, 8)}... for ${swapRecord.baseAmount.toFixed(6)} (counter: ${swapRecord.counterMint.substring(0, 8)}...) | Price: $${swapRecord.priceUsd?.toFixed(8) ?? 'N/A'} | Volume: $${swapRecord.volumeUsd.toFixed(2)}`);
+        
+        // Update mid-price (rolling average with 90% weight on existing mid)
+        if (swapRecord.priceUsd && isFinite(swapRecord.priceUsd) && swapRecord.priceUsd > 0) {
+            const currentMid = this.midPriceUsd.get(tokenAddress);
+            if (currentMid && currentMid > 0) {
+                // Exponential moving average: 90% old, 10% new
+                this.midPriceUsd.set(tokenAddress, currentMid * 0.9 + swapRecord.priceUsd * 0.1);
+            } else {
+                // First price, set as mid
+                this.midPriceUsd.set(tokenAddress, swapRecord.priceUsd);
+            }
+        }
         
         // Save to database
         try {

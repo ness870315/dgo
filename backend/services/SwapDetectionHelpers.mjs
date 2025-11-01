@@ -173,29 +173,53 @@ export function isUserSide(delta, signerSet) {
  * Pick target and counter legs, determine BUY/SELL
  * @returns {{ target: TokenDelta, counter: TokenDelta, side: 'BUY'|'SELL' } | null}
  */
-export function pickLegsAndSide(deltas, targetMint, signerSet) {
-    // pick target delta (prefer user-side)
-    const tUser = deltas
+export function pickLegsAndSide(deltas, targetMint, signerSet, tx) {
+    // 🚀 PATCH 1: Hard requirement - both legs must be present
+    
+    // Pick target delta (prefer user-side)
+    const targetLeg = deltas
         .filter((d) => d.mint === targetMint && isUserSide(d, signerSet))
         .sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI))[0];
-    const target =
-        tUser ??
-        deltas
-            .filter((d) => d.mint === targetMint)
-            .sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI))[0];
-    if (!target) return null;
+    
+    if (!targetLeg || Math.abs(targetLeg.deltaUI) < 1e-9) {
+        console.log(`⚠️ [pickLegsAndSide] Skip: no user target delta for ${targetMint.substring(0, 8)}...`);
+        return null;
+    }
 
-    // choose counter as largest-magnitude non-target, preferring user side
-    const others = deltas.filter((d) => d.mint !== targetMint);
-    const oUser = others
-        .filter((d) => isUserSide(d, signerSet))
+    // Prefer user-side counters, else any
+    let counterLeg = deltas
+        .filter((d) => d.mint !== targetMint && isUserSide(d, signerSet))
         .sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI))[0];
-    const counter =
-        oUser ?? others.sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI))[0];
-    if (!counter) return null;
 
-    const side = target.deltaUI > 0 ? 'BUY' : 'SELL';
-    return { target, counter, side };
+    if (!counterLeg) {
+        // Fallback: use native SOL lamports delta for the signer (not wSOL)
+        const solDeltaBySigner = extractNativeSolDeltaBySigner(tx);
+        const signer = [...signerSet][0];
+        const solDelta = solDeltaBySigner.get(signer) ?? 0;
+        
+        if (solDelta !== 0 && Math.abs(solDelta) > 1e-6) {
+            console.log(`💰 [pickLegsAndSide] Using native SOL as counter: ${solDelta.toFixed(6)} SOL`);
+            counterLeg = {
+                accountIndex: -1,
+                accountPubkey: signer,
+                mint: WSOL_MINT, // treat as the SOL leg type
+                owner: signer,
+                decimals: 9,
+                preRaw: 0n,
+                postRaw: 0n,
+                deltaRaw: BigInt(Math.round(solDelta * 1e9)),
+                deltaUI: solDelta,
+            };
+        }
+    }
+
+    if (!counterLeg || Math.abs(counterLeg.deltaUI) < 1e-12) {
+        console.log(`⚠️ [pickLegsAndSide] Skip: no counter leg for ${targetMint.substring(0, 8)}... (single-leg case - likely fees/airdrops/ATA init)`);
+        return null;
+    }
+
+    const side = targetLeg.deltaUI > 0 ? 'BUY' : 'SELL';
+    return { target: targetLeg, counter: counterLeg, side };
 }
 
 // ============================================================================
@@ -261,13 +285,13 @@ export function guessPoolFromIx(tx) {
  * Process a transaction and extract swap data
  * @returns {Object | null} Swap record or null if not a valid swap
  */
-export function processTxForSwap(tx, targetMint, solUsd, tokenPriceCache) {
+export function processTxForSwap(tx, targetMint, solUsd, tokenPriceCache, midPriceUsd = null) {
     const deltas = extractTokenDeltas(tx);
     if (!deltas.length) return null;
 
     const message = tx.transaction?.message ?? {};
     const signerSet = getSignerSet(message);
-    const legs = pickLegsAndSide(deltas, targetMint, signerSet);
+    const legs = pickLegsAndSide(deltas, targetMint, signerSet, tx); // Pass tx for native SOL fallback
     if (!legs) return null;
 
     const getUsdForMint = (m) => tokenPriceCache.get(m);
@@ -278,9 +302,28 @@ export function processTxForSwap(tx, targetMint, solUsd, tokenPriceCache) {
         getUsdForMint
     );
 
+    // 🚀 PATCH 2: Dust/price sanity filters
+    const signature = tx.signature ?? tx.transaction?.signatures?.[0];
+    const sigShort = signature?.substring(0, 16) ?? 'unknown';
+
+    // Drop obvious noise - dust volume
+    if (!isFinite(volumeUsd) || volumeUsd < 0.05) {
+        console.log(`⚠️ [processTxForSwap] Skip: dust volume ($${volumeUsd?.toFixed(4) ?? 'N/A'}) for ${sigShort}...`);
+        return null;
+    }
+
+    // Price outlier filter (if we have a mid-price reference)
+    if (priceUsd > 0 && midPriceUsd && midPriceUsd > 0) {
+        const priceDeviation = Math.abs(priceUsd / midPriceUsd - 1);
+        if (priceDeviation > 0.8) {
+            // >80% off mid? likely mis-leg or outlier
+            console.log(`⚠️ [processTxForSwap] Skip: price outlier (${priceDeviation.toFixed(2)}x deviation, price=$${priceUsd.toFixed(8)}, mid=$${midPriceUsd.toFixed(8)}) for ${sigShort}...`);
+            return null;
+        }
+    }
+
     const poolAddress = guessPoolFromIx(tx) ?? 'unknown';
     const maker = [...signerSet][0] ?? 'Unknown';
-    const signature = tx.signature ?? tx.transaction?.signatures?.[0];
 
     return {
         timestamp: (tx.blockTime ?? Math.floor(Date.now() / 1000)) * 1000,
