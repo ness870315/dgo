@@ -35,7 +35,7 @@ const EXCLUDED_TOKENS = new Set([
 ]);
 
 class gRPCTrendingService {
-    constructor(enhancedHybridPriceService = null) {
+    constructor(enhancedHybridPriceService = null, enhancedTokenProcessor = null) {
         this.grpcClient = null;
         this.grpcWrapper = null;
         this.stream = null;
@@ -45,6 +45,9 @@ class gRPCTrendingService {
         
         // Integration with swap tracking
         this.enhancedHybridPriceService = enhancedHybridPriceService;
+        
+        // Integration with token processor for Twitter/scoring workflow
+        this.enhancedTokenProcessor = enhancedTokenProcessor;
         
         // Stats tracking
         this.stats = {
@@ -432,10 +435,49 @@ class gRPCTrendingService {
 
         console.log(`\n💎 [gRPCTrending] Found ${validTokens.length} valid tokens`);
         
-        // Save to tokens-cache.json
-        await this.saveToTokensCache(validTokens);
+        // Feed tokens into EnhancedTokenProcessor for full workflow (Twitter + Scoring)
+        if (this.enhancedTokenProcessor && validTokens.length > 0) {
+            console.log(`🔄 [gRPCTrending] Feeding ${validTokens.length} tokens into EnhancedTokenProcessor...`);
+            await this.feedTokensIntoProcessor(validTokens);
+        } else {
+            console.log(`⚠️ [gRPCTrending] No token processor available, saving directly to cache`);
+            await this.saveToTokensCache(validTokens);
+        }
         
         return validTokens;
+    }
+
+    async feedTokensIntoProcessor(tokens) {
+        try {
+            console.log(`📥 [gRPCTrending] Adding ${tokens.length} tokens to processor queue...`);
+            
+            // Add tokens to the processor's queue
+            // The processor will handle: Jupiter data enrichment → Twitter data → Scoring → Saving
+            for (const token of tokens) {
+                this.enhancedTokenProcessor.processingQueue.push(token);
+            }
+            
+            console.log(`✅ [gRPCTrending] Added ${tokens.length} tokens to processor queue (total queue: ${this.enhancedTokenProcessor.processingQueue.length})`);
+            
+            // Trigger the processor to run if it's not already processing
+            if (!this.enhancedTokenProcessor.isProcessing) {
+                console.log(`🚀 [gRPCTrending] Starting EnhancedTokenProcessor workflow...`);
+                // Run through Jupiter → Twitter → Scoring → Saving stages
+                await this.enhancedTokenProcessor.processJupiterStage();
+                await this.enhancedTokenProcessor.processTwitterStage();
+                await this.enhancedTokenProcessor.processScoringStage();
+                await this.enhancedTokenProcessor.saveFinalDatabase();
+                console.log(`✅ [gRPCTrending] Processor workflow completed`);
+            } else {
+                console.log(`⏳ [gRPCTrending] Processor already running, tokens will be picked up in next cycle`);
+            }
+            
+        } catch (error) {
+            console.error('❌ [gRPCTrending] Error feeding tokens into processor:', error.message);
+            // Fallback to direct save
+            console.log(`⚠️ [gRPCTrending] Falling back to direct cache save`);
+            await this.saveToTokensCache(tokens);
+        }
     }
 
     async saveToTokensCache(newTokens) {
