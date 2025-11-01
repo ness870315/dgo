@@ -465,12 +465,18 @@ export function guessPoolFromIx(tx) {
 
 /**
  * Extract Raydium pool address from transaction instructions
- * For Raydium AMM/CPMM/CLMM, pool state account is typically at index 0 of instruction accounts
+ * For Raydium AMM/CPMM/CLMM, pool state account is typically at index 0-2 of instruction accounts
+ * We try multiple accounts because index 0 might be a token account (owner: Tokenkeg...)
  */
 export function extractRaydiumPoolFromIx(tx, programId) {
     const msg = tx.transaction?.message ?? {};
     const { combined } = buildCombinedKeys(msg);
     const instructions = msg.instructions || [];
+    const numSig = msg?.header?.numRequiredSignatures ?? 0;
+    const signerKeys = new Set(combined.slice(0, numSig));
+    
+    // Token Program ID - we want to skip token accounts
+    const TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
     
     // Known Raydium program IDs
     const RAYDIUM_PROGRAMS = {
@@ -483,23 +489,62 @@ export function extractRaydiumPoolFromIx(tx, programId) {
         return null;
     }
     
+    // Get token balance accounts from metadata to identify token accounts
+    const tokenAccounts = new Set();
+    const meta = tx.meta || {};
+    const preTokenBalances = meta.preTokenBalances || [];
+    const postTokenBalances = meta.postTokenBalances || [];
+    [...preTokenBalances, ...postTokenBalances].forEach(bal => {
+        if (bal.accountIndex !== undefined && bal.accountIndex < combined.length) {
+            tokenAccounts.add(combined[bal.accountIndex]);
+        }
+    });
+    
     for (const ix of instructions) {
         // Check if this instruction belongs to the Raydium program
         if (ix.programIdIndex !== undefined) {
             const ixProgramId = combined[ix.programIdIndex];
             if (ixProgramId === programId) {
-                // For Raydium swaps, pool state account is at index 0
                 const accIdxs = Array.isArray(ix.accounts)
                     ? ix.accounts
                     : ix.accounts?.data
                     ? Array.from(ix.accounts.data)
                     : [];
                 
-                if (accIdxs.length > 0) {
-                    const poolIndex = accIdxs[0];
-                    const poolAddress = combined[poolIndex];
-                    if (poolAddress) {
-                        return poolAddress;
+                // Try first 3 accounts (pool is usually in first few positions)
+                // Skip token accounts and signers
+                for (let i = 0; i < Math.min(3, accIdxs.length); i++) {
+                    const accIdx = accIdxs[i];
+                    const accountAddress = combined[accIdx];
+                    
+                    if (!accountAddress) continue;
+                    
+                    // Skip signers
+                    if (signerKeys.has(accountAddress)) continue;
+                    
+                    // Skip known token accounts (from token balance changes)
+                    if (tokenAccounts.has(accountAddress)) continue;
+                    
+                    // Skip system accounts
+                    if (accountAddress === '11111111111111111111111111111111' ||
+                        accountAddress === 'SysvarRent111111111111111111111111111111111' ||
+                        accountAddress === TOKEN_PROGRAM ||
+                        accountAddress === 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4') {
+                        continue;
+                    }
+                    
+                    // This could be the pool address - return it
+                    // (The decoder will verify it's actually owned by Raydium)
+                    return accountAddress;
+                }
+                
+                // Fallback: Return first non-signer account if all else fails
+                // (Decoder will reject if it's not a pool)
+                for (let i = 0; i < accIdxs.length; i++) {
+                    const accIdx = accIdxs[i];
+                    const accountAddress = combined[accIdx];
+                    if (accountAddress && !signerKeys.has(accountAddress)) {
+                        return accountAddress;
                     }
                 }
             }
