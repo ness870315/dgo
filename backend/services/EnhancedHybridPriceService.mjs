@@ -4,8 +4,9 @@ import fs from 'fs/promises';
 import path from 'path';
 import bs58 from 'bs58';
 import ChartDatabase from './ChartDatabase.js';
-import { processTxForSwap } from './SwapDetectionHelpers.mjs';
+import { processTxForSwap, buildCombinedKeys } from './SwapDetectionHelpers.mjs';
 import RaydiumPoolDecoder from './RaydiumPoolDecoder.mjs';
+import RaydiumCPMMDecoder from './RaydiumCPMMDecoder.mjs';
 
 // Use CommonJS wrapper for gRPC loading
 import { createRequire } from 'module';
@@ -102,9 +103,11 @@ class EnhancedHybridPriceService extends EventEmitter {
         // 🚀 NEW: Persistent swap storage
         this.chartDatabase = new ChartDatabase();
         
-        // 🚀 NEW: Raydium pool decoder for 100% accurate swap detection
+        // 🚀 NEW: Raydium decoders for 100% accurate swap detection
         this.raydiumDecoder = new RaydiumPoolDecoder(CONSTANT_K_RPC);
-        console.log('✅ [EnhancedHybridPriceService] Raydium pool decoder initialized');
+        this.raydiumCPMMDecoder = new RaydiumCPMMDecoder(CONSTANT_K_RPC);
+        console.log('✅ [EnhancedHybridPriceService] Raydium AMM decoder initialized');
+        console.log('✅ [EnhancedHybridPriceService] Raydium CPMM decoder initialized');
         
         // Rate limiting protection for Jupiter API
         this.jupiterRequestQueue = [];
@@ -626,7 +629,37 @@ class EnhancedHybridPriceService extends EventEmitter {
             console.log(`\n`);
         }
         
-        // 🚀 USE ROBUST SWAP DETECTION with Raydium decoder
+        // 🚀 DETECT PROGRAM ID AND SELECT APPROPRIATE DECODER
+        let decoder = null;
+        const message = tx.transaction?.message ?? {};
+        const accountKeys = buildCombinedKeys(message);
+        
+        // Check instructions to find program ID
+        const instructions = message.instructions || [];
+        for (const instruction of instructions) {
+            if (instruction.programIdIndex !== undefined) {
+                const programId = accountKeys[instruction.programIdIndex];
+                if (programId && DEX_PROGRAMS[programId]) {
+                    // Select decoder based on program
+                    if (programId === 'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C') {
+                        decoder = this.raydiumCPMMDecoder;
+                        // console.log(`🔧 [processSwapForToken] Using CPMM decoder for ${tokenAddress.substring(0, 8)}...`);
+                        break;
+                    } else if (programId === '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8') {
+                        decoder = this.raydiumDecoder;
+                        // console.log(`🔧 [processSwapForToken] Using AMM decoder for ${tokenAddress.substring(0, 8)}...`);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Fallback to AMM decoder if no program detected (for backward compatibility)
+        if (!decoder) {
+            decoder = this.raydiumDecoder;
+        }
+        
+        // 🚀 USE ROBUST SWAP DETECTION with appropriate decoder
         const midPriceUsd = this.midPriceUsd.get(tokenAddress);
         const swapRecord = processTxForSwap(
             tx,
@@ -634,8 +667,8 @@ class EnhancedHybridPriceService extends EventEmitter {
             this.solPriceUSD,
             this.tokenPriceCache,
             midPriceUsd,
-            this.raydiumDecoder,  // ✅ Pass Raydium decoder for 100% accurate pool vault detection
-            poolAddress            // ✅ Pass known pool address
+            decoder,      // ✅ Pass appropriate decoder (AMM or CPMM)
+            poolAddress   // ✅ Pass known pool address
         );
         
         if (!swapRecord) {
