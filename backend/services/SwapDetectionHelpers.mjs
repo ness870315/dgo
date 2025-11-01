@@ -217,7 +217,26 @@ function mintSum(deltas, mint) {
 }
 
 // ============================================================================
-// 7) Pick legs (target vs counter), decide BUY/SELL
+// 7) Helper: Check if fee payer/signer touched target mint
+// ============================================================================
+
+/**
+ * Verify that fee payer or any signer is involved on the target mint
+ * (Prevents emitting trades for pure pool/vault movements)
+ */
+function userTouchedTargetMint(deltas, feePayer, signerSet, targetMint) {
+    return deltas.some(
+        (d) =>
+            d.mint === targetMint &&
+            (d.owner === feePayer ||
+                signerSet.has(d.owner) ||
+                isAtaOf(feePayer, d.mint, d.accountPubkey)) &&
+            Math.abs(d.deltaUI) > 1e-9
+    );
+}
+
+// ============================================================================
+// 8) Pick legs (target vs counter), decide BUY/SELL
 // ============================================================================
 
 /**
@@ -225,7 +244,14 @@ function mintSum(deltas, mint) {
  * @returns {{ target: TokenDelta, counter: TokenDelta, side: 'BUY'|'SELL', feePayer: string } | null}
  */
 export function pickLegsAndSide(deltas, targetMint, signerSet, tx) {
-    // 🚀 HARDENING: Collapse user-side deltas by mint to avoid double-counting
+    // 🚀 GUARDRAIL 1: Require fee payer/signer to be involved on target mint
+    const feePayer = getFeePayer(tx);
+    if (!userTouchedTargetMint(deltas, feePayer, signerSet, targetMint)) {
+        console.log(`⚠️ [pickLegsAndSide] Skip: no fee payer/signer involvement on target mint ${targetMint.substring(0, 8)}... (fee payer: ${feePayer.substring(0, 8)}...)`);
+        return null;
+    }
+    
+    // 🚀 GUARDRAIL 2: Collapse user-side deltas by mint to avoid double-counting
     const collapsed = collapseUserSideByMint(deltas, signerSet);
     
     // 🚀 HARDENING: Check for multi-hop routes (3+ mints on user side)
@@ -255,8 +281,7 @@ export function pickLegsAndSide(deltas, targetMint, signerSet, tx) {
         .filter((d) => d.mint !== targetMint)
         .sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI))[0];
 
-    // 🚀 HARDENING: Fallback to native SOL delta of fee payer (not first signer)
-    const feePayer = getFeePayer(tx);
+    // 🚀 HARDENING: Fallback to native SOL delta of fee payer
     if (!counterLeg) {
         const solDeltaBySigner = extractNativeSolDeltaBySigner(tx);
         const solDelta = solDeltaBySigner.get(feePayer) ?? 0;
@@ -292,6 +317,13 @@ export function pickLegsAndSide(deltas, targetMint, signerSet, tx) {
     }
 
     const side = targetLeg.deltaUI > 0 ? 'BUY' : 'SELL';
+    
+    // 🚀 DEBUG: Log leg details for verification
+    console.log(`📊 [pickLegsAndSide] ${side} legs selected:`);
+    console.log(`   TARGET: owner=${targetLeg.owner.substring(0, 8)}..., acct=${targetLeg.accountPubkey.substring(0, 8)}..., Δ=${targetLeg.deltaUI.toFixed(6)}, mint=${targetLeg.mint.substring(0, 8)}...`);
+    console.log(`   COUNTER: owner=${counterLeg.owner.substring(0, 8)}..., acct=${counterLeg.accountPubkey.substring(0, 8)}..., Δ=${counterLeg.deltaUI.toFixed(6)}, mint=${counterLeg.mint.substring(0, 8)}...`);
+    console.log(`   FEE PAYER: ${feePayer.substring(0, 8)}...`);
+    
     return { target: targetLeg, counter: counterLeg, side, feePayer };
 }
 
