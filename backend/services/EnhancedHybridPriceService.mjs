@@ -1092,17 +1092,10 @@ class EnhancedHybridPriceService extends EventEmitter {
             console.log(`📊 [EnhancedHybridPriceService] Token quantity (UI): ${qtyTokenUI}`);
             // console.log(`📊 [EnhancedHybridPriceService] Token quantity (UI): ${qtyTokenUI}`);
             
-            // 2) Convert SOL amount - check if it's in lamports or SOL already
-            let baseSol = 0;
-            if (Math.abs(solAmount) > 1e6) {
-                // Likely in lamports, convert to SOL
-                baseSol = Math.abs(solAmount) / 1e9;
-                console.log(`💰 [EnhancedHybridPriceService] Converting from lamports: ${solAmount} -> ${baseSol.toFixed(9)} SOL`);
-            } else if (solAmount !== 0) {
-                // Already in SOL
-                baseSol = Math.abs(solAmount);
-                console.log(`💰 [EnhancedHybridPriceService] Already in SOL: ${solAmount} -> ${baseSol.toFixed(9)} SOL`);
-            }
+            // 2) SOL amount is ALWAYS in UI format (SOL, not lamports) from uiTokenAmount
+            // ✅ CRITICAL FIX: Balance changes use uiTokenAmount.uiAmount which is already in SOL
+            let baseSol = Math.abs(solAmount);
+            console.log(`💰 [EnhancedHybridPriceService] SOL amount (UI format): ${solAmount} -> ${baseSol.toFixed(9)} SOL`);
             
             // 3) Calculate prices
             let priceSol = 0;
