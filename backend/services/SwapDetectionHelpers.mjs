@@ -489,14 +489,21 @@ export function extractRaydiumPoolFromIx(tx, programId) {
         return null;
     }
     
-    // Get token balance accounts from metadata to identify token accounts
+    // Get token balance accounts AND token mints from metadata to identify what to skip
     const tokenAccounts = new Set();
+    const tokenMints = new Set();
     const meta = tx.meta || {};
     const preTokenBalances = meta.preTokenBalances || [];
     const postTokenBalances = meta.postTokenBalances || [];
+    
+    // Collect token account addresses (from accountIndex)
     [...preTokenBalances, ...postTokenBalances].forEach(bal => {
         if (bal.accountIndex !== undefined && bal.accountIndex < combined.length) {
             tokenAccounts.add(combined[bal.accountIndex]);
+        }
+        // Collect token mint addresses (from mint field)
+        if (bal.mint) {
+            tokenMints.add(bal.mint);
         }
     });
     
@@ -525,11 +532,15 @@ export function extractRaydiumPoolFromIx(tx, programId) {
                     // Skip known token accounts (from token balance changes)
                     if (tokenAccounts.has(accountAddress)) continue;
                     
+                    // Skip token mint addresses (from token balance metadata)
+                    if (tokenMints.has(accountAddress)) continue;
+                    
                     // Skip system accounts
                     if (accountAddress === '11111111111111111111111111111111' ||
                         accountAddress === 'SysvarRent111111111111111111111111111111111' ||
                         accountAddress === TOKEN_PROGRAM ||
-                        accountAddress === 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4') {
+                        accountAddress === 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4' ||
+                        accountAddress === 'So11111111111111111111111111111111111111112') { // Native SOL mint
                         continue;
                     }
                     
