@@ -120,8 +120,24 @@ const PriceChartModal = ({ token, onClose }) => {
     const handleSwapUpdate = (data) => {
       if (data.tokenAddress === token?.contractAddress) {
         console.log('🔄 [PriceChartModal] Real-time swap update received:', data.swapData);
-        // Reload real-time data to get updated swaps
-        loadRealTimeData();
+        
+        // ✅ CRITICAL FIX: Append new swap to existing data instead of reloading
+        setRealTimeData(prevData => {
+          if (!prevData) return prevData;
+          
+          const newSwap = data.swapData;
+          const updatedSwapHistory = [newSwap, ...(prevData.swapHistory || [])];
+          const updatedRecentSwaps = [newSwap, ...(prevData.recentSwaps || [])];
+          
+          console.log(`✅ [PriceChartModal] Added live swap to table (now ${updatedSwapHistory.length} total swaps)`);
+          
+          return {
+            ...prevData,
+            swapHistory: updatedSwapHistory,
+            recentSwaps: updatedRecentSwaps,
+            totalSwaps: updatedSwapHistory.length
+          };
+        });
       }
     };
 
