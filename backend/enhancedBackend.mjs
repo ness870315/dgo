@@ -1024,6 +1024,41 @@ class EnhancedBackend {
       }
     });
 
+    // Admin: Create charts directory (emergency fix)
+    this.app.post('/api/admin/create-charts-dir', adminApiAuth, async (req, res) => {
+      try {
+        const fsSync = require('fs');
+        const dataDir = process.env.DATA_DIR || '/var/data/dgo';
+        const chartsDir = path.join(dataDir, 'charts');
+        
+        console.log(`📁 [Admin] Creating charts directory: ${chartsDir}`);
+        
+        if (!fsSync.existsSync(dataDir)) {
+          fsSync.mkdirSync(dataDir, { recursive: true });
+          console.log(`✅ [Admin] Created data directory: ${dataDir}`);
+        }
+        
+        if (!fsSync.existsSync(chartsDir)) {
+          fsSync.mkdirSync(chartsDir, { recursive: true });
+          console.log(`✅ [Admin] Created charts directory: ${chartsDir}`);
+        } else {
+          console.log(`ℹ️ [Admin] Charts directory already exists: ${chartsDir}`);
+        }
+        
+        res.json({ 
+          success: true, 
+          message: 'Charts directory created',
+          dataDir: dataDir,
+          chartsDir: chartsDir,
+          exists: fsSync.existsSync(chartsDir)
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Create charts dir failed:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
     // Admin: Reprocess Twitter data for tokens without it
     this.app.post('/api/admin/reprocess-twitter', adminApiAuth, async (req, res) => {
       try {
