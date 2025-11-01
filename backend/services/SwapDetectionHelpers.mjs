@@ -255,8 +255,19 @@ export function pickLegsAndSide(deltas, targetMint, signerSet, tx) {
     const collapsed = collapseUserSideByMint(deltas, signerSet);
     
     // 🚀 HARDENING: Check for multi-hop routes (3+ mints on user side)
-    if (collapsed.length > 2) {
-        console.log(`⚠️ [pickLegsAndSide] Skip: multi-hop route (${collapsed.length} mints on user side) for ${targetMint.substring(0, 8)}...`);
+    // Build userSideByMint map for explicit logging
+    const userSideByMint = new Map();
+    for (const d of collapsed) {
+        userSideByMint.set(d.mint, (userSideByMint.get(d.mint) || 0) + d.deltaUI);
+    }
+    
+    if (userSideByMint.size > 2) {
+        const sig = typeof tx.signature === 'string' ? tx.signature : 
+                    (tx.signature?.type === 'Buffer' ? bs58.encode(Uint8Array.from(tx.signature.data)) : 'unknown');
+        console.log(`⚠️ [pickLegsAndSide] Skip: routed_aggregator (${userSideByMint.size} mints) for ${targetMint.substring(0, 8)}...`, {
+            sig: sig.substring(0, 16) + '...',
+            mints: [...userSideByMint.keys()].map(m => m.substring(0, 8) + '...')
+        });
         return null;
     }
     
