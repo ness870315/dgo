@@ -615,6 +615,46 @@ class EnhancedHybridPriceService extends EventEmitter {
                 if (userTokenChanges.length > 0) {
                     console.log(`✅ [EnhancedHybridPriceService] Found ${userTokenChanges.length} MEMEPUTER swaps in transaction ${signature?.substring(0, 16)}...`);
                     
+                    // 🔍 DEBUG: Log full transaction structure (first 5 swaps, then every 100th)
+                    this._txDebugCounter = (this._txDebugCounter || 0) + 1;
+                    if (this._txDebugCounter <= 5 || this._txDebugCounter % 100 === 0) {
+                        console.log(`\n📋 [DEBUG] TRANSACTION JSON STRUCTURE (#${this._txDebugCounter}):`);
+                        console.log(JSON.stringify({
+                            signature: signature?.substring(0, 16) + '...',
+                            slot: slot,
+                            blockTime: tx.blockTime,
+                            meta: {
+                                err: tx.meta?.err,
+                                fee: tx.meta?.fee,
+                                preBalances: tx.meta?.preBalances?.slice(0, 5),
+                                postBalances: tx.meta?.postBalances?.slice(0, 5),
+                                preTokenBalances: tx.meta?.preTokenBalances?.map(b => ({
+                                    accountIndex: b.accountIndex,
+                                    mint: b.mint?.substring(0, 16) + '...',
+                                    owner: b.owner?.substring(0, 16) + '...',
+                                    uiTokenAmount: b.uiTokenAmount
+                                })),
+                                postTokenBalances: tx.meta?.postTokenBalances?.map(b => ({
+                                    accountIndex: b.accountIndex,
+                                    mint: b.mint?.substring(0, 16) + '...',
+                                    owner: b.owner?.substring(0, 16) + '...',
+                                    uiTokenAmount: b.uiTokenAmount
+                                }))
+                            },
+                            transaction: {
+                                message: {
+                                    accountKeys: tx.transaction?.message?.accountKeys?.slice(0, 10).map(k => k?.substring(0, 16) + '...'),
+                                    instructions: tx.transaction?.message?.instructions?.slice(0, 3).map(i => ({
+                                        programIdIndex: i?.programIdIndex,
+                                        accounts: i?.accounts?.slice(0, 10),
+                                        data: i?.data?.substring(0, 32) + '...'
+                                    }))
+                                }
+                            }
+                        }, null, 2));
+                        console.log(`\n`);
+                    }
+                    
                     userTokenChanges.forEach(tokenChange => {
                         // ✅ JUPITER COMPATIBLE: Find base token change (could be SOL, USDC, or any other token)
                         // Exclude the target token itself and find the largest balance change for the same owner
