@@ -1,4 +1,5 @@
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -53,7 +54,6 @@ class ChartDatabase {
      */
     initializeDataDirSync() {
         try {
-            const fsSync = require('fs');
             // Create both data dir and charts subdirectory
             if (!fsSync.existsSync(this.dataDir)) {
                 fsSync.mkdirSync(this.dataDir, { recursive: true });
@@ -265,7 +265,6 @@ class ChartDatabase {
         
         try {
             // ✅ EMERGENCY FIX: Ensure charts directory exists before writing
-            const fsSync = require('fs');
             if (!fsSync.existsSync(this.chartsDir)) {
                 console.log(`🚨 [ChartDatabase] Charts directory missing! Creating: ${this.chartsDir}`);
                 fsSync.mkdirSync(this.chartsDir, { recursive: true });
