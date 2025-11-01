@@ -7,6 +7,7 @@ import ChartDatabase from './ChartDatabase.js';
 import { processTxForSwap, buildCombinedKeys } from './SwapDetectionHelpers.mjs';
 import RaydiumPoolDecoder from './RaydiumPoolDecoder.mjs';
 import RaydiumCPMMDecoder from './RaydiumCPMMDecoder.mjs';
+import RaydiumCLMMDecoder from './RaydiumCLMMDecoder.mjs';
 
 // Use CommonJS wrapper for gRPC loading
 import { createRequire } from 'module';
@@ -109,8 +110,10 @@ class EnhancedHybridPriceService extends EventEmitter {
         // 🚀 NEW: Raydium decoders for 100% accurate swap detection
         this.raydiumDecoder = new RaydiumPoolDecoder(CONSTANT_K_RPC);
         this.raydiumCPMMDecoder = new RaydiumCPMMDecoder(CONSTANT_K_RPC);
+        this.raydiumCLMMDecoder = new RaydiumCLMMDecoder(CONSTANT_K_RPC);
         console.log('✅ [EnhancedHybridPriceService] Raydium AMM decoder initialized');
         console.log('✅ [EnhancedHybridPriceService] Raydium CPMM decoder initialized');
+        console.log('✅ [EnhancedHybridPriceService] Raydium CLMM decoder initialized');
         
         // Rate limiting protection for Jupiter API
         this.jupiterRequestQueue = [];
@@ -663,6 +666,14 @@ class EnhancedHybridPriceService extends EventEmitter {
                             console.log(`🔧 [processSwapForToken] Using CPMM decoder for ${tokenAddress.substring(0, 8)}... (total uses: ${this._cpmmDecoderUsed})`);
                         }
                         break;
+                    } else if (programId === 'CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK') {
+                        decoder = this.raydiumCLMMDecoder;
+                        isRaydiumSwap = true; // ✅ Confirmed Raydium CLMM swap
+                        this._clmmDecoderUsed = (this._clmmDecoderUsed || 0) + 1;
+                        if (this._clmmDecoderUsed <= 5 || this._clmmDecoderUsed % 100 === 0) {
+                            console.log(`🔧 [processSwapForToken] Using CLMM decoder for ${tokenAddress.substring(0, 8)}... (total uses: ${this._clmmDecoderUsed})`);
+                        }
+                        break;
                     } else if (programId === '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8') {
                         decoder = this.raydiumDecoder;
                         isRaydiumSwap = true; // ✅ Confirmed Raydium AMM swap
@@ -687,7 +698,7 @@ class EnhancedHybridPriceService extends EventEmitter {
         
         // 🚀 PROACTIVE POOL DECODING: Only decode if we confirmed it's a Raydium swap
         // ✅ CRITICAL: Don't decode pools for PumpSwap/Orca/Meteora swaps (causes failures)
-        if (isRaydiumSwap && poolAddress && decoder && (decoder === this.raydiumDecoder || decoder === this.raydiumCPMMDecoder)) {
+        if (isRaydiumSwap && poolAddress && decoder && (decoder === this.raydiumDecoder || decoder === this.raydiumCPMMDecoder || decoder === this.raydiumCLMMDecoder)) {
             this.queuePoolDecode(decoder, poolAddress);
         }
         
@@ -1789,6 +1800,7 @@ class EnhancedHybridPriceService extends EventEmitter {
     getDecoderStats() {
         const ammMetrics = this.raydiumDecoder?.getMetrics() || {};
         const cpmmMetrics = this.raydiumCPMMDecoder?.getMetrics() || {};
+        const clmmMetrics = this.raydiumCLMMDecoder?.getMetrics() || {};
         
         return {
             raydiumAMM: {
@@ -1799,10 +1811,15 @@ class EnhancedHybridPriceService extends EventEmitter {
                 usage: this._cpmmDecoderUsed || 0,
                 ...cpmmMetrics
             },
-            totalDecoderUses: (this._ammDecoderUsed || 0) + (this._cpmmDecoderUsed || 0),
+            raydiumCLMM: {
+                usage: this._clmmDecoderUsed || 0,
+                ...clmmMetrics
+            },
+            totalDecoderUses: (this._ammDecoderUsed || 0) + (this._cpmmDecoderUsed || 0) + (this._clmmDecoderUsed || 0),
             decoderActive: {
                 amm: this.raydiumDecoder !== null && this.raydiumDecoder !== undefined,
-                cpmm: this.raydiumCPMMDecoder !== null && this.raydiumCPMMDecoder !== undefined
+                cpmm: this.raydiumCPMMDecoder !== null && this.raydiumCPMMDecoder !== undefined,
+                clmm: this.raydiumCLMMDecoder !== null && this.raydiumCLMMDecoder !== undefined
             }
         };
     }
