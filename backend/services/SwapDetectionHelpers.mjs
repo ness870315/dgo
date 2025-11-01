@@ -303,7 +303,19 @@ export function processTxForSwap(tx, targetMint, solUsd, tokenPriceCache, midPri
     );
 
     // 🚀 PATCH 2: Dust/price sanity filters
-    const signature = tx.signature ?? tx.transaction?.signatures?.[0];
+    let signature = tx.signature ?? tx.transaction?.signatures?.[0];
+    
+    // Handle Buffer signature
+    if (signature && typeof signature !== 'string') {
+        if (signature.type === 'Buffer' && Array.isArray(signature.data)) {
+            signature = bs58.encode(Uint8Array.from(signature.data));
+        } else if (signature instanceof Uint8Array || Buffer.isBuffer(signature)) {
+            signature = bs58.encode(signature);
+        } else {
+            signature = String(signature);
+        }
+    }
+    
     const sigShort = signature?.substring(0, 16) ?? 'unknown';
 
     // Drop obvious noise - dust volume
