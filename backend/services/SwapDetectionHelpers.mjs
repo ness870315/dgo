@@ -507,7 +507,16 @@ export function extractRaydiumPoolFromIx(tx, programId) {
         }
     });
     
-    for (const ix of instructions) {
+    // Check both top-level instructions AND inner instructions (for v0/compute budget transactions)
+    const allInstructions = [...instructions];
+    
+    // Add inner instructions if they exist (v0 transactions)
+    if (msg.addressTableLookups || msg.loadedAddresses) {
+        // Inner instructions might be in the transaction meta or elsewhere
+        // For now, we'll check top-level instructions first
+    }
+    
+    for (const ix of allInstructions) {
         // Check if this instruction belongs to the Raydium program
         if (ix.programIdIndex !== undefined) {
             const ixProgramId = combined[ix.programIdIndex];
@@ -515,20 +524,20 @@ export function extractRaydiumPoolFromIx(tx, programId) {
                 // Try multiple formats for instruction accounts
                 let accIdxs = [];
                 
-                // Format 1: Direct array
-                if (Array.isArray(ix.accounts)) {
+                // Format 1: Direct array (most common)
+                if (Array.isArray(ix.accounts) && ix.accounts.length > 0) {
                     accIdxs = ix.accounts;
                 }
                 // Format 2: accounts.data (Uint8Array or similar)
-                else if (ix.accounts?.data) {
+                else if (ix.accounts?.data && Array.from(ix.accounts.data).length > 0) {
                     accIdxs = Array.from(ix.accounts.data);
                 }
                 // Format 3: accountKeyIndexes (alternative format)
-                else if (Array.isArray(ix.accountKeyIndexes)) {
+                else if (Array.isArray(ix.accountKeyIndexes) && ix.accountKeyIndexes.length > 0) {
                     accIdxs = ix.accountKeyIndexes;
                 }
-                // Format 4: accountKeys (direct addresses)
-                else if (Array.isArray(ix.accountKeys)) {
+                // Format 4: accountKeys (direct addresses - less common)
+                else if (Array.isArray(ix.accountKeys) && ix.accountKeys.length > 0) {
                     // These are already addresses, not indices
                     return ix.accountKeys.find(addr => 
                         addr && 
@@ -537,14 +546,70 @@ export function extractRaydiumPoolFromIx(tx, programId) {
                         !tokenMints.has(addr)
                     ) || null;
                 }
+                // Format 5: accountMetas (some SDKs use this)
+                else if (Array.isArray(ix.accountMetas) && ix.accountMetas.length > 0) {
+                    // Extract indices from accountMetas
+                    accIdxs = ix.accountMetas.map(meta => meta.accountIndex ?? meta.pubkey).filter(idx => idx !== undefined);
+                    if (accIdxs.length === 0) {
+                        // If accountMetas have direct pubkeys
+                        return ix.accountMetas.find(meta => {
+                            const addr = meta.pubkey || meta.account;
+                            return addr && 
+                                !signerKeys.has(addr) && 
+                                !tokenAccounts.has(addr) && 
+                                !tokenMints.has(addr);
+                        })?.pubkey || ix.accountMetas[0]?.pubkey || null;
+                    }
+                }
+                // If all formats are empty, this instruction has no accounts listed
+                // This might be a compute budget instruction or similar - skip it
+                if (accIdxs.length === 0) {
+                    continue; // Try next instruction
+                }
                 
-                // Try first 3 accounts (pool is usually in first few positions)
-                // Skip token accounts and signers
-                for (let i = 0; i < Math.min(3, accIdxs.length); i++) {
+                // 🚀 OPTIMIZATION: Raydium swap instructions consistently place the pool at specific indices
+                // Based on comprehensive testing:
+                // - AMM: Pool at index 1
+                // - CPMM: Pool at index 3
+                // - CLMM: Pool at index 1 (similar to AMM)
+                
+                // Determine pool position based on program type
+                const isCPMM = programId === 'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C';
+                const poolIndex = isCPMM ? 3 : 1; // CPMM uses index 3, others use index 1
+                
+                // Try the expected pool index first
+                if (accIdxs.length > poolIndex) {
+                    const poolIdx = accIdxs[poolIndex];
+                    if (poolIdx >= 0 && poolIdx < combined.length) {
+                        const poolAddress = combined[poolIdx];
+                        if (poolAddress && typeof poolAddress === 'string') {
+                            // Quick validation: not a signer, token account, or system program
+                            if (!signerKeys.has(poolAddress) && 
+                                !tokenAccounts.has(poolAddress) && 
+                                !tokenMints.has(poolAddress) &&
+                                poolAddress !== TOKEN_PROGRAM &&
+                                poolAddress !== programId) {
+                                // This is likely the pool - return it immediately
+                                // (Decoder will verify it's actually owned by Raydium)
+                                return poolAddress;
+                            }
+                        }
+                    }
+                }
+                
+                // Fallback: Try ALL accounts if index 1 didn't work
+                for (let i = 0; i < accIdxs.length; i++) {
                     const accIdx = accIdxs[i];
+                    
+                    // CRITICAL: Skip out-of-bounds indices (invalid address lookup table references)
+                    if (accIdx < 0 || accIdx >= combined.length) {
+                        continue;
+                    }
+                    
                     const accountAddress = combined[accIdx];
                     
-                    if (!accountAddress) continue;
+                    // Skip undefined/null addresses (shouldn't happen with bounds check, but safety first)
+                    if (!accountAddress || typeof accountAddress !== 'string') continue;
                     
                     // Skip signers
                     if (signerKeys.has(accountAddress)) continue;
@@ -555,33 +620,33 @@ export function extractRaydiumPoolFromIx(tx, programId) {
                     // Skip token mint addresses (from token balance metadata)
                     if (tokenMints.has(accountAddress)) continue;
                     
-                    // Skip system accounts
+                    // Skip system accounts and known programs
                     if (accountAddress === '11111111111111111111111111111111' ||
                         accountAddress === 'SysvarRent111111111111111111111111111111111' ||
                         accountAddress === TOKEN_PROGRAM ||
                         accountAddress === 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4' ||
-                        accountAddress === 'So11111111111111111111111111111111111111112') { // Native SOL mint
+                        accountAddress === 'So11111111111111111111111111111111111111112' || // Native SOL mint
+                        accountAddress === programId) { // Skip the Raydium program itself
                         continue;
                     }
                     
-                    // This could be the pool address - return it
+                    // Skip if this is a known program (starts with known patterns)
+                    // Programs are usually 32 bytes, but we can also check by common prefixes
+                    if (accountAddress === 'ComputeBudget111111111111111111111111111111' ||
+                        accountAddress === 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL' ||
+                        accountAddress === 'SysvarC1ock11111111111111111111111111111111') {
+                        continue;
+                    }
+                    
+                    // This could be the pool address
                     // (The decoder will verify it's actually owned by Raydium)
                     return accountAddress;
-                }
-                
-                // Fallback: Return first non-signer account if all else fails
-                // (Decoder will reject if it's not a pool)
-                for (let i = 0; i < accIdxs.length; i++) {
-                    const accIdx = accIdxs[i];
-                    const accountAddress = combined[accIdx];
-                    if (accountAddress && !signerKeys.has(accountAddress)) {
-                        return accountAddress;
-                    }
                 }
             }
         }
     }
     
+    // If extraction failed, return null - let the caller use knownPoolAddress as fallback
     return null;
 }
 

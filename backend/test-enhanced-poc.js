@@ -5,6 +5,13 @@ const CONSTANT_K_GRPC_ENDPOINT = 'https://yellowstone.constant-k.com:443';
 const CONSTANT_K_GRPC_TOKEN = '39facrmt-om2u-4al5-5k4h-g8pls2y5vhui';
 const RAYDIUM_AMM_PROGRAM = '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8';
 
+// Exclude these tokens (SOL, stablecoins, major tokens)
+const EXCLUDED_TOKENS = new Set([
+    'So11111111111111111111111111111111111111112', // Wrapped SOL
+    'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+    'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT
+]);
+
 // Sliding window configuration
 const WINDOWS = {
     '1m': 60,
@@ -127,9 +134,9 @@ class EnhancedPoC {
                 const timestamp = Date.now();
                 const volume = Math.abs(swap.amountIn || swap.amountOut || 1);
 
-                // Track activity with sliding windows
+                // Track activity with sliding windows (exclude SOL/stables)
                 [swap.tokenMintA, swap.tokenMintB].forEach(tokenAddress => {
-                    if (tokenAddress) {
+                    if (tokenAddress && !EXCLUDED_TOKENS.has(tokenAddress)) {
                         this.addActivity(tokenAddress, volume, timestamp);
                     }
                 });
@@ -287,8 +294,9 @@ class EnhancedPoC {
         console.log(`🏁 ENHANCED PoC RESULTS (${duration.toFixed(1)}s test)`);
         console.log(`${'='.repeat(70)}`);
         
-        // Calculate activity scores for all tokens
-        const tokenScores = Array.from(this.stats.tokensSeen).map(tokenAddress => {
+        // Calculate activity scores for all tokens (exclude SOL/stables)
+        const validTokens = Array.from(this.stats.tokensSeen).filter(t => !EXCLUDED_TOKENS.has(t));
+        const tokenScores = validTokens.map(tokenAddress => {
             const activity1h = this.getActivityMetrics(tokenAddress, '1h');
             const activity5m = this.getActivityMetrics(tokenAddress, '5m');
             const score = this.calculateActivityScore(tokenAddress);
@@ -306,13 +314,17 @@ class EnhancedPoC {
 
         console.log(`\n💎 TOP 10 MOST ACTIVE TOKEN CONTRACTS:`);
         console.log(`${'='.repeat(70)}`);
-        tokenScores.slice(0, 10).forEach((token, index) => {
-            console.log(`\n${index + 1}. ${token.address}`);
-            console.log(`   Score: ${token.score.toFixed(2)}/100 ${token.active ? '✅ ACTIVE' : '⏸️  INACTIVE'}`);
-            console.log(`   Swaps (1h): ${token.swaps1h}`);
-            console.log(`   Swaps (5m): ${token.swaps5m}`);
-            console.log(`   Volume (1h): ${token.volume1h.toLocaleString()} tokens`);
-        });
+        if (tokenScores.length === 0) {
+            console.log(`   No valid tokens found (excluding SOL/stables)`);
+        } else {
+            tokenScores.slice(0, 10).forEach((token, index) => {
+                console.log(`\n${index + 1}. ${token.address}`);
+                console.log(`   Score: ${token.score.toFixed(2)}/100 ${token.active ? '✅ ACTIVE' : '⏸️  INACTIVE'}`);
+                console.log(`   Total Swaps Caught: ${token.swaps1h}`);
+                console.log(`   Swaps in last 5min: ${token.swaps5m}`);
+                console.log(`   Volume (1h): ${token.volume1h.toLocaleString()} tokens`);
+            });
+        }
 
         const activeTokens = tokenScores.filter(t => t.active);
         console.log(`\n📊 SUMMARY:`);
