@@ -420,13 +420,13 @@ export function guessPoolFromIx(tx) {
  * 🚀 ENHANCED: Now supports Raydium pool decoder for 100% accuracy
  * @returns {Object | null} Swap record or null if not a valid swap
  */
-export function processTxForSwap(tx, targetMint, solUsd, tokenPriceCache, midPriceUsd = null, raydiumDecoder = null, poolAddress = null) {
+export function processTxForSwap(tx, targetMint, solUsd, tokenPriceCache, midPriceUsd = null, raydiumDecoder = null, knownPoolAddress = null) {
     const deltas = extractTokenDeltas(tx);
     if (!deltas.length) return null;
 
     const message = tx.transaction?.message ?? {};
     const signerSet = getSignerSet(message);
-    const legs = pickLegsAndSide(deltas, targetMint, signerSet, tx, raydiumDecoder, poolAddress); // Pass decoder
+    const legs = pickLegsAndSide(deltas, targetMint, signerSet, tx, raydiumDecoder, knownPoolAddress); // Pass decoder
     if (!legs) return null;
 
     const getUsdForMint = (m) => tokenPriceCache.get(m);
