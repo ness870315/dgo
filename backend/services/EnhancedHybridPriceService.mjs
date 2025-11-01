@@ -719,6 +719,25 @@ class EnhancedHybridPriceService extends EventEmitter {
             // Try Raydium-specific extraction (more accurate)
             if (raydiumProgramId) {
                 actualPoolAddressForDecoding = extractRaydiumPoolFromIx(tx, raydiumProgramId);
+                if (!actualPoolAddressForDecoding && ((this._ammDecoderUsed || 0) <= 5 || (this._cpmmDecoderUsed || 0) <= 5 || (this._clmmDecoderUsed || 0) <= 5)) {
+                    // Debug: Log instruction structure if extraction failed
+                    const debugIx = instructions.find(ix => {
+                        if (ix.programIdIndex !== undefined) {
+                            return combined[ix.programIdIndex] === raydiumProgramId;
+                        }
+                        return false;
+                    });
+                    if (debugIx) {
+                        const accIdxs = Array.isArray(debugIx.accounts) ? debugIx.accounts : debugIx.accounts?.data ? Array.from(debugIx.accounts.data) : [];
+                        console.log(`🔍 [DEBUG] Raydium instruction found but extraction failed. Program: ${raydiumProgramId.substring(0, 8)}..., accounts.length: ${accIdxs.length}, first account idx: ${accIdxs[0]}`);
+                        if (accIdxs.length > 0 && accIdxs[0] !== undefined) {
+                            const firstAccount = combined[accIdxs[0]];
+                            console.log(`🔍 [DEBUG] First account would be: ${firstAccount?.substring(0, 16) || 'undefined'}...`);
+                        }
+                    } else {
+                        console.log(`⚠️ [DEBUG] No Raydium instruction found despite program ID ${raydiumProgramId.substring(0, 8)}... detected`);
+                    }
+                }
                 if (actualPoolAddressForDecoding && ((this._ammDecoderUsed || 0) <= 3 || (this._cpmmDecoderUsed || 0) <= 3 || (this._clmmDecoderUsed || 0) <= 3)) {
                     console.log(`✅ [processSwapForToken] Extracted Raydium pool from TX: ${actualPoolAddressForDecoding.substring(0, 16)}... (cached: ${poolAddress?.substring(0, 16) || 'N/A'}...)`);
                 }
