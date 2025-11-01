@@ -66,6 +66,13 @@ class ChartDatabase {
     }
 
     /**
+     * Async version of initializeDataDirSync for use in async contexts
+     */
+    async ensureDataDir() {
+        this.initializeDataDirSync();
+    }
+
+    /**
      * Ensure data is loaded before operations
      */
     async ensureLoaded() {
