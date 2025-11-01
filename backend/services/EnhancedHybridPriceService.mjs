@@ -638,15 +638,15 @@ class EnhancedHybridPriceService extends EventEmitter {
         // 🚀 DETECT PROGRAM ID AND SELECT APPROPRIATE DECODER
         let decoder = null;
         const message = tx.transaction?.message ?? {};
-        const accountKeys = buildCombinedKeys(message);
+        const { combined } = buildCombinedKeys(message); // ✅ FIX: Extract combined array
         
         // Check instructions to find program ID
         const instructions = message.instructions || [];
         for (const instruction of instructions) {
             if (instruction.programIdIndex !== undefined) {
-                const programId = accountKeys[instruction.programIdIndex];
+                const programId = combined[instruction.programIdIndex]; // ✅ FIX: Use combined array
                 if (programId && DEX_PROGRAMS[programId]) {
-                    // Select decoder based on program
+                    // Select decoder based on program (only Raydium has decoders for now)
                     if (programId === 'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C') {
                         decoder = this.raydiumCPMMDecoder;
                         this._cpmmDecoderUsed = (this._cpmmDecoderUsed || 0) + 1;
@@ -662,13 +662,16 @@ class EnhancedHybridPriceService extends EventEmitter {
                         }
                         break;
                     }
+                    // Note: Other AMM programs (Orca, Meteora) don't have decoders yet
+                    // They will fall back to heuristic detection (no decoder usage counter increment)
                 }
             }
         }
         
-        // Fallback to AMM decoder if no program detected (for backward compatibility)
+        // Fallback to AMM decoder if no Raydium program detected (for backward compatibility)
+        // This handles swaps from Orca, Meteora, etc. (they use heuristic detection, not decoder)
         if (!decoder) {
-            decoder = this.raydiumDecoder;
+            decoder = this.raydiumDecoder; // Will be passed but may not be used for non-Raydium swaps
         }
         
         // 🚀 USE ROBUST SWAP DETECTION with appropriate decoder
