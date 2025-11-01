@@ -22,6 +22,9 @@ class ChartDatabase {
         this.chartsDir = path.join(this.dataDir, 'charts');
         this.dbFile = path.join(this.dataDir, 'charts.json');
         
+        // ✅ CRITICAL FIX: Create directories immediately in constructor
+        this.initializeDataDirSync();
+        
         // 🚀 HYBRID ARCHITECTURE: Per-token databases + shared metadata
         this.tokenDatabases = new Map(); // tokenAddress -> database instance
         this.sharedData = {
