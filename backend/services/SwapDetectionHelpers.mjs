@@ -11,6 +11,15 @@ import { getAssociatedTokenAddressSync } from '@solana/spl-token';
 
 const WSOL_MINT = 'So11111111111111111111111111111111111111112';
 
+// 🚀 Stablecoin whitelist for counter USD pricing
+const STABLECOIN_MINTS = new Set([
+    'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+    'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // USDT
+]);
+
+// 🚀 EWMA alpha for mid-price tracking (tune: 0.1-0.3)
+const MID_PRICE_ALPHA = 0.2;
+
 // ============================================================================
 // 0) Helpers: normalize keys (legacy & v0), resolve indexes
 // ============================================================================
@@ -166,19 +175,74 @@ export function isUserSide(delta, signerSet) {
 }
 
 // ============================================================================
-// 4) Pick legs (target vs counter), decide BUY/SELL
+// 4) Helper: Get fee payer (safer than "first signer")
+// ============================================================================
+
+/**
+ * Get fee payer from transaction (always accountKeys[0])
+ */
+function getFeePayer(tx) {
+    const { combined } = buildCombinedKeys(tx.transaction?.message ?? {});
+    return combined[0] ?? '';
+}
+
+// ============================================================================
+// 5) Helper: Collapse user-side deltas by mint (avoid double-counting)
+// ============================================================================
+
+/**
+ * Collapse multiple user-side deltas per mint into largest-magnitude delta
+ * (Some routes emit multiple inner movements of the same leg)
+ */
+function collapseUserSideByMint(deltas, signerSet) {
+    const best = {};
+    for (const d of deltas.filter((x) => isUserSide(x, signerSet))) {
+        const cur = best[d.mint];
+        if (!cur || Math.abs(d.deltaUI) > Math.abs(cur.deltaUI)) {
+            best[d.mint] = d;
+        }
+    }
+    return Object.values(best);
+}
+
+// ============================================================================
+// 6) Helper: Conservation check (sanity)
+// ============================================================================
+
+/**
+ * Check if per-mint conservation holds (sum of all deltas ≈ 0)
+ */
+function mintSum(deltas, mint) {
+    return deltas.filter((d) => d.mint === mint).reduce((s, d) => s + d.deltaUI, 0);
+}
+
+// ============================================================================
+// 7) Pick legs (target vs counter), decide BUY/SELL
 // ============================================================================
 
 /**
  * Pick target and counter legs, determine BUY/SELL
- * @returns {{ target: TokenDelta, counter: TokenDelta, side: 'BUY'|'SELL' } | null}
+ * @returns {{ target: TokenDelta, counter: TokenDelta, side: 'BUY'|'SELL', feePayer: string } | null}
  */
 export function pickLegsAndSide(deltas, targetMint, signerSet, tx) {
-    // 🚀 PATCH 1: Hard requirement - both legs must be present
+    // 🚀 HARDENING: Collapse user-side deltas by mint to avoid double-counting
+    const collapsed = collapseUserSideByMint(deltas, signerSet);
     
-    // Pick target delta (prefer user-side)
-    const targetLeg = deltas
-        .filter((d) => d.mint === targetMint && isUserSide(d, signerSet))
+    // 🚀 HARDENING: Check for multi-hop routes (3+ mints on user side)
+    if (collapsed.length > 2) {
+        console.log(`⚠️ [pickLegsAndSide] Skip: multi-hop route (${collapsed.length} mints on user side) for ${targetMint.substring(0, 8)}...`);
+        return null;
+    }
+    
+    // 🚀 HARDENING: Conservation check
+    const sumTarget = mintSum(deltas, targetMint);
+    if (Math.abs(sumTarget) > 1e-6) {
+        console.log(`⚠️ [pickLegsAndSide] Warning: non-zero mint sum for ${targetMint.substring(0, 8)}... (${sumTarget.toFixed(9)})`);
+    }
+    
+    // Pick target delta (MUST be user-side)
+    const targetLeg = collapsed
+        .filter((d) => d.mint === targetMint)
         .sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI))[0];
     
     if (!targetLeg || Math.abs(targetLeg.deltaUI) < 1e-9) {
@@ -186,30 +250,39 @@ export function pickLegsAndSide(deltas, targetMint, signerSet, tx) {
         return null;
     }
 
-    // Prefer user-side counters, else any
-    let counterLeg = deltas
-        .filter((d) => d.mint !== targetMint && isUserSide(d, signerSet))
+    // 🚀 HARDENING: Require user-side counter first
+    let counterLeg = collapsed
+        .filter((d) => d.mint !== targetMint)
         .sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI))[0];
 
+    // 🚀 HARDENING: Fallback to native SOL delta of fee payer (not first signer)
+    const feePayer = getFeePayer(tx);
     if (!counterLeg) {
-        // Fallback: use native SOL lamports delta for the signer (not wSOL)
         const solDeltaBySigner = extractNativeSolDeltaBySigner(tx);
-        const signer = [...signerSet][0];
-        const solDelta = solDeltaBySigner.get(signer) ?? 0;
+        const solDelta = solDeltaBySigner.get(feePayer) ?? 0;
         
         if (solDelta !== 0 && Math.abs(solDelta) > 1e-6) {
-            console.log(`💰 [pickLegsAndSide] Using native SOL as counter: ${solDelta.toFixed(6)} SOL`);
+            console.log(`💰 [pickLegsAndSide] Using native SOL as counter: ${solDelta.toFixed(6)} SOL (fee payer: ${feePayer.substring(0, 8)}...)`);
             counterLeg = {
                 accountIndex: -1,
-                accountPubkey: signer,
+                accountPubkey: feePayer,
                 mint: WSOL_MINT, // treat as the SOL leg type
-                owner: signer,
+                owner: feePayer,
                 decimals: 9,
                 preRaw: 0n,
                 postRaw: 0n,
                 deltaRaw: BigInt(Math.round(solDelta * 1e9)),
                 deltaUI: solDelta,
             };
+        } else {
+            // Last resort: allow pool-side largest delta
+            counterLeg = deltas
+                .filter((d) => d.mint !== targetMint)
+                .sort((a, b) => Math.abs(b.deltaUI) - Math.abs(a.deltaUI))[0];
+            
+            if (counterLeg) {
+                console.log(`⚠️ [pickLegsAndSide] Using pool-side counter as last resort: ${counterLeg.mint.substring(0, 8)}...`);
+            }
         }
     }
 
@@ -219,7 +292,7 @@ export function pickLegsAndSide(deltas, targetMint, signerSet, tx) {
     }
 
     const side = targetLeg.deltaUI > 0 ? 'BUY' : 'SELL';
-    return { target: targetLeg, counter: counterLeg, side };
+    return { target: targetLeg, counter: counterLeg, side, feePayer };
 }
 
 // ============================================================================
@@ -228,6 +301,7 @@ export function pickLegsAndSide(deltas, targetMint, signerSet, tx) {
 
 /**
  * Compute price and volume from target/counter legs
+ * 🚀 HARDENING: Explicit stablecoin whitelist for USD pricing
  */
 export function computePriceAndVolume(target, counter, solUsd, getUsdForMint) {
     const qtyT = Math.abs(target.deltaUI);
@@ -241,12 +315,16 @@ export function computePriceAndVolume(target, counter, solUsd, getUsdForMint) {
     let counterUsd = 0;
     if (counter.mint === WSOL_MINT) {
         counterUsd = solUsd;
+    } else if (STABLECOIN_MINTS.has(counter.mint)) {
+        // Explicit stablecoin whitelist
+        counterUsd = 1.0;
     } else {
-        counterUsd = getUsdForMint(counter.mint) ?? 1; // assume USDC if not found
+        // Try to get USD price from cache
+        counterUsd = getUsdForMint(counter.mint) ?? 0;
     }
 
-    const priceUsd = counterUsd ? priceInCounter * counterUsd : NaN;
-    const volumeUsd = counterUsd ? qtyC * counterUsd : 0;
+    const priceUsd = counterUsd > 0 ? priceInCounter * counterUsd : NaN;
+    const volumeUsd = counterUsd > 0 ? qtyC * counterUsd : 0;
 
     return { priceInCounter, priceUsd, volumeUsd };
 }
@@ -324,18 +402,18 @@ export function processTxForSwap(tx, targetMint, solUsd, tokenPriceCache, midPri
         return null;
     }
 
-    // Price outlier filter (if we have a mid-price reference)
+    // 🚀 HARDENING: Robust price outlier filter (5x/0.2x thresholds)
     if (priceUsd > 0 && midPriceUsd && midPriceUsd > 0) {
-        const priceDeviation = Math.abs(priceUsd / midPriceUsd - 1);
-        if (priceDeviation > 0.8) {
-            // >80% off mid? likely mis-leg or outlier
-            console.log(`⚠️ [processTxForSwap] Skip: price outlier (${priceDeviation.toFixed(2)}x deviation, price=$${priceUsd.toFixed(8)}, mid=$${midPriceUsd.toFixed(8)}) for ${sigShort}...`);
+        const ratio = priceUsd / midPriceUsd;
+        if (ratio > 5 || ratio < 0.2) {
+            // >5× or <0.2× off mid? likely mis-leg or outlier
+            console.log(`⚠️ [processTxForSwap] Skip: price outlier (${ratio.toFixed(2)}x ratio, price=$${priceUsd.toFixed(8)}, mid=$${midPriceUsd.toFixed(8)}) for ${sigShort}...`);
             return null;
         }
     }
 
     const poolAddress = guessPoolFromIx(tx) ?? 'unknown';
-    const maker = [...signerSet][0] ?? 'Unknown';
+    const maker = legs.feePayer ?? 'Unknown'; // Use fee payer from legs
 
     return {
         timestamp: (tx.blockTime ?? Math.floor(Date.now() / 1000)) * 1000,

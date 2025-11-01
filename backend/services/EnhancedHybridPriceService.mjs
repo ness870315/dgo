@@ -627,12 +627,14 @@ class EnhancedHybridPriceService extends EventEmitter {
         
         console.log(`✅ [EnhancedHybridPriceService] ${swapRecord.type}: ${swapRecord.tokenAmount.toFixed(2)} ${tokenAddress.substring(0, 8)}... for ${swapRecord.baseAmount.toFixed(6)} (counter: ${swapRecord.counterMint.substring(0, 8)}...) | Price: $${swapRecord.priceUsd?.toFixed(8) ?? 'N/A'} | Volume: $${swapRecord.volumeUsd.toFixed(2)}`);
         
-        // Update mid-price (rolling average with 90% weight on existing mid)
+        // 🚀 HARDENING: Update mid-price using EWMA (alpha=0.2)
         if (swapRecord.priceUsd && isFinite(swapRecord.priceUsd) && swapRecord.priceUsd > 0) {
             const currentMid = this.midPriceUsd.get(tokenAddress);
             if (currentMid && currentMid > 0) {
-                // Exponential moving average: 90% old, 10% new
-                this.midPriceUsd.set(tokenAddress, currentMid * 0.9 + swapRecord.priceUsd * 0.1);
+                // Exponential moving average: (1-α)*old + α*new, where α=0.2
+                const alpha = 0.2;
+                const newMid = (1 - alpha) * currentMid + alpha * swapRecord.priceUsd;
+                this.midPriceUsd.set(tokenAddress, newMid);
             } else {
                 // First price, set as mid
                 this.midPriceUsd.set(tokenAddress, swapRecord.priceUsd);
