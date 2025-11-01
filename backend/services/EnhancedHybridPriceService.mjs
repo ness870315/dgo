@@ -643,11 +643,13 @@ class EnhancedHybridPriceService extends EventEmitter {
                             },
                             transaction: {
                                 message: {
-                                    accountKeys: tx.transaction?.message?.accountKeys?.slice(0, 10).map(k => k?.substring(0, 16) + '...'),
+                                    accountKeys: tx.transaction?.message?.accountKeys?.slice(0, 10).map(k => 
+                                        typeof k === 'string' ? k.substring(0, 16) + '...' : String(k).substring(0, 16) + '...'
+                                    ),
                                     instructions: tx.transaction?.message?.instructions?.slice(0, 3).map(i => ({
                                         programIdIndex: i?.programIdIndex,
                                         accounts: i?.accounts?.slice(0, 10),
-                                        data: i?.data?.substring(0, 32) + '...'
+                                        data: typeof i?.data === 'string' ? i.data.substring(0, 32) + '...' : String(i?.data || '').substring(0, 32)
                                     }))
                                 }
                             }
