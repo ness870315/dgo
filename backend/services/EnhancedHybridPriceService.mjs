@@ -5,6 +5,7 @@ import path from 'path';
 import bs58 from 'bs58';
 import ChartDatabase from './ChartDatabase.js';
 import { processTxForSwap } from './SwapDetectionHelpers.mjs';
+import RaydiumPoolDecoder from './RaydiumPoolDecoder.mjs';
 
 // Use CommonJS wrapper for gRPC loading
 import { createRequire } from 'module';
@@ -100,6 +101,10 @@ class EnhancedHybridPriceService extends EventEmitter {
         
         // 🚀 NEW: Persistent swap storage
         this.chartDatabase = new ChartDatabase();
+        
+        // 🚀 NEW: Raydium pool decoder for 100% accurate swap detection
+        this.raydiumDecoder = new RaydiumPoolDecoder(CONSTANT_K_RPC);
+        console.log('✅ [EnhancedHybridPriceService] Raydium pool decoder initialized');
         
         // Rate limiting protection for Jupiter API
         this.jupiterRequestQueue = [];
@@ -621,14 +626,16 @@ class EnhancedHybridPriceService extends EventEmitter {
             console.log(`\n`);
         }
         
-        // 🚀 USE ROBUST SWAP DETECTION
+        // 🚀 USE ROBUST SWAP DETECTION with Raydium decoder
         const midPriceUsd = this.midPriceUsd.get(tokenAddress);
         const swapRecord = processTxForSwap(
             tx,
             tokenAddress,
             this.solPriceUSD,
             this.tokenPriceCache,
-            midPriceUsd
+            midPriceUsd,
+            this.raydiumDecoder,  // ✅ Pass Raydium decoder for 100% accurate pool vault detection
+            poolAddress            // ✅ Pass known pool address
         );
         
         if (!swapRecord) {
