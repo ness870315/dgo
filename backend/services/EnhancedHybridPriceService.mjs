@@ -4,7 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import bs58 from 'bs58';
 import ChartDatabase from './ChartDatabase.js';
-import { processTxForSwap, buildCombinedKeys } from './SwapDetectionHelpers.mjs';
+import { processTxForSwap, buildCombinedKeys, guessPoolFromIx } from './SwapDetectionHelpers.mjs';
 import RaydiumPoolDecoder from './RaydiumPoolDecoder.mjs';
 import RaydiumCPMMDecoder from './RaydiumCPMMDecoder.mjs';
 import RaydiumCLMMDecoder from './RaydiumCLMMDecoder.mjs';
@@ -697,9 +697,23 @@ class EnhancedHybridPriceService extends EventEmitter {
         }
         
         // 🚀 PROACTIVE POOL DECODING: Only decode if we confirmed it's a Raydium swap
-        // ✅ CRITICAL: Don't decode pools for PumpSwap/Orca/Meteora swaps (causes failures)
-        if (isRaydiumSwap && poolAddress && decoder && (decoder === this.raydiumDecoder || decoder === this.raydiumCPMMDecoder || decoder === this.raydiumCLMMDecoder)) {
-            this.queuePoolDecode(decoder, poolAddress);
+        // ✅ CRITICAL: Extract pool address FROM TRANSACTION (not cached metadata)
+        // The pool address from cache might be a different format or identifier
+        // For Raydium swaps, we need the actual pool account address from the transaction
+        let actualPoolAddressForDecoding = null;
+        if (isRaydiumSwap && decoder) {
+            // Try to get pool address from transaction instructions
+            const txPoolAddress = guessPoolFromIx(tx);
+            if (txPoolAddress) {
+                actualPoolAddressForDecoding = txPoolAddress;
+            } else {
+                // Fallback to cached pool address if transaction extraction fails
+                actualPoolAddressForDecoding = poolAddress;
+            }
+            
+            if (actualPoolAddressForDecoding && (decoder === this.raydiumDecoder || decoder === this.raydiumCPMMDecoder || decoder === this.raydiumCLMMDecoder)) {
+                this.queuePoolDecode(decoder, actualPoolAddressForDecoding);
+            }
         }
         
         // 🚀 USE ROBUST SWAP DETECTION with appropriate decoder
@@ -710,8 +724,8 @@ class EnhancedHybridPriceService extends EventEmitter {
             this.solPriceUSD,
             this.tokenPriceCache,
             midPriceUsd,
-            decoder,      // ✅ Pass appropriate decoder (AMM or CPMM)
-            poolAddress   // ✅ Pass known pool address
+            decoder,      // ✅ Pass appropriate decoder (AMM, CPMM, or CLMM)
+            poolAddress   // ✅ Pass known pool address (for swap detection heuristics)
         );
         
         if (!swapRecord) {
