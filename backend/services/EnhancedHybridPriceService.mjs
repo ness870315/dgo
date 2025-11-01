@@ -644,6 +644,7 @@ class EnhancedHybridPriceService extends EventEmitter {
         
         // 🚀 DETECT PROGRAM ID AND SELECT APPROPRIATE DECODER
         let decoder = null;
+        let isRaydiumSwap = false; // ✅ Track if this is actually a Raydium swap
         const message = tx.transaction?.message ?? {};
         const { combined } = buildCombinedKeys(message); // ✅ FIX: Extract combined array
         
@@ -656,6 +657,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                     // Select decoder based on program (only Raydium has decoders for now)
                     if (programId === 'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C') {
                         decoder = this.raydiumCPMMDecoder;
+                        isRaydiumSwap = true; // ✅ Confirmed Raydium CPMM swap
                         this._cpmmDecoderUsed = (this._cpmmDecoderUsed || 0) + 1;
                         if (this._cpmmDecoderUsed <= 5 || this._cpmmDecoderUsed % 100 === 0) {
                             console.log(`🔧 [processSwapForToken] Using CPMM decoder for ${tokenAddress.substring(0, 8)}... (total uses: ${this._cpmmDecoderUsed})`);
@@ -663,6 +665,7 @@ class EnhancedHybridPriceService extends EventEmitter {
                         break;
                     } else if (programId === '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8') {
                         decoder = this.raydiumDecoder;
+                        isRaydiumSwap = true; // ✅ Confirmed Raydium AMM swap
                         this._ammDecoderUsed = (this._ammDecoderUsed || 0) + 1;
                         if (this._ammDecoderUsed <= 5 || this._ammDecoderUsed % 100 === 0) {
                             console.log(`🔧 [processSwapForToken] Using AMM decoder for ${tokenAddress.substring(0, 8)}... (total uses: ${this._ammDecoderUsed})`);
@@ -679,11 +682,12 @@ class EnhancedHybridPriceService extends EventEmitter {
         // This handles swaps from Orca, Meteora, etc. (they use heuristic detection, not decoder)
         if (!decoder) {
             decoder = this.raydiumDecoder; // Will be passed but may not be used for non-Raydium swaps
+            // ✅ DO NOT set isRaydiumSwap = true here - we didn't detect Raydium!
         }
         
-        // 🚀 PROACTIVE POOL DECODING: Queue pool decode with rate limiting
-        // This prevents RPC 429 errors from concurrent decode requests
-        if (decoder && poolAddress && (decoder === this.raydiumDecoder || decoder === this.raydiumCPMMDecoder)) {
+        // 🚀 PROACTIVE POOL DECODING: Only decode if we confirmed it's a Raydium swap
+        // ✅ CRITICAL: Don't decode pools for PumpSwap/Orca/Meteora swaps (causes failures)
+        if (isRaydiumSwap && poolAddress && decoder && (decoder === this.raydiumDecoder || decoder === this.raydiumCPMMDecoder)) {
             this.queuePoolDecode(decoder, poolAddress);
         }
         
