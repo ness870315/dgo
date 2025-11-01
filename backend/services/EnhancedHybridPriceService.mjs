@@ -195,8 +195,10 @@ class EnhancedHybridPriceService extends EventEmitter {
                 // 🚀 NEW: Listen for client subscriptions to send recent swaps
                 this.webSocketServer.on('tokenSubscription', ({ clientId, tokenAddress, sendRecentSwaps }) => {
                     if (sendRecentSwaps && this.swapHistory.has(tokenAddress)) {
-                        const recentSwaps = this.swapHistory.get(tokenAddress).slice(-10); // Last 10 swaps
-                        this.webSocketServer.sendRecentSwapsToClient(clientId, tokenAddress, recentSwaps);
+                        // Send ALL swaps in memory (up to 1000, kept in swapHistory)
+                        const allSwaps = this.swapHistory.get(tokenAddress);
+                        console.log(`📊 [EnhancedHybridPriceService] Sending ${allSwaps.length} swaps to late-joining client for ${tokenAddress.substring(0, 8)}...`);
+                        this.webSocketServer.sendRecentSwapsToClient(clientId, tokenAddress, allSwaps);
                     }
                 });
             }
