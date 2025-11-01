@@ -267,8 +267,18 @@ class ChartDatabase {
             // ✅ EMERGENCY FIX: Ensure charts directory exists before writing
             if (!fsSync.existsSync(this.chartsDir)) {
                 console.log(`🚨 [ChartDatabase] Charts directory missing! Creating: ${this.chartsDir}`);
-                fsSync.mkdirSync(this.chartsDir, { recursive: true });
-                console.log(`✅ [ChartDatabase] Charts directory created`);
+                try {
+                    fsSync.mkdirSync(this.chartsDir, { recursive: true });
+                    console.log(`✅ [ChartDatabase] Charts directory created: ${this.chartsDir}`);
+                } catch (mkdirError) {
+                    console.error(`❌ [ChartDatabase] Failed to create charts directory:`, mkdirError);
+                    throw mkdirError;
+                }
+            }
+            
+            // Verify directory exists after creation
+            if (!fsSync.existsSync(this.chartsDir)) {
+                throw new Error(`Charts directory does not exist after creation attempt: ${this.chartsDir}`);
             }
             
             // Convert token swaps to arrays for JSON serialization
@@ -281,6 +291,11 @@ class ChartDatabase {
             
             // Write to temporary file first
             await fs.writeFile(tempFile, JSON.stringify(dataToSave, null, 2));
+            
+            // Verify temp file was created
+            if (!fsSync.existsSync(tempFile)) {
+                throw new Error(`Temp file was not created: ${tempFile}`);
+            }
             
             // Create backup of current file
             try {
@@ -295,6 +310,12 @@ class ChartDatabase {
             tokenDb.lastWriteTime = Date.now();
             
         } catch (error) {
+            console.error(`❌ [ChartDatabase] Token ${tokenAddress.substring(0,8)} write failed:`, error.message);
+            console.error(`   Charts dir exists: ${fsSync.existsSync(this.chartsDir)}`);
+            console.error(`   Temp file exists: ${fsSync.existsSync(tempFile)}`);
+            console.error(`   Charts dir path: ${this.chartsDir}`);
+            console.error(`   Token file path: ${tokenFile}`);
+            
             // Clean up temp file if it exists
             try {
                 await fs.unlink(tempFile);
