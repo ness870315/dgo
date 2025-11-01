@@ -850,9 +850,9 @@ class EnhancedHybridPriceService extends EventEmitter {
                         if (tx.meta?.preTokenBalances?.length > 0) {
                             // console.log(`🎉 [EnhancedHybridPriceService] TOKEN BALANCE CHANGES DETECTED for ${tokenAddress}!`);
                             
-                            // 🔍 DEBUG: Log full transaction structure (every 100th swap)
+                            // 🔍 DEBUG: Log full transaction structure (first 5 swaps, then every 100th)
                             this._txDebugCounter = (this._txDebugCounter || 0) + 1;
-                            if (this._txDebugCounter === 1 || this._txDebugCounter % 100 === 0) {
+                            if (this._txDebugCounter <= 5 || this._txDebugCounter % 100 === 0) {
                                 console.log(`\n📋 [DEBUG] TRANSACTION JSON STRUCTURE (#${this._txDebugCounter}):`);
                                 console.log(JSON.stringify({
                                     signature: transactionSignature?.substring(0, 16) + '...',
