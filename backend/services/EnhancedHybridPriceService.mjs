@@ -850,6 +850,46 @@ class EnhancedHybridPriceService extends EventEmitter {
                         if (tx.meta?.preTokenBalances?.length > 0) {
                             // console.log(`🎉 [EnhancedHybridPriceService] TOKEN BALANCE CHANGES DETECTED for ${tokenAddress}!`);
                             
+                            // 🔍 DEBUG: Log full transaction structure (first swap only)
+                            if (!this._loggedTxStructure) {
+                                console.log(`\n📋 [DEBUG] TRANSACTION JSON STRUCTURE:`);
+                                console.log(JSON.stringify({
+                                    signature: transactionSignature?.substring(0, 16) + '...',
+                                    slot: slot,
+                                    blockTime: tx.blockTime,
+                                    meta: {
+                                        err: tx.meta.err,
+                                        fee: tx.meta.fee,
+                                        preBalances: tx.meta.preBalances,
+                                        postBalances: tx.meta.postBalances,
+                                        preTokenBalances: tx.meta.preTokenBalances?.map(b => ({
+                                            accountIndex: b.accountIndex,
+                                            mint: b.mint,
+                                            owner: b.owner,
+                                            uiTokenAmount: b.uiTokenAmount
+                                        })),
+                                        postTokenBalances: tx.meta.postTokenBalances?.map(b => ({
+                                            accountIndex: b.accountIndex,
+                                            mint: b.mint,
+                                            owner: b.owner,
+                                            uiTokenAmount: b.uiTokenAmount
+                                        }))
+                                    },
+                                    transaction: {
+                                        message: {
+                                            accountKeys: tx.transaction?.message?.accountKeys?.slice(0, 10).map(k => k.substring(0, 16) + '...'),
+                                            instructions: tx.transaction?.message?.instructions?.map(i => ({
+                                                programIdIndex: i.programIdIndex,
+                                                accounts: i.accounts,
+                                                data: i.data?.substring(0, 32) + '...'
+                                            }))
+                                        }
+                                    }
+                                }, null, 2));
+                                console.log(`\n`);
+                                this._loggedTxStructure = true; // Only log once
+                            }
+                            
                             // Collect all balance changes to find both sides of the swap
                             const balanceChanges = [];
                             
