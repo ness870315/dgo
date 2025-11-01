@@ -560,6 +560,7 @@ class EnhancedHybridPriceService extends EventEmitter {
     // ✅ NEW: Process swap for a specific token from shared stream
     // 🚀 ROBUST: Uses production-grade swap detection with v0 tx support
     async processSwapForToken(msg, tokenAddress, poolAddress, slot, signature) {
+        console.log(`🔍 [processSwapForToken] Called for token ${tokenAddress.substring(0, 8)}... at slot ${slot}`);
         const tx = msg.transaction.transaction;
         
         // 🔍 DEBUG: Log full transaction structure (first 5 swaps, then every 100th)
@@ -652,10 +653,19 @@ class EnhancedHybridPriceService extends EventEmitter {
         // Broadcast to WebSocket clients
         if (this.webSocketServer) {
             try {
+                console.log(`📡 [EnhancedHybridPriceService] Broadcasting swap to ${this.webSocketServer.clients?.size ?? 0} WebSocket clients...`);
                 this.webSocketServer.broadcastSwapUpdate(tokenAddress, swapRecord);
+                console.log(`✅ [EnhancedHybridPriceService] Swap broadcast successful`);
             } catch (error) {
                 console.error(`❌ [EnhancedHybridPriceService] Failed to broadcast swap:`, error.message);
+                console.error(`❌ [EnhancedHybridPriceService] WebSocket server state:`, {
+                    hasServer: !!this.webSocketServer,
+                    hasBroadcastMethod: typeof this.webSocketServer?.broadcastSwapUpdate === 'function',
+                    clientCount: this.webSocketServer.clients?.size ?? 0
+                });
             }
+        } else {
+            console.warn(`⚠️ [EnhancedHybridPriceService] No WebSocket server available for broadcast`);
         }
         
         // Update internal tracking
