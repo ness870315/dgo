@@ -231,6 +231,24 @@ class ChartDatabase {
                 tokenDb.swapCount++;
             }
             
+            // ✅ CRITICAL FIX: Limit swaps to prevent massive files (keep last 1000 swaps)
+            const MAX_SWAPS_PER_TOKEN = 1000;
+            if (tokenDb.swaps.size > MAX_SWAPS_PER_TOKEN) {
+                // Convert to array, sort by timestamp, keep newest 1000
+                const swapsArray = Array.from(tokenDb.swaps.entries());
+                swapsArray.sort((a, b) => (b[1].timestamp || 0) - (a[1].timestamp || 0));
+                
+                // Clear map and add back only the newest swaps
+                tokenDb.swaps.clear();
+                for (let i = 0; i < MAX_SWAPS_PER_TOKEN; i++) {
+                    if (swapsArray[i]) {
+                        tokenDb.swaps.set(swapsArray[i][0], swapsArray[i][1]);
+                    }
+                }
+                
+                console.log(`🗑️ [ChartDatabase] Token ${tokenAddress.substring(0,8)}: Trimmed to ${MAX_SWAPS_PER_TOKEN} swaps (was ${swapsArray.length})`);
+            }
+            
             // Atomic write to per-token file
             await this.atomicWriteToken(tokenAddress);
             
