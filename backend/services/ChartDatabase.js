@@ -264,6 +264,14 @@ class ChartDatabase {
         const backupFile = `${tokenFile}.backup`;
         
         try {
+            // ✅ EMERGENCY FIX: Ensure charts directory exists before writing
+            const fsSync = require('fs');
+            if (!fsSync.existsSync(this.chartsDir)) {
+                console.log(`🚨 [ChartDatabase] Charts directory missing! Creating: ${this.chartsDir}`);
+                fsSync.mkdirSync(this.chartsDir, { recursive: true });
+                console.log(`✅ [ChartDatabase] Charts directory created`);
+            }
+            
             // Convert token swaps to arrays for JSON serialization
             const dataToSave = {
                 swaps: Array.from(tokenDb.swaps.entries()),
