@@ -119,6 +119,13 @@ class EnhancedHybridPriceService extends EventEmitter {
         this.jupiterCache = new Map();
         this.jupiterCacheDuration = 10 * 60 * 1000; // 10 minutes cache
         
+        // 🚀 Rate limiting for pool decoding (prevent RPC 429 errors)
+        this.poolDecodeQueue = [];
+        this.poolDecodeInProgress = new Set(); // Track pools currently being decoded
+        this.poolDecodeDelay = 500; // 500ms delay between pool decode requests
+        this.lastPoolDecode = 0;
+        this.poolDecodeProcessing = false;
+        
         // Initialize asynchronously
         this.initializeAsync();
     }
@@ -674,16 +681,10 @@ class EnhancedHybridPriceService extends EventEmitter {
             decoder = this.raydiumDecoder; // Will be passed but may not be used for non-Raydium swaps
         }
         
-        // 🚀 PROACTIVE POOL DECODING: Decode pool state if not already cached
-        // This ensures decoder can accurately classify user vs pool for subsequent swaps
-        // decodePoolState() handles caching internally - will return immediately if cached
+        // 🚀 PROACTIVE POOL DECODING: Queue pool decode with rate limiting
+        // This prevents RPC 429 errors from concurrent decode requests
         if (decoder && poolAddress && (decoder === this.raydiumDecoder || decoder === this.raydiumCPMMDecoder)) {
-            // Decode pool state asynchronously (don't await - fire and forget for performance)
-            // If pool is already cached, this returns immediately without an RPC call
-            decoder.decodePoolState(poolAddress).catch(err => {
-                // Silently fail - decoder will fall back to heuristics if decode fails
-                // console.log(`⚠️ [processSwapForToken] Failed to decode pool ${poolAddress.substring(0, 8)}...: ${err.message}`);
-            });
+            this.queuePoolDecode(decoder, poolAddress);
         }
         
         // 🚀 USE ROBUST SWAP DETECTION with appropriate decoder
@@ -2108,6 +2109,88 @@ class EnhancedHybridPriceService extends EventEmitter {
             this.decoderStatsInterval = null;
             console.log('✅ [EnhancedHybridPriceService] Stopped decoder stats logging');
         }
+    }
+
+    // 🚀 RATE-LIMITED POOL DECODING QUEUE SYSTEM
+    
+    /**
+     * Queue a pool decode request with deduplication
+     * Prevents multiple decode requests for the same pool
+     */
+    queuePoolDecode(decoder, poolAddress) {
+        // Check if pool is already cached (avoid queueing)
+        if (decoder.poolCache?.has(poolAddress)) {
+            return; // Already cached, no need to decode
+        }
+        
+        // Check if pool is already in queue or being decoded
+        if (this.poolDecodeInProgress.has(poolAddress)) {
+            return; // Already being decoded, skip
+        }
+        
+        // Check if already in queue
+        if (this.poolDecodeQueue.some(item => item.poolAddress === poolAddress && item.decoder === decoder)) {
+            return; // Already queued, skip
+        }
+        
+        // Add to queue
+        this.poolDecodeQueue.push({
+            decoder,
+            poolAddress,
+            timestamp: Date.now()
+        });
+        
+        // Start processing if not already running
+        if (!this.poolDecodeProcessing) {
+            this.processPoolDecodeQueue();
+        }
+    }
+    
+    /**
+     * Process the pool decode queue sequentially with rate limiting
+     * Processes one decode request every 500ms to avoid RPC rate limits
+     */
+    async processPoolDecodeQueue() {
+        if (this.poolDecodeProcessing) {
+            return; // Already processing
+        }
+        
+        this.poolDecodeProcessing = true;
+        
+        while (this.poolDecodeQueue.length > 0) {
+            const item = this.poolDecodeQueue.shift();
+            
+            // Check again if pool is cached (might have been decoded by another request)
+            if (item.decoder.poolCache?.has(item.poolAddress)) {
+                continue; // Already cached, skip
+            }
+            
+            // Mark as in progress
+            this.poolDecodeInProgress.add(item.poolAddress);
+            
+            try {
+                // Wait for rate limit delay (500ms between requests)
+                const now = Date.now();
+                const timeSinceLastDecode = now - this.lastPoolDecode;
+                if (timeSinceLastDecode < this.poolDecodeDelay) {
+                    await new Promise(resolve => setTimeout(resolve, this.poolDecodeDelay - timeSinceLastDecode));
+                }
+                
+                // Decode the pool
+                await item.decoder.decodePoolState(item.poolAddress);
+                
+                this.lastPoolDecode = Date.now();
+                
+            } catch (error) {
+                // Silently fail - decoder will fall back to heuristics
+                // Errors are already logged by the decoder itself
+            } finally {
+                // Remove from in-progress set
+                this.poolDecodeInProgress.delete(item.poolAddress);
+            }
+        }
+        
+        this.poolDecodeProcessing = false;
     }
 }
 
