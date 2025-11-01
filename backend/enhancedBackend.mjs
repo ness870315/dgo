@@ -14411,6 +14411,47 @@ Thanks for using x402 payments on Twitter! 🚀`;
       }
     });
 
+    // ✅ NEW: Get decoder statistics to verify usage in production
+    this.app.get('/api/decoders/stats', async (req, res) => {
+      try {
+        if (!this.realTimeTokenMonitor?.hybridPriceService) {
+          return res.status(500).json({
+            success: false,
+            error: 'Hybrid price service not initialized'
+          });
+        }
+
+        const decoderStats = this.realTimeTokenMonitor.hybridPriceService.getDecoderStats();
+        
+        res.json({
+          success: true,
+          data: {
+            ...decoderStats,
+            summary: {
+              totalSwapsProcessed: decoderStats.totalDecoderUses,
+              ammDecoderUsage: decoderStats.raydiumAMM.usage || 0,
+              cpmmDecoderUsage: decoderStats.raydiumCPMM.usage || 0,
+              ammDecoderActive: decoderStats.decoderActive.amm,
+              cpmmDecoderActive: decoderStats.decoderActive.cpmm,
+              ammCacheSize: decoderStats.raydiumAMM.cacheSize || 0,
+              cpmmCacheSize: decoderStats.raydiumCPMM.cacheSize || 0,
+              ammSuccessRate: decoderStats.raydiumAMM.successRate || 'N/A',
+              cpmmSuccessRate: decoderStats.raydiumCPMM.successRate || 'N/A'
+            },
+            timestamp: new Date().toISOString()
+          }
+        });
+
+      } catch (error) {
+        console.error(`❌ [DECODER-STATS] Error:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get decoder stats',
+          message: error.message
+        });
+      }
+    });
+
     // Manually trigger gRPC connection
     this.app.post('/api/grpc/connect', async (req, res) => {
       try {

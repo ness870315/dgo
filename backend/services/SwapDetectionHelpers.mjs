@@ -20,6 +20,58 @@ const STABLECOIN_MINTS = new Set([
 // 🚀 EWMA alpha for mid-price tracking (tune: 0.1-0.3)
 const MID_PRICE_ALPHA = 0.2;
 
+// 🚀 AMM Program Allowlist (excludes JOE RFQ and OTC fills)
+// Only swaps from these programs will be shown (matching DexScreener behavior)
+const AMM_PROGRAMS = new Set([
+    // Raydium
+    '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8', // Raydium AMM V4
+    'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C', // Raydium CPMM
+    'CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK', // Raydium CLMM
+    // Orca
+    'whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc',   // Orca Whirlpools
+    '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM',   // Orca (legacy)
+    // Meteora
+    'cpamdpZCGKUy5JxQXB4dcpGPiikHawvSWAd6mEn1sGG',    // Meteora DLMM
+    'Eo7WjKq67rjJQSZxS6z3YkapzY3eMj6Xy8X5EQVn5UaB',   // Meteora Pools
+    // PumpSwap (Raydium-based)
+    'pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA',    // PumpSwap
+    // Phoenix (order book DEX - include if you want it)
+    // 'PhoeNiXZ8ByJGLkxNfZRnkUfjVmuYqLR89jjFHQqdXY',  // Phoenix (comment out if not wanted)
+]);
+
+// Known market-maker/OTC wallets to exclude (optional)
+const KNOWN_MAKER_WALLETS = new Set([
+    'Ca7GEhzggtShWH7i7e3Lm6Z9bkRH5z41rQUCwKTPfKcK', // Wintermute (example - add more as discovered)
+]);
+
+/**
+ * Check if a transaction contains instructions from AMM programs
+ * Returns true if at least one instruction is from an AMM program
+ */
+function hasAmmProgram(tx) {
+    const message = tx.transaction?.message ?? {};
+    const { combined } = buildCombinedKeys(message);
+    const instructions = message.instructions || [];
+    
+    for (const instruction of instructions) {
+        if (instruction.programIdIndex !== undefined) {
+            const programId = combined[instruction.programIdIndex];
+            if (programId && AMM_PROGRAMS.has(programId)) {
+                return true;
+            }
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * Check if fee payer is a known market maker/OTC wallet
+ */
+function isKnownMaker(feePayer) {
+    return feePayer && KNOWN_MAKER_WALLETS.has(feePayer);
+}
+
 // ============================================================================
 // 0) Helpers: normalize keys (legacy & v0), resolve indexes
 // ============================================================================
@@ -421,11 +473,27 @@ export function guessPoolFromIx(tx) {
  * @returns {Object | null} Swap record or null if not a valid swap
  */
 export function processTxForSwap(tx, targetMint, solUsd, tokenPriceCache, midPriceUsd = null, raydiumDecoder = null, knownPoolAddress = null) {
+    // 🚀 FILTER 1: Only process AMM program swaps (exclude JOE RFQ and OTC fills)
+    // This matches DexScreener behavior - they don't show RFQ/OTC fills in the AMM tape
+    if (!hasAmmProgram(tx)) {
+        // Skip non-AMM transactions (JOE RFQ, OTC, etc.)
+        return null;
+    }
+    
+    // 🚀 FILTER 2: Skip known market-maker wallets (optional but recommended)
+    const message = tx.transaction?.message ?? {};
+    const signerSet = getSignerSet(message);
+    const { combined } = buildCombinedKeys(message);
+    const feePayer = combined[0] || ''; // Fee payer is always first account
+    
+    if (isKnownMaker(feePayer)) {
+        // Skip swaps from known market-maker wallets (RFQ/OTC fills)
+        return null;
+    }
+    
     const deltas = extractTokenDeltas(tx);
     if (!deltas.length) return null;
 
-    const message = tx.transaction?.message ?? {};
-    const signerSet = getSignerSet(message);
     const legs = pickLegsAndSide(deltas, targetMint, signerSet, tx, raydiumDecoder, knownPoolAddress); // Pass decoder
     if (!legs) return null;
 

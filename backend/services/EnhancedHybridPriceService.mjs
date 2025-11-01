@@ -95,6 +95,9 @@ class EnhancedHybridPriceService extends EventEmitter {
         // ✅ NEW: Periodic ranking broadcast
         this.rankingBroadcastInterval = null;
         
+        // ✅ NEW: Periodic decoder stats logging
+        this.decoderStatsInterval = null;
+        
         // 🚀 NEW: Token cache management (use persistent disk)
         this.tokenCache = [];
         const dataDir = process.env.DATA_DIR || '/var/data/dgo';
@@ -210,6 +213,9 @@ class EnhancedHybridPriceService extends EventEmitter {
                     }
                 });
             }
+            
+            // ✅ NEW: Start periodic decoder stats logging (every 5 minutes)
+            this.startDecoderStatsLogging(300000);
             
             console.log('✅ [EnhancedHybridPriceService] Async initialization complete');
         } catch (error) {
@@ -643,11 +649,17 @@ class EnhancedHybridPriceService extends EventEmitter {
                     // Select decoder based on program
                     if (programId === 'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C') {
                         decoder = this.raydiumCPMMDecoder;
-                        // console.log(`🔧 [processSwapForToken] Using CPMM decoder for ${tokenAddress.substring(0, 8)}...`);
+                        this._cpmmDecoderUsed = (this._cpmmDecoderUsed || 0) + 1;
+                        if (this._cpmmDecoderUsed <= 5 || this._cpmmDecoderUsed % 100 === 0) {
+                            console.log(`🔧 [processSwapForToken] Using CPMM decoder for ${tokenAddress.substring(0, 8)}... (total uses: ${this._cpmmDecoderUsed})`);
+                        }
                         break;
                     } else if (programId === '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8') {
                         decoder = this.raydiumDecoder;
-                        // console.log(`🔧 [processSwapForToken] Using AMM decoder for ${tokenAddress.substring(0, 8)}...`);
+                        this._ammDecoderUsed = (this._ammDecoderUsed || 0) + 1;
+                        if (this._ammDecoderUsed <= 5 || this._ammDecoderUsed % 100 === 0) {
+                            console.log(`🔧 [processSwapForToken] Using AMM decoder for ${tokenAddress.substring(0, 8)}... (total uses: ${this._ammDecoderUsed})`);
+                        }
                         break;
                     }
                 }
@@ -1753,6 +1765,28 @@ class EnhancedHybridPriceService extends EventEmitter {
         };
     }
 
+    // ✅ NEW: Get decoder statistics to verify usage in production
+    getDecoderStats() {
+        const ammMetrics = this.raydiumDecoder?.getMetrics() || {};
+        const cpmmMetrics = this.raydiumCPMMDecoder?.getMetrics() || {};
+        
+        return {
+            raydiumAMM: {
+                usage: this._ammDecoderUsed || 0,
+                ...ammMetrics
+            },
+            raydiumCPMM: {
+                usage: this._cpmmDecoderUsed || 0,
+                ...cpmmMetrics
+            },
+            totalDecoderUses: (this._ammDecoderUsed || 0) + (this._cpmmDecoderUsed || 0),
+            decoderActive: {
+                amm: this.raydiumDecoder !== null && this.raydiumDecoder !== undefined,
+                cpmm: this.raydiumCPMMDecoder !== null && this.raydiumCPMMDecoder !== undefined
+            }
+        };
+    }
+
     // ✅ NEW: Get real-time tooltip data for bubble map
     getRealTimeTooltipData(tokenAddress) {
         const swaps = this.swapHistory.get(tokenAddress) || [];
@@ -2020,6 +2054,44 @@ class EnhancedHybridPriceService extends EventEmitter {
             clearInterval(this.rankingBroadcastInterval);
             this.rankingBroadcastInterval = null;
             console.log('✅ [EnhancedHybridPriceService] Stopped ranking broadcasts');
+        }
+    }
+
+    // ✅ NEW: Start periodic decoder stats logging
+    startDecoderStatsLogging(intervalMs = 300000) { // Default: 5 minutes
+        if (this.decoderStatsInterval) {
+            clearInterval(this.decoderStatsInterval);
+        }
+
+        this.decoderStatsInterval = setInterval(() => {
+            const stats = this.getDecoderStats();
+            console.log('\n📊 [DECODER STATS] Production Usage Statistics:');
+            console.log('='.repeat(80));
+            console.log(`   Raydium AMM Decoder:`);
+            console.log(`      Usage:           ${stats.raydiumAMM.usage || 0} swaps processed`);
+            console.log(`      Cache Size:      ${stats.raydiumAMM.cacheSize || 0} pools cached`);
+            console.log(`      Success Rate:    ${stats.raydiumAMM.successRate || 'N/A'}`);
+            console.log(`      Cache Hits:      ${stats.raydiumAMM.cacheHits || 0}`);
+            console.log(`   Raydium CPMM Decoder:`);
+            console.log(`      Usage:           ${stats.raydiumCPMM.usage || 0} swaps processed`);
+            console.log(`      Cache Size:      ${stats.raydiumCPMM.cacheSize || 0} pools cached`);
+            console.log(`      Success Rate:    ${stats.raydiumCPMM.successRate || 'N/A'}`);
+            console.log(`      Cache Hits:      ${stats.raydiumCPMM.cacheHits || 0}`);
+            console.log(`   Total:`);
+            console.log(`      Combined Usage:  ${stats.totalDecoderUses} swaps processed`);
+            console.log(`      Status:          ${stats.decoderActive.amm && stats.decoderActive.cpmm ? '✅ Both Active' : '⚠️ Some Inactive'}`);
+            console.log('='.repeat(80) + '\n');
+        }, intervalMs);
+
+        console.log(`✅ [EnhancedHybridPriceService] Started decoder stats logging (every ${intervalMs / 1000}s)`);
+    }
+
+    // ✅ NEW: Stop decoder stats logging
+    stopDecoderStatsLogging() {
+        if (this.decoderStatsInterval) {
+            clearInterval(this.decoderStatsInterval);
+            this.decoderStatsInterval = null;
+            console.log('✅ [EnhancedHybridPriceService] Stopped decoder stats logging');
         }
     }
 }
