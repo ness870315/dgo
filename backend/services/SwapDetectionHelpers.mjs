@@ -442,7 +442,7 @@ export function computePriceAndVolume(target, counter, solUsd, getUsdForMint) {
 // ============================================================================
 
 /**
- * Guess pool address from transaction instructions
+ * Guess pool address from transaction instructions (generic)
  */
 export function guessPoolFromIx(tx) {
     const msg = tx.transaction?.message ?? {};
@@ -461,6 +461,52 @@ export function guessPoolFromIx(tx) {
         }
     }
     return undefined;
+}
+
+/**
+ * Extract Raydium pool address from transaction instructions
+ * For Raydium AMM/CPMM/CLMM, pool state account is typically at index 0 of instruction accounts
+ */
+export function extractRaydiumPoolFromIx(tx, programId) {
+    const msg = tx.transaction?.message ?? {};
+    const { combined } = buildCombinedKeys(msg);
+    const instructions = msg.instructions || [];
+    
+    // Known Raydium program IDs
+    const RAYDIUM_PROGRAMS = {
+        '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8': 'AMM',
+        'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C': 'CPMM',
+        'CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK': 'CLMM'
+    };
+    
+    if (!programId || !RAYDIUM_PROGRAMS[programId]) {
+        return null;
+    }
+    
+    for (const ix of instructions) {
+        // Check if this instruction belongs to the Raydium program
+        if (ix.programIdIndex !== undefined) {
+            const ixProgramId = combined[ix.programIdIndex];
+            if (ixProgramId === programId) {
+                // For Raydium swaps, pool state account is at index 0
+                const accIdxs = Array.isArray(ix.accounts)
+                    ? ix.accounts
+                    : ix.accounts?.data
+                    ? Array.from(ix.accounts.data)
+                    : [];
+                
+                if (accIdxs.length > 0) {
+                    const poolIndex = accIdxs[0];
+                    const poolAddress = combined[poolIndex];
+                    if (poolAddress) {
+                        return poolAddress;
+                    }
+                }
+            }
+        }
+    }
+    
+    return null;
 }
 
 // ============================================================================

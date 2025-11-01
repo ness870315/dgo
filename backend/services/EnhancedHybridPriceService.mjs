@@ -4,7 +4,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import bs58 from 'bs58';
 import ChartDatabase from './ChartDatabase.js';
-import { processTxForSwap, buildCombinedKeys, guessPoolFromIx } from './SwapDetectionHelpers.mjs';
+import { processTxForSwap, buildCombinedKeys, guessPoolFromIx, extractRaydiumPoolFromIx } from './SwapDetectionHelpers.mjs';
 import RaydiumPoolDecoder from './RaydiumPoolDecoder.mjs';
 import RaydiumCPMMDecoder from './RaydiumCPMMDecoder.mjs';
 import RaydiumCLMMDecoder from './RaydiumCLMMDecoder.mjs';
@@ -702,13 +702,42 @@ class EnhancedHybridPriceService extends EventEmitter {
         // For Raydium swaps, we need the actual pool account address from the transaction
         let actualPoolAddressForDecoding = null;
         if (isRaydiumSwap && decoder) {
-            // Try to get pool address from transaction instructions
-            const txPoolAddress = guessPoolFromIx(tx);
-            if (txPoolAddress) {
-                actualPoolAddressForDecoding = txPoolAddress;
-            } else {
-                // Fallback to cached pool address if transaction extraction fails
+            // Find the Raydium program ID for extraction
+            let raydiumProgramId = null;
+            for (const instruction of instructions) {
+                if (instruction.programIdIndex !== undefined) {
+                    const progId = combined[instruction.programIdIndex];
+                    if (progId === '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8' ||
+                        progId === 'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C' ||
+                        progId === 'CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK') {
+                        raydiumProgramId = progId;
+                        break;
+                    }
+                }
+            }
+            
+            // Try Raydium-specific extraction (more accurate)
+            if (raydiumProgramId) {
+                actualPoolAddressForDecoding = extractRaydiumPoolFromIx(tx, raydiumProgramId);
+                if (actualPoolAddressForDecoding && ((this._ammDecoderUsed || 0) <= 3 || (this._cpmmDecoderUsed || 0) <= 3 || (this._clmmDecoderUsed || 0) <= 3)) {
+                    console.log(`✅ [processSwapForToken] Extracted Raydium pool from TX: ${actualPoolAddressForDecoding.substring(0, 16)}... (cached: ${poolAddress?.substring(0, 16) || 'N/A'}...)`);
+                }
+            }
+            
+            // Fallback to generic guess if Raydium-specific extraction failed
+            if (!actualPoolAddressForDecoding) {
+                actualPoolAddressForDecoding = guessPoolFromIx(tx);
+                if (actualPoolAddressForDecoding && ((this._ammDecoderUsed || 0) <= 3 || (this._cpmmDecoderUsed || 0) <= 3 || (this._clmmDecoderUsed || 0) <= 3)) {
+                    console.log(`⚠️ [processSwapForToken] Fallback: Extracted pool from TX: ${actualPoolAddressForDecoding.substring(0, 16)}... (cached: ${poolAddress?.substring(0, 16) || 'N/A'}...)`);
+                }
+            }
+            
+            // Final fallback to cached pool address
+            if (!actualPoolAddressForDecoding) {
                 actualPoolAddressForDecoding = poolAddress;
+                if ((this._ammDecoderUsed || 0) <= 3 || (this._cpmmDecoderUsed || 0) <= 3 || (this._clmmDecoderUsed || 0) <= 3) {
+                    console.log(`⚠️ [processSwapForToken] Using cached pool: ${poolAddress?.substring(0, 16) || 'N/A'}...`);
+                }
             }
             
             if (actualPoolAddressForDecoding && (decoder === this.raydiumDecoder || decoder === this.raydiumCPMMDecoder || decoder === this.raydiumCLMMDecoder)) {
