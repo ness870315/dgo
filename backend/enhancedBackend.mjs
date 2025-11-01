@@ -14414,14 +14414,17 @@ Thanks for using x402 payments on Twitter! 🚀`;
     // ✅ NEW: Get decoder statistics to verify usage in production
     this.app.get('/api/decoders/stats', async (req, res) => {
       try {
-        if (!this.realTimeTokenMonitor?.hybridPriceService) {
+        // Try to get hybrid price service from either location
+        const hybridPriceService = this.realTimeTokenMonitor?.hybridPriceService || this.enhancedHybridPriceService;
+        
+        if (!hybridPriceService) {
           return res.status(500).json({
             success: false,
             error: 'Hybrid price service not initialized'
           });
         }
 
-        const decoderStats = this.realTimeTokenMonitor.hybridPriceService.getDecoderStats();
+        const decoderStats = hybridPriceService.getDecoderStats();
         
         res.json({
           success: true,
@@ -14448,6 +14451,100 @@ Thanks for using x402 payments on Twitter! 🚀`;
           success: false,
           error: 'Failed to get decoder stats',
           message: error.message
+        });
+      }
+    });
+
+    // Test decoder with a known pool address
+    this.app.post('/api/decoders/test', async (req, res) => {
+      try {
+        const { poolAddress, programId } = req.body;
+        
+        if (!poolAddress) {
+          return res.status(400).json({
+            success: false,
+            error: 'poolAddress is required'
+          });
+        }
+
+        // Try to get hybrid price service from either location
+        const hybridPriceService = this.realTimeTokenMonitor?.hybridPriceService || this.enhancedHybridPriceService;
+        
+        if (!hybridPriceService) {
+          return res.status(500).json({
+            success: false,
+            error: 'Hybrid price service not initialized'
+          });
+        }
+        let decoder = null;
+        let decoderType = null;
+        
+        // Determine which decoder to use based on program ID or pool
+        if (programId === 'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C' || !programId) {
+          decoder = hybridPriceService.raydiumCPMMDecoder;
+          decoderType = 'CPMM';
+        } else if (programId === '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8') {
+          decoder = hybridPriceService.raydiumDecoder;
+          decoderType = 'AMM';
+        } else if (programId === 'CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK') {
+          decoder = hybridPriceService.raydiumCLMMDecoder;
+          decoderType = 'CLMM';
+        }
+
+        if (!decoder) {
+          return res.status(400).json({
+            success: false,
+            error: 'No decoder found or invalid programId',
+            availablePrograms: [
+              'CPMMoo8L3F4NbTegBCKVNunggL7H1ZpdTHKxQB5qKP1C (CPMM)',
+              '675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8 (AMM)',
+              'CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK (CLMM)'
+            ]
+          });
+        }
+
+        console.log(`🧪 [DECODER-TEST] Testing ${decoderType} decoder with pool: ${poolAddress.substring(0, 16)}...`);
+        
+        // Test decoding
+        const startTime = Date.now();
+        const poolData = await decoder.decodePoolState(poolAddress);
+        const elapsed = Date.now() - startTime;
+        
+        const decoderStats = decoder.getMetrics();
+        
+        const result = {
+          success: !!poolData,
+          decoderType,
+          poolAddress: poolAddress.substring(0, 16) + '...',
+          elapsedMs: elapsed,
+          poolData: poolData ? {
+            hasToken0Vault: !!poolData.token0Vault,
+            hasToken1Vault: !!poolData.token1Vault,
+            hasToken0Mint: !!poolData.token0Mint,
+            hasToken1Mint: !!poolData.token1Mint,
+            // Show first 16 chars of vaults for verification
+            token0Vault: poolData.token0Vault?.substring(0, 16) + '...',
+            token1Vault: poolData.token1Vault?.substring(0, 16) + '...'
+          } : null,
+          decoderMetrics: decoderStats,
+          timestamp: new Date().toISOString()
+        };
+        
+        if (!poolData) {
+          console.log(`❌ [DECODER-TEST] Failed to decode ${decoderType} pool: ${poolAddress.substring(0, 16)}...`);
+        } else {
+          console.log(`✅ [DECODER-TEST] Successfully decoded ${decoderType} pool: ${poolAddress.substring(0, 16)}...`);
+        }
+        
+        res.json(result);
+
+      } catch (error) {
+        console.error(`❌ [DECODER-TEST] Error:`, error.message);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to test decoder',
+          message: error.message,
+          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
       }
     });
