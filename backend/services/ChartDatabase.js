@@ -290,10 +290,23 @@ class ChartDatabase {
             };
             
             // Write to temporary file first
-            await fs.writeFile(tempFile, JSON.stringify(dataToSave, null, 2));
+            try {
+                await fs.writeFile(tempFile, JSON.stringify(dataToSave, null, 2));
+                console.log(`📝 [ChartDatabase] Temp file written: ${tempFile} (${JSON.stringify(dataToSave).length} bytes)`);
+            } catch (writeError) {
+                console.error(`❌ [ChartDatabase] Failed to write temp file:`, writeError);
+                throw new Error(`Failed to write temp file: ${writeError.message}`);
+            }
             
             // Verify temp file was created
             if (!fsSync.existsSync(tempFile)) {
+                // Try to get file stats to see what happened
+                try {
+                    const stats = await fs.stat(tempFile);
+                    console.log(`📊 [ChartDatabase] Temp file stats:`, stats);
+                } catch (statError) {
+                    console.error(`❌ [ChartDatabase] Cannot stat temp file:`, statError.message);
+                }
                 throw new Error(`Temp file was not created: ${tempFile}`);
             }
             
