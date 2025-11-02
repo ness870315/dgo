@@ -1059,6 +1059,32 @@ class EnhancedBackend {
       }
     });
 
+    // Admin: Remove LSTs and Stablecoins
+    this.app.post('/api/admin/remove-lsts-stablecoins', adminApiAuth, async (req, res) => {
+      try {
+        console.log('🧹 [Admin] Starting LST and Stablecoin removal...');
+        
+        // Import and run cleanup
+        const removeLSTsAndStablecoins = (await import('./scripts/remove-lsts-stablecoins.js')).default;
+        const result = await removeLSTsAndStablecoins();
+        
+        console.log(`✅ [Admin] Removed ${result.removed} LSTs and stablecoins`);
+        
+        res.json({
+          success: true,
+          message: `Removed ${result.removed} LSTs and stablecoins`,
+          total: result.total,
+          removed: result.removed,
+          remaining: result.remaining,
+          removedTokens: result.removedTokens
+        });
+        
+      } catch (error) {
+        console.error('[🛡️ Enhanced Backend] ❌ Remove LSTs/Stablecoins failed:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+      }
+    });
+
     // Admin: Reprocess Twitter data for tokens without it
     this.app.post('/api/admin/reprocess-twitter', adminApiAuth, async (req, res) => {
       try {
