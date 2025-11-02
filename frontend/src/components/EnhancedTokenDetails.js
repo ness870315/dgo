@@ -1,22 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { X, ExternalLink } from 'lucide-react';
+import { X, ExternalLink, Twitter, MessageCircle, BarChart3, Users, Flame, Star } from 'lucide-react';
 import SVGChart from './SVGChart';
 import SwapTable from './SwapTable';
 import websocketService from '../services/websocketService';
+import { useHybridPrice } from '../hooks/useHybridPrice';
 
 // Test token - ONLY show enhanced view for this specific token
 const TEST_TOKEN_ADDRESS = 'HqVZaYJnEcmKQKRf4K5N8eEuBjkTgpRzVfF7AYBFpump'; // ANON
 
 const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdated, onNavigateToPremium }) => {
   const [realTimeData, setRealTimeData] = useState(null);
-  const [currentPrice, setCurrentPrice] = useState(null);
-  
   const tokenAddress = token?.contractAddress || token?.tokenAddress;
   const isTestToken = tokenAddress === TEST_TOKEN_ADDRESS;
 
+  // Hybrid price updates
+  const { 
+    priceData, 
+    isLoading: priceLoading, 
+    error: priceError,
+    isLive, 
+    formatPrice, 
+    formatLiquidity,
+    formatMarketCap,
+    getPriceUsd,
+    getMarketCap,
+    getLiquidity
+  } = useHybridPrice(tokenAddress);
+
   // If not the test token, don't render enhanced view
   if (!isTestToken) {
-    return null; // Should not happen, but safety check
+    return null;
   }
 
   // Load real-time data
@@ -31,11 +44,6 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
         if (response.ok) {
           const data = await response.json();
           setRealTimeData(data.data);
-          
-          // Extract current price
-          if (data.data?.price || data.data?.priceUsd) {
-            setCurrentPrice(data.data.price || data.data.priceUsd);
-          }
         }
       } catch (error) {
         console.error('Error loading real-time data:', error);
@@ -65,9 +73,22 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
     };
   }, [tokenAddress]);
 
+  // Check if token is fueled
+  const getFuelInfo = () => {
+    if (!token?.symbol || !fueledTokens?.length) return null;
+    const fueledArray = Array.isArray(fueledTokens) ? fueledTokens : (fueledTokens.value || []);
+    const fueledToken = fueledArray.find(fuel => 
+      fuel.symbol?.toLowerCase() === token.symbol?.toLowerCase()
+    );
+    return fueledToken ? { isFueled: true, multiplier: fueledToken.fuelType } : null;
+  };
+
+  const fuelInfo = getFuelInfo();
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 overflow-y-auto">
-      <div className="bg-gray-900 w-full max-w-[95vw] max-h-[95vh] rounded-lg shadow-2xl flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 overflow-hidden">
+      {/* Full-screen layout matching wireframe */}
+      <div className="w-full h-full flex flex-col bg-gray-900">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700 flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -83,7 +104,15 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
               </div>
             )}
             <div>
-              <h2 className="text-xl font-bold text-white">{token.symbol}</h2>
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                {token.symbol}
+                {fuelInfo?.isFueled && (
+                  <div className="flex items-center space-x-0.5 px-1 py-0 bg-orange-900 border border-orange-500 rounded-full">
+                    <Flame className="w-3 h-3 text-orange-400" />
+                    <span className="text-orange-400 text-xs font-bold">{fuelInfo.multiplier}</span>
+                  </div>
+                )}
+              </h2>
               <p className="text-sm text-gray-400">{token.name}</p>
             </div>
             <span className="ml-4 px-2 py-1 bg-purple-600 text-white text-xs rounded">TEST MODE</span>
@@ -96,79 +125,143 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
           </button>
         </div>
 
-        {/* Main Content Grid */}
+        {/* Main Content Grid - 3 columns as per wireframe */}
         <div className="flex-1 overflow-hidden p-4">
           <div className="grid grid-cols-12 gap-4 h-full">
-            {/* Left Column - Original Token Details (simplified) */}
-            <div className="col-span-12 lg:col-span-4 overflow-y-auto bg-gray-800 rounded-lg p-4">
-              <h3 className="text-white font-semibold mb-4">Token Information</h3>
-              <div className="space-y-4">
+            
+            {/* LEFT COLUMN - Token Detail Modal (Full Height) */}
+            <div className="col-span-12 lg:col-span-3 overflow-y-auto bg-gray-800 rounded-lg p-6">
+              <div className="space-y-6">
+                {/* Price Section */}
                 <div>
-                  <div className="text-gray-400 text-sm">Price</div>
-                  <div className="text-white font-bold text-lg">
-                    ${currentPrice ? currentPrice.toFixed(6) : 'Loading...'}
+                  <div className="text-gray-400 text-sm mb-1">Price</div>
+                  <div className="text-white font-bold text-2xl">
+                    {priceLoading ? '$Loading...' : formatPrice(getPriceUsd())}
+                    {isLive && (
+                      <span className="ml-2 inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    )}
                   </div>
                 </div>
+
+                {/* Market Stats */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-gray-400 text-sm mb-1">Market Cap</div>
+                    <div className="text-white font-semibold text-lg">
+                      {formatMarketCap(getMarketCap())}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-gray-400 text-sm mb-1">Liquidity</div>
+                    <div className="text-white font-semibold text-lg">
+                      {formatLiquidity(getLiquidity())}
+                    </div>
+                  </div>
+                </div>
+
                 <div>
-                  <div className="text-gray-400 text-sm">Market Cap</div>
+                  <div className="text-gray-400 text-sm mb-1">Volume (24h)</div>
                   <div className="text-white font-semibold">
-                    ${formatNumber(token.marketCap || token.jupiterData?.mcap || 0)}
+                    {formatNumber(token.volume24h || token.jupiterData?.stats24h?.buyVolume + token.jupiterData?.stats24h?.sellVolume || 0)}
                   </div>
                 </div>
+
+                {/* Contract Address */}
                 <div>
-                  <div className="text-gray-400 text-sm">Liquidity</div>
-                  <div className="text-white font-semibold">
-                    ${formatNumber(token.liquidity || token.jupiterData?.liquidity || 0)}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-gray-400 text-sm">Volume (24h)</div>
-                  <div className="text-white font-semibold">
-                    ${formatNumber(token.volume24h || 0)}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-gray-400 text-sm">Contract Address</div>
-                  <div className="text-white font-mono text-xs break-all">
+                  <div className="text-gray-400 text-sm mb-2">Contract Address</div>
+                  <div className="text-white font-mono text-xs break-all bg-gray-900 p-2 rounded">
                     {tokenAddress}
                   </div>
                 </div>
+
+                {/* Social Metrics */}
+                {(token.mentions || token.communityScore) && (
+                  <div className="space-y-3 pt-4 border-t border-gray-700">
+                    {token.mentions && (
+                      <div className="flex items-center justify-between">
+                        <div className="text-gray-400 text-sm flex items-center gap-2">
+                          <MessageCircle className="w-4 h-4" />
+                          Mentions
+                        </div>
+                        <div className="text-white font-semibold">{token.mentions}</div>
+                      </div>
+                    )}
+                    {token.communityScore && (
+                      <div className="flex items-center justify-between">
+                        <div className="text-gray-400 text-sm flex items-center gap-2">
+                          <Users className="w-4 h-4" />
+                          Community Score
+                        </div>
+                        <div className="text-white font-semibold">{token.communityScore.toFixed(1)}</div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Overall Score */}
+                {(token.overallScore || token.score) && (
+                  <div className="pt-4 border-t border-gray-700">
+                    <div className="text-gray-400 text-sm mb-2">Overall Score</div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 bg-gray-700 rounded-full h-2">
+                        <div 
+                          className="bg-gradient-to-r from-green-500 to-blue-500 h-full rounded-full transition-all"
+                          style={{ width: `${((token.overallScore || token.score || 0) / 10) * 100}%` }}
+                        />
+                      </div>
+                      <div className="text-white font-bold text-lg">
+                        {(token.overallScore || token.score || 0).toFixed(1)}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Center Column */}
+            {/* MIDDLE COLUMN - Split vertically */}
             <div className="col-span-12 lg:col-span-5 flex flex-col gap-4 h-full">
-              {/* Center Up - Price Chart (decoupled) */}
-              <div className="bg-gray-800 rounded-lg overflow-hidden flex-1 min-h-[400px]">
-                <div className="h-full">
-                  <SVGChart token={token} onClose={onClose} />
-                </div>
+              
+              {/* CENTER-UP: Price Chart Modal (Decoupled) */}
+              <div className="flex-1 bg-gray-800 rounded-lg overflow-hidden min-h-0">
+                <SVGChart token={token} onClose={onClose} />
               </div>
 
-              {/* Center Down - Swap Table (decoupled) */}
-              <div className="bg-gray-800 rounded-lg p-4 flex-1 overflow-y-auto min-h-[300px]">
-                <h3 className="text-white font-semibold mb-4">Swap History</h3>
+              {/* CENTER-DOWN: Swap Table (Decoupled) */}
+              <div className="flex-1 bg-gray-800 rounded-lg p-4 overflow-y-auto min-h-0">
+                <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5" />
+                  Swap History
+                </h3>
                 <SwapTable token={token} realTimeData={realTimeData} />
               </div>
             </div>
 
-            {/* Right Column */}
-            <div className="col-span-12 lg:col-span-3 flex flex-col gap-4 h-full">
-              {/* Right Up - Jupiter Swap Widget */}
-              <div className="bg-gray-800 rounded-lg p-4 flex-1 min-h-[400px]">
+            {/* RIGHT COLUMN - Split vertically into 3 sections */}
+            <div className="col-span-12 lg:col-span-4 flex flex-col gap-4 h-full">
+              
+              {/* RIGHT-UP: Jupiter Integrated Plugin */}
+              <div className="flex-1 bg-gray-800 rounded-lg p-4 overflow-hidden min-h-0">
                 <h3 className="text-white font-semibold mb-4">Swap Token</h3>
-                <JupiterSwapWidget token={token} />
+                <div className="h-full">
+                  <JupiterSwapWidget token={token} />
+                </div>
               </div>
 
-              {/* Right Middle - Social Links */}
-              <div className="bg-gray-800 rounded-lg p-4">
-                <h3 className="text-white font-semibold mb-4">Social Links</h3>
+              {/* RIGHT-MIDDLE: Social Links */}
+              <div className="bg-gray-800 rounded-lg p-4 flex-shrink-0">
+                <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+                  <Twitter className="w-5 h-5" />
+                  Social Links
+                </h3>
                 <SocialLinks token={token} />
               </div>
 
-              {/* Right Bottom - Bubblemaps */}
-              <div className="bg-gray-800 rounded-lg p-4 flex-1 min-h-[300px]">
-                <h3 className="text-white font-semibold mb-4">Holder Distribution</h3>
+              {/* RIGHT-BOTTOM: Social Activity (Bubblemaps) */}
+              <div className="flex-1 bg-gray-800 rounded-lg p-4 overflow-hidden min-h-[300px]">
+                <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Holder Distribution
+                </h3>
                 <BubblemapsIframe token={token} />
               </div>
             </div>
@@ -188,7 +281,7 @@ const formatNumber = (num) => {
   return `$${num.toFixed(2)}`;
 };
 
-// Jupiter Swap Widget Component (Inline version)
+// Jupiter Swap Widget Component
 const JupiterSwapWidget = ({ token }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const widgetRef = React.useRef(null);
@@ -202,6 +295,9 @@ const JupiterSwapWidget = ({ token }) => {
       script.onload = () => {
         setIsLoaded(true);
       };
+      script.onerror = () => {
+        console.error('Failed to load Jupiter script');
+      };
       document.body.appendChild(script);
     } else {
       setIsLoaded(true);
@@ -212,6 +308,9 @@ const JupiterSwapWidget = ({ token }) => {
     if (!isLoaded || !window.Jupiter || !token?.contractAddress || !widgetRef.current) return;
 
     try {
+      // Clear any existing widget
+      widgetRef.current.innerHTML = '';
+      
       // Initialize Jupiter in embedded mode
       window.Jupiter.init({
         displayMode: "default",
@@ -223,6 +322,7 @@ const JupiterSwapWidget = ({ token }) => {
         },
         containerStyles: {
           width: "100%",
+          height: "100%",
         },
         containerClassName: "jupiter-embedded-widget"
       });
@@ -231,11 +331,17 @@ const JupiterSwapWidget = ({ token }) => {
     }
   }, [isLoaded, token?.contractAddress]);
 
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+        Loading Jupiter swap widget...
+      </div>
+    );
+  }
+
   return (
     <div ref={widgetRef} id="jupiter-embedded-widget" className="w-full h-full">
-      {!isLoaded && (
-        <div className="text-gray-400 text-sm">Loading Jupiter swap widget...</div>
-      )}
+      {/* Jupiter will inject content here */}
     </div>
   );
 };
@@ -245,20 +351,21 @@ const SocialLinks = ({ token }) => {
   const twitterUrl = token?.twitterUrl || token?.twitterData?.url || 
                      (token?.symbol ? `https://twitter.com/${token.symbol}` : null);
   const website = token?.website || token?.twitterData?.website;
+  const telegram = token?.telegram || token?.twitterData?.telegram;
+  const discord = token?.discord || token?.twitterData?.discord;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {twitterUrl && (
         <a
           href={twitterUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors"
+          className="flex items-center gap-3 p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
         >
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-          </svg>
-          <span className="text-sm">Twitter</span>
+          <Twitter className="w-5 h-5 text-blue-400" />
+          <span className="text-white text-sm font-medium">Twitter</span>
+          <ExternalLink className="w-4 h-4 text-gray-400 ml-auto" />
         </a>
       )}
       {website && (
@@ -266,14 +373,40 @@ const SocialLinks = ({ token }) => {
           href={website}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors"
+          className="flex items-center gap-3 p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
         >
-          <ExternalLink className="w-5 h-5" />
-          <span className="text-sm">Website</span>
+          <ExternalLink className="w-5 h-5 text-blue-400" />
+          <span className="text-white text-sm font-medium">Website</span>
         </a>
       )}
-      {!twitterUrl && !website && (
-        <div className="text-gray-400 text-sm">No social links available</div>
+      {telegram && (
+        <a
+          href={telegram}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+        >
+          <MessageCircle className="w-5 h-5 text-blue-400" />
+          <span className="text-white text-sm font-medium">Telegram</span>
+          <ExternalLink className="w-4 h-4 text-gray-400 ml-auto" />
+        </a>
+      )}
+      {discord && (
+        <a
+          href={discord}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 p-3 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+        >
+          <MessageCircle className="w-5 h-5 text-purple-400" />
+          <span className="text-white text-sm font-medium">Discord</span>
+          <ExternalLink className="w-4 h-4 text-gray-400 ml-auto" />
+        </a>
+      )}
+      {!twitterUrl && !website && !telegram && !discord && (
+        <div className="text-gray-400 text-sm py-4 text-center">
+          No social links available
+        </div>
       )}
     </div>
   );
@@ -284,17 +417,21 @@ const BubblemapsIframe = ({ token }) => {
   const tokenAddress = token?.contractAddress || token?.tokenAddress;
   
   if (!tokenAddress) {
-    return <div className="text-gray-400 text-sm">Token address required</div>;
+    return (
+      <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+        Token address required
+      </div>
+    );
   }
 
   // Bubblemaps iframe URL format
   const bubblemapsUrl = `https://app.bubblemaps.io/iframe?chain=solana&token=${tokenAddress}`;
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full min-h-[300px]">
       <iframe
         src={bubblemapsUrl}
-        className="w-full h-full min-h-[300px] border-0 rounded-lg"
+        className="w-full h-full border-0 rounded-lg"
         title="Bubblemaps Holder Distribution"
         allow="clipboard-read; clipboard-write"
       />
