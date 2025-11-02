@@ -113,7 +113,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
           <table className="w-full text-xs table-fixed">
             <thead className="text-xs text-gray-400 uppercase bg-gray-800 sticky top-0 z-20">
               <tr className="border-b border-gray-700">
-                <th colSpan="4" className="px-2 py-2 text-left">
+                <th colSpan="5" className="px-2 py-2 text-left">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="text-white font-bold text-sm">🏗️ Trenches</span>
@@ -130,6 +130,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                 <th className="px-2 py-2 text-left w-8">#</th>
                 <th className="px-2 py-2 text-left">Token</th>
                 <th className="px-2 py-2 text-right">Price</th>
+                <th className="px-2 py-2 text-right">Market Cap</th>
                 <th className="px-2 py-2 text-left">Graduation</th>
               </tr>
             </thead>
@@ -156,6 +157,9 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                       </td>
                       <td className="px-2 py-2 text-right font-mono text-white">
                         {formatPrice(token?.priceUsd || 0)}
+                      </td>
+                      <td className="px-2 py-2 text-right font-medium text-white">
+                        {formatNumber(parseFloat(token?.marketCap || token?.fullyDilutedValuation || 0))}
                       </td>
                       <td className="px-2 py-2">
                         <GraduationStatusBar 
