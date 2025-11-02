@@ -284,6 +284,7 @@ class JupiterApiService {
         stats24h: tokenData.stats24h,
         organicScore: tokenData.organicScore,
         usdPrice: tokenData.usdPrice,
+        price: tokenData.usdPrice || 0, // Top-level price for easy access
         mcap: tokenData.mcap,
         fdv: tokenData.fdv,
         liquidity: tokenData.liquidity

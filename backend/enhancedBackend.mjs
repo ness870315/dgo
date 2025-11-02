@@ -13778,7 +13778,7 @@ Thanks for using x402 payments on Twitter! 🚀`;
           return {
             ...token,
             // Override with real-time data if available
-            price: realTimeData?.price || token.jupiterData?.price || token.price || 0,
+            price: realTimeData?.price || token.jupiterData?.price || token.jupiterData?.usdPrice || token.price || 0,
             volume24h: realTimeData?.volume24h || jupiterVolume24h || 0,
             txns24h: realTimeData?.txns24h || jupiterTxns24h || 0,
             makers24h: realTimeData?.makers24h || jupiter24h.numTraders || 0,
