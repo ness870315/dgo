@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 
 const JupiterSearchModal = ({ 
@@ -9,6 +9,8 @@ const JupiterSearchModal = ({
   isLoading, 
   onSelectToken 
 }) => {
+  const [failedImages, setFailedImages] = useState(new Set());
+  
   if (!isOpen) return null;
 
   const formatNumber = (num) => {
@@ -63,7 +65,21 @@ const JupiterSearchModal = ({
             </div>
           ) : (
             <div className="space-y-2">
-              {results.map((token, index) => (
+              {results.map((token, index) => {
+                // Debug logging
+                if (index === 0 && results.length > 0) {
+                  console.log('🔍 [Jupiter Modal] First token sample:', {
+                    symbol: token.symbol,
+                    logoURI: token.logoURI,
+                    icon: token.icon,
+                    address: token.address,
+                    mint: token.mint,
+                    hasExtensions: !!token.extensions,
+                    extensions: token.extensions
+                  });
+                }
+                
+                return (
                 <button
                   key={token.address || token.mint || index}
                   onClick={() => onSelectToken(token)}
@@ -72,19 +88,21 @@ const JupiterSearchModal = ({
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 flex-1">
                       {/* Token Icon */}
-                      {token.logoURI ? (
-                        <img
-                          src={token.logoURI}
-                          alt={token.symbol}
-                          className="w-10 h-10 rounded-full"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'flex';
-                          }}
-                        />
-                      ) : null}
-                      <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center" style={{ display: token.logoURI ? 'none' : 'flex' }}>
-                        <span className="text-lg">{token.symbol?.charAt(0) || '?'}</span>
+                      <div className="w-10 h-10 flex-shrink-0">
+                        {token.logoURI && !failedImages.has(token.address || token.mint) ? (
+                          <img
+                            src={token.logoURI}
+                            alt={token.symbol}
+                            className="w-10 h-10 rounded-full"
+                            onError={(e) => {
+                              setFailedImages(prev => new Set([...prev, token.address || token.mint]));
+                            }}
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
+                            <span className="text-lg">{token.symbol?.charAt(0) || '?'}</span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Token Info */}
@@ -135,7 +153,8 @@ const JupiterSearchModal = ({
                     </div>
                   </div>
                 </button>
-              ))}
+              );
+              })}
             </div>
           )}
         </div>
