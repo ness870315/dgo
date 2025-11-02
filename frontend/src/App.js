@@ -1764,6 +1764,7 @@ function AppContent() {
       <JupiterSearchModal
         isOpen={showJupiterSearch}
         onClose={() => {
+          console.log('🔴 [App] onClose called, closing Jupiter modal');
           setShowJupiterSearch(false);
           setJupiterSearchResults([]);
         }}
