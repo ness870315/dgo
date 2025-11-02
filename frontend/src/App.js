@@ -1720,7 +1720,7 @@ function AppContent() {
                 fueledTokens={fueledTokens}
                 onClose={() => setSelectedToken(null)}
                 onTokenUpdated={handleTokenUpdated}
-                onNavigateToPremium={onNavigateToPremium}
+                onNavigateToPremium={handlePremiumClick}
               />
             ) : (
               <TokenDetails
