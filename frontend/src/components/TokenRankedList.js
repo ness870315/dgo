@@ -114,8 +114,95 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
     console.log('🎯 Rendering MIXED results with', displayTokens.length, 'tokens');
     return (
       <div className="w-full h-full overflow-y-auto bg-gray-900">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs md:text-xs" style={{ fontSize: '11px' }}>
+        {/* Mobile Card View */}
+        <div className="block md:hidden">
+          <div className="px-4 py-3 border-b border-gray-700 bg-gray-800/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-white font-bold text-sm">📊 Search Results</span>
+              </div>
+              {lastUpdate && (
+                <span className="text-xs text-gray-400 normal-case">
+                  Updated: {lastUpdate.toLocaleTimeString()}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="divide-y divide-gray-700">
+            {displayTokens.map((token, index) => {
+              const fuelInfo = getFuelInfo(token.symbol);
+              const isBonding = token.isBondingToken;
+              
+              return (
+                <div
+                  key={token?.contractAddress || token?.address || index}
+                  className="p-3 hover:bg-gray-800/30 cursor-pointer transition-colors"
+                  onClick={() => onTokenSelect(token)}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {token.jupiterData?.icon || token.logo ? (
+                        <img 
+                          src={token.jupiterData?.icon || token.logo} 
+                          alt={token.symbol} 
+                          className="w-8 h-8 rounded-full flex-shrink-0"
+                          onError={(e) => e.target.style.display = 'none'}
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
+                          <span className="text-sm text-gray-400 font-bold">{token.symbol?.charAt(0) || '?'}</span>
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-white flex items-center gap-2">
+                          <span className="truncate">{token.symbol}</span>
+                          {fuelInfo.isFueled && (
+                            <div className="flex items-center space-x-0.5 px-0.5 py-0 bg-orange-900 border border-orange-500 rounded-full flex-shrink-0">
+                              <Flame className="w-1.5 h-1.5 text-orange-400" />
+                              <span className="text-orange-400 text-[9px] font-bold">
+                                {fuelInfo.multiplier}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-400 truncate">{token.name}</div>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="font-bold text-white font-mono">{formatPrice(isBonding ? token.priceUsd : (token.price || token.jupiterData?.price))}</div>
+                      <div className="flex items-center justify-end gap-2 mt-0.5">
+                        <span className={`text-xs font-semibold ${(token.priceChange1h || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {isBonding ? '-' : formatPercentage(token.priceChange1h || 0)}
+                        </span>
+                        <span className={`text-xs font-semibold ${(token.priceChange24h || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {isBonding ? '-' : formatPercentage(token.priceChange24h || 0)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <div className="px-2 py-1 bg-gray-800 rounded-full text-xs">
+                      <span className="text-gray-400">VOL </span>
+                      <span className="text-white font-semibold">{formatNumber(isBonding ? token.volume24h : (token.volume24h || 0))}</span>
+                    </div>
+                    <div className="px-2 py-1 bg-gray-800 rounded-full text-xs">
+                      <span className="text-gray-400">LIQ </span>
+                      <span className="text-white font-semibold">{formatNumber(isBonding ? token.liquidity : (token.liquidity || token.jupiterData?.liquidity || 0))}</span>
+                    </div>
+                    <div className="px-2 py-1 bg-gray-800 rounded-full text-xs">
+                      <span className="text-gray-400">MCAP </span>
+                      <span className="text-white font-semibold">{formatNumber(isBonding ? (token.marketCap || token.fullyDilutedValuation || 0) : (token.marketCap || token.jupiterData?.marketCap || token.jupiterData?.mcap || 0))}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-xs">
             <thead className="text-xs text-gray-400 uppercase bg-gray-800 sticky top-0 z-20">
               <tr className="border-b border-gray-700">
                 <th colSpan="12" className="px-2 py-2 text-left">
@@ -232,6 +319,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
             </tbody>
           </table>
         </div>
+
         {displayTokens.length === 0 && (
           <div className="flex items-center justify-center p-8">
             <div className="text-gray-400">No tokens available</div>
@@ -246,8 +334,63 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
     console.log('🎯 Rendering all bonding tokens UI with', displayTokens.length, 'tokens');
     return (
       <div className="w-full h-full overflow-y-auto bg-gray-900">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs md:text-xs" style={{ fontSize: '11px' }}>
+        {/* Mobile Card View */}
+        <div className="block md:hidden">
+          <div className="px-4 py-3 border-b border-gray-700 bg-gray-800/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-white font-bold text-sm">🏗️ Trenches</span>
+              </div>
+              {lastUpdate && (
+                <span className="text-xs text-gray-400 normal-case">
+                  Updated: {lastUpdate.toLocaleTimeString()}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="divide-y divide-gray-700">
+            {displayTokens.map((token, index) => {
+              try {
+                return (
+                  <div
+                    key={token?.contractAddress || index}
+                    className="p-3 hover:bg-gray-800/30 cursor-pointer transition-colors"
+                    onClick={() => onTokenSelect(token)}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        {token?.logo && (
+                          <img src={token.logo} alt={token.symbol || 'Token'} className="w-8 h-8 rounded-full flex-shrink-0" onError={(e) => e.target.style.display = 'none'} />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold text-white">{token?.symbol || 'Unknown'}</div>
+                          <div className="text-xs text-gray-400 truncate">{token?.name || 'N/A'}</div>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className="font-bold text-white font-mono">{formatPrice(token?.priceUsd || 0)}</div>
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <GraduationStatusBar 
+                        bondingProgress={token?.bondingCurveProgress || 0} 
+                        proximityLevel={token?.graduationProximity || 'FAR_FROM_GRADUATION'}
+                        compact={true}
+                      />
+                    </div>
+                  </div>
+                );
+              } catch (err) {
+                console.error('❌ Error rendering bonding token row:', err, token);
+                return null;
+              }
+            })}
+          </div>
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-xs" style={{ fontSize: '11px' }}>
             <thead className="text-xs text-gray-400 uppercase bg-gray-800 sticky top-0 z-20">
               <tr className="border-b border-gray-700">
                 <th colSpan="5" className="px-2 py-2 text-left">
@@ -315,6 +458,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
             </tbody>
           </table>
         </div>
+
         {displayTokens.length === 0 && (
           <div className="flex items-center justify-center p-8">
             <div className="text-gray-400">No bonding tokens available</div>
@@ -327,8 +471,93 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
   // Regular token UI with full columns (no bonding tokens)
   return (
     <div className="w-full h-full overflow-y-auto bg-gray-900">
-      {/* Table */}
-      <div className="overflow-x-auto">
+      {/* Mobile Card View */}
+      <div className="block md:hidden">
+        <div className="px-4 py-3 border-b border-gray-700 bg-gray-800/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-white font-bold text-sm">📊 Token Rankings</span>
+            </div>
+            {lastUpdate && (
+              <span className="text-xs text-gray-400 normal-case">
+                Updated: {lastUpdate.toLocaleTimeString()}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="divide-y divide-gray-700">
+          {displayTokens.map((token, index) => {
+            const fuelInfo = getFuelInfo(token.symbol);
+            
+            return (
+              <div
+                key={token.address || token.contractAddress || index}
+                className="p-3 hover:bg-gray-800/30 cursor-pointer transition-colors"
+                onClick={() => onTokenSelect(token)}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {token.jupiterData?.icon || token.logo ? (
+                      <img 
+                        src={token.jupiterData?.icon || token.logo} 
+                        alt={token.symbol} 
+                        className="w-8 h-8 rounded-full flex-shrink-0"
+                        onError={(e) => e.target.style.display = 'none'}
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
+                        <span className="text-sm text-gray-400 font-bold">{token.symbol?.charAt(0) || '?'}</span>
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold text-white flex items-center gap-2">
+                        <span className="truncate">{token.symbol}</span>
+                        {fuelInfo.isFueled && (
+                          <div className="flex items-center space-x-0.5 px-0.5 py-0 bg-orange-900 border border-orange-500 rounded-full flex-shrink-0">
+                            <Flame className="w-1.5 h-1.5 text-orange-400" />
+                            <span className="text-orange-400 text-[9px] font-bold">
+                              {fuelInfo.multiplier}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-400 truncate">{token.name}</div>
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="font-bold text-white font-mono">{formatPrice(token.price || token.jupiterData?.price)}</div>
+                    <div className="flex items-center justify-end gap-2 mt-0.5">
+                      <span className={`text-xs font-semibold ${(token.priceChange1h || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {formatPercentage(token.priceChange1h || 0)}
+                      </span>
+                      <span className={`text-xs font-semibold ${(token.priceChange24h || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {formatPercentage(token.priceChange24h || 0)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  <div className="px-2 py-1 bg-gray-800 rounded-full text-xs">
+                    <span className="text-gray-400">VOL </span>
+                    <span className="text-white font-semibold">{formatNumber(token.volume24h || 0)}</span>
+                  </div>
+                  <div className="px-2 py-1 bg-gray-800 rounded-full text-xs">
+                    <span className="text-gray-400">LIQ </span>
+                    <span className="text-white font-semibold">{formatNumber(token.liquidity || token.jupiterData?.liquidity || 0)}</span>
+                  </div>
+                  <div className="px-2 py-1 bg-gray-800 rounded-full text-xs">
+                    <span className="text-gray-400">MCAP </span>
+                    <span className="text-white font-semibold">{formatNumber(token.marketCap || token.jupiterData?.marketCap || token.jupiterData?.mcap || 0)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-xs table-fixed">
           <thead className="text-xs text-gray-400 uppercase bg-gray-800 sticky top-0 z-20">
             <tr className="border-b border-gray-700">
@@ -471,7 +700,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
           })}
           </tbody>
         </table>
-        </div>
+      </div>
 
       {/* Empty state */}
       {displayTokens.length === 0 && (
