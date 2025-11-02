@@ -104,6 +104,7 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
   // Simple bonding token UI with graduation bar
   if (isBondingTokens) {
     console.log('🎯 Rendering bonding tokens UI with', displayTokens.length, 'tokens');
+    console.log('🎯 First token sample:', displayTokens[0]);
     return (
       <div className="w-full h-full overflow-y-auto bg-gray-900">
         <div className="overflow-x-auto">
