@@ -6,10 +6,10 @@
 export default class EnhancedKOLTrustSystem {
   constructor() {
     this.config = {
-      // Performance weights
-      performanceWeight: 0.35,    // 35% - Overall profitability
-      consistencyWeight: 0.25,    // 25% - Reliability and consistency  
-      riskManagementWeight: 0.20, // 20% - Risk-adjusted returns
+      // Performance weights - FAVOR MEGA WINS OVER CONSISTENCY
+      performanceWeight: 0.50,    // 50% - Overall profitability (increased from 35%)
+      consistencyWeight: 0.15,    // 15% - Reliability and consistency (reduced from 25%)
+      riskManagementWeight: 0.15, // 15% - Risk-adjusted returns (reduced from 20%)
       marketTimingWeight: 0.20,   // 20% - Entry timing and market awareness
       
       // Performance thresholds - PnL-based hit rate
@@ -229,9 +229,12 @@ export default class EnhancedKOLTrustSystem {
       
       const currentMC = tokenData?.mcap || tokenData?.marketCap || call.currentMC || 0;
       const calledMC = call.calledMc || call.calledMC || 0;
-      const multiple = calledMC > 0 ? currentMC / calledMC : 0;
+      const athMC = call.athMC || call.athMultiplier * calledMC || currentMC;
       
-      return multiple;
+      // Use ATH multiple for consistency (not current) - we care if they HIT winners, not if they still hold
+      const athMultiple = calledMC > 0 ? athMC / calledMC : 0;
+      
+      return athMultiple;
     });
 
     // Calculate consistency metrics
@@ -293,21 +296,24 @@ export default class EnhancedKOLTrustSystem {
       };
     });
 
-    // Risk metrics
+    // Risk metrics - use MEDIAN drawdown instead of average (less affected by outliers)
+    const drawdowns = metrics.map(m => m.drawdown).sort((a, b) => a - b);
+    const medianDrawdown = drawdowns.length > 0 ? drawdowns[Math.floor(drawdowns.length / 2)] : 0;
     const avgDrawdown = metrics.reduce((sum, m) => sum + m.drawdown, 0) / metrics.length;
     const maxDrawdown = Math.max(...metrics.map(m => m.drawdown));
     const highDrawdownCalls = metrics.filter(m => m.drawdown > this.config.maxDrawdownPenalty).length;
     
-    // Risk score (lower drawdown = better, but be much more forgiving)
-    const riskScore = Math.max(0, 100 - (avgDrawdown * 50) - (maxDrawdown * 25) - (highDrawdownCalls * 2));
+    // Risk score - use MEDIAN drawdown (less punishing for mega winners) + cap maxDrawdown impact
+    const riskScore = Math.max(0, 100 - (medianDrawdown * 40) - (Math.min(maxDrawdown, 0.8) * 20) - (highDrawdownCalls * 3));
     
-    // Base risk score (minimum 15 points for having calls)
-    const baseRiskScore = 15;
+    // Base risk score (minimum 20 points for having calls - increased from 15)
+    const baseRiskScore = 20;
     
     // Bonus for good risk management (low drawdowns)
-    const lowDrawdownBonus = avgDrawdown < 0.1 ? 10 : avgDrawdown < 0.2 ? 5 : 0;
+    const lowDrawdownBonus = medianDrawdown < 0.1 ? 10 : medianDrawdown < 0.2 ? 5 : 0;
 
     console.log(`🔍 [Enhanced KOL Trust] Risk calculation:`, {
+      medianDrawdown: (medianDrawdown * 100).toFixed(1) + '%',
       avgDrawdown: (avgDrawdown * 100).toFixed(1) + '%',
       maxDrawdown: (maxDrawdown * 100).toFixed(1) + '%',
       highDrawdownCalls,
@@ -318,6 +324,7 @@ export default class EnhancedKOLTrustSystem {
 
     return {
       score: Math.min(100, Math.max(baseRiskScore, riskScore + lowDrawdownBonus)),
+      medianDrawdown: medianDrawdown * 100,
       avgDrawdown: avgDrawdown * 100,
       maxDrawdown: maxDrawdown * 100,
       highDrawdownCalls,
