@@ -807,12 +807,38 @@ function AppContent() {
 
       console.log('✅ Token imported:', data.message);
       
-      // Close modal and refresh tokens
+      // Close modal
       setShowJupiterSearch(false);
       setJupiterSearchResults([]);
-      setSuccessMessage(`🎉 ${jupiterToken.symbol} added successfully! Starting full workflow (Twitter → Scoring → gRPC)...`);
       
-      // Refresh tokens after a short delay
+      // Create a token object from Jupiter data to show immediately
+      const importedToken = {
+        contractAddress: jupiterToken.address || jupiterToken.mint || jupiterToken.id,
+        symbol: jupiterToken.symbol || 'UNKNOWN',
+        name: jupiterToken.name || jupiterToken.symbol || 'Unknown Token',
+        priceUsd: jupiterToken.usdPrice || jupiterToken.price || 0,
+        marketCap: jupiterToken.marketCap || jupiterToken.mcap || 0,
+        liquidity: jupiterToken.liquidity || 0,
+        jupiterData: {
+          price: jupiterToken.usdPrice || jupiterToken.price,
+          mcap: jupiterToken.marketCap || jupiterToken.mcap,
+          liquidity: jupiterToken.liquidity,
+          icon: jupiterToken.icon || jupiterToken.logoURI,
+          priceChange24h: jupiterToken.priceChange?.['24h'] || 0
+        },
+        logo: jupiterToken.icon || jupiterToken.logoURI,
+        // Mark as recently imported so we know it's still processing
+        isImporting: true,
+        stage: 'Processing'
+      };
+      
+      // Immediately show the token view with Jupiter data
+      setSelectedToken(importedToken);
+      setShowPreTokenDetail(false);
+      
+      setSuccessMessage(`✅ ${jupiterToken.symbol} added! Full data processing in background...`);
+      
+      // Refresh tokens in background
       setTimeout(() => {
         loadTokens();
       }, 2000);
@@ -1485,39 +1511,31 @@ function AppContent() {
         
         {/* Success/Error Notifications */}
         {(successMessage || error) && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+          <div className="fixed top-4 right-4 z-50 max-w-sm">
             {successMessage && (
-              <div className="bg-green-600 border border-green-500 text-white px-4 py-3 rounded-md mb-2 flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <span className="text-lg">🎉</span>
-                  <span className="font-medium">{successMessage}</span>
-                </div>
+              <div className="bg-green-600 border border-green-500 text-white px-4 py-3 rounded-lg shadow-lg mb-2 flex items-center justify-between animate-slide-in">
                 <div className="flex items-center space-x-2">
-                  <button
-                    onClick={handleRefresh}
-                    className="bg-green-700 hover:bg-green-800 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
-                  >
-                    🔄 Refresh Now
-                  </button>
-                  <button 
-                    onClick={() => setSuccessMessage(null)}
-                    className="text-green-200 hover:text-white text-lg font-bold"
-                    title="Dismiss notification"
-                  >
-                    ×
-                  </button>
+                  <span>✅</span>
+                  <span className="text-sm">{successMessage}</span>
                 </div>
+                <button 
+                  onClick={() => setSuccessMessage(null)}
+                  className="text-green-200 hover:text-white ml-3 text-lg font-bold"
+                  title="Dismiss notification"
+                >
+                  ×
+                </button>
               </div>
             )}
             {error && (
-              <div className="bg-red-600 border border-red-500 text-white px-4 py-3 rounded-md mb-2 flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <span className="text-lg">❌</span>
-                  <span className="font-medium">{error}</span>
+              <div className="bg-red-600 border border-red-500 text-white px-4 py-3 rounded-lg shadow-lg mb-2 flex items-center justify-between animate-slide-in">
+                <div className="flex items-center space-x-2">
+                  <span>❌</span>
+                  <span className="text-sm">{error}</span>
                 </div>
                 <button 
                   onClick={() => setError(null)}
-                  className="text-red-200 hover:text-white text-lg font-bold"
+                  className="text-red-200 hover:text-white ml-3 text-lg font-bold"
                   title="Dismiss notification"
                 >
                   ×

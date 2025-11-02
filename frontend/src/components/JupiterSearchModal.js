@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
 
 const JupiterSearchModal = ({ 
@@ -11,7 +11,31 @@ const JupiterSearchModal = ({
 }) => {
   const [failedImages, setFailedImages] = useState(new Set());
   
+  // Reset failed images when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setFailedImages(new Set());
+    }
+  }, [isOpen]);
+  
   if (!isOpen) return null;
+  
+  const handleClose = () => {
+    console.log('🔴 [Modal] Close button clicked');
+    onClose();
+  };
+  
+  const handleOverlayClick = (e) => {
+    console.log('🔴 [Modal] Overlay clicked');
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+  
+  const handleTokenClick = (token) => {
+    console.log('🟢 [Modal] Token clicked:', token.symbol);
+    onSelectToken(token);
+  };
 
   const formatNumber = (num) => {
     if (!num || num === 0) return '$0';
@@ -32,7 +56,7 @@ const JupiterSearchModal = ({
   return (
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-      onClick={onClose}
+      onClick={handleOverlayClick}
     >
       <div 
         className="bg-gray-900 border border-gray-700 rounded-lg w-full max-w-4xl max-h-[80vh] flex flex-col"
@@ -50,7 +74,7 @@ const JupiterSearchModal = ({
             </p>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-white transition-colors"
           >
             <X className="w-6 h-6" />
@@ -88,8 +112,12 @@ const JupiterSearchModal = ({
                 
                 return (
                 <button
-                  key={token.address || token.mint || index}
-                  onClick={() => onSelectToken(token)}
+                  key={token.address || token.mint || token.id || index}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleTokenClick(token);
+                  }}
                   className="w-full bg-gray-800 hover:bg-gray-750 border border-gray-700 rounded-lg p-4 transition-colors text-left"
                 >
                   <div className="flex items-center justify-between">
@@ -177,7 +205,7 @@ const JupiterSearchModal = ({
               {results.length > 0 ? `${results.length} token${results.length > 1 ? 's' : ''} found` : 'Click a token to add it to the system'}
             </p>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-md transition-colors"
             >
               Close
