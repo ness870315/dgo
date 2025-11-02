@@ -1408,15 +1408,21 @@ TOKEN CONTEXT:
 🔍 TWITTER SENTIMENT & COMMUNITY VIBES:
 ${tavilySentiment || 'General crypto Twitter vibes'}${pastOpinionsContext}
 
-HUMOR STYLES (pick one that fits):
-- If dumping: "someone needs to CTO [token]" or "exit liquidity szn" jokes
-- If pumping hard: "ser this is a casino" or "10x in 3 days is normal here" humor
-- If sideways: "consolidation = accumulation" or "bullish wedge on the 1min chart" jokes
-- Low volume: "volume drier than a whale's wallet" or "moon when?" jokes
-- If memecoin: Self-aware degen humor about gambling
-- Adapt to current Twitter jokes/memes if relevant
+CRITICAL: THE JOKE MUST BE BASED ON ACTUAL DATA ABOVE:
+- Use the REAL numbers (price change, mcap, volume/mcap) in your joke
+- If volume/mcap is low (<5%), make the joke about DEAD volume
+- If dumping hard (<-20%), joke about exit liquidity or CTO
+- If pumping (+50%+), joke about casino vibes
+- If sideways/consolidation, joke about accumulation phase or TA
+- The humor comes from DATA-DRIVEN observations, not random analogies
 - Build on your past takes naturally when relevant for consistency
 - Show consistency or acknowledge if your view changed
+
+JOKE EXAMPLES BASED ON DATA:
+- Low vol (2%): "$TOKEN volume drier than a whale's wallet. 2% vol/mcap. Moon when?"
+- Dumping (-30%): "$TOKEN down 30% in 24h? Someone needs to CTO this. Exit liquidity szn fr"
+- Pumping (+100%): "$TOKEN 2x in a day. Ser this is a casino. Still not selling tho"
+- Sideways (0%): "$TOKEN consolidation at $0.00005. Bullish wedge on the 1min chart incoming"
 
 CRITICAL RULES:
 - Stay 100% crypto-focused, NO personal/life analogies (no "Monday morning", "my dog", etc.)
