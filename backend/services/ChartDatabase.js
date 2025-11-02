@@ -155,7 +155,7 @@ class ChartDatabase {
                 tokenDb.swapCount = parsed.swapCount || 0;
                 tokenDb.lastWriteTime = parsed.lastUpdated || 0;
                 
-                console.log(`📚 [ChartDatabase] Loaded ${tokenDb.swaps.size} swaps from file for ${tokenAddress.substring(0, 8)}`);
+                // Loaded swaps from file (verbose logging disabled)
             }
         } catch (error) {
             if (error.code !== 'ENOENT') {
@@ -259,7 +259,7 @@ class ChartDatabase {
                 lastWriteTime: tokenDb.lastWriteTime
             });
             
-            console.log(`💾 [ChartDatabase] Token ${tokenAddress.substring(0,8)}: ${batch.length} swaps saved (total: ${tokenDb.swapCount})`);
+            // Quietly saved swaps (too verbose for production)
             
         } catch (error) {
             console.error(`❌ [ChartDatabase] Token ${tokenAddress.substring(0,8)} write failed:`, error.message);
@@ -310,7 +310,7 @@ class ChartDatabase {
             // Write to temporary file first
             try {
                 await fs.writeFile(tempFile, JSON.stringify(dataToSave, null, 2));
-                console.log(`📝 [ChartDatabase] Temp file written: ${tempFile} (${JSON.stringify(dataToSave).length} bytes)`);
+                // Temp file written (verbose logging disabled)
             } catch (writeError) {
                 console.error(`❌ [ChartDatabase] Failed to write temp file:`, writeError);
                 throw new Error(`Failed to write temp file: ${writeError.message}`);
@@ -470,7 +470,7 @@ class ChartDatabase {
             }
         }
         
-        console.log(`📝 [ChartDatabase] Queued ${swaps.length} swaps across ${swapsByToken.size} tokens`);
+        // Quietly queued swaps (too verbose for production)
     }
 
     /**
