@@ -18681,7 +18681,8 @@ Thanks for using x402 payments on Twitter! 🚀`;
       // Initialize Automated Token Cleanup
       console.log('🤖 Initializing Automated Token Cleanup...');
       try {
-        await this.automatedCleanup.initialize();
+        const chartDb = this.realTimeTokenMonitor?.hybridPriceService?.chartDatabase || this.enhancedHybridPriceService?.chartDatabase;
+        await this.automatedCleanup.initialize(this.realTimeTokenMonitor, chartDb);
         console.log('✅ Automated Token Cleanup initialized successfully');
       } catch (error) {
         console.error('❌ Automated Token Cleanup failed to initialize:', error.message);

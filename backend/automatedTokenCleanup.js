@@ -9,12 +9,16 @@ class AutomatedTokenCleanup {
     this.lastCleanup = null;
     this.cleanupInterval = 4 * 60 * 60 * 1000; // 4 hours
     this.logFile = path.join(process.env.DATA_DIR || '/var/data/dgo', 'logs', 'automated-cleanup.log');
+    this.realTimeMonitor = null;
+    this.chartDatabase = null;
   }
 
   /**
    * Initialize the automated cleanup system
    */
-  async initialize() {
+  async initialize(realTimeMonitor = null, chartDatabase = null) {
+    this.realTimeMonitor = realTimeMonitor;
+    this.chartDatabase = chartDatabase;
     try {
       // Ensure log directory exists
       const logDir = path.dirname(this.logFile);
@@ -93,7 +97,7 @@ class AutomatedTokenCleanup {
       });
 
       // Delete the CRITICAL tokens
-      const result = await this.cleanupService.deleteTokens(criticalTokens);
+      const result = await this.cleanupService.deleteTokens(criticalTokens, this.realTimeMonitor, this.chartDatabase);
       
       if (result) {
         const endTime = new Date();

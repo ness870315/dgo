@@ -218,7 +218,7 @@ class TokenCleanupService {
   /**
    * Delete tokens from the database
    */
-  async deleteTokens(tokensToDelete) {
+  async deleteTokens(tokensToDelete, realTimeMonitor = null, chartDatabase = null) {
     try {
       console.log(`🗑️ Deleting ${tokensToDelete.length} tokens...`);
       
@@ -235,6 +235,39 @@ class TokenCleanupService {
       );
       
       await fs.writeFile(cachePath, JSON.stringify(remainingTokens, null, 2));
+      
+      // ✅ NEW: Stop monitoring for deleted tokens
+      if (realTimeMonitor) {
+        for (const token of tokensToDelete) {
+          if (token.contractAddress) {
+            try {
+              await realTimeMonitor.removeToken(token.contractAddress);
+              console.log(`🛑 Stopped monitoring for deleted token: ${token.symbol} (${token.contractAddress.substring(0, 8)})`);
+            } catch (error) {
+              console.error(`❌ Failed to stop monitoring for ${token.symbol}:`, error.message);
+            }
+          }
+        }
+      }
+      
+      // ✅ NEW: Delete swap files for deleted tokens
+      if (chartDatabase) {
+        const chartsDir = path.join(this.dataDir, 'charts');
+        for (const token of tokensToDelete) {
+          if (token.contractAddress) {
+            try {
+              const swapFile = path.join(chartsDir, `swaps_${token.contractAddress}.json`);
+              await fs.unlink(swapFile);
+              console.log(`🗑️ Deleted swap file for ${token.symbol}: ${swapFile}`);
+            } catch (error) {
+              // File might not exist, that's ok
+              if (error.code !== 'ENOENT') {
+                console.error(`⚠️ Could not delete swap file for ${token.symbol}:`, error.message);
+              }
+            }
+          }
+        }
+      }
       
       console.log(`✅ Deleted ${tokensToDelete.length} tokens`);
       console.log(`📊 Remaining tokens: ${remainingTokens.length}`);
