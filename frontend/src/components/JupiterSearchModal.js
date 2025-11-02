@@ -101,27 +101,35 @@ const JupiterSearchModal = ({
                       </div>
 
                       {/* Market Data */}
-                      <div className="text-right flex-shrink-0">
+                      <div className="text-right flex-shrink-0 min-w-[200px]">
                         {token.extensions?.coingeckoId && (
                           <div className="text-sm font-medium text-solana-purple mb-1">
                             ✨ Verified
                           </div>
                         )}
-                        <div className="space-y-1">
-                          {token.priceUsd || token.price ? (
-                            <div className="text-white font-bold text-base">
-                              {formatPrice(token.priceUsd || token.price)}
-                            </div>
-                          ) : (
-                            <div className="text-gray-500 text-xs">Price: N/A</div>
-                          )}
-                          {token.marketCap || token.mcap ? (
-                            <div className="text-gray-300 text-xs">
-                              {formatNumber(token.marketCap || token.mcap)}
-                            </div>
-                          ) : (
-                            <div className="text-gray-500 text-xs">Mkt Cap: N/A</div>
-                          )}
+                        <div className="space-y-0.5">
+                          <div className="flex items-center justify-end gap-2">
+                            {token.usdPrice || token.price ? (
+                              <div className="text-white font-bold text-base">
+                                {formatPrice(token.usdPrice || token.price)}
+                              </div>
+                            ) : (
+                              <div className="text-gray-500 text-xs">Price: N/A</div>
+                            )}
+                            {token.priceChange?.['24h'] && (
+                              <span className={`text-xs font-medium ${
+                                token.priceChange['24h'] >= 0 ? 'text-green-400' : 'text-red-400'
+                              }`}>
+                                {token.priceChange['24h'] >= 0 ? '+' : ''}{token.priceChange['24h'].toFixed(2)}%
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-gray-300 text-xs">
+                            {token.marketCap || token.mcap ? formatNumber(token.marketCap || token.mcap) : 'Mkt Cap: N/A'}
+                          </div>
+                          <div className="text-gray-400 text-xs">
+                            Liq: {token.liquidity ? formatNumber(token.liquidity) : 'N/A'}
+                          </div>
                         </div>
                       </div>
                     </div>
