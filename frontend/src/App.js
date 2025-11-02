@@ -24,6 +24,7 @@ import AIStakingLandingPageSimple from './components/AIStakingLandingPageSimple'
 import AILiquidStakingRouter from './components/AILiquidStakingRouter';
 import PreTokenDetail from './components/PreTokenDetail';
 import JupiterWidget from './components/JupiterWidget';
+import JupiterSearchModal from './components/JupiterSearchModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { WalletContextProvider } from './contexts/WalletContext';
 import tokenService from './services/tokenService';
@@ -231,6 +232,12 @@ function AppContent() {
   const [showAIChat, setShowAIChat] = useState(false);
   const [chatPosition, setChatPosition] = useState(null);
   const [fueledTokens, setFueledTokens] = useState([]);
+  
+  // Jupiter search modal state
+  const [showJupiterSearch, setShowJupiterSearch] = useState(false);
+  const [jupiterSearchResults, setJupiterSearchResults] = useState([]);
+  const [jupiterSearchLoading, setJupiterSearchLoading] = useState(false);
+  const [pendingSearchTerm, setPendingSearchTerm] = useState('');
   
   // Handler for opening chat from floating button
   const handleOpenChat = () => {
@@ -773,6 +780,49 @@ function AppContent() {
     applyFiltersAndSearch(tokenData, newFilters, searchTerm);
   }, [tokens, bondingTokens, searchTerm, applyFiltersAndSearch, categoryFilters.trenches]);
 
+  // Handle Jupiter token selection
+  const handleJupiterTokenSelect = useCallback(async (jupiterToken) => {
+    console.log('🚀 Importing Jupiter token:', jupiterToken);
+    
+    try {
+      // Use the public add-free endpoint (same as admin dashboard)
+      const apiBase = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+      const response = await fetch(`${apiBase}/api/admin/tokens/add-free`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contractAddress: jupiterToken.address || jupiterToken.mint,
+          symbol: jupiterToken.symbol || 'UNKNOWN',
+          name: jupiterToken.name || jupiterToken.symbol || 'Unknown Token'
+        })
+      });
+
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to add token');
+      }
+
+      console.log('✅ Token imported:', data.message);
+      
+      // Close modal and refresh tokens
+      setShowJupiterSearch(false);
+      setJupiterSearchResults([]);
+      setSuccessMessage(`🎉 ${jupiterToken.symbol} added successfully! Starting full workflow (Twitter → Scoring → gRPC)...`);
+      
+      // Refresh tokens after a short delay
+      setTimeout(() => {
+        loadTokens();
+      }, 2000);
+      
+    } catch (error) {
+      console.error('❌ Failed to import Jupiter token:', error);
+      setError(`Failed to import ${jupiterToken.symbol}: ${error.message}`);
+    }
+  }, [loadTokens]);
+
   // Handle token selection
   const handleTokenSelect = useCallback((token) => {
     // If token is from ranking list (minimal data), find full token from cache
@@ -1156,6 +1206,50 @@ function AppContent() {
 
     return () => clearInterval(interval);
   }, [categoryFilters.trenches]); // Remove fetchBondingTokens from dependencies to prevent re-runs
+
+  // Jupiter search when local results are empty
+  useEffect(() => {
+    const performJupiterSearch = async () => {
+      // Only search if we have a search term, no results, and we're not already loading
+      if (!searchTerm || searchTerm.trim().length < 2) return;
+      if (filteredTokens.length > 0) return;
+      if (jupiterSearchLoading) return;
+      if (showJupiterSearch) return; // Already searched
+      
+      console.log(`🔍 No local results for "${searchTerm}", searching Jupiter...`);
+      setPendingSearchTerm(searchTerm);
+      setJupiterSearchLoading(true);
+      
+      try {
+        // Search Jupiter API
+        const response = await fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${encodeURIComponent(searchTerm)}`);
+        if (!response.ok) {
+          throw new Error(`Jupiter search failed: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const results = Array.isArray(data) ? data : (data.value || []);
+        
+        console.log(`🔍 Jupiter found ${results.length} results`);
+        setJupiterSearchResults(results);
+        setShowJupiterSearch(true);
+      } catch (error) {
+        console.error('❌ Jupiter search error:', error);
+        setError('Failed to search Jupiter API');
+      } finally {
+        setJupiterSearchLoading(false);
+      }
+    };
+
+    performJupiterSearch();
+  }, [filteredTokens.length, searchTerm, jupiterSearchLoading, showJupiterSearch]);
+
+  // Close Jupiter modal when search term changes or results appear
+  useEffect(() => {
+    if (filteredTokens.length > 0) {
+      setShowJupiterSearch(false);
+    }
+  }, [filteredTokens.length]);
 
   // Check for push notification support and show request
   // DISABLED: Push notifications are currently disabled
@@ -1647,6 +1741,19 @@ function AppContent() {
       
       {/* Floating Chat Button - Only for authenticated users */}
       <FloatingChatButton onOpenChat={handleOpenChat} />
+      
+      {/* Jupiter Search Modal */}
+      <JupiterSearchModal
+        isOpen={showJupiterSearch}
+        onClose={() => {
+          setShowJupiterSearch(false);
+          setJupiterSearchResults([]);
+        }}
+        searchTerm={pendingSearchTerm}
+        results={jupiterSearchResults}
+        isLoading={jupiterSearchLoading}
+        onSelectToken={handleJupiterTokenSelect}
+      />
       
       {/* Global Jupiter Widget */}
       <JupiterWidget selectedToken={selectedToken} />
