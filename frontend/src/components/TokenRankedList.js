@@ -144,8 +144,8 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                       onClick={() => onTokenSelect(token)}
                     >
                       <td className="px-2 py-2 font-medium text-gray-300">#{index + 1}</td>
-                      <td className="px-2 py-2">
-                        <div className="flex items-center gap-2">
+                      <td className="px-1 py-2">
+                        <div className="flex items-center gap-1">
                           {token?.logo && (
                             <img src={token.logo} alt={token.symbol || 'Token'} className="w-8 h-8 rounded-full" onError={(e) => e.target.style.display = 'none'} />
                           )}
@@ -155,10 +155,10 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFil
                           </div>
                         </div>
                       </td>
-                      <td className="px-2 py-2 text-right font-mono text-white">
+                      <td className="px-1 py-2 text-right font-mono text-white">
                         {formatPrice(token?.priceUsd || 0)}
                       </td>
-                      <td className="px-2 py-2 text-right font-medium text-white">
+                      <td className="px-1 py-2 text-right font-medium text-white">
                         {formatNumber(parseFloat(token?.marketCap || token?.fullyDilutedValuation || 0))}
                       </td>
                       <td className="px-2 py-2">
