@@ -428,11 +428,6 @@ class ChartDatabase {
             
             // Skip UNKNOWN swaps - they indicate a parsing error or deleted token
             if (tokenAddress === 'UNKNOWN') {
-                console.warn(`⚠️ [ChartDatabase] Skipping UNKNOWN swap - missing token data:`, {
-                    signature: swap.signature?.substring(0, 16),
-                    poolAddress: swap.poolAddress?.substring(0, 16),
-                    hasRawData: !!swap.rawData
-                });
                 continue;
             }
             
