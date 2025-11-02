@@ -589,9 +589,16 @@ function AppContent() {
       // Use bonding tokens instead of regular tokens
       let filtered = bondingTokens;
       
-      // Apply filters and sorting
+      // Apply filters
       filtered = tokenService.filterTokens(filtered, currentFilters);
-      filtered = tokenService.sortTokens(filtered, currentFilters.sortBy);
+      
+      // Sort by graduation progress (descending)
+      filtered = [...filtered].sort((a, b) => {
+        const progressA = a.bondingCurveProgress || 0;
+        const progressB = b.bondingCurveProgress || 0;
+        return progressB - progressA; // Descending - highest progress first
+      });
+      
       setFilteredTokens(filtered);
       return;
     }
