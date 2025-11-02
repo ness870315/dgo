@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Loader2 } from 'lucide-react';
 
 const JupiterSearchModal = ({ 
@@ -18,24 +18,24 @@ const JupiterSearchModal = ({
     }
   }, [isOpen]);
   
-  if (!isOpen) return null;
-  
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     console.log('🔴 [Modal] Close button clicked');
     onClose();
-  };
+  }, [onClose]);
   
-  const handleOverlayClick = (e) => {
+  const handleOverlayClick = useCallback((e) => {
     console.log('🔴 [Modal] Overlay clicked');
     if (e.target === e.currentTarget) {
       onClose();
     }
-  };
+  }, [onClose]);
   
-  const handleTokenClick = (token) => {
+  const handleTokenClick = useCallback((token) => {
     console.log('🟢 [Modal] Token clicked:', token.symbol);
     onSelectToken(token);
-  };
+  }, [onSelectToken]);
+  
+  if (!isOpen) return null;
 
   const formatNumber = (num) => {
     if (!num || num === 0) return '$0';
