@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Flame } from 'lucide-react';
 
-const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
+const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect, categoryFilters }) => {
   const [rankings, setRankings] = useState([]);
   const [lastUpdate, setLastUpdate] = useState(null);
 
@@ -43,12 +43,43 @@ const TokenRankedList = ({ tokens, fueledTokens = [], onTokenSelect }) => {
     return { isFueled: false, multiplier: null };
   };
 
-  // ✅ Use tokens prop directly (already filtered by category in App.js)
+  // ✅ Fetch real-time rankings and merge with category-filtered tokens
   useEffect(() => {
-    if (tokens && tokens.length > 0) {
-      setRankings(tokens);
-      setLastUpdate(new Date());
-    }
+    const fetchAndMergeRankings = async () => {
+      try {
+        const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://api.degen-oracle.com';
+        const response = await fetch(`${API_BASE}/api/tokens/ranking/realtime`);
+        const data = await response.json();
+        
+        if (data.success && data.data && data.data.length > 0) {
+          // ✅ Merge ranking data with filtered tokens
+          const filteredRankings = data.data.filter(rankedToken => {
+            // Check if ranked token is in our filtered tokens list
+            const address = rankedToken.contractAddress || rankedToken.tokenAddress;
+            return tokens.some(filteredToken => 
+              (filteredToken.contractAddress || filteredToken.tokenAddress) === address
+            );
+          });
+          
+          // Preserve the ranking order from the API (sorted by Overall Score)
+          setRankings(filteredRankings);
+          setLastUpdate(new Date());
+        } else {
+          // Fallback to tokens prop if API fails
+          if (tokens && tokens.length > 0) {
+            setRankings(tokens);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching rankings:', err);
+        // Fallback to tokens prop on error
+        if (tokens && tokens.length > 0) {
+          setRankings(tokens);
+        }
+      }
+    };
+    
+    fetchAndMergeRankings();
   }, [tokens]);
 
   const displayTokens = rankings.length > 0 ? rankings : tokens;

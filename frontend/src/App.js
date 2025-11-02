@@ -1099,8 +1099,18 @@ function AppContent() {
 
   const handleCategoryFiltersChange = useCallback((newCategoryFilters) => {
     setCategoryFilters(newCategoryFilters);
-    applyFiltersAndSearch(tokens, filters, searchTerm);
-  }, [tokens, filters, searchTerm, applyFiltersAndSearch]);
+    // Re-apply filters with the NEW category filters
+    if (newCategoryFilters.trenches) {
+      const filtered = tokenService.filterTokens(bondingTokens, filters);
+      const sorted = tokenService.sortTokens(filtered, filters.sortBy);
+      setFilteredTokens(sorted);
+    } else {
+      let filtered = tokenService.filterTokens(tokens, filters);
+      filtered = applyCategoryFilters(filtered, newCategoryFilters);
+      filtered = tokenService.sortTokens(filtered, filters.sortBy);
+      setFilteredTokens(filtered);
+    }
+  }, [tokens, filters, applyCategoryFilters, bondingTokens]);
 
   // Load data on component mount
   useEffect(() => {
@@ -1543,7 +1553,7 @@ function AppContent() {
                     tokens={filteredTokens}
                     fueledTokens={fueledTokens}
                     onTokenSelect={handleTokenSelect}
-                    isTrenchesFilter={categoryFilters.trenches}
+                    categoryFilters={categoryFilters}
                   />
                 )
               ) : (
