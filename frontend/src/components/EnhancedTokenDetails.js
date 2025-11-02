@@ -484,12 +484,12 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
               <div className="col-span-12 lg:col-span-5 flex flex-col gap-4 h-full">
                 
                 {/* CENTER-UP: Price Chart (Decoupled) */}
-                <div className="flex-1 bg-gray-800 rounded-lg overflow-hidden min-h-0">
+                <div className="flex-1 bg-gray-800 rounded-lg overflow-hidden" style={{ minHeight: '400px' }}>
                   <SVGChart token={token} onClose={onClose} />
                 </div>
 
                 {/* CENTER-DOWN: Swap Table (Decoupled) */}
-                <div className="flex-1 bg-gray-800 rounded-lg p-4 overflow-y-auto min-h-0">
+                <div className="flex-1 bg-gray-800 rounded-lg p-4 overflow-y-auto" style={{ minHeight: '300px' }}>
                   <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
                     <BarChart3 className="w-5 h-5" />
                     Swap History
@@ -498,33 +498,18 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
                 </div>
               </div>
 
-              {/* RIGHT COLUMN - Split vertically into 3 sections */}
+              {/* RIGHT COLUMN - Split vertically into 2 sections */}
               <div className="col-span-12 lg:col-span-4 flex flex-col gap-4 h-full">
                 
                 {/* RIGHT-UP: Jupiter Integrated Plugin */}
-                <div className="flex-1 bg-gray-800 rounded-lg p-4 overflow-hidden min-h-0">
+                <div className="flex-1 bg-gray-800 rounded-lg p-4 overflow-hidden" style={{ minHeight: '400px' }}>
                   <h3 className="text-white font-semibold mb-4">Swap Token</h3>
-                  <div className="h-full">
-                    <JupiterSwapWidget token={token} />
-                  </div>
+                  <JupiterSwapWidget token={token} />
                 </div>
 
-                {/* RIGHT-MIDDLE: Social Links */}
-                <div className="bg-gray-800 rounded-lg p-4 flex-shrink-0">
-                  <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-                    <Twitter className="w-5 h-5" />
-                    Social Links
-                  </h3>
-                  <SocialLinks token={token} />
-                </div>
-
-                {/* RIGHT-BOTTOM: Social Activity (Bubblemaps) */}
-                <div className="flex-1 bg-gray-800 rounded-lg p-4 overflow-hidden min-h-[300px]">
-                  <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-                    <Users className="w-5 h-5" />
-                    Holder Distribution
-                  </h3>
-                  <BubblemapsIframe token={token} />
+                {/* RIGHT-BOTTOM: Black Section (Placeholder) */}
+                <div className="flex-1 bg-black rounded-lg" style={{ minHeight: '300px' }}>
+                  {/* Reserved for future content */}
                 </div>
               </div>
             </div>
@@ -565,59 +550,90 @@ const EnhancedTokenDetails = ({ token, fueledTokens = [], onClose, onTokenUpdate
   );
 };
 
-// Jupiter Swap Widget Component
+// Jupiter Swap Widget Component - Using Official Plugin
 const JupiterSwapWidget = ({ token }) => {
   const [isLoaded, setIsLoaded] = useState(false);
-  const widgetRef = React.useRef(null);
 
   useEffect(() => {
-    if (!window.Jupiter) {
-      const script = document.createElement('script');
-      script.src = 'https://quote-api.jup.ag/v6/script.js';
-      script.async = true;
-      script.onload = () => setIsLoaded(true);
-      script.onerror = () => console.error('Failed to load Jupiter script');
-      document.body.appendChild(script);
-    } else {
-      setIsLoaded(true);
+    // Check if script already exists
+    if (document.querySelector('script[src="https://plugin.jup.ag/plugin-v1.js"]')) {
+      if (window.Jupiter) {
+        setIsLoaded(true);
+      }
+      return;
     }
+
+    // Load Jupiter Plugin script
+    const script = document.createElement('script');
+    script.src = 'https://plugin.jup.ag/plugin-v1.js';
+    script.async = true;
+    script.defer = true;
+    script.setAttribute('data-preload', '');
+    script.onload = () => {
+      // Wait a bit for Jupiter to be available
+      const checkJupiter = setInterval(() => {
+        if (window.Jupiter) {
+          setIsLoaded(true);
+          clearInterval(checkJupiter);
+        }
+      }, 100);
+      
+      // Timeout after 5 seconds
+      setTimeout(() => {
+        clearInterval(checkJupiter);
+        if (!window.Jupiter) {
+          console.error('Jupiter plugin failed to load');
+        }
+      }, 5000);
+    };
+    script.onerror = () => {
+      console.error('Failed to load Jupiter plugin script');
+    };
+    document.head.appendChild(script);
   }, []);
 
   useEffect(() => {
-    if (!isLoaded || !window.Jupiter || !token?.contractAddress || !widgetRef.current) return;
+    if (!isLoaded || !window.Jupiter || !token?.contractAddress) return;
 
     try {
-      widgetRef.current.innerHTML = '';
+      // Initialize Jupiter Plugin with integrated mode
       window.Jupiter.init({
-        displayMode: "default",
-        endpoint: "https://quote-api.jup.ag/v6",
+        displayMode: "integrated",
+        integratedTargetId: "jupiter-plugin",
         formProps: {
-          initialInputMint: "So11111111111111111111111111111111111111112",
+          initialInputMint: "So11111111111111111111111111111111111111112", // SOL
           initialOutputMint: token.contractAddress,
           swapMode: "ExactIn",
         },
         containerStyles: {
           width: "100%",
-          height: "100%",
         },
-        containerClassName: "jupiter-embedded-widget"
+        containerClassName: "jupiter-plugin-container"
       });
     } catch (error) {
-      console.error("Error initializing Jupiter widget:", error);
+      console.error("Error initializing Jupiter plugin:", error);
     }
+
+    // Cleanup on unmount
+    return () => {
+      if (window.Jupiter && window.Jupiter.close) {
+        try {
+          window.Jupiter.close();
+        } catch (e) {
+          console.error('Error closing Jupiter:', e);
+        }
+      }
+    };
   }, [isLoaded, token?.contractAddress]);
 
-  if (!isLoaded) {
-    return (
-      <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-        Loading Jupiter swap widget...
-      </div>
-    );
-  }
-
   return (
-    <div ref={widgetRef} id="jupiter-embedded-widget" className="w-full h-full">
-      {/* Jupiter will inject content here */}
+    <div className="w-full h-full" style={{ minHeight: '350px' }}>
+      {!isLoaded && (
+        <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+          Loading Jupiter swap widget...
+        </div>
+      )}
+      <div id="jupiter-plugin" className="w-full h-full"></div>
     </div>
   );
 };
