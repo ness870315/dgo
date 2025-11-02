@@ -120,8 +120,12 @@ const JupiterSearchModal = ({
                             <span className="text-gray-400 text-sm truncate">{token.name}</span>
                           )}
                         </div>
-                        <p className="text-xs text-gray-500 font-mono truncate">
-                          {token.address || token.mint}
+                        <p className="text-xs text-gray-400 font-mono">
+                          {(() => {
+                            const addr = token.address || token.mint || token.id;
+                            if (!addr) return 'N/A';
+                            return `${addr.substring(0, 8)}...${addr.substring(addr.length - 8)}`;
+                          })()}
                         </p>
                       </div>
 
